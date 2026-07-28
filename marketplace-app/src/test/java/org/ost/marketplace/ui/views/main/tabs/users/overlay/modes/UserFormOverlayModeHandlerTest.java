@@ -6,12 +6,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;
-import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
+import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.audit.spi.AuditPort;
@@ -24,6 +26,7 @@ import java.lang.reflect.Method;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,14 +44,14 @@ class UserFormOverlayModeHandlerTest {
     @Mock private NotificationService notificationService;
     @Mock private UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
     @Mock private ComponentFactory<AuditPort> auditPortFactory;
-    @Mock private UiComponentFactory<AuditActivityPanel> auditActivityPanelFactory;
+    @Mock private EntityActivityOverlay entityActivityOverlay;
 
     private UserFormOverlayModeHandler handler;
 
     @BeforeEach
     void setUp() {
         handler = new UserFormOverlayModeHandler(userPort, mapper, access, i18nService, notificationService,
-                formBinderFactory, auditPortFactory, auditActivityPanelFactory);
+                formBinderFactory, auditPortFactory, entityActivityOverlay);
     }
 
     @Test
@@ -58,6 +61,7 @@ class UserFormOverlayModeHandlerTest {
         when(access.getCurrentUserId()).thenReturn(42L);
         when(access.isPrivileged()).thenReturn(false);
         when(access.canOperate(99L)).thenReturn(true);
+        when(i18nService.get(any(I18nKey.class))).thenReturn("Activity");
 
         handler.configure(UserFormOverlayModeHandler.Parameters.builder()
                 .user(subject)
@@ -65,12 +69,13 @@ class UserFormOverlayModeHandlerTest {
                 .onCancel(() -> {})
                 .build());
 
-        Method buildActivityContent = UserFormOverlayModeHandler.class.getDeclaredMethod("buildActivityContent");
-        buildActivityContent.setAccessible(true);
-        buildActivityContent.invoke(handler);
+        Method buildHistoryButton = UserFormOverlayModeHandler.class.getDeclaredMethod("buildHistoryButton");
+        buildHistoryButton.setAccessible(true);
+        UiIconButton historyButton = (UiIconButton) buildHistoryButton.invoke(handler);
+        historyButton.click();
 
-        ArgumentCaptor<AuditActivityPanel.Parameters> captor = ArgumentCaptor.forClass(AuditActivityPanel.Parameters.class);
-        verify(auditActivityPanelFactory).build(captor.capture());
+        ArgumentCaptor<EntityActivityOverlay.Parameters> captor = ArgumentCaptor.forClass(EntityActivityOverlay.Parameters.class);
+        verify(entityActivityOverlay).openFor(captor.capture());
 
         assertThat(captor.getValue().getUserId())
                 .as("activity panel must filter by the viewer's id, not the profile subject's id")

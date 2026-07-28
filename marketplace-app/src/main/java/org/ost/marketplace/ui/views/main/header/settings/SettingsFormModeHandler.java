@@ -28,7 +28,9 @@ import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.core.Configurable;
 import org.springframework.context.annotation.Scope;
@@ -55,7 +57,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private final AccessEvaluator                                   access;
     private final UiComponentFactory<OverlayFormBinder<SettingsEditDto>> formBinderFactory;
     private final ComponentFactory<AuditPort>                           auditPortFactory;
-    private final SettingsActivityOverlay                                settingsActivityOverlay;
+    private final EntityActivityOverlay                                  entityActivityOverlay;
 
     private Parameters       params;
     private IntegerField     adsPageSizeField;
@@ -119,8 +121,17 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private UiIconButton buildHistoryButton() {
         UiIconButton historyBtn = new UiIconButton(getValue(SETTINGS_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
         historyBtn.addClassName("settings-history-button");
-        historyBtn.addClickListener(_ -> settingsActivityOverlay.openFor(
-                params.getUserId(), true, true, params.getOnCancel(), this::handleRestoreFromActivity));
+        historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.USER_SETTINGS, params.getUserId()))
+                .userId(params.getUserId())
+                .isPrivileged(true)
+                .canOperate(true)
+                .outerLabelKey(HEADER_HOME)
+                .parentLabelKey(SETTINGS_SECTION_TITLE)
+                .currentLabelKey(SETTINGS_ACTIVITY_BUTTON)
+                .onCloseToOuter(params.getOnCancel())
+                .onRestoreRequested(this::handleRestoreFromActivity)
+                .build()));
         return historyBtn;
     }
 

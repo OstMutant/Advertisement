@@ -416,15 +416,15 @@ test.describe('Seed data and query validation', () => {
 
     // ── history is a nested overlay now, not a tab: breadcrumb chain Home / Settings / Activity ─
     await openHistory(page);
-    await expect(page.locator('.settings-activity-breadcrumb-home')).toBeVisible();
-    await expect(page.locator('.settings-activity-breadcrumb-settings')).toBeVisible();
-    await expect(page.locator('.settings-activity-close-button')).toBeVisible();
+    await expect(page.locator('.entity-activity-breadcrumb-outer')).toBeVisible();
+    await expect(page.locator('.entity-activity-breadcrumb-parent')).toBeVisible();
+    await expect(page.locator('.entity-activity-close-button')).toBeVisible();
     // exactly one separator between each of the 3 segments -- catches a doubled-up "›" regression
-    await expect(page.locator('.settings-activity-overlay .overlay__breadcrumb-sep')).toHaveCount(2);
-    await expect(page.locator('.settings-activity-overlay .overlay__breadcrumb')).not.toContainText('››');
-    await expect(page.locator('.settings-activity-overlay .entity-activity-list .entity-activity-row').first())
+    await expect(page.locator('.entity-activity-overlay .overlay__breadcrumb-sep')).toHaveCount(2);
+    await expect(page.locator('.entity-activity-overlay .overlay__breadcrumb')).not.toContainText('››');
+    await expect(page.locator('.entity-activity-overlay .entity-activity-list .entity-activity-row').first())
       .toBeVisible({ timeout: 5000 });
-    const firstActivityRow = page.locator('.settings-activity-overlay .entity-activity-list .entity-activity-row').first();
+    const firstActivityRow = page.locator('.entity-activity-overlay .entity-activity-list .entity-activity-row').first();
     await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /Ads per page|Оголошень/i }).first()).toBeVisible();
     await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /Users per page|Користувач/i }).first()).toBeVisible();
     await screenshot(page, 'settings-activity-after-change');
@@ -454,12 +454,12 @@ test.describe('Seed data and query validation', () => {
     await expect(page.locator('.settings-overlay .overlay__breadcrumb')).not.toContainText('››');
     await openHistory(page);
     await restoreLatestFromActivity(page);
-    await expect(page.locator('.settings-activity-overlay.overlay--visible')).toBeHidden();
+    await expect(page.locator('.entity-activity-overlay.overlay--visible')).toBeHidden();
     await expect(page.locator('.settings-overlay-content')).toBeVisible();
     await screenshotThenClose(page, 'settings-restored');
 
     await openHistory(page);
-    const activityCount = await page.locator('.settings-activity-overlay .entity-activity-list .entity-activity-row').count();
+    const activityCount = await page.locator('.entity-activity-overlay .entity-activity-list .entity-activity-row').count();
     expect(activityCount).toBeGreaterThanOrEqual(2);
     await screenshot(page, 'settings-activity-after-restore');
     // closing via the breadcrumb back-link uncovers Settings again (other path than the X above)

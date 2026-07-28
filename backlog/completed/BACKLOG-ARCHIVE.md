@@ -1440,3 +1440,21 @@ surfaced an unrelated, pre-existing timing fragility in `runSubmitLoginFlow`
 `ui.getPage().reload()` on login (not an in-place push update) under sandbox load. Root-caused via
 repeated full-suite runs (zero server-side exceptions any run, different unrelated failure each
 time) before fixing (wait for `networkidle`, 15s timeout).
+
+✅ Done (2026-07-28): improvement-128 — Activity/restore panel redesign, filed and fully completed
+the same day. The 1-content-tab + 1-Activity-tab pattern (`buildContentWithActivity()`) didn't
+generalize past one content tab, surfaced while planning improvement-124's 3-tab Account overlay.
+Replaced with one shared `EntityActivityOverlay` (`ui/views/components/audit/`) — a stacked nested
+overlay, not a tab, with a real multi-segment breadcrumb (`Home`/list-view label / form-section
+label / current) via new `OverlayLayout.setBreadcrumbLinks()`. Piloted on Settings first (own
+`SettingsActivityOverlay`, later deleted once generalized), then rolled out to Advertisement,
+Taxon, City, and User the same day, deleting `AbstractFormOverlayModeHandler`'s dead tab machinery
+once all five callers migrated. Two real bugs caught by the user testing the running app mid-pilot
+(X wired to the wrong target; a doubled/uneven breadcrumb separator) and one real bug caught by an
+explicit stale-CSS-reference sweep before the final rollout run (`.settings-activity-*` classes
+still referenced after Settings moved onto the generic component). Full rationale, both correction
+rounds, and the rollout details: `marketplace-app/DECISIONS.md` ADR-067,
+`completed/issues/improvement-128-activity-restore-panel-redesign.md`. Verified (final, full
+rollout): `unit-tests.sh` 77/77, `integration-tests.sh --sandbox` 133/133 (no schema/repository
+changes — pure UI refactor), Playwright `e2e --full --ux` 50/50. Unblocks improvement-124, which
+can now call `EntityActivityOverlay.openFor()` directly for its Account overlay's 2 history icons.

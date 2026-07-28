@@ -1,5 +1,6 @@
 const { screenshot, assertComputedColor, assertRightAligned } = require('../_helpers');
 const { closeNotification } = require('../_helpers');
+const { openEntityActivity, closeEntityActivity } = require('./entity-activity.flow');
 
 // Expected computed colors per role -- must match user-grid.css's role badge colors exactly.
 const ROLE_COLOR = {
@@ -9,6 +10,7 @@ const ROLE_COLOR = {
 };
 
 async function closeUserOverlay(page) {
+  await closeEntityActivity(page);
   await page.locator('.user-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first()
@@ -88,6 +90,7 @@ async function runSaveUserEditFlow(page, expect, role) {
 }
 
 async function closeUserOverlayFromEdit(page) {
+  await closeEntityActivity(page);
   await page.locator('.user-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first().click();
@@ -101,9 +104,7 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   await runSaveUserEditFlow(page, expect, role);
 
   // Check activity in EDIT overlay — v2 updated + v1 created
-  await page.locator('.user-overlay vaadin-tab').filter({ hasText: /Activity|Активність/i }).click();
-  const activityList = page.locator('.user-overlay .entity-activity-list');
-  await activityList.waitFor({ timeout: 5000 });
+  const activityList = await openEntityActivity(page, '.user-history-button');
   await expect(activityList.locator('.entity-activity-row')).toHaveCount(2, { timeout: 5000 });
 
   const row0 = activityList.locator('.entity-activity-row').nth(0);
@@ -135,6 +136,7 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   await screenshot(page, `user-management-promoted-${role.toLowerCase()}-edit-activity`);
 
   // EDIT → VIEW
+  await closeEntityActivity(page);
   await page.locator('.user-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first().click();

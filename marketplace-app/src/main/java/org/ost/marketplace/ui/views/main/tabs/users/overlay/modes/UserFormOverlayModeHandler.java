@@ -17,7 +17,7 @@ import org.ost.platform.user.model.Role;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
+import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;
@@ -65,7 +65,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private final NotificationService                                   notificationService;
     private final UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
     private final ComponentFactory<AuditPort>                        auditPortFactory;
-    private final UiComponentFactory<AuditActivityPanel>             auditActivityPanelFactory;
+    private final EntityActivityOverlay                              entityActivityOverlay;
 
     private Parameters params;
     @Getter
@@ -110,22 +110,33 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div editContent = new Div(fieldsCard);
+        layout.setContent(editContent);
 
-        Div content = buildContentWithActivity(ActivityTabParams.builder()
-                .canOperate(access.canOperate(params.getUser().id()))
-                .isCreateMode(false)
-                .editTabLabel(getValue(USER_DIALOG_SECTION_LABEL))
-                .activityTabLabel(getValue(USER_ACTIVITY_TAB))
-                .tabsCssClass("user-form-tabs")
-                .secondaryContentCssClass("activity-feed-content")
-                .editContent(editContent)
-                .auditPortFactory(auditPortFactory)
-                .activityContentLoader(this::buildActivityContent)
-                .build());
-
-        layout.setContent(content);
-        layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
+        Div headerActions = new Div(saveButton, discardButton);
+        boolean canOperate = access.canOperate(params.getUser().id());
+        if (canOperate) {
+            auditPortFactory.findIfAvailable().ifPresent(_ -> headerActions.add(buildHistoryButton()));
+        }
+        headerActions.add(closeBtn);
+        layout.setHeaderActions(headerActions);
         updateButtons(false);
+    }
+
+    private UiIconButton buildHistoryButton() {
+        UiIconButton historyBtn = new UiIconButton(getValue(USER_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
+        historyBtn.addClassName("user-history-button");
+        historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.USER, params.getUser().id()))
+                .userId(access.getCurrentUserId())
+                .isPrivileged(access.isPrivileged())
+                .canOperate(access.canOperate(params.getUser().id()))
+                .outerLabelKey(MAIN_TAB_USERS)
+                .parentLabelKey(USER_DIALOG_SECTION_LABEL)
+                .currentLabelKey(USER_ACTIVITY_BUTTON)
+                .onCloseToOuter(params.getOnCancel())
+                .onRestoreRequested(this::handleRestoreFromActivity)
+                .build()));
+        return historyBtn;
     }
 
     public boolean save() {
@@ -145,17 +156,6 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         });
         notificationService.success(FORM_RESTORE_BANNER);
         updateButtons(true);
-        if (formTabs != null) formTabs.setSelectedTab(editTab);
-    }
-
-    private com.vaadin.flow.component.Component buildActivityContent() {
-        return auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
-                .entityRef(new EntityRef(EntityType.USER, params.getUser().id()))
-                .userId(access.getCurrentUserId())
-                .isPrivileged(access.isPrivileged())
-                .canOperate(access.canOperate(params.getUser().id()))
-                .onRestoreRequested(this::handleRestoreFromActivity)
-                .build());
     }
 
     private void handleRestoreFromActivity(Long snapshotId) {
@@ -181,13 +181,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     }
 
     public void afterSave(boolean success) {
-        if (success) {
-            updateButtons(false);
-            if (formTabs != null) formTabs.setSelectedTab(editTab);
-            if (tabbedSecondaryContent != null) tabbedSecondaryContent.removeAll();
-        } else {
-            updateButtons(true);
-        }
+        updateButtons(!success);
     }
 
     private void updateButtons(boolean hasChanges) {

@@ -1,4 +1,5 @@
 const { expect } = require('@playwright/test');
+const { openEntityActivity, closeEntityActivity, restoreFromEntityActivity } = require('./entity-activity.flow');
 
 // Opens settings overlay, sets both page size fields, and saves.
 async function changePageSizes(page, adsSize, usersSize) {
@@ -14,37 +15,22 @@ async function changePageSizes(page, adsSize, usersSize) {
     .filter({ hasText: /зберегти|save/i }).click();
 }
 
-// Opens the Settings history overlay (a nested overlay stacked on top of the already-open
-// Settings overlay, not a tab) via the header history icon. Requires Settings to be open already.
+// Opens the Settings history overlay -- thin Settings-specific wrapper over the shared
+// entity-activity helper (Settings uses the same EntityActivityOverlay as every other domain now).
 async function openHistory(page) {
-  await page.locator('.settings-history-button').click();
-  await page.locator('.settings-activity-overlay.overlay--visible').waitFor({ timeout: 5000 });
+  return openEntityActivity(page, '.settings-history-button');
 }
 
-// Closes the history overlay. Breadcrumb chain is Home / Settings / Activity(current); X behaves
-// like the "Settings" link -- both go back to the screen history was opened from, not Home.
-// `via: 'settings'` (default) and `via: 'x'` land back on Settings (never actually closed
-// underneath). `via: 'home'` is the one path that exits all the way out. No path changes any data
-// (read-only panel).
+// Closes the history overlay. `via: 'settings'` (default) and `via: 'x'` both go back to Settings;
+// `via: 'home'` exits all the way out. Maps onto the shared helper's generic 'parent'/'x'/'outer'.
 async function closeHistory(page, via = 'settings') {
-  const selector = {
-    x: '.settings-activity-close-button',
-    settings: '.settings-activity-breadcrumb-settings',
-    home: '.settings-activity-breadcrumb-home',
-  }[via];
-  await page.locator(selector).click();
-  await page.locator('.settings-activity-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
-  if (via === 'home') {
-    await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
-  }
+  const mapped = { settings: 'parent', x: 'x', home: 'outer' }[via];
+  await closeEntityActivity(page, mapped);
 }
 
-// Inside an open history overlay, clicks the first restore button. Restoring stages the values
-// into the Settings form and closes the history overlay by itself (no separate close() call
-// needed) -- this then explicitly saves the staged values, same two-step contract as before.
+// Restores the first history entry, then saves the staged values -- same two-step contract as before.
 async function restoreLatestFromActivity(page) {
-  await page.locator('.settings-activity-overlay .entity-activity-list .entity-activity-restore-btn').first().click();
-  await page.locator('.settings-activity-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
+  await restoreFromEntityActivity(page);
   await expect(
     page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i })
   ).toBeEnabled({ timeout: 5000 });

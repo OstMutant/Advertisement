@@ -13,8 +13,8 @@
     flex-direction: column;
 }
 
-/* nested overlay stacked on top of an already-open one (e.g. Settings Activity) */
-.settings-activity-overlay.overlay--visible {
+/* nested history overlay stacked on top of an already-open entity overlay */
+.entity-activity-overlay.overlay--visible {
     z-index: 101;
 }
 

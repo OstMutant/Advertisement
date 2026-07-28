@@ -7,6 +7,7 @@ async function waitForOverlay(page, timeout = 10000) {
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList, deleteAllGalleryItems } = require('./_flows/advertisement.flow');
 const { runCreateSimpleAdvertisementFlow } = require('./_flows/delete.flow');
+const { closeEntityActivity } = require('./_flows/entity-activity.flow');
 const { openTimelineTab, openTimelineFilter, closeTimelineFilter, fillEntityType, assertFeedHasRow, assertTimelineHasRows } = require('./_flows/timeline.flow');
 const { waitForLightboxOpen, waitForLightboxClosed, getIframeSrc, clickLightboxThumb, getVideoSrc, isVideoWrapperVisible, waitForVideoWrapperVisible, waitForMainImageVisible } = require('./_flows/attachment.flow');
 const { loginBulk, logoutBulk } = require('./_flows/seed.flow');
@@ -586,6 +587,7 @@ test.describe('Max-content advertisement boundary', () => {
     });
 
     await test.step('view reflects saved state with full 10-item gallery', async () => {
+      await closeEntityActivity(page);
       await overlay.locator('vaadin-button')
         .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
         .first().click();
@@ -672,6 +674,7 @@ test.describe('Max-content advertisement boundary', () => {
     });
 
     await test.step('view reflects saved state with full 10-item gallery', async () => {
+      await closeEntityActivity(page);
       await overlay.locator('vaadin-button')
         .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
         .first().click();

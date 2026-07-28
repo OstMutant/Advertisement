@@ -52,17 +52,17 @@ triggered. One continuous piece of work, not three separate issues (an earlier s
 was paired to land first, since F-04 is the first new snapshot-bearing domain since improvement-002
 was filed — **improvement-002 completed 2026-07-28**, see `completed/BACKLOG-ARCHIVE.md`.
 improvement-118 remains at the bottom (blocked, not actionable — needs a public URL this sandbox
-doesn't have). **improvement-128 filed 2026-07-28**, promoted to sole top priority ahead of
-improvement-124 — while planning improvement-124's Part 2 (unified "My Account" overlay, 3 content
-tabs across 2 backing entities), the existing 1-content-tab + 1-Activity-tab pattern
-(`buildContentWithActivity()`) was found not to generalize past one content tab. **Settings pilot
-implemented and verified the same day** (stacked nested overlay replaces the Activity tab — see
-`marketplace-app/DECISIONS.md` ADR-067); the other four overlays and the Account overlay rollout
-remain, so the issue stays open/top-priority rather than moving to completed.
+doesn't have). **improvement-128 filed and completed 2026-07-28** (same day — pilot on Settings,
+then rolled out to Advertisement/Taxon/City/User) — the old 1-content-tab + 1-Activity-tab pattern
+(`buildContentWithActivity()`) is fully replaced by one shared `EntityActivityOverlay` (stacked
+nested overlay, not a tab) across all five domains; see `marketplace-app/DECISIONS.md` ADR-067 and
+`completed/issues/improvement-128-activity-restore-panel-redesign.md`. improvement-124 is now sole
+top priority, unblocked, and can reuse `EntityActivityOverlay` directly for its Account overlay's
+2 history icons.
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **Top** | 🟡 | 128 → 124 | improvement-128 — Settings pilot done (nested-overlay history/restore, ADR-067); still open for the other four overlays (Advertisement/Taxon/City/User) and deciding whether/how to extract a shared reusable component before or during that rollout. Then F-04/improvement-124 — one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) merging provider-facing fields (`ProviderKind` MASTER/SHOP/SUPPORT) with locale/settings decoupled out of `user_information`, plus the unified "My Account" overlay (name + settings + provider profile in one place, narrower moderator edit permissions, using improvement-128's now-verified nested-overlay pattern for its 2 history icons) — its own snapshot DTO must follow improvement-002's `schemaVersion` pattern |
+| **Top** | 🟡 | 124 | F-04/improvement-124 — one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) merging provider-facing fields (`ProviderKind` MASTER/SHOP/SUPPORT) with locale/settings decoupled out of `user_information`, plus the unified "My Account" overlay (name + settings + provider profile in one place, narrower moderator edit permissions, reusing improvement-128's `EntityActivityOverlay` for its 2 history icons) — its own snapshot DTO must follow improvement-002's `schemaVersion` pattern |
 | Nice to have | — | 073 → 035, 096, 036, 039, 065, 114, 063, 028 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |

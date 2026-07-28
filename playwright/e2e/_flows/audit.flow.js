@@ -1,6 +1,7 @@
 const { screenshot } = require('../_helpers');
 const { runOpenUserEditViaListFlow, runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter } = require('./user-management.flow');
 const { openHistory, closeHistory } = require('./settings.flow');
+const { openEntityActivity } = require('./entity-activity.flow');
 
 async function runOpenSettingsFlow(page) {
   await page.locator('.header-settings-button').click();
@@ -55,9 +56,7 @@ async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, 
   await screenshot(page, `${screenshotName}-defaults`);
 
   // history is a nested overlay stacked over Settings now, not a tab inside it
-  await openHistory(page);
-  const activityList = page.locator('.settings-activity-overlay .entity-activity-list');
-  await activityList.waitFor({ timeout: 5000 });
+  const activityList = await openHistory(page);
   await expect(activityList.locator('.entity-activity-row')).toHaveCount(1, { timeout: 5000 });
   const row = activityList.locator('.entity-activity-row').nth(0);
   await expect(row.locator('.entity-activity-action')).toContainText(/created|створено/i);
@@ -76,8 +75,8 @@ async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, 
 // Caller must navigate to Users tab before calling this
 async function runVerifyUserAuditActivityFlow(page, expect, email, { screenshotName, rows }) {
   await runOpenUserEditViaListFlow(page, email);
-  await page.locator('.user-overlay vaadin-tab').filter({ hasText: /activity|активність/i }).click();
-  await runVerifyEntityActivityFlow(page, expect, page.locator('.user-overlay'), { screenshotName, rows });
+  await openEntityActivity(page, '.user-history-button');
+  await runVerifyEntityActivityFlow(page, expect, page.locator('.entity-activity-overlay'), { screenshotName, rows });
 
   await closeUserOverlay(page);
   await clearUserFilter(page);

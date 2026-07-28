@@ -196,6 +196,151 @@ is the natural next step — but
 defer designing that helper until the Settings experiment proves the interaction pattern itself is
 right.
 
+## Rollout plan — Advertisement / Taxon / City / User (2026-07-28)
+
+Grounded by reading all four `*FormOverlayModeHandler` classes plus `AbstractFormOverlayModeHandler`,
+`AdvertisementOverlay`/`TaxonOverlay`/`CityOverlay`/`UserOverlay`, and the full Playwright surface
+that touches Activity tabs, before writing this plan.
+
+**Verified: all four handlers share the exact same shape** `SettingsFormModeHandler` had before
+the pilot — `buildContentWithActivity(ActivityTabParams...)`, a `buildActivityContent()` supplier,
+`handleRestoreFromActivity()` + `loadRestored()` (stages values, `formTabs.setSelectedTab(editTab)`),
+and `afterSave()` resetting `formTabs`/`tabbedSecondaryContent`. Per-domain differences are only:
+`EntityType` (`ADVERTISEMENT`/`TAXON`/`TAXON` again for City — reuses `TaxonType.CITY`, same
+`EntityType.TAXON`/`USER`), the restore DTO type, `isPrivileged`/`canOperate` computation (Taxon/City
+hardcode `access.isPrivileged()`; User/Advertisement use `access.canOperate(ownerId)`), and whether
+a create-mode with no history exists yet (Advertisement/Taxon/City yes, User no — never created via
+this overlay).
+
+**Verified: each domain's own overlay breadcrumb link is not literally "Home"** —
+`AdvertisementOverlay`/`TaxonOverlay`/`CityOverlay`/`UserOverlay.getBreadcrumbLabelKey()` return
+`MAIN_TAB_ADVERTISEMENTS`/`MAIN_TAB_REFERENCE_DATA`/`MAIN_TAB_REFERENCE_DATA`/`MAIN_TAB_USERS`
+respectively — only Settings' own outer link happens to be `HEADER_HOME`. The generic component
+below must take the outer label as a parameter, not hardcode it.
+
+### Decision: build one shared, generic `EntityActivityOverlay`, retire `SettingsActivityOverlay`
+
+Per this issue's own "after the experiment validates" question — yes, extract a shared component
+now rather than hand-rolling 4 more `XxxActivityOverlay` classes. One `@SpringComponent @UIScope`
+singleton, registered once in `HeaderBar` (reachable from every domain regardless of which routed
+View is currently showing, exactly like `SettingsActivityOverlay`/`SettingsOverlay` today), reused
+by all five domains including a retrofitted Settings.
+
+`ui/views/components/audit/EntityActivityOverlay.java` (next to `AuditActivityPanel`):
+```java
+@Value @Builder
+public static class Parameters {
+    @NonNull EntityRef   entityRef;
+    @NonNull Long        userId;
+    boolean               isPrivileged;
+    boolean               canOperate;
+    @NonNull I18nKey      outerLabelKey;    // e.g. MAIN_TAB_ADVERTISEMENTS, HEADER_HOME for Settings
+    @NonNull I18nKey      parentLabelKey;   // e.g. ADVERTISEMENT_OVERLAY_SECTION_BASIC, SETTINGS_SECTION_TITLE
+    @NonNull I18nKey      currentLabelKey;  // e.g. a reused "*_ACTIVITY_BUTTON" key per domain
+    @NonNull Runnable     onCloseToOuter;   // == params.getOnCancel() of the calling FormOverlayModeHandler
+    @NonNull LongConsumer onRestoreRequested;
+}
+public void openFor(@NonNull Parameters p) { ... }
+```
+Internals mirror `SettingsActivityOverlay` exactly (breadcrumb chain `[outer, parent]` via
+`OverlayLayout.setBreadcrumbLinks()`, X closes to `parentLabelKey`'s target — i.e. `closeToParent()`
+— same "X = screen that opened this" rule verified for Settings; only the breadcrumb's `outerLink`
+exits all the way via `onCloseToOuter`), just parameterized instead of Settings-hardcoded. CSS
+classes become domain-agnostic (`entity-activity-overlay`, `entity-activity-close-button`,
+`entity-activity-breadcrumb-outer`, `entity-activity-breadcrumb-parent`) since only one instance is
+ever open — no per-domain CSS class needed for the overlay chrome itself (only the *opening* icon
+button in each `*FormModeHandler`'s header keeps its own domain-specific class, e.g.
+`advertisement-history-button`, for Playwright scoping when needed).
+
+**`SettingsActivityOverlay.java` is deleted**; `SettingsFormModeHandler` switches to injecting
+`EntityActivityOverlay` and building `Parameters` with `outerLabelKey(HEADER_HOME)`,
+`parentLabelKey(SETTINGS_SECTION_TITLE)`, `entityRef(EntityType.USER_SETTINGS, userId)`. This is
+the first, lowest-risk proof that the generalized component behaves identically to the pilot before
+touching the other four domains.
+
+### Per-domain wiring (same shape for all four, in this order: Taxon, City, Advertisement, User)
+
+For each `*FormOverlayModeHandler`:
+- Remove `buildContentWithActivity(ActivityTabParams...)` call — `layout.setContent(editContent)`
+  unconditionally (mirrors Settings' `activate()` change).
+- Add a history icon button to `layout.setHeaderActions(...)`, guarded by
+  `auditPortFactory.findIfAvailable()` **and** the same `canOperate`/`isCreateMode` condition
+  `ActivityTabParams` used to gate on (a create-mode Taxon/City/Advertisement has no history yet —
+  don't show the button at all, not just an empty panel).
+- `buildActivityContent()` deleted; its `AuditActivityPanel.Parameters` fields move into the
+  `EntityActivityOverlay.Parameters` builder at the click-listener call site.
+- `handleRestoreFromActivity()` stays (still owns the restore-DTO-building logic per domain) but is
+  now the `onRestoreRequested` callback passed to `EntityActivityOverlay.openFor()`, exactly like
+  Settings' `this::handleRestoreFromActivity`.
+- `loadRestored()`: drop the `formTabs.setSelectedTab(editTab)` line.
+- `afterSave()`: drop the `formTabs`/`tabbedSecondaryContent` reset lines.
+- Breadcrumb labels: reuse each domain's own existing "section label" key as `parentLabelKey`
+  (`ADVERTISEMENT_OVERLAY_SECTION_BASIC`-equivalent, `TAXON_OVERLAY_SECTION_LABEL`,
+  `CITY_OVERLAY_SECTION_LABEL`, `USER_DIALOG_SECTION_LABEL` — verify exact key name per class
+  during implementation, same reuse pattern Settings used for `SETTINGS_SECTION_TITLE`) and each
+  domain's `*Overlay.getBreadcrumbLabelKey()` value as `outerLabelKey`. `currentLabelKey`: reuse
+  the domain's existing `*_ACTIVITY_TAB`/`*_TAB_ACTIVITY` key's **value** but a renamed constant
+  (`ADVERTISEMENT_ACTIVITY_BUTTON`, `TAXON_ACTIVITY_BUTTON`, `CITY_ACTIVITY_BUTTON`, already-shared
+  `USER_ACTIVITY_TAB`→`USER_ACTIVITY_BUTTON`), same rename-not-reuse-in-place reasoning as
+  `SETTINGS_ACTIVITY_TAB`→`SETTINGS_ACTIVITY_BUTTON`.
+
+### Cleanup once all five domains are migrated
+
+- `AbstractFormOverlayModeHandler`: delete `buildTabbedContent()`, `buildContentWithActivity()`,
+  `ActivityTabParams`, and the now-unused `tabbedSecondaryContent`/`formTabs`/`editTab` protected
+  fields — verify zero remaining callers first.
+- CSS: delete `.advertisement-form-tabs`(or whatever the real class is)/`.taxon-form-tabs`/
+  `.city-form-tabs`/`.user-form-tabs` rules and the `.activity-feed-content` tab-pane class if
+  nothing else references it (verify per class before deleting, same discipline as
+  `.user-view-tabs` in the pilot).
+- i18n: delete the four old `*_ACTIVITY_TAB`/`*_TAB_ACTIVITY` keys and their EN/UK strings once
+  renamed (not just left dangling).
+
+### Playwright — extract a shared flow file, this is the largest part of the rollout
+
+Verified surface (file:line, current tab-based mechanics):
+- `_flows/advertisement.flow.js:97-98` — `openActivityTab(overlay)`, the central helper, ~15
+  internal call sites plus 3 more from `04-marketplace-advertisement-flow.spec.js` and 1 from
+  `03-marketplace-promotion-flow.spec.js`.
+- `03-marketplace-promotion-flow.spec.js` — inline `vaadin-tab` clicks for Taxon/City (lines 339,
+  399, 482) and User (lines 193, 207, 542, 560).
+- `_flows/audit.flow.js:79` (`runVerifyUserAuditActivityFlow`) and
+  `_flows/user-management.flow.js:104` — both User overlay activity-tab clicks.
+
+Per the project's helper-organization rule ("extract to a shared file only when two or more flow
+files need the same helper") — this now clearly qualifies: create
+`_flows/entity-activity.flow.js` with `openEntityActivity(page, openButtonSelector)` /
+`closeEntityActivity(page, via)` (`via: 'outer' | 'parent' | 'x'`, mirroring `settings.flow.js`'s
+`closeHistory` shape but generalized) / helpers returning the same `activityList` locator shape
+existing call sites already destructure, so assertion bodies (`.entity-activity-restore-btn`
+counts, etc.) don't need rewriting, only the "how do you get to the list" part. Repoint
+`advertisement.flow.js`'s `openActivityTab`, the inline `vaadin-tab` clicks in spec 03, and
+`audit.flow.js`/`user-management.flow.js`'s User overlay clicks to the new shared helper. Add
+matching `closeEntityActivity` calls wherever a test currently relies on `formTabs.setSelectedTab`
+happening implicitly after save/restore (search for `.entity-activity-restore-btn` click sites
+immediately followed by a Save-button click, mirroring the pilot's `restoreLatestFromActivity`
+fix). Re-run the exact same "no doubled `›`" / separator-count regression assertions added for
+Settings against at least one multi-word-breadcrumb domain (Advertisement or Taxon) to confirm the
+generalized component doesn't regress the CSS fix.
+
+### Verification
+
+Same bar as the pilot: `unit-tests.sh`, `integration-tests.sh --sandbox` (no schema change expected
+— confirm), full Playwright `e2e --full --ux`. Given the size of this rollout, expect to hit and
+fix real issues along the way (per this session's pattern with the pilot) rather than a clean
+first pass — root-cause and fix in the same run per the project's autopilot convention, don't stop
+to ask.
+
+### Once this rollout is done
+
+`AbstractEntityOverlay`/`BaseOverlay` still won't need changes for improvement-124's Account
+overlay case (2 backing entities, 3 content tabs) — `EntityActivityOverlay` is already generic
+over `EntityRef`, so the Account overlay just calls `openFor()` twice (once scoped to
+`EntityType.USER`, once to `EntityType.ACTOR_PROFILE`) with its own two history icon buttons. Move
+this issue to `backlog/completed/issues/` once Advertisement/Taxon/City/User are done and verified
+— improvement-128's full scope (redesign + pilot + rollout) will be complete; improvement-124
+picks up the now-proven pattern from there.
+
 ## Related
 
 - [improvement-124](improvement-124-provider-profile.md) — the "My Account" overlay whose Part 2
@@ -259,11 +404,60 @@ verified.
   reproduce on a clean rerun, confirmed unrelated to this change (different domain, different
   overlay, no code path in common).
 
-**Not done yet (tracked, this issue stays open):** Advertisement, Taxon, City, and User overlays
-still use the old tab-paired Activity pattern; `AbstractFormOverlayModeHandler`'s shared
-`buildTabbedContent()`/`buildContentWithActivity()` are unchanged. Whether the other four overlays
-get the same `SettingsActivityOverlay`-shaped treatment, and whether a shared, `EntityRef`-
-parameterized reusable component should be extracted before or during that rollout, is the next
-decision — informed by this pilot now having a working, verified reference implementation to copy
-from. improvement-124's Account overlay (2 backing entities, 3 content tabs) is the harder case
-this pilot was meant to de-risk; not started.
+## Resolution — full rollout (2026-07-28, same day as the pilot)
+
+Rolled out to Advertisement, Taxon, City, and User, completing this issue's full scope. Full
+design rationale and the bugs found along the way are recorded in `marketplace-app/DECISIONS.md`
+ADR-067's "Update" section — this section summarizes what changed and how it was verified.
+
+**Decision made before starting the rollout:** extract one shared, generic `EntityActivityOverlay`
+(`ui/views/components/audit/`) rather than copy `SettingsActivityOverlay` four more times.
+`SettingsActivityOverlay` was deleted; Settings itself was retrofitted onto the shared component
+first (cheapest possible proof the generalization didn't regress the pilot), then Taxon, City,
+Advertisement, and User followed the same shape: remove the `Tabs`/`buildContentWithActivity()`
+call, add a history icon button gated by `auditPortFactory.findIfAvailable()` +
+`canOperate`/`!isCreateMode`, wire `EntityActivityOverlay.Parameters` with that domain's own
+`EntityType`, `outerLabelKey` (that domain's own `*Overlay.getBreadcrumbLabelKey()`), and
+`parentLabelKey` (that domain's own form section label).
+
+**Corrected along the way:** the pilot's "X always means exit to Home" framing only held for
+Settings by coincidence (its own outer breadcrumb link genuinely is `HEADER_HOME`) — every other
+domain's outer link is its own list-view label (`MAIN_TAB_ADVERTISEMENTS`, etc.), so
+`EntityActivityOverlay`'s two breadcrumb links (`outerLabelKey`, `parentLabelKey`) are both
+supplied per call site, never hardcoded.
+
+**Cleanup once all five domains were migrated:** `AbstractFormOverlayModeHandler`'s
+`buildTabbedContent()`/`buildContentWithActivity()`/`ActivityTabParams`/`tabbedSecondaryContent`/
+`formTabs`/`editTab` deleted (verified zero remaining callers first) — the base class is now a
+handful of lines. Dead i18n keys (`*_ACTIVITY_TAB`/`*_TAB_ACTIVITY`/`*_OVERLAY_TAB_EDIT`) and dead
+tab-pane wrapper CSS (`.activity-feed-content`, `.entity-activity-content`) removed.
+
+**Playwright:** new shared `_flows/entity-activity.flow.js` (`openEntityActivity`/
+`closeEntityActivity`/`restoreFromEntityActivity`), deliberately idempotent on close since tracking
+"did an earlier step already close it" by hand across ~30 call sites proved too error-prone during
+the rewrite. `settings.flow.js` simplified to thin wrappers over the shared helper.
+`advertisement.flow.js`'s existing `openActivityTab(overlay)` kept its name/signature unchanged
+(derives `page` via `overlay.page()`), so its many internal and 3 external (spec 04) call sites
+needed no changes beyond the function body. Spec 03's Taxon/City/User inline tab-clicks and
+`user-management.flow.js`/`audit.flow.js`'s User overlay activity checks all repointed.
+
+**Real bug caught by an explicit stale-reference sweep before running the suite** (done per
+explicit mid-rollout instruction, not just relying on compile+test): `audit.flow.js` and the
+pilot's own `05-seed-filter-sort-pagination.spec.js` still referenced the old
+`.settings-activity-*` CSS classes after Settings moved onto the generic component's
+`.entity-activity-*` classes — CSS/selector typos don't fail a build, only a deliberate grep sweep
+catches them. Both fixed before the final verification run.
+
+**Verified (full rollout, all five domains):**
+- `unit-tests.sh`: 77/77.
+- `integration-tests.sh --sandbox`: 133/133 (no schema/repository changes — pure UI refactor).
+- Playwright `e2e --full --ux`: 50/50, including every Advertisement/Taxon/City/User
+  activity-diff/restore scenario in specs 03 and 04, plus the pilot's own Settings scenario in
+  spec 05 and the accessibility spec (new icon-only history buttons across all five domains have
+  proper `aria-label`s).
+
+**improvement-124's Account overlay** (2 backing entities, 3 content tabs) can now reuse
+`EntityActivityOverlay` directly — call `openFor()` twice (once scoped to `EntityType.USER`, once
+to `EntityType.ACTOR_PROFILE`) with two history icon buttons; no further generalization of the
+overlay/breadcrumb infrastructure needed. This issue's full scope (redesign + pilot + rollout) is
+complete.

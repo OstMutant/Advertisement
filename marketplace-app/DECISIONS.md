@@ -3034,9 +3034,9 @@ helpers in `_helpers.js`. Re-verified after the rename: unit-tests 77/77, integr
 
 ---
 
-## ADR-067: Settings history/restore moved from an "Activity" tab to a stacked nested overlay (improvement-128 experiment)
+## ADR-067: Activity/restore moved from an "Activity" tab to a stacked nested overlay (improvement-128)
 
-**Status:** Accepted (Settings only — one-domain experiment, not yet rolled out further)
+**Status:** Accepted, rolled out to all five domains (Settings, Advertisement, Taxon, City, User)
 
 **Context:** Every existing overlay (Advertisement, Taxon, City, User, Settings) pairs its one
 content tab with an "Activity" tab (`AbstractFormOverlayModeHandler.buildContentWithActivity()` /
@@ -3136,3 +3136,69 @@ found by manually exercising the feature, not by inspection:
    assertions on separator count (`toHaveCount(2)`) and absence of a doubled `››` substring, for
    both the multi-link (history overlay) and single-link (Settings itself) cases. Re-verified:
    unit-tests 77/77 (no Java logic changed by the CSS fix), Playwright `e2e --full --ux` 50/50.
+
+**Update (2026-07-28, same day): rolled out to Advertisement, Taxon, City, User — one shared,
+generic component, not five near-duplicate classes.** Per this ADR's own pilot-stage question
+("does this need a shared helper before rolling out further?") — yes. `SettingsActivityOverlay`
+(the Settings-only class from the pilot) was deleted; a single `EntityActivityOverlay`
+(`ui/views/components/audit/`, `@SpringComponent @UIScope`, registered once in `HeaderBar` since
+it must be reachable regardless of which routed View is currently showing) now backs all five
+domains, parameterized via a `Parameters` builder (`entityRef`, `userId`, `isPrivileged`,
+`canOperate`, `outerLabelKey`, `parentLabelKey`, `currentLabelKey`, `onCloseToOuter`,
+`onRestoreRequested`) instead of Settings-hardcoded values.
+
+**One correction to the pilot's own stated rule, caught by reading each domain's actual
+`*Overlay.getBreadcrumbLabelKey()` before generalizing:** the pilot's ADR text said "X always
+means exit to Home" — true only by coincidence for Settings, whose own outer breadcrumb link
+really is `HEADER_HOME`. Every other domain's own overlay breadcrumb says something else
+(`AdvertisementOverlay`/`TaxonOverlay`/`CityOverlay`/`UserOverlay.getBreadcrumbLabelKey()` return
+`MAIN_TAB_ADVERTISEMENTS`/`MAIN_TAB_REFERENCE_DATA`/`MAIN_TAB_REFERENCE_DATA`/`MAIN_TAB_USERS`).
+`EntityActivityOverlay`'s breadcrumb chain is genuinely two independently-labeled links —
+`outerLabelKey` (exits all the way, e.g. back to the Advertisements list) and `parentLabelKey`
+(one level up, back to the form overlay this was opened from) — supplied per call site, not a
+single hardcoded "Home" concept.
+
+**New, small, additive infrastructure for the multi-link breadcrumb —
+`OverlayLayout.setBreadcrumbLinks(List<Component>)`** (existing `setBreadcrumbButton(Component)`
+now delegates to it as the 1-link case) and a matching `EntityOverlaySupport.createLayout
+(List<Component>)` overload. No existing single-link overlay's call site or behavior changed.
+
+**`AbstractFormOverlayModeHandler` — dead tab machinery deleted once all five callers migrated:**
+`buildTabbedContent()`, `buildContentWithActivity()`, `ActivityTabParams`, and the
+`tabbedSecondaryContent`/`formTabs`/`editTab` protected fields are gone — verified zero remaining
+callers first. Every `*FormOverlayModeHandler` now does `layout.setContent(...)` unconditionally
+and adds a history icon button (`.advertisement-history-button` / `.taxon-history-button` /
+`.city-history-button` / `.user-history-button` / `.settings-history-button`) to `headerActions`,
+guarded by the same `auditPortFactory.findIfAvailable()` + `canOperate`/`!isCreateMode` condition
+`ActivityTabParams` used to gate on. Also deleted: the now-orphaned `*_ACTIVITY_TAB`/
+`*_TAB_ACTIVITY` i18n keys (renamed to `*_ACTIVITY_BUTTON`, same rename-not-reuse-in-place
+reasoning as the pilot), `*_OVERLAY_TAB_EDIT` keys (the "Edit" tab label, meaningless once there's
+no tab), and the `.activity-feed-content`/`.entity-activity-content` tab-pane wrapper CSS rules.
+
+**Playwright — extracted `_flows/entity-activity.flow.js`, the shared helper this ADR's pilot
+section deferred designing.** `openEntityActivity(page, buttonSelector)` /
+`closeEntityActivity(page, via)` (`'parent'`/`'x'`/`'outer'`) / `restoreFromEntityActivity(page,
+index)`. `closeEntityActivity` is deliberately idempotent (no-op if the overlay isn't open) —
+discovered necessary mid-rollout: several verification helpers (`assertSingleCurrentBadge`,
+`assertLatestActivityVersion` in `advertisement.flow.js`) needed to leave the overlay closed
+behind them regardless of what the calling test does next, and tracking "did the previous step
+already close it" by hand across ~30 call sites was too error-prone — an idempotent close made
+every call site correct regardless of ordering. `settings.flow.js` (the pilot's own helpers) was
+simplified to thin thin wrappers over the shared helper once Settings itself moved onto
+`EntityActivityOverlay` — it no longer duplicates the open/close/restore logic.
+`advertisement.flow.js`'s existing `openActivityTab(overlay)` kept its old name/signature
+(deriving `page` via `overlay.page()`) so its ~15 internal call sites and 3 external ones (spec 04)
+needed no changes beyond the function body itself.
+
+**A real, separate bug caught only by explicitly checking for stale references before running
+the suite (per direct user instruction mid-rollout):** `_flows/audit.flow.js` and the pilot's own
+`05-seed-filter-sort-pagination.spec.js` still referenced the deleted `.settings-activity-*` CSS
+classes (`.settings-activity-overlay`, `.settings-activity-close-button`,
+`.settings-activity-breadcrumb-home/-settings`) after Settings was retrofitted onto the generic
+`EntityActivityOverlay`'s `.entity-activity-*` classes — both fixed before running. A useful
+confirmation that a "check for duplicate/stale references" pass is worth doing explicitly on any
+change that renames a shared CSS contract, not just a compile-and-run pass (CSS class typos don't
+fail a build).
+
+**Verified (full rollout, all five domains):** unit-tests 77/77, integration-tests --sandbox
+133/133 (no schema/repository changes — pure UI refactor), Playwright `e2e --full --ux` 50/50.

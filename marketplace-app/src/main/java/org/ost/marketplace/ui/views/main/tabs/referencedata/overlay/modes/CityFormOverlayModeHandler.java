@@ -18,7 +18,7 @@ import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.dto.CityEditDto;
-import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
+import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
@@ -77,7 +77,7 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
     private final ComponentFactory<AuditPort>                              auditPortFactory;
     private final NotificationService                                      notificationService;
     private final UiComponentFactory<OverlayFormBinder<CityEditDto>>       formBinderFactory;
-    private final UiComponentFactory<AuditActivityPanel>                   auditActivityPanelFactory;
+    private final EntityActivityOverlay                                    entityActivityOverlay;
 
     private Parameters params;
     @Getter private Long savedCityId;
@@ -148,21 +148,32 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div editContent = new Div(fieldsCard);
+        layout.setContent(editContent);
 
-        Div content = buildContentWithActivity(ActivityTabParams.builder()
-                .canOperate(true)
-                .isCreateMode(params.getMode() == Mode.CREATE)
-                .editTabLabel(getValue(CITY_OVERLAY_TAB_EDIT))
-                .activityTabLabel(getValue(CITY_OVERLAY_TAB_ACTIVITY))
-                .tabsCssClass("city-form-tabs")
-                .secondaryContentCssClass("activity-feed-content")
-                .editContent(editContent)
-                .auditPortFactory(auditPortFactory)
-                .activityContentLoader(this::buildActivityContent)
-                .build());
-        layout.setContent(content);
-        layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
+        Div headerActions = new Div(saveButton, discardButton);
+        if (params.getMode() != Mode.CREATE) {
+            auditPortFactory.findIfAvailable().ifPresent(_ -> headerActions.add(buildHistoryButton()));
+        }
+        headerActions.add(closeBtn);
+        layout.setHeaderActions(headerActions);
         updateButtons(false);
+    }
+
+    private UiIconButton buildHistoryButton() {
+        UiIconButton historyBtn = new UiIconButton(getValue(CITY_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
+        historyBtn.addClassName("city-history-button");
+        historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.TAXON, params.getCity().getId()))
+                .userId(access.getCurrentUserId())
+                .isPrivileged(access.isPrivileged())
+                .canOperate(access.isPrivileged())
+                .outerLabelKey(MAIN_TAB_REFERENCE_DATA)
+                .parentLabelKey(CITY_OVERLAY_SECTION_LABEL)
+                .currentLabelKey(CITY_ACTIVITY_BUTTON)
+                .onCloseToOuter(params.getOnCancel())
+                .onRestoreRequested(this::handleRestoreFromActivity)
+                .build()));
+        return historyBtn;
     }
 
     public boolean save() {
@@ -193,23 +204,7 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
     }
 
     public void afterSave(boolean success) {
-        if (success) {
-            updateButtons(false);
-            if (formTabs != null) formTabs.setSelectedTab(editTab);
-            if (tabbedSecondaryContent != null) tabbedSecondaryContent.removeAll();
-        } else {
-            updateButtons(true);
-        }
-    }
-
-    private com.vaadin.flow.component.Component buildActivityContent() {
-        return auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
-                .entityRef(new EntityRef(EntityType.TAXON, params.getCity().getId()))
-                .userId(access.getCurrentUserId())
-                .isPrivileged(access.isPrivileged())
-                .canOperate(access.isPrivileged())
-                .onRestoreRequested(this::handleRestoreFromActivity)
-                .build());
+        updateButtons(!success);
     }
 
     private void handleRestoreFromActivity(long snapshotId) {
@@ -232,7 +227,6 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
         binder.loadRestored(restoredDto, this::copyLocaleFields);
         notificationService.success(FORM_RESTORE_BANNER);
         updateButtons(true);
-        if (formTabs != null) formTabs.setSelectedTab(editTab);
     }
 
     private void copyLocaleFields(CityEditDto src, CityEditDto tgt) {

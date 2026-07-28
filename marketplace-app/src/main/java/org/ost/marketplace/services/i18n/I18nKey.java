@@ -293,11 +293,11 @@ public enum I18nKey {
     SETTINGS_PAGE_SIZE_RANGE("settings.page.size.range"),
 
     // === Activity ===
-    USER_ACTIVITY_TAB("user.activity.tab"),
+    USER_ACTIVITY_BUTTON("user.activity.button"),
     SETTINGS_ACTIVITY_BUTTON("settings.activity.button"),
 
     // === Advertisement History ===
-    ADVERTISEMENT_ACTIVITY_TAB("advertisement.activity.tab"),
+    ADVERTISEMENT_ACTIVITY_BUTTON("advertisement.activity.button"),
 
     // === Change field labels ===
     CHANGES_FIELD_TITLE("changes.field.title"),
@@ -325,8 +325,7 @@ public enum I18nKey {
     // === Taxon Overlay ===
     TAXON_OVERLAY_TITLE_NEW("taxon.overlay.title.new"),
     TAXON_OVERLAY_TITLE_EDIT("taxon.overlay.title.edit"),
-    TAXON_OVERLAY_TAB_EDIT("taxon.overlay.tab.edit"),
-    TAXON_OVERLAY_TAB_ACTIVITY("taxon.overlay.tab.activity"),
+    TAXON_ACTIVITY_BUTTON("taxon.activity.button"),
     TAXON_OVERLAY_LOCALE_TAB_EN("taxon.overlay.locale.tab.en"),
     TAXON_OVERLAY_LOCALE_TAB_UK("taxon.overlay.locale.tab.uk"),
     TAXON_OVERLAY_FIELD_NAME("taxon.overlay.field.name"),
@@ -363,8 +362,7 @@ public enum I18nKey {
     // === City Overlay ===
     CITY_OVERLAY_TITLE_NEW("city.overlay.title.new"),
     CITY_OVERLAY_TITLE_EDIT("city.overlay.title.edit"),
-    CITY_OVERLAY_TAB_EDIT("city.overlay.tab.edit"),
-    CITY_OVERLAY_TAB_ACTIVITY("city.overlay.tab.activity"),
+    CITY_ACTIVITY_BUTTON("city.activity.button"),
     CITY_OVERLAY_LOCALE_TAB_EN("city.overlay.locale.tab.en"),
     CITY_OVERLAY_LOCALE_TAB_UK("city.overlay.locale.tab.uk"),
     CITY_OVERLAY_FIELD_NAME("city.overlay.field.name"),
