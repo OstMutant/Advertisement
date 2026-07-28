@@ -98,10 +98,3 @@
     font-weight: 500;
 }
 
-/* ── Activity tabs ────────────────────────────────────────────────── */
-
-.user-view-tabs {
-    margin-bottom: 12px;
-    border-bottom: 1px solid var(--app-border-default);
-}
-

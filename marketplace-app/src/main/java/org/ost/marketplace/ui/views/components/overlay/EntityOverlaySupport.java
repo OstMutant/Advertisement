@@ -1,5 +1,6 @@
 package org.ost.marketplace.ui.views.components.overlay;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
@@ -9,6 +10,8 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.marketplace.ui.views.services.NotificationService;
+
+import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -30,6 +33,13 @@ public class EntityOverlaySupport {
     public OverlayLayout createLayout(OverlayBreadcrumbBackButton breadcrumbButton) {
         OverlayLayout layout = new OverlayLayout();
         layout.setBreadcrumbButton(breadcrumbButton);
+        return layout;
+    }
+
+    // For a nested overlay's multi-segment breadcrumb chain, e.g. "Home > Settings > Activity".
+    public OverlayLayout createLayout(List<Component> breadcrumbLinks) {
+        OverlayLayout layout = new OverlayLayout();
+        layout.setBreadcrumbLinks(breadcrumbLinks);
         return layout;
     }
 

@@ -5,12 +5,6 @@ async function openSettings(page) {
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 10000 });
 }
 
-async function openActivityTab(page, overlaySelector = '.base-overlay.overlay--visible') {
-  await page.locator(`${overlaySelector} vaadin-tab`)
-    .filter({ hasText: /activity|activit|активн/i }).click();
-  await page.locator(`${overlaySelector} .entity-activity-list, ${overlaySelector} .activity-feed-list`).first().waitFor({ timeout: 8000 });
-}
-
 async function switchToTab(page, tabName, itemSelector) {
   await page.locator('vaadin-tab').filter({ hasText: tabName }).first().click();
   await page.locator(itemSelector).first().waitFor({ timeout: 8000 });
@@ -31,7 +25,7 @@ const {
   getRow, getTotalCount,
   verifyPagination, verifyDateRangeFilters, verifySortColumn,
 } = require('./_flows/filter.flow');
-const { changePageSizes, restoreLatestFromActivity, getPageSizes } = require('./_flows/settings.flow');
+const { changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes } = require('./_flows/settings.flow');
 const { openTimelineTab, openTimelineFilter, assertActorPickerVisible, assertAllRowsHaveType, assertAllRowsHaveAction, fillEntityType, fillActionType, fillActorPicker, removeActorChip, actorChipCount, TIMELINE_BLOCK } = require('./_flows/timeline.flow');
 const { goToNextPage } = require('./_flows/filter.flow');
 const { runCreateCategoryFlow } = require('./_flows/category.flow');
@@ -420,14 +414,27 @@ test.describe('Seed data and query validation', () => {
     await logoutBulk(userPage);
     await userContext.close();
 
-    await openActivityTab(page);
-    await expect(page.locator('.entity-activity-list .entity-activity-row').first())
+    // ── history is a nested overlay now, not a tab: breadcrumb chain Home / Settings / Activity ─
+    await openHistory(page);
+    await expect(page.locator('.settings-activity-breadcrumb-home')).toBeVisible();
+    await expect(page.locator('.settings-activity-breadcrumb-settings')).toBeVisible();
+    await expect(page.locator('.settings-activity-close-button')).toBeVisible();
+    // exactly one separator between each of the 3 segments -- catches a doubled-up "›" regression
+    await expect(page.locator('.settings-activity-overlay .overlay__breadcrumb-sep')).toHaveCount(2);
+    await expect(page.locator('.settings-activity-overlay .overlay__breadcrumb')).not.toContainText('››');
+    await expect(page.locator('.settings-activity-overlay .entity-activity-list .entity-activity-row').first())
       .toBeVisible({ timeout: 5000 });
-    const firstActivityRow = page.locator('.entity-activity-list .entity-activity-row').first();
+    const firstActivityRow = page.locator('.settings-activity-overlay .entity-activity-list .entity-activity-row').first();
     await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /Ads per page|Оголошень/i }).first()).toBeVisible();
     await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /Users per page|Користувач/i }).first()).toBeVisible();
     await screenshot(page, 'settings-activity-after-change');
-    await closeOverlay(page);
+    // X goes back to Settings (the screen history was opened from), same as the "Settings" link
+    await closeHistory(page, 'x');
+    await expect(page.locator('.settings-overlay-content')).toBeVisible();
+    // the breadcrumb's "Home" link is the one path that exits all the way out
+    await openHistory(page);
+    await closeHistory(page, 'home');
+    await expect(page.locator('.base-overlay.overlay--visible')).toBeHidden();
 
     // ── verify new page sizes are applied in both views ───────────────────────
     await switchToTab(page, 'Advertisements', ADV_ITEM);
@@ -442,14 +449,21 @@ test.describe('Seed data and query validation', () => {
 
     // ── restore defaults via activity, verify restore entry recorded ──────────
     await openSettings(page);
-    await openActivityTab(page);
+    // single-link breadcrumb case (Settings itself) -- same regression risk, one separator only
+    await expect(page.locator('.settings-overlay .overlay__breadcrumb-sep')).toHaveCount(1);
+    await expect(page.locator('.settings-overlay .overlay__breadcrumb')).not.toContainText('››');
+    await openHistory(page);
     await restoreLatestFromActivity(page);
+    await expect(page.locator('.settings-activity-overlay.overlay--visible')).toBeHidden();
+    await expect(page.locator('.settings-overlay-content')).toBeVisible();
     await screenshotThenClose(page, 'settings-restored');
 
-    await openActivityTab(page);
-    const activityCount = await page.locator('.entity-activity-list .entity-activity-row').count();
+    await openHistory(page);
+    const activityCount = await page.locator('.settings-activity-overlay .entity-activity-list .entity-activity-row').count();
     expect(activityCount).toBeGreaterThanOrEqual(2);
     await screenshot(page, 'settings-activity-after-restore');
+    // closing via the breadcrumb back-link uncovers Settings again (other path than the X above)
+    await closeHistory(page);
     await closeOverlay(page);
 
     // ── verify default page sizes (20) are restored in both views ─────────────
@@ -463,17 +477,23 @@ test.describe('Seed data and query validation', () => {
       .toContainText('1\u201320 of', { timeout: 5000 });
     await screenshot(page, 'settings-users-restored-20');
 
-    // ── verify save from activity tab switches view back to settings form ────
+    // ── verify an unsaved field edit survives a trip into history and back ────
+    // History now covers the whole Settings form (a separate overlay, not a tab), so an
+    // in-progress edit must still be there, untouched, once history is closed again.
     await openSettings(page);
     const tabSizeInput = page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input');
     await tabSizeInput.click({ clickCount: 3 });
     await tabSizeInput.fill('15');
-    await openActivityTab(page);
+    await openHistory(page);
+    await closeHistory(page);
+    await expect(page.locator('.overlay__form-fields-card')).toBeVisible({ timeout: 5000 });
+    await expect(tabSizeInput).toHaveValue('15');
     await page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('.overlay__form-fields-card')).toBeVisible({ timeout: 5000 });
-    await screenshot(page, 'settings-tab-switch-after-save');
-    await openActivityTab(page);
+    await screenshot(page, 'settings-history-trip-preserves-unsaved-edit');
+
+    // ── cleanup: restore defaults again before logging out ────────────────────
+    await openHistory(page);
     await restoreLatestFromActivity(page);
     await closeOverlay(page);
 

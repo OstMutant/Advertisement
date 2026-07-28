@@ -1,5 +1,6 @@
 const { screenshot } = require('../_helpers');
 const { runOpenUserEditViaListFlow, runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter } = require('./user-management.flow');
+const { openHistory, closeHistory } = require('./settings.flow');
 
 async function runOpenSettingsFlow(page) {
   await page.locator('.header-settings-button').click();
@@ -40,13 +41,6 @@ async function runVerifyEntityActivityFlow(page, expect, scope, { screenshotName
 }
 
 
-async function runVerifySettingsActivityFlow(page, expect, { screenshotName, rows }) {
-  await runOpenSettingsFlow(page);
-  await page.locator('.settings-overlay vaadin-tab').filter({ hasText: /activity|активність/i }).click();
-  await runVerifyEntityActivityFlow(page, expect, page.locator('.settings-overlay'), { screenshotName, rows });
-  await runCloseSettingsFlow(page);
-}
-
 async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, privileged = false }) {
   await runOpenSettingsFlow(page);
 
@@ -60,8 +54,9 @@ async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, 
   }
   await screenshot(page, `${screenshotName}-defaults`);
 
-  await page.locator('.settings-overlay vaadin-tab').filter({ hasText: /activity|активність/i }).click();
-  const activityList = page.locator('.settings-overlay .entity-activity-list');
+  // history is a nested overlay stacked over Settings now, not a tab inside it
+  await openHistory(page);
+  const activityList = page.locator('.settings-activity-overlay .entity-activity-list');
   await activityList.waitFor({ timeout: 5000 });
   await expect(activityList.locator('.entity-activity-row')).toHaveCount(1, { timeout: 5000 });
   const row = activityList.locator('.entity-activity-row').nth(0);
@@ -73,6 +68,7 @@ async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, 
     await expect(row).toContainText(timelineValue);
   }
   await screenshot(page, `${screenshotName}-activity`);
+  await closeHistory(page);
 
   await runCloseSettingsFlow(page);
 }
@@ -91,7 +87,6 @@ module.exports = {
   runOpenSettingsFlow,
   runCloseSettingsFlow,
   runVerifyEntityActivityFlow,
-  runVerifySettingsActivityFlow,
   runVerifySettingsAfterSignupFlow,
   runVerifyUserAuditActivityFlow,
 };

@@ -1,7 +1,6 @@
 const { expect } = require('@playwright/test');
 
 // Opens settings overlay, sets both page size fields, and saves.
-// Leaves the overlay open on the settings tab after save.
 async function changePageSizes(page, adsSize, usersSize) {
   await page.locator('.header-settings-button').click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
@@ -15,11 +14,37 @@ async function changePageSizes(page, adsSize, usersSize) {
     .filter({ hasText: /зберегти|save/i }).click();
 }
 
-// Inside an open settings overlay with the activity tab already shown,
-// clicks the first restore button, waits for Save to become enabled, and saves.
-// After save the overlay resets to the settings tab (afterSave behaviour).
+// Opens the Settings history overlay (a nested overlay stacked on top of the already-open
+// Settings overlay, not a tab) via the header history icon. Requires Settings to be open already.
+async function openHistory(page) {
+  await page.locator('.settings-history-button').click();
+  await page.locator('.settings-activity-overlay.overlay--visible').waitFor({ timeout: 5000 });
+}
+
+// Closes the history overlay. Breadcrumb chain is Home / Settings / Activity(current); X behaves
+// like the "Settings" link -- both go back to the screen history was opened from, not Home.
+// `via: 'settings'` (default) and `via: 'x'` land back on Settings (never actually closed
+// underneath). `via: 'home'` is the one path that exits all the way out. No path changes any data
+// (read-only panel).
+async function closeHistory(page, via = 'settings') {
+  const selector = {
+    x: '.settings-activity-close-button',
+    settings: '.settings-activity-breadcrumb-settings',
+    home: '.settings-activity-breadcrumb-home',
+  }[via];
+  await page.locator(selector).click();
+  await page.locator('.settings-activity-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
+  if (via === 'home') {
+    await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
+  }
+}
+
+// Inside an open history overlay, clicks the first restore button. Restoring stages the values
+// into the Settings form and closes the history overlay by itself (no separate close() call
+// needed) -- this then explicitly saves the staged values, same two-step contract as before.
 async function restoreLatestFromActivity(page) {
-  await page.locator('.entity-activity-list .entity-activity-restore-btn').first().click();
+  await page.locator('.settings-activity-overlay .entity-activity-list .entity-activity-restore-btn').first().click();
+  await page.locator('.settings-activity-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
   await expect(
     page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i })
   ).toBeEnabled({ timeout: 5000 });
@@ -34,9 +59,9 @@ async function getPageSizes(page) {
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
   const adsPageSize   = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input').inputValue(), 10);
   const usersPageSize = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input').inputValue(), 10);
-  await page.locator('.overlay__breadcrumb-back').click();
+  await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
   return { adsPageSize, usersPageSize };
 }
 
-module.exports = { changePageSizes, restoreLatestFromActivity, getPageSizes };
+module.exports = { changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes };

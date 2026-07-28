@@ -69,4 +69,14 @@ public abstract class BaseOverlay extends Div {
             escShortcut = null;
         }
     }
+
+    protected void openNested() {
+        addClassName("overlay--visible");
+        getUI().ifPresent(ui -> escShortcut = Shortcuts.addShortcutListener(ui, this::onEsc, Key.ESCAPE));
+    }
+
+    protected void closeNested() {
+        removeClassName("overlay--visible");
+        unregisterEsc();
+    }
 }

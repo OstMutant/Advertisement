@@ -3,8 +3,6 @@ package org.ost.marketplace.ui.views.main.header.settings;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.tabs.Tab;
-import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.data.binder.Setter;
 import com.vaadin.flow.data.value.ValueChangeMode;
@@ -31,10 +29,8 @@ import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.core.Configurable;
-import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -59,13 +55,12 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private final AccessEvaluator                                   access;
     private final UiComponentFactory<OverlayFormBinder<SettingsEditDto>> formBinderFactory;
     private final ComponentFactory<AuditPort>                           auditPortFactory;
-    private final UiComponentFactory<AuditActivityPanel>                auditActivityPanelFactory;
+    private final SettingsActivityOverlay                                settingsActivityOverlay;
 
     private Parameters       params;
     private IntegerField     adsPageSizeField;
     private IntegerField     usersPageSizeField;
     private IntegerField     timelinePageSizeField;
-    private Tab              settingsTab;
     private UiPrimaryButton  saveButton;
     private UiTertiaryButton discardButton;
 
@@ -111,21 +106,22 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div settingsContent = new Div(fieldsCard);
+        settingsContent.addClassName("settings-overlay-content");
+        layout.setContent(settingsContent);
 
-        Div content = auditPortFactory.findIfAvailable()
-                .map(_ -> {
-                    settingsTab = new Tab(getValue(SETTINGS_SECTION_TITLE));
-                    Tab historyTab = new Tab(getValue(SETTINGS_ACTIVITY_TAB));
-                    formTabs = new Tabs(settingsTab, historyTab);
-                    formTabs.addClassName("user-view-tabs");
-                    return buildTabbedContent(formTabs, settingsTab, settingsContent, this::buildHistoryContent);
-                })
-                .orElse(settingsContent);
-
-        content.addClassName("settings-overlay-content");
-        layout.setContent(content);
-        layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
+        Div headerActions = new Div(saveButton, discardButton);
+        auditPortFactory.findIfAvailable().ifPresent(_ -> headerActions.add(buildHistoryButton()));
+        headerActions.add(closeBtn);
+        layout.setHeaderActions(headerActions);
         updateButtons(false);
+    }
+
+    private UiIconButton buildHistoryButton() {
+        UiIconButton historyBtn = new UiIconButton(getValue(SETTINGS_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
+        historyBtn.addClassName("settings-history-button");
+        historyBtn.addClickListener(_ -> settingsActivityOverlay.openFor(
+                params.getUserId(), true, true, params.getOnCancel(), this::handleRestoreFromActivity));
+        return historyBtn;
     }
 
     public boolean save() {
@@ -138,13 +134,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     }
 
     public void afterSave(boolean success) {
-        if (success) {
-            if (tabbedSecondaryContent != null) tabbedSecondaryContent.removeAll();
-            if (formTabs               != null) formTabs.setSelectedTab(settingsTab);
-            updateButtons(false);
-        } else {
-            updateButtons(true);
-        }
+        updateButtons(!success);
     }
 
     public void discardChanges() {
@@ -164,16 +154,6 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                     tgt.setVersion(src.getVersion());
                 });
         updateButtons(false);
-    }
-
-    private com.vaadin.flow.component.Component buildHistoryContent() {
-        return auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
-                .entityRef(new EntityRef(EntityType.USER_SETTINGS, params.getUserId()))
-                .userId(params.getUserId())
-                .isPrivileged(true)
-                .canOperate(true)
-                .onRestoreRequested(this::handleRestoreFromActivity)
-                .build());
     }
 
     private void handleRestoreFromActivity(Long snapshotId) {
@@ -207,7 +187,6 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                     tgt.setVersion(src.getVersion());
                 });
         updateButtons(true);
-        if (formTabs != null) formTabs.setSelectedTab(settingsTab);
     }
 
     private void buildBinder(SettingsEditDto dto) {

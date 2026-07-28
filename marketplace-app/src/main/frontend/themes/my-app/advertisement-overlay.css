@@ -13,6 +13,11 @@
     flex-direction: column;
 }
 
+/* nested overlay stacked on top of an already-open one (e.g. Settings Activity) */
+.settings-activity-overlay.overlay--visible {
+    z-index: 101;
+}
+
 /* ------------------------------------------------------------------- inner */
 
 .overlay__inner {
@@ -52,6 +57,12 @@
     align-items: center;
     gap: 4px;
     min-width: 0;
+}
+
+.overlay__breadcrumb-back-slot {
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .overlay__breadcrumb-back {

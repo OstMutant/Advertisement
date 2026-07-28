@@ -5,6 +5,8 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import lombok.Getter;
 
+import java.util.List;
+
 public class OverlayLayout extends Div {
 
     @Getter
@@ -35,8 +37,20 @@ public class OverlayLayout extends Div {
     }
 
     public void setBreadcrumbButton(Component button) {
+        setBreadcrumbLinks(List.of(button));
+    }
+
+    // Ordered chain of clickable links before the current-page label, e.g. Home / Settings / Activity.
+    public void setBreadcrumbLinks(List<Component> links) {
         breadcrumbSlot.removeAll();
-        breadcrumbSlot.add(button);
+        for (int i = 0; i < links.size(); i++) {
+            breadcrumbSlot.add(links.get(i));
+            if (i < links.size() - 1) {
+                Span sep = new Span("›");
+                sep.addClassName("overlay__breadcrumb-sep");
+                breadcrumbSlot.add(sep);
+            }
+        }
     }
 
     public void setHeaderActions(Div actions) {

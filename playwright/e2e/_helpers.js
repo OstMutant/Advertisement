@@ -27,7 +27,10 @@ async function waitForOverlayClosed(page, timeout = 10000) {
 }
 
 async function closeOverlay(page) {
-  await page.locator('.overlay__breadcrumb-back').click();
+  // Scoped to the currently-visible overlay -- more than one *Overlay component (e.g. a
+  // header-level overlay plus a nested one) can be initialized in the DOM at once, though only
+  // one is ever ".overlay--visible" at a time.
+  await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
   await waitForOverlayClosed(page).catch(() => {});
 }
 

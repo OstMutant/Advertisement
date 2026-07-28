@@ -3031,3 +3031,108 @@ snapshot recorded before this column existed, not a live/fresh save. Playwright'
 (`advertisement.flow.js`) were unified into shared `assertCardHasText()`/`assertOverlayHasText()`
 helpers in `_helpers.js`. Re-verified after the rename: unit-tests 77/77, integration-tests
 130/130, Playwright `e2e --full --ux` 50/50.
+
+---
+
+## ADR-067: Settings history/restore moved from an "Activity" tab to a stacked nested overlay (improvement-128 experiment)
+
+**Status:** Accepted (Settings only — one-domain experiment, not yet rolled out further)
+
+**Context:** Every existing overlay (Advertisement, Taxon, City, User, Settings) pairs its one
+content tab with an "Activity" tab (`AbstractFormOverlayModeHandler.buildContentWithActivity()` /
+`buildTabbedContent()`) showing snapshot history with per-row Restore. While planning
+[improvement-124](../backlog/issues/improvement-124-provider-profile.md)'s unified "My Account"
+overlay (3 content tabs spanning 2 backing entities), this 1-tab-content + 1-tab-activity pairing
+was found not to generalize — naively extending it would mean either 6 tabs or awkward asymmetric
+pairing. [improvement-128](../backlog/issues/improvement-128-activity-restore-panel-redesign.md)
+was filed to redesign this, with Settings chosen as the smallest, self-contained pilot before
+rolling the pattern out to the other four overlays and improvement-124's Account overlay.
+
+**Decision:** History/restore no longer lives in a tab. It is a second, standard overlay
+(`SettingsActivityOverlay`, same `BaseOverlay`/`OverlayLayout`/breadcrumb shape as every other
+overlay in the app) that visually stacks on top of the already-open Settings overlay — Settings is
+never actually closed underneath, just covered. Consequence: since Activity was the *only* second
+tab, Settings' own content also stops being wrapped in a `Tabs` component — it renders directly.
+
+**X always means "go back to whatever screen opened this overlay" — not "exit to Home".** For
+every *existing* single-level overlay those two things are the same screen, which is why X there
+has always looked like it means "exit to Home" (e.g. `SettingsFormModeHandler`'s own close button
+tooltip was already `HEADER_HOME`). The nested history overlay is the first place in the codebase
+where the two meanings actually diverge — it was opened from Settings, not Home, so its X goes
+back to Settings. (An earlier draft of this ADR had this backwards — X was briefly wired to close
+all the way to Home — corrected after direct user testing; see "Update" below.)
+
+**Breadcrumb is a real, multi-segment chain — Home / Settings / Activity — not a single
+back-link.** Both "Home" and "Settings" are independently clickable; only "Activity" (the current
+page) is plain text. This is genuinely new: every existing overlay's `OverlayLayout` only ever had
+one back-link + one current-page label. `OverlayLayout.setBreadcrumbLinks(List<Component>)` (new,
+`setBreadcrumbButton(Component)` now delegates to it as the 1-link case) and a matching
+`EntityOverlaySupport.createLayout(List<Component>)` overload generalize this without touching any
+existing single-link overlay's behavior or call sites. Restoring a snapshot closes back to
+Settings (the "Settings" link's target), since the point of restoring is to review/save it there.
+
+**New, small, additive infrastructure — `BaseOverlay.openNested()` / `closeNested()`.** Every
+existing overlay assumes exactly one is ever open at a time, and `open()`/`closeToList()` couple
+CSS-class visibility toggling with **page-level** scroll-lock + focus-trap JS and a `ui`-level ESC
+`Shortcuts` registration. Stacking a second `BaseOverlay` on top and calling the existing
+`open()`/`closeToList()` unmodified would let the inner overlay's close release the *page* scroll
+lock the outer overlay still needs, and both overlays would independently react to Escape. Fix:
+`openNested()`/`closeNested()` toggle only the `overlay--visible` class + their own ESC listener,
+skip the `document.body` scroll/focus-trap JS entirely (owned solely by whichever overlay opened
+first via the original `open()`). Every existing single-level overlay keeps using `open()`/
+`closeToList()` unchanged. CSS: `.settings-activity-overlay.overlay--visible { z-index: 101; }` —
+one higher than the shared `.base-overlay`'s `z-index: 100` — so the nested overlay reliably paints
+above Settings rather than relying on DOM insertion order alone.
+
+**`SettingsActivityOverlay` is a plain `BaseOverlay`, not an `AbstractEntityOverlay`** — the latter
+carries Save/Discard/`OverlaySession`/form-handler machinery this read-only history panel doesn't
+need; it just needs the breadcrumb + layout + close-button shell every overlay already shares via
+`EntityOverlaySupport`.
+
+**Removed:** `SettingsFormModeHandler`'s `Tabs`/`Tab`/`buildTabbedContent()` usage, the
+`SETTINGS_ACTIVITY_TAB` i18n key (replaced with `SETTINGS_ACTIVITY_BUTTON`, since it now labels an
+icon button and the nested overlay's breadcrumb-current text, not a tab), and the now-orphaned
+`.user-view-tabs` CSS rule (verified zero other consumers before deleting).
+
+**Explicitly out of scope for this pass** (deferred to improvement-128's next steps once this
+experiment is validated): Advertisement/Taxon/City/User overlays still use the old tab pairing
+unchanged; `AbstractFormOverlayModeHandler`'s shared `buildTabbedContent()`/
+`buildContentWithActivity()` methods are untouched.
+
+**Playwright:** `settings.flow.js` gained `openHistory()`/`closeHistory(page, via)`, replacing the
+old tab-click helper; `restoreLatestFromActivity()` updated for the overlay-close (not tab-select)
+contract. `_helpers.js`'s shared `closeOverlay()` was scoped to `.base-overlay.overlay--visible
+.overlay__breadcrumb-back` (previously unscoped) — defensive fix, since a second always-present,
+occasionally-initialized overlay in the header now makes the old unscoped selector a latent
+multi-match risk for *any* spec that opens Settings' history at least once. `audit.flow.js`'s
+`runVerifySettingsAfterSignupFlow` repointed to the new overlay; its sibling
+`runVerifySettingsActivityFlow` was dead code (zero callers) and was deleted outright rather than
+fixed forward. Spec 05's "verify save from activity tab switches view back to settings form"
+sub-test — meaningless under the new design, since the history overlay now covers the Save button
+entirely — was replaced with an equivalent-purpose check: an unsaved field edit survives a trip
+into history and back out (via breadcrumb) before being saved.
+
+**Verified:** unit-tests 77/77, integration-tests 133/133 (no schema/repository changes — pure UI
+refactor), Playwright `e2e --full --ux` 50/50.
+
+**Update (2026-07-28, same day, after direct user review of the running app):** two real bugs
+found by manually exercising the feature, not by inspection:
+1. **X was wired to "exit to Home" instead of "back to the opening screen"** — corrected as
+   described above (`closeToHome()` renamed usage swapped for `closeToParent()` on the X button;
+   the breadcrumb's new "Home" link is the only path that actually exits to Home now).
+2. **Doubled-up "›" separator, then uneven spacing between segments.** First bug:
+   `OverlayLayout.setBreadcrumbLinks()` added a trailing separator after *every* link including
+   the last one, which collided with the outer, always-present separator before
+   `breadcrumbCurrent` — fixed by only inserting a separator *between* links, not after the last
+   one (`if (i < links.size() - 1)`). Second bug, found immediately after via visual review of the
+   rendered page: `.overlay__breadcrumb-back-slot` (the container holding the link chain) had no
+   `display: flex`, so its children had no consistent layout — the single-link case looked fine
+   only because it happened to be one element, but the fix's first pass (adding `display: flex;
+   align-items: center;` with no `gap`) still under-spaced the inner separator relative to the
+   outer one (which benefits from the parent `.overlay__breadcrumb`'s own `gap: 4px` in addition to
+   the separator's own `padding: 0 2px`). Fixed by giving `.overlay__breadcrumb-back-slot` the same
+   `gap: 4px` as its parent, so every segment gap in the chain is visually uniform regardless of
+   whether it's "inside" or "outside" the link-chain container. Both fixes covered by new Playwright
+   assertions on separator count (`toHaveCount(2)`) and absence of a doubled `››` substring, for
+   both the multi-link (history overlay) and single-link (Settings itself) cases. Re-verified:
+   unit-tests 77/77 (no Java logic changed by the CSS fix), Playwright `e2e --full --ux` 50/50.

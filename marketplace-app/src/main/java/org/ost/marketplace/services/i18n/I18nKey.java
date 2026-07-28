@@ -294,7 +294,7 @@ public enum I18nKey {
 
     // === Activity ===
     USER_ACTIVITY_TAB("user.activity.tab"),
-    SETTINGS_ACTIVITY_TAB("settings.activity.tab"),
+    SETTINGS_ACTIVITY_BUTTON("settings.activity.button"),
 
     // === Advertisement History ===
     ADVERTISEMENT_ACTIVITY_TAB("advertisement.activity.tab"),
