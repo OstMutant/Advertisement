@@ -123,6 +123,18 @@ class AttachmentSnapshotRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void insert_and_findChangesById_roundTripsChangesThroughSchemaVersionEnvelope() {
+        String[] urls = {"https://s3.example/envelope.jpg"};
+        List<AttachmentMediaChange> changes = List.of(new AttachmentMediaChange(null, List.of("envelope.jpg")));
+        snapshotRepository.insert(EntityType.ADVERTISEMENT, 5L, urls, changes, 42L);
+        Long id = snapshotRepository.findLatestId(EntityType.ADVERTISEMENT, 5L).orElseThrow();
+
+        Optional<List<AttachmentMediaChange>> result = snapshotRepository.findChangesById(id);
+
+        assertThat(result).contains(changes);
+    }
+
+    @Test
     void deleteOlderThan_removesOnlyRowsOlderThanTheGivenDays() {
         String[] oldUrls = {"https://s3.example/old.jpg"};
         snapshotRepository.insert(EntityType.ADVERTISEMENT, 3L, oldUrls,

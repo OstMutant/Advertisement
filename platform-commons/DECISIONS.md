@@ -579,3 +579,75 @@ is in hand). `DefaultAuditPort.getSnapshotContent()` forwards `targetClass` stra
   the reinterpretation down into `AdvertisementEnrichService` (tried and reverted) just moved an
   unchecked cast into a class that previously needed none, since that class already receives a
   properly `T`-typed list via the hook interface's own generic parameter.
+
+---
+
+## ADR-024: Snapshot schema versioning — a real `schemaVersion` field everywhere, no reflection
+**Status:** Accepted
+
+**Context:** Field renames or type changes in `AuditableSnapshot` implementations (and in the
+other two JSON-persisted blobs in the system) caused silent data loss on read — Jackson's
+`FAIL_ON_UNKNOWN_PROPERTIES = false` setting hides additions/removals, but a rename or type change
+just deserializes to `null` with no warning at all.
+
+**Decision:** Every JSON-persisted blob in the system (three total, found by grepping every
+Liquibase changelog for a JSONB/JSON column) gets a genuine, Jackson-bound `schemaVersion` field —
+no annotations, no reflection, no raw-JSON tree-parsing anywhere. `AuditableSnapshot.schemaVersion()`
+is a plain abstract interface method, satisfied by each implementation's own record component:
+
+- `audit_log.snapshot_data` — `AdvertisementSnapshotDto`/`TaxonSnapshotDto`/`UserSnapshotDto`/
+  `SettingsSnapshotDto` each gain `int schemaVersion` as their **last canonical record component**,
+  plus `public static final int SCHEMA_VERSION = 1` and a second, non-canonical constructor
+  matching the DTO's *old* parameter list that delegates to the canonical one with `SCHEMA_VERSION`
+  — every existing call site across the codebase (`AdvertisementSaveService`, `UserService`,
+  `TaxonService`, every `*SnapshotDtoTest`, ...) keeps compiling unchanged. Java records have no
+  concept of an optional/default constructor parameter (unlike Lombok `@Builder.Default`, which
+  `UserSettingsDto` below actually gets to use) — a second delegating constructor is the standard,
+  idiomatic way to add a component to a record without touching its existing callers.
+- `user_information.settings` — `UserSettingsDto` (a Lombok `@Value`/`@Builder` class, not a
+  record) gets a `@Builder.Default int schemaVersion = SCHEMA_VERSION` field directly — no
+  delegating constructor needed here, `@Builder.Default` already covers the "existing callers
+  don't need to change" case for a builder-backed class. Separate from the existing `version`
+  field (that one is optimistic-locking, a different concern).
+- `attachment_snapshot.changes_summary` — considered wrapping the whole `List<AttachmentMediaChange>`
+  in an envelope object (`{"schemaVersion":1,"changes":[...]}`) so the list itself could carry a
+  sibling version field, but that changes the column's wire shape from a bare JSON array to an
+  object — a bigger, needless change. Instead `AttachmentMediaChange` itself (the record already
+  stored, one per array element) gets the same real-record-component + delegating-constructor
+  treatment as the four `AuditableSnapshot` DTOs above. The column stays a bare array; each element
+  self-describes its own version; `findChangesById()` checks the first element's `schemaVersion()`
+  after an unchanged single `readValue()` call.
+
+**Rejected along the way — an earlier draft of this ADR, both since reverted:**
+1. `AuditableSnapshot.schemaVersion()` as a `@JsonProperty default` method computed via
+   `getClass().getAnnotation(SchemaVersion.class)` reflection, rather than a real record component.
+   Reverted for internal inconsistency — `UserSettingsDto` right next to it uses a genuine bound
+   field, so the two blobs looked like they were solving the same problem two different ways for
+   no real reason. A real field is simpler to read and, unlike the reflection default, its value
+   after deserialization genuinely reflects what was in the stored JSON rather than always
+   trivially equalling whatever the current class declares.
+2. Reading every blob via `ObjectMapper.readTree()`/`JsonNode` before converting, specifically to
+   distinguish "key genuinely missing from the raw JSON" from "key present and equal to the
+   default" — relevant only if real pre-existing rows in the old shape needed to be told apart
+   from current ones. Reverted: **this app has never run in production**, so there is no real
+   deployed data in an old shape to protect this distinction against. All three read paths just
+   deserialize normally (one call, identical in shape to the pre-issue code) and compare the
+   resulting object's own field.
+
+**Explicitly out of scope: no migration.** Detection only — a mismatch is logged (attachment/user-
+settings paths; the polymorphic `audit_log` path has no single "current expected version" to
+compare a deserialized instance against without reintroducing either reflection or a switch over
+the four known DTOs, so it stays a plain, unchecked `readValue()` — the field is still stamped on
+write, available for manual inspection or a future migration tool), then deserialization proceeds
+exactly as it would have before. Converting an old-shape JSON into a new shape before
+deserializing, if ever needed for a real field rename with real data to protect, is a separate
+future task.
+
+**Consequences:**
+- A schema drift that previously failed silently now at least appears in the logs where a
+  meaningful single-target comparison is possible (`user_information.settings`,
+  `attachment_snapshot.changes_summary`) — at the cost of one extra `if` per read path, no new
+  parsing step, no new wrapper class.
+- The next new snapshot-bearing domain (F-04 / `improvement-124`'s `ActorProfileSnapshotDto`) must
+  add its own `schemaVersion` record component + `SCHEMA_VERSION` constant, following this pattern
+  — not a `@SchemaVersion` annotation (removed, no longer exists).

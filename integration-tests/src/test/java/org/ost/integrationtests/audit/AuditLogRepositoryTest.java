@@ -251,6 +251,21 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(last.displayName()).contains("second");
     }
 
+    // insertRowWithSnapshot() writes snapshot_data with no "schemaVersion" key -- must still deserialize.
+    @Test
+    void getLastSnapshot_legacySnapshotWithNoSchemaVersionKey_stillDeserializesCorrectly() {
+        Instant t = Instant.parse("2026-01-01T00:00:00Z");
+        insertRowWithSnapshot(EntityType.USER, 7L, t, "legacy");
+
+        AuditableSnapshot snapshot = auditLogRepository.getLastSnapshot(EntityType.USER, 7L).orElseThrow();
+
+        assertThat(snapshot).isInstanceOf(UserSnapshotDto.class);
+        UserSnapshotDto userSnapshot = (UserSnapshotDto) snapshot;
+        assertThat(userSnapshot.name()).isEqualTo("legacy");
+        assertThat(userSnapshot.email()).isEqualTo("legacy@example.com");
+        assertThat(userSnapshot.role()).isEqualTo("USER");
+    }
+
     // Covers improvement-075: actorIds filter matches any of the selected actors via = ANY(),
     // not just a single one.
     @Test

@@ -62,6 +62,18 @@ class UserSettingsRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void load_legacyRowWithNoSchemaVersionKey_stillLoadsCorrectly() {
+        Long userId = createTestUser();
+
+        UserSettingsDto loaded = settingsRepository.load(userId);
+
+        assertThat(loaded.getAdsPageSize()).isEqualTo(20);
+        assertThat(loaded.getUsersPageSize()).isEqualTo(20);
+        assertThat(loaded.getTimelinePageSize()).isEqualTo(20);
+        assertThat(loaded.getSchemaVersion()).isEqualTo(UserSettingsDto.SCHEMA_VERSION);
+    }
+
+    @Test
     void save_freshUser_startsAtVersionZeroAndSucceeds() {
         Long userId = createTestUser();
 

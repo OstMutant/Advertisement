@@ -1417,3 +1417,26 @@ and color both confirmed with the user before implementing; executed end-to-end 
 Verified: `unit-tests.sh` (77/77), `integration-tests.sh --sandbox` (130/130), full Playwright
 `e2e --full --ux` (50/50), plus direct visual confirmation of the new teal `Category` badge via
 screenshot.
+
+✅ Done (2026-07-28): [improvement-002](issues/improvement-002-snapshot-schema-versioning.md) —
+snapshot schema versioning for all three JSON-persisted blobs in the system. Landed as the
+prerequisite for F-04/improvement-124 (first new snapshot-bearing domain since this issue was
+filed). Went through two intermediate designs before the final one — a reflection-based
+`@SchemaVersion` annotation + `JsonNode` tree-parsing with a legacy-shape fallback for
+`attachment_snapshot.changes_summary`, then a shared `SchemaVersionCheck` tree-reading helper —
+both reverted per direct user feedback favoring a genuinely bound field over reflection/tree-
+parsing, and because this app has never run in production (no real legacy-shaped data to protect
+against). Final design: `AdvertisementSnapshotDto`/`TaxonSnapshotDto`/`UserSnapshotDto`/
+`SettingsSnapshotDto` and `AttachmentMediaChange` each gained a real `int schemaVersion` record
+component (last position) plus a `SCHEMA_VERSION` constant and a second, non-canonical constructor
+matching the old parameter list so every existing call site kept compiling unchanged;
+`UserSettingsDto` (a Lombok builder class, not a record) got the same field via `@Builder.Default`
+directly, no extra constructor needed. `AuditableSnapshot.schemaVersion()` is now a plain abstract
+interface method. Full rationale and the two rejected designs: `platform-commons/DECISIONS.md`
+ADR-024. Verified: `unit-tests.sh` (77/77), `integration-tests.sh --sandbox` (133/133, incl. 4 new
+schema-version tests), full Playwright `e2e --full --ux` (50/50) — the first two full-suite runs
+surfaced an unrelated, pre-existing timing fragility in `runSubmitLoginFlow`
+(`playwright/e2e/_flows/auth.flow.js`): an 8s timeout was too tight for `LoginDialog`'s full
+`ui.getPage().reload()` on login (not an in-place push update) under sandbox load. Root-caused via
+repeated full-suite runs (zero server-side exceptions any run, different unrelated failure each
+time) before fixing (wait for `networkidle`, 15s timeout).

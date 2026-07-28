@@ -48,14 +48,15 @@ provider-facing fields (master/shop/support, `kind` column mirroring F-03's `AdK
 locale/settings preferences decoupled out of `user_information` (an earlier plan with these as two
 separate tables was merged into one the same day), plus the unified "My Account" overlay this
 triggered. One continuous piece of work, not three separate issues (an earlier split into
-124/125/126 was merged back into 124 the same day). Paired with improvement-002 (snapshot schema
-versioning) landing first, since this is the first new snapshot-bearing domain since improvement-002
-was filed. improvement-118 remains at the bottom (blocked, not actionable — needs a public URL
-this sandbox doesn't have).
+124/125/126 was merged back into 124 the same day). improvement-002 (snapshot schema versioning)
+was paired to land first, since F-04 is the first new snapshot-bearing domain since improvement-002
+was filed — **improvement-002 completed 2026-07-28**, see `completed/BACKLOG-ARCHIVE.md`.
+improvement-118 remains at the bottom (blocked, not actionable — needs a public URL this sandbox
+doesn't have).
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **Top** | 🟡 | 002 → 124 | improvement-002 (snapshot schema versioning) lands first, then F-04/improvement-124 — one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) merging provider-facing fields (`ProviderKind` MASTER/SHOP/SUPPORT) with locale/settings decoupled out of `user_information`, plus the unified "My Account" overlay (name + settings + provider profile in one place, narrower moderator edit permissions) |
+| **Top** | 🟡 | 124 | F-04/improvement-124 — one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) merging provider-facing fields (`ProviderKind` MASTER/SHOP/SUPPORT) with locale/settings decoupled out of `user_information`, plus the unified "My Account" overlay (name + settings + provider profile in one place, narrower moderator edit permissions) — its own snapshot DTO must follow improvement-002's `schemaVersion` pattern |
 | Nice to have | — | 073 → 035, 096, 036, 039, 065, 114, 063, 028 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
@@ -63,12 +64,11 @@ this sandbox doesn't have).
 
 Details, links, and per-batch rationale below.
 
-### Top priority — improvement-002 → improvement-124
+### Top priority — improvement-124
 
 | Issue | Origin | What |
 |---|---|---|
-| [improvement-002](issues/improvement-002-snapshot-schema-versioning.md) | Wave 3, promoted 2026-07-27 | Snapshot schema versioning (`@SchemaVersion` + mismatch logging, no auto-migration) — applied to all 4 existing snapshot classes, the settings JSONB blob, the attachment `changes_summary` array, plus the new `ActorProfileSnapshotDto`; must land before F-04's new snapshot type ships |
-| [improvement-124](issues/improvement-124-provider-profile.md) | New (product roadmap Phase 2, item #1; supersedes [improvement-123](issues/improvement-123-f04-master-profile.md)) | F-04, one combined issue: one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) with `kind` nullable (`MASTER`/`SHOP`/`SUPPORT`, mirrors F-03's `AdKind` — `NULL` means "not a provider"), SUPPORT kind role-gated + visibility toggle, plus `locale`/`settings` decoupled out of `user_information` onto the same row; new Providers tab/overlay/card, header entry point, OG meta + sitemap for `/providers/:id`; unified "My Account" overlay — Name/Settings/Provider Profile tabs in one place, reused for both self-service and admin/moderator viewing another user, narrower moderator (view-only) permissions. Has a detailed execution plan already written into the issue |
+| [improvement-124](issues/improvement-124-provider-profile.md) | New (product roadmap Phase 2, item #1; supersedes [improvement-123](issues/improvement-123-f04-master-profile.md)) | F-04, one combined issue: one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) with `kind` nullable (`MASTER`/`SHOP`/`SUPPORT`, mirrors F-03's `AdKind` — `NULL` means "not a provider"), SUPPORT kind role-gated + visibility toggle, plus `locale`/`settings` decoupled out of `user_information` onto the same row; new Providers tab/overlay/card, header entry point, OG meta + sitemap for `/providers/:id`; unified "My Account" overlay — Name/Settings/Provider Profile tabs in one place, reused for both self-service and admin/moderator viewing another user, narrower moderator (view-only) permissions. Has a detailed execution plan already written into the issue. Its new `ActorProfileSnapshotDto` must follow improvement-002's `schemaVersion` record-component pattern (see `platform-commons/DECISIONS.md` ADR-024) |
 
 ### Nice to have — no internal priority order
 

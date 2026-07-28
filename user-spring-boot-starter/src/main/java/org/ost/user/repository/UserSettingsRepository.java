@@ -54,7 +54,14 @@ public class UserSettingsRepository {
                              .query(String.class)
                              .optional()
                              .map(json -> {
-                                 try { return mapper.readValue(json, UserSettingsDto.class); }
+                                 try {
+                                     UserSettingsDto settings = mapper.readValue(json, UserSettingsDto.class);
+                                     if (settings.getSchemaVersion() != UserSettingsDto.SCHEMA_VERSION) {
+                                         log.warn("Settings schema version mismatch for userId={}: stored={}, expected={}",
+                                                 userId, settings.getSchemaVersion(), UserSettingsDto.SCHEMA_VERSION);
+                                     }
+                                     return settings;
+                                 }
                                  catch (Exception e) { throw new RuntimeException(e); }
                              })
                              .orElseGet(() -> {

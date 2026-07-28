@@ -13,6 +13,8 @@ import lombok.experimental.FieldNameConstants;
 @JsonDeserialize(builder = UserSettingsDto.UserSettingsDtoBuilder.class)
 public class UserSettingsDto {
 
+    public static final int SCHEMA_VERSION = 1;
+
     @Min(5) @Max(100)
     int adsPageSize;
 
@@ -24,6 +26,9 @@ public class UserSettingsDto {
     int timelinePageSize = 20;
 
     long version;
+
+    @Builder.Default
+    int schemaVersion = SCHEMA_VERSION;
 
     public static UserSettingsDto defaultSettings() {
         return UserSettingsDto.builder()

@@ -75,8 +75,16 @@ public class AttachmentSnapshotRepository {
                          .param("id", id)
                          .query(String.class)
                          .optional();
-        return json.isEmpty() ? Optional.empty()
-                : Optional.of(objectMapper.readValue(json.get(), new TypeReference<>() {}));
+        if (json.isEmpty()) return Optional.empty();
+
+        List<AttachmentMediaChange> changes = objectMapper.readValue(json.get(), new TypeReference<>() {});
+        changes.stream().findFirst().ifPresent(first -> {
+            if (first.schemaVersion() != AttachmentMediaChange.SCHEMA_VERSION) {
+                log.warn("attachment_snapshot.changes_summary schema version mismatch for id={}: stored={}, expected={}",
+                        id, first.schemaVersion(), AttachmentMediaChange.SCHEMA_VERSION);
+            }
+        });
+        return Optional.of(changes);
     }
 
     // pure age-based purge -- snapshot rows are just historical bookkeeping
