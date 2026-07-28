@@ -1403,4 +1403,17 @@ checks (`timeBox.x - (actorBox.x + actorBox.width) < 20px`) to the tests afterwa
 back to "technically right-aligned but visually far apart" would actually fail. Verified: full
 Playwright `e2e --full --ux`, 50/50 passed, confirmed visually via screenshot both before and after
 the wrapper-group fix. [improvement-127](issues/improvement-127-entitytype-localization-taxon-color.md)
-(EntityType i18n + TAXON badge color) carved out, still open, not part of this fix.
+(EntityType i18n + TAXON badge color) carved out from this fix, completed separately same day — see below.
+
+✅ Done (2026-07-28): [improvement-127](issues/improvement-127-entitytype-localization-taxon-color.md) —
+`EntityType` Timeline badge (`AuditTimelineRowRenderer.typeSpan()`) and the Timeline "Entity type"
+filter dropdown (`TimelineQueryBlock`, found widening scope during investigation — same raw-enum-
+name gap) now show localized labels (`Advertisement`/`User`/`User Settings`/`Category`, EN+UK) via
+a new `I18nKey.forEntityType(EntityType)` mirroring `forAdKind(AdKind)`'s shape, instead of the raw
+Java enum name. `TAXON` also got its own badge color — brand-new teal
+(`--app-status-entity-taxon-bg`/`-text`), not reused from any existing status/action color, added
+to `activity-feed.css` alongside the existing advertisement/user/user_settings modifiers. Wording
+and color both confirmed with the user before implementing; executed end-to-end via `/autopilot`.
+Verified: `unit-tests.sh` (77/77), `integration-tests.sh --sandbox` (130/130), full Playwright
+`e2e --full --ux` (50/50), plus direct visual confirmation of the new teal `Category` badge via
+screenshot.

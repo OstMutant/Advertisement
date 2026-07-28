@@ -21,6 +21,7 @@ import org.ost.marketplace.ui.query.filter.FilterProcessor;
 import org.ost.marketplace.ui.query.sort.SortProcessor;
 import org.springframework.beans.factory.annotation.Qualifier;
 
+import static org.ost.marketplace.services.i18n.I18nKey.forEntityType;
 import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_FILTER_ACTION_TYPE;
 import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_FILTER_DATE_END;
 import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_FILTER_DATE_START;
@@ -58,6 +59,7 @@ public class TimelineQueryBlock extends QueryBlock<AuditTimelineFilterDto> {
         // Entity type row
         QueryMultiSelectComboField<EntityType> entityTypeField =
                 new QueryMultiSelectComboField<>(i18nService.get(TIMELINE_FILTER_ENTITY_TYPE), EntityType.values());
+        entityTypeField.setItemLabelGenerator(t -> i18nService.get(forEntityType(t)));
         filterRow(i18nService.get(TIMELINE_FILTER_ENTITY_TYPE), entityTypeField, TimelineFilterMeta.ENTITY_TYPES);
 
         // Action type row

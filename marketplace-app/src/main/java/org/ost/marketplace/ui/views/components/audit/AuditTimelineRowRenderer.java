@@ -66,7 +66,7 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
         if (!ctx.existingRefs().contains(item.entityRef()))
             row.addClassName("activity-feed-row--deleted");
 
-        row.add(actionSpan(item.actionType()), typeSpan(item.entityRef().entityType().name()));
+        row.add(actionSpan(item.actionType()), typeSpan(item.entityRef().entityType()));
 
         String changedByName = item.changedByActorId() != null
                 ? ctx.actorNames().getOrDefault(item.changedByActorId(), "") : null;
@@ -86,10 +86,10 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
         return span;
     }
 
-    private static Span typeSpan(String typeName) {
-        Span span = new Span(typeName);
+    private Span typeSpan(EntityType entityType) {
+        Span span = new Span(i18n.get(I18nKey.forEntityType(entityType)));
         span.addClassName("activity-feed-type");
-        span.addClassName("activity-feed-type--" + typeName.toLowerCase());
+        span.addClassName("activity-feed-type--" + entityType.name().toLowerCase());
         return span;
     }
 

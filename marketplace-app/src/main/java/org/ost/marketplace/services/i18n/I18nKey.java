@@ -3,6 +3,7 @@ package org.ost.marketplace.services.i18n;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.model.ActionType;
+import org.ost.platform.core.model.EntityType;
 
 @RequiredArgsConstructor
 public enum I18nKey {
@@ -225,6 +226,12 @@ public enum I18nKey {
     MAIN_TAB_TIMELINE("main.tab.timeline"),
     MAIN_TAB_REFERENCE_DATA("main.tab.referenceData"),
 
+    // === Entity Type ===
+    ENTITY_TYPE_ADVERTISEMENT("entityType.advertisement"),
+    ENTITY_TYPE_USER("entityType.user"),
+    ENTITY_TYPE_USER_SETTINGS("entityType.userSettings"),
+    ENTITY_TYPE_TAXON("entityType.taxon"),
+
     // === Timeline Filter ===
     TIMELINE_FILTER_ENTITY_TYPE("timeline.filter.entityType"),
     TIMELINE_FILTER_ACTION_TYPE("timeline.filter.actionType"),
@@ -409,6 +416,15 @@ public enum I18nKey {
             case OFFER   -> ADVERTISEMENT_AD_KIND_OFFER;
             case REQUEST -> ADVERTISEMENT_AD_KIND_REQUEST;
             case PRODUCT -> ADVERTISEMENT_AD_KIND_PRODUCT;
+        };
+    }
+
+    public static I18nKey forEntityType(EntityType entityType) {
+        return switch (entityType) {
+            case ADVERTISEMENT -> ENTITY_TYPE_ADVERTISEMENT;
+            case USER          -> ENTITY_TYPE_USER;
+            case USER_SETTINGS -> ENTITY_TYPE_USER_SETTINGS;
+            case TAXON         -> ENTITY_TYPE_TAXON;
         };
     }
 

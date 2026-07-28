@@ -105,6 +105,8 @@
     /* --- Status: entity-type badge -- "advertisement" pill in activity/timeline feeds --- */
     --app-status-entity-advertisement-bg: #fef3c7;
     --app-status-entity-advertisement-text: #92400e;
+    --app-status-entity-taxon-bg: #ccfbf1;
+    --app-status-entity-taxon-text: #0f766e;
 
     /* --- Status: restored action badge (amber/yellow) --- */
     --app-status-restored-badge-text: #854d0e;

@@ -65,6 +65,11 @@
     color:      var(--app-accent-violet);
 }
 
+.activity-feed-type--taxon {
+    background: var(--app-status-entity-taxon-bg);
+    color:      var(--app-status-entity-taxon-text);
+}
+
 .activity-feed-name {
     font-size: 0.85rem;
     color:     var(--app-text-secondary);
