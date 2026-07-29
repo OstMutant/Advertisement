@@ -122,7 +122,7 @@ async function closeEditAndVerifyView(page, expect, overlay, expectedTitle, expe
 
 async function closeOverlayToList(page, overlay) {
   await closeEntityActivity(page);
-  await overlay.locator('.overlay__breadcrumb-back').click();
+  await overlay.locator('.overlay__breadcrumb-back').first().click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
 }
 
@@ -317,7 +317,7 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   });
 }
 
-async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, startingVisibleRows = null, checkCurrentBadge = false, categoryToAdd = null, categoryToRemove = null, cityToSet = null, adKindToSet = null, richText = false, screenshotPrefix }) {
+async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, startingVisibleRows = null, checkCurrentBadge = false, categoryToAdd = null, categoryToRemove = null, cityToSet = null, adKindToSet = null, richText = false, verifyOuterLinkClosesToList = false, screenshotPrefix }) {
   const editVersion       = startingVersion + 1;
   const textEditVersion   = startingVersion + 2;
   const visibleBase       = startingVisibleRows ?? startingVersion;
@@ -527,8 +527,22 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     }
   });
 
+  if (verifyOuterLinkClosesToList) {
+    await test.step('outer breadcrumb link in nested history closes directly to list, even after View→Edit', async () => {
+      await switchToEditMode(page, overlay, null);
+      await expect(overlay.locator('.overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
+      await openActivityTab(overlay);
+      await closeEntityActivity(overlay.page(), 'outer');
+      await expect(page.locator('.base-overlay.overlay--visible')).toHaveCount(0, { timeout: 5000 });
+      await expect(cardByTitle(page, newTitle).first()).toBeVisible({ timeout: 5000 });
+      await screenshot(page, `${screenshotPrefix}-outer-link-to-list`);
+    });
+  }
+
   await test.step(`card reflects saved state${richText ? ' — all Quill formats rendered' : ''}`, async () => {
-    await closeOverlayToList(page, overlay);
+    if (!verifyOuterLinkClosesToList) {
+      await closeOverlayToList(page, overlay);
+    }
     const updatedCard = cardByTitle(page, newTitle).first();
     await verifyCardInList(page, expect, updatedCard, textOnlyDescription, 0, `${screenshotPrefix}-list-updated`);
     if (cityToSet) {

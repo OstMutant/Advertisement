@@ -3202,3 +3202,137 @@ fail a build).
 
 **Verified (full rollout, all five domains):** unit-tests 77/77, integration-tests --sandbox
 133/133 (no schema/repository changes — pure UI refactor), Playwright `e2e --full --ux` 50/50.
+
+**Update (2026-07-28, same day): outer breadcrumb link fixed to close all the way to the list,
+not just cancel the edit — caught by direct user testing (List→View→Edit→History, then click the
+outer link).** `onCloseToOuter` had been wired to each `*FormOverlayModeHandler.Parameters
+.onCancel` — semantically wrong wherever a domain has a View mode with `enteredFromView` tracking
+(`AdvertisementOverlay`, `UserOverlay`, `TaxonOverlay`, `CityOverlay` all have this; only Settings,
+with no View mode at all, made `onCancel` and "close to list" coincide). `onCancel` triggers
+`afterDiscard()`, which reverts to VIEW (not the list) when the session was entered from View —
+so the outer link only worked on the second click, and only when it happened to already be back at
+VIEW. Fix: each affected `*FormOverlayModeHandler.Parameters` gained a distinct `@NonNull Runnable
+onCloseToList`, wired at each `*Overlay.switchTo()`'s EDIT/CREATE branch (and, for
+Taxon/City, also in `save()`'s post-save `Parameters` rebuild) to `this::closeToList` — a genuine,
+unconditional exit, never routed through `afterDiscard()`. `buildHistoryButton()` in all four
+handlers now passes `.onCloseToOuter(params.getOnCloseToList())` instead of `params.getOnCancel()`.
+Not caught by the rollout's own Playwright suite because no existing test exercised `via: 'outer'`
+for these four domains (only Settings' pilot tests did, where the bug happens not to exist) —
+new coverage added per domain for the List→View→Edit→History→outer-link path specifically.
+
+**Same pass: Advertisement's breadcrumb parent-label wording brought in line with the other
+domains.** Taxon/City/User/Settings all reuse their form card's own header text as the nested
+overlay's `parentLabelKey`, and that header text happens to read as "{Entity} details" in every
+one of them — except Advertisement, whose card header is `ADVERTISEMENT_OVERLAY_SECTION_BASIC`
+("Basic information", a field-section label, not an entity-name label), giving a
+`Advertisements › Basic information › Activity` breadcrumb that reads inconsistently with the
+other four domains' `{List} › {Entity} details › Activity` shape. Fixed with a new,
+breadcrumb-only key (`ADVERTISEMENT_ACTIVITY_PARENT_LABEL` = "Advertisement details" / "Деталі
+оголошення") used solely as `parentLabelKey` in `AdvertisementFormOverlayModeHandler
+.buildHistoryButton()` — the card header itself still reads "Basic information", unchanged, since
+that label is correct in its own context (a fields-section heading, not an entity name).
+
+**Update (2026-07-28, same day): the Edit overlay's own breadcrumb (not the nested History
+overlay's) now reflects the real navigation path — a "View" link appears only when the session
+was actually entered via View.** Before this, `AdvertisementOverlay`/`UserOverlay`/`TaxonOverlay`/
+`CityOverlay` each built a single, fixed breadcrumb link (`breadcrumbButton`, always the list tab,
+e.g. "Advertisements") once in `AbstractEntityOverlay.buildContent()` — identical whether Edit was
+entered directly from the list or via View, even though the two paths behave differently on
+Cancel (`afterDiscard()` reverts to View only for the latter, per the `onCloseToList` fix above).
+Per direct user feedback after testing the running app: the breadcrumb should show that extra step
+when it was actually taken, not hide it. `AbstractEntityOverlay` gained an overridable
+`buildBreadcrumbLinks()` (default: `List.of(breadcrumbButton)`), called via `layout
+.setBreadcrumbLinks(buildBreadcrumbLinks())` as the first line of every concrete `switchTo()` —
+each of the four overlays overrides it to insert a second link, labeled with the new shared
+`OVERLAY_BREADCRUMB_VIEW` i18n key ("View" / "Перегляд"), whenever `session.mode() == EDIT &&
+session.enteredFromView()`. That link's action is `this::handleCancel` — the exact call the X
+button already makes for a View-entered session — so no new transition logic was needed, only a
+second visible entry point to it. Reuses the already-existing `OverlayLayout.setBreadcrumbLinks`/
+`EntityOverlaySupport.createBreadcrumbButton` infrastructure from the nested-History-overlay work
+above; no CSS changes needed (multi-link spacing/separators were already fixed there).
+
+**Caught two real regressions from this change before it shipped, both by running the full
+Playwright suite, not by inspection:** (1) `TaxonOverlay.buildBreadcrumbLinks()` was never actually
+added — only the `switchTo()` call site was wired — so Taxon silently kept the old single-link
+behavior; caught by a `toHaveCount(2)` assertion actually failing (`Received: 1`). (2)
+`closeOverlayToList()` in `advertisement.flow.js` (`overlay.locator('.overlay__breadcrumb-back')
+.click()`, used throughout the suite as a generic "close whatever's open, straight to list"
+helper) started throwing a Playwright strict-mode violation ("resolved to 2 elements") the moment
+any test called it from a View-entered Edit session — fixed with `.first()`, which is also
+semantically correct since the outer list link is always index 0 in `buildBreadcrumbLinks()`'s
+returned list. Both fixed, then the full suite re-run clean. New Playwright coverage: breadcrumb
+link-count assertions (`toHaveCount(1)` direct-entry / `toHaveCount(2)` via-View) added at the
+existing View/direct-edit entry helpers for all four domains
+(`runOpenUserEditViaViewFlow`/`runOpenUserEditViaListFlow`, `openTaxonEdit`/the new taxon
+View→Edit step, `openCityEdit`/the new city View→Edit step, and the Advertisement outer-link step).
+
+**Verified (both changes together):** unit-tests 77/77, integration-tests --sandbox 133/133,
+Playwright `e2e --full --ux` 50/50.
+
+**Update (2026-07-29): the fixed "insert a View link" approach above was itself replaced with a
+genuine, growing breadcrumb stack — by further direct user feedback the same day.** The previous
+update inserted a *second, hardcoded* link only for the Edit-overlay's own breadcrumb; it didn't
+touch the nested History overlay's breadcrumb at all, which still only ever showed a fixed
+2-segment chain (`outerLabelKey`/`parentLabelKey`) regardless of how deep the actual navigation
+went. The user's correction: going deeper should never rewrite existing segments, only append one
+— by the same mechanism already used for Settings (a pre-built link chain handed to the nested
+overlay), generalized so the chain's length reflects the real path:
+- List→View: `Ads(link) > Details(current)`.
+- List→View→Edit: `Ads(link) > Details(link) > Edit(current)`.
+- List→Edit (direct, no View): `Ads(link) > Edit(current)` — the Details segment never appears at
+  all, not just collapsed/hidden.
+- ...→Edit→History: the current level's own current-page label ("Edit") becomes a link too, and
+  "Activity" becomes the new current — extending the exact same chain, not recomputing it.
+
+**New shared type — `BreadcrumbStep(String label, Runnable onClick)`** (`ui/views/components/
+overlay/`), a label already resolved to a string (not an `I18nKey`) so it also fits `UserOverlay`'s
+existing dynamic-name current-label, not just the other three domains' static title keys.
+`AbstractEntityOverlay.buildBreadcrumbSteps()` (default: one step, the list tab) replaces the
+previous update's `buildBreadcrumbLinks()`; `buildBreadcrumbLinks()` is now a `final`-in-spirit
+derived method that turns steps into rendered `OverlayBreadcrumbBackButton`s via
+`EntityOverlaySupport.createBreadcrumbButton(String, Runnable)` (new overload; the existing
+`I18nKey` overload now delegates to it). Each of the four domains' `buildBreadcrumbSteps()`
+override just appends the "View" step (unchanged from the previous update) — the growth logic
+lives entirely in how that list gets *consumed* downstream, not in how it's built.
+
+**`EntityActivityOverlay.Parameters` no longer takes `outerLabelKey`/`parentLabelKey`/
+`onCloseToOuter`.** It now takes `parentSteps` (`List<BreadcrumbStep>` — literally
+`*Overlay.buildBreadcrumbSteps()`'s own output, passed through the `*FormOverlayModeHandler
+.Parameters.breadcrumbSteps` field added for this purpose) and `parentFormLabel` (`String` — the
+Edit form's own current-page label: `getValue(*_OVERLAY_TITLE_EDIT)` for Advertisement/Taxon/City,
+`params.getUser().name()` for User, matching `*Overlay.switchTo()`'s own current-text logic
+exactly). `openFor()` renders every `parentStep` as a link whose click handler is `closeNested()`
+then the step's own `onClick()` — so the "List" step's action (`this::closeToList`, inherited from
+the base `buildBreadcrumbSteps()`) still closes all the way out in one click regardless of chain
+length, and a "View" step's action (`this::handleCancel`) still reverts the underlying Edit
+overlay to View — then appends one more link for `parentFormLabel` itself (action: `closeNested()`
+alone, revealing the still-open Edit form beneath, unchanged from before). CSS classes:
+`.entity-activity-breadcrumb-step` on every rendered parent-step link, `.entity-activity-
+breadcrumb-parent` on the trailing form-label link (same class name as before, same semantics).
+
+**View mode's own breadcrumb-current text changed from empty to `OVERLAY_BREADCRUMB_VIEW`
+("View"/"Перегляд")** in all four domains, so `List→View` alone now reads `Ads(link) >
+Details(current)` instead of just `Ads(link)` with no current segment — the `layout
+.getBreadcrumbCurrent().setVisible(...)` toggle tied to that empty-string case was removed
+entirely (no longer needed once every mode always has a non-empty label).
+
+**Found the fifth `AbstractEntityOverlay` subclass only by running the full suite, not by
+grep-before-editing:** `SettingsOverlay` (not just `SettingsFormModeHandler`) also extends
+`AbstractEntityOverlay`, and its own `switchTo()` never called `layout.setBreadcrumbLinks
+(buildBreadcrumbLinks())` — a line every other override now has. Under the old design that was
+harmless (the base class populated the layout's breadcrumb directly at `buildContent()` time via
+the now-removed `breadcrumbButton` field); under the new design, `launchSession()` creates the
+layout with an *empty* initial link list precisely because every override is expected to populate
+it in its own `switchTo()`. `SettingsOverlay` was the one caller that didn't, so its own top-level
+overlay silently lost its "Home" breadcrumb link entirely — caught by a Playwright timeout on
+`.overlay__breadcrumb-back` in an unrelated pagination test, not by any test targeting Settings'
+breadcrumb directly. Fixed with the same one-line addition every other override already has.
+
+**A second Playwright failure in the same full run turned out to be a pre-existing flake, not a
+regression** — confirmed by a full `scripts/deploy.sh --reset` (clean DB/MinIO volumes) followed
+by a full re-run, which passed 50/50 including the specific test that had failed
+(`userEn — locale persists across logout and re-login`, a `.header-settings-button` visibility
+timeout unrelated to any overlay/breadcrumb code touched in this change).
+
+**Verified (final, after the `SettingsOverlay` fix and a clean-DB re-run):** unit-tests 77/77,
+Playwright `e2e --full --ux` 50/50.

@@ -23,6 +23,7 @@ import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.utils.BeforeUnloadUtil;
@@ -40,6 +41,7 @@ import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
 import java.util.Arrays;
+import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -55,6 +57,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         @NonNull UserDto  user;
         @NonNull Runnable onSave;
         @NonNull Runnable onCancel;
+        @NonNull List<BreadcrumbStep> breadcrumbSteps;
     }
 
     private final UserPort                                              userPort;
@@ -130,10 +133,9 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
                 .userId(access.getCurrentUserId())
                 .isPrivileged(access.isPrivileged())
                 .canOperate(access.canOperate(params.getUser().id()))
-                .outerLabelKey(MAIN_TAB_USERS)
-                .parentLabelKey(USER_DIALOG_SECTION_LABEL)
+                .parentSteps(params.getBreadcrumbSteps())
+                .parentFormLabel(params.getUser().name())
                 .currentLabelKey(USER_ACTIVITY_BUTTON)
-                .onCloseToOuter(params.getOnCancel())
                 .onRestoreRequested(this::handleRestoreFromActivity)
                 .build()));
         return historyBtn;

@@ -86,7 +86,7 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('userEn edits advertisement — discard, two saves with activity diff, all rich formats in view and card, format-only edit, admin timeline check', async () => {
+  test('userEn edits advertisement — discard, two saves with activity diff, all rich formats in view and card, format-only edit, outer breadcrumb link closes directly to list, admin timeline check', async () => {
     await runFillLoginFormFlow(page, CREATE.enAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
     await runEditAdvertisementFlow(page, expect, {
@@ -95,6 +95,7 @@ test.describe('Advertisement flow', () => {
       startingVersion: 1,
       startingVisibleRows: 1,
       richText: true,
+      verifyOuterLinkClosesToList: true,
       screenshotPrefix: 'adv-useren-edit',
     });
     await runLogoutFlow(page, expect);

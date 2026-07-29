@@ -416,7 +416,7 @@ test.describe('Seed data and query validation', () => {
 
     // ── history is a nested overlay now, not a tab: breadcrumb chain Home / Settings / Activity ─
     await openHistory(page);
-    await expect(page.locator('.entity-activity-breadcrumb-outer')).toBeVisible();
+    await expect(page.locator('.entity-activity-breadcrumb-step')).toBeVisible();
     await expect(page.locator('.entity-activity-breadcrumb-parent')).toBeVisible();
     await expect(page.locator('.entity-activity-close-button')).toBeVisible();
     // exactly one separator between each of the 3 segments -- catches a doubled-up "›" regression

@@ -35,6 +35,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.QuillEditor;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.services.NotificationService;
@@ -69,9 +70,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     @Value
     @lombok.Builder
     public static class Parameters {
-        AdvertisementInfoDto ad;
-        @NonNull Runnable    onSave;
-        @NonNull Runnable    onCancel;
+        AdvertisementInfoDto        ad;
+        @NonNull Runnable           onSave;
+        @NonNull Runnable           onCancel;
+        @NonNull List<BreadcrumbStep> breadcrumbSteps;
     }
 
     private final ComponentFactory<AdvertisementPort>                          advertisementPortFactory;
@@ -226,10 +228,9 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                 .userId(access.getCurrentUserId())
                 .isPrivileged(access.isPrivileged())
                 .canOperate(access.canOperate(params.getAd().getOwnerUserId()))
-                .outerLabelKey(MAIN_TAB_ADVERTISEMENTS)
-                .parentLabelKey(ADVERTISEMENT_OVERLAY_SECTION_BASIC)
+                .parentSteps(params.getBreadcrumbSteps())
+                .parentFormLabel(getValue(ADVERTISEMENT_OVERLAY_TITLE_EDIT))
                 .currentLabelKey(ADVERTISEMENT_ACTIVITY_BUTTON)
-                .onCloseToOuter(params.getOnCancel())
                 .onRestoreRequested(this::handleRestoreFromActivity)
                 .build()));
         return historyBtn;

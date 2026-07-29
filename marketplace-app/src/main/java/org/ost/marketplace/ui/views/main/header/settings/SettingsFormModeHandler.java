@@ -22,6 +22,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.rules.I18nParams;
@@ -34,6 +35,8 @@ import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.core.Configurable;
 import org.springframework.context.annotation.Scope;
+
+import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -126,10 +129,9 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .userId(params.getUserId())
                 .isPrivileged(true)
                 .canOperate(true)
-                .outerLabelKey(HEADER_HOME)
-                .parentLabelKey(SETTINGS_SECTION_TITLE)
+                .parentSteps(List.of(new BreadcrumbStep(getValue(HEADER_HOME), params.getOnCancel())))
+                .parentFormLabel(getValue(SETTINGS_SECTION_TITLE))
                 .currentLabelKey(SETTINGS_ACTIVITY_BUTTON)
-                .onCloseToOuter(params.getOnCancel())
                 .onRestoreRequested(this::handleRestoreFromActivity)
                 .build()));
         return historyBtn;

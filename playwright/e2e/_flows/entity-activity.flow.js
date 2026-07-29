@@ -11,17 +11,18 @@ async function openEntityActivity(page, openButtonSelector) {
 }
 
 // Closes the nested history overlay. `via: 'parent'` (default) and `via: 'x'` both go back to the
-// screen this overlay was opened from (X always means "back to opener", not "exit to Home" -- see
-// marketplace-app/DECISIONS.md ADR-067). `via: 'outer'` is the one path that exits all the way out
-// (e.g. back to the domain's list view). Idempotent -- a no-op if the overlay is already closed,
-// so callers don't need to track whether an earlier step already closed it.
+// immediate opener (the still-open form underneath, never actually closed -- see
+// marketplace-app/DECISIONS.md ADR-067). `via: 'outer'` clicks the first step in the breadcrumb
+// chain -- always the domain's list link, regardless of how many steps precede the immediate
+// parent -- and exits all the way out. Idempotent -- a no-op if the overlay is already closed, so
+// callers don't need to track whether an earlier step already closed it.
 async function closeEntityActivity(page, via = 'parent') {
   const overlay = page.locator('.entity-activity-overlay.overlay--visible');
   if (!(await overlay.isVisible().catch(() => false))) return;
   const selector = {
     x: '.entity-activity-close-button',
     parent: '.entity-activity-breadcrumb-parent',
-    outer: '.entity-activity-breadcrumb-outer',
+    outer: '.entity-activity-breadcrumb-step:first-child',
   }[via];
   await page.locator(selector).click();
   await overlay.waitFor({ state: 'hidden', timeout: 8000 });

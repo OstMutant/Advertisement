@@ -24,19 +24,17 @@ public class EntityOverlaySupport {
     private final I18nService                                          i18n;
     private final NotificationService                                  notification;
 
-    public OverlayBreadcrumbBackButton createBreadcrumbButton(I18nKey labelKey, Runnable onBack) {
-        OverlayBreadcrumbBackButton btn = new OverlayBreadcrumbBackButton(i18n.get(labelKey));
+    public OverlayBreadcrumbBackButton createBreadcrumbButton(String label, Runnable onBack) {
+        OverlayBreadcrumbBackButton btn = new OverlayBreadcrumbBackButton(label);
         btn.addClickListener(_ -> onBack.run());
         return btn;
     }
 
-    public OverlayLayout createLayout(OverlayBreadcrumbBackButton breadcrumbButton) {
-        OverlayLayout layout = new OverlayLayout();
-        layout.setBreadcrumbButton(breadcrumbButton);
-        return layout;
+    public OverlayBreadcrumbBackButton createBreadcrumbButton(I18nKey labelKey, Runnable onBack) {
+        return createBreadcrumbButton(i18n.get(labelKey), onBack);
     }
 
-    // For a nested overlay's multi-segment breadcrumb chain, e.g. "Home > Settings > Activity".
+    // For a breadcrumb chain of arbitrary depth, e.g. "Home > Settings > Activity".
     public OverlayLayout createLayout(List<Component> breadcrumbLinks) {
         OverlayLayout layout = new OverlayLayout();
         layout.setBreadcrumbLinks(breadcrumbLinks);

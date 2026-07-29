@@ -52,6 +52,7 @@ public class SettingsOverlay extends AbstractEntityOverlay<SettingsFormModeHandl
 
     @Override
     protected void switchTo() {
+        layout.setBreadcrumbLinks(buildBreadcrumbLinks());
         currentFormHandler = formHandlerFactory.build(
                 SettingsFormModeHandler.Parameters.builder()
                         .userId(currentUserId)

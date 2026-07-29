@@ -1,7 +1,7 @@
 const { test, expect, screenshot, closeNotification, TEST_USERS } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runSwitchToUkrainianLoggedInFlow } = require('./_flows/language-switch.flow');
-const { runNavigateToUsersTabFlow, runPromoteUserFlow, runOpenUserEditViaListFlow, runOpenUserEditViaViewFlow, runFillUserRoleFlow, runSaveUserEditFlow, clearUserFilter, closeUserOverlay, closeUserOverlayFromEdit } = require('./_flows/user-management.flow');
+const { runNavigateToUsersTabFlow, runPromoteUserFlow, runOpenUserEditViaListFlow, runOpenUserEditViaViewFlow, runFillUserRoleFlow, runSaveUserEditFlow, clearUserFilter, closeUserOverlay, closeUserOverlayFromEdit, runVerifyOuterLinkClosesToListFlow } = require('./_flows/user-management.flow');
 const { openTimelineTab, assertFeedHasRow, assertTimelineHasRows } = require('./_flows/timeline.flow');
 const { runSignUpFlow } = require('./_flows/signup.flow');
 const { loginBulk, logoutBulk } = require('./_flows/seed.flow');
@@ -56,6 +56,7 @@ async function openTaxonEdit(page, name) {
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:pencil"]') })
     .click();
   await waitForTaxonOverlay(page);
+  await expect(page.locator('.taxon-overlay .overlay__breadcrumb-back')).toHaveCount(1, { timeout: 3000 });
 }
 
 // Section 3 helpers — city management (mirrors taxon helpers above, scoped to the Cities sub-tab)
@@ -103,6 +104,7 @@ async function openCityEdit(page, name) {
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:pencil"]') })
     .click();
   await waitForCityOverlay(page);
+  await expect(page.locator('.city-overlay .overlay__breadcrumb-back')).toHaveCount(1, { timeout: 3000 });
 }
 
 const CAT1 = { nameEn: 'Electronics', descEn: 'Electronic devices and accessories',         nameUk: 'Електроніка', descUk: 'Електронні пристрої та аксесуари' };
@@ -126,11 +128,12 @@ test.describe('Promotion flow', () => {
 
   // === Section 1: Role promotion ===
 
-  test('adminEn promotes moderatorUk to MODERATOR — activity shows updated role, role badge in view and grid', async () => {
+  test('adminEn promotes moderatorUk to MODERATOR — activity shows updated role, role badge in view and grid, outer breadcrumb link closes directly to list', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runNavigateToUsersTabFlow(page, expect);
     await runPromoteUserFlow(page, expect, TEST_USERS.moderatorUk, { role: 'MODERATOR' });
+    await runVerifyOuterLinkClosesToListFlow(page, expect, TEST_USERS.moderatorUk.email);
     await openTimelineTab(page);
     await assertFeedHasRow(page, expect, { action: 'updated', entityType: 'user', screenshotName: 'timeline-moderatoruk-promoted' });
     await runLogoutFlow(page, expect);
@@ -304,7 +307,7 @@ test.describe('Promotion flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, all fields in timeline diff, delete and restore recorded in activity, advertisement view and activity diff show struck-through category while deleted, edits Lviv city with activity diff and restore', async () => {
+  test('adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, outer breadcrumb link closes directly to list, all fields in timeline diff, delete and restore recorded in activity, advertisement view and activity diff show struck-through category while deleted, edits Lviv city with activity diff, restore, and outer breadcrumb link', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await openRefDataTab(page);
@@ -365,6 +368,19 @@ test.describe('Promotion flow', () => {
       await screenshot(page, 'taxon-05-restored-in-list');
     });
 
+    await test.step('outer breadcrumb link in nested history closes directly to list, even after View→Edit', async () => {
+      await page.locator('.taxon-row-name', { hasText: CAT1.nameEn }).click();
+      await waitForTaxonOverlay(page);
+      await page.locator('.taxon-overlay vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
+      await page.locator('.taxon-overlay .taxon-locale-content').nth(0).locator('vaadin-text-field input').waitFor({ timeout: 5000 });
+      await expect(page.locator('.taxon-overlay .overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
+      await openEntityActivity(page, '.taxon-history-button');
+      await closeEntityActivity(page, 'outer');
+      await expect(page.locator('.base-overlay.overlay--visible')).toHaveCount(0, { timeout: 5000 });
+      await expect(page.locator('.taxon-management-view')).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'taxon-05b-outer-link-to-list');
+    });
+
     await test.step('timeline — taxon created and updated entries visible, single-field edit shows all 4 fields in diff', async () => {
       await openTimelineTab(page);
       await assertTimelineHasRows(page, expect, { entityType: 'taxon', action: 'created', minCount: 1, screenshotName: 'taxon-06-timeline-created' });
@@ -412,6 +428,19 @@ test.describe('Promotion flow', () => {
       await closeCityOverlay(page);
       await expect(page.locator('.city-management-view .taxon-row-name', { hasText: CITY1.nameEn })).toBeVisible({ timeout: 5000 });
       await screenshot(page, 'city-02-restored-in-list');
+    });
+
+    await test.step('outer breadcrumb link in nested history closes directly to list, even after View→Edit', async () => {
+      await page.locator('.city-management-view .taxon-row-name', { hasText: CITY1.nameEn }).click();
+      await waitForCityOverlay(page);
+      await page.locator('.city-overlay vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
+      await page.locator('.city-overlay .taxon-locale-content').nth(0).locator('vaadin-text-field input').waitFor({ timeout: 5000 });
+      await expect(page.locator('.city-overlay .overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
+      await openEntityActivity(page, '.city-history-button');
+      await closeEntityActivity(page, 'outer');
+      await expect(page.locator('.base-overlay.overlay--visible')).toHaveCount(0, { timeout: 5000 });
+      await expect(page.locator('.city-management-view')).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'city-02b-outer-link-to-list');
     });
 
     const STRIKETHROUGH_AD_TITLE = 'Electronics Strikethrough Test Ad';

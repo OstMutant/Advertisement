@@ -1,3 +1,4 @@
+const { expect } = require('@playwright/test');
 const { screenshot, assertComputedColor, assertRightAligned } = require('../_helpers');
 const { closeNotification } = require('../_helpers');
 const { openEntityActivity, closeEntityActivity } = require('./entity-activity.flow');
@@ -49,6 +50,7 @@ async function runOpenUserEditViaViewFlow(page, email) {
   await runOpenUserViewDialogFlow(page, email);
   await page.locator('.user-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).click();
   await page.locator('.user-overlay vaadin-combo-box').waitFor({ timeout: 5000 });
+  await expect(page.locator('.user-overlay .overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
   await screenshot(page, 'user-management-promote-dialog-opened');
 }
 
@@ -58,6 +60,7 @@ async function runOpenUserEditViaListFlow(page, email) {
   await editButton.waitFor({ timeout: 5000 });
   await editButton.click();
   await page.locator('.user-overlay.overlay--visible').waitFor({ timeout: 5000 });
+  await expect(page.locator('.user-overlay .overlay__breadcrumb-back')).toHaveCount(1, { timeout: 3000 });
   await page.locator('.user-overlay vaadin-combo-box').waitFor({ timeout: 5000 });
   await screenshot(page, 'user-management-promote-dialog-opened');
 }
@@ -163,6 +166,17 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   await clearUserFilter(page);
 }
 
+// Outer breadcrumb link must close all the way to the list, even when entered via View.
+async function runVerifyOuterLinkClosesToListFlow(page, expect, email) {
+  await runOpenUserEditViaViewFlow(page, email);
+  await openEntityActivity(page, '.user-history-button');
+  await closeEntityActivity(page, 'outer');
+  await expect(page.locator('.base-overlay.overlay--visible')).toHaveCount(0, { timeout: 5000 });
+  await expect(page.locator('.user-list-layout')).toBeVisible({ timeout: 5000 });
+  await screenshot(page, 'user-management-outer-link-to-list');
+  await clearUserFilter(page);
+}
+
 module.exports = {
   closeUserOverlay,
   closeUserOverlayFromEdit,
@@ -175,4 +189,5 @@ module.exports = {
   runFillUserRoleFlow,
   runSaveUserEditFlow,
   runPromoteUserFlow,
+  runVerifyOuterLinkClosesToListFlow,
 };

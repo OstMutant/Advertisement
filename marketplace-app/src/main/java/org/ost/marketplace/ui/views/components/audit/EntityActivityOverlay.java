@@ -12,11 +12,13 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.overlay.BaseOverlay;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.platform.core.model.EntityRef;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.LongConsumer;
 
@@ -29,15 +31,14 @@ public class EntityActivityOverlay extends BaseOverlay {
     @lombok.Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull EntityRef   entityRef;
-        @NonNull Long        userId;
-        boolean               isPrivileged;
-        boolean               canOperate;
-        @NonNull I18nKey      outerLabelKey;
-        @NonNull I18nKey      parentLabelKey;
-        @NonNull I18nKey      currentLabelKey;
-        @NonNull Runnable     onCloseToOuter;
-        @NonNull LongConsumer onRestoreRequested;
+        @NonNull EntityRef            entityRef;
+        @NonNull Long                 userId;
+        boolean                        isPrivileged;
+        boolean                        canOperate;
+        @NonNull List<BreadcrumbStep> parentSteps;
+        @NonNull String                parentFormLabel;
+        @NonNull I18nKey              currentLabelKey;
+        @NonNull LongConsumer         onRestoreRequested;
     }
 
     private final transient EntityOverlaySupport support;
@@ -45,7 +46,6 @@ public class EntityActivityOverlay extends BaseOverlay {
     private final UiComponentFactory<AuditActivityPanel> auditActivityPanelFactory;
 
     private OverlayLayout layout;
-    private Runnable      onCloseToOuter;
 
     @Override
     protected void buildContent() {
@@ -59,18 +59,25 @@ public class EntityActivityOverlay extends BaseOverlay {
 
     public void openFor(@NonNull Parameters p) {
         ensureInitialized();
-        this.onCloseToOuter = p.getOnCloseToOuter();
 
-        OverlayBreadcrumbBackButton outerLink = support.createBreadcrumbButton(p.getOuterLabelKey(), this::closeToOuter);
-        outerLink.addClassName("entity-activity-breadcrumb-outer");
-        OverlayBreadcrumbBackButton parentLink = support.createBreadcrumbButton(p.getParentLabelKey(), this::closeToParent);
+        List<Component> links = new ArrayList<>();
+        for (BreadcrumbStep step : p.getParentSteps()) {
+            OverlayBreadcrumbBackButton stepLink = support.createBreadcrumbButton(step.label(), () -> {
+                closeNested();
+                step.onClick().run();
+            });
+            stepLink.addClassName("entity-activity-breadcrumb-step");
+            links.add(stepLink);
+        }
+        OverlayBreadcrumbBackButton parentLink = support.createBreadcrumbButton(p.getParentFormLabel(), this::closeToParent);
         parentLink.addClassName("entity-activity-breadcrumb-parent");
+        links.add(parentLink);
 
         if (layout != null) layout.removeFromParent();
-        layout = support.createLayout(List.of((Component) outerLink, parentLink));
+        layout = support.createLayout(links);
         layout.getBreadcrumbCurrent().setText(i18n.get(p.getCurrentLabelKey()));
 
-        UiIconButton closeBtn = new UiIconButton(i18n.get(p.getParentLabelKey()), VaadinIcon.CLOSE.create());
+        UiIconButton closeBtn = new UiIconButton(p.getParentFormLabel(), VaadinIcon.CLOSE.create());
         closeBtn.addClassName("entity-activity-close-button");
         closeBtn.addClickListener(_ -> closeToParent());
         layout.setHeaderActions(new Div(closeBtn));
@@ -93,10 +100,5 @@ public class EntityActivityOverlay extends BaseOverlay {
 
     private void closeToParent() {
         closeNested();
-    }
-
-    private void closeToOuter() {
-        closeNested();
-        if (onCloseToOuter != null) onCloseToOuter.run();
     }
 }

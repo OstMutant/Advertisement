@@ -461,3 +461,43 @@ catches them. Both fixed before the final verification run.
 to `EntityType.ACTOR_PROFILE`) with two history icon buttons; no further generalization of the
 overlay/breadcrumb infrastructure needed. This issue's full scope (redesign + pilot + rollout) is
 complete.
+
+## Resolution — post-rollout navigation fixes (2026-07-28, same day, found via manual testing)
+
+Two real bugs found by the user directly exercising the deployed app, both root-caused and fixed
+in the same session — see `marketplace-app/DECISIONS.md` ADR-067 for full technical detail:
+
+1. **History overlay's outer breadcrumb link didn't skip past View.** For any domain with a View
+   mode (Advertisement, User, Taxon, City — all but Settings), entering Edit via View then opening
+   History and clicking the outer link only reverted to View, requiring a second click to reach
+   the list — because `onCloseToOuter` was wired to `onCancel`, which routes through
+   `afterDiscard()`'s View-revert branch. Fixed with a distinct `onCloseToList` callback per
+   domain, a genuine unconditional exit never routed through `afterDiscard()`.
+2. **The Edit overlay's own breadcrumb didn't show the View step even when it was taken.** Per
+   direct user feedback: if you got to Edit via View, the breadcrumb should show that; if you got
+   there directly from the list, it shouldn't. Added an overridable `buildBreadcrumbLinks()` on
+   `AbstractEntityOverlay`, inserting a "View" link (reusing the existing Cancel behavior) only
+   when `session.enteredFromView()`.
+
+Also fixed in the same pass: Advertisement's breadcrumb parent-label read "Basic information"
+instead of "Advertisement details", inconsistent with the other three domains.
+
+Two regressions from fix #2 were caught by the Playwright suite itself before shipping (a missing
+`TaxonOverlay` override, and a strict-mode violation in a test helper that assumed exactly one
+breadcrumb link) — both fixed, full suite re-run clean.
+
+**Verified:** `unit-tests.sh` 77/77, `integration-tests.sh --sandbox` 133/133, Playwright
+`e2e --full --ux` 50/50.
+
+**Superseded same day, item 2 above:** fix #2's "insert one hardcoded View link" was itself
+replaced with a genuine, growing breadcrumb chain per further direct user feedback — going deeper
+now only ever *appends* a segment (never rewrites existing ones), and the nested History overlay's
+own breadcrumb is now built by extending the exact same chain the Edit overlay already computed,
+not a separately fixed 2-link shape. See `marketplace-app/DECISIONS.md` ADR-067's final "Update"
+for the full design (`BreadcrumbStep`, `EntityActivityOverlay.Parameters.parentSteps`/
+`parentFormLabel`). Caught a 5th `AbstractEntityOverlay` subclass (`SettingsOverlay` itself, not
+just `SettingsFormModeHandler`) missing the required `switchTo()` wiring, and confirmed a second
+Playwright failure was a pre-existing flake via a clean `deploy.sh --reset` + full re-run.
+
+**Verified (final):** `unit-tests.sh` 77/77, Playwright `e2e --full --ux` 50/50 (post-reset,
+clean run).

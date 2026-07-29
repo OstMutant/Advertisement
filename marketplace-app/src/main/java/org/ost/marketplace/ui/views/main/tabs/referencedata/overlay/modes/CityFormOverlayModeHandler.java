@@ -25,6 +25,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.UiTextArea;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.rules.I18nParams;
@@ -68,6 +69,7 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
         @NonNull Mode     mode;
         @NonNull Runnable onSave;
         @NonNull Runnable onCancel;
+        @NonNull List<BreadcrumbStep> breadcrumbSteps;
     }
 
     @Getter
@@ -167,10 +169,9 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
                 .userId(access.getCurrentUserId())
                 .isPrivileged(access.isPrivileged())
                 .canOperate(access.isPrivileged())
-                .outerLabelKey(MAIN_TAB_REFERENCE_DATA)
-                .parentLabelKey(CITY_OVERLAY_SECTION_LABEL)
+                .parentSteps(params.getBreadcrumbSteps())
+                .parentFormLabel(getValue(CITY_OVERLAY_TITLE_EDIT))
                 .currentLabelKey(CITY_ACTIVITY_BUTTON)
-                .onCloseToOuter(params.getOnCancel())
                 .onRestoreRequested(this::handleRestoreFromActivity)
                 .build()));
         return historyBtn;
@@ -193,6 +194,7 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
                     .mode(params.getMode())
                     .onSave(params.getOnSave())
                     .onCancel(params.getOnCancel())
+                    .breadcrumbSteps(params.getBreadcrumbSteps())
                     .build());
         }));
     }

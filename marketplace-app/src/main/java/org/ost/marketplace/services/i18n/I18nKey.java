@@ -279,6 +279,9 @@ public enum I18nKey {
     OVERLAY_UNSAVED_CONFIRM("overlay.unsaved.confirm"),
     OVERLAY_UNSAVED_CANCEL("overlay.unsaved.cancel"),
 
+    // === Overlay Breadcrumb ===
+    OVERLAY_BREADCRUMB_VIEW("overlay.breadcrumb.view"),
+
     // === Form Restore ===
     FORM_RESTORE_BANNER("form.restore.banner"),
     FORM_DISCARD_CHANGES("form.discard.changes"),

@@ -14,6 +14,7 @@ import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;
 import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.audit.spi.AuditPort;
@@ -24,6 +25,8 @@ import org.ost.platform.user.spi.UserPort;
 
 import java.lang.reflect.Method;
 import java.time.Instant;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -63,10 +66,15 @@ class UserFormOverlayModeHandlerTest {
         when(access.canOperate(99L)).thenReturn(true);
         when(i18nService.get(any(I18nKey.class))).thenReturn("Activity");
 
+        AtomicBoolean cancelCalled = new AtomicBoolean(false);
+        AtomicBoolean closeToListCalled = new AtomicBoolean(false);
+        List<BreadcrumbStep> breadcrumbSteps = List.of(new BreadcrumbStep("Users", () -> closeToListCalled.set(true)));
+
         handler.configure(UserFormOverlayModeHandler.Parameters.builder()
                 .user(subject)
                 .onSave(() -> {})
-                .onCancel(() -> {})
+                .onCancel(() -> cancelCalled.set(true))
+                .breadcrumbSteps(breadcrumbSteps)
                 .build());
 
         Method buildHistoryButton = UserFormOverlayModeHandler.class.getDeclaredMethod("buildHistoryButton");
@@ -81,5 +89,20 @@ class UserFormOverlayModeHandlerTest {
                 .as("activity panel must filter by the viewer's id, not the profile subject's id")
                 .isEqualTo(42L)
                 .isNotEqualTo(subject.id());
+
+        assertThat(captor.getValue().getParentSteps())
+                .as("the breadcrumb chain passed into the nested overlay must be the exact one built by UserOverlay, not rebuilt from onCancel")
+                .isEqualTo(breadcrumbSteps);
+        assertThat(captor.getValue().getParentFormLabel())
+                .as("the immediate-parent link must show the user's name, matching UserOverlay's own current-page label")
+                .isEqualTo(subject.name());
+
+        captor.getValue().getParentSteps().get(0).onClick().run();
+        assertThat(closeToListCalled.get())
+                .as("the list step's own action must close all the way to the list, not just cancel the edit")
+                .isTrue();
+        assertThat(cancelCalled.get())
+                .as("the list step must not go through onCancel, which reverts to View for a session entered from View")
+                .isFalse();
     }
 }

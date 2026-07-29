@@ -36,10 +36,6 @@ public class OverlayLayout extends Div {
         add(header, body);
     }
 
-    public void setBreadcrumbButton(Component button) {
-        setBreadcrumbLinks(List.of(button));
-    }
-
     // Ordered chain of clickable links before the current-page label, e.g. Home / Settings / Activity.
     public void setBreadcrumbLinks(List<Component> links) {
         breadcrumbSlot.removeAll();
