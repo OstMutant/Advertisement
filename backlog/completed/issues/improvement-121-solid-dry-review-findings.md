@@ -1,5 +1,11 @@
 # improvement-121: repo-wide SOLID/DRY review findings (11-agent pass, 2026-07-25)
 
+**Superseded 2026-07-29 by [improvement-132](../../issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md):**
+every one of this issue's 24 findings was individually re-verified against current code (18 still
+accurate and merged into improvement-132's module sections, 6 resolved as stale/invalid/fixed —
+see improvement-132's "How this was found" table for the full reconciliation). This file is kept
+for its original discussion/plan history; act on improvement-132 instead, not this one.
+
 **Type:** improvement — code-quality/tech-debt cleanup, no live user-facing bug (the two real bugs
 this same review found were already fixed directly in improvement-119's cleanup commit).
 **Module:** `attachment-spring-boot-starter`, `audit-spring-boot-starter`, `platform-commons`,
@@ -56,17 +62,23 @@ first within each group.
 
 ### audit-spring-boot-starter
 
-1. `AuditLogRepository.findRows()`/`findTimeline()` both inline the identical 6-line `numbered AS
-   (...)` CTE verbatim — extract into a `private static final String` constant, matching this
-   class's own `FILTER`/`SORT_ALIASES` convention.
+1. ~~`AuditLogRepository.findRows()`/`findTimeline()` both inline the identical 6-line `numbered AS
+   (...)` CTE verbatim — extract into a `private static final String` constant.~~ **Corrected
+   2026-07-29 (found via `improvement-132`'s `/deep-review full` pass): invalid, no action.** This
+   project deliberately suppresses SQL-literal duplication within a repository class
+   (`@SuppressWarnings("java:S1192")`, documented "Repository SQL pattern" — SQL is inlined
+   per-method, text blocks, never extracted into shared constants across methods even when
+   similar). The CTE duplication is real but is exactly the class of thing this project has already
+   decided not to extract. Does not affect item 3 below (a `RowMapper` object, not SQL text — a
+   separate, still-valid convention).
 2. `AuditReadService`, `AuditLogRepository`, `AuditCleanupService` have zero `@NonNull` annotations
    on parameters that must not be null (`entityType`, `entityId`, `filter`, `snapshotData`, ...),
    unlike `DefaultAuditPort` in the same module — inconsistent with this project's own `@NonNull`
-   rule.
+   rule. **Re-confirmed still accurate 2026-07-29** via `improvement-132`'s independent re-review.
 3. `AuditLogRepository.getSnapshotContent()`'s `snapshotContentMapper()` builds a new `RowMapper`
    lambda per call instead of a `private static final` field (captures `objectMapper`, which is
    likely why it wasn't hoisted — needs a small static nested mapper class instead, the way
-   `ProjectionMapper` already does it).
+   `ProjectionMapper` already does it). **Re-confirmed still accurate 2026-07-29.**
 
 ### platform-commons
 

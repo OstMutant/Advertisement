@@ -1458,3 +1458,17 @@ rounds, and the rollout details: `marketplace-app/DECISIONS.md` ADR-067,
 rollout): `unit-tests.sh` 77/77, `integration-tests.sh --sandbox` 133/133 (no schema/repository
 changes — pure UI refactor), Playwright `e2e --full --ux` 50/50. Unblocks improvement-124, which
 can now call `EntityActivityOverlay.openFor()` directly for its Account overlay's 2 history icons.
+
+✅ Done (2026-07-29): improvement-121 — superseded by improvement-132. The new `.claude/skills/
+deep-review/` skill's first full-mode run (9-agent, all 9 modules) individually re-verified every
+one of improvement-121's original 24 findings against current code before merging: 18 still
+accurate (folded into improvement-132's module sections), 6 resolved as stale/invalid/already-fixed
+(a `vaadin-grid`-free `BaseActionButton` extraction already landed; the tab-based activity pattern
+one item described was deleted entirely by the same-day breadcrumb/ADR-067 refactor; a SQL-constant
+-extraction suggestion contradicted this project's own documented `@SuppressWarnings("java:S1192")`
+convention; two doc-drift items were already fixed; one query-lib finding was independently
+re-derived, not duplicated). improvement-132 also added 13 newly-found items (including one live
+i18n bug — `AdvertisementService.findById()` hardcoding English category names on the detail view).
+Full reconciliation table: `completed/issues/improvement-121-solid-dry-review-findings.md`'s
+supersession banner, `issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md`'s "How this
+was found" section.
