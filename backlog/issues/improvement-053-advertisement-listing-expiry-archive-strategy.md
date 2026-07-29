@@ -4,7 +4,7 @@
 implementation. Same shape as [improvement-046](improvement-046-list-stability-under-concurrent-edits.md)
 ("captures a design discussion, not an agreed fix").
 **Module:** `advertisement-spring-boot-starter` (`advertisement` table, `AdvertisementRepository`).
-**Priority:** low — no current bug, no current volume problem (see "Why deferred" below). Filed now
+**Priority:** 🔵 low — no current bug, no current volume problem (see "Why deferred" below). Filed now
 so the design isn't lost, not because it's urgent.
 **When:** trigger-based — see "Trigger to revisit" below. Do not implement any of the options
 listed here until that trigger fires.

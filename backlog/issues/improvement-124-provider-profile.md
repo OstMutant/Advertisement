@@ -10,7 +10,7 @@ decision below), `platform-commons` (new `actorprofile.*` packages, new
 `EntityType.ACTOR_PROFILE`), `marketplace-app` (new Providers tab/view/overlay, unified account
 overlay, header entry points, OG/sitemap extension), `services/security/AccessEvaluator` (new
 narrower check).
-**Priority:** high — first item of Phase 2 ("Supply + demand side"), the object reviews (F-06)
+**Priority:** 🟡 high — first item of Phase 2 ("Supply + demand side"), the object reviews (F-06)
 and verification (F-07) attach to for masters/shops.
 **When:** improvement-002 landed 2026-07-28 — unblocked. `ActorProfileSnapshotDto` ships with the
 real versioning pattern from day one: a plain `int schemaVersion` record component (last position)

@@ -2,7 +2,7 @@
 
 **Type:** infrastructure gap — found while running Sonar after improvement-113
 **Module:** `scripts/sonar/`
-**Priority:** medium — the quality gate has been silently unenforceable on its `new_coverage`
+**Priority:** 🟡 medium — the quality gate has been silently unenforceable on its `new_coverage`
 condition for the whole `PREVIOUS_VERSION` leak period; any future run that adds real code will
 hit the same failure regardless of how good that code's actual tests are
 **When:** independent, no blockers — worth doing before the next time `bash scripts/sonar.sh`

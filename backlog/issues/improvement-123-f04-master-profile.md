@@ -10,7 +10,7 @@ improvement-124 instead, not this one.
 **Module:** new `master-spring-boot-starter`, `platform-commons` (new `masterprofile.*` packages,
 new `EntityType.MASTER_PROFILE`), `marketplace-app` (new Masters tab/view/overlay, header entry
 point, OG/sitemap extension).
-**Priority:** high — first item of Phase 2 ("Supply + demand side"), the object reviews (F-06)
+**Priority:** ⚪ high (superseded — kept for discussion history only, see banner above; act on improvement-124 instead) — first item of Phase 2 ("Supply + demand side"), the object reviews (F-06)
 and verification (F-07) attach to.
 **When:** blocked on [improvement-002](improvement-002-snapshot-schema-versioning.md) landing
 first, in the same batch (see its "Decided 2026-07-27" update) — `MasterProfileSnapshotDto` ships

@@ -2,7 +2,7 @@
 
 **Type:** improvement — data integrity under concurrency, found by external code audit (round 6)
 **Module:** attachment-spring-boot-starter
-**Priority:** low — requires concurrent editing of the same gallery; trigger-based
+**Priority:** ⚪ low — requires concurrent editing of the same gallery; trigger-based
 **When:** Deferred — per-item triggers below; item A joins any attachment schema touch
 
 ## Items

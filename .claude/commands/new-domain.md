@@ -54,7 +54,9 @@ ui/views/main/tabs/$ARGUMENTS_LOWER/
 **$NAMEFormOverlayModeHandler:**
 - `extends AbstractFormOverlayModeHandler`, implements `Configurable<T, Parameters>`
 - `activate()` delegates to `buildBinder(dto)` for binder logic
-- Tabs via `buildTabbedContent(...)` from base class
+- `layout.setContent(...)` unconditionally (no tabs); history/restore is a header-action icon
+  button (`.$NAME-history-button`) opening the shared `EntityActivityOverlay` — see
+  `.claude/rules.md` "Form Handler Pattern" / "Breadcrumb Pattern"
 - Public `discardChanges()` for form reset
 
 **$NAMEQueryBlock:**

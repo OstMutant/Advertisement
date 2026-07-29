@@ -5,7 +5,7 @@ implementation. Same shape as [improvement-053](improvement-053-advertisement-li
 ("design discussion, no agreed fix yet").
 **Module:** `marketplace-app` (`ui/` tree broadly — spans `Configurable`/overlay/view/form-handler
 templates, not any single component family).
-**Priority:** low-medium — no functional bug; this is consistency/maintainability debt across the
+**Priority:** 🔵 low-medium — no functional bug; this is consistency/maintainability debt across the
 UI component templates. Useful to resolve deliberately before further UI expansion, not urgent.
 **When:** trigger-based — before the next large UI-pattern rollout (e.g. a new domain's Overlay/View
 pair), or whenever a dedicated UI consistency pass is scheduled. Do not act on any single finding

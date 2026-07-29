@@ -3,7 +3,7 @@
 **Type:** improvement — consistency + scalability. Found via edge-case review (2026-07-19).
 **Module:** `marketplace-app` (`ui/.../referencedata/TaxonManagementView.java`),
 `taxon-spring-boot-starter` (`DefaultTaxonPort.listAllByType`, repository)
-**Priority:** low-medium — no bug at today's small dictionary; the only list view in the app that
+**Priority:** 🔵 low-medium — no bug at today's small dictionary; the only list view in the app that
 breaks the paginated pattern, and it degrades as the category dictionary grows
 **When:** Deferred — trigger: category dictionary growing past a couple screens' worth, or a
 dedicated UI-consistency pass; batch with a reference-data touch

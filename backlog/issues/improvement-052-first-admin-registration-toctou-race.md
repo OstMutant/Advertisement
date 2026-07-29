@@ -2,7 +2,7 @@
 
 **Type:** security hardening, deliberately deferred — not a bug to fix now.
 **Module:** `user-spring-boot-starter` (`UserService.register()`).
-**Priority:** lowest — narrow trigger window, accepted risk for now; revisit only when the project
+**Priority:** ⚪ lowest — narrow trigger window, accepted risk for now; revisit only when the project
 is nearing production readiness.
 **When:** trigger-based — see "Trigger to revisit" below. Do not implement any of the options
 listed here until that trigger fires.

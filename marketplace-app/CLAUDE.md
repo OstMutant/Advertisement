@@ -69,8 +69,8 @@ componentFactory.build(MyPanel.Parameters.builder().entityId(id).onSave(onSave).
 
 Detailed cross-cutting rules for the Overlay pattern (OverlaySession, switchTo vs launchSession,
 currentFormHandler reset, afterSave update), View pattern (init() structure, refresh() guard),
-Query Layer (FilterMeta/SortMeta Fields.* constants), and Form Handler pattern (buildTabbedContent,
-buildBinder) are documented in: @../.claude/rules.md
+Query Layer (FilterMeta/SortMeta Fields.* constants), Form Handler pattern (buildBinder, history
+button), and Breadcrumb pattern (BreadcrumbStep) are documented in: @../.claude/rules.md
 
 ---
 

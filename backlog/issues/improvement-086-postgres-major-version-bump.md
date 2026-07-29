@@ -5,7 +5,7 @@
 `integration-tests/` (Testcontainers Postgres image, sourced from the same `.env` value per
 `integration-tests/CLAUDE.md`), `scripts/deploy.sh` (its own separately hardcoded Postgres
 pull/run — see `improvement-044`'s still-open follow-up about consolidating this).
-**Priority:** low — not urgent; PostgreSQL 15 is still within its supported window (~5-year
+**Priority:** ⚪ low — not urgent; PostgreSQL 15 is still within its supported window (~5-year
 support cycle from its 2022 release), no forced-EOL pressure yet. Trigger-based, not immediately
 actionable.
 **When:** deferred — do when data volume/feature needs justify it, or when PostgreSQL 15's support

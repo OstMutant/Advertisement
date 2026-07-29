@@ -2,7 +2,7 @@
 
 **Type:** improvement — framework deprecation with `forRemoval = true`
 **Module:** `marketplace-app` (`org.ost.marketplace.config.ui.AppShell`)
-**Priority:** low — already consciously deferred (see below), no live bug, no user-visible issue today
+**Priority:** ⚪ low — already consciously deferred (see below), no live bug, no user-visible issue today
 **When:** independent, no blockers — but requires a full visual pass (Playwright `e2e --full --ux`)
 before merging, not just a compile check; batch with any other theme/styling touch
 

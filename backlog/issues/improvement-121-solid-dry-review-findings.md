@@ -5,7 +5,7 @@ this same review found were already fixed directly in improvement-119's cleanup 
 **Module:** `attachment-spring-boot-starter`, `audit-spring-boot-starter`, `platform-commons`,
 `query-lib`, `taxon-spring-boot-starter`, `user-spring-boot-starter`, `marketplace-app` (several
 packages).
-**Priority:** lowest ⚪ — no live bug; deprioritized 2026-07-26 after an autopilot execution attempt
+**Priority:** ⚪ lowest — no live bug; deprioritized 2026-07-26 after an autopilot execution attempt
 across all 8 batches was aborted before landing anything (rolled back cleanly, no code changes from
 this issue are in the tree). Revisit opportunistically, not on a schedule.
 **When:** independent, no blockers.

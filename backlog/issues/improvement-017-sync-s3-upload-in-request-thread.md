@@ -2,7 +2,7 @@
 
 **Type:** improvement — scalability, found by external code audit (round 5), verified
 **Module:** attachment-spring-boot-starter
-**Priority:** medium — per-user freeze today, systemic risk largely mitigated by virtual threads
+**Priority:** 🟡 medium — per-user freeze today, systemic risk largely mitigated by virtual threads
 **When:** Split: step 1 (size caps) Wave 1 alongside thumbnails; step 2 (async pipeline) deferred, bundled with the thumbnail refactor
 **Status:** ◐ PARTIALLY RESOLVED (2026-07-04) — step 1 done: `AttachmentUploadButton.MAX_FILE_SIZE`
 lowered `500 MB → 50 MB` (`AttachmentUploadButton.java:9`), sized for realistic ad photos/short

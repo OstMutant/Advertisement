@@ -3,7 +3,7 @@
 **Type:** improvement — UX/theming. Migrated from `backlog/process-improvements.md` Part 3,
 item 20.
 **Module:** `marketplace-app` theme CSS
-**Priority:** low — no functional impact, purely a modern-UX expectation gap
+**Priority:** 🔵 low — no functional impact, purely a modern-UX expectation gap
 **When:** independent, no blockers — the prerequisite is done; whenever picked up, it's now just
 step 2 below
 

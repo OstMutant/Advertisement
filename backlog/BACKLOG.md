@@ -63,7 +63,7 @@ top priority, unblocked, and can reuse `EntityActivityOverlay` directly for its 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
 | **Top** | 🟡 | 124 | F-04/improvement-124 — one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) merging provider-facing fields (`ProviderKind` MASTER/SHOP/SUPPORT) with locale/settings decoupled out of `user_information`, plus the unified "My Account" overlay (name + settings + provider profile in one place, narrower moderator edit permissions, reusing improvement-128's `EntityActivityOverlay` for its 2 history icons) — its own snapshot DTO must follow improvement-002's `schemaVersion` pattern |
-| Nice to have | — | 073 → 035, 096, 129, 036, 039, 065, 114, 063, 028, 130 | everything else — no internal priority order, pick up opportunistically |
+| Nice to have | — | 073 → 035, 096, 129, 036, 039, 065, 114, 063, 028, 130, 131 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 | Lowest | ⚪ | 121 | repo-wide SOLID/DRY review findings (11-agent audit) — ~20 items across every module; deprioritized after an aborted autopilot attempt, revisit opportunistically only |
@@ -91,6 +91,7 @@ Details, links, and per-batch rationale below.
 | [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Migrated | Minimal CI pipeline (GitHub Actions) — own open questions (push auth, `gh` CLI, clean runner) still unresolved |
 | [improvement-116](issues/improvement-116-vaadin-theme-annotation-migration.md) | New (carved out of improvement-115) | Migrate off deprecated `@Theme` annotation to Vaadin 25's automatic theme discovery — needs full Playwright `--ux` visual pass, deferred out of the mechanical cleanup batch |
 | [improvement-130](issues/improvement-130-backlog-issues-folder-rename.md) | New | Rename `backlog/issues/` (and its `completed/` mirror) to a name that doesn't imply bugs-only — purely organizational, 58 files currently cross-reference the old path, schedule when no other issue is mid-filing |
+| [improvement-131](issues/improvement-131-priority-emoji-rubric-doc-practice-mismatch.md) | New (found via `/deep-review`) | `.claude/commands/feature.md`'s priority-emoji rubric claims to be "already used throughout this backlog" but only 2 of 29 issues use it (both filed in the same commit that triggered this check) — either drop the rubric or backfill it onto the other 27 |
 
 ### Blocked — improvement-118
 

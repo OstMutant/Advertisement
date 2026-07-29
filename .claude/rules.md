@@ -283,21 +283,47 @@ Import: `lombok.experimental.FieldNameConstants`.
 
 ## Form Handler Pattern
 
-### buildTabbedContent() — do not duplicate
-Lazy-load tab logic lives in `AbstractFormOverlayModeHandler.buildTabbedContent()`.
-Never implement tab-switching manually in concrete handlers — delegate to the base class:
-
-```java
-Div content = buildTabbedContent(
-    "my-tabs-css-class",
-    primaryTab, primaryContent,
-    secondaryTab, this::buildSecondaryContent  // lazy loader
-);
-```
-
 ### buildBinder() — separate method
 Binder creation and field binding logic is always extracted into a separate `buildBinder(EntityDto dto)`
 method, never inlined into `activate()`.
+
+### History access — an icon button opening EntityActivityOverlay, not a tab
+`AbstractFormOverlayModeHandler` has no tab machinery at all (`buildTabbedContent()`,
+`buildContentWithActivity()`, `ActivityTabParams` were removed once all five domains migrated —
+see `marketplace-app/DECISIONS.md` ADR-067). `layout.setContent(...)` is called unconditionally;
+history/restore is a header-action icon button (`.{domain}-history-button`) that opens the shared
+`EntityActivityOverlay` (`ui/views/components/audit/`) stacked on top via `BaseOverlay.openNested()`:
+
+```java
+private UiIconButton buildHistoryButton() {
+    UiIconButton historyBtn = new UiIconButton(getValue(USER_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
+    historyBtn.addClassName("user-history-button");
+    historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
+            .entityRef(new EntityRef(EntityType.USER, params.getUser().id()))
+            .parentSteps(params.getBreadcrumbSteps())
+            .parentFormLabel(params.getUser().name())
+            .currentLabelKey(USER_ACTIVITY_BUTTON)
+            .onRestoreRequested(this::handleRestoreFromActivity)
+            .build()));
+    return historyBtn;
+}
+```
+
+---
+
+## Breadcrumb Pattern
+
+### BreadcrumbStep — a growing stack, not a fixed back-link
+`record BreadcrumbStep(String label, Runnable onClick)` (`ui/views/components/overlay/`) — `label`
+is an already-resolved `String` (not an `I18nKey`), so it also fits dynamic labels (e.g.
+`UserOverlay`'s current user name). `AbstractEntityOverlay.buildBreadcrumbSteps()` returns the
+list-tab step by default, plus a "View" step (`OVERLAY_BREADCRUMB_VIEW`) whenever
+`isEditMode() && enteredFromView()` — never rewrite existing segments when navigating deeper, only
+append. `OverlayLayout.setBreadcrumbLinks(List<Component>)` renders the chain with `›` separators
+only *between* links. `EntityActivityOverlay.openFor(...)` extends the calling overlay's own
+`buildBreadcrumbSteps()` (passed as `parentSteps`) with one more segment (`parentFormLabel`), so
+the nested history overlay's breadcrumb reflects the real navigation path taken, not a fixed
+2-segment pair. See `marketplace-app/DECISIONS.md` ADR-067 for the full history of this design.
 
 ---
 

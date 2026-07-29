@@ -3,7 +3,7 @@
 **Type:** improvement — test performance. Migrated from `backlog/process-improvements.md` Part 1,
 item 6.
 **Module:** `playwright/e2e/05-seed-filter-sort-pagination.spec.js`
-**Priority:** low — pure speed optimization, no coverage gap; the current approach is slow but not
+**Priority:** 🟢 low — pure speed optimization, no coverage gap; the current approach is slow but not
 wrong; further deprioritized behind its new prerequisite (see When).
 **When:** blocked on [improvement-073](improvement-073-rest-endpoint-infrastructure-test-seeding.md)
 (REST endpoint infrastructure — this app has none today, and the service-layer seeding approach

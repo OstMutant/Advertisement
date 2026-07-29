@@ -125,6 +125,7 @@ docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-co
 - `/ci [flags]` — run the isolated local CI runner (unit+integration+e2e+sonar by default, backgrounded); see `scripts/ci/README.md`/`DECISIONS.md`
 - `/feature <title>` — scaffold a new `backlog/issues/<prefix>-NNN-<slug>.md` from the standard template and rank it in `BACKLOG.md`'s priority table (improvement-034)
 - `/autopilot <task>` — plan once, approve once, then implement/test/document a task end-to-end with no further check-ins until it's done; explicit per-run opt-out of the standing Approval Rule's per-step gating, not a permanent one
+- `/deep-review` / `/deep-review full [module]` — evidence-verified code review, findings-only, never writes code; diff mode (default, reviews the last commit or a git ref) for cheap frequent checks, full mode for periodic whole-repo SOLID/DRY/KISS sweeps; every finding is independently validated against the real file before being reported — see `.claude/skills/deep-review/SKILL.md`
 
 ---
 
