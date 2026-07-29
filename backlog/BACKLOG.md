@@ -63,7 +63,7 @@ top priority, unblocked, and can reuse `EntityActivityOverlay` directly for its 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
 | **Top** | 🟡 | 124 | F-04/improvement-124 — one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) merging provider-facing fields (`ProviderKind` MASTER/SHOP/SUPPORT) with locale/settings decoupled out of `user_information`, plus the unified "My Account" overlay (name + settings + provider profile in one place, narrower moderator edit permissions, reusing improvement-128's `EntityActivityOverlay` for its 2 history icons) — its own snapshot DTO must follow improvement-002's `schemaVersion` pattern |
-| Nice to have | — | 073 → 035, 096, 036, 039, 065, 114, 063, 028 | everything else — no internal priority order, pick up opportunistically |
+| Nice to have | — | 073 → 035, 096, 129, 036, 039, 065, 114, 063, 028, 130 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 | Lowest | ⚪ | 121 | repo-wide SOLID/DRY review findings (11-agent audit) — ~20 items across every module; deprioritized after an aborted autopilot attempt, revisit opportunistically only |
@@ -82,6 +82,7 @@ Details, links, and per-batch rationale below.
 |---|---|---|
 | [improvement-073](issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) → [improvement-035](issues/improvement-035-sql-seeding-for-playwright-spec-05.md) | New / Migrated | Playwright seeding infrastructure (sequenced pair — 035 unblocks on 073), then service-layer-seed spec 05 via those endpoints — full e2e 11 min → ~7-8 min |
 | [improvement-096](issues/improvement-096-responsive-mobile-adaptation-pass.md) | New (UX review) | Responsive/mobile adaptation — 2 `@media` queries across 26 theme CSS files; its own 4-phase program (mobile Playwright viewport first), schedule before public launch |
+| [improvement-129](issues/improvement-129-marketplace-feed-modernization.md) | New (user-supplied AI spec, verified against code) | Modernize `AdvertisementsView`/`AdvertisementCardView` into a LinkedIn/Facebook-Marketplace-style content feed — options-oriented proposal, not a locked plan; confirmed card is already NOT `vaadin-grid` (visual refresh, not structural rebuild) and all 5 named CSS tokens already exist; `ActorProfile`/avatar/"contact" from the original spec confirmed not to exist yet (descope or sequence after improvement-124); several open design questions listed in the issue need a decision before implementation |
 | [improvement-036](issues/improvement-036-actuator-structured-logging.md) | Migrated | Actuator + structured JSON logging |
 | [improvement-039](issues/improvement-039-dark-mode-lumo-tokens.md) | Migrated | Dark mode — step 2 (palette values + toggle); step 1 shipped via improvement-037 |
 | [improvement-065](issues/improvement-065-settingspaginationservice-detach-not-guaranteed-on-session-expiry.md) | Still open | `SettingsPaginationService`'s `DetachListener` cleanup isn't guaranteed on abrupt session expiry |
@@ -89,6 +90,7 @@ Details, links, and per-batch rationale below.
 | [improvement-063](issues/improvement-063-playwright-stability-guard-async-init-components.md) | Still open | "Ready" signal for async-initialized custom components (`QuillEditor`, `AttachmentGallery`) |
 | [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Migrated | Minimal CI pipeline (GitHub Actions) — own open questions (push auth, `gh` CLI, clean runner) still unresolved |
 | [improvement-116](issues/improvement-116-vaadin-theme-annotation-migration.md) | New (carved out of improvement-115) | Migrate off deprecated `@Theme` annotation to Vaadin 25's automatic theme discovery — needs full Playwright `--ux` visual pass, deferred out of the mechanical cleanup batch |
+| [improvement-130](issues/improvement-130-backlog-issues-folder-rename.md) | New | Rename `backlog/issues/` (and its `completed/` mirror) to a name that doesn't imply bugs-only — purely organizational, 58 files currently cross-reference the old path, schedule when no other issue is mid-filing |
 
 ### Blocked — improvement-118
 
