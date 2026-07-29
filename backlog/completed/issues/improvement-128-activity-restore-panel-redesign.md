@@ -501,3 +501,22 @@ Playwright failure was a pre-existing flake via a clean `deploy.sh --reset` + fu
 
 **Verified (final):** `unit-tests.sh` 77/77, Playwright `e2e --full --ux` 50/50 (post-reset,
 clean run).
+
+**Duplication pass (2026-07-29):** the 4 domain overlays' `buildBreadcrumbSteps()` overrides were
+byte-identical (differing only in each domain's own private `session`/`Mode` types), so they were
+collapsed into two one-line overrides each — `isEditMode()`/`enteredFromView()` — with the shared
+"append a View step" logic moved into `AbstractEntityOverlay.buildBreadcrumbSteps()` itself.
+**Considered and rejected:** making `OverlaySession`/`Mode` a shared generic type on
+`AbstractEntityOverlay<S, H>` so the base class wouldn't need per-subclass overrides at all.
+Rejected — each domain's `OverlaySession` has a different field shape (Advertisement carries both
+`onListChanged` and `onClosed`, User only `onClosed`, Taxon/City only `onListChanged`) and a
+different `Mode` enum (User has no `CREATE`), so a shared bound would only ever cover
+`mode()`/`enteredFromView()` — the transition methods (`toEdit()`/`toView()`/`withX()`) would stay
+domain-specific regardless. The generic version would touch class signatures in the base class
+plus all 5 subclasses, move `session` from a private per-subclass field to a protected inherited
+one, and require every `Mode` enum to implement a new shared interface — a structural change to
+the exact session/mode model that had already produced two real regressions today from far smaller
+edits (the missing `SettingsOverlay` wiring, the `TaxonOverlay` override omission). Not worth the
+risk to remove 8 lines of duplication that already matches this project's documented convention of
+mirroring near-identical logic per domain rather than sharing a generic base beyond what already
+exists (`marketplace-app/CLAUDE.md` "Reference Implementations").

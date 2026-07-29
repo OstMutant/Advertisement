@@ -17,7 +17,6 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.spi.TaxonPort;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
@@ -54,14 +53,8 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
     @Override protected String  getOverlayCssClass()   { return "taxon-overlay"; }
     @Override protected I18nKey getBreadcrumbLabelKey() { return MAIN_TAB_REFERENCE_DATA; }
 
-    @Override
-    protected List<BreadcrumbStep> buildBreadcrumbSteps() {
-        List<BreadcrumbStep> steps = new ArrayList<>(super.buildBreadcrumbSteps());
-        if (session.mode() == Mode.EDIT && session.enteredFromView()) {
-            steps.add(new BreadcrumbStep(i18n().get(OVERLAY_BREADCRUMB_VIEW), this::handleCancel));
-        }
-        return steps;
-    }
+    @Override protected boolean isEditMode()      { return session.mode() == Mode.EDIT; }
+    @Override protected boolean enteredFromView() { return session.enteredFromView(); }
 
     @Override
     protected SaveConfig saveConfig() {
@@ -121,7 +114,8 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
     @Override
     protected void switchTo() {
         currentFormHandler = null;
-        layout.setBreadcrumbLinks(buildBreadcrumbLinks());
+        List<BreadcrumbStep> breadcrumbSteps = buildBreadcrumbSteps();
+        layout.setBreadcrumbLinks(buildBreadcrumbLinks(breadcrumbSteps));
 
         OverlayModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerFactory.build(
@@ -140,7 +134,7 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
                                 .mode(handlerMode)
                                 .onSave(this::handleSave)
                                 .onCancel(this::handleCancel)
-                                .breadcrumbSteps(buildBreadcrumbSteps())
+                                .breadcrumbSteps(breadcrumbSteps)
                                 .build());
                 yield currentFormHandler;
             }

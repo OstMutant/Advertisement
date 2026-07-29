@@ -6,7 +6,10 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.springframework.dao.OptimisticLockingFailureException;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import static org.ost.marketplace.services.i18n.I18nKey.OVERLAY_BREADCRUMB_VIEW;
 
 @SuppressWarnings("java:S110")
 public abstract class AbstractEntityOverlay<H extends AbstractFormOverlayModeHandler<?>> extends BaseOverlay {
@@ -31,13 +34,26 @@ public abstract class AbstractEntityOverlay<H extends AbstractFormOverlayModeHan
         return currentFormHandler != null && currentFormHandler.hasChanges();
     }
 
-    // Overridden to insert a "View" step when the session was entered via View.
+    // Overridden by overlays with a View mode; Settings keeps the false defaults.
+    protected boolean isEditMode()      { return false; }
+    protected boolean enteredFromView() { return false; }
+
     protected List<BreadcrumbStep> buildBreadcrumbSteps() {
-        return List.of(new BreadcrumbStep(i18n().get(getBreadcrumbLabelKey()), this::closeToList));
+        List<BreadcrumbStep> steps = new ArrayList<>();
+        steps.add(new BreadcrumbStep(i18n().get(getBreadcrumbLabelKey()), this::closeToList));
+        if (isEditMode() && enteredFromView()) {
+            steps.add(new BreadcrumbStep(i18n().get(OVERLAY_BREADCRUMB_VIEW), this::handleCancel));
+        }
+        return steps;
     }
 
     protected List<Component> buildBreadcrumbLinks() {
-        return buildBreadcrumbSteps().stream()
+        return buildBreadcrumbLinks(buildBreadcrumbSteps());
+    }
+
+    // Reuses an already-computed steps list, avoiding a duplicate buildBreadcrumbSteps() call.
+    protected List<Component> buildBreadcrumbLinks(List<BreadcrumbStep> steps) {
+        return steps.stream()
                 .<Component>map(step -> getSupport().createBreadcrumbButton(step.label(), step.onClick()))
                 .toList();
     }

@@ -15,7 +15,6 @@ import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserFormOverla
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -50,14 +49,8 @@ public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandle
     @Override protected String  getOverlayCssClass()   { return "user-overlay"; }
     @Override protected I18nKey getBreadcrumbLabelKey() { return MAIN_TAB_USERS; }
 
-    @Override
-    protected List<BreadcrumbStep> buildBreadcrumbSteps() {
-        List<BreadcrumbStep> steps = new ArrayList<>(super.buildBreadcrumbSteps());
-        if (session.mode() == Mode.EDIT && session.enteredFromView()) {
-            steps.add(new BreadcrumbStep(i18n().get(OVERLAY_BREADCRUMB_VIEW), this::handleCancel));
-        }
-        return steps;
-    }
+    @Override protected boolean isEditMode()      { return session.mode() == Mode.EDIT; }
+    @Override protected boolean enteredFromView() { return session.enteredFromView(); }
 
     @Override
     protected SaveConfig saveConfig() {
@@ -105,7 +98,8 @@ public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandle
     @Override
     protected void switchTo() {
         currentFormHandler = null;
-        layout.setBreadcrumbLinks(buildBreadcrumbLinks());
+        List<BreadcrumbStep> breadcrumbSteps = buildBreadcrumbSteps();
+        layout.setBreadcrumbLinks(buildBreadcrumbLinks(breadcrumbSteps));
         OverlayModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerFactory.build(
                     UserViewOverlayModeHandler.Parameters.builder()
@@ -119,7 +113,7 @@ public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandle
                                 .user(session.user())
                                 .onSave(this::handleSave)
                                 .onCancel(this::handleCancel)
-                                .breadcrumbSteps(buildBreadcrumbSteps())
+                                .breadcrumbSteps(breadcrumbSteps)
                                 .build());
                 yield currentFormHandler;
             }

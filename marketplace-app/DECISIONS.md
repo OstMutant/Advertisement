@@ -3336,3 +3336,11 @@ timeout unrelated to any overlay/breadcrumb code touched in this change).
 
 **Verified (final, after the `SettingsOverlay` fix and a clean-DB re-run):** unit-tests 77/77,
 Playwright `e2e --full --ux` 50/50.
+
+**Duplication pass:** the four domain overlays' `buildBreadcrumbSteps()` overrides were
+byte-identical, so they collapsed into two one-line overrides each (`isEditMode()`/
+`enteredFromView()`), with the shared "append a View step" logic moved into
+`AbstractEntityOverlay.buildBreadcrumbSteps()`. A shared generic `OverlaySession`/`Mode` type
+(removing the per-subclass overrides entirely) was considered and rejected — see
+`backlog/completed/issues/improvement-128-activity-restore-panel-redesign.md` for the full
+cost/risk comparison.
