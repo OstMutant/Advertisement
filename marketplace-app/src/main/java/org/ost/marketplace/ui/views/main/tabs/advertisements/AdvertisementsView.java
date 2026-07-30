@@ -223,6 +223,7 @@ public class AdvertisementsView extends VerticalLayout {
         } catch (ConstraintViolationException ex) {
             log.warn("Validation error while fetching advertisements: {}", ex.getMessage(), ex);
             showValidationErrors(ex);
+            refreshButton.setVisible(false);
             advertisementContainer.removeAll();
             paginationBar.setTotalCount(0);
         } catch (Exception ex) {

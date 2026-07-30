@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.ost.query.filter.SqlCondition.like;
+import static org.ost.taxon.repository.TaxonFilter.Fields.*;
 
 @Repository
 @RequiredArgsConstructor
@@ -48,7 +49,7 @@ public class TaxonRepository {
     };
 
     private static final SqlFilterBuilder<TaxonFilter> FILTER = new SqlFilterBuilder<>(List.of(
-            SqlBoundFilter.of("name", "tt.name", (m, f) -> like(m, f.name()))
+            SqlBoundFilter.of(name, "tt.name", (m, f) -> like(m, f.name()))
     ));
 
     private static final Map<String, String> SORT_ALIASES = Map.of(

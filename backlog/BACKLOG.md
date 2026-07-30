@@ -64,7 +64,7 @@ top priority, unblocked, and can reuse `EntityActivityOverlay` directly for its 
 |---|---|---|---|
 | **Top** | 🟡 | 124 | F-04/improvement-124 — one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) merging provider-facing fields (`ProviderKind` MASTER/SHOP/SUPPORT) with locale/settings decoupled out of `user_information`, plus the unified "My Account" overlay (name + settings + provider profile in one place, narrower moderator edit permissions, reusing improvement-128's `EntityActivityOverlay` for its 2 history icons) — its own snapshot DTO must follow improvement-002's `schemaVersion` pattern |
 | High | 🟡 | 132 | `/deep-review full` sweep (9-agent, 2026-07-29), merged with (and supersedes) improvement-121 — 31 findings across all 9 modules; top item is a live i18n bug (`AdvertisementService.findById()` hardcodes English category names on the detail view regardless of viewer locale), rest is DRY/scalability/governance tech-debt |
-| Nice to have | — | 073 → 035, 096, 129, 036, 039, 065, 114, 063, 028, 130, 131 | everything else — no internal priority order, pick up opportunistically |
+| Nice to have | — | 073 → 035, 096, 129, 036, 039, 065, 114, 063, 028, 130, 131, 133 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
@@ -98,6 +98,7 @@ Details, links, and per-batch rationale below.
 | [improvement-116](issues/improvement-116-vaadin-theme-annotation-migration.md) | New (carved out of improvement-115) | Migrate off deprecated `@Theme` annotation to Vaadin 25's automatic theme discovery — needs full Playwright `--ux` visual pass, deferred out of the mechanical cleanup batch |
 | [improvement-130](issues/improvement-130-backlog-issues-folder-rename.md) | New | Rename `backlog/issues/` (and its `completed/` mirror) to a name that doesn't imply bugs-only — purely organizational, 58 files currently cross-reference the old path, schedule when no other issue is mid-filing |
 | [improvement-131](issues/improvement-131-priority-emoji-rubric-doc-practice-mismatch.md) | New (found via `/deep-review`) | `.claude/commands/feature.md`'s priority-emoji rubric claims to be "already used throughout this backlog" but only 2 of 29 issues use it (both filed in the same commit that triggered this check) — either drop the rubric or backfill it onto the other 27 |
+| [improvement-133](issues/improvement-133-deferred-oversized-review-findings.md) | New (process/meta, filed 2026-07-30) | Running collection bucket for `/code-review`/`/deep-review` findings that are valid but too large for the batch that surfaced them — appended to, never a new issue file per finding; first 2 entries are query-lib compile-time `Fields.*` enforcement and `inSet`/`anyOf` cardinality-semantics asymmetry, both from Batch H's retroactive review |
 
 ### Blocked — improvement-118
 

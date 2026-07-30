@@ -45,6 +45,7 @@ public class SqlFilterBuilder<F> {
     }
 
     private Map<String, Object> toParams(List<SqlCondition<?>> sqlConditions) {
-        return sqlConditions.stream().collect(Collectors.toMap(SqlCondition::filterProperty, SqlCondition::value));
+        return sqlConditions.stream().collect(Collectors.toMap(SqlCondition::filterProperty, SqlCondition::value,
+                (a, b) -> { throw new IllegalStateException("Duplicate filterProperty in SqlFilterBuilder bindings"); }));
     }
 }

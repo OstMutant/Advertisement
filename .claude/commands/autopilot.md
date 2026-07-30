@@ -82,6 +82,21 @@ Steps:
    that is itself low-risk (a rename, a dedup extraction, a straightforward null-guard). Only stop
    and ask when a finding's fix would itself be destructive/hard-to-reverse per the standing
    "Executing actions with care" bar — the same exception step 2 already carves out.
+   **Always run `/code-review`'s full documented process end to end, exactly as that skill
+   specifies it — no partial runs, no skipped phases, regardless of diff size:**
+   1. Phase 1: all 8 finder angles, each launched as its own Agent-tool call, in one message so
+      they run in parallel — never fewer, never a direct self-read of the diff substituted instead.
+   2. Phase 2: every surviving candidate gets its own 1-vote verifier Agent-tool call (CONFIRMED /
+      PLAUSIBLE / REFUTED) — do not eyeball the 8 finder reports yourself and decide by reading
+      them; that is not verification, it's a second self-read wearing a different hat.
+   3. Collect every CONFIRMED/PLAUSIBLE finding across all 8 angles into one list, dedup near-
+      duplicates, then fix every one that survives (or explicitly note the skip and why) — do not
+      stop after acting on only the findings that happened to look most interesting while reading
+      notifications as they streamed in.
+   "The diff looks small enough to skip a step" is exactly the judgment call this process exists to
+   remove — it was violated three times in a row in one session before being caught and corrected.
+   Do not repeat it, and do not repeat a partial version of it either (running the 8 finders but
+   skipping per-candidate verification is the same violation in a different shape).
 
 4. **Verify like it's going into the final report, not like a checkbox.** Run every test layer
    the change actually touches — unit tests always; integration tests when a repository/schema/
@@ -99,14 +114,18 @@ Steps:
    `backlog/completed/issues/`, drop its `BACKLOG.md` row, and add the one-line archive entry —
    same operation, not a follow-up.
 
-5. **One final report, comprehensive.** When the whole chain above is done (or genuinely blocked
-   on something outside the plan), report once: what was implemented (file-by-file if the change
-   spans several), what was verified and its actual result (test counts, not just "passed"), which
+5. **One final report, comprehensive but human — no file-by-file diff table.** When the whole
+   chain above is done (or genuinely blocked on something outside the plan), report once: what was
+   implemented in plain terms (not an enumerated per-file diff description — the user reads the
+   actual diff themselves, see `.claude/rules.md` "Final reports"), what was verified and its
+   actual result (test counts, not just "passed"), which
    scripts ran in the background over the course of the run (command + what it was for — the
    compile/test/deploy/Playwright calls step 2 backgrounded by default), which Agent-tool calls ran
    (how many, which subagent type, foreground or `run_in_background`, and whether they ran in
    parallel in one message or sequentially — e.g. `/code-review`'s 8 finder-angle agents, launched
-   together, one message) and what each batch of agents was for, what got documented, and
+   together, one message) and what each batch of agents was for — **and explicitly what step 3's
+   `/code-review` run found and what happened to each finding** (fixed / skipped with why / "no
+   findings survived verification"), not just that it ran, what got documented, and
    the concrete git status (what's staged, ready for "зроби коміт"). This
    report replaces every intermediate status update this run would otherwise have produced — don't
    also send a running commentary while steps 2-4 are in progress; the user asked specifically not

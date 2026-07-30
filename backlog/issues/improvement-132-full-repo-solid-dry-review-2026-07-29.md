@@ -56,7 +56,7 @@ worst-first by batch; work through them one at a time, checking each batch off h
 | A | ✅ Done (2026-07-30) | 1, 2 | `AdvertisementService.findById()` i18n live bug (locale hardcoded to English) + stale `CLAUDE.md` line in the same file |
 | D | ✅ Done (2026-07-30) | 11, 18, 19 | `View.refresh()` catch-branch consistency across `AdvertisementsView`/`UserView`/`TimelineView` — one pattern, one real user-visible bug (18) |
 | B | ✅ Done (2026-07-30) | 3, 4, 5, 6 | taxon-starter: unbounded `IN` → `= ANY(:array)` (3, 4, mechanical, proven pattern) + `DefaultTaxonPort` dedup (5) + style fix in same file (6) |
-| H | 🟡 medium | 23, 24, 25 | query-lib `SqlCondition`/`SqlFilterBuilder` — duplicate-key guard (23, widest blast radius), shared `applyIfNotEmpty()` (24), Javadoc precision (25) |
+| H | ✅ Done (2026-07-30) | 23, 24, 25, 32, 33 | query-lib `SqlCondition`/`SqlFilterBuilder` — duplicate-key guard (23, widest blast radius), shared `applyIfNotEmpty()` (24), Javadoc precision (25), `TaxonRepository` raw-string outlier + `TaxonFilter` `@FieldNameConstants` (32), stale `query-lib/CLAUDE.md` example (33, found while fixing 32) |
 | I | 🟡 medium | 26, 27, 28 | attachment-starter: `AttachmentService` SRP split (26) + consolidate video/embed classification onto `AttachmentMediaContentType` (27, related to 26) + RowMapper hoist (28) |
 | C | 🔵 low-medium | 7, 8, 9, 10 | user-starter: doc fix (7), `UserDto.from(User)` factory (8), `@NonNull` sweep (9), informational SRP note (10, no action) |
 | F | 🔵 low-medium | 13, 14, 15, 16, 17 | marketplace-app small DRY/`@NonNull`: `thumbSrc()` dedup (13), triplicated field-copy (14), `@NonNull` on buttons/fields (15), dead `BaseDialog.buildLayout()` (16), `AccessEvaluator` dedup (17) |
@@ -251,6 +251,21 @@ through) — noted here for the record only.
     factories return `null` "when the value is absent"** — true for scalar factories, imprecise for
     `inSet`/`anyOf`, which return `null` for absent *or empty* (`CollectionUtils.isEmpty`, lines
     70/79).
+
+32. **[found during Batch H, LOW — convention outlier] `TaxonRepository.java:51`'s `SqlBoundFilter
+    .of("name", "tt.name", ...)` uses a raw string literal for `filterProperty`, the only repository
+    in the app that does.** Every other `SqlFilterBuilder` consumer (`AdvertisementRepository`,
+    `AuditLogRepository`, `UserRepository`) static-imports its filter DTO's `Fields.*` and passes
+    typed constants instead (e.g. `import static ...AdvertisementFilterDto.Fields.*;` then
+    `SqlBoundFilter.of(title, "a.title", ...)`), so a field rename breaks compilation instead of
+    silently dropping the filter. `TaxonFilter` (`taxon-spring-boot-starter/.../repository
+    /TaxonFilter.java`), the record `TaxonRepository` filters on, has no `@FieldNameConstants`.
+
+33. **[found during Batch H, LOW — doc drift] `query-lib/CLAUDE.md`'s own "Defining a filter"
+    example shows `SqlBoundFilter.of("title", "a.title", ...)` with a raw string literal** —
+    contradicting the actual established practice (item 32's fix would make every real consumer
+    use `Fields.*` typed constants). The doc example should show the real static-import pattern
+    instead of the literal it currently illustrates.
 
 ### attachment-spring-boot-starter
 

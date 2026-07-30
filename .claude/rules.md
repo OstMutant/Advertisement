@@ -118,6 +118,24 @@ When an issue in `backlog/issues/` is resolved (fix is implemented and committed
   `backlog/completed/BACKLOG-ARCHIVE.md` under the relevant wave — same operation, see
   `backlog/BACKLOG.md`'s "Maintenance rules"
 
+### Out-of-scope-but-valid findings — propose adding to improvement-133, never drop silently
+When a `/code-review`/`/deep-review` (or any other review) finding is real and worth fixing but
+its solution is too large to fit in the current batch/PR (a new abstraction, an architectural
+change, a cross-module refactor), do not silently skip it and do not fix it inline outside the
+approved scope either. At the end of the review, propose appending it as a new entry to
+`backlog/issues/improvement-133-deferred-oversized-review-findings.md` — a standing collection
+bucket for exactly this class of finding — state what it covers and why it doesn't fit now, and
+wait for approval before writing the entry. Do not create a brand-new issue file per finding; that
+scatters oversized findings across dozens of one-off files instead of one triage-able list. Only
+carve a finding out into its own issue once it's actually being picked up and sized for real work.
+
+### Final reports — no file-by-file diff table
+When reporting completed work (autopilot's step-5 final report, or any other end-of-task summary),
+do not include a "what changed" table/list enumerating each file with a description of its diff —
+the user reads the actual code/diff themselves and finds a full file-by-file recap redundant.
+Keep the report human: what was done in plain terms, test results (counts, not just "passed"),
+and review-finding decisions. Skip the enumerated file-changes section entirely.
+
 ## Definition of Done
 A feature or fix is not complete until all of the following hold:
 - The relevant full test suite is green: `bash scripts/unit-tests.sh` + `bash scripts/integration-

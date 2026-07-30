@@ -10,9 +10,10 @@ import java.util.function.Function;
 
 /**
  * A single, resolved WHERE condition: the SQL expression to test, the named parameter,
- * its value, and the comparison operator. Null-safe factory methods ({@code like},
- * {@code equalsTo}, {@code after}, {@code before}, {@code inSet}) return {@code null}
- * when the value is absent so {@link SqlFilterBuilder} can skip the condition silently.
+ * its value, and the comparison operator. Null-safe factory methods return {@code null}
+ * so {@link SqlFilterBuilder} can skip the condition silently: {@code like}/{@code equalsTo}/
+ * {@code after}/{@code before} when the value is absent; {@code inSet}/{@code anyOf} when the
+ * collection is absent or empty.
  *
  * @param <R> the parameter value type after any necessary conversion
  */
@@ -67,25 +68,28 @@ public record SqlCondition<R>(
 
     public static <E extends Enum<E>> SqlCondition<Collection<String>> inSet(
             SqlFilterMapping filterMapping, Set<E> values) {
-        if (CollectionUtils.isEmpty(values)) {
-            return null;
-        }
-        return applyIfPresent(filterMapping, values, SqlOperator.IN, v -> v.stream().map(Enum::name).toList());
+        return applyIfNotEmpty(filterMapping, values, SqlOperator.IN, v -> v.stream().map(Enum::name).toList());
     }
 
     // Array bind via = ANY(), not IN(:set) -- avoids unbounded placeholder expansion for
     // potentially large id sets (unlike inSet() above, whose enum cardinality is always small).
     public static SqlCondition<Long[]> anyOf(SqlFilterMapping filterMapping, Set<Long> values) {
-        if (CollectionUtils.isEmpty(values)) {
-            return null;
-        }
-        return applyIfPresent(filterMapping, values, SqlOperator.ANY_OF, v -> v.toArray(new Long[0]));
+        return applyIfNotEmpty(filterMapping, values, SqlOperator.ANY_OF, v -> v.toArray(new Long[0]));
     }
 
     private static <I1, R1> SqlCondition<R1> applyIfPresent(SqlFilterMapping filterMapping, I1 value,
                                                             SqlOperator operator,
                                                             Function<I1, R1> valueMapper) {
         return value != null
+                ? SqlCondition.of(filterMapping.sqlExpression(), filterMapping.filterProperty(),
+                valueMapper.apply(value), operator)
+                : null;
+    }
+
+    private static <I1 extends Collection<?>, R1> SqlCondition<R1> applyIfNotEmpty(SqlFilterMapping filterMapping, I1 value,
+                                                            SqlOperator operator,
+                                                            Function<I1, R1> valueMapper) {
+        return !CollectionUtils.isEmpty(value)
                 ? SqlCondition.of(filterMapping.sqlExpression(), filterMapping.filterProperty(),
                 valueMapper.apply(value), operator)
                 : null;

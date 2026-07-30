@@ -18,11 +18,17 @@ Plain Java SQL helper library. No Spring Boot autoconfiguration, no domain knowl
 
 #### Defining a filter
 
+`filterProperty` (the first argument to `SqlBoundFilter.of`) is always a typed `Fields.*`
+constant from the filter DTO, static-imported — never a raw string literal, same rule as
+`OrderByBuilder`'s sort-alias map below:
+
 ```java
+import static org.ost.platform.advertisement.dto.AdvertisementFilterDto.Fields.*;
+
 private static final SqlFilterBuilder<AdvertisementFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
-        SqlBoundFilter.of("title",          "a.title",      (m, v) -> like(m, v.getTitle())),
-        SqlBoundFilter.of("createdAtStart", "a.created_at", (m, v) -> after(m, v.getCreatedAtStart())),
-        SqlBoundFilter.of("createdAtEnd",   "a.created_at", (m, v) -> before(m, v.getCreatedAtEnd()))
+        SqlBoundFilter.of(title,          "a.title",      (m, v) -> like(m, v.getTitle())),
+        SqlBoundFilter.of(createdAtStart, "a.created_at", (m, v) -> after(m, v.getCreatedAtStart())),
+        SqlBoundFilter.of(createdAtEnd,   "a.created_at", (m, v) -> before(m, v.getCreatedAtEnd()))
 ));
 ```
 
