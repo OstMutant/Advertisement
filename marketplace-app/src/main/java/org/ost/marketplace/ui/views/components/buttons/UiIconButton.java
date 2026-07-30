@@ -3,15 +3,16 @@ package org.ost.marketplace.ui.views.components.buttons;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.icon.Icon;
+import lombok.NonNull;
 
 public class UiIconButton extends Button {
 
-    public UiIconButton(String label, Icon icon) {
+    public UiIconButton(@NonNull String label, @NonNull Icon icon) {
         this(label, icon, false);
     }
 
     // inline: LUMO_TERTIARY_INLINE for buttons in a text field's prefix/suffix slot, no hover ring.
-    public UiIconButton(String label, Icon icon, boolean inline) {
+    public UiIconButton(@NonNull String label, @NonNull Icon icon, boolean inline) {
         addClassName("icon-button");
         addThemeVariants(inline ? ButtonVariant.LUMO_TERTIARY_INLINE : ButtonVariant.LUMO_TERTIARY,
                 ButtonVariant.LUMO_ICON);

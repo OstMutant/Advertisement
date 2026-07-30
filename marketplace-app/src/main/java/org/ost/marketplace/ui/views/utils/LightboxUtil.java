@@ -3,6 +3,7 @@ package org.ost.marketplace.ui.views.utils;
 import com.vaadin.flow.component.html.IFrame;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
 import org.ost.platform.attachment.util.YoutubeUtil;
@@ -18,6 +19,14 @@ public class LightboxUtil {
 
     public static boolean isYoutube(AttachmentItemDto attachment) {
         return AttachmentMediaContentType.YOUTUBE.getValue().equals(attachment.contentType());
+    }
+
+    public static String resolveThumbnailSrc(@NonNull String contentType, @NonNull String url) {
+        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(contentType))
+            return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
+        if (AttachmentMediaContentType.isVideo(contentType))
+            return AttachmentMediaContentType.VIDEO_THUMBNAIL;
+        return url;
     }
 
     // YouTube's player needs Cache Storage (allow-same-origin) to bootstrap; safe only for YouTube since we build that URL ourselves.

@@ -8,6 +8,7 @@ import org.ost.marketplace.services.auth.AuthContextService;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.function.Predicate;
 
 @Component
 @RequiredArgsConstructor
@@ -41,9 +42,7 @@ public class AccessEvaluator {
     }
 
     public boolean canOperate(UserIdMarker target) {
-        return currentUser()
-                .map(u -> userPort.isAdmin(u) || userPort.isModerator(u) || userPort.isOwner(u, target))
-                .orElse(false);
+        return canOperate(u -> userPort.isOwner(u, target));
     }
 
     public boolean canNotEdit(Long ownerUserId) {
@@ -55,8 +54,12 @@ public class AccessEvaluator {
     }
 
     public boolean canOperate(Long ownerUserId) {
+        return canOperate(u -> userPort.isOwner(u, ownerUserId));
+    }
+
+    private boolean canOperate(Predicate<UserDto> isOwner) {
         return currentUser()
-                .map(u -> userPort.isAdmin(u) || userPort.isModerator(u) || userPort.isOwner(u, ownerUserId))
+                .map(u -> userPort.isAdmin(u) || userPort.isModerator(u) || isOwner.test(u))
                 .orElse(false);
     }
 

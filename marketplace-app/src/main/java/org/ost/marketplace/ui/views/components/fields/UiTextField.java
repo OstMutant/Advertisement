@@ -1,10 +1,11 @@
 package org.ost.marketplace.ui.views.components.fields;
 
 import com.vaadin.flow.component.textfield.TextField;
+import lombok.NonNull;
 
 public class UiTextField extends TextField {
 
-    public UiTextField(String label, String placeholder, int maxLength, boolean required, String testId) {
+    public UiTextField(@NonNull String label, String placeholder, int maxLength, boolean required, @NonNull String testId) {
         setWidthFull();
         addClassName("text-field");
         setLabel(label);

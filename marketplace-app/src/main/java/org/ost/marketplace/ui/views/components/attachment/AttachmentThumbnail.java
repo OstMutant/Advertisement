@@ -11,10 +11,10 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
+import org.ost.marketplace.ui.views.utils.LightboxUtil;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
-import org.ost.platform.attachment.util.YoutubeUtil;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -58,7 +58,7 @@ public class AttachmentThumbnail extends Div {
     }
 
     private static Image buildImage(String contentType, String url, String alt) {
-        Image img = new Image(thumbSrc(contentType, url), alt);
+        Image img = new Image(LightboxUtil.resolveThumbnailSrc(contentType, url), alt);
         img.addClassName("attachment-gallery__image");
         return img;
     }
@@ -78,13 +78,5 @@ public class AttachmentThumbnail extends Div {
         Icon i = VaadinIcon.PLAY_CIRCLE_O.create();
         i.addClassName("attachment-gallery__play-icon");
         return i;
-    }
-
-    private static String thumbSrc(String contentType, String url) {
-        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(contentType))
-            return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
-        if (AttachmentMediaContentType.isVideo(contentType))
-            return AttachmentMediaContentType.VIDEO_THUMBNAIL;
-        return url;
     }
 }

@@ -1,10 +1,11 @@
 package org.ost.marketplace.ui.views.components.fields;
 
 import com.vaadin.flow.component.textfield.EmailField;
+import lombok.NonNull;
 
 public class UiEmailField extends EmailField {
 
-    public UiEmailField(String label, String placeholder, boolean required, String testId) {
+    public UiEmailField(@NonNull String label, String placeholder, boolean required, @NonNull String testId) {
         setWidthFull();
         addClassName("email-field");
         setLabel(label);

@@ -59,7 +59,7 @@ worst-first by batch; work through them one at a time, checking each batch off h
 | H | ✅ Done (2026-07-30) | 23, 24, 25, 32, 33 | query-lib `SqlCondition`/`SqlFilterBuilder` — duplicate-key guard (23, widest blast radius), shared `applyIfNotEmpty()` (24), Javadoc precision (25), `TaxonRepository` raw-string outlier + `TaxonFilter` `@FieldNameConstants` (32), stale `query-lib/CLAUDE.md` example (33, found while fixing 32) |
 | I | ✅ Done (2026-07-30) | 26, 27, 28 | attachment-starter: `AttachmentService` SRP split (26) + consolidate video/embed classification onto `AttachmentMediaContentType` (27, related to 26) + RowMapper hoist (28) |
 | C | ✅ Done (2026-07-30) | 7, 8, 9, 10 | user-starter: doc fix (7), `User.toDto()` factory (8, landed as an entity method, not `UserDto.from(User)`, to avoid a services↔security import cycle), `@NonNull` sweep (9), informational SRP note (10, no action) |
-| F | 🔵 low-medium | 13, 14, 15, 16, 17 | marketplace-app small DRY/`@NonNull`: `thumbSrc()` dedup (13), triplicated field-copy (14), `@NonNull` on buttons/fields (15), dead `BaseDialog.buildLayout()` (16), `AccessEvaluator` dedup (17) |
+| F | ✅ Done (2026-07-30) | 13, 14, 15, 17 (16 invalid, see below) | marketplace-app small DRY/`@NonNull`: `thumbSrc()` dedup (13), triplicated field-copy (14), `@NonNull` on buttons/fields (15), `AccessEvaluator` dedup (17) |
 | J | 🔵 low | 29, 30 | audit-starter: `@NonNull` sweep + `RowMapper` hoist |
 | K | 🔵 low-medium | 31 | integration-tests: dedup `TestConfig` `@ImportAutoConfiguration` array across 4-5 test classes |
 | G | 🔵 low | 20, 21, 22 | platform-commons governance: DTO boundary (20), `AttachmentAuditHook`→`*Port` rename (21, spans attachment-starter + marketplace-app, do last within this group), undocumented `security` package role (22) |
@@ -112,6 +112,23 @@ below is kept as-written for history; ADR-014 has the corrected final shape.
 4. Full `/code-review` (8 finder agents + per-candidate verify), unit tests, integration tests
    (repository files changed), no Playwright (no UI-visible change — video/embed upload UI stays
    behind the same `AttachmentPort`/`AttachmentService` public methods, unchanged signatures).
+
+### Batch F — implementation notes (2026-07-30)
+
+Items 13, 14, 15, 17 landed as described. **Item 16 turned out to be invalid** — re-verified before
+touching it, not executed as originally worded: `BaseDialog.buildLayout()` (no-arg) is not dead
+code. `LoginDialog`/`SignUpDialog` override it with `@Override @PostConstruct`, so Spring invokes it
+automatically after bean construction — there is no explicit `.buildLayout()` call site to find
+because the invocation is a lifecycle callback, not a direct call, which is exactly what the
+original grep-based check missed. `ConfirmActionDialog` (built imperatively via `new`, not a
+Spring-managed prototype bean) relies on the empty base default instead, calling
+`buildLayout(DialogLayout)` directly in its own constructor. Deleting the no-arg overload would
+break compilation of both `@Override` sites. No code change for item 16; left as-is.
+
+Item 13 landed in the existing `LightboxUtil` (`ui/views/utils/`) as
+`resolveThumbnailSrc(String contentType, String url)`, not a new class — that file already owns the
+YouTube/embed URL-resolution logic for the same attachment/lightbox area, so it was the closer match
+to "scan for how similar things are already done" than introducing a sibling utility.
 
 ## Findings, grouped by module, worst-first within each group
 

@@ -256,13 +256,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     }
 
     public void loadRestored(@NonNull AdvertisementEditDto restoredDto) {
-        binder.loadRestored(restoredDto, (src, tgt) -> {
-            tgt.setTitle(src.getTitle());
-            tgt.setDescription(src.getDescription());
-            tgt.setAdKind(src.getAdKind());
-            tgt.setCategoryIds(src.getCategoryIds());
-            tgt.setCityTaxonId(src.getCityTaxonId());
-        });
+        binder.loadRestored(restoredDto, this::copyEditFields);
         notificationService.success(FORM_RESTORE_BANNER);
         updateButtons(true);
     }
@@ -287,13 +281,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
     public void discardChanges() {
         if (params.getAd() == null) {
-            binder.reload(AdvertisementEditDto.builder().adKind(AdKind.OFFER).build(), (src, tgt) -> {
-                tgt.setTitle(src.getTitle());
-                tgt.setDescription(src.getDescription());
-                tgt.setAdKind(src.getAdKind());
-                tgt.setCategoryIds(src.getCategoryIds());
-                tgt.setCityTaxonId(src.getCityTaxonId());
-            });
+            binder.reload(AdvertisementEditDto.builder().adKind(AdKind.OFFER).build(), this::copyEditFields);
             updateButtons(false);
             if (activeHandle != null) activeHandle.discard();
             return;
@@ -302,16 +290,18 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                 .flatMap(p -> p.findById(params.getAd().getId(), localeProvider.getCurrentLocale()))
                 .ifPresent(freshAd -> {
                     AdvertisementEditDto fresh = mapper.toAdvertisementEdit(freshAd);
-                    binder.reload(fresh, (src, tgt) -> {
-                        tgt.setTitle(src.getTitle());
-                        tgt.setDescription(src.getDescription());
-                        tgt.setAdKind(src.getAdKind());
-                        tgt.setCategoryIds(src.getCategoryIds());
-                        tgt.setCityTaxonId(src.getCityTaxonId());
-                    });
+                    binder.reload(fresh, this::copyEditFields);
                     updateButtons(false);
                 });
         if (activeHandle != null) activeHandle.discard();
+    }
+
+    private void copyEditFields(AdvertisementEditDto src, AdvertisementEditDto tgt) {
+        tgt.setTitle(src.getTitle());
+        tgt.setDescription(src.getDescription());
+        tgt.setAdKind(src.getAdKind());
+        tgt.setCategoryIds(src.getCategoryIds());
+        tgt.setCityTaxonId(src.getCityTaxonId());
     }
 
     public void afterSave(boolean success) {

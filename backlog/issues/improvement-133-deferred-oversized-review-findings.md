@@ -88,3 +88,16 @@ currently depends on it. Introducing it into a starter for one or two simple map
 be a new dependency addition, not a small fix — out of proportion here. Revisit only if a future
 starter accumulates enough of these simple mappings that a `@Mapper` interface would clearly pay
 for the added dependency.
+
+### 5. `UserFormOverlayModeHandler` repeats the same field-copy block, same shape improvement-132 Batch F just fixed for advertisements (found during Batch F review, 2026-07-30)
+
+`marketplace-app/.../users/overlay/modes/UserFormOverlayModeHandler.java` inline-duplicates the
+same two-field (`name`, `role`) copy lambda at `loadRestored()` and `discardChanges()` — the exact
+shape `improvement-132` Batch F's item 14 just extracted into `copyEditFields()` for
+`AdvertisementFormOverlayModeHandler`. Surfaced by Batch F's own `/code-review` reuse-angle finder
+while reviewing the item 14 fix; left untouched since it's a different class outside Batch F's
+approved scope (items 13/14/15/17, all in `AdvertisementFormOverlayModeHandler`/buttons/fields/
+`AccessEvaluator`). Fix is mechanical and small — extract a `copyEditFields(src, tgt)` method
+mirroring the same precedent (`TaxonFormOverlayModeHandler.copyLocaleFields()`) — but is deferred
+here rather than expanded into Batch F, since touching a second, unrelated form handler mid-batch
+would have widened the reviewed diff beyond what was approved.
