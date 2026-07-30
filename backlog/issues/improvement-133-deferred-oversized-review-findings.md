@@ -37,3 +37,15 @@ semantic difference that today is only documented in a Javadoc paragraph (fixed 
 item 25), not encoded in the type system. Surfaced by the same Altitude pass. Possible directions:
 a `SqlOperator`-level cardinality marker, or splitting the factory method shapes — needs a design
 decision, not a mechanical fix.
+
+### 3. `integration-tests/run.sh` silently drops all but the last test-class scenario argument (found during Batch I, 2026-07-30)
+
+`run.sh`'s arg-parsing loop (`for arg in "$@"; do ... else SCENARIO="$arg"; fi; done`) overwrites
+`SCENARIO` on every non-flag argument instead of accumulating them, so
+`bash scripts/integration-tests.sh --sandbox ClassA ClassB ClassC` silently runs only `ClassC` —
+`ClassA`/`ClassB` are dropped with no warning or error. Confirmed directly during Batch I: a run
+intended to cover 5 attachment-domain test classes only ran the last one named; had to be redone
+with a single comma-joined `-Dtest=...`-style argument instead (which the script does forward
+correctly as one opaque `SCENARIO` string). Fix is small and mechanical (join extra positional args
+with a comma instead of overwriting) but touches a shared script used by every batch's test cycle,
+so it's deferred here for a deliberate pass rather than a rushed inline fix.

@@ -57,7 +57,7 @@ worst-first by batch; work through them one at a time, checking each batch off h
 | D | ✅ Done (2026-07-30) | 11, 18, 19 | `View.refresh()` catch-branch consistency across `AdvertisementsView`/`UserView`/`TimelineView` — one pattern, one real user-visible bug (18) |
 | B | ✅ Done (2026-07-30) | 3, 4, 5, 6 | taxon-starter: unbounded `IN` → `= ANY(:array)` (3, 4, mechanical, proven pattern) + `DefaultTaxonPort` dedup (5) + style fix in same file (6) |
 | H | ✅ Done (2026-07-30) | 23, 24, 25, 32, 33 | query-lib `SqlCondition`/`SqlFilterBuilder` — duplicate-key guard (23, widest blast radius), shared `applyIfNotEmpty()` (24), Javadoc precision (25), `TaxonRepository` raw-string outlier + `TaxonFilter` `@FieldNameConstants` (32), stale `query-lib/CLAUDE.md` example (33, found while fixing 32) |
-| I | 🟡 medium | 26, 27, 28 | attachment-starter: `AttachmentService` SRP split (26) + consolidate video/embed classification onto `AttachmentMediaContentType` (27, related to 26) + RowMapper hoist (28) |
+| I | ✅ Done (2026-07-30) | 26, 27, 28 | attachment-starter: `AttachmentService` SRP split (26) + consolidate video/embed classification onto `AttachmentMediaContentType` (27, related to 26) + RowMapper hoist (28) |
 | C | 🔵 low-medium | 7, 8, 9, 10 | user-starter: doc fix (7), `UserDto.from(User)` factory (8), `@NonNull` sweep (9), informational SRP note (10, no action) |
 | F | 🔵 low-medium | 13, 14, 15, 16, 17 | marketplace-app small DRY/`@NonNull`: `thumbSrc()` dedup (13), triplicated field-copy (14), `@NonNull` on buttons/fields (15), dead `BaseDialog.buildLayout()` (16), `AccessEvaluator` dedup (17) |
 | J | 🔵 low | 29, 30 | audit-starter: `@NonNull` sweep + `RowMapper` hoist |
@@ -66,6 +66,52 @@ worst-first by batch; work through them one at a time, checking each batch off h
 | E | 🔵 low (needs a decision) | 12 | `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` — pure duplication, but fixing it means picking an approach (shared prototype-scoped base vs. extending ADR-065's stated exception) rather than a mechanical edit |
 
 **Suggested execution order:** A → D → B → H → I → C → F → J → K → G → E.
+
+### Batch I — implementation plan (2026-07-30)
+
+**Corrected during self-review (see `attachment-spring-boot-starter/DECISIONS.md` ADR-014):** item
+26's extraction landed as `AttachmentVideoUtil` (a plain static utility, package
+`org.ost.attachment.util`, mirrors `YoutubeUtil`'s shape), not `AttachmentVideoService` as
+originally planned below — a `/code-review` finding caught that the extracted logic has zero
+injected dependencies/state, so a Spring `@Service` bean bought no DI value anywhere. The plan text
+below is kept as-written for history; ADR-014 has the corrected final shape.
+
+1. **Item 26 — extract `AttachmentVideoService`** from `AttachmentService`
+   (`attachment-spring-boot-starter/src/main/java/org/ost/attachment/services/`), mirroring
+   `AttachmentSnapshotService`'s existing split-out shape (a `@Service` sitting next to
+   `AttachmentService`, injected via constructor). Moves out: `VideoDescriptor` record,
+   `resolveVideoDescriptor(url)`, `resolveDisplayUrl(url, contentType)`, `embedFilename(url)`,
+   `validateEmbedUrl(url)`, `ALLOWED_EMBED_HOSTS`. `AttachmentService` keeps upload/commit/delete
+   orchestration and calls the new service for video-URL resolution (`addVideoTemp`, `addVideo`,
+   `getMediaSummaries`'s `resolveDisplayUrl` call).
+
+2. **Item 27 — consolidate video/embed classification onto `AttachmentMediaContentType`.**
+   Delete `AttachmentService`'s local `CT_YOUTUBE`/`CT_EMBED` string constants and its private
+   `isVideo(contentType)` helper entirely; every call site (`commitTempUploadsQuiet`,
+   `discardTempUploads`, and the new `AttachmentVideoService`'s `resolveVideoDescriptor`/
+   `resolveDisplayUrl`) switches to `AttachmentMediaContentType.YOUTUBE.getValue()`/
+   `.EMBED.getValue()` for the two content-type string literals and
+   `AttachmentMediaContentType.isEmbedded(contentType)` for the boolean check — the one existing
+   shared authority already covering both YOUTUBE and EMBED.
+   `AttachmentSnapshotService.filename()`'s `YoutubeUtil.extractId(url) != null` check is
+   deliberately **left as-is, not retargeted** — it classifies by URL pattern, not content type,
+   which is why it still works for historical snapshot URLs whose underlying `attachment` row has
+   since been purged by cleanup (no DB lookup needed); it already calls the same canonical
+   `YoutubeUtil.extractId` used by `AttachmentVideoService`, so there is no duplicated constant or
+   duplicated predicate to remove here — retargeting it onto a content-type map lookup would trade
+   this purge-resilience for no real DRY benefit. Noted explicitly rather than silently skipped.
+
+3. **Item 28 — hoist inline `RowMapper` lambdas to `private static final` constants:**
+   - `AttachmentRepository.java`: the 3 inline `(rs, _) -> ...` lambdas (lines ~155, ~187, ~206)
+     become `DELETABLE_ATTACHMENT_ROW_MAPPER`, `MEDIA_STATS_ROW_MAPPER`, and
+     `ENTITY_MEDIA_STATS_ROW_MAPPER` constants next to the existing `ROW_MAPPER`.
+   - `AttachmentSnapshotRepository.java`: the two identical `(rs, _) -> extractUrls(rs)` lambdas
+     (lines 58, 65) collapse into one `URLS_ROW_MAPPER` constant, reused by both `getPrevUrls()`
+     and `getUrlsById()`.
+
+4. Full `/code-review` (8 finder agents + per-candidate verify), unit tests, integration tests
+   (repository files changed), no Playwright (no UI-visible change — video/embed upload UI stays
+   behind the same `AttachmentPort`/`AttachmentService` public methods, unchanged signatures).
 
 ## Findings, grouped by module, worst-first within each group
 

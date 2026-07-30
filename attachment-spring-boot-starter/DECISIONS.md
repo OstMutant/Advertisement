@@ -332,3 +332,60 @@ lookup per url.
   04's 10-item gallery replace) than this ADR's own original test coverage exercised. Fixed with a
   `(a, b) -> a` merge function — either name is acceptable since both rows resolve to the same
   underlying url/attachment identity for display purposes.
+
+## ADR-014: `AttachmentVideoUtil` extracted from `AttachmentService`; video/embed classification consolidated onto `AttachmentMediaContentType`
+
+**Status:** Accepted
+
+**Context:** [improvement-132](../backlog/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md)
+items 26-27 — `AttachmentService` mixed five concerns (gallery queries, upload/video-ingestion,
+commit/restore orchestration, snapshot delegation, media-summary DTO shaping) in one class, and
+"is this a video/embed" was checked three independent, non-identical ways: `AttachmentService`'s
+own `CT_YOUTUBE`/`CT_EMBED` constants + private `isVideo()`, the platform-commons
+`AttachmentMediaContentType.isEmbedded()` authority, and `AttachmentSnapshotService.filename()`'s
+inline `YoutubeUtil.extractId(url) != null` check.
+
+**Decision:** Extracted `AttachmentVideoUtil` holding `VideoDescriptor`,
+`resolveVideoDescriptor(url)`, `resolveDisplayUrl(url, contentType)`, `embedFilename(url)`,
+`validateEmbedUrl(url)`, and the `ALLOWED_EMBED_HOSTS` allowlist. `AttachmentService` keeps only
+upload/commit/delete orchestration and calls the new utility statically for video-URL resolution.
+Removed `AttachmentService`'s local `CT_YOUTUBE`/`CT_EMBED` constants and private `isVideo()`
+entirely — every remaining call site (`commitTempUploadsQuiet`, `discardTempUploads`,
+`AttachmentVideoUtil.resolveVideoDescriptor`/`resolveDisplayUrl`) now uses
+`AttachmentMediaContentType.YOUTUBE.getValue()`/`.EMBED.getValue()` for the string literals and
+`AttachmentMediaContentType.isEmbedded(contentType)` for the boolean check — one shared authority
+instead of three.
+
+**Corrected during this same change's own `/code-review` pass:** the first draft extracted this as
+a Spring `@Service` bean (`AttachmentVideoService`), reasoning it should "mirror
+`AttachmentSnapshotService`'s split-out shape." A verified review finding caught that this
+reasoning didn't hold up against the actual code: `AttachmentSnapshotService` has real
+constructor-injected repository collaborators and `@Transactional` coordination, while the
+extracted video-URL logic has zero injected dependencies and zero mutable state — the same shape
+as `YoutubeUtil` (`platform-commons`, a plain static-method holder this new class already
+delegates to), not `AttachmentSnapshotService`. A `@Service` bean here bought no DI value at any
+real call site (confirmed: the one manual-construction test had to write `new
+AttachmentVideoService()` purely to satisfy the constructor, no mock/substitution ever happens)
+while adding ceremony (an extra constructor parameter on `AttachmentService`, an extra bean in the
+Spring context). Corrected to `AttachmentVideoUtil` — `public final class`,
+`@NoArgsConstructor(access = PRIVATE)`, all-static methods, package `org.ost.attachment.util`
+(new package, mirrors `platform-commons`' `attachment.util` package housing `YoutubeUtil`) —
+called directly by `AttachmentService` with no injection.
+
+`AttachmentSnapshotService.filename()`'s `YoutubeUtil.extractId(url) != null` check was
+deliberately left untouched, not retargeted onto a content-type lookup: it classifies by URL
+pattern, not stored content type, which is exactly why it still resolves a real YouTube filename
+for historical snapshot URLs whose underlying `attachment` row has since been purged past
+retention by `AttachmentCleanupService` (see ADR-013's "acknowledged edge case" — a content-type
+lookup requires the row to still exist, a URL-pattern check does not). It already calls the same
+canonical `YoutubeUtil.extractId` used by `AttachmentVideoUtil`, so there was no duplicated
+constant or predicate to remove — only a different, legitimately narrower classification for a
+different purpose (historical-display fallback naming, not upload/storage routing). This was also
+independently re-verified during the same review pass: for a live YouTube row, the URL-pattern
+branch and the (unused) DB-filename branch always compute the identical string, since both derive
+from the same `YoutubeUtil` functions; for a live EMBED row, the method already falls through
+correctly to the DB-resolved filename on the very next branch — no observable bug either way.
+
+**Consequences:**
+- No public method signature on `AttachmentService`/`AttachmentPort` changed — this is an internal
+  reorganization, no UI-visible behavior change, no Playwright coverage needed.

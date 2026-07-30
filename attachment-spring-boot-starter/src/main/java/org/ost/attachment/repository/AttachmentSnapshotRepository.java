@@ -8,6 +8,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -24,6 +25,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
 public class AttachmentSnapshotRepository {
+
+    private static final RowMapper<List<String>> URLS_ROW_MAPPER = (rs, _) -> extractUrls(rs);
 
     @Qualifier("attachmentObjectMapper") private final ObjectMapper objectMapper;
     private final JdbcClient                                       jdbcClient;
@@ -55,14 +58,14 @@ public class AttachmentSnapshotRepository {
                          .paramSource(new MapSqlParameterSource()
                                  .addValue("entityType", entityType.name())
                                  .addValue("entityId",   entityId))
-                         .query((rs, _) -> extractUrls(rs))
+                         .query(URLS_ROW_MAPPER)
                          .optional();
     }
 
     public Optional<List<String>> getUrlsById(@NonNull Long id) {
         return jdbcClient.sql("SELECT attachment_urls FROM attachment_snapshot WHERE id = :id")
                          .param("id", id)
-                         .query((rs, _) -> extractUrls(rs))
+                         .query(URLS_ROW_MAPPER)
                          .optional();
     }
 
