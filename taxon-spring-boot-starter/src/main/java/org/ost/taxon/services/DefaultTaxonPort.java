@@ -63,7 +63,7 @@ public class DefaultTaxonPort implements TaxonPort {
 
         Map<Long, TaxonDto> dtoById = allTaxonIds.isEmpty()
                 ? Map.of()
-                : buildDtoIndex(allTaxonIds.stream().toList(), locale, true);
+                : buildDtoLookup(allTaxonIds.stream().toList(), locale, true);
 
         return entityIds.stream().collect(Collectors.toMap(
                 eid -> eid,
@@ -94,7 +94,7 @@ public class DefaultTaxonPort implements TaxonPort {
         if (taxonIds.isEmpty()) {
             return Map.of();
         }
-        return buildDtoIndex(taxonIds.stream().toList(), locale, false);
+        return buildDtoLookup(taxonIds.stream().toList(), locale, false);
     }
 
     @Override
@@ -177,18 +177,14 @@ public class DefaultTaxonPort implements TaxonPort {
     // ── internal helpers ───────────────────────────────────────────────────
 
     private List<TaxonDto> resolveDtos(List<Long> taxonIds, Locale locale, boolean activeOnly) {
-        Map<Long, Taxon> byId = indexById(taxonIds);
-        Map<Long, List<TaxonTranslation>> byTaxon = taxonService.getTranslationsForMany(taxonIds)
-                .stream()
-                .collect(Collectors.groupingBy(TaxonTranslation::getTaxonId));
+        Map<Long, TaxonDto> byId = buildDtoLookup(taxonIds, locale, activeOnly);
         return taxonIds.stream()
                 .map(byId::get)
-                .filter(t -> t != null && (!activeOnly || t.getDeletedAt() == null))
-                .map(t -> toDto(t, byTaxon.getOrDefault(t.getId(), List.of()), locale))
+                .filter(Objects::nonNull)
                 .toList();
     }
 
-    private Map<Long, TaxonDto> buildDtoIndex(List<Long> taxonIds, Locale locale, boolean activeOnly) {
+    private Map<Long, TaxonDto> buildDtoLookup(List<Long> taxonIds, Locale locale, boolean activeOnly) {
         Map<Long, Taxon> byId = indexById(taxonIds);
         Map<Long, List<TaxonTranslation>> byTaxon = taxonService.getTranslationsForMany(taxonIds)
                 .stream()

@@ -89,9 +89,9 @@ public class TaxonRepository {
         return jdbcClient.sql("""
                         SELECT id, type, code, deleted_at, deleted_by, created_at, updated_at, created_by, updated_by, version
                         FROM taxon
-                        WHERE id IN (:ids)
+                        WHERE id = ANY(:ids)
                         """)
-                         .paramSource(new MapSqlParameterSource("ids", ids))
+                         .paramSource(new MapSqlParameterSource("ids", ids.toArray(new Long[0])))
                          .query(ROW_MAPPER)
                          .list();
     }
@@ -118,8 +118,8 @@ public class TaxonRepository {
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
-        return new HashSet<>(jdbcClient.sql("SELECT id FROM taxon WHERE id IN (:ids)")
-                         .paramSource(new MapSqlParameterSource("ids", ids))
+        return new HashSet<>(jdbcClient.sql("SELECT id FROM taxon WHERE id = ANY(:ids)")
+                         .paramSource(new MapSqlParameterSource("ids", ids.toArray(new Long[0])))
                          .query(Long.class)
                          .list());
     }

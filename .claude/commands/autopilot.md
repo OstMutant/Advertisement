@@ -103,7 +103,10 @@ Steps:
    on something outside the plan), report once: what was implemented (file-by-file if the change
    spans several), what was verified and its actual result (test counts, not just "passed"), which
    scripts ran in the background over the course of the run (command + what it was for — the
-   compile/test/deploy/Playwright calls step 2 backgrounded by default), what got documented, and
+   compile/test/deploy/Playwright calls step 2 backgrounded by default), which Agent-tool calls ran
+   (how many, which subagent type, foreground or `run_in_background`, and whether they ran in
+   parallel in one message or sequentially — e.g. `/code-review`'s 8 finder-angle agents, launched
+   together, one message) and what each batch of agents was for, what got documented, and
    the concrete git status (what's staged, ready for "зроби коміт"). This
    report replaces every intermediate status update this run would otherwise have produced — don't
    also send a running commentary while steps 2-4 are in progress; the user asked specifically not
