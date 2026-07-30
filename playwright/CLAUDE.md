@@ -39,8 +39,17 @@ against a database that never had specs 01-03 run against it fails at the very f
 whatever behavior the spec was meant to verify. Run the full `e2e --ux` suite (or `e2e --full --ux`
 only when the change actually touches spec 05's seeded-pagination scenario — `--full` is not
 needed just to make a later spec's preconditions exist, since categories/cities are seeded in spec
-03, not spec 05). For a guaranteed-clean run, deploy with `--reset` first (`bash scripts/deploy.sh
---reset`, wipes DB/MinIO volumes) rather than relying on leftover state from a previous session.
+03, not spec 05).
+
+**Always deploy with `--reset` (`bash scripts/deploy.sh --reset`, wipes DB/MinIO volumes)
+immediately before running the full `e2e --ux` suite for verification purposes** — never reuse
+whatever state happens to be sitting in the dev DB from an earlier run this session. This is not
+optional/best-effort: rerunning the same full suite twice against a non-reset DB produces test
+failures from state pollution (e.g. leftover rows from the first run's category/city assignments)
+that look like real regressions but aren't — confirmed directly (a `category added and removed
+with diff` assertion failed on a reused DB, passed clean on a fresh one, no code difference between
+the two runs). Reset first, every time, rather than debugging a failure and only then guessing it
+might be stale state.
 
 ### Workflow for UI changes
 1. Make code changes

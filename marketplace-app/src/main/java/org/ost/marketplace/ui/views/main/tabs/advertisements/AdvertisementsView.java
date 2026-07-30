@@ -12,6 +12,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
@@ -31,6 +32,7 @@ import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.QueryStatusBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
+import org.ost.marketplace.ui.views.utils.ValidationErrorUtil;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.springframework.data.domain.Sort;
 
@@ -218,6 +220,11 @@ public class AdvertisementsView extends VerticalLayout {
                                         .build()))
                         .forEach(advertisementContainer::add);
             }
+        } catch (ConstraintViolationException ex) {
+            log.warn("Validation error while fetching advertisements: {}", ex.getMessage(), ex);
+            showValidationErrors(ex);
+            advertisementContainer.removeAll();
+            paginationBar.setTotalCount(0);
         } catch (Exception ex) {
             log.error("Failed to refresh advertisements", ex);
             notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_REFRESH_ERROR);
@@ -231,5 +238,9 @@ public class AdvertisementsView extends VerticalLayout {
     private EmptyStateView buildEmptyState() {
         return new EmptyStateView(VaadinIcon.CLIPBOARD_TEXT,
                 i18n.get(ADVERTISEMENT_EMPTY_TITLE), i18n.get(ADVERTISEMENT_EMPTY_HINT));
+    }
+
+    private void showValidationErrors(ConstraintViolationException ex) {
+        notificationService.error(i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_VALIDATION_FAILED) + "\n" + ValidationErrorUtil.buildMessage(ex));
     }
 }

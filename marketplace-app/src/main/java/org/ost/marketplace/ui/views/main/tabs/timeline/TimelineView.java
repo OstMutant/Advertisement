@@ -108,6 +108,7 @@ public class TimelineView extends VerticalLayout {
                     filter, queryBlock.getSortProcessor().getOriginalSort().getSort(), page, size);
             paginationBar.setTotalCount(auditPort.countTimeline(filter));
             renderFeed(items);
+        // single-tier by design -- AuditPort's timeline methods carry no @Valid, so ConstraintViolationException can't reach here
         } catch (Exception ex) {
             log.error("Failed to load timeline page", ex);
             feed.removeAll();

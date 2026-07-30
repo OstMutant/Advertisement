@@ -7,7 +7,6 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,11 +26,10 @@ import org.ost.marketplace.ui.views.main.tabs.users.overlay.UserOverlay;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
 import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.utils.ValidationErrorUtil;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -121,6 +119,7 @@ public class UserView extends VerticalLayout {
         } catch (ConstraintViolationException ex) {
             log.warn("Validation error while fetching users: {}", ex.getMessage(), ex);
             showValidationErrors(ex);
+            refreshButton.setVisible(false);
             grid.setItems(List.of());
             paginationBar.setTotalCount(0);
         } catch (Exception ex) {
@@ -186,12 +185,6 @@ public class UserView extends VerticalLayout {
     }
 
     private void showValidationErrors(ConstraintViolationException ex) {
-        Set<ConstraintViolation<?>> violations = ex.getConstraintViolations();
-        String message = violations.stream()
-                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
-                .distinct()
-                .sorted()
-                .collect(Collectors.joining("\n"));
-        notificationService.error(i18n.get(USER_VIEW_NOTIFICATION_VALIDATION_FAILED) + "\n" + message);
+        notificationService.error(i18n.get(USER_VIEW_NOTIFICATION_VALIDATION_FAILED) + "\n" + ValidationErrorUtil.buildMessage(ex));
     }
 }

@@ -121,6 +121,7 @@ public enum I18nKey {
     ADVERTISEMENT_VIEW_NOTIFICATION_DELETED("advertisement.view.notification.deleted"),
     ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR("advertisement.view.notification.delete.error"),
     ADVERTISEMENT_VIEW_NOTIFICATION_REFRESH_ERROR("advertisement.view.notification.refresh.error"),
+    ADVERTISEMENT_VIEW_NOTIFICATION_VALIDATION_FAILED("advertisement.view.notification.validation.failed"),
     ADVERTISEMENT_VIEW_TOOLTIP_REFRESH_AVAILABLE("advertisement.view.tooltip.refresh.available"),
 
     // === User Filter ===

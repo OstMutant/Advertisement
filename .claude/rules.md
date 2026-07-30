@@ -9,6 +9,12 @@ SPI work) at that same starting point, so the full picture — conventions and m
 constraints together — is fresh before any implementation begins, not assembled piecemeal from
 memory partway through.
 
+Same discipline before **every individual script run**, not only once per command/skill
+invocation: before `deploy.sh`/`playwright.sh`/`unit-tests.sh`/`integration-tests.sh` etc., re-Read
+the relevant `CLAUDE.md` (`scripts/CLAUDE.md`, `playwright/CLAUDE.md`) for that script's current
+documented behavior/flags/constraints rather than acting on what was true earlier in the same
+session — those files get updated mid-session precisely because a run just revealed a gap.
+
 ---
 
 > ## ⛔ NEVER commit without explicit user request

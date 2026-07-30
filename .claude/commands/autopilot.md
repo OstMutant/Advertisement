@@ -30,7 +30,9 @@ Steps:
      from precisely in a long, unattended autopilot run where context fills with implementation
      detail. Re-`Read` `.claude/rules.md` fresh at the start of this step, and again before each
      later major phase (verification, documentation, final report) — not just once at the top of
-     the run.
+     the run. Named example of what drifts first during a long run: the comment-brevity rule
+     (one line or none, ever) — every code comment written during this run gets checked against it
+     before moving on, not just left for step 3's `/code-review` pass to catch.
    - Resolve implementation questions yourself: grep/read the codebase for the existing pattern,
      mirror it, note the decision in the final report rather than asking mid-flight. This is the
      entire point of `/autopilot` — per the user's own framing, "questions that come up along the
@@ -84,8 +86,11 @@ Steps:
 4. **Verify like it's going into the final report, not like a checkbox.** Run every test layer
    the change actually touches — unit tests always; integration tests when a repository/schema/
    port contract changed; a full Playwright `e2e --full --ux` pass when anything UI-visible
-   changed — using this project's normal Monitor+tee patterns (see `scripts/CLAUDE.md`). If a test
-   fails, root-cause and fix it in the same run rather than reporting a partial result and
+   changed — using this project's normal Monitor+tee patterns (see `scripts/CLAUDE.md`). Before
+   that Playwright run, always `bash scripts/deploy.sh --reset` first — never reuse whatever DB
+   state happens to be sitting around from an earlier run this session (see `playwright/CLAUDE.md`);
+   this is unconditional, not something to reach for reactively after a failure looks suspicious.
+   If a test fails, root-cause and fix it in the same run rather than reporting a partial result and
    stopping — that's still "implementation," not a new decision point.
 
 4. **Document as you go, not as an afterthought.** Update the relevant module's `DECISIONS.md`
@@ -96,8 +101,10 @@ Steps:
 
 5. **One final report, comprehensive.** When the whole chain above is done (or genuinely blocked
    on something outside the plan), report once: what was implemented (file-by-file if the change
-   spans several), what was verified and its actual result (test counts, not just "passed"), what
-   got documented, and the concrete git status (what's staged, ready for "зроби коміт"). This
+   spans several), what was verified and its actual result (test counts, not just "passed"), which
+   scripts ran in the background over the course of the run (command + what it was for — the
+   compile/test/deploy/Playwright calls step 2 backgrounded by default), what got documented, and
+   the concrete git status (what's staged, ready for "зроби коміт"). This
    report replaces every intermediate status update this run would otherwise have produced — don't
    also send a running commentary while steps 2-4 are in progress; the user asked specifically not
    to be interrupted until there's something finished to look at. Send a `PushNotification` with

@@ -53,8 +53,8 @@ worst-first by batch; work through them one at a time, checking each batch off h
 
 | Batch | Priority | Items | Scope |
 |---|---|---|---|
-| A | 🔴 high | 1, 2 | `AdvertisementService.findById()` i18n live bug (locale hardcoded to English) + stale `CLAUDE.md` line in the same file |
-| D | 🟡 medium-high | 11, 18, 19 | `View.refresh()` catch-branch consistency across `AdvertisementsView`/`UserView`/`TimelineView` — one pattern, one real user-visible bug (18) |
+| A | ✅ Done (2026-07-30) | 1, 2 | `AdvertisementService.findById()` i18n live bug (locale hardcoded to English) + stale `CLAUDE.md` line in the same file |
+| D | ✅ Done (2026-07-30) | 11, 18, 19 | `View.refresh()` catch-branch consistency across `AdvertisementsView`/`UserView`/`TimelineView` — one pattern, one real user-visible bug (18) |
 | B | 🟡 medium | 3, 4, 5, 6 | taxon-starter: unbounded `IN` → `= ANY(:array)` (3, 4, mechanical, proven pattern) + `DefaultTaxonPort` dedup (5) + style fix in same file (6) |
 | H | 🟡 medium | 23, 24, 25 | query-lib `SqlCondition`/`SqlFilterBuilder` — duplicate-key guard (23, widest blast radius), shared `applyIfNotEmpty()` (24), Javadoc precision (25) |
 | I | 🟡 medium | 26, 27, 28 | attachment-starter: `AttachmentService` SRP split (26) + consolidate video/embed classification onto `AttachmentMediaContentType` (27, related to 26) + RowMapper hoist (28) |
