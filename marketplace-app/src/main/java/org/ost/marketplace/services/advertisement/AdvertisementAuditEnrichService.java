@@ -30,7 +30,7 @@ import static org.ost.platform.audit.api.AuditableSnapshot.field;
 
 @Service
 @RequiredArgsConstructor
-public class AdvertisementEnrichService {
+public class AdvertisementAuditEnrichService {
 
     private final ComponentFactory<AttachmentAuditHook> attachmentAuditHookFactory;
     private final ComponentFactory<TaxonPort>           taxonPortFactory;

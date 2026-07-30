@@ -66,7 +66,7 @@ public class AdvertisementSaveService {
             }
             registerOrphanWarningOnRollback(entityRef, gallerySnapshotId);
 
-            AdvertisementInfoDto saved = advertisementPortFactory.get().findById(savedId).orElseThrow();
+            AdvertisementInfoDto saved = advertisementPortFactory.get().findById(savedId, Locale.ENGLISH).orElseThrow();
             List<Long> sortedCatIds = catIds.stream().sorted().toList();
             AdvertisementSnapshotDto after = new AdvertisementSnapshotDto(
                     saved.getTitle(), saved.getDescription(), saved.getAdKind(), sortedCatIds, cityId, attachmentSnapshotId);
@@ -112,7 +112,7 @@ public class AdvertisementSaveService {
     }
 
     private AdvertisementSnapshotDto buildCurrentSnapshot(@NonNull Long entityId) {
-        AdvertisementInfoDto ad = advertisementPortFactory.get().findById(entityId).orElse(null);
+        AdvertisementInfoDto ad = advertisementPortFactory.get().findById(entityId, Locale.ENGLISH).orElse(null);
         if (ad == null) return null;
         List<TaxonDto> assignments = taxonPortFactory.findIfAvailable()
                 .map(p -> p.getForEntity(EntityType.ADVERTISEMENT, entityId, Locale.ENGLISH))

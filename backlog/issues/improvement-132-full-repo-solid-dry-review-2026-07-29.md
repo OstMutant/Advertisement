@@ -45,6 +45,28 @@ zero hits and `UserService.java`'s full public method list has no such method. T
 self-contradicting its own module's actual source, not just outdated relative to some external
 description.
 
+## Execution batches (added 2026-07-30)
+
+31 findings regrouped into 11 batches — same shape as `BACKLOG.md`'s "one batch = one pass":
+items that share a file/module/mechanical-fix pattern ship together. Execution order below is
+worst-first by batch; work through them one at a time, checking each batch off here as it lands.
+
+| Batch | Priority | Items | Scope |
+|---|---|---|---|
+| A | 🔴 high | 1, 2 | `AdvertisementService.findById()` i18n live bug (locale hardcoded to English) + stale `CLAUDE.md` line in the same file |
+| D | 🟡 medium-high | 11, 18, 19 | `View.refresh()` catch-branch consistency across `AdvertisementsView`/`UserView`/`TimelineView` — one pattern, one real user-visible bug (18) |
+| B | 🟡 medium | 3, 4, 5, 6 | taxon-starter: unbounded `IN` → `= ANY(:array)` (3, 4, mechanical, proven pattern) + `DefaultTaxonPort` dedup (5) + style fix in same file (6) |
+| H | 🟡 medium | 23, 24, 25 | query-lib `SqlCondition`/`SqlFilterBuilder` — duplicate-key guard (23, widest blast radius), shared `applyIfNotEmpty()` (24), Javadoc precision (25) |
+| I | 🟡 medium | 26, 27, 28 | attachment-starter: `AttachmentService` SRP split (26) + consolidate video/embed classification onto `AttachmentMediaContentType` (27, related to 26) + RowMapper hoist (28) |
+| C | 🔵 low-medium | 7, 8, 9, 10 | user-starter: doc fix (7), `UserDto.from(User)` factory (8), `@NonNull` sweep (9), informational SRP note (10, no action) |
+| F | 🔵 low-medium | 13, 14, 15, 16, 17 | marketplace-app small DRY/`@NonNull`: `thumbSrc()` dedup (13), triplicated field-copy (14), `@NonNull` on buttons/fields (15), dead `BaseDialog.buildLayout()` (16), `AccessEvaluator` dedup (17) |
+| J | 🔵 low | 29, 30 | audit-starter: `@NonNull` sweep + `RowMapper` hoist |
+| K | 🔵 low-medium | 31 | integration-tests: dedup `TestConfig` `@ImportAutoConfiguration` array across 4-5 test classes |
+| G | 🔵 low | 20, 21, 22 | platform-commons governance: DTO boundary (20), `AttachmentAuditHook`→`*Port` rename (21, spans attachment-starter + marketplace-app, do last within this group), undocumented `security` package role (22) |
+| E | 🔵 low (needs a decision) | 12 | `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` — pure duplication, but fixing it means picking an approach (shared prototype-scoped base vs. extending ADR-065's stated exception) rather than a mechanical edit |
+
+**Suggested execution order:** A → D → B → H → I → C → F → J → K → G → E.
+
 ## Findings, grouped by module, worst-first within each group
 
 ### advertisement-spring-boot-starter

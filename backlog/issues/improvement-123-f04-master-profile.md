@@ -151,7 +151,7 @@ touchpoint-for-touchpoint (confirmed via direct reads of `AdvertisementAutoConfi
   .findIfAvailable().map(p -> p.findExistingIds(entityIds)).orElse(Set.of());` — the compiler
   forces this, per point 1 above.
 - **`services/masterprofile/MasterProfileEnrichService.java`**: mirrors
-  `AdvertisementEnrichService` — resolves `categoryIds`/`cityTaxonId` to display names in
+  `AdvertisementAuditEnrichService` — resolves `categoryIds`/`cityTaxonId` to display names in
   activity/timeline diffs via `TaxonPort.findByIds()`, same `resolveField()` reuse.
 - **`spi/MasterProfileActivityFieldsHookImpl.java`** / **`spi/MasterProfileActivityEnrichHookImpl.java`**:
   one pair per new domain, same shape as the Advertisement pair — **add every `Fields.*` case from

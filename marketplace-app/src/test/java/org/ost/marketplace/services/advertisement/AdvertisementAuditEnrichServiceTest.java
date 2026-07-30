@@ -33,13 +33,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 /**
- * {@link AdvertisementEnrichService} merges attachment-hook media changes into audit
+ * {@link AdvertisementAuditEnrichService} merges attachment-hook media changes into audit
  * timeline/activity entries and resolves raw category ids into names. Both optional ports
  * ({@link TaxonPort}, {@link AttachmentAuditHook}) must degrade gracefully when absent
  * (improvement-048).
  */
 @ExtendWith(MockitoExtension.class)
-class AdvertisementEnrichServiceTest {
+class AdvertisementAuditEnrichServiceTest {
 
     @Mock private ComponentFactory<AttachmentAuditHook> attachmentAuditHookFactory;
     @Mock private ComponentFactory<TaxonPort> taxonPortFactory;
@@ -48,14 +48,14 @@ class AdvertisementEnrichServiceTest {
     @Mock private LocaleProvider localeProvider;
     @Mock private I18nService i18nService;
 
-    private AdvertisementEnrichService service;
+    private AdvertisementAuditEnrichService service;
 
     @BeforeEach
     void setUp() {
         lenient().when(localeProvider.getCurrentLocale()).thenReturn(Locale.ENGLISH);
         lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_AD_KIND_OFFER)).thenReturn("Offer");
         lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_AD_KIND_PRODUCT)).thenReturn("Product");
-        service = new AdvertisementEnrichService(attachmentAuditHookFactory, taxonPortFactory, localeProvider, i18nService);
+        service = new AdvertisementAuditEnrichService(attachmentAuditHookFactory, taxonPortFactory, localeProvider, i18nService);
     }
 
     private static <T> void stubAvailable(ComponentFactory<T> factory, T component) {

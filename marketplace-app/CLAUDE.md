@@ -125,7 +125,7 @@ Translation keys — single consolidated enum:
 
 ### Package structure
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/`, `config/seo/` for sub-domains)
-- `services/advertisement/` — advertisement UI-side orchestration (`AdvertisementSaveService` — transactional save + audit capture, `AdvertisementEnrichService` — category-name resolution for audit diffs)
+- `services/advertisement/` — advertisement UI-side orchestration (`AdvertisementSaveService` — transactional save + audit capture, `AdvertisementAuditEnrichService` — category-name resolution for audit diffs)
 - `services/auth/` — authentication (`AuthService` — login/logout + rate limiting, `AuthContextService` — current-user context)
 - `services/i18n/` — `I18nKey` enum, `I18nService`, `I18nServiceImpl`, `LocaleProvider`, `InstantFormatter`
 - `services/security/` — `AccessEvaluator` (role/ownership checks live in user-spring-boot-starter's `org.ost.user.security` — `RoleChecker`, `OwnershipChecker`)

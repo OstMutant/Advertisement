@@ -126,7 +126,7 @@ public class AdvertisementsView extends VerticalLayout {
         if (pending == null) return;
         VaadinSession.getCurrent().setAttribute(PendingAdvertisementDeepLink.class, null);
         advertisementPortFactory.findIfAvailable()
-                .flatMap(p -> p.findById(pending.adId()))
+                .flatMap(p -> p.findById(pending.adId(), localeProvider.getCurrentLocale()))
                 .ifPresent(ad -> overlay.openForView(ad, this::updateCardInPlace, this::checkForChanges));
     }
 

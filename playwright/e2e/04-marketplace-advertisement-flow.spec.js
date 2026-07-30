@@ -11,6 +11,7 @@ const { closeEntityActivity } = require('./_flows/entity-activity.flow');
 const { openTimelineTab, openTimelineFilter, closeTimelineFilter, fillEntityType, assertFeedHasRow, assertTimelineHasRows } = require('./_flows/timeline.flow');
 const { waitForLightboxOpen, waitForLightboxClosed, getIframeSrc, clickLightboxThumb, getVideoSrc, isVideoWrapperVisible, waitForVideoWrapperVisible, waitForMainImageVisible } = require('./_flows/attachment.flow');
 const { loginBulk, logoutBulk } = require('./_flows/seed.flow');
+const { assertViewOverlayHasCategories } = require('./_flows/category.flow');
 
 test.describe.configure({ mode: 'serial' });
 
@@ -397,11 +398,11 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay, share button copies link, sitemap.xml lists the ad', async () => {
+  test('userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay, share button copies link, sitemap.xml lists the ad, userUk reopens the same link with the category shown in Ukrainian', async () => {
     const title = 'Deep Link Test Advertisement';
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
-    await runCreateSimpleAdvertisementFlow(page, { title, description: 'Advertisement used to verify the /ads/:id deep link.', screenshotPrefix: 'adv-deep-link-create' });
+    await runCreateSimpleAdvertisementFlow(page, { title, description: 'Advertisement used to verify the /ads/:id deep link.', screenshotPrefix: 'adv-deep-link-create', categories: ['Vehicles'] });
 
     const card = cardByTitle(page, title);
     await card.first().waitFor({ timeout: 5000 });
@@ -456,6 +457,17 @@ test.describe('Advertisement flow', () => {
       await overlay.waitFor({ state: 'hidden', timeout: 10000 });
       await expect(page).toHaveURL(/\/$/);
       await screenshot(page, 'adv-deep-link-history-back');
+    });
+
+    await test.step('userUk opens the same deep link — category chip renders in Ukrainian, not English', async () => {
+      await runLogoutFlow(page, expect);
+      await runFillLoginFormFlow(page, TEST_USERS.userUk);
+      await runSubmitLoginFlow(page, expect, TEST_USERS.userUk);
+      await page.goto(`/ads/${adId}`);
+      await overlay.waitFor({ timeout: 10000 });
+      await assertViewOverlayHasCategories(page, expect, overlay, ['Транспорт'], 'adv-deep-link-locale-uk-category');
+      await expect(overlay.locator('.advertisement-category-chip', { hasText: 'Vehicles' })).toHaveCount(0);
+      await closeOverlay(page);
     });
 
     await runLogoutFlow(page, expect);

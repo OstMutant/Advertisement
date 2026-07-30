@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -60,7 +61,7 @@ public class OgMetaRequestListener implements VaadinServiceInitListener, IndexHt
         if (!matcher.matches()) return;
 
         Long adId = Long.valueOf(matcher.group(1));
-        ogCache.get(adId, id -> advertisementPortFactory.findIfAvailable().flatMap(p -> p.findById(id)))
+        ogCache.get(adId, id -> advertisementPortFactory.findIfAvailable().flatMap(p -> p.findById(id, Locale.ENGLISH)))
                 .ifPresent(ad -> injectMeta(response.getDocument(), ad, path));
     }
 

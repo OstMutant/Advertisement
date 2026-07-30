@@ -32,6 +32,16 @@ bash /app/playwright/run.sh 01-marketplace-empty-flow --ux  # single spec file, 
 **IMPORTANT:** Volume mounts don't work from inside the claude container (Docker socket path issue).
 `run.sh` uses `docker cp` internally — always use `run.sh`, never raw `docker run -v`.
 
+**Don't run a single spec file in isolation unless it's genuinely self-contained.** Per
+`playwright/README.md`, specs are serial and ordered — most later specs depend on state earlier
+specs create (registered `TEST_USERS`, seeded categories/cities). Running e.g. spec 04 alone
+against a database that never had specs 01-03 run against it fails at the very first login, not at
+whatever behavior the spec was meant to verify. Run the full `e2e --ux` suite (or `e2e --full --ux`
+only when the change actually touches spec 05's seeded-pagination scenario — `--full` is not
+needed just to make a later spec's preconditions exist, since categories/cities are seeded in spec
+03, not spec 05). For a guaranteed-clean run, deploy with `--reset` first (`bash scripts/deploy.sh
+--reset`, wipes DB/MinIO volumes) rather than relying on leftover state from a previous session.
+
 ### Workflow for UI changes
 1. Make code changes
 2. Rebuild image: `docker rm -f marketplace-app && docker build -f Dockerfile -t marketplace-app .`
@@ -66,6 +76,15 @@ Rules:
 - Avoid vague labels like "badge check", "flow" as the only descriptor
 - Version numbers (v5/v6) → plain words ("two saves", "three edits")
 - Include "timeline check" when timeline is verified, "activity diff" when diff content is asserted
+
+### Extend an existing test before adding a new one
+
+When a new check belongs to a flow an existing test already sets up (same actor, same entity,
+same overlay already open), add a `test.step(...)` to that test instead of writing a new
+top-level `test(...)`. Only add a new `test(...)` when the scenario needs its own independent
+setup that doesn't fit inside an existing test's flow. Extending means less duplicated
+create/login/logout boilerplate and keeps related assertions next to the state they depend on.
+Update the test's name (per "Test naming pattern" below) to list the newly added verification.
 
 ### Adding new scenarios
 1. Create `/app/playwright/e2e/my-scenario.spec.js`

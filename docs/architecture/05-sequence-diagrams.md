@@ -302,7 +302,7 @@ Category assignment changes are **not** independently recorded to `audit_log` â€
 zero implementations and its only two call sites already sit inside an advertisement save/delete
 that produces its own audit snapshot). Instead, the advertisement's own audit snapshot
 (`AdvertisementSnapshotDto.categoryIds`) captures the before/after category set as part of the
-same save, and `AdvertisementEnrichService` resolves those raw taxon ids to display names for both
+same save, and `AdvertisementAuditEnrichService` resolves those raw taxon ids to display names for both
 the Activity tab and the Timeline tab at read time (via `TaxonPort.findByIds()`).
 
 ```mermaid

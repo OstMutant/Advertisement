@@ -2,7 +2,7 @@ package org.ost.marketplace.spi;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.services.advertisement.AdvertisementEnrichService;
+import org.ost.marketplace.services.advertisement.AdvertisementAuditEnrichService;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
@@ -17,7 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ActivityEnrichHookImpl implements AuditActivityEnrichHook<AdvertisementSnapshotDto> {
 
-    private final AdvertisementEnrichService advertisementEnrichService;
+    private final AdvertisementAuditEnrichService advertisementAuditEnrichService;
 
     @Override
     public EntityType entityType() {
@@ -27,17 +27,17 @@ public class ActivityEnrichHookImpl implements AuditActivityEnrichHook<Advertise
     @Override
     public List<AuditTimelineItemDto<AdvertisementSnapshotDto>> merge(
             @NonNull List<AuditTimelineItemDto<AdvertisementSnapshotDto>> base) {
-        return advertisementEnrichService.mergeMediaChanges(base);
+        return advertisementAuditEnrichService.mergeMediaChanges(base);
     }
 
     @Override
     public List<AuditActivityItemDto<AdvertisementSnapshotDto>> enrichActivity(
             @NonNull List<AuditActivityItemDto<AdvertisementSnapshotDto>> items) {
-        return advertisementEnrichService.enrichActivityItems(items);
+        return advertisementAuditEnrichService.enrichActivityItems(items);
     }
 
     @Override
     public String getMediaStateForSnapshot(@NonNull EntityRef ref, @NonNull Long snapshotId) {
-        return advertisementEnrichService.getMediaStateForSnapshot(ref, snapshotId);
+        return advertisementAuditEnrichService.getMediaStateForSnapshot(ref, snapshotId);
     }
 }

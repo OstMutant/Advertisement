@@ -3344,3 +3344,56 @@ byte-identical, so they collapsed into two one-line overrides each (`isEditMode(
 (removing the per-subclass overrides entirely) was considered and rejected — see
 `backlog/completed/issues/improvement-128-activity-restore-panel-redesign.md` for the full
 cost/risk comparison.
+
+---
+
+## ADR-068: `findById()` locale fix + `AdvertisementEnrichmentService` extraction (improvement-132 Batch A)
+
+**Status:** Accepted
+
+**Context:** `/deep-review full` (2026-07-29, filed as improvement-132) found
+`AdvertisementService.findById()` hardcoded `Locale.ENGLISH` for category/city enrichment, while
+`getFiltered()` (the list view's path) correctly used the caller's real locale. The only UI path
+that actually surfaces this to a user is `AdvertisementsView.openPendingDeepLinkIfAny()` — opening
+`/ads/:id` directly (e.g. a shared link) — since a normal card click passes the already
+list-enriched DTO straight into the view overlay without re-fetching by id.
+
+**Decision:** `AdvertisementPort.findById()` / `AdvertisementPortImpl` / `AdvertisementService
+.findById()` all take a `Locale` parameter now. `OgMetaRequestListener` and
+`AdvertisementSaveService` (2 call sites, audit-snapshot building) pass `Locale.ENGLISH` explicitly
+— no user session exists at OG-meta-injection time, and snapshots only need title/description/
+adKind, not category names — matching `SitemapController`'s existing convention.
+`AdvertisementsView.openPendingDeepLinkIfAny()` (the actual bug site) and
+`AdvertisementFormOverlayModeHandler` (2 call sites) pass `localeProvider.getCurrentLocale()`.
+
+Alongside the fix, `AdvertisementService`'s `enrichWith*`/`apply*Data` methods (category/city,
+actor, media — 9 methods) were extracted into a new `AdvertisementEnrichmentService` bean in the
+same package, mirroring the precedent of `AttachmentSnapshotService` being split out of
+`AttachmentService`. `AdvertisementService` keeps query/filter, CRUD, and HTML-sanitization
+concerns; `AdvertisementEnrichmentService` owns both the bulk (`getFiltered()`) and single-item
+(`findById()`) enrichment shapes, with each single-item method querying its port directly
+(`TaxonPort.getForEntity()`, `UserPort.findById()`) rather than wrapping the DTO in a
+`List.of(dto)` to reuse the bulk method and unwrapping via `.getFirst()` — except media, where
+`AttachmentPort` has no single-entity `getMediaSummary()` (removed as dead API surface,
+improvement-115), so `enrichWithMedia()` calls the bulk `getMediaSummaries()` with
+`Set.of(ad.getId())` instead.
+
+Renamed in the same pass for clarity (no remaining references to the old names):
+- `AdvertisementService.enrichWithTaxons()`/`resolveTaxonFilter()` →
+  `enrichWithCategoriesAndCity()`/`resolveCategoryAndCityFilter()` — the old names said "Taxon"
+  (the DB/port-level umbrella term covering both `CATEGORY` and `CITY` `TaxonType` values) when the
+  methods actually always handle category and city together; the new names say what's enriched.
+- marketplace-app's existing `AdvertisementEnrichService` (audit-diff category-name resolution for
+  Timeline/Activity tabs) → `AdvertisementAuditEnrichService`, to avoid confusion with the new
+  starter-side `AdvertisementEnrichmentService` — near-identical names in different packages
+  otherwise.
+
+New `.claude/rules.md` convention adopted in the same pass: **Service Class Section Headers** — a
+one-line `// ── Section Name ──...` comment above the first method of each logically distinct
+block in a service class with 2+ concerns (e.g. `AdvertisementService`'s Query & filter / CRUD /
+HTML sanitization; `AdvertisementEnrichmentService`'s Category & city / Actor / Media).
+
+**Consequence:** `AdvertisementInfoDto`'s locale-dependent fields (`categoryNames`, `cityName`) are
+now correct for `findById()` callers, matching `getFiltered()`. Any future split of a growing
+`*Service` (per improvement-132 item 26, flagged for `AttachmentService`) now has this as a second
+concrete precedent alongside `AttachmentSnapshotService`.

@@ -246,7 +246,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                     .orElse(null);
             if (savedId != null) {
                 advertisementPortFactory.findIfAvailable()
-                        .flatMap(p -> p.findById(savedId))
+                        .flatMap(p -> p.findById(savedId, localeProvider.getCurrentLocale()))
                         .ifPresent(info -> {
                             this.savedInfoDto = info;
                             dto.setVersion(info.getVersion());
@@ -299,7 +299,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             return;
         }
         advertisementPortFactory.findIfAvailable()
-                .flatMap(p -> p.findById(params.getAd().getId()))
+                .flatMap(p -> p.findById(params.getAd().getId(), localeProvider.getCurrentLocale()))
                 .ifPresent(freshAd -> {
                     AdvertisementEditDto fresh = mapper.toAdvertisementEdit(freshAd);
                     binder.reload(fresh, (src, tgt) -> {

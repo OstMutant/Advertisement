@@ -1,5 +1,13 @@
 ## ⛔ RE-READ ALL RULES BEFORE EVERY ACTION
-Before executing any tool call — re-read this entire file. No exceptions.
+Before executing any tool call — re-read this entire file. No exceptions. This explicitly includes
+the start of every `/command` or Skill invocation (`/autopilot`, `/deep-review`, `/feature`, etc.)
+— re-`Read` this file fresh at that point, not just once at the top of a long session.
+
+Not rules.md alone: re-`Read` the root `/app/CLAUDE.md` plus every module `CLAUDE.md` the task
+actually touches (e.g. `marketplace-app/CLAUDE.md` for UI work, `platform-commons/CLAUDE.md` for
+SPI work) at that same starting point, so the full picture — conventions and module-specific
+constraints together — is fresh before any implementation begins, not assembled piecemeal from
+memory partway through.
 
 ---
 
@@ -256,6 +264,28 @@ SortFieldMeta.of("updatedAt", ADVERTISEMENT_SORT_UPDATED)
 ```
 
 ---
+
+## Service Class Section Headers
+
+When a service class (or any class with 2+ clearly distinct concerns — query/filter, CRUD,
+enrichment, sanitization, etc.) grows past a handful of methods, divide it into labeled blocks
+with a one-line comment separator, placed directly above the first method of each block:
+
+```java
+// ── Query & filter ───────────────────────────────────────────────────────
+
+public List<AdvertisementInfoDto> getFiltered(...) { ... }
+...
+
+// ── CRUD ─────────────────────────────────────────────────────────────────
+
+public Long save(...) { ... }
+...
+```
+
+One line, no explanation of what the block does beyond the label itself — same "one line or none"
+comment rule applies. Do not add this to small classes with a single concern; it's for classes
+where a reader scrolling through needs a map of what comes next.
 
 ## DTO Field Name Constants
 

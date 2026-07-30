@@ -5,6 +5,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.advertisement.repository.AdvertisementRepository;
+import org.ost.advertisement.services.AdvertisementEnrichmentService;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
@@ -50,7 +51,9 @@ class AdvertisementServiceCategoryFilterTest {
     private TaxonPort taxonPort;
 
     private AdvertisementService newService() {
-        return new AdvertisementService(repository, attachmentPortFactory, taxonPortFactory, userPortFactory);
+        AdvertisementEnrichmentService enrichmentService =
+                new AdvertisementEnrichmentService(attachmentPortFactory, taxonPortFactory, userPortFactory);
+        return new AdvertisementService(repository, attachmentPortFactory, taxonPortFactory, enrichmentService);
     }
 
     @Test

@@ -51,7 +51,7 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
   methods, distinct from the repository-level methods of the same name still used internally by
   `replaceAssignments()`) were removed too, along with `TaxonPort.findByCode()`
   (zero callers). Category-name display in audit diffs is handled by
-  `AdvertisementEnrichService` (`marketplace-app`) resolving raw taxon ids via
+  `AdvertisementAuditEnrichService` (`marketplace-app`) resolving raw taxon ids via
   `TaxonPort.findByIds()` at read time — see `marketplace-app/DECISIONS.md` ADR-019.
 - `Taxon.version` (`@Version`) enforces optimistic locking on `save()` and `softDelete()`.
   `TaxonService.update()` must always forward the caller-supplied `version` when rebuilding the

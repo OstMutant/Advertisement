@@ -17,7 +17,7 @@ public interface AdvertisementPort {
 
     int count(@NonNull AdvertisementFilterDto filter);
 
-    Optional<AdvertisementInfoDto> findById(@NonNull Long id);
+    Optional<AdvertisementInfoDto> findById(@NonNull Long id, @NonNull Locale locale);
 
     Long save(@NonNull AdvertisementSaveDto dto);
 

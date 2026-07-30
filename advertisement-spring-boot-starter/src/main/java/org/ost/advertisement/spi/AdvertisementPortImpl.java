@@ -34,8 +34,8 @@ public class AdvertisementPortImpl implements AdvertisementPort {
     }
 
     @Override
-    public Optional<AdvertisementInfoDto> findById(@NonNull Long id) {
-        return service.findById(id);
+    public Optional<AdvertisementInfoDto> findById(@NonNull Long id, @NonNull Locale locale) {
+        return service.findById(id, locale);
     }
 
     @Override

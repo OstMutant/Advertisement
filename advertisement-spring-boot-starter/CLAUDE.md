@@ -9,7 +9,7 @@ Java package root: `org.ost.advertisement`
 ## What it owns
 
 - `Advertisement` entity + `AdvertisementRepository` — CRUD and filter/sort queries
-- `AdvertisementService` — create, update, delete, ownership checks; sanitizes HTML description via OWASP HTML Sanitizer; wires category assignments through `TaxonPort` via `ComponentFactory`
+- `AdvertisementService` — create, update, delete, ownership checks; sanitizes HTML description via OWASP HTML Sanitizer; enriches category/city/actor/media info on read via `ComponentFactory<TaxonPort>`/`ComponentFactory<UserPort>`/`ComponentFactory<AttachmentPort>`, and clears taxon assignments via `TaxonPort` on `delete()` — writing category assignments happens in marketplace-app's `AdvertisementSaveService` via `TaxonPort.replaceAssignments()`, not here
 - `AdvertisementPortImpl` — implements `AdvertisementPort`; thin delegation to `AdvertisementService`
 
 **Autoconfiguration entry point:** `AdvertisementAutoConfiguration`
