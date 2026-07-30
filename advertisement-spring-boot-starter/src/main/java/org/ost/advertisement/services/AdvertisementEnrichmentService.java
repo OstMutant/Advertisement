@@ -14,6 +14,8 @@ import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.spi.UserPort;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -49,15 +51,17 @@ public class AdvertisementEnrichmentService {
     }
 
     private static AdvertisementInfoDto applyCategoryAndCityData(AdvertisementInfoDto ad, List<TaxonDto> assigned) {
-        Set<Long> catIds = assigned.stream()
-                .filter(t -> t.getType() == TaxonType.CATEGORY)
-                .map(TaxonDto::getId).collect(Collectors.toSet());
-        List<String> catNames = assigned.stream()
-                .filter(t -> t.getType() == TaxonType.CATEGORY)
-                .map(TaxonDto::getName).toList();
-        TaxonDto city = assigned.stream()
-                .filter(t -> t.getType() == TaxonType.CITY)
-                .findFirst().orElse(null);
+        Set<Long> catIds = new LinkedHashSet<>();
+        List<String> catNames = new ArrayList<>();
+        TaxonDto city = null;
+        for (TaxonDto t : assigned) {
+            if (t.getType() == TaxonType.CATEGORY) {
+                catIds.add(t.getId());
+                catNames.add(t.getName());
+            } else if (t.getType() == TaxonType.CITY && city == null) {
+                city = t;
+            }
+        }
         return ad.toBuilder()
                 .categoryIds(catIds).categoryNames(catNames)
                 .cityTaxonId(city != null ? city.getId() : null)

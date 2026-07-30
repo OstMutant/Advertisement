@@ -7,8 +7,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.advertisement.entity.Advertisement;
 import org.ost.advertisement.repository.AdvertisementRepository;
-import org.ost.advertisement.services.AdvertisementEnrichmentService;
 import org.ost.advertisement.services.AdvertisementService;
+import org.ost.integrationtests.support.AdvertisementServiceTestSupport;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.attachment.spi.AttachmentPort;
@@ -48,9 +48,7 @@ class AdvertisementServiceHtmlSanitizationTest {
     private ComponentFactory<UserPort> userPortFactory;
 
     private AdvertisementService newService() {
-        AdvertisementEnrichmentService enrichmentService =
-                new AdvertisementEnrichmentService(attachmentPortFactory, taxonPortFactory, userPortFactory);
-        return new AdvertisementService(repository, attachmentPortFactory, taxonPortFactory, enrichmentService);
+        return AdvertisementServiceTestSupport.newService(repository, attachmentPortFactory, taxonPortFactory, userPortFactory);
     }
 
     @Test

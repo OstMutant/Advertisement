@@ -68,7 +68,20 @@ Steps:
      or running Playwright before deploy finishes) — in that case say so briefly and wait for the
      notification rather than polling.
 
-3. **Verify like it's going into the final report, not like a checkbox.** Run every test layer
+3. **Self-review before spending a full test cycle on it.** Once the implementation is written
+   (before running unit/integration/Playwright), run `/code-review --fix` against the diff so far
+   and let it apply its findings directly. This catches obvious correctness/reuse/efficiency bugs
+   cheaply, before burning a full test cycle on code that would need to change anyway — running
+   the whole suite first and then discovering a review finding forces a second full run for
+   nothing. Only proceed to step 4 once `/code-review --fix` has run and its fixes (if any) are
+   applied. This applies to **any** code-review run during an autopilot session — not just this
+   scheduled step — including one the user asks for ad hoc mid-run or after a commit already
+   landed: default to applying findings directly, do not stop to ask whether to apply a finding
+   that is itself low-risk (a rename, a dedup extraction, a straightforward null-guard). Only stop
+   and ask when a finding's fix would itself be destructive/hard-to-reverse per the standing
+   "Executing actions with care" bar — the same exception step 2 already carves out.
+
+4. **Verify like it's going into the final report, not like a checkbox.** Run every test layer
    the change actually touches — unit tests always; integration tests when a repository/schema/
    port contract changed; a full Playwright `e2e --full --ux` pass when anything UI-visible
    changed — using this project's normal Monitor+tee patterns (see `scripts/CLAUDE.md`). If a test
