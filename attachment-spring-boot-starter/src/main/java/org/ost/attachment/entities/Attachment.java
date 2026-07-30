@@ -3,6 +3,7 @@ package org.ost.attachment.entities;
 import lombok.Builder;
 import lombok.Value;
 import lombok.experimental.FieldNameConstants;
+import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
@@ -28,4 +29,8 @@ public class Attachment {
     Instant    createdAt;
     Instant    deletedAt;
     Long       deletedByActorId;
+
+    public AttachmentItemDto toDto() {
+        return new AttachmentItemDto(id, url, filename, contentType);
+    }
 }

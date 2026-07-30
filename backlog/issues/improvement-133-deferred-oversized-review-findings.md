@@ -49,3 +49,42 @@ with a single comma-joined `-Dtest=...`-style argument instead (which the script
 correctly as one opaque `SCENARIO` string). Fix is small and mechanical (join extra positional args
 with a comma instead of overwriting) but touches a shared script used by every batch's test cycle,
 so it's deferred here for a deliberate pass rather than a rushed inline fix.
+
+### 4. Unify entity→DTO simple-mapping convention across all modules (decided during Batch C, 2026-07-30)
+
+**Convention adopted:** when a DTO is built by pure field copy with no join/enrichment (no locale,
+no related-entity lookup, no external service call), the mapping method is `entity.toDto()` — an
+instance method on the entity itself, not a static method on a `*Service` class and not inlined
+per-repository. Decided while fixing improvement-132 Batch C's `UserService.toDto(User)`: that
+method was originally kept as a `public static` method on `UserService` (mirroring
+`AttachmentService.toDto(Attachment)`'s existing shape), but a `/code-review` finding caught that
+this created a real `services`↔`security` import cycle once `UserPrincipal` needed to call it too
+(`UserService` already imports and constructs `UserPrincipal` in `refreshSecurityContext()`).
+Moving the mapping onto `User.toDto()` broke the cycle at the source — both callers already depend
+on the entity, so no new dependency direction is introduced regardless of how many packages need
+the mapping. `AttachmentService.toDto(Attachment)` (the precedent that was originally mirrored) was
+corrected in the same conversation to `Attachment.toDto()`, since it was a pure field-copy mapping
+with the identical shape, once the inconsistency was pointed out — not deferred, already applied.
+
+**Not covered by this convention** (deliberately excluded, not an inconsistency to fix):
+`AdvertisementInfoDto`/`TaxonDto`, whose construction needs joined/locale-dependent data
+(category names, city name, translations) — those correctly stay as repository `RowMapper`s or
+service/port-level builder methods, since `entity.toDto()` can't reach data outside the entity's
+own row.
+
+**Still open:** only `User`/`Attachment` have been audited and fixed so far — this entry tracks
+the remaining work of auditing every other entity in every starter (`taxon`, `audit`,
+`advertisement`) for a simple, no-enrichment DTO mapping currently living somewhere other than
+`entity.toDto()` (a repository `RowMapper` inlining a pure field copy would also count, not just
+a `*Service` static method), and migrating any found onto this convention for full consistency.
+
+**Why not Lombok or MapStruct instead of a hand-written method:** Lombok has no annotation for
+mapping between two different classes (`@Value`/`@Builder` only generate accessors/constructors
+for the class they're on) — that's MapStruct's job, not Lombok's. MapStruct itself is already a
+project dependency (root `pom.xml` manages `mapstruct.version`) and already used in `marketplace-
+app` (`ui/mappers/UserMapper`, `AdvertisementMapper`, etc., for UI-form↔DTO mapping) — but checked
+directly: **no domain starter** (`user-`, `attachment-spring-boot-starter`, etc.)
+currently depends on it. Introducing it into a starter for one or two simple mapping methods would
+be a new dependency addition, not a small fix — out of proportion here. Revisit only if a future
+starter accumulates enough of these simple mappings that a `@Mapper` interface would clearly pay
+for the added dependency.

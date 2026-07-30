@@ -3397,3 +3397,43 @@ HTML sanitization; `AdvertisementEnrichmentService`'s Category & city / Actor / 
 now correct for `findById()` callers, matching `getFiltered()`. Any future split of a growing
 `*Service` (per improvement-132 item 26, flagged for `AttachmentService`) now has this as a second
 concrete precedent alongside `AttachmentSnapshotService`.
+
+## ADR-069: `user-spring-boot-starter` doc fix + `User.toDto()` dedup + `@NonNull` sweep (improvement-132 Batch C)
+
+**Status:** Accepted
+
+**Context:** improvement-132 items 7-10 — `user-spring-boot-starter/CLAUDE.md` documented a
+`UserService.applyUserRestore()` method that no longer exists (restore is client-side only, see the
+existing `restore()`-related note in that file); `UserService.toDto(User)` and
+`UserPrincipal.toUserDto()` independently rebuilt the same 8-field `UserDto` construction;
+`RoleChecker`/`OwnershipChecker` defensively null-checked `UserDto`/`Long`/`UserIdMarker`
+parameters that `UserPortImpl` already declares `@NonNull` one layer up, so null could never
+reach them.
+
+**Decision:**
+- `user-spring-boot-starter/CLAUDE.md` corrected to describe the actual restore flow:
+  `UserFormOverlayModeHandler.loadRestored()` loads the snapshot's name/role into the edit form
+  client-side; saving afterward goes through the normal `save()` → `updateProfile()` path, no
+  server-side restore-apply method exists.
+- `RoleChecker.isAdmin/isModerator` and `OwnershipChecker.isOwner` (both overloads) gained
+  `@NonNull` (lombok) on their public parameters, replacing the now-redundant `!= null` guards —
+  verified via the real call chain (`AccessEvaluator` → `UserPort` → `UserPortImpl`, already
+  `@NonNull` at that boundary) that no caller can reach these methods with a null argument.
+  `RoleChecker`'s private `hasRole()` helper kept its `@NonNull` off its `user` param (added, then
+  removed after a `/code-review` finding confirmed it's redundant on a private, internal-only
+  helper whose two callers already enforce it — matches this starter's own established convention,
+  e.g. `UserService.toSnapshot(User)`, a private helper with no `@NonNull`).
+- `UserService.toDto(User)`/`UserPrincipal.toUserDto()`'s duplicated field construction was
+  consolidated — **not** onto a `public static` `UserService.toDto()` as first drafted, but onto a
+  new `User.toDto()` instance method on the entity itself. The first draft was corrected during
+  this same change's `/code-review` pass: `UserService` already imports and constructs
+  `UserPrincipal` (`refreshSecurityContext()`), so a `UserPrincipal → UserService` import back
+  would have closed a real circular package dependency between `org.ost.user.services` and
+  `org.ost.user.security`. `User` (the entity both classes already depend on) has no such issue —
+  moving the conversion there breaks the cycle at the source instead of routing around it.
+
+**Consequence:** `RoleChecker`/`OwnershipChecker` now fail fast (clear Lombok-generated NPE) if a
+future caller ever bypasses the `UserPort` boundary with a genuinely null argument, instead of
+silently resolving to "not admin"/"not owner." `User.toDto()` is the one place that maps `User` →
+`UserDto`; any future third call site should call it directly rather than reintroducing a third
+inline construction.

@@ -1,5 +1,6 @@
 package org.ost.user.security;
 
+import lombok.NonNull;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.security.UserIdMarker;
 import org.springframework.stereotype.Component;
@@ -7,11 +8,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class OwnershipChecker {
 
-    public boolean isOwner(UserDto user, Long ownerId) {
-        return user != null && user.id() != null && user.id().equals(ownerId);
+    public boolean isOwner(@NonNull UserDto user, @NonNull Long ownerId) {
+        return ownerId.equals(user.id());
     }
 
-    public boolean isOwner(UserDto user, UserIdMarker target) {
-        return target != null && isOwner(user, target.getOwnerUserId());
+    public boolean isOwner(@NonNull UserDto user, @NonNull UserIdMarker target) {
+        return isOwner(user, target.getOwnerUserId());
     }
 }

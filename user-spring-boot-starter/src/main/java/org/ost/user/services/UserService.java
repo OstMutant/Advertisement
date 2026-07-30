@@ -61,11 +61,11 @@ public class UserService {
     private final ComponentFactory<AdvertisementPort>   advertisementPortFactory;
 
     public List<UserDto> getFiltered(@Valid @NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
-        return repository.findByFilter(filter, PageRequest.of(page, size, sort)).stream().map(this::toDto).toList();
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort)).stream().map(User::toDto).toList();
     }
 
     public List<UserDto> getFilteredByOffset(@Valid @NonNull UserFilterDto filter, long offset, int limit, @NonNull Sort sort) {
-        return repository.findByFilter(filter, new OffsetPageable(offset, limit, sort)).stream().map(this::toDto).toList();
+        return repository.findByFilter(filter, new OffsetPageable(offset, limit, sort)).stream().map(User::toDto).toList();
     }
 
     public int count(@Valid @NonNull UserFilterDto filter) {
@@ -151,7 +151,7 @@ public class UserService {
     }
 
     public Optional<UserDto> findById(@NonNull Long id) {
-        return repository.findById(id).map(this::toDto);
+        return repository.findById(id).map(User::toDto);
     }
 
     public void refreshSecurityContext(@NonNull Long userId) {
@@ -174,7 +174,7 @@ public class UserService {
     }
 
     public Optional<UserDto> findDtoByEmail(@NonNull String email) {
-        return repository.findByEmail(email).map(this::toDto);
+        return repository.findByEmail(email).map(User::toDto);
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
@@ -188,12 +188,7 @@ public class UserService {
 
     public Map<Long, UserDto> findByIds(@NonNull Set<Long> ids) {
         return repository.findByIds(ids.toArray(new Long[0])).stream()
-                .collect(Collectors.toMap(User::getId, this::toDto));
-    }
-
-    private UserDto toDto(User user) {
-        return new UserDto(user.getId(), user.getName(), user.getEmail(), user.getRole(),
-                user.getCreatedAt(), user.getUpdatedAt(), user.getLocale(), user.getVersion());
+                .collect(Collectors.toMap(User::getId, User::toDto));
     }
 
     private static UserSnapshotDto toSnapshot(User user) {

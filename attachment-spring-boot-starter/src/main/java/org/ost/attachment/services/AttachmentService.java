@@ -34,7 +34,7 @@ public class AttachmentService {
     private final CurrentActorHook            currentActorHook;
 
     public List<AttachmentItemDto> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
-        return attachmentRepository.getByEntityId(entityType, entityId).stream().map(AttachmentService::toDto).toList();
+        return attachmentRepository.getByEntityId(entityType, entityId).stream().map(Attachment::toDto).toList();
     }
 
     public Map<Long, AttachmentMediaSummaryDto> getMediaSummaries(@NonNull EntityType entityType, @NonNull Set<Long> entityIds) {
@@ -65,7 +65,7 @@ public class AttachmentService {
                     .size(contentLength)
                     .build());
             captureMediaChanges(entityType, entityId);
-            return toDto(saved);
+            return saved.toDto();
         } catch (Exception e) {
             storageService.delete(url);
             throw e;
@@ -94,7 +94,7 @@ public class AttachmentService {
                 .url(d.url()).filename(d.filename())
                 .contentType(d.contentType()).size(0L).build());
         captureMediaChanges(entityType, entityId);
-        return toDto(saved);
+        return saved.toDto();
     }
 
     public TempAttachmentDto uploadTemp(@NonNull String tempSessionId, @NonNull String filename,
@@ -144,7 +144,7 @@ public class AttachmentService {
 
     public List<AttachmentItemDto> getByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId,
                                                        @NonNull String[] urls) {
-        return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls).stream().map(AttachmentService::toDto).toList();
+        return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls).stream().map(Attachment::toDto).toList();
     }
 
     @Transactional
@@ -176,10 +176,6 @@ public class AttachmentService {
     }
 
     // ── internals ────────────────────────────────────────────────────────────
-
-    public static AttachmentItemDto toDto(Attachment a) {
-        return new AttachmentItemDto(a.getId(), a.getUrl(), a.getFilename(), a.getContentType());
-    }
 
     // Logged, not thrown -- a close failure shouldn't turn a successful upload into a reported one.
     private static void closeQuietly(InputStream inputStream) {

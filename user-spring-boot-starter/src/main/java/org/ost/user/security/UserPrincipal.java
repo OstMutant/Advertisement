@@ -15,8 +15,7 @@ public record UserPrincipal(User user) implements UserDetails, AuthenticatedPrin
 
     @Override
     public UserDto toUserDto() {
-        return new UserDto(user.getId(), user.getName(), user.getEmail(),
-                user.getRole(), user.getCreatedAt(), user.getUpdatedAt(), user.getLocale(), user.getVersion());
+        return user.toDto();
     }
 
     @Override

@@ -53,8 +53,11 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
   version mismatch, same as `Advertisement`/`Taxon`), and because `passwordHash`/`email` are not
   mapped properties on `UserProfileUpdate`, the generated `UPDATE` cannot touch them — this
   eliminates the class of bug where a profile edit accidentally forwards the wrong (or missing)
-  value for a sensitive field, without relying on builder discipline. `UserService.applyUserRestore()`
-  (name/role restore from a snapshot) reuses the same `updateProfile()` method. See
+  value for a sensitive field, without relying on builder discipline. There is no dedicated
+  server-side restore-apply method — restoring a user from a snapshot is client-side only
+  (`UserFormOverlayModeHandler.loadRestored()` loads the snapshot's name/role into the edit form),
+  and only takes effect once the moderator explicitly saves, going through the same
+  `save()` → `updateProfile()` path as any other profile edit. See
   `marketplace-app/DECISIONS.md` ADR-029.
 - `UserSettingsRepository.save()` also enforces optimistic locking, but via a version embedded
   **inside** the `settings` JSONB column (`UserSettingsDto.version`) rather than a separate SQL
