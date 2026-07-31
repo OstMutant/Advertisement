@@ -92,14 +92,46 @@ built-in Claude Code skills (not files here at all — only visible via the sess
   check, not a continuous guarantee — same category of limitation as the `scripts/ci.sh` backstop
   above, stated for the same reason (glossing over it would just reproduce this exact gap later).
 
-### 2. Measure actual token impact — before/after, on real tasks
+### 2. Measure actual review-skill token cost — track it, don't act on a single number — ✅ DONE (measurement practice adopted; no default changed)
 
-Needs a concrete methodology before it's actionable, not just "measure it": proxy metric first
-(cheap, immediate) — count how often `docs/ai/*` files are actually `Read` during a session versus
-how often the pre-improvement-134 pattern (opening multiple `DECISIONS.md`/`CLAUDE.md` files
-speculatively) still happens. A real token-count A/B (same task run with/without the layer
-present) is the rigorous version, but is expensive and noisy across task variance — do the proxy
-first, only invest in the controlled A/B if the proxy suggests the layer isn't earning its keep.
+**Reframed (2026-07-31) — narrower and more concrete than the original "docs/ai/* read-count
+proxy" framing.** During this same session, the user raised a directly related, more consequential
+cost question first: the multi-agent review skills (`/code-review`'s 8-parallel-finder pattern
+especially) are visibly expensive, and there was no real accounting of it — only impression.
+Resolved with an explicit split between measurement (do now, cheap, exact) and action (do not take
+yet, needs evidence):
+
+- **Measurement, adopted as a standing practice** (see `.claude/rules.md` "Final reports —
+  include real agent-call token cost, broken down by purpose"): every `Agent` tool call already
+  returns an exact `subagent_tokens` figure. Sum these per purpose (review, research/investigation,
+  verification/testing) in every final report and batch write-up from now on — real data, not a
+  retrofit. Explicitly *not* a full accounting: no tool reports main-thread (the primary
+  conversation's own planning/implementation) token usage, so this is always a lower bound, stated
+  as such rather than presented as complete.
+- **Demonstrated on this session's own numbers** (reconstructed from the `usage.subagent_tokens`
+  figures already returned during Batch 124-A/A2's `/code-review` passes and this issue's own item
+  4 routing test, high effort level throughout): review-purpose agent calls ≈ 1.7M tokens across
+  two 8-angle passes; verification/routing-test purpose (item 4) ≈ 354K tokens across 6 agents.
+  Real numbers, not estimates — and still not the full cost of either batch, since neither includes
+  main-thread tokens.
+- **Explicitly rejected: lowering review effort level as a response to cost alone.** The user's own
+  call, and the right one — `/code-review`'s effort levels trade breadth for noise (`low`/`medium`:
+  fewer, higher-confidence findings; `high`/`xhigh`/`max`: broader coverage, may include uncertain
+  findings), not simply "cheap and worse." There is no counterfactual evidence from this session
+  that a lower effort level would have caught the same real bugs Batch A/A2's `high`-effort passes
+  found (the silent-no-op `updateLocale`, the orphaned-row purge bug, the NPEs). Shipping a missed
+  bug costs more than the token difference — asymmetric risk, don't trade on a guess.
+- **What would actually justify changing a default:** a deliberate, user-approved side-by-side
+  comparison on a genuinely small/low-risk future batch — run at a lower effort level once,
+  cross-check that no real finding was missed against what a `high`-effort pass would likely have
+  caught — repeated a few times before generalizing. Not attempted yet; no such batch has come up
+  since this was raised.
+- **Final policy (2026-07-31), recorded in `.claude/rules.md`:** the default itself never changes
+  silently. The user can always name an explicit effort level for a given run. Absent that, Claude
+  may pick a level other than the default only when the change's own size/risk makes it obviously
+  justified (not as a routine cost-saving habit) — and whichever level actually ran must be stated
+  plainly in the report every time, default or deviated, so the choice is never silent even when
+  it was reasonable.
 
 ### 3. Validate `context-loading.md` empirically — does it actually reduce reads
 
@@ -108,12 +140,31 @@ Small, scoped experiment: pick 3-5 representative task types already categorized
 counts/patterns. Not an ongoing measurement system — a one-time validation to decide whether the
 file earns its maintenance cost.
 
-### 4. Measure workflow routing accuracy — task → correct command/skill
+### 4. Measure workflow routing accuracy — task → correct command/skill — ✅ DONE (bounded)
 
-Tests `flows.md` specifically (not the ADR index or context-loading.md): for a sample of task
-descriptions, check whether the command/skill actually invoked matches what `flows.md` would have
-recommended. This measures skill-description quality as much as `flows.md` itself — scope it to
-that file, not the whole `docs/ai/` layer.
+**Method:** 6 realistic task phrasings (not copied from `flows.md`'s own "Situation" wording),
+scoped to the "Built-in Claude Code skills" review-family cluster — `code-review`/`simplify`/
+`security-review`/`deep-review`/`review`/`fewer-permission-prompts` — the highest-confusion-risk
+area flagged during item 1's audit. Each sent to an isolated fresh subagent with **no context
+from this conversation and an explicit instruction not to read `docs/ai/flows.md` or anything
+under `docs/ai/`** — asked only "which command/skill would you reach for and why," no execution.
+Result compared against `flows.md`'s own recommendation for that situation.
+
+**Result: 6/6 correct.** Including the two closest-confusable pairs: "clean up code, don't hunt for
+bugs" → `simplify` (not `/code-review`), and "PR #57 on GitHub" → `review` (not `/code-review`,
+despite the similar name) — both routed correctly with reasoning that named the specific
+distinguishing phrase from the skill's own description.
+
+**Important limitation, not glossed over:** subagents see the exact same "Available skills"
+system-reminder text any session gets (harness-injected, not sourced from `flows.md`) — so this
+result shows the underlying **skill descriptions themselves** disambiguate correctly for this
+cluster, more than it proves `flows.md`'s own table adds incremental routing accuracy on top of
+them. `flows.md` still has independent value this test didn't measure (faster lookup without
+scanning every available skill's full description, and entries where descriptions alone overlap
+more, e.g. `/decision` vs `/feature` vs `/sync-docs`) — but that value is about *speed and
+project-specific framing*, not proven here to be about *correctness*. Bounded scope (6 cases, one
+cluster) — not exhaustive coverage of all 24 rows across both tables; treat as a spot-check that
+found no problem in the area of highest suspected risk, not a full routing-accuracy certification.
 
 ### 5. Governing principle for all of the above: do not add new `docs/ai/*` content until a real discovery gap appears
 

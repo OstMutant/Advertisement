@@ -170,6 +170,28 @@ the user reads the actual code/diff themselves and finds a full file-by-file rec
 Keep the report human: what was done in plain terms, test results (counts, not just "passed"),
 and review-finding decisions. Skip the enumerated file-changes section entirely.
 
+### Final reports — include real agent-call token cost, broken down by purpose, not a vibe
+Every Agent-tool call already returns an exact `subagent_tokens` figure — no estimation needed.
+When reporting completed work, sum these per purpose the calls served (e.g. research/investigation,
+review, verification/testing) rather than one flat total, so the breakdown shows where the cost
+actually went, not just how much there was. State plainly what this breakdown does **not** cover:
+there is no tool that reports main-thread token usage (the primary conversation's own planning and
+implementation work), so any total is a lower bound on the real cost, not a full accounting — say
+so explicitly rather than presenting a partial figure as complete. Build this into a real,
+comparable cost history over time so any future decision about review depth/effort level is made
+from evidence, not impression. The cost figure alone is never sufficient reason to lower a review's
+effort level — that requires a deliberate, explicitly-approved side-by-side comparison showing no
+loss in real findings first, not a one-off number that merely looks high.
+
+### Review-skill effort level — default stays put; deviation allowed only when obvious, always disclosed
+A review-style skill's effort level defaults to whatever it defaults to when the user doesn't name
+one explicitly — do not silently change that default based on cost, habit, or a hunch. The user can
+always specify a level explicitly for a given run; when they haven't, choose a level other than the
+default only when it is obviously justified by the change's own size/risk (e.g. a one-line typo
+fix vs. a cross-module architectural rewrite), never as a routine cost-saving move. Whichever level
+actually ran — default or deviated — state it plainly in the report every time; a silent choice is
+not acceptable even when the choice itself was reasonable.
+
 ## Definition of Done
 A feature or fix is not complete until all of the following hold:
 - The relevant full test suite is green: `bash scripts/unit-tests.sh` + `bash scripts/integration-
