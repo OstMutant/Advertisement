@@ -62,7 +62,7 @@ worst-first by batch; work through them one at a time, checking each batch off h
 | F | ✅ Done (2026-07-30) | 13, 14, 15, 17 (16 invalid, see below) | marketplace-app small DRY/`@NonNull`: `thumbSrc()` dedup (13), triplicated field-copy (14), `@NonNull` on buttons/fields (15), `AccessEvaluator` dedup (17) |
 | J | ✅ Done (2026-07-31) | 29, 30 | audit-starter: `@NonNull` sweep + `RowMapper` hoist |
 | K | ✅ Done (2026-07-31) | 31 | integration-tests: dedup `TestConfig` `@ImportAutoConfiguration` array across 5 test classes via a new composed annotation, `RepositoryTestAutoConfig` |
-| G | 🔵 low | 20, 21, 22 | platform-commons governance: DTO boundary (20), `AttachmentAuditHook`→`*Port` rename (21, spans attachment-starter + marketplace-app, do last within this group), undocumented `security` package role (22) |
+| G | ✅ Done (2026-07-31) | 20, 21, 22 | platform-commons governance: DTO boundary (20), `AttachmentAuditHook`→`*Port` rename (21, spanned attachment-starter + marketplace-app), undocumented `security` package role (22, `UserIdMarker` folded into `user.spi`) |
 | E | 🔵 low (needs a decision) | 12 | `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` — pure duplication, but fixing it means picking an approach (shared prototype-scoped base vs. extending ADR-065's stated exception) rather than a mechanical edit |
 
 **Suggested execution order:** A → D → B → H → I → C → F → J → K → G → E.
@@ -112,6 +112,66 @@ below is kept as-written for history; ADR-014 has the corrected final shape.
 4. Full `/code-review` (8 finder agents + per-candidate verify), unit tests, integration tests
    (repository files changed), no Playwright (no UI-visible change — video/embed upload UI stays
    behind the same `AttachmentPort`/`AttachmentService` public methods, unchanged signatures).
+
+### Batch G — implementation plan (2026-07-31)
+
+**Corrected during this same change's own `/code-review` pass (see `platform-commons/DECISIONS.md`
+ADR-025):** item 20's plan below called for `toSettingsSnapshot` as a `public static` method called
+cross-class from `UserService.register()`. A verified review finding caught that this bypasses the
+codebase's constructor-injection convention and makes the `UserService`→`UserSettingsService`
+coupling invisible. Landed instead as a genuine instance method, with `UserService` holding
+`UserSettingsService` as a constructor-injected field. The plan text below is kept as-written for
+history; ADR-025 has the corrected final shape.
+
+1. **Item 20 — `SettingsSnapshotDto.from(UserSettingsDto)` boundary fix.** Delete the `from(...)`
+   static factory from `platform-commons/.../user/dto/SettingsSnapshotDto.java` (it reaches into a
+   sibling DTO's fields, which the `*.dto` package's "pure derivation over its own fields" exception
+   does not cover). Add `public static SettingsSnapshotDto toSettingsSnapshot(UserSettingsDto
+   settings)` to `user-spring-boot-starter/.../services/UserSettingsService.java` (same 3-field
+   construction, moved verbatim) — mirrors the existing `toSnapshot(User)` pattern already used by
+   `UserService`/`UserSettingsService` for `UserSnapshotDto`, keeping snapshot-construction logic in
+   the starter that owns the source entity, not in the platform-commons DTO. Update both call sites:
+   `UserSettingsService.save()` (already in the same class, drop the `SettingsSnapshotDto.` prefix)
+   and `UserService.register()` (add `UserSettingsService.toSettingsSnapshot(defaults)` — static
+   call, no new constructor dependency needed since `UserService` doesn't otherwise depend on
+   `UserSettingsService`).
+
+2. **Item 21 — `AttachmentAuditHook` → `AttachmentAuditPort` rename** (naming/direction fix — this
+   interface is called by marketplace, implemented by the attachment starter, which per
+   `platform-commons/CLAUDE.md`'s naming table is the `*Port` direction, not `*Hook`). Do last
+   within this batch since it spans 3 modules:
+   - `platform-commons`: rename file + interface `AttachmentAuditHook` → `AttachmentAuditPort`
+     (`org.ost.platform.attachment.spi`), update its Javadoc's first line from "Hook: marketplace →
+     attachment-starter" to "Port: marketplace → attachment-starter".
+   - `attachment-spring-boot-starter`: rename `AttachmentAuditHookImpl` → `AttachmentAuditPortImpl`
+     (same package `org.ost.attachment.spi`), update its `implements` clause. In
+     `AttachmentAutoConfiguration`: rename bean method `attachmentAuditHookFactory` →
+     `attachmentAuditPortFactory`, update the `ComponentFactory<AttachmentAuditHook>` return type.
+   - `marketplace-app`: in `AdvertisementAuditEnrichService`, rename field
+     `attachmentAuditHookFactory` → `attachmentAuditPortFactory` and its type; update the two
+     `findIfAvailable()` call sites. In `AdvertisementAuditEnrichServiceTest`, rename the mock fields
+     (`attachmentAuditHookFactory` → `attachmentAuditPortFactory`, `attachmentAuditHook` →
+     `attachmentAuditPort`) and every reference (constructor call, `stubAvailable(...)`,
+     `when(...)`, `verify(...)`, `verifyNoInteractions(...)`).
+   - No behavior change — pure rename, same method signatures (`getChangesBySnapshotId`,
+     `getMediaStateForSnapshot`).
+
+3. **Item 22 — `UserIdMarker` package-role fix.** Move
+   `platform-commons/.../user/security/UserIdMarker.java` → `platform-commons/.../user/spi/
+   UserIdMarker.java` (package `org.ost.platform.user.security` → `org.ost.platform.user.spi`) —
+   it's a marker interface implemented by domain types and consumed across module boundaries
+   (`UserPort`, `OwnershipChecker`, `AccessEvaluator`), the same shape as other `*.spi` contracts,
+   so folding it into the existing `spi` role is cleaner than documenting a new one-interface
+   package role. Update imports in all 5 known consumers: `platform-commons/.../user/spi/
+   UserPort.java`, `user-spring-boot-starter/.../security/OwnershipChecker.java`,
+   `user-spring-boot-starter/.../spi/UserPortImpl.java`, `marketplace-app/.../services/security/
+   AccessEvaluator.java`, `marketplace-app/.../services/security/AccessEvaluatorTest.java`.
+
+4. Verification: `bash scripts/unit-tests.sh marketplace-app` (covers
+   `AdvertisementAuditEnrichServiceTest`/`AccessEvaluatorTest`), `bash scripts/unit-tests.sh
+   query-lib` not relevant here — skip; `bash scripts/integration-tests.sh --sandbox
+   SettingsSnapshotDtoTest` (item 20 touches its construction path). No Playwright — no UI-visible
+   change, all three items are internal renames/relocations behind unchanged public behavior.
 
 ### Batch F — implementation notes (2026-07-30)
 

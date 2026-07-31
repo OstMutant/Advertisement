@@ -7,7 +7,7 @@ import org.ost.platform.advertisement.model.AdKind;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
-import org.ost.platform.attachment.spi.AttachmentAuditHook;
+import org.ost.platform.attachment.spi.AttachmentAuditPort;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.core.ComponentFactory;
@@ -32,7 +32,7 @@ import static org.ost.platform.audit.api.AuditableSnapshot.field;
 @RequiredArgsConstructor
 public class AdvertisementAuditEnrichService {
 
-    private final ComponentFactory<AttachmentAuditHook> attachmentAuditHookFactory;
+    private final ComponentFactory<AttachmentAuditPort> attachmentAuditPortFactory;
     private final ComponentFactory<TaxonPort>           taxonPortFactory;
     private final LocaleProvider                        localeProvider;
     private final I18nService                            i18nService;
@@ -53,7 +53,7 @@ public class AdvertisementAuditEnrichService {
 
     public String getMediaStateForSnapshot(EntityRef ref, Long attachmentSnapshotId) {
         if (attachmentSnapshotId == null) return null;
-        return attachmentAuditHookFactory.findIfAvailable()
+        return attachmentAuditPortFactory.findIfAvailable()
                 .map(h -> h.getMediaStateForSnapshot(ref, attachmentSnapshotId))
                 .orElse(null);
     }
@@ -125,7 +125,7 @@ public class AdvertisementAuditEnrichService {
 
     private List<ChangeEntry> mediaChangesFor(Long attachmentSnapshotId) {
         if (attachmentSnapshotId == null) return List.of(NO_MEDIA_ENTRY);
-        return attachmentAuditHookFactory.findIfAvailable()
+        return attachmentAuditPortFactory.findIfAvailable()
                 .map(h -> h.getChangesBySnapshotId(attachmentSnapshotId))
                 .orElse(List.of());
     }

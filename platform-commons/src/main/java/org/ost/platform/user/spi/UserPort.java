@@ -6,7 +6,6 @@ import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserSettingsDto;
-import org.ost.platform.user.security.UserIdMarker;
 import org.springframework.data.domain.Sort;
 
 import java.util.Collection;

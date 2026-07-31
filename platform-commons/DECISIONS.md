@@ -23,14 +23,15 @@ audit.spi      — AuditPort, AuditDomainHook, AuditActivityFieldsHook, AuditAct
 
 attachment.dto     — AttachmentMediaSummaryDto, AttachmentItemDto, TempAttachmentDto
 attachment.model   — AttachmentMediaContentType
-attachment.spi     — AttachmentPort, AttachmentAuditHook (AttachmentMediaChangeHook removed, improvement-102)
+attachment.spi     — AttachmentPort, AttachmentAuditPort (AttachmentMediaChangeHook removed, improvement-102;
+                     AttachmentAuditHook renamed to AttachmentAuditPort, see ADR-025)
 attachment.util    — YoutubeUtil
 
 user.dto       — UserDto, UserFilterDto, UserProfileDto, UserSettingsDto,
                  UserSnapshotDto, SettingsSnapshotDto, SignUpDto
 user.model     — Role
-user.security  — UserIdMarker
-user.spi       — UserPort, AuthenticatedPrincipal, UserSettingsChangedHook
+user.spi       — UserPort, AuthenticatedPrincipal, UserSettingsChangedHook, UserIdMarker
+                 (UserIdMarker moved from user.security, see ADR-025)
 
 advertisement.dto  — AdvertisementInfoDto, AdvertisementFilterDto,
                      AdvertisementSaveDto, AdvertisementSnapshotDto
@@ -93,6 +94,8 @@ Current `*Hook` interfaces: `CurrentActorHook`, `AuditDomainHook`, `AuditActivit
   SPI count reduced from 13 to 10.
 - 2026-06-15: `AuditUiPort`, `AuditActivityRowHook`, `AuditHistoryRowActionsHook`,
   `AttachmentGalleryPort` removed — unnecessary indirection since all UI lives in marketplace-app.
+- 2026-07-31: `AttachmentAuditHook` renamed to `AttachmentAuditPort` — its call direction
+  (marketplace calls the starter) was always the `*Port` semantic, not `*Hook`; see ADR-025.
 
 ---
 
@@ -651,3 +654,48 @@ future task.
 - The next new snapshot-bearing domain (F-04 / `improvement-124`'s `ActorProfileSnapshotDto`) must
   add its own `schemaVersion` record component + `SCHEMA_VERSION` constant, following this pattern
   — not a `@SchemaVersion` annotation (removed, no longer exists).
+
+---
+
+## ADR-025: Batch G governance cleanup — DTO boundary, Hook→Port rename, UserIdMarker package
+
+**Status:** Accepted
+
+**Context:** [improvement-132](../backlog/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md)
+Batch G, items 20-22 — three independent `platform-commons` governance findings from the repo-wide
+review, grouped together since all three touch this module's own naming/package rules.
+
+**Decision:**
+- **Item 20:** `SettingsSnapshotDto.from(UserSettingsDto settings)` was removed — it reached into a
+  sibling DTO's fields to construct itself, exceeding the `*.dto` package's "pure derivation over
+  its own fields" exception (ADR-002/ADR-021). The mapping moved to
+  `UserSettingsService.toSettingsSnapshot(UserSettingsDto)` in `user-spring-boot-starter` — snapshot
+  construction stays in the starter that owns the source entity, not in the platform-commons DTO
+  itself. **Corrected during this same change's own `/code-review` pass:** the first draft made
+  `toSettingsSnapshot` a `public static` method, called cross-class from `UserService.register()` as
+  `UserSettingsService.toSettingsSnapshot(defaults)` — reasoning it should "mirror `UserService`'s
+  own `toSnapshot(User)`." A verified review finding caught that this reasoning didn't hold up:
+  `toSnapshot(User)` is `private static`, only ever called within its own class — `UserService`
+  reaching into a sibling service's static method is a different, worse shape that bypasses this
+  codebase's pervasive constructor-injection convention (every other cross-class dependency in both
+  services is a `@RequiredArgsConstructor` field) and makes the coupling invisible in `UserService`'s
+  own field list. No circular-dependency obstacle exists (`UserSettingsService`'s constructor deps —
+  `UserSettingsRepository`, `ComponentFactory<UserSettingsChangedHook>`, `ComponentFactory<AuditPort>`
+  — never reference `UserService`). Corrected to a genuine instance method, with `UserService` holding
+  `UserSettingsService` as a constructor-injected field and calling `userSettingsService
+  .toSettingsSnapshot(defaults)` like any other collaborator.
+- **Item 21:** `AttachmentAuditHook` renamed to `AttachmentAuditPort` (and its implementation,
+  `AttachmentAuditHookImpl` → `AttachmentAuditPortImpl`). Its call direction was always marketplace
+  calling into the attachment starter (`AdvertisementAuditEnrichService` calls it), which per
+  ADR-003's own table is the `*Port` semantic, not `*Hook` — the interface had carried the wrong
+  suffix since it was introduced.
+- **Item 22:** `UserIdMarker` moved from `org.ost.platform.user.security` to
+  `org.ost.platform.user.spi` — `user.security` was never a documented package role (only
+  `api`/`spi`/`dto`, per ADR-002), and `UserIdMarker` is exactly a `*.spi` marker: implemented by
+  domain types, consumed across the module boundary (`UserPort`, `OwnershipChecker`,
+  `AccessEvaluator`).
+
+**Consequences:**
+- `user.security` package no longer exists in `platform-commons`; any future marker/contract that
+  isn't a `Port`/`Hook`/`Dto` still needs a governance call, not a new ad hoc package.
+- Pure renames/moves, no behavior change — same method signatures on `AttachmentAuditPort`.

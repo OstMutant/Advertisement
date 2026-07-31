@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
@@ -57,6 +56,7 @@ public class UserService {
 
     private final UserRepository                       repository;
     private final PasswordEncoder                      passwordEncoder;
+    private final UserSettingsService                   userSettingsService;
     private final ComponentFactory<AuditPort>           auditPortFactory;
     private final ComponentFactory<AdvertisementPort>   advertisementPortFactory;
 
@@ -146,7 +146,7 @@ public class UserService {
         UserSettingsDto defaults = UserSettingsDto.defaultSettings();
         auditPortFactory.ifAvailable(p -> {
             p.captureCreation(saved.getId(), toSnapshot(saved),                       saved.getId());
-            p.captureCreation(saved.getId(), SettingsSnapshotDto.from(defaults),      saved.getId());
+            p.captureCreation(saved.getId(), userSettingsService.toSettingsSnapshot(defaults), saved.getId());
         });
     }
 

@@ -1,4 +1,4 @@
-package org.ost.platform.user.security;
+package org.ost.platform.user.spi;
 
 public interface UserIdMarker {
 

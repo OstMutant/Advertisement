@@ -7,7 +7,7 @@ import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserSettingsDto;
-import org.ost.platform.user.security.UserIdMarker;
+import org.ost.platform.user.spi.UserIdMarker;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.user.security.OwnershipChecker;
 import org.ost.user.security.RoleChecker;

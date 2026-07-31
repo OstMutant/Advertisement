@@ -7,7 +7,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.platform.user.dto.UserDto;
-import org.ost.platform.user.security.UserIdMarker;
+import org.ost.platform.user.spi.UserIdMarker;
 import org.ost.platform.user.spi.UserPort;
 
 import java.util.Optional;

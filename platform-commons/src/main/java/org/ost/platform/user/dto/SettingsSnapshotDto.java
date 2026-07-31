@@ -29,10 +29,6 @@ public record SettingsSnapshotDto(
         this(adsPageSize, usersPageSize, timelinePageSize, SCHEMA_VERSION);
     }
 
-    public static SettingsSnapshotDto from(UserSettingsDto settings) {
-        return new SettingsSnapshotDto(settings.getAdsPageSize(), settings.getUsersPageSize(), settings.getTimelinePageSize());
-    }
-
     @Override
     public EntityType entityType() { return EntityType.USER_SETTINGS; }
 

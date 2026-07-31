@@ -10,7 +10,7 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
-import org.ost.platform.attachment.spi.AttachmentAuditHook;
+import org.ost.platform.attachment.spi.AttachmentAuditPort;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.core.ComponentFactory;
@@ -33,17 +33,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 /**
- * {@link AdvertisementAuditEnrichService} merges attachment-hook media changes into audit
+ * {@link AdvertisementAuditEnrichService} merges attachment-port media changes into audit
  * timeline/activity entries and resolves raw category ids into names. Both optional ports
- * ({@link TaxonPort}, {@link AttachmentAuditHook}) must degrade gracefully when absent
+ * ({@link TaxonPort}, {@link AttachmentAuditPort}) must degrade gracefully when absent
  * (improvement-048).
  */
 @ExtendWith(MockitoExtension.class)
 class AdvertisementAuditEnrichServiceTest {
 
-    @Mock private ComponentFactory<AttachmentAuditHook> attachmentAuditHookFactory;
+    @Mock private ComponentFactory<AttachmentAuditPort> attachmentAuditPortFactory;
     @Mock private ComponentFactory<TaxonPort> taxonPortFactory;
-    @Mock private AttachmentAuditHook attachmentAuditHook;
+    @Mock private AttachmentAuditPort attachmentAuditPort;
     @Mock private TaxonPort taxonPort;
     @Mock private LocaleProvider localeProvider;
     @Mock private I18nService i18nService;
@@ -55,7 +55,7 @@ class AdvertisementAuditEnrichServiceTest {
         lenient().when(localeProvider.getCurrentLocale()).thenReturn(Locale.ENGLISH);
         lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_AD_KIND_OFFER)).thenReturn("Offer");
         lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_AD_KIND_PRODUCT)).thenReturn("Product");
-        service = new AdvertisementAuditEnrichService(attachmentAuditHookFactory, taxonPortFactory, localeProvider, i18nService);
+        service = new AdvertisementAuditEnrichService(attachmentAuditPortFactory, taxonPortFactory, localeProvider, i18nService);
     }
 
     private static <T> void stubAvailable(ComponentFactory<T> factory, T component) {
@@ -87,10 +87,10 @@ class AdvertisementAuditEnrichServiceTest {
 
     @Test
     void mergeMediaChanges_mediaHookAvailable_mediaChangesPrecedeResolvedCategoryChanges() {
-        stubAvailable(attachmentAuditHookFactory, attachmentAuditHook);
+        stubAvailable(attachmentAuditPortFactory, attachmentAuditPort);
         stubAvailable(taxonPortFactory, taxonPort);
         when(taxonPort.findByIds(Set.of(1L), Locale.ENGLISH)).thenReturn(Map.of(1L, taxon(1L, "Electronics")));
-        when(attachmentAuditHook.getChangesBySnapshotId(50L))
+        when(attachmentAuditPort.getChangesBySnapshotId(50L))
                 .thenReturn(List.of(new ChangeEntry.MediaChange("old.jpg", "new.jpg")));
 
         AuditTimelineItemDto<AdvertisementSnapshotDto> item = new AuditTimelineItemDto<>(
@@ -136,10 +136,10 @@ class AdvertisementAuditEnrichServiceTest {
 
     @Test
     void mergeMediaChanges_categoryUnchanged_stillAddsResolvedCategoryEntry() {
-        stubAvailable(attachmentAuditHookFactory, attachmentAuditHook);
+        stubAvailable(attachmentAuditPortFactory, attachmentAuditPort);
         stubAvailable(taxonPortFactory, taxonPort);
         when(taxonPort.findByIds(Set.of(1L), Locale.ENGLISH)).thenReturn(Map.of(1L, taxon(1L, "Electronics")));
-        when(attachmentAuditHook.getChangesBySnapshotId(50L))
+        when(attachmentAuditPort.getChangesBySnapshotId(50L))
                 .thenReturn(List.of(new ChangeEntry.MediaChange("old.jpg", "new.jpg")));
 
         AuditTimelineItemDto<AdvertisementSnapshotDto> item = new AuditTimelineItemDto<>(
@@ -159,10 +159,10 @@ class AdvertisementAuditEnrichServiceTest {
 
     @Test
     void mergeMediaChanges_cityUnchanged_stillAddsResolvedCityEntry() {
-        stubAvailable(attachmentAuditHookFactory, attachmentAuditHook);
+        stubAvailable(attachmentAuditPortFactory, attachmentAuditPort);
         stubAvailable(taxonPortFactory, taxonPort);
         when(taxonPort.findByIds(Set.of(5L), Locale.ENGLISH)).thenReturn(Map.of(5L, city(5L, "Lviv")));
-        when(attachmentAuditHook.getChangesBySnapshotId(50L))
+        when(attachmentAuditPort.getChangesBySnapshotId(50L))
                 .thenReturn(List.of(new ChangeEntry.MediaChange("old.jpg", "new.jpg")));
 
         AuditTimelineItemDto<AdvertisementSnapshotDto> item = new AuditTimelineItemDto<>(
@@ -258,7 +258,7 @@ class AdvertisementAuditEnrichServiceTest {
 
     @Test
     void enrichActivityItems_attachmentSnapshotUnchanged_noMediaChangesAdded() {
-        stubAvailable(attachmentAuditHookFactory, attachmentAuditHook);
+        stubAvailable(attachmentAuditPortFactory, attachmentAuditPort);
 
         AuditActivityItemDto<AdvertisementSnapshotDto> item = new AuditActivityItemDto<>(
                 1L, 2, ActionType.UPDATED, 10L, null, List.of(),
@@ -266,14 +266,14 @@ class AdvertisementAuditEnrichServiceTest {
 
         List<AuditActivityItemDto<AdvertisementSnapshotDto>> result = service.enrichActivityItems(List.of(item));
 
-        verify(attachmentAuditHook, never()).getChangesBySnapshotId(any());
+        verify(attachmentAuditPort, never()).getChangesBySnapshotId(any());
         assertThat(result.getFirst()).isSameAs(item);
     }
 
     @Test
     void enrichActivityItems_attachmentSnapshotChanged_mediaChangesMerged() {
-        stubAvailable(attachmentAuditHookFactory, attachmentAuditHook);
-        when(attachmentAuditHook.getChangesBySnapshotId(20L))
+        stubAvailable(attachmentAuditPortFactory, attachmentAuditPort);
+        when(attachmentAuditPort.getChangesBySnapshotId(20L))
                 .thenReturn(List.of(new ChangeEntry.MediaChange("a.jpg", "b.jpg")));
 
         AuditActivityItemDto<AdvertisementSnapshotDto> item = new AuditActivityItemDto<>(
@@ -293,7 +293,7 @@ class AdvertisementAuditEnrichServiceTest {
         String state = service.getMediaStateForSnapshot(new EntityRef(EntityType.ADVERTISEMENT, 1L), null);
 
         assertThat(state).isNull();
-        verifyNoInteractions(attachmentAuditHookFactory);
+        verifyNoInteractions(attachmentAuditPortFactory);
     }
 
     @Test
@@ -305,9 +305,9 @@ class AdvertisementAuditEnrichServiceTest {
 
     @Test
     void getMediaStateForSnapshot_hookAvailable_returnsHookResult() {
-        stubAvailable(attachmentAuditHookFactory, attachmentAuditHook);
+        stubAvailable(attachmentAuditPortFactory, attachmentAuditPort);
         EntityRef ref = new EntityRef(EntityType.ADVERTISEMENT, 1L);
-        when(attachmentAuditHook.getMediaStateForSnapshot(ref, 50L)).thenReturn("2 files");
+        when(attachmentAuditPort.getMediaStateForSnapshot(ref, 50L)).thenReturn("2 files");
 
         String state = service.getMediaStateForSnapshot(ref, 50L);
 

@@ -3,7 +3,7 @@ package org.ost.attachment.spi;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.attachment.services.AttachmentSnapshotService;
-import org.ost.platform.attachment.spi.AttachmentAuditHook;
+import org.ost.platform.attachment.spi.AttachmentAuditPort;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.springframework.stereotype.Component;
@@ -12,7 +12,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class AttachmentAuditHookImpl implements AttachmentAuditHook {
+public class AttachmentAuditPortImpl implements AttachmentAuditPort {
 
     private final AttachmentSnapshotService attachmentSnapshotService;
 

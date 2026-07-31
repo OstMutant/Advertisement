@@ -31,7 +31,11 @@ public class UserSettingsService {
         repository.save(userId, settings);
         hookFactory.ifAvailable(hook -> hook.onSettingsChanged(userId, settings));
         auditPortFactory.ifAvailable(p -> p.captureUpdate(userId,
-                SettingsSnapshotDto.from(settings),
+                toSettingsSnapshot(settings),
                 userId));
+    }
+
+    public SettingsSnapshotDto toSettingsSnapshot(@NonNull UserSettingsDto settings) {
+        return new SettingsSnapshotDto(settings.getAdsPageSize(), settings.getUsersPageSize(), settings.getTimelinePageSize());
     }
 }

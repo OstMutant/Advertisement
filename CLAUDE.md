@@ -37,8 +37,8 @@ advertisement-parent (root pom)
 **platform-commons** defines the cross-module contracts, organized into semantic packages:
 - `core.*` — shared by all modules: `ComponentFactory` (top-level, not a sub-package), `core.model` (`ActionType`, `ChangeEntry`, `EntityRef`, `EntityType`), `core.config` (`CleanupProperties`), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`)
 - `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`, `AuditTimelineFilterDto`), `audit.spi` (`AuditPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`)
-- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentAuditHook`) — note `AttachmentMediaChangeHook` was removed entirely (improvement-102, zero consumers) — `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
-- `user.*` — `user.spi` (`UserPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
+- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentAuditPort`) — note `AttachmentMediaChangeHook` was removed entirely (improvement-102, zero consumers) — `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
+- `user.*` — `user.spi` (`UserPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook`, `UserIdMarker`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
 - `advertisement.*` — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto` (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`, `AdvertisementSnapshotDto`), `advertisement.model` (`AdKind`)
 - `taxon.*` — `taxon.spi` (`TaxonPort`), `taxon.dto` (`TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`), `taxon.model` (`TaxonType`)
 

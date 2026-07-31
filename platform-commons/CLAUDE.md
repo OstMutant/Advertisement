@@ -43,8 +43,8 @@ All cross-module extension points live in `platform-commons/*.spi`. The suffix e
 
 | Suffix | Caller → Implementor | Semantic role | Examples |
 |--------|----------------------------------|---------------|---------|
-| `*Port` | marketplace → starter | marketplace calls the starter (commands, queries) | `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort`, `TaxonPort` |
-| `*Hook` | starter → marketplace | starter calls back for domain data, events, or contributions | `CurrentActorHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`, `AttachmentAuditHook`, `UserSettingsChangedHook` (`AttachmentMediaChangeHook` removed entirely, improvement-102 — zero implementations) |
+| `*Port` | marketplace → starter | marketplace calls the starter (commands, queries) | `AuditPort`, `AttachmentPort`, `AttachmentAuditPort`, `UserPort`, `AdvertisementPort`, `TaxonPort` |
+| `*Hook` | starter → marketplace | starter calls back for domain data, events, or contributions | `CurrentActorHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`, `UserSettingsChangedHook` (`AttachmentMediaChangeHook` removed entirely, improvement-102 — zero implementations; `AttachmentAuditHook` renamed to `AttachmentAuditPort`, its call direction was always the `*Port` semantic — see `platform-commons/DECISIONS.md` ADR-025) |
 
 **Rule:** do not introduce new suffixes without updating this table and adding a `platform-commons/DECISIONS.md` entry. Existing suffixes must not be repurposed for a different direction or role.
 

@@ -12,7 +12,7 @@ Java package root: `org.ost.attachment`
 - `AttachmentService` — business logic for upload, delete, restore from snapshot
 - `AttachmentSnapshotService` — manages attachment snapshot records
 - `DefaultAttachmentPort` — implements `AttachmentPort`; thin delegation to `AttachmentService`
-- `AttachmentAuditHookImpl` — implements `AttachmentAuditHook`; thin delegation
+- `AttachmentAuditPortImpl` — implements `AttachmentAuditPort`; thin delegation
 - `AttachmentCleanupService` — scheduled service for orphan cleanup (uses `CleanupProperties`)
 - `S3StorageService` / `StorageService` — S3-compatible storage via AWS SDK
 
@@ -32,9 +32,10 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 ## Key constraints
 
 - No Vaadin dependency. No UI code here. UI components (`AttachmentGallery`, `CardMediaLightbox`) live in `marketplace-app`.
-- `AttachmentPort`, `AttachmentAuditHook` live in `platform-commons` (`AttachmentMediaChangeHook`
+- `AttachmentPort`, `AttachmentAuditPort` live in `platform-commons` (`AttachmentMediaChangeHook`
   was removed entirely, improvement-102 — zero implementations, see
-  `marketplace-app/DECISIONS.md` ADR-035).
+  `marketplace-app/DECISIONS.md` ADR-035; `AttachmentAuditHook` renamed to `AttachmentAuditPort`,
+  see `platform-commons/DECISIONS.md` ADR-025).
 - UI components in marketplace-app MUST degrade gracefully via `ObjectProvider.ifAvailable()` when this starter is absent.
 - `@EnableJdbcRepositories(basePackages = "org.ost.attachment.repository")` declared in `AttachmentAutoConfiguration`.
 - Storage (`StorageService` and its S3 implementation) lives in `org.ost.attachment.services` — not in marketplace-app.
