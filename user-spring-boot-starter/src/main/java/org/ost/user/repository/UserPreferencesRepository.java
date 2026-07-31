@@ -12,9 +12,6 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
 
 @Slf4j
 @Repository
@@ -36,22 +33,12 @@ public class UserPreferencesRepository {
     }
 
     public String findLocaleByActorId(@NonNull Long actorId) {
-        return findLocalesByActorIds(Set.of(actorId)).get(actorId);
+        return jdbcClient.sql("SELECT locale FROM user_preferences WHERE actor_id = :actorId")
+                          .paramSource(new MapSqlParameterSource("actorId", actorId))
+                          .query(String.class)
+                          .optional()
+                          .orElse(null);
     }
-
-    public Map<Long, String> findLocalesByActorIds(@NonNull Set<Long> actorIds) {
-        // Collectors.toMap() rejects null values (locale is null until a user sets one) -- accumulate into a HashMap instead.
-        Map<Long, String> result = new HashMap<>();
-        for (LocaleRow row : jdbcClient.sql("SELECT actor_id, locale FROM user_preferences WHERE actor_id = ANY(:actorIds)")
-                .paramSource(new MapSqlParameterSource("actorIds", actorIds.toArray(new Long[0])))
-                .query((rs, _) -> new LocaleRow(rs.getObject("actor_id", Long.class), rs.getString("locale")))
-                .list()) {
-            result.put(row.actorId(), row.locale());
-        }
-        return result;
-    }
-
-    private record LocaleRow(Long actorId, String locale) {}
 
     public void updateLocale(@NonNull Long actorId, @NonNull String locale) {
         int updated = jdbcClient.sql("UPDATE user_preferences SET locale = :locale WHERE actor_id = :actorId")

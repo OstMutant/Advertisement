@@ -14,6 +14,7 @@ import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
+import org.ost.platform.user.spi.UserAccountPort;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.platform.audit.spi.AuditPort;
@@ -61,6 +62,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     }
 
     private final UserPort                                              userPort;
+    private final UserAccountPort                                       accountPort;
     private final UserMapper                                            mapper;
     private final AccessEvaluator                                       access;
     @Getter
@@ -143,7 +145,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
     public boolean save() {
         return binder.save(dto -> {
-            userPort.save(mapper.copy(dto), access.getCurrentUserId());
+            accountPort.save(mapper.copy(dto), access.getCurrentUserId());
             userPort.findById(params.getUser().id()).ifPresent(u -> {
                 savedUser = u;
                 dto.setVersion(u.version());

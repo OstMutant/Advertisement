@@ -37,10 +37,8 @@ public class VaadinLocaleProvider implements LocaleProvider {
             log.warn("UI is null in getCurrentLocale; returning default locale");
             return Locale.getDefault();
         }
-        Optional<Locale> userLocale = authContextService.getCurrentUser()
-                .map(u -> u.locale() != null && !u.locale().isBlank()
-                        ? Locale.forLanguageTag(u.locale())
-                        : null);
+        Optional<Locale> userLocale = authContextService.getCurrentUserLocale()
+                .map(locale -> locale != null && !locale.isBlank() ? Locale.forLanguageTag(locale) : null);
         return userLocale.orElseGet(() -> {
             var session = ui.getSession();
             return session != null ? session.getLocale() : Locale.getDefault();

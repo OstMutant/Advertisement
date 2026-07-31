@@ -3514,3 +3514,60 @@ Provider-profile work (Batch 124-B onward) attaches to its own table/module, nev
 The `findLocaleByActorId`/`findLocalesByActorIds` duplication the code review flagged was resolved
 by having the single-id method delegate to the bulk one (`findLocalesByActorIds(Set.of(id))`) —
 one query implementation, not two to keep in sync.
+
+## ADR-071: `UserDto.locale` removed, `UserProfileUpdate` renamed, `UserPort` split (improvement-124 Batch A2)
+
+**Status:** Accepted
+
+**Context:** Reviewing Batch A's diff, the user flagged that `UserDto` still carried `locale`
+after the `user_information`/`user_preferences` table split — forcing every `UserDto` construction
+(`getFiltered`/`getFilteredByOffset`/`findByIds`/`findDtoByEmail`, used by the Users grid,
+`AdvertisementEnrichmentService`'s actor-name enrichment, `UserActorNameService`'s audit-actor
+resolution) to pay for a `user_preferences` lookup that only one real consumer
+(`VaadinLocaleProvider`, resolving the current session's UI locale) ever reads. The same session
+also flagged `UserProfileUpdate`'s name as misleading (reads as "the profile," about to collide
+with F-04's incoming Provider Profile concept) and `UserPort`'s 19-method surface as too wide —
+grep against every real consumer confirmed most inject only one of 4 clusters (query / account
+mutation / authorization / preferences). See `platform-commons/DECISIONS.md` ADR-026 for the
+starter-module-level rationale for the port split itself.
+
+**Decision:**
+- `UserDto` (platform-commons) loses `locale`. The current session's locale is read from
+  `AuthenticatedPrincipal.locale()` (new interface method; `UserPrincipal`, already a record with
+  a `locale` component since Batch A, satisfies it for free) via a new
+  `AuthContextService.getCurrentUserLocale()`, which reads the already-resolved,
+  session-cached `SecurityContextHolder` principal — no extra DB call versus before.
+  `VaadinLocaleProvider` repointed accordingly. `User.toDto()` reverts to a plain no-arg method;
+  `UserService`'s `enrichWithLocale()`/private `toDto(User)` composition helpers (added in Batch A)
+  are deleted entirely — `getFiltered`/`getFilteredByOffset`/`findById`/`findDtoByEmail`/`findByIds`
+  all go back to a plain `User::toDto` method reference, touching `user_preferences` not at all.
+  `UserPreferencesRepository.findLocalesByActorIds()` (the bulk lookup Batch A added) is deleted as
+  dead code — the only remaining locale read is `UserService.toPrincipal()`'s single-actor lookup
+  at login/`refreshSecurityContext()` time, confirmed via grep to be the sole call site left.
+- `UserProfileUpdate` → `UserEditableFields` (`user-spring-boot-starter` only — internal rename,
+  `UserProfileDto`, the platform-commons DTO, is unchanged). `UserProfileCrudRepository` →
+  `UserEditableFieldsCrudRepository`.
+- `UserPort` split into 4 platform-commons interfaces — see ADR-026 for the full rationale and the
+  per-port method list. `UserSettingsService` renamed to `UserPreferencesService`, gained
+  `updateLocale()`/`findLocale()` (both thin delegations to `UserPreferencesRepository`, matching
+  its existing `load()`/`save()` shape) — `UserPreferencesPortImpl` calls this service directly,
+  never through `UserService`, closing the "middleman doing nothing" gap `UserService.updateLocale()`
+  had before this batch (it forwarded to `UserPreferencesRepository` with zero added logic).
+  Every real consumer (`AccessEvaluator`, `UserDeleteService`, `UserPickerField`, `UserView`,
+  `SettingsFormModeHandler`, `SettingsPaginationService`, `LocaleSelectorComponent`, `SignUpDialog`,
+  `UserFormOverlayModeHandler`, `AdvertisementEnrichmentService`, `UserActorNameService`,
+  `AuditDomainHookImpl`, plus their test files) repointed to inject only the port(s) it actually
+  calls, verified against the live codebase via grep before editing, not assumed.
+
+**Found and fixed during `/code-review`'s 8-angle pass:** `AuthenticatedPrincipal` gained a second
+abstract method (`locale()`), which silently breaks any lambda-based implementation (no longer a
+functional interface) — the one such site (`AuthContextServiceTest`) was converted to an anonymous
+class. Two of the three new port-impl classes (`UserAccountPortImpl`, `UserPreferencesPortImpl`)
+initially omitted the class-level `@Transactional(readOnly = true)` the pre-split `UserPortImpl`
+and every other established `*PortImpl` in this codebase carries — added for consistency. A stale
+`{@link UserPort}` Javadoc reference survived in `AccessEvaluatorTest` after its field was renamed
+to `UserAuthorizationPort` — corrected.
+
+**Consequence:** `UserDto` is now a pure identity/auth view — no field on it exists for the benefit
+of exactly one consumer. Any future addition to `UserDto` should clear the same bar: is this read
+by more than the one place asking for it, or does it belong behind a narrower lookup instead.

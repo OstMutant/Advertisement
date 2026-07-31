@@ -58,23 +58,16 @@ public class UserService {
     private final UserRepository                       repository;
     private final UserPreferencesRepository             preferencesRepository;
     private final PasswordEncoder                      passwordEncoder;
-    private final UserSettingsService                   userSettingsService;
+    private final UserPreferencesService                preferencesService;
     private final ComponentFactory<AuditPort>           auditPortFactory;
     private final ComponentFactory<AdvertisementPort>   advertisementPortFactory;
 
     public List<UserDto> getFiltered(@Valid @NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
-        return enrichWithLocale(repository.findByFilter(filter, PageRequest.of(page, size, sort)));
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort)).stream().map(User::toDto).toList();
     }
 
     public List<UserDto> getFilteredByOffset(@Valid @NonNull UserFilterDto filter, long offset, int limit, @NonNull Sort sort) {
-        return enrichWithLocale(repository.findByFilter(filter, new OffsetPageable(offset, limit, sort)));
-    }
-
-    private List<UserDto> enrichWithLocale(List<User> users) {
-        if (users.isEmpty()) return List.of();
-        Set<Long> ids = users.stream().map(User::getId).collect(Collectors.toSet());
-        Map<Long, String> locales = preferencesRepository.findLocalesByActorIds(ids);
-        return users.stream().map(u -> u.toDto(locales.get(u.getId()))).toList();
+        return repository.findByFilter(filter, new OffsetPageable(offset, limit, sort)).stream().map(User::toDto).toList();
     }
 
     public int count(@Valid @NonNull UserFilterDto filter) {
@@ -90,11 +83,6 @@ public class UserService {
                 auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
                         toSnapshot(updated),
                         actingUserId)));
-    }
-
-    @Transactional
-    public void updateLocale(@NonNull Long userId, @NonNull String locale) {
-        preferencesRepository.updateLocale(userId, locale);
     }
 
     @Transactional
@@ -157,16 +145,16 @@ public class UserService {
         UserSettingsDto defaults = UserSettingsDto.defaultSettings();
         auditPortFactory.ifAvailable(p -> {
             p.captureCreation(saved.getId(), toSnapshot(saved),                       saved.getId());
-            p.captureCreation(saved.getId(), userSettingsService.toSettingsSnapshot(defaults), saved.getId());
+            p.captureCreation(saved.getId(), preferencesService.toSettingsSnapshot(defaults), saved.getId());
         });
     }
 
     public Optional<UserDto> findById(@NonNull Long id) {
-        return repository.findById(id).map(this::toDto);
+        return repository.findById(id).map(User::toDto);
     }
 
     public UserPrincipal toPrincipal(@NonNull User user) {
-        return new UserPrincipal(user, preferencesRepository.findLocaleByActorId(user.getId()));
+        return new UserPrincipal(user, preferencesService.findLocale(user.getId()));
     }
 
     public void refreshSecurityContext(@NonNull Long userId) {
@@ -189,7 +177,7 @@ public class UserService {
     }
 
     public Optional<UserDto> findDtoByEmail(@NonNull String email) {
-        return repository.findByEmail(email).map(this::toDto);
+        return repository.findByEmail(email).map(User::toDto);
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
@@ -202,12 +190,8 @@ public class UserService {
     }
 
     public Map<Long, UserDto> findByIds(@NonNull Set<Long> ids) {
-        List<User> users = repository.findByIds(ids.toArray(new Long[0]));
-        return enrichWithLocale(users).stream().collect(Collectors.toMap(UserDto::id, dto -> dto));
-    }
-
-    private UserDto toDto(User user) {
-        return user.toDto(preferencesRepository.findLocaleByActorId(user.getId()));
+        return repository.findByIds(ids.toArray(new Long[0])).stream()
+                .collect(Collectors.toMap(User::getId, User::toDto));
     }
 
     private static UserSnapshotDto toSnapshot(User user) {

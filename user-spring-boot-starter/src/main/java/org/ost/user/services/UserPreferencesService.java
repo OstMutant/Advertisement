@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserSettingsService {
+public class UserPreferencesService {
 
     private final UserPreferencesRepository             repository;
     private final ComponentFactory<UserSettingsChangedHook> hookFactory;
@@ -37,5 +37,14 @@ public class UserSettingsService {
 
     public SettingsSnapshotDto toSettingsSnapshot(@NonNull UserSettingsDto settings) {
         return new SettingsSnapshotDto(settings.getAdsPageSize(), settings.getUsersPageSize(), settings.getTimelinePageSize());
+    }
+
+    @Transactional
+    public void updateLocale(@NonNull Long userId, @NonNull String locale) {
+        repository.updateLocale(userId, locale);
+    }
+
+    public String findLocale(@NonNull Long userId) {
+        return repository.findLocaleByActorId(userId);
     }
 }

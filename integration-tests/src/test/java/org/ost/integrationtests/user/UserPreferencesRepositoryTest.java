@@ -19,7 +19,6 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -109,13 +108,12 @@ class UserPreferencesRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void updateLocale_persistsAndIsReadableSingleAndBulk() {
+    void updateLocale_persistsAndIsReadable() {
         Long actorId = createTestUserWithPreferences();
 
         preferencesRepository.updateLocale(actorId, "uk");
 
         assertThat(preferencesRepository.findLocaleByActorId(actorId)).isEqualTo("uk");
-        assertThat(preferencesRepository.findLocalesByActorIds(Set.of(actorId))).containsEntry(actorId, "uk");
     }
 
     @Test

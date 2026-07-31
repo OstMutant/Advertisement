@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.platform.user.dto.UserSettingsDto;
-import org.ost.platform.user.spi.UserPort;
+import org.ost.platform.user.spi.UserPreferencesPort;
 import org.ost.platform.user.spi.UserSettingsChangedHook;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +18,7 @@ import java.util.function.ToIntFunction;
 public class SettingsPaginationService implements UserSettingsChangedHook {
 
     private final AuthContextService  authContextService;
-    private final UserPort            userPort;
+    private final UserPreferencesPort preferencesPort;
 
     private final List<BindingEntry> entries = new CopyOnWriteArrayList<>();
 
@@ -26,7 +26,7 @@ public class SettingsPaginationService implements UserSettingsChangedHook {
 
     public void register(@NonNull PaginationBar bar, @NonNull ToIntFunction<UserSettingsDto> extractor, @NonNull Runnable refresh) {
         authContextService.getCurrentUser().ifPresent(user -> {
-            bar.setPageSize(extractor.applyAsInt(userPort.loadSettings(user.id())));
+            bar.setPageSize(extractor.applyAsInt(preferencesPort.loadSettings(user.id())));
             entries.add(new BindingEntry(user.id(), bar, extractor, refresh));
             bar.addDetachListener(_ -> unregister(bar));
         });

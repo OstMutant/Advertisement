@@ -16,7 +16,7 @@ import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.PaginationDefaults;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserSettingsDto;
-import org.ost.platform.user.spi.UserPort;
+import org.ost.platform.user.spi.UserPreferencesPort;
 import org.ost.marketplace.ui.dto.SettingsEditDto;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
@@ -56,7 +56,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
     @Getter
     private final I18nService                                       i18nService;
-    private final UserPort                                          userPort;
+    private final UserPreferencesPort                                preferencesPort;
     private final AccessEvaluator                                   access;
     private final UiComponentFactory<OverlayFormBinder<SettingsEditDto>> formBinderFactory;
     private final ComponentFactory<AuditPort>                           auditPortFactory;
@@ -77,7 +77,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
     @Override
     public void activate(OverlayLayout layout) {
-        UserSettingsDto current = userPort.loadSettings(params.getUserId());
+        UserSettingsDto current = preferencesPort.loadSettings(params.getUserId());
         SettingsEditDto dto = SettingsEditDto.builder()
                 .id(params.getUserId())
                 .adsPageSize(current.getAdsPageSize())
@@ -138,7 +138,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     }
 
     public boolean save() {
-        return binder.save(dto -> userPort.saveSettings(dto.getId(), UserSettingsDto.builder()
+        return binder.save(dto -> preferencesPort.saveSettings(dto.getId(), UserSettingsDto.builder()
                 .adsPageSize(dto.getAdsPageSize() != null ? dto.getAdsPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .usersPageSize(dto.getUsersPageSize() != null ? dto.getUsersPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .timelinePageSize(dto.getTimelinePageSize() != null ? dto.getTimelinePageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
@@ -151,7 +151,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     }
 
     public void discardChanges() {
-        UserSettingsDto fresh = userPort.loadSettings(params.getUserId());
+        UserSettingsDto fresh = preferencesPort.loadSettings(params.getUserId());
         binder.reload(
                 SettingsEditDto.builder()
                         .id(params.getUserId())
@@ -179,7 +179,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                                 // Restore only stages values into the form -- the eventual save()
                                 // still checks against the current DB version, never the snapshot's
                                 // (snapshots don't carry one; they predate optimistic locking here).
-                                .version(userPort.loadSettings(params.getUserId()).getVersion())
+                                .version(preferencesPort.loadSettings(params.getUserId()).getVersion())
                                 .build())
                         .ifPresent(this::loadRestored));
     }

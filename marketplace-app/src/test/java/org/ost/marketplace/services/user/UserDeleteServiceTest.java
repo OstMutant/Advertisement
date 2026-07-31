@@ -10,7 +10,7 @@ import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.user.spi.UserPort;
+import org.ost.platform.user.spi.UserAccountPort;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -31,13 +31,13 @@ class UserDeleteServiceTest {
     @Mock private ComponentFactory<AdvertisementPort> advertisementPortFactory;
     @Mock private AdvertisementPort advertisementPort;
     @Mock private AdvertisementSaveService advertisementSaveService;
-    @Mock private UserPort userPort;
+    @Mock private UserAccountPort accountPort;
 
     private UserDeleteService service;
 
     @BeforeEach
     void setUp() {
-        service = new UserDeleteService(advertisementPortFactory, advertisementSaveService, userPort);
+        service = new UserDeleteService(advertisementPortFactory, advertisementSaveService, accountPort);
     }
 
     private void stubAdvertisementPortAvailable() {
@@ -57,10 +57,10 @@ class UserDeleteServiceTest {
 
         service.delete(USER_ID, ACTOR_ID);
 
-        InOrder order = inOrder(advertisementSaveService, userPort);
+        InOrder order = inOrder(advertisementSaveService, accountPort);
         order.verify(advertisementSaveService).delete(1L, ACTOR_ID, 1L);
         order.verify(advertisementSaveService).delete(2L, ACTOR_ID, 3L);
-        order.verify(userPort).delete(USER_ID, ACTOR_ID);
+        order.verify(accountPort).delete(USER_ID, ACTOR_ID);
     }
 
     @Test
@@ -71,7 +71,7 @@ class UserDeleteServiceTest {
         service.delete(USER_ID, ACTOR_ID);
 
         verify(advertisementSaveService, never()).delete(any(), any(), any());
-        verify(userPort).delete(USER_ID, ACTOR_ID);
+        verify(accountPort).delete(USER_ID, ACTOR_ID);
     }
 
     @Test
@@ -79,6 +79,6 @@ class UserDeleteServiceTest {
         // advertisementPortFactory.ifAvailable(...) left unstubbed -- ObjectProvider-absent shape.
         service.delete(USER_ID, ACTOR_ID);
 
-        verify(userPort).delete(USER_ID, ACTOR_ID);
+        verify(accountPort).delete(USER_ID, ACTOR_ID);
     }
 }

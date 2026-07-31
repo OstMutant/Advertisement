@@ -6,7 +6,7 @@ import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.user.spi.UserPort;
+import org.ost.platform.user.spi.UserAccountPort;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,7 +15,7 @@ public class UserDeleteService {
 
     private final ComponentFactory<AdvertisementPort> advertisementPortFactory;
     private final AdvertisementSaveService             advertisementSaveService;
-    private final UserPort                             userPort;
+    private final UserAccountPort                      accountPort;
 
     // cascades to the user's own ads first -- avoids a created_by FK block on later retention purge
     public void delete(@NonNull Long userId, @NonNull Long actingUserId) {
@@ -24,6 +24,6 @@ public class UserDeleteService {
                 advertisementSaveService.delete(ad.getId(), actingUserId, ad.getVersion());
             }
         });
-        userPort.delete(userId, actingUserId);
+        accountPort.delete(userId, actingUserId);
     }
 }

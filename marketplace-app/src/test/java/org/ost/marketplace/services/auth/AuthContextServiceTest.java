@@ -30,8 +30,8 @@ class AuthContextServiceTest {
 
     @Test
     void getCurrentUser_authenticatedWithAuthenticatedPrincipal_returnsUserDto() {
-        UserDto userDto = new UserDto(1L, "Name", "user@example.com", null, null, null, "en", 0L);
-        AuthenticatedPrincipal principal = () -> userDto;
+        UserDto userDto = new UserDto(1L, "Name", "user@example.com", null, null, null, 0L);
+        AuthenticatedPrincipal principal = testPrincipal(userDto, "en");
         Authentication auth = mock(Authentication.class);
         when(auth.isAuthenticated()).thenReturn(true);
         when(auth.getPrincipal()).thenReturn(principal);
@@ -40,6 +40,41 @@ class AuthContextServiceTest {
         Optional<UserDto> result = service.getCurrentUser();
 
         assertThat(result).contains(userDto);
+    }
+
+    @Test
+    void getCurrentUserLocale_authenticatedWithAuthenticatedPrincipal_returnsLocale() {
+        UserDto userDto = new UserDto(1L, "Name", "user@example.com", null, null, null, 0L);
+        AuthenticatedPrincipal principal = testPrincipal(userDto, "uk");
+        Authentication auth = mock(Authentication.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getPrincipal()).thenReturn(principal);
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        Optional<String> result = service.getCurrentUserLocale();
+
+        assertThat(result).contains("uk");
+    }
+
+    @Test
+    void getCurrentUserLocale_noAuthenticationInContext_returnsEmpty() {
+        Optional<String> result = service.getCurrentUserLocale();
+
+        assertThat(result).isEmpty();
+    }
+
+    private static AuthenticatedPrincipal testPrincipal(UserDto userDto, String locale) {
+        return new AuthenticatedPrincipal() {
+            @Override
+            public UserDto toUserDto() {
+                return userDto;
+            }
+
+            @Override
+            public String locale() {
+                return locale;
+            }
+        };
     }
 
     @Test

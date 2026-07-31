@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Covers improvement-045 item 2: {@code UserRepository.updateProfile()} goes through the narrower
- * {@code UserProfileUpdate} entity (no {@code email}/{@code passwordHash} mapped properties) so
+ * {@code UserEditableFields} entity (no {@code email}/{@code passwordHash} mapped properties) so
  * Spring Data JDBC's generated {@code UPDATE} cannot touch those fields even if a caller populates
  * the wrong DTO — see {@code user-spring-boot-starter/CLAUDE.md} and
  * {@code marketplace-app/DECISIONS.md} ADR-029. Unlike {@code Advertisement} (covered in

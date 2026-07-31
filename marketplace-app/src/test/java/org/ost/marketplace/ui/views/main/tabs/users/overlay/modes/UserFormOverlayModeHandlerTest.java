@@ -21,6 +21,7 @@ import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.model.Role;
+import org.ost.platform.user.spi.UserAccountPort;
 import org.ost.platform.user.spi.UserPort;
 
 import java.lang.reflect.Method;
@@ -41,6 +42,7 @@ import static org.mockito.Mockito.when;
 class UserFormOverlayModeHandlerTest {
 
     @Mock private UserPort userPort;
+    @Mock private UserAccountPort accountPort;
     @Mock private UserMapper mapper;
     @Mock private AccessEvaluator access;
     @Mock private I18nService i18nService;
@@ -53,14 +55,14 @@ class UserFormOverlayModeHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new UserFormOverlayModeHandler(userPort, mapper, access, i18nService, notificationService,
+        handler = new UserFormOverlayModeHandler(userPort, accountPort, mapper, access, i18nService, notificationService,
                 formBinderFactory, auditPortFactory, entityActivityOverlay);
     }
 
     @Test
     void buildActivityContentUsesViewerIdNotSubjectId() throws Exception {
         UserDto subject = new UserDto(99L, "Subject User", "subject@example.com", Role.USER,
-                Instant.now(), Instant.now(), "en", 1L);
+                Instant.now(), Instant.now(), 1L);
         when(access.getCurrentUserId()).thenReturn(42L);
         when(access.isPrivileged()).thenReturn(false);
         when(access.canOperate(99L)).thenReturn(true);

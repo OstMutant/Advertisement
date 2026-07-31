@@ -22,6 +22,22 @@ session — those files get updated mid-session precisely because a run just rev
 > `git add` runs automatically after every file change — commit does NOT.
 > Violating this rule has happened multiple times. No exceptions.
 
+> ## ⛔ Code quality is the highest-priority goal — surface adjacent quality issues unprompted
+> Code quality outranks minimizing diff size, staying strictly inside a written batch's literal
+> scope, or matching existing precedent for its own sake. When a task touches a design that has an
+> adjacent, obviously-related quality issue — inconsistent layering, a field or method carried by a
+> type that most consumers never use, a misleading name, an interface mixing unrelated concerns —
+> surface it and propose fixing it as part of the same review, before being asked a second time.
+> Look for this class of issue proactively on any change touching a DTO, entity, or interface —
+> don't wait to be asked.
+
+> ## ⛔ Rules in this file must state the abstract principle, not a case study
+> When adding or editing a rule, write the general principle a reader can apply to an unrelated
+> future situation. Do not embed a specific incident's class/method/table names, issue numbers, or
+> a blow-by-blow retelling of what happened — that belongs in a commit message or `DECISIONS.md`,
+> not here. A rule padded with one incident's specifics reads as "this is about X," making it
+> harder to recognize the same principle applies somewhere unrelated to X.
+
 > ## ⛔ Code comments: one line or none, never an issue/ticket number
 > Every code comment (production code and test code alike) is either **one line** or **not
 > written at all**. Never a multi-line block explaining background/rationale in full — that

@@ -699,3 +699,45 @@ review, grouped together since all three touch this module's own naming/package 
 - `user.security` package no longer exists in `platform-commons`; any future marker/contract that
   isn't a `Port`/`Hook`/`Dto` still needs a governance call, not a new ad hoc package.
 - Pure renames/moves, no behavior change — same method signatures on `AttachmentAuditPort`.
+
+## ADR-026: One starter, multiple `*Port` interfaces — `UserPort` split into 4 (improvement-124 Batch A2)
+
+**Status:** Accepted
+
+**Context:** Every `*Port` in this codebase to date maps one-to-one to one starter module
+(`TaxonPort` alone covers `taxon`/`taxon_translation`/`taxon_assignment` — 3 tables, one
+interface). `UserPort` had grown to 19 methods spanning 4 unrelated concerns — query
+(`getFiltered`/`findById`/`findByIds`/...), account mutation (`save`/`delete`/`register`/
+`refreshCurrentUserInContext`), authorization (`isAdmin`/`isModerator`/`isOwner` ×2), and
+preferences (`loadSettings`/`saveSettings`/`updateLocale`) — after `user-spring-boot-starter`
+picked up preferences methods over several passes. Grep against every real consumer confirmed
+most inject only one slice: `AccessEvaluator` uses only the 4 authorization methods;
+`UserDeleteService` only `delete`; `UserPickerField`/`UserView` only the query methods;
+`SettingsFormModeHandler`/`SettingsPaginationService` only the preferences methods. A few
+consumers (`LocaleSelectorComponent`, `SignUpDialog`, `UserFormOverlayModeHandler`) genuinely
+span two concerns and inject two ports — not a sign the split is wrong, just that those specific
+flows touch two bounded contexts in one user action.
+
+**Decision:** `UserPort` (platform-commons) split into 4 interfaces, same `org.ost.platform.user.spi`
+package: `UserPort` (narrowed to query only), `UserAccountPort` (save/delete/register/refresh),
+`UserAuthorizationPort` (isAdmin/isModerator/isOwner), `UserPreferencesPort` (settings/locale, plus
+a new `findLocale(Long)` for a future admin-views-another-user case). `UserPortImpl` (starter) split
+into 4 correspondingly-named thin-delegation impl classes; `UserAutoConfiguration` gained 3 more
+`ComponentFactory<...>` beans alongside the existing `userPortFactory`. Every real consumer was
+repointed to inject only the port(s) it actually calls, verified against the actual codebase (not
+assumed) before editing.
+
+**This deliberately breaks the "one starter = one `*Port`" precedent — the trigger is interface
+cohesion, not runtime toggleability.** All 4 ports are always implemented by the same
+`user-spring-boot-starter` module; there is no `ObjectProvider`-optionality benefit from the split
+the way there would be if, say, preferences moved to its own starter. The `*Port` suffix's existing
+semantic (marketplace → starter, commands/queries) is unchanged — this is not a new suffix, no
+table update needed beyond adding the 3 new names to the Examples column. **Do not treat "many
+methods" alone as sufficient reason to split a future `*Port`** — split only when grep against real
+consumers shows the interface's methods cluster into genuinely separate concerns that different
+callers use independently, the same evidence-first approach used here, not a size threshold.
+
+**Consequence:** `TaxonPort`/`AdvertisementPort`/`AttachmentPort`/`AuditPort` are unaffected and
+remain single interfaces — they don't (yet) show the same multi-concern consumer pattern `UserPort`
+did. If one of them grows a similarly-mixed consumer profile later, this ADR is the precedent to
+cite, with the same consumer-grep-first discipline, not a rubber stamp for splitting on sight.

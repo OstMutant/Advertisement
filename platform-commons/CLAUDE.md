@@ -43,7 +43,7 @@ All cross-module extension points live in `platform-commons/*.spi`. The suffix e
 
 | Suffix | Caller → Implementor | Semantic role | Examples |
 |--------|----------------------------------|---------------|---------|
-| `*Port` | marketplace → starter | marketplace calls the starter (commands, queries) | `AuditPort`, `AttachmentPort`, `AttachmentAuditPort`, `UserPort`, `AdvertisementPort`, `TaxonPort` |
+| `*Port` | marketplace → starter | marketplace calls the starter (commands, queries) | `AuditPort`, `AttachmentPort`, `AttachmentAuditPort`, `UserPort`, `UserAccountPort`, `UserAuthorizationPort`, `UserPreferencesPort`, `AdvertisementPort`, `TaxonPort` — a single starter may expose more than one `*Port` when grep against every real consumer shows its methods cluster into concerns different callers use independently (query vs. mutation vs. authorization vs. preferences, `user-spring-boot-starter`'s case). Method count alone is never sufficient reason to split — see `platform-commons/DECISIONS.md` ADR-026 for the evidence-first process this precedent requires before splitting any other `*Port`. |
 | `*Hook` | starter → marketplace | starter calls back for domain data, events, or contributions | `CurrentActorHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`, `UserSettingsChangedHook` (`AttachmentMediaChangeHook` removed entirely, improvement-102 — zero implementations; `AttachmentAuditHook` renamed to `AttachmentAuditPort`, its call direction was always the `*Port` semantic — see `platform-commons/DECISIONS.md` ADR-025) |
 
 **Rule:** do not introduce new suffixes without updating this table and adding a `platform-commons/DECISIONS.md` entry. Existing suffixes must not be repurposed for a different direction or role.

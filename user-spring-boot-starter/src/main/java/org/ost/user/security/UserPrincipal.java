@@ -15,7 +15,7 @@ public record UserPrincipal(User user, String locale) implements UserDetails, Au
 
     @Override
     public UserDto toUserDto() {
-        return user.toDto(locale);
+        return user.toDto();
     }
 
     @Override

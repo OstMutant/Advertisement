@@ -4,4 +4,6 @@ import org.ost.platform.user.dto.UserDto;
 
 public interface AuthenticatedPrincipal {
     UserDto toUserDto();
+
+    String locale();
 }

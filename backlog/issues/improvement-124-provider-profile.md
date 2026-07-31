@@ -651,6 +651,85 @@ starting the next — later batches depend on earlier ones compiling and passing
   naming). Issue moved to `completed/issues/`, `BACKLOG.md` row removed, `BACKLOG-ARCHIVE.md`
   entry added.
 
+### Batch 124-A2 — UserDto/UserPort cleanup (found via code-quality review after Batch A, 2026-07-31) — ✅ DONE
+
+Not part of the original F-04 plan — surfaced by the user while reviewing Batch A's diff, per the
+new standing rule in `.claude/rules.md` ("Code quality is the highest-priority goal"). Three
+distinct fixes, one pass:
+
+**1. Remove `UserDto.locale` — it forces every `UserDto` construction to pay for a lookup only one
+consumer needs.** Confirmed by grep: `getFiltered`/`getFilteredByOffset`/`findByIds`/
+`findDtoByEmail` (used by the Users grid, `AdvertisementEnrichmentService`'s actor-name enrichment,
+`UserActorNameService`'s audit-actor resolution) never read `.locale()` — only
+`VaadinLocaleProvider` does, via `AuthContextService.getCurrentUser().map(u -> u.locale()...)`.
+- `AuthenticatedPrincipal` (platform-commons) gains `String locale()` — `UserPrincipal` (already a
+  record with a `locale` component from Batch A) satisfies it for free, no new code.
+- `AuthContextService` gains `Optional<String> getCurrentUserLocale()` reading the principal
+  directly (no DB call — same as today, `UserPrincipal.locale` is already resolved once at
+  login/`refreshSecurityContext()`, not re-queried per page load).
+- `VaadinLocaleProvider` repointed to `getCurrentUserLocale()` instead of
+  `getCurrentUser().map(u -> u.locale())`.
+- `UserDto` record drops `locale`. `User.toDto()` reverts to a plain no-arg method (locale
+  composition was only ever needed to populate this field) — this **deletes**
+  `UserService.enrichWithLocale()`/private `toDto(User)`/the bulk `findLocalesByActorIds()` call
+  sites entirely; `getFiltered`/`getFilteredByOffset`/`findById`/`findDtoByEmail`/`findByIds` all
+  go back to plain `.map(User::toDto)`. Net simplification, not just a move.
+- `UserPreferencesRepository`/`UserPreferencesService` (see #3) keep a single-actor
+  `findLocaleByActorId(Long)` (needed later for Batch 124-C's admin-views-another-user Settings
+  tab) but the bulk `findLocalesByActorIds(Set<Long>)` becomes dead code — remove it.
+
+**2. Rename `UserProfileUpdate` → `UserEditableFields`.** Current name reads as "the profile" and
+will collide semantically with F-04's incoming "Provider Profile" concept. `UserEditableFields`
+names what it actually is — the restricted column subset (`id`, `name`, `role`, `updatedAt`,
+`version` — no `email`/`passwordHash`) safe to expose to a profile-edit UPDATE — without hardcoding
+to exactly "name+role" in case the safe-editable set grows later. Touches:
+`UserProfileCrudRepository` → `UserEditableFieldsCrudRepository`, `UserRepository.updateProfile()`
+body only (param type), no external contract change (`UserProfileDto`, the platform-commons DTO,
+keeps its name — this rename is internal to `user-spring-boot-starter`).
+
+**3. Split `UserPort` into 4 ports — verified against every real consumer, not assumed.** Current
+`UserPort` has 19 methods spanning 4 unrelated concerns; grep confirmed most consumers use only
+one slice each:
+
+| New port | Methods | Confirmed consumers |
+|---|---|---|
+| `UserPort` (kept, narrowed to query) | `getFiltered`, `getFilteredByOffset`, `count`, `findById`, `findByEmail`, `findByIds`, `findExistingIds`, `findDeletedIds`, `findActorNames` | `UserPickerField`, `UserView`, `AdvertisementEnrichmentService` (cross-module), `UserActorNameService`, `AuditDomainHookImpl`, `SignUpDialog` (partial), `UserFormOverlayModeHandler` (partial) |
+| `UserAccountPort` (new) | `save`, `delete`, `register`, `refreshCurrentUserInContext` | `UserDeleteService`, `SignUpDialog` (partial), `UserFormOverlayModeHandler` (partial), `LocaleSelectorComponent` (partial) |
+| `UserAuthorizationPort` (new) | `isAdmin`, `isModerator`, `isOwner` (x2 overloads) | `AccessEvaluator` only |
+| `UserPreferencesPort` (new) | `loadSettings`, `saveSettings`, `updateLocale`, `findLocale` (new, single-actor, replaces the deleted bulk lookup for the future admin-views-other-user case) | `SettingsFormModeHandler`, `SettingsPaginationService`, `LocaleSelectorComponent` (partial) |
+
+  All 4 land in `platform-commons/.../user/spi/`, same package. `UserPortImpl` splits into 4 thin
+  delegation classes (`UserPortImpl`, `UserAccountPortImpl`, `UserAuthorizationPortImpl`,
+  `UserPreferencesPortImpl`) in `user-spring-boot-starter`, each still just calling one service
+  method per platform-commons/CLAUDE.md's `*PortImpl` rule — `UserAccountPortImpl`/
+  `UserAuthorizationPortImpl` delegate to the existing `UserService`/`RoleChecker`/
+  `OwnershipChecker`; `UserPreferencesPortImpl` delegates directly to the renamed
+  `UserPreferencesService` (bypassing `UserService` entirely — closes the "middleman doing nothing"
+  gap `UserService.updateLocale()` had). `UserAutoConfiguration` gains 3 more
+  `ComponentFactory<...>` beans (`userAccountPortFactory`, `userAuthorizationPortFactory`,
+  `userPreferencesPortFactory`) alongside the existing `userPortFactory`.
+  **No toggle/decoupling benefit from this split** (all 4 ports are always implemented by the same
+  module) — the justification is purely interface segregation/cohesion, confirmed by the consumer
+  table above, not a runtime-optionality argument.
+- Every listed consumer (+ its test file, where one exists: `AccessEvaluatorTest`,
+  `UserDeleteServiceTest`, `UserFormOverlayModeHandlerTest`) gets its `UserPort userPort` field
+  narrowed to whichever specific port(s) it actually calls — split into 2 fields for the consumers
+  that genuinely span two concerns (`LocaleSelectorComponent`, `SignUpDialog`,
+  `UserFormOverlayModeHandler`).
+
+**Gate → PASSED.** `bash scripts/unit-tests.sh` (79/79) + `bash scripts/integration-tests.sh
+--sandbox` (136/136) + `bash scripts/deploy.sh --reset` + `bash scripts/playwright.sh e2e --ux`
+(37/37, 13 skipped as expected without `--full`) all green — Playwright added on top of the
+original "no Playwright needed" plan, per the user's own call: the Spring DI wiring changed in 6+
+UI components, and a wiring mistake would only surface at real app runtime, not in Mockito-based
+unit tests. `/code-review`'s full 8-angle
+pass found and fixed: missing class-level `@Transactional(readOnly = true)` on 2 of 3 new
+port-impl classes (inconsistent with the established convention), a stale `{@link UserPort}`
+Javadoc reference, a broken cross-reference to a not-yet-written `marketplace-app/DECISIONS.md`
+entry (completed as ADR-071 in the same pass), and a stale `UserSettingsService` mention in
+`user-spring-boot-starter/README.md`. See `marketplace-app/DECISIONS.md` ADR-071 and
+`platform-commons/DECISIONS.md` ADR-026 for the full decision record.
+
 ## Related
 
 - `private/features/F-04-master-profile.md` — base product spec (gitignored, master-only; this

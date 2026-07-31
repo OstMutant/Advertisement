@@ -35,7 +35,7 @@ public class User {
     @Version
     Long version;
 
-    public UserDto toDto(String locale) {
-        return new UserDto(id, name, email, role, createdAt, updatedAt, locale, version);
+    public UserDto toDto() {
+        return new UserDto(id, name, email, role, createdAt, updatedAt, version);
     }
 }

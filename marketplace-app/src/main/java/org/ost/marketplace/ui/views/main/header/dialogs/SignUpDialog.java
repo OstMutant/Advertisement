@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.platform.user.spi.UserAccountPort;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.rules.I18nParams;
@@ -30,6 +31,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 public class SignUpDialog extends BaseDialog implements I18nParams {
 
     private final transient UserPort                                userPort;
+    private final transient UserAccountPort                         accountPort;
     @Getter
     private final transient I18nService                             i18nService;
     private final transient NotificationService                     notificationService;
@@ -107,7 +109,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
         }
         try {
             binder.writeBean(dto);
-            userPort.register(dto, request.getRemoteAddr());
+            accountPort.register(dto, request.getRemoteAddr());
             notificationService.success(SIGNUP_SUCCESS);
             close();
         } catch (IllegalStateException _) {

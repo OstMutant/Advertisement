@@ -6,7 +6,10 @@ import liquibase.integration.spring.SpringLiquibase;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.config.CleanupProperties;
+import org.ost.platform.user.spi.UserAccountPort;
+import org.ost.platform.user.spi.UserAuthorizationPort;
 import org.ost.platform.user.spi.UserPort;
+import org.ost.platform.user.spi.UserPreferencesPort;
 import org.ost.platform.user.spi.UserSettingsChangedHook;
 import org.ost.user.services.UserService;
 import org.springframework.beans.factory.ObjectProvider;
@@ -89,6 +92,24 @@ public class UserAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ComponentFactory<UserPort> userPortFactory(ObjectProvider<UserPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<UserAccountPort> userAccountPortFactory(ObjectProvider<UserAccountPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<UserAuthorizationPort> userAuthorizationPortFactory(ObjectProvider<UserAuthorizationPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<UserPreferencesPort> userPreferencesPortFactory(ObjectProvider<UserPreferencesPort> p) {
         return new ComponentFactory<>(p);
     }
 

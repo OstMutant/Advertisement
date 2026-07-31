@@ -8,7 +8,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.spi.UserIdMarker;
-import org.ost.platform.user.spi.UserPort;
+import org.ost.platform.user.spi.UserAuthorizationPort;
 
 import java.util.Optional;
 
@@ -18,8 +18,8 @@ import static org.mockito.Mockito.when;
 /**
  * The app's only server-side authorization chokepoint — every overlay/view calls
  * {@link AccessEvaluator} instead of {@code @PreAuthorize} (intentionally absent, see
- * {@code marketplace-app/CLAUDE.md} "Security"). No Spring context needed: {@link UserPort} and
- * {@link AuthContextService} are mocked directly.
+ * {@code marketplace-app/CLAUDE.md} "Security"). No Spring context needed:
+ * {@link UserAuthorizationPort} and {@link AuthContextService} are mocked directly.
  */
 @ExtendWith(MockitoExtension.class)
 class AccessEvaluatorTest {
@@ -31,7 +31,7 @@ class AccessEvaluatorTest {
     private static final Long TARGET_OWNER_ID = 99L;
 
     @Mock
-    private UserPort userPort;
+    private UserAuthorizationPort authorizationPort;
 
     @Mock
     private AuthContextService authContextService;
@@ -40,11 +40,11 @@ class AccessEvaluatorTest {
 
     @BeforeEach
     void setUp() {
-        accessEvaluator = new AccessEvaluator(userPort, authContextService);
+        accessEvaluator = new AccessEvaluator(authorizationPort, authContextService);
     }
 
     private static UserDto user(Long id, String email) {
-        return new UserDto(id, "Name", email, null, null, null, "en", 0L);
+        return new UserDto(id, "Name", email, null, null, null, 0L);
     }
 
     private void loggedOut() {
@@ -74,7 +74,7 @@ class AccessEvaluatorTest {
     @Test
     void isPrivileged_true_forAdmin() {
         loggedInAs(ADMIN_USER);
-        when(userPort.isAdmin(ADMIN_USER)).thenReturn(true);
+        when(authorizationPort.isAdmin(ADMIN_USER)).thenReturn(true);
 
         assertThat(accessEvaluator.isPrivileged()).isTrue();
         assertThat(accessEvaluator.canView()).isTrue();
@@ -83,8 +83,8 @@ class AccessEvaluatorTest {
     @Test
     void isPrivileged_true_forModerator() {
         loggedInAs(MODERATOR_USER);
-        when(userPort.isAdmin(MODERATOR_USER)).thenReturn(false);
-        when(userPort.isModerator(MODERATOR_USER)).thenReturn(true);
+        when(authorizationPort.isAdmin(MODERATOR_USER)).thenReturn(false);
+        when(authorizationPort.isModerator(MODERATOR_USER)).thenReturn(true);
 
         assertThat(accessEvaluator.isPrivileged()).isTrue();
         assertThat(accessEvaluator.canView()).isTrue();
@@ -93,8 +93,8 @@ class AccessEvaluatorTest {
     @Test
     void isPrivileged_false_forPlainUser() {
         loggedInAs(PLAIN_USER);
-        when(userPort.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(userPort.isModerator(PLAIN_USER)).thenReturn(false);
+        when(authorizationPort.isAdmin(PLAIN_USER)).thenReturn(false);
+        when(authorizationPort.isModerator(PLAIN_USER)).thenReturn(false);
 
         assertThat(accessEvaluator.isPrivileged()).isFalse();
         assertThat(accessEvaluator.canView()).isFalse();
@@ -126,7 +126,7 @@ class AccessEvaluatorTest {
     @Test
     void canOperate_targetOverload_admin_returnsTrue_regardlessOfOwnership() {
         loggedInAs(ADMIN_USER);
-        when(userPort.isAdmin(ADMIN_USER)).thenReturn(true);
+        when(authorizationPort.isAdmin(ADMIN_USER)).thenReturn(true);
 
         assertThat(accessEvaluator.canOperate(TARGET)).isTrue();
         assertThat(accessEvaluator.canNotEdit(TARGET)).isFalse();
@@ -136,8 +136,8 @@ class AccessEvaluatorTest {
     @Test
     void canOperate_targetOverload_moderator_returnsTrue_regardlessOfOwnership() {
         loggedInAs(MODERATOR_USER);
-        when(userPort.isAdmin(MODERATOR_USER)).thenReturn(false);
-        when(userPort.isModerator(MODERATOR_USER)).thenReturn(true);
+        when(authorizationPort.isAdmin(MODERATOR_USER)).thenReturn(false);
+        when(authorizationPort.isModerator(MODERATOR_USER)).thenReturn(true);
 
         assertThat(accessEvaluator.canOperate(TARGET)).isTrue();
         assertThat(accessEvaluator.canNotEdit(TARGET)).isFalse();
@@ -147,9 +147,9 @@ class AccessEvaluatorTest {
     @Test
     void canOperate_targetOverload_owner_returnsTrue_whenNotPrivileged() {
         loggedInAs(PLAIN_USER);
-        when(userPort.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(userPort.isModerator(PLAIN_USER)).thenReturn(false);
-        when(userPort.isOwner(PLAIN_USER, TARGET)).thenReturn(true);
+        when(authorizationPort.isAdmin(PLAIN_USER)).thenReturn(false);
+        when(authorizationPort.isModerator(PLAIN_USER)).thenReturn(false);
+        when(authorizationPort.isOwner(PLAIN_USER, TARGET)).thenReturn(true);
 
         assertThat(accessEvaluator.canOperate(TARGET)).isTrue();
         assertThat(accessEvaluator.canNotEdit(TARGET)).isFalse();
@@ -159,9 +159,9 @@ class AccessEvaluatorTest {
     @Test
     void canOperate_targetOverload_nonOwnerNonPrivileged_returnsFalse() {
         loggedInAs(PLAIN_USER);
-        when(userPort.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(userPort.isModerator(PLAIN_USER)).thenReturn(false);
-        when(userPort.isOwner(PLAIN_USER, TARGET)).thenReturn(false);
+        when(authorizationPort.isAdmin(PLAIN_USER)).thenReturn(false);
+        when(authorizationPort.isModerator(PLAIN_USER)).thenReturn(false);
+        when(authorizationPort.isOwner(PLAIN_USER, TARGET)).thenReturn(false);
 
         assertThat(accessEvaluator.canOperate(TARGET)).isFalse();
         assertThat(accessEvaluator.canNotEdit(TARGET)).isTrue();
@@ -182,7 +182,7 @@ class AccessEvaluatorTest {
     @Test
     void canOperate_longOverload_admin_returnsTrue_regardlessOfOwnership() {
         loggedInAs(ADMIN_USER);
-        when(userPort.isAdmin(ADMIN_USER)).thenReturn(true);
+        when(authorizationPort.isAdmin(ADMIN_USER)).thenReturn(true);
 
         assertThat(accessEvaluator.canOperate(TARGET_OWNER_ID)).isTrue();
         assertThat(accessEvaluator.canNotEdit(TARGET_OWNER_ID)).isFalse();
@@ -192,9 +192,9 @@ class AccessEvaluatorTest {
     @Test
     void canOperate_longOverload_owner_returnsTrue_whenNotPrivileged() {
         loggedInAs(PLAIN_USER);
-        when(userPort.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(userPort.isModerator(PLAIN_USER)).thenReturn(false);
-        when(userPort.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(true);
+        when(authorizationPort.isAdmin(PLAIN_USER)).thenReturn(false);
+        when(authorizationPort.isModerator(PLAIN_USER)).thenReturn(false);
+        when(authorizationPort.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(true);
 
         assertThat(accessEvaluator.canOperate(TARGET_OWNER_ID)).isTrue();
         assertThat(accessEvaluator.canNotEdit(TARGET_OWNER_ID)).isFalse();
@@ -204,9 +204,9 @@ class AccessEvaluatorTest {
     @Test
     void canOperate_longOverload_nonOwnerNonPrivileged_returnsFalse() {
         loggedInAs(PLAIN_USER);
-        when(userPort.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(userPort.isModerator(PLAIN_USER)).thenReturn(false);
-        when(userPort.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(false);
+        when(authorizationPort.isAdmin(PLAIN_USER)).thenReturn(false);
+        when(authorizationPort.isModerator(PLAIN_USER)).thenReturn(false);
+        when(authorizationPort.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(false);
 
         assertThat(accessEvaluator.canOperate(TARGET_OWNER_ID)).isFalse();
         assertThat(accessEvaluator.canNotEdit(TARGET_OWNER_ID)).isTrue();

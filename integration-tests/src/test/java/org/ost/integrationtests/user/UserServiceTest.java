@@ -17,8 +17,8 @@ import org.ost.platform.user.model.Role;
 import org.ost.user.entity.User;
 import org.ost.user.repository.UserPreferencesRepository;
 import org.ost.user.repository.UserRepository;
+import org.ost.user.services.UserPreferencesService;
 import org.ost.user.services.UserService;
-import org.ost.user.services.UserSettingsService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -71,7 +71,7 @@ class UserServiceTest {
     private PasswordEncoder passwordEncoder;
 
     @Mock
-    private UserSettingsService userSettingsService;
+    private UserPreferencesService preferencesService;
 
     @Mock
     private AuditPort auditPort;
@@ -91,7 +91,7 @@ class UserServiceTest {
         advertisementPortProvider = mock(ObjectProvider.class);
         ComponentFactory<AuditPort> auditPortFactory = new ComponentFactory<>(auditPortProvider);
         ComponentFactory<AdvertisementPort> advertisementPortFactory = new ComponentFactory<>(advertisementPortProvider);
-        userService = new UserService(userRepository, preferencesRepository, passwordEncoder, userSettingsService, auditPortFactory, advertisementPortFactory);
+        userService = new UserService(userRepository, preferencesRepository, passwordEncoder, preferencesService, auditPortFactory, advertisementPortFactory);
         lenient().when(userRepository.countByFilter(UserFilterDto.empty())).thenReturn(5L);
         lenient().when(passwordEncoder.encode(org.mockito.ArgumentMatchers.anyString())).thenReturn("encoded");
     }

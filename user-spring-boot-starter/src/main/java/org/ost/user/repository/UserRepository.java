@@ -12,7 +12,7 @@ import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
 import org.ost.user.entity.User;
-import org.ost.user.entity.UserProfileUpdate;
+import org.ost.user.entity.UserEditableFields;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -67,7 +67,7 @@ public class UserRepository {
 
     private final JdbcClient jdbcClient;
     private final UserCrudRepository crud;
-    private final UserProfileCrudRepository profileCrud;
+    private final UserEditableFieldsCrudRepository editableFieldsCrud;
 
     public User save(@NonNull User user)                { return crud.save(user); }
     public Optional<User> findById(@NonNull Long id)    { return crud.findById(id); }
@@ -123,7 +123,7 @@ public class UserRepository {
     }
 
     public void updateProfile(@NonNull UserProfileDto dto) {
-        profileCrud.save(UserProfileUpdate.builder()
+        editableFieldsCrud.save(UserEditableFields.builder()
                 .id(dto.id())
                 .name(dto.name())
                 .role(dto.role())

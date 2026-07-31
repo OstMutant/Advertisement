@@ -16,13 +16,21 @@ public class AuthContextService {
     private static final Logger log = LoggerFactory.getLogger(AuthContextService.class);
 
     public Optional<UserDto> getCurrentUser() {
+        return currentPrincipal().map(AuthenticatedPrincipal::toUserDto);
+    }
+
+    public Optional<String> getCurrentUserLocale() {
+        return currentPrincipal().map(AuthenticatedPrincipal::locale);
+    }
+
+    private Optional<AuthenticatedPrincipal> currentPrincipal() {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth == null || !auth.isAuthenticated()) {
                 return Optional.empty();
             }
             if (auth.getPrincipal() instanceof AuthenticatedPrincipal p) {
-                return Optional.of(p.toUserDto());
+                return Optional.of(p);
             }
             return Optional.empty();
         } catch (Exception ex) {

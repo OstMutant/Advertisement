@@ -13,7 +13,7 @@ import java.time.Instant;
 @Value
 @Builder
 @Table("user_information")
-public class UserProfileUpdate {
+public class UserEditableFields {
 
     @Id
     Long id;
