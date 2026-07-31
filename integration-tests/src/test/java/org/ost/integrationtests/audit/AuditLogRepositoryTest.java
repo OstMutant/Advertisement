@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.ost.audit.config.AuditAutoConfiguration;
 import org.ost.audit.repository.AuditLogProjection;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
+import org.ost.integrationtests.support.RepositoryTestAutoConfig;
 import org.ost.integrationtests.support.TestDataCleaner;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
@@ -18,17 +19,8 @@ import org.ost.platform.core.spi.CurrentActorHook;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
-import org.springframework.boot.autoconfigure.context.ConfigurationPropertiesAutoConfiguration;
-import org.springframework.boot.data.jdbc.autoconfigure.DataJdbcRepositoriesAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration;
-import org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.transaction.autoconfigure.TransactionAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
@@ -60,7 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Own minimal {@code TestConfig} rather than {@code RepositoryTestSupport} — needs the real
  * {@link AuditAutoConfiguration} wired (not stubbed absent), same shape and same
- * {@code @ImportAutoConfiguration} allow-list as {@code UserServiceRestoreTest} (see
+ * {@link RepositoryTestAutoConfig} allow-list as {@code UserServiceRestoreTest} (see
  * {@code integration-tests/DECISIONS.md} ADR-009) — no {@code UserAutoConfiguration} needed here,
  * {@code audit_log.actor_id} has no FK.</p>
  */
@@ -71,16 +63,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
 
     @TestConfiguration
-    @ImportAutoConfiguration({
-            DataSourceAutoConfiguration.class,
-            DataSourceTransactionManagerAutoConfiguration.class,
-            JdbcClientAutoConfiguration.class,
-            JdbcTemplateAutoConfiguration.class,
-            DataJdbcRepositoriesAutoConfiguration.class,
-            LiquibaseAutoConfiguration.class,
-            TransactionAutoConfiguration.class,
-            ConfigurationPropertiesAutoConfiguration.class
-    })
+    @RepositoryTestAutoConfig
     @EnableJdbcAuditing
     static class TestConfig {
 

@@ -7,21 +7,13 @@ import org.ost.attachment.repository.AttachmentMediaChange;
 import org.ost.attachment.repository.AttachmentSnapshotRepository;
 import org.ost.attachment.services.StorageService;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
+import org.ost.integrationtests.support.RepositoryTestAutoConfig;
 import org.ost.integrationtests.support.TestDataCleaner;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
-import org.springframework.boot.autoconfigure.context.ConfigurationPropertiesAutoConfiguration;
-import org.springframework.boot.data.jdbc.autoconfigure.DataJdbcRepositoriesAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration;
-import org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.transaction.autoconfigure.TransactionAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
@@ -50,16 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AttachmentSnapshotRepositoryTest extends AbstractPostgresIntegrationTest {
 
     @TestConfiguration
-    @ImportAutoConfiguration({
-            DataSourceAutoConfiguration.class,
-            DataSourceTransactionManagerAutoConfiguration.class,
-            JdbcClientAutoConfiguration.class,
-            JdbcTemplateAutoConfiguration.class,
-            DataJdbcRepositoriesAutoConfiguration.class,
-            LiquibaseAutoConfiguration.class,
-            TransactionAutoConfiguration.class,
-            ConfigurationPropertiesAutoConfiguration.class
-    })
+    @RepositoryTestAutoConfig
     @EnableJdbcAuditing
     static class TestConfig {
 

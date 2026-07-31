@@ -82,8 +82,10 @@ Playwright convention: extract to a shared file only once two or more consumers 
 helper, keep spec/test-specific logic local otherwise.
 
 - `org.ost.integrationtests.support.RepositoryTestSupport` — a `@TestConfiguration` bean bag: adds
-  `@ImportAutoConfiguration({...})` with an explicit class list (corrected 2026-07-27 — not
-  `@EnableAutoConfiguration`; see `DECISIONS.md` ADR-009 for why) + `@EnableJdbcAuditing` (needed
+  `@RepositoryTestAutoConfig` (a composed `@ImportAutoConfiguration` allow-list, corrected
+  2026-07-31 — previously a raw `@ImportAutoConfiguration({...})` array copy-pasted per test class;
+  see `DECISIONS.md` ADR-009 for why an explicit allow-list over `@EnableAutoConfiguration`, and its
+  2026-07-31 correction for the centralization) + `@EnableJdbcAuditing` (needed
   because `@SpringBootTest(classes = {...@AutoConfiguration classes...})` does not itself trigger
   Spring Boot's autoconfiguration cascade — `JdbcClient`, `DataSource`, etc. only appear once the
   relevant autoconfiguration classes are present among the loaded classes), the
@@ -93,7 +95,11 @@ helper, keep spec/test-specific logic local otherwise.
   advertisement starter absent from the test classpath", the same shape `AdvertisementService` sees
   in production when those optional starters aren't installed — not a stub). A test that needs a
   *different* optional port (e.g. `TaxonPort`) declares its own extra `ComponentFactory` bean
-  locally — this class only covers the ports every repository test has hit so far.
+  locally — this class only covers the ports every repository test has hit so far. Every
+  `*RepositoryTest`/`*TransactionTest` with its own local `TestConfig` (needing extra beans
+  `RepositoryTestSupport` doesn't provide) applies `@RepositoryTestAutoConfig` too, instead of
+  redeclaring the allow-list — see `AttachmentRepositoryTest`/`AttachmentServiceTransactionTest`/
+  `AttachmentSnapshotRepositoryTest`/`AuditLogRepositoryTest` for the pattern.
 - `org.ost.integrationtests.support.TestDataCleaner.cleanAll(jdbcClient)` — deletes every row from
   every table this module currently knows about, across every domain, in one FK-safe order. Every
   `@SpringBootTest` reuses its cached ApplicationContext (and database) across all test methods in

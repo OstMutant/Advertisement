@@ -326,8 +326,8 @@ schedule tied to how often `integration-tests`' `pom.xml` grows.
 **Decision:** Replace `@EnableAutoConfiguration` with `@ImportAutoConfiguration({...})` and an
 explicit class list. Originally applied to both `RepositoryTestSupport` and
 `UserServiceRestoreTest.TestConfig`; now that the latter no longer exists (see ADR-006),
-`RepositoryTestSupport` is the sole surviving instance, and its actual current list (verified
-directly against source, 2026-07-27) is exactly these 7 — no `ConfigurationPropertiesAutoConfiguration`
+`RepositoryTestSupport` was, for a time, the sole surviving instance, and its list (verified
+directly against source, 2026-07-27) was exactly these 7 — no `ConfigurationPropertiesAutoConfiguration`
 entry, since that was only needed by the now-deleted test's own `TestConfig`:
 ```java
 @ImportAutoConfiguration({
@@ -345,6 +345,26 @@ is never in this list — those are always passed explicitly via each test's own
 `@SpringBootTest(classes = {...})`, which is the entire point: nothing is ever pulled in by
 implication again, so a new starter dependency in `pom.xml` can no longer silently affect any
 existing test's Spring context.
+
+**Correction 2026-07-31 (improvement-132 item 31, Batch K):** by this date, 4 more `*RepositoryTest`/
+`*TransactionTest` classes (`AttachmentRepositoryTest`, `AttachmentServiceTransactionTest`,
+`AttachmentSnapshotRepositoryTest`, `AuditLogRepositoryTest`) had each grown their own local
+`TestConfig` with a byte-identical 8-class list (this same 7 plus
+`ConfigurationPropertiesAutoConfiguration.class`, needed by their own `@PostConstruct`/`@Bean`
+wiring) — the exact copy-paste this ADR's list was meant to prevent, just re-typed per file instead
+of centralized. Centralized all 5 into one composed annotation,
+`org.ost.integrationtests.support.RepositoryTestAutoConfig` (a raw array can't be factored into a
+shared constant — Java annotation array attributes require a literal, not a variable reference —
+but a composed meta-annotation works, the same mechanism Spring's own `@DataJpaTest`-style test
+slices use). This is now the **sole source of truth** for the allow-list, and it carries the
+8-class list, not the 7 above — `RepositoryTestSupport` itself gained
+`ConfigurationPropertiesAutoConfiguration.class` as a result. Verified harmless: every current
+consumer of `RepositoryTestSupport` (`AdvertisementRepositoryTest`, `TaxonRepositoryTest`,
+`TaxonAssignmentRepositoryTest`, `TaxonPortTranslationFallbackTest`, `TaxonServiceTest`,
+`UserRepositoryTest`, `UserSettingsRepositoryTest`, ...) already boots its own starter
+`AutoConfiguration` carrying `@EnableConfigurationProperties`, so the added class is inert — full
+`integration-tests` suite (133 tests) passes unchanged. All 5 consumers now reference
+`@RepositoryTestAutoConfig` instead of a raw `@ImportAutoConfiguration({...})` array.
 
 **Spring Boot 4.0.6 packaging note (worth recording — easy to get wrong without checking):** what
 used to be one monolithic `spring-boot-autoconfigure` jar in Boot 3.x is now split into several

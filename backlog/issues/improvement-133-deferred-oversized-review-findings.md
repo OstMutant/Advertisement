@@ -101,3 +101,25 @@ approved scope (items 13/14/15/17, all in `AdvertisementFormOverlayModeHandler`/
 mirroring the same precedent (`TaxonFormOverlayModeHandler.copyLocaleFields()`) — but is deferred
 here rather than expanded into Batch F, since touching a second, unrelated form handler mid-batch
 would have widened the reviewed diff beyond what was approved.
+
+### 6. `integration-tests`: `@EnableJdbcAuditing` still copy-pasted alongside `@RepositoryTestAutoConfig` in all 5 locations (found during Batch K review, 2026-07-31)
+
+Batch K (item 31) centralized the 8-class `@ImportAutoConfiguration` array into one composed
+annotation, `org.ost.integrationtests.support.RepositoryTestAutoConfig`, applied at
+`RepositoryTestSupport` and 4 `*RepositoryTest`/`*TransactionTest` local `TestConfig` classes. The
+adjacent `@EnableJdbcAuditing` line is a fixed constant with no per-site variation, byte-identical
+in all 5 locations, and was left untouched — folding it into the same composed annotation (or a
+new one) would fully collapse the pair to one annotation everywhere. Left out of Batch K's scope
+(item 31 named only the `@ImportAutoConfiguration` array); a future touch to how JDBC auditing is
+enabled would otherwise still require editing all 5 files.
+
+### 7. `integration-tests`: `auditorAware()`/`currentActorHook()`/`@MockitoBean S3Client+StorageService` bean triads duplicated across 3-4 `TestConfig` classes (found during Batch K review, 2026-07-31)
+
+Beyond the `@ImportAutoConfiguration` array Batch K deduped, the same 5 `TestConfig` classes still
+duplicate other boilerplate wholesale: `AttachmentRepositoryTest` and
+`AttachmentSnapshotRepositoryTest` both declare byte-identical `auditorAware() -> Optional::empty`
+and `currentActorHook() -> Optional::empty` beans, and 3 of the 4 attachment/audit `TestConfig`s
+duplicate `@MockitoBean S3Client`/`@MockitoBean StorageService` declarations. Not addressed in
+Batch K (out of the approved item-31 scope) — needs a design decision (a second shared
+`@TestConfiguration` bean bag alongside `RepositoryTestSupport`? a builder-style test fixture?)
+before it can be sized as a mechanical fix.
