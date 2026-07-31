@@ -104,11 +104,14 @@ write_progress
 
 # ── Docs freshness -- always runs first, regardless of which other stages were requested. Fast
 #    (no Docker container, no build), so it's an unconditional gate rather than an opt-in stage.
+#    Only checks what's mechanically checkable from inside this repo -- see docs/ai/flows.md's own
+#    "Staying correct" section for why its "Built-in Claude Code skills" table isn't covered here.
 start_stage docs
-bash "$ROOT/scripts/ai/check-adr-index-freshness.sh"
-RC=$?
-[ "$RC" -ne 0 ] && OVERALL_EXIT=1
-end_stage docs "$RC"
+DOCS_RC=0
+bash "$ROOT/scripts/ai/check-adr-index-freshness.sh" || DOCS_RC=1
+bash "$ROOT/scripts/ai/check-flows-completeness.sh" || DOCS_RC=1
+[ "$DOCS_RC" -ne 0 ] && OVERALL_EXIT=1
+end_stage docs "$DOCS_RC"
 
 # ── Isolated e2e stack -- unique names/ports so it never collides with the persistent dev stack,
 #    forwarded as env overrides to the *existing*, unmodified scripts/deploy.sh + playwright/run.sh

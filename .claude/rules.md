@@ -46,6 +46,12 @@ session — those files get updated mid-session precisely because a run just rev
 > any specific skill's own steps; the index going stale is not a lesser concern just because the
 > edit didn't go through the one command that happens to mention it.
 
+> ## ⛔ A new project-local command/skill file adds its own navigation row in the same operation
+> Whenever a new `.claude/commands/*.md` or `.claude/skills/*/SKILL.md` file is added to this repo,
+> add its row to `docs/ai/flows.md`'s "Project commands & skills" table in the same change. An
+> undocumented operational mechanism is exactly the kind of adjacent quality gap the standing
+> "surface it unprompted" rule already covers — don't wait for a later audit to catch it.
+
 > ## ⛔ Code comments: one line or none, never an issue/ticket number
 > Every code comment (production code and test code alike) is either **one line** or **not
 > written at all**. Never a multi-line block explaining background/rationale in full — that

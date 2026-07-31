@@ -73,6 +73,25 @@ real push/PR-triggered CI, the `scripts/ci.sh` backstop only fires when someone 
 `/ci` — it is not a guarantee on every commit. The rules.md rule is the primary defense; it is
 Claude's own discipline, re-read before every action, not an external enforcement mechanism.
 
+**Scope extended during item 1 (2026-07-31) — `docs/ai/flows.md` had the same class of gap.**
+Auditing `flows.md` for staleness (a natural next check, same session) found it was missing rows
+for `simplify`/`security-review`/`review`/`update-config`/`loop`/`schedule` — all pre-existing
+skills, silently uncovered. Root cause was structurally different from the ADR-index case though:
+`flows.md` mixed project-local commands (files in this repo, mechanically enumerable) with
+built-in Claude Code skills (not files here at all — only visible via the session's own
+"Available skills" system-reminder, impossible to grep from inside the repo). Fixed by splitting
+`flows.md` into two tables with two different freshness guarantees:
+- "Project commands & skills" — every `.claude/commands/*.md`/`.claude/skills/*/SKILL.md` file
+  must have a row. Mechanically checked by the new `scripts/ai/check-flows-completeness.sh`
+  (same shape as the ADR-index check — read-only, clear pass/fail), wired into the same
+  `scripts/ci/entrypoint.sh` `docs` stage and a new sibling `.claude/rules.md` rule (new
+  command/skill file → new `flows.md` row, same operation).
+- "Built-in Claude Code skills" — explicitly documented as **not** mechanically checkable from
+  this repo; re-verified only during `/sync-docs --full-audit`, by comparing against whatever
+  skill list is actually available at that time. Honest about being a periodic, judgment-based
+  check, not a continuous guarantee — same category of limitation as the `scripts/ci.sh` backstop
+  above, stated for the same reason (glossing over it would just reproduce this exact gap later).
+
 ### 2. Measure actual token impact — before/after, on real tasks
 
 Needs a concrete methodology before it's actionable, not just "measure it": proxy metric first
