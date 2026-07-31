@@ -95,31 +95,23 @@ No internal class imports detected. ✓
 
 ---
 
-## Hidden Coupling: Advertisement → User Tight Coupling
+## Hidden Coupling: Advertisement → User Tight Coupling — ✓ RESOLVED (improvement-120, 2026-07-25)
 
-**Severity:** MEDIUM — Schema-level coupling
+**Severity:** was MEDIUM — Schema-level coupling; resolved.
 
-**Finding:**
-Advertisement entity has foreign key to user_information:
-```sql
--- /app/advertisement-spring-boot-starter/src/main/resources/db/advertisement-changelog/changes/01-advertisement-schema.xml
-ALTER TABLE advertisement
-ADD CONSTRAINT fk_advertisement_created_by
-FOREIGN KEY (created_by)
-REFERENCES user_information(id) ON DELETE RESTRICT;
-```
+**Original finding:** `advertisement` had a hard SQL-level FK to `user_information`
+(`fk_advertisement_created_by`/`fk_advertisement_modified_by`/`fk_advertisement_deleted_by`,
+`ON DELETE RESTRICT`/`SET NULL`), the last remaining hard FK coupling between two starters —
+`taxon`/`audit`/`attachment` already stored actor references as plain `BIGINT` with no FK.
 
-**Impact:**
-- advertisement-spring-boot-starter cannot run without user-spring-boot-starter in database
-- Cannot soft-delete user if they have advertisements (FK RESTRICT)
-- User domain changes ripple through advertisement data model
-
-**Consequence:**
-- In pom.xml, user-spring-boot-starter is NOT marked `<optional>`, so it's a required dependency
-- This is correct given the schema constraint
-
-**Recommendation:**
-If user module must ever become truly optional, extract a lightweight "UserReference" SPI interface or accept that user is a mandatory core domain.
+**Resolution:** All three FK constraints removed from
+`advertisement-spring-boot-starter/.../01-advertisement-schema.xml`. Replaced by two bulk
+`AdvertisementPort` methods: `findOwnerIds(Set<Long>)` (mirrors the old `RESTRICT` — blocks a
+retention purge) and `clearActorReferences(Set<Long>)` (mirrors the old `SET NULL` — nulls the
+columns at the application level), called from `UserService.cleanup()`. Verified against 3 UI
+scenarios (admin soft-delete, purge-blocked-by-ownership, purge-with-dangling-actor-ref) with no
+regression — `updated_by`/`deleted_by` were never exposed to the UI. See
+`backlog/completed/issues/improvement-120-advertisement-user-hard-fk-coupling.md`.
 
 ---
 
@@ -157,12 +149,12 @@ and resolves every call through `ifAvailable()` / `findIfAvailable()`. A grep fo
 returns nothing — only platform-commons SPI types are referenced. The starter degrades
 gracefully as designed.
 
-### ✗ OPEN — residual risk relocated to marketplace-app UI (found 2026-07-03)
+### ✓ RESOLVED — residual risk relocated to marketplace-app UI (found 2026-07-03, fixed improvement-011, 2026-07-13)
 
-**Severity:** MEDIUM — startup failure risk
+**Severity:** was MEDIUM — startup failure risk; resolved.
 
-Three marketplace-app UI classes hard-inject starter ports instead of using
-`ComponentFactory`:
+Three marketplace-app UI classes used to hard-inject starter ports instead of using
+`ComponentFactory` (now fixed via `ComponentFactory`/`@ConditionalOnBean`):
 
 | Class | Injection | Scope | Failure without the starter |
 |-------|-----------|-------|------------------------------|
@@ -170,15 +162,16 @@ Three marketplace-app UI classes hard-inject starter ports instead of using
 | `AttachmentGallery` | `AttachmentPort` | prototype | exception on first build |
 | `AuditActivityPanel` | `AuditPort` | prototype | exception on first build |
 
-Call-site guards (`galleryServiceFactory.ifAvailable(...)`) do not help: the component bean
-definitions live in marketplace-app and always exist, so `getIfAvailable()` attempts
-instantiation and throws `UnsatisfiedDependencyException`. Attachment and audit starters are
-therefore effectively mandatory today, despite `<optional>true</optional>` in
+Call-site guards alone (`galleryServiceFactory.ifAvailable(...)`) would not have helped: the
+component bean definitions lived in marketplace-app and always existed, so `getIfAvailable()`
+attempted instantiation and threw `UnsatisfiedDependencyException`. Resolved by additionally
+gating the bean definitions themselves with `@ConditionalOnBean`, so attachment/audit starters are
+genuinely optional now, matching `<optional>true</optional>` in
 advertisement-spring-boot-starter's pom.xml.
 
-→ Tracked in [improvement-011](../../backlog/issues/improvement-011-unguarded-port-injection-in-ui-components.md)
-with two resolution options (make degradation real via `ComponentFactory` +
-`@ConditionalOnBean`, or drop `<optional>` and the degradation clause).
+→ See [improvement-011](../../backlog/completed/issues/improvement-011-unguarded-port-injection-in-ui-components.md)
+(completed 2026-07-13) for the chosen resolution (`@ConditionalOnBean` on the component classes,
+the consolidated "Option C").
 
 ---
 
@@ -236,11 +229,11 @@ Most classes have 1-3 injected dependencies:
 | **Vaadin in Starters** | ✓ PASS | Vaadin only in marketplace-app |
 | **Marketplace → Starter Internal** | ✓ RESOLVED | AccessEvaluator fixed (ADR-016, 2026-06-15); UserPortImpl mapping logic fixed (2026-07-01) |
 | **Singleton State Isolation** | ✓ RESOLVED | SettingsPaginationService cross-session bleed fixed (ADR-028, improvement-018) |
-| **Optional Deps Guarded** | ~ PARTIAL | starter level RESOLVED (ComponentFactory guards everywhere); marketplace-app UI still hard-injects `AttachmentPort`/`AuditPort` in 3 classes → improvement-011 (MEDIUM) |
-| **User ↔ Advertisement Coupling** | ~ WARNING | Schema-level FK coupling; acceptable since both required |
+| **Optional Deps Guarded** | ✓ RESOLVED | starter level + marketplace-app UI both guarded (`ComponentFactory`/`@ConditionalOnBean`) — `AttachmentGalleryService`/`AttachmentGallery`/`AuditActivityPanel` fixed (improvement-011, 2026-07-13) |
+| **User ↔ Advertisement Coupling** | ✓ RESOLVED | Hard FK removed (improvement-120, 2026-07-25) — see "Hidden Coupling" section above |
 | **Module Sizes** | ✓ PASS | No unjustified size outliers |
 
 **Open Action Items:**
-1. **DECIDE on Optional Deps (improvement-011):** Either make marketplace-app UI degradation real (`ComponentFactory` + `@ConditionalOnBean` on `AttachmentGalleryService`, `AttachmentGallery`, `AuditActivityPanel`) or remove `<optional>` from advertisement pom.xml and drop the degradation clause — record the decision in `marketplace-app/DECISIONS.md`
-2. **MONITOR Advertisement → User:** If user becomes optional in future, extract UserReference SPI
+1. **MONITOR Advertisement → User:** No DB-level coupling remains (improvement-120); if a future
+   need reintroduces one, extract a lightweight `UserReference` SPI rather than a raw FK.
 

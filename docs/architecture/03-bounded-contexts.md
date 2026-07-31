@@ -206,13 +206,10 @@ graph TB
 
 **Contract:**
 - `AttachmentPort` — marketplace calls starter for file operations
-- `AttachmentMediaChangeHook` — fired on every media change; currently has no implementation
-  (a valid, gracefully-degraded state for this optional SPI — ADR-035)
-- `AttachmentAuditHook` — request audit records for media snapshots
+- `AttachmentAuditPort` — request audit records for media snapshots
 
 **Cross-Domain Dependencies:**
 - Calls `AuditPort` to capture file changes
-- Fires `AttachmentMediaChangeHook` on media changes (no receiver today — ADR-035)
 - Optional dependency on audit starter
 
 ---
@@ -281,10 +278,8 @@ When marketplace creates an advertisement:
 When user uploads a photo to an advertisement:
 1. Marketplace calls `AttachmentPort.upload(...)`
 2. Attachment starter stores file in S3
-3. Attachment starter fires `AttachmentMediaChangeHook.onChange(ADVERTISEMENT, advId)` — no
-   implementation is registered today, so the event is dropped (ADR-035)
-4. Attachment starter calls `AuditPort.captureUpdate(...)` for media snapshot
-5. Advertisement lists/detail views get media summaries at read time via
+3. Attachment starter calls `AuditPort.captureUpdate(...)` for media snapshot
+4. Advertisement lists/detail views get media summaries at read time via
    `AdvertisementService.enrichWithMediaSummary()` → `AttachmentPort.getMediaSummaries()` —
    nothing is stored on the `advertisement` row
 
@@ -318,9 +313,13 @@ because the module itself is never shipped, deployed, or depended upon by anythi
 
 ## Risks & Future Considerations
 
-1. **User & Advertisement Tight Coupling:** Advertisement has FK to User. Consider extracting a "UserReference" SPI interface if User module ever needs to become truly optional.
+1. **User & Advertisement Tight Coupling — ✓ RESOLVED (improvement-120, 2026-07-25):** the FK from
+   `advertisement` to `user_information` was removed; see `docs/architecture/06-coupling-analysis.md`
+   "Hidden Coupling" section for the replacement (bulk `AdvertisementPort` methods).
 
-2. **Audit + Attachment Optional:** Advertisement marks audit and attachment starters as `<optional>true/>` in pom.xml, but internal code does not guard calls with `ObjectProvider`. If either starter is missing, the app will fail at runtime. Consider: either make them required, or add ObjectProvider guards.
+2. **Audit + Attachment Optional — ✓ RESOLVED (improvement-011, 2026-07-13):** marketplace-app UI
+   now guards these injections via `ComponentFactory`/`@ConditionalOnBean`
+   (`AttachmentGalleryService`, `AttachmentGallery`, `AuditActivityPanel`).
 
 3. **Taxon Cross-Cutting:** Taxon is currently used by the advertisement domain (category assignment) and is designed generically for any entity type. The `taxon_assignment` table is keyed by `(entity_type, entity_id)` — no schema change is needed to add new entity types. The standalone starter design is justified.
 

@@ -105,6 +105,10 @@ Always use project scripts — never raw docker/mvn commands:
 
 ## Issue Lifecycle
 
+Before filing a new ADR (`/decision`) or a new backlog issue (`/feature`), consult
+`docs/ai/adr-index.md` (if present) for an already-decided overlapping ADR — mandatory, not
+best-effort. See `docs/ai/README.md` for what the file is and how it stays current.
+
 When filing a **new** issue in `backlog/issues/`:
 - Always assign a `**Priority:**` line in the issue file itself — never leave it blank/TBD.
 - Always add it to `backlog/BACKLOG.md`'s Priority order table at a ranked position (not just the

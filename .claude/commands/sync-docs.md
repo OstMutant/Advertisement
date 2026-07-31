@@ -39,6 +39,7 @@ Use this mapping table:
 | Any `*.java` | `docs/architecture/06-coupling-analysis.md`, `07-risk-report.md`, `08-scorecard.md` |
 | Any `*.java` or `**/pom.xml` | `CLAUDE.md` (per changed module), `DECISIONS.md` (per changed module) |
 | Any `*.java` or `**/pom.xml` | `backlog/issues/` — create/close/update tracked issues |
+| Any `**/DECISIONS.md` | `docs/ai/adr-index.md` — regenerate via `bash scripts/ai/generate-adr-index.sh` |
 
 Print which targets are affected before proceeding.
 
@@ -102,10 +103,19 @@ wrongly claiming `taxon-spring-boot-starter` had no `DECISIONS.md` when it actua
 module-listing claim in a *different* file than the one that changed never appears in any single
 commit's diff.
 
+### Step A0 — Regenerate the ADR index
+
+Run `bash scripts/ai/generate-adr-index.sh` and check whether it changed `docs/ai/adr-index.md`
+(`git diff --stat docs/ai/adr-index.md`) — if so, a `DECISIONS.md` entry was added/changed since
+the index was last regenerated. Include this in the Step A5 report regardless of outcome.
+
 ### Step A1 — Enumerate targets
 
-`find . -maxdepth 2 -iname "DECISIONS.md" -o -maxdepth 2 -iname "README.md" -o -maxdepth 2 -iname
-"CLAUDE.md"` (excluding `target/`/`node_modules/`). Note which modules have no README.md, no
+`find . -maxdepth 3 -iname "DECISIONS.md" -o -maxdepth 3 -iname "README.md" -o -maxdepth 3 -iname
+"CLAUDE.md"` (excluding `target/`/`node_modules/`) — `maxdepth 3`, not `2`: nested tool
+directories (`scripts/ci/`, `scripts/sonar/`, `scripts/ai/`) each carry their own `DECISIONS.md`/
+`README.md` one level deeper than top-level modules; `maxdepth 2` silently skipped all three
+(confirmed directly, corrected during `improvement-134`). Note which modules have no README.md, no
 DECISIONS.md, or no CLAUDE.md — that alone is not necessarily a problem (e.g. a pure-contracts
 module may not need a README), but flag it in the report rather than silently skipping.
 

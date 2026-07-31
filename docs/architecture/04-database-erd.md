@@ -146,18 +146,19 @@ erDiagram
 | `id` | BIGSERIAL | PK | Auto-increment |
 | `title` | VARCHAR(255) | NOT NULL | Advertisement title |
 | `description` | VARCHAR(20000) | | Full description (nullable, sanitized HTML) |
-| `created_by` | BIGINT | NOT NULL, FK → user_information.id (RESTRICT) | Creator (no `_user_id` suffix — ADR-034) |
-| `updated_by` | BIGINT | FK → user_information.id (SET NULL) | Last editor |
-| `deleted_by` | BIGINT | FK → user_information.id (SET NULL) | Who soft-deleted |
+| `created_by` | BIGINT | NOT NULL | Creator (no `_user_id` suffix — ADR-034); no DB-level FK to `user_information.id` — deliberately decoupled, see `improvement-120` |
+| `updated_by` | BIGINT | | Last editor; no DB-level FK (`improvement-120`) |
+| `deleted_by` | BIGINT | | Who soft-deleted; no DB-level FK (`improvement-120`) |
 | `created_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Creation timestamp |
 | `updated_at` | TIMESTAMP WITH TIME ZONE | | Last modification time |
 | `deleted_at` | TIMESTAMP WITH TIME ZONE | | Soft-delete timestamp (NULL = active) |
 | `version` | BIGINT | NOT NULL, DEFAULT 0 | Optimistic-lock counter (`@Version`, checked natively via `CrudRepository.save()`; see `marketplace-app/DECISIONS.md` ADR-029) |
 
-**Foreign Keys:**
-- `fk_advertisement_created_by`: created_by → user_information.id (ON DELETE RESTRICT)
-- `fk_advertisement_modified_by`: updated_by → user_information.id (ON DELETE SET NULL)
-- `fk_advertisement_deleted_by`: deleted_by → user_information.id (ON DELETE SET NULL)
+**Foreign Keys:** none — the last hard SQL-level FK coupling between starters
+(`fk_advertisement_created_by`/`fk_advertisement_modified_by`/`fk_advertisement_deleted_by` →
+`user_information.id`) was removed by `improvement-120` for starter independence. Replaced by two
+bulk `AdvertisementPort` methods: `findOwnerIds(Set<Long>)` (mirrors the old `RESTRICT`) and
+`clearActorReferences(Set<Long>)` (mirrors the old `SET NULL`), called from `UserService.cleanup()`.
 
 **Indexes:**
 - `idx_advertisement_title` (title)

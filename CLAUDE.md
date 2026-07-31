@@ -139,12 +139,18 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/query-lib/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
 - `/app/scripts/DECISIONS.md`
+- `/app/scripts/ci/DECISIONS.md`
+- `/app/scripts/sonar/DECISIONS.md`
+- `/app/scripts/ai/DECISIONS.md`
 - `/app/integration-tests/DECISIONS.md`
 - `/app/taxon-spring-boot-starter/DECISIONS.md`
 
 Note: `user-spring-boot-starter` and `advertisement-spring-boot-starter` have no `DECISIONS.md` —
 their key decisions are recorded in `marketplace-app/DECISIONS.md` (domain extraction) and
 `platform-commons/DECISIONS.md` (port interfaces).
+
+→ ADR discovery index (generated, one line per decision across every `DECISIONS.md`):
+`docs/ai/adr-index.md` — see `docs/ai/README.md` for the full AI-navigation layer.
 
 **Rules:**
 - Record any new substantial architectural or technical decision there immediately — before the conversation ends.

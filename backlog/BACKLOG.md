@@ -56,9 +56,12 @@ doesn't have). **improvement-128 filed and completed 2026-07-28** (same day — 
 then rolled out to Advertisement/Taxon/City/User) — the old 1-content-tab + 1-Activity-tab pattern
 (`buildContentWithActivity()`) is fully replaced by one shared `EntityActivityOverlay` (stacked
 nested overlay, not a tab) across all five domains; see `marketplace-app/DECISIONS.md` ADR-067 and
-`completed/issues/improvement-128-activity-restore-panel-redesign.md`. improvement-124 is now sole
-top priority, unblocked, and can reuse `EntityActivityOverlay` directly for its Account overlay's
-2 history icons.
+`completed/issues/improvement-128-activity-restore-panel-redesign.md`. **improvement-134 filed and
+completed 2026-07-31** — additive AI-navigation/context-efficiency layer (`docs/ai/adr-index.md`
+generated index, `context-loading.md`, `flows.md`, `README.md`; mandatory hooks wired into
+`/decision`/`/feature`/`/sync-docs`/`.claude/rules.md`/root `CLAUDE.md`; 4 confirmed stale
+`docs/architecture/*.md` items corrected) — see `completed/issues/improvement-134-ai-navigation-context-efficiency-layer.md`.
+improvement-124 is again sole top priority, unblocked.
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
