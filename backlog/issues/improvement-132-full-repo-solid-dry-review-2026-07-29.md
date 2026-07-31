@@ -60,7 +60,7 @@ worst-first by batch; work through them one at a time, checking each batch off h
 | I | ✅ Done (2026-07-30) | 26, 27, 28 | attachment-starter: `AttachmentService` SRP split (26) + consolidate video/embed classification onto `AttachmentMediaContentType` (27, related to 26) + RowMapper hoist (28) |
 | C | ✅ Done (2026-07-30) | 7, 8, 9, 10 | user-starter: doc fix (7), `User.toDto()` factory (8, landed as an entity method, not `UserDto.from(User)`, to avoid a services↔security import cycle), `@NonNull` sweep (9), informational SRP note (10, no action) |
 | F | ✅ Done (2026-07-30) | 13, 14, 15, 17 (16 invalid, see below) | marketplace-app small DRY/`@NonNull`: `thumbSrc()` dedup (13), triplicated field-copy (14), `@NonNull` on buttons/fields (15), `AccessEvaluator` dedup (17) |
-| J | 🔵 low | 29, 30 | audit-starter: `@NonNull` sweep + `RowMapper` hoist |
+| J | ✅ Done (2026-07-31) | 29, 30 | audit-starter: `@NonNull` sweep + `RowMapper` hoist |
 | K | 🔵 low-medium | 31 | integration-tests: dedup `TestConfig` `@ImportAutoConfiguration` array across 4-5 test classes |
 | G | 🔵 low | 20, 21, 22 | platform-commons governance: DTO boundary (20), `AttachmentAuditHook`→`*Port` rename (21, spans attachment-starter + marketplace-app, do last within this group), undocumented `security` package role (22) |
 | E | 🔵 low (needs a decision) | 12 | `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` — pure duplication, but fixing it means picking an approach (shared prototype-scoped base vs. extending ADR-065's stated exception) rather than a mechanical edit |
