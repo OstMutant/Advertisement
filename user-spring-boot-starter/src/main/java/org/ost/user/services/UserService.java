@@ -18,6 +18,7 @@ import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
 import org.ost.user.entity.User;
 import org.ost.query.sort.OffsetPageable;
+import org.ost.user.repository.UserPreferencesRepository;
 import org.ost.user.repository.UserRepository;
 import org.ost.user.security.UserPrincipal;
 import org.springframework.dao.DuplicateKeyException;
@@ -55,17 +56,25 @@ public class UserService {
             .build();
 
     private final UserRepository                       repository;
+    private final UserPreferencesRepository             preferencesRepository;
     private final PasswordEncoder                      passwordEncoder;
     private final UserSettingsService                   userSettingsService;
     private final ComponentFactory<AuditPort>           auditPortFactory;
     private final ComponentFactory<AdvertisementPort>   advertisementPortFactory;
 
     public List<UserDto> getFiltered(@Valid @NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
-        return repository.findByFilter(filter, PageRequest.of(page, size, sort)).stream().map(User::toDto).toList();
+        return enrichWithLocale(repository.findByFilter(filter, PageRequest.of(page, size, sort)));
     }
 
     public List<UserDto> getFilteredByOffset(@Valid @NonNull UserFilterDto filter, long offset, int limit, @NonNull Sort sort) {
-        return repository.findByFilter(filter, new OffsetPageable(offset, limit, sort)).stream().map(User::toDto).toList();
+        return enrichWithLocale(repository.findByFilter(filter, new OffsetPageable(offset, limit, sort)));
+    }
+
+    private List<UserDto> enrichWithLocale(List<User> users) {
+        if (users.isEmpty()) return List.of();
+        Set<Long> ids = users.stream().map(User::getId).collect(Collectors.toSet());
+        Map<Long, String> locales = preferencesRepository.findLocalesByActorIds(ids);
+        return users.stream().map(u -> u.toDto(locales.get(u.getId()))).toList();
     }
 
     public int count(@Valid @NonNull UserFilterDto filter) {
@@ -85,7 +94,7 @@ public class UserService {
 
     @Transactional
     public void updateLocale(@NonNull Long userId, @NonNull String locale) {
-        repository.updateLocale(userId, locale);
+        preferencesRepository.updateLocale(userId, locale);
     }
 
     @Transactional
@@ -116,6 +125,7 @@ public class UserService {
                 log.warn("Skipped purging user {} - still owns an advertisement, will retry next run", id);
                 continue;
             }
+            preferencesRepository.deleteByActorId(id);
             repository.deleteById(id);
             purged++;
         }
@@ -143,6 +153,7 @@ public class UserService {
             attempts.incrementAndGet();
             throw ex;
         }
+        preferencesRepository.insertDefault(saved.getId());
         UserSettingsDto defaults = UserSettingsDto.defaultSettings();
         auditPortFactory.ifAvailable(p -> {
             p.captureCreation(saved.getId(), toSnapshot(saved),                       saved.getId());
@@ -151,13 +162,17 @@ public class UserService {
     }
 
     public Optional<UserDto> findById(@NonNull Long id) {
-        return repository.findById(id).map(User::toDto);
+        return repository.findById(id).map(this::toDto);
+    }
+
+    public UserPrincipal toPrincipal(@NonNull User user) {
+        return new UserPrincipal(user, preferencesRepository.findLocaleByActorId(user.getId()));
     }
 
     public void refreshSecurityContext(@NonNull Long userId) {
         try {
             User user = repository.findById(userId).orElseThrow();
-            UserPrincipal principal = new UserPrincipal(user);
+            UserPrincipal principal = toPrincipal(user);
             Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
             Authentication newAuth = currentAuth != null
                     ? new UsernamePasswordAuthenticationToken(principal, currentAuth.getCredentials(), principal.getAuthorities())
@@ -174,7 +189,7 @@ public class UserService {
     }
 
     public Optional<UserDto> findDtoByEmail(@NonNull String email) {
-        return repository.findByEmail(email).map(User::toDto);
+        return repository.findByEmail(email).map(this::toDto);
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
@@ -187,8 +202,12 @@ public class UserService {
     }
 
     public Map<Long, UserDto> findByIds(@NonNull Set<Long> ids) {
-        return repository.findByIds(ids.toArray(new Long[0])).stream()
-                .collect(Collectors.toMap(User::getId, User::toDto));
+        List<User> users = repository.findByIds(ids.toArray(new Long[0]));
+        return enrichWithLocale(users).stream().collect(Collectors.toMap(UserDto::id, dto -> dto));
+    }
+
+    private UserDto toDto(User user) {
+        return user.toDto(preferencesRepository.findLocaleByActorId(user.getId()));
     }
 
     private static UserSnapshotDto toSnapshot(User user) {

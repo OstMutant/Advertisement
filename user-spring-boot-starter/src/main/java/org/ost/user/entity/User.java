@@ -2,7 +2,6 @@ package org.ost.user.entity;
 
 import lombok.Builder;
 import lombok.Value;
-import lombok.With;
 import lombok.experimental.FieldNameConstants;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.model.Role;
@@ -33,13 +32,10 @@ public class User {
     @LastModifiedDate
     Instant updatedAt;
 
-    @With
-    String locale;
-
     @Version
     Long version;
 
-    public UserDto toDto() {
+    public UserDto toDto(String locale) {
         return new UserDto(id, name, email, role, createdAt, updatedAt, locale, version);
     }
 }

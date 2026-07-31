@@ -15,6 +15,7 @@ import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
 import org.ost.user.entity.User;
+import org.ost.user.repository.UserPreferencesRepository;
 import org.ost.user.repository.UserRepository;
 import org.ost.user.services.UserService;
 import org.ost.user.services.UserSettingsService;
@@ -64,6 +65,9 @@ class UserServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private UserPreferencesRepository preferencesRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
@@ -87,7 +91,7 @@ class UserServiceTest {
         advertisementPortProvider = mock(ObjectProvider.class);
         ComponentFactory<AuditPort> auditPortFactory = new ComponentFactory<>(auditPortProvider);
         ComponentFactory<AdvertisementPort> advertisementPortFactory = new ComponentFactory<>(advertisementPortProvider);
-        userService = new UserService(userRepository, passwordEncoder, userSettingsService, auditPortFactory, advertisementPortFactory);
+        userService = new UserService(userRepository, preferencesRepository, passwordEncoder, userSettingsService, auditPortFactory, advertisementPortFactory);
         lenient().when(userRepository.countByFilter(UserFilterDto.empty())).thenReturn(5L);
         lenient().when(passwordEncoder.encode(org.mockito.ArgumentMatchers.anyString())).thenReturn("encoded");
     }

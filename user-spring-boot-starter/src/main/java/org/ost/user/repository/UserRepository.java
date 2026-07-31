@@ -45,7 +45,6 @@ public class UserRepository {
                 .passwordHash(rs.getString("password_hash"))
                 .createdAt(createdAt != null ? createdAt.toInstant() : null)
                 .updatedAt(updatedAt != null ? updatedAt.toInstant() : null)
-                .locale(rs.getString("locale"))
                 .version(rs.getObject("version", Long.class))
                 .build();
     };
@@ -82,9 +81,8 @@ public class UserRepository {
                 UserDto.Fields.email,     "u.email",
                 UserDto.Fields.role,      "u.role",
                 UserDto.Fields.createdAt, "u.created_at",
-                UserDto.Fields.updatedAt, "u.updated_at",
-                UserDto.Fields.locale,    "u.locale"));
-        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information u WHERE u.deleted_at IS NULL%s%s%s"
+                UserDto.Fields.updatedAt, "u.updated_at"));
+        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, version FROM user_information u WHERE u.deleted_at IS NULL%s%s%s"
                 .formatted(FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
@@ -97,7 +95,7 @@ public class UserRepository {
 
     public Optional<User> findByEmail(@NonNull String email) {
         var params = new MapSqlParameterSource();
-        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information u WHERE u.deleted_at IS NULL%s"
+        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, version FROM user_information u WHERE u.deleted_at IS NULL%s"
                 .formatted(EMAIL_FILTER.build(params, email, " AND "));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).optional();
     }
@@ -133,14 +131,6 @@ public class UserRepository {
                 .build());
     }
 
-    public void updateLocale(@NonNull Long userId, @NonNull String locale) {
-        jdbcClient.sql("UPDATE user_information SET locale = :locale WHERE id = :id")
-                  .paramSource(new MapSqlParameterSource()
-                          .addValue("locale", locale)
-                          .addValue("id",     userId))
-                  .update();
-    }
-
     public List<Long> findExistingIds(@NonNull Long[] ids) {
         return jdbcClient.sql("SELECT id FROM user_information WHERE id = ANY(:ids)")
                 .paramSource(new MapSqlParameterSource("ids", ids))
@@ -158,7 +148,7 @@ public class UserRepository {
     }
 
     public List<User> findByIds(@NonNull Long[] ids) {
-        return jdbcClient.sql("SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information WHERE id = ANY(:ids)")
+        return jdbcClient.sql("SELECT id, name, email, role, password_hash, created_at, updated_at, version FROM user_information WHERE id = ANY(:ids)")
                 .paramSource(new MapSqlParameterSource("ids", ids))
                 .query(ROW_MAPPER)
                 .list();

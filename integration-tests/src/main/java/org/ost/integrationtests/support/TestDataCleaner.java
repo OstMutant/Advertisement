@@ -74,6 +74,7 @@ public final class TestDataCleaner {
                 "attachment_snapshot", "attachment",
                 "audit_log",
                 "advertisement",
+                "user_preferences",
                 "user_information");
     }
 }

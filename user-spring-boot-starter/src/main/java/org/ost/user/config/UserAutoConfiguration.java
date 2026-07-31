@@ -8,7 +8,6 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.config.CleanupProperties;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.platform.user.spi.UserSettingsChangedHook;
-import org.ost.user.security.UserPrincipal;
 import org.ost.user.services.UserService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -68,7 +67,7 @@ public class UserAutoConfiguration {
     @ConditionalOnMissingBean
     public UserDetailsService userDetailsService(UserService userService) {
         return email -> userService.findByEmail(email)
-                .map(UserPrincipal::new)
+                .map(userService::toPrincipal)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
     }
 

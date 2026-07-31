@@ -67,7 +67,6 @@ class UserRepositoryTest extends AbstractPostgresIntegrationTest {
                 .email(email)
                 .passwordHash(passwordHash)
                 .role(role)
-                .locale("en")
                 .build());
     }
 

@@ -3437,3 +3437,80 @@ future caller ever bypasses the `UserPort` boundary with a genuinely null argume
 silently resolving to "not admin"/"not owner." `User.toDto()` is the one place that maps `User` →
 `UserDto`; any future third call site should call it directly rather than reintroducing a third
 inline construction.
+
+## ADR-070: F-04 Batch A — `locale`/`settings` split out of `user_information` into `user_preferences` (improvement-124)
+
+**Status:** Accepted
+
+**Context:** improvement-124 (F-04, provider profiles) originally planned to merge `locale`/
+`settings` together with the new provider-facing fields into one `actor_profile` table/module.
+Discussed with the user before implementation: the provider-facing half behaves like a public
+catalog entity (OG/sitemap, categories, portfolio, future reviews) — closer in shape to
+`Advertisement` than to `User` — while `locale`/`settings` are private, auth-adjacent preferences
+with no such need for independent module toggling. Decision: 3 tables, 2 modules, not 1-and-1.
+This ADR covers only the first slice (Batch A) — preferences split out of `user_information`,
+still inside `user-spring-boot-starter`. The provider-facing half (new `provider-profile-spring-
+boot-starter` module) is tracked separately in `backlog/issues/improvement-124-provider-profile.md`.
+
+**Decision:**
+- New `user_preferences` table (same module, second entity/repository — mirrors the existing
+  `UserProfileUpdate`-on-`user_information` precedent) holds `locale` and `settings` (JSONB),
+  keyed by `actor_id` (`BIGINT UNIQUE`, **no FK** — matches this codebase's existing no-FK
+  actor-reference-column convention, e.g. `advertisement.created_by`, ADR-034 — even though this
+  table lives in the same module as `user_information`; deliberate, not an oversight).
+- Schema written "from scratch," not migrated: the app is pre-production, so `01-user-schema.xml`
+  (which already carries `<validCheckSum>ANY</validCheckSum>`, this repo's established pattern for
+  editing changeset 01 in place pre-launch) was edited directly — `locale`/`settings` columns
+  removed from `user_information`'s `createTable`, a new changeSet added in the same file for
+  `user_preferences`. No data-migration changeset, no backfill for pre-existing rows.
+- `UserPreferencesRepository` (replaces `UserSettingsRepository`) owns both concerns since they
+  share one table row: `insertDefault()` (called from `UserService.register()`, same transaction
+  as the `user_information` insert — every actor gets a preferences row eagerly, same as before),
+  `findLocaleByActorId`/`findLocalesByActorIds` (bulk, mirrors the existing bulk-lookup pattern
+  used elsewhere, e.g. `AttachmentPort.getMediaSummaries`), `updateLocale`, `deleteByActorId`
+  (called from `UserService.cleanup()`'s retention purge — no FK/cascade, so this call is the only
+  thing preventing an orphaned row on hard-delete), `loadSettings`/`saveSettings` (unchanged
+  JSONB-embedded-version optimistic lock, ADR-044 — this batch relocates the table, it does not
+  change locking semantics).
+- `User.toDto()` (ADR-069) changed from a zero-arg method reading its own `locale` field to
+  `toDto(String locale)` — the entity no longer carries `locale` at all; `UserService` composes the
+  full `UserDto` by calling `UserPreferencesRepository` after the `User` read (bulk lookup for
+  list-returning methods, single lookup for `findById`/`findDtoByEmail`, funneled through one
+  private `toDto(User)`/`enrichWithLocale(List<User>)` pair — not hand-mixed per call site).
+  `UserPrincipal` gained a second constructor component (`locale`) for the same reason; both
+  construction sites (`UserAutoConfiguration`'s `UserDetailsService` bean, `UserService
+  .refreshSecurityContext()`) now go through one `UserService.toPrincipal(User)` method rather than
+  each independently resolving the locale.
+- `UserPort`'s external contract (`updateLocale`, `loadSettings`/`saveSettings`, `UserDto.locale()`)
+  is unchanged — marketplace-app (`VaadinLocaleProvider`, `LocaleSelectorComponent`) needed zero
+  changes.
+
+**Bugs found and fixed during `/code-review`'s 8-angle pass, before this landed:**
+- `UserPreferencesRepository.updateLocale()` did a blind UPDATE with no rows-affected check —
+  silently no-oped (no error, no persisted change) for any actor without a `user_preferences` row.
+  Now throws `IllegalStateException` on 0 rows affected.
+- `UserService.cleanup()`'s hard-delete purge removed the `user_information` row but left the
+  `user_preferences` row permanently orphaned (no FK/cascade, since this table is deliberately
+  FK-less) — a genuine storage leak on every scheduled retention run. Now calls
+  `preferencesRepository.deleteByActorId()` first.
+- `findLocalesByActorIds`'s row mapper used `Map.entry(k, v)`, which throws `NullPointerException`
+  on a null value (Java stdlib behavior) — `locale` is null until a user sets one, so this NPE'd on
+  every freshly-registered actor. Fixed by accumulating into a plain `HashMap` instead (a second,
+  related NPE from `Collectors.toMap()` — which *also* rejects null values internally — surfaced
+  once the first was fixed, from the same root cause).
+- `UserTestFixtures.createTestUser()` (the shared FK-fixture used by every other domain's
+  `*RepositoryTest`) never created a matching `user_preferences` row, unlike real registration —
+  latent for now (nothing currently reads locale/settings off a fixture-created actor) but a
+  landmine for future tests. Added `UserTestFixtures.createTestUserWithPreferences()` as an
+  additive overload; existing callers untouched.
+- Test coverage for the Liquibase column default's exact JSON shape (no `schemaVersion` key) was
+  dropped when `UserSettingsRepositoryTest` was renamed to `UserPreferencesRepositoryTest` — every
+  new test created its row via `insertDefault()` (full Jackson serialization, always includes
+  `schemaVersion`), never exercising the raw-SQL-default shape. Restored as
+  `loadSettings_legacyRowWithNoSchemaVersionKey_stillLoadsCorrectly`.
+
+**Consequence:** `user_information` now holds only auth data (email, password hash, role, name).
+Provider-profile work (Batch 124-B onward) attaches to its own table/module, never to this one.
+The `findLocaleByActorId`/`findLocalesByActorIds` duplication the code review flagged was resolved
+by having the single-id method delegate to the bulk one (`findLocalesByActorIds(Set.of(id))`) —
+one query implementation, not two to keep in sync.
