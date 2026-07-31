@@ -27,7 +27,7 @@ while IFS= read -r -d '' file; do
     function flush() {
       if (adr == "") return
       if (state == 2) {
-        printf("| %s | %s | %s | %s |\n", adr, module, status, title)
+        printf("| %s (%s) | %s | %s | %s |\n", adr, module, module, status, title)
       } else {
         print "WARN: " module ": " adr " has no **Status:** line, skipped" > "/dev/stderr"
       }

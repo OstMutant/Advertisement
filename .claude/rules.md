@@ -38,6 +38,14 @@ session — those files get updated mid-session precisely because a run just rev
 > not here. A rule padded with one incident's specifics reads as "this is about X," making it
 > harder to recognize the same principle applies somewhere unrelated to X.
 
+> ## ⛔ Any `DECISIONS.md` edit regenerates the ADR index in the same operation
+> Whenever any `DECISIONS.md` file is created, edited, or has an ADR added/changed — by any
+> workflow, command, or skill, not only `/decision` — run
+> `bash scripts/ai/generate-adr-index.sh` and include the resulting `docs/ai/adr-index.md` diff in
+> the same change before considering it complete. This applies even to direct edits made outside
+> any specific skill's own steps; the index going stale is not a lesser concern just because the
+> edit didn't go through the one command that happens to mention it.
+
 > ## ⛔ Code comments: one line or none, never an issue/ticket number
 > Every code comment (production code and test code alike) is either **one line** or **not
 > written at all**. Never a multi-line block explaining background/rationale in full — that

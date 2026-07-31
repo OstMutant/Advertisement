@@ -51,9 +51,11 @@ Steps:
      preference) — but keep moving once flagged; don't stall waiting for a reply unless the
      discovery actually blocks progress.
    - `git commit` remains off-limits without the user's explicit "зроби коміт"/"commit" — this is
-     a separately hard-enforced rule (including a pre-commit hook in this repo) that `/autopilot`
-     does not and cannot override. Land the run in a "ready to commit" state and say so in the
-     final report; do not commit automatically.
+     a separately hard-enforced rule in `.claude/rules.md` that `/autopilot` does not and cannot
+     override (this repo has no actual git commit hook enforcing it — the enforcement is Claude's
+     own compliance with that rule, every session, not a mechanism outside Claude's control). Land
+     the run in a "ready to commit" state and say so in the final report; do not commit
+     automatically.
    - **Every long-running script call in an autopilot run uses `run_in_background: true` by
      default** — this overrides `scripts/CLAUDE.md`'s normal "run synchronously so the user sees
      streaming output" guidance, which exists for interactive sessions where someone is watching;

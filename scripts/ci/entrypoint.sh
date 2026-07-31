@@ -95,11 +95,20 @@ end_stage() {
   echo "$name exit: $rc (${STAGE_ELAPSED[$name]}s)"
 }
 
+register_stage docs
 [ "$STAGE_UNIT" = "1" ]        && register_stage unit
 [ "$STAGE_INTEGRATION" = "1" ] && register_stage integration
 [ "$STAGE_E2E" = "1" ]         && register_stage e2e
 [ "$STAGE_SONAR" = "1" ]       && register_stage sonar
 write_progress
+
+# ── Docs freshness -- always runs first, regardless of which other stages were requested. Fast
+#    (no Docker container, no build), so it's an unconditional gate rather than an opt-in stage.
+start_stage docs
+bash "$ROOT/scripts/ai/check-adr-index-freshness.sh"
+RC=$?
+[ "$RC" -ne 0 ] && OVERALL_EXIT=1
+end_stage docs "$RC"
 
 # ── Isolated e2e stack -- unique names/ports so it never collides with the persistent dev stack,
 #    forwarded as env overrides to the *existing*, unmodified scripts/deploy.sh + playwright/run.sh

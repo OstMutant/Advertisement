@@ -61,16 +61,38 @@ completed 2026-07-31** — additive AI-navigation/context-efficiency layer (`doc
 generated index, `context-loading.md`, `flows.md`, `README.md`; mandatory hooks wired into
 `/decision`/`/feature`/`/sync-docs`/`.claude/rules.md`/root `CLAUDE.md`; 4 confirmed stale
 `docs/architecture/*.md` items corrected) — see `completed/issues/improvement-134-ai-navigation-context-efficiency-layer.md`.
-improvement-124 is again sole top priority, unblocked.
+improvement-124 is again sole top priority, unblocked. improvement-124 Batches A/A2 (preferences
+table split + `UserDto`/`UserPort` code-quality cleanup found during review) completed 2026-07-31 —
+see `marketplace-app/DECISIONS.md` ADR-070/071 and `platform-commons/DECISIONS.md` ADR-026; Batches
+B/C/D (the new `provider-profile-spring-boot-starter` module and unified account overlay) remain.
+**improvement-135 filed 2026-07-31**, ranked ahead of improvement-124's remaining batches per
+explicit user request — validates whether improvement-134's `docs/ai/` layer actually delivers
+(token cost, routing accuracy) and closes a drift gap already found live in this session
+(`docs/ai/adr-index.md` missing the ADR-070/071/026 entries this same session added, since they
+landed via direct `DECISIONS.md` edits during an `/autopilot` run rather than through `/decision`,
+which is the only place regeneration is currently wired). **Item 1 completed 2026-07-31** — no git
+hook (checked directly: none exists in this repo, and `.claude/commands/autopilot.md`'s claim of
+one was itself inaccurate, now corrected) — instead a standing `.claude/rules.md` rule (any
+`DECISIONS.md` edit regenerates the index, regardless of workflow) plus a read-only
+`scripts/ai/check-adr-index-freshness.sh` wired as an unconditional stage in `scripts/ci.sh`, and
+`generate-adr-index.sh`'s `ADR` column now module-qualified (`ADR-NNN (module)`) to close the
+same-number-different-file collision. Items 2-4 (measure whether the layer actually earns its
+token/routing cost) remain, need a small scoping pass first.
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **Top** | 🟡 | 124 | F-04/improvement-124 — one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) merging provider-facing fields (`ProviderKind` MASTER/SHOP/SUPPORT) with locale/settings decoupled out of `user_information`, plus the unified "My Account" overlay (name + settings + provider profile in one place, narrower moderator edit permissions, reusing improvement-128's `EntityActivityOverlay` for its 2 history icons) — its own snapshot DTO must follow improvement-002's `schemaVersion` pattern |
+| **Top** | 🟡 | 135, 124 | improvement-135 — item 1 done (ADR-index freshness rule + CI gate + module-qualified numbering); items 2-4 (validate the AI-nav layer actually earns its cost) once scoped. Then resume F-04/improvement-124 Batches B-D — new `provider-profile-spring-boot-starter` module (`EntityType.PROVIDER_PROFILE`, `ProviderKind` MASTER/SHOP/SUPPORT), plus the unified "My Account" overlay (name + settings + provider profile in one place, narrower moderator edit permissions, reusing improvement-128's `EntityActivityOverlay`) — its own snapshot DTO must follow improvement-002's `schemaVersion` pattern |
 | Nice to have | — | 073 → 035, 096, 129, 036, 039, 065, 114, 063, 028, 130, 131, 133 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
+
+### Top priority — improvement-135
+
+| Issue | Origin | What |
+|---|---|---|
+| [improvement-135](issues/improvement-135-ai-nav-layer-validation-and-adr-index-ci-check.md) | New (process/AI-tooling meta, filed 2026-07-31, found while reviewing improvement-124's diff) | Validates improvement-134's `docs/ai/` layer instead of assuming it works: (1) **done** — `docs/ai/adr-index.md` can no longer silently drift from its source `DECISIONS.md` files (closed the gap already caught live, ADR-070/071/026 were missing from the index), via a standing `.claude/rules.md` rule + a read-only `scripts/ai/check-adr-index-freshness.sh` gate in `scripts/ci.sh` (no git hook — confirmed none exists in this repo), plus the index's same-number-different-file ADR collision risk fixed (`ADR-NNN (module)`); (2) measure actual token impact; (3) validate `context-loading.md` empirically; (4) measure `flows.md` routing accuracy; (5) governing rule — no new `docs/ai/*` content until 2-4 show the existing layer earns its cost. 2-4 need a scoping pass first |
 
 ### Top priority — improvement-124
 
