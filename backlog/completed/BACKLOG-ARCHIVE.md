@@ -1470,5 +1470,16 @@ convention; two doc-drift items were already fixed; one query-lib finding was in
 re-derived, not duplicated). improvement-132 also added 13 newly-found items (including one live
 i18n bug — `AdvertisementService.findById()` hardcoding English category names on the detail view).
 Full reconciliation table: `completed/issues/improvement-121-solid-dry-review-findings.md`'s
-supersession banner, `issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md`'s "How this
-was found" section.
+supersession banner, `completed/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md`'s
+"How this was found" section.
+
+✅ Done (2026-07-31): improvement-132 — all 11 execution batches resolved. Batches A, B, C, D, F,
+G, H, I, J, K (items 1-11, 13-15, 17-31) fixed directly across 2026-07-30/31, each its own commit
+(see this file's earlier entries and each module's `DECISIONS.md` for individual batch rationale —
+notably ADR-014 in `attachment-spring-boot-starter` for Batch I's corrected `AttachmentVideoUtil`
+shape, ADR-025 in `platform-commons` for Batch G's corrected `UserSettingsService` instance-method
+shape). Batch E (item 12, `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` pure
+duplication) needs a design decision rather than a mechanical edit, so it was deferred to
+`issues/improvement-133-deferred-oversized-review-findings.md` entry 8 for later analysis instead
+of holding this issue open indefinitely. Full detail:
+`completed/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md`.

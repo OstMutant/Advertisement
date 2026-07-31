@@ -1,6 +1,6 @@
 # improvement-121: repo-wide SOLID/DRY review findings (11-agent pass, 2026-07-25)
 
-**Superseded 2026-07-29 by [improvement-132](../../issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md):**
+**Superseded 2026-07-29 by [improvement-132](../issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md):**
 every one of this issue's 24 findings was individually re-verified against current code (18 still
 accurate and merged into improvement-132's module sections, 6 resolved as stale/invalid/fixed —
 see improvement-132's "How this was found" table for the full reconciliation). This file is kept

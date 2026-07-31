@@ -337,7 +337,7 @@ lookup per url.
 
 **Status:** Accepted
 
-**Context:** [improvement-132](../backlog/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md)
+**Context:** [improvement-132](../backlog/completed/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md)
 items 26-27 — `AttachmentService` mixed five concerns (gallery queries, upload/video-ingestion,
 commit/restore orchestration, snapshot delegation, media-summary DTO shaping) in one class, and
 "is this a video/embed" was checked three independent, non-identical ways: `AttachmentService`'s

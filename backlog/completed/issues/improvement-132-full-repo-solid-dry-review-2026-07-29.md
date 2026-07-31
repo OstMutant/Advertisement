@@ -63,9 +63,11 @@ worst-first by batch; work through them one at a time, checking each batch off h
 | J | ✅ Done (2026-07-31) | 29, 30 | audit-starter: `@NonNull` sweep + `RowMapper` hoist |
 | K | ✅ Done (2026-07-31) | 31 | integration-tests: dedup `TestConfig` `@ImportAutoConfiguration` array across 5 test classes via a new composed annotation, `RepositoryTestAutoConfig` |
 | G | ✅ Done (2026-07-31) | 20, 21, 22 | platform-commons governance: DTO boundary (20), `AttachmentAuditHook`→`*Port` rename (21, spanned attachment-starter + marketplace-app), undocumented `security` package role (22, `UserIdMarker` folded into `user.spi`) |
-| E | 🔵 low (needs a decision) | 12 | `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` — pure duplication, but fixing it means picking an approach (shared prototype-scoped base vs. extending ADR-065's stated exception) rather than a mechanical edit |
+| E | ✅ Moved to improvement-133 (2026-07-31) | 12 | `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` pure duplication — needs a design decision (shared prototype-scoped base vs. extending ADR-065's stated exception), not a mechanical edit; deferred to improvement-133 entry 8 for later analysis instead of holding this issue open |
 
 **Suggested execution order:** A → D → B → H → I → C → F → J → K → G → E.
+
+**All batches resolved as of 2026-07-31** — A–D, F–K fixed directly; E deferred to `improvement-133` (entry 8). This issue is now closed; see `backlog/completed/issues/`.
 
 ### Batch I — implementation plan (2026-07-30)
 

@@ -63,7 +63,6 @@ top priority, unblocked, and can reuse `EntityActivityOverlay` directly for its 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
 | **Top** | 🟡 | 124 | F-04/improvement-124 — one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) merging provider-facing fields (`ProviderKind` MASTER/SHOP/SUPPORT) with locale/settings decoupled out of `user_information`, plus the unified "My Account" overlay (name + settings + provider profile in one place, narrower moderator edit permissions, reusing improvement-128's `EntityActivityOverlay` for its 2 history icons) — its own snapshot DTO must follow improvement-002's `schemaVersion` pattern |
-| High | 🟡 | 132 | `/deep-review full` sweep (9-agent, 2026-07-29), merged with (and supersedes) improvement-121 — 31 findings across all 9 modules; top item is a live i18n bug (`AdvertisementService.findById()` hardcodes English category names on the detail view regardless of viewer locale), rest is DRY/scalability/governance tech-debt |
 | Nice to have | — | 073 → 035, 096, 129, 036, 039, 065, 114, 063, 028, 130, 131, 133 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
@@ -75,12 +74,6 @@ Details, links, and per-batch rationale below.
 | Issue | Origin | What |
 |---|---|---|
 | [improvement-124](issues/improvement-124-provider-profile.md) | New (product roadmap Phase 2, item #1; supersedes [improvement-123](issues/improvement-123-f04-master-profile.md)) | F-04, one combined issue: one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) with `kind` nullable (`MASTER`/`SHOP`/`SUPPORT`, mirrors F-03's `AdKind` — `NULL` means "not a provider"), SUPPORT kind role-gated + visibility toggle, plus `locale`/`settings` decoupled out of `user_information` onto the same row; new Providers tab/overlay/card, header entry point, OG meta + sitemap for `/providers/:id`; unified "My Account" overlay — Name/Settings/Provider Profile tabs in one place, reused for both self-service and admin/moderator viewing another user, narrower moderator (view-only) permissions. Has a detailed execution plan already written into the issue. Its new `ActorProfileSnapshotDto` must follow improvement-002's `schemaVersion` record-component pattern (see `platform-commons/DECISIONS.md` ADR-024) |
-
-### High priority — improvement-132
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-132](issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md) | New (`/deep-review full` 9-agent sweep, merged with and supersedes [improvement-121](completed/issues/improvement-121-solid-dry-review-findings.md)) | 31 findings across all 9 modules — every one of improvement-121's original 24 findings individually re-verified (18 still accurate and merged in, 6 resolved as stale/invalid/already-fixed), plus 13 newly-found items. Top: `AdvertisementService.findById()` hardcodes English category names on the advertisement detail view regardless of viewer locale (live i18n bug). Also: unbounded `IN (:ids)` clauses in taxon repos, `AdvertisementsView` missing its `ConstraintViolationException` catch branch, `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` pure duplication (ADR-065's stated reason doesn't actually cover these prototype-scoped classes), `AttachmentAuditHook` naming/direction mismatch, plus many smaller DRY/`@NonNull`/doc-drift items. |
 
 ### Nice to have — no internal priority order
 

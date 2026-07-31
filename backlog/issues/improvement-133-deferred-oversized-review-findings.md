@@ -123,3 +123,17 @@ duplicate `@MockitoBean S3Client`/`@MockitoBean StorageService` declarations. No
 Batch K (out of the approved item-31 scope) — needs a design decision (a second shared
 `@TestConfiguration` bean bag alongside `RepositoryTestSupport`? a builder-style test fixture?)
 before it can be sized as a mechanical fix.
+
+### 8. `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` pure duplication (from improvement-132 Batch E, 2026-07-29)
+
+Every method, field, and control-flow path in `TaxonFormOverlayModeHandler.java` and
+`CityFormOverlayModeHandler.java` matches line-for-line — a pure mechanical rename of each other.
+`marketplace-app/DECISIONS.md` ADR-065's stated reason for not sharing a generic base (`TaxonOverlay`
+is a `@UIScope` singleton needing distinct bean instances per simultaneous tab) applies to the
+`*Overlay` classes, not to these two `@Scope("prototype")` handlers, which by construction get a
+fresh instance per lookup regardless of parameterization — so ADR-065's exception doesn't actually
+cover this case. Real risk already realized per ADR-065/066's own "fixed in one copy, not the
+sibling" bug history. Needs a design decision (shared prototype-scoped base class vs. extending
+ADR-065's stated exception to cover handlers too) before it can be sized as a mechanical fix — not
+picked up as part of improvement-132's Batch E since every other batch there was a same-file
+mechanical edit and this one isn't.

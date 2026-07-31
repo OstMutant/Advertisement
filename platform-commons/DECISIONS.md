@@ -661,7 +661,7 @@ future task.
 
 **Status:** Accepted
 
-**Context:** [improvement-132](../backlog/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md)
+**Context:** [improvement-132](../backlog/completed/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md)
 Batch G, items 20-22 — three independent `platform-commons` governance findings from the repo-wide
 review, grouped together since all three touch this module's own naming/package rules.
 
