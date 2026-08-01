@@ -30,8 +30,9 @@ bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the sta
 ```
 
 `run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon`/`audit`/
-`attachment-spring-boot-starter` (6 modules, corrected 2026-07-27 — `audit`/`attachment` were
-added since this note was first written) changed since their last install and only rebuilds those
+`attachment`/`provider-profile-spring-boot-starter` (7 modules, corrected 2026-08-01 —
+`provider-profile` was added since this note was first written) changed since their last install
+and only rebuilds those
 before testing (~1:47-3:35 vs. 3-7 min walking the full reactor every time) — no manual flag
 needed for the common case. `--no-check` skips that detection entirely, testing against whatever
 is already in `~/.m2` even if stale — only for deliberately reproducing behavior against an older
@@ -100,8 +101,11 @@ vars are required — the sandbox-only `--sandbox` workarounds (ADR-004) do not 
 | `attachment/AttachmentSnapshotRepositoryTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | `AttachmentSnapshotRepository`'s URL-history round-trip (insert + `getPrevUrls`/`getUrlsById`) and `deleteOlderThan()`'s retention-window cutoff |
 | `attachment/AttachmentSnapshotServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentSnapshotService`'s filename resolution (real filename vs. URL-segment fallback when no matching attachment row exists) and independent resolution of duplicate original filenames across URLs |
 | `audit/AuditLogRepositoryTest` | Testcontainers + `@SpringBootTest` | `AuditLogRepository.findTimeline()`/`getSnapshotContent()`'s `version`-numbering subqueries get an `id` tiebreaker for same-`created_at` rows — improvement-050 item 4; first `AuditLogRepositoryTest`, improvement-027 Batch 3 |
+| `providerprofile/ProviderProfileRepositoryTest` | Testcontainers + `@SpringBootTest` | Real SQL correctness for `ProviderProfileRepository` — filter (kind, cityTaxonId), sort, pagination, `findOwnerIds()`, optimistic-locked `delete()` — against real `provider-profile-spring-boot-starter` + `user-spring-boot-starter` autoconfiguration — improvement-124 Batch 124-B |
+| `providerprofile/ProviderProfileServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `ProviderProfileService`'s HTML sanitization policy (mirrors `AdvertisementServiceHtmlSanitizationTest`) and the `kind == SUPPORT` requires-privileged-actor authorization rule (accept/reject) — improvement-124 Batch 124-B |
+| `providerprofile/ProviderProfileSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `ProviderProfileSnapshotDto.diff()` — pure field-comparison logic — plus a Jackson polymorphic round-trip (de)serialization test, the first of any `AuditableSnapshot` subtype to have one — improvement-124 Batch 124-B |
 | `SharedEnvConfigTest` | Plain JUnit, no Spring, no DB | `SharedEnvConfig.require()` walking up directories to find the repo-root `.env`, and its failure modes (no `.env` in range, key missing from an `.env` that does exist) |
-| `user/UserSettingsRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserSettingsRepository.save()`'s optimistic locking embedded in the `settings` JSONB column's own `version` field (fresh row starts at 0, stale version throws, correct version succeeds and increments) |
+| `user/UserPreferencesRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserPreferencesRepository.save()`'s optimistic locking embedded in the `settings` JSONB column's own `version` field (fresh row starts at 0, stale version throws, correct version succeeds and increments) — corrected 2026-08-01, was stale as `UserSettingsRepositoryTest` (renamed in improvement-124 Batch A) |
 
 ### `PostgresContainerSmokeTest`
 

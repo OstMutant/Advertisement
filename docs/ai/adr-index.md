@@ -128,6 +128,7 @@ rerun the script after any `DECISIONS.md` change instead. Only files using the
 | ADR-069 (marketplace-app) | marketplace-app | Accepted | `user-spring-boot-starter` doc fix + `User.toDto()` dedup + `@NonNull` sweep (improvement-132 Batch C) |
 | ADR-070 (marketplace-app) | marketplace-app | Accepted | F-04 Batch A — `locale`/`settings` split out of `user_information` into `user_preferences` (improvement-124) |
 | ADR-071 (marketplace-app) | marketplace-app | Accepted | `UserDto.locale` removed, `UserProfileUpdate` renamed, `UserPort` split (improvement-124 Batch A2) |
+| ADR-072 (marketplace-app) | marketplace-app | Accepted | `EntityType.PROVIDER_PROFILE` compiler-forced touches (improvement-124 Batch 124-B) |
 | ADR-001 (platform-commons) | platform-commons | Accepted | Package restructure — core / audit / attachment / user / advertisement |
 | ADR-002 (platform-commons) | platform-commons | Accepted | Package semantics — api vs spi vs dto |
 | ADR-003 (platform-commons) | platform-commons | Accepted | SPI naming convention — Port and Hook suffixes |
@@ -154,6 +155,7 @@ rerun the script after any `DECISIONS.md` change instead. Only files using the
 | ADR-024 (platform-commons) | platform-commons | Accepted | Snapshot schema versioning — a real `schemaVersion` field everywhere, no reflection |
 | ADR-025 (platform-commons) | platform-commons | Accepted | Batch G governance cleanup — DTO boundary, Hook→Port rename, UserIdMarker package |
 | ADR-026 (platform-commons) | platform-commons | Accepted | One starter, multiple `*Port` interfaces — `UserPort` split into 4 (improvement-124 Batch A2) |
+| ADR-027 (platform-commons) | platform-commons | Accepted | `ProviderProfilePort` added — F-04 Batch 124-B, `provider-profile-spring-boot-starter` |
 | ADR-001 (playwright) | playwright | Accepted | data-testid convention for form field selectors |
 | ADR-002 (playwright) | playwright | Accepted — **known current code drift, not yet fixed** (see note below) | No waitForTimeout — wait on Vaadin state attributes |
 | ADR-003 (playwright) | playwright | Accepted | --ux flag controls screenshots |

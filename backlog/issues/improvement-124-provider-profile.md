@@ -588,7 +588,7 @@ starting the next — later batches depend on earlier ones compiling and passing
   user purge, two related NPEs in the bulk locale lookup, a dropped legacy-JSON test scenario) plus
   3 duplication cleanups — see `marketplace-app/DECISIONS.md` ADR-070 for the full list.
 
-### Batch 124-B — new `provider-profile-spring-boot-starter` module (backend only, no UI)
+### Batch 124-B — new `provider-profile-spring-boot-starter` module (backend only, no UI) — ✅ DONE (2026-08-01)
 - `platform-commons`: `EntityType.PROVIDER_PROFILE`, `ProviderKind`, `ProviderProfileDto`/
   `ProviderProfileSaveDto`/`ProviderProfileFilterDto`/`ProviderProfileSnapshotDto` (schemaVersion
   per ADR-024), `ProviderProfilePort`.
@@ -601,10 +601,52 @@ starting the next — later batches depend on earlier ones compiling and passing
   privileged-actor rule, `deleteProviderProfile()` as a real delete), port impl, autoconfiguration.
   Root `pom.xml` + `integration-tests` reactor/staleness-check/`TestDataCleaner.cleanAll()`
   registration.
-- **Gate → 124-C:** `bash scripts/unit-tests.sh` (`ProviderProfileServiceTest` — sanitization,
-  `SUPPORT`-privilege accept/reject) + `bash scripts/integration-tests.sh --sandbox` (new
-  `ProviderProfileRepositoryTest`) green; module builds standalone. No Playwright — no UI surfaces
-  this module yet.
+- **Gate → 124-B2: PASSED.** `bash scripts/unit-tests.sh` (77/77) + `bash scripts/integration-
+  tests.sh --sandbox` (164/164, +28 new `ProviderProfile*` tests, every domain) green; module
+  builds standalone. `/code-review`'s full 8-angle pass (9 verified candidates) found and fixed 3
+  real bugs — a dead `ProviderProfileFilterDto.cityTaxonId` filter field never wired into SQL, an
+  unguarded taxon-assignment clear on `delete()` for a possibly-nonexistent row, and an unnecessary
+  defensive empty-check in `findCities()` — plus surfaced 2 findings deferred to Batch 124-B2 (see
+  below) since fixing them touches `advertisement-spring-boot-starter`. No Playwright — no UI
+  surfaces this module yet. See `platform-commons/DECISIONS.md` ADR-027 /
+  `marketplace-app/DECISIONS.md` ADR-072 for the full record.
+
+### Batch 124-B2 — cross-domain cleanup surfaced by Batch 124-B's `/code-review --fix` pass
+
+Two findings from Batch 124-B's review survived verification (CONFIRMED/PLAUSIBLE) but require
+touching `advertisement-spring-boot-starter` files outside Batch 124-B's own scope, so they were
+not fixed inline — kept as their own follow-up batch (not `improvement-133`, per explicit user
+direction 2026-08-01) since both are directly caused by mirroring `AdvertisementService`'s shape
+into `ProviderProfileService` in this same issue, not unrelated drive-by findings.
+
+1. **Shared HTML-sanitizer/visible-text-length utility.** `ProviderProfileService.HTML_SANITIZER`/
+   `sanitizeHtml()`/`validateAboutLength()` are near-verbatim copies of `AdvertisementService`'s
+   `HTML_SANITIZER`/`sanitizeHtml()`/`validateDescriptionLength()` — same OWASP `PolicyFactory`
+   construction, same Jsoup-based visible-text-length check shape, differing only in field/constant
+   names and the max-length value. Verifier confirmed a natural home: a new
+   `org.ost.platform.core.util` static utility in `platform-commons` (e.g.
+   `HtmlSanitizerUtil.sanitize(html, maxVisibleLength)`), the same "utility class used by ≥2
+   modules" precedent `YoutubeUtil` already establishes (`platform-commons/CLAUDE.md`) — neither
+   starter currently pulls OWASP/Jsoup into `platform-commons`, but both already depend on
+   `platform-commons`, so this doesn't add a new starter-to-starter coupling. Repoint both
+   `AdvertisementService` and `ProviderProfileService` to call it; delete both local copies.
+2. **Stale-id-during-concurrent-delete edge case in `save()`.** In both `AdvertisementService
+   .save()`/`buildEntity()` and `ProviderProfileService.save()`/`buildEntity()`: when the DTO
+   carries a non-null `id` (an edit) but the row was deleted between read and write,
+   `repository.findById(id)` returns empty, `before` is `null`, and `buildEntity()` silently falls
+   back to insert-shaped defaults (`createdBy`/`createdAt` or `actorId`/`createdAt`) while still
+   carrying the now-stale `id` — Spring Data JDBC then attempts an update-path against a
+   non-existent row instead of surfacing a clear "not found"/conflict error. Confirmed as an exact
+   pre-existing pattern already shipped in `AdvertisementService`, not something Batch 124-B
+   introduced — fix both call sites together (e.g. `before == null && dto.id() != null` →  throw a
+   clear "already deleted" exception) so the two domains don't drift into two different error
+   shapes for the same race.
+
+- **Gate → 124-C:** `bash scripts/unit-tests.sh` + `bash scripts/integration-tests.sh --sandbox`
+  green for both `advertisement-spring-boot-starter` and `provider-profile-spring-boot-starter`;
+  no behavior change for either domain's happy path (verify via existing
+  `AdvertisementServiceHtmlSanitizationTest`/`ProviderProfileServiceTest` continuing to pass
+  unmodified against the new shared utility).
 
 ### Batch 124-C — `AccountOverlay`, 3 independent tabs + audit, permission model
 - **Correction (2026-07-31, must be re-verified when this batch starts):** `buildTabbedContent()`/

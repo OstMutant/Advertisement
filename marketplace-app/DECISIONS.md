@@ -3571,3 +3571,58 @@ to `UserAuthorizationPort` — corrected.
 **Consequence:** `UserDto` is now a pure identity/auth view — no field on it exists for the benefit
 of exactly one consumer. Any future addition to `UserDto` should clear the same bar: is this read
 by more than the one place asking for it, or does it belong behind a narrower lookup instead.
+
+## ADR-072: `EntityType.PROVIDER_PROFILE` compiler-forced touches (improvement-124 Batch 124-B)
+
+**Status:** Accepted
+
+**Context:** Batch 124-B (see `platform-commons/DECISIONS.md` ADR-027) added
+`EntityType.PROVIDER_PROFILE` and a new `provider-profile-spring-boot-starter` module, backend
+only — no UI ships in this batch. Adding a new `EntityType` enum value forces every exhaustive
+`switch` over it in marketplace-app to gain a case before the module compiles at all.
+
+**Decision:** Four compiler-forced (or plan-mandated) touches, all backend-adjacent, no UI:
+- `spi/AuditDomainHookImpl.findExisting()` — new `case PROVIDER_PROFILE ->
+  providerProfilePortFactory.findIfAvailable()...`, same shape as the `TAXON` case.
+- `services/i18n/I18nKey.forEntityType()` — new `ENTITY_TYPE_PROVIDER_PROFILE` case + EN/UK
+  strings (`entityType.providerProfile` = "Provider Profile" / "Профіль постачальника").
+- `styles.css`/`activity-feed.css` — new `--app-status-entity-provider-profile-bg/-text` badge
+  color pair (indigo, `#e0e7ff`/`#3730a3`) + `.activity-feed-type--provider_profile`, following the
+  `TAXON` precedent (teal) exactly.
+- `config/JacksonConfig.registerAuditSnapshotSubtypes()` — `ProviderProfileSnapshotDto.class`
+  added to the polymorphic `auditObjectMapper`'s subtype registry. Confirmed via a new
+  round-trip (de)serialization test (`ProviderProfileSnapshotDtoTest`, `integration-tests`) — none
+  of the 4 pre-existing `AuditableSnapshot` subtypes had one, so this closes that coverage gap
+  rather than assuming the registration is correct.
+
+**Confirmed unaffected — fully data-driven, no changes needed:** `TimelineQueryBlock`'s
+entity-type filter (built from `EntityType.values()` directly) and `AuditReadService`. A
+`/code-review` verifier confirmed the resulting "Provider Profile" option in the Timeline filter
+(rendering correctly via the new i18n key, since `forEntityType()` is already wired) returning zero
+rows until Batch 124-C ships an audit-write path is a harmless, self-correcting, one-batch gap —
+not worth conditionally hiding.
+
+**Deliberately deferred to Batch 124-C, not this batch:** `ProviderProfileActivityFieldsHookImpl`/
+`ProviderProfileActivityEnrichHookImpl` (the per-domain field-label triad every other domain has) —
+no audit rows of this `EntityType` exist yet in this batch (no `ProviderProfileSaveService`, no
+`AuditPort.record()` call), so there is nothing yet for a fields hook to label. Add it in the same
+batch that adds the write path, per the `AdvertisementActivityFieldsHookImpl` `cityTaxonId`-omission
+precedent (ADR-065) — every `Fields.*` case from day one once it's written, not incrementally.
+
+**"Isn't `ProviderProfileService` just a copy of `AdvertisementService`?"** — raised directly during
+this batch's planning. Yes, structurally: same repository/service/port-impl skeleton, same
+`SqlFilterBuilder`/`RowMapper`-as-static-final shape, same OWASP-sanitize-then-Jsoup-length-check
+pattern. Deliberate, not accidental — `CLAUDE.md`'s "Pattern-first: symmetry with existing code is
+a first-class goal" and the Module Import Rules' one-starter-per-domain independence (each starter
+must stay removable without another starter noticing) both push toward mirroring the established
+shape rather than extracting a shared base class across starters. What's *not* copied: the
+`about`/`ABOUT_MAX_LENGTH` field target, the `kind`-specific filter/save shape, the `SUPPORT`-
+privilege rule (unique to this domain), lazy row creation, and the real-`DELETE` semantics — see
+`platform-commons/DECISIONS.md` ADR-027 for the full divergence list. The genuine duplication this
+raised (`HTML_SANITIZER` policy construction, the Jsoup length-check pattern) was confirmed by
+`/code-review` as extractable to a `platform-commons` utility, but deferred to Batch 124-B2 (see
+ADR-027) since fixing it touches `AdvertisementService`, outside this batch's own scope.
+
+**Consequence:** No behavior visible to any existing user changes in this batch — every touch here
+is either compiler-forced or additive (new enum case, new CSS, new i18n key, new subtype
+registration). The first user-visible surface for provider profiles is Batch 124-C's `AccountOverlay`.

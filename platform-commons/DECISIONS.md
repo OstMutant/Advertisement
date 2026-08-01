@@ -741,3 +741,74 @@ callers use independently, the same evidence-first approach used here, not a siz
 remain single interfaces — they don't (yet) show the same multi-concern consumer pattern `UserPort`
 did. If one of them grows a similarly-mixed consumer profile later, this ADR is the precedent to
 cite, with the same consumer-grep-first discipline, not a rubber stamp for splitting on sight.
+
+## ADR-027: `ProviderProfilePort` added — F-04 Batch 124-B, `provider-profile-spring-boot-starter`
+
+**Status:** Accepted
+
+**Context:** F-04 (improvement-124) adds a "provider profile" concept — any actor can optionally
+describe themselves as a service provider (`MASTER`/`SHOP`/`SUPPORT`). The original single-table
+design (merging this with locale/settings into one `actor_profile` row) was superseded before
+implementation by a 2026-07-31 update to the issue: three tables, not one — `user_information`
+(auth, unchanged), `user_preferences` (locale/settings, Batch 124-A, already shipped), and a new
+standalone `provider_profile` table/module (this ADR). See `backlog/issues/improvement-124-provider-profile.md`'s
+"Update 2026-07-31 — module/table split reconsidered" for the full rationale.
+
+**Decision:** New package `org.ost.platform.providerprofile` (`model.ProviderKind`,
+`dto.ProviderProfileDto`/`ProviderProfileSaveDto`/`ProviderProfileFilterDto`/
+`ProviderProfileSnapshotDto` — `schemaVersion` per ADR-024 — `spi.ProviderProfilePort`), plus
+`EntityType.PROVIDER_PROFILE`. `ProviderProfilePort`'s shape mirrors `AdvertisementPort` closely
+(`getFiltered`/`count`/`findById`/`save`/`delete`/`findExistingIds`/`findOwnerIds`) — deliberate
+symmetry with the established starter pattern, not an accident (see `marketplace-app/DECISIONS.md`
+ADR-072 for the "isn't this just a copy?" discussion this raised during implementation). Backed by
+a new `provider-profile-spring-boot-starter` module owning `ProviderProfile` entity/repository/
+service/port-impl/autoconfiguration — this batch is backend-only, no UI, no audit-write path yet
+(that's Batch 124-C).
+
+**Deliberate divergences from `AdvertisementPort`'s shape, each grounded in a real difference:**
+- `kind` is `NOT NULL` and the row is created **lazily** (only on first "become a provider" save) —
+  unlike `advertisement`, there is no "every actor gets one eagerly at registration" concept.
+- `city_taxon_id` is a **plain column** on `provider_profile`, not a `taxon_assignment` row like
+  `advertisement`'s city/category handling — a provider has exactly one city, so a scalar column is
+  the simpler, correct shape; only `categoryIds` (many-to-many) goes through
+  `TaxonPort.replaceAssignments()`.
+- `delete()` is a **real `DELETE`**, not a soft-delete — `provider_profile` carries no
+  `deleted_at`/`deleted_by` columns, so there is no "restore a deleted provider profile" concept in
+  this design.
+- `findOwnerIds()` exists (mirrors `AdvertisementPort`'s created_by-purge-block precedent) but
+  **no `clearActorReferences()`** — `advertisement` needs it to null its nullable `updated_by`/
+  `deleted_by` audit columns on user purge; `provider_profile` has no nullable actor-reference
+  columns to null, `actor_id` is the sole, non-nullable owner reference, so `findOwnerIds()` alone
+  (block purge while a profile exists) is sufficient.
+- `ProviderProfileService.save()` enforces `kind == SUPPORT` requires an `actingUserIsPrivileged`
+  boolean the caller (marketplace-app) computes via `AccessEvaluator` and passes in — the **one**
+  authorization-shaped rule this starter enforces server-side, an explicit, deliberate exception to
+  the "authorization lives only in marketplace-app" convention (confirmed via `/code-review`
+  verification against the approved issue plan during this batch — REFUTED as an architecture
+  violation, since the plan calls it out by name as "the one real authorization rule this feature
+  adds"). Treat it as a data-integrity guarantee (like `AdvertisementService`'s server-side
+  description-length enforcement), not a precedent for adding general authorization logic to
+  starters.
+- Unlike `advertisement`/`taxon`, `ProviderProfileService`'s own service — not a marketplace-app
+  orchestration service — writes category assignments directly via `TaxonPort.replaceAssignments()`
+  (see the issue's Part 1 technical plan). This batch has no marketplace-app "SaveService" yet
+  (that's Batch 124-C, alongside the actual `AuditPort.record()` call), so there was no other layer
+  to put it in.
+
+**Found and fixed during `/code-review`'s 8-angle pass (Batch 124-B):** `ProviderProfileFilterDto
+.cityTaxonId` was declared but never wired into the repository's `SqlFilterBuilder` (a dead filter
+field — fixed, now bound to `pp.city_taxon_id`); `ProviderProfileService.delete()` unconditionally
+cleared taxon assignments before checking the row existed, unlike `AdvertisementService.delete()`'s
+existence-guarded pattern (fixed, same guard added); an unnecessary empty-set defensive check in
+`ProviderProfileEnrichmentService.findCities()` was removed (`TaxonPort.findByIds()`'s own contract
+already handles an empty input set). Two further real findings — `HTML_SANITIZER`/`sanitizeHtml()`
+duplication with `AdvertisementService`, and the shared "stale id during concurrent delete" edge
+case both `AdvertisementService.save()` and `ProviderProfileService.save()` have — were kept out of
+this batch (they require touching `advertisement-spring-boot-starter`, outside Batch 124-B's own
+scope) and filed as Batch 124-B2 in `backlog/issues/improvement-124-provider-profile.md`, at the
+user's explicit direction, rather than the generic `improvement-133` bucket.
+
+**Consequence:** `EntityType.USER_SETTINGS` keeps being used unchanged for the Settings tab
+(preferences never merged into `provider_profile`, so the earlier "keep as historical tag or
+migrate" open question from the superseded single-table design is moot). The next batch (124-B2)
+must land before 124-C, per the updated gate in the issue file.

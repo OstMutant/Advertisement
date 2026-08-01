@@ -13,6 +13,7 @@
 /query-lib/target/
 /taxon-spring-boot-starter/target/
 /integration-tests/target/
+/provider-profile-spring-boot-starter/target/
 
 # Vaadin frontend generated files
 /marketplace-app/src/main/frontend/generated/
