@@ -92,6 +92,34 @@ built-in Claude Code skills (not files here at all — only visible via the sess
   check, not a continuous guarantee — same category of limitation as the `scripts/ci.sh` backstop
   above, stated for the same reason (glossing over it would just reproduce this exact gap later).
 
+### 2, 3, 4 — consolidated (2026-08-01): one recording mechanism, one aggregation trigger
+
+**Superseding note.** Items 2 and 4 below were each first answered with a one-off exercise: item 2
+by tallying real (not fabricated) token numbers already produced during this session's own work,
+after the fact; item 4 with 6 isolated blind-subagent tests on synthetic task phrasings. Both were
+useful first spot-checks, but neither keeps answering the question as the codebase and usage
+evolve, and repeating either to stay current is expensive for what it buys — a real snapshot in
+item 2's case, a synthetic one in item 4's, but a snapshot either way. Consolidated instead into one
+mechanism applied uniformly to items 2, 3, and 4 — record real observations from real tasks as
+they're completed, aggregate them periodically:
+
+- **Recording:** `.claude/rules.md` "Final reports record real operational data in a fixed,
+  mechanically-parseable block" — every completed issue gets an `## Operational notes` block with
+  fixed `key: value` lines (token cost by purpose; `docs/ai/context-loading.md` task-type/
+  consulted/matched; `docs/ai/flows.md` situation/chosen/matched). Mechanically parseable by
+  design, the same way `## ADR-NNN:`/`**Status:**` makes `DECISIONS.md` indexable — not free-form
+  prose, so an aggregate pass doesn't have to re-interpret each entry.
+- **Aggregation trigger:** `/sync-docs --full-audit` Step A5 (new) — greps `backlog/completed/
+  issues/` (+ in-progress `backlog/issues/`) for `## Operational notes` blocks accumulated since
+  the last audit, parses the fixed keys directly, and reports: token cost trend by purpose,
+  `context_loading_matched` tally by task type, `flows_matched` tally. Feeds `docs/ai/`'s own
+  governing rule (item 5) — real accumulated evidence, not a synthetic snapshot. If too little data
+  has accumulated to say anything, that absence is itself reported, not silently skipped.
+
+This mechanism now owns items 2, 3, and 4 going forward. The synthetic spot-checks below are kept
+as the initial data points (both found no problem), not the final word — real accumulated data
+from `## Operational notes` blocks, reviewed at the next `/sync-docs --full-audit`, supersedes them.
+
 ### 2. Measure actual review-skill token cost — track it, don't act on a single number — ✅ DONE (measurement practice adopted; no default changed)
 
 **Reframed (2026-07-31) — narrower and more concrete than the original "docs/ai/* read-count
@@ -133,12 +161,14 @@ yet, needs evidence):
   plainly in the report every time, default or deviated, so the choice is never silent even when
   it was reasonable.
 
-### 3. Validate `context-loading.md` empirically — does it actually reduce reads
+### 3. Validate `context-loading.md` empirically — does it actually reduce reads — ✅ mechanism done, empirical answer pending real data
 
-Small, scoped experiment: pick 3-5 representative task types already categorized in
-`context-loading.md`, run them with and without that file available, compare actual file-read
-counts/patterns. Not an ongoing measurement system — a one-time validation to decide whether the
-file earns its maintenance cost.
+**Superseded the original plan** (a synthetic 3-5-task with/without experiment) — see the
+consolidated "2, 3, 4" section above. The recording mechanism is live as of this issue; the actual
+empirical answer requires real `## Operational notes` data to accumulate across genuinely completed
+tasks first, then gets reviewed at the next `/sync-docs --full-audit` (Step A5). Not answerable in
+one sitting by design — that was the original plan's flaw (a synthetic snapshot, not evolving
+evidence).
 
 ### 4. Measure workflow routing accuracy — task → correct command/skill — ✅ DONE (bounded)
 
@@ -191,3 +221,18 @@ principle, applied to the AI-navigation layer itself — a stale or speculative 
   backstop (secondary, manually-triggered).
 - `docs/ai/README.md` — "Staying correct" section, updated to mention `check-adr-index-freshness.sh`
   alongside `/sync-docs --full-audit`'s existing ADR classifier.
+
+## Operational notes
+
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: 354000 (6 isolated routing-test agents for item 4, ~59K tokens each)
+- context_loading_task_type: n/a — AI-tooling/process work, no clean match to a context-loading.md row
+- context_loading_consulted: no
+- context_loading_matched: n/a
+- flows_situation: n/a — ad hoc, conversation-driven, not initiated via a flows.md-mapped command
+- flows_chosen: n/a
+- flows_matched: n/a
+
+**Status: item 1, 2, 4 done; item 3's mechanism built but its empirical answer is pending real
+accumulated data — issue stays open, not moved to `completed/issues/`.**

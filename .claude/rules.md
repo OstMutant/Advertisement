@@ -170,18 +170,34 @@ the user reads the actual code/diff themselves and finds a full file-by-file rec
 Keep the report human: what was done in plain terms, test results (counts, not just "passed"),
 and review-finding decisions. Skip the enumerated file-changes section entirely.
 
-### Final reports — include real agent-call token cost, broken down by purpose, not a vibe
-Every Agent-tool call already returns an exact `subagent_tokens` figure — no estimation needed.
-When reporting completed work, sum these per purpose the calls served (e.g. research/investigation,
-review, verification/testing) rather than one flat total, so the breakdown shows where the cost
-actually went, not just how much there was. State plainly what this breakdown does **not** cover:
-there is no tool that reports main-thread token usage (the primary conversation's own planning and
-implementation work), so any total is a lower bound on the real cost, not a full accounting — say
-so explicitly rather than presenting a partial figure as complete. Build this into a real,
-comparable cost history over time so any future decision about review depth/effort level is made
-from evidence, not impression. The cost figure alone is never sufficient reason to lower a review's
-effort level — that requires a deliberate, explicitly-approved side-by-side comparison showing no
-loss in real findings first, not a one-off number that merely looks high.
+### Final reports record real operational data in a fixed, mechanically-parseable block
+Whenever completing an issue, append an `## Operational notes` block to that issue file — real
+observations from the real task just done, not a synthetic exercise, and not free-form prose (a
+later aggregate pass greps/parses this across many issue files, the same way `## ADR-NNN:` +
+`**Status:**` makes `DECISIONS.md` mechanically indexable — inconsistent formatting defeats that).
+Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply to this task:
+
+```
+## Operational notes
+- token_cost_review: <tokens summed from Agent-tool review-purpose calls, or n/a>
+- token_cost_research: <tokens summed from Agent-tool research/investigation calls, or n/a>
+- token_cost_verification: <tokens summed from Agent-tool verification/testing calls, or n/a>
+- context_loading_task_type: <the matching docs/ai/context-loading.md row, or n/a>
+- context_loading_consulted: <yes/no/n/a>
+- context_loading_matched: <yes/no/n/a — did the actual read pattern match that row's guidance>
+- flows_situation: <short phrase describing the situation, or n/a>
+- flows_chosen: <the command/skill actually used, or n/a>
+- flows_matched: <yes/no/n/a — did it match docs/ai/flows.md's recommendation for that situation>
+```
+
+Show this same block in the chat final report too, not only in the issue file — writing it to the
+file alone is invisible to the user unless they go open that file themselves. Include it verbatim
+(or immediately adjacent to) the rest of the completion report, every time, not just when a number
+happens to look interesting.
+Token totals are never a full accounting — no tool reports main-thread token usage, state that as
+context if asked, not inside the block itself (keep the block just the key: value lines, nothing
+else, so parsing stays trivial). See `.claude/commands/sync-docs.md`'s Full Audit Mode for where
+this data gets aggregated and acted on.
 
 ### Review-skill effort level — default stays put; deviation allowed only when obvious, always disclosed
 A review-style skill's effort level defaults to whatever it defaults to when the user doesn't name

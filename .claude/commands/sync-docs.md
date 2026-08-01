@@ -172,12 +172,31 @@ plus:
   documentation. Never touch code in `--full-audit` mode. Documentation always changes to match
   code, never the reverse.
 
-### Step A5 — Report
+### Step A5 — Aggregate operational self-tracking notes
+
+Per `.claude/rules.md`'s "Final reports record real operational data in a fixed, mechanically-
+parseable block" rule, completed issues carry a `## Operational notes` block with fixed `key:
+value` lines (`token_cost_review`, `token_cost_research`, `token_cost_verification`,
+`context_loading_task_type`, `context_loading_consulted`, `context_loading_matched`,
+`flows_situation`, `flows_chosen`, `flows_matched`). Grep `backlog/completed/issues/` (and
+`backlog/issues/` for in-progress work) for `## Operational notes` blocks added since the last
+full-audit and aggregate mechanically (parse the `key: value` lines directly, the same way
+`generate-adr-index.sh` parses `## ADR-NNN:`/`**Status:**` — do not rely on prose parsing):
+- Token cost trend by purpose (`token_cost_review`/`research`/`verification`) across the sampled
+  issues — sum and average, `n/a` entries excluded from the average, not treated as zero.
+- `context_loading_matched` yes/no/n/a tally, grouped by `context_loading_task_type`.
+- `flows_matched` yes/no/n/a tally.
+Feed the result into `docs/ai/`'s own governing rule (`improvement-135` item 5): this is real
+evidence for or against expanding/trimming the navigation layer, not a synthetic exercise. If too
+few blocks have accumulated since the last audit to say anything meaningful, report that plainly —
+absence of data is itself a finding (the recording practice may not be happening consistently).
+
+### Step A6 — Report
 
 Same shape as Step 5, plus: a per-file table of ADR verdicts (VALID count vs. each flagged entry
 with a one-line reason), the same per-file verdict shape for every README.md and CLAUDE.md
-checked, and an explicit list of anything found stale in code itself (not just in docs) that was
-deliberately left unfixed per the rule above — so it doesn't silently disappear after the audit.
+checked, an explicit list of anything found stale in code itself (not just in docs) that was
+deliberately left unfixed per the rule above, and Step A5's operational self-tracking aggregate.
 
 ---
 
