@@ -762,6 +762,78 @@ existing `json_escape()` since diagram source needs its line structure preserved
 unlike every other field emitted so far. Verified via the same headless-harness pattern, extended
 to check the two new screens and the new Module-screen sections against the real generated model.
 
+**A2 third correction (same day, user-flagged, then user-directed actual visual verification):**
+two more rounds:
+1. User pointed out only 2 of `docs/architecture`'s 5 diagram-bearing files (`02`, `04`) were
+   wired in — `01` (module dependency graph), `03` (context map), and `05` (6 documented / 9 actual
+   sequence diagrams) were missing. Generalized the two hardcoded diagram extractions into
+   `extract_all_mermaids_json()`, which walks any file and pairs every `` ```mermaid `` block with
+   its nearest preceding heading — replaced the `diagrams: {database_erd, spi_map}` object with a
+   `diagramGroups[]` array (one entry per source file, each holding all its diagrams), and replaced
+   the two separate top-level System cards with one "📐 Diagrams" entry leading to a
+   group-then-detail browser. Found and fixed a real bug in the extractor itself while building
+   this: this environment's `awk` doesn't support `{1,3}`-style regex intervals (silently matches
+   nothing, no error) — `/^#{1,3} /` never matched any heading, so every diagram's title came back
+   empty until changed to the POSIX-safe `/^#+ /`.
+2. User asked for zoom (+/−/reset) controls on the diagram views "it would look nicer." Added a
+   CSS `transform: scale()` zoom control. **Then actually verified visually** (see below) — the
+   first zoom implementation didn't fix anything, because Mermaid's own `useMaxWidth: true` default
+   pre-shrinks the rendered SVG to fit its container before my zoom transform ever touches it,
+   making the SPI diagram illegibly tiny at any zoom level. Fixed by setting
+   `useMaxWidth: false` on `flowchart`/`er`/`sequence` in `mermaid.initialize()`, so diagrams render
+   at natural size (the wrap container scrolls; zoom is now a real magnifier on top of a
+   properly-sized diagram, not a scale-up of an already-shrunk one).
+
+**Visual verification, finally done for real** (user pointed out Playwright — already in this
+repo's toolchain — could screenshot a local HTML file, not just the running app; this was correct,
+and the earlier "no display in this environment" framing understated what was actually available).
+New `scripts/ai/screenshot-architecture-map.sh`: reuses `playwright/run.sh`'s pinned image
+(`mcr.microsoft.com/playwright:v1.61.1-jammy`), keeps a warm `arch-map-shot` container across runs
+(same pattern as `pw-runner`), screenshots all 7 key states (System, a Module, the Diagrams list,
+the SPI diagram before/after zoom, Pipelines, Backlog) to
+`scripts/ai/architecture-map-screenshots/` (gitignored). Running it and actually reading the
+screenshots caught the `useMaxWidth` bug above — the headless-harness JS checks from earlier
+rounds verified the code *ran without error and produced the expected DOM structure*, which is not
+the same as verifying it was *legible*, and this round's failure is exactly the gap between those
+two things.
+
+**A2 fourth correction (same day, user-flagged after seeing the screenshots):** three more asks,
+each verified by re-running `screenshot-architecture-map.sh` and reading the result, not just
+checking the code runs:
+1. System map needed the same zoom (+/−/reset) affordance as the Diagrams screen — added a
+   matching `.diagram-toolbar`, wired to Cytoscape's own `cy.zoom()` API (native pan/zoom was
+   already enabled by default, just undiscoverable with no visible controls).
+2. Diagram views should support drag-to-pan like the System map's graph does — added
+   `enableDragToPan()`, a generic mousedown/mousemove/mouseup handler driving the wrap element's
+   `scrollLeft`/`scrollTop` (Mermaid's static SVG has no native per-node dragging the way Cytoscape
+   does; panning the whole canvas is the equivalent affordance for a diagram viewer). Confirmed
+   with a real Playwright mouse-drag simulation (`scrollLeft` 0 → 300 after a 300px drag), not just
+   a code-review of the handler.
+3. System map's layout was two flat rows with crossing arrows and not left-to-right like
+   `01-module-dependencies.md`'s own `graph LR`. Loaded `cytoscape-dagre` (+ its `dagre`
+   dependency) via CDN and switched the layout from `breadthfirst` to `dagre, rankDir: LR`.
+   Dependency direction for *layout ranking* is intentionally reversed from the *visual* arrow
+   direction (dagre ranks source-before-target; edges are fed to it as dependency→dependent so
+   `platform-commons`/`query-lib` rank leftmost, matching the documented diagram's convention) —
+   the arrowhead itself is drawn via `source-arrow-shape`, independent of the ranking direction, so
+   it still visually points at the dependency, not the dependent.
+
+**A2 fifth correction (same day, user-flagged):** "System" (Cytoscape, native drag/zoom) was liked;
+the Diagrams screen (still Mermaid static SVGs at that point) wasn't — user asked directly for
+draggable nodes with edges following, not just pan. Added `parseMermaidGraph()`, a minimal parser
+for this repo's own Mermaid dialect (`graph LR/TD/TB`, `ID["Label"]` node declarations,
+`subgraph ID["Label"] ... end` blocks, `-->`/`-.->` edges with optional `|label|`) — not a general
+Mermaid grammar, just what `01`/`02`/`03` actually use. Diagrams from those 3 files now render as
+real Cytoscape graphs (dagre layout, compound nodes for subgraphs) with native drag-and-drop and
+`cy.zoom()`, identical interaction model to the System map. `04` (ERD) and `05` (sequence diagrams)
+deliberately stay Mermaid — an ERD needs a table/column renderer Cytoscape doesn't give for free,
+and sequence diagrams are temporal/lifeline diagrams where "drag this box anywhere" doesn't map
+onto what the diagram represents; the UI states this explicitly rather than silently behaving
+differently with no explanation. Confirmed for real, not just code-reviewed: a Playwright script
+read `diagramCy.nodes()[0].position()` before and after a simulated mouse drag (`{x:1615.75,
+y:50.75}` → `{x:1615.75, y:88.4}`) and the resulting screenshot visibly shows the dragged node's
+both edges (incoming and outgoing) re-routed to follow it.
+
 **Testing (per this issue's own strategy above, extended after root-causing the 3 CI failures the
 first pass had only flagged and not chased):**
 - `bash scripts/unit-tests.sh`: 79/79 passed, `BUILD SUCCESS`.

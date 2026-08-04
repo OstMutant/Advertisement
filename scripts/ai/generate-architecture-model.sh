@@ -26,17 +26,32 @@ json_escape() {
   printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | LC_ALL=C tr -d '\000-\037'
 }
 
-json_escape_multiline() {
-  # Same as json_escape but preserves line structure (as literal \n escapes) instead of deleting
-  # it -- used for embedding whole Mermaid diagram sources, where newlines are meaningful syntax.
-  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r$//' | LC_ALL=C awk 'BEGIN{ORS="\\n"} {print}'
-}
-
-# Extracts the first ```mermaid ... ``` fenced block's body from a markdown file; empty if none.
-extract_mermaid_block() {
+# Extracts every ```mermaid ... ``` fenced block in a markdown file, paired with its nearest
+# preceding heading, as a comma-joined list of {"title":..,"source":..} JSON objects (no enclosing
+# brackets -- the caller wraps them). Escaping done in-awk so multi-line diagram source never has
+# to round-trip through a bash variable (fragile for content this size/shape).
+extract_all_mermaids_json() {
   local file="$1"
   [ -f "$file" ] || return 0
-  awk '/^```mermaid/{f=1; next} /^```/{if(f) exit} f' "$file"
+  awk '
+    BEGIN { first = 1 }
+    function jesc(s) {
+      gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); gsub(/\r/, "", s); gsub(/\n/, "\\n", s)
+      return s
+    }
+    /^#+ / && !inblock { heading = $0; sub(/^#+ */, "", heading) }
+    /^```mermaid/ { inblock = 1; buf = ""; next }
+    /^```/ {
+      if (inblock) {
+        inblock = 0
+        if (!first) printf(",\n")
+        printf("    {\"title\": \"%s\", \"source\": \"%s\"}", jesc(heading), jesc(buf))
+        first = 0
+      }
+      next
+    }
+    inblock { buf = buf $0 "\n" }
+  ' "$file"
 }
 
 # ── Module list, in pom.xml reactor order ───────────────────────────────────────────────────
@@ -203,17 +218,36 @@ json_str_array() {
   echo "[$out]"
 }
 
-DB_ERD_DIAGRAM="$(extract_mermaid_block "$REPO_ROOT/docs/architecture/04-database-erd.md")"
-SPI_MAP_DIAGRAM="$(extract_mermaid_block "$REPO_ROOT/docs/architecture/02-spi-map.md")"
+# Every documented diagram, from every docs/architecture/*.md file that has one -- not just the
+# two originally picked (user-flagged, 2026-08-04: "not all docs were loaded"). Each source file
+# becomes one group, keyed by its own filename stem so the human layer can label groups
+# meaningfully ("01 · Module Dependencies" etc.) without hand-maintaining a title map.
+declare -A DIAGRAM_FILE_LABEL=(
+  [01-module-dependencies]="Module Dependencies"
+  [02-spi-map]="SPI Map"
+  [03-bounded-contexts]="Bounded Contexts"
+  [04-database-erd]="Database ERD"
+  [05-sequence-diagrams]="Sequence Diagrams"
+)
+diagram_groups_json=""
+first_group=true
+for stem in 01-module-dependencies 02-spi-map 03-bounded-contexts 04-database-erd 05-sequence-diagrams; do
+  f="$REPO_ROOT/docs/architecture/$stem.md"
+  [ -f "$f" ] || continue
+  diagrams_json="$(extract_all_mermaids_json "$f")"
+  [ -z "$diagrams_json" ] && continue
+  $first_group || diagram_groups_json="$diagram_groups_json,"$'\n'
+  first_group=false
+  diagram_groups_json="$diagram_groups_json  {\"key\": \"$stem\", \"label\": \"$(json_escape "${DIAGRAM_FILE_LABEL[$stem]}")\", \"file\": \"docs/architecture/$stem.md\", \"diagrams\": ["$'\n'"$diagrams_json"$'\n'"  ]}"
+done
 
 {
   echo "{"
   echo "  \"generated_by\": \"scripts/ai/generate-architecture-model.sh\","
-  echo "  \"generated_note\": \"Track A only -- modules+deps from pom.xml, domain grouping/entities/services/contracts from docs/architecture/03-bounded-contexts.md (manual confidence), tables from 04-database-erd.md, diagrams reused verbatim from 02/04, lifecycle from DECISIONS.md/backlog, pipeline nodes from docs/ai/flows.md + .claude/commands + .claude/skills. No ArchUnit/bytecode data -- see improvement-138 Track B.\","
-  echo "  \"diagrams\": {"
-  echo "    \"database_erd\": \"$(json_escape_multiline "$DB_ERD_DIAGRAM")\","
-  echo "    \"spi_map\": \"$(json_escape_multiline "$SPI_MAP_DIAGRAM")\""
-  echo "  },"
+  echo "  \"generated_note\": \"Track A only -- modules+deps from pom.xml, domain grouping/entities/services/contracts from docs/architecture/03-bounded-contexts.md (manual confidence), tables from 04-database-erd.md, every Mermaid diagram in docs/architecture/01-05 reused verbatim, lifecycle from DECISIONS.md/backlog, pipeline nodes from docs/ai/flows.md + .claude/commands + .claude/skills. No ArchUnit/bytecode data -- see improvement-138 Track B.\","
+  echo "  \"diagramGroups\": ["
+  echo "$diagram_groups_json"
+  echo "  ],"
   echo "  \"nodes\": ["
 
   first=true
@@ -334,6 +368,8 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
 <meta charset="UTF-8">
 <title>Architecture Control Plane</title>
 <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+<script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+<script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
 <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
 <style>
   :root {
@@ -397,8 +433,14 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .info-list li:last-child { border-bottom: none; }
   .info-list code { background: #f1f3f5; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
   .table-chip { display: inline-block; background: #f1f3f5; color: var(--ink); font-size: 11px; padding: 3px 9px; border-radius: 6px; margin: 2px 4px 2px 0; font-family: monospace; }
-  .diagram-wrap { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 20px; overflow: auto; }
+  .diagram-wrap { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 20px; overflow: auto; max-height: 75vh; }
+  #diagram-zoom-box { transform-origin: top left; width: fit-content; transition: transform .1s ease-out; }
   .diagram-note { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .diagram-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .diagram-toolbar button { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  .diagram-toolbar button:hover { background: var(--bg); }
+  .zoom-controls { display: flex; align-items: center; gap: 6px; }
+  .zoom-controls span#zoom-label { font-size: 12px; color: var(--muted); width: 42px; text-align: center; display: inline-block; }
 </style>
 </head>
 <body>
@@ -417,7 +459,15 @@ cat "$OUTPUT" >> "$HTML_OUTPUT"
 cat >> "$HTML_OUTPUT" <<'HTML_TAIL'
 ;
 
-mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+// useMaxWidth:false on every diagram type -- otherwise Mermaid shrinks the SVG to fit the
+// container width by default, which makes wide diagrams (the SPI map especially) render
+// illegibly tiny no matter how the CSS zoom control scales the result afterward. Render at
+// natural size instead; the diagram-wrap container scrolls, and zoom is a real magnifier on top.
+mermaid.initialize({
+  startOnLoad: false, theme: "neutral",
+  flowchart: { useMaxWidth: false }, er: { useMaxWidth: false }, sequence: { useMaxWidth: false }
+});
+if (typeof cytoscapeDagre !== "undefined") cytoscape.use(cytoscapeDagre);
 
 // ── Data indices ────────────────────────────────────────────────────────────────────────────
 const byId = {};
@@ -426,6 +476,8 @@ const moduleNodes = MODEL.nodes.filter(n => n.type === "MODULE");
 const commandNodes = MODEL.nodes.filter(n => n.type === "COMMAND");
 const skillNodes = MODEL.nodes.filter(n => n.type === "SKILL");
 const backlogNode = MODEL.nodes.find(n => n.type === "BACKLOG_SUMMARY");
+const totalDiagramCount = MODEL.diagramGroups.reduce((sum, g) => sum + g.diagrams.length, 0);
+let zoomLevel = 1;
 
 const domainOrder = [];
 moduleNodes.forEach(n => { if (!domainOrder.includes(n.domain)) domainOrder.push(n.domain); });
@@ -452,10 +504,12 @@ function renderBreadcrumb() {
     html += `<span class="sep">›</span><span class="current">Tooling &amp; Pipelines</span>`;
   } else if (view.screen === "backlog") {
     html += `<span class="sep">›</span><span class="current">Backlog</span>`;
-  } else if (view.screen === "database") {
-    html += `<span class="sep">›</span><span class="current">Database Schema</span>`;
-  } else if (view.screen === "spi") {
-    html += `<span class="sep">›</span><span class="current">SPI &amp; Contracts</span>`;
+  } else if (view.screen === "diagrams") {
+    html += `<span class="sep">›</span><a onclick="navigate({screen:'diagrams'})">Diagrams</a>`;
+    if (view.groupKey && view.diagramIndex !== undefined) {
+      const g = MODEL.diagramGroups.find(x => x.key === view.groupKey);
+      html += `<span class="sep">›</span><span class="current">${esc(g.label)} — ${esc(g.diagrams[view.diagramIndex].title)}</span>`;
+    }
   }
   bc.innerHTML = html;
 }
@@ -463,7 +517,16 @@ function renderBreadcrumb() {
 // ── System screen: domain-grouped module cards + a compact dependency map + Pipelines/Backlog ──
 function renderSystem() {
   let html = `<h2 class="screen-title">System</h2>
-    <div class="screen-desc">${moduleNodes.length} modules across ${domainOrder.length} domains. Click a module to drill in, or use the map below to see dependencies at a glance.</div>
+    <div class="screen-desc">${moduleNodes.length} modules across ${domainOrder.length} domains. Click a module to drill in, or use the map below to see dependencies at a glance (scroll/drag also works — the buttons are just a visible affordance for the same thing).</div>
+    <div class="diagram-toolbar">
+      <span></span>
+      <span class="zoom-controls">
+        <button onclick="zoomMap(-0.2)">−</button>
+        <span id="map-zoom-label">100%</span>
+        <button onclick="zoomMap(0.2)">+</button>
+        <button onclick="zoomMap(0)">reset</button>
+      </span>
+    </div>
     <div id="map"></div>`;
 
   html += `<div class="card-grid" style="margin-bottom:28px">
@@ -475,13 +538,9 @@ function renderSystem() {
       <div class="card-title">📋 Backlog</div>
       <div class="card-desc">${backlogNode ? backlogNode.open_issues : "?"} open, ${backlogNode ? backlogNode.completed_issues : "?"} completed</div>
     </div>
-    <div class="card special-card" onclick="navigate({screen:'database'})">
-      <div class="card-title">🗄 Database Schema</div>
-      <div class="card-desc">Full ERD, reused from docs/architecture/04-database-erd.md</div>
-    </div>
-    <div class="card special-card" onclick="navigate({screen:'spi'})">
-      <div class="card-title">🔌 SPI &amp; Contracts</div>
-      <div class="card-desc">Port/Hook graph, reused from docs/architecture/02-spi-map.md</div>
+    <div class="card special-card" onclick="navigate({screen:'diagrams'})">
+      <div class="card-title">📐 Diagrams</div>
+      <div class="card-desc">${totalDiagramCount} diagrams across ${MODEL.diagramGroups.length} docs — dependency graph, SPI map, context map, ERD, sequence flows</div>
     </div>
   </div>`;
 
@@ -502,19 +561,27 @@ function renderSystem() {
   renderMap();
 }
 
+let systemCy = null;
+
 function renderMap() {
   const els = moduleNodes.map(n => ({
     data: { id: n.id, label: n.id.replace(/-spring-boot-starter$/, ""), domain: n.domain },
     style: { "background-color": domainColor(n.domain) }
   }));
   moduleNodes.forEach(n => {
+    // Layout edges point dependency -> dependent (reverse of the real semantic direction) so
+    // dagre's left-to-right ranking puts foundational/most-depended-on modules on the left and
+    // consumers on the right, matching 01-module-dependencies.md's own `graph LR` convention --
+    // dagre ranks by source-before-target, and "X depends on Y" should read Y (left) <- X (right).
+    // The arrowhead is drawn on the *visual* source/target below, independent of layout ranking.
     ["DEPENDS_ON_COMPILE","DEPENDS_ON_RUNTIME"].forEach(et => {
       (n.edges[et] || []).forEach(target => {
-        els.push({ data: { id: n.id+"->"+target+et, source: n.id, target: target, dashed: et==="DEPENDS_ON_RUNTIME" } });
+        els.push({ data: { id: n.id+"->"+target+et, source: target, target: n.id, dashed: et==="DEPENDS_ON_RUNTIME" } });
       });
     });
   });
-  const cy = cytoscape({
+  const hasDagre = typeof cytoscapeDagre !== "undefined";
+  systemCy = cytoscape({
     container: document.getElementById("map"),
     elements: els,
     style: [
@@ -524,13 +591,26 @@ function renderMap() {
         } },
       { selector: "edge", style: {
           "width": 1.5, "line-color": "#cbd5e0", "target-arrow-color": "#cbd5e0",
-          "target-arrow-shape": "triangle", "curve-style": "bezier"
+          "source-arrow-shape": "triangle", "source-arrow-color": "#cbd5e0", "target-arrow-shape": "none",
+          "curve-style": "bezier"
         } },
       { selector: "edge[?dashed]", style: { "line-style": "dashed" } }
     ],
-    layout: { name: "breadthfirst", directed: true, padding: 20, spacingFactor: 1.1 }
+    layout: hasDagre
+      ? { name: "dagre", rankDir: "LR", nodeSep: 18, rankSep: 70, edgeSep: 12, padding: 20 }
+      : { name: "breadthfirst", directed: true, padding: 20, spacingFactor: 1.1 }
   });
-  cy.on("tap", "node", e => navigate({ screen: "module", id: e.target.id() }));
+  systemCy.on("tap", "node", e => navigate({ screen: "module", id: e.target.id() }));
+  systemCy.on("zoom", () => {
+    const label = document.getElementById("map-zoom-label");
+    if (label) label.textContent = Math.round(systemCy.zoom() * 100) + "%";
+  });
+}
+
+function zoomMap(delta) {
+  if (!systemCy) return;
+  if (delta === 0) { systemCy.fit(undefined, 20); return; }
+  systemCy.zoom({ level: systemCy.zoom() + delta, renderedPosition: { x: systemCy.width()/2, y: systemCy.height()/2 } });
 }
 
 // ── Module screen: full readable detail, drill-down deps, ADRs, Track B placeholder slots ──────
@@ -621,24 +701,179 @@ function renderBacklog() {
   document.getElementById("content").innerHTML = html;
 }
 
-// ── Database Schema screen: live-rendered ERD, reused verbatim from 04-database-erd.md ─────────
-function renderDatabase() {
-  const html = `<h2 class="screen-title">Database Schema</h2>
-    <div class="screen-desc">Full entity-relationship diagram, reused verbatim from docs/architecture/04-database-erd.md — not re-derived, this file stays the authoring source (see module Tables sections for which module owns which table).</div>
-    <div class="diagram-note">Rendered live via Mermaid.js from the diagram's Mermaid source.</div>
-    <div class="diagram-wrap"><pre class="mermaid">${esc(MODEL.diagrams.database_erd)}</pre></div>`;
-  document.getElementById("content").innerHTML = html;
-  if (MODEL.diagrams.database_erd) mermaid.run({ querySelector: ".mermaid" });
+// Diagram groups whose Mermaid source is a `graph`/`flowchart` (nodes + edges, optionally
+// grouped in `subgraph` blocks) -- these get parsed and re-rendered as real Cytoscape graphs, so
+// nodes are draggable and edges follow, exactly like the System map (user-requested, 2026-08-04:
+// "System" felt right, the others didn't -- because they're still static Mermaid SVGs). ERD
+// (04) and sequence diagrams (05) are NOT graph-shaped in the same sense (ERD needs a
+// table/column renderer Cytoscape doesn't give for free; sequence diagrams are temporal/lifeline
+// diagrams, not spatial node graphs -- dragging boxes around doesn't map onto what they show) --
+// those stay Mermaid, with pan+zoom, and the UI says why rather than silently behaving differently.
+const GRAPH_TYPE_KEYS = ["01-module-dependencies", "02-spi-map", "03-bounded-contexts"];
+
+// Minimal parser for this repo's own Mermaid dialect -- only what docs/architecture/01-03 actually
+// use: `graph LR|TD|TB`, `ID["Label<br/>text"]` node declarations, `subgraph ID["Label"] ... end`
+// blocks (become Cytoscape compound parents), and edges `A --> B`, `A -->|label| B`,
+// `A -.->|label| B` (dashed). Not a general Mermaid grammar -- would need extending if a diagram
+// ever uses a shape/edge syntax this repo's diagrams don't currently use.
+function parseMermaidGraph(source) {
+  const nodes = new Map();
+  const edges = [];
+  const stack = [];
+  const clean = s => s.replace(/<br\s*\/?>/gi, " ").trim();
+  const ensure = id => {
+    if (!nodes.has(id)) nodes.set(id, { id, label: id, parent: stack[stack.length - 1] || null });
+    return nodes.get(id);
+  };
+  source.split("\n").map(l => l.trim()).filter(Boolean).forEach(line => {
+    let m;
+    if (/^graph\s/.test(line)) return;
+    if ((m = /^subgraph\s+(\w+)\["([^"]*)"\]/.exec(line))) {
+      nodes.set(m[1], { id: m[1], label: clean(m[2]), parent: stack[stack.length - 1] || null, isGroup: true });
+      stack.push(m[1]);
+      return;
+    }
+    if (line === "end") { stack.pop(); return; }
+    if ((m = /^(\w+)\["([^"]*)"\]\s*$/.exec(line))) {
+      ensure(m[1]).label = clean(m[2]);
+      return;
+    }
+    if ((m = /^(\w+)\s*(-->|-\.->)\s*(?:\|([^|]*)\|\s*)?(\w+)/.exec(line))) {
+      const [, src, arrow, elabel, tgt] = m;
+      ensure(src); ensure(tgt);
+      edges.push({ source: src, target: tgt, label: elabel ? clean(elabel) : "", dashed: arrow.indexOf(".") !== -1 });
+    }
+  });
+  return { nodes: [...nodes.values()], edges };
 }
 
-// ── SPI & Contracts screen: live-rendered Port/Hook graph, reused from 02-spi-map.md ────────────
-function renderSpi() {
-  const html = `<h2 class="screen-title">SPI &amp; Contracts</h2>
-    <div class="screen-desc">Port/Hook implementation graph, reused verbatim from docs/architecture/02-spi-map.md. Per-module contract names also appear on each module's own page; this is the cross-module wiring view.</div>
-    <div class="diagram-note">Rendered live via Mermaid.js from the diagram's Mermaid source.</div>
-    <div class="diagram-wrap"><pre class="mermaid">${esc(MODEL.diagrams.spi_map)}</pre></div>`;
-  document.getElementById("content").innerHTML = html;
-  if (MODEL.diagrams.spi_map) mermaid.run({ querySelector: ".mermaid" });
+let diagramCy = null;
+
+function renderCytoscapeDiagram(source) {
+  const parsed = parseMermaidGraph(source);
+  const els = [
+    ...parsed.nodes.map(n => ({
+      data: { id: n.id, label: n.label, parent: n.parent || undefined },
+      classes: n.isGroup ? "group-node" : ""
+    })),
+    ...parsed.edges.map((e, i) => ({
+      data: { id: "e" + i, source: e.source, target: e.target, label: e.label, dashed: e.dashed }
+    }))
+  ];
+  const hasDagre = typeof cytoscapeDagre !== "undefined";
+  diagramCy = cytoscape({
+    container: document.getElementById("diagram-cy"),
+    elements: els,
+    style: [
+      { selector: "node", style: {
+          "label": "data(label)", "font-size": 10, "color": "#1a202c", "text-valign": "center", "text-halign": "center",
+          "background-color": "#ebf4ff", "border-width": 1.5, "border-color": "#2b6cb0",
+          "shape": "round-rectangle", "width": "label", "height": "label", "padding": "10px",
+          "text-wrap": "wrap", "text-max-width": 110
+        } },
+      { selector: "node.group-node", style: {
+          "background-color": "#f7f8fa", "background-opacity": 0.6, "border-color": "#a0aec0",
+          "border-style": "dashed", "text-valign": "top", "font-weight": "bold", "font-size": 11,
+          "padding": "16px"
+        } },
+      { selector: "edge", style: {
+          "width": 1.5, "line-color": "#a0aec0", "target-arrow-color": "#a0aec0",
+          "target-arrow-shape": "triangle", "curve-style": "bezier",
+          "font-size": 9, "label": "data(label)", "color": "#4a5568",
+          "text-background-color": "#f7f8fa", "text-background-opacity": 0.9, "text-background-padding": 2
+        } },
+      { selector: "edge[?dashed]", style: { "line-style": "dashed" } }
+    ],
+    layout: hasDagre
+      ? { name: "dagre", rankDir: "TB", nodeSep: 24, rankSep: 60, padding: 20 }
+      : { name: "breadthfirst", directed: true, padding: 20 }
+  });
+  diagramCy.on("zoom", () => {
+    const label = document.getElementById("zoom-label");
+    if (label) label.textContent = Math.round(diagramCy.zoom() * 100) + "%";
+  });
+}
+
+function zoomDiagram(delta) {
+  if (diagramCy) {
+    if (delta === 0) { diagramCy.fit(undefined, 20); return; }
+    diagramCy.zoom({ level: diagramCy.zoom() + delta, renderedPosition: { x: diagramCy.width()/2, y: diagramCy.height()/2 } });
+    return;
+  }
+  // Mermaid (ERD/sequence) fallback: CSS scale transform + drag-to-pan, no native zoom/drag API.
+  zoomLevel = delta === 0 ? 1 : Math.min(3, Math.max(0.3, zoomLevel + delta));
+  const box = document.getElementById("diagram-zoom-box");
+  if (box) box.style.transform = `scale(${zoomLevel})`;
+  const label = document.getElementById("zoom-label");
+  if (label) label.textContent = Math.round(zoomLevel * 100) + "%";
+}
+
+// Click-and-drag panning for a scrollable container -- used only for the Mermaid (ERD/sequence)
+// fallback path; Cytoscape-rendered diagrams already pan/drag natively.
+function enableDragToPan(el) {
+  if (!el) return;
+  let dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+  el.style.cursor = "grab";
+  el.addEventListener("mousedown", e => {
+    dragging = true; el.style.cursor = "grabbing";
+    startX = e.clientX; startY = e.clientY; startLeft = el.scrollLeft; startTop = el.scrollTop;
+    e.preventDefault();
+  });
+  window.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    el.scrollLeft = startLeft - (e.clientX - startX);
+    el.scrollTop = startTop - (e.clientY - startY);
+  });
+  window.addEventListener("mouseup", () => { dragging = false; el.style.cursor = "grab"; });
+}
+
+// ── Diagrams screen: every diagram from docs/architecture/01-05, grouped by source file. ───────
+function renderDiagrams() {
+  let html = `<h2 class="screen-title">Diagrams</h2>
+    <div class="screen-desc">${totalDiagramCount} diagrams reused verbatim from docs/architecture/01-05 — nothing re-derived, these files stay the authoring source.</div>`;
+
+  if (!view.groupKey) {
+    MODEL.diagramGroups.forEach(g => {
+      const graphType = GRAPH_TYPE_KEYS.includes(g.key);
+      html += `<div class="domain-group"><h3>${esc(g.label)} <code class="path">(${esc(g.file)})</code> ${graphType ? '<span class="badge ACTIVE">draggable</span>' : ""}</h3><div class="card-grid">`;
+      g.diagrams.forEach((d, i) => {
+        html += `<div class="card" onclick="navigate({screen:'diagrams',groupKey:'${g.key}',diagramIndex:${i}})">
+          <div class="card-title">${esc(d.title || g.label)}</div>
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+    document.getElementById("content").innerHTML = html;
+    return;
+  }
+
+  const g = MODEL.diagramGroups.find(x => x.key === view.groupKey);
+  const d = g.diagrams[view.diagramIndex];
+  const isGraphType = GRAPH_TYPE_KEYS.includes(g.key);
+  zoomLevel = 1;
+  diagramCy = null;
+  html += `<div class="diagram-toolbar">
+      <button onclick="navigate({screen:'diagrams'})">← all diagrams</button>
+      <span class="zoom-controls">
+        <button onclick="zoomDiagram(-0.15)">−</button>
+        <span id="zoom-label">100%</span>
+        <button onclick="zoomDiagram(0.15)">+</button>
+        <button onclick="zoomDiagram(0)">reset</button>
+      </span>
+    </div>`;
+
+  if (isGraphType) {
+    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered as an interactive graph (parsed from the Mermaid source) — drag nodes, edges follow, same as the System map.</div>
+      <div class="diagram-wrap" id="diagram-cy-wrap" style="padding:0"><div id="diagram-cy" style="width:100%;height:70vh"></div></div>`;
+    document.getElementById("content").innerHTML = html;
+    renderCytoscapeDiagram(d.source);
+  } else {
+    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}, rendered live via Mermaid.js. This diagram type (${g.key === "04-database-erd" ? "entity-relationship" : "sequence/temporal"}) isn't rendered as a draggable node graph like the System map — an ERD needs a table/column renderer and a sequence diagram shows message order along lifelines, neither of which is "drag this box anywhere" the way a dependency graph is. Drag to pan, or use the zoom controls above.</div>
+      <div class="diagram-wrap" id="diagram-scroll"><div id="diagram-zoom-box"><pre class="mermaid">${esc(d.source)}</pre></div></div>`;
+    document.getElementById("content").innerHTML = html;
+    mermaid.run({ querySelector: ".mermaid" });
+    enableDragToPan(document.getElementById("diagram-scroll"));
+  }
 }
 
 function render() {
@@ -646,8 +881,7 @@ function render() {
   if (view.screen === "module") renderModule();
   else if (view.screen === "pipelines") renderPipelines();
   else if (view.screen === "backlog") renderBacklog();
-  else if (view.screen === "database") renderDatabase();
-  else if (view.screen === "spi") renderSpi();
+  else if (view.screen === "diagrams") renderDiagrams();
   else renderSystem();
 }
 

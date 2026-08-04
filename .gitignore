@@ -31,6 +31,7 @@
 # Playwright artifacts
 /playwright/screenshots/
 /playwright/pw-report/
+/scripts/ai/architecture-map-screenshots/
 
 # Integration test artifacts
 /integration-tests/reports/
