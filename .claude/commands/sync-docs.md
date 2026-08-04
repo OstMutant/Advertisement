@@ -40,6 +40,7 @@ Use this mapping table:
 | Any `*.java` or `**/pom.xml` | `CLAUDE.md` (per changed module), `DECISIONS.md` (per changed module) |
 | Any `*.java` or `**/pom.xml` | `backlog/issues/` — create/close/update tracked issues |
 | Any `**/DECISIONS.md` | `docs/ai/adr-index.md` — regenerate via `bash scripts/ai/generate-adr-index.sh` |
+| `**/*.java` (main or test), `**/pom.xml`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `docs/ai/flows.md`, `docs/architecture/03-bounded-contexts.md` | `architecture-model.json` + `architecture-map.html` — regenerate via `bash scripts/ai/generate-architecture-model.sh` (Track A only — no ArchUnit/test-coverage data yet, see improvement-138) |
 
 Print which targets are affected before proceeding.
 

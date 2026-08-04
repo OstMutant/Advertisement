@@ -39,7 +39,10 @@ if ! curl -s -o /dev/null "$SONAR_URL/api/system/status"; then
 fi
 
 # ── Ensure sonar token is valid; regenerate via admin/admin if not ───────────
-CURRENT_TOKEN=$(grep "^sonar.token=" "$PROPS_FILE" | cut -d= -f2)
+# This repo's working tree uses CRLF line endings (core.autocrlf) -- `cut` on a CRLF line leaves
+# a trailing \r on the extracted value, which silently corrupts the Basic Auth header (SonarQube
+# then reports the token "invalid" even though the visible characters are correct). Strip it.
+CURRENT_TOKEN=$(grep "^sonar.token=" "$PROPS_FILE" | cut -d= -f2 | tr -d '\r')
 if ! curl -s -u "$CURRENT_TOKEN:" "$SONAR_URL/api/authentication/validate" | grep -q '"valid":true'; then
   echo "Sonar token invalid or missing — generating new token..."
   NEW_TOKEN=$(curl -s -u admin:admin -X POST "$SONAR_URL/api/user_tokens/generate" \
@@ -74,7 +77,7 @@ echo "Copying source files..."
 docker exec --user root "$SCANNER_CONTAINER" rm -rf /tmp/sonar-src
 docker exec "$SCANNER_CONTAINER" mkdir -p /tmp/sonar-src
 
-for module in query-lib platform-commons audit-spring-boot-starter attachment-spring-boot-starter marketplace-app; do
+for module in query-lib platform-commons audit-spring-boot-starter attachment-spring-boot-starter user-spring-boot-starter advertisement-spring-boot-starter taxon-spring-boot-starter provider-profile-spring-boot-starter marketplace-app; do
   if [ -d "/app/$module/src/main/java" ]; then
     docker exec "$SCANNER_CONTAINER" mkdir -p "/tmp/sonar-src/$module/src/main/java"
     docker cp "/app/$module/src/main/java/." "$SCANNER_CONTAINER:/tmp/sonar-src/$module/src/main/java/"
@@ -115,7 +118,7 @@ mkdir -p "$REPORT_DIR"
 
 echo "Generating HTML report..."
 
-SONAR_TOKEN=$(grep "^sonar.token=" "$PROPS_FILE" | cut -d= -f2)
+SONAR_TOKEN=$(grep "^sonar.token=" "$PROPS_FILE" | cut -d= -f2 | tr -d '\r')
 
 cat > /tmp/sonar-gen-report.py << 'PYEOF'
 import urllib.request, urllib.error, json, datetime, os, base64

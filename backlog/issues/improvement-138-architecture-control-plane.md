@@ -693,6 +693,141 @@ a small, additive migration, not a rewrite — which is the point.
 - Full `bash scripts/ci.sh` run before considering either track done, since both add new
   `scripts/ci/entrypoint.sh` `docs`-stage gates.
 
+## Execution outcome — Track A (2026-08-04)
+
+Implemented as planned in §11 (A1-A3):
+
+- **A1** — `scripts/ai/generate-architecture-model.sh` produces `architecture-model.json`: 10
+  `MODULE` nodes (from root `pom.xml`'s reactor + each module's own `pom.xml` — `DEPENDS_ON_COMPILE`/
+  `DEPENDS_ON_RUNTIME`/`DEPENDS_ON_OPTIONAL` edges), domain grouping seeded from
+  `docs/architecture/03-bounded-contexts.md` (`domain_confidence: manual`), `intent[]` ADR links
+  reused from `docs/ai/adr-index.md` (never reparses `DECISIONS.md`, per §14), 12 `COMMAND` + 2
+  `SKILL` nodes from `.claude/commands`/`.claude/skills`, and one `BACKLOG_SUMMARY` node
+  (open/completed issue counts). **Scoping decision, not silently narrowed:** per-ADR (171) and
+  per-issue (149) graph nodes were **not** built — §11 A2 explicitly commits the graph to "tens of
+  nodes, not thousands," and 171+149 nodes would blow that budget by 10x+. ADRs are folded into
+  each module's `intent[]` list instead (reusing the existing generated index); issues are
+  represented as one aggregate count node. Documented as a scoping note directly in the script's
+  own header comment, not left implicit.
+  - Confirmed idempotent (byte-identical output across two consecutive runs) — required for A3's
+    freshness gate to be meaningful.
+  - One real bug found and fixed during implementation: this repository's working tree uses CRLF
+    line endings (`core.autocrlf`), which silently broke every `$`-anchored bash regex reading
+    `03-bounded-contexts.md` (domain grouping came back entirely `UNKNOWN` until the `\r` was
+    stripped per line) — not caught by the JSON-validity check alone, only by inspecting actual
+    output values.
+- **A2** — `architecture-map.html`: a real drill-down pyramid, not a flat graph with a raw-JSON
+  side panel (the first draft was exactly that and was correctly rejected — see "A2 correction"
+  below). Breadcrumb-navigated screens: **System** (module cards grouped by domain, a compact
+  dependency map, and two entry tiles for Tooling & Pipelines / Backlog) → **Module detail**
+  (one-line description, dependencies in/out as clickable cross-links, "depended on by" reverse
+  lookup, ADRs with real titles, and an explicit "Deeper levels (Track B — not built yet)" section
+  listing Contracts/Implementation/Methods/Test-coverage as visible placeholders rather than
+  omitting them) → **Tooling & Pipelines** (commands/skills tables). Model JSON inlined directly in
+  the file (not fetched) so it opens standalone via `file://` without CORS issues. Verified via
+  `node --check` (JS syntax) and a headless harness exercising every screen's render function
+  against the real generated model (system/module/pipelines/backlog screens, cross-link
+  navigation, unknown-id fallback) — this environment has no display for an actual browser render,
+  so a full visual check still wasn't possible; flagged here rather than silently claimed.
+- **A3** — `scripts/ai/check-architecture-model-freshness.sh` (same backup/regenerate/diff/restore
+  pattern as `check-adr-index-freshness.sh`), wired as an unconditional stage in
+  `scripts/ci/entrypoint.sh`'s `docs` gate alongside the three existing checks. One new mapping-table
+  row added to `.claude/commands/sync-docs.md`'s Step 2.
+
+**A2 correction (same day, user-flagged):** the first A2 draft was a flat Cytoscape graph plus a
+side panel dumping each node's raw JSON on click — functionally present but not what the plan's
+own §5 asked for ("Drill-down path: System → Module → Domain/Package → Contract → Implementation →
+Method... this is the 'vision' the owner asked for"). Corrected to the actual pyramid shape
+described above. Two supporting fixes landed alongside the rebuild: `description` (one line per
+module, reused from root `CLAUDE.md`'s already-clean "Module Layout" ASCII tree — no second
+hand-maintained copy) and `DEPENDED_ON_BY` (reverse dependency edges, computed once per module by
+scanning every other module's `pom.xml`) were added to each `MODULE` node so the human layer has
+enough data to be genuinely readable, and `intent[]` was changed from bare ADR-id strings to
+`{id, title}` objects (titles reused from `adr-index.md`'s own Title column) so ADR references
+show as real sentences, not opaque codes.
+
+**A2 second correction (same day, user-flagged):** the user pointed out `docs/architecture/*.md`
+already carries rich, curated content (per-domain Entities/Key Services/Contract bullet lists in
+`03-bounded-contexts.md`, per-table module ownership in `04-database-erd.md`, and both files' own
+Mermaid diagrams) that the pyramid wasn't surfacing — correctly rejecting "that's Track B" as a
+scope dodge, since reading *already-written* docs content into the human layer is exactly what
+Track A's own sources commit to, not new extraction risk. Added: each `MODULE` node now carries
+`entities`/`keyServices`/`contracts`/`tables` arrays (parsed from `03`'s per-domain bullet lists
+and `04`'s `### table` / `**Module:**` pairs, same "already-structured, non-code source" bar as
+everything else in A1); the Module screen renders them as labeled sections. Two new top-level
+System entries — **Database Schema** and **SPI & Contracts** — render `04`'s ERD and `02`'s SPI
+graph *live* via Mermaid.js, reusing the diagrams' own Mermaid source verbatim (the `.md` files
+stay the authoring source, nothing is re-derived). `json_escape_multiline()` added alongside the
+existing `json_escape()` since diagram source needs its line structure preserved (`\n` escapes),
+unlike every other field emitted so far. Verified via the same headless-harness pattern, extended
+to check the two new screens and the new Module-screen sections against the real generated model.
+
+**Testing (per this issue's own strategy above, extended after root-causing the 3 CI failures the
+first pass had only flagged and not chased):**
+- `bash scripts/unit-tests.sh`: 79/79 passed, `BUILD SUCCESS`.
+- `bash scripts/ci.sh --all --sonar --sandbox`: **all 5 stages now genuinely run** —
+  `docs` PASSED (5s), `unit` PASSED (70s), `integration` PASSED (51s, 164/164 tests),
+  `e2e` PASSED (861s / 14.4min, **50/50 Playwright tests**), `sonar` completes and uploads a real
+  analysis (quality gate itself fails — see below, a legitimate finding, not an infra failure).
+  Three real, previously-undiagnosed bugs were found and fixed to get here, not just documented as
+  "someone else's problem":
+  1. **Root `Dockerfile` missing `provider-profile-spring-boot-starter` in 3 places** (the
+     `COPY .../pom.xml` cache-warming step, the `COPY .../src` step, and the `mvnw install -pl`
+     module list) — added when that module shipped (improvement-124 Batch B) but the Dockerfile was
+     never updated. Every normal `deploy.sh` run silently reused Docker's cached layers from before
+     that module existed, masking the bug completely; it only surfaced because `scripts/ci.sh`'s
+     e2e stage builds a distinctly-tagged image (`marketplace-app-ci`) with no prior cache to hide
+     behind. Confirmed by reading the actual Dockerfile against the real 10-module list, not
+     guessed. Fixed: all 3 module lists now complete; verified by a full green `e2e` run (50/50).
+  2. **`scripts/sonar/run.sh` silently corrupted its own stored token** — this repo's working tree
+     uses CRLF line endings (`core.autocrlf`, the same class of bug already found once in A1's own
+     domain-grouping parser); `grep "^sonar.token=" | cut -d= -f2` left a trailing `\r` on the
+     extracted token, corrupting the Basic Auth header so SonarQube reported a demonstrably-valid
+     token as invalid, which then also failed the `admin:admin` regeneration fallback (real
+     instance no longer uses the default password). Root-caused by comparing the outer shell's own
+     manual `curl` test (valid) against the script's `grep|cut`-extracted value (invalid) for the
+     *same* token string, then confirming via `curl -v`'s raw `Authorization` header and `cat -A`
+     on the properties file. Fixed with `tr -d '\r'` on both token-reading call sites.
+  3. **`sonar-project.properties` and `run.sh`'s own copy loop only listed 5 of 9 Java-source
+     modules** — missing `user-`/`advertisement-`/`taxon-`/`provider-profile-spring-boot-starter`
+     entirely (45 of 314 Java files never scanned). Same "forgot to update the module list" pattern
+     as bug 1. Fixed both `sonar.sources`/`sonar.java.binaries` and the copy loop; confirmed by the
+     scanner's own "N source files to be analyzed" count rising from 261 to 306 after the fix.
+  - **Sonar's quality gate genuinely fails**, and this is *not* something to force-pass: `new_coverage`
+    0% (already tracked — `improvement-114`, JaCoCo never wired in), `new_duplicated_lines_density`
+    4.97% (threshold 3%), `new_violations` 11-14 (threshold 0), all measured against a
+    `PREVIOUS_VERSION` baseline from 2026-06-24 — i.e. accumulated across many commits since then,
+    not something this session introduced. Left as a real, visible finding; not suppressed with
+    `--no-gate` and not "fixed" by hastily patching code to satisfy an automated gate outside this
+    issue's scope.
+
+**Track A is complete and closes its stated goals** ("visual control," "legacy visible," "pipelines
+included," and now genuinely "maximum readability" per the corrected A2) independently of Track B,
+which remains gated on the `improvement-135` item 5 conflict (Finding 3) and has not started. This
+issue stays open in `backlog/issues/` (not moved to `completed/`) until Track B is resolved one way
+or the other.
+
+## Operational notes (Track A)
+- token_cost_review: n/a (no Agent-tool review calls this run)
+- token_cost_research: n/a (research done directly by the main thread, no delegation)
+- token_cost_verification: n/a (unit-tests.sh/ci.sh run directly, no Agent-tool verification calls)
+- context_loading_task_type: new-tooling/scripting task (generator script + CI gate), extended
+  mid-session into root-causing 3 pre-existing CI infrastructure bugs after the user rejected an
+  initial "flag and don't chase" call on the e2e/sonar failures
+- context_loading_consulted: yes — read `scripts/ai/generate-adr-index.sh`,
+  `check-adr-index-freshness.sh`, `check-flows-completeness.sh`, `.claude/commands/sync-docs.md`,
+  `docs/ai/flows.md`, `scripts/ci/entrypoint.sh`, `Dockerfile`, `scripts/sonar/run.sh`,
+  `scripts/sonar/sonar-project.properties` before writing new code, to match existing conventions
+  and find real root causes rather than guessing
+- context_loading_matched: yes
+- flows_situation: pre-approved plan (this issue's own §11), user said "давай" to proceed; later,
+  user explicitly rejected the initial "these 3 failures are out of scope, flag don't fix" framing
+  and required root-cause fixes before accepting the work as done
+- flows_chosen: direct implementation (not /autopilot — user approved conversationally, not via the
+  slash command)
+- flows_matched: n/a (no single flows.md row covers "implement an approved plan without
+  /autopilot" — this was a reasonable direct continuation of the approved plan, not a flow gap)
+
 ## Out of scope
 
 - Rewriting `docs/architecture/01-08-*.md` as part of Track A or B1-B4 — that's B5/the deferred
