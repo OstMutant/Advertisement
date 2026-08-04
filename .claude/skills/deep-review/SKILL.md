@@ -15,10 +15,10 @@ Two modes, one shared discipline: **never report a finding you have not personal
 verified against the current file content.** That discipline — not the volume of
 findings — is the entire point of this skill. It exists because in the plain-chat
 version of this workflow, findings were sometimes taken from a backlog issue's own
-description instead of the real file, and twice that produced a stale claim
-(`improvement-066`, `improvement-067` — both already fixed in code while their own
-"suggested fix" section still described the old, broken version). This skill makes
-the check-before-claim step structural instead of optional.
+description instead of the real file, and that produced stale claims more than
+once — a finding already fixed in code while its own "suggested fix" section
+still described the old, broken version. This skill makes the check-before-claim
+step structural instead of optional.
 
 ## Pick a mode
 
@@ -45,10 +45,9 @@ template:
   find → parallel validate → high-signal-only filter) is proven; only the
   GitHub-PR-specific parts (`gh pr diff`, inline PR comments) are swapped for this
   project's actual workflow (local git, `backlog/issues/`).
-- **Full mode** adapts this project's own `improvement-121` — the 11-agent,
-  one-per-module SOLID/DRY/KISS pass run on 2026-07-25. That pass found real,
-  correctly-calibrated issues across every module. This skill formalizes it as a
-  repeatable procedure instead of a one-off.
+- **Full mode** adapts a real one-off 11-agent, one-per-module SOLID/DRY/KISS pass
+  this project ran, which found real, correctly-calibrated issues across every
+  module. This skill formalizes it as a repeatable procedure instead of a one-off.
 
 ## Non-negotiable rules for both modes
 
@@ -76,11 +75,11 @@ template:
    an inconsistency but is actually a recorded decision).
 4. **Never write code changes in this skill.** Both modes are read-only and
    findings-only — they produce or update markdown in `backlog/`, never `.java`/
-   `.xml`/etc. This is deliberate: `improvement-121` itself (a findings-only pass)
-   worked cleanly, but a separate, later attempt to have autopilot *execute* all
-   8 of its batches automatically was aborted before landing anything. Whatever
-   caused that abort hasn't been root-caused. Until it is, keep review and
-   execution as two separate steps with a human in between.
+   `.xml`/etc. This is deliberate: a findings-only full-mode pass worked cleanly
+   once, but a separate, later attempt to have autopilot *execute* all of its
+   batches automatically was aborted before landing anything. Whatever caused
+   that abort hasn't been root-caused. Until it is, keep review and execution as
+   two separate steps with a human in between.
 
 ## Output
 

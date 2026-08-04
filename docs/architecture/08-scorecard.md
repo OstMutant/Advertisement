@@ -20,12 +20,11 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 - ✓ No direct starter-to-starter code imports
 - ✓ All SPI interfaces in platform-commons (starters can be swapped)
 - ✗ marketplace-app depends on all starters; cannot scale independently
-- ✓ audit/attachment are no longer even optional Maven deps of advertisement-starter — removed entirely 2026-07-16, wired purely through `ComponentFactory<T>` SPI (see `07-risk-report.md`)
-- ✓ Advertisement → User FK removed entirely (improvement-120) — see `06-coupling-analysis.md`
+- ✓ audit/attachment are not even optional Maven deps of advertisement-starter — wired purely through `ComponentFactory<T>` SPI (see `07-risk-report.md`)
+- ✓ No FK from `advertisement` to `user_information` — see `06-coupling-analysis.md`
 
 **Why 7, not higher:**
 - Starters are modular, but marketplace-app acts as a monolith that coordinates them
-- ~~Optional dependencies create false optionality (will fail at runtime if excluded)~~ resolved 2026-07-16
 - Database schema coupling (FK constraints) creates deploy-time coupling
 
 **Improvements:**
@@ -43,11 +42,11 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 - ✓ All inter-module calls through platform-commons SPI (Ports/Hooks)
 - ✓ No Vaadin in starters (clean separation of concerns)
 - ✓ Repositories not imported by UI directly (all through Ports)
-- ✓ **AccessEvaluator fixed (ADR-016)** — see `06-coupling-analysis.md` for detail
-- ✓ **UserPortImpl mapping logic resolved (2026-07-01)** — `toDto()` and stream pipelines moved to `UserService`; port is pure delegation
-- ✓ **SettingsPaginationService cross-session bleed resolved (ADR-028, improvement-018)** — singleton binding entries now carry an owning `userId`; a settings change no longer leaks into other users' live sessions
-- ✓ Optional audit/attachment dependencies resolved (removed entirely, 2026-07-16) — see `07-risk-report.md`
-- ✓ Advertisement→User FK removed entirely (improvement-120) — see `06-coupling-analysis.md`
+- ✓ **AccessEvaluator uses the port-based SPI (ADR-016)** — see `06-coupling-analysis.md` for detail
+- ✓ **UserPortImpl is pure delegation** — `toDto()` and stream pipelines live in `UserService`
+- ✓ **SettingsPaginationService scopes each binding entry by owning `userId` (ADR-028)** — a settings change never leaks into another user's live session
+- ✓ No unguarded optional audit/attachment dependencies — see `07-risk-report.md`
+- ✓ No FK from `advertisement` to `user_information` — see `06-coupling-analysis.md`
 
 **Why 8, not 9+:**
 - No way to swap audit or attachment implementations (tightly wired via Spring beans)
@@ -118,9 +117,9 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 - ✓ Attachment domain: file storage, knows about entity_type/entity_id generically
 - ✓ Taxon domain: taxonomy management, self-contained; no FK to advertisement
 - ✓ Advertisement imports AuditPort + AttachmentPort but only calls via interfaces ✓
-- ✓ Attachment fires MediaChangeHook without importing any receiver (currently no implementation at all — ADR-035); advertisement media summaries come from read-time `AttachmentPort.getMediaSummaries()` bulk lookups ✓
-- ✓ AccessEvaluator fixed (ADR-016) — see `06-coupling-analysis.md` for detail
-- ✓ Advertisement → User FK removed entirely (improvement-120)
+- ✓ Attachment has no `MediaChangeHook` to fire — advertisement media summaries come from read-time `AttachmentPort.getMediaSummaries()` bulk lookups instead (ADR-035) ✓
+- ✓ AccessEvaluator uses the port-based SPI (ADR-016) — see `06-coupling-analysis.md` for detail
+- ✓ No FK from `advertisement` to `user_information`
 
 **Why 8, not higher:**
 - Database FK coupling between advertisement and user is acceptable but limits independence
@@ -216,32 +215,24 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 
 ## Open Issues
 
-1. ~~**AccessEvaluator Coupling (HIGH)**~~ — ✅ Resolved (ADR-016, 2026-06-15)
-
-2. ~~**UserPortImpl Mapping Logic (LOW)**~~ — ✅ Resolved (2026-07-01): mapping moved to `UserService`; port is pure delegation.
-
-3. ~~**Optional Dependencies Not Guarded (MEDIUM)**~~ — ✅ Resolved 2026-07-16, see `07-risk-report.md` "Dependency Chain Risks".
+None currently open — see `06-coupling-analysis.md` and `07-risk-report.md` for the coupling and
+optional-dependency checks this scorecard tracks.
 
 ---
 
 ## Recommendations (Priority Order)
 
-### 1. URGENT (Sprint 1)
-- [x] Refactor AccessEvaluator to use UserPort + ComponentFactory<UserPort> — ✅ Done (ADR-016, 2026-06-15)
-- [x] Remove OwnershipChecker / RoleChecker utility classes or extract as SPI methods — ✅ Done (ADR-016, 2026-06-15)
-
-### 2. HIGH (Sprint 2)
-- [x] Decide on audit/attachment optionality — ✅ Done (2026-07-16): `<optional>` deps removed entirely, wired via `ComponentFactory<T>` SPI only
+### 1. HIGH (Sprint 2)
 - [ ] Document whether User domain must always be present (currently it is)
 - [ ] Add unit tests for all Hook implementations with all entity types
 
-### 3. MEDIUM (Sprint 3+)
+### 2. MEDIUM (Sprint 3+)
 - [ ] Extract centralized AuthorizationService if authorization logic grows
 - [ ] Add database migration testing to CI/CD
 - [ ] Consider PostgreSQL views for soft-delete filters (advertisement_active, attachment_active)
 - [ ] Document SPI contract expectations in platform-commons/CLAUDE.md
 
-### 4. LOW (Future)
+### 3. LOW (Future)
 - [ ] Monitor I18nKey growth; consider splitting by domain if >500 lines
 - [ ] Plan audit_log partitioning strategy for table growth beyond 1M rows
 - [ ] Consider CQRS for audit read side if query performance degrades
@@ -258,10 +249,6 @@ This is a well-structured modular monolith with solid architectural foundations:
 - Good separation of concerns (UI, domain, data)
 - Flexible schema supporting extensibility
 
-**Primary concern (resolved):** AccessEvaluator boundary violation — see `06-coupling-analysis.md` ADR-016.
-
-**Remaining concern:** none from this scorecard's original list — the optional-dependency finding
-was resolved 2026-07-16 (see `07-risk-report.md`).
-
-With this remaining issue resolved, the architecture would score 8-8.5/10.
+**Remaining concern:** none from this scorecard's list — see `06-coupling-analysis.md` and
+`07-risk-report.md` for the underlying checks.
 

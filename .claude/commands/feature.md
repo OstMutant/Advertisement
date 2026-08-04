@@ -1,5 +1,5 @@
 Scaffold a new tracked issue in `backlog/issues/` from the standard template, then rank it in
-`backlog/BACKLOG.md`'s priority table — implements improvement-034.
+`backlog/BACKLOG.md`'s priority table.
 
 Usage: /feature <short description or title>
 Example: /feature UserPickerField pagination bug with CallbackDataProvider offset math

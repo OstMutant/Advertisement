@@ -48,7 +48,7 @@ schema would actually catch.
 **Context:** Testcontainers' default per-test-class container lifecycle pays the ~5-10s Postgres
 startup cost once per test class. With multiple `*RepositoryTest` classes across Batches 1-3, that
 cost multiplies linearly and dominates total run time — the opposite of the "~30s inner loop" goal
-this whole test layer exists for (`improvement-027`).
+this whole test layer exists for.
 
 **Decision:** `AbstractPostgresIntegrationTest` starts exactly one `PostgreSQLContainer` via a
 plain static field + static initializer block (not `@Testcontainers`/`@Container`, which are
@@ -86,8 +86,7 @@ isn't found — no silent default.
 **Consequences:**
 - Renaming the Postgres version updates both consumers from one place.
 - `deploy.sh`'s own separate `docker pull`/`docker run` references to `postgres:15-alpine` were
-  **not** touched by this decision — tracked separately in
-  [improvement-044](../backlog/issues/improvement-044-shared-env-config-consolidation.md).
+  **not** touched by this decision — tracked separately in the backlog.
 - Neither Docker Compose's `.env` auto-load nor `SharedEnvConfig`'s upward search is AI-specific —
   both work identically for a human running the same commands from a terminal or an IDE.
 
@@ -118,9 +117,8 @@ machine.
 - Not fixable from within this repo — it's sandbox infrastructure, not application code.
 - A real CI runner (GitHub Actions, not this sandbox) likely has normal Docker networking and
   wouldn't need either variable; if it somehow does, the fix at that point is a CI-job-index-derived
-  port, not a single hardcoded one (see `improvement-027`'s "Does a fixed port conflict with
-  parallel test execution?" note for the reasoning on why a single fixed port is safe today but not
-  necessarily under future parallel CI jobs).
+  port, not a single hardcoded one — a single fixed port is safe today but not necessarily under
+  future parallel CI jobs.
 
 ---
 
@@ -250,7 +248,7 @@ auto-detection exists to close.
 ## ADR-008: Test package-private/private internal logic through its public entry point, never through a same-package trick or a widened production visibility
 **Status:** Accepted
 
-**Context:** `DefaultTaxonPort.resolveTranslation()` (improvement-045 item 6) is package-private —
+**Context:** `DefaultTaxonPort.resolveTranslation()` is package-private —
 it has no direct external impact of its own; it only matters through the public
 `TaxonPort.findById()`/`getAllByType()` contract that calls it internally via `toDto()`. Two ways
 to unit-test it directly were considered and rejected:
@@ -287,7 +285,7 @@ directly via repositories instead of through the service layer.
   Mockito unit test) than a hypothetical isolated `resolveTranslation()` test would have been —
   accepted, since it also proves the full `toDto()`/repository wiring path works, not just the
   fallback algorithm in isolation.
-- **Applies directly to improvement-045 item 7** (`UserService.applyUserRestore()`) — that method
+- **Applies directly to any future test of `UserService.applyUserRestore()`** — that method
   is `private` (stricter than `resolveTranslation()`'s package-private), called only from the
   public `UserService.restoreToSnapshot()`; the same shape of test (call `restoreToSnapshot()`,
   assert on the result, use repository-level fixture setup for any state the public API can't
@@ -307,9 +305,9 @@ carrying a hand-written `ComponentFactory<AttachmentPort>` stub bean to compensa
 effect of it). This
 annotation pulls in every `@AutoConfiguration` class found anywhere on the classpath, not just what
 a given test actually declares — a real problem specifically for `integration-tests`, whose own
-design (ADR-001) means its classpath keeps growing over time as Batches 2/3 add more starter
-dependencies. Confirmed directly, twice, in the same session: adding `audit-spring-boot-starter` as
-a dependency (for `UserServiceRestoreTest`, improvement-045 item 7) silently broke
+design (ADR-001) means its classpath keeps growing over time as more starter dependencies are
+added. Confirmed directly, twice, in the same session: adding `audit-spring-boot-starter` as
+a dependency (for `UserServiceRestoreTest`) silently broke
 `AdvertisementRepositoryTest`/`TaxonRepositoryTest`/`TaxonPortTranslationFallbackTest`/
 `UserRepositoryTest` in a full-suite run — the classpath-wide cascade pulled in the real
 `AuditAutoConfiguration` for every test using `RepositoryTestSupport`, whose `defaultAuditPort` bean
@@ -346,7 +344,7 @@ is never in this list — those are always passed explicitly via each test's own
 implication again, so a new starter dependency in `pom.xml` can no longer silently affect any
 existing test's Spring context.
 
-**Correction 2026-07-31 (improvement-132 item 31, Batch K):** by this date, 4 more `*RepositoryTest`/
+**Correction 2026-07-31:** by this date, 4 more `*RepositoryTest`/
 `*TransactionTest` classes (`AttachmentRepositoryTest`, `AttachmentServiceTransactionTest`,
 `AttachmentSnapshotRepositoryTest`, `AuditLogRepositoryTest`) had each grown their own local
 `TestConfig` with a byte-identical 8-class list (this same 7 plus
@@ -430,7 +428,6 @@ because every Testcontainers-backed test in this module ran unconditionally. If 
 running, the failure surfaced deep inside Testcontainers' own connection probing instead of a
 clear message. Also `SharedEnvConfig` (the repo-root `.env` reader `AbstractPostgresIntegrationTest`
 depends on) had zero test coverage of its own walk-up/missing-file logic.
-→ [improvement-047](../backlog/completed/issues/improvement-047-integration-tests-ci-safety.md).
 
 **Decision:**
 - `@Tag("testcontainers")` placed once on `AbstractPostgresIntegrationTest` — JUnit 5 tags declared
@@ -503,7 +500,7 @@ tests.
 
 **Context:** While migrating off the deprecated `org.testcontainers.containers.PostgreSQLContainer`
 (replaced by the non-generic `org.testcontainers.postgresql.PostgreSQLContainer` in Testcontainers
-2.0.5, part of improvement-115's cleanup pass), `bash scripts/integration-tests.sh --sandbox smoke`
+2.0.5), `bash scripts/integration-tests.sh --sandbox smoke`
 failed to even compile — `AbstractPostgresIntegrationTest.java` (in `src/main/java`, using
 `org.junit.jupiter.api.Tag`) hit `package org.junit.jupiter.api does not exist`.
 

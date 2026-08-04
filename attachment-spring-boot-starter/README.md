@@ -25,5 +25,5 @@ Auto-configured photo/attachment module with S3-compatible storage for the Adver
 ## Dependencies
 
 - `platform-commons` — SPI interfaces (`AttachmentPort`, `AttachmentAuditPort`) and DTOs
-  (`AttachmentMediaChangeHook` removed entirely, improvement-102 — zero implementations)
+  (`AttachmentMediaChangeHook` does not exist)
 - Spring Boot, Spring JDBC, Liquibase, AWS SDK S3

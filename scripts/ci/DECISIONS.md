@@ -5,7 +5,7 @@
 ## ADR-001: ci-runner container via Docker-outside-of-Docker, not Docker-in-Docker
 **Status:** Accepted
 
-**Context:** improvement-059 needed a single, isolated, parameterized way to run
+**Context:** This project needed a single, isolated, parameterized way to run
 unit/integration/e2e/sonar stages without colliding with the persistent dev stack
 (`marketplace-app`/`advertisement-db`/`advertisement-minio`/`pw-runner`), while staying migratable
 to GitHub Actions later. Two mechanisms were considered for "one container, nothing leaks out":
@@ -19,8 +19,8 @@ to GitHub Actions later. Two mechanisms were considered for "one container, noth
   likely to make this worse, not better.
 - **DooD** (host's `/var/run/docker.sock` mounted into the one CI-runner container): accepted.
   Matches how GitHub Actions' own `services:` model actually works, so the migration path stays
-  the one already described in improvement-059 (local `ci-*` env-var overrides → GitHub
-  `services:`, named volume → `actions/cache`, no rewrite of stage logic). "Nothing leaks out" is
+  straightforward (local `ci-*` env-var overrides → GitHub `services:`, named volume →
+  `actions/cache`, no rewrite of stage logic). "Nothing leaks out" is
   satisfied in the sense that matters: sibling containers created during a run are named uniquely
   (`ci-*`) so they never collide with the dev stack, and are torn down via a `trap ... EXIT` in
   `scripts/ci/entrypoint.sh` regardless of success/failure — not that zero sibling containers ever
@@ -65,7 +65,7 @@ defeat the "cached artifacts, not re-fetched" goal for no isolation benefit, so 
 - Surfaced three real, pre-existing bugs neither smoke test had ever exercised before: (1) an
   Enforcer `dependencyConvergence` conflict in `integration-tests` between `testcontainers`'s
   transitive `commons-io:2.20.0` and `liquibase-core`'s transitive `commons-io:2.21.0` — nothing
-  had run `mvn -pl integration-tests test` since the Enforcer rule (improvement-031) was
+  had run `mvn -pl integration-tests test` since the Enforcer `dependencyConvergence` rule was
   introduced, since `Dockerfile` never builds that module. Fixed by bumping the root
   `dependencyManagement`-pinned `liquibase-core` to 5.0.3 (pulls `commons-io:2.22.0`, newer than
   5.0.2's 2.21.0) and pinning `commons-io` to match; upgrading `liquibase-core` alone does not
@@ -280,7 +280,7 @@ recurring `e2e` failure that had no visible reason before: every `adminEn signs 
 column u.deleted_at does not exist`. Confirmed directly, not guessed: `\d user_information`
 against the isolated CI Postgres showed no `deleted_at`/`deleted_by` columns at all, while the
 persistent dev Postgres (`advertisement-db`) had both. Root cause, traced via `git log -p` on
-`01-user-schema.xml`: commit `3063048d` (improvement-089, soft-delete users) edited the
+`01-user-schema.xml`: commit `3063048d` (adding soft-delete to users) edited the
 **already-applied** changeset `01-user-schema` in place to add `deleted_at`/`deleted_by`, instead
 of adding a new changeset, and added `<validCheckSum>ANY</validCheckSum>` to silence the resulting
 checksum-mismatch error. Liquibase never re-runs a changeset it has already recorded as executed —
@@ -288,7 +288,7 @@ checksum-mismatch error. Liquibase never re-runs a changeset it has already reco
 retroactively apply the new columns. `teardown_e2e_stack()` only ever removed the `ci-*`
 containers/network, never `CI_DB_VOLUME`/`CI_MINIO_VOLUME` — so the isolated e2e Postgres volume,
 first created by some CI run before commit `3063048d`, has been silently reused (never
-recreated) by every `e2e` run since, permanently stuck on the pre-improvement-089 schema.
+recreated) by every `e2e` run since, permanently stuck on the schema from before that commit.
 
 **Decision:** `teardown_e2e_stack()` now also runs `docker volume rm "$CI_DB_VOLUME"
 "$CI_MINIO_VOLUME"` after removing the containers/network, so every `e2e` stage starts from a
@@ -304,8 +304,8 @@ follow-up changeset if/when a real deployed database needs to be protected again
 gap.
 
 **Consequences:**
-- `e2e` CI runs are no longer permanently stuck replaying a schema from before improvement-089 —
-  the very next `bash scripts/ci.sh --e2e` after this fix starts clean.
+- `e2e` CI runs are no longer permanently stuck replaying a stale schema — the very next
+  `bash scripts/ci.sh --e2e` after this fix starts clean.
 - `CI_DB_VOLUME`/`CI_MINIO_VOLUME` no longer persist any data between CI runs at all (by design —
   this isolated stack was always meant to be ephemeral per ADR-001; the volumes existing at all
   was so Postgres/MinIO could restart cleanly *within* one run, e.g. across `deploy.sh`'s own

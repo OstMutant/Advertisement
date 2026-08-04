@@ -131,10 +131,10 @@ own `DECISIONS.md`/`README.md` once the tool had enough surface area to warrant 
 and MinIO/S3 credentials (`admin`/`admin12345`, bucket `advertisement`, region `us-east-1`) were
 each hardcoded independently across 4-5 files of different formats: `docker-compose.db.yml`,
 `docker-compose.minio.yml`, `docker-compose.app.yml`, `application-dev.yml`,
-`scripts/deploy.sh`, `scripts/database/reset.sh` — the same class of duplication improvement-027
-already closed for `POSTGRES_IMAGE` alone. Not a live bug (every copy still agreed), but a real
-drift risk: changing one copy and missing the others fails as a confusing "connection refused"
-at runtime, not a build error. → [improvement-044](../backlog/completed/issues/improvement-044-shared-env-config-consolidation.md).
+`scripts/deploy.sh`, `scripts/database/reset.sh` — the same class of duplication already closed
+for `POSTGRES_IMAGE` alone. Not a live bug (every copy still agreed), but a real drift risk:
+changing one copy and missing the others fails as a confusing "connection refused" at runtime,
+not a build error.
 
 **Decision:** Extend the repo-root `.env` (Docker Compose's native mechanism, already used for
 `POSTGRES_IMAGE`) with `DB_NAME`/`DB_USER`/`DB_PASSWORD`/`DB_PORT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/
@@ -190,8 +190,8 @@ host-facing occurrences (`S3_PUBLIC_URL`, the host port mappings themselves) wer
 
 **Status:** Accepted
 
-**Context:** [improvement-120](../backlog/completed/issues/improvement-120-advertisement-user-hard-fk-coupling.md)
-edited an already-applied Liquibase changeset in place (`01-advertisement-schema.xml`, removing
+**Context:** A change edited an already-applied Liquibase changeset in place
+(`01-advertisement-schema.xml`, removing
 the `advertisement`→`user_information` FK constraints — deliberate, since the DB has never been
 released, so preserving changelog history across a content edit was never a goal). Every local dev
 DB that had already run the old version of that changeset then fails Liquibase's own checksum

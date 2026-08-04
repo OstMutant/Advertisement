@@ -23,8 +23,8 @@ audit.spi      — AuditPort, AuditDomainHook, AuditActivityFieldsHook, AuditAct
 
 attachment.dto     — AttachmentMediaSummaryDto, AttachmentItemDto, TempAttachmentDto
 attachment.model   — AttachmentMediaContentType
-attachment.spi     — AttachmentPort, AttachmentAuditPort (AttachmentMediaChangeHook removed, improvement-102;
-                     AttachmentAuditHook renamed to AttachmentAuditPort, see ADR-025)
+attachment.spi     — AttachmentPort, AttachmentAuditPort (AttachmentMediaChangeHook does not exist;
+                     AttachmentAuditPort's call direction is the *Port semantic, see ADR-025)
 attachment.util    — YoutubeUtil
 
 user.dto       — UserDto, UserFilterDto, UserProfileDto, UserSettingsDto,
@@ -213,10 +213,10 @@ record a taxonomy assignment event — restoring to that "snapshot" makes no dom
 `CategoryChangeSnapshotDto` overrides it to return `false`.
 
 **Superseded:** advertisement-snapshot-redesign deleted `CategoryChangeSnapshotDto` (the only
-overrider), leaving every implementation on the default `true`; snapshot-cleanup then removed
+overrider), leaving every implementation on the default `true`; a later cleanup pass then removed
 `isRestorable()` (and the analogous `isVisible()`) from `AuditableSnapshot` entirely as dead
 code. If a metadata/event snapshot type ever reappears, reintroduce the flag with it — do not
-add it preemptively. See `backlog/completed/issues/feature-006-snapshot-cleanup.md`.
+add it preemptively.
 
 ---
 
@@ -236,10 +236,10 @@ derived fields into the event payload and the domain to listen and translate.
 - **`AttachmentMediaChangeHook`** (starter → domain): `onMediaChanged(EntityRef entity)` (corrected
   2026-07-13 — signature was `(EntityType, Long)` when this ADR was written, superseded by a later
   refactor introducing `EntityRef` to collapse `(EntityType, Long)` pairs across attachment SPIs;
-  the ADR was never updated for it). **Removed entirely, improvement-102, corrected 2026-07-27** —
-  the interface no longer exists anywhere in `attachment.spi`; it had zero implementations and was
-  deleted rather than kept as dead API surface (see `advertisement-spring-boot-starter/CLAUDE.md`
-  and `marketplace-app/DECISIONS.md` ADR-035). Any reference to this hook elsewhere in this file is
+  the ADR was never updated for it). **Removed entirely, corrected 2026-07-27** — the interface no
+  longer exists anywhere in `attachment.spi`; it had zero implementations and was deleted rather
+  than kept as dead API surface (see `advertisement-spring-boot-starter/CLAUDE.md` and
+  `marketplace-app/DECISIONS.md` ADR-035). Any reference to this hook elsewhere in this file is
   historical only.
 - **`AttachmentMediaSummaryDto`** (`attachment.dto`) — display-ready record from `getMediaSummary`.
 
@@ -288,9 +288,9 @@ Using `ObjectProvider` in a starter implies the hook is optional, which is archi
   as `ObjectProvider<AttachmentMediaChangeHook>` as a real, live exception to this ADR's rule.
   Confirmed by direct read of `AttachmentService`: that field no longer exists — the class's actual
   fields are `storageService`, `attachmentRepository`, `attachmentSnapshotService`,
-  `currentActorHook` only. `AttachmentMediaChangeHook` itself was deleted entirely (improvement-102,
-  see ADR-010 above), not just left unimplemented, so there is no exception left to document — this
-  ADR's rule holds without carve-outs today.
+  `currentActorHook` only. `AttachmentMediaChangeHook` itself was deleted entirely (see ADR-010
+  above), not just left unimplemented, so there is no exception left to document — this ADR's rule
+  holds without carve-outs today.
 
 ---
 
@@ -345,8 +345,7 @@ but the correction was never propagated to this entry).
 **Status:** Accepted
 
 **Context:** `AccessEvaluator` in marketplace-app imported `org.ost.user.security.RoleChecker`
-and `OwnershipChecker` directly — internal user-starter classes, violating module boundaries
-(tracked in improvement-004).
+and `OwnershipChecker` directly — internal user-starter classes, violating module boundaries.
 
 **Decision:** Added `isAdmin`, `isModerator`, `isOwner` methods to `UserPort` (platform-commons).
 `UserPortImpl` delegates to the existing internal `RoleChecker` / `OwnershipChecker` beans.
@@ -378,7 +377,7 @@ written; `CITY` was added since (F-02).
 audited. `ActionType.RESTORED` added to `core.model.ActionType` to distinguish restore events from
 updates — used by `AuditPort.captureRestore()` and written to `audit_log.action_type`.
 
-**Note (2026-07-17, improvement-058):** `TaxonAuditHook` was removed entirely — it never gained an
+**Note (2026-07-17):** `TaxonAuditHook` was removed entirely — it never gained an
 implementation, and both of its call sites already sit inside an advertisement save/delete that
 produces its own audit snapshot, making a separate assignment-event trail redundant. `TaxonPort`
 itself is unaffected and remains as originally decided (minus `assign()`/`unassign()`/
@@ -412,7 +411,7 @@ implements it by writing `ActionType.RESTORED` to `audit_log`. Services that res
 
 **Status:** Accepted
 
-**Context:** improvement-015 adds optimistic locking (`@Version`) to `Advertisement`, `User`,
+**Context:** Optimistic locking (`@Version`) was added to `Advertisement`, `User`,
 `Taxon`. For `AdvertisementPort.save()` the version already travels through
 `AdvertisementSaveDto`, but `delete()` had no DTO to carry it. Same for `TaxonPort.update()` and
 `softDelete()` — translations are passed as a bare `Map`, with no carrier for the version the
@@ -431,7 +430,6 @@ starter's repository to throw `OptimisticLockingFailureException`.
 - See `marketplace-app/DECISIONS.md` ADR-029 for the full cross-module design (why `@Version` on
   the entity is not enough by itself, the manual guard needed for `User`, and the UI conflict
   handling).
-- → [improvement-015-optimistic-locking](../backlog/completed/issues/improvement-015-optimistic-locking.md)
 
 ---
 
@@ -439,8 +437,7 @@ starter's repository to throw `OptimisticLockingFailureException`.
 
 **Status:** Accepted
 
-**Context:** [improvement-075](../backlog/completed/issues/improvement-075-timeline-actor-filter-multi-select.md)
-— the Timeline actor filter needed to match "any of N selected actors" in one query instead of one
+**Context:** The Timeline actor filter needed to match "any of N selected actors" in one query instead of one
 actor at a time. `actorId` was the only scalar field on this DTO; `entityTypes`/`actionTypes`
 already use the `Set<T>` shape this change brings `actorIds` in line with.
 
@@ -462,8 +459,7 @@ so this is a clean rename with no compatibility shim needed.
 
 **Status:** Accepted
 
-**Context:** [improvement-104](../backlog/completed/issues/improvement-104-expandactivityfields-feature-envy.md)
-— the same three-line "if there's a snapshot, expand the changes against it; otherwise return the
+**Context:** The same three-line "if there's a snapshot, expand the changes against it; otherwise return the
 changes as-is" check was independently copy-pasted four times: inline in
 `TaxonActivityFieldsHookImpl` and `AdvertisementActivityFieldsHookImpl` (marketplace-app), and
 routed through `UserService.expandActivityFields()` → `UserPort.expandActivityFields()` for
@@ -494,8 +490,7 @@ a `UserPort` dependency at all for this method — removed the now-unused field 
 
 **Status:** Accepted
 
-**Context:** [improvement-115](../backlog/issues/improvement-115-intellij-inspection-cleanup-pass.md)'s
-dead-code sub-pass found several SPI methods/parameters with zero real consumers across every
+**Context:** A dead-code cleanup pass found several SPI methods/parameters with zero real consumers across every
 current implementation and call site — not "single implementation that might grow," but params
 threaded through and never read anywhere, or methods with no caller at all:
 
@@ -543,8 +538,7 @@ single-implementation.
 
 **Status:** Accepted
 
-**Context:** [improvement-072](../backlog/issues/improvement-072-uicomponentfactory-generics-design-debt.md)
-item 3 — `AuditDomainHookImpl.castIfKnown()` used a `switch` over the four known snapshot DTO
+**Context:** `AuditDomainHookImpl.castIfKnown()` used a `switch` over the four known snapshot DTO
 types to confirm `content.snapshotData()` was *one of* them, then did an unchecked cast to the
 caller-inferred `T` without ever checking it matched *that specific* `T`. A caller inferring
 `T = TaxonSnapshotDto` when the actual runtime data was `AdvertisementSnapshotDto` would still
@@ -651,7 +645,7 @@ future task.
   meaningful single-target comparison is possible (`user_information.settings`,
   `attachment_snapshot.changes_summary`) — at the cost of one extra `if` per read path, no new
   parsing step, no new wrapper class.
-- The next new snapshot-bearing domain (F-04 / `improvement-124`'s `ActorProfileSnapshotDto`) must
+- The next new snapshot-bearing domain (F-04's `ActorProfileSnapshotDto`) must
   add its own `schemaVersion` record component + `SCHEMA_VERSION` constant, following this pattern
   — not a `@SchemaVersion` annotation (removed, no longer exists).
 
@@ -661,9 +655,8 @@ future task.
 
 **Status:** Accepted
 
-**Context:** [improvement-132](../backlog/completed/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md)
-Batch G, items 20-22 — three independent `platform-commons` governance findings from the repo-wide
-review, grouped together since all three touch this module's own naming/package rules.
+**Context:** A repo-wide SOLID/DRY review surfaced three independent `platform-commons` governance
+findings, grouped together since all three touch this module's own naming/package rules.
 
 **Decision:**
 - **Item 20:** `SettingsSnapshotDto.from(UserSettingsDto settings)` was removed — it reached into a
@@ -692,7 +685,7 @@ review, grouped together since all three touch this module's own naming/package 
   isn't a `Port`/`Hook`/`Dto` still needs a governance call, not a new ad hoc package.
 - Pure renames/moves, no behavior change — same method signatures on `AttachmentAuditPort`.
 
-## ADR-026: One starter, multiple `*Port` interfaces — `UserPort` split into 4 (improvement-124 Batch A2)
+## ADR-026: One starter, multiple `*Port` interfaces — `UserPort` split into 4
 
 **Status:** Accepted
 
@@ -734,17 +727,16 @@ remain single interfaces — they don't (yet) show the same multi-concern consum
 did. If one of them grows a similarly-mixed consumer profile later, this ADR is the precedent to
 cite, with the same consumer-grep-first discipline, not a rubber stamp for splitting on sight.
 
-## ADR-027: `ProviderProfilePort` added — F-04 Batch 124-B, `provider-profile-spring-boot-starter`
+## ADR-027: `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter`
 
 **Status:** Accepted
 
-**Context:** F-04 (improvement-124) adds a "provider profile" concept — any actor can optionally
+**Context:** F-04 adds a "provider profile" concept — any actor can optionally
 describe themselves as a service provider (`MASTER`/`SHOP`/`SUPPORT`). The original single-table
 design (merging this with locale/settings into one `actor_profile` row) was superseded before
-implementation by a 2026-07-31 update to the issue: three tables, not one — `user_information`
-(auth, unchanged), `user_preferences` (locale/settings, Batch 124-A, already shipped), and a new
-standalone `provider_profile` table/module (this ADR). See `backlog/issues/improvement-124-provider-profile.md`'s
-"Update 2026-07-31 — module/table split reconsidered" for the full rationale.
+implementation by a 2026-07-31 reconsideration: three tables, not one — `user_information`
+(auth, unchanged), `user_preferences` (locale/settings, Batch A, already shipped), and a new
+standalone `provider_profile` table/module (this ADR).
 
 **Decision:** New package `org.ost.platform.providerprofile` (`model.ProviderKind`,
 `dto.ProviderProfileDto`/`ProviderProfileSaveDto`/`ProviderProfileFilterDto`/
@@ -755,7 +747,7 @@ symmetry with the established starter pattern, not an accident (see `marketplace
 ADR-072 for the "isn't this just a copy?" discussion this raised during implementation). Backed by
 a new `provider-profile-spring-boot-starter` module owning `ProviderProfile` entity/repository/
 service/port-impl/autoconfiguration — this batch is backend-only, no UI, no audit-write path yet
-(that's Batch 124-C).
+(that's a later batch).
 
 **Deliberate divergences from `AdvertisementPort`'s shape, each grounded in a real difference:**
 - `kind` is `NOT NULL` and the row is created **lazily** (only on first "become a provider" save) —
@@ -782,12 +774,12 @@ service/port-impl/autoconfiguration — this batch is backend-only, no UI, no au
   description-length enforcement), not a precedent for adding general authorization logic to
   starters.
 - Unlike `advertisement`/`taxon`, `ProviderProfileService`'s own service — not a marketplace-app
-  orchestration service — writes category assignments directly via `TaxonPort.replaceAssignments()`
-  (see the issue's Part 1 technical plan). This batch has no marketplace-app "SaveService" yet
-  (that's Batch 124-C, alongside the actual `AuditPort.record()` call), so there was no other layer
+  orchestration service — writes category assignments directly via `TaxonPort.replaceAssignments()`.
+  This batch has no marketplace-app "SaveService" yet
+  (that's a later batch, alongside the actual `AuditPort.record()` call), so there was no other layer
   to put it in.
 
-**Found and fixed during `/code-review`'s 8-angle pass (Batch 124-B):** `ProviderProfileFilterDto
+**Found and fixed during `/code-review`'s 8-angle pass (Batch B):** `ProviderProfileFilterDto
 .cityTaxonId` was declared but never wired into the repository's `SqlFilterBuilder` (a dead filter
 field — fixed, now bound to `pp.city_taxon_id`); `ProviderProfileService.delete()` unconditionally
 cleared taxon assignments before checking the row existed, unlike `AdvertisementService.delete()`'s
@@ -796,11 +788,11 @@ existence-guarded pattern (fixed, same guard added); an unnecessary empty-set de
 already handles an empty input set). Two further real findings — `HTML_SANITIZER`/`sanitizeHtml()`
 duplication with `AdvertisementService`, and the shared "stale id during concurrent delete" edge
 case both `AdvertisementService.save()` and `ProviderProfileService.save()` have — were kept out of
-this batch (they require touching `advertisement-spring-boot-starter`, outside Batch 124-B's own
-scope) and filed as Batch 124-B2 in `backlog/issues/improvement-124-provider-profile.md`, at the
-user's explicit direction, rather than the generic `improvement-133` bucket.
+this batch (they require touching `advertisement-spring-boot-starter`, outside Batch B's own
+scope) and filed as a follow-up batch, at the user's explicit direction, rather than the generic
+deferred-findings bucket.
 
 **Consequence:** `EntityType.USER_SETTINGS` keeps being used unchanged for the Settings tab
 (preferences never merged into `provider_profile`, so the earlier "keep as historical tag or
-migrate" open question from the superseded single-table design is moot). The next batch (124-B2)
-must land before 124-C, per the updated gate in the issue file.
+migrate" open question from the superseded single-table design is moot). The next batch must land
+before the unified "My Account" overlay batch, per the updated gate tracked in the backlog.

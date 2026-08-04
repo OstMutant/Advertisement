@@ -182,7 +182,7 @@ Run SonarQube analysis. Starts SonarQube automatically if not running. Delegates
 ```bash
 bash scripts/sonar.sh              # blocking: exits non-zero if the quality gate fails
 scripts\sonar.bat                  # Windows — same
-bash scripts/sonar.sh --no-gate    # informational only, always exits 0 (improvement-032)
+bash scripts/sonar.sh --no-gate    # informational only, always exits 0
 ```
 
 Results: `http://localhost:9099/dashboard?id=advertisement`
@@ -254,7 +254,7 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 | `advertisement-minio` | `minio/minio:latest` | `9000` (API), `9001` (console) | `deploy.sh`, `docker-compose.minio.yml` | S3-compatible storage (MinIO) |
 | `marketplace-app` | built from `Dockerfile` | `8081` | `deploy.sh` | Spring Boot + Vaadin application |
 | `advertisement-build-env` | built from `scripts/build-env/Dockerfile` | — | `deploy-dev.sh` (throwaway `--rm`, per build) | JDK 25 + Docker CLI — builds JAR, hot-swaps into marketplace-app |
-| `pw-runner` | `mcr.microsoft.com/playwright:v1.61.1-jammy` (corrected 2026-07-27 from `v1.52.0-jammy`) | — | `playwright/run.sh` (reused across runs) | Playwright test runner |
+| `pw-runner` | `mcr.microsoft.com/playwright:v1.61.1-jammy` | — | `playwright/run.sh` (reused across runs) | Playwright test runner |
 | `claude-dev` | built from `Dockerfile.ai` | — | `scripts/claude.bat` | Claude Code dev environment |
 
 ### Volumes
@@ -318,7 +318,7 @@ bash scripts/run-all-tests.sh --unit "AccessEvaluatorTest" \
 ```
 
 Reports: `scripts/run-all-tests/reports/`. See `scripts/DECISIONS.md` ADR-004 for the
-sequencing rationale (improvement-051).
+sequencing rationale.
 
 ---
 
@@ -337,4 +337,4 @@ bash scripts/ci.sh --foreground                 # block and stream instead of th
 
 Reports: `scripts/ci/reports/<timestamp>/{unit-tests,integration-tests,playwright,sonar}/`
 (pruned to the last 3 runs by default — see `--keep-reports`). Full detail: `scripts/ci/README.md`
-and `scripts/ci/DECISIONS.md` (improvement-059).
+and `scripts/ci/DECISIONS.md`.

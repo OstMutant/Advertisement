@@ -54,10 +54,11 @@ Analyzed `@RequiredArgsConstructor` classes for excessive parameter counts (>5 =
 |-------|--------|--------------|------|
 | DefaultAuditPort | audit-starter | 4 (auditLogRepo, currentActorHook, auditDomainHook, auditReadService) | LOW — All cohesive to audit operations |
 | AuditDomainHookImpl | marketplace-app | 4+ (multiple ComponentFactory fields) | LOW — Factory pattern justifies count |
-| AccessEvaluator | marketplace-app | 2 (authorizationPort, authContextService) | LOW — ✅ Fixed (ADR-016, 2026-06-15) |
+| AccessEvaluator | marketplace-app | 2 (authorizationPort, authContextService) | LOW — see ADR-016 |
 | DefaultTaxonPort | taxon-starter | 3 (taxonService, assignmentService, properties) | LOW — Cohesive to taxon operations |
 
-**Finding:** Most classes have 1-3 dependencies. AccessEvaluator coupling violation resolved.
+**Finding:** Most classes have 1-3 dependencies; `AccessEvaluator` depends only on the port-based
+SPI (ADR-016).
 
 ---
 
@@ -120,26 +121,24 @@ See `01-module-dependencies.md` ("Marketplace App Dependency") for the fact — 
 
 **Mitigation:** Starters are core to the app; this coupling is acceptable.
 
-### 2. ✅ RESOLVED — Optional Dependencies Not Guarded
+### 2. Optional Dependency Guards
 
-**Previously:** audit and attachment starters were marked `<optional>true</optional>` in
-advertisement-starter's `pom.xml`, but code assumed they existed — excluding either would cause a
-runtime `ClassNotFoundException`.
+`advertisement-spring-boot-starter/pom.xml` has no `<optional>` Maven dependency on
+audit/attachment — zero Java source in this module imports `org.ost.audit.*`/
+`org.ost.attachment.*` directly. All optional-port wiring (category assignment, author
+enrichment, media-summary enrichment) goes through `platform-commons` SPI types via
+`ComponentFactory<T>` — genuine runtime decoupling with zero build-time coupling to any other
+starter. See `advertisement-spring-boot-starter/README.md`'s "Dependencies" section and
+`06-coupling-analysis.md`'s "Optional Dependency Guards" section — not restated here.
 
-**Resolution (2026-07-16):** the `<optional>` Maven dependencies were removed entirely from
-`advertisement-spring-boot-starter/pom.xml` — confirmed zero Java source in this module ever
-imported `org.ost.audit.*`/`org.ost.attachment.*` directly. All optional-port wiring (category
-assignment, author enrichment, media-summary enrichment) goes through `platform-commons` SPI types
-via `ComponentFactory<T>` — genuine runtime decoupling with zero build-time coupling to any other
-starter. See `advertisement-spring-boot-starter/README.md`'s "Dependencies" section.
+### 3. Marketplace → User Internal Import Coupling
 
-### 3. ✅ RESOLVED — Marketplace → User Internal Import Coupling (2026-06-15)
+See `06-coupling-analysis.md`'s "Marketplace → Starter Internal Imports" section (ADR-016) — not
+restated here.
 
-`AccessEvaluator` previously bypassed the SPI by importing `org.ost.user.security.*` classes directly. Now resolved — see ADR-016.
+### 4. UserPortImpl DTO Mapping Logic
 
-### 4. ✅ RESOLVED — UserPortImpl DTO Mapping Logic (2026-07-01)
-
-`UserPortImpl` contained `toDto(User)` entity→DTO mapping and inline stream pipelines — business logic that belongs in the service, not the port. Resolved: mapping moved to `UserService.findDtoByEmail()`; `UserPortImpl` is now pure single-line delegation.
+See `06-coupling-analysis.md`'s "UserPortImpl DTO Mapping Logic" section — not restated here.
 
 ---
 
@@ -194,7 +193,7 @@ starter. See `advertisement-spring-boot-starter/README.md`'s "Dependencies" sect
 **Location:** `org.ost.marketplace.services.security.AccessEvaluator`
 
 **Issue:**
-- `AccessEvaluator` calls `UserAuthorizationPort.isAdmin()`/`isModerator()`/`isOwner()` through the correct SPI — see `06-coupling-analysis.md` for the resolved coupling finding (ADR-016), not restated here
+- `AccessEvaluator` calls `UserAuthorizationPort.isAdmin()`/`isModerator()`/`isOwner()` through the correct SPI — see `06-coupling-analysis.md` (ADR-016), not restated here
 - No centralized authorization gateway; UI components each call `AccessEvaluator`
 - Risk decreases as `AccessEvaluator` is the single point of security policy
 
@@ -211,11 +210,10 @@ starter. See `advertisement-spring-boot-starter/README.md`'s "Dependencies" sect
 ### 3. Password Storage
 
 **Location:** user_information.password_hash (VARCHAR); encoded via
-`PasswordEncoderFactories.createDelegatingPasswordEncoder()` (`UserAutoConfiguration.java`,
-updated 2026-07-04 — previously a raw `BCryptPasswordEncoder`). Stored hashes now carry an
-`{bcrypt}` prefix identifying the algorithm, so a future migration to a stronger algorithm
-(e.g. Argon2id) can be rolled in without a data rewrite — new hashes just get encoded with the
-new default while old `{bcrypt}`-prefixed ones still verify correctly.
+`PasswordEncoderFactories.createDelegatingPasswordEncoder()` (`UserAutoConfiguration.java`).
+Stored hashes carry an `{bcrypt}` prefix identifying the algorithm, so a future migration to a
+stronger algorithm (e.g. Argon2id) can be rolled in without a data rewrite — new hashes just get
+encoded with the new default while old `{bcrypt}`-prefixed ones still verify correctly.
 
 **Risk:** LOW — Hashing handled by Spring Security; no plaintext leaks; algorithm migration
 path no longer requires a data rewrite.
@@ -226,77 +224,53 @@ path no longer requires a data rewrite.
 both backed by an in-memory Caffeine cache (5 attempts / 15 min window).
 
 **Design:** Both limiters increment their counter only on an actual failure — `login()` on
-`BadCredentialsException`, `register()` on `DuplicateKeyException` — never on success. An
-earlier version counted every attempt regardless of outcome, which broke bulk e2e signups from
-a shared IP; corrected (`marketplace-app/DECISIONS.md` ADR-026).
+`BadCredentialsException`, `register()` on `DuplicateKeyException` — never on success. See
+`marketplace-app/DECISIONS.md` ADR-026 for the rationale.
 
 **Keying:** `login()` keys on `remoteAddr + "|" + email` (a lockout scopes to one target
-account even if `remoteAddr` collapses behind a proxy). `register()` originally keyed on
-`clientIp` alone; behind Render's proxy `request.getRemoteAddr()` returned the platform's own
-edge address for every user, collapsing the registration limiter into one shared bucket for the
-whole app. Fixed by `server.forward-headers-strategy: framework` in `application-prod.yml`,
-which makes `request.getRemoteAddr()` resolve the real client IP (ADR-027). A coarser
-IP-independent backstop counter was considered and rejected — registration failures have no
-natural per-target key the way login failures do.
+account even if `remoteAddr` collapses behind a proxy). `register()` keys on the real client IP,
+resolved via `server.forward-headers-strategy: framework` in `application-prod.yml` so
+`request.getRemoteAddr()` returns the actual client address behind Render's proxy rather than the
+platform's shared edge address — see ADR-027.
 
-**Risk:** LOW — both paths now correctly scoped; whether Render actually forwards
+**Risk:** LOW — both paths correctly scoped; whether Render actually forwards
 `X-Forwarded-For` is not verifiable from this dev environment and is worth confirming once
 deployed.
-
-→ [improvement-020](../../backlog/completed/issues/improvement-020-security-baseline-before-public-endpoints.md), [improvement-022](../../backlog/completed/issues/improvement-022-registration-rate-limit-shared-proxy-ip.md)
 
 ### 5. URL-Level Access Control
 
 **Location:** `org.ost.marketplace.config.SecurityConfig`
 
 **Design:** `anyRequest().permitAll()` at the Spring Security filter-chain level — deliberate,
-not an oversight. A deny-by-default (`anyRequest().denyAll()`) baseline was implemented and
-deployed, and broke the entire app: Vaadin's root route bootstrap request is not covered by
+not an oversight. Vaadin's root route bootstrap request is not covered by
 `HandlerHelper.isFrameworkInternalRequest()` (which only recognizes Vaadin's own internal
-AJAX/RPC calls), so the very first page load was denied for every user. Reverted; see
-`marketplace-app/DECISIONS.md` ADR-025 for why deny-by-default does not fit this app's
-single-route Vaadin SPA model, and the process rule this created for any future non-Vaadin REST
-controller (must add its own explicit `requestMatchers(...)` ahead of the catch-all).
+AJAX/RPC calls), so a deny-by-default (`anyRequest().denyAll()`) baseline denies the very first
+page load for every user. See `marketplace-app/DECISIONS.md` ADR-025 for why deny-by-default does
+not fit this app's single-route Vaadin SPA model, and the process rule this created for any
+future non-Vaadin REST controller (must add its own explicit `requestMatchers(...)` ahead of the
+catch-all).
 
 **Risk:** LOW-MEDIUM — acceptable for a single-route Vaadin SPA with no REST endpoints yet;
 becomes a real gap the moment a REST controller is added without its own explicit matcher.
-
-→ [improvement-020](../../backlog/completed/issues/improvement-020-security-baseline-before-public-endpoints.md)
 
 ---
 
 ## Concurrency Risks
 
-### 1. ✅ RESOLVED — SettingsPaginationService Cross-Session Settings Bleed
+### 1. Singleton State Isolation — SettingsPaginationService
 
-**Location:** `org.ost.marketplace.ui.views.services.pagination.SettingsPaginationService`
+See `06-coupling-analysis.md`'s "Singleton State Isolation Across UI Sessions" section (ADR-028)
+— not restated here.
 
-**Previously:** A singleton held `BindingEntry(PaginationBar, extractor, refresh)` with no
-owner association; `onSettingsChanged(userId, settings)` filtered only on whether the *current
-thread's* user matched, then pushed the new page size to every registered bar across every
-session. User X changing their page size silently resized user Y's live grid.
-
-**Resolution:** `BindingEntry` now carries the owning `userId`, and `onSettingsChanged` filters
-by `entry.userId().equals(userId)` — see `marketplace-app/DECISIONS.md` ADR-028. Also added
-`bar.addDetachListener(...)` so cleanup no longer depends solely on `@PreDestroy`.
-
-→ [improvement-018](../../backlog/completed/issues/improvement-018-settings-pagination-cross-session-bleed.md)
-
-### 2. ✅ RESOLVED — No Optimistic Locking on Concurrent Entity Edits
+### 2. Optimistic Locking on Concurrent Entity Edits
 
 **Location:** `Advertisement`, `User`, `Taxon` entities (all three starters)
 
-**Previously:** No entity carried a version field; two concurrent edits of the same row
-resulted in silent last-write-wins with no error, warning, or audit anomaly.
-
-**Resolution:** `version BIGINT` added to all three tables; `@Version` added to all three
-entities. `Advertisement`/`Taxon` get native Spring Data JDBC checking via
-`CrudRepository.save()`; `User`'s real edit path bypasses `CrudRepository` via hand-written SQL,
-so `UserRepository.updateProfile()` implements the check manually. UI shows a dedicated conflict
-notification (no auto-reload, to avoid silently discarding in-progress form edits) — see
-`marketplace-app/DECISIONS.md` ADR-029.
-
-→ [improvement-015](../../backlog/completed/issues/improvement-015-optimistic-locking.md)
+**Design:** `version BIGINT` on all three tables; `@Version` on all three entities.
+`Advertisement`/`Taxon` get native Spring Data JDBC checking via `CrudRepository.save()`; `User`'s
+real edit path bypasses `CrudRepository` via hand-written SQL, so `UserRepository.updateProfile()`
+implements the check manually. UI shows a dedicated conflict notification (no auto-reload, to
+avoid silently discarding in-progress form edits) — see `marketplace-app/DECISIONS.md` ADR-029.
 
 ---
 
@@ -365,12 +339,6 @@ notification (no auto-reload, to avoid silently discarding in-progress form edit
 
 | Item | Priority | Effort | Notes |
 |------|----------|--------|-------|
-| ~~Fix AccessEvaluator internal imports~~ | ~~HIGH~~ | ~~SMALL~~ | ✅ Done (ADR-016, 2026-06-15) |
-| ~~Fix UserPortImpl mapping logic~~ | ~~LOW~~ | ~~SMALL~~ | ✅ Done (2026-07-01) — mapping in UserService |
-| ~~Fix registration rate-limiter shared-IP bucket~~ | ~~HIGH~~ | ~~SMALL~~ | ✅ Done (ADR-027, improvement-022) |
-| ~~Fix SettingsPaginationService cross-session bleed~~ | ~~HIGH~~ | ~~SMALL~~ | ✅ Done (ADR-028, improvement-018) |
-| ~~Add optimistic locking~~ | ~~MEDIUM~~ | ~~MEDIUM~~ | ✅ Done (ADR-029, improvement-015) |
-| ~~Resolve optional dependencies~~ | ~~MEDIUM~~ | ~~SMALL~~ | ✅ Done (2026-07-16) — `<optional>` deps removed entirely |
 | Centralize authorization checks | MEDIUM | MEDIUM | Extract AuthorizationService if auth logic grows |
 | Partition audit_log table | LOW | LARGE | Future scaling concern; not urgent |
 | Test SPI contracts systematically | MEDIUM | SMALL | Add unit tests for all hook implementations |
@@ -382,15 +350,15 @@ notification (no auto-reload, to avoid silently discarding in-progress form edit
 | Category | Risk Level | Status |
 |----------|-----------|--------|
 | **Module Size** | LOW | Acceptable; marketplace-app large but expected for UI |
-| **Constructor Complexity** | LOW | 1-3 deps typical; AccessEvaluator problematic |
+| **Constructor Complexity** | LOW | 1-3 deps typical |
 | **Package Organization** | LOW | No god packages; well-organized |
 | **Dependency Cycles** | NONE | ✓ DAG verified |
 | **Database Schema** | LOW-MEDIUM | JSONB schemas, soft-delete queries require discipline |
 | **SPI Contract Safety** | MEDIUM | Hook implementations not compile-checked |
 | **Performance** | MEDIUM | Audit log growth unbounded; indexes adequate for now |
-| **Security** | LOW-MEDIUM | RBAC scattered; rate limiting and URL access control resolved (ADR-026/027/025) |
-| **Concurrency** | LOW | Settings bleed and optimistic locking gaps both resolved (ADR-028/029) |
-| **Coupling** | LOW | AccessEvaluator fixed (ADR-016); optional deps resolved (2026-07-16) |
+| **Security** | LOW-MEDIUM | RBAC scattered across UI call sites; rate limiting and URL access control follow ADR-026/027/025 |
+| **Concurrency** | LOW | Settings isolation and optimistic locking covered by ADR-028/029 |
+| **Coupling** | LOW | AccessEvaluator uses port-based SPI (ADR-016); no unguarded optional deps |
 
-**Open Action:** none remaining from this report — see "Dependency Chain Risks" #2 above for the resolution.
+**Open Action:** none remaining from this report.
 

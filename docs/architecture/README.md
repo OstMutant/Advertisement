@@ -31,11 +31,13 @@ DAG-shape and dependency-scope findings, not restated here.
 **Key diagrams:** 6 Mermaid `sequenceDiagram` traces with actual class names from codebase.
 
 ### 06-coupling-analysis.md
-**Architecture violations and coupling assessment.** Originally identified 1 HIGH violation (AccessEvaluator imports org.ost.user.security.*) and 1 MEDIUM issue (optional dependencies not guarded) — both now resolved, per ADR-016 and the 2026-07-16 pom.xml cleanup respectively — and confirms: no cyclic deps, no Vaadin in starters, no UI→Repository direct imports, good module sizes.
+**Architecture violations and coupling assessment.** Confirms: `AccessEvaluator` depends only on
+the port-based SPI (ADR-016), audit/attachment optional dependencies are properly guarded, no
+cyclic deps, no Vaadin in starters, no UI→Repository direct imports, good module sizes.
 
 **Key findings:**
-- RESOLVED: AccessEvaluator modular-boundary violation (ADR-016)
-- RESOLVED: audit/attachment optional-dependency risk (removed the `<optional>` Maven deps entirely, 2026-07-16)
+- PASS: Marketplace → starter internal imports (ADR-016)
+- PASS: Optional dependency guards
 - PASS: All other coupling checks
 
 ### 07-risk-report.md
@@ -51,7 +53,7 @@ DAG-shape and dependency-scope findings, not restated here.
 
 See `08-scorecard.md`'s "Overall Assessment" table for the per-dimension scores — not restated here.
 
-**Critical actions:** ~~Fix AccessEvaluator (HIGH)~~ done, see ADR-016; ~~decide on optional deps (MEDIUM)~~ done, 2026-07-16.
+**Critical actions:** none outstanding — see `06-coupling-analysis.md`.
 
 ---
 
@@ -88,9 +90,8 @@ commands — re-verify the same way next time this table is touched, per `doc-st
 
 ## Critical Issues Found
 
-1. **AccessEvaluator Coupling (HIGH) — ✅ RESOLVED**, see `06-coupling-analysis.md` (ADR-016).
-2. **Optional Dependencies Not Guarded (MEDIUM) — ✅ resolved (2026-07-16)**, see
-   `07-risk-report.md` "Dependency Chain Risks".
+None currently open — see `06-coupling-analysis.md` and `07-risk-report.md`'s "Dependency Chain
+Risks" for the coupling and optional-dependency checks this documentation tracks.
 
 ---
 

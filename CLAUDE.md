@@ -38,7 +38,7 @@ advertisement-parent (root pom)
 **platform-commons** defines the cross-module contracts, organized into semantic packages:
 - `core.*` — shared by all modules: `ComponentFactory` (top-level, not a sub-package), `core.model` (`ActionType`, `ChangeEntry`, `EntityRef`, `EntityType`), `core.config` (`CleanupProperties`), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`)
 - `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`, `AuditTimelineFilterDto`), `audit.spi` (`AuditPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`)
-- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentAuditPort`) — note `AttachmentMediaChangeHook` was removed entirely (improvement-102, zero consumers) — `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
+- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentAuditPort`) — note `AttachmentMediaChangeHook` does not exist — `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
 - `user.*` — `user.spi` (`UserPort`/`UserAccountPort`/`UserAuthorizationPort`/`UserPreferencesPort` — one logical split, see `platform-commons/CLAUDE.md`; plus `AuthenticatedPrincipal`, `UserSettingsChangedHook`, `UserIdMarker`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
 - `advertisement.*` — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto` (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`, `AdvertisementSnapshotDto`), `advertisement.model` (`AdKind`)
 - `taxon.*` — `taxon.spi` (`TaxonPort`), `taxon.dto` (`TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`), `taxon.model` (`TaxonType`)
@@ -132,7 +132,7 @@ docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-co
 - `/sync-docs [ref]` — sync architecture docs with code (default: origin/main); **run manually** after significant changes (new module, new SPI, schema changes) — not triggered automatically
 - `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `scripts/DECISIONS.md` ADR-004
 - `/ci [flags]` — run the isolated local CI runner (unit+integration+e2e+sonar by default, backgrounded); see `scripts/ci/README.md`/`DECISIONS.md`
-- `/feature <title>` — scaffold a new `backlog/issues/<prefix>-NNN-<slug>.md` from the standard template and rank it in `BACKLOG.md`'s priority table (improvement-034)
+- `/feature <title>` — scaffold a new `backlog/issues/<prefix>-NNN-<slug>.md` from the standard template and rank it in `BACKLOG.md`'s priority table
 - `/autopilot <task>` — plan once, approve once, then implement/test/document a task end-to-end with no further check-ins until it's done; explicit per-run opt-out of the standing Approval Rule's per-step gating, not a permanent one
 - `/deep-review` / `/deep-review full [module]` — evidence-verified code review, findings-only, never writes code; diff mode (default, reviews the last commit or a git ref) for cheap frequent checks, full mode for periodic whole-repo SOLID/DRY/KISS sweeps; every finding is independently validated against the real file before being reported — see `.claude/skills/deep-review/SKILL.md`
 

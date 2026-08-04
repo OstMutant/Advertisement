@@ -115,7 +115,7 @@ docker compose -f scripts/sonar/docker-compose.sonar.yml up -d
 ```bash
 bash scripts/sonar.sh              # Linux / WSL -- blocking: exits non-zero if the quality gate fails
 scripts\sonar.bat                  # Windows -- same
-bash scripts/sonar.sh --no-gate    # informational only, always exits 0 (improvement-032)
+bash scripts/sonar.sh --no-gate    # informational only, always exits 0
 ```
 
 The script starts SonarQube automatically if not running, copies source files into a scanner container via `docker cp`, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`. Quality-gate-blocking is the default (`-Dsonar.qualitygate.wait=true`) — see `scripts/sonar/DECISIONS.md` for why this needed more than just adding that flag (a `tee`d exit-code bug meant the flag alone wouldn't have blocked anything).
@@ -247,7 +247,7 @@ Ryuk cleanup both just work outside this sandbox.
 
 ---
 
-## Local CI Runner (isolated, parameterized) — improvement-059
+## Local CI Runner (isolated, parameterized)
 
 Lives in `scripts/ci/` (own `DECISIONS.md`/`README.md`, matching `scripts/sonar/`'s nested-module
 shape, not `playwright/`'s root-level one — this is a tool wrapping other scripts, not a separate

@@ -18,8 +18,8 @@
 #                                                  this explicit instead of unconditional.
 #
 # Liquibase checksum mismatch (a changeset was edited in place instead of adding a new one --
-# e.g. improvement-120 removing the advertisement->user_information FK -- while the local dev DB
-# still has the old version applied) is detected automatically and self-heals: the script wipes
+# e.g. removing a FK constraint -- while the local dev DB still has the old version applied) is
+# detected automatically and self-heals: the script wipes
 # dev DB/MinIO volumes and retries once, same as --reset, no re-run needed. Dev-only; a real
 # deployed database would need a proper migration, not a wipe.
 #
@@ -33,7 +33,7 @@
 #   DB_PORT=15432 MINIO_PORT=19000 MINIO_CONSOLE_PORT=19001 APP_PORT=18081 \
 #   DB_VOLUME=ci_advertisement_postgres_data MINIO_VOLUME=ci_advertisement_minio_data \
 #   bash scripts/deploy.sh
-# Used by scripts/ci/entrypoint.sh (improvement-059) for an isolated e2e run.
+# Used by scripts/ci/entrypoint.sh for an isolated e2e run.
 set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -296,7 +296,7 @@ wait_for_app && status=0 || status=$?
 if [ $status -eq 1 ]; then
   echo ""
   echo "Liquibase checksum mismatch detected -- a changeset was edited in place and the local" \
-       "dev DB still has the old version applied (e.g. improvement-120's FK removal). This is" \
+       "dev DB still has the old version applied (e.g. a removed FK constraint). This is" \
        "dev-only and always safe to auto-recover from: wiping DB/MinIO volumes and retrying once."
   reset_infra
   start_infra

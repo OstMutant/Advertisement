@@ -216,19 +216,18 @@ erDiagram
 | `id` | BIGSERIAL | PK | Auto-increment |
 | `title` | VARCHAR(255) | NOT NULL | Advertisement title |
 | `description` | VARCHAR(20000) | | Full description (nullable, sanitized HTML) |
-| `created_by` | BIGINT | NOT NULL | Creator (no `_user_id` suffix — ADR-034); no DB-level FK to `user_information.id` — deliberately decoupled, see `improvement-120` |
-| `updated_by` | BIGINT | | Last editor; no DB-level FK (`improvement-120`) |
-| `deleted_by` | BIGINT | | Who soft-deleted; no DB-level FK (`improvement-120`) |
+| `created_by` | BIGINT | NOT NULL | Creator (no `_user_id` suffix — ADR-034); no DB-level FK to `user_information.id` — deliberately decoupled |
+| `updated_by` | BIGINT | | Last editor; no DB-level FK |
+| `deleted_by` | BIGINT | | Who soft-deleted; no DB-level FK |
 | `created_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Creation timestamp |
 | `updated_at` | TIMESTAMP WITH TIME ZONE | | Last modification time |
 | `deleted_at` | TIMESTAMP WITH TIME ZONE | | Soft-delete timestamp (NULL = active) |
 | `version` | BIGINT | NOT NULL, DEFAULT 0 | Optimistic-lock counter (`@Version`, checked natively via `CrudRepository.save()`; see `marketplace-app/DECISIONS.md` ADR-029) |
 
-**Foreign Keys:** none — the last hard SQL-level FK coupling between starters
-(`fk_advertisement_created_by`/`fk_advertisement_modified_by`/`fk_advertisement_deleted_by` →
-`user_information.id`) was removed by `improvement-120` for starter independence. Replaced by two
-bulk `AdvertisementPort` methods: `findOwnerIds(Set<Long>)` (mirrors the old `RESTRICT`) and
-`clearActorReferences(Set<Long>)` (mirrors the old `SET NULL`), called from `UserService.cleanup()`.
+**Foreign Keys:** none — no SQL-level FK coupling to `user_information.id`. Purge-safety is
+enforced at the application level instead, via two bulk `AdvertisementPort` methods:
+`findOwnerIds(Set<Long>)` (blocks a retention purge while ads exist) and
+`clearActorReferences(Set<Long>)` (nulls the columns), called from `UserService.cleanup()`.
 
 **Indexes:**
 - `idx_advertisement_title` (title)

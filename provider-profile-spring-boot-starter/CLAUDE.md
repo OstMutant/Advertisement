@@ -30,8 +30,7 @@ Tables: `provider_profile`
 
 ## Key constraints
 
-- This module ships backend-only as of its first batch (improvement-124 Batch 124-B) — no UI
-  surfaces it yet.
+- This module ships backend-only — no UI surfaces it yet.
 - `ProviderProfilePort` lives in `platform-commons`.
 - `@EnableJdbcRepositories(basePackages = "org.ost.provider.repository")` declared in
   `ProviderProfileAutoConfiguration`.
@@ -54,9 +53,9 @@ Tables: `provider_profile`
   actor-reference columns on this table to null.
 - This starter's own service — not a marketplace-app orchestration service — writes category
   assignments directly via `TaxonPort.replaceAssignments()`, unlike `AdvertisementService` which
-  pushes that write to marketplace-app's `AdvertisementSaveService`. Deliberate: this batch has no
-  marketplace-app "SaveService" yet (planned for improvement-124 Batch 124-C, alongside the actual
-  `AuditPort.record()` audit-write call).
+  pushes that write to marketplace-app's `AdvertisementSaveService`. Deliberate: there is no
+  marketplace-app "SaveService" for this domain yet (planned for a future batch, alongside the
+  actual `AuditPort.record()` audit-write call).
 - No `audit.spi` implementations of its own yet — audit-side wiring (the
-  `ProviderProfileActivityFieldsHookImpl` triad other domains have) is deferred to Batch 124-C,
-  since no code writes `PROVIDER_PROFILE` audit rows yet in this batch.
+  `ProviderProfileActivityFieldsHookImpl` triad other domains have) is deferred to a future batch,
+  since no code writes `PROVIDER_PROFILE` audit rows yet.

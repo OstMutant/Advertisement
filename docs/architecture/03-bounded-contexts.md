@@ -247,10 +247,10 @@ graph TB
 - `TaxonPort` (`platform-commons`) — marketplace calls starter for CRUD, assignment management, and batched queries
 
 **Cross-Domain Dependencies:**
-- Category assignment changes are not independently recorded to `audit_log` (`TaxonAuditHook` was
-  removed entirely in improvement-058 — zero implementations, and both call sites already sit
-  inside an advertisement save/delete that produces its own audit snapshot). The advertisement's
-  own snapshot (`AdvertisementSnapshotDto.categoryIds`) captures the change instead, with
+- Category assignment changes are not independently recorded to `audit_log` (`TaxonAuditHook` does
+  not exist — both call sites already sit inside an advertisement save/delete that produces its own
+  audit snapshot). The advertisement's own snapshot (`AdvertisementSnapshotDto.categoryIds`)
+  captures the change instead, with
   `AdvertisementAuditEnrichService` resolving raw taxon ids to display names via `TaxonPort.findByIds()`
   at read time.
 - Advertisement domain uses `TaxonPort.findEntityIdsWithAnyTaxon()` to filter by category without a direct SQL JOIN to `taxon_assignment`
@@ -354,13 +354,13 @@ because the module itself is never shipped, deployed, or depended upon by anythi
 
 ## Risks & Future Considerations
 
-1. **User & Advertisement Tight Coupling — ✓ RESOLVED (improvement-120, 2026-07-25):** the FK from
-   `advertisement` to `user_information` was removed; see `docs/architecture/06-coupling-analysis.md`
-   "Hidden Coupling" section for the replacement (bulk `AdvertisementPort` methods).
+1. **User & Advertisement Coupling:** no DB-level FK from `advertisement` to `user_information`;
+   see `docs/architecture/06-coupling-analysis.md`'s "Actor-Reference Coupling" section for the
+   bulk `AdvertisementPort` methods that enforce purge-safety instead.
 
-2. **Audit + Attachment Optional — ✓ RESOLVED (improvement-011, 2026-07-13):** marketplace-app UI
-   now guards these injections via `ComponentFactory`/`@ConditionalOnBean`
-   (`AttachmentGalleryService`, `AttachmentGallery`, `AuditActivityPanel`).
+2. **Audit + Attachment Optional:** marketplace-app UI guards these injections via
+   `ComponentFactory`/`@ConditionalOnBean` (`AttachmentGalleryService`, `AttachmentGallery`,
+   `AuditActivityPanel`) — see `06-coupling-analysis.md`'s "Optional Dependency Guards" section.
 
 3. **Taxon Cross-Cutting:** Taxon is currently used by the advertisement domain (category assignment) and is designed generically for any entity type. The `taxon_assignment` table is keyed by `(entity_type, entity_id)` — no schema change is needed to add new entity types. The standalone starter design is justified.
 

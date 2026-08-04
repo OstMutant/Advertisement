@@ -11,7 +11,7 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Load shared credential defaults from the repo-root .env into ENV_*-prefixed vars -- not
 # exported/sourced directly, so an already-exported override is never clobbered (same pattern as
-# scripts/deploy.sh, see improvement-044).
+# scripts/deploy.sh).
 if [ -f "$ROOT/.env" ]; then
   while IFS='=' read -r _env_key _env_value; do
     [[ "$_env_key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue

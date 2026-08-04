@@ -1554,3 +1554,23 @@ a "largest file" column dropped with a pointer that delivered nothing) and fixed
 directly. `bash scripts/unit-tests.sh`: 79/79 passed;
 `check-adr-index-freshness.sh`/`check-flows-completeness.sh`/`check-hardcoded-counts.sh`: all
 pass. Full detail: `completed/issues/improvement-140-documentation-shrink-and-dedup-completion.md`.
+
+✅ Done (2026-08-04): improvement-141 — new standing rule (`.claude/rules.md`): current-state
+documentation (`CLAUDE.md`, `README.md`, `docs/architecture/*.md`, `docs/ai/*.md`, skill/command
+`.md` files, `.sh` script comments) never cites an `improvement-NNN`/`goal-NNN`/`feature-NNN`
+ticket and never carries dated "resolved"/"corrected \<date\>" narrative about a prior state —
+history lives only in `backlog/completed/`, discoverable via `git blame`/keyword grep, not
+embedded forward-links. `DECISIONS.md` keeps its append-only ADR character but likewise drops the
+issue-number citation from every entry. Executed across 54 files: 11 "✅ RESOLVED" blocks removed
+from `docs/architecture/*.md`; all 8 `CLAUDE.md`, 5 `README.md`, `deep-review` skill, 3 commands,
+8 `.sh` scripts, and all 12 `DECISIONS.md` (largest: `marketplace-app/DECISIONS.md`'s 113
+references, delegated to a subagent following the pattern already proven by hand on the other 11
+files, then independently spot-verified). A follow-up sweep (Phase 9) caught the same "dated
+narrative" smell without an attached ticket number in 9 more files (`playwright/CLAUDE.md`/
+`README.md`, `query-lib/README.md`, `integration-tests/CLAUDE.md`/`README.md`,
+`marketplace-app/README.md`, `advertisement-spring-boot-starter/README.md`, `scripts/README.md`).
+`docs/ai/adr-index.md` (180 entries) and `architecture-model.json`/`architecture-map.html`
+regenerated; all CI freshness gates (`check-adr-index-freshness.sh`/`check-flows-completeness.sh`/
+`check-architecture-model-freshness.sh`/`check-hardcoded-counts.sh`) and `bash
+scripts/unit-tests.sh` (79/79) green. Full detail:
+`completed/issues/improvement-141-strip-issue-references-from-current-docs.md`.

@@ -40,7 +40,7 @@ Use this mapping table:
 | Any `*.java` or `**/pom.xml` | `CLAUDE.md` (per changed module), `DECISIONS.md` (per changed module) |
 | Any `*.java` or `**/pom.xml` | `backlog/issues/` — create/close/update tracked issues |
 | Any `**/DECISIONS.md` | `docs/ai/adr-index.md` — regenerate via `bash scripts/ai/generate-adr-index.sh` |
-| `**/*.java` (main or test), `**/pom.xml`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `docs/ai/flows.md`, `docs/architecture/03-bounded-contexts.md` | `architecture-model.json` + `architecture-map.html` — regenerate via `bash scripts/ai/generate-architecture-model.sh` (Track A only — no ArchUnit/test-coverage data yet, see improvement-138) |
+| `**/*.java` (main or test), `**/pom.xml`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `docs/ai/flows.md`, `docs/architecture/03-bounded-contexts.md` | `architecture-model.json` + `architecture-map.html` — regenerate via `bash scripts/ai/generate-architecture-model.sh` (Track A only — no ArchUnit/test-coverage data yet) |
 
 Print which targets are affected before proceeding.
 
@@ -115,8 +115,8 @@ the index was last regenerated. Include this in the Step A5 report regardless of
 `find . -maxdepth 3 -iname "DECISIONS.md" -o -maxdepth 3 -iname "README.md" -o -maxdepth 3 -iname
 "CLAUDE.md"` (excluding `target/`/`node_modules/`) — `maxdepth 3`, not `2`: nested tool
 directories (`scripts/ci/`, `scripts/sonar/`, `scripts/ai/`) each carry their own `DECISIONS.md`/
-`README.md` one level deeper than top-level modules; `maxdepth 2` silently skipped all three
-(confirmed directly, corrected during `improvement-134`). Note which modules have no README.md, no
+`README.md` one level deeper than top-level modules; `maxdepth 2` silently skips all three
+(confirmed directly). Note which modules have no README.md, no
 DECISIONS.md, or no CLAUDE.md — that alone is not necessarily a problem (e.g. a pure-contracts
 module may not need a README), but flag it in the report rather than silently skipping.
 
@@ -187,8 +187,9 @@ full-audit and aggregate mechanically (parse the `key: value` lines directly, th
   issues — sum and average, `n/a` entries excluded from the average, not treated as zero.
 - `context_loading_matched` yes/no/n/a tally, grouped by `context_loading_task_type`.
 - `flows_matched` yes/no/n/a tally.
-Feed the result into `docs/ai/`'s own governing rule (`improvement-135` item 5): this is real
-evidence for or against expanding/trimming the navigation layer, not a synthetic exercise. If too
+Feed the result into `docs/ai/`'s own governing rule — no new navigation content until this data
+shows the existing layer earns its cost: this is real evidence for or against expanding/trimming
+the navigation layer, not a synthetic exercise. If too
 few blocks have accumulated since the last audit to say anything meaningful, report that plainly —
 absence of data is itself a finding (the recording practice may not be happening consistently).
 

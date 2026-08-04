@@ -46,6 +46,11 @@ rolled back.
 duplicate-fact dedup improvement-137 deferred and replaced its hedges with real fixes.
 improvement-138 is now unblocked (Track A).
 
+**improvement-141 completed 2026-08-04** — see `completed/BACKLOG-ARCHIVE.md`; stripped every
+issue-number reference and dated "resolved"/"corrected" narrative from current-state docs
+(architecture docs, `CLAUDE.md`/`README.md`, skills, commands, scripts, all `DECISIONS.md`) — new
+standing rule in `.claude/rules.md`.
+
 **Still active:** improvement-124 (F-04, sole top priority again) — `provider_profile` +
 `user_preferences` + unified "My Account" overlay, one combined piece of work (see
 `platform-commons/DECISIONS.md` ADR-027); Batch B shipped, B2/C/D remain. improvement-135

@@ -54,7 +54,7 @@ for arg in "$@"; do
   fi
 done
 
-# CI-environment guard (improvement-047): --sandbox and the sandbox-only env vars it sets are
+# CI-environment guard: --sandbox and the sandbox-only env vars it sets are
 # workarounds for this specific claude-dev sandbox's Docker networking limitations (see
 # scripts/CLAUDE.md "Unit / Testcontainers Tests") -- never needed, and never correct, on a real
 # CI runner with normal Docker networking. Fail fast instead of letting someone copy-paste a
@@ -67,7 +67,7 @@ if [ -n "$GITHUB_ACTIONS" ] && { [ -n "$SANDBOX" ] || [ -n "$TESTCONTAINERS_RYUK
   exit 1
 fi
 
-# Docker daemon precheck (improvement-047): fail with a clear message here instead of letting the
+# Docker daemon precheck: fail with a clear message here instead of letting the
 # failure surface deep inside Testcontainers' own (slower, less clear) connection probing.
 if ! docker info >/dev/null 2>&1; then
   echo "ERROR: Docker daemon not reachable. integration-tests requires a running Docker daemon" \
@@ -131,7 +131,7 @@ rm -f "$LOG_FILE"
 rm -rf "$REPORT_DIR/surefire"
 
 # -Dsurefire.excludedGroups= (empty) overrides the pom's default "testcontainers" exclusion --
-# this script's whole purpose is running these Docker-backed tests deliberately (improvement-047).
+# this script's whole purpose is running these Docker-backed tests deliberately.
 echo "Running: env ${ENV_PREFIX[*]} ./mvnw -pl integration-tests test -Dsurefire.excludedGroups= $TEST_ARG"
 env "${ENV_PREFIX[@]}" ./mvnw -pl integration-tests test -Dsurefire.excludedGroups= $TEST_ARG 2>&1 | tee "$LOG_FILE"
 EXIT_CODE=${PIPESTATUS[0]}

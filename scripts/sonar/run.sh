@@ -2,10 +2,9 @@
 set -e
 # Usage:
 #   bash /app/scripts/sonar/run.sh          — run analysis, exit non-zero if the quality gate
-#                                              fails (improvement-032; blocking by default)
+#                                              fails (blocking by default)
 #   bash /app/scripts/sonar/run.sh --no-gate — run analysis, always exit 0 regardless of the
-#                                               quality gate result (informational-only, the
-#                                               pre-improvement-032 behavior)
+#                                               quality gate result (informational-only)
 #
 # SonarQube server starts automatically if not running (localhost:9099).
 # Results: http://localhost:9099/dashboard?id=advertisement
@@ -92,7 +91,7 @@ docker cp "$PROPS_FILE" "$SCANNER_CONTAINER:/tmp/sonar-src/sonar-project.propert
 
 # ── Run analysis ──────────────────────────────────────────────────────────────
 # -Dsonar.qualitygate.wait=true (default; --no-gate to skip) makes the scanner poll the quality
-# gate's computed status after upload and exit non-zero if it's ERROR -- improvement-032. `$?`
+# gate's computed status after upload and exit non-zero if it's ERROR. `$?`
 # after a pipe is `tee`'s own exit status (always 0), not sonar-scanner's, so ${PIPESTATUS[0]} is
 # read instead. `set +e`/`set -e` bracket the pipe (not `|| true` on the same line) so `set -e`
 # doesn't abort the script on a gate failure -- report generation below still needs to run, it's

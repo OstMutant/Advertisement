@@ -51,11 +51,10 @@ Tables: `advertisement`
   called in `getFiltered()`/`findById()`, same shape as `enrichWithCategories()`/
   `enrichWithActorInfo()`) via `AttachmentPort.getMediaSummaries()`, a bulk lookup computed at
   read time from the `attachment` table — never cached on the `advertisement` row. There is no
-  write-triggered sync path (the old `MediaChangeHookImpl` → `AdvertisementService
-  .onMediaChanged()` → `AdvertisementRepository.updateMedia()` chain was removed entirely — see
-  `marketplace-app/DECISIONS.md` ADR-035). **Corrected 2026-07-27:** `AttachmentMediaChangeHook`
-  itself no longer exists at all (removed, improvement-102, zero implementations) — it does not
-  merely fire into a void; there is no hook left to fire.
+  write-triggered sync path — `AttachmentMediaChangeHook` does not exist, and no
+  `MediaChangeHookImpl` → `AdvertisementService.onMediaChanged()` →
+  `AdvertisementRepository.updateMedia()` chain exists either. See
+  `marketplace-app/DECISIONS.md` ADR-035.
 - HTML description is sanitized using OWASP HTML Sanitizer (`Sanitizers.FORMATTING.and(LINKS).and(BLOCKS)`). Never trust raw HTML from UI.
 - Description visible-text length is enforced server-side via a Jsoup-based check in
   `AdvertisementService.sanitizeHtml()` (`Jsoup.parse(html).text().length()`), in addition to

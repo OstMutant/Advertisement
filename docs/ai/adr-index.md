@@ -111,8 +111,8 @@ rerun the script after any `DECISIONS.md` change instead. Only files using the
 | ADR-052 (marketplace-app) | marketplace-app | Accepted | Leaf UI buttons converted from `@SpringComponent` prototype beans to plain classes (Batch 1) |
 | ADR-053 (marketplace-app) | marketplace-app | Accepted | Leaf UI fields converted from `@SpringComponent` prototype beans to plain classes (Batch 2) |
 | ADR-054 (marketplace-app) | marketplace-app | Accepted | Structural leaf components (`EmptyStateView`, `DialogLayout`, `OverlayLayout`) converted to plain classes (Batch 3); `PaginationBar` deliberately kept a Spring bean |
-| ADR-055 (marketplace-app) | marketplace-app | Accepted | `ConfirmActionDialog` converted to a plain class (Batch 4, final) — closes improvement-025; unrelated Playwright flake fixed in `fillActorPicker`'s search path |
-| ADR-056 (marketplace-app) | marketplace-app | Accepted | `ui/query/elements/*` leaf UI components converted from `@SpringComponent` prototype beans to plain classes — sibling refactor to improvement-025, applied to the query/filter-bar tree |
+| ADR-055 (marketplace-app) | marketplace-app | Accepted | `ConfirmActionDialog` converted to a plain class (Batch 4, final) — closes the leaf-UI-components-to-plain-classes effort; unrelated Playwright flake fixed in `fillActorPicker`'s search path |
+| ADR-056 (marketplace-app) | marketplace-app | Accepted | `ui/query/elements/*` leaf UI components converted from `@SpringComponent` prototype beans to plain classes — sibling refactor to ADR-052 through ADR-055, applied to the query/filter-bar tree |
 | ADR-057 (marketplace-app) | marketplace-app | Accepted | `AbstractViewOverlayModeHandler`'s secondary/tertiary-tab machinery removed — dead since the Timeline-tab extraction |
 | ADR-058 (marketplace-app) | marketplace-app | Accepted | `UiComponentFactory<T>` bounded to `T extends Configurable<T, ?>`; non-`Configurable` consumers migrated to plain `ComponentFactory<T>` |
 | ADR-059 (marketplace-app) | marketplace-app | Accepted | F-01 deep links + Open Graph meta tags — step 1 (prototype gate) |
@@ -123,12 +123,12 @@ rerun the script after any `DECISIONS.md` change instead. Only files using the
 | ADR-064 (marketplace-app) | marketplace-app | Accepted | `advertisement` → `user_information` hard FK coupling removed — last one between starters |
 | ADR-065 (marketplace-app) | marketplace-app | Accepted | F-02 city dictionary + geo filter — `TaxonType.CITY` reusing the existing taxon assignment mechanism, no schema change |
 | ADR-066 (marketplace-app) | marketplace-app | Accepted | F-03 listing types (Offer/Request/Product) — new `ad_kind` column, `RadioButtonGroup` (first use in this codebase), multi-select filter |
-| ADR-067 (marketplace-app) | marketplace-app | Accepted, rolled out to all five domains (Settings, Advertisement, Taxon, City, User) | Activity/restore moved from an "Activity" tab to a stacked nested overlay (improvement-128) |
-| ADR-068 (marketplace-app) | marketplace-app | Accepted | `findById()` locale fix + `AdvertisementEnrichmentService` extraction (improvement-132 Batch A) |
-| ADR-069 (marketplace-app) | marketplace-app | Accepted | `user-spring-boot-starter` doc fix + `User.toDto()` dedup + `@NonNull` sweep (improvement-132 Batch C) |
-| ADR-070 (marketplace-app) | marketplace-app | Accepted | F-04 Batch A — `locale`/`settings` split out of `user_information` into `user_preferences` (improvement-124) |
-| ADR-071 (marketplace-app) | marketplace-app | Accepted | `UserDto.locale` removed, `UserProfileUpdate` renamed, `UserPort` split (improvement-124 Batch A2) |
-| ADR-072 (marketplace-app) | marketplace-app | Accepted | `EntityType.PROVIDER_PROFILE` compiler-forced touches (improvement-124 Batch 124-B) |
+| ADR-067 (marketplace-app) | marketplace-app | Accepted, rolled out to all five domains (Settings, Advertisement, Taxon, City, User) | Activity/restore moved from an "Activity" tab to a stacked nested overlay |
+| ADR-068 (marketplace-app) | marketplace-app | Accepted | `findById()` locale fix + `AdvertisementEnrichmentService` extraction (Batch A) |
+| ADR-069 (marketplace-app) | marketplace-app | Accepted | `user-spring-boot-starter` doc fix + `User.toDto()` dedup + `@NonNull` sweep (Batch C) |
+| ADR-070 (marketplace-app) | marketplace-app | Accepted | F-04 Batch A — `locale`/`settings` split out of `user_information` into `user_preferences` |
+| ADR-071 (marketplace-app) | marketplace-app | Accepted | `UserDto.locale` removed, `UserProfileUpdate` renamed, `UserPort` split (Batch A2) |
+| ADR-072 (marketplace-app) | marketplace-app | Accepted | `EntityType.PROVIDER_PROFILE` compiler-forced touches (F-04 Batch B) |
 | ADR-001 (platform-commons) | platform-commons | Accepted | Package restructure — core / audit / attachment / user / advertisement |
 | ADR-002 (platform-commons) | platform-commons | Accepted | Package semantics — api vs spi vs dto |
 | ADR-003 (platform-commons) | platform-commons | Accepted | SPI naming convention — Port and Hook suffixes |
@@ -154,8 +154,8 @@ rerun the script after any `DECISIONS.md` change instead. Only files using the
 | ADR-023 (platform-commons) | platform-commons | Accepted | `Class<T> targetClass` type-token added to `AuditPort.getSnapshotContent()` / `AuditDomainHook.castIfKnown()` |
 | ADR-024 (platform-commons) | platform-commons | Accepted | Snapshot schema versioning — a real `schemaVersion` field everywhere, no reflection |
 | ADR-025 (platform-commons) | platform-commons | Accepted | Batch G governance cleanup — DTO boundary, Hook→Port rename, UserIdMarker package |
-| ADR-026 (platform-commons) | platform-commons | Accepted | One starter, multiple `*Port` interfaces — `UserPort` split into 4 (improvement-124 Batch A2) |
-| ADR-027 (platform-commons) | platform-commons | Accepted | `ProviderProfilePort` added — F-04 Batch 124-B, `provider-profile-spring-boot-starter` |
+| ADR-026 (platform-commons) | platform-commons | Accepted | One starter, multiple `*Port` interfaces — `UserPort` split into 4 |
+| ADR-027 (platform-commons) | platform-commons | Accepted | `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter` |
 | ADR-001 (playwright) | playwright | Accepted | data-testid convention for form field selectors |
 | ADR-002 (playwright) | playwright | Accepted — **known current code drift, not yet fixed** (see note below) | No waitForTimeout — wait on Vaadin state attributes |
 | ADR-003 (playwright) | playwright | Accepted | --ux flag controls screenshots |
@@ -185,7 +185,7 @@ rerun the script after any `DECISIONS.md` change instead. Only files using the
 | ADR-001 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Accepted | Filter resolves through `Set<Long>`, not SQL JOIN |
 | ADR-002 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Accepted (done 2026-06-26) | DefaultTaxonPort is a coordination layer, not pure delegation |
 | ADR-003 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Accepted (done 2026-06-26) | TaxonType enum is a closed set in platform-commons |
-| ADR-004 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Superseded 2026-07-17 (improvement-058) — `TaxonAuditHook` removed entirely | TaxonAuditHook fires per assignment change, not per batch |
+| ADR-004 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Superseded 2026-07-17 — `TaxonAuditHook` removed entirely | TaxonAuditHook fires per assignment change, not per batch |
 | ADR-005 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Accepted (done 2026-07-21) | `TaxonRepository.findByIds()` now returns soft-deleted rows too |
 
 ## Known gaps

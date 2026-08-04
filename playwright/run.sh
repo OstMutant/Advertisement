@@ -24,7 +24,7 @@ done
 # ── Ensure marketplace-app is running ──────────────────────────────────────
 # All names/ports below are overridable via env vars (default shown), so a second, isolated
 # stack (see scripts/deploy.sh's own override block) can run this same script concurrently with
-# a normal dev stack — used by scripts/ci/entrypoint.sh (improvement-059).
+# a normal dev stack — used by scripts/ci/entrypoint.sh.
 APP_URL="${APP_URL:-http://localhost:8081}"
 APP_CONTAINER="${APP_CONTAINER:-marketplace-app}"
 PW_CONTAINER="${PW_CONTAINER:-pw-runner}"
@@ -33,7 +33,7 @@ DB_USER="${DB_USER:-experiments_user}"
 DB_NAME="${DB_NAME:-experiments}"
 
 # Playwright version must match image (see playwright/CLAUDE.md) -- one place to bump both
-# instead of two independent literals in the same file (improvement-044).
+# instead of two independent literals in the same file.
 PLAYWRIGHT_VERSION="1.61.1"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
 

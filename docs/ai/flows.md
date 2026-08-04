@@ -8,7 +8,7 @@ groups with different freshness guarantees — see "Staying correct" at the bott
 | Situation | Mechanism | Why this one, not another |
 |---|---|---|
 | New bug/improvement/feature request, not yet tracked | `/feature <title>` | Scaffolds `backlog/issues/<prefix>-NNN-<slug>.md` from the standard template and ranks it in `BACKLOG.md` in the same operation — the only way a new issue is filed without leaving it unranked. |
-| A real architectural decision was just made (new pattern, deliberate exception, rejected alternative) | `/decision <module> — <title>` | Writes directly into that module's `DECISIONS.md` in the established `## ADR-NNN: Title` / `**Status:**` / Context-Decision-Consequences shape — do not hand-write ADR entries ad hoc. Regenerate [adr-index.md](adr-index.md) (`bash scripts/ai/generate-adr-index.sh`) in the same change — this is also a standing `.claude/rules.md` rule, not just this command's own step (improvement-135). |
+| A real architectural decision was just made (new pattern, deliberate exception, rejected alternative) | `/decision <module> — <title>` | Writes directly into that module's `DECISIONS.md` in the established `## ADR-NNN: Title` / `**Status:**` / Context-Decision-Consequences shape — do not hand-write ADR entries ad hoc. Regenerate [adr-index.md](adr-index.md) (`bash scripts/ai/generate-adr-index.sh`) in the same change — this is also a standing `.claude/rules.md` rule, not just this command's own step. |
 | Code changed and the diff might have made a doc stale | `/sync-docs` (default: diff against `origin/main`) | Has its own changed-file→doc-target mapping table; only touches docs affected by the actual diff — cheap, meant for frequent use. |
 | Periodic whole-repo doc sanity check, independent of any one diff | `/sync-docs --full-audit` | Diff mode can never catch drift where the *doc* mentioning a renamed/removed thing was never itself part of the commit that changed it — full-audit re-verifies every claim in every `README.md`/`DECISIONS.md`/`CLAUDE.md` against current code, not just recently-touched ones. Also the only place the "Built-in Claude Code skills" table below gets checked — see "Staying correct". |
 | A scoped, already-agreed multi-step task that just needs building | `/autopilot <task>` | One plan, one approval, then implementation/tests/docs/issue-lifecycle chained through without further check-ins — the standing per-step Approval Rule still applies to any other task in the same session. |
@@ -21,7 +21,7 @@ groups with different freshness guarantees — see "Staying correct" at the bott
 | New complete UI domain (View/Overlay/ModeHandlers/QueryBlock/FilterMeta/SortMeta) | `new-domain` skill | Scaffolds the full established pattern set in one pass — see `marketplace-app/CLAUDE.md` "Reference Implementations" for what it mirrors. |
 | Extract/read screenshots from the last Playwright `--ux` run | `screenshots` skill | Reads them out of the HTML report's embedded base64 zip — there is no standalone `screenshots/` directory. |
 | Need an independently evidence-verified findings list, no code changes at all | `.claude/skills/deep-review` — diff mode (default, last commit or a ref) or `full [module]` (periodic whole-repo SOLID/DRY/KISS sweep) | Never writes code, every finding independently re-verified against the real file before being reported — use when the goal is a trustworthy findings list to hand off or decide on, not an immediate fix. Full mode already spawns one subagent per module with that module's own `CLAUDE.md`/`DECISIONS.md` as context — do not pre-load that yourself. |
-| About to write or edit any documentation file (`CLAUDE.md`, `README.md`, `docs/architecture/*`, `docs/ai/*`, a command, a skill, `.claude/rules.md`) | `doc-standards` skill | Pre-write checklist + canonical-ownership table — checks whether the fact being added already has a canonical home before restating it, the mechanism that stops the same fact drifting across up to four files (improvement-137). |
+| About to write or edit any documentation file (`CLAUDE.md`, `README.md`, `docs/architecture/*`, `docs/ai/*`, a command, a skill, `.claude/rules.md`) | `doc-standards` skill | Pre-write checklist + canonical-ownership table — checks whether the fact being added already has a canonical home before restating it, the mechanism that stops the same fact drifting across up to four files. |
 
 ## Built-in Claude Code skills (not files in this repo — global/plugin, can drift silently, see "Staying correct")
 
@@ -50,9 +50,8 @@ quality issues unprompted" rule — an undocumented flow is exactly that class o
 **Built-in Claude Code skills table** — cannot be mechanically checked from inside this repo: these
 skills aren't files here, they're part of the Claude Code installation itself, and the only way to
 even see the current list is the "Available skills" system-reminder injected into a live session.
-Confirmed gap (improvement-135): this table was missing `simplify`/`security-review`/`review`/
-`update-config`/`loop`/`schedule` — all pre-existing, all silently uncovered, caught only by a
-manual audit, not any automated check. Re-check this table's completeness during
+A newly-added built-in skill can go silently uncovered here, caught only by a manual audit, not
+any automated check. Re-check this table's completeness during
 `/sync-docs --full-audit` by comparing it against whatever skill list is actually available at
 that time — this is a periodic, judgment-based check, not a continuous guarantee. Deliberately
 excluded here as out of scope for this project's day-to-day work: `keybindings-help`

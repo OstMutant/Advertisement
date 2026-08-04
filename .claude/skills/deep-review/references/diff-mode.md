@@ -28,17 +28,16 @@ why (infer intent from the diff itself, commit message, and any linked
 
 **3. Find candidates — parallel, specialized, not generic.** The original
 Anthropic command runs a generic "bugs" agent and a "CLAUDE.md compliance"
-agent. This project's own history (`improvement-049`, `improvement-050`,
-`improvement-090`, `improvement-106`, `improvement-107`) shows its real bugs
-cluster around a few specific shapes, so use those as the lenses instead of a
-generic "find bugs" prompt:
+agent. This project's own history shows its real bugs cluster around a few
+specific shapes, so use those as the lenses instead of a generic "find bugs"
+prompt:
 
    - **Security-boundary agent** — does this diff add or touch a mutation path
      (`save`/`delete`/anything with side effects)? Is authorization checked at
      the service layer, or only assumed from the UI having hidden a button?
-     (Background: `improvement-111` — UI-only enforcement is a known, accepted,
-     but *conditionally* safe state; anything that changes the condition — a
-     new non-UI caller — is exactly what to flag here.)
+     (Background: UI-only enforcement is a known, accepted, but *conditionally*
+     safe state; anything that changes the condition — a new non-UI caller —
+     is exactly what to flag here.)
    - **Data-integrity agent** — any external side effect (S3, a future webhook,
      email) sequenced against a DB transaction? Could a failure between the two
      leave them inconsistent? Any TOCTOU gap between a check and the action it
@@ -68,8 +67,8 @@ issue any agent in step 3 raised, spawn a fresh subagent whose only job is to
 open the real, current file and confirm the issue is actually there — not
 "plausible", actually present. A candidate that fails this check is dropped
 silently, not softened into a caveat. This mirrors the source command's step 5
-exactly, and it's the same discipline that caught `improvement-066`/`067`
-being stale — a claim that sounds right is not the same as a claim that's been
+exactly, and it's the same discipline that caught a past stale claim before it
+shipped — a claim that sounds right is not the same as a claim that's been
 looked at.
 
 **5. Cross-check survivors against the backlog**, per the parent skill's rule 2.

@@ -30,7 +30,7 @@ without those starters ever becoming aware of each other or of this module.
 needs a FK-satisfying user row (e.g. `AdvertisementRepository` — `advertisement.created_by` is
 `NOT NULL` with an FK to `user_information.id`) would otherwise force each starter needing this to
 either (a) depend on `user-spring-boot-starter` itself (a real, if test-scoped, starter-to-starter
-coupling that ArchUnit/Enforcer — improvement-030/031 — would eventually need to special-case), or
+coupling that ArchUnit/Enforcer would eventually need to special-case), or
 (b) reinvent its own fixture/stub logic independently, duplicating it across every starter that
 needs a test actor row (advertisement, and later audit/attachment/taxon in Batch 3). Centralizing
 in `integration-tests` gives one canonical fixture, reused everywhere, with zero coupling leaking
@@ -40,9 +40,9 @@ into any domain starter's own dependency graph.
 this design considered giving `advertisement-spring-boot-starter`'s test a hand-rolled minimal
 `user_information` stub table (just enough columns to satisfy the FK) instead of depending on
 `user-spring-boot-starter` at all. Rejected: a stub schema can silently drift from the real one
-(exactly the class of risk this same session spent significant effort closing for
-`POSTGRES_IMAGE` — see improvement-027/044) and would mask real cross-module schema-compatibility
-regressions that a test against the real `user-spring-boot-starter` schema would actually catch.
+(the same class of risk `POSTGRES_IMAGE` deliberately closes, see `SharedEnvConfig` below) and
+would mask real cross-module schema-compatibility regressions that a test against the real
+`user-spring-boot-starter` schema would actually catch.
 
 ---
 
@@ -60,10 +60,8 @@ regressions that a test against the real `user-spring-boot-starter` schema would
   source of truth also read natively by `scripts/infra/docker-compose.db.yml` — renaming the
   Postgres version updates both consumers from one place, no drift possible. The repo-root `.env`
   is intentionally **committed** (not `.gitignore`d) and must only ever hold non-secret, dev-only
-  values (currently just `POSTGRES_IMAGE`) — any future addition to it (see
-  [improvement-044](../backlog/issues/improvement-044-shared-env-config-consolidation.md)) must
-  keep that invariant; production secrets belong in CI/deploy-time environment variables, never in
-  this file.
+  values (currently just `POSTGRES_IMAGE`) — any future addition to it must keep that invariant;
+  production secrets belong in CI/deploy-time environment variables, never in this file.
 - Per-starter `*RepositoryTest` classes (e.g. `advertisement/AdvertisementRepositoryTest`) and
   plain unit tests for pure logic that would otherwise have no home (e.g. `diff()` on
   `platform-commons` snapshot DTOs) — organized into sub-packages per domain
@@ -82,16 +80,15 @@ Playwright convention: extract to a shared file only once two or more consumers 
 helper, keep spec/test-specific logic local otherwise.
 
 - `org.ost.integrationtests.support.RepositoryTestSupport` — a `@TestConfiguration` bean bag: adds
-  `@RepositoryTestAutoConfig` (a composed `@ImportAutoConfiguration` allow-list, corrected
-  2026-07-31 — previously a raw `@ImportAutoConfiguration({...})` array copy-pasted per test class;
-  see `DECISIONS.md` ADR-009 for why an explicit allow-list over `@EnableAutoConfiguration`, and its
-  2026-07-31 correction for the centralization) + `@EnableJdbcAuditing` (needed
+  `@RepositoryTestAutoConfig` (a composed `@ImportAutoConfiguration` allow-list — see `DECISIONS.md`
+  ADR-009 for why an explicit allow-list over `@EnableAutoConfiguration`, and its centralization
+  rationale) + `@EnableJdbcAuditing` (needed
   because `@SpringBootTest(classes = {...@AutoConfiguration classes...})` does not itself trigger
   Spring Boot's autoconfiguration cascade — `JdbcClient`, `DataSource`, etc. only appear once the
   relevant autoconfiguration classes are present among the loaded classes), the
   `MutableAuditorAware` bean, and empty `ComponentFactory<AuditPort>` / `ComponentFactory
-  <AttachmentPort>` / `ComponentFactory<AdvertisementPort>` (`@ConditionalOnMissingBean`, corrected
-  2026-07-27 — added since this section was first written) beans (representing "audit/attachment/
+  <AttachmentPort>` / `ComponentFactory<AdvertisementPort>` (`@ConditionalOnMissingBean`) beans
+  (representing "audit/attachment/
   advertisement starter absent from the test classpath", the same shape `AdvertisementService` sees
   in production when those optional starters aren't installed — not a stub). A test that needs a
   *different* optional port (e.g. `TaxonPort`) declares its own extra `ComponentFactory` bean
@@ -149,8 +146,7 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
   `scripts/infra/docker-compose.db.yml` reads natively — no hardcoded duplication, though the two
   are never the same running container (Testcontainers always starts its own ephemeral instance,
   never reuses the persistent dev one). `deploy.sh`'s own `docker pull`/`docker run` for Postgres
-  still hardcode the tag separately — tracked as a follow-up in
-  `backlog/issues/improvement-044-shared-env-config-consolidation.md`, out of scope here.
+  still hardcode the tag separately — out of scope here.
 - Data isolation across `*RepositoryTest` classes sharing the one physical container: each
   applies its own starter's real Liquibase changelog against the shared container/database:
   Postgres allows multiple independent tables per database, so distinct starters' schemas

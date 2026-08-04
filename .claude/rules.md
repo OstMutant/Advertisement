@@ -61,6 +61,29 @@ session — those files get updated mid-session precisely because a run just rev
 > number-free version on the first pass; do not wait to be told to fix it. Violating this rule has
 > happened repeatedly.
 
+> ## ⛔ No issue/ticket numbers or dated "resolved" narrative in current-state documentation
+> The same "no ticket numbers" principle above extends to every file that describes the system's
+> *current* state — `CLAUDE.md`, `README.md`, `docs/architecture/*.md`, `docs/ai/*.md`, skill/
+> command `.md` files, and shell-script comments. None of these may cite an
+> `improvement-NNN`/`goal-NNN`/`feature-NNN` reference, and none may carry a dated
+> "resolved"/"as of \<date\>" narrative describing a past state that no longer holds. If a fact
+> changes, delete the old fact — don't mark it resolved in place; a file describing "what is"
+> should read as if it always looked this way. `DECISIONS.md` keeps its own append-only historical
+> character (date, decision, reasoning) but drops the issue-number citation the same way — an ADR
+> records the decision and why, never which ticket produced it.
+>
+> **Why:** a ticket citation is a forward-link that only ever goes stale — issues get renumbered,
+> merged, or archived, while the file citing them keeps being read as live guidance long after the
+> ticket closes. A "resolved" note left in place reads as current information to a reader with no
+> way to tell it stopped mattering.
+>
+> **How to apply:** history lives only in `backlog/completed/issues/*.md` (full detail) and
+> `backlog/completed/BACKLOG-ARCHIVE.md` (searchable one-line index) — keep those naming the real
+> classes/modules/concepts touched, not just "cleanup pass," so a keyword grep finds them. The
+> reverse link — which ticket produced a given current line — is `git blame`/`git log`, already
+> free via this repo's `feat(improvement-NNN): ...` commit convention; do not build or maintain a
+> new index for this purpose.
+
 ## Approval Rule
 **Every action must be approved by the user before execution — no exceptions.**
 
@@ -152,16 +175,17 @@ When an issue in `backlog/issues/` is resolved (fix is implemented and committed
   `backlog/completed/BACKLOG-ARCHIVE.md` under the relevant wave — same operation, see
   `backlog/BACKLOG.md`'s "Maintenance rules"
 
-### Out-of-scope-but-valid findings — propose adding to improvement-133, never drop silently
+### Out-of-scope-but-valid findings — propose adding to the standing deferred-findings bucket, never drop silently
 When a `/code-review`/`/deep-review` (or any other review) finding is real and worth fixing but
 its solution is too large to fit in the current batch/PR (a new abstraction, an architectural
 change, a cross-module refactor), do not silently skip it and do not fix it inline outside the
-approved scope either. At the end of the review, propose appending it as a new entry to
-`backlog/issues/improvement-133-deferred-oversized-review-findings.md` — a standing collection
-bucket for exactly this class of finding — state what it covers and why it doesn't fit now, and
-wait for approval before writing the entry. Do not create a brand-new issue file per finding; that
-scatters oversized findings across dozens of one-off files instead of one triage-able list. Only
-carve a finding out into its own issue once it's actually being picked up and sized for real work.
+approved scope either. At the end of the review, propose appending it as a new entry to this
+project's standing collection bucket for exactly this class of finding — search `backlog/issues/`
+for the file covering "deferred oversized review findings" — state what it covers and why it
+doesn't fit now, and wait for approval before writing the entry. Do not create a brand-new issue
+file per finding; that scatters oversized findings across dozens of one-off files instead of one
+triage-able list. Only carve a finding out into its own issue once it's actually being picked up
+and sized for real work.
 
 ### Final reports — no file-by-file diff table
 When reporting completed work (autopilot's step-5 final report, or any other end-of-task summary),

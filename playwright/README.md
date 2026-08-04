@@ -53,8 +53,8 @@ After run:
    then starts the app again and waits for `Started Application`. Tables are never truncated while
    the app is live.
 3. **pw-runner container** — reuses (or creates) a long-lived `mcr.microsoft.com/playwright:v1.61.1-jammy`
-   (corrected 2026-07-27 from an earlier `v1.52.0-jammy` — must match the `playwright@1.61.1` npm
-   package version, see `playwright/CLAUDE.md`) container, installs the `playwright`/
+   (must match the `playwright@1.61.1` npm package version, see `playwright/CLAUDE.md`) container,
+   installs the `playwright`/
    `@playwright/test` npm packages once, syncs the current spec files from `e2e/` via `docker cp`,
    then runs `npx playwright test`.
 
@@ -84,8 +84,7 @@ and are promoted to their final role in spec 03.
 
 ## Scenarios (`e2e/`)
 
-All scenarios live in `/app/playwright/e2e/01`–`07-*.spec.js` (corrected 2026-07-27 — spec 07 was
-added since this table was last updated), run in order against a single
+All scenarios live in `/app/playwright/e2e/01`–`07-*.spec.js`, run in order against a single
 shared browser page per spec file (`test.describe.configure({ mode: 'serial' })`). Shared
 helpers live in `e2e/_helpers.js` and `e2e/_flows/*.flow.js`.
 
@@ -97,7 +96,7 @@ Full test-by-test breakdown: see `e2e/README.md`.
 | `02-marketplace-authentication-flow` | Sign-up for all test accounts, login/logout, locale persistence, wrong-password and login-rate-limit rejection |
 | `03-marketplace-promotion-flow` | Role promotion, UK locale setup, cross-actor user edit, category CRUD, max-boundary user/category seeding |
 | `04-marketplace-advertisement-flow` | Advertisement create/edit/restore lifecycle, media (YouTube/image/video), activity diffs, timeline, max-content boundaries |
-| `05-seed-filter-sort-pagination` | *(only with `--full`)* Seeds 60 users + 60 ads (`SEED_COUNT = 60`, corrected 2026-07-27 from an earlier 50 figure), validates filters/sort/pagination, page-size settings, timeline filters |
+| `05-seed-filter-sort-pagination` | *(only with `--full`)* Seeds 60 users + 60 ads (`SEED_COUNT = 60`), validates filters/sort/pagination, page-size settings, timeline filters |
 | `06-marketplace-delete-flow` | Delete confirmation flow for advertisements and users |
 | `07-accessibility` | No unlabeled icon-only buttons (missing `aria-label`) across all main tabs |
 

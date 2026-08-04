@@ -6,7 +6,7 @@
 
 **Status:** Accepted
 
-**Context:** `improvement-134` audited whether this repo's AI-navigation surface (module `CLAUDE.md`,
+**Context:** An audit of whether this repo's AI-navigation surface (module `CLAUDE.md`,
 `DECISIONS.md`, `docs/architecture/`, backlog, `.claude/skills/deep-review/`,
 `.claude/commands/*.md`) needed an additive layer for discoverability/context-efficiency. The audit
 found module `CLAUDE.md` is already unconditionally `@`-imported into every session (root
@@ -41,8 +41,7 @@ the same three fields externally.
 
 **Rejected alternative — `docs/ai/module-index.md` and `docs/ai/database-ownership.md`**: both
 found to substantially duplicate existing, already-more-detailed documentation
-(`docs/architecture/03-bounded-contexts.md` and `04-database-erd.md` respectively) — see
-`improvement-134`'s audit findings 2.4 for the full comparison. Not built.
+(`docs/architecture/03-bounded-contexts.md` and `04-database-erd.md` respectively). Not built.
 
 ---
 
@@ -50,7 +49,7 @@ found to substantially duplicate existing, already-more-detailed documentation
 
 **Status:** Accepted
 
-**Context:** `improvement-137`'s planning found a stale hard-coded module count ("9 modules" /
+**Context:** A documentation-cleanup pass found a stale hard-coded module count ("9 modules" /
 "all 9 modules") surviving in at least six files (`docs/architecture/01-module-dependencies.md`,
 `docs/architecture/README.md` in three places, `.claude/skills/deep-review/references/full-mode.md`'s
 module scope list, and others) after `provider-profile-spring-boot-starter` was added as the repo's

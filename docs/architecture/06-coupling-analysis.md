@@ -2,25 +2,24 @@
 
 ## Architecture Violations — Current State
 
-### ✅ RESOLVED: Marketplace → Starter Internal Imports (2026-06-15)
+### Marketplace → Starter Internal Imports
 
-**Previously:** `AccessEvaluator` imported `org.ost.user.security.OwnershipChecker` and `org.ost.user.security.RoleChecker` directly.
-
-**Resolution (ADR-016):** `AccessEvaluator` now depends only on `UserAuthorizationPort` (platform-commons SPI) and `AuthContextService`. Role and ownership checks go through `UserAuthorizationPort.isAdmin()`, `.isModerator()`, `.isOwner()` — `UserPort` was later split into 4 narrower ports (ADR-026), and authorization moved to the dedicated `UserAuthorizationPort` slice.
+`AccessEvaluator` depends only on `UserAuthorizationPort` (platform-commons SPI) and
+`AuthContextService` — no direct import of `org.ost.user.security.*`. Role and ownership checks
+go through `UserAuthorizationPort.isAdmin()`, `.isModerator()`, `.isOwner()`. See ADR-016
+(`marketplace-app/DECISIONS.md`).
 
 **File:** `/app/marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java`
 
 ---
 
-### ✅ RESOLVED: UserPortImpl DTO Mapping Logic (2026-07-01)
+### UserPortImpl DTO Mapping Logic
 
-**Previously:** `UserPortImpl` contained `toDto(User)` mapping method and inline `.stream().map(UserPortImpl::toDto)` pipelines — business logic inside a port class.
-
-**Resolution:** DTO mapping moved into `UserService`. `UserPortImpl.findByEmail()` delegates to `userService.findDtoByEmail(email)`. Port methods are now pure single-line delegations.
+`UserPortImpl` methods are pure single-line delegations to `UserService` — no `toDto(User)`
+mapping or `.stream().map(...)` pipelines inside the port itself. `UserPortImpl.findByEmail()`
+delegates to `userService.findDtoByEmail(email)`.
 
 **File:** `/app/user-spring-boot-starter/src/main/java/org/ost/user/spi/UserPortImpl.java`
-
-→ [violation-004-userportimpl-mapping-logic](../../backlog/completed/issues/violation-004-userportimpl-mapping-logic.md) (completed)
 
 ---
 
@@ -90,66 +89,45 @@ No internal class imports detected. ✓
 
 ---
 
-## Hidden Coupling: Advertisement → User Tight Coupling — ✓ RESOLVED (improvement-120, 2026-07-25)
+## Actor-Reference Coupling: Advertisement → User
 
-**Severity:** was MEDIUM — Schema-level coupling; resolved.
-
-**Original finding:** `advertisement` had a hard SQL-level FK to `user_information`
-(`fk_advertisement_created_by`/`fk_advertisement_modified_by`/`fk_advertisement_deleted_by`,
-`ON DELETE RESTRICT`/`SET NULL`), the last remaining hard FK coupling between two starters —
-`taxon`/`audit`/`attachment` already stored actor references as plain `BIGINT` with no FK.
-
-**Resolution:** All three FK constraints removed from
-`advertisement-spring-boot-starter/.../01-advertisement-schema.xml`. Replaced by two bulk
-`AdvertisementPort` methods: `findOwnerIds(Set<Long>)` (mirrors the old `RESTRICT` — blocks a
-retention purge) and `clearActorReferences(Set<Long>)` (mirrors the old `SET NULL` — nulls the
-columns at the application level), called from `UserService.cleanup()`. Verified against 3 UI
-scenarios (admin soft-delete, purge-blocked-by-ownership, purge-with-dangling-actor-ref) with no
-regression — `updated_by`/`deleted_by` were never exposed to the UI. See
-`backlog/completed/issues/improvement-120-advertisement-user-hard-fk-coupling.md`.
+`advertisement`'s actor-reference columns (`created_by`/`updated_by`/`deleted_by`) are plain
+`BIGINT` with no FK to `user_information` — matching `taxon`/`audit`/`attachment`'s convention.
+Purge-safety is enforced at the application level, not via a DB constraint: two bulk
+`AdvertisementPort` methods, `findOwnerIds(Set<Long>)` (blocks a retention purge while ads exist)
+and `clearActorReferences(Set<Long>)` (nulls the columns), called from `UserService.cleanup()`.
+`updated_by`/`deleted_by` are not exposed to the UI.
 
 ---
 
-## Hidden Coupling: Singleton State Shared Across UI Sessions
+## Singleton State Isolation Across UI Sessions
 
-### ✅ RESOLVED — SettingsPaginationService Cross-Session Bleed (2026-07-11)
-
-**Previously:** `SettingsPaginationService` is a singleton `@Component` holding a
-`CopyOnWriteArrayList<BindingEntry>` accumulated from **every user's** UI session, with no owner
-association per entry. `onSettingsChanged(userId, settings)` filtered only on whether the
-*current thread's* user matched `userId`, then pushed the new page size to every registered
-`PaginationBar` regardless of which session it belonged to — one user's settings change silently
-resized every other logged-in user's live grid.
-
-**Resolution (ADR-028):** `BindingEntry` now carries the owning `userId` (captured from
-`AuthContextService` at `register()` time); `onSettingsChanged` filters by
-`entry.userId().equals(userId)` instead of gating on the current thread's user. Also added
-`bar.addDetachListener(...)` so cleanup no longer depends solely on `@PreDestroy`.
+`SettingsPaginationService` is a singleton `@Component` holding a
+`CopyOnWriteArrayList<BindingEntry>` across every user's UI session. Each `BindingEntry` carries
+the owning `userId` (captured from `AuthContextService` at `register()` time), and
+`onSettingsChanged(userId, settings)` filters by `entry.userId().equals(userId)` before pushing a
+new page size — one user's settings change never touches another session's grid. Cleanup uses both
+`bar.addDetachListener(...)` and `@PreDestroy`. See ADR-028.
 
 **File:** `/app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/services/pagination/SettingsPaginationService.java`
 
-→ [improvement-018](../../backlog/completed/issues/improvement-018-settings-pagination-cross-session-bleed.md) (completed)
-
 ---
 
-## Hidden Coupling: Optional Dependencies Without Guards
+## Optional Dependency Guards
 
-### ✅ RESOLVED at starter level (verified 2026-07-03)
+### Starter Level
 
-The originally presumed unguarded call (`auditPort.captureCreation(...)` directly in
-`AdvertisementService`) does not exist in current code. `AdvertisementService` injects
-`ComponentFactory<AuditPort>`, `ComponentFactory<AttachmentPort>`, `ComponentFactory<TaxonPort>`
-and resolves every call through `ifAvailable()` / `findIfAvailable()`. A grep for
-`import org.ost.audit.` / `import org.ost.attachment.` in advertisement-spring-boot-starter
-returns nothing — only platform-commons SPI types are referenced. The starter degrades
-gracefully as designed.
+`AdvertisementService` injects `ComponentFactory<AuditPort>`, `ComponentFactory<AttachmentPort>`,
+`ComponentFactory<TaxonPort>` and resolves every call through `ifAvailable()` /
+`findIfAvailable()`. A grep for `import org.ost.audit.` / `import org.ost.attachment.` in
+advertisement-spring-boot-starter returns nothing — only platform-commons SPI types are
+referenced. The starter degrades gracefully when a sibling starter isn't on the classpath.
 
-### ✓ RESOLVED — residual risk relocated to marketplace-app UI (found 2026-07-03, fixed improvement-011, 2026-07-13)
+### Marketplace-App UI
 
-**Severity:** was MEDIUM — startup failure risk; resolved.
-
-Three marketplace-app UI classes used to hard-inject starter ports instead of using
-`ComponentFactory` (now fixed via `ComponentFactory`/`@ConditionalOnBean`):
+Three marketplace-app UI classes inject their starter ports via `ComponentFactory`, with
+`@ConditionalOnBean` on the bean definitions themselves (not just a call-site `ifAvailable()`
+guard, since these bean definitions live in marketplace-app and always exist there):
 
 | Class | Injection | Scope | Failure without the starter |
 |-------|-----------|-------|------------------------------|
@@ -157,16 +135,8 @@ Three marketplace-app UI classes used to hard-inject starter ports instead of us
 | `AttachmentGallery` | `AttachmentPort` | prototype | exception on first build |
 | `AuditActivityPanel` | `AuditPort` | prototype | exception on first build |
 
-Call-site guards alone (`galleryServiceFactory.ifAvailable(...)`) would not have helped: the
-component bean definitions lived in marketplace-app and always existed, so `getIfAvailable()`
-attempted instantiation and threw `UnsatisfiedDependencyException`. Resolved by additionally
-gating the bean definitions themselves with `@ConditionalOnBean`, so attachment/audit starters are
-genuinely optional now, matching `<optional>true</optional>` in
-advertisement-spring-boot-starter's pom.xml.
-
-→ See [improvement-011](../../backlog/completed/issues/improvement-011-unguarded-port-injection-in-ui-components.md)
-(completed 2026-07-13) for the chosen resolution (`@ConditionalOnBean` on the component classes,
-the consolidated "Option C").
+This ensures attachment/audit starters are genuinely optional, matching `<optional>true</optional>`
+in advertisement-spring-boot-starter's `pom.xml`.
 
 ---
 
@@ -211,7 +181,7 @@ Checked for classes with excessive constructor parameters (>5 fields):
 Most classes have 1-3 injected dependencies:
 - `DefaultAuditPort`: 4 fields (auditLogRepository, currentActorHook, auditDomainHook, auditReadService)
 - `AuditDomainHookImpl`: 4 fields (componentFactories for ports)
-- `AccessEvaluator`: 2 fields (authorizationPort, authContextService) — ✅ Fixed (ADR-016, 2026-06-15)
+- `AccessEvaluator`: 2 fields (authorizationPort, authContextService) — see ADR-016
 
 **Finding:** No excessive constructor bloat. Dependency injection is reasonable.
 
@@ -225,13 +195,13 @@ Most classes have 1-3 injected dependencies:
 | **Starter → Starter Imports** | ✓ PASS | Only SPI contracts used |
 | **UI → Repository Direct** | ✓ PASS | All through Ports |
 | **Vaadin in Starters** | ✓ PASS | Vaadin only in marketplace-app |
-| **Marketplace → Starter Internal** | ✓ RESOLVED | AccessEvaluator fixed (ADR-016, 2026-06-15); UserPortImpl mapping logic fixed (2026-07-01) |
-| **Singleton State Isolation** | ✓ RESOLVED | SettingsPaginationService cross-session bleed fixed (ADR-028, improvement-018) |
-| **Optional Deps Guarded** | ✓ RESOLVED | starter level + marketplace-app UI both guarded (`ComponentFactory`/`@ConditionalOnBean`) — `AttachmentGalleryService`/`AttachmentGallery`/`AuditActivityPanel` fixed (improvement-011, 2026-07-13) |
-| **User ↔ Advertisement Coupling** | ✓ RESOLVED | Hard FK removed (improvement-120, 2026-07-25) — see "Hidden Coupling" section above |
+| **Marketplace → Starter Internal** | ✓ PASS | `AccessEvaluator` depends only on `UserAuthorizationPort` (ADR-016); `UserPortImpl` is pure delegation |
+| **Singleton State Isolation** | ✓ PASS | `SettingsPaginationService` scopes each `BindingEntry` by `userId` (ADR-028) |
+| **Optional Deps Guarded** | ✓ PASS | starter level + marketplace-app UI both guarded (`ComponentFactory`/`@ConditionalOnBean`) |
+| **User ↔ Advertisement Coupling** | ✓ PASS | No DB-level FK — see "Actor-Reference Coupling" section above |
 | **Module Sizes** | ✓ PASS | No unjustified size outliers |
 
 **Open Action Items:**
-1. **MONITOR Advertisement → User:** No DB-level coupling remains (improvement-120); if a future
-   need reintroduces one, extract a lightweight `UserReference` SPI rather than a raw FK.
+1. **MONITOR Advertisement → User:** No DB-level coupling exists today; if a future need
+   reintroduces one, extract a lightweight `UserReference` SPI rather than a raw FK.
 

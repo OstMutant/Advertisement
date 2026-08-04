@@ -312,8 +312,8 @@ namespace to avoid collision between entity domains (e.g. Advertisement's `title
 record with a `labelI18nKey` field, stored per-entry in the DB. That type never matches current
 code: `ChangeEntry` (`platform-commons/.../core/model/ChangeEntry.java`) is a sealed interface
 with exactly two variants, `FieldChange` and `MediaChange` — neither carries an i18n key, and
-`GenericChange` does not exist. The actual mechanism (established by ADR-011, item 1, and used by
-`improvement-013`'s fix) resolves labels at **render time**, not at write time:
+`GenericChange` does not exist. The actual mechanism (established by ADR-011, item 1) resolves
+labels at **render time**, not at write time:
 `AuditActivityFieldsHook.labelFor(String rawFieldKey)` maps a raw field key (e.g. `"nameEn"`,
 `"categoryIds"`) to a human label, implemented per-domain in marketplace-app's
 `*ActivityFieldsHookImpl` classes, which look the label up in the single consolidated
@@ -487,6 +487,7 @@ starter that actually owns the consuming bean.
 
 ## Deferred backlog
 
-→ [improvement-002-snapshot-schema-versioning](../backlog/issues/improvement-002-snapshot-schema-versioning.md)
-
-→ [improvement-003-deferred-performance](../backlog/issues/improvement-003-deferred-performance.md)
+Deferred performance optimizations (SnapshotCodec JSON parsing centralization, per-row activity
+JSON deserialization, a snapshot equality-check cache) — each gated on its own trigger (cursor
+pagination landing, or result/page sizes growing significantly); tracked in the backlog until a
+trigger fires.

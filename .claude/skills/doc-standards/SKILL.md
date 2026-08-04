@@ -8,7 +8,10 @@ consulted every time, before the content is written — not applied as cleanup a
 
 **Out of scope:** `DECISIONS.md` (append-only history — write what happened, accurately;
 optimizing an ADR for brevity over completeness is the wrong trade) and `backlog/issues/*.md`
-(already has its own format, defined in `.claude/commands/feature.md`).
+(already has its own format, defined in `.claude/commands/feature.md`). This carve-out covers ADR
+*content* only — `DECISIONS.md` still follows `.claude/rules.md`'s "No issue/ticket numbers ...
+in current-state documentation" rule (drop the `improvement-NNN` citation from each entry, keep
+the decision and its reasoning).
 
 ## Why this exists
 

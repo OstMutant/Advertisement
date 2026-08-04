@@ -27,7 +27,7 @@ bash /app/playwright/run.sh e2e --full --ux  # e2e suite including spec 05 (seed
 bash /app/playwright/run.sh 01-marketplace-empty-flow --ux  # single spec file, with screenshots
 ```
 
-**`--full` flag:** spec `05-seed-filter-sort-pagination` is skipped by default (it takes ~2 min to seed 120 entities — `SEED_COUNT = 60`, corrected 2026-07-27 from an earlier 50/100 figure). Pass `--full` to include it. Spec 06 (delete flow) works correctly in both modes — it creates its own ad to delete.
+**`--full` flag:** spec `05-seed-filter-sort-pagination` is skipped by default (it takes ~2 min to seed 120 entities — `SEED_COUNT = 60`). Pass `--full` to include it. Spec 06 (delete flow) works correctly in both modes — it creates its own ad to delete.
 
 **IMPORTANT:** Volume mounts don't work from inside the claude container (Docker socket path issue).
 `run.sh` uses `docker cp` internally — always use `run.sh`, never raw `docker run -v`.
@@ -57,7 +57,7 @@ might be stale state.
 3. Start app (command above)
 4. Wait for start: run `docker logs -f marketplace-app` with `run_in_background: true`, then use Monitor tool — it streams stdout and notifies when `"Started Application"` appears
 5. Run relevant scenario: `bash /app/playwright/run.sh <scenario>`
-6. For UX analysis add `--ux` flag → screenshots are embedded in the HTML report (`/app/playwright/pw-report/index.html`), not written to a standalone `/app/playwright/screenshots/` directory (corrected 2026-07-27 — that directory doesn't exist); use the `/screenshots` skill to extract and read them by name
+6. For UX analysis add `--ux` flag → screenshots are embedded in the HTML report (`/app/playwright/pw-report/index.html`) — there is no standalone `/app/playwright/screenshots/` directory; use the `/screenshots` skill to extract and read them by name
 
 ### Vaadin-specific notes
 - Vaadin uses Shadow DOM — always fill via inner input: `vaadin-text-field input`, `vaadin-text-area textarea`, `vaadin-email-field input`, `vaadin-password-field input`

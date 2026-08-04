@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Screenshots architecture-map.html (Track A, improvement-138) via a headless Playwright browser,
-# since this generated file has no automated visual test of its own and Claude has no display in
-# this environment otherwise. Mirrors playwright/run.sh's container conventions (same pinned
+# Screenshots architecture-map.html (Track A of the architecture control plane) via a headless
+# Playwright browser, since this generated file has no automated visual test of its own and Claude
+# has no display in this environment otherwise. Mirrors playwright/run.sh's container conventions (same pinned
 # Playwright image/version) but is a standalone tool, not part of the e2e suite -- it screenshots
 # a static generated file, not the running app.
 #

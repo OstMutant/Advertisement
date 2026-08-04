@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# Generates architecture-model.json (Track A, improvement-138) from already-structured,
-# non-code sources only -- no ArchUnit, no bytecode analysis. Node types: MODULE (from pom.xml
-# reactor + per-module pom.xml dependencies), COMMAND/SKILL (from .claude/commands, .claude/skills,
-# cross-checked against docs/ai/flows.md), and one BACKLOG summary node. See
-# backlog/issues/improvement-138-architecture-control-plane.md section 11 (Track A) for the plan
-# this implements, and its own scoping note on why per-ADR/per-issue graph nodes were not built
-# (149 issue files + 171 ADRs would blow past the "tens of nodes, not thousands" budget A2 commits
-# to -- ADRs are folded into each module's own `intent[]` list instead, reusing adr-index.md rather
-# than reparsing every DECISIONS.md).
+# Generates architecture-model.json (Track A of the architecture control plane) from
+# already-structured, non-code sources only -- no ArchUnit, no bytecode analysis. Node types:
+# MODULE (from pom.xml reactor + per-module pom.xml dependencies), COMMAND/SKILL (from
+# .claude/commands, .claude/skills, cross-checked against docs/ai/flows.md), and one BACKLOG
+# summary node. Per-ADR/per-issue graph nodes are deliberately not built -- the issue/ADR count
+# would blow past a "tens of nodes, not thousands" budget -- ADRs are folded into each module's
+# own `intent[]` list instead, reusing adr-index.md rather than reparsing every DECISIONS.md.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -244,7 +242,7 @@ done
 {
   echo "{"
   echo "  \"generated_by\": \"scripts/ai/generate-architecture-model.sh\","
-  echo "  \"generated_note\": \"Track A only -- modules+deps from pom.xml, domain grouping/entities/services/contracts from docs/architecture/03-bounded-contexts.md (manual confidence), tables from 04-database-erd.md, every Mermaid diagram in docs/architecture/01-05 reused verbatim, lifecycle from DECISIONS.md/backlog, pipeline nodes from docs/ai/flows.md + .claude/commands + .claude/skills. No ArchUnit/bytecode data -- see improvement-138 Track B.\","
+  echo "  \"generated_note\": \"Track A only -- modules+deps from pom.xml, domain grouping/entities/services/contracts from docs/architecture/03-bounded-contexts.md (manual confidence), tables from 04-database-erd.md, every Mermaid diagram in docs/architecture/01-05 reused verbatim, lifecycle from DECISIONS.md/backlog, pipeline nodes from docs/ai/flows.md + .claude/commands + .claude/skills. No ArchUnit/bytecode data yet (planned for a future track).\","
   echo "  \"diagramGroups\": ["
   echo "$diagram_groups_json"
   echo "  ],"

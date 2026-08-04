@@ -42,15 +42,13 @@ Partial unique index: `uidx_taxon_type_code ON taxon (type, code) WHERE code IS 
 - `TaxonType` enum lives in `platform-commons` (`org.ost.platform.taxon.model`). Adding a new type is a release-level change requiring UI, audit translations, and seed entries.
 - `@EnableJdbcRepositories(basePackages = "org.ost.taxon.repository")` declared in `TaxonAutoConfiguration`.
 - `DefaultTaxonPort` is a coordination layer, not pure delegation — it resolves translations, filters active records, and builds DTOs. Business logic stays in `TaxonService` and `TaxonAssignmentService`.
-- **`TaxonAuditHook` was removed entirely (improvement-058, 2026-07-17)** — it had zero
-  implementations, and both of its call sites (`TaxonAssignmentService.replaceAssignments()`,
-  invoked only from an advertisement save or delete) already sit inside a flow that produces its
-  own audit snapshot. `TaxonAssignmentService.assign()`/`unassign()` (the standalone wrapper
-  methods, distinct from the repository-level methods of the same name still used internally by
-  `replaceAssignments()`) were removed too, along with `TaxonPort.findByCode()`
-  (zero callers). Category-name display in audit diffs is handled by
-  `AdvertisementAuditEnrichService` (`marketplace-app`) resolving raw taxon ids via
-  `TaxonPort.findByIds()` at read time — see `marketplace-app/DECISIONS.md` ADR-019.
+- **`TaxonAuditHook` does not exist** — both of `TaxonAssignmentService.replaceAssignments()`'s
+  call sites (invoked only from an advertisement save or delete) already sit inside a flow that
+  produces its own audit snapshot. There is no standalone `TaxonAssignmentService.assign()`/
+  `unassign()` wrapper (distinct from the repository-level methods of the same name still used
+  internally by `replaceAssignments()`), and no `TaxonPort.findByCode()`. Category-name display in
+  audit diffs is handled by `AdvertisementAuditEnrichService` (`marketplace-app`) resolving raw
+  taxon ids via `TaxonPort.findByIds()` at read time — see `marketplace-app/DECISIONS.md` ADR-019.
 - `Taxon.version` (`@Version`) enforces optimistic locking on `save()` and `softDelete()`.
   `TaxonService.update()` must always forward the caller-supplied `version` when rebuilding the
   entity via `Builder` — never re-derive it from the `existing` row fetched in the same method,

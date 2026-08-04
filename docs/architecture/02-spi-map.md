@@ -123,9 +123,9 @@ leaf class name.
 | **AttachmentPort** | marketplace → starter | `org.ost.attachment.spi.DefaultAttachmentPort` | Upload, delete, query, restore attachments; manage snapshots |
 | **AttachmentAuditPort** | marketplace → starter | `org.ost.attachment.spi.AttachmentAuditPortImpl` | Attachment module requests audit records for media snapshots |
 
-`AttachmentMediaChangeHook` was removed entirely (improvement-102, zero implementations) — there is
-no starter→marketplace media-change callback anymore. Media summaries are computed at read time via
-`AttachmentPort.getMediaSummaries()` instead (see `marketplace-app/DECISIONS.md` ADR-035).
+`AttachmentMediaChangeHook` does not exist — there is no starter→marketplace media-change callback.
+Media summaries are computed at read time via `AttachmentPort.getMediaSummaries()` instead (see
+`marketplace-app/DECISIONS.md` ADR-035).
 
 ### User Subsystem — `org.ost.platform.user.spi`
 

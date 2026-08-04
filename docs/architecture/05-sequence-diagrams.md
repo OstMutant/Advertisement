@@ -298,9 +298,8 @@ sequenceDiagram
 - `org.ost.taxon.services.TaxonAssignmentService` (business logic)
 
 Category assignment changes are **not** independently recorded to `audit_log` — there is no
-`TaxonAuditHook`/`*AuditHookImpl` chain (removed entirely in improvement-058; the interface had
-zero implementations and its only two call sites already sit inside an advertisement save/delete
-that produces its own audit snapshot). Instead, the advertisement's own audit snapshot
+`TaxonAuditHook`/`*AuditHookImpl` chain (its only two call sites already sit inside an
+advertisement save/delete that produces its own audit snapshot). Instead, the advertisement's own audit snapshot
 (`AdvertisementSnapshotDto.categoryIds`) captures the before/after category set as part of the
 same save, and `AdvertisementAuditEnrichService` resolves those raw taxon ids to display names for both
 the Activity tab and the Timeline tab at read time (via `TaxonPort.findByIds()`).

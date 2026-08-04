@@ -1,5 +1,5 @@
 #!/bin/bash
-# Local, isolated, parameterized CI runner (improvement-059).
+# Local, isolated, parameterized CI runner.
 #
 # Usage:
 #   bash scripts/ci/run.sh                                   — default: most extensive run

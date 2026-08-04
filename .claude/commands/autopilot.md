@@ -3,7 +3,7 @@ implementation, all relevant tests, docs/ADR, issue lifecycle — reporting back
 genuinely done (or genuinely blocked).
 
 Usage: /autopilot <task description>
-Example: /autopilot implement improvement-119 (F-02 city dictionary + geo filter)
+Example: /autopilot implement the tracked city dictionary + geo filter feature
 
 This exists because the normal flow (plan → approve → implement → ask again before testing →
 ask again before docs → ...) is the right default for most work, but is needless friction for a
