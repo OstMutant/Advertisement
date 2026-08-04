@@ -14,13 +14,33 @@ erDiagram
         varchar email UK
         varchar password_hash
         varchar role
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+        timestamp deleted_at
+        bigint deleted_by
+    }
+
+    USER_PREFERENCES {
+        bigint id PK
+        bigint actor_id UK
         varchar locale
         jsonb settings
         timestamp created_at
         timestamp updated_at
+    }
+
+    PROVIDER_PROFILE {
+        bigint id PK
+        bigint actor_id UK
+        varchar kind
+        varchar about
+        bigint city_taxon_id
+        timestamp created_at
+        timestamp updated_at
         bigint version
     }
-    
+
     ADVERTISEMENT {
         bigint id PK
         varchar title
@@ -98,11 +118,14 @@ erDiagram
     USER_INFORMATION ||--o{ ADVERTISEMENT : "creates"
     USER_INFORMATION ||--o{ ADVERTISEMENT : "modifies"
     USER_INFORMATION ||--o{ ADVERTISEMENT : "deletes"
+    USER_INFORMATION ||--o| USER_PREFERENCES : "has (actor_id, no FK)"
+    USER_INFORMATION ||--o| PROVIDER_PROFILE : "has (actor_id, no FK)"
     ADVERTISEMENT ||--o{ ATTACHMENT : "owns"
     ATTACHMENT ||--o{ ATTACHMENT_SNAPSHOT : "has_snapshots"
     AUDIT_LOG ||--o{ USER_INFORMATION : "actor_is"
     TAXON ||--o{ TAXON_TRANSLATION : "has_translations"
     TAXON ||--o{ TAXON_ASSIGNMENT : "assigned_via"
+    PROVIDER_PROFILE }o--o| TAXON : "city_taxon_id (no FK)"
 ```
 
 ## Table Schemas
@@ -115,24 +138,71 @@ erDiagram
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
 | `id` | BIGSERIAL | PK | Auto-increment |
-| `name` | VARCHAR(255) | NOT NULL | User's display name |
+| `name` | VARCHAR(100) | NOT NULL | User's display name |
 | `email` | VARCHAR(255) | UNIQUE, NOT NULL | Login email |
-| `password_hash` | VARCHAR(255) | | BCrypt hash of password |
+| `password_hash` | VARCHAR(255) | | Hash of password (delegating encoder, `{bcrypt}`-prefixed) |
 | `role` | VARCHAR(50) | NOT NULL, CHECK IN ('ADMIN', 'USER', 'MODERATOR') | Authorization role |
-| `locale` | VARCHAR(10) | | BCP-47 language tag (e.g., 'en', 'uk') |
-| `settings` | JSONB | NOT NULL, DEFAULT '{"adsPageSize":20,"usersPageSize":20}' | Pagination & UI preferences |
 | `created_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Account creation timestamp |
 | `updated_at` | TIMESTAMP WITH TIME ZONE | | Last profile update |
 | `version` | BIGINT | NOT NULL, DEFAULT 0 | Optimistic-lock counter (checked manually in `UserRepository.updateProfile()` — `User`'s edit path bypasses `CrudRepository`; see `marketplace-app/DECISIONS.md` ADR-029) |
+| `deleted_at` | TIMESTAMP WITH TIME ZONE | | Soft-delete timestamp |
+| `deleted_by` | BIGINT | FK → user_information(id) SET NULL | Who soft-deleted this account |
 
 **Constraints:**
 - `CHECK (role IN ('ADMIN', 'USER', 'MODERATOR'))`
 
-**Indexes:** None explicitly defined (email is UNIQUE)
+**Indexes:** `idx_user_deleted_at` (email is already UNIQUE, no separate index needed)
 
 **Notes:**
 - First registered user auto-promoted to ADMIN
-- Settings stored as JSONB for flexibility (page sizes, locale preferences)
+- `locale`/`settings` moved out to `user_preferences` (below) — see `marketplace-app/DECISIONS.md` ADR-070
+
+---
+
+### user_preferences
+
+**Module:** `user-spring-boot-starter`
+**Changelog:** `/app/user-spring-boot-starter/src/main/resources/db/user-changelog/changes/01-user-schema.xml`
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | BIGSERIAL | PK | Auto-increment |
+| `actor_id` | BIGINT | NOT NULL, UNIQUE | No FK — matches this codebase's actor-reference-column convention |
+| `locale` | VARCHAR(10) | | BCP-47 language tag (e.g., 'en', 'uk') |
+| `settings` | JSONB | NOT NULL, DEFAULT includes `version` | Pagination defaults; own optimistic-lock version embedded in the JSONB, not a SQL column — see `marketplace-app/DECISIONS.md` ADR-044 (superseded by ADR-070) |
+| `created_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Row creation timestamp |
+| `updated_at` | TIMESTAMP WITH TIME ZONE | | Last settings update |
+
+**Notes:**
+- One row per actor, created lazily on first settings write
+- Optimistic locking checked via `(settings->>'version')::bigint = :expectedVersion`, not `user_information.version` — deliberately decoupled from profile-name edits
+
+---
+
+### provider_profile
+
+**Module:** `provider-profile-spring-boot-starter`
+**Changelog:** `/app/provider-profile-spring-boot-starter/src/main/resources/db/provider-profile-changelog/changes/01-provider-profile-schema.xml`
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | BIGSERIAL | PK | Auto-increment |
+| `actor_id` | BIGINT | NOT NULL, UNIQUE (`idx_provider_profile_actor_id`) | No FK; at most one profile per actor |
+| `kind` | VARCHAR(20) | NOT NULL | `MASTER` / `SHOP` / `SUPPORT` (`ProviderKind`) |
+| `about` | VARCHAR(20000) | | Sanitized HTML (OWASP HTML Sanitizer) |
+| `city_taxon_id` | BIGINT | | Plain column, not a `taxon_assignment` row — a provider has exactly one city |
+| `created_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Creation timestamp |
+| `updated_at` | TIMESTAMP WITH TIME ZONE | | Last update |
+| `version` | BIGINT | NOT NULL, DEFAULT 0 | Optimistic-lock counter (`@Version`, native `CrudRepository.save()`) |
+
+**Indexes:**
+- `idx_provider_profile_actor_id` (actor_id) UNIQUE
+- `idx_provider_profile_kind` (kind)
+
+**Notes:**
+- Row created **lazily**, only on first "become a provider" save — never eagerly at registration
+- `delete()` is a real `DELETE`, no soft-delete columns, no restore concept
+- Category assignments (many-to-many) go through `TaxonPort.replaceAssignments()`, written directly by this starter's own service
 
 ---
 

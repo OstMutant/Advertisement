@@ -39,7 +39,7 @@ advertisement-parent (root pom)
 - `core.*` — shared by all modules: `ComponentFactory` (top-level, not a sub-package), `core.model` (`ActionType`, `ChangeEntry`, `EntityRef`, `EntityType`), `core.config` (`CleanupProperties`), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`)
 - `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`, `AuditTimelineFilterDto`), `audit.spi` (`AuditPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`)
 - `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentAuditPort`) — note `AttachmentMediaChangeHook` was removed entirely (improvement-102, zero consumers) — `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
-- `user.*` — `user.spi` (`UserPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook`, `UserIdMarker`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
+- `user.*` — `user.spi` (`UserPort`/`UserAccountPort`/`UserAuthorizationPort`/`UserPreferencesPort` — one logical split, see `platform-commons/CLAUDE.md`; plus `AuthenticatedPrincipal`, `UserSettingsChangedHook`, `UserIdMarker`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
 - `advertisement.*` — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto` (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`, `AdvertisementSnapshotDto`), `advertisement.model` (`AdKind`)
 - `taxon.*` — `taxon.spi` (`TaxonPort`), `taxon.dto` (`TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`), `taxon.model` (`TaxonType`)
 - `providerprofile.*` — `providerprofile.spi` (`ProviderProfilePort`), `providerprofile.dto` (`ProviderProfileDto`, `ProviderProfileSaveDto`, `ProviderProfileFilterDto`, `ProviderProfileSnapshotDto`), `providerprofile.model` (`ProviderKind`)
@@ -65,9 +65,14 @@ advertisement-parent (root pom)
 1. **Explicit over implicit:** Avoid hidden framework magic. If simple Java code works, use it.
 2. **UI is a monolith:** All Vaadin UI code lives in `marketplace-app`. Decoupling is required only at the **service ↔ UI boundary** (starters vs marketplace-app). Within `marketplace-app`, UI components may freely reference each other — no ports, no hooks, no indirection needed between UI classes.
 3. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserPort` or `AdvertisementPort`.
-3. **Modular Storage:** `StorageService` and its implementations live in `attachment-spring-boot-starter` (`org.ost.attachment.services`). UI components MUST degrade gracefully via `ObjectProvider.ifAvailable()` when the attachment starter is absent from the classpath.
-4. **Validation:** Use declarative validation rules in DTOs.
-5. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
+4. **Modular Storage:** `StorageService` and its implementations live in `attachment-spring-boot-starter` (`org.ost.attachment.services`). UI components MUST degrade gracefully via `ObjectProvider.ifAvailable()` when the attachment starter is absent from the classpath.
+5. **Validation:** Use declarative validation rules in DTOs.
+6. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
+7. **Starter independence:** No starter has a Vaadin dependency and no starter contains UI code —
+   Vaadin only exists in `marketplace-app` (guideline 2 above). Each starter owns its own Liquibase
+   changelog under its own `db/*-changelog/` directory; changelogs are never merged into a shared
+   file across starters. Every starter `CLAUDE.md`'s own "Key constraints"/"Schema" section states
+   only what's specific to that module beyond this baseline.
 
 **Pattern-first:** Before introducing a new abstraction or naming a class, scan the existing codebase for how similar things are already done. Symmetry with existing code is a first-class goal.
 

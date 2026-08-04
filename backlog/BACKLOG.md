@@ -31,60 +31,33 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 ### At a glance
 
-improvement-072 (promoted to sole top priority 2026-07-23) completed 2026-07-24 — see
-`completed/BACKLOG-ARCHIVE.md`. improvement-117 (F-01, product roadmap Phase 1) completed
-2026-07-24 — all technical work done; its one non-automatable manual-verification item carved
-out into improvement-118. improvement-120 completed 2026-07-25 — see `completed/BACKLOG-ARCHIVE.md`.
-improvement-119 (F-02, product roadmap Phase 1 item #2) completed 2026-07-25 — see
-`completed/BACKLOG-ARCHIVE.md`. improvement-121 filed 2026-07-26 (repo-wide SOLID/DRY review
-findings from the 11-agent audit run after improvement-119 shipped), then deprioritized the same
-day to lowest ⚪ after an autopilot execution attempt across all 8 batches was aborted before
-landing anything (cleanly rolled back, no code changes from it are in the tree).
-improvement-122 (F-03, product roadmap Phase 1 item #3, "Shareability foundation" gate) completed
-2026-07-27 — see `completed/BACKLOG-ARCHIVE.md`. **improvement-002 + improvement-124 filed/decided
-2026-07-27** — F-04, product roadmap Phase 2 item #1, broadened during planning from a master-only
-profile (improvement-123, superseded) into one combined issue: one `actor_profile` table merging
-provider-facing fields (master/shop/support, `kind` column mirroring F-03's `AdKind`) with the
-locale/settings preferences decoupled out of `user_information` (an earlier plan with these as two
-separate tables was merged into one the same day), plus the unified "My Account" overlay this
-triggered. One continuous piece of work, not three separate issues (an earlier split into
-124/125/126 was merged back into 124 the same day). improvement-002 (snapshot schema versioning)
-was paired to land first, since F-04 is the first new snapshot-bearing domain since improvement-002
-was filed — **improvement-002 completed 2026-07-28**, see `completed/BACKLOG-ARCHIVE.md`.
-improvement-118 remains at the bottom (blocked, not actionable — needs a public URL this sandbox
-doesn't have). **improvement-128 filed and completed 2026-07-28** (same day — pilot on Settings,
-then rolled out to Advertisement/Taxon/City/User) — the old 1-content-tab + 1-Activity-tab pattern
-(`buildContentWithActivity()`) is fully replaced by one shared `EntityActivityOverlay` (stacked
-nested overlay, not a tab) across all five domains; see `marketplace-app/DECISIONS.md` ADR-067 and
-`completed/issues/improvement-128-activity-restore-panel-redesign.md`. **improvement-134 filed and
-completed 2026-07-31** — additive AI-navigation/context-efficiency layer (`docs/ai/adr-index.md`
-generated index, `context-loading.md`, `flows.md`, `README.md`; mandatory hooks wired into
-`/decision`/`/feature`/`/sync-docs`/`.claude/rules.md`/root `CLAUDE.md`; 4 confirmed stale
-`docs/architecture/*.md` items corrected) — see `completed/issues/improvement-134-ai-navigation-context-efficiency-layer.md`.
-improvement-124 is again sole top priority, unblocked. improvement-124 Batches A/A2 (preferences
-table split + `UserDto`/`UserPort` code-quality cleanup found during review) completed 2026-07-31 —
-see `marketplace-app/DECISIONS.md` ADR-070/071 and `platform-commons/DECISIONS.md` ADR-026; Batches
-B/C/D (the new `provider-profile-spring-boot-starter` module and unified account overlay) remain.
-**improvement-135 filed 2026-07-31**, ranked ahead of improvement-124's remaining batches per
-explicit user request — validates whether improvement-134's `docs/ai/` layer actually delivers
-(token cost, routing accuracy) and closes a drift gap already found live in this session
-(`docs/ai/adr-index.md` missing the ADR-070/071/026 entries this same session added, since they
-landed via direct `DECISIONS.md` edits during an `/autopilot` run rather than through `/decision`,
-which is the only place regeneration is currently wired). **Item 1 completed 2026-07-31** — no git
-hook (checked directly: none exists in this repo, and `.claude/commands/autopilot.md`'s claim of
-one was itself inaccurate, now corrected) — instead a standing `.claude/rules.md` rule (any
-`DECISIONS.md` edit regenerates the index, regardless of workflow) plus a read-only
-`scripts/ai/check-adr-index-freshness.sh` wired as an unconditional stage in `scripts/ci.sh`, and
-`generate-adr-index.sh`'s `ADR` column now module-qualified (`ADR-NNN (module)`) to close the
-same-number-different-file collision. Items 2-4 (measure whether the layer actually earns its
-token/routing cost) remain, need a small scoping pass first.
-**improvement-137 completed 2026-08-04** (`doc-standards` skill + repo-wide dedup pass, plus
-companion **improvement-139** fixing `deep-review` full-mode's missing `provider-profile-spring-boot-starter`)
-— see `completed/BACKLOG-ARCHIVE.md`. `improvement-138` is next, now unblocked.
+**Completed** (✅ — see `completed/BACKLOG-ARCHIVE.md` for full detail on each): improvement-072;
+117 (F-01 — its one non-automatable item carved out into improvement-118); 120; 119 (F-02); 122
+(F-03); 002 (paired ahead of F-04's snapshot-bearing schema); 128 (`EntityActivityOverlay`
+rollout across all 5 domains, see `marketplace-app/DECISIONS.md` ADR-067); 134
+(`docs/ai/` navigation layer); 137 (`doc-standards` skill + dedup pass, companion
+improvement-139); improvement-124 Batches A/A2 (preferences-table split + `UserDto`/`UserPort`
+cleanup, see `marketplace-app/DECISIONS.md` ADR-070/071 and `platform-commons/DECISIONS.md`
+ADR-026). improvement-121 (repo-wide SOLID/DRY findings) was filed then deprioritized to lowest
+⚪ the same day — an autopilot execution attempt was aborted before landing anything, cleanly
+rolled back.
+
+**improvement-140 completed 2026-08-04** — see `completed/BACKLOG-ARCHIVE.md`; finished the
+duplicate-fact dedup improvement-137 deferred and replaced its hedges with real fixes.
+improvement-138 is now unblocked (Track A).
+
+**Still active:** improvement-124 (F-04, sole top priority again) — `provider_profile` +
+`user_preferences` + unified "My Account" overlay, one combined piece of work (see
+`platform-commons/DECISIONS.md` ADR-027); Batch B shipped, B2/C/D remain. improvement-135
+validates whether improvement-134's `docs/ai/` layer earns its cost — item 1 (ADR-index
+freshness gate) done; items 2-4 consolidated into the `## Operational notes` +
+`/sync-docs --full-audit` mechanism described in the issue file. improvement-136
+(`marketplace-orchestrator` extraction) is paused before Phase 0, pending further discussion.
+improvement-118 stays blocked (needs a public URL this sandbox doesn't have).
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **Top** | 🔴 | 138 | improvement-138 (new, filed 2026-08-04, sequenced immediately after improvement-137 per explicit user request) — "Architecture Control Plane": a generated, evidence-linked model of the repo (code/tests/pipelines/docs), read through an AI token-minimal layer (L0-L5) and a human visual explorer (Cytoscape.js), split into **Track A** (visual layer from already-structured sources — `pom.xml`, `DECISIONS.md`, `backlog/`, `flows.md` — low risk, ready once 137 lands) and **Track B** (ArchUnit-based contract/test model + an AI-token-savings hypothesis, with its own B2 stop-gate). Plan verified against the real repo before filing — 4 concrete fixes applied: (1) test-scanning needs a separate ArchUnit import, existing `ArchitectureRulesTest` import excludes tests; (2) corrected a false "pre-commit hook already runs automatically" claim that directly contradicted improvement-135's own recent, opposite finding — hook exists but is not installed in this repo's current state; (3) Track B is gated on resolving a conflict with improvement-135 item 5's "no new AI-nav content until proven" rule before it starts; (4) B2's measurement must extend improvement-135's existing `## Operational notes` block, not introduce a new, differently-named one. Track A is not gated by (3) — proceeds independently once 137 lands |
+| **Top** | 🔴 | 138 | improvement-138 (new, filed 2026-08-04) — "Architecture Control Plane": a generated, evidence-linked model of the repo (code/tests/pipelines/docs), read through an AI token-minimal layer (L0-L5) and a human visual explorer (Cytoscape.js), split into **Track A** (visual layer from already-structured sources — `pom.xml`, `DECISIONS.md`, `backlog/`, `flows.md` — low risk, ready now that improvement-140 has landed) and **Track B** (ArchUnit-based contract/test model + an AI-token-savings hypothesis, with its own B2 stop-gate). Plan verified against the real repo before filing — 4 concrete fixes applied: (1) test-scanning needs a separate ArchUnit import, existing `ArchitectureRulesTest` import excludes tests; (2) corrected a false "pre-commit hook already runs automatically" claim that directly contradicted improvement-135's own recent, opposite finding — hook exists but is not installed in this repo's current state; (3) Track B is gated on resolving a conflict with improvement-135 item 5's "no new AI-nav content until proven" rule before it starts; (4) B2's measurement must extend improvement-135's existing `## Operational notes` block, not introduce a new, differently-named one. Track A is unaffected by (3) — proceeds independently |
 | Top | 🔴 | 136 | improvement-136 (filed 2026-08-04, rescoped 2026-08-04, highest priority per explicit user request) — **paused, not started**: extract a new `marketplace-orchestrator` Maven module (Application/BFF composition layer between `marketplace-app` and the domain starters) to fix `AdvertisementEnrichmentService`/`ProviderProfileEnrichmentService` living in the wrong module, and to give the app room to swap its frontend/add REST later without re-extracting orchestration from a Vaadin-entangled monolith. Supersedes an earlier, narrower "just move it into marketplace-app" plan (kept in the issue file for reference). User paused this before Phase 0 discovery — more discussion pending before implementation starts. Land before improvement-124 Batch 124-C so the `AccountOverlay` UI isn't built against a port contract that's about to change |
 | Top | 🟡 | 135, 124 | improvement-135 — item 1 done (ADR-index + flows.md freshness gates). Items 2/3/4 (token cost, context-loading.md, flows.md routing) consolidated into one mechanism: a mechanically-parseable `## Operational notes` block on every completed issue + a `/sync-docs --full-audit` aggregation step — real accumulated data supersedes both items' initial one-off spot-checks (2's real token tally, 4's synthetic 6/6 test). **improvement-124 Batch 124-B completed 2026-08-01** — new `provider-profile-spring-boot-starter` module (`EntityType.PROVIDER_PROFILE`, `ProviderKind` MASTER/SHOP/SUPPORT), backend only; see `platform-commons/DECISIONS.md` ADR-027 / `marketplace-app/DECISIONS.md` ADR-072. Next: **improvement-136** (see above) should land before **Batch 124-B2**/**124-C** — Batch 124-B2 (small cross-domain cleanup surfaced by Batch B's `/code-review` — shared HTML-sanitizer utility, stale-id-during-concurrent-delete fix, touches `advertisement-spring-boot-starter` too), then Batches C/D — the unified "My Account" overlay (name + settings + provider profile in one place, narrower moderator edit permissions, reusing improvement-128's `EntityActivityOverlay`) and the public Providers catalog |
 | Nice to have | — | 073 → 035, 096, 129, 036, 039, 065, 114, 063, 028, 130, 131, 133 | everything else — no internal priority order, pick up opportunistically |
@@ -97,7 +70,7 @@ Details, links, and per-batch rationale below.
 
 | Issue | Origin | What |
 |---|---|---|
-| [improvement-138](issues/improvement-138-architecture-control-plane.md) | New (user-supplied task, 2026-08-04, "FINAL VISION v2" — supersedes an unseen `architecture-observability-vision.md` v1) | A generated, evidence-linked model of the repo (code, tests, pipelines, docs) read through two projections: a token-minimal AI layer (L0-L5) and a Cytoscape.js human visual explorer. Split into **Track A** (visual control from already-structured sources — `pom.xml`, `DECISIONS.md`/`Status:`, `backlog/` open-vs-completed, `docs/ai/flows.md` — no ArchUnit, low risk) and **Track B** (ArchUnit-based contract/test-coverage model + the actual AI-token-savings hypothesis, gated by its own B2 "stop" measurement). Verified against the real repo before filing, not accepted on the plan's own "verified" framing — 4 fixes applied: (1) `ArchitectureRulesTest`'s existing `@AnalyzeClasses` import uses `ImportOption.DoNotIncludeTests`, so test-scanning needs a second, separate import, not literal reuse; (2) the plan's claim that an automatic pre-commit doc-sync hook "already runs" is false in this repo's current state (`core.hooksPath` is still the default, hook not installed) — directly contradicted `improvement-135`'s own, independently-verified 2026-07-31 finding of the same fact; (3) Track B's new L0-L5 AI-navigation layer conflicts with `improvement-135` item 5's "no new `docs/ai/*` content until proven" governing rule — Track B does not start until that's explicitly resolved (Track A is unaffected, proceeds after 137); (4) B2's token-savings measurement must extend `improvement-135`'s existing `## Operational notes` block, not introduce a differently-named `## AI Context Metrics` block. Full plan, all four corrections applied inline, in the issue file |
+| [improvement-138](issues/improvement-138-architecture-control-plane.md) | New (user-supplied task, 2026-08-04, "FINAL VISION v2" — supersedes an unseen `architecture-observability-vision.md` v1) | A generated, evidence-linked model of the repo (code, tests, pipelines, docs) read through two projections: a token-minimal AI layer (L0-L5) and a Cytoscape.js human visual explorer. Split into **Track A** (visual control from already-structured sources — `pom.xml`, `DECISIONS.md`/`Status:`, `backlog/` open-vs-completed, `docs/ai/flows.md` — no ArchUnit, low risk) and **Track B** (ArchUnit-based contract/test-coverage model + the actual AI-token-savings hypothesis, gated by its own B2 "stop" measurement). Verified against the real repo before filing, not accepted on the plan's own "verified" framing — 4 fixes applied: (1) `ArchitectureRulesTest`'s existing `@AnalyzeClasses` import uses `ImportOption.DoNotIncludeTests`, so test-scanning needs a second, separate import, not literal reuse; (2) the plan's claim that an automatic pre-commit doc-sync hook "already runs" is false in this repo's current state (`core.hooksPath` is still the default, hook not installed) — directly contradicted `improvement-135`'s own, independently-verified 2026-07-31 finding of the same fact; (3) Track B's new L0-L5 AI-navigation layer conflicts with `improvement-135` item 5's "no new `docs/ai/*` content until proven" governing rule — Track B does not start until that's explicitly resolved (Track A is unaffected, proceeds after 140); (4) B2's token-savings measurement must extend `improvement-135`'s existing `## Operational notes` block, not introduce a differently-named `## AI Context Metrics` block. Full plan, all four corrections applied inline, in the issue file |
 
 ### Top priority — improvement-136
 

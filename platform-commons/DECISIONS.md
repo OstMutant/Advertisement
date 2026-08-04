@@ -668,22 +668,14 @@ review, grouped together since all three touch this module's own naming/package 
 **Decision:**
 - **Item 20:** `SettingsSnapshotDto.from(UserSettingsDto settings)` was removed — it reached into a
   sibling DTO's fields to construct itself, exceeding the `*.dto` package's "pure derivation over
-  its own fields" exception (ADR-002/ADR-021). The mapping moved to
-  `UserSettingsService.toSettingsSnapshot(UserSettingsDto)` in `user-spring-boot-starter` — snapshot
-  construction stays in the starter that owns the source entity, not in the platform-commons DTO
-  itself. **Corrected during this same change's own `/code-review` pass:** the first draft made
-  `toSettingsSnapshot` a `public static` method, called cross-class from `UserService.register()` as
-  `UserSettingsService.toSettingsSnapshot(defaults)` — reasoning it should "mirror `UserService`'s
-  own `toSnapshot(User)`." A verified review finding caught that this reasoning didn't hold up:
-  `toSnapshot(User)` is `private static`, only ever called within its own class — `UserService`
-  reaching into a sibling service's static method is a different, worse shape that bypasses this
-  codebase's pervasive constructor-injection convention (every other cross-class dependency in both
-  services is a `@RequiredArgsConstructor` field) and makes the coupling invisible in `UserService`'s
-  own field list. No circular-dependency obstacle exists (`UserSettingsService`'s constructor deps —
-  `UserSettingsRepository`, `ComponentFactory<UserSettingsChangedHook>`, `ComponentFactory<AuditPort>`
-  — never reference `UserService`). Corrected to a genuine instance method, with `UserService` holding
-  `UserSettingsService` as a constructor-injected field and calling `userSettingsService
-  .toSettingsSnapshot(defaults)` like any other collaborator.
+  its own fields" exception (ADR-002/ADR-021). Moved to
+  `UserSettingsService.toSettingsSnapshot(UserSettingsDto)` in `user-spring-boot-starter`, as a
+  genuine instance method — `UserService` holds `UserSettingsService` as a constructor-injected
+  field and calls it like any other collaborator; safe because `UserSettingsService`'s own
+  constructor deps (`UserSettingsRepository`, `ComponentFactory<UserSettingsChangedHook>`,
+  `ComponentFactory<AuditPort>`) never reference `UserService`, so no circular dependency results.
+  Corrected from an initial `public static` cross-class-call draft, which this change's own
+  `/code-review` pass flagged as bypassing the codebase's constructor-injection convention.
 - **Item 21:** `AttachmentAuditHook` renamed to `AttachmentAuditPort` (and its implementation,
   `AttachmentAuditHookImpl` → `AttachmentAuditPortImpl`). Its call direction was always marketplace
   calling into the attachment starter (`AdvertisementAuditEnrichService` calls it), which per

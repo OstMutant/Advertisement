@@ -6,7 +6,7 @@
 
 **Previously:** `AccessEvaluator` imported `org.ost.user.security.OwnershipChecker` and `org.ost.user.security.RoleChecker` directly.
 
-**Resolution (ADR-016):** `AccessEvaluator` now depends only on `UserPort` (platform-commons SPI) and `AuthContextService`. Role and ownership checks go through `UserPort.isAdmin()`, `UserPort.isModerator()`, `UserPort.isOwner()`. All 22 files in marketplace-app now use `UserDto`/`UserPort` exclusively.
+**Resolution (ADR-016):** `AccessEvaluator` now depends only on `UserAuthorizationPort` (platform-commons SPI) and `AuthContextService`. Role and ownership checks go through `UserAuthorizationPort.isAdmin()`, `.isModerator()`, `.isOwner()` — `UserPort` was later split into 4 narrower ports (ADR-026), and authorization moved to the dedicated `UserAuthorizationPort` slice.
 
 **File:** `/app/marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java`
 
@@ -26,13 +26,8 @@
 
 ## No Cyclic Dependencies Detected
 
-All module dependencies form a DAG (Directed Acyclic Graph):
-- `platform-commons` has no dependencies on any starter
-- `query-lib` depends only on platform-commons
-- All starters depend on platform-commons + query-lib (no inter-starter deps)
-- marketplace-app depends on all starters (only leaf in dependency tree)
-
-No modules A and B exist where A → B → A.
+See `01-module-dependencies.md` ("No Circular Dependencies" / "Marketplace App Dependency") for
+the dependency graph and the DAG-shape/depends-on-all-starters findings — not restated here.
 
 ---
 
@@ -80,8 +75,8 @@ Result: No violations found.
 
 Checked for cross-starter imports:
 ```
-for starter in audit attachment user advertisement taxon; do
-  grep -r "import org\.ost\.\(audit\|attachment\|user\|advertisement\|taxon\)" \
+for starter in audit attachment user advertisement taxon provider-profile; do
+  grep -r "import org\.ost\.\(audit\|attachment\|user\|advertisement\|taxon\|provider\)" \
     /app/$starter-spring-boot-starter/src/main/java --include="*.java" \
     | grep -v "org\.ost\.platform"
 done
@@ -179,16 +174,19 @@ the consolidated "Option C").
 
 | Module | Java Files | Largest File | Notes |
 |--------|-----------|------|-------|
-| query-lib | 7 | ~200 lines | Small utility library |
-| platform-commons | ~47 | `I18nKey` is in marketplace-app | Mostly interfaces + DTOs |
-| audit-spring-boot-starter | 7 | AuditReadService | Compact, focused |
-| attachment-spring-boot-starter | 14 | AttachmentService | Medium, handles S3 + DB |
-| user-spring-boot-starter | 11 | UserService | Small, focused |
-| advertisement-spring-boot-starter | 7 | AdvertisementService | Small, focused; now calls `TaxonPort` via `ComponentFactory` |
-| taxon-spring-boot-starter | 12 | DefaultTaxonPort | Medium; added 2026-06 |
-| **marketplace-app** | **~175** | AdvertisementFormOverlayModeHandler | LARGEST MODULE — expected for UI monolith |
+| query-lib | 9 | ~150 lines | Small utility library |
+| platform-commons | 57 | mostly interfaces + DTOs | `I18nKey` is in marketplace-app |
+| audit-spring-boot-starter | 6 | `AuditLogRepository.java` (251 lines) | Compact, focused |
+| attachment-spring-boot-starter | 15 | `AttachmentRepository.java` (221 lines) | Handles S3 + DB |
+| user-spring-boot-starter | 16 | `UserService.java` (200 lines) | Focused; largest of the small starters |
+| advertisement-spring-boot-starter | 7 | `AdvertisementService.java` (182 lines) | Small, focused |
+| taxon-spring-boot-starter | 15 | `DefaultTaxonPort.java` (243 lines) | Taxonomy + assignment |
+| provider-profile-spring-boot-starter | 7 | `ProviderProfileService.java` (149 lines) | Small, focused |
+| **marketplace-app** | **174** | `I18nKey.java` (438 lines) | LARGEST MODULE — expected for UI monolith |
 
-**Finding:** marketplace-app is 9x larger than any starter. Most complexity is in UI layer (views, overlays, components), which is expected for a Vaadin application.
+**Finding:** marketplace-app is ~11x larger than any single starter (314 total Java files across
+all 10 modules). Most complexity is in the UI layer (views, overlays, components), expected for a
+Vaadin application. See `07-risk-report.md` for marketplace-app's own largest-file breakdown.
 
 ---
 
@@ -213,7 +211,7 @@ Checked for classes with excessive constructor parameters (>5 fields):
 Most classes have 1-3 injected dependencies:
 - `DefaultAuditPort`: 4 fields (auditLogRepository, currentActorHook, auditDomainHook, auditReadService)
 - `AuditDomainHookImpl`: 4 fields (componentFactories for ports)
-- `AccessEvaluator`: 2 fields (userPort, authContextService) — ✅ Fixed (ADR-016, 2026-06-15)
+- `AccessEvaluator`: 2 fields (authorizationPort, authContextService) — ✅ Fixed (ADR-016, 2026-06-15)
 
 **Finding:** No excessive constructor bloat. Dependency injection is reasonable.
 

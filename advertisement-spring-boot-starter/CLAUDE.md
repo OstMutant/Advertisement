@@ -8,9 +8,11 @@ Java package root: `org.ost.advertisement`
 
 ## What it owns
 
-- `Advertisement` entity + `AdvertisementRepository` — CRUD and filter/sort queries
-- `AdvertisementService` — create, update, delete, ownership checks; sanitizes HTML description via OWASP HTML Sanitizer; enriches category/city/actor/media info on read via `ComponentFactory<TaxonPort>`/`ComponentFactory<UserPort>`/`ComponentFactory<AttachmentPort>`, and clears taxon assignments via `TaxonPort` on `delete()` — writing category assignments happens in marketplace-app's `AdvertisementSaveService` via `TaxonPort.replaceAssignments()`, not here
-- `AdvertisementPortImpl` — implements `AdvertisementPort`; thin delegation to `AdvertisementService`
+See `advertisement-spring-boot-starter/README.md`'s "Key classes" table for the class list and
+one-line roles — not restated here. One constraint worth stating locally since it's not just a
+class role: `AdvertisementService` clears taxon assignments via `TaxonPort` on `delete()`, but
+*writing* category assignments happens in marketplace-app's `AdvertisementSaveService` via
+`TaxonPort.replaceAssignments()`, not here.
 
 **Autoconfiguration entry point:** `AdvertisementAutoConfiguration`
 
@@ -21,13 +23,10 @@ Java package root: `org.ost.advertisement`
 Liquibase changelog: `db/advertisement-changelog/advertisement-changelog-master.xml`  
 Tables: `advertisement`
 
-Starters own their own Liquibase changelogs — never merge into a shared file.
-
 ---
 
 ## Key constraints
 
-- No Vaadin dependency. No UI code here.
 - `AdvertisementPort` lives in `platform-commons`.
 - `@EnableJdbcRepositories(basePackages = "org.ost.advertisement.repository")` declared in `AdvertisementAutoConfiguration`.
 - `AdvertisementPortImpl` is pure delegation — no business logic inside the port.

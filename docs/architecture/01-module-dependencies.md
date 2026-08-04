@@ -51,6 +51,9 @@ graph LR
     IT --> PROV
 ```
 
+The diagram above shows only the DAG shape (which node points to which); it does not encode
+`compile`/`optional`/`runtime` scope — the table below is authoritative for that.
+
 ## Dependency Table
 
 | Module | Dependencies | Scope |

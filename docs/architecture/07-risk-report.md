@@ -6,33 +6,37 @@
 
 | Module | Java Files | Risk |
 |--------|-----------|------|
-| marketplace-app | 175 | MEDIUM — UI complexity, but expected |
-| platform-commons | 50 | LOW — Mostly interfaces & DTOs, no logic |
+| marketplace-app | 174 | MEDIUM — UI complexity, but expected |
+| platform-commons | 57 | LOW — Mostly interfaces & DTOs, no logic |
+| user-spring-boot-starter | 16 | LOW — Focused on user domain |
 | attachment-spring-boot-starter | 15 | LOW — Contains S3 storage service |
 | taxon-spring-boot-starter | 15 | LOW — Taxonomies module |
-| user-spring-boot-starter | 11 | LOW — Focused on user domain |
-| audit-spring-boot-starter | 7 | LOW — Compact audit module |
+| query-lib | 9 | LOW — Utility library |
+| integration-tests | 8 | LOW — Test-only, never shipped |
 | advertisement-spring-boot-starter | 7 | LOW — Focused on advertisements |
-| query-lib | 7 | LOW — Utility library |
+| provider-profile-spring-boot-starter | 7 | LOW — Focused on provider profiles |
+| audit-spring-boot-starter | 6 | LOW — Compact audit module |
 
-**Finding:** marketplace-app is significantly larger (152 files) but appropriate for a UI monolith. No unjustified bloat in starters.
+**Finding:** marketplace-app is significantly larger (314 Java files total across all 10 modules) but appropriate for a UI monolith. No unjustified bloat in starters.
 
 ---
 
 ## Largest Java Files (Potential Complexity)
 
+Recomputed 2026-08-04 (`find marketplace-app/src/main/java -name "*.java" -exec wc -l {} \; | sort -rn | head`).
+
 | File | Lines | Module | Risk | Notes |
 |------|-------|--------|------|-------|
-| I18nKey.java | 370 | marketplace-app | MEDIUM | Large enum of all i18n keys; maintainability concern |
-| AdvertisementFormOverlayModeHandler.java | 327 | marketplace-app | MEDIUM | Complex form validation + binder setup; candidate for extraction |
-| TaxonFormOverlayModeHandler.java | 311 | marketplace-app | MEDIUM | Similar form complexity |
-| AttachmentGallery.java | 307 | marketplace-app | MEDIUM | Large Vaadin component; consider sub-components |
-| SettingsFormModeHandler.java | 253 | marketplace-app | LOW | Settings form; reasonable size |
-| AdvertisementCardView.java | 239 | marketplace-app | LOW | Card grid view; normal Vaadin size |
-| UserFormOverlayModeHandler.java | 235 | marketplace-app | MEDIUM | User form handler; similar to advertisement |
-| TaxonManagementView.java | 205 | marketplace-app | LOW | Taxon list + management |
-| AuditTimelineRowRenderer.java | 190 | marketplace-app | MEDIUM | Complex row rendering; consider factoring |
-| AdvertisementsView.java | 180 | marketplace-app | LOW | Main advertisements list view |
+| I18nKey.java | 438 | marketplace-app | MEDIUM | Large enum of all i18n keys; maintainability concern |
+| AttachmentGallery.java | 363 | marketplace-app | MEDIUM | Large Vaadin component; consider sub-components |
+| AdvertisementFormOverlayModeHandler.java | 362 | marketplace-app | MEDIUM | Complex form validation + binder setup; candidate for extraction |
+| CityFormOverlayModeHandler.java | 287 | marketplace-app | MEDIUM | Similar form complexity |
+| TaxonFormOverlayModeHandler.java | 286 | marketplace-app | MEDIUM | Similar form complexity |
+| AdvertisementCardView.java | 274 | marketplace-app | LOW | Card grid view; normal Vaadin size |
+| SettingsFormModeHandler.java | 257 | marketplace-app | LOW | Settings form; reasonable size |
+| AdvertisementsView.java | 247 | marketplace-app | LOW | Main advertisements list view |
+| AdvertisementAuditEnrichService.java | 216 | marketplace-app | LOW | Category-name resolution for audit diffs |
+| UserFormOverlayModeHandler.java | 214 | marketplace-app | MEDIUM | User form handler; similar to advertisement |
 
 **Risk Level: MEDIUM**
 
@@ -50,7 +54,7 @@ Analyzed `@RequiredArgsConstructor` classes for excessive parameter counts (>5 =
 |-------|--------|--------------|------|
 | DefaultAuditPort | audit-starter | 4 (auditLogRepo, currentActorHook, auditDomainHook, auditReadService) | LOW — All cohesive to audit operations |
 | AuditDomainHookImpl | marketplace-app | 4+ (multiple ComponentFactory fields) | LOW — Factory pattern justifies count |
-| AccessEvaluator | marketplace-app | 2 (userPort, authContextService) | LOW — ✅ Fixed (ADR-016, 2026-06-15) |
+| AccessEvaluator | marketplace-app | 2 (authorizationPort, authContextService) | LOW — ✅ Fixed (ADR-016, 2026-06-15) |
 | DefaultTaxonPort | taxon-starter | 3 (taxonService, assignmentService, properties) | LOW — Cohesive to taxon operations |
 
 **Finding:** Most classes have 1-3 dependencies. AccessEvaluator coupling violation resolved.
@@ -112,19 +116,22 @@ SELECT * FROM advertisement WHERE deleted_at IS NULL AND ...;
 
 ### 1. marketplace-app → All Starters (Tight Binding)
 
-marketplace-app directly depends on all starters (including taxon-spring-boot-starter). If any starter has an issue, the app fails.
-
-**Impact:** No true optionality despite some starters marked `<optional>`.
+See `01-module-dependencies.md` ("Marketplace App Dependency") for the fact — not restated here.
 
 **Mitigation:** Starters are core to the app; this coupling is acceptable.
 
-### 2. Optional Dependencies Not Guarded (OPEN)
+### 2. ✅ RESOLVED — Optional Dependencies Not Guarded
 
-audit and attachment starters are marked `<optional>true/>` in advertisement pom.xml, but code assumes they exist.
+**Previously:** audit and attachment starters were marked `<optional>true</optional>` in
+advertisement-starter's `pom.xml`, but code assumed they existed — excluding either would cause a
+runtime `ClassNotFoundException`.
 
-**Impact:** Exclude either starter → runtime ClassNotFoundException.
-
-**Mitigation:** Either make required (remove `<optional>`) or add ObjectProvider guards in code.
+**Resolution (2026-07-16):** the `<optional>` Maven dependencies were removed entirely from
+`advertisement-spring-boot-starter/pom.xml` — confirmed zero Java source in this module ever
+imported `org.ost.audit.*`/`org.ost.attachment.*` directly. All optional-port wiring (category
+assignment, author enrichment, media-summary enrichment) goes through `platform-commons` SPI types
+via `ComponentFactory<T>` — genuine runtime decoupling with zero build-time coupling to any other
+starter. See `advertisement-spring-boot-starter/README.md`'s "Dependencies" section.
 
 ### 3. ✅ RESOLVED — Marketplace → User Internal Import Coupling (2026-06-15)
 
@@ -187,7 +194,7 @@ audit and attachment starters are marked `<optional>true/>` in advertisement pom
 **Location:** `org.ost.marketplace.services.security.AccessEvaluator`
 
 **Issue:**
-- `AccessEvaluator` calls `UserPort.isAdmin()`, `UserPort.isModerator()`, `UserPort.isOwner()` — all through the correct platform-commons SPI (✅ fixed ADR-016, 2026-06-15)
+- `AccessEvaluator` calls `UserAuthorizationPort.isAdmin()`/`isModerator()`/`isOwner()` through the correct SPI — see `06-coupling-analysis.md` for the resolved coupling finding (ADR-016), not restated here
 - No centralized authorization gateway; UI components each call `AccessEvaluator`
 - Risk decreases as `AccessEvaluator` is the single point of security policy
 
@@ -363,7 +370,7 @@ notification (no auto-reload, to avoid silently discarding in-progress form edit
 | ~~Fix registration rate-limiter shared-IP bucket~~ | ~~HIGH~~ | ~~SMALL~~ | ✅ Done (ADR-027, improvement-022) |
 | ~~Fix SettingsPaginationService cross-session bleed~~ | ~~HIGH~~ | ~~SMALL~~ | ✅ Done (ADR-028, improvement-018) |
 | ~~Add optimistic locking~~ | ~~MEDIUM~~ | ~~MEDIUM~~ | ✅ Done (ADR-029, improvement-015) |
-| Resolve optional dependencies | MEDIUM | SMALL | Remove `<optional>` or add ObjectProvider guards |
+| ~~Resolve optional dependencies~~ | ~~MEDIUM~~ | ~~SMALL~~ | ✅ Done (2026-07-16) — `<optional>` deps removed entirely |
 | Centralize authorization checks | MEDIUM | MEDIUM | Extract AuthorizationService if auth logic grows |
 | Partition audit_log table | LOW | LARGE | Future scaling concern; not urgent |
 | Test SPI contracts systematically | MEDIUM | SMALL | Add unit tests for all hook implementations |
@@ -383,7 +390,7 @@ notification (no auto-reload, to avoid silently discarding in-progress form edit
 | **Performance** | MEDIUM | Audit log growth unbounded; indexes adequate for now |
 | **Security** | LOW-MEDIUM | RBAC scattered; rate limiting and URL access control resolved (ADR-026/027/025) |
 | **Concurrency** | LOW | Settings bleed and optimistic locking gaps both resolved (ADR-028/029) |
-| **Coupling** | LOW-MEDIUM | AccessEvaluator fixed (ADR-016); optional deps still unguarded |
+| **Coupling** | LOW | AccessEvaluator fixed (ADR-016); optional deps resolved (2026-07-16) |
 
-**Open Action:** Resolve optional dependency guards — either remove `<optional>` from advertisement-starter pom.xml for audit/attachment, or add ObjectProvider guards in `AdvertisementService`.
+**Open Action:** none remaining from this report — see "Dependency Chain Risks" #2 above for the resolution.
 

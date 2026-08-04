@@ -37,6 +37,15 @@ don't strip a constraint down to a bare cross-reference just because it touches 
 Only facts get deduplicated; constraints are allowed to repeat *context*, just not *the fact
 itself* if it's already fully stated canonically.
 
+**A constraint sentence with zero module-specific content is actually a fact.** If the same
+sentence appears word-for-word in every module's file with no module-specific clause attached
+(e.g. "No Vaadin dependency. No UI code here." repeated verbatim across every starter's
+`CLAUDE.md`), it isn't really "a rule local to this module" — it's a system-wide fact wearing a
+constraint's phrasing. State it once at the system level (e.g. root `CLAUDE.md`'s Architecture
+Guidelines) and let each local file keep only the part that's actually specific to it. The test:
+delete the sentence from one file — if every other file's copy is still 100% identical, it was a
+fact, not a constraint.
+
 ## Canonical ownership table
 
 | Fact type | Canonical home | Everywhere else |

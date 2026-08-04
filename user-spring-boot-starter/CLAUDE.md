@@ -8,15 +8,10 @@ Java package root: `org.ost.user`
 
 ## What it owns
 
-- `User` entity + `UserEditableFields` entity + `UserRepository` — CRUD and bespoke queries
-- `UserPreferences` (table only, no entity — `UserPreferencesRepository` uses raw `JdbcClient`) —
-  per-actor `locale`/`settings` (page sizes)
-- `UserService` — user creation, role management, profile updates
-- `UserPreferencesService` — locale/settings business logic (hook dispatch, audit snapshot)
-- `UserPrincipal` — Spring Security `UserDetails` implementation
-- `UserPortImpl` / `UserAccountPortImpl` / `UserAuthorizationPortImpl` / `UserPreferencesPortImpl`
-  — implement the 4 `User*Port` interfaces; thin delegation to services
-- `UserSettingsChangedHook` dispatch — fires `UserSettingsChangedHook` implementations on settings change
+See `user-spring-boot-starter/README.md`'s "Key classes" table for the class list and one-line
+roles — not restated here. `UserPreferences` is table-only (no entity —
+`UserPreferencesRepository` uses raw `JdbcClient`); `UserSettingsChangedHook` implementations
+fire on settings change.
 
 **Autoconfiguration entry point:** `UserAutoConfiguration`
 
@@ -29,13 +24,10 @@ Tables: `user_information` (auth only — email, password hash, role, name), `us
 (locale + settings JSONB, one row per actor, keyed by `actor_id` with no FK — matches this
 codebase's actor-reference-column convention, e.g. `advertisement.created_by`)
 
-Starters own their own Liquibase changelogs — never merge into a shared file.
-
 ---
 
 ## Key constraints
 
-- No Vaadin dependency. No UI code here.
 - `UserPort` (query), `UserAccountPort` (save/delete/register/refresh), `UserAuthorizationPort`
   (isAdmin/isModerator/isOwner), `UserPreferencesPort` (settings/locale), `AuthenticatedPrincipal`,
   `UserSettingsChangedHook` all live in `platform-commons`. Split into 4 narrow ports (not 1) —

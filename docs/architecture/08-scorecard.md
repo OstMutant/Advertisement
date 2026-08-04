@@ -20,16 +20,15 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 - ✓ No direct starter-to-starter code imports
 - ✓ All SPI interfaces in platform-commons (starters can be swapped)
 - ✗ marketplace-app depends on all starters; cannot scale independently
-- ✗ audit/attachment starters marked optional but not guarded in code (runtime risk)
-- ✗ Advertisement → User hard coupling via database foreign key (cannot deploy advertisement without user)
+- ✓ audit/attachment are no longer even optional Maven deps of advertisement-starter — removed entirely 2026-07-16, wired purely through `ComponentFactory<T>` SPI (see `07-risk-report.md`)
+- ✓ Advertisement → User FK removed entirely (improvement-120) — see `06-coupling-analysis.md`
 
 **Why 7, not higher:**
 - Starters are modular, but marketplace-app acts as a monolith that coordinates them
-- Optional dependencies create false optionality (will fail at runtime if excluded)
+- ~~Optional dependencies create false optionality (will fail at runtime if excluded)~~ resolved 2026-07-16
 - Database schema coupling (FK constraints) creates deploy-time coupling
 
 **Improvements:**
-- Add ObjectProvider guards for optional starters
 - Extract "UserReference" SPI if user must ever become optional
 - Document that marketplace-app is the monolith; starters are its internal modules
 
@@ -40,23 +39,21 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 **Definition:** Loose coupling between modules; changes in one do not ripple through others.
 
 **Evidence:**
-- ✓ No cyclic dependencies (DAG topology)
+- ✓ No cyclic dependencies — see `01-module-dependencies.md`
 - ✓ All inter-module calls through platform-commons SPI (Ports/Hooks)
 - ✓ No Vaadin in starters (clean separation of concerns)
 - ✓ Repositories not imported by UI directly (all through Ports)
-- ✓ **AccessEvaluator fixed (ADR-016, 2026-06-15)** — now uses `UserPort` + `AuthContextService` only; no `org.ost.user.*` internal imports
+- ✓ **AccessEvaluator fixed (ADR-016)** — see `06-coupling-analysis.md` for detail
 - ✓ **UserPortImpl mapping logic resolved (2026-07-01)** — `toDto()` and stream pipelines moved to `UserService`; port is pure delegation
 - ✓ **SettingsPaginationService cross-session bleed resolved (ADR-028, improvement-018)** — singleton binding entries now carry an owning `userId`; a settings change no longer leaks into other users' live sessions
-- ✗ Optional audit/attachment dependencies not guarded; runtime assumptions remain
-- ~ Advertisement has FK to user; tight schema coupling (acceptable but limits independence)
+- ✓ Optional audit/attachment dependencies resolved (removed entirely, 2026-07-16) — see `07-risk-report.md`
+- ✓ Advertisement→User FK removed entirely (improvement-120) — see `06-coupling-analysis.md`
 
 **Why 8, not 9+:**
-- Optional deps (audit/attachment in advertisement-starter) are still unguarded — runtime risk if excluded
 - No way to swap audit or attachment implementations (tightly wired via Spring beans)
 
 **Improvements:**
-1. Add ObjectProvider guards for optional starters in advertisement-spring-boot-starter
-2. Consider making all starter implementations injectable (allow swapping)
+1. Consider making all starter implementations injectable (allow swapping)
 
 ---
 
@@ -73,7 +70,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 - ✓ Marketplace-app owns: UI views, overlays, forms, hook implementations
 - ✓ platform-commons owns: SPI interfaces, DTOs, enums, shared validation
 - ✓ query-lib owns: SQL filtering/sorting helpers (no domain knowledge)
-- ~ I18nKey.java (370 lines) is a large enum but logically cohesive (all translation keys)
+- ~ I18nKey.java (438 lines) is a large enum but logically cohesive (all translation keys)
 
 **Why 8, not higher:**
 - Most modules are tightly focused; I18nKey is large but it's the correct place for all keys
@@ -122,8 +119,8 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 - ✓ Taxon domain: taxonomy management, self-contained; no FK to advertisement
 - ✓ Advertisement imports AuditPort + AttachmentPort but only calls via interfaces ✓
 - ✓ Attachment fires MediaChangeHook without importing any receiver (currently no implementation at all — ADR-035); advertisement media summaries come from read-time `AttachmentPort.getMediaSummaries()` bulk lookups ✓
-- ✓ AccessEvaluator fixed (ADR-016, 2026-06-15) — no more user.security.* imports
-- ~ Advertisement → User via database FK (schema coupling, not code import; acceptable)
+- ✓ AccessEvaluator fixed (ADR-016) — see `06-coupling-analysis.md` for detail
+- ✓ Advertisement → User FK removed entirely (improvement-120)
 
 **Why 8, not higher:**
 - Database FK coupling between advertisement and user is acceptable but limits independence
@@ -195,7 +192,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 | Dimension | Score | Status |
 |-----------|-------|--------|
 | **Modularity** | 7/10 | GOOD — Starters modular; marketplace-app is coordinator |
-| **Coupling** | 8/10 | GOOD — AccessEvaluator fixed (ADR-016); optional deps still unguarded |
+| **Coupling** | 8/10 | GOOD — AccessEvaluator fixed (ADR-016); optional deps resolved (2026-07-16) |
 | **Cohesion** | 8/10 | GOOD — Each module single responsibility |
 | **SPI Design** | 8/10 | GOOD — Clear, consistent, well-executed |
 | **Domain Isolation** | 8/10 | GOOD — AccessEvaluator fixed; schema coupling acceptable |
@@ -208,10 +205,10 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 ## Strengths
 
 1. **Clear SPI Design:** Port/Hook pattern with consistent naming (marketplace → Port, Hook ← starter)
-2. **No Cyclic Dependencies:** Dependency graph is a clean DAG
+2. **No Cyclic Dependencies:** see `01-module-dependencies.md`
 3. **Shared Kernel:** All cross-module contracts centralized in platform-commons; no circular imports
 4. **Flexible Schema:** JSONB audit_log and attachments allow extensibility without migrations
-5. **Modular Starters:** Each starter is independently deployable (ignoring optional dependency issues)
+5. **Modular Starters:** Each starter is independently deployable
 6. **UI/Data Separation:** Vaadin only in marketplace-app; starters are UI-agnostic
 7. **Good Indexing:** Query performance optimized via composite indexes
 
@@ -223,10 +220,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 
 2. ~~**UserPortImpl Mapping Logic (LOW)**~~ — ✅ Resolved (2026-07-01): mapping moved to `UserService`; port is pure delegation.
 
-3. **Optional Dependencies Not Guarded (MEDIUM):**
-   - audit/attachment marked optional in advertisement-starter pom.xml but not protected with ObjectProvider
-   - Runtime failure if excluded
-   - Fix: Remove `<optional>` or add guards
+3. ~~**Optional Dependencies Not Guarded (MEDIUM)**~~ — ✅ Resolved 2026-07-16, see `07-risk-report.md` "Dependency Chain Risks".
 
 ---
 
@@ -237,7 +231,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 - [x] Remove OwnershipChecker / RoleChecker utility classes or extract as SPI methods — ✅ Done (ADR-016, 2026-06-15)
 
 ### 2. HIGH (Sprint 2)
-- [ ] Decide: make audit/attachment required (remove optional) OR add ObjectProvider guards in AdvertisementService
+- [x] Decide on audit/attachment optionality — ✅ Done (2026-07-16): `<optional>` deps removed entirely, wired via `ComponentFactory<T>` SPI only
 - [ ] Document whether User domain must always be present (currently it is)
 - [ ] Add unit tests for all Hook implementations with all entity types
 
@@ -264,9 +258,10 @@ This is a well-structured modular monolith with solid architectural foundations:
 - Good separation of concerns (UI, domain, data)
 - Flexible schema supporting extensibility
 
-**Primary concern:** AccessEvaluator boundary violation resolved (ADR-016, 2026-06-15) — now uses `UserPort` + `AuthContextService` exclusively.
+**Primary concern (resolved):** AccessEvaluator boundary violation — see `06-coupling-analysis.md` ADR-016.
 
-**Remaining concern:** Optional dependencies (audit, attachment) are not guarded in advertisement-starter pom.xml code; needs clarification (required or optional with guards).
+**Remaining concern:** none from this scorecard's original list — the optional-dependency finding
+was resolved 2026-07-16 (see `07-risk-report.md`).
 
 With this remaining issue resolved, the architecture would score 8-8.5/10.
 

@@ -46,7 +46,13 @@ graph TB
         TaxonService["TaxonService"]
         TaxonPort["TaxonPort<br/>(interface in platform-commons)"]
     end
-    
+
+    subgraph Provider["Provider Profile Domain<br/>(provider-profile-spring-boot-starter)"]
+        ProviderEntity["ProviderProfile Entity<br/>(provider_profile table)"]
+        ProviderService["ProviderProfileService"]
+        ProviderPort["ProviderProfilePort<br/>(interface in platform-commons)"]
+    end
+
     subgraph UI["UI/Application Layer<br/>(marketplace-app)"]
         Views["Views<br/>(Advertisements, Users, Timeline, Settings)"]
         Overlays["Overlays<br/>(Create/Edit/View forms)"]
@@ -73,12 +79,17 @@ graph TB
     Taxon -->|defines contract| TaxonPort
     TaxonPort -->|implements in| Taxon
     Taxon -->|audited via| Audit
-    
+
+    Provider -->|defines contract| ProviderPort
+    ProviderPort -->|implements in| Provider
+    Provider -->|category assignment via| Taxon
+
     UI -->|calls| UserPort
     UI -->|calls| AdvPort
     UI -->|calls| AttachmentPort
     UI -->|calls| AuditPort
     UI -->|calls| TaxonPort
+    UI -->|calls| ProviderPort
     
     UI -->|receives callbacks from| Audit
     UI -->|receives callbacks from| Attachment
@@ -89,6 +100,7 @@ graph TB
     Shared -.->|decouples| Audit
     Shared -.->|decouples| Attachment
     Shared -.->|decouples| Taxon
+    Shared -.->|decouples| Provider
 ```
 
 ## Domain Details
@@ -245,6 +257,35 @@ graph TB
 
 ---
 
+### Provider Profile Domain
+**Ownership:** `org.ost.provider.*` (provider-profile-spring-boot-starter)
+
+**Purpose:** MASTER/SHOP/SUPPORT provider catalog entries — one profile per actor
+(`provider_profile.actor_id` unique-indexed), created lazily on first "become a provider" save
+(no eager row at registration, unlike `advertisement`).
+
+**Entity:**
+- `ProviderProfile` entity (table: `provider_profile`)
+  - `id` (BIGINT PK), `actor_id` (BIGINT, unique), `kind` (MASTER/SHOP/SUPPORT, NOT NULL)
+  - `city_taxon_id` (plain column — one city per provider, not a `taxon_assignment` row)
+  - `about` (sanitized HTML)
+
+**Key Services:**
+- `ProviderProfileService` — create/update, delete (real `DELETE`, no soft-delete), enforces
+  `kind == SUPPORT` requires a privileged actor
+- `ProviderProfileEnrichmentService` — category/city/actor enrichment on read
+
+**Contract:**
+- `ProviderProfilePort` — marketplace calls starter for CRUD + filtering
+
+**Cross-Domain Dependencies:**
+- Writes category assignments directly via `TaxonPort.replaceAssignments()` (this starter's own
+  service does the write, not a marketplace-app orchestration service — see
+  `provider-profile-spring-boot-starter/CLAUDE.md`)
+- `findOwnerIds()` blocks user purge while a profile exists, mirroring `AdvertisementPort`
+
+---
+
 ### Shared Kernel
 **Location:** `platform-commons`
 
@@ -304,8 +345,8 @@ Each domain can be:
 **Exception:** marketplace-app depends on all starters and orchestrates UI/views.
 
 **Test-only exception:** `integration-tests` (not a business domain — see `integration-tests/CLAUDE.md`)
-is the one module allowed a real `compile`-scope dependency on more than one starter at a time
-(`advertisement-spring-boot-starter` + `user-spring-boot-starter` today), because it verifies real
+is the one module allowed a real `compile`-scope dependency on more than one starter at once (see
+`01-module-dependencies.md`'s dependency table for the current list), because it verifies real
 SQL against a real Postgres (via Testcontainers) rather than mocking the Port interface. Safe only
 because the module itself is never shipped, deployed, or depended upon by anything else.
 

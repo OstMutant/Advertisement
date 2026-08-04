@@ -5,22 +5,23 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
 ## Files Overview
 
 ### 01-module-dependencies.md
-**Maven dependency graph.** Shows which modules depend on which others. Key finding: clean DAG topology with no cycles. platform-commons is the foundation; all starters depend on it; marketplace-app depends on all starters.
+**Maven dependency graph.** Shows which modules depend on which others — see that file for the
+DAG-shape and dependency-scope findings, not restated here.
 
 **Key diagram:** `graph LR` showing 10 modules and their dependencies (9 shipped + `integration-tests`, test-only, never shipped).
 
 ### 02-spi-map.md
-**Extension points and implementations.** Maps all Ports and Hooks to their implementations. Explains the Port/Hook pattern (marketplace → Port, Hook ← starter). Lists the SPI interfaces in platform-commons and their implementations in starters/marketplace-app — see that file's own top-of-file note for its current staleness caveats.
+**Extension points and implementations.** Maps all Ports and Hooks to their implementations. Explains the Port/Hook pattern (marketplace → Port, Hook ← starter). Lists the SPI interfaces in platform-commons and their implementations in starters/marketplace-app.
 
 **Key diagram:** `graph TD` showing SPI interfaces and their implementations across modules.
 
 ### 03-bounded-contexts.md
-**Domain boundaries and integration patterns.** Identifies business domains (User, Advertisement, Audit, Attachment, Taxon) plus the UI layer and shared kernel. Explains how domains communicate through Ports and Hooks. Documents the 3 main integration patterns (lifecycle with audit, media attachment, activity feed enrichment). Predates the Provider Profile domain — due for a refresh (tracked under `improvement-138`).
+**Domain boundaries and integration patterns.** Identifies business domains (User, Advertisement, Audit, Attachment, Taxon, Provider Profile) plus the UI layer and shared kernel. Explains how domains communicate through Ports and Hooks. Documents the 3 main integration patterns (lifecycle with audit, media attachment, activity feed enrichment).
 
 **Key diagram:** Context map showing all domains and their relationships.
 
 ### 04-database-erd.md
-**Entity relationship diagram and schema details.** Shows tables with columns, types, constraints, indexes, and foreign keys. Explains the data flow for key operations (create advertisement, upload media, query activity). Predates the `taxon`/`taxon_translation`/`taxon_assignment`, `provider_profile`, and `user_preferences` tables — due for a refresh (tracked under `improvement-138`).
+**Entity relationship diagram and schema details.** Shows tables with columns, types, constraints, indexes, and foreign keys. Explains the data flow for key operations (create advertisement, upload media, query activity).
 
 **Key diagram:** Mermaid `erDiagram` with all tables and relationships.
 
@@ -30,11 +31,11 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
 **Key diagrams:** 6 Mermaid `sequenceDiagram` traces with actual class names from codebase.
 
 ### 06-coupling-analysis.md
-**Architecture violations and coupling assessment.** Originally identified 1 HIGH violation (AccessEvaluator imports org.ost.user.security.*, since resolved per ADR-016) and 1 MEDIUM issue (optional dependencies not guarded, still open), and confirms: no cyclic deps, no Vaadin in starters, no UI→Repository direct imports, good module sizes.
+**Architecture violations and coupling assessment.** Originally identified 1 HIGH violation (AccessEvaluator imports org.ost.user.security.*) and 1 MEDIUM issue (optional dependencies not guarded) — both now resolved, per ADR-016 and the 2026-07-16 pom.xml cleanup respectively — and confirms: no cyclic deps, no Vaadin in starters, no UI→Repository direct imports, good module sizes.
 
 **Key findings:**
 - RESOLVED: AccessEvaluator modular-boundary violation (ADR-016)
-- ISSUE: audit/attachment marked optional but not guarded with ObjectProvider
+- RESOLVED: audit/attachment optional-dependency risk (removed the `<optional>` Maven deps entirely, 2026-07-16)
 - PASS: All other coupling checks
 
 ### 07-risk-report.md
@@ -48,16 +49,9 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
 ### 08-scorecard.md
 **Architecture quality scorecard.** Scores 7 dimensions (Modularity, Coupling, Cohesion, SPI Design, Domain Isolation, Database Design, Testability) from 1-10 with evidence. Overall: **7.7/10 (GOOD)**.
 
-**Scores** (synced from `08-scorecard.md`'s own current table, which already reflects the resolved AccessEvaluator finding):
-- Modularity: 7/10 — Good; starters modular but marketplace-app is monolith coordinator
-- Coupling: 8/10 — Good; AccessEvaluator fixed (ADR-016), optional deps still unguarded
-- Cohesion: 8/10 — Good; each domain single responsibility
-- SPI Design: 8/10 — Good; consistent naming, clear contracts
-- Domain Isolation: 8/10 — Good; AccessEvaluator fixed, schema coupling acceptable
-- Database Design: 8/10 — Good; flexible schema, proper indexing
-- Testability: 7/10 — Good; mockable contracts, SPI testing requires discipline
+See `08-scorecard.md`'s "Overall Assessment" table for the per-dimension scores — not restated here.
 
-**Critical actions:** ~~Fix AccessEvaluator (HIGH)~~ done, see ADR-016; decide on optional deps (MEDIUM).
+**Critical actions:** ~~Fix AccessEvaluator (HIGH)~~ done, see ADR-016; ~~decide on optional deps (MEDIUM)~~ done, 2026-07-16.
 
 ---
 
@@ -75,38 +69,28 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
 
 ## Key Metrics
 
+Recomputed 2026-08-04 via `find */src/main/java -name "*.java" | wc -l` and equivalent one-line
+commands — re-verify the same way next time this table is touched, per `doc-standards/SKILL.md`'s
+"Hard-coded references" rule.
+
 | Metric | Value |
 |--------|-------|
 | Total Modules | 10 (query-lib, platform-commons, 6 starters, marketplace-app, integration-tests test-only) |
-| Total Java Files | not re-verified this pass — see `01-module-dependencies.md`/generated-source-directory list below |
+| Total Java Files | 314 |
 | Total Tables | 10 (user_information, user_preferences, advertisement, attachment, attachment_snapshot, audit_log, taxon, taxon_translation, taxon_assignment, provider_profile) |
-| SPI Interfaces | see `02-spi-map.md`'s own top-of-file note for its current staleness caveats |
-| Largest Module | not re-verified this pass |
-| Largest File | not re-verified this pass |
+| SPI Interfaces | 17 (10 Ports + 5 Hooks + 2 type/marker contracts) — see `02-spi-map.md` |
+| Largest Module | marketplace-app (174 Java files) |
+| Largest File | `I18nKey.java` (438 lines, marketplace-app) |
 | Dependency Cycles | 0 (clean DAG) |
-| Architecture Score | 7.7/10 (GOOD) — per `08-scorecard.md`'s current scores, already reflecting the resolved AccessEvaluator finding (ADR-016) |
+| Architecture Score | 7.7/10 (GOOD) — see `08-scorecard.md` |
 
 ---
 
 ## Critical Issues Found
 
-### 1. AccessEvaluator Coupling (HIGH) — ✅ RESOLVED (see `marketplace-app/DECISIONS.md` ADR-016)
-**File:** `/app/marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java`
-
-Originally flagged for importing `org.ost.user.security.OwnershipChecker`/`RoleChecker` (internal
-classes, not SPI contracts). Confirmed fixed: the class now depends only on
-`UserAuthorizationPort`/`UserDto` from `platform-commons`, per ADR-016's "full user decoupling."
-Kept here as a record of a resolved finding, not an open issue — see `06-coupling-analysis.md`
-for the original detailed writeup, which already reflects the resolved status.
-
-### 2. Optional Dependencies Not Guarded (MEDIUM)
-**File:** `/app/advertisement-spring-boot-starter/pom.xml`
-
-**Issue:** audit-spring-boot-starter and attachment-spring-boot-starter marked `<optional>true/>` but code assumes they exist.
-
-**Impact:** Excluding either starter causes runtime ClassNotFoundException.
-
-**Fix:** Either remove `<optional>` or add `ObjectProvider<AuditPort>` / `ObjectProvider<AttachmentPort>` guards in code.
+1. **AccessEvaluator Coupling (HIGH) — ✅ RESOLVED**, see `06-coupling-analysis.md` (ADR-016).
+2. **Optional Dependencies Not Guarded (MEDIUM) — ✅ resolved (2026-07-16)**, see
+   `07-risk-report.md` "Dependency Chain Risks".
 
 ---
 
@@ -151,7 +135,7 @@ All findings based on actual source code inspection:
 - [x] Remove internal user.security imports; use UserPort — done, see ADR-016
 
 ### High (Sprint 2)
-- [ ] Resolve optional dependencies (make required OR add ObjectProvider guards)
+- [x] Resolve optional dependencies — done, 2026-07-16 (removed `<optional>` deps entirely)
 - [ ] Add unit tests for all Hook implementations with all entity types
 - [ ] Document User domain as mandatory (not optional)
 
@@ -171,7 +155,7 @@ All findings based on actual source code inspection:
 
 **Strengths:**
 - Clear SPI design with consistent Port/Hook naming
-- No circular dependencies (clean DAG)
+- No circular dependencies (see `01-module-dependencies.md`)
 - Shared kernel centralizes all cross-module contracts
 - Flexible schema (JSONB) supports extensibility
 - Starters are modular and independently deployable
@@ -179,8 +163,6 @@ All findings based on actual source code inspection:
 - Good indexing for query performance
 
 **Weaknesses:**
-- Optional dependencies not guarded (MEDIUM)
-- Schema-level coupling between Advertisement and User (acceptable but limits independence)
 - SPI contract testing requires discipline (no compile-time enforcement)
 
 **With critical issues resolved, score would be 8-8.5/10.**

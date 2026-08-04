@@ -8,13 +8,8 @@ Java package root: `org.ost.attachment`
 
 ## What it owns
 
-- `Attachment` entity + `AttachmentRepository` + `AttachmentSnapshotRepository`
-- `AttachmentService` — business logic for upload, delete, restore from snapshot
-- `AttachmentSnapshotService` — manages attachment snapshot records
-- `DefaultAttachmentPort` — implements `AttachmentPort`; thin delegation to `AttachmentService`
-- `AttachmentAuditPortImpl` — implements `AttachmentAuditPort`; thin delegation
-- `AttachmentCleanupService` — scheduled service for orphan cleanup (uses `CleanupProperties`)
-- `S3StorageService` / `StorageService` — S3-compatible storage via AWS SDK
+See `attachment-spring-boot-starter/README.md`'s "Key classes" table for the class list and
+one-line roles — not restated here.
 
 **Autoconfiguration entry point:** `AttachmentAutoConfiguration`
 
@@ -25,13 +20,11 @@ Java package root: `org.ost.attachment`
 Liquibase changelog: `db/attachment-changelog/changes/01-attachment-schema.xml`  
 Tables: `attachment`, `attachment_snapshot`
 
-Starters own their own Liquibase changelogs — never merge into a shared file.
-
 ---
 
 ## Key constraints
 
-- No Vaadin dependency. No UI code here. UI components (`AttachmentGallery`, `CardMediaLightbox`) live in `marketplace-app`.
+- UI components (`AttachmentGallery`, `CardMediaLightbox`) live in `marketplace-app`.
 - `AttachmentPort`, `AttachmentAuditPort` live in `platform-commons` (`AttachmentMediaChangeHook`
   was removed entirely, improvement-102 — zero implementations, see
   `marketplace-app/DECISIONS.md` ADR-035; `AttachmentAuditHook` renamed to `AttachmentAuditPort`,

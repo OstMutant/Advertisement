@@ -1,19 +1,12 @@
 # SPI Map — Extension Points & Implementation
 
-**Known stale as of 2026-08-04** (found during `improvement-137`'s dedup pass, fix deferred to
-`improvement-138`'s planned regeneration of this layer): the graph/tables below still show
-`AttachmentMediaChangeHook` (removed entirely, zero implementations — improvement-102) and
-`AttachmentAuditHook` (renamed to `AttachmentAuditPort` — `platform-commons/DECISIONS.md` ADR-025);
-they predate `UserPort`'s 4-way split (`UserPort`/`UserAccountPort`/`UserAuthorizationPort`/
-`UserPreferencesPort` — `platform-commons/DECISIONS.md` ADR-026) and `ProviderProfilePort`'s
-addition (ADR-027). `platform-commons/CLAUDE.md`'s own SPI naming table is current — treat it as
-authoritative until this file is refreshed.
-
 ## Overview
 
 All cross-module extension points (Ports and Hooks) live in `platform-commons` to decouple starters from marketplace-app. Suffixes encode call direction:
 - `*Port`: marketplace → starter (marketplace calls the starter)
 - `*Hook`: starter → marketplace (starter calls back to marketplace)
+
+See `platform-commons/CLAUDE.md`'s "SPI Interface Naming" table for the authoritative direction/role definition of each suffix — not restated here.
 
 ## SPI Dependency Graph
 
@@ -24,43 +17,54 @@ graph TD
         AuditDomainHook["AuditDomainHook<br/>(audit.spi)"]
         AuditActivityFieldsHook["AuditActivityFieldsHook<br/>(audit.spi)"]
         AuditActivityEnrichHook["AuditActivityEnrichHook<br/>(audit.spi)"]
-        
+
         AttachmentPort["AttachmentPort<br/>(attachment.spi)"]
-        AttachmentMediaChangeHook["AttachmentMediaChangeHook<br/>(attachment.spi)"]
-        AttachmentAuditHook["AttachmentAuditHook<br/>(attachment.spi)"]
-        
+        AttachmentAuditPort["AttachmentAuditPort<br/>(attachment.spi)"]
+
         UserPort["UserPort<br/>(user.spi)"]
+        UserAccountPort["UserAccountPort<br/>(user.spi)"]
+        UserAuthorizationPort["UserAuthorizationPort<br/>(user.spi)"]
+        UserPreferencesPort["UserPreferencesPort<br/>(user.spi)"]
         UserSettingsChangedHook["UserSettingsChangedHook<br/>(user.spi)"]
         AuthenticatedPrincipal["AuthenticatedPrincipal<br/>(user.spi)"]
-        
+
         AdvertisementPort["AdvertisementPort<br/>(advertisement.spi)"]
-        
+
         CurrentActorHook["CurrentActorHook<br/>(core.spi)"]
-        
+
         TaxonPort["TaxonPort<br/>(taxon.spi)"]
+
+        ProviderProfilePort["ProviderProfilePort<br/>(providerprofile.spi)"]
     end
-    
+
     subgraph AUD["audit-spring-boot-starter"]
         DefaultAuditPort["DefaultAuditPort<br/>(services)"]
     end
-    
+
     subgraph ATT["attachment-spring-boot-starter"]
         DefaultAttachmentPort["DefaultAttachmentPort<br/>(spi)"]
-        AttachmentAuditHookImpl["AttachmentAuditHookImpl<br/>(spi)"]
+        AttachmentAuditPortImpl["AttachmentAuditPortImpl<br/>(spi)"]
     end
-    
+
     subgraph USR["user-spring-boot-starter"]
         UserPortImpl["UserPortImpl<br/>(spi)"]
+        UserAccountPortImpl["UserAccountPortImpl<br/>(spi)"]
+        UserAuthorizationPortImpl["UserAuthorizationPortImpl<br/>(spi)"]
+        UserPreferencesPortImpl["UserPreferencesPortImpl<br/>(spi)"]
     end
-    
+
     subgraph ADV["advertisement-spring-boot-starter"]
         AdvertisementPortImpl["AdvertisementPortImpl<br/>(spi)"]
     end
-    
+
     subgraph TAX["taxon-spring-boot-starter"]
         DefaultTaxonPort["DefaultTaxonPort<br/>(services)"]
     end
-    
+
+    subgraph PROV["provider-profile-spring-boot-starter"]
+        ProviderProfilePortImpl["ProviderProfilePortImpl<br/>(spi)"]
+    end
+
     subgraph APP["marketplace-app"]
         CurrentActorHookImpl["CurrentActorHookImpl<br/>(spi)"]
         AuditDomainHookImpl["AuditDomainHookImpl<br/>(spi)"]
@@ -71,7 +75,7 @@ graph TD
         TaxonActivityFieldsHookImpl["TaxonActivityFieldsHookImpl<br/>(spi)"]
         SettingsPaginationService["SettingsPaginationService<br/>(pagination)"]
     end
-    
+
     AuditPort -->|implemented by| DefaultAuditPort
     AuditDomainHook -->|implemented by| AuditDomainHookImpl
     AuditActivityFieldsHook -->|implemented by| AdvertisementActivityFieldsHookImpl
@@ -79,64 +83,88 @@ graph TD
     AuditActivityFieldsHook -->|implemented by| UserSettingsActivityFieldsHookImpl
     AuditActivityFieldsHook -->|implemented by| TaxonActivityFieldsHookImpl
     AuditActivityEnrichHook -->|implemented by| ActivityEnrichHookImpl
-    
+
     AttachmentPort -->|implemented by| DefaultAttachmentPort
-    AttachmentAuditHook -->|implemented by| AttachmentAuditHookImpl
-    
+    AttachmentAuditPort -->|implemented by| AttachmentAuditPortImpl
+
     UserPort -->|implemented by| UserPortImpl
+    UserAccountPort -->|implemented by| UserAccountPortImpl
+    UserAuthorizationPort -->|implemented by| UserAuthorizationPortImpl
+    UserPreferencesPort -->|implemented by| UserPreferencesPortImpl
     UserSettingsChangedHook -->|implemented by| SettingsPaginationService
-    
+
     AdvertisementPort -->|implemented by| AdvertisementPortImpl
-    
+
     CurrentActorHook -->|implemented by| CurrentActorHookImpl
-    
+
     TaxonPort -->|implemented by| DefaultTaxonPort
+
+    ProviderProfilePort -->|implemented by| ProviderProfilePortImpl
 ```
 
 ## SPI Interface Details
 
-### Audit Subsystem
+Package prefix shown once per subsystem heading — the **Interface** column below states only the
+leaf class name.
 
-| Interface | Location | Direction | Implementation | Purpose |
-|-----------|----------|-----------|-----------------|---------|
-| **AuditPort** | `org.ost.platform.audit.spi` | marketplace → starter | `org.ost.audit.services.DefaultAuditPort` | Write/read audit entries; query snapshots; get entity activity & timeline. Methods: `captureCreation`, `captureUpdate`, `captureDeletion`, `captureRestore` (added for `ActionType.RESTORED`), `getSnapshotContent`, `getEntityActivity`, `getLastSnapshot`, `getTimelinePage`, `countTimeline` |
-| **AuditDomainHook** | `org.ost.platform.audit.spi` | starter → marketplace | `org.ost.marketplace.spi.AuditDomainHookImpl` | Callback: marketplace tells audit module about owned domain events |
-| **AuditActivityFieldsHook** | `org.ost.platform.audit.spi` | starter → marketplace | `AdvertisementActivityFieldsHookImpl`, `UserActivityFieldsHookImpl`, `UserSettingsActivityFieldsHookImpl`, `TaxonActivityFieldsHookImpl` | Callback: enrich audit activity with domain-specific field labels & descriptions. Each impl declares `entityType()` to register for a specific domain. |
-| **AuditActivityEnrichHook** | `org.ost.platform.audit.spi` | starter → marketplace | `org.ost.marketplace.spi.ActivityEnrichHookImpl` | Callback: merge cross-cutting activity (e.g., media changes into advertisement activity) |
+### Audit Subsystem — `org.ost.platform.audit.spi`
 
-### Attachment Subsystem
+| Interface | Direction | Implementation | Purpose |
+|-----------|-----------|-----------------|---------|
+| **AuditPort** | marketplace → starter | `org.ost.audit.services.DefaultAuditPort` | Write/read audit entries; query snapshots; get entity activity & timeline. Methods: `captureCreation`, `captureUpdate`, `captureDeletion`, `captureRestore`, `getSnapshotContent`, `getEntityActivity`, `getLastSnapshot`, `getTimelinePage`, `countTimeline` |
+| **AuditDomainHook** | starter → marketplace | `org.ost.marketplace.spi.AuditDomainHookImpl` | Callback: marketplace tells audit module about owned domain events |
+| **AuditActivityFieldsHook** | starter → marketplace | `AdvertisementActivityFieldsHookImpl`, `UserActivityFieldsHookImpl`, `UserSettingsActivityFieldsHookImpl`, `TaxonActivityFieldsHookImpl` | Callback: enrich audit activity with domain-specific field labels & descriptions. Each impl declares `entityType()` to register for a specific domain. |
+| **AuditActivityEnrichHook** | starter → marketplace | `org.ost.marketplace.spi.ActivityEnrichHookImpl` | Callback: merge cross-cutting activity (e.g., media changes into advertisement activity) |
 
-| Interface | Location | Direction | Implementation | Purpose |
-|-----------|----------|-----------|-----------------|---------|
-| **AttachmentPort** | `org.ost.platform.attachment.spi` | marketplace → starter | `org.ost.attachment.spi.DefaultAttachmentPort` | Upload, delete, query, restore attachments; manage snapshots |
-| **AttachmentMediaChangeHook** | `org.ost.platform.attachment.spi` | starter → marketplace | *(none — fires from `AttachmentService` on every media change but currently has no implementation; a valid, gracefully-degraded state for this optional SPI — see `marketplace-app/DECISIONS.md` ADR-035)* | Callback: attachment module notifies interested modules when media changes |
-| **AttachmentAuditHook** | `org.ost.platform.attachment.spi` | starter → marketplace | `org.ost.attachment.spi.AttachmentAuditHookImpl` | Callback: attachment module requests audit records for media snapshots |
+### Attachment Subsystem — `org.ost.platform.attachment.spi`
 
-### User Subsystem
+| Interface | Direction | Implementation | Purpose |
+|-----------|-----------|-----------------|---------|
+| **AttachmentPort** | marketplace → starter | `org.ost.attachment.spi.DefaultAttachmentPort` | Upload, delete, query, restore attachments; manage snapshots |
+| **AttachmentAuditPort** | marketplace → starter | `org.ost.attachment.spi.AttachmentAuditPortImpl` | Attachment module requests audit records for media snapshots |
 
-| Interface | Location | Direction | Implementation | Purpose |
-|-----------|----------|-----------|-----------------|---------|
-| **UserPort** | `org.ost.platform.user.spi` | marketplace → starter | `org.ost.user.spi.UserPortImpl` | CRUD users, query filters, get profile, update settings |
-| **AuthenticatedPrincipal** | `org.ost.platform.user.spi` | type contract | `org.ost.user.security.UserPrincipal` | Spring Security principal; holds user identity & roles |
-| **UserSettingsChangedHook** | `org.ost.platform.user.spi` | starter → marketplace | `org.ost.marketplace.ui.views.services.pagination.SettingsPaginationService` | Callback: marketplace notified when user settings change (pagination defaults reset) |
+`AttachmentMediaChangeHook` was removed entirely (improvement-102, zero implementations) — there is
+no starter→marketplace media-change callback anymore. Media summaries are computed at read time via
+`AttachmentPort.getMediaSummaries()` instead (see `marketplace-app/DECISIONS.md` ADR-035).
 
-### Advertisement Subsystem
+### User Subsystem — `org.ost.platform.user.spi`
 
-| Interface | Location | Direction | Implementation | Purpose |
-|-----------|----------|-----------|-----------------|---------|
-| **AdvertisementPort** | `org.ost.platform.advertisement.spi` | marketplace → starter | `org.ost.advertisement.spi.AdvertisementPortImpl` | CRUD advertisements, query filters, ownership checks |
+Split into 4 narrow ports (see `platform-commons/DECISIONS.md` ADR-026 for the rationale — interface
+cohesion, not runtime-toggle behavior; all 4 are always implemented by `user-spring-boot-starter`).
 
-### Taxon (Reference Data) Subsystem
+| Interface | Direction | Implementation | Purpose |
+|-----------|-----------|-----------------|---------|
+| **UserPort** | marketplace → starter | `org.ost.user.spi.UserPortImpl` | Query: find/filter users, get profile |
+| **UserAccountPort** | marketplace → starter | `org.ost.user.spi.UserAccountPortImpl` | Mutate: save/delete/register/refresh |
+| **UserAuthorizationPort** | marketplace → starter | `org.ost.user.spi.UserAuthorizationPortImpl` | `isAdmin`/`isModerator`/`isOwner` checks |
+| **UserPreferencesPort** | marketplace → starter | `org.ost.user.spi.UserPreferencesPortImpl` | Settings/locale read+write |
+| **AuthenticatedPrincipal** | type contract | `org.ost.user.security.UserPrincipal` | Spring Security principal; holds user identity & roles |
+| **UserIdMarker** | type contract | implemented by domain types (e.g. `UserDto`) | Marker interface identifying "something with a user id" for ownership checks (`UserAuthorizationPort.isOwner(UserDto, UserIdMarker)`) |
+| **UserSettingsChangedHook** | starter → marketplace | `org.ost.marketplace.ui.views.services.pagination.SettingsPaginationService` | Callback: marketplace notified when user settings change (pagination defaults reset) |
 
-| Interface | Location | Direction | Implementation | Purpose |
-|-----------|----------|-----------|-----------------|---------|
-| **TaxonPort** | `org.ost.platform.taxon.spi` | marketplace → starter | `org.ost.taxon.services.DefaultTaxonPort` | Manage taxonomies (categories, tags); query; translations |
+### Advertisement Subsystem — `org.ost.platform.advertisement.spi`
 
-### Core / Platform
+| Interface | Direction | Implementation | Purpose |
+|-----------|-----------|-----------------|---------|
+| **AdvertisementPort** | marketplace → starter | `org.ost.advertisement.spi.AdvertisementPortImpl` | CRUD advertisements, query filters, ownership checks |
 
-| Interface | Location | Direction | Implementation | Purpose |
-|-----------|----------|-----------|-----------------|---------|
-| **CurrentActorHook** | `org.ost.platform.core.spi` | starter → marketplace | `org.ost.marketplace.spi.CurrentActorHookImpl` | Callback: resolve the currently authenticated user from Spring Security context |
+### Taxon (Reference Data) Subsystem — `org.ost.platform.taxon.spi`
+
+| Interface | Direction | Implementation | Purpose |
+|-----------|-----------|-----------------|---------|
+| **TaxonPort** | marketplace → starter | `org.ost.taxon.services.DefaultTaxonPort` | Manage taxonomies (categories, tags); query; translations |
+
+### Provider Profile Subsystem — `org.ost.platform.providerprofile.spi`
+
+| Interface | Direction | Implementation | Purpose |
+|-----------|-----------|-----------------|---------|
+| **ProviderProfilePort** | marketplace → starter | `org.ost.provider.spi.ProviderProfilePortImpl` | CRUD provider profiles (MASTER/SHOP/SUPPORT), category assignment |
+
+### Core / Platform — `org.ost.platform.core.spi`
+
+| Interface | Direction | Implementation | Purpose |
+|-----------|-----------|-----------------|---------|
+| **CurrentActorHook** | starter → marketplace | `org.ost.marketplace.spi.CurrentActorHookImpl` | Callback: resolve the currently authenticated user from Spring Security context |
 
 ## Implementation Rules
 
@@ -178,10 +206,6 @@ marketplace-app (UI)
   org.ost.attachment.spi.DefaultAttachmentPort
       ↓
   org.ost.attachment.services.AttachmentService.save()
-      ↓
-  calls AttachmentMediaChangeHook.onChange()
-      ↓
-  (no implementation registered — the event is dropped; see ADR-035)
 
 Media summaries are never stored on the advertisement row. They are computed at read time:
 AdvertisementService.enrichWithMediaSummary() → AttachmentPort.getMediaSummaries()
@@ -204,20 +228,18 @@ marketplace-app (viewing activity feed)
 
 ## File Locations Summary
 
-**Interfaces (platform-commons):**
-- `/app/platform-commons/src/main/java/org/ost/platform/audit/spi/` — AuditPort, hooks
-- `/app/platform-commons/src/main/java/org/ost/platform/attachment/spi/` — AttachmentPort, hooks
-- `/app/platform-commons/src/main/java/org/ost/platform/user/spi/` — UserPort, hooks
-- `/app/platform-commons/src/main/java/org/ost/platform/advertisement/spi/` — AdvertisementPort
-- `/app/platform-commons/src/main/java/org/ost/platform/taxon/spi/` — TaxonPort, hooks
-- `/app/platform-commons/src/main/java/org/ost/platform/core/spi/` — CurrentActorHook
+**Interfaces (platform-commons):** one directory per subsystem under
+`/app/platform-commons/src/main/java/org/ost/platform/<subsystem>/spi/` — `audit`, `attachment`,
+`user`, `advertisement`, `taxon`, `providerprofile`, `core`.
 
 **Port Implementations (starters):**
 - `/app/audit-spring-boot-starter/src/main/java/org/ost/audit/services/DefaultAuditPort.java`
 - `/app/attachment-spring-boot-starter/src/main/java/org/ost/attachment/spi/DefaultAttachmentPort.java`
-- `/app/user-spring-boot-starter/src/main/java/org/ost/user/spi/UserPortImpl.java`
+- `/app/attachment-spring-boot-starter/src/main/java/org/ost/attachment/spi/AttachmentAuditPortImpl.java`
+- `/app/user-spring-boot-starter/src/main/java/org/ost/user/spi/UserPortImpl.java` (+ `UserAccountPortImpl`, `UserAuthorizationPortImpl`, `UserPreferencesPortImpl` in the same package)
 - `/app/advertisement-spring-boot-starter/src/main/java/org/ost/advertisement/spi/AdvertisementPortImpl.java`
 - `/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/services/DefaultTaxonPort.java`
+- `/app/provider-profile-spring-boot-starter/src/main/java/org/ost/provider/spi/ProviderProfilePortImpl.java`
 
 **Hook Implementations (marketplace-app):**
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/CurrentActorHookImpl.java`
@@ -228,6 +250,3 @@ marketplace-app (viewing activity feed)
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/ActivityEnrichHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/TaxonActivityFieldsHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/services/pagination/SettingsPaginationService.java`
-
-**Hook Implementations (starters):**
-- `/app/attachment-spring-boot-starter/src/main/java/org/ost/attachment/spi/AttachmentAuditHookImpl.java`

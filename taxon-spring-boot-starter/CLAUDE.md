@@ -33,13 +33,11 @@ Tables: `taxon`, `taxon_translation`, `taxon_assignment`
 
 Partial unique index: `uidx_taxon_type_code ON taxon (type, code) WHERE code IS NOT NULL` — only enforced for named entries.
 
-Starters own their own Liquibase changelogs — never merge into a shared file.
-
 ---
 
 ## Key constraints
 
-- No Vaadin dependency. No UI code here. UI (`TaxonManagementView`, `TaxonOverlay`) lives in `marketplace-app`.
+- UI (`TaxonManagementView`, `TaxonOverlay`) lives in `marketplace-app`.
 - `TaxonPort` lives in `platform-commons` (`org.ost.platform.taxon.spi`).
 - `TaxonType` enum lives in `platform-commons` (`org.ost.platform.taxon.model`). Adding a new type is a release-level change requiring UI, audit translations, and seed entries.
 - `@EnableJdbcRepositories(basePackages = "org.ost.taxon.repository")` declared in `TaxonAutoConfiguration`.

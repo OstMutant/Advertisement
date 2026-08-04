@@ -26,14 +26,12 @@ Java package root: `org.ost.provider`
 Liquibase changelog: `db/provider-profile-changelog/provider-profile-changelog-master.xml`
 Tables: `provider_profile`
 
-Starters own their own Liquibase changelogs — never merge into a shared file.
-
 ---
 
 ## Key constraints
 
-- No Vaadin dependency. No UI code here. This module ships backend-only as of its first batch
-  (improvement-124 Batch 124-B) — no UI surfaces it yet.
+- This module ships backend-only as of its first batch (improvement-124 Batch 124-B) — no UI
+  surfaces it yet.
 - `ProviderProfilePort` lives in `platform-commons`.
 - `@EnableJdbcRepositories(basePackages = "org.ost.provider.repository")` declared in
   `ProviderProfileAutoConfiguration`.

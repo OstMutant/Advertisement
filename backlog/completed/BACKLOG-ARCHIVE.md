@@ -1524,3 +1524,33 @@ cross-reference in `marketplace-app/README.md`; an incorrect "compile" scope cla
 `provider-profile-spring-boot-starter`) fixed in the same change. `bash scripts/unit-tests.sh`:
 108/108 passed. Full detail: `completed/issues/improvement-137-doc-standards-skill-and-dedup-cleanup.md`,
 `completed/issues/improvement-139-deep-review-missing-provider-profile-module.md`.
+
+✅ Done (2026-08-04): improvement-140 — documentation shrink pass finishing what improvement-137
+deferred, executed via `/autopilot`. Deduped restated facts (DAG/no-cycles, "marketplace-app
+depends on all starters", "Vaadin only in marketplace-app", AccessEvaluator-resolved, optional-
+deps-not-guarded, `UserPort`'s 4-way split, `query-lib`'s API tables, SPI-implementation lines) to
+one canonical location each across `docs/architecture/*.md`/starter `README.md`/`CLAUDE.md` pairs.
+Replaced improvement-137's own hedges with real fixes: `02-spi-map.md` rewritten (removed the
+staleness banner, `AttachmentMediaChangeHook`, renamed `AttachmentAuditHook`→`AttachmentAuditPort`,
+added `UserPort`'s split + `ProviderProfilePort`); `docs/architecture/README.md`'s Key Metrics
+table recomputed with real numbers instead of "not re-verified this pass"; `03-bounded-contexts.md`
+gained a full Provider Profile domain section; `04-database-erd.md` gained `user_preferences`/
+`provider_profile` tables and corrected `user_information` (settings/locale moved out per
+ADR-070). Consolidated 2 verbatim starter-wide constraints ("No Vaadin dependency"/"own Liquibase
+changelog") into root `CLAUDE.md`, trimmed from all 6 starter `CLAUDE.md`s; `doc-standards/SKILL.md`
+gained a clarification that an identical-everywhere constraint is really a fact. Compressed
+`platform-commons/DECISIONS.md` ADR-025 item 20's 18-line narrative to 7 lines. Trimmed
+`BACKLOG.md`'s "At a glance" from a 54-line narrative wall to a short completed-list + active-work
+summary. Net result: **+32 lines (+0.4%)** vs. the 7,434-line baseline, not a shrink —
+`CLAUDE.md`/`BACKLOG.md` shrank as intended (-38/-27) but `docs/architecture/*.md` grew (+113)
+because the real fixes filled genuine content gaps (Provider Profile section, 2 missing ERD
+tables) rather than restating existing content; reported plainly rather than reframed as a shrink
+that didn't happen. A follow-up `/code-review --fix` pass (8 parallel finder agents + verify)
+caught 6 more pre-existing stale facts sitting directly adjacent to the edited lines
+(`AccessEvaluator`'s description still named the pre-split `UserPort` instead of
+`UserAuthorizationPort`; "optional deps not guarded" and "Advertisement→User FK coupling" both
+already resolved but still described as open in 3 files each; a stale `I18nKey.java` line count;
+a "largest file" column dropped with a pointer that delivered nothing) and fixed all of them
+directly. `bash scripts/unit-tests.sh`: 79/79 passed;
+`check-adr-index-freshness.sh`/`check-flows-completeness.sh`/`check-hardcoded-counts.sh`: all
+pass. Full detail: `completed/issues/improvement-140-documentation-shrink-and-dedup-completion.md`.
