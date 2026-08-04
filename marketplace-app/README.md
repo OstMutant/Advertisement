@@ -21,7 +21,7 @@ The main Vaadin application — all UI lives here. Depends on all starters via S
 | `config/` | Spring configuration (DB auditing, UI factories) |
 | `services/i18n/` | `I18nKey`, `I18nService`, `LocaleProvider`, `InstantFormatter` |
 | `services/auth/` | `AuthContextService` — current-user access |
-| `services/security/` | `AccessEvaluator` only (`RoleChecker`/`OwnershipChecker` are owned by user-spring-boot-starter — see above) |
+| `services/security/` | `AccessEvaluator` only — see "Responsibilities" above for where role/ownership checks actually live |
 | `ui/views/components/audit/` | Activity/Timeline row renderers (`AuditActivityListRenderer`, `AuditTimelineRowRenderer`, etc.) — the read-side SQL itself lives in `audit-spring-boot-starter`'s `AuditReadService`, not a marketplace-app `repository/activity/` package (that package does not exist; corrected 2026-07-13) |
 | `ui/views/main/tabs/timeline/` | Dedicated top-level Timeline tab (`TimelineView`) |
 | `ui/core/` | `Configurable<T,P>`, `Initialization<T>`, `UiComponentFactory<T>` |

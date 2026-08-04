@@ -30,8 +30,7 @@ bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the sta
 ```
 
 `run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon`/`audit`/
-`attachment`/`provider-profile-spring-boot-starter` (7 modules, corrected 2026-08-01 —
-`provider-profile` was added since this note was first written) changed since their last install
+`attachment`/`provider-profile-spring-boot-starter` changed since their last install
 and only rebuilds those
 before testing (~1:47-3:35 vs. 3-7 min walking the full reactor every time) — no manual flag
 needed for the common case. `--no-check` skips that detection entirely, testing against whatever

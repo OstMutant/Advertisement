@@ -7,20 +7,20 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
 ### 01-module-dependencies.md
 **Maven dependency graph.** Shows which modules depend on which others. Key finding: clean DAG topology with no cycles. platform-commons is the foundation; all starters depend on it; marketplace-app depends on all starters.
 
-**Key diagram:** `graph LR` showing 9 modules and their dependencies (8 shipped + `integration-tests`, test-only, never shipped).
+**Key diagram:** `graph LR` showing 10 modules and their dependencies (9 shipped + `integration-tests`, test-only, never shipped).
 
 ### 02-spi-map.md
-**Extension points and implementations.** Maps all Ports and Hooks to their implementations. Explains the Port/Hook pattern (marketplace → Port, Hook ← starter). Lists all 7 SPI interfaces in platform-commons and their implementations in starters/marketplace-app.
+**Extension points and implementations.** Maps all Ports and Hooks to their implementations. Explains the Port/Hook pattern (marketplace → Port, Hook ← starter). Lists the SPI interfaces in platform-commons and their implementations in starters/marketplace-app — see that file's own top-of-file note for its current staleness caveats.
 
 **Key diagram:** `graph TD` showing SPI interfaces and their implementations across modules.
 
 ### 03-bounded-contexts.md
-**Domain boundaries and integration patterns.** Identifies 5 business domains (User, Advertisement, Audit, Attachment, Taxon) plus the UI layer and shared kernel. Explains how domains communicate through Ports and Hooks. Documents the 3 main integration patterns (lifecycle with audit, media attachment, activity feed enrichment).
+**Domain boundaries and integration patterns.** Identifies business domains (User, Advertisement, Audit, Attachment, Taxon) plus the UI layer and shared kernel. Explains how domains communicate through Ports and Hooks. Documents the 3 main integration patterns (lifecycle with audit, media attachment, activity feed enrichment). Predates the Provider Profile domain — due for a refresh (tracked under `improvement-138`).
 
 **Key diagram:** Context map showing all domains and their relationships.
 
 ### 04-database-erd.md
-**Entity relationship diagram and schema details.** Shows all 5 tables (user_information, advertisement, attachment, attachment_snapshot, audit_log) with columns, types, constraints, indexes, and foreign keys. Explains the data flow for key operations (create advertisement, upload media, query activity).
+**Entity relationship diagram and schema details.** Shows tables with columns, types, constraints, indexes, and foreign keys. Explains the data flow for key operations (create advertisement, upload media, query activity). Predates the `taxon`/`taxon_translation`/`taxon_assignment`, `provider_profile`, and `user_preferences` tables — due for a refresh (tracked under `improvement-138`).
 
 **Key diagram:** Mermaid `erDiagram` with all tables and relationships.
 
@@ -30,10 +30,10 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
 **Key diagrams:** 6 Mermaid `sequenceDiagram` traces with actual class names from codebase.
 
 ### 06-coupling-analysis.md
-**Architecture violations and coupling assessment.** Identifies 1 HIGH violation (AccessEvaluator imports org.ost.user.security.*), 1 MEDIUM issue (optional dependencies not guarded), and confirms: no cyclic deps, no Vaadin in starters, no UI→Repository direct imports, good module sizes.
+**Architecture violations and coupling assessment.** Originally identified 1 HIGH violation (AccessEvaluator imports org.ost.user.security.*, since resolved per ADR-016) and 1 MEDIUM issue (optional dependencies not guarded, still open), and confirms: no cyclic deps, no Vaadin in starters, no UI→Repository direct imports, good module sizes.
 
 **Key findings:**
-- VIOLATION: AccessEvaluator breaks modular boundary
+- RESOLVED: AccessEvaluator modular-boundary violation (ADR-016)
 - ISSUE: audit/attachment marked optional but not guarded with ObjectProvider
 - PASS: All other coupling checks
 
@@ -46,18 +46,18 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
 - LOW: Everything else
 
 ### 08-scorecard.md
-**Architecture quality scorecard.** Scores 7 dimensions (Modularity, Coupling, Cohesion, SPI Design, Domain Isolation, Database Design, Testability) from 1-10 with evidence. Overall: **7.1/10 (GOOD)**.
+**Architecture quality scorecard.** Scores 7 dimensions (Modularity, Coupling, Cohesion, SPI Design, Domain Isolation, Database Design, Testability) from 1-10 with evidence. Overall: **7.7/10 (GOOD)**.
 
-**Scores:**
+**Scores** (synced from `08-scorecard.md`'s own current table, which already reflects the resolved AccessEvaluator finding):
 - Modularity: 7/10 — Good; starters modular but marketplace-app is monolith coordinator
-- Coupling: 6/10 — Fair; AccessEvaluator violation is critical
+- Coupling: 8/10 — Good; AccessEvaluator fixed (ADR-016), optional deps still unguarded
 - Cohesion: 8/10 — Good; each domain single responsibility
 - SPI Design: 8/10 — Good; consistent naming, clear contracts
-- Domain Isolation: 7/10 — Good; code isolated via SPI, schema coupling acceptable
+- Domain Isolation: 8/10 — Good; AccessEvaluator fixed, schema coupling acceptable
 - Database Design: 8/10 — Good; flexible schema, proper indexing
 - Testability: 7/10 — Good; mockable contracts, SPI testing requires discipline
 
-**Critical actions:** Fix AccessEvaluator (HIGH), decide on optional deps (MEDIUM).
+**Critical actions:** ~~Fix AccessEvaluator (HIGH)~~ done, see ADR-016; decide on optional deps (MEDIUM).
 
 ---
 
@@ -77,27 +77,27 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 9 (query-lib, platform-commons, 5 starters, marketplace-app, integration-tests test-only) |
-| Total Java Files | 264 |
-| Total Tables | 5 (user_information, advertisement, attachment, attachment_snapshot, audit_log) |
-| SPI Interfaces | 13 (AuditPort, AuditDomainHook, AuditActivityFieldsHook, AuditActivityEnrichHook, AttachmentPort, AttachmentMediaChangeHook, AttachmentAuditHook, UserPort, AuthenticatedPrincipal, UserSettingsChangedHook, AdvertisementPort, TaxonPort, CurrentActorHook) |
-| Largest Module | marketplace-app (152 files) |
-| Largest File | I18nKey.java (370 lines) |
+| Total Modules | 10 (query-lib, platform-commons, 6 starters, marketplace-app, integration-tests test-only) |
+| Total Java Files | not re-verified this pass — see `01-module-dependencies.md`/generated-source-directory list below |
+| Total Tables | 10 (user_information, user_preferences, advertisement, attachment, attachment_snapshot, audit_log, taxon, taxon_translation, taxon_assignment, provider_profile) |
+| SPI Interfaces | see `02-spi-map.md`'s own top-of-file note for its current staleness caveats |
+| Largest Module | not re-verified this pass |
+| Largest File | not re-verified this pass |
 | Dependency Cycles | 0 (clean DAG) |
-| Architecture Score | 7.1/10 (GOOD) |
+| Architecture Score | 7.7/10 (GOOD) — per `08-scorecard.md`'s current scores, already reflecting the resolved AccessEvaluator finding (ADR-016) |
 
 ---
 
 ## Critical Issues Found
 
-### 1. AccessEvaluator Coupling (HIGH)
+### 1. AccessEvaluator Coupling (HIGH) — ✅ RESOLVED (see `marketplace-app/DECISIONS.md` ADR-016)
 **File:** `/app/marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java`
 
-**Issue:** Imports `org.ost.user.security.OwnershipChecker` and `org.ost.user.security.RoleChecker` (internal classes, not SPI contracts).
-
-**Impact:** Breaks modular boundary; user module cannot be refactored; marketplace-app depends on user internals.
-
-**Fix:** Refactor to use `UserPort` instead.
+Originally flagged for importing `org.ost.user.security.OwnershipChecker`/`RoleChecker` (internal
+classes, not SPI contracts). Confirmed fixed: the class now depends only on
+`UserAuthorizationPort`/`UserDto` from `platform-commons`, per ADR-016's "full user decoupling."
+Kept here as a record of a resolved finding, not an open issue — see `06-coupling-analysis.md`
+for the original detailed writeup, which already reflects the resolved status.
 
 ### 2. Optional Dependencies Not Guarded (MEDIUM)
 **File:** `/app/advertisement-spring-boot-starter/pom.xml`
@@ -121,10 +121,11 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
   - `/app/user-spring-boot-starter/src/main/java`
   - `/app/advertisement-spring-boot-starter/src/main/java`
   - `/app/taxon-spring-boot-starter/src/main/java`
+  - `/app/provider-profile-spring-boot-starter/src/main/java`
   - `/app/marketplace-app/src/main/java`
 - Analyzed schemas:
   - All Liquibase migrations in `/app/*/src/main/resources/db/*/changes/`
-- pom.xml files for all 9 modules (`integration-tests`'s own `smoke_test` table is test-only
+- pom.xml files for all 10 modules (`integration-tests`'s own `smoke_test` table is test-only
   scaffolding, not part of the domain schema — deliberately excluded from 04-database-erd.md)
 
 ---
@@ -146,8 +147,8 @@ All findings based on actual source code inspection:
 ## Recommendations Summary
 
 ### Urgent (Sprint 1)
-- [ ] Fix AccessEvaluator coupling (HIGH)
-- [ ] Remove internal user.security imports; use UserPort
+- [x] Fix AccessEvaluator coupling (HIGH) — done, see ADR-016
+- [x] Remove internal user.security imports; use UserPort — done, see ADR-016
 
 ### High (Sprint 2)
 - [ ] Resolve optional dependencies (make required OR add ObjectProvider guards)
@@ -166,7 +167,7 @@ All findings based on actual source code inspection:
 
 ---
 
-## Architecture Quality: 7.1/10 (GOOD)
+## Architecture Quality: 7.7/10 (GOOD)
 
 **Strengths:**
 - Clear SPI design with consistent Port/Hook naming
@@ -178,7 +179,6 @@ All findings based on actual source code inspection:
 - Good indexing for query performance
 
 **Weaknesses:**
-- AccessEvaluator breaks modular boundary (HIGH)
 - Optional dependencies not guarded (MEDIUM)
 - Schema-level coupling between Advertisement and User (acceptable but limits independence)
 - SPI contract testing requires discipline (no compile-time enforcement)

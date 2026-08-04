@@ -221,6 +221,19 @@ principle, applied to the AI-navigation layer itself — a stale or speculative 
   backstop (secondary, manually-triggered).
 - `docs/ai/README.md` — "Staying correct" section, updated to mention `check-adr-index-freshness.sh`
   alongside `/sync-docs --full-audit`'s existing ADR classifier.
+- `improvement-137` — repo-wide documentation dedup + new `doc-standards` skill, filed 2026-08-04.
+  Deliberately not merged into this issue (different shape of work — a closeable one-pass cleanup
+  vs. this issue's long-running evidence-accumulation item 3), but touches the same `docs/ai/*.md`
+  files this issue owns; its Pass 2/4 edits there are corrective (stale counts, restated facts),
+  not new content, so they don't conflict with item 5's governing rule above. See improvement-137's
+  own "Relationship to improvement-135" section for the full reasoning.
+- `improvement-138` — "Architecture Control Plane" (generated model + AI/human dual-layer
+  projection), filed 2026-08-04. Its Track B (a new L0-L5 AI-navigation layer) directly triggers
+  this issue's item 5 governing rule and does not start until it's resolved — either item 3's real
+  accumulated data shows a gap, or the user explicitly decides Track B is itself the
+  evidenced-gap exception (improvement-138's "Finding 3"). Its B2 measurement step must extend
+  this issue's `## Operational notes` block rather than introduce a separate one
+  (improvement-138's "Finding 4"). Track A is not gated by this issue.
 
 ## Operational notes
 

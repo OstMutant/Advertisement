@@ -43,3 +43,35 @@ the same three fields externally.
 found to substantially duplicate existing, already-more-detailed documentation
 (`docs/architecture/03-bounded-contexts.md` and `04-database-erd.md` respectively) — see
 `improvement-134`'s audit findings 2.4 for the full comparison. Not built.
+
+---
+
+## ADR-002: `check-hardcoded-counts.sh` — build-enforced backstop for stale hard-coded counts, not prose alone
+
+**Status:** Accepted
+
+**Context:** `improvement-137`'s planning found a stale hard-coded module count ("9 modules" /
+"all 9 modules") surviving in at least six files (`docs/architecture/01-module-dependencies.md`,
+`docs/architecture/README.md` in three places, `.claude/skills/deep-review/references/full-mode.md`'s
+module scope list, and others) after `provider-profile-spring-boot-starter` was added as the repo's
+tenth module. This project already has a stronger precedent for exactly this class of problem
+(ADR-001 above: `check-adr-index-freshness.sh`) — prose discipline alone (the new
+`doc-standards` skill's pre-write checklist) is the primary defense, but this repo prefers a
+build-enforced backstop over prose alone wherever one is cheap to add.
+
+**Decision:** Add `scripts/ai/check-hardcoded-counts.sh` — read-only, greps every `docs/`,
+`CLAUDE.md`, and `README.md` file for the pattern `N modules`/`N module`, compares each match
+against `pom.xml`'s actual `<module>` count, and fails (exit 1) on any mismatch. Excludes
+`≥N modules` (a threshold rule, e.g. "used by ≥2 modules" in `platform-commons/CLAUDE.md" — not a
+total-count claim) via a negative-lookbehind. Wired into `scripts/ci/entrypoint.sh`'s existing
+`docs` stage alongside `check-adr-index-freshness.sh`/`check-flows-completeness.sh`. Scoped
+deliberately narrow — module counts only, the one recurring pattern actually found stale — not a
+general-purpose "any number might be stale" linter, which would be far noisier and harder to keep
+green.
+
+**Rejected alternative — prose-only fix (rely on the `doc-standards` skill's checklist alone)**:
+rejected for the same reason ADR-001 rejected relying on the `/decision` command alone to keep the
+ADR index fresh — a checklist consulted by whoever happens to be editing a file next has no
+enforcement when someone (human or a differently-scoped Claude session) edits a doc without going
+through that checklist. The skill's checklist remains the primary, first-line discipline; this
+script is the backstop, not a replacement.

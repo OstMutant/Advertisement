@@ -19,7 +19,8 @@ module. With none, cover all of:
 
 `marketplace-app`, `platform-commons`, `query-lib`, `advertisement-spring-boot-starter`,
 `attachment-spring-boot-starter`, `audit-spring-boot-starter`,
-`taxon-spring-boot-starter`, `user-spring-boot-starter`, `integration-tests`
+`taxon-spring-boot-starter`, `user-spring-boot-starter`, `provider-profile-spring-boot-starter`,
+`integration-tests`
 
 ## Procedure
 

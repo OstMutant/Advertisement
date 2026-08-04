@@ -227,6 +227,9 @@ Wait for the next explicit user message before doing anything.
 ## Error Reporting
 When running any script or command that fails, immediately read the error output and show the specific error lines in the chat. Never just report "it failed" without the actual error details.
 
+## Documentation Standards
+Before writing or editing any documentation file, consult `.claude/skills/doc-standards/SKILL.md`.
+
 ---
 
 ## Overlay Pattern

@@ -183,10 +183,11 @@ Delegates to `integration-tests/run.sh` (same thin-wrapper shape as `scripts/pla
 — **only needed in this claude-dev sandbox**, never on a normal developer machine (see below for
 why). Omit it there; Testcontainers' defaults just work.
 
-`run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon`/`audit`/`attachment-spring-boot-starter`
-changed since their last `~/.m2` install (comparing each module's newest `.java` file's mtime
-against its installed JAR) and only reinstalls those before testing, instead of rebuilding all 7
-non-`integration-tests` reactor modules every run (measured ~1:47-3:35 total when nothing needed
+`run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon`/`audit`/`attachment`/
+`provider-profile-spring-boot-starter` changed since their last `~/.m2` install (comparing each
+module's newest `.java` file's mtime against its installed JAR) and only reinstalls those before
+testing, instead of rebuilding all 9 non-`integration-tests` reactor modules every run (measured
+~1:47-3:35 total when nothing needed
 reinstalling vs. 3-7 min walking the full reactor, dominated by ~100s of "nothing to compile"
 Maven overhead across those modules in this sandbox). No manual flag needed — confirmed the
 detection correctly triggers a reinstall when a starter file actually changes, not just when

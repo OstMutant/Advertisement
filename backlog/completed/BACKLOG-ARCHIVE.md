@@ -1501,3 +1501,26 @@ improvement-102, FK-coupling/optional-deps sections left over from improvement-1
 (multi-line ADR `Status:`/heading text was silently truncated) plus two more instances of the same
 stale-doc pattern Phase 3 was already fixing. Full detail:
 `completed/issues/improvement-134-ai-navigation-context-efficiency-layer.md`.
+
+✅ Done (2026-08-04): improvement-137 — new `.claude/skills/doc-standards/SKILL.md` (canonical-
+ownership table + fact-vs-constraint test + pre-write checklist) plus a repo-wide documentation
+dedup pass, executed via `/autopilot` with Explore-agent-cluster discovery (4 parallel agents, one
+per file cluster). Fixed: stale "9 modules"/table/SPI counts across `docs/architecture/*.md`
+(including a fuller regeneration of `01-module-dependencies.md`'s graph/table to add the missing
+`provider-profile-spring-boot-starter` node), a `RoleChecker`/`OwnershipChecker` duplication in
+`marketplace-app`, a missing `UserEditableFields` README entry, and ADR/issue-format restatements
+in `.claude/commands/sync-docs.md`/`deep-review/SKILL.md` collapsed to references. Added
+`scripts/ai/check-hardcoded-counts.sh` (new CI gate, `scripts/ai/DECISIONS.md` ADR-002) mirroring
+`check-adr-index-freshness.sh`/`check-flows-completeness.sh`. Deliberately deferred (too large for
+a dedup pass, cross-referenced to `improvement-138` instead): `02-spi-map.md`'s SPI diagram still
+names a removed/renamed hook and is missing the `UserPort` split/`ProviderProfilePort`;
+`03-bounded-contexts.md`/`04-database-erd.md`'s deeper content predates `taxon`/`provider-profile`.
+`/code-review --fix` (high effort, 8 finder angles + 8 verifiers) caught and fixed 8 confirmed
+findings, including two real regressions this same session introduced (a dead section
+cross-reference in `marketplace-app/README.md`; an incorrect "compile" scope claim for
+`taxon`/`provider-profile` in `01-module-dependencies.md`, actually `runtime`-scoped) and a stale
+"7.1/10" architecture score synced to the real current 7.7/10 from `08-scorecard.md`. Companion
+**improvement-139** (`deep-review` full-mode's module scope list missing
+`provider-profile-spring-boot-starter`) fixed in the same change. `bash scripts/unit-tests.sh`:
+108/108 passed. Full detail: `completed/issues/improvement-137-doc-standards-skill-and-dedup-cleanup.md`,
+`completed/issues/improvement-139-deep-review-missing-provider-profile-module.md`.

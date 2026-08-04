@@ -128,7 +128,7 @@ Translation keys — single consolidated enum:
 - `services/advertisement/` — advertisement UI-side orchestration (`AdvertisementSaveService` — transactional save + audit capture, `AdvertisementAuditEnrichService` — category-name resolution for audit diffs)
 - `services/auth/` — authentication (`AuthService` — login/logout + rate limiting, `AuthContextService` — current-user context)
 - `services/i18n/` — `I18nKey` enum, `I18nService`, `I18nServiceImpl`, `LocaleProvider`, `InstantFormatter`
-- `services/security/` — `AccessEvaluator` (role/ownership checks live in user-spring-boot-starter's `org.ost.user.security` — `RoleChecker`, `OwnershipChecker`)
+- `services/security/` — `AccessEvaluator` (role/ownership checks live in `user-spring-boot-starter` — see this module's own `README.md` "Responsibilities" section)
 - `spi/` — hook implementations (`CurrentActorHookImpl`, `AuditDomainHookImpl`, `*ActivityFieldsHookImpl`, `ActivityEnrichHookImpl`)
 - `rest/` — non-Vaadin REST controllers (`HealthController` only today)
 - `ui/core/` — `Configurable<T,P>`, `Initialization<T>`, `UiComponentFactory<T>`, `PaginationDefaults`

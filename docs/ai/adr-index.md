@@ -167,6 +167,7 @@ rerun the script after any `DECISIONS.md` change instead. Only files using the
 | ADR-006 (query-lib) | query-lib | Accepted | `anyOf`/`inSet` empty-input null (= "no restriction") must never back an access-narrowing predicate |
 | ADR-007 (query-lib) | query-lib | Accepted | `SqlCondition.like()` escapes `%`/`_`/`\` before wrapping |
 | ADR-001 (scripts/ai) | scripts/ai | Accepted | Generated ADR index over `DECISIONS.md`, mechanical fields only, no per-entry authoring |
+| ADR-002 (scripts/ai) | scripts/ai | Accepted | `check-hardcoded-counts.sh` — build-enforced backstop for stale hard-coded counts, not prose alone |
 | ADR-001 (scripts/ci) | scripts/ci | Accepted | ci-runner container via Docker-outside-of-Docker, not Docker-in-Docker |
 | ADR-002 (scripts/ci) | scripts/ci | Accepted | Background by default, live progress via `docker cp`-polled `progress.txt` |
 | ADR-003 (scripts/ci) | scripts/ci | Accepted | Default stage selection is the most extensive run, not the narrowest |

@@ -1,5 +1,14 @@
 # SPI Map — Extension Points & Implementation
 
+**Known stale as of 2026-08-04** (found during `improvement-137`'s dedup pass, fix deferred to
+`improvement-138`'s planned regeneration of this layer): the graph/tables below still show
+`AttachmentMediaChangeHook` (removed entirely, zero implementations — improvement-102) and
+`AttachmentAuditHook` (renamed to `AttachmentAuditPort` — `platform-commons/DECISIONS.md` ADR-025);
+they predate `UserPort`'s 4-way split (`UserPort`/`UserAccountPort`/`UserAuthorizationPort`/
+`UserPreferencesPort` — `platform-commons/DECISIONS.md` ADR-026) and `ProviderProfilePort`'s
+addition (ADR-027). `platform-commons/CLAUDE.md`'s own SPI naming table is current — treat it as
+authoritative until this file is refreshed.
+
 ## Overview
 
 All cross-module extension points (Ports and Hooks) live in `platform-commons` to decouple starters from marketplace-app. Suffixes encode call direction:

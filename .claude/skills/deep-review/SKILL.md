@@ -61,8 +61,7 @@ template:
    `backlog/issues/` and `backlog/completed/issues/` for the same root cause
    first. Three outcomes, handle each differently:
    - Genuinely new → write a new `backlog/issues/improvement-<next-number>-<slug>.md`
-     following the existing format (see any current file for the exact headers:
-     Type / Module / Priority / When / Problem / Suggested fix).
+     following the format defined in `.claude/commands/feature.md` step 3.
    - Same as an existing open issue → don't duplicate it; note the overlap in your
      summary instead.
    - Contradicts a `backlog/completed/issues/` doc (the doc says fixed, the code

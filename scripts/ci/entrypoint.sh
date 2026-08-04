@@ -110,6 +110,7 @@ start_stage docs
 DOCS_RC=0
 bash "$ROOT/scripts/ai/check-adr-index-freshness.sh" || DOCS_RC=1
 bash "$ROOT/scripts/ai/check-flows-completeness.sh" || DOCS_RC=1
+bash "$ROOT/scripts/ai/check-hardcoded-counts.sh" || DOCS_RC=1
 [ "$DOCS_RC" -ne 0 ] && OVERALL_EXIT=1
 end_stage docs "$DOCS_RC"
 

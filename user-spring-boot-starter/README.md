@@ -18,6 +18,7 @@ Auto-configured User domain with Spring Security integration for the Advertiseme
 | `UserService` | User creation, role promotion, profile updates |
 | `UserPreferencesService` | Per-actor settings (page sizes) and locale |
 | `UserRepository` | Persists and queries `user_information`; supports dynamic filter/sort |
+| `UserEditableFields` | Narrower entity (`id`/`name`/`role`/`updatedAt`/`version`, no `email`/`passwordHash`) used for the profile-edit path only — see `CLAUDE.md` for why |
 | `UserPrincipal` | Spring Security `UserDetails` — loaded by `UserDetailsService` |
 
 ## Dependencies

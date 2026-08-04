@@ -206,6 +206,6 @@ deliberately left unfixed per the rule above, and Step A5's operational self-tra
 - If something cannot be proven from code, mark it UNKNOWN
 - All diagrams must use Mermaid syntax
 - All conclusions must reference actual class names or file paths
-- ADR format: `## ADR-NNN: Title` + `Status:` + `Context / Decision / Consequences`
-- Issue format: `prefix-NNN-title.md` with Type / Module / Priority / Problem sections
+- ADR format: see `.claude/commands/decision.md` step 3
+- Issue format: see `.claude/commands/feature.md` step 3
 - Never duplicate issues — update existing ones rather than creating new
