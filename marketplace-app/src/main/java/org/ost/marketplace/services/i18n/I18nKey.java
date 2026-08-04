@@ -232,6 +232,7 @@ public enum I18nKey {
     ENTITY_TYPE_USER("entityType.user"),
     ENTITY_TYPE_USER_SETTINGS("entityType.userSettings"),
     ENTITY_TYPE_TAXON("entityType.taxon"),
+    ENTITY_TYPE_PROVIDER_PROFILE("entityType.providerProfile"),
 
     // === Timeline Filter ===
     TIMELINE_FILTER_ENTITY_TYPE("timeline.filter.entityType"),
@@ -427,6 +428,7 @@ public enum I18nKey {
             case USER          -> ENTITY_TYPE_USER;
             case USER_SETTINGS -> ENTITY_TYPE_USER_SETTINGS;
             case TAXON         -> ENTITY_TYPE_TAXON;
+            case PROVIDER_PROFILE -> ENTITY_TYPE_PROVIDER_PROFILE;
         };
     }
 

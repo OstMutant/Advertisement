@@ -10,6 +10,7 @@ import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.user.UserActorNameService;
 import org.springframework.stereotype.Component;
@@ -23,10 +24,11 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AuditDomainHookImpl implements AuditDomainHook {
 
-    private final ComponentFactory<AdvertisementPort> advertisementPortFactory;
-    private final ComponentFactory<UserPort>          userPortFactory;
-    private final ComponentFactory<TaxonPort>         taxonPortFactory;
-    private final UserActorNameService                userActorNameService;
+    private final ComponentFactory<AdvertisementPort>  advertisementPortFactory;
+    private final ComponentFactory<UserPort>           userPortFactory;
+    private final ComponentFactory<TaxonPort>          taxonPortFactory;
+    private final ComponentFactory<ProviderProfilePort> providerProfilePortFactory;
+    private final UserActorNameService                 userActorNameService;
 
     @Override
     public Map<Long, String> resolveNames(@NonNull Set<Long> actorIds) {
@@ -43,6 +45,9 @@ public class AuditDomainHookImpl implements AuditDomainHook {
                     .map(p -> p.findExistingIds(entityIds))
                     .orElse(Set.of());
             case TAXON               -> taxonPortFactory.findIfAvailable()
+                    .map(p -> p.findExistingIds(entityIds))
+                    .orElse(Set.of());
+            case PROVIDER_PROFILE    -> providerProfilePortFactory.findIfAvailable()
                     .map(p -> p.findExistingIds(entityIds))
                     .orElse(Set.of());
         };

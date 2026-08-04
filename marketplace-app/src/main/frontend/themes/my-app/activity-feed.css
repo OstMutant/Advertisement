@@ -66,6 +66,11 @@
     color:      var(--app-status-entity-taxon-text);
 }
 
+.activity-feed-type--provider_profile {
+    background: var(--app-status-entity-provider-profile-bg);
+    color:      var(--app-status-entity-provider-profile-text);
+}
+
 .activity-feed-name {
     font-size: 0.85rem;
     color:     var(--app-text-secondary);
