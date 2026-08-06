@@ -194,6 +194,7 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-017 (scripts/ai) | scripts/ai | Accepted | Database ERD rebuilt live from real Liquibase changelogs — descriptions moved into `remarks=`, `docs/architecture/04-database-erd.md` retired; the same "single source of truth" pattern also applied retroactively to SPI Map's purpose text |
 | ADR-018 (scripts/ai) | scripts/ai | Accepted | Bounded Contexts diagram restored — via Mermaid's native engine, not the Cytoscape+dagre pipeline ADR-016 removed it for |
 | ADR-019 (scripts/ai) | scripts/ai | Accepted | Bounded Contexts domain grouping and relationships now generated live from real code — no longer hand-typed in `bounded-contexts.md` |
+| ADR-020 (scripts/ai) | scripts/ai | Accepted | `docs/architecture/05-08-*.md` retired in full — SonarQube + ArchUnit metrics, live coupling checks, and the tool's own files relocated into `docs/architecture/` |
 | ADR-001 (scripts/ci) | scripts/ci | Accepted | ci-runner container via Docker-outside-of-Docker, not Docker-in-Docker |
 | ADR-002 (scripts/ci) | scripts/ci | Accepted | Background by default, live progress via `docker cp`-polled `progress.txt` |
 | ADR-003 (scripts/ci) | scripts/ci | Accepted | Default stage selection is the most extensive run, not the narrowest |

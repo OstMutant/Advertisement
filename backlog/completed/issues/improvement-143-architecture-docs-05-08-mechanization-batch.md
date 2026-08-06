@@ -282,11 +282,35 @@ autopilot-ready as-is. Pieces 1, 2, 4, 5, 7 are each concretely specified (exact
 line numbers, insertion points) and could reasonably be run independently, in any order, with 6
 deliberately last (depends on all others landing first).
 
+**Resolution (2026-08-06):** on re-verification both open items turned out to have concrete,
+already-specified answers — piece 3's 6 rules had no real blocker (each candidate above already
+names the exact rule/condition), and piece 6's blast radius was fully enumerable via direct grep
+(the 8 relative-link generator locations plus the 4 CI freshness gates). Both were pulled back into
+scope and implemented in the same run as pieces 1/2/4/5/7. All seven pieces are now live: SonarQube
+metrics + ArchUnit coupling/instability/abstractness metrics on the Module page, 6 new `@ArchTest`
+rules (14 total in `ArchitectureRulesTest`), live "Architecture Checks"/"Largest Java Files"/
+"Constructor Injection"/"Largest Packages" sections on the Module Dependencies page, `05`/`06`/`07`/
+`08` all deleted (full content preserved in `improvement-142` beforehand), and
+`architecture-map.html`/`architecture-model.json` moved into `docs/architecture/`.
+
+## Operational notes
+- token_cost_review: n/a (not separately tracked by any tool this session)
+- token_cost_research: n/a (not separately tracked by any tool this session)
+- token_cost_verification: n/a (not separately tracked by any tool this session)
+- context_loading_task_type: Architectural change (new SPI, new `*Port`/`*Hook`, schema change touching ownership/FKs)
+- context_loading_consulted: yes
+- context_loading_matched: yes
+- flows_situation: large, previously-scoped multi-piece architectural batch with a complete plan already in the issue file
+- flows_chosen: /autopilot
+- flows_matched: yes
+
 ## Related
 
 - `improvement-138` — the original Architecture Control Plane plan this batch was extracted from.
 - `improvement-142` — the running tracker for what stays hand-maintained (`05`'s full content,
   why `06`/`07`/`08`'s narrative sections don't mechanize) and other `architecture-map.html`
-  follow-ups; this batch and `142` reference each other for the pieces each one owns.
-- `scripts/ai/DECISIONS.md` ADR-017/ADR-018/ADR-019 — the live-migration precedent (01/02/04/Bounded
-  Contexts) this batch continues.
+  follow-ups; this batch and `142` reference each other for the pieces each one owns. `142`'s own
+  Bounded Contexts content-parity work is unrelated to this batch and stays open.
+- `scripts/ai/DECISIONS.md` ADR-017/ADR-018/ADR-019/ADR-020 — the live-migration precedent
+  (01/02/04/Bounded Contexts) this batch continues, and ADR-020 itself (this batch's own decision
+  record).

@@ -6,8 +6,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-JSON="$REPO_ROOT/docs/architecture-model.json"
-HTML="$REPO_ROOT/docs/architecture-map.html"
+JSON="$REPO_ROOT/docs/architecture/architecture-model.json"
+HTML="$REPO_ROOT/docs/architecture/architecture-map.html"
 
 if [ ! -f "$JSON" ] || [ ! -f "$HTML" ]; then
   echo "ERROR: architecture-model.json / architecture-map.html don't exist yet."
@@ -23,12 +23,19 @@ cp "$JSON" "$BACKUP_JSON"
 cp "$HTML" "$BACKUP_HTML"
 bash "$REPO_ROOT/scripts/ai/generate-architecture-model.sh" > /dev/null
 
+# sonarMetrics.analysisDate is a live SonarQube scan timestamp -- it legitimately differs between
+# two runs even when nothing "architectural" changed (e.g. someone reran a Sonar scan for an
+# unrelated reason between two freshness checks). Normalize it out of both copies before diffing,
+# same way the ncloc/complexity/etc. values themselves are still compared normally (those only
+# change when code actually changes).
+normalize() { sed -E 's/"analysisDate": ?"[^"]*"/"analysisDate": "NORMALIZED"/' "$1"; }
+
 stale=0
-if ! diff -q "$BACKUP_JSON" "$JSON" > /dev/null 2>&1; then
+if ! diff -q <(normalize "$BACKUP_JSON") <(normalize "$JSON") > /dev/null 2>&1; then
   echo "ERROR: architecture-model.json is stale (out of sync with pom.xml/DECISIONS.md/backlog/docs/ai/flows.md/.claude/commands/.claude/skills)."
   stale=1
 fi
-if ! diff -q "$BACKUP_HTML" "$HTML" > /dev/null 2>&1; then
+if ! diff -q <(normalize "$BACKUP_HTML") <(normalize "$HTML") > /dev/null 2>&1; then
   echo "ERROR: architecture-map.html is stale (out of sync with architecture-model.json)."
   stale=1
 fi

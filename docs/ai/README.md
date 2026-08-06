@@ -19,7 +19,7 @@ written to stand on their own, independent of that history.
   Contract + Cross-Domain-Dependencies breakdown, and module `CLAUDE.md` is unconditionally
   `@`-imported into every session regardless of task type — a redundant index cannot reduce token
   cost for an AI session, only for a human skimming outside one, which is a different problem.
-- **No `database-ownership.md`.** `docs/architecture-map.html`'s Database ERD page already gives an
+- **No `database-ownership.md`.** `docs/architecture/architecture-map.html`'s Database ERD page already gives an
   exact table → module → Liquibase-changelog mapping for every table, live from the real
   changelogs, in more detail than a new file would.
 - **No manual `Tags`/`Scope` metadata on existing ADRs.** `Status`/`Module`/`Title` are already

@@ -17,8 +17,8 @@ of opening a full file speculatively.
 | Bug fix, single module | that module's `DECISIONS.md` (filter [adr-index.md](adr-index.md) by module first), `backlog/completed/issues/` for a prior fix of the same shape | other modules' `DECISIONS.md`, `docs/architecture/` |
 | Local refactor, single class/package | same module's `DECISIONS.md` via the index | cross-module docs |
 | Feature, single module | module's `DECISIONS.md`, `backlog/BACKLOG.md` for related open work | `docs/architecture/` unless the feature touches a documented bounded-context boundary |
-| Cross-module feature | `adr-index.md` filtered to every touched module + `platform-commons`, `docs/architecture/bounded-contexts.md` | — |
-| Architectural change (new SPI, new `*Port`/`*Hook`, schema change touching ownership/FKs) | `platform-commons/DECISIONS.md` in full, `docs/architecture-map.html` (Module Dependencies, SPI Map, Database ERD), `ArchitectureRulesTest` | — |
+| Cross-module feature | `adr-index.md` filtered to every touched module + `platform-commons`, `docs/architecture/architecture-map.html` (Diagrams › Bounded Contexts) | — |
+| Architectural change (new SPI, new `*Port`/`*Hook`, schema change touching ownership/FKs) | `platform-commons/DECISIONS.md` in full, `docs/architecture/architecture-map.html` (Module Dependencies, SPI Map, Database ERD), `ArchitectureRulesTest` | — |
 | Architecture audit / repo-wide review | use `.claude/skills/deep-review` full mode directly (see [flows.md](flows.md)) — do not hand-load module `CLAUDE.md`/`DECISIONS.md` yourself, it already does this per module | — |
 
 See [flows.md](flows.md) for *which command/skill* handles a given situation — this table only

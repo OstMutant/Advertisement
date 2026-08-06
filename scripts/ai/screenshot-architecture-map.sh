@@ -14,7 +14,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-HTML="$REPO_ROOT/docs/architecture-map.html"
+HTML="$REPO_ROOT/docs/architecture/architecture-map.html"
 OUT_DIR="$REPO_ROOT/scripts/ai/architecture-map-screenshots"
 CONTAINER="arch-map-shot"
 PLAYWRIGHT_VERSION="1.61.1"

@@ -1126,6 +1126,106 @@ carry the four genuinely-unique sections over as hand-preserved static content (
 class as SPI Map's Call Flow Examples) before retiring the file, or accept the loss, or keep the
 file for now. `bounded-contexts.md` is **not deleted yet**.
 
+## ADR-020: `docs/architecture/05-08-*.md` retired in full — SonarQube + ArchUnit metrics, live coupling checks, and the tool's own files relocated into `docs/architecture/`
+
+**Status:** Accepted
+
+**Context:** The remaining four hand-maintained docs (`05-sequence-diagrams.md`,
+`06-coupling-analysis.md`, `07-risk-report.md`, `08-scorecard.md`) were investigated for the same
+"migrate live, delete only after content parity" treatment already applied to 01/02/04/Bounded
+Contexts. Findings, each checked against a real running system or real file content before being
+acted on:
+- `05` — no tool makes sequence/call-order diagrams live without real runtime instrumentation
+  (checked: JetBrains SequenceDiagram plugin — IDE-only; `plantuml-generator-maven-plugin` — real
+  Maven plugin but static call-hierarchy from one start method, not a curated flow, outputs
+  PlantUML not Mermaid; ArchUnit — checks dependency rules, doesn't generate sequence diagrams;
+  OpenTelemetry+Tracetest — the real path, but Playwright already exercises the same flows this
+  file documents, reducing the remaining lift to instrumenting the app + writing a trace→Mermaid
+  converter, still out of scope here).
+- `06`'s violation-check sections are literally written as "run this grep → here's the result" —
+  directly re-runnable.
+- `07` was checked row-by-row against `06` before any dedup decision — an earlier draft's "these 3
+  tables are duplicates" claim was **wrong** (different row counts, extra columns each direction);
+  4 pieces (Module Size, Largest Java Files, Constructor Injection, God Packages) are genuinely
+  mechanizable once verified against real current content.
+- `08`'s 7-dimension 1-10 editorial scorecard has no mechanical source at all — checked whether
+  SonarQube's new "Architecture" beta feature (coupling/cohesion visualization) could feed it:
+  confirmed no public API (`coupling` metric key does not exist on `/api/measures`).
+- SonarQube (already running at `localhost:9099`) and ArchUnit (already a `marketplace-app`
+  dependency, `archunit-junit5` 1.4.2) both turned out to supply real numbers that `07`/`08` were
+  trying to approximate by hand: SonarQube gives `ncloc`/`complexity`/`cognitive_complexity`/
+  `code_smells`/`duplicated_lines_density` per module (via `/api/measures/component_tree`, since
+  SonarQube has no aggregate component for a module's own `src/main/java` root — only real leaf
+  package directories are indexed, so per-module numbers are summed from all matching leaf
+  packages); ArchUnit's `ArchitectureMetrics.componentDependencyMetrics()` gives real Efferent/
+  Afferent Coupling, Instability, and Abstractness per module from the actual class-dependency
+  graph, no external server needed.
+
+**Decision:**
+1. `scripts/ai/generate-architecture-model.sh` gained 6 new data-producer functions
+   (`sonar_metrics_json`, `archunit_metrics_json`, `coupling_checks_json`,
+   `largest_java_files_json`, `constructor_injection_json`, `god_packages_json`) and
+   `ensure_sonar_fresh()` (compares SonarQube's last analysis date against the newest `.java`
+   file's mtime, same staleness-check pattern `integration-tests/run.sh` already uses; triggers
+   `bash scripts/sonar.sh --no-gate` if stale or unreachable). All optional-data sources degrade to
+   `null`/empty gracefully — the tool never hard-fails on a missing Sonar server or a not-yet-run
+   `ArchitectureMetricsExport`.
+2. New `marketplace-app/src/test/java/org/ost/marketplace/architecture/ArchitectureMetricsExport.java`
+   — a `@ArchTest` method that computes the ArchUnit metrics above per module and writes them to
+   `marketplace-app/target/architecture-metrics.json` every time `bash scripts/unit-tests.sh` runs.
+3. `ArchitectureRulesTest.java` gained 6 new `@ArchTest` rules closing real gaps between
+   `.claude/rules.md`/module `CLAUDE.md` text and the existing 8: starters must not import sibling
+   starters' packages; marketplace must not import starter internals (`util`/`services`/
+   `repository` packages, not just `repository` under `ui`); `*Util` classes have private
+   constructors; top-level `*Config` classes are `@Configuration` (nested classes with the same
+   name suffix, e.g. a `Parameters`-style record, are a real, unrelated naming collision and are
+   excluded); `MessageSource` is only used in `I18nServiceImpl` (the `@Bean` factory method itself,
+   `I18nConfig`, is excluded — it's the thing that constructs the bean, not "raw usage" of it);
+   packages are free of cycles (`SlicesRuleDefinition.slices().matching("org.ost.(**)")` — stronger
+   than the module-level DAG check alone, catches cycles between packages *within* one module too).
+4. Client JS: a new "Code Metrics" section on the Module page (Sonar + ArchUnit numbers together),
+   and a new "Architecture Checks"/"Largest Java Files"/"Constructor Injection"/"Largest Packages"
+   set of sections on the Module Dependencies page.
+5. `05`/`06`/`07`/`08` deleted in full via `git rm`, full content of all four captured in
+   `improvement-142` first (same "capture before delete" discipline as `bounded-contexts.md`).
+   `07`'s 3 "Architectural Debt" TODO items moved into `backlog/BACKLOG.md` as real tracked notes,
+   not just archived.
+6. `docs/architecture-map.html`/`docs/architecture-model.json` moved into `docs/architecture/`
+   (`git mv`), so every architecture artifact lives under one directory. Required updating: the
+   generator's own `OUTPUT`/`HTML_OUTPUT` path constants; 5 relative-link generators in the client
+   JS (`adrFileLink`, `sourceLink`, `spiFileLink`, `bcItemLink`, and the Cytoscape node-click
+   handler — `../` became `../../`, since the HTML now sits one directory deeper); 3 other scripts'
+   path constants (`check-architecture-model-freshness.sh`, `check-hardcoded-counts.sh`'s grep
+   exclusion pattern, `screenshot-architecture-map.sh`); and prose references in
+   `.claude/commands/sync-docs.md`, `.claude/skills/doc-standards/SKILL.md`, `docs/ai/README.md`,
+   `docs/ai/context-loading.md`. `docs/architecture/README.md` rewritten to describe the current
+   state (a pointer to the live tool) rather than the 8 now-deleted files it used to index.
+
+**Consequences:**
+- Verified directly, not assumed: after the file move, `sourceLink()`'s generated `href` for a
+  real module's `DECISIONS.md` resolves correctly (`../../marketplace-app/DECISIONS.md`, confirmed
+  via a real headless-browser click-through in an isolated container mirroring the real relative
+  directory structure). The new "Code Metrics" section renders real numbers with no JS errors —
+  confirmed the same way, after catching and fixing a real bug where numeric fields (e.g.
+  `sonar.ncloc`) were passed through the shared `esc()` HTML-escaping helper, which assumes a
+  string and throws on a number (`(s || "").replace is not a function`); fixed by not
+  HTML-escaping values that are already known-safe numbers, not by changing the shared `esc()`.
+  `largest_java_files_json()`/`constructor_injection_json()` initially scanned the whole repo
+  including `src/test/java` — caught real test files appearing in a "largest files" list meant to
+  reflect production complexity; fixed by scoping both to `*/src/main/java/*` only, matching
+  `god_packages_json()`'s scope (which was already correct).
+- `06`'s "Architecture Checks" grep-based verification and `ArchitectureRulesTest`'s new
+  `@ArchTest` rules cover overlapping ground (starter-to-starter imports, Vaadin-in-starters) via
+  two different mechanisms — the grep checks are visible on the live tool's Module Dependencies
+  page (human-facing), the `@ArchTest` rules are build-breaking (CI-facing). Deliberately not
+  deduplicated into one mechanism: the tool's own checks need to run without a `mvn test` cycle
+  (fast, always available when regenerating), while `@ArchTest` needs to fail the build, which the
+  tool's own read-only HTML page cannot do.
+- Generation is no longer unconditionally "~50s" — when SonarQube data is stale,
+  `ensure_sonar_fresh()` triggers a full rescan (compile + `sonar-scanner`, confirmed ~30-60s in
+  this run) before the model is built. Accepted trade-off, not a regression caught after the fact —
+  explicitly weighed and approved before implementation.
+
 ## Open goals
 
 - **AI-layer L3 (Rule/Intent) artifact.** A small, Claude-readable file — given a touched module,

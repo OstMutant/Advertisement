@@ -53,8 +53,8 @@ fact, not a constraint.
 
 | Fact type | Canonical home | Everywhere else |
 |---|---|---|
-| Module → module dependencies | `docs/architecture-map.html` (Diagrams › Module Dependencies — rendered live from `pom.xml`) | State only a local one-line summary if it's load-bearing for a constraint; otherwise reference the tool |
-| Port/Hook implementation mapping | `docs/architecture-map.html` (Diagrams › SPI Map — rendered live from real Java source) | Name the port/hook this file's module implements (one line — that's local and real), don't restate the graph |
+| Module → module dependencies | `docs/architecture/architecture-map.html` (Diagrams › Module Dependencies — rendered live from `pom.xml`) | State only a local one-line summary if it's load-bearing for a constraint; otherwise reference the tool |
+| Port/Hook implementation mapping | `docs/architecture/architecture-map.html` (Diagrams › SPI Map — rendered live from real Java source) | Name the port/hook this file's module implements (one line — that's local and real), don't restate the graph |
 | Class existence + one-line role | `README.md`'s class table (per module) | `CLAUDE.md` references it; only restates a class's role if that role *is* a constraint (e.g. "pure delegation — no business logic here") |
 | ADR rationale / historical decisions | `DECISIONS.md` (per module) — subject to the worthiness gate in `.claude/commands/decision.md`; not every change belongs here | Reference by ADR number, never restate the reasoning inline — this is already done correctly in most existing files; keep doing it |
 | Task-type → what-to-read routing | `docs/ai/context-loading.md` | Don't re-derive routing logic in `flows.md` or a command file |

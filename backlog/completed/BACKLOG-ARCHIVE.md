@@ -1574,3 +1574,34 @@ regenerated; all CI freshness gates (`check-adr-index-freshness.sh`/`check-flows
 `check-architecture-model-freshness.sh`/`check-hardcoded-counts.sh`) and `bash
 scripts/unit-tests.sh` (79/79) green. Full detail:
 `completed/issues/improvement-141-strip-issue-references-from-current-docs.md`.
+
+✅ Done (2026-08-06): improvement-143 — the `docs/architecture/05-08-*.md` mechanization batch
+extracted from improvement-138, executed end-to-end via `/autopilot`. All seven planned pieces
+landed: SonarQube metrics (`ncloc`/`complexity`/`cognitiveComplexity`/`codeSmells`/
+`javaFileCount`) and ArchUnit `componentDependencyMetrics()` (Efferent/Afferent Coupling,
+Instability, Abstractness) on each module's Code Metrics section; 6 new `@ArchTest` rules added to
+`ArchitectureRulesTest` (14 total) closing real gaps against `.claude/rules.md`/module
+`CLAUDE.md` text (starter-to-starter imports, marketplace-internal-impl imports, `*Util`
+non-instantiability, `*Config`/`@Configuration`, `MessageSource` confinement, package-level cycle
+freedom); a live "Architecture Checks" section (real grep-based coupling verification) plus
+"Largest Java Files"/"Constructor Injection"/"Largest Packages" tables on the Module Dependencies
+page; `05-sequence-diagrams.md`, `06-coupling-analysis.md`, `07-risk-report.md`, and
+`08-scorecard.md` all deleted (full content captured in `improvement-142` beforehand); and
+`architecture-map.html`/`architecture-model.json` moved from `docs/` into `docs/architecture/`
+(5 relative-link generators + 4 CI freshness gates + every doc referencing the old path updated).
+A `/code-review --fix` self-review pass (8 parallel finder agents + 1-vote verify per candidate)
+found and fixed several real bugs before the test run: a wrong package derivation in the
+starter-to-starter coupling check (`org.ost.provider-profile` instead of the real `org.ost.provider`,
+confirmed via direct `find`), a vacuous ArchUnit `slices()` pattern (`(**)` instead of `(*)..`,
+confirmed by compiling a standalone `PackageMatcher` test program against the real 1.4.2 jar), an
+`esc()` crash on numeric fields (confirmed via a live Playwright container run), test files
+polluting two production-complexity tables, and 2 ticket-number-in-comment rule violations; one
+finding (replacing the hand-rolled starter-coupling rule with `slices().notDependOnEachOther()`)
+was deliberately skipped after `javap` showed it would need multiple `ignoreDependency()` calls to
+reproduce correctly. `bash scripts/unit-tests.sh`: 85/85 passed (includes all 14
+`ArchitectureRulesTest` rules); `bash scripts/integration-tests.sh --sandbox`: 164/164 passed;
+Playwright e2e skipped as not required — no `marketplace-app` Vaadin UI was touched, only the
+standalone `architecture-map.html` tool, already verified directly via isolated Playwright
+container runs during implementation. `scripts/ai/DECISIONS.md` ADR-020 records the full decision;
+`docs/ai/adr-index.md` regenerated. Full detail:
+`completed/issues/improvement-143-architecture-docs-05-08-mechanization-batch.md`.

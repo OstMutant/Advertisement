@@ -1,5 +1,6 @@
 package org.ost.marketplace.architecture;
 
+import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -7,13 +8,19 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import org.springframework.context.MessageSource;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
 /**
  * Codifies the cross-module architecture rules from the root {@code CLAUDE.md}/{@code rules.md}
@@ -25,6 +32,10 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  */
 @AnalyzeClasses(packages = "org.ost", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureRulesTest {
+
+    private static final List<String> STARTER_PACKAGES = List.of(
+            "org.ost.audit", "org.ost.attachment", "org.ost.user",
+            "org.ost.advertisement", "org.ost.taxon", "org.ost.provider");
 
     @ArchTest
     static final ArchRule ui_must_not_call_repositories_directly =
@@ -102,4 +113,76 @@ class ArchitectureRulesTest {
                             + "see platform-commons/CLAUDE.md \"Hook and Port Implementation Rules\". "
                             + "Coordination-layer implementations use the Default*Port naming instead "
                             + "(e.g. DefaultTaxonPort), which this rule intentionally does not match.");
+
+    @ArchTest
+    static final ArchRule starters_must_not_import_sibling_starters =
+            noClasses().should(new ArchCondition<JavaClass>("not depend on a sibling starter's package") {
+                @Override
+                public void check(JavaClass javaClass, ConditionEvents events) {
+                    String ownStarter = STARTER_PACKAGES.stream()
+                            .filter(p -> javaClass.getPackageName().equals(p) || javaClass.getPackageName().startsWith(p + "."))
+                            .findFirst().orElse(null);
+                    if (ownStarter == null) {
+                        return;
+                    }
+                    javaClass.getDirectDependenciesFromSelf().forEach(dep -> {
+                        String targetPackage = dep.getTargetClass().getPackageName();
+                        STARTER_PACKAGES.stream()
+                                .filter(p -> !p.equals(ownStarter) && (targetPackage.equals(p) || targetPackage.startsWith(p + ".")))
+                                .findFirst()
+                                .ifPresent(sibling -> events.add(SimpleConditionEvent.violated(javaClass,
+                                        javaClass.getFullName() + " depends on "
+                                                + dep.getTargetClass().getFullName()
+                                                + " — starters must not import from each other, see "
+                                                + ".claude/rules.md \"Module Import Rules\"")));
+                    });
+                }
+            });
+
+    @ArchTest
+    static final ArchRule marketplace_must_not_import_starter_internals =
+            noClasses().that().resideInAPackage("org.ost.marketplace..")
+                    .should().dependOnClassesThat(new DescribedPredicate<JavaClass>(
+                            "reside in a starter's util/services/repository package") {
+                        @Override
+                        public boolean test(JavaClass input) {
+                            String pkg = input.getPackageName();
+                            return STARTER_PACKAGES.stream().anyMatch(p -> pkg.matches(
+                                    Pattern.quote(p) + "\\.(util|services|repository)(\\..*)?"));
+                        }
+                    })
+                    .because("marketplace may import from starters only via platform-commons "
+                            + "contracts (Ports/Hooks/DTOs), never via internal impl classes — "
+                            + "see .claude/rules.md \"Module Import Rules\"");
+
+    @ArchTest
+    static final ArchRule util_classes_are_non_instantiable =
+            classes().that().haveSimpleNameEndingWith("Util")
+                    .should().haveOnlyPrivateConstructors()
+                    .because("*Util classes are static-only utilities — "
+                            + "see marketplace-app/CLAUDE.md \"Class suffixes\"");
+
+    @ArchTest
+    static final ArchRule config_classes_are_spring_configuration =
+            classes().that().haveSimpleNameEndingWith("Config")
+                    .and().areTopLevelClasses()
+                    .should().beAnnotatedWith(Configuration.class)
+                    .because("*Config classes are Spring @Configuration classes — "
+                            + "see marketplace-app/CLAUDE.md \"Class suffixes\". Nested classes named "
+                            + "*Config (e.g. a Parameters-style record) are a different, unrelated "
+                            + "naming collision and are excluded.");
+
+    @ArchTest
+    static final ArchRule message_source_only_used_in_i18n_service_impl =
+            noClasses().that().doNotHaveSimpleName("I18nServiceImpl")
+                    .and().doNotHaveSimpleName("I18nConfig")
+                    .should().dependOnClassesThat().areAssignableTo(MessageSource.class)
+                    .because("never use raw MessageSource directly — use I18nService.get(I18nKey) "
+                            + "instead, see marketplace-app/CLAUDE.md \"I18n\". I18nConfig is the "
+                            + "Spring @Bean factory method that constructs the MessageSource bean "
+                            + "itself and is excluded.");
+
+    @ArchTest
+    static final ArchRule packages_are_free_of_cycles =
+            slices().matching("org.ost.(*)..").should().beFreeOfCycles();
 }

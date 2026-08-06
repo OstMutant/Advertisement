@@ -31,16 +31,10 @@ Use this mapping table:
 
 | Changed file pattern | Documentation targets |
 |----------------------|-----------------------|
-| `**/pom.xml` | `docs/architecture-model.json` + `docs/architecture-map.html` (Module Dependencies renders live from `pom.xml`, no separate `.md` to update — regenerate via `bash scripts/ai/generate-architecture-model.sh`) |
-| `platform-commons/**/spi/**`, `**/*Port*.java`, `**/*Hook*.java`, `**/*Impl.java` | `docs/architecture-model.json` + `docs/architecture-map.html` (SPI Map renders live from real Java source — including each interface's own Javadoc purpose paragraph, see `platform-commons/CLAUDE.md` — no separate `.md` to update — regenerate via `bash scripts/ai/generate-architecture-model.sh`) |
-| New packages or moved domain classes | `docs/architecture/bounded-contexts.md` |
-| `**/db/changelog/**` | `docs/architecture-model.json` + `docs/architecture-map.html` (Database ERD renders live from the real Liquibase changelogs — including each `<column>`/`<createTable>`'s own `remarks=`, see root `CLAUDE.md`'s "Database Changes" guideline — no separate `.md` to update — regenerate via `bash scripts/ai/generate-architecture-model.sh`) |
-| `**/*Service.java`, `**/*Repository.java` | `docs/architecture/05-sequence-diagrams.md` |
-| Any `*.java` | `docs/architecture/06-coupling-analysis.md`, `07-risk-report.md`, `08-scorecard.md` |
+| `**/*.java` (main or test), `**/pom.xml`, `**/db/changelog/**`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `docs/ai/flows.md` | `docs/architecture/architecture-model.json` + `docs/architecture/architecture-map.html` — every diagram (Module Dependencies, SPI Map, Database ERD, Bounded Contexts) and every module page's Code Metrics/Architecture Checks/Largest Files sections render live from real source; there is no separate `.md` to hand-edit for any of them. Regenerate via `bash scripts/ai/generate-architecture-model.sh`. A schema change still needs its new/changed `<column>`/`<createTable>` to carry a real `remarks=` attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that edit happens in the changelog, not in the generated doc. **Run this last, after Step 4's other file updates** — the generator reads every `DECISIONS.md` as input, so it must run after those are updated, not before, or it regenerates from stale input. |
 | Any `*.java` or `**/pom.xml` | `CLAUDE.md` (per changed module), `DECISIONS.md` (per changed module) |
 | Any `*.java` or `**/pom.xml` | `backlog/issues/` — create/close/update tracked issues |
 | Any `**/DECISIONS.md` | `docs/ai/adr-index.md` — regenerate via `bash scripts/ai/generate-adr-index.sh` |
-| `**/*.java` (main or test), `**/pom.xml`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `docs/ai/flows.md`, `docs/architecture/bounded-contexts.md` | `docs/architecture-model.json` + `docs/architecture-map.html` — regenerate via `bash scripts/ai/generate-architecture-model.sh` (Track A only — no ArchUnit/test-coverage data yet). **Run this last, after Step 4's other file updates** — the generator reads `bounded-contexts.md` and every `DECISIONS.md` as input, so it must run after those are updated, not before, or it regenerates from stale input. |
 
 Print which targets are affected before proceeding.
 
@@ -48,26 +42,21 @@ Print which targets are affected before proceeding.
 
 ## Step 3 — Read actual source
 
-Module Dependencies, SPI Map, and Database ERD need no manual read-and-rewrite step at all — all
-three render live from `pom.xml`/real Java source/real Liquibase changelogs directly inside
-`bash scripts/ai/generate-architecture-model.sh`, fully automated (see Step 4's ordering note
-below). A schema change still needs its new/changed `<column>`/`<createTable>` to carry a real
-`remarks=` attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that
-edit happens in the changelog, not in a generated doc.
-
-For each remaining affected target, read the relevant source files:
-- For `bounded-contexts.md`: read the new/moved classes and their packages
-- For `05`: read changed `*Service.java` and `*Repository.java` files
-- For `06/07/08`: read all changed Java files and scan for import violations
+No manual read-and-rewrite step is needed for `docs/architecture-map.html`'s content — every
+diagram and every module-page section renders live from `pom.xml`/real Java source/real Liquibase
+changelogs/a running SonarQube server/the last `ArchitectureMetricsExport` test run, directly
+inside `bash scripts/ai/generate-architecture-model.sh` (see Step 4's ordering note below). A
+schema change still needs its new/changed `<column>`/`<createTable>` to carry a real `remarks=`
+attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that edit
+happens in the changelog, not in a generated doc.
 
 ---
 
 ## Step 4 — Update affected files
 
-**docs/architecture/ files** — rewrite only the sections that changed. Keep unchanged sections
-intact. Do this step **before** the final generator run below — `bounded-contexts.md` is itself an
-input the generator reads (domain grouping/entities/services/contracts), so regenerating first
-would bake in stale content.
+There is no `docs/architecture/` markdown content left to hand-edit — `docs/architecture/README.md`
+is a pointer to the live tool, and every diagram/module-page section renders directly from source
+(see Step 3). Start straight from the other targets below.
 
 **DECISIONS.md** (per module) — ADR audit:
 - Mark realized open goals as done (add date)
@@ -87,16 +76,15 @@ would bake in stale content.
 - Update issue file if scope or constraints changed
 
 **README.md** — update only the block between `<!-- arch:start -->` and `<!-- arch:end -->`:
-- Point at the live module dependency graph in `docs/architecture-map.html` (Diagrams › Module
+- Point at the live module dependency graph in `docs/architecture/architecture-map.html` (Diagrams › Module
   Dependencies) rather than embedding a diagram — there is no separate `.md` copy to pull from
 - Keep all other README content untouched
 
 **Last action of this step, always, if anything above touched a file the generator reads**
-(`bounded-contexts.md`, any `DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/
-*/SKILL.md`, `docs/ai/flows.md`, or `**/pom.xml`): run
-`bash scripts/ai/generate-architecture-model.sh` — one trigger, run once, after every other file
-this step touches, so `docs/architecture-model.json`/`docs/architecture-map.html` (which render
-Module Dependencies and SPI Map live, and read `bounded-contexts.md` for domain grouping) never
+(any `DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`,
+`docs/ai/flows.md`, or `**/pom.xml`): run `bash scripts/ai/generate-architecture-model.sh` — one
+trigger, run once, after every other file this step touches, so
+`docs/architecture/architecture-model.json`/`docs/architecture/architecture-map.html` never
 regenerate from stale input.
 
 ---

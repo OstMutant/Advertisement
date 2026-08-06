@@ -9,11 +9,10 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-OUTPUT="$REPO_ROOT/docs/architecture-model.json"
-HTML_OUTPUT="$REPO_ROOT/docs/architecture-map.html"
+OUTPUT="$REPO_ROOT/docs/architecture/architecture-model.json"
+HTML_OUTPUT="$REPO_ROOT/docs/architecture/architecture-map.html"
 ADR_INDEX="$REPO_ROOT/docs/ai/adr-index.md"
 FLOWS="$REPO_ROOT/docs/ai/flows.md"
-BOUNDED_CONTEXTS="$REPO_ROOT/docs/architecture/bounded-contexts.md"
 ROOT_CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
 
 # The 6 real Liquibase changelogs holding an actual createTable -- single source of truth for the
@@ -73,34 +72,6 @@ decisions_json_for() {
   for m in "${FULL_DECISIONS_MODULES[@]}"; do [ "$m" = "$module" ] && found=true; done
   $found || { echo "null"; return; }
   node "$REPO_ROOT/scripts/ai/md-to-decisions-json.js" --stdout "$module"
-}
-
-# Extracts every ```mermaid ... ``` fenced block in a markdown file, paired with its nearest
-# preceding heading, as a comma-joined list of {"title":..,"source":..} JSON objects (no enclosing
-# brackets -- the caller wraps them). Escaping done in-awk so multi-line diagram source never has
-# to round-trip through a bash variable (fragile for content this size/shape).
-extract_all_mermaids_json() {
-  local file="$1"
-  [ -f "$file" ] || return 0
-  awk '
-    BEGIN { first = 1 }
-    function jesc(s) {
-      gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); gsub(/\r/, "", s); gsub(/\n/, "\\n", s)
-      return s
-    }
-    /^#+ / && !inblock { heading = $0; sub(/^#+ */, "", heading) }
-    /^```mermaid/ { inblock = 1; buf = ""; next }
-    /^```/ {
-      if (inblock) {
-        inblock = 0
-        if (!first) printf(",\n")
-        printf("    {\"title\": \"%s\", \"source\": \"%s\"}", jesc(heading), jesc(buf))
-        first = 0
-      }
-      next
-    }
-    inblock { buf = buf $0 "\n" }
-  ' "$file"
 }
 
 # ── Module list, in pom.xml reactor order ───────────────────────────────────────────────────
@@ -190,7 +161,7 @@ done < <(
 
 # ── One-line module descriptions, reused from root CLAUDE.md's "Module Layout" ASCII tree ──────
 # (already a clean, one-line-per-module, consistently-formatted description -- no need to write a
-# second copy or parse prose out of bounded-contexts.md's paragraphs).
+# second copy).
 declare -A MODULE_DESCRIPTION
 if [ -f "$ROOT_CLAUDE_MD" ]; then
   while IFS= read -r line; do
@@ -448,21 +419,9 @@ issue_list_json() {
 # scripts/ai/DECISIONS.md ADR-003/005). Its diagramGroups entry is synthesized directly below,
 # with an empty "source" (nothing reads it -- the special-cased renderer never parses Mermaid text
 # for this group) purely so the Diagrams list page has a card to link from.
-declare -A DIAGRAM_FILE_LABEL=(
-  [02-spi-map]="SPI Map"
-  [05-sequence-diagrams]="Sequence Diagrams"
-)
+# All four diagrams (Module Dependencies/SPI Map/Database ERD/Bounded Contexts) render live --
+# no markdown source is parsed for the Diagrams list anymore.
 diagram_groups_json="  {\"key\": \"01-module-dependencies\", \"label\": \"Module Dependencies\", \"file\": \"pom.xml (live)\", \"diagrams\": [{\"title\": \"Dependency Graph\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"02-spi-map\", \"label\": \"SPI Map\", \"file\": \"platform-commons/src (live)\", \"diagrams\": [{\"title\": \"SPI Dependency Graph\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"04-database-erd\", \"label\": \"Database ERD\", \"file\": \"Liquibase changelogs (live)\", \"diagrams\": [{\"title\": \"Entity Relationship Diagram\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"bounded-contexts\", \"label\": \"Bounded Contexts\", \"file\": \"real code (live)\", \"diagrams\": [{\"title\": \"Context Map\", \"source\": \"\"}]}"
-first_group=false
-for stem in 05-sequence-diagrams; do
-  f="$REPO_ROOT/docs/architecture/$stem.md"
-  [ -f "$f" ] || continue
-  diagrams_json="$(extract_all_mermaids_json "$f")"
-  [ -z "$diagrams_json" ] && continue
-  $first_group || diagram_groups_json="$diagram_groups_json,"$'\n'
-  first_group=false
-  diagram_groups_json="$diagram_groups_json  {\"key\": \"$stem\", \"label\": \"$(json_escape "${DIAGRAM_FILE_LABEL[$stem]}")\", \"file\": \"docs/architecture/$stem.md\", \"diagrams\": ["$'\n'"$diagrams_json"$'\n'"  ]}"
-done
 
 # ── SPI Map: mechanically extracted from real Java source, same "live from real source, not a
 # separately-maintained .md" pattern as Module Dependencies (01) -- every *.spi interface under
@@ -638,6 +597,228 @@ db_erd_json() {
   echo "{\"tables\": $tables_json, \"conceptualRelationships\": $relationships_json}"
 }
 
+# ── SonarQube: real code-quality metrics (ncloc/complexity/cognitive_complexity/code_smells,
+# project-level duplication) from a running SonarQube server, via its stable
+# /api/measures/component_tree endpoint (one call returns every real package-level DIR component's
+# metrics; grouped and summed here into a per-module rollup, since SonarQube has no aggregate
+# component for e.g. "advertisement-spring-boot-starter/src/main/java" itself -- only real leaf
+# package directories are indexed). Gracefully degrades to null if the server isn't reachable even
+# after ensure_sonar_fresh()'s attempt -- optional data, never blocks generation.
+SONAR_URL="http://localhost:9099"
+SONAR_PROPS="$REPO_ROOT/scripts/sonar/sonar-project.properties"
+
+ensure_sonar_fresh() {
+  [ -f "$SONAR_PROPS" ] || return 0
+  local token
+  token="$(grep '^sonar.token=' "$SONAR_PROPS" 2>/dev/null | cut -d= -f2 | tr -d '\r')"
+  [ -z "$token" ] && return 0
+  if ! curl -s --max-time 3 -o /dev/null "$SONAR_URL/api/system/status"; then
+    echo "SonarQube not reachable -- running bash scripts/sonar.sh --no-gate to start/scan it..." >&2
+    bash "$REPO_ROOT/scripts/sonar.sh" --no-gate >&2 || true
+    return 0
+  fi
+  local analysis_date newest_java stamp_file
+  analysis_date="$(curl -s -u "$token:" --max-time 5 "$SONAR_URL/api/project_analyses/search?project=advertisement&ps=1" 2>/dev/null | grep -oP '"date":"\K[^"]+' | head -1)"
+  if [ -z "$analysis_date" ]; then
+    echo "No SonarQube analysis found -- running bash scripts/sonar.sh --no-gate..." >&2
+    bash "$REPO_ROOT/scripts/sonar.sh" --no-gate >&2 || true
+    return 0
+  fi
+  stamp_file="$(mktemp)"
+  touch -d "$analysis_date" "$stamp_file" 2>/dev/null
+  newest_java="$(find "$REPO_ROOT" -name '*.java' -not -path '*/target/*' -newer "$stamp_file" 2>/dev/null | head -1)"
+  rm -f "$stamp_file"
+  if [ -n "$newest_java" ]; then
+    echo "SonarQube data stale ($newest_java changed since last scan) -- rescanning via bash scripts/sonar.sh --no-gate..." >&2
+    bash "$REPO_ROOT/scripts/sonar.sh" --no-gate >&2 || true
+  fi
+}
+
+sonar_metrics_json() {
+  local token
+  [ -f "$SONAR_PROPS" ] && token="$(grep '^sonar.token=' "$SONAR_PROPS" 2>/dev/null | cut -d= -f2 | tr -d '\r')"
+  if [ -z "${token:-}" ] || ! curl -s --max-time 3 -o /dev/null "$SONAR_URL/api/system/status"; then
+    echo "null"
+    return 0
+  fi
+  local analysis_date project_json tree_json file_counts mod count
+  analysis_date="$(curl -s -u "$token:" --max-time 5 "$SONAR_URL/api/project_analyses/search?project=advertisement&ps=1" 2>/dev/null | grep -oP '"date":"\K[^"]+' | head -1)"
+  project_json="$(curl -s -u "$token:" --max-time 10 "$SONAR_URL/api/measures/component?metricKeys=ncloc,complexity,cognitive_complexity,code_smells,duplicated_lines_density&component=advertisement" 2>/dev/null)"
+  tree_json="$(curl -s -u "$token:" --max-time 15 "$SONAR_URL/api/measures/component_tree?component=advertisement&metricKeys=ncloc,complexity,cognitive_complexity,code_smells&qualifiers=DIR&ps=500" 2>/dev/null)"
+  file_counts=""
+  for mod in "${MODULES[@]}"; do
+    [ -d "$REPO_ROOT/$mod/src/main/java" ] || continue
+    count="$(find "$REPO_ROOT/$mod/src/main/java" -name '*.java' 2>/dev/null | wc -l | tr -d ' ')"
+    file_counts="$file_counts$mod=$count,"
+  done
+  python3 -c "
+import json, sys
+
+analysis_date = sys.argv[1]
+project = json.loads(sys.argv[2]) if sys.argv[2] else {}
+tree = json.loads(sys.argv[3]) if sys.argv[3] else {}
+modules = [m for m in sys.argv[4].split(',') if m]
+file_counts = dict(p.split('=') for p in sys.argv[5].split(',') if p)
+
+def get_measure(measures, key):
+    for m in measures:
+        if m['metric'] == key:
+            return m['value']
+    return None
+
+proj_measures = project.get('component', {}).get('measures', [])
+proj = {k: get_measure(proj_measures, k) for k in ['ncloc','complexity','cognitive_complexity','code_smells','duplicated_lines_density']}
+
+per_module = {m: {'ncloc': 0, 'complexity': 0, 'cognitiveComplexity': 0, 'codeSmells': 0, 'javaFileCount': int(file_counts.get(m, 0))} for m in modules}
+for c in tree.get('components', []):
+    path = c.get('path', '')
+    for m in modules:
+        if path.startswith(m + '/'):
+            for meas in c.get('measures', []):
+                key = meas['metric']
+                val = int(meas['value']) if meas['value'].isdigit() else 0
+                if key == 'ncloc': per_module[m]['ncloc'] += val
+                elif key == 'complexity': per_module[m]['complexity'] += val
+                elif key == 'cognitive_complexity': per_module[m]['cognitiveComplexity'] += val
+                elif key == 'code_smells': per_module[m]['codeSmells'] += val
+            break
+
+out = {
+  'analysisDate': analysis_date,
+  'project': {
+    'ncloc': int(proj['ncloc']) if proj['ncloc'] else None,
+    'complexity': int(proj['complexity']) if proj['complexity'] else None,
+    'cognitiveComplexity': int(proj['cognitive_complexity']) if proj['cognitive_complexity'] else None,
+    'codeSmells': int(proj['code_smells']) if proj['code_smells'] else None,
+    'duplicatedLinesDensity': float(proj['duplicated_lines_density']) if proj['duplicated_lines_density'] else None,
+  },
+  'modules': per_module,
+}
+print(json.dumps(out))
+" "$analysis_date" "$project_json" "$tree_json" "$(IFS=,; echo "${MODULES[*]}")" "$file_counts"
+}
+
+# ── ArchUnit: real Efferent/Afferent Coupling, Instability, Abstractness per module, computed by
+# ArchitectureMetricsExport (marketplace-app/src/test/java/org/ost/marketplace/architecture) and
+# written to a fixed JSON path every time `bash scripts/unit-tests.sh` runs. Read here if present;
+# null if the test hasn't run yet -- optional data, no auto-trigger (running the full unit-test
+# suite from inside this generator would be a much bigger cost than SonarQube's own staleness
+# check, so this stays passively "as fresh as the last test run" instead).
+ARCHUNIT_METRICS_FILE="$REPO_ROOT/marketplace-app/target/architecture-metrics.json"
+
+archunit_metrics_json() {
+  if [ -f "$ARCHUNIT_METRICS_FILE" ]; then
+    cat "$ARCHUNIT_METRICS_FILE"
+  else
+    echo "null"
+  fi
+}
+
+# ── Live coupling checks: re-runs real grep commands, each producing a PASS/FAIL with the real
+# evidence, not hand-typed "checkmark" text.
+coupling_checks_json() {
+  local checks_json="" first_c=true name pass evidence
+
+  name="No Vaadin imports in starters"
+  evidence="$(grep -rl 'import com\.vaadin\.' "$REPO_ROOT"/*-spring-boot-starter/src/main/java --include='*.java' 2>/dev/null | sed "s|$REPO_ROOT/||" | paste -sd, -)"
+  [ -z "$evidence" ] && pass=true || pass=false
+  [ -z "$evidence" ] && evidence="grep for com.vaadin imports across every *-spring-boot-starter -- no matches"
+  first_c=false
+  checks_json="$checks_json    {\"name\": \"$(json_escape "$name")\", \"pass\": $pass, \"evidence\": \"$(json_escape "$evidence")\"}"
+
+  name="No direct starter-to-starter internal imports"
+  local viol="" mod other
+  for mod in "${MODULES[@]}"; do
+    [[ "$mod" == *-spring-boot-starter ]] || continue
+    for other in "${MODULES[@]}"; do
+      [[ "$other" == *-spring-boot-starter ]] || continue
+      [ "$mod" = "$other" ] && continue
+      # Real package root from the real directory structure, not a string-stripped guess -- module
+      # names don't always match their package 1:1 (provider-profile-spring-boot-starter's real
+      # root is org.ost.provider, not org.ost.provider-profile, which a naive suffix-strip would
+      # produce and which can never match a real import).
+      local other_pkg
+      other_pkg="org.ost.$(find "$REPO_ROOT/$other/src/main/java/org/ost" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | head -1)"
+      local hit
+      hit="$(grep -rl "import ${other_pkg}\." "$REPO_ROOT/$mod/src/main/java" --include='*.java' 2>/dev/null | sed "s|$REPO_ROOT/||")"
+      [ -n "$hit" ] && viol="$viol$hit,"
+    done
+  done
+  [ -z "$viol" ] && pass=true || pass=false
+  [ -z "$viol" ] && evidence="checked every starter pair for cross-package imports -- no matches" || evidence="$viol"
+  $first_c || checks_json="$checks_json,"$'\n'
+  checks_json="$checks_json    {\"name\": \"$(json_escape "$name")\", \"pass\": $pass, \"evidence\": \"$(json_escape "$evidence")\"}"
+
+  name="No UI to Repository direct imports"
+  evidence="$(grep -rl 'import org\.ost\.[a-z]*\.repository\.' "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/ui" --include='*.java' 2>/dev/null | sed "s|$REPO_ROOT/||" | paste -sd, -)"
+  [ -z "$evidence" ] && pass=true || pass=false
+  [ -z "$evidence" ] && evidence="grep for org.ost.*.repository imports under marketplace-app ui package -- no matches"
+  $first_c || checks_json="$checks_json,"$'\n'
+  checks_json="$checks_json    {\"name\": \"$(json_escape "$name")\", \"pass\": $pass, \"evidence\": \"$(json_escape "$evidence")\"}"
+
+  echo "[$checks_json"$'\n'"  ]"
+}
+
+# ── Largest Java files by line count across the whole repo -- the same `find ... | sort -rn |
+# head` command 07-risk-report.md (now deleted) had written as text, re-run every generation
+# instead of showing a dated static snapshot.
+largest_java_files_json() {
+  local items_json="" first_i=true line file lines mod
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    lines="$(echo "$line" | awk '{print $1}')"
+    file="$(echo "$line" | awk '{$1=""; print substr($0,2)}')"
+    file="${file#"$REPO_ROOT"/}"
+    mod="${file%%/*}"
+    $first_i || items_json="$items_json,"$'\n'
+    first_i=false
+    items_json="$items_json    {\"file\": \"$(json_escape "$(basename "$file")")\", \"path\": \"$(json_escape "$file")\", \"lines\": $lines, \"module\": \"$(json_escape "$mod")\"}"
+  done < <(find "$REPO_ROOT" -path '*/src/main/java/*' -name '*.java' -not -path '*/target/*' -exec wc -l {} \; 2>/dev/null | sort -rn | head -10)
+  echo "[$items_json"$'\n'"  ]"
+}
+
+# ── Constructor Injection Complexity: every class with @RequiredArgsConstructor and 4+
+# constructor-injected (private final) fields -- the full list, not the 4 hand-picked examples
+# 07-risk-report.md (now deleted) used to show.
+constructor_injection_json() {
+  local items_json="" first_i=true f class_name field_count mod
+
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    field_count="$(grep -cP '^\s*private final \S' "$f" 2>/dev/null)"
+    [ "${field_count:-0}" -lt 4 ] && continue
+    class_name="$(basename "$f" .java)"
+    mod="${f#"$REPO_ROOT"/}"; mod="${mod%%/*}"
+    $first_i || items_json="$items_json,"$'\n'
+    first_i=false
+    items_json="$items_json    {\"class\": \"$(json_escape "$class_name")\", \"module\": \"$(json_escape "$mod")\", \"fieldCount\": $field_count, \"file\": \"$(json_escape "${f#"$REPO_ROOT"/}")\"}"
+  done < <(grep -rl '@RequiredArgsConstructor' "$REPO_ROOT" --include='*.java' 2>/dev/null | grep -v '/target/' | grep '/src/main/java/')
+
+  echo "[$items_json"$'\n'"  ]"
+}
+
+# ── Package God-Package Analysis: every package (recursive) with more than 20 .java files --
+# the full list, not 4 hand-picked examples.
+god_packages_json() {
+  local items_json="" first_i=true pkg count depth
+
+  while IFS= read -r pkg; do
+    [ -z "$pkg" ] && continue
+    # Only 2-3 segments past org/ost (org.ost.X or org.ost.X.Y) -- deeper segments would flood the
+    # list with small, already-well-organized leaf packages instead of the handful of genuinely
+    # broad ones worth flagging.
+    depth="$(echo "${pkg#"$REPO_ROOT"/}" | sed 's|.*/org/ost/||' | tr '/' '\n' | wc -l)"
+    [ "$depth" -gt 2 ] && continue
+    count="$(find "$pkg" -name '*.java' 2>/dev/null | wc -l | tr -d ' ')"
+    [ "$count" -le 20 ] && continue
+    $first_i || items_json="$items_json,"$'\n'
+    first_i=false
+    items_json="$items_json    {\"package\": \"$(json_escape "${pkg#"$REPO_ROOT"/}")\", \"fileCount\": $count}"
+  done < <(find "$REPO_ROOT" -path '*/src/main/java/*' -not -path '*/target/*' -type d 2>/dev/null | sort)
+
+  echo "[$items_json"$'\n'"  ]"
+}
+
 # ── Bounded Contexts: live from real source wherever a real signal exists, reusing the existing
 # "confidence" field convention (see MODULE_DOMAIN's own extracted/inferred/manual tags above)
 # rather than inventing a new marker. "extracted" = a real grep/file match backs this fact.
@@ -792,10 +973,12 @@ docker_files_json() {
   echo "[$out]"
 }
 
+ensure_sonar_fresh
+
 {
   echo "{"
   echo "  \"generated_by\": \"scripts/ai/generate-architecture-model.sh\","
-  echo "  \"generated_note\": \"Track A only -- modules+deps from pom.xml, domain grouping/entities/services/contracts from docs/architecture/bounded-contexts.md (manual confidence), tables live from the real Liquibase changelogs, Sequence Diagrams reused verbatim from docs/architecture/05; Module Dependencies (01)/SPI Map (02)/Database ERD (04) have no .md counterpart -- rendered live on this tool's own Diagrams page instead, lifecycle from DECISIONS.md/backlog, pipeline nodes from docs/ai/flows.md + .claude/commands + .claude/skills. No ArchUnit/bytecode data yet (planned for a future track).\","
+  echo "  \"generated_note\": \"Track A, plus real SonarQube/ArchUnit metrics -- modules+deps from pom.xml, domain grouping/entities/services/contracts derived live from real Java source and the module list, tables live from the real Liquibase changelogs. Module Dependencies (01)/SPI Map (02)/Database ERD (04)/Bounded Contexts have no .md counterpart -- rendered live on this tool's own Diagrams page instead, lifecycle from DECISIONS.md/backlog, pipeline nodes from docs/ai/flows.md + .claude/commands + .claude/skills.\","
   echo "  \"rootArtifactId\": \"$(json_escape "$ROOT_ARTIFACT_ID")\","
   echo "  \"rootVersion\": \"$(json_escape "$ROOT_VERSION")\","
   echo "  \"diagramGroups\": ["
@@ -807,6 +990,12 @@ docker_files_json() {
   echo "  \"spiCallFlowExamples\": $(spi_call_flow_examples_json),"
   echo "  \"dbErd\": $(db_erd_json),"
   echo "  \"boundedContexts\": $(bounded_contexts_json),"
+  echo "  \"sonarMetrics\": $(sonar_metrics_json),"
+  echo "  \"archUnitMetrics\": $(archunit_metrics_json),"
+  echo "  \"couplingChecks\": $(coupling_checks_json),"
+  echo "  \"largestJavaFiles\": $(largest_java_files_json),"
+  echo "  \"constructorInjection\": $(constructor_injection_json),"
+  echo "  \"godPackages\": $(god_packages_json),"
   echo "  \"nodes\": ["
 
   first=true
@@ -1230,7 +1419,7 @@ function renderSystem() {
   html += `<section class="block"><h3>How this page is built</h3>
     <div class="empty-hint">
       <strong>Rendering:</strong> Cytoscape.js + cytoscape-dagre for the draggable graphs (Module Dependencies, SPI Map); Mermaid.js for the Database ERD and Sequence Diagrams.<br>
-      <strong>Generation:</strong> ${sourceLink("scripts/ai/generate-architecture-model.sh")} (bash) plus two small Node.js parsers — one for <code class="path">DECISIONS.md</code> files, one for Liquibase schemas — collect everything below into <code class="path">docs/architecture-model.json</code>, this page's only data source.<br>
+      <strong>Generation:</strong> ${sourceLink("scripts/ai/generate-architecture-model.sh")} (bash) plus two small Node.js parsers — one for <code class="path">DECISIONS.md</code> files, one for Liquibase schemas — collect everything below into <code class="path">docs/architecture/architecture-model.json</code>, this page's only data source.<br>
       <strong>Sources:</strong> <code class="path">pom.xml</code> (modules/dependencies), real Java source and its Javadoc (SPI interfaces), Liquibase changelogs and their <code class="path">remarks=</code> attributes (database schema), every module's <code class="path">DECISIONS.md</code> (architecture decisions), <code class="path">docs/ai/flows.md</code> + <code class="path">.claude/commands</code> + <code class="path">.claude/skills</code> (tooling), <code class="path">backlog/</code> (issue tracking). A small amount of genuinely non-mechanical content (a few call-flow examples, database relationships with no real foreign key) is hand-preserved as static data in the generator itself, not re-derived every run.
     </div>
   </section>`;
@@ -1352,12 +1541,12 @@ function mdInlineToHtml(s) {
 }
 
 // Real link to an ADR's own heading line in its real DECISIONS.md -- relative to this file's own
-// location (docs/architecture-map.html), so it resolves correctly regardless of where the repo is
-// cloned. Opens the actual source, not a copy of it -- DECISIONS.md is the one place ADR text
-// lives (see scripts/ai/DECISIONS.md ADR-006 for the earlier, corrected attempt that embedded the
-// full body text here instead).
+// location (docs/architecture/architecture-map.html, two levels above the repo root), so it
+// resolves correctly regardless of where the repo is cloned. Opens the actual source, not a copy
+// of it -- DECISIONS.md is the one place ADR text lives (see scripts/ai/DECISIONS.md ADR-006 for
+// the earlier, corrected attempt that embedded the full body text here instead).
 function adrFileLink(a) {
-  return `../${a.file}`;
+  return `../../${a.file}`;
 }
 
 // Paragraph/list/table markdown -> HTML for ADR body text (Context/Decision/Consequences,
@@ -1469,10 +1658,62 @@ function renderModuleDependencyExtrasHtml() {
     <section class="block"><h3>Dependency Table</h3>
       <table class="simple"><thead><tr><th>Module</th><th>Depends on</th></tr></thead><tbody>${rows}</tbody></table>
     </section>
+    ${renderArchitectureChecksHtml()}
     <section class="block"><h3>Key Observations</h3><ol class="info-list">${observations}</ol></section>
     <section class="block"><h3>Module Versions</h3>
       <div class="empty-hint">All modules are siblings with the same version: <code>${esc(MODEL.rootVersion)}</code>. Parent POM artifact: <code>${esc(MODEL.rootArtifactId)}</code>.</div>
-    </section>`;
+    </section>
+    ${renderLargestJavaFilesHtml()}
+    ${renderConstructorInjectionHtml()}
+    ${renderGodPackagesHtml()}`;
+}
+
+// Real grep-based checks (cyclic-import safety net beyond the module-level DAG already shown
+// above), re-run every generation -- each PASS/FAIL carries the real evidence, not hand-typed text.
+function renderArchitectureChecksHtml() {
+  const checks = MODEL.couplingChecks || [];
+  const rows = checks.map(c =>
+    `<tr><td>${c.pass ? "✓ PASS" : "✗ FAIL"}</td><td>${esc(c.name)}</td><td>${esc(c.evidence)}</td></tr>`
+  ).join("");
+  return `<section class="block"><h3>Architecture Checks (${checks.length})</h3>
+    <table class="simple"><thead><tr><th>Result</th><th>Check</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table>
+  </section>`;
+}
+
+function renderLargestJavaFilesHtml() {
+  const files = MODEL.largestJavaFiles || [];
+  if (!files.length) return "";
+  const rows = files.map(f =>
+    `<tr><td>${esc(f.file)}</td><td>${f.lines}</td><td>${moduleBadgeHtml(f.module) || esc(f.module)}</td></tr>`
+  ).join("");
+  return `<section class="block"><h3>Largest Java Files</h3>
+    <div class="empty-hint">Top 10 by line count, across the whole repo -- recomputed every generation.</div>
+    <table class="simple"><thead><tr><th>File</th><th>Lines</th><th>Module</th></tr></thead><tbody>${rows}</tbody></table>
+  </section>`;
+}
+
+function renderConstructorInjectionHtml() {
+  const items = MODEL.constructorInjection || [];
+  if (!items.length) return "";
+  const rows = items.map(i =>
+    `<tr><td>${esc(i.class)}</td><td>${moduleBadgeHtml(i.module) || esc(i.module)}</td><td>${i.fieldCount}</td></tr>`
+  ).join("");
+  return `<section class="block"><h3>Constructor Injection (${items.length})</h3>
+    <div class="empty-hint">Every class with <code class="path">@RequiredArgsConstructor</code> and 4+ injected fields.</div>
+    <table class="simple"><thead><tr><th>Class</th><th>Module</th><th>Field count</th></tr></thead><tbody>${rows}</tbody></table>
+  </section>`;
+}
+
+function renderGodPackagesHtml() {
+  const items = MODEL.godPackages || [];
+  if (!items.length) return "";
+  const rows = items.map(p =>
+    `<tr><td><code class="path">${esc(p.package)}</code></td><td>${p.fileCount}</td></tr>`
+  ).join("");
+  return `<section class="block"><h3>Largest Packages (${items.length})</h3>
+    <div class="empty-hint">Packages (recursive) with more than 20 .java files.</div>
+    <table class="simple"><thead><tr><th>Package</th><th>File count</th></tr></thead><tbody>${rows}</tbody></table>
+  </section>`;
 }
 
 // Same node/edge data renderModuleDependencyGraph() draws with Cytoscape, as plain Mermaid text --
@@ -1508,7 +1749,7 @@ function downloadMarkdown(filename, content) {
 
 function exportModuleDependenciesMarkdown() {
   let md = `# Module Dependencies\n\n`;
-  md += `Generated from architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture-map.html › Diagrams › Module Dependencies.\n\n`;
+  md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › Module Dependencies.\n\n`;
   md += `## Dependency Graph\n\n\`\`\`mermaid\n${buildModuleDependencyMermaid()}\`\`\`\n`;
   md += `\n## Dependency Table\n\n| Module | Depends on |\n|---|---|\n`;
   moduleNodes.forEach(n => { md += `| ${n.id} | ${moduleDepsScopeText(n)} |\n`; });
@@ -1548,6 +1789,39 @@ function renderDepList(ids, label, emptyText) {
   }).join("") + `</ul>`;
 }
 
+// Real code-quality/coupling numbers for one module -- SonarQube (ncloc/complexity/code smells/
+// duplication/file count, from a running Sonar server) and ArchUnit (Efferent/Afferent Coupling,
+// Instability, Abstractness, from the real class-dependency graph via
+// ArchitectureMetricsExport.java). Both degrade gracefully (section omitted) when their data
+// source wasn't reachable/hasn't run yet -- neither is a hard requirement to generate the model.
+function renderModuleCodeMetricsHtml(moduleId) {
+  const sonar = MODEL.sonarMetrics && MODEL.sonarMetrics.modules && MODEL.sonarMetrics.modules[moduleId];
+  const arch = MODEL.archUnitMetrics && MODEL.archUnitMetrics.modules && MODEL.archUnitMetrics.modules[moduleId];
+  if (!sonar && !arch) return "";
+  let rows = "";
+  if (sonar) {
+    rows += `<tr><td class="scope-label">Java files</td><td>${sonar.javaFileCount}</td></tr>`;
+    rows += `<tr><td class="scope-label">Lines of code</td><td>${sonar.ncloc}</td></tr>`;
+    rows += `<tr><td class="scope-label">Complexity</td><td>${sonar.complexity}</td></tr>`;
+    rows += `<tr><td class="scope-label">Cognitive complexity</td><td>${sonar.cognitiveComplexity}</td></tr>`;
+    rows += `<tr><td class="scope-label">Code smells</td><td>${sonar.codeSmells}</td></tr>`;
+  }
+  if (arch) {
+    rows += `<tr><td class="scope-label">Efferent coupling</td><td>${arch.efferentCoupling}</td></tr>`;
+    rows += `<tr><td class="scope-label">Afferent coupling</td><td>${arch.afferentCoupling}</td></tr>`;
+    rows += `<tr><td class="scope-label">Instability</td><td>${esc(arch.instability.toFixed(2))}</td></tr>`;
+    rows += `<tr><td class="scope-label">Abstractness</td><td>${esc(arch.abstractness.toFixed(2))}</td></tr>`;
+  }
+  const sourceNote = [
+    sonar ? `SonarQube (analysis: ${esc(MODEL.sonarMetrics.analysisDate || "unknown")})` : "",
+    arch ? "ArchUnit (from the last bash scripts/unit-tests.sh run)" : ""
+  ].filter(Boolean).join(" + ");
+  return `<section class="block"><h3>Code Metrics</h3>
+    <div class="empty-hint">Source: ${sourceNote}.</div>
+    <table class="simple"><tbody>${rows}</tbody></table>
+  </section>`;
+}
+
 function renderModule() {
   const n = byId[view.id];
   if (!n) { navigate({ screen: "system" }); return; }
@@ -1574,6 +1848,8 @@ function renderModule() {
   if (n.contracts && n.contracts.length) {
     html += `<section class="block"><h3>Contracts (Port/Hook)</h3><ul class="info-list">` + n.contracts.map(c => `<li>${c.replace(/`([^`]+)`/g, (m,g)=>`<code>${esc(g)}</code>`)}</li>`).join("") + `</ul></section>`;
   }
+
+  html += renderModuleCodeMetricsHtml(n.id);
 
   html += `<section class="block"><h3>Depends on (compile)</h3>${renderDepList(n.edges.DEPENDS_ON_COMPILE, "compile", "No compile-time module dependencies.")}</section>`;
   if ((n.edges.DEPENDS_ON_RUNTIME||[]).length) html += `<section class="block"><h3>Depends on (runtime)</h3>${renderDepList(n.edges.DEPENDS_ON_RUNTIME, "runtime", "")}</section>`;
@@ -1604,10 +1880,10 @@ function renderModule() {
 }
 
 // ── Tooling & Pipelines screen ───────────────────────────────────────────────────────────────
-// Real link to a source file, relative to this file's own location -- opens the actual file, same
-// "resolve to source, never restate it" rule as adrFileLink().
+// Real link to a source file, relative to this file's own location (two levels above the repo
+// root) -- opens the actual file, same "resolve to source, never restate it" rule as adrFileLink().
 function sourceLink(relPath) {
-  return `<a href="../${esc(relPath)}" target="_blank"><code class="path">${esc(relPath)}</code></a>`;
+  return `<a href="../../${esc(relPath)}" target="_blank"><code class="path">${esc(relPath)}</code></a>`;
 }
 
 function renderScriptGroupSection(n) {
@@ -1832,7 +2108,7 @@ function renderCytoscapeFromGraph(nodes, edges, rankDir) {
   // Any node carrying a real "file" (SPI Map's interfaces/impl classes) opens it directly --
   // group/parent nodes and Mermaid-parsed diagrams with no file association just have no data to
   // open, so nothing happens on click there, same as before.
-  diagramCy.on("tap", "node[file]", e => window.open("../" + e.target.data("file"), "_blank"));
+  diagramCy.on("tap", "node[file]", e => window.open("../../" + e.target.data("file"), "_blank"));
   diagramCy.nodes("[file]").style("cursor", "pointer");
 }
 
@@ -1852,7 +2128,7 @@ function renderSpiMapGraph() {
 // Real link, readable class name as the visible text -- same "open the actual source, short
 // label" pattern adrFileLink()/exportModuleMarkdown() already use for ADRs, not a raw path dump.
 function spiFileLink(file, label) {
-  return `<a href="../${esc(file)}" target="_blank">${esc(label)}</a>`;
+  return `<a href="../../${esc(file)}" target="_blank">${esc(label)}</a>`;
 }
 
 // One table per subsystem (package prefix shown once per heading, same as the retired .md did) --
@@ -1930,7 +2206,7 @@ function buildSpiMapMermaid() {
 
 function exportSpiMapMarkdown() {
   let md = `# SPI Map\n\n`;
-  md += `Generated from architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture-map.html › Diagrams › SPI Map.\n\n`;
+  md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › SPI Map.\n\n`;
   md += `## Overview\n\nAll cross-module extension points (Ports and Hooks) live in \`platform-commons\` to decouple starters from marketplace-app. Suffixes encode call direction: \`*Port\` = marketplace -> starter; \`*Hook\` = starter -> marketplace. See platform-commons/CLAUDE.md's "SPI Interface Naming" table for the authoritative direction/role definition of each suffix.\n\n`;
   md += `## SPI Dependency Graph\n\n\`\`\`mermaid\n${buildSpiMapMermaid()}\`\`\`\n`;
   md += `\n## SPI Interface Details\n\n`;
@@ -2047,7 +2323,7 @@ function buildBoundedContextsMermaidSource() {
 // spiFileLink() already uses for SPI Map. Items with no file (Shared's plain count summaries)
 // render as plain text, not a broken link.
 function bcItemLink(item) {
-  return item.file ? `<a href="../${esc(item.file)}" target="_blank">${esc(item.name)}</a>` : esc(item.name);
+  return item.file ? `<a href="../../${esc(item.file)}" target="_blank">${esc(item.name)}</a>` : esc(item.name);
 }
 
 function renderBoundedContextsExtrasHtml() {
@@ -2067,7 +2343,7 @@ function renderBoundedContextsExtrasHtml() {
   ).join("");
   return `
     <section class="block"><h3>Overview</h3>
-      <div class="empty-hint">Domain grouping (entities/services/tables/ports per box) is extracted live from real <code class="path">@Table</code> classes, <code class="path">*Service</code> classes, Liquibase tables, and SPI interface <code class="path">implements</code> relationships. Every relationship below is backed by a real, named code signal (mostly <code class="path">AuditActivityFieldsHook</code>/<code class="path">AuditActivityEnrichHook</code> <code class="path">entityType()</code> declarations) — see the Evidence column. <code class="path">bounded-contexts.md</code> stays on disk as the hand-authored comparison source for now.</div>
+      <div class="empty-hint">Domain grouping (entities/services/tables/ports per box) is extracted live from real <code class="path">@Table</code> classes, <code class="path">*Service</code> classes, Liquibase tables, and SPI interface <code class="path">implements</code> relationships. Every relationship below is backed by a real, named code signal (mostly <code class="path">AuditActivityFieldsHook</code>/<code class="path">AuditActivityEnrichHook</code> <code class="path">entityType()</code> declarations) — see the Evidence column.</div>
     </section>
     <section class="block"><h3>Legend</h3>
       <div class="empty-hint">Click a domain box to open its real module page. Drag a node to reposition it, drag empty canvas space to pan.</div>
@@ -2085,7 +2361,7 @@ function renderBoundedContextsExtrasHtml() {
 
 function exportBoundedContextsMarkdown() {
   let md = `# Bounded Contexts — Context Map\n\n`;
-  md += `Generated from architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture-map.html › Diagrams › Bounded Contexts.\n\n`;
+  md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › Bounded Contexts.\n\n`;
   md += `## Context Map\n\n\`\`\`mermaid\n${buildBoundedContextsMermaidSource()}\`\`\`\n\n`;
   md += `## Domain Contents\n\n`;
   MODEL.boundedContexts.domains.forEach(d => {
@@ -2178,7 +2454,7 @@ function renderDbErdExtrasHtml() {
 
 function exportDbErdMarkdown() {
   let md = `# Database ERD\n\n`;
-  md += `Generated from architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture-map.html › Diagrams › Database ERD.\n\n`;
+  md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › Database ERD.\n\n`;
   md += `## Overview\n\nAll tables are created via Liquibase migrations. Each starter owns its own changelog under its own \`db/*-changelog/\` directory -- no shared migrations between modules.\n\n`;
   md += `## Entity Relationship Diagram\n\n\`\`\`mermaid\n${buildDbErdMermaidSource()}\`\`\`\n\n`;
   md += `## Table Schemas\n\n`;
@@ -2248,12 +2524,11 @@ function enableDragToPan(el) {
   window.addEventListener("mouseup", () => { dragging = false; el.style.cursor = "grab"; });
 }
 
-// ── Diagrams screen: Module Dependencies/SPI Map/Database ERD render live (no .md counterpart);
-// bounded-contexts.md/05-sequence-diagrams.md stay hand-maintained, reused verbatim. ────────────
+// ── Diagrams screen: all diagrams render live -- no markdown counterpart for any of them. ───────
 function renderDiagrams() {
   if (!view.groupKey) {
     let html = `<h2 class="screen-title">Diagrams</h2>
-      <div class="screen-desc">${totalDiagramCount} diagrams — Module Dependencies/SPI Map/Database ERD rendered live from pom.xml/real Java source/real Liquibase changelogs, the rest reused verbatim from docs/architecture/bounded-contexts.md and 05-sequence-diagrams.md, which stay the authoring source for those.</div>`;
+      <div class="screen-desc">${totalDiagramCount} diagrams, all rendered live from pom.xml/real Java source/real Liquibase changelogs -- no separately-maintained markdown source for any of them.</div>`;
     MODEL.diagramGroups.forEach(g => {
       const graphType = GRAPH_TYPE_KEYS.includes(g.key);
       html += `<div class="domain-group"><h3>${esc(g.label)} <code class="path">(${esc(g.file)})</code> ${graphType ? '<span class="badge ACTIVE">draggable</span>' : ""}</h3><div class="card-grid">`;
@@ -2308,8 +2583,8 @@ function renderDiagrams() {
     document.getElementById("content").innerHTML = html;
     renderSpiMapGraph();
   } else if (g.key === "bounded-contexts") {
-    // Rendered via Mermaid's own native engine (mermaid.run(), same mechanism as the Database ERD
-    // and 05-sequence-diagrams), not the removed Cytoscape+dagre compound-node pipeline -- that
+    // Rendered via Mermaid's own native engine (mermaid.run(), same mechanism as the Database ERD),
+    // not the removed Cytoscape+dagre compound-node pipeline -- that
     // pipeline collapsed this graph onto one column (real cross-domain cycles via the UI/Audit hub,
     // a documented dagre compound-layout limitation, see DECISIONS.md ADR-016). Domain contents and
     // relationships are generated live from MODEL.boundedContexts (real code signals -- see the
