@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# Description: Generates architecture-model.json and architecture-map.html -- the live, browsable
+#   architecture control plane -- from real repo state, no hand-maintained markdown.
+# Uses: bash, node (invokes liquibase-schema-to-json.js and md-to-decisions-json.js as
+#   subprocesses), python3 (only when --with-sonar/--with-archunit are passed).
+# Input: pom.xml, real Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
+#   docs/ai/adr-index.md, docs/ai/flows.md, .claude/commands, .claude/skills, backlog/.
+# Output: docs/architecture/architecture-model.json + docs/architecture/architecture-map.html.
+#
 # Generates architecture-model.json (Track A of the architecture control plane) from
 # already-structured, non-code sources only -- no ArchUnit, no bytecode analysis. Node types:
 # MODULE (from pom.xml reactor + per-module pom.xml dependencies), COMMAND/SKILL (from
@@ -14,6 +22,17 @@ HTML_OUTPUT="$REPO_ROOT/docs/architecture/architecture-map.html"
 ADR_INDEX="$REPO_ROOT/docs/ai/adr-index.md"
 FLOWS="$REPO_ROOT/docs/ai/flows.md"
 ROOT_CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
+
+# Opt-in Sonar/ArchUnit fetch -- both off by default so a plain run never triggers a SonarQube
+# rescan or depends on unit-tests.sh having run recently. See scripts/architecture/DECISIONS.md.
+WITH_SONAR=""
+WITH_ARCHUNIT=""
+for arg in "$@"; do
+  case "$arg" in
+    --with-sonar) WITH_SONAR=1 ;;
+    --with-archunit) WITH_ARCHUNIT=1 ;;
+  esac
+done
 
 # The 6 real Liquibase changelogs holding an actual createTable -- single source of truth for the
 # live Database ERD (see root CLAUDE.md's "Database Changes" guideline). Declared early so the
@@ -41,37 +60,44 @@ json_escape() {
 # already uses) -- NOT a separate <module>/DECISIONS.json loaded at runtime via <script src>. That
 # design was tried and reverted: it depends on browser-specific file:// security policy for
 # cross-directory script loading, an unacceptable dependency for a tool meant to just work when
-# double-clicked -- see scripts/ai/DECISIONS.md ADR-008. Parsing lives in md-to-decisions-json.js
+# double-clicked -- see scripts/architecture/DECISIONS.md ADR-008. Parsing lives in md-to-decisions-json.js
 # (Node) -- an earlier awk version hit two real bugs on real content (label+list with no blank
 # line merging into one paragraph; multi-line list items losing their numbering) that
 # JSON.stringify()'s correct-by-construction escaping and normal regex/string methods avoid.
-FULL_DECISIONS_MODULES=(attachment-spring-boot-starter audit-spring-boot-starter integration-tests marketplace-app platform-commons query-lib taxon-spring-boot-starter scripts scripts/ai scripts/ci scripts/sonar playwright)
+FULL_DECISIONS_MODULES=(attachment-spring-boot-starter audit-spring-boot-starter integration-tests marketplace-app platform-commons query-lib taxon-spring-boot-starter scripts scripts/architecture scripts/ci scripts/sonar playwright)
 
-# ── Non-Maven tooling directories with their own DECISIONS.md -- get a SCRIPT_GROUP node (same
-# ADR-embedding/popup mechanism as MODULE nodes) so their decisions are visible on the Tooling &
-# Pipelines screen, not invisible outside the interactive tool. "category" drives the page's
-# AI Tooling vs Other Scripts split.
+# ── Non-Maven tooling directories -- get a SCRIPT_GROUP node (same ADR-embedding/popup mechanism
+# as MODULE nodes) so their files/decisions are visible on the Tooling & Pipelines screen, not
+# invisible outside the interactive tool. "category" drives the page's AI Tooling vs Other Scripts
+# split. Not every SCRIPT_GROUP dir has its own DECISIONS.md -- scripts/ai's own history moved to
+# scripts/architecture/DECISIONS.md wholesale (see scripts/architecture/DECISIONS.md ADR-021), so
+# scripts/ai now gets a files-only node, no ADR/decisions section (decisions_json_for/
+# adr_intent_for_module both degrade to empty for a module with no DECISIONS.md, not a special
+# case here).
 declare -A SCRIPT_GROUP_CATEGORY=(
   [scripts/ai]="ai"
+  [scripts/architecture]="ai"
   [scripts]="scripts"
   [scripts/ci]="scripts"
   [scripts/sonar]="scripts"
   [playwright]="scripts"
 )
-SCRIPT_GROUP_DIRS=(scripts/ai scripts scripts/ci scripts/sonar playwright)
+SCRIPT_GROUP_DIRS=(scripts/ai scripts/architecture scripts scripts/ci scripts/sonar playwright)
 
 # Explicit "what matters first" ordering per directory -- entry points and generators before the
 # CI gates that verify their output, dev-only tooling last. Falls back to alphabetical (find |
 # sort) for any directory not listed here.
 declare -A SCRIPT_GROUP_FILE_ORDER=(
-  [scripts/ai]="generate-architecture-model.sh generate-adr-index.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh screenshot-architecture-map.sh"
+  [scripts/ai]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh"
+  [scripts/architecture]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh"
 )
 decisions_json_for() {
   local module="$1"
+  [ -f "$REPO_ROOT/$module/DECISIONS.md" ] || { echo "null"; return; }
   local found=false
   for m in "${FULL_DECISIONS_MODULES[@]}"; do [ "$m" = "$module" ] && found=true; done
   $found || { echo "null"; return; }
-  node "$REPO_ROOT/scripts/ai/md-to-decisions-json.js" --stdout "$module"
+  node "$REPO_ROOT/scripts/architecture/md-to-decisions-json.js" --stdout "$module"
 }
 
 # ── Module list, in pom.xml reactor order ───────────────────────────────────────────────────
@@ -80,7 +106,7 @@ mapfile -t MODULES < <(sed -n '/<modules>/,/<\/modules>/p' "$REPO_ROOT/pom.xml" 
 
 # ── Domain <-> module mapping, derived live from the real module list above using this repo's own
 # "<domain>-spring-boot-starter" naming convention -- module names ARE the domain names for every
-# starter, no separate map to hand-maintain (see scripts/ai/DECISIONS.md ADR-019 "Open goals").
+# starter, no separate map to hand-maintain (see scripts/architecture/DECISIONS.md ADR-019 "Open goals").
 # Shared (platform-commons) and UI (marketplace-app) are structural categories, not
 # "*-spring-boot-starter" domain modules, so they're seeded explicitly; everything else (domain id,
 # human label, ordering) comes straight out of $MODULES.
@@ -155,7 +181,7 @@ while IFS=$'\t' read -r tbl_module tbl_name; do
 done < <(
   files=()
   for f in "${DB_ERD_CHANGELOG_FILES[@]}"; do files+=("$REPO_ROOT/$f"); done
-  node "$REPO_ROOT/scripts/ai/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}" \
+  node "$REPO_ROOT/scripts/architecture/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}" \
     | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>JSON.parse(d).forEach(t=>console.log(t.module+"\t"+t.name)))'
 )
 
@@ -178,7 +204,7 @@ fi
 #    itself. DECISIONS.md is the one place that text lives; this tool always resolves to it, it
 #    never restates it (doc-standards/SKILL.md's own "reference by ADR number, never restate the
 #    reasoning inline" rule -- an earlier version of this feature embedded the full body text, and
-#    a version after that added a line number, both corrected -- see scripts/ai/DECISIONS.md
+#    a version after that added a line number, both corrected -- see scripts/architecture/DECISIONS.md
 #    ADR-006). No line number: a raw .md opened via file:// has no heading anchors for a fragment
 #    to jump to anyway (no markdown rendering happens), and a line number needs recalculating on
 #    every edit to any ADR above it in the same file for a benefit that was never real navigation,
@@ -191,6 +217,26 @@ adr_intent_for_module() {
       /^\| ADR-/ && $2 == m { sub(/^\| /, "", $1); sub(/ *\|$/, "", $4); print $1 "\x1f" $4 }
     ' "$ADR_INDEX"
   fi
+}
+
+# Flat, deduplicated list of every ADR across every module's DECISIONS.md, for the System screen's
+# ADRs card/list -- reads docs/ai/adr-index.md (same file adr_intent_for_module reads above), but
+# keeps only each ADR's home-module row, skipping the extra "Also affects" cross-reference rows
+# that table carries (same id string repeated once per affected module) so an ADR is counted once.
+all_adrs_json() {
+  local items_json="" first_i=true id module status title home
+  if [ -f "$ADR_INDEX" ]; then
+    while IFS=$'\x1f' read -r id module status title; do
+      [ -z "$id" ] && continue
+      home="$(echo "$id" | sed -n 's/^ADR-[0-9]\+ (\(.*\))$/\1/p')"
+      [ -z "$home" ] && home="$module"
+      [ "$module" != "$home" ] && continue
+      $first_i || items_json="$items_json,"$'\n'
+      first_i=false
+      items_json="$items_json    {\"id\": \"$(json_escape "$id")\", \"module\": \"$(json_escape "$home")\", \"status\": \"$(json_escape "$status")\", \"title\": \"$(json_escape "$title")\"}"
+    done < <(awk -F' \\| ' '/^\| ADR-/ { sub(/^\| /, "", $1); sub(/ *\|$/, "", $4); print $1 "\x1f" $2 "\x1f" $3 "\x1f" $4 }' "$ADR_INDEX")
+  fi
+  echo "[$items_json"$'\n'"  ]"
 }
 
 # Builds a JSON array of {"id":..,"title":..,"file":..} from "id\x1ftitle" lines; empty input ->
@@ -228,7 +274,7 @@ generate_pointer_decisions_md() {
     echo "This module has no \`DECISIONS.md\` of its own — decisions about it are recorded in"
     echo "other modules' files and cross-listed here via their own \`**Also affects:**\` tag."
     echo "Do not hand-edit this file — add \`**Also affects:** $module\` to the real ADR in its"
-    echo "home file instead, then regenerate via \`bash scripts/ai/generate-architecture-model.sh\`."
+    echo "home file instead, then regenerate via \`bash scripts/architecture/generate-architecture-model.sh\`."
     echo
     if [ -z "$items" ]; then
       echo "No ADRs currently cross-reference this module."
@@ -416,7 +462,7 @@ issue_list_json() {
 # Diagrams page straight from MODULES/module_deps()/ROOT_ARTIFACT_ID (see renderModuleDependencyGraph()
 # and its accompanying table/notes in the HTML template below) -- one source (pom.xml), not a
 # second, separately-extracted copy (user-requested unification, 2026-08-04; see
-# scripts/ai/DECISIONS.md ADR-003/005). Its diagramGroups entry is synthesized directly below,
+# scripts/architecture/DECISIONS.md ADR-003/005). Its diagramGroups entry is synthesized directly below,
 # with an empty "source" (nothing reads it -- the special-cased renderer never parses Mermaid text
 # for this group) purely so the Diagrams list page has a card to link from.
 # All four diagrams (Module Dependencies/SPI Map/Database ERD/Bounded Contexts) render live --
@@ -592,7 +638,7 @@ db_erd_json() {
   local f
   for f in "${DB_ERD_CHANGELOG_FILES[@]}"; do files+=("$REPO_ROOT/$f"); done
   local tables_json relationships_json
-  tables_json="$(node "$REPO_ROOT/scripts/ai/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}")"
+  tables_json="$(node "$REPO_ROOT/scripts/architecture/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}")"
   relationships_json="$(db_erd_conceptual_relationships_json)"
   echo "{\"tables\": $tables_json, \"conceptualRelationships\": $relationships_json}"
 }
@@ -819,6 +865,59 @@ god_packages_json() {
   echo "[$items_json"$'\n'"  ]"
 }
 
+# ── Self-documenting tooling: walks scripts/architecture/ dynamically (no hardcoded file list) and
+# extracts each script's own "Description:"/"Uses:"/"Input:"/"Output:" header comment fields --
+# single source of truth right next to the code, feeds the System screen's "How this page is
+# built" section instead of hand-written prose that can silently drift from what the scripts
+# actually do. A new script dropped into the folder with the same header convention shows up here
+# with no generator edit needed.
+architecture_tooling_self_docs_json() {
+  python3 -c "
+import json, os, re, sys
+
+repo_root = sys.argv[1]
+folder = os.path.join(repo_root, 'scripts', 'architecture')
+files = sorted(f for f in os.listdir(folder) if f.endswith(('.sh', '.js')))
+
+def extract(path):
+    with open(path) as fh:
+        lines = fh.readlines()[:20]
+    text = []
+    for l in lines:
+        l = l.rstrip('\n')
+        if l.startswith('#'):
+            text.append(l[1:].lstrip())
+        elif l.startswith('//'):
+            text.append(l[2:].lstrip())
+        else:
+            break
+    fields = {'Description': '', 'Uses': '', 'Input': '', 'Output': ''}
+    current = None
+    for l in text:
+        m = re.match(r'^(Description|Uses|Input|Output):\s*(.*)', l)
+        if m:
+            current = m.group(1)
+            fields[current] = m.group(2)
+        elif current and l.strip() == '':
+            current = None
+        elif current:
+            fields[current] += ' ' + l.strip()
+    return fields
+
+out = []
+for f in files:
+    fields = extract(os.path.join(folder, f))
+    out.append({
+        'file': 'scripts/architecture/' + f,
+        'description': fields['Description'],
+        'uses': fields['Uses'],
+        'input': fields['Input'],
+        'output': fields['Output'],
+    })
+print(json.dumps(out))
+" "$REPO_ROOT"
+}
+
 # ── Bounded Contexts: live from real source wherever a real signal exists, reusing the existing
 # "confidence" field convention (see MODULE_DOMAIN's own extracted/inferred/manual tags above)
 # rather than inventing a new marker. "extracted" = a real grep/file match backs this fact.
@@ -973,11 +1072,16 @@ docker_files_json() {
   echo "[$out]"
 }
 
-ensure_sonar_fresh
+[ -n "$WITH_SONAR" ] && ensure_sonar_fresh
+
+sonar_json="null"
+[ -n "$WITH_SONAR" ] && sonar_json="$(sonar_metrics_json)"
+archunit_json="null"
+[ -n "$WITH_ARCHUNIT" ] && archunit_json="$(archunit_metrics_json)"
 
 {
   echo "{"
-  echo "  \"generated_by\": \"scripts/ai/generate-architecture-model.sh\","
+  echo "  \"generated_by\": \"scripts/architecture/generate-architecture-model.sh\","
   echo "  \"generated_note\": \"Track A, plus real SonarQube/ArchUnit metrics -- modules+deps from pom.xml, domain grouping/entities/services/contracts derived live from real Java source and the module list, tables live from the real Liquibase changelogs. Module Dependencies (01)/SPI Map (02)/Database ERD (04)/Bounded Contexts have no .md counterpart -- rendered live on this tool's own Diagrams page instead, lifecycle from DECISIONS.md/backlog, pipeline nodes from docs/ai/flows.md + .claude/commands + .claude/skills.\","
   echo "  \"rootArtifactId\": \"$(json_escape "$ROOT_ARTIFACT_ID")\","
   echo "  \"rootVersion\": \"$(json_escape "$ROOT_VERSION")\","
@@ -990,12 +1094,14 @@ ensure_sonar_fresh
   echo "  \"spiCallFlowExamples\": $(spi_call_flow_examples_json),"
   echo "  \"dbErd\": $(db_erd_json),"
   echo "  \"boundedContexts\": $(bounded_contexts_json),"
-  echo "  \"sonarMetrics\": $(sonar_metrics_json),"
-  echo "  \"archUnitMetrics\": $(archunit_metrics_json),"
+  echo "  \"sonarMetrics\": $sonar_json,"
+  echo "  \"archUnitMetrics\": $archunit_json,"
   echo "  \"couplingChecks\": $(coupling_checks_json),"
   echo "  \"largestJavaFiles\": $(largest_java_files_json),"
   echo "  \"constructorInjection\": $(constructor_injection_json),"
   echo "  \"godPackages\": $(god_packages_json),"
+  echo "  \"architectureToolingSelfDocs\": $(architecture_tooling_self_docs_json),"
+  echo "  \"allAdrs\": $(all_adrs_json),"
   echo "  \"nodes\": ["
 
   first=true
@@ -1082,7 +1188,8 @@ ensure_sonar_fresh
     echo "    }"
   done < <(find "$REPO_ROOT/.claude/skills" -name "SKILL.md" -print0 2>/dev/null | sort -z)
 
-  # SCRIPT_GROUP nodes -- non-Maven tooling directories with their own DECISIONS.md
+  # SCRIPT_GROUP nodes -- non-Maven tooling directories, most (not all -- see scripts/ai above)
+  # with their own DECISIONS.md
   for d in "${SCRIPT_GROUP_DIRS[@]}"; do
     desc=""
     [ -f "$REPO_ROOT/$d/CLAUDE.md" ] && desc="$(head -1 "$REPO_ROOT/$d/CLAUDE.md" | sed 's/^#* *//')"
@@ -1097,6 +1204,8 @@ ensure_sonar_fresh
     files_json="$(json_str_array "$files_list")"
     intent_json="$(json_adr_array "$d" "$(adr_intent_for_module "$d")")"
     decisions_field="$(decisions_json_for "$d")"
+    evidence_file="$d/DECISIONS.md"
+    [ -f "$REPO_ROOT/$d/DECISIONS.md" ] || evidence_file="$d"
     echo "    ,"
     echo "    {"
     echo "      \"id\": \"$(json_escape "$d")\","
@@ -1106,7 +1215,7 @@ ensure_sonar_fresh
     echo "      \"lifecycle\": \"ACTIVE\","
     echo "      \"disposition\": \"KEEP\","
     echo "      \"confidence\": \"extracted\","
-    echo "      \"evidence\": [{\"file\": \"$(json_escape "$d/DECISIONS.md")\", \"line\": 1}],"
+    echo "      \"evidence\": [{\"file\": \"$(json_escape "$evidence_file")\", \"line\": 1}],"
     echo "      \"description\": \"$(json_escape "$desc")\","
     echo "      \"files\": $files_json,"
     echo "      \"intent\": $intent_json,"
@@ -1169,6 +1278,7 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
     --ink: #1a202c; --muted: #718096; --line: #e2e8f0; --bg: #f7f8fa; --card: #ffffff;
     --accent: #2b6cb0; --active: #2f855a; --active-bg: #e6fffa; --transitional: #c05621;
     --transitional-bg: #fffaf0; --deprecated: #718096; --deprecated-bg: #f1f3f5;
+    --critical: #c0392b; --critical-bg: #fdecea;
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
@@ -1195,6 +1305,9 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .badge.ACTIVE { color: var(--active); background: var(--active-bg); }
   .badge.TRANSITIONAL { color: var(--transitional); background: var(--transitional-bg); }
   .badge.DEPRECATED { color: var(--deprecated); background: var(--deprecated-bg); }
+  .metric-good { color: var(--active); background: var(--active-bg); padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+  .metric-watch { color: var(--transitional); background: var(--transitional-bg); padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+  .metric-critical { color: var(--critical); background: var(--critical-bg); padding: 2px 8px; border-radius: 4px; font-weight: 500; }
   .special-card { background: linear-gradient(135deg,#2b6cb0,#2c5282); color: #fff; }
   .special-card .card-desc { color: #cbd5e0; }
   .module-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
@@ -1250,6 +1363,8 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .adr-item .adr-status { color: var(--muted); font-size: 11px; margin-left: 6px; }
   h3 .section-link { font-size: 12px; font-weight: 500; color: var(--accent); text-decoration: none; margin-left: 8px; cursor: pointer; }
   h3 .section-link:hover { text-decoration: underline; }
+  h3 a.module-link { color: var(--accent); cursor: pointer; text-decoration: none; }
+  h3 a.module-link:hover { text-decoration: underline; }
   .group-heading { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 24px 0 10px; }
   .group-heading:first-of-type { margin-top: 0; }
   .table-chip-row { margin-bottom: 12px; }
@@ -1257,7 +1372,10 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .table-chip-row code.path { background: #f1f3f5; padding: 3px 8px; border-radius: 6px; }
   .adr-subheading { font-size: 12px; font-weight: 600; color: var(--muted); margin: 4px 0 6px; text-transform: uppercase; letter-spacing: .03em; }
   .adr-subheading .section-link { text-transform: none; letter-spacing: normal; font-weight: 500; }
-  #adr-popup { border: none; border-radius: 10px; padding: 0; max-width: 720px; width: 90vw; max-height: 80vh; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+  .glossary-item { margin-bottom: 20px; }
+  .glossary-item:last-child { margin-bottom: 0; }
+  .glossary-item > strong { display: block; font-size: 13px; margin-bottom: 6px; }
+  #adr-popup { border: none; border-radius: 10px; padding: 0; max-width: 720px; width: 90vw; max-height: 80vh; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
   #adr-popup::backdrop { background: rgba(20,24,28,.5); }
   #adr-popup .adr-popup-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--card); }
   #adr-popup .adr-popup-header h3 { margin: 0; font-size: 15px; }
@@ -1275,7 +1393,7 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
 <body>
 <header>
   <h1>Architecture Control Plane</h1>
-  <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, docs/ai/flows.md, .claude/commands, .claude/skills, root CLAUDE.md — regenerate via <code>bash scripts/ai/generate-architecture-model.sh</code>. Track A only: module-level granularity; Contract/Implementation/Method levels are placeholders until Track B's ArchUnit exporter lands.</div>
+  <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, docs/ai/flows.md, .claude/commands, .claude/skills, root CLAUDE.md — regenerate via <code>bash scripts/architecture/generate-architecture-model.sh</code>. Track A only: module-level granularity; Contract/Implementation/Method levels are placeholders until Track B's ArchUnit exporter lands.</div>
   <nav id="breadcrumb"></nav>
 </header>
 <main id="content"></main>
@@ -1343,6 +1461,8 @@ function crumbLabelFor(v) {
   if (v.screen === "pipelines") return "Tooling & Pipelines";
   if (v.screen === "backlog") return "Backlog";
   if (v.screen === "docker") return "Docker";
+  if (v.screen === "adrs") return "ADRs";
+  if (v.screen === "codequality") return "Code Quality";
   if (v.screen === "diagrams") {
     if (v.groupKey && v.diagramIndex !== undefined) {
       const g = MODEL.diagramGroups.find(x => x.key === v.groupKey);
@@ -1378,6 +1498,15 @@ function navigateBack() {
   navigateToCrumb(crumbStack.length - 1);
 }
 
+// Same toolbar row the Module/diagram-detail screens already use -- every screen reached by
+// clicking a System-level card gets the same "← back" affordance, not just the two that happened
+// to need it first.
+function backButtonHtml() {
+  return `<div class="diagram-toolbar" style="justify-content:flex-start;gap:6px">
+      <button onclick="navigateBack()">← back</button>
+    </div>`;
+}
+
 function renderBreadcrumb() {
   const bc = document.getElementById("breadcrumb");
   let html = `<a onclick="navigate({screen:'system'})">System</a>`;
@@ -1392,7 +1521,7 @@ function renderBreadcrumb() {
 
 // ── System screen: just the 3 entry-point cards. Module browsing lives under Diagrams ›
 // Module Dependencies (one shared graph-building function, not a second copy — see
-// renderModuleDependencyGraph() and scripts/ai/DECISIONS.md ADR-003). ──────────────────────────
+// renderModuleDependencyGraph() and scripts/architecture/DECISIONS.md ADR-003). ──────────────────────────
 function renderSystem() {
   let html = `<h2 class="screen-title">System</h2>
     <div class="screen-desc">${moduleNodes.length} modules across ${domainOrder.length} domains. Pick where to start.</div>`;
@@ -1414,14 +1543,26 @@ function renderSystem() {
       <div class="card-title">🐳 Docker</div>
       <div class="card-desc">${MODEL.dockerFiles.length} files — Dockerfiles + docker-compose stacks, what each builds/runs</div>
     </div>
+    <div class="card special-card" onclick="navigate({screen:'adrs'})">
+      <div class="card-title">📜 ADRs</div>
+      <div class="card-desc">${(MODEL.allAdrs || []).length} architectural decisions across every module's DECISIONS.md</div>
+    </div>
+    <div class="card special-card" onclick="navigate({screen:'codequality'})">
+      <div class="card-title">✅ Code Quality</div>
+      <div class="card-desc">SonarQube + ArchUnit metrics per module, one table per source</div>
+    </div>
   </div>`;
 
   html += `<section class="block"><h3>How this page is built</h3>
     <div class="empty-hint">
-      <strong>Rendering:</strong> Cytoscape.js + cytoscape-dagre for the draggable graphs (Module Dependencies, SPI Map); Mermaid.js for the Database ERD and Sequence Diagrams.<br>
-      <strong>Generation:</strong> ${sourceLink("scripts/ai/generate-architecture-model.sh")} (bash) plus two small Node.js parsers — one for <code class="path">DECISIONS.md</code> files, one for Liquibase schemas — collect everything below into <code class="path">docs/architecture/architecture-model.json</code>, this page's only data source.<br>
-      <strong>Sources:</strong> <code class="path">pom.xml</code> (modules/dependencies), real Java source and its Javadoc (SPI interfaces), Liquibase changelogs and their <code class="path">remarks=</code> attributes (database schema), every module's <code class="path">DECISIONS.md</code> (architecture decisions), <code class="path">docs/ai/flows.md</code> + <code class="path">.claude/commands</code> + <code class="path">.claude/skills</code> (tooling), <code class="path">backlog/</code> (issue tracking). A small amount of genuinely non-mechanical content (a few call-flow examples, database relationships with no real foreign key) is hand-preserved as static data in the generator itself, not re-derived every run.
+      <strong>Rendering:</strong> Cytoscape.js + cytoscape-dagre for the draggable graphs (Module Dependencies, SPI Map); Mermaid.js for the Database ERD and Sequence Diagrams.
     </div>
+    <table class="simple"><thead><tr><th>Script</th><th>Description</th><th>Uses</th><th>Input</th><th>Output</th></tr></thead><tbody>`;
+  (MODEL.architectureToolingSelfDocs || []).forEach(s => {
+    html += `<tr><td>${sourceLink(s.file)}</td><td>${esc(s.description)}</td><td>${esc(s.uses)}</td><td>${esc(s.input)}</td><td>${esc(s.output)}</td></tr>`;
+  });
+  html += `</tbody></table>
+    <div class="empty-hint">Read live from each script's own header comment (<code class="path">scripts/architecture/</code>) — not hand-written here, so it can't silently drift from what the scripts actually do. A small amount of genuinely non-mechanical content (a few call-flow examples, database relationships with no real foreign key) is hand-preserved as static data in the generator itself, not re-derived every run.</div>
   </section>`;
 
   document.getElementById("content").innerHTML = html;
@@ -1477,7 +1618,7 @@ function renderModuleDependencyGraph() {
 
 // Scope-grouped dependency list for one module -- built from the same edges the graph/module
 // pages use, not a second hand-typed table (this replaces the old docs/architecture/
-// 01-module-dependencies.md "Dependency Table", see scripts/ai/DECISIONS.md ADR-005). Returns
+// 01-module-dependencies.md "Dependency Table", see scripts/architecture/DECISIONS.md ADR-005). Returns
 // [{label, deps}] groups; moduleDepsScopeText()/moduleDepsScopeHtml() below render this the same
 // shape two ways (plain text for the markdown export, linked HTML for the on-page table) instead
 // of each re-deriving compile/optional/runtime grouping independently.
@@ -1543,7 +1684,7 @@ function mdInlineToHtml(s) {
 // Real link to an ADR's own heading line in its real DECISIONS.md -- relative to this file's own
 // location (docs/architecture/architecture-map.html, two levels above the repo root), so it
 // resolves correctly regardless of where the repo is cloned. Opens the actual source, not a copy
-// of it -- DECISIONS.md is the one place ADR text lives (see scripts/ai/DECISIONS.md ADR-006 for
+// of it -- DECISIONS.md is the one place ADR text lives (see scripts/architecture/DECISIONS.md ADR-006 for
 // the earlier, corrected attempt that embedded the full body text here instead).
 function adrFileLink(a) {
   return `../../${a.file}`;
@@ -1613,7 +1754,7 @@ function renderAdrList(n) {
 }
 
 // Looks up the ADR's real home module (from its "file" field) and opens the popup only if that
-// home module's full ADR content was embedded (see scripts/ai/DECISIONS.md ADR-008's
+// home module's full ADR content was embedded (see scripts/architecture/DECISIONS.md ADR-008's
 // FULL_DECISIONS_MODULES) -- falls back to a real link to the source file otherwise (e.g. a
 // non-Maven-module DECISIONS.md, which has no MODULE node to embed content into).
 function openAdrPopupForIntent(moduleId, index) {
@@ -1737,7 +1878,7 @@ function buildModuleDependencyMermaid() {
 // the repo; this is for pasting into a wiki/issue/chat, not a tracked file, so there is no
 // staleness risk to guard against (contrast the retired approach of committing a generated block
 // into docs/architecture/01-module-dependencies.md, which needed its own CI freshness gate --
-// see scripts/ai/DECISIONS.md ADR-005). Shared by every "Export as Markdown" button in this tool.
+// see scripts/architecture/DECISIONS.md ADR-005). Shared by every "Export as Markdown" button in this tool.
 function downloadMarkdown(filename, content) {
   const blob = new Blob([content], { type: "text/markdown" });
   const a = document.createElement("a");
@@ -1792,34 +1933,84 @@ function renderDepList(ids, label, emptyText) {
 // Real code-quality/coupling numbers for one module -- SonarQube (ncloc/complexity/code smells/
 // duplication/file count, from a running Sonar server) and ArchUnit (Efferent/Afferent Coupling,
 // Instability, Abstractness, from the real class-dependency graph via
-// ArchitectureMetricsExport.java). Both degrade gracefully (section omitted) when their data
-// source wasn't reachable/hasn't run yet -- neither is a hard requirement to generate the model.
-function renderModuleCodeMetricsHtml(moduleId) {
-  const sonar = MODEL.sonarMetrics && MODEL.sonarMetrics.modules && MODEL.sonarMetrics.modules[moduleId];
-  const arch = MODEL.archUnitMetrics && MODEL.archUnitMetrics.modules && MODEL.archUnitMetrics.modules[moduleId];
-  if (!sonar && !arch) return "";
-  let rows = "";
-  if (sonar) {
-    rows += `<tr><td class="scope-label">Java files</td><td>${sonar.javaFileCount}</td></tr>`;
-    rows += `<tr><td class="scope-label">Lines of code</td><td>${sonar.ncloc}</td></tr>`;
-    rows += `<tr><td class="scope-label">Complexity</td><td>${sonar.complexity}</td></tr>`;
-    rows += `<tr><td class="scope-label">Cognitive complexity</td><td>${sonar.cognitiveComplexity}</td></tr>`;
-    rows += `<tr><td class="scope-label">Code smells</td><td>${sonar.codeSmells}</td></tr>`;
+// ArchitectureMetricsExport.java) now live on their own System-level "Code Quality" screen
+// (renderCodeQuality() below), one table per source so it's always clear which numbers came from
+// where -- not repeated per module page anymore.
+// Green/yellow/red thresholds -- only for *ratios*, never raw counts (Ce/Ca, code smells,
+// complexity totals have no universal per-module threshold; only per-file/per-LOC/derived ratios
+// do). value/thresholds -> the metric-good/metric-watch/metric-critical class.
+function metricClass(value, green, yellow) {
+  if (value < green) return "metric-good";
+  if (value < yellow) return "metric-watch";
+  return "metric-critical";
+}
+function coloredMetric(value, decimals, green, yellow) {
+  return `<span class="${metricClass(value, green, yellow)}">${esc(value.toFixed(decimals))}</span>`;
+}
+
+const CODE_QUALITY_GLOSSARY = [
+  { field: "Java files", desc: "Number of .java files under this module's src/main/java. The denominator for the two per-file ratios below — on its own it's just a size indicator, not a quality signal." },
+  { field: "Lines of code", desc: "Non-comment lines of code (NCLOC), as counted by SonarQube. A raw size measure, not a complexity measure — a large module can still be simple if it's mostly straightforward, repetitive code (e.g. DTOs, generated mappers)." },
+  { field: "Complexity", desc: "Cyclomatic complexity — the number of independent execution paths through the code, counted from branching statements (if/for/while/case/&&/||). Higher means more paths a test suite has to cover to reach full branch coverage, and more ways the code can behave differently at runtime. This is the module's raw total, not yet normalized by size — a big module naturally has a bigger raw total even if each individual method is simple." },
+  { field: "Complexity/file", desc: "Complexity divided by Java file count — normalizes away module size so modules of very different sizes can be compared fairly. A high value means the average file is doing a lot of branching, which usually also means it's doing more than one job and is a candidate for splitting. Colored: green < 10, yellow 10-20, red > 20." },
+  { field: "Cognitive complexity", desc: "SonarQube's readability metric — unlike cyclomatic complexity, it specifically penalizes nested/tangled control flow (an if inside a loop inside a try inside another if) more heavily than the same number of branches laid out flat, because nesting is what actually makes code hard for a human to hold in their head while reading it." },
+  { field: "Cognitive/file", desc: "Cognitive complexity divided by Java file count. A high value is a stronger signal than high raw Complexity/file that a file is genuinely hard to read (not just branch-heavy) — worth a closer look even before it hits a hard SonarQube rule threshold. Colored: green < 10, yellow 10-25, red > 25." },
+  { field: "Code smells", desc: "Count of maintainability issues SonarQube's rule engine actually flagged in this module (naming, dead code, duplicated logic, overly long methods, etc.) — a concrete, itemized list (visible in the SonarQube dashboard itself), not a derived estimate like the complexity numbers above." },
+  { field: "Code smells/1k LOC", desc: "Code smells normalized per 1000 lines of code, so a small module with 2 smells isn't unfairly compared against a large module with 20 — what matters is smell density, not raw count. Colored: green < 5, yellow 5-15, red > 15." },
+  { field: "Efferent coupling (Ce)", desc: "How many classes outside this module the classes inside it depend on — this module's \"outgoing\" dependencies. High Ce means this module is exposed to a lot of external change: if any of those other classes change their API, this module is one of the things that might break." },
+  { field: "Afferent coupling (Ca)", desc: "How many classes outside this module depend on classes inside it — this module's \"incoming\" dependencies, i.e. its real-world blast radius. High Ca means many other parts of the codebase would be affected if this module's public API changed, so changes here need extra care." },
+  { field: "Instability (I)", desc: "I = Ce/(Ce+Ca), from Robert Martin's stability metrics — 0 means maximally stable (only depended upon, never depends on anything itself — safe to keep unchanged, risky to modify), 1 means maximally unstable (only depends on others, nothing depends on it — safe to change freely, since nothing breaks downstream)." },
+  { field: "Abstractness (A)", desc: "The ratio of abstract classes/interfaces to total classes in the module. A module that's mostly concrete implementation classes has low A; a module that's mostly interfaces/abstract contracts (like an SPI layer) has high A." },
+  { field: "Distance from Main Sequence", desc: "|A+I-1| — the classic \"is this module positioned sensibly\" check from Martin's stability/abstractness model. 0 is the ideal balance (stable modules should be abstract, unstable modules should be concrete). Far from 0 in the low-A/low-I direction is the \"Zone of Pain\" (concrete AND stable — hard to change safely, because nothing about it is abstracted away, yet lots of things depend on it). Far from 0 in the high-A/high-I direction is the \"Zone of Uselessness\" (abstract AND unstable — an interface layer nothing actually relies on, which usually means it's dead weight). Colored: green < 0.3, yellow 0.3-0.6, red > 0.6." },
+];
+
+function renderCodeQuality() {
+  const sonar = MODEL.sonarMetrics;
+  const arch = MODEL.archUnitMetrics;
+  let html = backButtonHtml();
+  html += `<h2 class="screen-title">Code Quality</h2>
+    <div class="screen-desc">Real SonarQube + ArchUnit metrics per module, one table per source. Both opt-in (<code>--with-sonar</code>/<code>--with-archunit</code> on <code>generate-architecture-model.sh</code>), off by default -- regenerate with those flags to populate this screen. Raw counts are shown plain; derived ratios are colored (see Overview at the bottom for thresholds).</div>`;
+
+  html += `<section class="block"><h3>SonarQube</h3>`;
+  if (!sonar) {
+    html += `<div class="empty-hint">No data -- regenerate with <code>--with-sonar</code> (requires a reachable SonarQube server).</div>`;
+  } else {
+    html += `<div class="empty-hint">Source: SonarQube (analysis: ${esc(sonar.analysisDate || "unknown")}).</div>
+      <table class="simple"><thead><tr><th>Module</th><th>Java files</th><th>Lines of code</th><th>Complexity</th><th>Complexity/file</th><th>Cognitive complexity</th><th>Cognitive/file</th><th>Code smells</th><th>Code smells/1k LOC</th></tr></thead><tbody>`;
+    moduleNodes.forEach(n => {
+      const m = sonar.modules && sonar.modules[n.id];
+      if (!m) return;
+      const perFile = m.javaFileCount > 0 ? m.complexity / m.javaFileCount : 0;
+      const cogPerFile = m.javaFileCount > 0 ? m.cognitiveComplexity / m.javaFileCount : 0;
+      const smellsPer1k = m.ncloc > 0 ? m.codeSmells / (m.ncloc / 1000) : 0;
+      html += `<tr><td><a class="module-link" onclick="navigate({screen:'module', id:'${esc(n.id)}'})">${esc(n.id)}</a></td><td>${m.javaFileCount}</td><td>${m.ncloc}</td><td>${m.complexity}</td><td>${coloredMetric(perFile, 1, 10, 20)}</td><td>${m.cognitiveComplexity}</td><td>${coloredMetric(cogPerFile, 1, 10, 25)}</td><td>${m.codeSmells}</td><td>${coloredMetric(smellsPer1k, 1, 5, 15)}</td></tr>`;
+    });
+    html += `</tbody></table>`;
   }
-  if (arch) {
-    rows += `<tr><td class="scope-label">Efferent coupling</td><td>${arch.efferentCoupling}</td></tr>`;
-    rows += `<tr><td class="scope-label">Afferent coupling</td><td>${arch.afferentCoupling}</td></tr>`;
-    rows += `<tr><td class="scope-label">Instability</td><td>${esc(arch.instability.toFixed(2))}</td></tr>`;
-    rows += `<tr><td class="scope-label">Abstractness</td><td>${esc(arch.abstractness.toFixed(2))}</td></tr>`;
+  html += `</section>`;
+
+  html += `<section class="block"><h3>ArchUnit</h3>`;
+  if (!arch) {
+    html += `<div class="empty-hint">No data -- regenerate with <code>--with-archunit</code> (requires <code>bash scripts/unit-tests.sh</code> to have run at least once).</div>`;
+  } else {
+    html += `<div class="empty-hint">Source: ArchUnit (from the last <code>bash scripts/unit-tests.sh</code> run).</div>
+      <table class="simple"><thead><tr><th>Module</th><th>Efferent coupling</th><th>Afferent coupling</th><th>Instability</th><th>Abstractness</th><th>Distance from Main Sequence</th></tr></thead><tbody>`;
+    moduleNodes.forEach(n => {
+      const m = arch.modules && arch.modules[n.id];
+      if (!m) return;
+      const distance = Math.abs(m.abstractness + m.instability - 1);
+      html += `<tr><td><a class="module-link" onclick="navigate({screen:'module', id:'${esc(n.id)}'})">${esc(n.id)}</a></td><td>${m.efferentCoupling}</td><td>${m.afferentCoupling}</td><td>${esc(m.instability.toFixed(2))}</td><td>${esc(m.abstractness.toFixed(2))}</td><td>${coloredMetric(distance, 2, 0.3, 0.6)}</td></tr>`;
+    });
+    html += `</tbody></table>`;
   }
-  const sourceNote = [
-    sonar ? `SonarQube (analysis: ${esc(MODEL.sonarMetrics.analysisDate || "unknown")})` : "",
-    arch ? "ArchUnit (from the last bash scripts/unit-tests.sh run)" : ""
-  ].filter(Boolean).join(" + ");
-  return `<section class="block"><h3>Code Metrics</h3>
-    <div class="empty-hint">Source: ${sourceNote}.</div>
-    <table class="simple"><tbody>${rows}</tbody></table>
-  </section>`;
+  html += `</section>`;
+
+  html += `<section class="block"><h3>Overview</h3>
+    <table class="simple"><thead><tr><th>Field</th><th>What it means</th></tr></thead><tbody>` +
+    CODE_QUALITY_GLOSSARY.map(g => `<tr><td class="scope-label">${esc(g.field)}</td><td>${esc(g.desc)}</td></tr>`).join("") +
+    `</tbody></table></section>`;
+
+  document.getElementById("content").innerHTML = html;
 }
 
 function renderModule() {
@@ -1849,23 +2040,10 @@ function renderModule() {
     html += `<section class="block"><h3>Contracts (Port/Hook)</h3><ul class="info-list">` + n.contracts.map(c => `<li>${c.replace(/`([^`]+)`/g, (m,g)=>`<code>${esc(g)}</code>`)}</li>`).join("") + `</ul></section>`;
   }
 
-  html += renderModuleCodeMetricsHtml(n.id);
-
   html += `<section class="block"><h3>Depends on (compile)</h3>${renderDepList(n.edges.DEPENDS_ON_COMPILE, "compile", "No compile-time module dependencies.")}</section>`;
   if ((n.edges.DEPENDS_ON_RUNTIME||[]).length) html += `<section class="block"><h3>Depends on (runtime)</h3>${renderDepList(n.edges.DEPENDS_ON_RUNTIME, "runtime", "")}</section>`;
   if ((n.edges.DEPENDS_ON_OPTIONAL||[]).length) html += `<section class="block"><h3>Depends on (optional)</h3>${renderDepList(n.edges.DEPENDS_ON_OPTIONAL, "optional", "")}</section>`;
   html += `<section class="block"><h3>Depended on by</h3>${renderDepList(n.edges.DEPENDED_ON_BY, "", "Nothing in this repo depends on it directly (leaf module).")}</section>`;
-
-  const hasIntent = n.intent && n.intent.length > 0;
-  const ownFileEntry = hasIntent ? (n.intent.find(a => a.file === `${n.id}/DECISIONS.md`) || n.intent[0]) : null;
-  const viewFullFileLink = ownFileEntry ? `<a class="section-link" href="${adrFileLink(ownFileEntry)}" target="_blank">view full file</a>` : "";
-  html += `<section class="block"><h3>Architectural decisions (${(n.intent||[]).length}) ${viewFullFileLink}</h3>`;
-  if (!hasIntent) {
-    html += `<div class="empty-hint">No ADRs recorded for this module (it may record decisions in another module's DECISIONS.md — see root CLAUDE.md).</div>`;
-  } else {
-    html += renderAdrList(n);
-  }
-  html += `</section>`;
 
   html += `<section class="block"><h3>Deeper levels (Track B — not built yet)</h3>
     <div class="placeholder-row"><span class="name">Contract method signatures &amp; types</span><span class="tag">needs ArchUnit exporter — names only above</span></div>
@@ -1902,7 +2080,8 @@ function renderScriptGroupSection(n) {
 }
 
 function renderPipelines() {
-  let html = `<h2 class="screen-title">Tooling &amp; Pipelines</h2>
+  let html = backButtonHtml();
+  html += `<h2 class="screen-title">Tooling &amp; Pipelines</h2>
     <div class="screen-desc">Slash commands, skills, and scripts available in this repo — sourced from .claude/commands, .claude/skills, and scripts/**, cross-checked against docs/ai/flows.md.</div>`;
 
   html += `<h3 class="group-heading">AI Tooling</h3>`;
@@ -1996,7 +2175,8 @@ function setBacklogFilter(f) { backlogFilter = f; renderBacklog(); }
 function renderBacklog() {
   const items = backlogFilter === "open" ? backlogNode.openIssues : backlogNode.completedIssues;
   const label = backlogFilter === "open" ? "Open issues" : "Completed issues";
-  let html = `<h2 class="screen-title">Backlog</h2>
+  let html = backButtonHtml();
+  html += `<h2 class="screen-title">Backlog</h2>
     <div class="screen-desc">Per-issue titles in Track A — see ${sourceLink("backlog/BACKLOG.md")} for the ranked, priority view.</div>
     <div class="card-grid">
       <div class="card ${backlogFilter === "open" ? "card-active" : ""}" onclick="setBacklogFilter('open')"><div class="card-title">${backlogNode.open_issues}</div><div class="card-desc">open issues (backlog/issues/)</div></div>
@@ -2527,7 +2707,8 @@ function enableDragToPan(el) {
 // ── Diagrams screen: all diagrams render live -- no markdown counterpart for any of them. ───────
 function renderDiagrams() {
   if (!view.groupKey) {
-    let html = `<h2 class="screen-title">Diagrams</h2>
+    let html = backButtonHtml();
+    html += `<h2 class="screen-title">Diagrams</h2>
       <div class="screen-desc">${totalDiagramCount} diagrams, all rendered live from pom.xml/real Java source/real Liquibase changelogs -- no separately-maintained markdown source for any of them.</div>`;
     MODEL.diagramGroups.forEach(g => {
       const graphType = GRAPH_TYPE_KEYS.includes(g.key);
@@ -2622,14 +2803,114 @@ function render() {
   else if (view.screen === "backlog") renderBacklog();
   else if (view.screen === "diagrams") renderDiagrams();
   else if (view.screen === "docker") renderDocker();
+  else if (view.screen === "adrs") renderAdrs();
+  else if (view.screen === "codequality") renderCodeQuality();
   else renderSystem();
 }
+
+// ── ADRs screen: flat, deduplicated list of every ADR across every module's DECISIONS.md, read
+// live from docs/ai/adr-index.md (MODEL.allAdrs) -- no separate hand-maintained summary.
+let adrStatusFilter = "All";
+function setAdrStatusFilter(f) { adrStatusFilter = f; renderAdrs(); }
+
+function renderAdrs() {
+  const adrs = MODEL.allAdrs || [];
+  // Status text in this repo is often a long free-form annotation, not a bare word (e.g.
+  // "Accepted (done 2026-06-26)") -- bucket by just the first word so the filter cards stay a
+  // handful, not dozens of near-duplicate ones; the full original text is still shown per-row in
+  // the table below.
+  const bucketOf = a => (a.status.match(/^[A-Za-z]+/) || [a.status])[0];
+  const counts = {};
+  adrs.forEach(a => { const b = bucketOf(a); counts[b] = (counts[b] || 0) + 1; });
+  const filtered = adrStatusFilter === "All" ? adrs : adrs.filter(a => bucketOf(a) === adrStatusFilter);
+
+  let html = backButtonHtml();
+  html += `<h2 class="screen-title">ADRs</h2>
+    <div class="screen-desc">${adrs.length} architectural decisions across every module's own DECISIONS.md — see ${sourceLink("docs/ai/adr-index.md")} for the generated index this screen reads, and the Overview section at the bottom of this screen for what an ADR is and how it's used.</div>`;
+  html += `<div class="card-grid">
+    <div class="card ${adrStatusFilter === "All" ? "card-active" : ""}" onclick="setAdrStatusFilter('All')"><div class="card-title">${adrs.length}</div><div class="card-desc">All</div></div>`;
+  html += Object.entries(counts).map(([status, count]) =>
+    `<div class="card ${adrStatusFilter === status ? "card-active" : ""}" onclick="setAdrStatusFilter('${esc(status)}')"><div class="card-title">${count}</div><div class="card-desc">${esc(status)}</div></div>`
+  ).join("");
+  html += `</div>`;
+
+  // Grouped by module (first-appearance order, same order MODEL.allAdrs already carries) instead
+  // of one flat table -- the module is now the group heading (with its own DECISIONS.md link
+  // right there), so a per-row "Module" column would just repeat what the heading already says.
+  const groups = [];
+  const groupIndex = {};
+  filtered.forEach(a => {
+    if (!(a.module in groupIndex)) { groupIndex[a.module] = groups.length; groups.push({ module: a.module, items: [] }); }
+    groups[groupIndex[a.module]].items.push(a);
+  });
+  groups.forEach(grp => {
+    // Only a real MODULE node has a Module-detail page to link to -- SCRIPT_GROUP entries
+    // (scripts/architecture, scripts/ci, etc.) stay plain text, no dead/wrong-feeling navigation.
+    const grpNode = byId[grp.module];
+    const grpHeading = grpNode && grpNode.type === "MODULE"
+      ? `<a class="module-link" onclick="navigate({screen:'module', id:'${esc(grp.module)}'})">${esc(grp.module)}</a>`
+      : esc(grp.module);
+    html += `<section class="block"><h3>${grpHeading} (${grp.items.length}) ${sourceLink(grp.module + "/DECISIONS.md")}</h3>
+      <table class="simple"><thead><tr><th>ADR</th><th>Status</th><th>Title</th></tr></thead><tbody>`;
+    grp.items.forEach(a => {
+      html += `<tr><td><a onclick="openAdrPopupForAdr('${esc(a.id)}', '${esc(a.module)}')">${esc(a.id)}</a></td><td>${esc(a.status)}</td><td>${esc(a.title)}</td></tr>`;
+    });
+    html += `</tbody></table></section>`;
+  });
+
+  html += `<section class="block"><h3>Overview</h3>` + GLOSSARY.map(g => `<div class="glossary-item"><strong>${esc(g.term)}</strong>${g.body}</div>`).join("") + `</section>`;
+
+  document.getElementById("content").innerHTML = html;
+}
+
+// Same popup as openAdrPopupForIntent() (Module screen's Architectural decisions list) -- this
+// one takes the ADR id + home module directly instead of a node's intent[] index, since the ADRs
+// screen's list is flat across every module, not scoped to one node.
+function openAdrPopupForAdr(id, module) {
+  const bareId = id.split(" (")[0];
+  const homeNode = byId[module];
+  const found = homeNode && homeNode.decisions && homeNode.decisions.adrs.find(x => x.id === bareId);
+  if (!found) { window.open(`../../${module}/DECISIONS.md`, "_blank"); return; }
+  document.getElementById("adr-popup-title").textContent = `${found.id} — ${found.title}`;
+  document.getElementById("adr-popup-status").textContent = found.status;
+  document.getElementById("adr-popup-body").innerHTML = mdBlockToHtml(found.body);
+  document.getElementById("adr-popup").showModal();
+}
+
+// ── System screen's "Overview" block: a small glossary of general terms/concepts used across
+// this tool and this repo's own conventions -- hand-maintained prose, same "genuinely
+// non-mechanical content" exception this tool already uses elsewhere (SPI Map's Call Flow
+// Examples, Bounded Contexts' narrative sections) -- a term's meaning isn't something to extract
+// from a file, it's explained once, here, at the bottom of the System screen (not a separate
+// "Notes" card/screen -- dropped that shape after landing it, kept the content).
+const GLOSSARY = [
+  { term: "ADR (Architectural Decision Record)", body: `
+    <p><strong>What it is:</strong> a single, dated, numbered record of one architectural or
+    technical decision — what was decided, the context that led to it, and why. Each module owns
+    its own <code class="path">DECISIONS.md</code> file holding its own sequential
+    <code>ADR-NNN</code>s.</p>
+    <p><strong>How it's used here:</strong> filed via <code>/decision &lt;module&gt; —
+    &lt;title&gt;</code>. Once written, an ADR is never edited to remove content or deleted — if a
+    later decision reverses or replaces it, the old ADR gets <code>Status: Superseded</code> (or an
+    amendment note) pointing at the new one, and a new ADR is added instead.
+    ${sourceLink("docs/ai/adr-index.md")} is a generated, searchable flat index of every ADR
+    (id/module/status/title) — check it before filing a new one, to avoid re-deciding something
+    already settled.</p>
+    <p><strong>Boundaries — what an ADR is not:</strong> not a running changelog of "what
+    changed" (that's git history); not where code comments explain WHY (those stay a single
+    inline line, in the code itself); not a substitute for a backlog issue (which tracks work not
+    yet done — an ADR records a decision already made); not renumbered or reorganized once
+    written — its number is permanent and load-bearing (other code/docs reference it by number)
+    even if its owning file later moves or is renamed.</p>
+  ` }
+];
 
 // ── Docker screen: real files + mechanically-extracted facts (build stages / compose service
 // names) only -- the actual deployment workflow explanation stays in scripts/CLAUDE.md's
 // "Deployment" section, linked to below, never restated here.
 function renderDocker() {
-  let html = `<h2 class="screen-title">Docker</h2>
+  let html = backButtonHtml();
+  html += `<h2 class="screen-title">Docker</h2>
     <div class="screen-desc">What builds/runs in this repo, straight from the real files — see ${sourceLink("scripts/CLAUDE.md")} for the actual deploy workflow (deploy.sh/deploy-dev.sh flags, when to use which).</div>`;
 
   const dockerfiles = MODEL.dockerFiles.filter(f => f.kind === "dockerfile");

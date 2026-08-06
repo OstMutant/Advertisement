@@ -1,17 +1,25 @@
 #!/usr/bin/env node
+// Description: Parses a module's DECISIONS.md into structured ADR data for embedding directly
+//   into architecture-model.json -- no separate DECISIONS.json file, no hand-copied ADR prose.
+// Uses: Node.js (no external dependencies -- plain string/regex parsing, no markdown library).
+// Input: a module's DECISIONS.md file (module name passed as CLI arg).
+// Output: `{title, adrs:[{id,title,status,body}], extra:[{heading,body}]}` -- printed to stdout
+//   (--stdout mode, consumed by generate-architecture-model.sh) or written to
+//   <module>/DECISIONS.json (batch mode).
+//
 // Parses a module's DECISIONS.md into structured data -- {title, adrs:[{id,title,status,body}],
-// extra:[{heading,body}]} -- see scripts/ai/DECISIONS.md for the design history.
+// extra:[{heading,body}]} -- see scripts/architecture/DECISIONS.md for the design history.
 // Replaces an earlier awk-based version that hit two real bugs on real content (label+list with
 // no blank line between merging into one paragraph; multi-line list items losing their numbering)
 // -- JSON.stringify() gives correct escaping by construction and normal string/regex methods
 // handle block parsing far more reliably than a hand-rolled awk state machine.
 //
 // Usage:
-//   node scripts/ai/md-to-decisions-json.js <module> [<module> ...]        -- writes <module>/DECISIONS.json
-//   node scripts/ai/md-to-decisions-json.js --stdout <module>              -- prints one module's
+//   node scripts/architecture/md-to-decisions-json.js <module> [<module> ...]        -- writes <module>/DECISIONS.json
+//   node scripts/architecture/md-to-decisions-json.js --stdout <module>              -- prints one module's
 //     parsed object as a single line of JSON to stdout, for embedding directly into
 //     architecture-model.json (no separate <module>/DECISIONS.json file, no runtime file:// load
-//     -- see scripts/ai/DECISIONS.md ADR-008 for why the separate-file/<script src> design was
+//     -- see scripts/architecture/DECISIONS.md ADR-008 for why the separate-file/<script src> design was
 //     abandoned: it depends on browser-specific file:// security policy, an unacceptable
 //     dependency for a tool meant to just work when double-clicked).
 

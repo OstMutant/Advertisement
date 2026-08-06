@@ -1605,3 +1605,24 @@ standalone `architecture-map.html` tool, already verified directly via isolated 
 container runs during implementation. `scripts/ai/DECISIONS.md` ADR-020 records the full decision;
 `docs/ai/adr-index.md` regenerated. Full detail:
 `completed/issues/improvement-143-architecture-docs-05-08-mechanization-batch.md`.
+
+✅ Done (2026-08-06): improvement-144 — opt-in `--with-sonar`/`--with-archunit` flags on
+`generate-architecture-model.sh` (default off, `ensure_sonar_fresh` no longer runs unconditionally);
+architecture-generation tooling (`generate-architecture-model.sh`, the freshness/screenshot
+scripts, both Node parsers, `architecture-map-screenshots/`, and the whole `DECISIONS.md`, ADR
+numbers unchanged) moved from `scripts/ai/` into a new sibling `scripts/architecture/` directory
+(`scripts/ai/` keeps only the ADR-index/flows/doc-standards scripts, now with no `DECISIONS.md` of
+its own); every `scripts/architecture/` script gained a standardized 4-field header
+(`Description:`/`Uses:`/`Input:`/`Output:`) that the System screen's "How this page is built"
+section now reads dynamically instead of hardcoding; two new System-screen cards/screens —
+**ADRs** (flat, deduplicated, filterable-by-status, grouped-by-module list of every ADR across
+every module, full-content popup reusing the Module page's existing mechanism, a glossary Overview
+section explaining what an ADR is/how it's used/its boundaries) and **Code Quality** (SonarQube +
+ArchUnit metrics per module, one table per source, derived ratio columns color-coded
+green/yellow/red against real thresholds, an Overview section explaining every field) — both
+replacing content that used to live inline on every Module page. Full detail across
+`scripts/architecture/DECISIONS.md` ADR-021/022/023/024. The one piece of the original scope not
+built — a companion-server on-demand refresh trigger — was split into `improvement-146` once
+everything else landed, since that piece's priority was still undecided while the rest was ready
+to close. Full detail:
+`completed/issues/improvement-144-code-metrics-dedicated-card-refresh-trigger.md`.

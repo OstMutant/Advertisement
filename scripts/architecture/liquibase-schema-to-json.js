@@ -1,13 +1,18 @@
 #!/usr/bin/env node
-// Parses real Liquibase changelog XML (createTable/column/constraints, addForeignKeyConstraint,
-// createIndex, addPrimaryKey, plus a narrow regex pass over raw <sql> for CHECK constraints and
-// non-Liquibase-native indexes) into JSON for generate-architecture-model.sh's live Database ERD.
+// Description: Parses real Liquibase changelog XML into structured table/column JSON for the
+//   live Database ERD -- no hand-maintained schema markdown.
+// Uses: Node.js (no external dependencies -- plain string/regex parsing, no XML library).
+// Input: one or more Liquibase changelog XML files (createTable/column/constraints,
+//   addForeignKeyConstraint, createIndex, addPrimaryKey, and a narrow regex pass over raw <sql>
+//   for CHECK constraints and non-Liquibase-native indexes), passed as CLI args.
+// Output: one JSON object `{ "tables": [...] }` printed to stdout, consumed by
+//   generate-architecture-model.sh's db_erd_json().
+//
 // Single source of truth: column/table descriptions live in each changelog's own `remarks=`
 // attribute (see platform-commons/CLAUDE.md's sibling convention for *.spi Javadoc, and root
 // CLAUDE.md's "Database Changes" guideline) -- never duplicated here or in a separate markdown.
 //
 // Usage: node liquibase-schema-to-json.js <repoRoot> <file1> [file2 ...]
-// Prints one JSON object: { "tables": [...] }
 
 const fs = require("fs");
 const path = require("path");

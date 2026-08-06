@@ -52,7 +52,7 @@ All cross-module extension points live in `platform-commons/*.spi`. The suffix e
 Starters are optional — marketplace compiles and runs without them on the classpath (all injections use `ObjectProvider`). If a port or hook interface lived inside a starter, removing that starter would break marketplace compilation even though the feature is optional. Keeping all interfaces in `platform-commons` ensures marketplace always has the type visible, regardless of which starters are present.
 
 **Every `*.spi` interface must carry a Javadoc purpose paragraph directly above its declaration.**
-This is the single source of truth for what the interface is for — `scripts/ai/generate-architecture-model.sh`'s SPI Map reads it live (the Javadoc block immediately preceding `interface X`, first paragraph up to any `@`-tag) and shows it in the interactive diagram's detail popup. Do not also maintain a separate description of the same interface anywhere else (a generator-side lookup table, a wiki page, etc.) — if the purpose changes, edit the Javadoc, not a second copy.
+This is the single source of truth for what the interface is for — `scripts/architecture/generate-architecture-model.sh`'s SPI Map reads it live (the Javadoc block immediately preceding `interface X`, first paragraph up to any `@`-tag) and shows it in the interactive diagram's detail popup. Do not also maintain a separate description of the same interface anywhere else (a generator-side lookup table, a wiki page, etc.) — if the purpose changes, edit the Javadoc, not a second copy.
 
 ```java
 /**

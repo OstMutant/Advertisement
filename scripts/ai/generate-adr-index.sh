@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regenerates docs/ai/adr-index.md from every DECISIONS.md file's own ADR headings/Status lines.
-# Purely mechanical (no manual metadata) — see scripts/ai/DECISIONS.md ADR-001 for the rationale.
+# Purely mechanical (no manual metadata) — see scripts/architecture/DECISIONS.md ADR-001 for the rationale.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -68,7 +68,7 @@ while IFS= read -r -d '' file; do
     state == 2 { status = status " " $0; next }
     # "**Also affects:** module-a, module-b" -- optional, only checked on the first non-blank line
     # right after the Status paragraph. Cross-lists this ADR under other modules'"'"' pages without
-    # duplicating its text (see scripts/ai/DECISIONS.md for the design this supports).
+    # duplicating its text (see scripts/architecture/DECISIONS.md for the design this supports).
     state == 3 && /^[[:space:]]*$/ { next }
     state == 3 && /^\*\*Also affects:\*\*/ {
       affects = $0

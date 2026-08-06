@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
-# Screenshots architecture-map.html (Track A of the architecture control plane) via a headless
-# Playwright browser, since this generated file has no automated visual test of its own and Claude
-# has no display in this environment otherwise. Mirrors playwright/run.sh's container conventions (same pinned
-# Playwright image/version) but is a standalone tool, not part of the e2e suite -- it screenshots
-# a static generated file, not the running app.
+# Description: Screenshots every screen of architecture-map.html via a headless Playwright
+#   browser, since the generated file has no automated visual test of its own.
+# Uses: bash, a headless Playwright browser (Docker, same pinned image/version as playwright/run.sh).
+# Input: docs/architecture/architecture-map.html (must already exist and be current).
+# Output: scripts/architecture/architecture-map-screenshots/{01-system,02-diagrams-list,
+#   03-diagram-module-deps,04-module-detail,05-diagram-spi,06-diagram-spi-zoomed,07-pipelines,
+#   08-backlog}.png (gitignored -- ephemeral verification artifacts, not committed).
+#
+# Mirrors playwright/run.sh's container conventions but is a standalone tool, not part of the e2e
+# suite -- it screenshots a static generated file, not the running app.
 #
 # Usage:
-#   bash scripts/ai/screenshot-architecture-map.sh
-#
-# Output: scripts/ai/architecture-map-screenshots/{01-system,02-diagrams-list,03-diagram-module-deps,
-# 04-module-detail,05-diagram-spi,06-diagram-spi-zoomed,07-pipelines,08-backlog}.png
-# (gitignored -- ephemeral verification artifacts, not committed).
+#   bash scripts/architecture/screenshot-architecture-map.sh
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HTML="$REPO_ROOT/docs/architecture/architecture-map.html"
-OUT_DIR="$REPO_ROOT/scripts/ai/architecture-map-screenshots"
+OUT_DIR="$REPO_ROOT/scripts/architecture/architecture-map-screenshots"
 CONTAINER="arch-map-shot"
 PLAYWRIGHT_VERSION="1.61.1"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"

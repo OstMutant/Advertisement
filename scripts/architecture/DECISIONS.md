@@ -1,4 +1,4 @@
-# Architecture & Technical Decisions — scripts/ai
+# Architecture & Technical Decisions — scripts/architecture
 
 ---
 
@@ -1225,6 +1225,302 @@ acted on:
   `ensure_sonar_fresh()` triggers a full rescan (compile + `sonar-scanner`, confirmed ~30-60s in
   this run) before the model is built. Accepted trade-off, not a regression caught after the fact —
   explicitly weighed and approved before implementation.
+
+## ADR-021: Sonar/ArchUnit fetch made opt-in (default off); architecture-generation tooling — and this file — moved into `scripts/architecture/`, a sibling of `scripts/ai/`
+
+**Status:** Accepted
+
+**Context:** Two related requests. First: `ensure_sonar_fresh()`/`sonar_metrics_json()`/
+`archunit_metrics_json()` ran unconditionally on every generator invocation, so a plain run could
+trigger a multi-minute SonarQube rescan with no way to opt out — confirmed by reading the call
+sites, not assumed. `renderModuleCodeMetricsHtml()` was checked and already returns `""` when both
+metric sources are `null` for a module, so no separate "hide empty sections" fix was needed once
+the default flips. Second: `scripts/ai/` held two distinct concerns side by side with no folder
+separation — architecture-map generation (the large, actively-growing piece) and ADR-index/flows/
+doc-standards backstop tooling (a separate, smaller concern). An initial attempt moved the
+generation files into a `scripts/ai/architecture/` **subfolder** (nested under `scripts/ai/`,
+`DECISIONS.md` left behind at `scripts/ai/DECISIONS.md`) — corrected mid-implementation to a
+**sibling** `scripts/architecture/` directory instead, once it became clear the nested shape still
+mixed the two concerns under one parent for no real reason.
+
+**Decision:**
+1. Added `--with-sonar`/`--with-archunit` flags (`for arg in "$@"` parsing, same shape
+   `integration-tests/run.sh` already uses for `--sandbox`/`--no-check`), both off by default.
+   `ensure_sonar_fresh` and the two metrics functions now only run when their flag is passed;
+   `sonarMetrics`/`archUnitMetrics` are `null` in the generated model otherwise.
+2. Moved `generate-architecture-model.sh`, `check-architecture-model-freshness.sh`,
+   `screenshot-architecture-map.sh`, `liquibase-schema-to-json.js`, `md-to-decisions-json.js`,
+   `architecture-map-screenshots/`, **and this `DECISIONS.md` file itself** into a new
+   `scripts/architecture/` directory, a sibling of `scripts/ai/`, not nested under it. ADR numbers
+   in this file are unchanged (still ADR-001 through ADR-021) — only the file's own path moved,
+   since those numbers are referenced by number from `.claude/rules.md`, other scripts, and this
+   generator's own rendered output; renumbering was ruled out as actively dangerous. Every
+   in-repo `scripts/ai/DECISIONS.md ADR-NNN` reference (this file's own comments in the generator,
+   `md-to-decisions-json.js`, `generate-adr-index.sh`, `check-hardcoded-counts.sh`) was updated to
+   `scripts/architecture/DECISIONS.md ADR-NNN` in the same pass — the whole file moved, so every
+   pointer to it moves too; this is a live path reference, not historical prose about a past event,
+   so it doesn't fall under the append-only-history exception.
+3. `scripts/ai/` keeps `check-adr-index-freshness.sh`, `generate-adr-index.sh`,
+   `check-flows-completeness.sh`, `check-hardcoded-counts.sh` — the ADR-index/flows/doc-standards
+   concern — but now has **no `DECISIONS.md` of its own**. It still gets its own `SCRIPT_GROUP`
+   node (files-only: `decisions_json_for()`/`adr_intent_for_module()` both degrade to
+   empty/`null` for a module with no `DECISIONS.md` on disk and no cross-references pointing at
+   it, rather than needing a special case in the render path) so its 4 files stay visible on the
+   Tooling & Pipelines screen instead of disappearing.
+4. `REPO_ROOT` in the three moved `.sh` files ended up unchanged in net effect
+   (`scripts/architecture/<file>.sh` is the same depth below repo root as the original
+   `scripts/ai/<file>.sh` was) — but this took two corrections to get right: first bumped from
+   `../..` to `../../..` for the (later-reverted) nested-subfolder attempt, then back to `../..`
+   once the sibling-directory shape was adopted. The kind of self-referential path bug this class
+   of reorg risks at every depth change, not just once.
+5. The `scripts/ai` `SCRIPT_GROUP` node's `evidence` field (used for the "view full file" link)
+   is now computed conditionally — `"$d/DECISIONS.md"` only when that file actually exists,
+   `"$d"` (the directory itself) otherwise — rather than assuming every `SCRIPT_GROUP_DIRS` entry
+   owns a `DECISIONS.md`, which stopped being true the moment `scripts/ai` lost its own.
+
+**Consequences:**
+- `docs/architecture/architecture-model.json`/`architecture-map.html` regenerated with the new
+  default — `sonarMetrics`/`archUnitMetrics` reset to `null` in the committed copy. The richer data
+  stays available on demand (`--with-sonar --with-archunit` locally) but is no longer baked into
+  what CI/the freshness gate compares against.
+- Every external reference to the 5 moved files' old `scripts/ai/<file>` path needed updating in
+  the same pass: root `CLAUDE.md` (2), `platform-commons/CLAUDE.md` (1),
+  `.claude/commands/sync-docs.md` (3), `scripts/ci/entrypoint.sh` (1), plus the generator's own
+  self-referencing invocations of its sibling `.js` parsers and its rendered
+  `"regenerate via ..."` strings (which also flow into the 3 generated-pointer `DECISIONS.md`
+  files for `advertisement`/`user`/`provider-profile-spring-boot-starter` — those regenerate
+  automatically, never hand-edited). Historical ADR prose in *other* modules' `DECISIONS.md` files
+  that mentions the old bare `scripts/ai/<file>` path (if any) is left as-is, per this project's
+  append-only-history convention — genuinely historical prose describes what was true when
+  written, distinct from the live cross-file pointers corrected in point 2 above.
+- `docs/ai/adr-index.md` regenerated (`bash scripts/ai/generate-adr-index.sh`) in the same pass —
+  mandatory whenever any `DECISIONS.md` changes, including a path-only move like this one.
+
+## ADR-022: Every `scripts/architecture/` script self-documents via a fixed 4-field header — System screen's "How this page is built" section reads it live, no hand-written prose
+
+**Status:** Accepted
+
+**Context:** The System screen's "How this page is built" section hardcoded a `Generation:`
+sentence (naming `generate-architecture-model.sh` + "two small Node.js parsers") and a `Sources:`
+sentence (listing `pom.xml`, Java source, Liquibase changelogs, `DECISIONS.md`, `docs/ai/flows.md`,
+`.claude/commands`, `.claude/skills`, `backlog/`) as static strings inside `renderSystem()`. This
+is exactly the class of drifting documentation the tool otherwise avoids everywhere else
+(Javadoc-sourced SPI descriptions, `remarks=`-sourced column docs, live ADR content) — nothing
+would catch it going stale if a script's real inputs/outputs changed.
+
+**Decision:** Every script in `scripts/architecture/` gets 4 fixed-prefix header comment lines
+directly after the shebang (`#` for `.sh`, `//` for `.js`), before any other free-form rationale
+prose the script already had:
+```
+# Description: <what it does>
+# Uses: <tools/runtime/libraries>
+# Input: <what it reads/needs>
+# Output: <what it produces, and for whom>
+```
+A new `architecture_tooling_self_docs_json()` bash function (Python3 for the actual parsing —
+already a hard dependency via `sonar_metrics_json()`, no new tool added) walks
+`scripts/architecture/` **dynamically** (`os.listdir`, filtered to `.sh`/`.js` — not the existing
+hardcoded `SCRIPT_GROUP_FILE_ORDER` list), reads each file's first 20 lines, and extracts the 4
+fields (continuation lines — any line immediately following a field line that isn't itself a new
+field label — are joined into that field's value, so a field can wrap across multiple comment
+lines). Result: `MODEL.architectureToolingSelfDocs`, a `{file, description, uses, input, output}`
+array. `renderSystem()`'s static `Generation:`/`Sources:` lines are replaced by a table built from
+this array — `sourceLink(file)` per row, so every script name is a real, clickable link to its own
+source, exactly like the rest of the tool. The `Rendering:` line (Cytoscape.js/Mermaid.js — a
+frontend-library fact, not a `scripts/architecture` script) is untouched, out of scope.
+
+**Consequences:**
+- A new script dropped into `scripts/architecture/` with the same header convention appears in
+  this table automatically — no generator edit needed, the whole point of "one documentation
+  source right next to the code."
+- Scope is deliberately narrow: only `scripts/architecture/`. `scripts/ai/`'s 4 remaining files and
+  the other `SCRIPT_GROUP` directories (`scripts`, `scripts/ci`, `scripts/sonar`, `playwright`)
+  keep their existing free-form header comments untouched — extending this convention there is a
+  natural follow-up, not done here.
+- `docs/architecture/architecture-model.json`/`architecture-map.html` regenerated to pick up the
+  new field and the reworked "How this page is built" section.
+
+## ADR-023: System screen gains ADRs + Notes cards — flat live ADR list, and a hand-maintained glossary starting with "what is an ADR"
+
+**Status:** Accepted
+
+**Context:** User request: a 5th System-screen card summarizing every ADR across the repo, plus a
+6th "Notes" card holding a short glossary of general terms/concepts, starting with a concise
+explanation of what an ADR is, how it's used, and its boundaries (not a changelog, not a code
+comment, not a backlog issue, never renumbered).
+
+**Decision:**
+1. New `all_adrs_json()` bash function parses `docs/ai/adr-index.md` (same source
+   `adr_intent_for_module()` already reads) into a flat, deduplicated `MODEL.allAdrs` array —
+   `{id, module, status, title}` per ADR, keeping only each ADR's home-module row and skipping the
+   "Also affects" cross-reference duplicate rows that table also carries.
+2. New **ADRs** card/screen: status-bucketed summary cards (bucketed by the status text's first
+   word only, e.g. `Accepted`/`Superseded`/`Deprecated`/`Resolved` — this repo's `Status:` lines
+   are often long free-form annotations, not bare words, so bucketing by the literal full string
+   would fragment the summary into dozens of near-duplicate 1-count cards) plus a full table
+   (every ADR, module linked via `sourceLink`), 197 ADRs at the time this landed.
+3. New **Notes** card/screen: a hand-maintained glossary (`GLOSSARY` array in the generator,
+   `{term, body}` pairs) — same "genuinely non-mechanical content" exception this tool already
+   uses for SPI Map's Call Flow Examples and Bounded Contexts' narrative sections. First (and, at
+   landing time, only) entry: "ADR (Architectural Decision Record)" — what it is, how it's used in
+   this repo (`/decision`, never edited to remove content, `Status: Superseded` instead of
+   deletion), and its boundaries (not a changelog, not a WHY code comment, not a backlog issue, not
+   renumbered once written).
+
+**Consequences:**
+- System screen's card grid grows from 4 to 6 cards.
+- Adding a second glossary term later means appending to the `GLOSSARY` array — no new plumbing.
+
+**Amendment (same session, immediate follow-up):** the initial landing above (flat table, plain
+"Module" column, no popup) was refined once real use surfaced three gaps:
+1. **Status filter cards are now clickable**, same `setXFilter()`/`card-active` pattern the
+   Backlog screen already established (`setBacklogFilter`) — `setAdrStatusFilter(status)`, plus a
+   new "All" card (not just the 4 status buckets), so a click actually narrows the table below
+   instead of the cards being read-only counts.
+2. **Clicking an ADR id now opens the same full-content popup** the Module screen's Architectural
+   decisions list already uses (`#adr-popup` / `mdBlockToHtml`) — a new `openAdrPopupForAdr(id,
+   module)` function, sharing the same popup DOM and markdown-rendering code as
+   `openAdrPopupForIntent()`, just keyed by `(id, module)` directly instead of a node's `intent[]`
+   index, since this screen's list is flat across every module rather than scoped to one node.
+   Falls back to `window.open()`-ing the real file only if the home module's ADR body wasn't
+   embedded (never actually hit in practice — every module that produces a row in `MODEL.allAdrs`
+   is, by construction, one `all_adrs_json()` already filtered down to real DECISIONS.md-owning
+   modules, all of which are in `FULL_DECISIONS_MODULES`).
+3. **Table regrouped by module** — one `<section>` per module (first-appearance order), the module
+   name as the group heading with its `sourceLink` right there, "Module" column dropped from the
+   per-row table (redundant with the heading it now sits under).
+4. **Every System-card-reached screen gets a "← back" button** — not just ADRs, all of them
+   (Tooling & Pipelines, Backlog, Diagrams list, Docker, Notes too), matching the toolbar the
+   Module/diagram-detail screens already had. New shared `backButtonHtml()` helper instead of
+   repeating the same markup at each call site.
+
+**Consequence of the amendment:** during this same edit, two overlapping background invocations of
+`generate-architecture-model.sh` raced on the same output file and corrupted
+`docs/architecture/architecture-model.json` into invalid JSON — caught immediately by the next
+`check-architecture-model-freshness.sh` run (`json.decoder.JSONDecodeError`), not by a silent bad
+commit. Root cause: firing a second generation command before the first had finished, rather than
+any generator logic bug. Fixed by killing both stray processes and running exactly one clean,
+awaited invocation. Worth naming here because it's a repeatable failure mode of this script
+specifically (multi-second wall-clock runtime, writes a single shared output file) — always let
+one `generate-architecture-model.sh` run finish (or confirm no matching process is running) before
+starting another.
+
+**Second amendment (same session): ADR section removed from Module pages, replaced by a link back
+from the ADRs screen.** Once the ADRs screen (above) existed, the Module page's own "Architectural
+decisions" section (`renderAdrList(n)`, driven by `n.intent`) became a duplicate — every module's
+ADRs are already one click away, grouped, on the ADRs screen. Removed the section (and its
+`hasIntent`/`ownFileEntry`/`viewFullFileLink` locals) from `renderModule()` entirely. In exchange,
+each module group's heading on the ADRs screen (`grp.module`) is now itself a link
+(`navigate({screen:'module', id:...})`) back to that module's page — so the two screens stay
+cross-linked in both directions instead of the Module page carrying a second copy of the same
+list. The `sourceLink(grp.module + "/DECISIONS.md")` link next to the heading is unchanged (opens
+the real file); the new module-name link is a second, separate affordance for in-tool navigation.
+Not touched: `exportModuleMarkdown()`'s own `## Architectural decisions` section in the downloaded
+`.md` file — a standalone export has no "click through to another screen" option, so keeping the
+ADR list there is the only way that export stays self-contained.
+
+**Third amendment (same session): dedicated "Notes" card/screen dropped, its content folded into
+a new "Overview" block at the bottom of the ADRs screen instead (corrected mid-session — first
+landed at the bottom of the System screen, moved to the ADRs screen once the actual intent
+("System › ADRs" being the destination, not System itself) was clarified); module-link on ADR
+group headings scoped to real MODULE nodes only.**
+1. The 6th System card ("📓 Notes") and its `renderNotes()` screen are removed. The `GLOSSARY`
+   array (still just the one "ADR" entry) is unchanged in shape, but now rendered directly inside
+   `renderAdrs()` as a new `<section class="block"><h3>Overview</h3>...</section>` at the very
+   bottom of the ADRs screen, below the last module group — one glossary item per
+   `.glossary-item` div (new small CSS rule) instead of the old one-`<section>`-per-term layout,
+   since they now all share a single "Overview" section rather than each getting its own
+   heading+card. The ADRs screen's own description line, which used to link out to `screen:'notes'`
+   then briefly to `screen:'system'`, now just says "the Overview section at the bottom of this
+   screen" — no navigation needed, the content is already on the same page.
+2. **Module-link scoping fix:** the ADR group heading link added in the second amendment above
+   (`navigate({screen:'module', id:grp.module})`) applied uniformly to every group, including the
+   `SCRIPT_GROUP`-type ones (`scripts/architecture`, `scripts/ci`, `scripts/sonar`, `scripts`,
+   `playwright`) — but the Module screen (`renderModule()`) only really makes sense for a true
+   `MODULE`-type node (it reads `n.domain`, `n.entities`, `n.edges`, etc., all fields
+   `SCRIPT_GROUP` nodes don't carry). Fixed: the heading is only a clickable `module-link` when
+   `byId[grp.module].type === "MODULE"`; script-group headings stay plain text, with the
+   `sourceLink(.../DECISIONS.md)` next to them as the only affordance (unchanged, still works for
+   every group regardless of type).
+3. **Link visibility fix:** the module-link's `<a>` had no `href` (only `onclick`), so it inherited
+   `section.block h3`'s own `color: var(--muted)` and got no default browser link styling — visibly
+   indistinguishable from plain text. Added `h3 a.module-link { color: var(--accent); cursor:
+   pointer; text-decoration: none; }` + a `:hover` underline rule, same treatment `.section-link`
+   already had.
+4. **Popup double-scrollbar fix:** `#adr-popup` (the `<dialog>` element itself) had no explicit
+   `overflow` rule, so it fell back to the browser's default `overflow: auto` — combined with
+   `.adr-popup-body`'s own `overflow: auto; max-height: calc(80vh - 60px)`, a sufficiently tall ADR
+   body produced two independent scrollbars (dialog + inner body) instead of one. Fixed by adding
+   `overflow: hidden` to `#adr-popup` itself, so only `.adr-popup-body` ever scrolls.
+
+## ADR-024: SonarQube/ArchUnit metrics consolidated onto a dedicated System-level "Code Quality" screen, removed from Module pages
+
+**Status:** Accepted
+
+**Context:** User request (Part A of the original, much larger improvement-144 scope, revived
+here in a smaller shape than originally drafted): rather than each module's own page carrying a
+"Code Metrics" section (`renderModuleCodeMetricsHtml()`), gather all SonarQube + ArchUnit data
+into one System-level card/screen, with a clear breakdown of which numbers came from which source,
+and stop repeating it per module.
+
+**Decision:**
+1. New 7th System card, "✅ Code Quality" → new `renderCodeQuality()` screen. Two separate
+   `<section>`s, one per source (never merged into one combined table) — "SonarQube" (module | Java
+   files | lines of code | complexity | cognitive complexity | code smells) and "ArchUnit" (module
+   | efferent coupling | afferent coupling | instability | abstractness), each with its own
+   `Source:` line (analysis date for Sonar, "from the last `bash scripts/unit-tests.sh` run" for
+   ArchUnit) and its own empty-state message naming the exact opt-in flag/prerequisite when that
+   source's data is `null`. Every module name in both tables is a `module-link` back to that
+   module's own page (verified data still round-trips through real module pages, just not
+   duplicated onto them anymore).
+2. `renderModuleCodeMetricsHtml()` (the old per-module inline table) and its one call site inside
+   `renderModule()` are both removed.
+3. Verified with real data: temporarily regenerated with `--with-sonar --with-archunit` (SonarQube
+   already running, `marketplace-app/target/architecture-metrics.json` already present from an
+   earlier `bash scripts/unit-tests.sh` run in this session) to confirm both tables actually
+   populate correctly, then regenerated again with no flags before committing — the committed
+   default stays `sonarMetrics`/`archUnitMetrics: null`, per ADR-021/Step 0's opt-in design; this
+   verification pass never changed that default.
+
+**Consequences:**
+- Module pages get shorter (one less section); the "Code Quality" screen is now the single place
+  either metric source is ever displayed.
+- No diagram screen needed a change — confirmed by grep before starting that
+  `renderModuleCodeMetricsHtml`'s only real call site was `renderModule()`; no diagram ever
+  rendered Sonar/ArchUnit data directly.
+
+**Amendment (same session, immediate follow-up): per-column Overview + green/yellow/red
+thresholds added, and the committed baseline deliberately carries real Sonar/ArchUnit data (not
+`null`) — a one-off, explicit exception to ADR-021's default.**
+1. **Column descriptions.** New `<section class="block"><h3>Overview</h3>` at the bottom of the
+   Code Quality screen — one row per field (`CODE_QUALITY_GLOSSARY` array) explaining what it
+   means, reusing the exact tooltip text drafted (but never implemented) in the original,
+   larger version of this issue before it was trimmed down to just the companion-server plan.
+2. **Color thresholds** on derived ratios only, never on raw counts (Ce/Ca, code smells, complexity
+   totals have no universal per-module threshold — only ratios do): 3 new SonarQube table columns
+   (Complexity/file, Cognitive/file, Code smells/1k LOC) and 1 new ArchUnit table column (Distance
+   from Main Sequence = `|A+I-1|`, not previously shown at all). `metricClass(value, green, yellow)`
+   → `.metric-good`/`.metric-watch`/`.metric-critical`, new CSS custom properties (`--critical:
+   #c0392b; --critical-bg: #fdecea;`) matching the existing `--active`/`--transitional` badge
+   palette convention. Thresholds: Complexity/file <10/10-20/>20; Cognitive/file <10/10-25/>25;
+   Code smells/1k LOC <5/5-15/>15; Distance from Main Sequence <0.3/0.3-0.6/>0.6 — same numbers
+   originally drafted, verified against this repo's real current data (e.g. `marketplace-app`
+   Complexity/file 46.8 → red, `query-lib`/`platform-commons` Distance from Main Sequence 0.75/0.68
+   → red, most starters' Distance ~0.0-0.13 → green).
+3. **Committed baseline carries real data, on explicit user instruction** — the user asked to run
+   with `--with-sonar --with-archunit` and then, when told this makes
+   `check-architecture-model-freshness.sh` report the committed copy as stale (that gate always
+   regenerates with no flags for its comparison, per ADR-021's design), explicitly chose to keep
+   the real-data version anyway and accept the gate showing red until a future no-flags
+   regeneration. Not a silent contradiction of ADR-021's "default stays null" consequence — a
+   deliberate, disclosed, one-off exception; ADR-021's default-off behavior itself is unchanged.
+4. **Overview descriptions expanded** (immediate follow-up, same session) — the first pass's
+   `CODE_QUALITY_GLOSSARY` entries were one-line definitions only; the user asked for more depth.
+   Each entry now also explains *why* the field matters and how to read a high/low value (e.g.
+   Instability's "0 = safe to keep unchanged, risky to modify" / "1 = safe to change freely, since
+   nothing breaks downstream"; Distance from Main Sequence's Zone of Pain/Zone of Uselessness
+   framing from Robert Martin's original stability/abstractness model) — still one paragraph per
+   field, not a multi-section essay.
 
 ## Open goals
 

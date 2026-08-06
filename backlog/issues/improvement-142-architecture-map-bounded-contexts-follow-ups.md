@@ -435,105 +435,15 @@ real issues at that point, this capture alone does not do that.
 Recoverable in full via `git log --diff-filter=D -- docs/architecture/08-scorecard.md` once the
 deleting commit lands.
 
-## New follow-up (2026-08-06): Code Metrics section — descriptions, source labels, color thresholds, source links, opt-in Sonar/ArchUnit
-
-`renderModuleCodeMetricsHtml(moduleId)` (`scripts/ai/generate-architecture-model.sh`, currently
-lines 1797-1823) shows raw SonarQube (`ncloc`/`complexity`/`cognitiveComplexity`/`codeSmells`) and
-ArchUnit (`efferentCoupling`/`afferentCoupling`/`instability`/`abstractness`) numbers per module
-with no explanation of what each field means, no visual signal for good/bad values, and no link to
-where the numbers come from. Also, `sonar_metrics_json()`/`ensure_sonar_fresh()`/
-`archunit_metrics_json()` currently run unconditionally on every `generate-architecture-model.sh`
-call — `ensure_sonar_fresh()` can trigger a multi-minute SonarQube rescan just from running the
-generator, with no way to skip it.
-
-Confirmed by grepping the generator: `MODEL.sonarMetrics`/`MODEL.archUnitMetrics` are read in
-exactly one place (`renderModuleCodeMetricsHtml`) — no other render function touches Sonar/ArchUnit
-data, so the scope below is complete, not partial.
-
-### 1. Opt-in flags, default off
-
-`scripts/ai/generate-architecture-model.sh`:
-- Add flag parsing near the top (after the `ROOT_CLAUDE_MD` constant, same `for arg in "$@"`
-  pattern `integration-tests/run.sh` already uses for `--sandbox`/`--no-check`): `--with-sonar`
-  sets `WITH_SONAR=1`, `--with-archunit` sets `WITH_ARCHUNIT=1`. Neither set by default.
-- `ensure_sonar_fresh` (currently called unconditionally at line 976) → only called when
-  `WITH_SONAR` is set.
-- The `sonarMetrics`/`archUnitMetrics` JSON-assembly lines (993-994) → compute
-  `sonar_json="null"; [ -n "$WITH_SONAR" ] && sonar_json="$(sonar_metrics_json)"` (same pattern
-  for `archunit_json`/`WITH_ARCHUNIT`) before the JSON-assembly block, reference the variables
-  instead of calling the functions inline — so neither function runs (no curl calls, no file read)
-  unless its flag is passed.
-- `check-architecture-model-freshness.sh` needs no change — it already calls the generator with no
-  args, so it naturally exercises the new default (fast, no SonarQube dependency), which is also
-  exactly what keeps this gate usable without a running SonarQube server.
-- **Consequence for the committed baseline:** `docs/architecture/architecture-model.json`/
-  `architecture-map.html` must be regenerated with the new default (no flags) before committing, so
-  the freshness gate's own default comparison matches. This resets the currently-committed
-  Sonar/ArchUnit numbers to `null` in the committed copy — the richer data stays available on
-  demand (`--with-sonar --with-archunit` locally) but is no longer baked into what CI/the freshness
-  gate compares against. Flagging this explicitly since it's a real behavior change, not a
-  side-effect to discover later.
-
-### 2. Per-field descriptions + source sub-headers
-
-Split the single "Code Metrics" table into two labeled sub-blocks (`SonarQube` / `ArchUnit`, each
-with its own mini-heading), one row per field, each label cell carrying a `title="..."` tooltip
-with a one-line plain-English explanation:
-
-| Field | Tooltip text |
-|---|---|
-| Java files | Number of `.java` files under this module's `src/main/java` |
-| Lines of code | Non-comment lines of code (NCLOC) |
-| Complexity | Cyclomatic complexity — number of independent execution paths through the code |
-| Cognitive complexity | How hard the code is to read — penalizes nesting more than raw branching |
-| Code smells | Count of SonarQube-flagged maintainability issues |
-| Efferent coupling | Ce — classes outside this module that classes inside it depend on |
-| Afferent coupling | Ca — classes outside this module that depend on classes inside it |
-| Instability | I = Ce/(Ce+Ca) — 0 = maximally stable, 1 = maximally unstable |
-| Abstractness | A — ratio of abstract classes/interfaces to total classes |
-| Distance from Main Sequence | \|A+I-1\| — 0 is ideal (balanced); high means Zone of Pain (rigid) or Zone of Uselessness (over-abstracted) — new derived field, not currently shown at all |
-
-### 3. Color thresholds (green/yellow/red)
-
-Raw counts (Ce/Ca, code smells, complexity) have no universal per-module threshold — only ratios
-do. Compute and color the ratios, leave raw counts uncolored (shown plain, tooltip still applies):
-
-| Colored value | Green | Yellow | Red |
-|---|---|---|---|
-| Complexity / Java file | < 10 | 10-20 | > 20 |
-| Cognitive complexity / Java file | < 10 | 10-25 | > 25 |
-| Code smells / 1000 LOC | < 5 | 5-15 | > 15 |
-| Distance from Main Sequence | < 0.3 | 0.3-0.6 | > 0.6 |
-
-New CSS custom properties matching the existing `--active`/`--transitional`/`--deprecated` badge
-palette convention (`:root`, ~line 1170): reuse `--active`/`--active-bg` for green, `--transitional`/
-`--transitional-bg` for yellow, add `--critical: #c0392b; --critical-bg: #fdecea;` for red. New
-`.metric-good`/`.metric-watch`/`.metric-critical` classes applied to the value `<td>`.
-
-### 4. Source links
-
-Each sub-block heading gets a link to where its data is actually produced, reusing the existing
-`sourceLink(relPath)` helper (opens the real file via `../../`, same pattern already used for
-script-group file lists):
-- SonarQube sub-block → `sourceLink("scripts/ai/generate-architecture-model.sh")` (the
-  `sonar_metrics_json()`/`ensure_sonar_fresh()` functions live there) plus a plain external link to
-  the live dashboard, `http://localhost:9099/dashboard?id=advertisement` (best-effort — only
-  resolves when SonarQube is actually running on the viewer's machine, same caveat as
-  `scripts/CLAUDE.md`'s own documented URL).
-- ArchUnit sub-block → `sourceLink("marketplace-app/src/test/java/org/ost/marketplace/architecture/ArchitectureMetricsExport.java")`
-  (the class that actually computes and writes the metrics). Not linking to
-  `scripts/unit-tests/reports/run.log` — that directory is gitignored/ephemeral, so a link to it
-  would 404 for anyone viewing a committed copy of `architecture-map.html` days after the test run
-  that produced it; the source class is the durable, always-resolvable link.
-
 ## Related
 
 - `improvement-138` — the original Architecture Control Plane plan; this issue is its direct
   continuation once the Bounded Contexts mechanization work outgrew that file.
-- `improvement-143` — implemented the SonarQube/ArchUnit Code Metrics section this follow-up now
-  refines (descriptions, color, opt-in flags, source links).
+- `improvement-144` — owns everything Code-Metrics-related (descriptions/colors/source-links/
+  opt-in flags on the existing per-module section, plus a dedicated card and on-demand refresh
+  trigger) — a follow-up briefly drafted here on 2026-08-06 was moved there in full so this issue
+  stays scoped to Bounded Contexts content parity only.
 - `scripts/ai/DECISIONS.md` ADR-015 (why Bounded Contexts stayed hand-maintained originally),
   ADR-016 (why the Cytoscape+dagre rendering attempt was dropped), ADR-018 (restored via Mermaid's
-  native engine), ADR-019 (domain/relationship data mechanized live), ADR-020 (`05`-`08`
-  mechanization + Code Metrics section this follow-up builds on) — full decision history behind
+  native engine), ADR-019 (domain/relationship data mechanized live) — full decision history behind
   this file's hand-maintained-to-live migration.

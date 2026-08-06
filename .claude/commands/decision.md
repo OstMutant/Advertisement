@@ -14,7 +14,7 @@ Available modules and their DECISIONS.md paths (if a module isn't listed, check 
 - scripts            → /app/scripts/DECISIONS.md
 - scripts/ci         → /app/scripts/ci/DECISIONS.md
 - scripts/sonar      → /app/scripts/sonar/DECISIONS.md
-- scripts/ai         → /app/scripts/ai/DECISIONS.md
+- scripts/architecture → /app/scripts/architecture/DECISIONS.md
 - integration-tests  → /app/integration-tests/DECISIONS.md
 - taxon-starter      → /app/taxon-spring-boot-starter/DECISIONS.md
 

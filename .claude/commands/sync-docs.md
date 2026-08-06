@@ -31,7 +31,7 @@ Use this mapping table:
 
 | Changed file pattern | Documentation targets |
 |----------------------|-----------------------|
-| `**/*.java` (main or test), `**/pom.xml`, `**/db/changelog/**`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `docs/ai/flows.md` | `docs/architecture/architecture-model.json` + `docs/architecture/architecture-map.html` — every diagram (Module Dependencies, SPI Map, Database ERD, Bounded Contexts) and every module page's Code Metrics/Architecture Checks/Largest Files sections render live from real source; there is no separate `.md` to hand-edit for any of them. Regenerate via `bash scripts/ai/generate-architecture-model.sh`. A schema change still needs its new/changed `<column>`/`<createTable>` to carry a real `remarks=` attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that edit happens in the changelog, not in the generated doc. **Run this last, after Step 4's other file updates** — the generator reads every `DECISIONS.md` as input, so it must run after those are updated, not before, or it regenerates from stale input. |
+| `**/*.java` (main or test), `**/pom.xml`, `**/db/changelog/**`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `docs/ai/flows.md` | `docs/architecture/architecture-model.json` + `docs/architecture/architecture-map.html` — every diagram (Module Dependencies, SPI Map, Database ERD, Bounded Contexts) and every module page's Code Metrics/Architecture Checks/Largest Files sections render live from real source; there is no separate `.md` to hand-edit for any of them. Regenerate via `bash scripts/architecture/generate-architecture-model.sh`. A schema change still needs its new/changed `<column>`/`<createTable>` to carry a real `remarks=` attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that edit happens in the changelog, not in the generated doc. **Run this last, after Step 4's other file updates** — the generator reads every `DECISIONS.md` as input, so it must run after those are updated, not before, or it regenerates from stale input. |
 | Any `*.java` or `**/pom.xml` | `CLAUDE.md` (per changed module), `DECISIONS.md` (per changed module) |
 | Any `*.java` or `**/pom.xml` | `backlog/issues/` — create/close/update tracked issues |
 | Any `**/DECISIONS.md` | `docs/ai/adr-index.md` — regenerate via `bash scripts/ai/generate-adr-index.sh` |
@@ -45,7 +45,7 @@ Print which targets are affected before proceeding.
 No manual read-and-rewrite step is needed for `docs/architecture-map.html`'s content — every
 diagram and every module-page section renders live from `pom.xml`/real Java source/real Liquibase
 changelogs/a running SonarQube server/the last `ArchitectureMetricsExport` test run, directly
-inside `bash scripts/ai/generate-architecture-model.sh` (see Step 4's ordering note below). A
+inside `bash scripts/architecture/generate-architecture-model.sh` (see Step 4's ordering note below). A
 schema change still needs its new/changed `<column>`/`<createTable>` to carry a real `remarks=`
 attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that edit
 happens in the changelog, not in a generated doc.
@@ -82,7 +82,7 @@ is a pointer to the live tool, and every diagram/module-page section renders dir
 
 **Last action of this step, always, if anything above touched a file the generator reads**
 (any `DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`,
-`docs/ai/flows.md`, or `**/pom.xml`): run `bash scripts/ai/generate-architecture-model.sh` — one
+`docs/ai/flows.md`, or `**/pom.xml`): run `bash scripts/architecture/generate-architecture-model.sh` — one
 trigger, run once, after every other file this step touches, so
 `docs/architecture/architecture-model.json`/`docs/architecture/architecture-map.html` never
 regenerate from stale input.

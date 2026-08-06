@@ -14,7 +14,7 @@ while IFS= read -r -d '' f; do SEARCH_PATHS+=("$f"); done < <(find "$REPO_ROOT" 
 
 mismatch=""
 
-# architecture-model.json / architecture-map.html carry full ADR body text (scripts/ai/DECISIONS.md
+# architecture-model.json / architecture-map.html carry full ADR body text (scripts/architecture/DECISIONS.md
 # ADR-008) -- historical ADR prose can legitimately mention an unrelated past "N modules" count
 # (e.g. a starter-list length, a table/module split) that has nothing to do with the reactor's
 # total module count; excluded here, same as ADR-006 covered before this was briefly reverted.
