@@ -14,13 +14,18 @@ while IFS= read -r -d '' f; do SEARCH_PATHS+=("$f"); done < <(find "$REPO_ROOT" 
 
 mismatch=""
 
-# Excludes "≥N modules" (a threshold rule, not a total-count claim) via the negative lookbehind.
+# architecture-model.json / architecture-map.html carry full ADR body text (scripts/ai/DECISIONS.md
+# ADR-008) -- historical ADR prose can legitimately mention an unrelated past "N modules" count
+# (e.g. a starter-list length, a table/module split) that has nothing to do with the reactor's
+# total module count; excluded here, same as ADR-006 covered before this was briefly reverted.
 while IFS=: read -r file lineno match; do
   num="${match%% *}"
   if [ "$num" -ne "$REAL_COUNT" ]; then
     mismatch="${mismatch}- ${file#"$REPO_ROOT"/}:$lineno -- claims \"$match\", pom.xml currently has $REAL_COUNT modules\n"
   fi
-done < <(grep -rnoP '(?<!≥)[0-9]+ modules?\b' "${SEARCH_PATHS[@]}" 2>/dev/null || true)
+done < <(grep -rnoP '(?<!≥)[0-9]+ modules?\b' "${SEARCH_PATHS[@]}" 2>/dev/null \
+  | grep -v -e '^'"$REPO_ROOT"'/docs/architecture-model.json:' -e '^'"$REPO_ROOT"'/docs/architecture-map.html:' \
+  || true)
 
 if [ -n "$mismatch" ]; then
   echo "ERROR: stale hard-coded module count(s) found (pom.xml currently has $REAL_COUNT modules):"

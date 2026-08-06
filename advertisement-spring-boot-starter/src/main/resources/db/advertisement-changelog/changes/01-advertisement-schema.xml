@@ -8,28 +8,29 @@
     <changeSet id="01-advertisement-schema" author="ostap">
 
         <!-- ── advertisement ───────────────────────────────────────────────── -->
-        <createTable tableName="advertisement">
-            <column name="id" type="BIGSERIAL">
+        <createTable tableName="advertisement"
+                      remarks="No FK to user_information -- purge-safety enforced at the application level via AdvertisementPort.findOwnerIds()/clearActorReferences(). Supports soft-delete: deleted_at IS NULL identifies active records. No denormalized attachment columns -- media summaries computed at read time via AttachmentPort.getMediaSummaries().">
+            <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="title" type="VARCHAR(255)">
+            <column name="title" type="VARCHAR(255)" remarks="Advertisement title">
                 <constraints nullable="false"/>
             </column>
-            <column name="description" type="VARCHAR(20000)"/>
-            <column name="ad_kind" type="VARCHAR(20)" defaultValue="OFFER">
+            <column name="description" type="VARCHAR(20000)" remarks="Full description (nullable, sanitized HTML)"/>
+            <column name="ad_kind" type="VARCHAR(20)" defaultValue="OFFER" remarks="OFFER / REQUEST / PRODUCT (AdKind)">
                 <constraints nullable="false"/>
             </column>
-            <column name="created_by" type="BIGINT">
+            <column name="created_by" type="BIGINT" remarks="Creator (no _user_id suffix); no DB-level FK to user_information.id -- deliberately decoupled">
                 <constraints nullable="false"/>
             </column>
-            <column name="updated_by" type="BIGINT"/>
-            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+            <column name="updated_by" type="BIGINT" remarks="Last editor; no DB-level FK"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Creation timestamp">
                 <constraints nullable="false"/>
             </column>
-            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
-            <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE"/>
-            <column name="deleted_by" type="BIGINT"/>
-            <column name="version" type="BIGINT" defaultValueNumeric="0">
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" remarks="Last modification time"/>
+            <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE" remarks="Soft-delete timestamp (NULL = active)"/>
+            <column name="deleted_by" type="BIGINT" remarks="Who soft-deleted; no DB-level FK"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0" remarks="Optimistic-lock counter (@Version, checked natively via CrudRepository.save())">
                 <constraints nullable="false"/>
             </column>
         </createTable>

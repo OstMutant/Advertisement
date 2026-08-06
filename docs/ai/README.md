@@ -15,13 +15,13 @@ written to stand on their own, independent of that history.
 
 ## Explicitly not here, and why
 
-- **No `module-index.md`.** `docs/architecture/03-bounded-contexts.md` already gives a per-domain
+- **No `module-index.md`.** `docs/architecture/bounded-contexts.md` already gives a per-domain
   Contract + Cross-Domain-Dependencies breakdown, and module `CLAUDE.md` is unconditionally
   `@`-imported into every session regardless of task type — a redundant index cannot reduce token
   cost for an AI session, only for a human skimming outside one, which is a different problem.
-- **No `database-ownership.md`.** `docs/architecture/04-database-erd.md` already gives an exact
-  table → module → Liquibase-changelog mapping for every table, in more detail than a new file
-  would.
+- **No `database-ownership.md`.** `docs/architecture-map.html`'s Database ERD page already gives an
+  exact table → module → Liquibase-changelog mapping for every table, live from the real
+  changelogs, in more detail than a new file would.
 - **No manual `Tags`/`Scope` metadata on existing ADRs.** `Status`/`Module`/`Title` are already
   100% mechanically derivable from every `DECISIONS.md` entry's existing text — no new authoring
   burden was needed to build [adr-index.md](adr-index.md). Free-form tagging is the one genuinely

@@ -562,6 +562,8 @@ existing TX via default `REQUIRED` propagation.
 ## ADR-024: Jsoup-based, defense-in-depth description length validation
 **Status:** Accepted (done 2026-07-04)
 
+**Also affects:** advertisement-spring-boot-starter
+
 **Context:** `AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH = 2000` existed as a constant but was
 enforced only by a client-reachable, regex-based binder validator
 (`html.replaceAll("<[^>]+>", "")` + length check) that tag-spam could bypass — formatting tags
@@ -1027,6 +1029,8 @@ optional singleton services/ports"):
 ## ADR-034: No raw cross-starter SQL joins — bulk-lookup port + service-level enrichment; actor-reference columns follow Taxon's naming convention
 
 **Status:** Accepted
+
+**Also affects:** advertisement-spring-boot-starter
 
 **Context:** `AdvertisementRepository.findAdvertisementById()`/`findByFilter()` did
 `FROM advertisement a LEFT JOIN user_information u ON a.created_by_user_id = u.id`, hardcoding
@@ -1993,6 +1997,8 @@ all member enums' keys as a hard requirement.
 
 **Status:** Accepted
 
+**Also affects:** advertisement-spring-boot-starter
+
 **Context:** Audit-snapshot capture for advertisements was split: save-side lived in
 `AdvertisementSaveService` (`marketplace-app`), delete-side lived inline in
 `AdvertisementService.delete()` (`advertisement-spring-boot-starter`), doing near-identical
@@ -2702,6 +2708,8 @@ Taxon still has neither). Re-verified: unit-tests 73/73, Playwright `e2e --full 
 ## ADR-064: `advertisement` → `user_information` hard FK coupling removed — last one between starters
 
 **Status:** Accepted
+
+**Also affects:** advertisement-spring-boot-starter
 
 **Context:** `01-advertisement-schema.xml` had three physical `addForeignKeyConstraint` blocks from
 `advertisement` to `user_information` (`created_by` `ON DELETE RESTRICT`, `updated_by`/`deleted_by`
@@ -3459,6 +3467,8 @@ one query implementation, not two to keep in sync.
 
 **Status:** Accepted
 
+**Also affects:** user-spring-boot-starter
+
 **Context:** Reviewing Batch A's diff, the user flagged that `UserDto` still carried `locale`
 after the `user_information`/`user_preferences` table split — forcing every `UserDto` construction
 (`getFiltered`/`getFilteredByOffset`/`findByIds`/`findDtoByEmail`, used by the Users grid,
@@ -3515,6 +3525,8 @@ by more than the one place asking for it, or does it belong behind a narrower lo
 ## ADR-072: `EntityType.PROVIDER_PROFILE` compiler-forced touches (F-04 Batch B)
 
 **Status:** Accepted
+
+**Also affects:** provider-profile-spring-boot-starter
 
 **Context:** Batch B (see `platform-commons/DECISIONS.md` ADR-027) added
 `EntityType.PROVIDER_PROFILE` and a new `provider-profile-spring-boot-starter` module, backend

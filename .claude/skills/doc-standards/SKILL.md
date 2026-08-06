@@ -16,8 +16,8 @@ the decision and its reasoning).
 ## Why this exists
 
 Confirmed, not hypothetical: the same dependency/SPI facts were independently stated in up to
-four places per module (`CLAUDE.md`, `README.md`, `docs/architecture/01-module-dependencies.md`,
-`02-spi-map.md`), and a stale hard-coded module count ("9 modules") survived in at least six
+three places per module (`CLAUDE.md`, `README.md`, `docs/architecture/02-spi-map.md`), and a
+stale hard-coded module count ("9 modules") survived in at least six
 files after a tenth module (`provider-profile-spring-boot-starter`) was added — including inside
 `deep-review`'s own full-mode scope, which meant a review tool silently under-covered the repo.
 Neither happened because anyone was careless. It happened because nothing forced a "does this
@@ -53,10 +53,10 @@ fact, not a constraint.
 
 | Fact type | Canonical home | Everywhere else |
 |---|---|---|
-| Module → module dependencies | `docs/architecture/01-module-dependencies.md` | State only a local one-line summary if it's load-bearing for a constraint; otherwise reference the file |
-| Port/Hook implementation mapping | `docs/architecture/02-spi-map.md` | Name the port/hook this file's module implements (one line — that's local and real), don't restate the graph |
+| Module → module dependencies | `docs/architecture-map.html` (Diagrams › Module Dependencies — rendered live from `pom.xml`) | State only a local one-line summary if it's load-bearing for a constraint; otherwise reference the tool |
+| Port/Hook implementation mapping | `docs/architecture-map.html` (Diagrams › SPI Map — rendered live from real Java source) | Name the port/hook this file's module implements (one line — that's local and real), don't restate the graph |
 | Class existence + one-line role | `README.md`'s class table (per module) | `CLAUDE.md` references it; only restates a class's role if that role *is* a constraint (e.g. "pure delegation — no business logic here") |
-| ADR rationale / historical decisions | `DECISIONS.md` (per module) | Reference by ADR number, never restate the reasoning inline — this is already done correctly in most existing files; keep doing it |
+| ADR rationale / historical decisions | `DECISIONS.md` (per module) — subject to the worthiness gate in `.claude/commands/decision.md`; not every change belongs here | Reference by ADR number, never restate the reasoning inline — this is already done correctly in most existing files; keep doing it |
 | Task-type → what-to-read routing | `docs/ai/context-loading.md` | Don't re-derive routing logic in `flows.md` or a command file |
 | Situation → command/skill mapping | `docs/ai/flows.md` | Don't restate in individual command files |
 | Backlog issue format | `.claude/commands/feature.md` | Other commands reference it, don't redefine it |

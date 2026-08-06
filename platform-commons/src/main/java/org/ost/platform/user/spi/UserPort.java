@@ -11,14 +11,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Port: marketplace → user-starter.
+ * Query side: find/filter users, resolve profile data by id/email, batched name/existence lookups.
+ * Implementation lives in user-spring-boot-starter.
+ */
 public interface UserPort {
 
     List<UserDto> getFiltered(@NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort);
 
     /**
      * Offset-based variant of {@link #getFiltered}, for callers with a raw row offset that isn't
-     * necessarily a multiple of {@code limit} (e.g. Vaadin's {@code CallbackDataProvider}) — see
-     * {@code UserPickerField} and improvement-056.
+     * necessarily a multiple of {@code limit} (e.g. Vaadin's {@code CallbackDataProvider} in
+     * {@code UserPickerField}).
      */
     List<UserDto> getFilteredByOffset(@NonNull UserFilterDto filter, long offset, int limit, @NonNull Sort sort);
 

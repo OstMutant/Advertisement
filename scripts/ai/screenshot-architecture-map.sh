@@ -8,12 +8,13 @@
 # Usage:
 #   bash scripts/ai/screenshot-architecture-map.sh
 #
-# Output: scripts/ai/architecture-map-screenshots/{01-system,02-module,03-database,04-spi,05-pipelines,06-backlog}.png
+# Output: scripts/ai/architecture-map-screenshots/{01-system,02-diagrams-list,03-diagram-module-deps,
+# 04-module-detail,05-diagram-spi,06-diagram-spi-zoomed,07-pipelines,08-backlog}.png
 # (gitignored -- ephemeral verification artifacts, not committed).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-HTML="$REPO_ROOT/architecture-map.html"
+HTML="$REPO_ROOT/docs/architecture-map.html"
 OUT_DIR="$REPO_ROOT/scripts/ai/architecture-map-screenshots"
 CONTAINER="arch-map-shot"
 PLAYWRIGHT_VERSION="1.61.1"
@@ -54,39 +55,60 @@ async function goSystem(page) {
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
+  const jsErrors = [];
+  page.on('pageerror', e => jsErrors.push(String(e)));
   await page.goto('file:///tmp/shot/architecture-map.html');
-  await page.waitForTimeout(1500); // cytoscape layout settle
-  await shot(page, '01-system');
+  await page.waitForTimeout(500);
+  await shot(page, '01-system'); // must show only 3 cards -- no map, no domain-grouped module list
 
-  await page.locator('.domain-group .card').first().click();
-  await page.waitForTimeout(400);
-  await shot(page, '02-module');
+  await page.locator('.special-card:has-text("Diagrams")').click();
+  await page.waitForTimeout(300);
+  await shot(page, '02-diagrams-list'); // Module Dependencies group should carry the "draggable" badge
+
+  // Module Dependencies -- now the domain-colored, click-navigable graph (moved off the old
+  // System page, one shared renderer instead of two -- see renderModuleDependencyGraph()).
+  await page.locator('.domain-group .card .card-title', { hasText: /^Dependency Graph$/ }).click();
+  await page.waitForTimeout(1500); // cytoscape layout settle
+  await shot(page, '03-diagram-module-deps');
+
+  // Confirm the module detail page (reached by clicking a node in the graph above) still renders
+  // correctly -- driven directly via the exposed navigate() rather than a canvas-coordinate click,
+  // since node positions depend on dagre's layout and aren't stable enough to hardcode a click at.
+  await page.evaluate(() => navigate({ screen: 'module', id: 'platform-commons' }));
+  await page.waitForTimeout(300);
+  await shot(page, '04-module-detail');
+
+  // Breadcrumb must offer a way back to the diagram (not just all the way to System) -- click the
+  // "Module Dependencies — Dependency Graph" crumb segment and confirm it lands back on the graph.
+  await page.locator('#breadcrumb a', { hasText: 'Module Dependencies' }).click();
+  await page.waitForTimeout(800);
+  await shot(page, '04b-back-to-diagram-via-breadcrumb');
 
   await goSystem(page);
   await page.locator('.special-card:has-text("Diagrams")').click();
   await page.waitForTimeout(300);
-  await shot(page, '03-diagrams-list');
-
-  // Open the SPI map diagram specifically -- it's the densest one, worth checking zoom on it.
+  // SPI map -- still the generic Mermaid-text-parsed graph (unchanged), densest one, worth
+  // checking zoom on it.
   await page.locator('.domain-group .card', { hasText: 'SPI Dependency Graph' }).click();
   await page.waitForTimeout(1200); // mermaid render settle
-  await shot(page, '04-diagram-spi');
+  await shot(page, '05-diagram-spi');
   await page.locator('.zoom-controls button', { hasText: '+' }).click();
   await page.locator('.zoom-controls button', { hasText: '+' }).click();
   await page.waitForTimeout(200);
-  await shot(page, '05-diagram-spi-zoomed');
+  await shot(page, '06-diagram-spi-zoomed');
 
   await goSystem(page);
   await page.locator('.special-card:has-text("Tooling")').click();
   await page.waitForTimeout(300);
-  await shot(page, '06-pipelines');
+  await shot(page, '07-pipelines');
 
   await goSystem(page);
   await page.locator('.special-card:has-text("Backlog")').click();
   await page.waitForTimeout(300);
-  await shot(page, '07-backlog');
+  await shot(page, '08-backlog');
 
   await browser.close();
+  if (jsErrors.length) { console.error('JS errors during run:\n' + jsErrors.join('\n')); process.exit(1); }
   console.log('done');
 })().catch(e => { console.error(e); process.exit(1); });
 JS_EOF
@@ -94,7 +116,7 @@ JS_EOF
 docker cp /tmp/arch-map-shot.js "$CONTAINER:/tmp/shot/shot.js"
 docker exec "$CONTAINER" sh -c "cd /tmp/shot && node shot.js"
 
-SHOT_NAMES=(01-system 02-module 03-diagrams-list 04-diagram-spi 05-diagram-spi-zoomed 06-pipelines 07-backlog)
+SHOT_NAMES=(01-system 02-diagrams-list 03-diagram-module-deps 04-module-detail 04b-back-to-diagram-via-breadcrumb 05-diagram-spi 06-diagram-spi-zoomed 07-pipelines 08-backlog)
 rm -f "$OUT_DIR"/*.png
 for f in "${SHOT_NAMES[@]}"; do
   docker cp "$CONTAINER:/tmp/shot/$f.png" "$OUT_DIR/$f.png"

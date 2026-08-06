@@ -19,7 +19,7 @@ boot-starter`, `user-spring-boot-starter`, etc.) never carry test code for this 
 `src/test/java` additions to them, ever. `integration-tests` depends on whichever starters it needs
 to test (`compile` scope, since its own `src/main`/`src/test` reference those classes directly) —
 safe only because this module is never shipped, deployed, or depended upon by anything else (a
-leaf node with zero inbound edges — see `docs/architecture/01-module-dependencies.md`). This does
+leaf node with zero inbound edges — see `docs/architecture-map.html`'s Module Dependencies page). This does
 **not** violate `.claude/rules.md` "Module Import Rules" ("starters must NOT import from each
 other"): that rule governs production runtime composability (a starter must compile and run
 standalone when a sibling isn't on the classpath, because `ObjectProvider`-based optional wiring

@@ -11,6 +11,12 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Port: marketplace → provider-profile-starter.
+ * CRUD provider profiles (MASTER/SHOP/SUPPORT kinds), filtered/paginated queries, and the
+ * purge-safety helper (findOwnerIds) used when a user account is deleted.
+ * Implementation lives in provider-profile-spring-boot-starter.
+ */
 public interface ProviderProfilePort {
 
     List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale);

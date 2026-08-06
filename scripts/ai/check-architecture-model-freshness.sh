@@ -6,8 +6,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-JSON="$REPO_ROOT/architecture-model.json"
-HTML="$REPO_ROOT/architecture-map.html"
+JSON="$REPO_ROOT/docs/architecture-model.json"
+HTML="$REPO_ROOT/docs/architecture-map.html"
 
 if [ ! -f "$JSON" ] || [ ! -f "$HTML" ]; then
   echo "ERROR: architecture-model.json / architecture-map.html don't exist yet."

@@ -8,23 +8,24 @@
     <changeSet id="01-provider-profile-schema" author="ostap">
 
         <!-- ── provider_profile ────────────────────────────────────────────── -->
-        <createTable tableName="provider_profile">
-            <column name="id" type="BIGSERIAL">
+        <createTable tableName="provider_profile"
+                      remarks="Row created lazily, only on first 'become a provider' save -- never eagerly at registration. delete() is a real DELETE, no soft-delete columns, no restore concept. Category assignments (many-to-many) go through TaxonPort.replaceAssignments(), written directly by this starter's own service.">
+            <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="actor_id" type="BIGINT">
+            <column name="actor_id" type="BIGINT" remarks="No FK; at most one profile per actor">
                 <constraints nullable="false"/>
             </column>
-            <column name="kind" type="VARCHAR(20)">
+            <column name="kind" type="VARCHAR(20)" remarks="MASTER / SHOP / SUPPORT (ProviderKind)">
                 <constraints nullable="false"/>
             </column>
-            <column name="about" type="VARCHAR(20000)"/>
-            <column name="city_taxon_id" type="BIGINT"/>
-            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+            <column name="about" type="VARCHAR(20000)" remarks="Sanitized HTML (OWASP HTML Sanitizer)"/>
+            <column name="city_taxon_id" type="BIGINT" remarks="Plain column, not a taxon_assignment row -- a provider has exactly one city"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Creation timestamp">
                 <constraints nullable="false"/>
             </column>
-            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
-            <column name="version" type="BIGINT" defaultValueNumeric="0">
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" remarks="Last update"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0" remarks="Optimistic-lock counter (@Version, native CrudRepository.save())">
                 <constraints nullable="false"/>
             </column>
         </createTable>

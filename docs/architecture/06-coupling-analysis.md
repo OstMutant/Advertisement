@@ -25,7 +25,7 @@ delegates to `userService.findDtoByEmail(email)`.
 
 ## No Cyclic Dependencies Detected
 
-See `01-module-dependencies.md` ("No Circular Dependencies" / "Marketplace App Dependency") for
+See `docs/architecture-map.html`'s Module Dependencies page ("No Circular Dependencies" / "Marketplace App Dependency" observations) for
 the dependency graph and the DAG-shape/depends-on-all-starters findings — not restated here.
 
 ---

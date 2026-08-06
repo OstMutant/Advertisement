@@ -74,3 +74,1080 @@ ADR index fresh — a checklist consulted by whoever happens to be editing a fil
 enforcement when someone (human or a differently-scoped Claude session) edits a doc without going
 through that checklist. The skill's checklist remains the primary, first-line discipline; this
 script is the backstop, not a replacement.
+
+---
+
+## ADR-003: `architecture-map.html`'s System page holds only the 3 entry-point cards; module browsing lives under Diagrams › Module Dependencies, one shared graph renderer instead of two
+
+**Status:** Accepted
+
+**Context:** No `DECISIONS.md` anywhere in the repo documented `architecture-map.html`'s
+navigation structure before this entry — a real gap for a generated tool with real design
+decisions behind it (drill-down pyramid, Cytoscape vs. Mermaid rendering choices), not just this
+one delta. The System (first) page originally rendered three things at once: the 3 summary cards
+(Tooling & Pipelines, Backlog, Diagrams), a hand-built domain-colored Cytoscape module dependency
+map (`renderMap()`/`<div id="map">`, click a node to open its module page), and a domain-grouped
+grid of module cards. Separately, the Diagrams screen's "Module Dependencies" group (source:
+`docs/architecture/01-module-dependencies.md`) rendered the *same conceptual graph* through a
+second, generic code path (`parseMermaidGraph()`/`renderCytoscapeDiagram()`, shared with `02-spi-
+map`/`03-bounded-contexts`) — re-parsing the plain Mermaid text, with no domain coloring and no
+click-to-navigate. Two implementations of "draw the module graph," one richer than the other —
+exactly what `doc-standards/SKILL.md`'s "one fact, one canonical home" rule exists to catch.
+
+**Decision:** System page trimmed to just the 3 cards. The domain-colored, click-navigable graph
+(`renderMap()`, renamed `renderModuleDependencyGraph()`) moved to be the special-cased renderer for
+the Diagrams screen's `01-module-dependencies` group specifically, replacing the generic Mermaid-
+text-parse path for that one diagram only (`02-spi-map`/`03-bounded-contexts` keep the generic
+path — no equivalently rich structured node model exists for them yet). It builds from
+`moduleNodes` (the `pom.xml`-sourced canonical module list the whole model is already generated
+from) rather than re-parsing `01-module-dependencies.md`'s Mermaid text a second time — not a
+fork of the markdown's facts, since both are already anchored to the same `pom.xml` reality. Node
+click still navigates to `renderModule()` (unchanged). The new renderer draws into the Diagrams
+screen's existing `#diagram-cy` container and reuses its existing zoom toolbar
+(`zoomDiagram()`/`#zoom-label`) instead of carrying its own — the old System-page-only
+`systemCy`/`zoomMap()`/`#map-zoom-label` trio is deleted outright, not left dead.
+
+**Consequences:**
+- One graph-building function for the module dependency graph, not two — verified no other call
+  site still references `renderMap`/`systemCy`/`zoomMap`.
+- `scripts/ai/screenshot-architecture-map.sh` updated to match: the module-detail screenshot now
+  drives `navigate({screen:'module',id:...})` directly via `page.evaluate()` rather than clicking a
+  `.domain-group .card` on the System page (that page no longer has one) — canvas-coordinate
+  clicking on a dagre-laid-out Cytoscape node was judged too fragile to hardcode a screenshot-script
+  click at, direct navigation is an honest substitute for visually verifying the target screen
+  renders correctly.
+- `#map`'s now-orphaned CSS rule removed alongside its last consumer.
+
+---
+
+## ADR-004: `architecture-map.html`'s breadcrumb is a growing stack (one `navigate()`/`crumbLabelFor()` pair), not per-screen hand-built breadcrumb HTML
+
+**Status:** Accepted
+
+**Context:** ADR-003 moved module browsing under Diagrams › Module Dependencies, one hop deeper
+than before (`System › Diagrams › Module Dependencies — Dependency Graph › <module>` instead of
+the old flat `System › <module>`). The breadcrumb code at the time was a hand-built `if/else`
+chain keyed on `view.screen`, with no navigation history at all — clicking a node forwarded into
+the module page correctly, but there was no way back to the diagram short of clicking all the way
+to "System" and re-navigating from scratch. Bolting a fix onto that `if/else` chain (e.g. hardcoding
+one more special case for "module reached from a diagram") would have made the *next* screen added
+to this tool need its own hand-written breadcrumb case too — the same "fix it in one place, not
+scattered per-screen" question the user raised directly.
+
+**Decision:** Replaced the hand-built breadcrumb with a single navigation stack (`crumbStack`,
+never rewritten in place — only pushed when drilling into a new non-System screen, or truncated
+when jumping back to an earlier point) plus one label function (`crumbLabelFor(view)`) mapping any
+view object to its display text. `navigate(next)` is the only place that touches the stack;
+`renderBreadcrumb()` is the only place that reads it. Same shape as this project's real
+`BreadcrumbStep` pattern in `marketplace-app` (a growing stack, never rewriting existing segments —
+see root `CLAUDE.md` "Breadcrumb Pattern") — deliberately reused rather than inventing a
+differently-shaped mechanism for this generated tool. A generic `navigateBack()` (pop one level, or
+go to System if the stack is empty) replaced the Diagrams detail view's own hardcoded
+`navigate({screen:'diagrams'})` "← all diagrams" button, which would otherwise have *grown* the
+stack instead of shrinking it now that plain `navigate()` always pushes.
+
+**Consequences:**
+- Every current screen (module, pipelines, backlog, diagrams-list, diagrams-detail) gets correct
+  breadcrumb history and back-navigation for free — none of their own rendering code changed, only
+  `crumbLabelFor()` needed one case per screen type.
+- Adding a future screen means adding one `crumbLabelFor()` branch — `navigate()`/
+  `renderBreadcrumb()`/`navigateBack()` need no changes, by construction.
+- Verified via `scripts/ai/screenshot-architecture-map.sh`: System → Diagrams → Module
+  Dependencies → click node → module detail → click the "Module Dependencies — Dependency Graph"
+  breadcrumb segment lands back on the (re-rendered) graph, not a dead end.
+
+---
+
+## ADR-005: `docs/architecture/01-module-dependencies.md` retired entirely — its diagram, dependency table, and module-versions line render live on `architecture-map.html` instead; Key Observations carried over as static text in the generator
+
+**Status:** Accepted
+
+**Context:** ADR-003 stopped `architecture-map.html`'s Module Dependencies diagram from re-parsing
+`01-module-dependencies.md`'s Mermaid text, rendering it from `moduleNodes` instead — but the
+`.md` file itself still existed, still hand-maintained, still a second copy of facts the tool
+already had. A first attempt at closing that gap spliced a generated Mermaid block back into the
+`.md` between marker comments, checked by a new freshness gate — technically closing the drift
+risk, but not the actual complaint: a file that still needs generating, committing, and verifying
+on every `pom.xml` change is still ongoing cost for zero unique information, and it caused a real
+bug during implementation (an early version of the splice function silently deleted the entire
+Dependency Table / Key Observations / Module Versions sections below the marker — caught before
+being committed, but confirming a hand-rolled in-place file splice is itself a maintenance
+liability, not a neutral no-op).
+
+**Decision:** Delete `docs/architecture/01-module-dependencies.md` outright. Its four sections now
+live as follows, all reachable from `architecture-map.html`'s Diagrams › Module Dependencies page:
+- **Dependency Graph** — the domain-colored, click-navigable graph already built from `moduleNodes`
+  (ADR-003), unchanged.
+- **Dependency Table** — regenerated as an HTML `<table>` on the same page, built from
+  `n.edges.DEPENDS_ON_COMPILE/RUNTIME/OPTIONAL` (`moduleDepsScopeText()`) — mechanical, same source
+  as the graph, not hand-typed.
+- **Module Versions** — one line, sourced from the root `pom.xml`'s own `<artifactId>`/`<version>`
+  (`ROOT_ARTIFACT_ID`/`ROOT_VERSION`, extracted the same way `module_deps()` reads per-module
+  pom.xml files) — emitted into `architecture-model.json` as `rootArtifactId`/`rootVersion`.
+- **Key Observations** — the one section that is genuinely editorial judgment, not a fact
+  `pom.xml` encodes. Not mechanically regenerated: carried over verbatim into a static JS constant
+  (`MODULE_DEPENDENCY_KEY_OBSERVATIONS`) in `generate-architecture-model.sh`'s HTML template. If
+  these observations go stale, there is now exactly one place to fix them — no `DECISIONS.md`-style
+  append-only history needed for seven sentences of interpretation, but no second, driftable copy
+  either.
+
+An "Export as Markdown" button on the same page builds a markdown snapshot of the table + key
+observations + module versions client-side (`exportModuleDependenciesMarkdown()`, `Blob` + a
+synthetic `<a download>` click) and triggers a browser download. Deliberately **not** a mechanism
+for regenerating a tracked file: nothing it produces is committed back to the repo, so there is no
+staleness risk to guard against — a considered alternative (keep the marker-spliced `.md` block,
+just add an export button too) was rejected because it would still carry the original problem's
+full cost (a committed, freshness-gated, hand-editable-by-accident file) for a benefit ("readable
+without opening the tool") the export button already covers on demand.
+
+**Consequences:**
+- `scripts/ai/check-architecture-model-freshness.sh` reverted to checking only
+  `architecture-model.json`/`architecture-map.html` — no third file to back up/restore/diff.
+- `docs/architecture/README.md`'s "Files Overview" no longer lists a `01-module-dependencies.md`
+  entry; every cross-reference to that file repo-wide (`.claude/commands/sync-docs.md`,
+  `.claude/skills/doc-standards/SKILL.md`, `docs/ai/context-loading.md`,
+  `docs/architecture/03/06/07/08-*.md`, `integration-tests/DECISIONS.md`) repointed to
+  `docs/architecture-map.html`'s Module Dependencies page.
+- `docs/architecture/02-05-*.md` are unaffected — they still have no equivalent live-rendered
+  replacement, so they keep being the authoring source for their own diagrams (`GRAPH_TYPE_KEYS`
+  still routes `02-spi-map`/`03-bounded-contexts` through the generic Mermaid-text parser).
+  Retiring those too, the same way, is a natural next step but not done here — each would need its
+  own judgment call about which parts are mechanical vs. editorial, same as this one required.
+
+**Follow-up fixes, same session:** the export button initially omitted the diagram itself
+(`buildModuleDependencyMermaid()` added — same `moduleNodes` data, serialized to Mermaid text
+client-side, since Cytoscape has no built-in "export back to Mermaid"). Dependency Table cells
+were plain text; `moduleDepsScopeGroups()`/`moduleDepsScopeHtml()` added so each dependency name
+is its own link to that module's page too (`moduleDepsScopeText()` kept, plain-text sibling for
+the markdown export) — required adding `table.simple a` CSS, since a bare `<a onclick=...>` with
+no `href` renders unstyled by default. The page-level toolbar (back/export) and the diagram's own
+zoom controls were one shared `.diagram-toolbar` row; split apart on request — back/export now sit
+directly under the `<h2>Diagrams</h2>` title (page-level nav), zoom controls moved to their own
+right-aligned row directly above each diagram box (diagram-level control, not page-level).
+
+---
+
+## ADR-006: Module screen ADRs link to the real `DECISIONS.md`, never a copy of it — two earlier attempts (full body text, then a line number) both rejected as duplication/fragility, corrected to a plain file reference
+
+**Status:** Accepted
+
+**Context:** The Module screen's "Architectural decisions" list showed only `ADR-NNN — Title` as
+plain text, no way to reach the actual Context/Decision/Consequences prose without leaving the
+tool and finding the right `DECISIONS.md` by hand. Two attempts at fixing this were built and both
+corrected before landing, in direct response to user review:
+
+1. **First attempt — embed the full ADR body text.** Added `adr_body_for()` to re-read each
+   module's `DECISIONS.md` and capture the full text between an ADR's heading and the next one,
+   stored as a `"body"` field in `architecture-model.json`, shown in a `<dialog>` modal on click.
+   **Rejected**: this is exactly the duplication `doc-standards/SKILL.md`'s canonical ownership
+   table already rules on — "ADR rationale / historical decisions → canonical home: `DECISIONS.md`
+   → everywhere else: reference by ADR number, never restate the reasoning inline." Embedding the
+   real prose into a second, committed, generated file is still two copies of the same text in the
+   repository, even though generation keeps them in sync (no *drift* risk doesn't mean no
+   *duplication*). While building this version, three real bugs were found and fixed (kept as
+   knowledge, not reverted, since they're general-purpose corrections independent of whether body
+   text is embedded): (a) `gsub(/\\/, "\\\\", s)` in `awk`, meant to double every backslash for
+   JSON escaping, silently does **not** — confirmed directly (`echo 'X\Y' | awk
+   '{gsub(/\\/,"\\\\",s)}'` → `X\Y`, not `X\\Y`) — gsub's *replacement* argument undergoes its own
+   backslash interpretation independent of the string literal's, so `"\\\\"` (2 real backslashes
+   after literal parsing) collapses back to 1 in the output; `json_escape_multiline()` moved
+   backslash/quote escaping to `sed` instead (the same proven pattern `json_escape()` already
+   used), keeping `awk` only for joining already-escaped lines with a literal `\n`. (b) This repo's
+   CRLF line endings meant a "blank" trailing line was actually `\r`, not `""`, so a trim loop
+   trimming trailing blank/`---` lines stopped one line early and leaked a stray `---` into the
+   captured text — fixed by stripping `\r` before the comparison. (c) Embedding real ADR prose into
+   `architecture-model.json`/`architecture-map.html` made `check-hardcoded-counts.sh` flag
+   historical ADR text mentioning an unrelated past count (`integration-tests/DECISIONS.md`
+   discussing `run.sh`'s `STARTER_MODULES` list reaching "6 modules", nothing to do with the
+   reactor's total module count) as a stale current-state claim — worked around at the time by
+   excluding these two generated files from that gate; **the exclusion was reverted** once the
+   body text itself was removed (below), since the false-positive source went with it.
+
+2. **Second attempt — file + line number, no body text.** Replaced the embedded body with a real
+   `<a href="../module/DECISIONS.md">` link plus a separately-computed `line` field
+   (`adr_line_for()`, a `grep -n` for the ADR's own heading), shown as `module/DECISIONS.md:42`
+   next to the link. Genuinely fixed the duplication problem — zero ADR prose in the generated
+   files, a real navigable link to the one canonical source. **Also rejected**, on a narrower
+   ground: a line number is fragile in a way that needs no drift-detection gate to notice, because
+   nothing checks it — add or edit *any* ADR earlier in the same `DECISIONS.md` and every later
+   ADR's line number is wrong until the next regeneration, and (unlike every other fact this tool
+   generates) a wrong line number fails silently, it does not error. It also never bought real
+   navigation to begin with: a raw `.md` opened via `file://` renders as plain text, not HTML, so
+   there are no heading anchors for a `#fragment` to jump to — the line number was always just a
+   hint a human had to read and manually scroll/search for, no more precise than the ADR id itself
+   already displayed as the link's own visible text.
+
+**Decision:** `json_adr_array()` emits `{"id","title","file"}` only — `file` is the module's real
+`DECISIONS.md` path, nothing else. `adrFileLink()` builds a relative link
+(`../${a.file}`, relative to `docs/architecture-map.html`'s own location, so it resolves correctly
+regardless of where the repo is cloned) that opens the real file directly. The ADR id, already
+shown as the link's visible text (e.g. "ADR-001 (query-lib)"), is what a human actually searches
+for (Ctrl+F) once the file opens — it never goes stale, unlike a line number, because it doesn't
+depend on anything else in the file staying in the same physical position. `renderModule()` kept
+its `← back` button (`navigateBack()`) and `Export as Markdown` button
+(`exportModuleMarkdown()`) from the first attempt; the export's own ADR section lists `id`/`title`
+plus the same file reference, not body text either.
+
+**Consequences:**
+- Zero ADR prose duplicated anywhere in `architecture-model.json`/`architecture-map.html` — every
+  ADR is one canonical copy, in its own `DECISIONS.md`, exactly as `doc-standards/SKILL.md` already
+  requires.
+- No line-tracking logic to keep correct — `adr_line_for()` and the `check-hardcoded-counts.sh`
+  exclusion it indirectly required were both deleted, not just left unused.
+- Verified directly: opening the exported link resolves to the real file and shows the real ADR
+  text (tested by mirroring the relative path in an isolated directory and confirming the browser
+  navigates to and renders the actual `DECISIONS.md` content, not a 404/blocked request).
+- The "← back"/"Export as Markdown" toolbar placement (above the screen title, not below) was
+  applied to both the Module screen and the Diagrams detail screen for visual consistency, per
+  direct user request during this session.
+
+---
+
+## ADR-007: `DECISIONS.json` piloted as an L1 fact file (Knowledge Pyramid direction); Node.js replaces `awk` for markdown parsing
+
+**Status:** Superseded by ADR-008 — the separate `<module>/DECISIONS.json` file + `<script src>`
+loading it describes was abandoned (browser-dependent, see ADR-008); the Node parser and the
+Knowledge Pyramid framing below are still current, ADR-008 just changes where the parsed data
+lands.
+
+**Context:** ADR-006 correctly ruled out embedding ADR text into `architecture-model.json`, but the
+underlying need — showing an ADR's real content without leaving the tool, and doing it with a real
+click-to-scroll/center experience — was still unmet by a plain file link alone. Direct testing
+established the real constraints, not assumptions: `fetch()`/`XMLHttpRequest` against a sibling
+`file://` resource fails outright (`Failed to fetch`); `<iframe>` loads a sibling `file://` file but
+`contentDocument` is `null` (cross-document read blocked); a raw `.md` opened via `file://` renders
+as `text/plain`, so neither `#fragment` id-anchors nor the Text Fragments API (`#:~:text=`) scroll
+to anything (confirmed on both a 7-ADR and a 72-ADR real `DECISIONS.md`) — all real HTML/`file://`
+behavior, not workaround-able. `<script src="sibling.json">`, by contrast, loads under `file://`
+with zero CORS restriction (same mechanism this page already uses for its CDN `<script>` tags),
+including triggered dynamically at click-time via `document.createElement('script')` — the one
+mechanism that actually gets structured data into page JS without a server.
+
+This reopened the "embed vs. link" question ADR-006 settled, but on different ground: not
+prose-in-a-dialog, but the module's decisions converted to **structured data** or format
+(`<module>/DECISIONS.json`), loaded live via `<script src>` at the moment a module page opens
+(never baked into `architecture-map.html` at generation time), with per-ADR click-to-expand
+replacing the need for scroll/center entirely — the clicked ADR's content is already in memory,
+rendered in place, no navigation.
+
+**Decision:**
+1. Piloted on one module only (`audit-spring-boot-starter`, 25 ADRs) — `DECISIONS.md` left
+   completely untouched, `DECISIONS.json` generated alongside it for side-by-side comparison before
+   any commitment to a full 12-module migration.
+2. `<module>/DECISIONS.json` content: `window.DECISIONS_DATA["<module>"] = {title, adrs:[{id,
+   title, status, body}], extra:[{heading, body}]}` — `body` kept as one raw markdown blob per ADR
+   (not decomposed into separate context/decision/consequences fields), since real ADRs carry
+   irregular structure (amendments, correction callouts, tables, numbered lists) that a rigid
+   3-field schema would either lose or mangle. `extra` captures non-ADR sections (e.g. "Deferred
+   backlog") so nothing outside the ADR list is silently dropped.
+3. Client-side `mdBlockToHtml()` renders `body` (paragraphs/lists/tables) for the expand-in-place
+   view — a deliberately narrow block-level markdown-to-HTML step, same "only what's needed" scope
+   as `parseMermaidGraph()`, not a general markdown library. Caught and fixed two real rendering
+   bugs on real content before landing: (a) a block-split that only broke on blank lines merged a
+   `**Decision:**` label directly followed by a list (no blank line between, a real pattern in these
+   files) into one flattened paragraph — fixed by also breaking on a line-type transition; (b) a
+   list item wrapping across multiple source lines (e.g. `2. ... \n   (corrected ...)`) was treated
+   as a new paragraph, breaking out of the list and restarting numbering at the next real item —
+   fixed by treating a plain continuation line while inside a list as an append to the *previous*
+   list item, not a new block.
+4. The markdown→JSON parsing itself moved from a hand-rolled `awk` state machine to
+   `scripts/ai/md-to-decisions-json.js` (Node.js) — `node` is already available in this environment
+   and already a first-class tool in this repo (`playwright/`), not a new precedent.
+   `JSON.stringify()` gives correct escaping by construction, closing off the whole bug class the
+   `awk` version kept hitting live (two bugs caught and fixed in one session — see above and
+   ADR-006's own history of `awk`-escaping bugs). Regular expression block-splitting in real
+   JS is also considerably easier to get right than an `awk` state machine for the same job.
+5. Reframed mid-session (user-proposed, 2026-08-05) as one concrete piece of this tool's own
+   already-stated design: a generated model read through two projections, an AI layer with
+   progressive token-minimal levels (L0 System → L1 Module → L2 Contract → L3 Rule/Intent →
+   L4 Test evidence → L5 Implementation) and a human layer (the visual explorer this tool already
+   is). This ADR's work is a first real piece of L3 content (relevant ADRs for a module), built so
+   far only for the human layer (a popup) — the equivalent small, Claude-readable L3 file is not
+   built yet. Format (markdown vs. JSON) was never the real lever for
+   Claude's token/speed cost — measured directly on `audit-spring-boot-starter`: `DECISIONS.md`
+   26612 bytes vs. `DECISIONS.json` 27318 bytes, a ~2.7% difference, noise at this scale. The real
+   lever is whether Claude reads raw source at all for a task, versus a projection scoped to it —
+   L3.5 is the next planned step, not yet built.
+
+**Consequences:**
+- No duplication in `architecture-model.json`/`architecture-map.html` itself — confirmed directly
+  (`"body"` does not appear anywhere in the generated model; only `{id,title,file}` plus a
+  `decisionsJson` path pointer per module). The only duplicate artifact is `DECISIONS.json` itself,
+  and only for the piloted module, generated from `DECISIONS.md` for as long as the pilot lasts.
+- `generate-adr-index.sh` still parses markdown only — for the piloted module, the ADR
+  count/existence check on the Module screen (`n.intent`, sourced from `adr-index.md`) still
+  depends on `DECISIONS.md` staying present and current; only the expanded per-ADR body content is
+  truly live-loaded from `DECISIONS.json` today. A full migration (deleting `.md`, making `.json`
+  the sole source) requires `generate-adr-index.sh` to read `.json` too, or the count silently
+  breaks the moment `.md` is removed — not done yet, tracked below.
+- Full 12-module migration, `/decision` command update, and every cross-referencing rule file
+  (`doc-standards/SKILL.md`, `.claude/rules.md`, every module `CLAUDE.md`) remain out of scope for
+  this ADR — pilot only.
+
+---
+
+## ADR-008: ADR content embedded directly in `architecture-model.json`, not a separate `<module>/DECISIONS.json` loaded via `<script src>` — and shown in a popup, not inline expand
+
+**Status:** Accepted — rolled out to every module with its own `DECISIONS.md` (7 of 10 Maven
+modules: `attachment-spring-boot-starter`, `audit-spring-boot-starter`, `integration-tests`,
+`marketplace-app`, `platform-commons`, `query-lib`, `taxon-spring-boot-starter`; the other 3 record
+decisions in `marketplace-app`'s or `platform-commons`' `DECISIONS.md` per root `CLAUDE.md`, so
+have no file of their own to embed)
+
+**Context:** ADR-007's design (a separate `<module>/DECISIONS.json`, dynamically `<script src>`-
+loaded the first time a module page opens) worked in direct testing — confirmed in both Chromium
+and Firefox, no errors, ADR list rendered correctly in both. It was still rejected: the mechanism's
+correctness depends on browser-specific `file://` security policy for cross-directory resource
+loading (Firefox's `security.fileuri.strict_origin_policy` and equivalents are stricter by default
+than Chromium's, and either could tighten further, or be locked down by an organization's browser
+policy, with no code-visible warning). A tool meant to "just work" when double-clicked should not
+have its core feature's correctness depend on which browser opens it or how that browser is
+configured — not an acceptable tradeoff, even though no actual browser-specific failure was
+reproduced (the original bug report's root cause was never isolated; both tested browsers
+succeeded against a faithful mirror of the real file layout).
+
+**Decision:**
+1. `<module>/DECISIONS.json` as a standalone file is retired. `md-to-decisions-json.js` gained a
+   `--stdout <module>` mode that prints one module's parsed `{title, adrs, extra}` object as a
+   single line of JSON (no wrapper, no file write).
+2. `generate-architecture-model.sh` calls this for every module in `FULL_DECISIONS_MODULES` and
+   embeds the result directly as a `"decisions"` field on that module's node in
+   `architecture-model.json` — inlined into `architecture-map.html`'s own `const MODEL = ...`
+   `<script>` block at generation time, the exact same mechanism every other MODEL field already
+   uses. No runtime file load of any kind for ADR content — zero `fetch`, zero `<script src>`, zero
+   `iframe` — so zero browser-dependent behavior. The `"decisionsJson"` path-pointer field (an
+   artifact of the old design) is removed entirely; the group-level "view full file" link now
+   reuses the same `file` field each `intent[]` entry already carried
+   (`adrFileLink(n.intent[0])`), no separate pointer needed.
+3. The click interaction changed from inline expand-in-place to a real popup: one shared
+   `<dialog id="adr-popup">` element in the page skeleton (not per-ADR, not per-module), populated
+   and opened via `showModal()` on click (`openAdrPopup(moduleId, adrId)`), closed via an `×`
+   button or the dialog's own native `Esc`/backdrop-click behavior. Matches direct user request
+   ("я очікував ліст з адр і з попапом") — a dialog is also a better fit than inline expand for
+   longer ADR bodies (ADR-009's table + prose runs well past a comfortable inline-accordion height).
+
+**Consequences:**
+- This reopens ADR-006's original ruling against embedding ADR body text into
+  `architecture-model.json`/`architecture-map.html` — a deliberate, informed reversal after
+  exhausting the alternatives (plain link: no popup possible at all; separate JSON + `<script src>`:
+  works today but carries real, unquantifiable browser-policy risk), not a silent contradiction.
+  Recorded here rather than only in a new entry, per the standing rule to annotate a superseded
+  decision instead of leaving it to look uncontested.
+- `generate-adr-index.sh` still parses markdown only, unchanged from ADR-007 — the "(N)" ADR count
+  and whether the section renders at all still depend on `DECISIONS.md` staying present, even for
+  the piloted module. Still tracked as an open goal below, not resolved by this ADR.
+- `exportModuleMarkdown()` is unaffected — still `id`/`title`/`file` reference only, no body text,
+  consistent with the "no ungated duplication leaves the tool" rule already established in ADR-006.
+- Verified directly: dialog renders correctly in Chromium (screenshot-confirmed — table, bullet
+  list, and multi-line numbered list all render correctly inside the popup body), list renders
+  synchronously with no loading state (data is already in memory, no async load to wait for).
+- **Full rollout (2026-08-05):** `FULL_DECISIONS_MODULES` extended from the one pilot module to all
+  7 modules with their own `DECISIONS.md` (161 ADRs total, on top of the pilot's 25 — 186
+  combined). Parser validated against all 7 before wiring in: ADR count matched real `## ADR-`
+  heading count exactly in every file (including `marketplace-app`'s 72, the largest), and a
+  non-whitespace character-count ratio (parsed body text vs. raw file content) landed in the
+  expected 92-97% range everywhere — consistent with the markup (`#`/`##`/`**Status:**`/`---`)
+  that's legitimately stripped, not a sign of truncation. Screenshot-verified `marketplace-app`
+  itself (72 rendered `.adr-item` elements, zero page errors, `ADR-072`'s popup — heaviest content
+  of any module here, nested bullet lists with inline code — rendered correctly).
+- **`check-hardcoded-counts.sh` false positive, reintroduced and re-fixed:** the same class ADR-006
+  hit and reverted came back the moment full ADR body text returned to
+  `architecture-model.json`/`architecture-map.html` — this time from two sources (`integration-tests
+  /DECISIONS.md`'s historical "`STARTER_MODULES` now lists 6 modules" note, already known from
+  ADR-006, plus a new one, `marketplace-app/DECISIONS.md`'s "3 tables, 2 modules, not 1-and-1" —
+  an unrelated table/module split, nothing to do with the Maven reactor count). Fixed the same way,
+  but framed as permanent this time (full rollout, not a passing pilot): `check-hardcoded-counts.sh`
+  excludes exactly these two generated files by path, not all of `docs/` — every other file under
+  `docs/` (architecture docs, `docs/ai/*`) is still checked for genuine staleness.
+
+---
+
+## ADR-009: Cross-module ADR references — `**Also affects:**` tag, plus a generated pointer `DECISIONS.md` for modules with none of their own
+
+**Status:** Accepted
+
+**Context:** `user-spring-boot-starter` showed "Architectural decisions (0)" despite real ADRs
+existing about it (`marketplace-app/DECISIONS.md` ADR-071, `platform-commons/DECISIONS.md`
+ADR-026) — `adr-index.md` attributes every ADR to the single file it's physically written in, with
+no way for a module merely *discussed* in another module's ADR to show up on its own page. Two
+designs were compared: consolidate all decisions into one central file with module tags (rejected
+— changes how every future decision gets recorded project-wide, and needs manually re-tagging
+~188 existing ADRs), versus an optional tag on the existing per-file convention (chosen — additive,
+zero migration, no change to where a decision gets written).
+
+**Decision:**
+1. An ADR may add `**Also affects:** module-a, module-b` directly after its `**Status:**` line.
+   `generate-adr-index.sh` emits one extra table row per affected module for the same ADR (same
+   file, same id) — the "Module" column gets the affected module, the id's own `(home-module)`
+   parenthetical still names where the text actually lives, so the distinction is never lost.
+2. `json_adr_array()` (in `generate-architecture-model.sh`) now derives each ADR's `file` field
+   from that parenthetical, not from the module being queried — required, since a cross-listed
+   entry's real file differs from the module its row is filed under.
+3. Client-side rendering unified: every module's list now renders uniformly from `n.intent`
+   (`renderAdrList()`), whether an entry is home-grown or cross-listed. Clicking resolves the
+   ADR's real home module (`openAdrPopupForIntent()`) and opens the popup from *that* module's
+   embedded `decisions` data if present, falling back to a real link to the source file otherwise
+   (e.g. a cross-reference into a non-Maven-module `DECISIONS.md`, which has no embedded data).
+   Replaces the ADR-008 pilot's `renderAdrJsonList()`/`openAdrPopup()`, which only ever looked at
+   the currently-viewed module's own data.
+4. `advertisement-spring-boot-starter`, `provider-profile-spring-boot-starter`, and
+   `user-spring-boot-starter` (the 3 Maven modules with no hand-authored `DECISIONS.md`) each get a
+   **generated, pointer-only** `DECISIONS.md` — a title, a "do not hand-edit" note, and a markdown
+   list of whichever ADRs cross-reference them (`[ADR-071 (marketplace-app)](../marketplace-app/
+   DECISIONS.md) — Title`), or "No ADRs currently cross-reference this module." if none yet. Zero
+   ADR prose duplicated — every line is a real link. Regenerated by
+   `generate-architecture-model.sh` (`POINTER_DECISIONS_MODULES`/`generate_pointer_decisions_md()`)
+   every run; confirmed idempotent (byte-identical output across two consecutive full
+   regenerations).
+5. Two real ADRs tagged as a working demonstration: marketplace-app's ADR-071 and
+   platform-commons' ADR-026, both `**Also affects:** user-spring-boot-starter`. The other two
+   pointer-only modules currently show "no cross-references yet" — accurate, not a bug; tagging the
+   rest of the ~188-ADR history is a curation task, not part of this ADR.
+
+**Consequences:**
+- CRLF bug, caught and fixed live: `generate-adr-index.sh`'s `awk` didn't strip trailing `\r`
+  (this repo has CRLF line endings in some files, `marketplace-app/DECISIONS.md` and
+  `platform-commons/DECISIONS.md` among them), so `"user-spring-boot-starter\r" != "user-spring-boot-starter"`
+  silently dropped every cross-referenced row. Fixed with `{ sub(/\r$/, "") }` as the first rule in
+  the `awk` program — the same class of CRLF issue ADR-006 already hit once, in a different script.
+- `docs/ai/adr-index.md` gained 2 new rows (188 total) for the two tagged ADRs; the 3 new pointer
+  `DECISIONS.md` files are picked up by `generate-adr-index.sh`'s own file scan too, but produce no
+  `## ADR-` matches — they land in "Known gaps" (harmless, correctly labeled non-standard format,
+  not a real gap).
+- Root `CLAUDE.md`'s "Architectural Decisions Log" note updated — it previously (incorrectly, after
+  this ADR) implied these 3 modules have no `DECISIONS.md` file at all; corrected to describe the
+  generated pointer file and added the third module (`provider-profile-spring-boot-starter`) the
+  old note never listed.
+- Verified directly: `user-spring-boot-starter`'s page shows 2 ADR items, both open the real popup
+  content from their actual home module (`marketplace-app`), zero page errors.
+
+---
+
+## ADR-010: Non-Maven tooling directories (`scripts`, `scripts/ai`, `scripts/ci`, `scripts/sonar`, `playwright`) get a `SCRIPT_GROUP` node — same ADR mechanism as `MODULE`
+
+**Status:** Accepted
+
+**Context:** 5 directories carry their own `DECISIONS.md` (real ADRs, real history) but have no
+`pom.xml`, so `MODULES` (sourced from the Maven reactor) never included them — they were entirely
+invisible to `architecture-map.html`, including their own decisions, even after ADR-008/009 made
+this possible for Maven modules. The Tooling & Pipelines screen also only ever showed Commands and
+Skills, not the underlying scripts those commands wrap.
+
+**Decision:** New node type `SCRIPT_GROUP`, one per directory in `SCRIPT_GROUP_DIRS`
+(`scripts/ai`, `scripts`, `scripts/ci`, `scripts/sonar`, `playwright`), each carrying `files[]`
+(its own `*.sh`/`*.js` at depth 1), `intent[]`, and `decisions` — identical shape and identical
+generation path (`decisions_json_for()`, `FULL_DECISIONS_MODULES` extended to include these 5
+directories) as `MODULE` nodes; `renderAdrList()`/`openAdrPopupForIntent()` needed zero changes to
+work for them, since both already operate generically on `n.intent`/`byId[homeModule].decisions`
+rather than assuming `type === "MODULE"`. The Tooling & Pipelines screen now splits into "AI
+Tooling" (Commands, Skills, `scripts/ai`) and "Other Scripts" (the remaining 4 directories) via a
+`category` field (`SCRIPT_GROUP_CATEGORY`). Commands/Skills `Source` column changed from plain
+`<code>` text to a real link (`sourceLink()`) — same "resolve to the file, don't just print its
+path" rule already applied to ADR references.
+
+**Consequences:**
+- `scripts/sonar/DECISIONS.md` shows its file list but no ADR section — it doesn't use the
+  standard `## ADR-NNN:` heading format (a pre-existing, already-documented gap in
+  `generate-adr-index.sh`'s own "Known gaps" output, not a new issue introduced here).
+- Verified directly: 5 `SCRIPT_GROUP` nodes render, 0 page errors, file links and ADR popups both
+  functional for every group that has ADRs in the standard format.
+
+---
+
+## ADR-014: SPI Map rebuilt live from real Java source, same pattern as Module Dependencies — `docs/architecture/02-spi-map.md` retired
+
+**Status:** Accepted — `.md` file deleted 2026-08-05, after explicit user comparison and go-ahead
+
+**Context:** User-flagged the rendered SPI Map diagram looked bad ("одна лінія" — cramped onto one
+row) and asked for the same treatment as Module Dependencies (01): live from real source, Export
+as Markdown, then retire the `.md`. `docs/architecture/02-spi-map.md` turned out much richer than
+`01-module-dependencies.md` was — Overview, the diagram, a 7-subsystem "SPI Interface Details"
+table (Interface/Direction/Implementation/Purpose), an "Implementation Rules" section, 3 "Call Flow
+Examples", and a "File Locations Summary". Checked feasibility before touching anything: grepping
+`public interface` under `platform-commons/*/spi/*.java` plus `implements \bXName\b` across every
+starter + marketplace-app reproduced the diagram and File Locations content exactly (verified:
+found the same 17 interfaces and the same implementing classes the `.md` already listed) — genuinely
+mechanical, same bar as `module_deps()`'s own pom.xml parsing. This same grep also caught a real
+staleness bug in the *existing* `.md`: it claimed `UserIdMarker` is "implemented by domain types
+(e.g. `UserDto`)" — no class in the current codebase actually implements it (confirmed directly);
+the live version reports "no implementation found" instead of repeating a claim that's no longer
+true, exactly the payoff live extraction gives over hand-maintained prose.
+
+**What is *not* mechanical:** "Purpose" one-liners per interface (editorial summaries) and the 3
+Call Flow Examples (narrative traces) have no other source. "Implementation Rules" duplicates
+`platform-commons/CLAUDE.md`'s own "Hook and Port Implementation Rules" section almost verbatim.
+
+**Decision:**
+1. `spi_map_json()` (`generate-architecture-model.sh`) builds `MODEL.spiMap` (`{nodes, edges,
+   details}`) directly from the grep extraction above — a `SCRIPT_GROUP`-style live source, no
+   Mermaid-text intermediate. `02-spi-map` gets its own synthesized `diagramGroups` entry
+   (`file: "platform-commons/src (live)"`), mirroring `01-module-dependencies`'s pattern exactly;
+   removed from the markdown-extraction loop (`extract_all_mermaids_json`) that still serves
+   `03-05`.
+2. `SPI_PURPOSE` (bash associative array) and `spi_call_flow_examples_json()` carry the two
+   genuinely-editorial pieces over as static content — the same exception Module Dependencies'
+   `MODULE_DEPENDENCY_KEY_OBSERVATIONS` already established, not a new precedent.
+3. "Implementation Rules" is **not** carried over — replaced with a real link to
+   `platform-commons/CLAUDE.md`, since restating it would be actual duplication, not an
+   editorial-content exception.
+4. Client-side: `renderCytoscapeDiagram(source)` (Mermaid-parsed diagrams) and the new
+   `renderSpiMapGraph()` (live-generated nodes/edges) now share one `renderCytoscapeFromGraph
+   (nodes, edges, rankDir)` — extracted to avoid duplicating the Cytoscape style/layout block a
+   second time. SPI Map renders left-to-right (`rankDir: "LR"`) rather than the shared default
+   top-to-bottom — reads better for this 2-level interface→implementation shape; other callers
+   (`03-bounded-contexts`) keep the default, unaffected.
+5. `docs/architecture/02-spi-map.md` is **kept**, not deleted — explicit user instruction, for a
+   side-by-side comparison before committing to removal.
+
+**Consequences:**
+- Verified directly: 44 nodes, 19 edges, 17 interface-detail rows, 0 duplicate Cytoscape ids,
+  `UserIdMarker` correctly shows no implementation. Screenshot-confirmed the layout fix — modules
+  render in distinct visible boxes, left-to-right flow, no more single-row cramping.
+- Deleted (`git rm docs/architecture/02-spi-map.md`) after the user compared content twice, flagged
+  real gaps both times (subsystem grouping/package headers, two subsystem notes, Implementation
+  Rules' concrete examples — all fixed before this deletion), then gave explicit go-ahead. Same
+  precedent `01-module-dependencies.md`'s removal already set (ADR-005) — verified both files are
+  actually gone from disk and correctly staged as deleted (`git status` shows `D` for both).
+- Follow-up (2026-08-05): both the Interface and Implementation(s) columns in the details table now
+  link to the real `.java` file (`spiFileLink()`, readable class name as the link text — same
+  "short label, real link" pattern `adrFileLink()` already uses for ADRs), added after the user
+  pointed out the table had no links at all in the first pass.
+- Follow-up (2026-08-05), two more real gaps found and fixed: (1) diagram nodes weren't clickable —
+  `renderCytoscapeFromGraph()`'s shared Cytoscape setup had no tap handler at all (only
+  `renderModuleDependencyGraph()`'s own separate flat renderer did); fixed by carrying a `file`
+  field on every node's `data` (interfaces and impl classes alike) and adding one shared
+  `diagramCy.on("tap", "node[file]", ...)` handler + pointer cursor, so any current or future
+  Cytoscape diagram with file-bearing nodes gets click-to-open for free. Verified directly
+  (mirrored the real relative path in an isolated test dir): clicking `AdvertisementPort` opens the
+  real `AdvertisementPort.java`. (2) User-reported native scrollbars "not responsive" when zooming
+  Module Dependencies/SPI Map — confirmed directly: `#diagram-cy-wrap`'s `scrollWidth`/`clientWidth`
+  stay exactly equal even after 8 zoom-in steps (Cytoscape's canvas DOM size never changes with
+  zoom — it manages its own internal transform), so the `.diagram-wrap` class's `overflow: auto`
+  never actually engages for these diagrams; it was dead CSS specifically for this container.
+  Confirmed drag-to-pan on empty canvas *does* work (`diagramCy.pan()` changed substantially after
+  a drag) — the real gap was discoverability, since the existing hint only mentioned dragging
+  *nodes* (which repositions them, not the view). Fixed: `#diagram-cy-wrap { overflow: hidden; }`
+  (removes the pointless, non-functional scrollbar affordance) plus updated hint text on all three
+  Cytoscape-rendered diagrams (Module Dependencies, SPI Map, bounded-contexts) to state both drag
+  behaviors explicitly: "drag a node to reposition it, drag empty canvas space to pan the view."
+- Follow-up (2026-08-05): user-flagged the live version had genuinely less content than the
+  retired `.md`. Diffed against the original word-for-word and found two real losses: `AuditPort`'s
+  purpose text dropped its method list (`captureCreation`, `captureUpdate`, ... 9 methods), and
+  `UserIdMarker`'s purpose trimmed the exact `isOwner(UserDto, UserIdMarker)` signature down to
+  `isOwner`. Both restored verbatim in `SPI_PURPOSE`. Also restored the "Overview" intro paragraph
+  (the `*Port`/`*Hook` direction explanation) as its own static section, mirrored into
+  `exportSpiMapMarkdown()` too — dropped entirely in the first pass, not carried over like the
+  Purpose/Call Flow content was. Deliberately still not restoring a standalone "File Locations
+  Summary" section — every interface/implementation cell in the details table is now a real link to
+  its file (`spiFileLink()`), so a flat path list would duplicate exactly what the table already
+  shows, just less usefully.
+- Follow-up (2026-08-05), user pushed back a second time ("тут набагато більше") and asked for a
+  full re-read — correct: 3 more real losses, all fixed. (1) The original organized interfaces into
+  7 subsystem-named tables (Audit/Attachment/User/Advertisement/Taxon/Provider Profile/Core), each
+  headed by its real Java package; the first live pass flattened this into one undifferentiated
+  table with no package shown anywhere. Fixed: `details[]` now carries `package`/`subsystem`
+  (mechanically extracted via `grep "^package "` on each interface file, subsystem = the path
+  segment between `platform.` and `.spi`), grouped client-side in `renderSpiSubsystemTables()`
+  using `SPI_SUBSYSTEM_LABEL` for the display headings. (2) Two subsystem-level editorial notes —
+  Attachment's ("`AttachmentMediaChangeHook` does not exist...") and User's ("split into 4 narrow
+  ports, see ADR-026...") — were dropped with no trace; restored in `SPI_SUBSYSTEM_NOTE`, rendered
+  under each subsystem's table. (3) "Implementation Rules" had been reduced to a bare link, but the
+  original's Location + concrete real-example bullets (not just the abstract "pure delegation" rule
+  platform-commons/CLAUDE.md also states) were unique content, not duplication — restored as static
+  text, keeping the link only for the core rule itself. All three carried into
+  `exportSpiMapMarkdown()` too, not just the on-page render.
+
+---
+
+## ADR-015: Bounded Contexts stays hand-maintained (unlike Module Dependencies/SPI Map) — renamed, linked, and `/sync-docs` ordering made explicit
+
+**Status:** Accepted
+
+**Context:** Asked to give `docs/architecture/03-bounded-contexts.md`'s diagram page the same
+treatment as Module Dependencies (01) and SPI Map (02). Read the full file first — unlike those
+two, most of its content is genuinely not mechanical: the Context Map's edges are conceptual
+business relationships ("audited via", "can have", "category assignment via"), not a grep-able
+`implements`/pom.xml fact; domain grouping is already flagged `domain_confidence: manual` in the
+model itself; Integration Patterns, Risks, and the Cross-Domain-Dependencies prose are analytical
+content, not extractable data. Proposed this assessment to the user before touching anything —
+agreed: keep the file as the real, hand-maintained source, don't force a live rebuild where the
+underlying facts aren't mechanical.
+
+**Decision:**
+1. Renamed `docs/architecture/03-bounded-contexts.md` → `docs/architecture/bounded-contexts.md`
+   (dropping the numeric prefix, this file only — 04-08 unchanged) — every reference updated:
+   `generate-architecture-model.sh` (`BOUNDED_CONTEXTS` path, the `stem`/`DIAGRAM_FILE_LABEL`/
+   `GRAPH_TYPE_KEYS` keys, comments), `.claude/commands/sync-docs.md`, `docs/ai/context-loading.md`,
+   `docs/ai/README.md`, `docs/architecture/README.md`. Left references inside historical/archival
+   files (`backlog/completed/**`, `backlog/BACKLOG.md`'s dated narrative, this file's own earlier
+   ADR history) untouched — they describe a past state under the name that was actually true then.
+2. The Bounded Contexts diagram page in `architecture-map.html` now shows a real link to
+   `bounded-contexts.md` plus a one-line explanation of *why* it stays hand-maintained (the
+   conceptual-edges reasoning above) — resolve-by-reference with the reasoning stated once, not a
+   silent "here's a link" with no context for why this one file didn't get the 01/02 treatment.
+3. `/sync-docs`'s own workflow now states the ordering explicitly, not just implicitly via the
+   mapping table: Step 4 updates `docs/architecture/*.md` files (including `bounded-contexts.md`)
+   first, then runs `bash scripts/ai/generate-architecture-model.sh` as its last action — since the
+   generator reads `bounded-contexts.md`/`DECISIONS.md` as input, running it first would bake in
+   stale content. Step 3's "For `01`"/"For `02`" lines (now stale — neither gets a manual
+   read-and-rewrite step anymore, both are fully automated) replaced with a note stating that
+   directly, plus a new "For `bounded-contexts.md`" line.
+
+**Consequences:**
+- One trigger (`generate-architecture-model.sh`), run once, at a fixed point in `/sync-docs`'s own
+  step order — not scattered across multiple implied trigger points the mapping table alone
+  suggested. Matches the user's stated end goal ("один тригер перегенерував всю архітектуру") for
+  this file; extending the same explicit-ordering treatment to `04-08` is a separate, not-yet-asked
+  step, not assumed done here.
+- Noted, not fixed (out of today's scope) at the time: the Bounded Contexts diagram itself still
+  rendered via the generic Mermaid-parse + top-to-bottom Cytoscape path and had the same "cramped
+  into one row" layout issue SPI Map had before its `rankDir: "LR"` fix. **Superseded by ADR-016**
+  — investigating this surfaced a deeper, unfixable-the-same-way problem (the graph is genuinely
+  cyclic, not just mis-ranked), and the diagram was dropped from the tool entirely in favor of a
+  plain link.
+- Verified directly: all 4 CI freshness gates pass, screenshot-confirmed the new note/link render
+  correctly on the Bounded Contexts diagram page.
+
+## ADR-016: Bounded Contexts diagram dropped from the tool entirely — real graph is cyclic, not just mis-ranked
+
+**Status:** Accepted — the "dropped from the tool entirely" part is superseded by ADR-018; the
+diagnosis below (why the Cytoscape+dagre compound pipeline specifically fails on this graph)
+still stands and is exactly why ADR-018 restores the diagram through a *different* rendering path
+instead of retrying the same one.
+
+**Context:** Asked to fix the Bounded Contexts diagram's layout the same way SPI Map's was fixed
+(`rankDir: "LR"`), and to add click-to-navigate + an Integration Patterns section below it,
+mirroring SPI Map's Call Flow Examples — a direct follow-up to ADR-015's "noted, not fixed" bullet.
+
+**Investigation:**
+1. Passed `rankDir: "LR"` through to `renderCytoscapeDiagram()`/`renderCytoscapeFromGraph()` for
+   this diagram only. Screenshot still showed every node in a single cramped column, just rotated
+   (vertical instead of horizontal) — not fixed.
+2. Dumped every node's resolved Cytoscape `x`/`y` via a direct Playwright script: every node had an
+   *identical* `x`, confirming dagre's ranking was collapsing to one column regardless of
+   `rankDir` — a structural problem, not a wrong CSS/config value.
+3. Root cause #1 (real bug, fixed): the Mermaid source encodes, for 6 of the 7 domains, a pair of
+   edges directly between a `subgraph` group id and one of its own nested children (e.g.
+   `User -->|defines contract| UserPort` and `UserPort -->|implements in| User`, with `UserPort`
+   declared *inside* the `User` subgraph — `parent: "User"` in the parsed Cytoscape compound
+   model). An edge between a compound parent and its own descendant forms a 2-cycle dagre's
+   compound-aware ranking can't resolve, and collapsing it drags the whole graph down with it. Fix:
+   `renderCytoscapeFromGraph()` now drops any edge where one endpoint is the immediate parent of
+   the other before building the layout (`layoutEdges` — kept for drawing, general rule protecting
+   any future compound Mermaid diagram with the same pattern, not bounded-contexts-specific).
+4. Re-tested after the fix (12 edges removed, confirmed via edge count 34 → 22): `x` spread was
+   *still* zero. Compared directly against SPI Map (also a compound graph, confirmed working —
+   real spread 107→415 after the same renderer) to rule out a renderer-wide regression — SPI Map
+   was fine, so the problem was specific to this graph's shape, not the shared code.
+5. Root cause #2 (real, structural, not a bug): traced the remaining 22 edges and found the domain
+   layer forms a genuine cycle when each compound group is collapsed to one node — `UI` has edges
+   into `UserPort`/`AdvPort`/etc. (children of other domains), and `Audit` has an edge into
+   `HookImpls` (a child of `UI`), while `UI` also has a direct edge into `Audit`. Collapsed:
+   `UI → Audit` and `Audit → UI` both exist, and every other domain sits on a path between them
+   (`UI → <domain> → Audit`). This makes `{User, Advertisement, Attachment, Taxon, Audit, UI}` one
+   strongly-connected component — only `Shared` (pure source, no incoming edges) sits outside it.
+   `dagre`'s own documentation states compound-node layout does not reliably support cycles
+   spanning compound boundaries; a whole SCC collapsing onto one rank is exactly that failure mode,
+   confirmed directly rather than assumed.
+6. Presented this finding to the user before doing anything further (three concrete options: scope
+   a diagram-specific hub-edge exclusion to force a DAG shape; drop compound nesting for this one
+   diagram in favor of flat color-coded nodes; or stop chasing the layout and accept/simplify).
+   Discussion also surfaced a more basic question — does this diagram carry information genuinely
+   unique versus Module Dependencies (01, real pom.xml deps) + SPI Map (02, real interface/impl
+   edges) + each domain's own `CLAUDE.md`? Answer: partially (the DDD entity/table/role framing and
+   labeled business relationships aren't duplicated verbatim anywhere else), but the diagram itself
+   is a visual convenience over facts that already live elsewhere, not a unique source of truth —
+   `bounded-contexts.md` is that source, not the picture.
+
+**Decision:** Stop trying to force this specific graph into the tool's dependency-graph renderer.
+`renderDiagrams()` gets a dedicated `g.key === "bounded-contexts"` branch: shows the explanatory
+note (kept — the "why this file stays hand-maintained, not mechanical" reasoning from ADR-015) plus
+a real link to `bounded-contexts.md`, with no canvas, no Cytoscape instance, no zoom controls, no
+click-to-navigate, no Integration Patterns extras section. Removed as dead weight once the diagram
+was dropped: `BOUNDED_CONTEXTS_MODULE_MAP`, `renderBoundedContextsExtrasHtml()`,
+`bounded_contexts_integration_patterns_json()` (bash) and its `boundedContextsIntegrationPatterns`
+model field, `"bounded-contexts"` from `GRAPH_TYPE_KEYS`, and the now-unreachable `isGraphType`
+branch/variable in `renderDiagrams()` (both remaining `GRAPH_TYPE_KEYS` members — 01 and 02 — were
+already handled by their own earlier explicit branches, so that branch had no live callers left).
+The parent-self-edge fix in `renderCytoscapeFromGraph()` (step 3 above) is kept — it's a real,
+general correctness fix independent of this diagram's fate.
+
+**Consequences:**
+- Bounded Contexts is no longer listed as a `draggable` diagram type on the Diagrams index card.
+- No further layout engineering sunk into a graph that is genuinely cyclic at the domain level —
+  the honest option given `dagre`'s documented limitation, not a workaround.
+- If this diagram's visual form is revisited later, the two live options identified but not taken
+  are: (a) a diagram-specific edge-exclusion-from-ranking rule (draw all edges, rank on an
+  explicitly acyclic subset only), or (b) drop Cytoscape compound (`parent`) nesting for this one
+  diagram — flat, color-coded-by-domain nodes instead of nested dashed boxes — since `dagre`'s
+  built-in cycle-breaking is far more reliable on non-compound graphs.
+- Verified directly: all 4 CI freshness gates pass; screenshot confirms the page renders only the
+  note + real link, no canvas element present (`document.getElementById("diagram-cy")` is `null`).
+
+## ADR-017: Database ERD rebuilt live from real Liquibase changelogs — descriptions moved into `remarks=`, `docs/architecture/04-database-erd.md` retired; the same "single source of truth" pattern also applied retroactively to SPI Map's purpose text
+
+**Status:** Accepted
+
+**Context:** Asked to migrate `04-database-erd.md` fully into `architecture-map.html`, same spirit
+as Module Dependencies (01)/SPI Map (02) — live diagram + real links + every piece of the
+markdown's content accounted for, file kept on disk until content parity is verified (established
+01/02 pattern: migrate, verify, delete only on explicit go-ahead).
+
+While scoping where the per-column/per-table descriptive text (`04-database-erd.md`'s "Notes"
+prose) should live, the user pushed back on the design that was about to be proposed — a
+`declare -A` bash map inside the generator, the same shape `SPI_PURPOSE` already used for SPI Map's
+interface descriptions. The objection: that shape is itself a second copy of information that
+belongs next to the real thing it describes (a Java interface, a database column) — the generator
+should be a pure aggregator of real source data, not a place where descriptive prose gets
+hand-authored and duplicated. This reframed the task: not just migrate the ERD, but apply the same
+correction retroactively to `SPI_PURPOSE`.
+
+**Decision:**
+
+1. **SPI Map's `SPI_PURPOSE` retired — descriptions moved into real Javadoc.** All 17
+   `platform-commons/*.spi` interfaces now carry a Javadoc paragraph directly above their
+   declaration (11 got one added; 6 already had one — kept as-is, since in one case
+   `AuditDomainHook`'s real Javadoc was *more accurate* than the stale `SPI_PURPOSE` entry
+   describing it, direct evidence the duplicated-copy design was already drifting).
+   `spi_javadoc_purpose_for(file)` (new function, `generate-architecture-model.sh`) extracts the
+   Javadoc block immediately preceding `interface X` live via `awk` — walks backward past
+   blank/annotation lines (handles `@FunctionalInterface`) to the nearest `*/`, then to its
+   matching `/**`, strips `*`/`{@code}`/`{@link}` markup. `SPI_PURPOSE` array deleted. Convention
+   documented in `platform-commons/CLAUDE.md`'s "SPI Interface Naming" section (first line states
+   `Port: X → Y.` / `Hook: X → Y.` matching the direction table, so both a human reading the
+   `.java` file and the generator agree on the same text).
+2. **Liquibase `remarks=` is the new single source for column/table meaning.** All 6 real
+   changelogs with an actual `<createTable>` (`user`, `advertisement`, `attachment`, `audit`,
+   `taxon`, `provider-profile`) got a `remarks="..."` attribute on every `<column>` and on each
+   `<createTable>` itself, carrying over `04-database-erd.md`'s "Notes" text verbatim where it
+   existed. Not a prod database — no `validCheckSum` compatibility concern, changesets edited
+   directly rather than working around checksum drift. Convention documented in root `CLAUDE.md`'s
+   "Database Changes" guideline (guideline 6).
+3. **`scripts/ai/liquibase-schema-to-json.js`** (new, Node — same "real parser, not fragile
+   awk/sed" precedent as `md-to-decisions-json.js`) parses the 6 changelogs: table name, module,
+   real changelog path, per-column name/type/`remarks`/nullable/unique/primaryKey/inline FK
+   (`references="table(col)"`), standalone `<addForeignKeyConstraint>`, `<createIndex>`,
+   composite `<addPrimaryKey>`, and a narrow regex pass over raw `<sql>` blocks for the two
+   patterns actually used (a `CHECK` constraint, a partial/GIN `CREATE INDEX`). `db_erd_json()`
+   (bash) calls it and merges in one hand-preserved list — `conceptualRelationships` — for the ERD
+   edges with **no real FK** (this codebase deliberately decouples actor-reference/cross-domain
+   columns — `advertisement.created_by`, `audit_log.actor_id`, `provider_profile.city_taxon_id`,
+   etc., see `marketplace-app/DECISIONS.md` ADR-034/ADR-035): 9 relationships, carried over
+   verbatim from the retired file's ER diagram, same "genuinely editorial, no mechanical source"
+   exception class as `spi_call_flow_examples_json()`. Real FKs (`taxon_translation`/
+   `taxon_assignment` → `taxon`, `user_information`'s self-referential `deleted_by`) are **not**
+   duplicated into this list — they come live from the parser.
+4. **Render:** `buildDbErdMermaidSource()` generates a Mermaid `erDiagram` string live from
+   `MODEL.dbErd` (native Mermaid ER rendering — PK/FK/UK badges, crow's-foot notation — since
+   `parseMermaidGraph()`'s custom parser only understands `graph TB/LR` syntax, not `erDiagram`'s
+   column-block notation; Cytoscape was never in the running here). Real FKs render as solid lines
+   (Mermaid's "identifying relationship" `--`); the 9 hand-preserved conceptual ones render as
+   dotted lines (`..`, "non-identifying relationship") — the notation itself carries the
+   real-vs-conceptual distinction, not just prose. `renderDbErdTableSchemas()` adds an HTML
+   table-schema section per table below the diagram (columns/types/constraints/`remarks`, real
+   FKs, indexes, real changelog link) — same shape as SPI Map's subsystem tables.
+   `exportDbErdMarkdown()` added for parity with 01/02's export buttons.
+5. **Table ownership per module** (`MODULE_TABLES`, used elsewhere in the model for each module's
+   "owns these tables" listing) was re-pointed from parsing `04-database-erd.md`'s `### table` /
+   `**Module:**` markdown headings to calling `liquibase-schema-to-json.js` directly — one real
+   source feeding two consumers, not a markdown mirror of the same fact.
+6. **Content-parity check, then delete.** Diffed the full original file section-by-section against
+   the live version. Table/column/constraint/index/FK data: full parity, plus two real staleness
+   bugs the old markdown had already accumulated were caught and fixed in the process —
+   `advertisement.ad_kind` and `attachment_snapshot.version` both exist in the real schema but were
+   missing from the hand-maintained markdown entirely. Four narrative sections (Data Flow examples,
+   Soft Delete Pattern, Extensibility, Performance Considerations) had no live equivalent — assessed
+   each rather than reflexively re-adding a new static array (the exact pattern being corrected by
+   this ADR): Data Flow's 3 examples turned out to be the *same* 3 flows SPI Map's Call Flow
+   Examples already narrate, just from the SQL side instead of the call side — genuine duplication
+   in the original hand-authored docs, not lost information; Extensibility is already carried by
+   the `attachment`/`audit_log` table-level `remarks` ("Generic: can attach to any entity type...");
+   Soft Delete Pattern and Performance Considerations are generic RDBMS-pattern commentary already
+   inferable from the live `deleted_at` column remarks and the mechanically-extracted index list
+   respectively — none of the four needed a new home. `docs/architecture/04-database-erd.md`
+   deleted (`git rm`) on that basis, with every repo-wide reference repointed
+   (`.claude/commands/sync-docs.md`, `docs/architecture/README.md`, `docs/ai/context-loading.md`,
+   `docs/ai/README.md`) — historical mentions in `backlog/BACKLOG.md`'s dated narrative and this
+   file's own ADR-001/history left untouched (describe a past state that was actually true then).
+7. **Verified directly, not assumed:** `bash scripts/deploy.sh --reset` — a full rebuild against a
+   wiped database — applied all 6 modified changelogs cleanly (`Liquibase: Update has been
+   successful` for every changeset, app started). Queried Postgres directly
+   (`col_description('user_information'::regclass, ...)`) and confirmed the `remarks` attributes
+   became real `COMMENT ON COLUMN` entries in the database itself, not just changelog metadata —
+   the single source of truth is genuinely queryable from either side (live tool or `psql`).
+
+**Consequences:**
+- Two generator-side static description stores (`SPI_PURPOSE`, and the design that would have
+  become its ERD equivalent) are gone; the real count of "places that describe what an interface or
+  column means" dropped from 2 to 1 for both subsystems.
+- Any future SPI interface or database column automatically shows up correctly described in the
+  live tool the moment its Javadoc/`remarks` is written — no second edit anywhere else, and no way
+  for the two to drift (there is no longer a second copy to drift from).
+- `docs/architecture/` now holds only `bounded-contexts.md` and `05-08-*.md` — Module Dependencies,
+  SPI Map, and Database ERD all live exclusively in `docs/architecture-map.html`.
+- All 4 CI freshness gates verified green after every step, not just at the end.
+
+**Follow-up fixes, same session:** the new Database ERD page initially had three gaps versus the
+Cytoscape-based diagrams (01/02) it was asked to match: the SVG entities weren't clickable, the
+scroll/zoom mechanism looked inconsistent, and PK/FK/UK/line notation had no explanation. Fixed the
+first and third directly:
+- `wireDbErdEntityClicks()` (new) — after `mermaid.run()`'s promise resolves (the SVG doesn't exist
+  synchronously before that, unlike `enableDragToPan()` which only needs the wrapper div), matches
+  each rendered `entity-<NAME>-<uuid>` SVG group against the real table list
+  (`t.name.toUpperCase().replace(/_/g,"")`) and wires a click → `scrollIntoView()` on that table's
+  schema section (`id="db-table-<name>"`, added to `renderDbErdTableSchemas()`'s wrapper div).
+- Added a "Notation" section (PK/FK/UK, solid-vs-dotted line meaning) — explicitly agreed this is
+  fine as static/hardcoded content, unlike the table/column descriptions ADR-017 just moved out of
+  the generator: ER notation symbols are fixed language constants, not domain facts that can drift
+  from the code they describe.
+- The scroll/zoom mechanism gap is not a bug: `erDiagram` syntax can only render via Mermaid's own
+  engine (`parseMermaidGraph()` only understands `graph TB/LR`), so it necessarily uses the same
+  CSS-transform-scale + native-scrollbar + `enableDragToPan()` mechanism `05-sequence-diagrams.md`
+  already uses — Cytoscape's canvas-based pan/zoom (01/02) isn't available to a Mermaid-rendered
+  SVG. Asked the user whether to invest in a fully custom draggable Cytoscape ER renderer anyway
+  (accepting the loss of Mermaid's native crow's-foot notation) — declined, keep the native
+  renderer.
+- Also gave Module Dependencies (01) an "Overview" section (`renderModuleDependencyExtrasHtml()`)
+  — SPI Map and the new Database ERD page both had one already, 01 didn't; user liked the ERD one's
+  wording and asked for the same treatment. States the same fact pattern: real source
+  (`pom.xml` `&lt;dependencies&gt;`), live-rendered, nothing to keep in sync elsewhere.
+
+**Second follow-up round, same session — "Legend" everywhere, plus a "how this is built" block:**
+user pointed out the first round's fixes were incomplete: the ERD's own legend was missing symbols
+actually present in the diagram (the crow's-foot cardinality markers), the word "Notation" read
+worse than "Legend", and only the ERD page had one at all despite the request being to add
+explanations across the diagrams. Also asked for a concise "what libraries/tech build this page,
+what feeds the JSON" block on the System screen.
+- Inspected the real rendered SVG directly (Playwright, `<marker>` element ids) rather than
+  guessing which crow's-foot symbols appear — confirmed `buildDbErdMermaidSource()` only ever
+  emits `||--o{`/`||..o{` (never any other cardinality combination), so the Legend explains exactly
+  those two symbols (`‖` = exactly one, `○&lt;` = zero or many), not a generic full-notation
+  reference for symbols that never actually render.
+- Renamed "Notation" → "Legend" (ERD), and added a "Legend" section to Module Dependencies (01) and
+  SPI Map (02) too — each explaining what's actually different about *that* diagram (01: line
+  style = compile vs. runtime scope, arrow direction, node color = domain; 02: dashed box = module
+  boundary, blue box = Java class, arrow = "implements").
+- Module Dependencies' domain-color legend is **built live** from `domainOrder`/`domainColor()` —
+  the same functions the graph itself uses to color nodes — not a hardcoded color-to-domain table.
+  Domain colors are assigned by first-appearance order over an 8-color palette, so a static list
+  would silently go wrong the moment a 9th+ domain repeats a color (confirmed this actually happens
+  today — `Shared Kernel` and `UI/Application Layer` share the same blue, an honest artifact of the
+  live legend, not something a hand-written one would have caught or explained).
+- Added a "How this page is built" block to the System screen (`renderSystem()`): rendering stack
+  (Cytoscape.js + cytoscape-dagre for the draggable graphs, Mermaid.js for ERD/sequence), generation
+  stack (this generator + the two Node.js parsers, linked via `sourceLink()`), and a one-line list of
+  where each piece of `architecture-model.json` actually comes from — deliberately short, no
+  restated prose from any `CLAUDE.md`, since the ask was explicitly for something concise a user
+  reads in passing, not a duplicate of the governance docs.
+
+**Toolbar layout bug, same session:** user flagged the ERD page's `← back`/`Export as Markdown` row
+looked different from 01/02's. Root cause: 01/02's shared toolbar block already renders both
+buttons together, above the `Diagrams` title; the ERD branch instead rendered its own *second*
+toolbar div, with its own export button, *below* the title, papered over with a `margin-top:-8px`
+hack. Fixed by adding `04-database-erd` to the shared toolbar's existing conditional (same pattern
+as 01/02) and deleting the ERD branch's separate toolbar entirely — one shared row, no per-diagram
+copy, no CSS patch needed.
+
+## ADR-018: Bounded Contexts diagram restored — via Mermaid's native engine, not the Cytoscape+dagre pipeline ADR-016 removed it for
+
+**Status:** Accepted
+
+**Context:** After building the live Database ERD (ADR-017), the user asked whether the same
+"render via Mermaid's own engine" approach used there (and already used for
+`05-sequence-diagrams.md`) would also work for Bounded Contexts — since ADR-016's actual failure
+was specific to *our* custom `parseMermaidGraph()` + Cytoscape-compound-node + dagre pipeline, not
+to Mermaid itself.
+
+**Verification, before proposing anything:** rendered `bounded-contexts.md`'s exact existing
+Mermaid source (same subgraphs, same edges, including the ones that form the real UI/Audit-hub
+cycle ADR-016 diagnosed) through plain `mermaid.run()` in an isolated Playwright page — no
+Cytoscape involved at all. Result: 8 cluster boxes at clearly different x/y positions (viewBox
+~4248×1159, x spread 11→1279, y spread 16→351) — a real, spread-out layout, not a collapse.
+Confirmed with a screenshot, not assumed correct. This makes sense in hindsight: Bounded Contexts
+rendered fine through plain `mermaid.run()` before it was ever migrated onto the Cytoscape
+pipeline earlier this session — the collapse was introduced by *that* migration, not inherent to
+the graph's cyclicity being unrenderable by any tool.
+
+**Decision:** Restored `bounded-contexts` in `renderDiagrams()` (`generate-architecture-model.sh`)
+to render through the same native-Mermaid path as the Database ERD and `05-sequence-diagrams.md`
+(`mermaid.run()` + `enableDragToPan()`), not the removed Cytoscape pipeline:
+1. `d.source` still comes from `bounded-contexts.md`'s existing Mermaid block, unchanged — this
+   ADR restores *rendering*, not data mechanization. Mechanizing the underlying data (domain
+   grouping from Java package structure, some relationships from real `ComponentFactory<XPort>`
+   injections) remains the separate, larger, not-yet-started Open Goal below.
+2. Click-to-navigate restored: `BOUNDED_CONTEXTS_MODULE_MAP` (subgraph id → real module id) is
+   back, wired via a new `wireBoundedContextsClicks()` — simpler than the ERD's equivalent
+   (`wireDbErdEntityClicks()`) because Mermaid's flowchart renderer gives each subgraph's SVG
+   cluster group an id *exactly equal to* the subgraph id itself (confirmed by inspecting the
+   real rendered SVG: `id="User"`, `id="Audit"`, etc., no prefix or uuid suffix, unlike
+   `erDiagram`'s `entity-NAME-<uuid>` pattern) — a direct object lookup, no regex needed.
+3. The diagram-note text updated to describe an interactive diagram again (click/drag/pan), while
+   keeping the still-true "edges are conceptual, not mechanically derived" caveat.
+4. Verified directly: real screenshot at 30% zoom shows all domains spread out and readable,
+   matching the standalone verification; a real click on the `User` cluster's SVG group navigates
+   to `user-spring-boot-starter`'s module page (breadcrumb changed, confirmed via
+   `dispatchEvent(new MouseEvent("click"))` on the real cluster element, not a synthetic
+   `cy.emit()` call — the same test-harness gotcha noted in ADR-016 doesn't apply here since this
+   isn't Cytoscape). All 4 CI freshness gates pass.
+
+**Consequences:**
+- Bounded Contexts is browsable and clickable again, closing the gap ADR-016 opened — while the
+  root cause ADR-016 diagnosed (dagre's compound-layout+cycle limitation) remains valid and
+  unfixed *for that specific pipeline*; this ADR routes around it rather than resolving it.
+- At default 100% zoom the diagram only shows a fraction of the wide (~4248px) layout — the
+  existing `zoomDiagram(0)` "reset" for Mermaid-rendered diagrams sets scale back to 1 rather than
+  fitting the content to the viewport (unlike Cytoscape's `diagramCy.fit()` for 01/02); the user
+  needs to zoom out manually. Not a new regression — the same mechanism `05`/ERD already use — but
+  more noticeable here since this diagram is unusually wide. Not fixed in this round; worth a
+  future look if it comes up again.
+- `GRAPH_TYPE_KEYS` is unchanged (still just `01-module-dependencies`/`02-spi-map`) — Bounded
+  Contexts was never added back to it, so it correctly shows no "draggable" badge on the Diagrams
+  list, matching its real (pan-only, not drag-to-reposition-nodes) interaction model.
+
+## ADR-019: Bounded Contexts domain grouping and relationships now generated live from real code — no longer hand-typed in `bounded-contexts.md`
+
+**Status:** Accepted
+
+**Context:** User asked to mechanize `bounded-contexts.md`'s actual content (not just its
+rendering, which ADR-018 already fixed), maximally, marking anything uncertain rather than
+guessing, with the eventual goal of deleting the `.md` the same way 01/02/04 were. First
+investigation (naive `ComponentFactory<XPort>` grep across the repo) was too noisy — 15+ files per
+port, mixing UI components, config classes, and test support with real domain coupling, and this
+codebase's own Module Import Rules mean starters never depend on each other directly, so
+cross-domain relationships are always mediated through `marketplace-app`, not a clean
+starter-to-starter signal.
+
+**Real signal found on closer investigation:** `AuditActivityFieldsHook`/`AuditActivityEnrichHook`
+implementations in `marketplace-app/spi/*.java` each declare an `entityType()` method returning a
+specific `EntityType` enum value — this is a precise, first-class, intentional mechanism (not an
+incidental mention), and maps directly to "this domain is audited via Audit"
+(`AuditActivityFieldsHook`) or "this domain can have Attachment" (`AuditActivityEnrichHook`).
+Combined with `TaxonPort.replaceAssignments()`'s real call site (inside
+`provider-profile-spring-boot-starter` itself, confirmed direct per that starter's own
+`CLAUDE.md`, unlike Advertisement's `marketplace-app`-mediated category writes) and the already-
+computed `moduleNodes` pom.xml dependency edges (Shared → every domain), nearly every relationship
+in the original diagram turned out to have a real, precise, mechanical source after all — the
+initial pessimism from the naive grep was about the wrong signal, not about mechanization being
+infeasible.
+
+**Decision:**
+1. `bounded_contexts_json()` (bash, `generate-architecture-model.sh`) → `MODEL.boundedContexts`:
+   - `domains[]` — per domain, real `@Table` entity classes, real `*Service` classes, real tables
+     owned (reusing `MODULE_TABLES`, already computed for the Database ERD), and real SPI
+     interfaces it implements (same grep technique `spi_map_json()` already uses). `Shared`
+     (platform-commons) and `UI` (marketplace-app) get domain-appropriate substitutes: Shared shows
+     real counts (17 SPI interfaces, 25 DTOs, 9 core model classes); UI shows its real `*HookImpl`
+     classes.
+   - `relationships[]` — one add-and-dedupe helper (`add_rel`, merges multiple real signals for the
+     same conceptual `from|to|label` triple into one edge with combined evidence, e.g. `User`'s two
+     separate `EntityType` hooks — `USER` and `USER_SETTINGS` — both feed one `User -> Audit` edge
+     rather than drawing a duplicate parallel line). Every relationship carries a `confidence` field
+     (reusing the project's existing `extracted`/`inferred`/`manual` convention, the same one
+     `MODULE_DOMAIN` already uses — not a new marker scheme) and an `evidence` string naming the
+     real file/method/call site backing it. All 18 relationships found landed at `"extracted"` —
+     the heuristic/uncertain tier this ADR was prepared to use for weaker signals wasn't needed in
+     practice, since every relationship type had a real, named, first-class code signal once the
+     right one was found.
+2. `buildBoundedContextsMermaidSource()` (client JS, mirrors `buildDbErdMermaidSource()`) generates
+   the `graph TB` Mermaid source live from `MODEL.boundedContexts` — real entity/service/table/port
+   names as node labels, real relationship labels as edges, dashed for `Shared`'s `decouples`
+   edges. Replaces `d.source` (which ADR-018 still read verbatim from `bounded-contexts.md`).
+3. `renderBoundedContextsExtrasHtml()` adds an Overview + Domain Contents + a full Relationships
+   table (Relationship / Label / Confidence / Evidence columns) below the diagram — every fact
+   traceable to its real source, not just asserted.
+4. `bounded-contexts.md` is **not deleted** — kept on disk as the hand-authored comparison source,
+   same 01/02/04 discipline (migrate, verify content parity with the user, delete only on explicit
+   go-ahead). Not yet compared word-for-word against the live version.
+
+**Consequences:**
+- One real, confirmed discrepancy already visible without a full comparison pass: the original
+  diagram has `Attachment -->|audited via| Audit`, but there is no `EntityType.ATTACHMENT` value
+  and no `AuditActivityFieldsHook` implementation for it — the live version correctly does not draw
+  this edge. Whether the original was wrong (attachment changes aren't actually audited via the
+  `EntityType` mechanism, `attachment_snapshot` is its own separate history table instead) or
+  whether a real mechanism exists that this pass's signals didn't catch is not yet resolved — flag
+  for the content-parity pass before any deletion decision.
+- The live version surfaces a relationship the original never had at all: `Advertisement -> Taxon`
+  category-assignment coupling exists in real code (`marketplace-app`'s `AdvertisementSaveService`
+  calls `TaxonPort.replaceAssignments()`, exactly the same real mechanism `Provider -> Taxon` uses)
+  but was never drawn in `bounded-contexts.md`. Added as a second `"category assignment via"`
+  detection rule (Advertisement's real call site is in `marketplace-app`, not its own starter,
+  unlike Provider's direct one) — found and fixed in the same pass, not left as a noted gap.
+- Verified directly: 0 page errors, real click-to-navigate confirmed (clicking the `User` cluster
+  navigates to `user-spring-boot-starter`'s module page), screenshot-confirmed all 8 domains
+  render with real content and all 18 relationships render with real evidence. All 4 CI freshness
+  gates pass.
+
+**Follow-up polish, same session:** user asked for real links in Domain Contents (not just plain
+text), a per-entry breakdown of *what kind* of thing each item is (class vs. interface vs. table),
+visibility into *what data* actually crosses each relationship, a "Legend" section matching
+01/02/04, and pointed out two real gaps versus the other three live diagrams: no "Export as
+Markdown" button, and no "(live)" marker on the Diagrams list card.
+- `json_named_file_array()` (bash, `generate-architecture-model.sh`) replaces the plain
+  `json_str_array()` calls for entities/services/tables/ports — each item is now `{name, file}`
+  with a real relative path (tables link to the real changelog, ports to the real `.spi` interface
+  file, entities/services to their own real `.java` file). `bcItemLink()` (client JS) renders each
+  as a real link when a file is present, plain text otherwise (Shared's count summaries have none).
+- `renderBoundedContextsExtrasHtml()`'s Domain Contents now groups each domain's items into four
+  labeled rows (Entities / Services / Tables / Ports) instead of one flattened comma list — a
+  reader can tell what kind of thing each name is without having to already know the codebase.
+- `BC_LABEL_PAYLOAD` (bash) — a small map from relationship *label* to a real "what crosses"
+  description, checked directly against the real `Port` method signatures it describes
+  (`AuditPort.capture*()` all take `AuditableSnapshot`; `AttachmentPort.getMediaSummaries()`
+  returns `AttachmentMediaSummaryDto`; `TaxonPort.replaceAssignments()` takes a `Set<Long>` of
+  taxon ids) — not guessed. Rendered as a new "What crosses" column in the Relationships table.
+- Added a "Legend" section (box = bounded context, solid line = real relationship, dashed line =
+  "decouples" compile-time-only dependency) — same shape 01/02/04 already have.
+- `exportBoundedContextsMarkdown()` added, wired into the shared toolbar's existing conditional —
+  parity with 01/02/04's export buttons, none of which this diagram had until now.
+- The Diagrams list card now shows `"real code (live)"` instead of the real
+  `bounded-contexts.md` path — `bounded-contexts` moved out of the markdown-mermaid-extraction loop
+  entirely and into the directly-synthesized `diagram_groups_json` list alongside 01/02/04 (same
+  pattern ADR-005/ADR-014/ADR-017 already established), since the diagram content genuinely no
+  longer depends on that file for rendering, only for comparison.
+- Real layout bug found and fixed: the Relationships table's long unbroken evidence strings (e.g.
+  the merged multi-hook evidence list) pushed the table wider than its container, overflowing the
+  page. Fixed generically on the shared `table.simple` rule (`table-layout: fixed` +
+  `overflow-wrap: anywhere` on `td`) rather than a one-off fix — benefits every table in the tool
+  that might hit the same problem with long unbroken content, not just this one.
+
+**Content-parity investigation, same session (before any deletion decision):** unlike SPI Map/ERD,
+where investigation found nothing genuinely lost, this file has real narrative/analytical content
+with no live equivalent: `Domain Details`' per-domain prose (specific cross-domain call narratives,
+negative facts like "User domain does not depend on other starters", architectural nuances like
+`DefaultTaxonPort` being a coordination layer rather than pure delegation, and why
+`TaxonAuditHook` does not exist), `Shared Kernel`'s full 5-category breakdown (SPI/DTOs/Models/API
+Markers/Utility, with concrete examples like `YoutubeUtil`), a `Domain Independence` section, and a
+`Risks & Future Considerations` section cross-referencing `06-coupling-analysis.md`. Confirmed
+`Integration Patterns` is **not** a loss — word-for-word, it narrates the same 3 flows SPI Map's
+own Call Flow Examples already do, just from the domain side instead of the call side. Presented
+this finding to the user before proceeding with any deletion — awaiting a decision on whether to
+carry the four genuinely-unique sections over as hand-preserved static content (same exception
+class as SPI Map's Call Flow Examples) before retiring the file, or accept the loss, or keep the
+file for now. `bounded-contexts.md` is **not deleted yet**.
+
+## Open goals
+
+- **AI-layer L3 (Rule/Intent) artifact.** A small, Claude-readable file — given a touched module,
+  the applicable rules + relevant ADRs for it — distinct from the popup built so far, which serves
+  the human layer only (a person clicking, not Claude reading directly). Identified as the
+  highest-leverage step for Claude's token/speed cost, since it changes what gets read per task
+  rather than how existing data is stored. Not started.
+  **Constraint, stated now so it isn't lost by the time this is picked up:** L3 must not be a
+  filtered read of `architecture-model.json`. That file correctly embeds full ADR prose for the
+  human popup (ADR-008) — reusing it for L3 would carry that same weight into the one layer whose
+  entire point is being cheap for Claude to read. L3's own source is `docs/ai/adr-index.md`
+  (already id/title/status/one-line, already generated, already exactly this shape) plus each
+  ADR's `file` reference for on-demand full-text lookup only when a task actually needs it — not
+  embedded by default. Building L3 against the wrong source defeats the reason it's being built at
+  all.
+- **Mechanize `bounded-contexts.md` the same "scatter into real source" way as ADR-017.** Domain
+  grouping (which entity/table/service belongs to which domain) is already derivable from Java
+  package/module structure alone, the same technique Module Dependencies/SPI Map already use. Some
+  business relationships ("audited via", "can have") may also be re-derivable from real DI
+  injection points (`ComponentFactory<XPort>` field declarations in each domain's service) instead
+  of hand-authored subgraph text. Does **not** by itself fix why the diagram was dropped in
+  ADR-016 (the domain layer is a genuine graph cycle via the UI/Audit hub, a `dagre` compound-layout
+  limitation, not a staleness problem) — freshness and renderability are separate problems; this
+  goal only addresses the first. Not started.
+~~Full ADR-embedding rollout to all modules with their own `DECISIONS.md`~~ — done, see ADR-008.

@@ -68,6 +68,12 @@ advertisement-parent (root pom)
 4. **Modular Storage:** `StorageService` and its implementations live in `attachment-spring-boot-starter` (`org.ost.attachment.services`). UI components MUST degrade gracefully via `ObjectProvider.ifAvailable()` when the attachment starter is absent from the classpath.
 5. **Validation:** Use declarative validation rules in DTOs.
 6. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
+   Every `<column>`/`<createTable>` MUST carry a `remarks="..."` attribute with the business-meaning
+   explanation (why the column/table exists, cross-references to the ADR that decided its shape).
+   This is the single source of truth — `scripts/ai/generate-architecture-model.sh`'s Database ERD
+   page parses these `remarks` live and shows them next to each column/table. Do not duplicate the
+   same explanation in a separate markdown file; if the meaning changes, edit the `remarks`
+   attribute in the changelog, not a second copy elsewhere.
 7. **Starter independence:** No starter has a Vaadin dependency and no starter contains UI code —
    Vaadin only exists in `marketplace-app` (guideline 2 above). Each starter owns its own Liquibase
    changelog under its own `db/*-changelog/` directory; changelogs are never merged into a shared
@@ -154,9 +160,12 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/integration-tests/DECISIONS.md`
 - `/app/taxon-spring-boot-starter/DECISIONS.md`
 
-Note: `user-spring-boot-starter` and `advertisement-spring-boot-starter` have no `DECISIONS.md` —
-their key decisions are recorded in `marketplace-app/DECISIONS.md` (domain extraction) and
-`platform-commons/DECISIONS.md` (port interfaces).
+Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`, and
+`provider-profile-spring-boot-starter` have no hand-authored `DECISIONS.md` of their own — their
+key decisions are recorded in `marketplace-app/DECISIONS.md` and `platform-commons/DECISIONS.md`
+instead. Each of these three modules has a generated, pointer-only `DECISIONS.md`
+(`bash scripts/ai/generate-architecture-model.sh`) listing whichever ADRs cross-reference it via
+the home ADR's own `**Also affects:**` tag — never hand-edit these three files directly.
 
 → ADR discovery index (generated, one line per decision across every `DECISIONS.md`):
 `docs/ai/adr-index.md` — see `docs/ai/README.md` for the full AI-navigation layer.

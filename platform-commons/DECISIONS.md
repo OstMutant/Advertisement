@@ -118,6 +118,8 @@ must be pure Java with no Spring context dependency.
 ## ADR-005: UserPort + AdvertisementPort for domain module extraction
 **Status:** Accepted (completed 2026-06-15)
 
+**Also affects:** advertisement-spring-boot-starter, user-spring-boot-starter
+
 **Context:** Domain module extraction required marketplace-app to call user and advertisement
 starters without importing their internals.
 
@@ -689,6 +691,8 @@ findings, grouped together since all three touch this module's own naming/packag
 
 **Status:** Accepted
 
+**Also affects:** user-spring-boot-starter
+
 **Context:** Every `*Port` in this codebase to date maps one-to-one to one starter module
 (`TaxonPort` alone covers `taxon`/`taxon_translation`/`taxon_assignment` — 3 tables, one
 interface). `UserPort` had grown to 19 methods spanning 4 unrelated concerns — query
@@ -730,6 +734,8 @@ cite, with the same consumer-grep-first discipline, not a rubber stamp for split
 ## ADR-027: `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter`
 
 **Status:** Accepted
+
+**Also affects:** provider-profile-spring-boot-starter
 
 **Context:** F-04 adds a "provider profile" concept — any actor can optionally
 describe themselves as a service provider (`MASTER`/`SHOP`/`SUPPORT`). The original single-table

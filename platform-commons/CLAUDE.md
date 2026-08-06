@@ -51,6 +51,21 @@ All cross-module extension points live in `platform-commons/*.spi`. The suffix e
 **Why ports and hooks must live in `platform-commons` and not in the starter:**
 Starters are optional — marketplace compiles and runs without them on the classpath (all injections use `ObjectProvider`). If a port or hook interface lived inside a starter, removing that starter would break marketplace compilation even though the feature is optional. Keeping all interfaces in `platform-commons` ensures marketplace always has the type visible, regardless of which starters are present.
 
+**Every `*.spi` interface must carry a Javadoc purpose paragraph directly above its declaration.**
+This is the single source of truth for what the interface is for — `scripts/ai/generate-architecture-model.sh`'s SPI Map reads it live (the Javadoc block immediately preceding `interface X`, first paragraph up to any `@`-tag) and shows it in the interactive diagram's detail popup. Do not also maintain a separate description of the same interface anywhere else (a generator-side lookup table, a wiki page, etc.) — if the purpose changes, edit the Javadoc, not a second copy.
+
+```java
+/**
+ * Port: marketplace → audit-starter.
+ * Write side: captures entity creation, update, deletion, and restore as immutable audit entries.
+ * Read side: resolves snapshot content, per-entity activity, and the cross-entity timeline feed.
+ * Implementation lives in audit-spring-boot-starter.
+ */
+public interface AuditPort {
+```
+
+Convention: first line states `Port: <caller> → <implementor>.` / `Hook: <caller> → <implementor>.` (matching the direction in the table above), followed by 1-3 sentences on what the interface actually does. `@FunctionalInterface`-annotated interfaces put the annotation between the Javadoc and the `interface` keyword — the extraction skips over it.
+
 ## Hook and Port Implementation Rules
 
 **Naming:** `*Hook` implementations → `*HookImpl`; `*Port` implementations → `*PortImpl` or `Default*Port` (for primary implementations with non-trivial coordination logic).

@@ -11,6 +11,12 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Port: marketplace → advertisement-starter.
+ * CRUD advertisements, filtered/paginated queries, ownership checks, and purge-safety helpers
+ * (findOwnerIds/clearActorReferences) used when a user account is deleted.
+ * Implementation lives in advertisement-spring-boot-starter.
+ */
 public interface AdvertisementPort {
 
     List<AdvertisementInfoDto> getFiltered(@NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale);

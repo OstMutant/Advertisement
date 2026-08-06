@@ -117,7 +117,7 @@ SELECT * FROM advertisement WHERE deleted_at IS NULL AND ...;
 
 ### 1. marketplace-app → All Starters (Tight Binding)
 
-See `01-module-dependencies.md` ("Marketplace App Dependency") for the fact — not restated here.
+See `docs/architecture-map.html`'s Module Dependencies page ("Marketplace App Dependency" observation) for the fact — not restated here.
 
 **Mitigation:** Starters are core to the app; this coupling is acceptable.
 

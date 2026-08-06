@@ -38,7 +38,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 **Definition:** Loose coupling between modules; changes in one do not ripple through others.
 
 **Evidence:**
-- ✓ No cyclic dependencies — see `01-module-dependencies.md`
+- ✓ No cyclic dependencies — see `docs/architecture-map.html`'s Module Dependencies page
 - ✓ All inter-module calls through platform-commons SPI (Ports/Hooks)
 - ✓ No Vaadin in starters (clean separation of concerns)
 - ✓ Repositories not imported by UI directly (all through Ports)
@@ -204,7 +204,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 ## Strengths
 
 1. **Clear SPI Design:** Port/Hook pattern with consistent naming (marketplace → Port, Hook ← starter)
-2. **No Cyclic Dependencies:** see `01-module-dependencies.md`
+2. **No Cyclic Dependencies:** see `docs/architecture-map.html`'s Module Dependencies page
 3. **Shared Kernel:** All cross-module contracts centralized in platform-commons; no circular imports
 4. **Flexible Schema:** JSONB audit_log and attachments allow extensibility without migrations
 5. **Modular Starters:** Each starter is independently deployable

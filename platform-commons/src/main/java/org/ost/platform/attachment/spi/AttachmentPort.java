@@ -12,6 +12,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Port: marketplace → attachment-starter.
+ * Upload, delete, query, and restore attachments for any entity type; manage temp-upload staging
+ * and point-in-time snapshots. Implementation lives in attachment-spring-boot-starter.
+ * Injected via {@code ObjectProvider} — UI degrades gracefully when the starter is absent.
+ */
 public interface AttachmentPort {
 
     // ── domain lifecycle ──────────────────────────────────────────────────────

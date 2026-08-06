@@ -12,6 +12,12 @@ import org.springframework.data.domain.Sort;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Port: marketplace → audit-starter.
+ * Write side: captures entity creation, update, deletion, and restore as immutable audit entries.
+ * Read side: resolves snapshot content, per-entity activity, and the cross-entity timeline feed.
+ * Implementation lives in audit-spring-boot-starter.
+ */
 public interface AuditPort {
 
     // ── write side ────────────────────────────────────────────────────────────

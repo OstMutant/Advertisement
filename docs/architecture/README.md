@@ -4,26 +4,26 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
 
 ## Files Overview
 
-### 01-module-dependencies.md
-**Maven dependency graph.** Shows which modules depend on which others — see that file for the
-DAG-shape and dependency-scope findings, not restated here.
+### Module Dependencies (not a `.md` file — see `docs/architecture-map.html`)
+**Maven dependency graph.** Which modules depend on which others, rendered live from `pom.xml`
+(Diagrams › Module Dependencies) — domain-colored, click a node to open its module page, plus a
+Dependency Table and Key Observations on the same page. Not a separate `docs/architecture/*.md`
+file: kept as one generated view instead of a second, separately-maintained copy.
 
-**Key diagram:** `graph LR` showing 10 modules and their dependencies (9 shipped + `integration-tests`, test-only, never shipped).
+### SPI Map (not a `.md` file — see `docs/architecture-map.html`)
+**Extension points and implementations.** Which Ports and Hooks live in `platform-commons` and who
+implements them, rendered live from real Java source (Diagrams › SPI Map) — grouped by subsystem,
+click a node or table entry to open its real `.java` file, plus Call Flow Examples and
+Implementation Rules on the same page. Not a separate `docs/architecture/*.md` file: kept as one
+generated view instead of a second, separately-maintained copy.
 
-### 02-spi-map.md
-**Extension points and implementations.** Maps all Ports and Hooks to their implementations. Explains the Port/Hook pattern (marketplace → Port, Hook ← starter). Lists the SPI interfaces in platform-commons and their implementations in starters/marketplace-app.
-
-**Key diagram:** `graph TD` showing SPI interfaces and their implementations across modules.
-
-### 03-bounded-contexts.md
-**Domain boundaries and integration patterns.** Identifies business domains (User, Advertisement, Audit, Attachment, Taxon, Provider Profile) plus the UI layer and shared kernel. Explains how domains communicate through Ports and Hooks. Documents the 3 main integration patterns (lifecycle with audit, media attachment, activity feed enrichment).
+### bounded-contexts.md
+**Domain boundaries and integration patterns.** Identifies business domains (User, Advertisement, Audit, Attachment, Taxon, Provider Profile) plus the UI layer and shared kernel. Explains how domains communicate through Ports and Hooks. Documents the 3 main integration patterns (lifecycle with audit, media attachment, activity feed enrichment). Rendered as an interactive diagram at `docs/architecture-map.html`'s Diagrams › Bounded Contexts page — this file stays the real, hand-maintained source (its edges are conceptual domain relationships, not mechanically derivable the way Module Dependencies/SPI Map are), the page is a live rendering of it, not a second copy.
 
 **Key diagram:** Context map showing all domains and their relationships.
 
-### 04-database-erd.md
-**Entity relationship diagram and schema details.** Shows tables with columns, types, constraints, indexes, and foreign keys. Explains the data flow for key operations (create advertisement, upload media, query activity).
-
-**Key diagram:** Mermaid `erDiagram` with all tables and relationships.
+### Database ERD (not a `.md` file — see `docs/architecture-map.html`)
+**Entity relationship diagram and schema details.** Tables with columns, types, constraints, indexes, and foreign keys, rendered live from the real Liquibase changelogs (Diagrams › Database ERD) — each column's/table's own `remarks=` attribute in the changelog is the single source of truth for what it means (see root `CLAUDE.md`'s "Database Changes" guideline), shown next to it in the diagram and in a table-schema section below. Solid diagram lines are real foreign keys; dotted lines are relationships this codebase deliberately leaves unconstrained at the SQL level. Not a separate `docs/architecture/*.md` file: kept as one generated view instead of a second, separately-maintained copy.
 
 ### 05-sequence-diagrams.md
 **Real code paths through actual class names.** 6 sequence diagrams tracing real interactions: advertisement creation, media upload, activity timeline query, snapshot restore, settings change, and list filtering. All classes named (e.g., AdvertisementOverlay, AdvertisementPortImpl, AdvertisementService).
@@ -59,10 +59,10 @@ See `08-scorecard.md`'s "Overall Assessment" table for the per-dimension scores 
 
 ## How to Use This Documentation
 
-1. **Understand module structure:** Start with 01-module-dependencies.md
-2. **Learn about SPI contracts:** Read 02-spi-map.md for all ports/hooks
-3. **Understand domain boundaries:** Study 03-bounded-contexts.md
-4. **Learn the database:** Review 04-database-erd.md
+1. **Understand module structure:** Start with `docs/architecture-map.html`'s Module Dependencies page
+2. **Learn about SPI contracts:** `docs/architecture-map.html`'s SPI Map page for all ports/hooks
+3. **Understand domain boundaries:** Study bounded-contexts.md
+4. **Learn the database:** `docs/architecture-map.html`'s Database ERD page
 5. **Trace real code paths:** Follow 05-sequence-diagrams.md for how features work
 6. **Identify risks:** Check 06-coupling-analysis.md and 07-risk-report.md
 7. **Assess quality:** Review 08-scorecard.md for strengths, weaknesses, and recommendations
@@ -80,7 +80,7 @@ commands — re-verify the same way next time this table is touched, per `doc-st
 | Total Modules | 10 (query-lib, platform-commons, 6 starters, marketplace-app, integration-tests test-only) |
 | Total Java Files | 314 |
 | Total Tables | 10 (user_information, user_preferences, advertisement, attachment, attachment_snapshot, audit_log, taxon, taxon_translation, taxon_assignment, provider_profile) |
-| SPI Interfaces | 17 (10 Ports + 5 Hooks + 2 type/marker contracts) — see `02-spi-map.md` |
+| SPI Interfaces | 17 (10 Ports + 5 Hooks + 2 type/marker contracts) — see `docs/architecture-map.html`'s SPI Map page |
 | Largest Module | marketplace-app (174 Java files) |
 | Largest File | `I18nKey.java` (438 lines, marketplace-app) |
 | Dependency Cycles | 0 (clean DAG) |
@@ -111,7 +111,7 @@ Risks" for the coupling and optional-dependency checks this documentation tracks
 - Analyzed schemas:
   - All Liquibase migrations in `/app/*/src/main/resources/db/*/changes/`
 - pom.xml files for all 10 modules (`integration-tests`'s own `smoke_test` table is test-only
-  scaffolding, not part of the domain schema — deliberately excluded from 04-database-erd.md)
+  scaffolding, not part of the domain schema — deliberately excluded from the Database ERD page)
 
 ---
 
@@ -156,7 +156,7 @@ All findings based on actual source code inspection:
 
 **Strengths:**
 - Clear SPI design with consistent Port/Hook naming
-- No circular dependencies (see `01-module-dependencies.md`)
+- No circular dependencies (see `docs/architecture-map.html`'s Module Dependencies page)
 - Shared kernel centralizes all cross-module contracts
 - Flexible schema (JSONB) supports extensibility
 - Starters are modular and independently deployable
