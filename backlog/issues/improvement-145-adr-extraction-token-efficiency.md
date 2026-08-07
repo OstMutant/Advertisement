@@ -65,30 +65,6 @@ node scripts/architecture/md-to-decisions-json.js --extract <module> <ADR-NNN>[,
 - `docs/ai/README.md` — document the new extraction mode there once built, in the existing
   file/why-it-exists/where-it-fits/when-to-consult/how-it-stays-fresh table format.
 
-## Note (unrelated, temporary holding spot — relocate before closing this issue)
-
-Execution-environment topology, established by direct inspection in an unrelated conversation,
-parked here only because there was no better home yet:
-
-- All bash tool calls run inside the `claude-dev` container (image `claude-j25-dev`,
-  `docker inspect claude-dev` confirms `Id: a14fde8b6bf7...`).
-- `claude-dev`'s `Config.Hostname` is `docker-desktop` — this is why `hostname` inside the shell
-  prints `docker-desktop` rather than the container name or ID; it is not evidence of running on
-  the Docker Desktop VM itself.
-- `claude-dev`'s bind mounts: `D:\Ost\dev\Advertisement` → `/app` (the repo), `C:\Users\maxym\.m2`
-  → `/root/.m2`, `C:\Users\maxym\.claude-config-ost.mutant.mil@gmail.com` → `/root/.claude`, and
-  `//var/run/docker.sock` → `/var/run/docker.sock`.
-- The mounted `docker.sock` is why `docker ps` from inside `claude-dev` lists sibling containers
-  (`marketplace-app`, `advertisement-db`, `advertisement-minio`, `sonarqube`, `sonar-scanner`,
-  `arch-map-shot`) — those are not nested inside `claude-dev`, they're managed as siblings through
-  the same Docker daemon socket.
-- Node.js (`v20.20.2`, `/usr/bin/node`) used by `scripts/architecture/md-to-decisions-json.js` is
-  installed inside the `claude-j25-dev` image itself, not on the Windows host.
-
-Needs a real home before this issue closes — candidates: a `reference`-type memory entry (matches
-this repo's existing `reference_db_access.md`/`reference_playwright_ui_testing.md` pattern),
-and/or a short section in `scripts/CLAUDE.md`.
-
 ## Note 2 (unrelated, temporary holding spot — relocate before closing this issue)
 
 `architecture-map.html` (`scripts/architecture/generate-architecture-model.sh`) cleanup, requested
@@ -124,7 +100,7 @@ ADR-extraction-tool content). **Reconsidered:** not a new ADR — the System/Too
 card layout is still actively being reshuffled in the same conversation (this Docker move, the
 Runtime group, then "How this page is built" moving again right after), too dynamic to freeze as
 an architectural decision yet. A regular backlog issue (once this whole thread of card-layout
-changes settles) is the right home instead, not a memory entry like Note 1 above.
+changes settles) is the right home instead, not a memory entry.
 
 ## Note 3 (unrelated, temporary holding spot — relocate before closing this issue)
 
@@ -132,8 +108,9 @@ Follow-up to Note 2's new "Docker" group: add a second new group, **"Runtime"**,
 "Tooling & Pipelines" screen — a place for concise, hand-authored operational-topology facts (how
 Claude Code itself is launched, where compilation happens, which container Node.js lives in, bind
 mounts, sibling containers) instead of letting that knowledge live only in a chat transcript or an
-unrelated issue file (i.e., closing the gap Note 1 flagged, via a real file this time, not a
-memory entry).
+unrelated issue file — via a real file, not a memory entry (this is what an earlier, now-removed
+note in this same issue had originally flagged as needing a home; `runtime-notes.md` turned out to
+already be that home once written, so the earlier note was deleted rather than relocated).
 
 Decisions made (via `AskUserQuestion`, both confirmed by the user):
 - New file: `docs/architecture/runtime-notes.md` — deliberately not named `flows.md`/anything

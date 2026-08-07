@@ -1676,15 +1676,6 @@ function mdInlineToHtml(s) {
   return esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
 }
 
-// Real link to an ADR's own heading line in its real DECISIONS.md -- relative to this file's own
-// location (docs/architecture/architecture-map.html, two levels above the repo root), so it
-// resolves correctly regardless of where the repo is cloned. Opens the actual source, not a copy
-// of it -- DECISIONS.md is the one place ADR text lives (see scripts/architecture/DECISIONS.md ADR-006 for
-// the earlier, corrected attempt that embedded the full body text here instead).
-function adrFileLink(a) {
-  return `../../${a.file}`;
-}
-
 // Paragraph/list/table markdown -> HTML for ADR body text (Context/Decision/Consequences,
 // amendments, tables -- real ADR content has all of these). Not a general markdown parser --
 // same "only what's needed" scope as parseMermaidGraph(). Reuses mdInlineToHtml() for **bold**/
@@ -1733,36 +1724,6 @@ function mdBlockToHtml(text) {
     }
     return `<p>${mdInlineToHtml(b.lines.join(" "))}</p>`;
   }).join("");
-}
-
-// Renders a module's Architectural decisions list uniformly from n.intent -- every module shows
-// the same kind of clickable item, whether the ADR is homed in this module's own DECISIONS.md or
-// cross-listed there via another module's "**Also affects:**" (see generate-adr-index.sh). Each
-// item's "file" field already carries its real home module (json_adr_array()).
-function renderAdrList(n) {
-  return n.intent.map((a, i) => `
-    <div class="adr-item">
-      <a onclick="openAdrPopupForIntent('${esc(n.id)}', ${i})"><span class="adr-id">${esc(a.id)}</span> — ${esc(a.title)}</a>
-      <span class="adr-file">${esc(a.file)}</span>
-    </div>
-  `).join("");
-}
-
-// Looks up the ADR's real home module (from its "file" field) and opens the popup only if that
-// home module's full ADR content was embedded (see scripts/architecture/DECISIONS.md ADR-008's
-// FULL_DECISIONS_MODULES) -- falls back to a real link to the source file otherwise (e.g. a
-// non-Maven-module DECISIONS.md, which has no MODULE node to embed content into).
-function openAdrPopupForIntent(moduleId, index) {
-  const a = byId[moduleId].intent[index];
-  const homeModule = a.file.replace(/\/DECISIONS\.md$/, "");
-  const bareId = a.id.split(" (")[0];
-  const homeNode = byId[homeModule];
-  const found = homeNode && homeNode.decisions && homeNode.decisions.adrs.find(x => x.id === bareId);
-  if (!found) { window.open(adrFileLink(a), "_blank"); return; }
-  document.getElementById("adr-popup-title").textContent = `${found.id} — ${found.title}`;
-  document.getElementById("adr-popup-status").textContent = found.status;
-  document.getElementById("adr-popup-body").innerHTML = mdBlockToHtml(found.body);
-  document.getElementById("adr-popup").showModal();
 }
 
 function renderModuleDependencyExtrasHtml() {
@@ -1895,9 +1856,9 @@ function exportModuleDependenciesMarkdown() {
   downloadMarkdown("module-dependencies.md", md);
 }
 
-// Full snapshot of one module's page. ADRs are listed as title + a real file:line reference, not
+// Full snapshot of one module's page. ADRs are listed as title + a real file reference, not
 // a copy of the ADR text -- same "resolve to the one source, never restate it" rule the on-page
-// list follows (see adrFileLink() above).
+// list follows.
 function exportModuleMarkdown(id) {
   const n = byId[id];
   if (!n) return;
@@ -2054,7 +2015,7 @@ function renderModule() {
 
 // ── Tooling & Pipelines screen ───────────────────────────────────────────────────────────────
 // Real link to a source file, relative to this file's own location (two levels above the repo
-// root) -- opens the actual file, same "resolve to source, never restate it" rule as adrFileLink().
+// root) -- opens the actual file, "resolve to source, never restate it" rule.
 function sourceLink(relPath) {
   return `<a href="../../${esc(relPath)}" target="_blank"><code class="path">${esc(relPath)}</code></a>`;
 }
@@ -2323,7 +2284,7 @@ function renderSpiMapGraph() {
 }
 
 // Real link, readable class name as the visible text -- same "open the actual source, short
-// label" pattern adrFileLink()/exportModuleMarkdown() already use for ADRs, not a raw path dump.
+// label" pattern exportModuleMarkdown() already uses for ADRs, not a raw path dump.
 function spiFileLink(file, label) {
   return `<a href="../../${esc(file)}" target="_blank">${esc(label)}</a>`;
 }
@@ -2879,9 +2840,10 @@ function renderAdrs() {
   document.getElementById("content").innerHTML = html;
 }
 
-// Same popup as openAdrPopupForIntent() (Module screen's Architectural decisions list) -- this
-// one takes the ADR id + home module directly instead of a node's intent[] index, since the ADRs
-// screen's list is flat across every module, not scoped to one node.
+// Looks up the ADR's real home module and opens the popup only if that module's full ADR content
+// was embedded (see scripts/architecture/DECISIONS.md ADR-008's FULL_DECISIONS_MODULES) -- falls
+// back to a real link to the source file otherwise. Takes the ADR id + home module directly since
+// the ADRs screen's list is flat across every module, not scoped to one node.
 function openAdrPopupForAdr(id, module) {
   const bareId = id.split(" (")[0];
   const homeNode = byId[module];

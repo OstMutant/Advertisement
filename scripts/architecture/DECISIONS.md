@@ -301,6 +301,17 @@ plus the same file reference, not body text either.
   applied to both the Module screen and the Diagrams detail screen for visual consistency, per
   direct user request during this session.
 
+**Amendment (2026-08-07):** the Module screen's own per-node "Architectural decisions" list this
+ADR introduced (`renderAdrList()`/`openAdrPopupForIntent()`, and `adrFileLink()` as their link
+builder) was removed from `renderModule()` at some point after ADR-023 added the System-level flat
+"ADRs" screen — `renderModule()` today shows Tables/Entities/Key services/Contracts/Depends-on
+only, no ADR section. `renderAdrList()`/`openAdrPopupForIntent()` survived as dead code with one
+remaining real caller, `renderScriptGroupSection()` (the "Tooling & Pipelines" screen's own,
+separate ADR-listing duplicate of the ADRs screen) — once that caller was removed (same day, see
+this file's own history), all three functions (`renderAdrList`, `openAdrPopupForIntent`,
+`adrFileLink`) had zero callers left and were deleted outright. The flat ADRs screen's own
+`openAdrPopupForAdr()` (ADR-023) is unaffected — it never depended on `adrFileLink()`.
+
 ---
 
 ## ADR-007: `DECISIONS.json` piloted as an L1 fact file (Knowledge Pyramid direction); Node.js replaces `awk` for markdown parsing
