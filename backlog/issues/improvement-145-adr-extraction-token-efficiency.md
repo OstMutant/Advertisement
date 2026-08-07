@@ -65,7 +65,7 @@ node scripts/architecture/md-to-decisions-json.js --extract <module> <ADR-NNN>[,
 - `docs/ai/README.md` — document the new extraction mode there once built, in the existing
   file/why-it-exists/where-it-fits/when-to-consult/how-it-stays-fresh table format.
 
-## Note 2 (unrelated, temporary holding spot — relocate before closing this issue)
+## Note 2 (unrelated, resolved in place — see "Status: Done" below)
 
 `architecture-map.html` (`scripts/architecture/generate-architecture-model.sh`) cleanup, requested
 directly and executed in the same conversation:
@@ -94,15 +94,33 @@ directly and executed in the same conversation:
 3. Regenerated `docs/architecture/architecture-model.json` / `architecture-map.html` via
    `bash scripts/architecture/generate-architecture-model.sh` after the edit, and spot-checked the
    output for leftover `screen:'docker'`/`renderDocker(` references.
+4. **Follow-up dead-code cleanup**, found by auditing what item 1's removal orphaned: item 1
+   deleted the only real caller of `renderAdrList()`/`openAdrPopupForIntent()`, leaving both with
+   zero callers; `adrFileLink()` in turn had zero callers left once those two were gone. All three
+   deleted, plus 4 stale comments elsewhere in the file that referenced them
+   (`sourceLink`/`exportModuleMarkdown`/`spiFileLink`/`openAdrPopupForAdr`'s own header comments).
+   `scripts/architecture/DECISIONS.md` ADR-006 (the ADR that introduced `adrFileLink()`) got a
+   dated **Amendment** recording why and when it was removed, instead of leaving its Decision
+   section describing code that no longer exists; `docs/ai/adr-index.md` regenerated in the same
+   operation per the standing rule.
+5. **Follow-up dead-*data* cleanup** — same root cause as item 4, one layer deeper: the bash side
+   still computed and embedded a full `"intent"` array (`{id, title, file}` per ADR) for every
+   `SCRIPT_GROUP` node, but nothing on the client reads `.intent` for a `SCRIPT_GROUP` node anymore
+   after item 1 (the only other consumer, `exportModuleMarkdown()`, is only reachable from
+   `renderModule()`, which is never invoked for `SCRIPT_GROUP` ids — confirmed via `renderAdrs()`'s
+   own comment: "Only a real MODULE node has a Module-detail page to link to"). Measured ~7.8KB of
+   now-pointless JSON per regeneration across the 5 real `SCRIPT_GROUP` `DECISIONS.md` owners.
+   Removed the `intent_json`/`"intent": $intent_json,` line from the `SCRIPT_GROUP` node-building
+   loop only — `MODULE` nodes keep `.intent` (still consumed by `exportModuleMarkdown()`, reachable
+   there). Verified `.decisions` (the field the ADR popups on the "ADRs" screen actually read via
+   `openAdrPopupForAdr()`) is a separate field, untouched — popups keep working identically.
 
-Also needs a real home before this issue closes (this is `architecture-map.html` structure, not
-ADR-extraction-tool content). **Reconsidered:** not a new ADR — the System/Tooling & Pipelines
-card layout is still actively being reshuffled in the same conversation (this Docker move, the
-Runtime group, then "How this page is built" moving again right after), too dynamic to freeze as
-an architectural decision yet. A regular backlog issue (once this whole thread of card-layout
-changes settles) is the right home instead, not a memory entry.
+**Status: Done** — not a new ADR (the reasoning stands: this was still actively being reshuffled
+across Notes 2-4, too dynamic to freeze as an architectural decision), and not relocated to a
+separate backlog issue either — resolved in place, tracked here alongside Notes 3-4 below since
+all of it is one continuous restructuring thread and every step is finished and verified.
 
-## Note 3 (unrelated, temporary holding spot — relocate before closing this issue)
+## Note 3 (unrelated, resolved in place — see "Status: Done" below)
 
 Follow-up to Note 2's new "Docker" group: add a second new group, **"Runtime"**, to the same
 "Tooling & Pipelines" screen — a place for concise, hand-authored operational-topology facts (how
@@ -145,14 +163,26 @@ User also floated (not yet decided/built): this same `runtime-notes.md` content 
 copied or adapted into `docs/ai/` as an "operational notes" file for Claude's own context-loading
 purposes — noted here for later discussion, out of scope for this pass.
 
-Also needs a real home before this issue closes (same reconsideration as Note 2 — not a new ADR,
-the Tooling & Pipelines/System card layout is still actively moving in this same conversation;
-a regular backlog issue once it settles is the right home, paired with Note 2's content since
-both describe the same restructuring thread).
+**Status: Done** — same reasoning as Note 2, resolved in place, no relocation.
 
-Also folded into this same pass: `scripts/architecture/DECISIONS.md` ADR-022 (the original "How
-this page is built" decision) got a dated **Amendment** paragraph noting the section's new
-location (bottom of Tooling & Pipelines, not the System screen) — an update to an *existing* ADR
-to keep it accurate, not a new ADR; `docs/ai/adr-index.md` regenerated in the same operation per
-the standing rule. This one doesn't need relocating — amending an existing ADR to stay accurate
-is real, permanent decisions-log maintenance, unlike Notes 1-3 above.
+## Note 4 (unrelated, resolved in place — see "Status: Done" below)
+
+Follow-up to Note 3: move the "How this page is built" section (script self-documentation table +
+rendering-library blurb) from the System screen to the bottom of the "Tooling & Pipelines" screen,
+right after the new "Runtime" group — requested directly, same conversation.
+
+1. Deleted the whole `<section class="block"><h3>How this page is built</h3>...</section>` block
+   (the `MODEL.architectureToolingSelfDocs`-driven table + the Cytoscape/Mermaid rendering blurb)
+   from `renderSystem()`.
+2. Re-added the identical block at the end of `renderPipelines()`, immediately after
+   `renderRuntimeSection()` — content itself unchanged, only its screen location moved.
+3. Regenerated `architecture-model.json`/`architecture-map.html`; confirmed via grep the section
+   now renders only inside `renderPipelines()`, with zero trace left in `renderSystem()`.
+4. `scripts/architecture/DECISIONS.md` ADR-022 (the ADR that originally placed this section on the
+   System screen) got a dated **Amendment** recording the new location, instead of leaving its
+   Decision section describing a screen the content no longer lives on; `docs/ai/adr-index.md`
+   regenerated in the same operation per the standing rule.
+
+**Status: Done** — same reasoning as Notes 2/3, resolved in place, no relocation. The ADR-022
+amendment itself is separate, permanent decisions-log maintenance (not something that ever needed
+relocating, unlike the rest of this note).
