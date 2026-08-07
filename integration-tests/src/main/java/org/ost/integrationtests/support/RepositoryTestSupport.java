@@ -6,6 +6,7 @@ import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -20,12 +21,12 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
  * {@link MutableAuditorAware} or the empty {@link ComponentFactory} beans per test class.
  *
  * <p>The empty {@code ComponentFactory<AuditPort>}/{@code ComponentFactory<AttachmentPort>}/
- * {@code ComponentFactory<AdvertisementPort>} beans represent those starters being absent from the
- * test classpath — the same "optional starter" shape services see in production via
- * {@code ObjectProvider}, not a stub. Domain starters whose services depend on additional optional
- * ports (e.g. {@code TaxonPort}) must add their own empty {@code ComponentFactory} bean in the
- * consuming test, not here — this class only covers the ports every repository test has hit so
- * far.</p>
+ * {@code ComponentFactory<AdvertisementPort>}/{@code ComponentFactory<ProviderProfilePort>} beans
+ * represent those starters being absent from the test classpath — the same "optional starter"
+ * shape services see in production via {@code ObjectProvider}, not a stub. Domain starters whose
+ * services depend on additional optional ports (e.g. {@code TaxonPort}) must add their own empty
+ * {@code ComponentFactory} bean in the consuming test, not here — this class only covers the ports
+ * every repository test has hit so far.</p>
  *
  * <p>{@link RepositoryTestAutoConfig}'s explicit class list, instead of
  * {@code @EnableAutoConfiguration}: the latter pulls in every {@code @AutoConfiguration} found on
@@ -78,6 +79,13 @@ public class RepositoryTestSupport {
     @Bean
     @ConditionalOnMissingBean
     public ComponentFactory<AdvertisementPort> advertisementPortFactory(ObjectProvider<AdvertisementPort> provider) {
+        return new ComponentFactory<>(provider);
+    }
+
+    // @ConditionalOnMissingBean: ProviderProfileRepositoryTest's own ProviderProfileAutoConfiguration already provides this bean.
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<ProviderProfilePort> providerProfilePortFactory(ObjectProvider<ProviderProfilePort> provider) {
         return new ComponentFactory<>(provider);
     }
 

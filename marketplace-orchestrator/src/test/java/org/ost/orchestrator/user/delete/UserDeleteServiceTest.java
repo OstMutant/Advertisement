@@ -1,4 +1,4 @@
-package org.ost.marketplace.services.user;
+package org.ost.orchestrator.user.delete;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -6,13 +6,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
+import org.ost.orchestrator.advertisement.save.AdvertisementSaveService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.providerprofile.dto.ProviderProfileDto;
+import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.ost.platform.user.spi.UserAccountPort;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -30,6 +33,8 @@ class UserDeleteServiceTest {
 
     @Mock private ComponentFactory<AdvertisementPort> advertisementPortFactory;
     @Mock private AdvertisementPort advertisementPort;
+    @Mock private ComponentFactory<ProviderProfilePort> providerProfilePortFactory;
+    @Mock private ProviderProfilePort providerProfilePort;
     @Mock private AdvertisementSaveService advertisementSaveService;
     @Mock private UserAccountPort accountPort;
 
@@ -37,7 +42,7 @@ class UserDeleteServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new UserDeleteService(advertisementPortFactory, advertisementSaveService, accountPort);
+        service = new UserDeleteService(advertisementPortFactory, providerProfilePortFactory, advertisementSaveService, accountPort);
     }
 
     private void stubAdvertisementPortAvailable() {
@@ -46,6 +51,14 @@ class UserDeleteServiceTest {
             consumer.accept(advertisementPort);
             return null;
         }).when(advertisementPortFactory).ifAvailable(any());
+    }
+
+    private void stubProviderProfilePortAvailable() {
+        lenient().doAnswer(inv -> {
+            Consumer<ProviderProfilePort> consumer = inv.getArgument(0);
+            consumer.accept(providerProfilePort);
+            return null;
+        }).when(providerProfilePortFactory).ifAvailable(any());
     }
 
     @Test
@@ -77,6 +90,38 @@ class UserDeleteServiceTest {
     @Test
     void delete_advertisementStarterAbsent_stillDeletesTheUser() {
         // advertisementPortFactory.ifAvailable(...) left unstubbed -- ObjectProvider-absent shape.
+        service.delete(USER_ID, ACTOR_ID);
+
+        verify(accountPort).delete(USER_ID, ACTOR_ID);
+    }
+
+    @Test
+    void delete_userWithProviderProfile_deletesProfileBeforeTheUser() {
+        stubProviderProfilePortAvailable();
+        ProviderProfileDto profile = ProviderProfileDto.builder().id(7L).version(2L).build();
+        when(providerProfilePort.findByActorId(USER_ID)).thenReturn(Optional.of(profile));
+
+        service.delete(USER_ID, ACTOR_ID);
+
+        InOrder order = inOrder(providerProfilePort, accountPort);
+        order.verify(providerProfilePort).delete(7L, 2L);
+        order.verify(accountPort).delete(USER_ID, ACTOR_ID);
+    }
+
+    @Test
+    void delete_userWithNoProviderProfile_doesNotCallDelete() {
+        stubProviderProfilePortAvailable();
+        when(providerProfilePort.findByActorId(USER_ID)).thenReturn(Optional.empty());
+
+        service.delete(USER_ID, ACTOR_ID);
+
+        verify(providerProfilePort, never()).delete(any(), any());
+        verify(accountPort).delete(USER_ID, ACTOR_ID);
+    }
+
+    @Test
+    void delete_providerProfileStarterAbsent_stillDeletesTheUser() {
+        // providerProfilePortFactory.ifAvailable(...) left unstubbed -- ObjectProvider-absent shape.
         service.delete(USER_ID, ACTOR_ID);
 
         verify(accountPort).delete(USER_ID, ACTOR_ID);

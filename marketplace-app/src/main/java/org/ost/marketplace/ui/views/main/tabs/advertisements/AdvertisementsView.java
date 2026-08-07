@@ -15,6 +15,7 @@ import jakarta.annotation.PreDestroy;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.orchestrator.advertisement.enrich.AdvertisementDisplayEnrichmentService;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
@@ -47,6 +48,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 public class AdvertisementsView extends VerticalLayout {
 
     private final transient ComponentFactory<AdvertisementPort>         advertisementPortFactory;
+    private final transient AdvertisementDisplayEnrichmentService      enrichmentService;
     private final transient AdvertisementOverlay                      overlay;
     private final transient UiComponentFactory<AdvertisementCardView>   cardViewFactory;
     private final transient I18nService                               i18n;
@@ -128,7 +130,8 @@ public class AdvertisementsView extends VerticalLayout {
         if (pending == null) return;
         VaadinSession.getCurrent().setAttribute(PendingAdvertisementDeepLink.class, null);
         advertisementPortFactory.findIfAvailable()
-                .flatMap(p -> p.findById(pending.adId(), localeProvider.getCurrentLocale()))
+                .flatMap(p -> p.findById(pending.adId()))
+                .map(ad -> enrichmentService.enrichSingle(ad, localeProvider.getCurrentLocale()))
                 .ifPresent(ad -> overlay.openForView(ad, this::updateCardInPlace, this::checkForChanges));
     }
 
@@ -198,7 +201,8 @@ public class AdvertisementsView extends VerticalLayout {
 
         try {
             List<AdvertisementInfoDto> ads = advertisementPortFactory.findIfAvailable()
-                    .map(p -> p.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort, localeProvider.getCurrentLocale()))
+                    .map(p -> p.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort))
+                    .map(fetched -> fetched.isEmpty() ? fetched : enrich(fetched))
                     .orElse(List.of());
             int total = advertisementPortFactory.findIfAvailable()
                     .map(p -> p.count(filter))
@@ -234,6 +238,12 @@ public class AdvertisementsView extends VerticalLayout {
         } finally {
             queryStatusBar.update();
         }
+    }
+
+    private List<AdvertisementInfoDto> enrich(List<AdvertisementInfoDto> ads) {
+        ads = enrichmentService.enrichWithCategoriesAndCity(ads, localeProvider.getCurrentLocale());
+        ads = enrichmentService.enrichWithActorInfo(ads);
+        return enrichmentService.enrichWithMediaSummary(ads);
     }
 
     private EmptyStateView buildEmptyState() {

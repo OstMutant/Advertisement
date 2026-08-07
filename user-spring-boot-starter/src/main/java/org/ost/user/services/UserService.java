@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
@@ -61,6 +62,7 @@ public class UserService {
     private final UserPreferencesService                preferencesService;
     private final ComponentFactory<AuditPort>           auditPortFactory;
     private final ComponentFactory<AdvertisementPort>   advertisementPortFactory;
+    private final ComponentFactory<ProviderProfilePort> providerProfilePortFactory;
 
     public List<UserDto> getFiltered(@Valid @NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort)).stream().map(User::toDto).toList();
@@ -103,14 +105,21 @@ public class UserService {
 
         Set<Long> candidateIds = Set.copyOf(candidates);
         advertisementPortFactory.ifAvailable(p -> p.clearActorReferences(candidateIds));
-        Set<Long> ownerIds = advertisementPortFactory.findIfAvailable()
+        Set<Long> adOwnerIds = advertisementPortFactory.findIfAvailable()
+                .map(p -> p.findOwnerIds(candidateIds))
+                .orElse(Set.of());
+        Set<Long> providerProfileOwnerIds = providerProfilePortFactory.findIfAvailable()
                 .map(p -> p.findOwnerIds(candidateIds))
                 .orElse(Set.of());
 
         int purged = 0;
         for (Long id : candidates) {
-            if (ownerIds.contains(id)) {
+            if (adOwnerIds.contains(id)) {
                 log.warn("Skipped purging user {} - still owns an advertisement, will retry next run", id);
+                continue;
+            }
+            if (providerProfileOwnerIds.contains(id)) {
+                log.warn("Skipped purging user {} - still owns a provider profile, will retry next run", id);
                 continue;
             }
             preferencesRepository.deleteByActorId(id);

@@ -1,0 +1,2 @@
+/app/marketplace-orchestrator/src/test/java/org/ost/orchestrator/advertisement/save/AdvertisementSaveServiceTest.java
+/app/marketplace-orchestrator/src/test/java/org/ost/orchestrator/user/delete/UserDeleteServiceTest.java

@@ -13,6 +13,7 @@ import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.attachment.spi.AttachmentAuditPort;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
+import org.ost.orchestrator.shared.TaxonLookupService;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
@@ -42,9 +43,8 @@ import static org.mockito.Mockito.*;
 class AdvertisementAuditEnrichServiceTest {
 
     @Mock private ComponentFactory<AttachmentAuditPort> attachmentAuditPortFactory;
-    @Mock private ComponentFactory<TaxonPort> taxonPortFactory;
+    @Mock private TaxonLookupService taxonLookupService;
     @Mock private AttachmentAuditPort attachmentAuditPort;
-    @Mock private TaxonPort taxonPort;
     @Mock private LocaleProvider localeProvider;
     @Mock private I18nService i18nService;
 
@@ -55,7 +55,7 @@ class AdvertisementAuditEnrichServiceTest {
         lenient().when(localeProvider.getCurrentLocale()).thenReturn(Locale.ENGLISH);
         lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_AD_KIND_OFFER)).thenReturn("Offer");
         lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_AD_KIND_PRODUCT)).thenReturn("Product");
-        service = new AdvertisementAuditEnrichService(attachmentAuditPortFactory, taxonPortFactory, localeProvider, i18nService);
+        service = new AdvertisementAuditEnrichService(attachmentAuditPortFactory, taxonLookupService, localeProvider, i18nService);
     }
 
     private static <T> void stubAvailable(ComponentFactory<T> factory, T component) {
@@ -88,8 +88,7 @@ class AdvertisementAuditEnrichServiceTest {
     @Test
     void mergeMediaChanges_mediaHookAvailable_mediaChangesPrecedeResolvedCategoryChanges() {
         stubAvailable(attachmentAuditPortFactory, attachmentAuditPort);
-        stubAvailable(taxonPortFactory, taxonPort);
-        when(taxonPort.findByIds(Set.of(1L), Locale.ENGLISH)).thenReturn(Map.of(1L, taxon(1L, "Electronics")));
+        when(taxonLookupService.findByIds(Set.of(1L), Locale.ENGLISH)).thenReturn(Map.of(1L, taxon(1L, "Electronics")));
         when(attachmentAuditPort.getChangesBySnapshotId(50L))
                 .thenReturn(List.of(new ChangeEntry.MediaChange("old.jpg", "new.jpg")));
 
@@ -119,8 +118,7 @@ class AdvertisementAuditEnrichServiceTest {
 
     @Test
     void mergeMediaChanges_hookAbsent_noMediaChangesAddedButCategoriesStillResolved() {
-        stubAvailable(taxonPortFactory, taxonPort);
-        when(taxonPort.findByIds(Set.of(1L), Locale.ENGLISH)).thenReturn(Map.of(1L, taxon(1L, "Electronics")));
+        when(taxonLookupService.findByIds(Set.of(1L), Locale.ENGLISH)).thenReturn(Map.of(1L, taxon(1L, "Electronics")));
 
         AuditTimelineItemDto<AdvertisementSnapshotDto> item = new AuditTimelineItemDto<>(
                 1L, new EntityRef(EntityType.ADVERTISEMENT, 1L), ActionType.UPDATED, null,
@@ -137,8 +135,7 @@ class AdvertisementAuditEnrichServiceTest {
     @Test
     void mergeMediaChanges_categoryUnchanged_stillAddsResolvedCategoryEntry() {
         stubAvailable(attachmentAuditPortFactory, attachmentAuditPort);
-        stubAvailable(taxonPortFactory, taxonPort);
-        when(taxonPort.findByIds(Set.of(1L), Locale.ENGLISH)).thenReturn(Map.of(1L, taxon(1L, "Electronics")));
+        when(taxonLookupService.findByIds(Set.of(1L), Locale.ENGLISH)).thenReturn(Map.of(1L, taxon(1L, "Electronics")));
         when(attachmentAuditPort.getChangesBySnapshotId(50L))
                 .thenReturn(List.of(new ChangeEntry.MediaChange("old.jpg", "new.jpg")));
 
@@ -160,8 +157,7 @@ class AdvertisementAuditEnrichServiceTest {
     @Test
     void mergeMediaChanges_cityUnchanged_stillAddsResolvedCityEntry() {
         stubAvailable(attachmentAuditPortFactory, attachmentAuditPort);
-        stubAvailable(taxonPortFactory, taxonPort);
-        when(taxonPort.findByIds(Set.of(5L), Locale.ENGLISH)).thenReturn(Map.of(5L, city(5L, "Lviv")));
+        when(taxonLookupService.findByIds(Set.of(5L), Locale.ENGLISH)).thenReturn(Map.of(5L, city(5L, "Lviv")));
         when(attachmentAuditPort.getChangesBySnapshotId(50L))
                 .thenReturn(List.of(new ChangeEntry.MediaChange("old.jpg", "new.jpg")));
 

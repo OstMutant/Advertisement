@@ -1609,6 +1609,12 @@ full category breakdown, `Domain Independence`, and `Risks & Future Consideratio
 Presented to the user before deleting anything — decision pending on whether to carry the four
 real sections over as hand-preserved content first. `bounded-contexts.md` not deleted yet.
 
+**Correction (2026-08-07):** the three "stays on disk"/"not deleted yet" claims above are stale.
+`docs/architecture/bounded-contexts.md` was in fact deleted 2026-08-06 as part of
+`improvement-143`'s work (`git rm`, content captured in full in `improvement-142` before deletion)
+— confirmed gone from disk, deletion commit `524468e0`. See `improvement-142`'s own "Status"
+section, which already reflects this correctly.
+
 ## `05`-`08` mechanization work — extracted to `improvement-143` (2026-08-05)
 
 All planned (not yet implemented) work on `docs/architecture/05-08-*.md` — SonarQube integration,

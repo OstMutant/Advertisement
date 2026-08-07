@@ -7,6 +7,7 @@ import org.ost.platform.advertisement.model.AdKind;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
+import org.ost.orchestrator.shared.TaxonLookupService;
 import org.ost.platform.attachment.spi.AttachmentAuditPort;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
@@ -15,7 +16,6 @@ import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
-import org.ost.platform.taxon.spi.TaxonPort;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -33,7 +33,7 @@ import static org.ost.platform.audit.api.AuditableSnapshot.field;
 public class AdvertisementAuditEnrichService {
 
     private final ComponentFactory<AttachmentAuditPort> attachmentAuditPortFactory;
-    private final ComponentFactory<TaxonPort>           taxonPortFactory;
+    private final TaxonLookupService                     taxonLookupService;
     private final LocaleProvider                        localeProvider;
     private final I18nService                            i18nService;
 
@@ -203,11 +203,9 @@ public class AdvertisementAuditEnrichService {
 
     private Map<Long, String> resolveNames(Set<Long> ids) {
         if (ids.isEmpty()) return Map.of();
-        return taxonPortFactory.findIfAvailable()
-                .map(p -> p.findByIds(ids, localeProvider.getCurrentLocale()))
-                .map(m -> m.entrySet().stream()
-                        .collect(Collectors.toMap(Map.Entry::getKey, e -> nameOrStrikethrough(e.getValue()))))
-                .orElse(Map.of());
+        return taxonLookupService.findByIds(ids, localeProvider.getCurrentLocale())
+                .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> nameOrStrikethrough(e.getValue())));
     }
 
     private static String nameOrStrikethrough(TaxonDto taxon) {

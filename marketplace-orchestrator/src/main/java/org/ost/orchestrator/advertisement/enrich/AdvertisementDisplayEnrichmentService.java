@@ -1,7 +1,9 @@
-package org.ost.advertisement.services;
+package org.ost.orchestrator.advertisement.enrich;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.orchestrator.shared.ActorLookupService;
+import org.ost.orchestrator.shared.TaxonLookupService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.platform.attachment.spi.AttachmentPort;
@@ -9,9 +11,7 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
-import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.platform.user.dto.UserDto;
-import org.ost.platform.user.spi.UserPort;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -22,32 +22,31 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Assembles the display-only fields of {@link AdvertisementInfoDto} (category/city names, author
+ * name/email, media summary) from the Advertisement, Taxon, User, and Attachment ports.
+ */
 @Service
 @RequiredArgsConstructor
-public class AdvertisementEnrichmentService {
+public class AdvertisementDisplayEnrichmentService {
 
-    private final ComponentFactory<AttachmentPort> attachmentPortFactory;
-    private final ComponentFactory<TaxonPort>      taxonPortFactory;
-    private final ComponentFactory<UserPort>       userPortFactory;
+    private final TaxonLookupService                taxonLookupService;
+    private final ActorLookupService                 actorLookupService;
+    private final ComponentFactory<AttachmentPort>  attachmentPortFactory;
 
     // ── Category & city ──────────────────────────────────────────────────────
 
     public List<AdvertisementInfoDto> enrichWithCategoriesAndCity(@NonNull List<AdvertisementInfoDto> ads, @NonNull Locale locale) {
-        return taxonPortFactory.findIfAvailable()
-                .map(taxonPort -> {
-                    Set<Long> ids = ads.stream().map(AdvertisementInfoDto::getId).collect(Collectors.toSet());
-                    Map<Long, List<TaxonDto>> taxonMap = taxonPort.getForEntities(EntityType.ADVERTISEMENT, ids, locale);
-                    return ads.stream()
-                            .map(ad -> applyCategoryAndCityData(ad, taxonMap.getOrDefault(ad.getId(), List.of())))
-                            .toList();
-                })
-                .orElse(ads);
+        Set<Long> ids = ads.stream().map(AdvertisementInfoDto::getId).collect(Collectors.toSet());
+        Map<Long, List<TaxonDto>> taxonMap = taxonLookupService.getForEntities(EntityType.ADVERTISEMENT, ids, locale);
+        return ads.stream()
+                .map(ad -> applyCategoryAndCityData(ad, taxonMap.getOrDefault(ad.getId(), List.of())))
+                .toList();
     }
 
     public AdvertisementInfoDto enrichWithCategoryAndCity(@NonNull AdvertisementInfoDto ad, @NonNull Locale locale) {
-        return taxonPortFactory.findIfAvailable()
-                .map(taxonPort -> applyCategoryAndCityData(ad, taxonPort.getForEntity(EntityType.ADVERTISEMENT, ad.getId(), locale)))
-                .orElse(ad);
+        List<TaxonDto> assigned = taxonLookupService.getForEntity(EntityType.ADVERTISEMENT, ad.getId(), locale);
+        return applyCategoryAndCityData(ad, assigned);
     }
 
     private static AdvertisementInfoDto applyCategoryAndCityData(AdvertisementInfoDto ad, List<TaxonDto> assigned) {
@@ -72,21 +71,16 @@ public class AdvertisementEnrichmentService {
     // ── Actor ─────────────────────────────────────────────────────────────────
 
     public List<AdvertisementInfoDto> enrichWithActorInfo(@NonNull List<AdvertisementInfoDto> ads) {
-        return userPortFactory.findIfAvailable()
-                .map(userPort -> {
-                    Set<Long> ids = ads.stream().map(AdvertisementInfoDto::getCreatedBy).collect(Collectors.toSet());
-                    Map<Long, UserDto> userMap = userPort.findByIds(ids);
-                    return ads.stream()
-                            .map(ad -> applyActorData(ad, userMap.get(ad.getCreatedBy())))
-                            .toList();
-                })
-                .orElse(ads);
+        Set<Long> ids = ads.stream().map(AdvertisementInfoDto::getCreatedBy).collect(Collectors.toSet());
+        Map<Long, UserDto> userMap = actorLookupService.findByIds(ids);
+        return ads.stream()
+                .map(ad -> applyActorData(ad, userMap.get(ad.getCreatedBy())))
+                .toList();
     }
 
     public AdvertisementInfoDto enrichWithActor(@NonNull AdvertisementInfoDto ad) {
-        return userPortFactory.findIfAvailable()
-                .map(userPort -> applyActorData(ad, userPort.findById(ad.getCreatedBy()).orElse(null)))
-                .orElse(ad);
+        UserDto user = actorLookupService.findById(ad.getCreatedBy()).orElse(null);
+        return applyActorData(ad, user);
     }
 
     private static AdvertisementInfoDto applyActorData(AdvertisementInfoDto ad, UserDto user) {
@@ -126,5 +120,14 @@ public class AdvertisementEnrichmentService {
                 .mediaContentType(summary.contentType())
                 .mediaCount(summary.count())
                 .build();
+    }
+
+    // ── Convenience ──────────────────────────────────────────────────────────
+
+    /** Applies category/city, actor, and media enrichment to a single advertisement, in order. */
+    public AdvertisementInfoDto enrichSingle(@NonNull AdvertisementInfoDto ad, @NonNull Locale locale) {
+        AdvertisementInfoDto enriched = enrichWithCategoryAndCity(ad, locale);
+        enriched = enrichWithActor(enriched);
+        return enrichWithMedia(enriched);
     }
 }

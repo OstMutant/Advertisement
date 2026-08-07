@@ -802,3 +802,29 @@ deferred-findings bucket.
 (preferences never merged into `provider_profile`, so the earlier "keep as historical tag or
 migrate" open question from the superseded single-table design is moot). The next batch must land
 before the unified "My Account" overlay batch, per the updated gate tracked in the backlog.
+
+---
+
+## ADR-028: `AdvertisementPort`/`ProviderProfilePort` drop `Locale` from `getFiltered`/`findById`/`findByActorId`
+**Status:** Accepted
+
+**Context:** Both ports took a `Locale` parameter on their read methods solely to pass it through
+to `TaxonPort.getForEntities(..., locale)` for translated category/city names — the enrichment
+logic living inside `AdvertisementEnrichmentService`/`ProviderProfileEnrichmentService`, both
+starter-internal at the time. `Locale` is a presentation concern; nothing else in either port's SQL
+query or persisted-column shape ever used it. See `marketplace-orchestrator/DECISIONS.md` ADR-001
+for the extraction this is part of.
+
+**Decision:** Once the enrichment services moved to `marketplace-orchestrator`, `Locale` moved with
+them — `AdvertisementPort.getFiltered()`/`findById()` and `ProviderProfilePort.getFiltered()`/
+`findById()`/`findByActorId()` no longer take a `Locale` parameter at all. Callers that need
+translated display fields call the orchestrator's `AdvertisementDisplayEnrichmentService`/
+`ProviderProfileDisplayEnrichmentService` afterward, passing `Locale` directly to that call instead.
+
+**Consequences:** Every real call site across both starters and `marketplace-app` (Views,
+`OgMetaRequestListener`, `SitemapController`, the moved `AdvertisementSaveService`) stopped passing
+the now-removed parameter — a mechanical but repo-wide ripple, not a behavior change. Both ports'
+raw return DTOs (`AdvertisementInfoDto`/`ProviderProfileDto`) are unchanged in shape — their
+composition-enriched fields (category/city/actor names, media summary) simply arrive unset until
+the caller explicitly enriches, matching the DTOs' pre-existing hybrid nature (domain-owned fields
++ composition-enriched fields in one flat class, unchanged by this ADR).

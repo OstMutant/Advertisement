@@ -7,7 +7,6 @@ import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -19,11 +18,11 @@ import java.util.Set;
  */
 public interface AdvertisementPort {
 
-    List<AdvertisementInfoDto> getFiltered(@NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale);
+    List<AdvertisementInfoDto> getFiltered(@NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort);
 
     int count(@NonNull AdvertisementFilterDto filter);
 
-    Optional<AdvertisementInfoDto> findById(@NonNull Long id, @NonNull Locale locale);
+    Optional<AdvertisementInfoDto> findById(@NonNull Long id);
 
     Long save(@NonNull AdvertisementSaveDto dto);
 

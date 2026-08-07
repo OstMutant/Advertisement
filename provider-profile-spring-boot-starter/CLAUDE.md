@@ -11,9 +11,11 @@ Java package root: `org.ost.provider`
 - `ProviderProfile` entity + `ProviderProfileRepository` — CRUD and filter/sort queries
 - `ProviderProfileService` — create/update, delete, sanitizes `about` via OWASP HTML Sanitizer,
   enforces the `kind == SUPPORT` requires-privileged-actor rule, wires category assignments
-  directly via `TaxonPort.replaceAssignments()`
-- `ProviderProfileEnrichmentService` — category/city/actor enrichment on read, via
-  `ComponentFactory<TaxonPort>`/`ComponentFactory<UserPort>`
+  directly via `TaxonPort.replaceAssignments()`, resolves query-time category filters via
+  `TaxonPort.findEntityIdsWithAnyTaxon()`. Does not enrich display fields — `getFiltered()`/
+  `findById()`/`findByActorId()` return raw (unenriched) `ProviderProfileDto`s; category/city/actor
+  display enrichment happens afterward via `marketplace-orchestrator`'s
+  `ProviderProfileDisplayEnrichmentService`.
 - `ProviderProfilePortImpl` — implements `ProviderProfilePort`; thin delegation to
   `ProviderProfileService`
 
@@ -51,11 +53,13 @@ Tables: `provider_profile`
 - `findOwnerIds()` blocks user purge while a profile exists (mirrors `AdvertisementPort`'s
   `created_by` protection) — no `clearActorReferences()`, since there are no nullable
   actor-reference columns on this table to null.
-- This starter's own service — not a marketplace-app orchestration service — writes category
-  assignments directly via `TaxonPort.replaceAssignments()`, unlike `AdvertisementService` which
-  pushes that write to marketplace-app's `AdvertisementSaveService`. Deliberate: there is no
-  marketplace-app "SaveService" for this domain yet (planned for a future batch, alongside the
-  actual `AuditPort.record()` audit-write call).
+- This starter's own service — not `marketplace-orchestrator` — writes category assignments
+  directly via `TaxonPort.replaceAssignments()`, unlike the Advertisement domain, whose save path
+  (`marketplace-orchestrator`'s `AdvertisementSaveService`) makes that same write instead.
+  Deliberate: there is no orchestrator save path for this domain yet (planned for a future batch,
+  alongside the actual `AuditPort.record()` audit-write call) — building one now, ahead of any real
+  UI or audit wiring, would be new feature work, not the mechanical extraction
+  `marketplace-orchestrator/DECISIONS.md` ADR-001 scoped. See that ADR's "what does NOT move" table.
 - No `audit.spi` implementations of its own yet — audit-side wiring (the
   `ProviderProfileActivityFieldsHookImpl` triad other domains have) is deferred to a future batch,
   since no code writes `PROVIDER_PROFILE` audit rows yet.

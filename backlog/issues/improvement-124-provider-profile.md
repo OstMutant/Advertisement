@@ -666,7 +666,17 @@ into `ProviderProfileService` in this same issue, not unrelated drive-by finding
   "plain USER can't self-edit name" gap), Settings tab (reads/writes via Batch 124-A's table),
   Provider Profile tab (`ProviderProfileSaveService` audit-write orchestration, mirrors
   `AdvertisementSaveService`; `ProviderProfileActivityFieldsHookImpl` with every `Fields.*` case
-  from day one, per ADR-065).
+  from day one, per ADR-065). **`ProviderProfileSaveService` lives in `marketplace-orchestrator`
+  (package `org.ost.orchestrator.providerprofile.save`), not `marketplace-app`** — see
+  `improvement-136`'s extraction. Build it with `AdvertisementSaveService`'s exact shape: 2 direct
+  ports (`ProviderProfilePort` + `AuditPort`) + the already-existing `orchestrator.shared
+  .TaxonAssignmentWriteService` collaborator for the category-assignment write (currently still
+  called directly from `ProviderProfileService.save()`/`.delete()` in the starter — move that call
+  out to this new service, mirroring how `AdvertisementService.delete()`'s own cascade moved out).
+  Once this exists, revisit `improvement-147`'s open question of whether
+  `TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService`
+  (today each has exactly one caller, `AdvertisementSaveService`) are genuinely justified as shared
+  collaborators — this batch is the real second consumer that answers it.
 - New `AccessEvaluator.canEditUserAccount()`/`canViewUserAccount()`; field-level readonly for
   `MODERATOR` viewing another user.
 - `HeaderBar` button repoint; Users grid row-click repoint; delete `UserOverlay`/

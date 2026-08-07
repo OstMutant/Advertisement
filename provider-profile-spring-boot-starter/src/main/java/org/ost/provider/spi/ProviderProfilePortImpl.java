@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -24,8 +23,8 @@ public class ProviderProfilePortImpl implements ProviderProfilePort {
     private final ProviderProfileService service;
 
     @Override
-    public List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale) {
-        return service.getFiltered(filter, page, size, sort, locale);
+    public List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort) {
+        return service.getFiltered(filter, page, size, sort);
     }
 
     @Override
@@ -34,13 +33,13 @@ public class ProviderProfilePortImpl implements ProviderProfilePort {
     }
 
     @Override
-    public Optional<ProviderProfileDto> findById(@NonNull Long id, @NonNull Locale locale) {
-        return service.findById(id, locale);
+    public Optional<ProviderProfileDto> findById(@NonNull Long id) {
+        return service.findById(id);
     }
 
     @Override
-    public Optional<ProviderProfileDto> findByActorId(@NonNull Long actorId, @NonNull Locale locale) {
-        return service.findByActorId(actorId, locale);
+    public Optional<ProviderProfileDto> findByActorId(@NonNull Long actorId) {
+        return service.findByActorId(actorId);
     }
 
     @Override

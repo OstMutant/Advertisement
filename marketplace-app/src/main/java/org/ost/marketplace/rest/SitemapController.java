@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Stream;
 
 @RestController
@@ -56,7 +55,7 @@ public class SitemapController {
     private Stream<AdvertisementInfoDto> allAdvertisements(AdvertisementPort port) {
         AdvertisementFilterDto filter = AdvertisementFilterDto.empty();
         return Stream.iterate(0, page -> page + 1)
-                .map(page -> port.getFiltered(filter, page, PAGE_SIZE, SORT_BY_ID, Locale.ENGLISH))
+                .map(page -> port.getFiltered(filter, page, PAGE_SIZE, SORT_BY_ID))
                 .takeWhile(page -> !page.isEmpty())
                 .flatMap(List::stream);
     }

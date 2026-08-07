@@ -1660,3 +1660,34 @@ reconsideration), dropping the ticket-number citation the first Amendment had br
 script involved in building the map (parameters, manual invocation, sandbox notes), replacing the
 single `--extract`-only bullet it had before. Full detail:
 `completed/issues/improvement-146-code-quality-refresh-companion-server.md`.
+
+✅ Done (2026-08-07): improvement-136 — extracted a new `marketplace-orchestrator` Maven module
+(Application/BFF composition layer between `marketplace-app` and the domain starters), moving
+`AdvertisementEnrichmentService`/`ProviderProfileEnrichmentService` (both starter-internal
+cross-domain composition) and `marketplace-app`'s own `AdvertisementSaveService`/`UserDeleteService`
+into `orchestrator.advertisement.{enrich,save}`/`orchestrator.providerprofile.enrich`/
+`orchestrator.user.delete`, built on shared single-port `orchestrator.shared.*` collaborators
+(`TaxonLookupService`, `ActorLookupService`, `TaxonAssignmentWriteService`,
+`AttachmentSnapshotReaderService`, `AttachmentSoftDeleteService`). `AdvertisementPort`/
+`ProviderProfilePort` dropped their `Locale` parameter (see `platform-commons/DECISIONS.md`
+ADR-028) now that enrichment happens downstream of the port call. Two new ArchUnit rules
+(`orchestrator_classes_depend_on_at_most_two_domain_ports`, `orchestrator_has_no_persistence_access`)
+enforce the module's own boundary going forward. `AdvertisementAuditEnrichService` stayed in
+`marketplace-app` (needs `LocaleProvider`/`I18nService`, an application-shell concern the
+orchestrator must never depend on) — a real correction caught mid-implementation, not assumed at
+planning time. Adjacent fix: `ProviderProfilePort.findOwnerIds()` purge-guard, documented but never
+wired, now actually checked in `UserService.cleanup()` and the moved `UserDeleteService`. Root
+`CLAUDE.md`'s "Architecture Guidelines" now describe three layers, not two.
+`/code-review --fix` (8 finder angles + verification) found and fixed real issues: duplicated
+`enrichSingle()` across two UI classes (centralized), stale `advertisement-spring-boot-starter`/
+`provider-profile-spring-boot-starter` `CLAUDE.md` claims, a ticket number in a Javadoc comment, a
+multi-line code comment, a defensive empty-check misplaced inside a method body, a missing singular
+`findById` on `TaxonLookupService`. Verification found and fixed 3 more real, pre-existing
+infrastructure gaps unrelated to this issue's own logic (same "forgot to update the module list"
+class of bug `improvement-138` already hit once): root `Dockerfile` missing
+`marketplace-orchestrator` in 3 places, `scripts/ci/Dockerfile` missing `nodejs` (needed by the
+architecture-model generator), and the same module-list gap in `scripts/sonar/`'s config. A CI-stack
+Playwright run showed 3 failures; re-verified via the standard `deploy.sh --reset` +
+`playwright.sh e2e --full --ux` dev workflow — **50/50 passed**, confirming the CI-stack failures
+were Docker-in-Docker environment flakiness, not a real regression. Full detail:
+`completed/issues/improvement-136-marketplace-orchestrator-extraction.md`.

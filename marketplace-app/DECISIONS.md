@@ -3578,3 +3578,33 @@ ADR-027) since fixing it touches `AdvertisementService`, outside this batch's ow
 **Consequence:** No behavior visible to any existing user changes in this batch — every touch here
 is either compiler-forced or additive (new enum case, new CSS, new i18n key, new subtype
 registration). The first user-visible surface for provider profiles is Batch C's `AccountOverlay`.
+
+---
+
+## ADR-073: `AdvertisementSaveService`/`UserDeleteService` move to `marketplace-orchestrator`; `AdvertisementAuditEnrichService` stays
+**Status:** Accepted
+
+**Context:** `AdvertisementSaveService` and `UserDeleteService` lived in `marketplace-app` but
+performed cross-domain application-level orchestration (multi-Port composition for one atomic use
+case) — exactly the concern a new `marketplace-orchestrator` module was extracted to own. See
+`marketplace-orchestrator/DECISIONS.md` ADR-001 for the full extraction rationale.
+
+**Decision:** Both classes moved to `org.ost.orchestrator.advertisement.save`/
+`org.ost.orchestrator.user.delete`, unchanged in behavior. `AdvertisementAuditEnrichService`
+(audit-diff display-string resolution for the Timeline/Activity tabs) was evaluated for the same
+move and rejected: it field-injects `LocaleProvider`/`I18nService`
+(`marketplace-app/services/i18n`), an application-shell/UI-formatting concern this repo's
+Architecture Guidelines explicitly keep in `marketplace-app`, not the orchestrator. It stays here,
+simplified to depend on `marketplace-orchestrator`'s `TaxonLookupService` collaborator instead of
+its own `ComponentFactory<TaxonPort>` field.
+
+**Consequences:** `AdvertisementFormOverlayModeHandler`/`AdvertisementCardView`/`AdvertisementsView`
+now inject `AdvertisementSaveService`/`AdvertisementDisplayEnrichmentService` from
+`org.ost.orchestrator.*` instead of composing `AdvertisementPort`/`TaxonPort`/`UserPort`/
+`AttachmentPort` directly for display data — `AdvertisementPort.getFiltered()`/`findById()` now
+return raw (unenriched) data; the calling UI code enriches explicitly via the orchestrator service.
+`UserView` injects `UserDeleteService` from the same new package. `UserService.cleanup()`
+(`user-spring-boot-starter`) gained a `ProviderProfilePort.findOwnerIds()` purge-guard check
+alongside its existing `AdvertisementPort` one — found while designing `UserDeleteService`'s target
+shape, not previously wired despite `provider-profile-spring-boot-starter/CLAUDE.md` documenting
+the intent.

@@ -15,7 +15,7 @@ import lombok.*;
 import org.ost.marketplace.ui.views.utils.HtmlExcerptUtil;
 import org.ost.marketplace.ui.views.utils.ShareUtil;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
-import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
+import org.ost.orchestrator.advertisement.save.AdvertisementSaveService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;

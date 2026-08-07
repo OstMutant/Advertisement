@@ -15,7 +15,7 @@ import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
-import org.ost.marketplace.services.user.UserDeleteService;
+import org.ost.orchestrator.user.delete.UserDeleteService;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;

@@ -9,9 +9,7 @@ import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
-import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.jsoup.Jsoup;
@@ -26,7 +24,6 @@ import org.springframework.validation.annotation.Validated;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -42,22 +39,16 @@ public class AdvertisementService {
             .and(new HtmlPolicyBuilder().allowElements("pre").toFactory());
 
     private final AdvertisementRepository          repository;
-    private final ComponentFactory<AttachmentPort> attachmentPortFactory;
     private final ComponentFactory<TaxonPort>      taxonPortFactory;
-    private final AdvertisementEnrichmentService   enrichmentService;
 
     // ── Query & filter ───────────────────────────────────────────────────────
 
-    public List<AdvertisementInfoDto> getFiltered(@Valid @NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale) {
+    public List<AdvertisementInfoDto> getFiltered(@Valid @NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort) {
         Optional<Set<Long>> taxonFilter = resolveCategoryAndCityFilter(filter);
         if (taxonFilter.filter(Set::isEmpty).isPresent()) {
             return List.of();
         }
-        List<AdvertisementInfoDto> ads = repository.findByFilter(filter, PageRequest.of(page, size, sort), taxonFilter.orElse(null));
-        if (ads.isEmpty()) return ads;
-        ads = enrichmentService.enrichWithCategoriesAndCity(ads, locale);
-        ads = enrichmentService.enrichWithActorInfo(ads);
-        return enrichmentService.enrichWithMediaSummary(ads);
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort), taxonFilter.orElse(null));
     }
 
     public int count(@Valid @NonNull AdvertisementFilterDto filter) {
@@ -106,14 +97,8 @@ public class AdvertisementService {
         return repository.save(ad).getId();
     }
 
-    public Optional<AdvertisementInfoDto> findById(@NonNull Long id, @NonNull Locale locale) {
-        return repository.findAdvertisementById(id).map(dto -> enrichSingle(dto, locale));
-    }
-
-    private AdvertisementInfoDto enrichSingle(AdvertisementInfoDto dto, Locale locale) {
-        AdvertisementInfoDto enriched = enrichmentService.enrichWithCategoryAndCity(dto, locale);
-        enriched = enrichmentService.enrichWithActor(enriched);
-        return enrichmentService.enrichWithMedia(enriched);
+    public Optional<AdvertisementInfoDto> findById(@NonNull Long id) {
+        return repository.findAdvertisementById(id);
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
@@ -133,13 +118,8 @@ public class AdvertisementService {
         repository.clearActorReferences(userIds);
     }
 
-    @Transactional
     public void delete(@NonNull Long id, @NonNull Long actingUserId, Long version) {
         log.info("Advertisement delete: id={}", id);
-        repository.findById(id).ifPresent(_ -> {
-            attachmentPortFactory.ifAvailable(p -> p.softDeleteAll(new EntityRef(EntityType.ADVERTISEMENT, id), actingUserId));
-            taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.ADVERTISEMENT, id, Set.of()));
-        });
         repository.softDelete(id, actingUserId, version);
     }
 

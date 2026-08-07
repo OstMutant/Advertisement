@@ -28,6 +28,7 @@
         <module>advertisement-spring-boot-starter</module>
         <module>taxon-spring-boot-starter</module>
         <module>provider-profile-spring-boot-starter</module>
+        <module>marketplace-orchestrator</module>
         <module>marketplace-app</module>
     </modules>
 
@@ -103,6 +104,11 @@
             <dependency>
                 <groupId>org.ost</groupId>
                 <artifactId>provider-profile-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.ost</groupId>
+                <artifactId>marketplace-orchestrator</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

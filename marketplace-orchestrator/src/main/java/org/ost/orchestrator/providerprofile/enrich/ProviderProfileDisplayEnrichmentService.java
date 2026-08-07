@@ -1,15 +1,14 @@
-package org.ost.provider.services;
+package org.ost.orchestrator.providerprofile.enrich;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.orchestrator.shared.ActorLookupService;
+import org.ost.orchestrator.shared.TaxonLookupService;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
-import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.platform.user.dto.UserDto;
-import org.ost.platform.user.spi.UserPort;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -21,46 +20,42 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Assembles the display-only fields of {@link ProviderProfileDto} (category/city names, actor
+ * name/email) from the Taxon and User ports.
+ */
 @Service
 @RequiredArgsConstructor
-public class ProviderProfileEnrichmentService {
+public class ProviderProfileDisplayEnrichmentService {
 
-    private final ComponentFactory<TaxonPort> taxonPortFactory;
-    private final ComponentFactory<UserPort>  userPortFactory;
+    private final TaxonLookupService taxonLookupService;
+    private final ActorLookupService actorLookupService;
 
     // ── Categories & city ────────────────────────────────────────────────────
 
     public List<ProviderProfileDto> enrichWithCategoriesAndCity(@NonNull List<ProviderProfileDto> profiles, @NonNull Locale locale) {
-        return taxonPortFactory.findIfAvailable()
-                .map(taxonPort -> {
-                    Set<Long> ids = profiles.stream().map(ProviderProfileDto::getId).collect(Collectors.toSet());
-                    Map<Long, List<TaxonDto>> categoryMap = taxonPort.getForEntities(EntityType.PROVIDER_PROFILE, ids, locale);
-                    Map<Long, TaxonDto> cityMap = findCities(taxonPort, profiles, locale);
-                    return profiles.stream()
-                            .map(p -> applyCategoryAndCityData(p, categoryMap.getOrDefault(p.getId(), List.of()), cityMap.get(p.getCityTaxonId())))
-                            .toList();
-                })
-                .orElse(profiles);
+        Set<Long> ids = profiles.stream().map(ProviderProfileDto::getId).collect(Collectors.toSet());
+        Map<Long, List<TaxonDto>> categoryMap = taxonLookupService.getForEntities(EntityType.PROVIDER_PROFILE, ids, locale);
+        Map<Long, TaxonDto> cityMap = findCities(profiles, locale);
+        return profiles.stream()
+                .map(p -> applyCategoryAndCityData(p, categoryMap.getOrDefault(p.getId(), List.of()), cityMap.get(p.getCityTaxonId())))
+                .toList();
     }
 
     public ProviderProfileDto enrichWithCategoryAndCity(@NonNull ProviderProfileDto profile, @NonNull Locale locale) {
-        return taxonPortFactory.findIfAvailable()
-                .map(taxonPort -> {
-                    List<TaxonDto> categories = taxonPort.getForEntity(EntityType.PROVIDER_PROFILE, profile.getId(), locale);
-                    TaxonDto city = profile.getCityTaxonId() != null
-                            ? taxonPort.findById(profile.getCityTaxonId(), locale).orElse(null)
-                            : null;
-                    return applyCategoryAndCityData(profile, categories, city);
-                })
-                .orElse(profile);
+        List<TaxonDto> categories = taxonLookupService.getForEntity(EntityType.PROVIDER_PROFILE, profile.getId(), locale);
+        TaxonDto city = profile.getCityTaxonId() != null
+                ? taxonLookupService.findById(profile.getCityTaxonId(), locale).orElse(null)
+                : null;
+        return applyCategoryAndCityData(profile, categories, city);
     }
 
-    private static Map<Long, TaxonDto> findCities(TaxonPort taxonPort, List<ProviderProfileDto> profiles, Locale locale) {
+    private Map<Long, TaxonDto> findCities(List<ProviderProfileDto> profiles, Locale locale) {
         Set<Long> cityIds = profiles.stream()
                 .map(ProviderProfileDto::getCityTaxonId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        return taxonPort.findByIds(cityIds, locale);
+        return taxonLookupService.findByIds(cityIds, locale);
     }
 
     private static ProviderProfileDto applyCategoryAndCityData(ProviderProfileDto profile, List<TaxonDto> categories, TaxonDto city) {
@@ -81,21 +76,16 @@ public class ProviderProfileEnrichmentService {
     // ── Actor ─────────────────────────────────────────────────────────────────
 
     public List<ProviderProfileDto> enrichWithActorInfo(@NonNull List<ProviderProfileDto> profiles) {
-        return userPortFactory.findIfAvailable()
-                .map(userPort -> {
-                    Set<Long> ids = profiles.stream().map(ProviderProfileDto::getActorId).collect(Collectors.toSet());
-                    Map<Long, UserDto> userMap = userPort.findByIds(ids);
-                    return profiles.stream()
-                            .map(p -> applyActorData(p, userMap.get(p.getActorId())))
-                            .toList();
-                })
-                .orElse(profiles);
+        Set<Long> ids = profiles.stream().map(ProviderProfileDto::getActorId).collect(Collectors.toSet());
+        Map<Long, UserDto> userMap = actorLookupService.findByIds(ids);
+        return profiles.stream()
+                .map(p -> applyActorData(p, userMap.get(p.getActorId())))
+                .toList();
     }
 
     public ProviderProfileDto enrichWithActor(@NonNull ProviderProfileDto profile) {
-        return userPortFactory.findIfAvailable()
-                .map(userPort -> applyActorData(profile, userPort.findById(profile.getActorId()).orElse(null)))
-                .orElse(profile);
+        UserDto user = actorLookupService.findById(profile.getActorId()).orElse(null);
+        return applyActorData(profile, user);
     }
 
     private static ProviderProfileDto applyActorData(ProviderProfileDto profile, UserDto user) {

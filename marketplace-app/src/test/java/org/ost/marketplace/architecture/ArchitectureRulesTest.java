@@ -141,7 +141,7 @@ class ArchitectureRulesTest {
 
     @ArchTest
     static final ArchRule marketplace_must_not_import_starter_internals =
-            noClasses().that().resideInAPackage("org.ost.marketplace..")
+            noClasses().that().resideInAnyPackage("org.ost.marketplace..", "org.ost.orchestrator..")
                     .should().dependOnClassesThat(new DescribedPredicate<JavaClass>(
                             "reside in a starter's util/services/repository package") {
                         @Override
@@ -151,9 +151,50 @@ class ArchitectureRulesTest {
                                     Pattern.quote(p) + "\\.(util|services|repository)(\\..*)?"));
                         }
                     })
-                    .because("marketplace may import from starters only via platform-commons "
-                            + "contracts (Ports/Hooks/DTOs), never via internal impl classes — "
-                            + "see .claude/rules.md \"Module Import Rules\"");
+                    .because("marketplace/orchestrator may import from starters only via "
+                            + "platform-commons contracts (Ports/Hooks/DTOs), never via internal "
+                            + "impl classes — see .claude/rules.md \"Module Import Rules\"");
+
+    // Counts only ComponentFactory<XPort>-wrapped (optional cross-domain composition) fields --
+    // a direct, mandatory *Port field (e.g. UserAccountPort in a user-owned use case) is not the
+    // fan-out shape this rule guards against, see marketplace-orchestrator/CLAUDE.md.
+    @ArchTest
+    static final ArchRule orchestrator_classes_depend_on_at_most_two_domain_ports =
+            noClasses().that().resideInAPackage("org.ost.orchestrator..")
+                    .should(new ArchCondition<JavaClass>("depend on at most two domain *Port interfaces via ComponentFactory") {
+                        @Override
+                        public void check(JavaClass javaClass, ConditionEvents events) {
+                            java.util.Set<String> portTypes = new java.util.HashSet<>();
+                            for (java.lang.reflect.Field field : javaClass.reflect().getDeclaredFields()) {
+                                if (field.getType().getSimpleName().equals("ComponentFactory")
+                                        && field.getGenericType() instanceof java.lang.reflect.ParameterizedType pt) {
+                                    for (java.lang.reflect.Type arg : pt.getActualTypeArguments()) {
+                                        if (arg instanceof Class<?> c && c.getSimpleName().endsWith("Port")) {
+                                            portTypes.add(c.getName());
+                                        }
+                                    }
+                                }
+                            }
+                            if (portTypes.size() > 2) {
+                                events.add(SimpleConditionEvent.violated(javaClass,
+                                        javaClass.getFullName() + " depends on " + portTypes.size()
+                                                + " domain *Port types via ComponentFactory " + portTypes
+                                                + " — split into smaller, composed use-case services "
+                                                + "instead, see marketplace-orchestrator/CLAUDE.md"));
+                            }
+                        }
+                    });
+
+    @ArchTest
+    static final ArchRule orchestrator_has_no_persistence_access =
+            noClasses().that().resideInAPackage("org.ost.orchestrator..")
+                    .should().dependOnClassesThat().haveNameMatching(".*\\.JdbcClient")
+                    .orShould().dependOnClassesThat().haveSimpleNameEndingWith("Repository")
+                    .orShould().dependOnClassesThat().haveSimpleNameEndingWith("CrudRepository")
+                    .because("marketplace-orchestrator composes results from domain Ports only, no "
+                            + "direct persistence access — mirrors the pure-delegation discipline "
+                            + "port_and_hook_impl_classes_are_pure_delegation enforces one layer down, "
+                            + "see marketplace-orchestrator/CLAUDE.md");
 
     @ArchTest
     static final ArchRule util_classes_are_non_instantiable =

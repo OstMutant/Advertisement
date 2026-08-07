@@ -28,6 +28,7 @@ advertisement-parent (root pom)
 ├── taxon-spring-boot-starter         — Taxonomy domain: taxon/category/tag management, TaxonPort (auto-configured starter)
 ├── provider-profile-spring-boot-starter — Provider profile domain: MASTER/SHOP/SUPPORT catalog entries, ProviderProfilePort (auto-configured starter)
 ├── integration-tests                 — Testcontainers repository tests + fixtures for every starter (test-only, never shipped)
+├── marketplace-orchestrator           — application/BFF layer: cross-domain use-case orchestration between marketplace-app and the domain starters
 └── marketplace-app                   — main Vaadin application (all UI)
 ```
 
@@ -58,12 +59,24 @@ advertisement-parent (root pom)
 
 → Provider profile domain (owned classes): @provider-profile-spring-boot-starter/CLAUDE.md
 
+→ Application/BFF orchestration layer (cross-domain use cases, owned classes): @marketplace-orchestrator/CLAUDE.md
+
 ---
 
 ## Architecture Guidelines
 
 1. **Explicit over implicit:** Avoid hidden framework magic. If simple Java code works, use it.
-2. **UI is a monolith:** All Vaadin UI code lives in `marketplace-app`. Decoupling is required only at the **service ↔ UI boundary** (starters vs marketplace-app). Within `marketplace-app`, UI components may freely reference each other — no ports, no hooks, no indirection needed between UI classes.
+2. **Three layers, not two:** `marketplace-app` (UI adapter: Vaadin, auth, locale — application-shell
+   concerns only) → `marketplace-orchestrator` (application/BFF layer: cross-domain use-case
+   composition) → domain starters (each owns its own bounded context). A domain starter must not
+   orchestrate another domain, and `marketplace-app` must not directly compose multiple domain
+   Ports for a single application use case — that composition belongs in `marketplace-orchestrator`.
+   All Vaadin UI code still lives in `marketplace-app` only; within `marketplace-app`, UI components
+   may freely reference each other — no ports, no hooks, no indirection needed between UI classes.
+   No single class in `marketplace-orchestrator` may depend on more than two domain `*Port`
+   interfaces via `ComponentFactory` — split into smaller, composed use-case services instead (see
+   `marketplace-orchestrator/CLAUDE.md`). `marketplace-orchestrator` never touches `JdbcClient`,
+   any `*Repository`, or any `*CrudRepository` — it composes results from domain Ports only.
 3. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserPort` or `AdvertisementPort`.
 4. **Modular Storage:** `StorageService` and its implementations live in `attachment-spring-boot-starter` (`org.ost.attachment.services`). UI components MUST degrade gracefully via `ObjectProvider.ifAvailable()` when the attachment starter is absent from the classpath.
 5. **Validation:** Use declarative validation rules in DTOs.
@@ -159,6 +172,7 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/scripts/architecture/DECISIONS.md`
 - `/app/integration-tests/DECISIONS.md`
 - `/app/taxon-spring-boot-starter/DECISIONS.md`
+- `/app/marketplace-orchestrator/DECISIONS.md`
 
 Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`, and
 `provider-profile-spring-boot-starter` have no hand-authored `DECISIONS.md` of their own — their

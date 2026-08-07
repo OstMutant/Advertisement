@@ -16,6 +16,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.jsoup.Jsoup;
+import org.ost.orchestrator.advertisement.enrich.AdvertisementDisplayEnrichmentService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
@@ -50,7 +51,7 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.platform.taxon.spi.TaxonPort;
-import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
+import org.ost.orchestrator.advertisement.save.AdvertisementSaveService;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
@@ -91,6 +92,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private final OverlayAdvertisementMetaPanel                                metaPanel;
     private final ComponentFactory<TaxonPort>                                  taxonPortFactory;
     private final LocaleProvider                                               localeProvider;
+    private final AdvertisementDisplayEnrichmentService                        enrichmentService;
 
     private QuillEditor descriptionField;
     private UiTextField titleField;
@@ -246,7 +248,8 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                     .orElse(null);
             if (savedId != null) {
                 advertisementPortFactory.findIfAvailable()
-                        .flatMap(p -> p.findById(savedId, localeProvider.getCurrentLocale()))
+                        .flatMap(p -> p.findById(savedId))
+                        .map(ad -> enrichmentService.enrichSingle(ad, localeProvider.getCurrentLocale()))
                         .ifPresent(info -> {
                             this.savedInfoDto = info;
                             dto.setVersion(info.getVersion());
@@ -287,7 +290,8 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             return;
         }
         advertisementPortFactory.findIfAvailable()
-                .flatMap(p -> p.findById(params.getAd().getId(), localeProvider.getCurrentLocale()))
+                .flatMap(p -> p.findById(params.getAd().getId()))
+                .map(ad -> enrichmentService.enrichSingle(ad, localeProvider.getCurrentLocale()))
                 .ifPresent(freshAd -> {
                     AdvertisementEditDto fresh = mapper.toAdvertisementEdit(freshAd);
                     binder.reload(fresh, this::copyEditFields);
@@ -313,6 +317,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         discardButton.setEnabled(hasChanges);
         BeforeUnloadUtil.sync(hasChanges);
     }
+
 
     private void buildBinder(AdvertisementEditDto dto, List<TaxonDto> availableCategories, List<TaxonDto> availableCities) {
         binder = formBinderFactory.build(

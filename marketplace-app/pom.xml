@@ -50,6 +50,10 @@
         </dependency>
         <dependency>
             <groupId>org.ost</groupId>
+            <artifactId>marketplace-orchestrator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.ost</groupId>
             <artifactId>query-lib</artifactId>
         </dependency>
         <dependency>

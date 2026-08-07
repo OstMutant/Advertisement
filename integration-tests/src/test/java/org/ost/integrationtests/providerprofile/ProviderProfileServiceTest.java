@@ -10,7 +10,6 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
 import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.taxon.spi.TaxonPort;
-import org.ost.platform.user.spi.UserPort;
 import org.ost.provider.entity.ProviderProfile;
 import org.ost.provider.repository.ProviderProfileRepository;
 import org.ost.provider.services.ProviderProfileService;
@@ -32,11 +31,9 @@ class ProviderProfileServiceTest {
     private ProviderProfileRepository repository;
     @Mock
     private ComponentFactory<TaxonPort> taxonPortFactory;
-    @Mock
-    private ComponentFactory<UserPort> userPortFactory;
 
     private ProviderProfileService newService() {
-        return ProviderProfileServiceTestSupport.newService(repository, taxonPortFactory, userPortFactory);
+        return ProviderProfileServiceTestSupport.newService(repository, taxonPortFactory);
     }
 
     @Test

@@ -1,0 +1,10 @@
+/app/marketplace-orchestrator/src/main/java/org/ost/orchestrator/advertisement/enrich/AdvertisementDisplayEnrichmentService.java
+/app/marketplace-orchestrator/src/main/java/org/ost/orchestrator/advertisement/save/AdvertisementSaveService.java
+/app/marketplace-orchestrator/src/main/java/org/ost/orchestrator/config/OrchestratorAutoConfiguration.java
+/app/marketplace-orchestrator/src/main/java/org/ost/orchestrator/providerprofile/enrich/ProviderProfileDisplayEnrichmentService.java
+/app/marketplace-orchestrator/src/main/java/org/ost/orchestrator/shared/ActorLookupService.java
+/app/marketplace-orchestrator/src/main/java/org/ost/orchestrator/shared/AttachmentSnapshotReaderService.java
+/app/marketplace-orchestrator/src/main/java/org/ost/orchestrator/shared/AttachmentSoftDeleteService.java
+/app/marketplace-orchestrator/src/main/java/org/ost/orchestrator/shared/TaxonAssignmentWriteService.java
+/app/marketplace-orchestrator/src/main/java/org/ost/orchestrator/shared/TaxonLookupService.java
+/app/marketplace-orchestrator/src/main/java/org/ost/orchestrator/user/delete/UserDeleteService.java

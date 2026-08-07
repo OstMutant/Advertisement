@@ -8,7 +8,7 @@
 FROM eclipse-temurin:25-jdk
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      docker.io curl ca-certificates python3 \
+      docker.io curl ca-certificates python3 nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

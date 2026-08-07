@@ -11,10 +11,8 @@ import org.ost.advertisement.services.AdvertisementService;
 import org.ost.integrationtests.support.AdvertisementServiceTestSupport;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.model.AdKind;
-import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.spi.TaxonPort;
-import org.ost.platform.user.spi.UserPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,14 +39,10 @@ class AdvertisementServiceHtmlSanitizationTest {
     @Mock
     private AdvertisementRepository repository;
     @Mock
-    private ComponentFactory<AttachmentPort> attachmentPortFactory;
-    @Mock
     private ComponentFactory<TaxonPort> taxonPortFactory;
-    @Mock
-    private ComponentFactory<UserPort> userPortFactory;
 
     private AdvertisementService newService() {
-        return AdvertisementServiceTestSupport.newService(repository, attachmentPortFactory, taxonPortFactory, userPortFactory);
+        return AdvertisementServiceTestSupport.newService(repository, taxonPortFactory);
     }
 
     @Test

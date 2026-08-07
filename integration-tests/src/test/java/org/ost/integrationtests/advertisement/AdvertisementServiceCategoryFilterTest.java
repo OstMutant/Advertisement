@@ -9,16 +9,13 @@ import org.ost.advertisement.services.AdvertisementService;
 import org.ost.integrationtests.support.AdvertisementServiceTestSupport;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
-import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.spi.TaxonPort;
-import org.ost.platform.user.spi.UserPort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -42,16 +39,12 @@ class AdvertisementServiceCategoryFilterTest {
     @Mock
     private AdvertisementRepository repository;
     @Mock
-    private ComponentFactory<AttachmentPort> attachmentPortFactory;
-    @Mock
     private ComponentFactory<TaxonPort> taxonPortFactory;
-    @Mock
-    private ComponentFactory<UserPort> userPortFactory;
     @Mock
     private TaxonPort taxonPort;
 
     private AdvertisementService newService() {
-        return AdvertisementServiceTestSupport.newService(repository, attachmentPortFactory, taxonPortFactory, userPortFactory);
+        return AdvertisementServiceTestSupport.newService(repository, taxonPortFactory);
     }
 
     @Test
@@ -59,7 +52,7 @@ class AdvertisementServiceCategoryFilterTest {
         AdvertisementFilterDto filter = AdvertisementFilterDto.builder().categoryIds(null).build();
         when(repository.findByFilter(eq(filter), any(Pageable.class), isNull())).thenReturn(List.of());
 
-        newService().getFiltered(filter, 0, 10, Sort.unsorted(), Locale.ENGLISH);
+        newService().getFiltered(filter, 0, 10, Sort.unsorted());
 
         verify(repository).findByFilter(eq(filter), any(Pageable.class), isNull());
         verify(taxonPortFactory, never()).findIfAvailable();
@@ -71,7 +64,7 @@ class AdvertisementServiceCategoryFilterTest {
         when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
         when(taxonPort.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, Set.of(1L))).thenReturn(Set.of());
 
-        List<AdvertisementInfoDto> result = newService().getFiltered(filter, 0, 10, Sort.unsorted(), Locale.ENGLISH);
+        List<AdvertisementInfoDto> result = newService().getFiltered(filter, 0, 10, Sort.unsorted());
 
         assertThat(result).isEmpty();
         verify(repository, never()).findByFilter(any(), any(), any());
@@ -84,7 +77,7 @@ class AdvertisementServiceCategoryFilterTest {
         when(taxonPort.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, Set.of(1L))).thenReturn(Set.of(100L, 200L));
         when(repository.findByFilter(eq(filter), any(Pageable.class), eq(Set.of(100L, 200L)))).thenReturn(List.of());
 
-        newService().getFiltered(filter, 0, 10, Sort.unsorted(), Locale.ENGLISH);
+        newService().getFiltered(filter, 0, 10, Sort.unsorted());
 
         verify(repository).findByFilter(eq(filter), any(Pageable.class), eq(Set.of(100L, 200L)));
     }
@@ -95,7 +88,7 @@ class AdvertisementServiceCategoryFilterTest {
         when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.empty());
         when(repository.findByFilter(eq(filter), any(Pageable.class), isNull())).thenReturn(List.of());
 
-        newService().getFiltered(filter, 0, 10, Sort.unsorted(), Locale.ENGLISH);
+        newService().getFiltered(filter, 0, 10, Sort.unsorted());
 
         verify(repository).findByFilter(eq(filter), any(Pageable.class), isNull());
     }

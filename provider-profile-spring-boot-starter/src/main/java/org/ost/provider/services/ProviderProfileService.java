@@ -24,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -41,19 +40,15 @@ public class ProviderProfileService {
 
     private final ProviderProfileRepository        repository;
     private final ComponentFactory<TaxonPort>      taxonPortFactory;
-    private final ProviderProfileEnrichmentService enrichmentService;
 
     // ── Query & filter ───────────────────────────────────────────────────────
 
-    public List<ProviderProfileDto> getFiltered(@Valid @NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale) {
+    public List<ProviderProfileDto> getFiltered(@Valid @NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort) {
         Optional<Set<Long>> categoryFilter = resolveCategoryFilter(filter);
         if (categoryFilter.filter(Set::isEmpty).isPresent()) {
             return List.of();
         }
-        List<ProviderProfileDto> profiles = repository.findByFilter(filter, PageRequest.of(page, size, sort), categoryFilter.orElse(null));
-        if (profiles.isEmpty()) return profiles;
-        profiles = enrichmentService.enrichWithCategoriesAndCity(profiles, locale);
-        return enrichmentService.enrichWithActorInfo(profiles);
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort), categoryFilter.orElse(null));
     }
 
     public int count(@Valid @NonNull ProviderProfileFilterDto filter) {
@@ -88,17 +83,12 @@ public class ProviderProfileService {
         return id;
     }
 
-    public Optional<ProviderProfileDto> findById(@NonNull Long id, @NonNull Locale locale) {
-        return repository.findProviderProfileById(id).map(dto -> enrichSingle(dto, locale));
+    public Optional<ProviderProfileDto> findById(@NonNull Long id) {
+        return repository.findProviderProfileById(id);
     }
 
-    public Optional<ProviderProfileDto> findByActorId(@NonNull Long actorId, @NonNull Locale locale) {
-        return repository.findByActorId(actorId).map(dto -> enrichSingle(dto, locale));
-    }
-
-    private ProviderProfileDto enrichSingle(ProviderProfileDto dto, Locale locale) {
-        ProviderProfileDto enriched = enrichmentService.enrichWithCategoryAndCity(dto, locale);
-        return enrichmentService.enrichWithActor(enriched);
+    public Optional<ProviderProfileDto> findByActorId(@NonNull Long actorId) {
+        return repository.findByActorId(actorId);
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {

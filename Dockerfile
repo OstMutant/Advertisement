@@ -15,6 +15,7 @@ COPY user-spring-boot-starter/pom.xml user-spring-boot-starter/
 COPY advertisement-spring-boot-starter/pom.xml advertisement-spring-boot-starter/
 COPY taxon-spring-boot-starter/pom.xml taxon-spring-boot-starter/
 COPY provider-profile-spring-boot-starter/pom.xml provider-profile-spring-boot-starter/
+COPY marketplace-orchestrator/pom.xml marketplace-orchestrator/
 COPY marketplace-app/pom.xml marketplace-app/
 COPY integration-tests/pom.xml integration-tests/
 
@@ -31,10 +32,11 @@ COPY user-spring-boot-starter/src ./user-spring-boot-starter/src
 COPY advertisement-spring-boot-starter/src ./advertisement-spring-boot-starter/src
 COPY taxon-spring-boot-starter/src ./taxon-spring-boot-starter/src
 COPY provider-profile-spring-boot-starter/src ./provider-profile-spring-boot-starter/src
+COPY marketplace-orchestrator/src ./marketplace-orchestrator/src
 COPY marketplace-app/src ./marketplace-app/src
 
 # Install parent POM and all dependency modules to local Maven repo before building marketplace-app
-RUN --mount=type=cache,target=/root/.m2 ./mvnw install -DskipTests -pl .,platform-commons,query-lib,audit-spring-boot-starter,attachment-spring-boot-starter,user-spring-boot-starter,advertisement-spring-boot-starter,taxon-spring-boot-starter,provider-profile-spring-boot-starter -q
+RUN --mount=type=cache,target=/root/.m2 ./mvnw install -DskipTests -pl .,platform-commons,query-lib,audit-spring-boot-starter,attachment-spring-boot-starter,user-spring-boot-starter,advertisement-spring-boot-starter,taxon-spring-boot-starter,provider-profile-spring-boot-starter,marketplace-orchestrator -q
 
 # Build the application (Vaadin production bundle is built automatically by
 # vaadin-maven-plugin on `package`; SPRING_PROFILES_ACTIVE=prod at runtime sets

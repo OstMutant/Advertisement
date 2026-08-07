@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -24,8 +23,8 @@ public class AdvertisementPortImpl implements AdvertisementPort {
     private final AdvertisementService service;
 
     @Override
-    public List<AdvertisementInfoDto> getFiltered(@NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale) {
-        return service.getFiltered(filter, page, size, sort, locale);
+    public List<AdvertisementInfoDto> getFiltered(@NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort) {
+        return service.getFiltered(filter, page, size, sort);
     }
 
     @Override
@@ -34,8 +33,8 @@ public class AdvertisementPortImpl implements AdvertisementPort {
     }
 
     @Override
-    public Optional<AdvertisementInfoDto> findById(@NonNull Long id, @NonNull Locale locale) {
-        return service.findById(id, locale);
+    public Optional<AdvertisementInfoDto> findById(@NonNull Long id) {
+        return service.findById(id);
     }
 
     @Override

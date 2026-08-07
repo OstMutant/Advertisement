@@ -7,7 +7,6 @@ import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -19,13 +18,13 @@ import java.util.Set;
  */
 public interface ProviderProfilePort {
 
-    List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale);
+    List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort);
 
     int count(@NonNull ProviderProfileFilterDto filter);
 
-    Optional<ProviderProfileDto> findById(@NonNull Long id, @NonNull Locale locale);
+    Optional<ProviderProfileDto> findById(@NonNull Long id);
 
-    Optional<ProviderProfileDto> findByActorId(@NonNull Long actorId, @NonNull Locale locale);
+    Optional<ProviderProfileDto> findByActorId(@NonNull Long actorId);
 
     /** {@code actingUserIsPrivileged} gates {@code kind == SUPPORT}; throws
      *  {@link IllegalStateException} otherwise. */
