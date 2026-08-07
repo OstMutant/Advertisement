@@ -87,6 +87,32 @@ node scripts/architecture/md-to-decisions-json.js --extract <module> <ADR-NNN>[,
   (per the Definition of Done), which is a sufficient historical trail on its own; an ADR would
   just restate it.
 
+## Result — built, wired in, and tested
+
+Built exactly per "Implementation notes" above. Additionally, actually wired into the flow that
+drives Claude's own behavior, not just documented passively:
+
+- `docs/ai/context-loading.md`'s "Bug fix"/"Local refactor"/"Feature, single module" rows rewritten
+  to say "filter the index, then `--extract` the matching id(s)" instead of "open that module's
+  `DECISIONS.md`" — reversing this issue's own original "Not in scope" call once it became clear a
+  passive `docs/ai/README.md` mention alone wouldn't change actual behavior.
+- `docs/ai/README.md` gets a short paragraph (not a table row — the tool lives in
+  `scripts/architecture/`, not under `docs/ai/`) pointing at `--extract` as `adr-index.md`'s
+  companion.
+- `scripts/architecture/DECISIONS.md`'s "Open goals" L3 entry struck through, "done, see
+  `--extract`", following the file's own existing strikethrough precedent.
+- `scripts/architecture/DECISIONS.md` ADR-008 (embeds every ADR's full text into
+  `architecture-model.json` for the human popup) marked **legacy** with a dated Amendment — not
+  changed, just flagged that the direction is a future companion server
+  (`improvement-146`, cross-referenced there too) serving one ADR on demand via this same
+  `--extract`, if/when that server is ever built.
+- Tested directly: single id, multiple comma-separated ids, a missing id (warning, not fatal),
+  zero ids found (exit 1), a module with no `DECISIONS.md` (exit 1), and confirmed `--stdout`
+  (the generator's own consumer) still works unchanged. Ran the real end-to-end flow once
+  (`adr-index.md` → filter by module → `--extract`) against `marketplace-app` ADR-029.
+- Measured real savings (chars/4 as a token proxy) across 4 module/ADR samples: 94-98% fewer
+  tokens than reading the whole file, ~97% average.
+
 ## Related
 
 - `scripts/architecture/DECISIONS.md` "Open goals" — the "AI-layer L3 (Rule/Intent) artifact" entry
@@ -216,3 +242,15 @@ right after the new "Runtime" group — requested directly, same conversation.
 **Status: Done** — same reasoning as Notes 2/3, resolved in place, no relocation. The ADR-022
 amendment itself is separate, permanent decisions-log maintenance (not something that ever needed
 relocating, unlike the rest of this note).
+
+## Operational notes
+
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- context_loading_task_type: Feature, single module
+- context_loading_consulted: no
+- context_loading_matched: n/a
+- flows_situation: a small, already-agreed backlog item that just needed building
+- flows_chosen: none
+- flows_matched: no

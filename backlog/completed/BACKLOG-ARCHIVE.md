@@ -1626,3 +1626,21 @@ built — a companion-server on-demand refresh trigger — was split into `impro
 everything else landed, since that piece's priority was still undecided while the rest was ready
 to close. Full detail:
 `completed/issues/improvement-144-code-metrics-dedicated-card-refresh-trigger.md`.
+
+✅ Done (2026-08-07): improvement-145 — `md-to-decisions-json.js` gained
+`--extract <module> <ADR-NNN>[,...]`, printing the requested ADR(s) as raw markdown instead of the
+whole `DECISIONS.md` (94-98% fewer tokens across 4 measured samples). Wired into the actual
+AI-facing flow, not just documented: `docs/ai/context-loading.md`'s single-module task rows now
+say "filter the index, then `--extract`" instead of "open the whole file"; `docs/ai/README.md`
+notes it as `adr-index.md`'s companion. `scripts/architecture/DECISIONS.md`'s "AI-layer L3" open
+goal struck through as done; ADR-008 (the embed-everything design behind the human-facing ADR
+popup) marked legacy, pointing at a possible future companion server
+(`improvement-146`) that could reuse this same `--extract` mode, not built. Also resolved in place
+in the same conversation (not relocated to a separate issue, per direct decision): the
+`architecture-map.html`/Tooling & Pipelines restructuring thread — new "Docker" and "Runtime"
+groups, "How this page is built" relocated off the System screen, removed a duplicated ADR-listing
+block, and two rounds of dead-code/dead-data cleanup this surfaced (`renderAdrList`/
+`openAdrPopupForIntent`/`adrFileLink`, and unused `.intent` payload on `SCRIPT_GROUP` nodes).
+Tightened `.claude/commands/decision.md`'s ADR-worthiness gate: a tool being about "architecture"
+doesn't exempt its own UI/layout changes from the gate. Full detail:
+`completed/issues/improvement-145-adr-extraction-token-efficiency.md`.
