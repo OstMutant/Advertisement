@@ -57,6 +57,36 @@ node scripts/architecture/md-to-decisions-json.js --extract <module> <ADR-NNN>[,
   for a person clicking through the UI; this issue is specifically about Claude's own token cost
   when working in this repo, a different consumer with a different cost profile.
 
+## Implementation notes (finalized before building)
+
+- **CLI:** `--extract <module> <ADR-NNN>[,<ADR-NNN>...]`, added as a third branch in
+  `md-to-decisions-json.js`'s existing `args[0]` dispatch (alongside `--stdout` and the default
+  batch-write mode) — no new file, no new script.
+- **Lookup:** reuses `parseDecisionsMarkdown()` unchanged; splits the id-list arg on `,`, looks
+  each up in that module's already-parsed `.adrs` array by exact `id` match (bare `ADR-NNN`, same
+  as the real heading text — not the `ADR-NNN (module)` display form `adr-index.md` uses for
+  cross-references; the caller passes the ADR's real home module).
+- **Output:** raw markdown, one block per found id — `## <id>: <title>\n\n**Status:**
+  <status>\n\n<body>` — joined with `\n\n---\n\n`, the same `---` separator real `DECISIONS.md`
+  files already use between entries. No JSON.
+- **Errors:** module with no `DECISIONS.md` → stderr message + exit 1 (same as the tool's other
+  modes). An id not found in that module → stderr warning, not fatal, so a partially-correct
+  multi-id request still returns what it can; zero ids found at all → exit 1.
+- **Docs:** add a row to `docs/ai/README.md`'s file table for this capability (per the file's own
+  table format) — even though it technically lives in `scripts/architecture/`, not a new file
+  under `docs/ai/` itself; flagging this as a minor scope stretch of that table's stated purpose,
+  not a blocker.
+- **Open goal:** `scripts/architecture/DECISIONS.md`'s "Open goals" L3 entry gets struck through
+  with a "done, see ADR-NNN" pointer, following the exact precedent already in that same section
+  (`~~Full ADR-embedding rollout...~~ — done, see ADR-008.`).
+- **No new ADR.** Reconsidered against `.claude/commands/decision.md`'s worthiness gate (the same
+  one just tightened earlier this conversation): reversing this later is cheap (one CLI branch in
+  one script, zero cross-module reach), it establishes a one-off utility rather than a pattern
+  other code will actually follow, and there's no rejected-alternative history worth preserving.
+  This issue file itself is the "why" record — it moves to `backlog/completed/issues/` once done
+  (per the Definition of Done), which is a sufficient historical trail on its own; an ADR would
+  just restate it.
+
 ## Related
 
 - `scripts/architecture/DECISIONS.md` "Open goals" — the "AI-layer L3 (Rule/Intent) artifact" entry

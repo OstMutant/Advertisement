@@ -13,6 +13,14 @@ written to stand on their own, independent of that history.
 | [context-loading.md](context-loading.md) | Task type → which `DECISIONS.md`/backlog/architecture files are worth opening | No guidance existed for *everyday* work (outside `deep-review`/`sync-docs`, which already have their own context strategy) on which docs matter for a given task | Complements `docs/architecture/*.md` — points at them for the task types where they matter, doesn't restate their content | At the start of a bug fix / feature / architectural change, before opening files speculatively | Manual, low-churn — task categories are stable; revisit only if a new category of work emerges |
 | [flows.md](flows.md) | Situation → which existing command/skill handles it, and why that one | The operational surface (`/feature`, `/decision`, `/sync-docs`, `/code-review`, `deep-review`, `/autopilot`, `/ci`, ...) was scattered across `CLAUDE.md` and a dozen `.claude/commands/*.md` files with no single map | Points at `.claude/commands/*.md`/`.claude/skills/*` — never restates their internal steps | Whenever unsure which command/skill applies to the task at hand | Split in two: its "Project commands & skills" table is checked by `bash scripts/ai/check-flows-completeness.sh` (wired into `scripts/ci.sh`'s `docs` stage + a standing `.claude/rules.md` rule); its "Built-in Claude Code skills" table can't be mechanically checked from this repo (those aren't repo files) — re-verified only during `/sync-docs --full-audit` |
 
+**Companion to [adr-index.md](adr-index.md):** once the index narrows a task down to one or a few
+ADR ids, read just those via
+`node scripts/architecture/md-to-decisions-json.js --extract <module> <ADR-NNN>[,<ADR-NNN>...]`
+(prints the requested ADR(s) as raw markdown) instead of opening the whole `DECISIONS.md` — see
+[context-loading.md](context-loading.md) for when this applies. Not listed as its own table row
+above since it isn't a file under `docs/ai/` — it's a CLI mode of an existing
+`scripts/architecture/` script, kept there since it reuses that script's own markdown parser.
+
 ## Explicitly not here, and why
 
 - **No `module-index.md`.** `docs/architecture/bounded-contexts.md` already gives a per-domain

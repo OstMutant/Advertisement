@@ -399,7 +399,11 @@ rendered in place, no navigation.
 
 ## ADR-008: ADR content embedded directly in `architecture-model.json`, not a separate `<module>/DECISIONS.json` loaded via `<script src>` — and shown in a popup, not inline expand
 
-**Status:** Accepted — rolled out to every module with its own `DECISIONS.md` (7 of 10 Maven
+**Status:** Accepted, legacy — direction now points toward a companion-server-backed on-demand
+model instead (see improvement-146); this embed-everything design stays in place until that
+server actually exists, not superseded outright.
+
+**Status (original):** Accepted — rolled out to every module with its own `DECISIONS.md` (7 of 10 Maven
 modules: `attachment-spring-boot-starter`, `audit-spring-boot-starter`, `integration-tests`,
 `marketplace-app`, `platform-commons`, `query-lib`, `taxon-spring-boot-starter`; the other 3 record
 decisions in `marketplace-app`'s or `platform-commons`' `DECISIONS.md` per root `CLAUDE.md`, so
@@ -470,6 +474,15 @@ succeeded against a faithful mirror of the real file layout).
   but framed as permanent this time (full rollout, not a passing pilot): `check-hardcoded-counts.sh`
   excludes exactly these two generated files by path, not all of `docs/` — every other file under
   `docs/` (architecture docs, `docs/ai/*`) is still checked for genuine staleness.
+
+**Amendment (2026-08-07):** marked legacy. Direct measurement during improvement-145's work found
+the `"decisions"` field (this ADR's own embed-everything design) accounts for 605KB of the current
+841KB `architecture-model.json` — 72% of the file — entirely full ADR body text for the human
+popup. The stated reason to prefer this over `<script src>` still holds (browser `file://`
+security policy risk) — this Amendment doesn't reverse that reasoning — but the direction going
+forward is a companion server (`improvement-146`'s territory) that can serve one ADR's text on
+demand instead of embedding all of them upfront, once that server exists. Until then, this design
+stays exactly as decided here; nothing changes today.
 
 ---
 
@@ -1542,19 +1555,10 @@ thresholds added, and the committed baseline deliberately carries real Sonar/Arc
 
 ## Open goals
 
-- **AI-layer L3 (Rule/Intent) artifact.** A small, Claude-readable file — given a touched module,
-  the applicable rules + relevant ADRs for it — distinct from the popup built so far, which serves
-  the human layer only (a person clicking, not Claude reading directly). Identified as the
-  highest-leverage step for Claude's token/speed cost, since it changes what gets read per task
-  rather than how existing data is stored. Not started.
-  **Constraint, stated now so it isn't lost by the time this is picked up:** L3 must not be a
-  filtered read of `architecture-model.json`. That file correctly embeds full ADR prose for the
-  human popup (ADR-008) — reusing it for L3 would carry that same weight into the one layer whose
-  entire point is being cheap for Claude to read. L3's own source is `docs/ai/adr-index.md`
-  (already id/title/status/one-line, already generated, already exactly this shape) plus each
-  ADR's `file` reference for on-demand full-text lookup only when a task actually needs it — not
-  embedded by default. Building L3 against the wrong source defeats the reason it's being built at
-  all.
+~~AI-layer L3 (Rule/Intent) artifact~~ — done, see `md-to-decisions-json.js`'s `--extract` mode
+(improvement-145): reads `docs/ai/adr-index.md` (via `docs/ai/context-loading.md`'s guidance) to
+find the relevant id(s), then extracts just those from the real `DECISIONS.md` on demand, exactly
+the source and shape this goal specified — not a filtered read of `architecture-model.json`.
 - **Mechanize `bounded-contexts.md` the same "scatter into real source" way as ADR-017.** Domain
   grouping (which entity/table/service belongs to which domain) is already derivable from Java
   package/module structure alone, the same technique Module Dependencies/SPI Map already use. Some

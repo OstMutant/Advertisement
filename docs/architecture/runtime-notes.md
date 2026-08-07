@@ -28,3 +28,8 @@ dependency).
 nested inside it): `marketplace-app`, `advertisement-db` (Postgres), `advertisement-minio`
 (S3-compatible storage), `sonarqube` + `sonar-scanner`, and short-lived tooling containers spun up
 per script run (the Playwright runner, the isolated CI runner).
+
+**Reading one ADR without opening a whole `DECISIONS.md`:**
+`node scripts/architecture/md-to-decisions-json.js --extract <module> <ADR-NNN>[,<ADR-NNN>...]`
+prints the requested ADR(s) as raw markdown. Use this instead of `Read`-ing a whole
+`DECISIONS.md` once `docs/ai/adr-index.md` has already narrowed down which id(s) are needed.

@@ -115,6 +115,18 @@ explicitly when they want the button to work.
 4. **Whether to build this at all** — the tentative priority above is the real open question that
    precedes all the others; confirm before starting implementation.
 
+## Related idea, not in scope (found 2026-08-07, during improvement-145)
+
+The ADR popup's full-text embedding (`scripts/architecture/DECISIONS.md` ADR-008) accounts for
+~605KB of the current ~841KB `architecture-model.json` (~72%) — a `file://`-page constraint, same
+root cause as this issue's own Sonar/ArchUnit refresh problem (no server, so everything needed
+upfront must be baked in). If this companion server is ever built, a natural extension is a
+`GET /adr?module=X&id=Y` endpoint backed by the already-built
+`scripts/architecture/md-to-decisions-json.js --extract` (built for Claude's own on-demand reads,
+`improvement-145`), letting the popup fetch one ADR on demand instead of embedding all of them.
+Not folded into the plan above — this issue's own priority is still "not yet decided whether to
+build at all"; revisit this extension only if/when that's greenlit.
+
 ## Related
 
 - `improvement-144` (completed) — Part A/C of the original scope (Code Quality + ADRs
