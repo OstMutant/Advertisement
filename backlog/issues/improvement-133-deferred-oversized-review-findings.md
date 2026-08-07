@@ -137,3 +137,30 @@ sibling" bug history. Needs a design decision (shared prototype-scoped base clas
 ADR-065's stated exception to cover handlers too) before it can be sized as a mechanical fix — not
 picked up as part of improvement-132's Batch E since every other batch there was a same-file
 mechanical edit and this one isn't.
+
+### 9. `scripts/architecture/DECISIONS.md`: ADR-003 and ADR-024 are UI/layout churn that shouldn't have been separate ADRs (found 2026-08-07)
+
+`scripts/architecture/DECISIONS.md` (1556 lines / 21 ADRs) documents `architecture-map.html`'s own
+generator (`generate-architecture-model.sh`, 2955 lines) — already the direct motivation for
+`improvement-145`'s on-demand ADR extraction. Auditing all 21 entries against
+`.claude/commands/decision.md`'s worthiness gate (tightened in the same conversation to explicitly
+state that a tool being *about* architecture doesn't exempt its own UI/layout changes from the
+gate) surfaces two clear demotion candidates:
+
+- **ADR-003** ("System page holds only the 3 entry-point cards") — a pure screen-layout count
+  that's already silently wrong (the System screen has grown to 6 cards since, across ADR-023's
+  "ADRs + Notes cards" and a later conversation's now-removed Docker card), never updated when it
+  changed. A textbook "UI/layout adjustment" the gate says shouldn't be a standalone ADR.
+- **ADR-024** ("SonarQube/ArchUnit metrics consolidated onto a dedicated Code Quality screen,
+  removed from Module pages") — a screen reorganization with no mechanism decision inside it
+  (contrast ADR-022/023, kept: both are borderline-UI-titled but each contains a real reusable
+  mechanism — a self-documenting header convention, a live-ADR-list data-source choice — not just
+  "a section moved").
+
+Not fixed now: demoting/merging existing ADR entries means editing an append-only historical
+record (`doc-standards` `SKILL.md`'s explicit carve-out: `DECISIONS.md` — "write what happened,
+accurately; optimizing an ADR for brevity over completeness is the wrong trade"), a different and
+more sensitive kind of edit than appending a dated Amendment note (already done for ADR-022 in the
+same conversation this was found in). Needs its own explicit go-ahead and a decided approach
+(delete outright vs. fold into a neighboring ADR's Consequences vs. mark `Status: Superseded`)
+before touching it.

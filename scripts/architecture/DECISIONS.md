@@ -1340,6 +1340,13 @@ frontend-library fact, not a `scripts/architecture` script) is untouched, out of
 - `docs/architecture/architecture-model.json`/`architecture-map.html` regenerated to pick up the
   new field and the reworked "How this page is built" section.
 
+**Amendment (2026-08-07):** the "How this page is built" section has since moved off the System
+screen entirely — it now renders at the bottom of the "Tooling & Pipelines" screen
+(`renderPipelines()`), after the "Docker"/"Runtime" groups, rather than inside `renderSystem()`.
+The `MODEL.architectureToolingSelfDocs`-driven table itself, and everything else this ADR
+describes, is unchanged — only its screen location moved, alongside relocating the standalone
+"Docker" System card into a "Docker" group on the same Tooling & Pipelines screen.
+
 ## ADR-023: System screen gains ADRs + Notes cards — flat live ADR list, and a hand-maintained glossary starting with "what is an ADR"
 
 **Status:** Accepted

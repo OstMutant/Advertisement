@@ -1072,6 +1072,17 @@ docker_files_json() {
   echo "[$out]"
 }
 
+# ── Runtime notes: hand-authored operational-topology prose (docs/architecture/runtime-notes.md)
+# -- container/hostname/mounts/toolchain facts that don't belong in any generated per-module
+# section. Read raw via Node's JSON.stringify (not json_escape() above, which strips newlines --
+# unsuitable for multi-paragraph content, same reasoning already used for full ADR bodies) so the
+# original line breaks survive for the client-side mdBlockToHtml() renderer to work with.
+RUNTIME_NOTES_FILE="$REPO_ROOT/docs/architecture/runtime-notes.md"
+runtime_notes_json() {
+  [ -f "$RUNTIME_NOTES_FILE" ] || { echo "null"; return; }
+  node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$RUNTIME_NOTES_FILE"
+}
+
 [ -n "$WITH_SONAR" ] && ensure_sonar_fresh
 
 sonar_json="null"
@@ -1089,6 +1100,7 @@ archunit_json="null"
   echo "$diagram_groups_json"
   echo "  ],"
   echo "  \"dockerFiles\": $(docker_files_json),"
+  echo "  \"runtimeNotes\": $(runtime_notes_json),"
   echo "  \"backlogPriorityOrder\": $(backlog_priority_order_json),"
   echo "  \"spiMap\": $(spi_map_json),"
   echo "  \"spiCallFlowExamples\": $(spi_call_flow_examples_json),"
@@ -1460,7 +1472,6 @@ function crumbLabelFor(v) {
   if (v.screen === "module") return displayName(v.id);
   if (v.screen === "pipelines") return "Tooling & Pipelines";
   if (v.screen === "backlog") return "Backlog";
-  if (v.screen === "docker") return "Docker";
   if (v.screen === "adrs") return "ADRs";
   if (v.screen === "codequality") return "Code Quality";
   if (v.screen === "diagrams") {
@@ -1539,10 +1550,6 @@ function renderSystem() {
       <div class="card-title">📐 Diagrams</div>
       <div class="card-desc">${totalDiagramCount} diagrams — dependency graph (click a module to drill in), SPI map, context map, ERD, sequence flows</div>
     </div>
-    <div class="card special-card" onclick="navigate({screen:'docker'})">
-      <div class="card-title">🐳 Docker</div>
-      <div class="card-desc">${MODEL.dockerFiles.length} files — Dockerfiles + docker-compose stacks, what each builds/runs</div>
-    </div>
     <div class="card special-card" onclick="navigate({screen:'adrs'})">
       <div class="card-title">📜 ADRs</div>
       <div class="card-desc">${(MODEL.allAdrs || []).length} architectural decisions across every module's DECISIONS.md</div>
@@ -1552,18 +1559,6 @@ function renderSystem() {
       <div class="card-desc">SonarQube + ArchUnit metrics per module, one table per source</div>
     </div>
   </div>`;
-
-  html += `<section class="block"><h3>How this page is built</h3>
-    <div class="empty-hint">
-      <strong>Rendering:</strong> Cytoscape.js + cytoscape-dagre for the draggable graphs (Module Dependencies, SPI Map); Mermaid.js for the Database ERD and Sequence Diagrams.
-    </div>
-    <table class="simple"><thead><tr><th>Script</th><th>Description</th><th>Uses</th><th>Input</th><th>Output</th></tr></thead><tbody>`;
-  (MODEL.architectureToolingSelfDocs || []).forEach(s => {
-    html += `<tr><td>${sourceLink(s.file)}</td><td>${esc(s.description)}</td><td>${esc(s.uses)}</td><td>${esc(s.input)}</td><td>${esc(s.output)}</td></tr>`;
-  });
-  html += `</tbody></table>
-    <div class="empty-hint">Read live from each script's own header comment (<code class="path">scripts/architecture/</code>) — not hand-written here, so it can't silently drift from what the scripts actually do. A small amount of genuinely non-mechanical content (a few call-flow examples, database relationships with no real foreign key) is hand-preserved as static data in the generator itself, not re-derived every run.</div>
-  </section>`;
 
   document.getElementById("content").innerHTML = html;
 }
@@ -2070,11 +2065,6 @@ function renderScriptGroupSection(n) {
   if (n.files && n.files.length) {
     html += `<div class="table-chip-row">` + n.files.map(f => sourceLink(`${n.id}/${f}`)).join(" ") + `</div>`;
   }
-  if (n.intent && n.intent.length) {
-    const ownFileEntry = n.intent.find(a => a.file === `${n.id}/DECISIONS.md`) || n.intent[0];
-    html += `<div class="adr-subheading">Architectural decisions (${n.intent.length}) <a class="section-link" href="${adrFileLink(ownFileEntry)}" target="_blank">view full file</a></div>`;
-    html += renderAdrList(n);
-  }
   html += `</section>`;
   return html;
 }
@@ -2102,7 +2092,34 @@ function renderPipelines() {
   html += `<h3 class="group-heading">Other Scripts</h3>`;
   scriptGroupNodes.filter(n => n.category === "scripts").forEach(n => { html += renderScriptGroupSection(n); });
 
+  html += `<h3 class="group-heading">Docker</h3>`;
+  html += renderDockerSection();
+
+  html += `<h3 class="group-heading">Runtime</h3>`;
+  html += renderRuntimeSection();
+
+  html += `<section class="block"><h3>How this page is built</h3>
+    <div class="empty-hint">
+      <strong>Rendering:</strong> Cytoscape.js + cytoscape-dagre for the draggable graphs (Module Dependencies, SPI Map); Mermaid.js for the Database ERD and Sequence Diagrams.
+    </div>
+    <table class="simple"><thead><tr><th>Script</th><th>Description</th><th>Uses</th><th>Input</th><th>Output</th></tr></thead><tbody>`;
+  (MODEL.architectureToolingSelfDocs || []).forEach(s => {
+    html += `<tr><td>${sourceLink(s.file)}</td><td>${esc(s.description)}</td><td>${esc(s.uses)}</td><td>${esc(s.input)}</td><td>${esc(s.output)}</td></tr>`;
+  });
+  html += `</tbody></table>
+    <div class="empty-hint">Read live from each script's own header comment (<code class="path">scripts/architecture/</code>) — not hand-written here, so it can't silently drift from what the scripts actually do. A small amount of genuinely non-mechanical content (a few call-flow examples, database relationships with no real foreign key) is hand-preserved as static data in the generator itself, not re-derived every run.</div>
+  </section>`;
+
   document.getElementById("content").innerHTML = html;
+}
+
+// ── Runtime group (Tooling & Pipelines): hand-authored operational-topology prose from
+// docs/architecture/runtime-notes.md, rendered through the same mdBlockToHtml() ADR bodies use --
+// no new parser, the file is written in the same "**Label:**" bold-paragraph/bullet-list style.
+function renderRuntimeSection() {
+  if (!MODEL.runtimeNotes) return `<div class="empty-hint">No <code class="path">docs/architecture/runtime-notes.md</code> yet.</div>`;
+  return `<section class="block">${mdBlockToHtml(MODEL.runtimeNotes)}</section>
+    <div class="empty-hint">Source: ${sourceLink("docs/architecture/runtime-notes.md")}</div>`;
 }
 
 // ── Backlog screen ───────────────────────────────────────────────────────────────────────────
@@ -2802,7 +2819,6 @@ function render() {
   else if (view.screen === "pipelines") renderPipelines();
   else if (view.screen === "backlog") renderBacklog();
   else if (view.screen === "diagrams") renderDiagrams();
-  else if (view.screen === "docker") renderDocker();
   else if (view.screen === "adrs") renderAdrs();
   else if (view.screen === "codequality") renderCodeQuality();
   else renderSystem();
@@ -2905,13 +2921,11 @@ const GLOSSARY = [
   ` }
 ];
 
-// ── Docker screen: real files + mechanically-extracted facts (build stages / compose service
-// names) only -- the actual deployment workflow explanation stays in scripts/CLAUDE.md's
-// "Deployment" section, linked to below, never restated here.
-function renderDocker() {
-  let html = backButtonHtml();
-  html += `<h2 class="screen-title">Docker</h2>
-    <div class="screen-desc">What builds/runs in this repo, straight from the real files — see ${sourceLink("scripts/CLAUDE.md")} for the actual deploy workflow (deploy.sh/deploy-dev.sh flags, when to use which).</div>`;
+// ── Docker group (Tooling & Pipelines): real files + mechanically-extracted facts (build stages /
+// compose service names) only -- the actual deployment workflow explanation stays in
+// scripts/CLAUDE.md's "Deployment" section, linked to below, never restated here.
+function renderDockerSection() {
+  let html = `<div class="screen-desc">What builds/runs in this repo, straight from the real files — see ${sourceLink("scripts/CLAUDE.md")} for the actual deploy workflow (deploy.sh/deploy-dev.sh flags, when to use which).</div>`;
 
   const dockerfiles = MODEL.dockerFiles.filter(f => f.kind === "dockerfile");
   const composeFiles = MODEL.dockerFiles.filter(f => f.kind === "compose");
@@ -2928,7 +2942,7 @@ function renderDocker() {
   });
   html += `</tbody></table></section>`;
 
-  document.getElementById("content").innerHTML = html;
+  return html;
 }
 
 render();

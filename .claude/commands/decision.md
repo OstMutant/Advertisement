@@ -34,7 +34,11 @@ Write an ADR only if at least one is true:
 
 Do not write an ADR for: a bug fix, a UI/layout adjustment, a sort-order or formatting change, or
 anything whose rationale is self-evident from reading the code change itself. These are ordinary
-commits — a good commit message is sufficient, no `DECISIONS.md` entry needed.
+commits — a good commit message is sufficient, no `DECISIONS.md` entry needed. This applies even
+when the tool being changed is itself about architecture or decisions (e.g.
+`architecture-map.html`'s own screen/card/group layout, or this very command's own wording) — a
+tool's subject matter being "architecture" does not make changes to its own UI exempt from this
+gate; judge those changes exactly as you would judge a UI/layout change in any other tool.
 
 If genuinely unsure, prefer *not* writing the ADR and note the decision briefly in the commit
 message instead — the cost of a missing ADR is a future "why did we do this?" question; the cost
