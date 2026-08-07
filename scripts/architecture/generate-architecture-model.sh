@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Description: Generates architecture-model.json and architecture-map.html -- the live, browsable
 #   architecture control plane -- from real repo state, no hand-maintained markdown.
-# Uses: bash, node (invokes liquibase-schema-to-json.js and md-to-decisions-json.js as
-#   subprocesses), python3 (only when --with-sonar/--with-archunit are passed).
+# Uses: bash, node (invokes liquibase-schema-to-json.js always, and md-to-decisions-json.js only
+#   when --with-adr-details is passed, as subprocesses), python3 (only when
+#   --with-sonar/--with-archunit are passed).
 # Input: pom.xml, real Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
 #   docs/ai/adr-index.md, docs/ai/flows.md, .claude/commands, .claude/skills, backlog/.
 # Output: docs/architecture/architecture-model.json + docs/architecture/architecture-map.html.
@@ -23,14 +24,17 @@ ADR_INDEX="$REPO_ROOT/docs/ai/adr-index.md"
 FLOWS="$REPO_ROOT/docs/ai/flows.md"
 ROOT_CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
 
-# Opt-in Sonar/ArchUnit fetch -- both off by default so a plain run never triggers a SonarQube
-# rescan or depends on unit-tests.sh having run recently. See scripts/architecture/DECISIONS.md.
+# Opt-in Sonar/ArchUnit/ADR-details fetch -- all off by default so a plain run never triggers a
+# SonarQube rescan, depends on unit-tests.sh having run recently, or bakes every module's full ADR
+# text into the output. See scripts/architecture/DECISIONS.md.
 WITH_SONAR=""
 WITH_ARCHUNIT=""
+WITH_ADR_DETAILS=""
 for arg in "$@"; do
   case "$arg" in
     --with-sonar) WITH_SONAR=1 ;;
     --with-archunit) WITH_ARCHUNIT=1 ;;
+    --with-adr-details) WITH_ADR_DETAILS=1 ;;
   esac
 done
 
@@ -93,6 +97,13 @@ declare -A SCRIPT_GROUP_FILE_ORDER=(
 )
 decisions_json_for() {
   local module="$1"
+  # Off by default (see --with-adr-details above) -- full ADR-body embedding accounts for
+  # ~605KB/~72% of a with-flag architecture-model.json, baked in whether or not anyone opens the
+  # popup. MODEL.allAdrs (built by all_adrs_json() from docs/ai/adr-index.md) stays populated
+  # either way -- it never carried full body text to begin with. openAdrPopupForAdr() still opens
+  # the popup (id/title/status always available from MODEL.allAdrs) when a module's "decisions"
+  # field is null, showing a source-file link instead of the full body.
+  [ -n "$WITH_ADR_DETAILS" ] || { echo "null"; return; }
   [ -f "$REPO_ROOT/$module/DECISIONS.md" ] || { echo "null"; return; }
   local found=false
   for m in "${FULL_DECISIONS_MODULES[@]}"; do [ "$m" = "$module" ] && found=true; done
@@ -2801,7 +2812,7 @@ function renderAdrs() {
 
   let html = backButtonHtml();
   html += `<h2 class="screen-title">ADRs</h2>
-    <div class="screen-desc">${adrs.length} architectural decisions across every module's own DECISIONS.md — see ${sourceLink("docs/ai/adr-index.md")} for the generated index this screen reads, and the Overview section at the bottom of this screen for what an ADR is and how it's used.</div>`;
+    <div class="screen-desc">${adrs.length} architectural decisions across every module's own DECISIONS.md — see ${sourceLink("docs/ai/adr-index.md")} for the generated index this screen reads, and the Overview section at the bottom of this screen for what an ADR is and how it's used. Clicking an ADR opens its full text inline only when the model was generated with <code>--with-adr-details</code> (opt-in, off by default); otherwise it opens the real DECISIONS.md file directly.</div>`;
   html += `<div class="card-grid">
     <div class="card ${adrStatusFilter === "All" ? "card-active" : ""}" onclick="setAdrStatusFilter('All')"><div class="card-title">${adrs.length}</div><div class="card-desc">All</div></div>`;
   html += Object.entries(counts).map(([status, count]) =>
@@ -2828,7 +2839,7 @@ function renderAdrs() {
     html += `<section class="block"><h3>${grpHeading} (${grp.items.length}) ${sourceLink(grp.module + "/DECISIONS.md")}</h3>
       <table class="simple"><thead><tr><th>ADR</th><th>Status</th><th>Title</th></tr></thead><tbody>`;
     grp.items.forEach(a => {
-      html += `<tr><td><a onclick="openAdrPopupForAdr('${esc(a.id)}', '${esc(a.module)}')">${esc(a.id)}</a></td><td>${esc(a.status)}</td><td>${esc(a.title)}</td></tr>`;
+      html += `<tr><td><a onclick="openAdrPopupForAdr('${esc(a.id)}', '${esc(a.module)}', '${esc(a.title)}', '${esc(a.status)}')">${esc(a.id)}</a></td><td>${esc(a.status)}</td><td>${esc(a.title)}</td></tr>`;
     });
     html += `</tbody></table></section>`;
   });
@@ -2838,18 +2849,27 @@ function renderAdrs() {
   document.getElementById("content").innerHTML = html;
 }
 
-// Looks up the ADR's real home module and opens the popup only if that module's full ADR content
-// was embedded (see scripts/architecture/DECISIONS.md ADR-008's FULL_DECISIONS_MODULES) -- falls
-// back to a real link to the source file otherwise. Takes the ADR id + home module directly since
-// the ADRs screen's list is flat across every module, not scoped to one node.
-function openAdrPopupForAdr(id, module) {
+// Always opens the popup -- title/status come from MODEL.allAdrs (always populated, passed in
+// directly from the calling row so there's no second lookup) -- the body is the full embedded
+// text only if that module's full ADR content was embedded (see scripts/architecture/DECISIONS.md
+// ADR-008's FULL_DECISIONS_MODULES, gated behind --with-adr-details); otherwise a real link to the
+// source file plus a generic pointer to where that flag is documented, not a copy of the exact
+// command here (kept deliberately decoupled from one script's exact CLI shape). Takes the ADR id +
+// home module directly since the ADRs screen's list is flat across every module, not scoped to one
+// node.
+function openAdrPopupForAdr(id, module, title, status) {
   const bareId = id.split(" (")[0];
   const homeNode = byId[module];
   const found = homeNode && homeNode.decisions && homeNode.decisions.adrs.find(x => x.id === bareId);
-  if (!found) { window.open(`../../${module}/DECISIONS.md`, "_blank"); return; }
-  document.getElementById("adr-popup-title").textContent = `${found.id} — ${found.title}`;
-  document.getElementById("adr-popup-status").textContent = found.status;
-  document.getElementById("adr-popup-body").innerHTML = mdBlockToHtml(found.body);
+  document.getElementById("adr-popup-title").textContent = `${id} — ${title}`;
+  document.getElementById("adr-popup-status").textContent = status;
+  if (found) {
+    document.getElementById("adr-popup-body").innerHTML = mdBlockToHtml(found.body);
+  } else {
+    document.getElementById("adr-popup-body").innerHTML =
+      `<div class="empty-hint">Full text not included in this build. Read it directly: ${sourceLink(module + "/DECISIONS.md")}</div>
+       <div class="empty-hint">For how to include full ADR text inline here, see <a onclick="document.getElementById('adr-popup').close(); navigate({screen:'pipelines'})">Tooling &amp; Pipelines</a>.</div>`;
+  }
   document.getElementById("adr-popup").showModal();
 }
 

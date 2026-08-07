@@ -1634,8 +1634,9 @@ AI-facing flow, not just documented: `docs/ai/context-loading.md`'s single-modul
 say "filter the index, then `--extract`" instead of "open the whole file"; `docs/ai/README.md`
 notes it as `adr-index.md`'s companion. `scripts/architecture/DECISIONS.md`'s "AI-layer L3" open
 goal struck through as done; ADR-008 (the embed-everything design behind the human-facing ADR
-popup) marked legacy, pointing at a possible future companion server
-(`improvement-146`) that could reuse this same `--extract` mode, not built. Also resolved in place
+popup) briefly marked legacy here, floating a possible future companion server — superseded the
+same day by `improvement-146`'s entry below (decided against a server; resolved with an opt-in
+generation flag instead). Also resolved in place
 in the same conversation (not relocated to a separate issue, per direct decision): the
 `architecture-map.html`/Tooling & Pipelines restructuring thread — new "Docker" and "Runtime"
 groups, "How this page is built" relocated off the System screen, removed a duplicated ADR-listing
@@ -1644,3 +1645,18 @@ block, and two rounds of dead-code/dead-data cleanup this surfaced (`renderAdrLi
 Tightened `.claude/commands/decision.md`'s ADR-worthiness gate: a tool being about "architecture"
 doesn't exempt its own UI/layout changes from the gate. Full detail:
 `completed/issues/improvement-145-adr-extraction-token-efficiency.md`.
+
+✅ Done (2026-08-07): improvement-146 — closed with the companion server explicitly **decided
+against** (cost — new long-running process, port/lifecycle, unverified CORS — outweighed a rare,
+low-friction problem), not deferred. The issue's other half — ADR-008's 605KB/72%
+full-text-embedding duplication in `architecture-model.json` — shipped instead, without a server:
+a new `--with-adr-details` opt-in flag on `generate-architecture-model.sh` (same pattern as
+`--with-sonar`/`--with-archunit`), off by default (842KB → 244KB). `openAdrPopupForAdr()` now
+always opens the popup (title/status from the always-lean `MODEL.allAdrs`), falling back to a
+source-file link + a generic pointer to the Tooling & Pipelines screen — not a hardcoded command —
+when the full text isn't embedded. ADR-008 amended twice (measurement + the same-day
+reconsideration), dropping the ticket-number citation the first Amendment had briefly reintroduced.
+`docs/architecture/runtime-notes.md` gained an "Architecture map tooling" group covering every
+script involved in building the map (parameters, manual invocation, sandbox notes), replacing the
+single `--extract`-only bullet it had before. Full detail:
+`completed/issues/improvement-146-code-quality-refresh-companion-server.md`.

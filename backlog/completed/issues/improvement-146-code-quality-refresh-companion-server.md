@@ -5,10 +5,9 @@ from `improvement-144` (Part B of that issue's original scope) once `improvement
 steps (0/1/3/4/5) were all done and the file closed out.
 **Module:** `scripts/architecture/generate-architecture-model.sh`, `docs/architecture/architecture-map.html`,
 new `scripts/architecture/architecture-refresh-server.*`.
-**Priority:** 🟡 **tentative — not yet decided whether this will actually be built.** Positioned
-right after `improvement-145` in the backlog per explicit request, but that is a position marker
-only, not a commitment to implement; revisit before starting.
-**When:** independent, no blockers, once/if greenlit.
+**Priority:** Closed 2026-08-07 — **decided against building the companion server.** The
+ADR-embedding part of this issue's original scope shipped instead (see below), without a server.
+**When:** n/a — resolved, not deferred.
 
 ## Problem
 
@@ -115,17 +114,95 @@ explicitly when they want the button to work.
 4. **Whether to build this at all** — the tentative priority above is the real open question that
    precedes all the others; confirm before starting implementation.
 
-## Related idea, not in scope (found 2026-08-07, during improvement-145)
+## ADR on-demand embedding — decided 2026-08-07, independent of the server plan above
 
-The ADR popup's full-text embedding (`scripts/architecture/DECISIONS.md` ADR-008) accounts for
-~605KB of the current ~841KB `architecture-model.json` (~72%) — a `file://`-page constraint, same
-root cause as this issue's own Sonar/ArchUnit refresh problem (no server, so everything needed
-upfront must be baked in). If this companion server is ever built, a natural extension is a
-`GET /adr?module=X&id=Y` endpoint backed by the already-built
-`scripts/architecture/md-to-decisions-json.js --extract` (built for Claude's own on-demand reads,
-`improvement-145`), letting the popup fetch one ADR on demand instead of embedding all of them.
-Not folded into the plan above — this issue's own priority is still "not yet decided whether to
-build at all"; revisit this extension only if/when that's greenlit.
+**No server needed for this part.** First framed (2026-08-07, during `improvement-145`) as a
+possible extension of this issue's companion server — a `GET /adr?module=X&id=Y` endpoint. Revisited
+the same day: this issue's own priority is still "not yet decided whether to build the server at
+all," and a live server is overkill for data that changes as rarely as ADR text does (only when
+someone adds a new decision — unlike Sonar/ArchUnit numbers, which change on every code edit and
+genuinely benefit from a live refresh). Decided instead: reuse the generation-time opt-in flag
+pattern `generate-architecture-model.sh` already has for the exact same shape of problem
+(`--with-sonar`/`--with-archunit`) — a new `--with-adr-details` flag, no HTTP server, no port, no
+CORS handling.
+
+**Problem restated:** The ADR popup's full-text embedding (`scripts/architecture/DECISIONS.md`
+ADR-008 in this module) accounts for ~605KB of the current ~841KB `architecture-model.json`
+(~72%) — baked into every generation run whether or not anyone ever opens the popup, because the
+page is `file://`-only with nothing to fetch from at runtime.
+
+**Plan:**
+1. New flag `--with-adr-details` on `generate-architecture-model.sh`, same dispatch shape as the
+   existing `--with-sonar`/`--with-archunit` flags (`case` branch near the top of the script) —
+   off by default.
+2. Without the flag: `decisions_json_for()` returns `null` for every module instead of calling
+   `md-to-decisions-json.js --stdout "$module"` — same shape `sonar_metrics_json()`/
+   `archunit_metrics_json()` already use for their own off-by-default case. Each module node's
+   `"decisions"` field becomes `null`; `architecture-model.json` shrinks by the ~605KB/72%.
+   `MODEL.allAdrs` (the separate, always-lean `{id, title, status, module}` list the "ADRs"
+   screen's card grid and search read, built by `all_adrs_json()` from `docs/ai/adr-index.md`) is
+   untouched by this flag — that index has no full body text to begin with, stays present either
+   way.
+3. With the flag: unchanged from today — `decisions_json_for()` behaves exactly as it does now,
+   full per-ADR body embedded, ADR-008's current design untouched.
+4. Popup fallback when details are absent: `openAdrPopupForAdr(id, module)` currently does
+   `homeNode.decisions.adrs.find(...)` — guard for `homeNode.decisions === null` and render a short
+   message ("regenerate with `--with-adr-details` to see full ADR text") instead of the body, same
+   `empty-hint`-style pattern the Code Metrics screen already uses for its own
+   `--with-sonar`/`--with-archunit` off-by-default case (`"No data -- regenerate with
+   <code>--with-sonar</code>..."`).
+5. `scripts/architecture/DECISIONS.md` ADR-008 gets a dated Amendment: correct its current
+   "legacy — direction now points toward a companion-server-backed on-demand model instead (see
+   improvement-146)" line — the resolution that actually shipped is a generation-time flag, not a
+   server; the companion server (Sonar/ArchUnit refresh) remains a fully separate, still-tentative
+   idea.
+6. Regenerate `architecture-model.json`/`architecture-map.html` both with and without the new
+   flag; confirm the size delta roughly matches the ~605KB estimate and the popup fallback message
+   renders correctly in the no-flag case, full ADR content still renders correctly in the
+   with-flag case.
+
+**Relationship to the Sonar/ArchUnit refresh plan above:** fully independent — this needs no
+server, no port, no CORS handling, and can ship regardless of whether the companion server
+(steps 1-5 in the main Plan section) is ever built. The server plan's own "tentative — not yet
+decided" priority is unaffected by this decision.
+
+**Result — built and verified 2026-08-07.** Steps 1-3 and 6 above implemented exactly as planned;
+step 4 came out better than planned — instead of a footer hint appended to a plain file-open,
+`openAdrPopupForAdr(id, module, title, status)` now always opens the dialog (title/status come
+straight from the caller's `MODEL.allAdrs` row, always available regardless of the flag), with the
+body falling back to a real source-file link plus a generic "see Tooling & Pipelines" pointer
+(deliberately not naming the exact flag/command in the popup itself, to avoid coupling the message
+to one script's CLI shape) when the module's full text isn't embedded. Step 5's Amendment split
+into two dated entries on ADR-008 (one recording the 605KB/72% measurement and the initial
+companion-server framing, one recording the same-day reconsideration and the flag actually
+shipped) — also dropped the improvement-146 ticket citation from ADR-008's Status/Amendment text,
+per the standing rule against ticket numbers in current-state docs.
+
+Verified directly: default (no-flag) regeneration — 842KB → 244KB (−598KB, matches the ~605KB
+estimate), zero nodes carry non-null `decisions`, `MODEL.allAdrs` still full (199 entries). With
+`--with-adr-details` — 12 nodes (all of `FULL_DECISIONS_MODULES`) carry embedded decisions, size
+back to ~843KB. `check-architecture-model-freshness.sh` passes against the committed (no-flag)
+regeneration. `docs/ai/adr-index.md` regenerated (ADR-008's status line changed). Script header
+comment (`# Uses:`) updated so `architectureToolingSelfDocs` — read live by the Tooling & Pipelines
+screen — reflects the new conditional `md-to-decisions-json.js` invocation; spot-checked the
+generated JSON directly for the corrected text (a line-wrap edit briefly introduced a stray space
+mid-flag-pair, caught and fixed before commit).
+
+## Result — companion server decided against, 2026-08-07
+
+Discussed directly: the server's only real benefit is skipping ~4 manual commands (`sonar.sh` →
+`unit-tests.sh` → regenerate → reload) in a scenario that happens rarely (the architecture map
+isn't opened daily), against a real build cost (new long-running process, start/stop/PID
+lifecycle, port coordination, and the CORS gotcha in the Plan section above still unverified in a
+real browser). That cost/benefit compares unfavorably against how the ADR-embedding half of this
+same issue actually got resolved — a real, measured problem (605KB/72% of the file) fixed with a
+few lines behind an existing flag pattern, no new process at all. No concrete trigger (growing
+pain, repeated request) makes the server worth revisiting later, so this is a closed decision, not
+a deferred one — if the manual-refresh friction ever becomes a real complaint, re-open a new issue
+with that concrete evidence rather than reviving this speculative plan.
+
+The Plan/Open questions sections above are kept as-is (not deleted) as the design record, in case
+a future issue wants to start from it rather than from scratch.
 
 ## Related
 
@@ -136,4 +213,18 @@ build at all"; revisit this extension only if/when that's greenlit.
   operates on.
 - `improvement-138` — the original Architecture Control Plane plan.
 - `docs/architecture/README.md` — documents the tool's current no-server property; this issue's
-  companion server is an explicit, opt-in exception to that, not a replacement of it.
+  companion server would have been an explicit, opt-in exception to that — moot now that it's not
+  being built.
+
+## Operational notes
+
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- context_loading_task_type: Feature, single module
+- context_loading_consulted: no
+- context_loading_matched: n/a
+- flows_situation: a backlog item with an already-written plan, split between a decided-against
+  server piece and a small opt-in-flag piece that shipped
+- flows_chosen: none
+- flows_matched: no

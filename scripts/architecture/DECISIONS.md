@@ -399,9 +399,9 @@ rendered in place, no navigation.
 
 ## ADR-008: ADR content embedded directly in `architecture-model.json`, not a separate `<module>/DECISIONS.json` loaded via `<script src>` — and shown in a popup, not inline expand
 
-**Status:** Accepted, legacy — direction now points toward a companion-server-backed on-demand
-model instead (see improvement-146); this embed-everything design stays in place until that
-server actually exists, not superseded outright.
+**Status:** Accepted — embedding is opt-in via `--with-adr-details` on
+`generate-architecture-model.sh` (off by default; see the 2026-08-07 Amendments below for why a
+flag, not a server).
 
 **Status (original):** Accepted — rolled out to every module with its own `DECISIONS.md` (7 of 10 Maven
 modules: `attachment-spring-boot-starter`, `audit-spring-boot-starter`, `integration-tests`,
@@ -475,14 +475,27 @@ succeeded against a faithful mirror of the real file layout).
   excludes exactly these two generated files by path, not all of `docs/` — every other file under
   `docs/` (architecture docs, `docs/ai/*`) is still checked for genuine staleness.
 
-**Amendment (2026-08-07):** marked legacy. Direct measurement during improvement-145's work found
-the `"decisions"` field (this ADR's own embed-everything design) accounts for 605KB of the current
-841KB `architecture-model.json` — 72% of the file — entirely full ADR body text for the human
-popup. The stated reason to prefer this over `<script src>` still holds (browser `file://`
-security policy risk) — this Amendment doesn't reverse that reasoning — but the direction going
-forward is a companion server (`improvement-146`'s territory) that can serve one ADR's text on
-demand instead of embedding all of them upfront, once that server exists. Until then, this design
-stays exactly as decided here; nothing changes today.
+**Amendment (2026-08-07):** direct measurement found the `"decisions"` field (this ADR's own
+embed-everything design) accounts for 605KB of the current 841KB `architecture-model.json` — 72%
+of the file — entirely full ADR body text for the human popup, baked in on every generation run
+whether or not anyone ever opens it. The stated reason to prefer this over `<script src>` still
+holds (browser `file://` security policy risk) — this Amendment doesn't reverse that reasoning.
+First floated the same day as a case for a companion server serving one ADR's text on demand; that
+framing was reconsidered before any server work started (see the second Amendment below).
+
+**Amendment (2026-08-07, same day):** a live server is unnecessary for data that changes this
+rarely — ADR text only changes when a new decision is recorded, unlike metrics that change on
+every code edit and genuinely benefit from a live refresh. Resolved instead with the same
+generation-time opt-in flag pattern this script already uses for the same shape of problem
+(`--with-sonar`/`--with-archunit`): a new `--with-adr-details` flag, off by default.
+`decisions_json_for()` returns `null` for every module unless the flag is passed — the embedding
+mechanism itself (steps 1-3 of the Decision above) is completely unchanged when the flag is on.
+`MODEL.allAdrs` (the separate, always-lean list the ADRs screen's card grid reads, sourced from
+`docs/ai/adr-index.md`) is unaffected either way — it carries `id`/`title`/`status`/`module` for
+every ADR regardless of the flag, so `openAdrPopupForAdr()` always opens the same dialog with a
+real title/status; only the body differs, falling back to a source-file link plus a generic
+pointer to the Tooling & Pipelines screen (not this exact flag name) when the module's `decisions`
+field is absent.
 
 ---
 
