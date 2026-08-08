@@ -1,4 +1,4 @@
-package org.ost.orchestrator.shared;
+package org.ost.orchestrator.services;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;

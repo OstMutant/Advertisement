@@ -13,9 +13,8 @@ import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityViewOverlayModeHandler;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
-import org.ost.platform.taxon.spi.TaxonPort;
 
 import java.util.List;
 import java.util.Locale;
@@ -46,7 +45,7 @@ public class CityOverlay extends AbstractEntityOverlay<CityFormOverlayModeHandle
     @Getter private final EntityOverlaySupport support;
     private final UiComponentFactory<CityViewOverlayModeHandler> viewModeHandlerFactory;
     private final UiComponentFactory<CityFormOverlayModeHandler> formModeHandlerFactory;
-    private final ComponentFactory<TaxonPort>                    taxonPortFactory;
+    private final TaxonCatalogService                            taxonCatalogService;
 
     private OverlaySession session;
 
@@ -68,9 +67,7 @@ public class CityOverlay extends AbstractEntityOverlay<CityFormOverlayModeHandle
     @Override
     protected void proceed() {
         Long savedId = currentFormHandler.getSavedCityId();
-        TaxonDto fresh = savedId == null ? null : taxonPortFactory.findIfAvailable()
-                .flatMap(p -> p.findById(savedId, Locale.ENGLISH))
-                .orElse(null);
+        TaxonDto fresh = savedId == null ? null : taxonCatalogService.findById(savedId, Locale.ENGLISH).orElse(null);
         if (fresh == null) return;
 
         session = session.withCity(fresh);

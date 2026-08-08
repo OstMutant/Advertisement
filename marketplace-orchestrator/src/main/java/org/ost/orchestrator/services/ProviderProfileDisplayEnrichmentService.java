@@ -1,9 +1,7 @@
-package org.ost.orchestrator.providerprofile.enrich;
+package org.ost.orchestrator.services;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.orchestrator.shared.ActorLookupService;
-import org.ost.orchestrator.shared.TaxonLookupService;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.taxon.dto.TaxonDto;

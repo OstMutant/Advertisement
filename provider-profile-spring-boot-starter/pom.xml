@@ -16,6 +16,10 @@
     <name>Provider Profile Spring Boot Starter</name>
     <description>Provider profile domain module — owns ProviderProfile entity, repository, and ProviderProfilePort implementation</description>
 
+    <properties>
+        <architecture.boundedContext>starter</architecture.boundedContext>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>

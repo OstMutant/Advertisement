@@ -16,6 +16,10 @@
     <name>Marketplace Orchestrator</name>
     <description>Application/BFF composition layer — cross-domain use-case orchestration between marketplace-app and the domain starters</description>
 
+    <properties>
+        <architecture.boundedContext>orchestrator</architecture.boundedContext>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>

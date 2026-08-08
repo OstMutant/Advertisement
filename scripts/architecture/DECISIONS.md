@@ -1566,19 +1566,78 @@ thresholds added, and the committed baseline deliberately carries real Sonar/Arc
    framing from Robert Martin's original stability/abstractness model) — still one paragraph per
    field, not a multi-section essay.
 
+## ADR-025: Bounded Contexts domain discovery is self-describing (pom.xml property), not a hardcoded module-name pattern
+
+**Status:** Accepted
+
+**Context:** `marketplace-orchestrator` was added as a new module (a structural category — not a
+`*-spring-boot-starter`, not `platform-commons`/`marketplace-app`) but never appeared on the
+Bounded Contexts diagram. Root cause: `bounded_contexts_json()`'s domain discovery (ADR-019) only
+recognized two hardcoded structural ids (`Shared` → `platform-commons`, `UI` → `marketplace-app`)
+plus every module matching the `*-spring-boot-starter` name suffix — a third structural category
+had no path into `BC_DOMAIN_ORDER` at all, silently. This is the same "hardcoded list goes stale"
+bug class already hit twice elsewhere in this repo (root `Dockerfile`'s module `COPY`/`-pl` lists,
+`scripts/sonar/`'s module lists) — a new module type requires remembering to also update this
+generator, with nothing forcing that to happen.
+
+**Decision:** Domain discovery reads a self-declared marker from each module's own `pom.xml`
+instead of pattern-matching its artifact name:
+```xml
+<properties>
+    <architecture.boundedContext>starter</architecture.boundedContext>
+    <!-- or: shared / ui / orchestrator -->
+</properties>
+```
+All 9 current bounded-context modules (`platform-commons`, `marketplace-app`,
+`marketplace-orchestrator`, and the 6 `*-spring-boot-starter` modules) carry this property.
+`query-lib`/`integration-tests` carry none — absence of the property means "not a bounded
+context," a safe default rather than an easy-to-forget hardcoded exclusion list. The generator
+loops `$MODULES` (already read from the root `pom.xml` reactor list) and reads each module's own
+property via `sed`/`grep` instead of the old suffix match; `shared`/`ui`/`orchestrator` are handled
+as named singletons (their JSON shape genuinely differs — no persistence, hand-picked "ports"
+signal), `starter` kind reuses the existing id/label derivation from the artifact name.
+`Orchestrator`'s own JSON branch: `entities`/`tables` empty (no persistence), `services` from real
+`*Service.java` files (same generic signal domain modules already use), `ports` from which
+`*Port` interfaces its source actually injects via `ComponentFactory<XPort>` (the real call-direction
+signal — orchestrator calls Ports, it never `implements` one, so the existing starter branch's
+`implements XPort` grep would find nothing).
+
+New real relationship edges, not asserted: `Shared -> Orchestrator` (`decouples`, real pom.xml
+dependency), `Orchestrator -> <starter>` (`calls`, real per-`*Port`-interface evidence: which
+`ComponentFactory<XPort>` types orchestrator's source injects, matched against which starter
+actually implements that interface — not an unconditional loop over every starter), `UI ->
+Orchestrator` (`calls`, real evidence: count of `marketplace-app` classes importing
+`org.ost.orchestrator.*`). The pre-existing `UI -> <starter>` edges (unconditional for every
+starter, not gated on real evidence) are deliberately left unchanged here — fixing those requires
+knowing which UI classes still hold a direct `*Port` after the true-BFF migration
+(`improvement-147`) actually lands; tracked there, not fixed speculatively ahead of that work.
+
+**Bug hit while implementing, fixed in the same change:** the new domain-discovery loop's
+`bc_kind="$(sed ... | grep -o ... | sed ...)"` line was missing its closing double-quote (an
+`unexpected EOF` / stray `(` syntax error surfaced 40+ lines later, at an unrelated array literal —
+bash reports the *next* place parsing desynchronizes, not the actual unclosed quote, so trust
+`bash -n` on the smallest reproducible snippet, not the reported line number, when debugging this
+class of error). Separately, `grep -o ...` finding no match for `query-lib`/`integration-tests`
+(no `architecture.boundedContext` property) exits 1; under this script's `set -o pipefail`, that
+non-zero status propagates through the rest of the pipe even though the final `sed` stage exits 0,
+which combined with `set -e` silently aborted the whole script with no error message — fixed with
+`|| true` on every such bare `pipeline-into-assignment` where "no match" is an expected, valid
+outcome, not a real failure.
+
+**Consequences:** a future new module type (e.g. a second BFF-style module, or a reporting module)
+becomes visible on this diagram from the same commit that adds its `pom.xml` property — no
+separate edit to `generate-architecture-model.sh` required, closing the exact gap this ADR fixes
+for `marketplace-orchestrator`. Regenerated via `bash scripts/architecture/generate-architecture-model.sh`;
+`check-architecture-model-freshness.sh` confirmed green.
+
 ## Open goals
+
+~~Mechanize `bounded-contexts.md` the same "scatter into real source" way as ADR-017~~ — done, see
+ADR-019 (domains/relationships derived live from real code) and ADR-025 (domain *discovery* itself
+made self-describing via each module's own `pom.xml`, not a second hardcoded list).
 
 ~~AI-layer L3 (Rule/Intent) artifact~~ — done, see `md-to-decisions-json.js`'s `--extract` mode
 (improvement-145): reads `docs/ai/adr-index.md` (via `docs/ai/context-loading.md`'s guidance) to
 find the relevant id(s), then extracts just those from the real `DECISIONS.md` on demand, exactly
 the source and shape this goal specified — not a filtered read of `architecture-model.json`.
-- **Mechanize `bounded-contexts.md` the same "scatter into real source" way as ADR-017.** Domain
-  grouping (which entity/table/service belongs to which domain) is already derivable from Java
-  package/module structure alone, the same technique Module Dependencies/SPI Map already use. Some
-  business relationships ("audited via", "can have") may also be re-derivable from real DI
-  injection points (`ComponentFactory<XPort>` field declarations in each domain's service) instead
-  of hand-authored subgraph text. Does **not** by itself fix why the diagram was dropped in
-  ADR-016 (the domain layer is a genuine graph cycle via the UI/Audit hub, a `dagre` compound-layout
-  limitation, not a staleness problem) — freshness and renderability are separate problems; this
-  goal only addresses the first. Not started.
 ~~Full ADR-embedding rollout to all modules with their own `DECISIONS.md`~~ — done, see ADR-008.

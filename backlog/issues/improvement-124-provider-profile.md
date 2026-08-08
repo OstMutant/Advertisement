@@ -667,16 +667,25 @@ into `ProviderProfileService` in this same issue, not unrelated drive-by finding
   Provider Profile tab (`ProviderProfileSaveService` audit-write orchestration, mirrors
   `AdvertisementSaveService`; `ProviderProfileActivityFieldsHookImpl` with every `Fields.*` case
   from day one, per ADR-065). **`ProviderProfileSaveService` lives in `marketplace-orchestrator`
-  (package `org.ost.orchestrator.providerprofile.save`), not `marketplace-app`** — see
+  (package `org.ost.orchestrator.services`), not `marketplace-app`** — see
   `improvement-136`'s extraction. Build it with `AdvertisementSaveService`'s exact shape: 2 direct
-  ports (`ProviderProfilePort` + `AuditPort`) + the already-existing `orchestrator.shared
+  ports (`ProviderProfilePort` + `AuditPort`) + the already-existing `orchestrator.services
   .TaxonAssignmentWriteService` collaborator for the category-assignment write (currently still
   called directly from `ProviderProfileService.save()`/`.delete()` in the starter — move that call
   out to this new service, mirroring how `AdvertisementService.delete()`'s own cascade moved out).
-  Once this exists, revisit `improvement-147`'s open question of whether
-  `TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService`
-  (today each has exactly one caller, `AdvertisementSaveService`) are genuinely justified as shared
-  collaborators — this batch is the real second consumer that answers it.
+  **Decision to make once this lands (moved here from `improvement-147`, which tracked it before
+  this batch had a concrete plan):** `TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/
+  `AttachmentSoftDeleteService` (`org.ost.orchestrator.services`, flattened per `improvement-147`)
+  each have exactly one caller today, `AdvertisementSaveService` — built during `improvement-136` as
+  shared/reusable on the assumption this batch would become a second consumer. Once
+  `ProviderProfileSaveService` is built, check directly (grep, not memory) whether it actually ended
+  up calling `TaxonAssignmentWriteService` for its own category-assignment write. If yes and the
+  shared shape holds up as-is — keep it, done, no further action. If no — either it never landed, or
+  it needed a different shape — fold `TaxonAssignmentWriteService` back into
+  `AdvertisementSaveService` as a private method rather than leaving a "shared" class with one
+  permanent caller. `AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService` have no
+  ProviderProfile equivalent (providers don't have attachments) — decide those two separately, on
+  their own merits (real future reuse vs. fold back), regardless of how the Taxon one resolves.
 - New `AccessEvaluator.canEditUserAccount()`/`canViewUserAccount()`; field-level readonly for
   `MODERATOR` viewing another user.
 - `HeaderBar` button repoint; Users grid row-click repoint; delete `UserOverlay`/

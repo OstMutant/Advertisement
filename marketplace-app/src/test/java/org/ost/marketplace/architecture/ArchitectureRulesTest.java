@@ -158,12 +158,20 @@ class ArchitectureRulesTest {
     // Counts only ComponentFactory<XPort>-wrapped (optional cross-domain composition) fields --
     // a direct, mandatory *Port field (e.g. UserAccountPort in a user-owned use case) is not the
     // fan-out shape this rule guards against, see marketplace-orchestrator/CLAUDE.md.
+    // Named exception: EntityExistenceService's findExisting() is pure per-EntityType routing with
+    // no cross-port composition, see marketplace-orchestrator/CLAUDE.md's <=2-port rule section.
+    private static final List<String> ORCHESTRATOR_PORT_COUNT_ALLOWLIST = List.of(
+            "org.ost.orchestrator.services.EntityExistenceService");
+
     @ArchTest
     static final ArchRule orchestrator_classes_depend_on_at_most_two_domain_ports =
             noClasses().that().resideInAPackage("org.ost.orchestrator..")
                     .should(new ArchCondition<JavaClass>("depend on at most two domain *Port interfaces via ComponentFactory") {
                         @Override
                         public void check(JavaClass javaClass, ConditionEvents events) {
+                            if (ORCHESTRATOR_PORT_COUNT_ALLOWLIST.contains(javaClass.getFullName())) {
+                                return;
+                            }
                             java.util.Set<String> portTypes = new java.util.HashSet<>();
                             for (java.lang.reflect.Field field : javaClass.reflect().getDeclaredFields()) {
                                 if (field.getType().getSimpleName().equals("ComponentFactory")

@@ -1,4 +1,4 @@
-package org.ost.orchestrator.advertisement.save;
+package org.ost.orchestrator.services;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -6,10 +6,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ost.orchestrator.shared.AttachmentSnapshotReaderService;
-import org.ost.orchestrator.shared.AttachmentSoftDeleteService;
-import org.ost.orchestrator.shared.TaxonAssignmentWriteService;
-import org.ost.orchestrator.shared.TaxonLookupService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;

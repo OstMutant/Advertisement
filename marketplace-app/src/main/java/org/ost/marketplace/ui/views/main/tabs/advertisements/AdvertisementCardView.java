@@ -15,7 +15,7 @@ import lombok.*;
 import org.ost.marketplace.ui.views.utils.HtmlExcerptUtil;
 import org.ost.marketplace.ui.views.utils.ShareUtil;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
-import org.ost.orchestrator.advertisement.save.AdvertisementSaveService;
+import org.ost.orchestrator.services.AdvertisementSaveService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
@@ -33,8 +33,8 @@ import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
 import org.ost.marketplace.ui.views.components.buttons.action.ShareActionButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 
+import org.ost.orchestrator.services.AttachmentMediaService;
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
-import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -65,7 +65,7 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient I18nService                               i18nService;
     private final transient NotificationService                       notificationService;
     private final transient AdvertisementSaveService                    advertisementSaveService;
-    private final transient ComponentFactory<AttachmentPort>             attachmentPortFactory;
+    private final transient AttachmentMediaService                       attachmentMediaService;
     private final transient ComponentFactory<AttachmentGalleryService> galleryServiceFactory;
     private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
     private final transient AccessEvaluator                            access;
@@ -128,11 +128,13 @@ public class AdvertisementCardView extends HorizontalLayout
             badge.addClassName("advertisement-thumbnail-badge");
             wrapper.add(badge);
         }
-        wrapper.getElement().addEventListener(CLICK_EVENT, _ ->
-                attachmentPortFactory.findIfAvailable().ifPresentOrElse(
-                        _ -> galleryServiceFactory.get().openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())),
-                        () -> notificationService.error(ADVERTISEMENT_CARD_NOTIFICATION_MEDIA_UNAVAILABLE))
-        ).addEventData(STOP_PROPAGATION);
+        wrapper.getElement().addEventListener(CLICK_EVENT, _ -> {
+            if (attachmentMediaService.isAvailable()) {
+                galleryServiceFactory.get().openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId()));
+            } else {
+                notificationService.error(ADVERTISEMENT_CARD_NOTIFICATION_MEDIA_UNAVAILABLE);
+            }
+        }).addEventData(STOP_PROPAGATION);
         return wrapper;
     }
 

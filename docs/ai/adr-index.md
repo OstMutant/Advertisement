@@ -140,6 +140,7 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-073 (marketplace-app) | marketplace-app | Accepted | `AdvertisementSaveService`/`UserDeleteService` move to `marketplace-orchestrator`; `AdvertisementAuditEnrichService` stays |
 | ADR-001 (marketplace-orchestrator) | marketplace-orchestrator | Accepted | Extract a dedicated Application/BFF module instead of moving orchestration into marketplace-app |
 | ADR-002 (marketplace-orchestrator) | marketplace-orchestrator | Accepted | `AdvertisementSaveService`'s cascade-cleanup-on-delete folds into the same transaction, not a separate step |
+| ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
 | ADR-001 (platform-commons) | platform-commons | Accepted | Package restructure — core / audit / attachment / user / advertisement |
 | ADR-002 (platform-commons) | platform-commons | Accepted | Package semantics — api vs spi vs dto |
 | ADR-003 (platform-commons) | platform-commons | Accepted | SPI naming convention — Port and Hook suffixes |
@@ -203,6 +204,7 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-022 (scripts/architecture) | scripts/architecture | Accepted | Every `scripts/architecture/` script self-documents via a fixed 4-field header — System screen's "How this page is built" section reads it live, no hand-written prose |
 | ADR-023 (scripts/architecture) | scripts/architecture | Accepted | System screen gains ADRs + Notes cards — flat live ADR list, and a hand-maintained glossary starting with "what is an ADR" |
 | ADR-024 (scripts/architecture) | scripts/architecture | Accepted | SonarQube/ArchUnit metrics consolidated onto a dedicated System-level "Code Quality" screen, removed from Module pages |
+| ADR-025 (scripts/architecture) | scripts/architecture | Accepted | Bounded Contexts domain discovery is self-describing (pom.xml property), not a hardcoded module-name pattern |
 | ADR-001 (scripts/ci) | scripts/ci | Accepted | ci-runner container via Docker-outside-of-Docker, not Docker-in-Docker |
 | ADR-002 (scripts/ci) | scripts/ci | Accepted | Background by default, live progress via `docker cp`-polled `progress.txt` |
 | ADR-003 (scripts/ci) | scripts/ci | Accepted | Default stage selection is the most extensive run, not the narrowest |

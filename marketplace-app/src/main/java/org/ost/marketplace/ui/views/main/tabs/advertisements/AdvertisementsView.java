@@ -15,10 +15,10 @@ import jakarta.annotation.PreDestroy;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.orchestrator.advertisement.enrich.AdvertisementDisplayEnrichmentService;
+import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
+import org.ost.orchestrator.services.AdvertisementReadService;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
-import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.UiComponentFactory;
@@ -26,7 +26,6 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.ui.views.components.EmptyStateView;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.marketplace.ui.query.QueryBlock;
@@ -47,7 +46,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @RequiredArgsConstructor
 public class AdvertisementsView extends VerticalLayout {
 
-    private final transient ComponentFactory<AdvertisementPort>         advertisementPortFactory;
+    private final transient AdvertisementReadService                   advertisementReadService;
     private final transient AdvertisementDisplayEnrichmentService      enrichmentService;
     private final transient AdvertisementOverlay                      overlay;
     private final transient UiComponentFactory<AdvertisementCardView>   cardViewFactory;
@@ -129,8 +128,7 @@ public class AdvertisementsView extends VerticalLayout {
         PendingAdvertisementDeepLink pending = VaadinSession.getCurrent().getAttribute(PendingAdvertisementDeepLink.class);
         if (pending == null) return;
         VaadinSession.getCurrent().setAttribute(PendingAdvertisementDeepLink.class, null);
-        advertisementPortFactory.findIfAvailable()
-                .flatMap(p -> p.findById(pending.adId()))
+        advertisementReadService.findById(pending.adId())
                 .map(ad -> enrichmentService.enrichSingle(ad, localeProvider.getCurrentLocale()))
                 .ifPresent(ad -> overlay.openForView(ad, this::updateCardInPlace, this::checkForChanges));
     }
@@ -171,7 +169,7 @@ public class AdvertisementsView extends VerticalLayout {
     private void checkForChanges() {
         QueryBlock<AdvertisementFilterDto> queryBlock = queryStatusBar.getQueryBlock();
         AdvertisementFilterDto filter = queryBlock.getFilterProcessor().getOriginalFilter();
-        int currentTotal = advertisementPortFactory.findIfAvailable().map(p -> p.count(filter)).orElse(lastKnownTotal);
+        int currentTotal = advertisementReadService.isAvailable() ? advertisementReadService.count(filter) : lastKnownTotal;
         refreshButton.setVisible(currentTotal != lastKnownTotal);
     }
 
@@ -200,13 +198,10 @@ public class AdvertisementsView extends VerticalLayout {
         Sort sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
         try {
-            List<AdvertisementInfoDto> ads = advertisementPortFactory.findIfAvailable()
-                    .map(p -> p.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort))
-                    .map(fetched -> fetched.isEmpty() ? fetched : enrich(fetched))
-                    .orElse(List.of());
-            int total = advertisementPortFactory.findIfAvailable()
-                    .map(p -> p.count(filter))
-                    .orElse(0);
+            List<AdvertisementInfoDto> fetched = advertisementReadService.getFiltered(
+                    filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort);
+            List<AdvertisementInfoDto> ads = fetched.isEmpty() ? fetched : enrich(fetched);
+            int total = advertisementReadService.count(filter);
             paginationBar.setTotalCount(total);
             lastKnownTotal = total;
             refreshButton.setVisible(false);

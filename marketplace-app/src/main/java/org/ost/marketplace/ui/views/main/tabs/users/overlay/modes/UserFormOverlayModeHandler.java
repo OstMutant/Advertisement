@@ -10,14 +10,13 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import org.ost.orchestrator.services.AuditQueryService;
+import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
-import org.ost.platform.user.spi.UserAccountPort;
-import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
-import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.dto.UserEditDto;
@@ -34,7 +33,6 @@ import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.core.UiComponentFactory;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.core.Configurable;
@@ -61,15 +59,14 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         @NonNull List<BreadcrumbStep> breadcrumbSteps;
     }
 
-    private final UserPort                                              userPort;
-    private final UserAccountPort                                       accountPort;
+    private final UserProfileService                                    userProfileService;
     private final UserMapper                                            mapper;
     private final AccessEvaluator                                       access;
     @Getter
     private final I18nService                                           i18nService;
     private final NotificationService                                   notificationService;
     private final UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
-    private final ComponentFactory<AuditPort>                        auditPortFactory;
+    private final AuditQueryService                                   auditQueryService;
     private final EntityActivityOverlay                              entityActivityOverlay;
 
     private Parameters params;
@@ -119,8 +116,8 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
         Div headerActions = new Div(saveButton, discardButton);
         boolean canOperate = access.canOperate(params.getUser().id());
-        if (canOperate) {
-            auditPortFactory.findIfAvailable().ifPresent(_ -> headerActions.add(buildHistoryButton()));
+        if (canOperate && auditQueryService.isAvailable()) {
+            headerActions.add(buildHistoryButton());
         }
         headerActions.add(closeBtn);
         layout.setHeaderActions(headerActions);
@@ -145,8 +142,8 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
     public boolean save() {
         return binder.save(dto -> {
-            accountPort.save(mapper.copy(dto), access.getCurrentUserId());
-            userPort.findById(params.getUser().id()).ifPresent(u -> {
+            userProfileService.save(mapper.copy(dto), access.getCurrentUserId());
+            userProfileService.findById(params.getUser().id()).ifPresent(u -> {
                 savedUser = u;
                 dto.setVersion(u.version());
             });
@@ -163,18 +160,16 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     }
 
     private void handleRestoreFromActivity(Long snapshotId) {
-        auditPortFactory.ifAvailable(port ->
-                port.getSnapshotContent(snapshotId, EntityType.USER, UserSnapshotDto.class)
-                        .map(AuditSnapshotContentDto::snapshotData)
-                        .ifPresent(snapshot -> {
-                            UserEditDto dto = new UserEditDto(params.getUser().id(), snapshot.name(), Role.valueOf(snapshot.role()), params.getUser().version());
-                            loadRestored(dto);
-                        })
-        );
+        auditQueryService.getSnapshotContent(snapshotId, EntityType.USER, UserSnapshotDto.class)
+                .map(AuditSnapshotContentDto::snapshotData)
+                .ifPresent(snapshot -> {
+                    UserEditDto dto = new UserEditDto(params.getUser().id(), snapshot.name(), Role.valueOf(snapshot.role()), params.getUser().version());
+                    loadRestored(dto);
+                });
     }
 
     public void discardChanges() {
-        userPort.findById(params.getUser().id()).ifPresent(freshUser -> {
+        userProfileService.findById(params.getUser().id()).ifPresent(freshUser -> {
             UserEditDto fresh = mapper.toUserEdit(freshUser);
             binder.reload(fresh, (src, tgt) -> {
                 tgt.setName(src.getName());

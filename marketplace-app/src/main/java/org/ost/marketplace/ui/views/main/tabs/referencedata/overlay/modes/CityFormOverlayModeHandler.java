@@ -31,15 +31,14 @@ import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.utils.BeforeUnloadUtil;
-import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.orchestrator.services.AuditQueryService;
+import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
-import org.ost.platform.taxon.spi.TaxonPort;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -75,8 +74,8 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
     @Getter
     private final I18nService                                              i18nService;
     private final AccessEvaluator                                          access;
-    private final ComponentFactory<TaxonPort>                              taxonPortFactory;
-    private final ComponentFactory<AuditPort>                              auditPortFactory;
+    private final TaxonCatalogService                                      taxonCatalogService;
+    private final AuditQueryService                                         auditQueryService;
     private final NotificationService                                      notificationService;
     private final UiComponentFactory<OverlayFormBinder<CityEditDto>>       formBinderFactory;
     private final EntityActivityOverlay                                    entityActivityOverlay;
@@ -153,8 +152,8 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
         layout.setContent(editContent);
 
         Div headerActions = new Div(saveButton, discardButton);
-        if (params.getMode() != Mode.CREATE) {
-            auditPortFactory.findIfAvailable().ifPresent(_ -> headerActions.add(buildHistoryButton()));
+        if (params.getMode() != Mode.CREATE && auditQueryService.isAvailable()) {
+            headerActions.add(buildHistoryButton());
         }
         headerActions.add(closeBtn);
         layout.setHeaderActions(headerActions);
@@ -178,25 +177,26 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
     }
 
     public boolean save() {
-        return binder.save(dto -> taxonPortFactory.ifAvailable(port -> {
+        return binder.save(dto -> {
+            if (!taxonCatalogService.isAvailable()) return;
             Map<Locale, TaxonTranslationDto> translations = Map.of(
                     Locale.ENGLISH,    TaxonTranslationDto.builder().locale("en").name(dto.getNameEn()).description(dto.getDescriptionEn()).build(),
                     Locale.forLanguageTag("uk"), TaxonTranslationDto.builder().locale("uk").name(dto.getNameUk()).description(dto.getDescriptionUk()).build()
             );
             if (params.getMode() == Mode.CREATE) {
-                savedCityId = port.create(TaxonType.CITY, translations, access.getCurrentUserId());
+                savedCityId = taxonCatalogService.create(TaxonType.CITY, translations, access.getCurrentUserId());
             } else {
-                port.update(params.getCity().getId(), translations, access.getCurrentUserId(), params.getCity().getVersion());
+                taxonCatalogService.update(params.getCity().getId(), translations, access.getCurrentUserId(), params.getCity().getVersion());
                 savedCityId = params.getCity().getId();
             }
-            port.findById(savedCityId, Locale.ENGLISH).ifPresent(fresh -> params = Parameters.builder()
+            taxonCatalogService.findById(savedCityId, Locale.ENGLISH).ifPresent(fresh -> params = Parameters.builder()
                     .city(fresh)
                     .mode(params.getMode())
                     .onSave(params.getOnSave())
                     .onCancel(params.getOnCancel())
                     .breadcrumbSteps(params.getBreadcrumbSteps())
                     .build());
-        }));
+        });
     }
 
     public void discardChanges() {
@@ -210,19 +210,17 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
     }
 
     private void handleRestoreFromActivity(long snapshotId) {
-        auditPortFactory.ifAvailable(port ->
-                port.getSnapshotContent(snapshotId, EntityType.TAXON, TaxonSnapshotDto.class)
-                        .ifPresent(content -> {
-                            TaxonSnapshotDto snapshot = content.snapshotData();
-                            CityEditDto dto = new CityEditDto();
-                            dto.setId(params.getCity().getId());
-                            localeFields.forEach(lf -> {
-                                lf.setName().accept(dto, lf.getSnapshotName().apply(snapshot));
-                                lf.setDescription().accept(dto, lf.getSnapshotDescription().apply(snapshot));
-                            });
-                            loadRestored(dto);
-                        })
-        );
+        auditQueryService.getSnapshotContent(snapshotId, EntityType.TAXON, TaxonSnapshotDto.class)
+                .ifPresent(content -> {
+                    TaxonSnapshotDto snapshot = content.snapshotData();
+                    CityEditDto dto = new CityEditDto();
+                    dto.setId(params.getCity().getId());
+                    localeFields.forEach(lf -> {
+                        lf.setName().accept(dto, lf.getSnapshotName().apply(snapshot));
+                        lf.setDescription().accept(dto, lf.getSnapshotDescription().apply(snapshot));
+                    });
+                    loadRestored(dto);
+                });
     }
 
     public void loadRestored(@NonNull CityEditDto restoredDto) {
@@ -243,9 +241,7 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
         Long id = params.getCity() != null ? params.getCity().getId() : savedCityId;
         if (id != null) {
             dto.setId(id);
-            List<TaxonTranslationDto> translations = taxonPortFactory.findIfAvailable()
-                    .map(p -> p.getTranslations(id))
-                    .orElse(List.of());
+            List<TaxonTranslationDto> translations = taxonCatalogService.getTranslations(id);
             for (TaxonTranslationDto t : translations) {
                 if ("en".equals(t.getLocale())) {
                     dto.setNameEn(t.getName());

@@ -16,6 +16,10 @@
     <name>Attachment Spring Boot Starter</name>
     <description>Photo/attachment module — listens to advertisement events, manages photo storage, snapshots, and S3 storage implementation</description>
 
+    <properties>
+        <architecture.boundedContext>starter</architecture.boundedContext>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>

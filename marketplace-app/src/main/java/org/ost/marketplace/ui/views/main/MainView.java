@@ -24,8 +24,7 @@ import org.ost.marketplace.ui.views.main.tabs.referencedata.ReferenceDataView;
 import org.ost.marketplace.ui.views.main.tabs.timeline.TimelineView;
 import org.ost.marketplace.ui.views.main.tabs.users.UserView;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
-import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.taxon.spi.TaxonPort;
+import org.ost.orchestrator.services.TaxonCatalogService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -53,7 +52,7 @@ public class MainView extends VerticalLayout {
     private final transient ReferenceDataView referenceDataView;
     private final transient AccessEvaluator access;
     private final transient I18nService i18n;
-    private final transient ComponentFactory<TaxonPort> taxonPortFactory;
+    private final transient TaxonCatalogService taxonCatalogService;
 
     @PostConstruct
     public void init() {
@@ -83,13 +82,13 @@ public class MainView extends VerticalLayout {
             tabsToPages.put(timelineTab, timelineView);
             timelineView.setVisible(false);
 
-            taxonPortFactory.findIfAvailable().ifPresent(_ -> {
+            if (taxonCatalogService.isAvailable()) {
                 Tab refDataTab = new Tab(i18n.get(MAIN_TAB_REFERENCE_DATA));
                 tabs.add(refDataTab);
                 pages.add(referenceDataView);
                 tabsToPages.put(refDataTab, referenceDataView);
                 referenceDataView.setVisible(false);
-            });
+            }
         }
 
         tabs.addSelectedChangeListener(_ -> {

@@ -1,8 +1,7 @@
-package org.ost.orchestrator.user.delete;
+package org.ost.orchestrator.services;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.orchestrator.advertisement.save.AdvertisementSaveService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.core.ComponentFactory;

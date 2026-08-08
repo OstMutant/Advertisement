@@ -14,10 +14,9 @@ import org.jsoup.nodes.DataNode;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.ost.marketplace.ui.views.utils.HtmlExcerptUtil;
-import org.ost.orchestrator.advertisement.enrich.AdvertisementDisplayEnrichmentService;
+import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
+import org.ost.orchestrator.services.AdvertisementReadService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
-import org.ost.platform.advertisement.spi.AdvertisementPort;
-import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -36,8 +35,8 @@ public class OgMetaRequestListener implements VaadinServiceInitListener, IndexHt
     private static final int EXCERPT_MAX_LENGTH = 160;
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    private final ComponentFactory<AdvertisementPort>       advertisementPortFactory;
-    private final AdvertisementDisplayEnrichmentService     enrichmentService;
+    private final AdvertisementReadService               advertisementReadService;
+    private final AdvertisementDisplayEnrichmentService  enrichmentService;
 
     @Value("${app.public-base-url}")
     private String publicBaseUrl;
@@ -62,7 +61,7 @@ public class OgMetaRequestListener implements VaadinServiceInitListener, IndexHt
         if (!matcher.matches()) return;
 
         Long adId = Long.valueOf(matcher.group(1));
-        ogCache.get(adId, id -> advertisementPortFactory.findIfAvailable().flatMap(p -> p.findById(id))
+        ogCache.get(adId, id -> advertisementReadService.findById(id)
                         .map(enrichmentService::enrichWithMedia))
                 .ifPresent(ad -> injectMeta(response.getDocument(), ad, path));
     }

@@ -20,9 +20,9 @@ import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.core.Initialization;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
+import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
-import org.ost.platform.user.spi.UserPort;
 import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort;
 
@@ -44,8 +44,8 @@ public class UserPickerField extends CustomField<Set<UserDto>>
 
     private static final String PLACEHOLDER_CSS = "user-picker-placeholder";
 
-    private final transient UserPort    userPort;
-    private final transient I18nService i18nService;
+    private final transient UserProfileService userProfileService;
+    private final transient I18nService        i18nService;
 
     private Set<UserDto> currentValue = new LinkedHashSet<>();
     private Div    chipsContainer;
@@ -146,12 +146,12 @@ public class UserPickerField extends CustomField<Set<UserDto>>
         grid.setHeight("300px");
 
         CallbackDataProvider<UserDto, String> dataProvider = DataProvider.fromFilteringCallbacks(
-                query -> userPort.getFilteredByOffset(
+                query -> userProfileService.getFilteredByOffset(
                         UserFilterDto.builder().name(query.getFilter().orElse(null)).build(),
                         query.getOffset(),
                         query.getLimit(),
                         Sort.by(Sort.Order.asc("name"))).stream(),
-                query -> userPort.count(
+                query -> userProfileService.count(
                         UserFilterDto.builder().name(query.getFilter().orElse(null)).build())
         );
         ConfigurableFilterDataProvider<UserDto, Void, String> filterable = dataProvider.withConfigurableFilter();

@@ -16,6 +16,10 @@
     <name>Audit Spring Boot Starter</name>
     <description>Audit module — captures entity changes, diffs snapshots, stores audit_log; read side with activity feed and history UI</description>
 
+    <properties>
+        <architecture.boundedContext>starter</architecture.boundedContext>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>

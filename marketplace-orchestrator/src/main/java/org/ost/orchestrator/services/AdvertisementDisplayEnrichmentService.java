@@ -1,9 +1,7 @@
-package org.ost.orchestrator.advertisement.enrich;
+package org.ost.orchestrator.services;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.orchestrator.shared.ActorLookupService;
-import org.ost.orchestrator.shared.TaxonLookupService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.platform.attachment.spi.AttachmentPort;

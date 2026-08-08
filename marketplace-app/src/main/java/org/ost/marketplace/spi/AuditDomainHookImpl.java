@@ -3,15 +3,11 @@ package org.ost.marketplace.spi;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.platform.advertisement.spi.AdvertisementPort;
-import org.ost.platform.taxon.spi.TaxonPort;
+import org.ost.orchestrator.services.EntityExistenceService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.providerprofile.spi.ProviderProfilePort;
-import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.user.UserActorNameService;
 import org.springframework.stereotype.Component;
 
@@ -24,11 +20,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AuditDomainHookImpl implements AuditDomainHook {
 
-    private final ComponentFactory<AdvertisementPort>  advertisementPortFactory;
-    private final ComponentFactory<UserPort>           userPortFactory;
-    private final ComponentFactory<TaxonPort>          taxonPortFactory;
-    private final ComponentFactory<ProviderProfilePort> providerProfilePortFactory;
-    private final UserActorNameService                 userActorNameService;
+    private final EntityExistenceService entityExistenceService;
+    private final UserActorNameService   userActorNameService;
 
     @Override
     public Map<Long, String> resolveNames(@NonNull Set<Long> actorIds) {
@@ -37,20 +30,7 @@ public class AuditDomainHookImpl implements AuditDomainHook {
 
     @Override
     public Set<Long> findExisting(@NonNull EntityType entityType, @NonNull Set<Long> entityIds) {
-        return switch (entityType) {
-            case ADVERTISEMENT       -> advertisementPortFactory.findIfAvailable()
-                    .map(p -> p.findExistingIds(entityIds))
-                    .orElse(Set.of());
-            case USER, USER_SETTINGS -> userPortFactory.findIfAvailable()
-                    .map(p -> p.findExistingIds(entityIds))
-                    .orElse(Set.of());
-            case TAXON               -> taxonPortFactory.findIfAvailable()
-                    .map(p -> p.findExistingIds(entityIds))
-                    .orElse(Set.of());
-            case PROVIDER_PROFILE    -> providerProfilePortFactory.findIfAvailable()
-                    .map(p -> p.findExistingIds(entityIds))
-                    .orElse(Set.of());
-        };
+        return entityExistenceService.findExisting(entityType, entityIds);
     }
 
     @Override

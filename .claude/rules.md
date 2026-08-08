@@ -121,6 +121,14 @@ from that file for approval — never re-paraphrase the whole issue back at leng
 ## Git Workflow
 - `git add` — run automatically after every file change
 - `git commit` — **ONLY** when the user explicitly says to commit — never otherwise
+- **Before every commit, actually review what's staged — never trust `git add -A`/`git add .` blindly.**
+  Run `git status --short` and `git diff --cached --stat` (or fuller `git diff --cached` for a
+  smaller change) and read the output before running `git commit`, every time, even when the
+  change feels routine. "No untracked files showed up" is not the same check as "the staged diff
+  only contains what I meant to commit" — confirmed directly: build artifacts from a new module's
+  own `target/` directory landed in a commit because `.gitignore`'s per-module list was never
+  updated for that module, and `git add -A` staged them without complaint since nothing about that
+  looked untracked or unusual at a glance.
 
 ## Language
 All repository content must be in **English**: code comments, Javadoc, README files, commit messages, Playwright test descriptions, and any other text checked into the repository.

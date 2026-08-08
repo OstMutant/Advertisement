@@ -13,9 +13,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserSettingsDto;
-import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
-import org.ost.orchestrator.user.delete.UserDeleteService;
+import org.ost.orchestrator.services.UserDeleteService;
+import org.ost.orchestrator.services.UserProfileService;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
@@ -39,7 +39,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @RequiredArgsConstructor
 public class UserView extends VerticalLayout {
 
-    private final transient UserPort                               userPort;
+    private final transient UserProfileService                     userProfileService;
     private final transient UserDeleteService                      userDeleteService;
     private final transient AccessEvaluator                        access;
     private final transient I18nService                            i18n;
@@ -109,8 +109,8 @@ public class UserView extends VerticalLayout {
         var sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
         try {
-            List<UserDto> pageData   = userPort.getFiltered(currentFilter, page, size, sort);
-            int           totalCount = userPort.count(currentFilter);
+            List<UserDto> pageData   = userProfileService.getFiltered(currentFilter, page, size, sort);
+            int           totalCount = userProfileService.count(currentFilter);
             paginationBar.setTotalCount(totalCount);
             lastKnownTotal = totalCount;
             refreshButton.setVisible(false);
@@ -147,7 +147,7 @@ public class UserView extends VerticalLayout {
         UserFilterDto filter = queryStatusBar.getQueryBlock().getFilterProcessor().getOriginalFilter();
         int currentTotal;
         try {
-            currentTotal = userPort.count(filter);
+            currentTotal = userProfileService.count(filter);
         } catch (Exception ex) {
             return;
         }

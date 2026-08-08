@@ -17,10 +17,9 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
-import org.ost.platform.taxon.spi.TaxonPort;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -44,7 +43,7 @@ public class CityViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     @Getter
     private final I18nService                       i18nService;
     private final AccessEvaluator                   access;
-    private final ComponentFactory<TaxonPort>       taxonPortFactory;
+    private final TaxonCatalogService                taxonCatalogService;
 
     private Parameters params;
 
@@ -56,9 +55,7 @@ public class CityViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
     @Override
     protected Div buildPrimaryContent() {
-        List<TaxonTranslationDto> translations = taxonPortFactory.findIfAvailable()
-                .map(p -> p.getTranslations(params.getCity().getId()))
-                .orElse(List.of());
+        List<TaxonTranslationDto> translations = taxonCatalogService.getTranslations(params.getCity().getId());
 
         String nameEn = "";
         String descEn = "";

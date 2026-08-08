@@ -1,4 +1,4 @@
-package org.ost.orchestrator.user.delete;
+package org.ost.orchestrator.services;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -6,7 +6,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ost.orchestrator.advertisement.save.AdvertisementSaveService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.core.ComponentFactory;

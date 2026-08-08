@@ -164,3 +164,21 @@ more sensitive kind of edit than appending a dated Amendment note (already done 
 same conversation this was found in). Needs its own explicit go-ahead and a decided approach
 (delete outright vs. fold into a neighboring ADR's Consequences vs. mark `Status: Superseded`)
 before touching it.
+
+### 10. `TaxonManagementView`/`CityManagementView` render the "Add" button unconditionally even when `taxon-spring-boot-starter` is absent (found during improvement-147 review, 2026-08-08)
+
+`refresh()` in both views constructs and adds the "Add category"/"Add city" button unconditionally,
+outside any `taxonCatalogService.isAvailable()` guard — while the list-rendering/count calls
+correctly degrade to an empty list when the optional `taxon-spring-boot-starter` module
+(`<scope>runtime</scope>` in `marketplace-app/pom.xml`) is absent. Clicking "Add" in that state opens
+a create overlay whose save path calls `TaxonCatalogService.create()`/`.update()` — these call
+`taxonPortFactory.get()` (hard unwrap, not `.findIfAvailable()`), so saving throws instead of
+degrading gracefully, unlike `softDelete()`/`restore()` on the same service, which do use
+`.ifAvailable()`. Confirmed via `git show HEAD` that the button was already unconditional *before*
+improvement-147's migration too — not a regression that migration introduced, just an existing gap
+it didn't happen to touch. Root `CLAUDE.md`'s "MUST degrade gracefully via `ObjectProvider
+.ifAvailable()`" rule is written only for `attachment-spring-boot-starter`/`StorageService`, not
+generically for every optional starter, so this isn't a direct rule violation either — an analogous
+gap, not a documented one. Needs a decision: guard the button behind `isAvailable()` (simplest), or
+make `TaxonCatalogService.create()`/`.update()` themselves degrade gracefully (larger, changes what
+"create with no taxon starter" means to callers) — not sized here.

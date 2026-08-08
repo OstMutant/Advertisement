@@ -19,9 +19,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
+import org.ost.orchestrator.services.AttachmentMediaService;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
-import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
@@ -41,12 +41,10 @@ public class AttachmentGallery extends Div {
 
     private static final int MAX_GALLERY_ITEMS = AttachmentUploadButton.MAX_FILES;
 
-    private final transient ComponentFactory<AttachmentPort>          attachmentPortFactory;
+    private final transient AttachmentMediaService                    attachmentMediaService;
     private final transient I18nService                               i18n;
     private final transient ComponentFactory<AttachmentThumbnail>   thumbnailFactory;
     private final transient UiComponentFactory<AttachmentLightbox>    lightboxFactory;
-
-    private transient AttachmentPort attachmentPort;
 
     private Div              thumbnailsRow;
     private Span             emptyState;
@@ -87,7 +85,6 @@ public class AttachmentGallery extends Div {
 
     @PostConstruct
     private void init() {
-        attachmentPort = attachmentPortFactory.get();
         addClassName("attachment-gallery");
 
         Span title = new Span(i18n.get(I18nKey.ATTACHMENT_GALLERY_TITLE));
@@ -144,13 +141,13 @@ public class AttachmentGallery extends Div {
 
     public void loadFromSnapshotId(Long attachmentSnapshotId) {
         if (attachmentSnapshotId == null) return;
-        String[] urls = attachmentPort.getUrlsBySnapshotId(attachmentSnapshotId);
+        String[] urls = attachmentMediaService.getUrlsBySnapshotId(attachmentSnapshotId);
         discardTempUploads();
         pendingSnapshotRestore = true;
         pendingRestoreSnapshotId = attachmentSnapshotId;
         currentAttachments.clear();
         if (urls.length > 0) {
-            currentAttachments.addAll(attachmentPort.getByEntityAndUrls(entityType, entityId, urls));
+            currentAttachments.addAll(attachmentMediaService.getByEntityAndUrls(entityType, entityId, urls));
         }
         thumbnailsRow.removeAll();
         if (currentAttachments.isEmpty()) {
@@ -168,11 +165,11 @@ public class AttachmentGallery extends Div {
             Long snapshotId = pendingRestoreSnapshotId;
             pendingRestoreSnapshotId = null;
             String[] targetUrls = currentAttachments.stream().map(AttachmentItemDto::url).toArray(String[]::new);
-            attachmentPort.restoreToUrls(entityType, entityId, targetUrls);
+            attachmentMediaService.restoreToUrls(entityType, entityId, targetUrls);
             pendingSnapshotRestore = false;
             if (!tempUploads.isEmpty()) {
-                attachmentPort.commitTempUploads(entityType, entityId, tempUploads);
-                snapshotId = attachmentPort.getLatestSnapshotId(entityType, entityId);
+                attachmentMediaService.commitTempUploads(entityType, entityId, tempUploads);
+                snapshotId = attachmentMediaService.getLatestSnapshotId(entityType, entityId);
             }
             tempUploads.clear();
             tempFileSet.clear();
@@ -183,25 +180,25 @@ public class AttachmentGallery extends Div {
         }
         boolean isCreate = (this.entityId == null);
         if (tempUploads.isEmpty() && pendingDeletions.isEmpty()) return null;
-        pendingDeletions.forEach(attachmentPort::delete);
+        pendingDeletions.forEach(attachmentMediaService::delete);
         pendingDeletions.clear();
         if (!tempUploads.isEmpty()) {
-            attachmentPort.commitTempUploads(entityType, entityId, tempUploads);
+            attachmentMediaService.commitTempUploads(entityType, entityId, tempUploads);
         } else if (!isCreate) {
-            attachmentPort.captureSnapshot(entityType, entityId);
+            attachmentMediaService.captureSnapshot(entityType, entityId);
         }
         tempUploads.clear();
         tempFileSet.clear();
         this.entityId = entityId;
         refresh();
-        return attachmentPort.getLatestSnapshotId(entityType, entityId);
+        return attachmentMediaService.getLatestSnapshotId(entityType, entityId);
     }
 
     public void discardTempUploads() {
         if (pendingSnapshotRestore) {
             pendingSnapshotRestore = false;
             if (!tempUploads.isEmpty()) {
-                attachmentPort.discardTempUploads(tempUploads);
+                attachmentMediaService.discardTempUploads(tempUploads);
                 tempUploads.clear();
                 tempFileSet.clear();
             }
@@ -210,7 +207,7 @@ public class AttachmentGallery extends Div {
             return;
         }
         if (!tempUploads.isEmpty()) {
-            attachmentPort.discardTempUploads(tempUploads);
+            attachmentMediaService.discardTempUploads(tempUploads);
             tempUploads.clear();
             tempFileSet.clear();
         }
@@ -222,7 +219,7 @@ public class AttachmentGallery extends Div {
         thumbnailsRow.removeAll();
         if (entityId == null) { showEmpty(); return; }
         currentAttachments.clear();
-        currentAttachments.addAll(attachmentPort.getByEntityId(entityType, entityId));
+        currentAttachments.addAll(attachmentMediaService.getByEntityId(entityType, entityId));
         if (currentAttachments.isEmpty()) {
             showEmpty();
         } else {
@@ -253,7 +250,7 @@ public class AttachmentGallery extends Div {
 
     private AttachmentThumbnail buildTempThumbnail(TempAttachmentDto temp) {
         return thumbnailFactory.get().configureForTemp(temp, () -> {
-            attachmentPort.discardTempUploads(List.of(temp));
+            attachmentMediaService.discardTempUploads(List.of(temp));
             tempUploads.remove(temp);
             tempFileSet.remove(temp);
             if (thumbnailsRow.getComponentCount() == 0) showEmpty();
@@ -274,11 +271,11 @@ public class AttachmentGallery extends Div {
                 var    ui          = event.getUI();
                 try {
                     if (tempSessionId != null) {
-                        TempAttachmentDto temp = attachmentPort.uploadTemp(
+                        TempAttachmentDto temp = attachmentMediaService.uploadTemp(
                                 tempSessionId, filename, event.getInputStream(), size, contentType);
                         ui.access(() -> {
                             if (totalItemCount() >= MAX_GALLERY_ITEMS) {
-                                attachmentPort.discardTempUploads(List.of(temp));
+                                attachmentMediaService.discardTempUploads(List.of(temp));
                                 return;
                             }
                             tempUploads.add(temp);
@@ -288,7 +285,7 @@ public class AttachmentGallery extends Div {
                             notifyChanged();
                         });
                     } else if (entityId != null) {
-                        AttachmentItemDto saved = attachmentPort.upload(
+                        AttachmentItemDto saved = attachmentMediaService.upload(
                                 entityType, entityId, filename, event.getInputStream(), size, contentType);
                         ui.access(() -> {
                             currentAttachments.add(saved);
@@ -319,13 +316,13 @@ public class AttachmentGallery extends Div {
                     return;
                 }
                 if (tempSessionId != null) {
-                    TempAttachmentDto temp = attachmentPort.addVideoTemp(val);
+                    TempAttachmentDto temp = attachmentMediaService.addVideoTemp(val);
                     tempUploads.add(temp);
                     hideEmpty();
                     thumbnailsRow.add(buildTempThumbnail(temp));
                     notifyChanged();
                 } else if (entityId != null) {
-                    AttachmentItemDto saved = attachmentPort.addVideo(entityType, entityId, val);
+                    AttachmentItemDto saved = attachmentMediaService.addVideo(entityType, entityId, val);
                     currentAttachments.add(saved);
                     hideEmpty();
                     thumbnailsRow.add(buildThumbnail(saved));

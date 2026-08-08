@@ -115,33 +115,54 @@ decisions_json_for() {
 mapfile -t MODULES < <(sed -n '/<modules>/,/<\/modules>/p' "$REPO_ROOT/pom.xml" \
   | grep -o '<module>[^<]*</module>' | sed 's/<module>\(.*\)<\/module>/\1/')
 
-# ── Domain <-> module mapping, derived live from the real module list above using this repo's own
-# "<domain>-spring-boot-starter" naming convention -- module names ARE the domain names for every
-# starter, no separate map to hand-maintain (see scripts/architecture/DECISIONS.md ADR-019 "Open goals").
-# Shared (platform-commons) and UI (marketplace-app) are structural categories, not
-# "*-spring-boot-starter" domain modules, so they're seeded explicitly; everything else (domain id,
-# human label, ordering) comes straight out of $MODULES.
-declare -A BC_DOMAIN_MODULE=([Shared]=platform-commons [UI]=marketplace-app)
-declare -A BC_DOMAIN_LABEL=([Shared]="Shared Kernel" [UI]="UI/Application Layer")
-BC_DOMAIN_ORDER=(Shared)
+# ── Domain <-> module mapping, derived live from each module's own pom.xml
+# <properties><architecture.boundedContext> declaration -- self-describing, not a hardcoded list of
+# module names here. A module with no such property (query-lib, integration-tests) is simply not a
+# bounded context and gets no box on the diagram; this is how a brand-new module type (e.g.
+# marketplace-orchestrator's "orchestrator" kind) becomes visible on this diagram automatically,
+# from the same commit that adds the module, with no separate edit to this script required.
+# See scripts/architecture/DECISIONS.md ADR-019 "Open goals" (superseded by this ADR entry) and the
+# new ADR recorded alongside this change.
+declare -A BC_DOMAIN_MODULE=() BC_DOMAIN_LABEL=() BC_DOMAIN_KIND=()
+BC_DOMAIN_ORDER=() BC_DOMAIN_ORDER_STARTERS=()
+bc_shared_mod="" bc_ui_mod="" bc_orch_mod=""
 for bc_mod in "${MODULES[@]}"; do
-  [[ "$bc_mod" == *-spring-boot-starter ]] || continue
-  bc_word="${bc_mod%-spring-boot-starter}"
-  bc_id="" bc_label_words=()
-  IFS='-' read -ra bc_parts <<< "$bc_word"
-  for bc_part in "${bc_parts[@]}"; do
-    bc_id="$bc_id${bc_part^}"
-    bc_label_words+=("${bc_part^}")
-  done
-  BC_DOMAIN_MODULE["$bc_id"]="$bc_mod"
-  BC_DOMAIN_LABEL["$bc_id"]="$(IFS=' '; echo "${bc_label_words[*]}") Domain"
-  BC_DOMAIN_ORDER+=("$bc_id")
+  bc_kind="$(sed -n '/<properties>/,/<\/properties>/p' "$REPO_ROOT/$bc_mod/pom.xml" 2>/dev/null \
+    | grep -o '<architecture.boundedContext>[^<]*</architecture.boundedContext>' \
+    | sed 's/<architecture.boundedContext>\(.*\)<\/architecture.boundedContext>/\1/')" || true
+  [ -n "$bc_kind" ] || continue
+  case "$bc_kind" in
+    shared) bc_shared_mod="$bc_mod" ;;
+    ui) bc_ui_mod="$bc_mod" ;;
+    orchestrator) bc_orch_mod="$bc_mod" ;;
+    starter)
+      bc_word="${bc_mod%-spring-boot-starter}"
+      bc_id="" bc_label_words=()
+      IFS='-' read -ra bc_parts <<< "$bc_word"
+      for bc_part in "${bc_parts[@]}"; do
+        bc_id="$bc_id${bc_part^}"
+        bc_label_words+=("${bc_part^}")
+      done
+      BC_DOMAIN_MODULE["$bc_id"]="$bc_mod"
+      BC_DOMAIN_LABEL["$bc_id"]="$(IFS=' '; echo "${bc_label_words[*]}") Domain"
+      BC_DOMAIN_KIND["$bc_id"]="starter"
+      BC_DOMAIN_ORDER+=("$bc_id")
+      BC_DOMAIN_ORDER_STARTERS+=("$bc_id")
+      ;;
+  esac
 done
-BC_DOMAIN_ORDER+=(UI)
-# The domain-starter subset (excludes the two structural categories) -- used wherever a
-# relationship rule applies uniformly to "every real domain" (e.g. Shared's "decouples" edges,
-# UI's "calls" edges), so that list isn't hand-typed a second time either.
-BC_DOMAIN_ORDER_STARTERS=("${BC_DOMAIN_ORDER[@]:1:$((${#BC_DOMAIN_ORDER[@]}-2))}")
+if [ -n "$bc_shared_mod" ]; then
+  BC_DOMAIN_MODULE[Shared]="$bc_shared_mod"; BC_DOMAIN_LABEL[Shared]="Shared Kernel"
+  BC_DOMAIN_KIND[Shared]="shared"; BC_DOMAIN_ORDER=(Shared "${BC_DOMAIN_ORDER[@]}")
+fi
+if [ -n "$bc_orch_mod" ]; then
+  BC_DOMAIN_MODULE[Orchestrator]="$bc_orch_mod"; BC_DOMAIN_LABEL[Orchestrator]="Application/BFF Layer"
+  BC_DOMAIN_KIND[Orchestrator]="orchestrator"; BC_DOMAIN_ORDER+=(Orchestrator)
+fi
+if [ -n "$bc_ui_mod" ]; then
+  BC_DOMAIN_MODULE[UI]="$bc_ui_mod"; BC_DOMAIN_LABEL[UI]="UI/Application Layer"
+  BC_DOMAIN_KIND[UI]="ui"; BC_DOMAIN_ORDER+=(UI)
+fi
 # EntityType enum value -> the bounded-context domain it belongs to (platform-commons/core/model/EntityType.java).
 declare -A BC_ENTITY_TYPE_DOMAIN=(
   [ADVERTISEMENT]=Advertisement [USER]=User [USER_SETTINGS]=User [TAXON]=Taxon [PROVIDER_PROFILE]=ProviderProfile
@@ -177,6 +198,16 @@ for bc_d in "${BC_DOMAIN_ORDER[@]}"; do
     true
   done) || true)"$'\n'
 done
+# Orchestrator calls Ports via ComponentFactory<XPort> rather than implementing them -- the
+# generic "implements XPort" grep above finds nothing for it, so override with the real signal:
+# which *Port types it actually injects.
+if [ -n "$bc_orch_mod" ]; then
+  MODULE_CONTRACT["$bc_orch_mod"]="$( (find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
+    iface="$(basename "$ifile" .java)"
+    grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;" -r --include='*.java' "$REPO_ROOT/$bc_orch_mod/src/main/java" 2>/dev/null && echo "$iface"
+    true
+  done) || true)"$'\n'
+fi
 # Structural modules the domain map above doesn't cover -- fallback labels, confidence: manual
 # either way (both paths are heuristic, not extracted).
 MODULE_DOMAIN["marketplace-app"]="${MODULE_DOMAIN[marketplace-app]:-UI/Application Layer}"
@@ -953,6 +984,17 @@ bounded_contexts_json() {
       ports_json="$(json_named_file_array "$(grep -rl 'implements .*Hook' "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/spi" --include='*.java' 2>/dev/null | sort | while read -r f; do
         printf '%s\t%s\n' "$(basename "$f" .java)" "${f#"$REPO_ROOT"/}"
       done)")"
+    elif [ "$d" = "Orchestrator" ]; then
+      entities_json="[]"; tables_json="[]"
+      services_json="$(json_named_file_array "$(find "$REPO_ROOT/$mod/src/main/java" -name '*Service.java' 2>/dev/null | sort | while read -r f; do
+        printf '%s\t%s\n' "$(basename "$f" .java)" "${f#"$REPO_ROOT"/}"
+      done)")"
+      # No "implements XPort" here -- Orchestrator calls Ports via ComponentFactory<XPort>, it
+      # never implements them. Real signal: which *Port types it actually injects.
+      ports_json="$(json_named_file_array "$(find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
+        iface="$(basename "$ifile" .java)"
+        grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;" -r --include='*.java' "$REPO_ROOT/$mod/src/main/java" 2>/dev/null && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
+      done)")"
     else
       entities_json="$(json_named_file_array "$(grep -rl '^@Table\|@Table(' "$REPO_ROOT/$mod/src/main/java" --include='*.java' 2>/dev/null | sort | while read -r f; do
         printf '%s\t%s\n' "$(basename "$f" .java)" "${f#"$REPO_ROOT"/}"
@@ -996,6 +1038,30 @@ bounded_contexts_json() {
   for d in "${BC_DOMAIN_ORDER_STARTERS[@]}"; do
     add_rel "Shared" "$d" "decouples" "extracted" "${BC_DOMAIN_MODULE[$d]}/pom.xml depends on platform-commons" "true"
   done
+  if [ -n "$bc_orch_mod" ]; then
+    add_rel "Shared" "Orchestrator" "decouples" "extracted" "$bc_orch_mod/pom.xml depends on platform-commons" "true"
+    # Orchestrator -> starter: real evidence per starter -- which *Port interfaces
+    # marketplace-orchestrator's own source actually injects via ComponentFactory<XPort>, matched
+    # against which starter really implements each one.
+    local pf p_iface p_evidence ui_orch_ev
+    for pf in "$REPO_ROOT/platform-commons/src/main/java"/org/ost/platform/*/spi/*Port.java; do
+      [ -f "$pf" ] || continue
+      p_iface="$(basename "$pf" .java)"
+      p_evidence="$(grep -rlP "ComponentFactory<\s*${p_iface}\s*>|\b${p_iface}\s+\w+\s*;" "$REPO_ROOT/$bc_orch_mod/src/main/java" --include='*.java' 2>/dev/null | head -1)" || true
+      [ -z "$p_evidence" ] && continue
+      for d in "${BC_DOMAIN_ORDER_STARTERS[@]}"; do
+        grep -qlP "implements\s+.*\b${p_iface}\b" -r --include='*.java' "$REPO_ROOT/${BC_DOMAIN_MODULE[$d]}/src/main/java" 2>/dev/null || continue
+        add_rel "Orchestrator" "$d" "calls" "extracted" "$(sed "s|$REPO_ROOT/||" <<< "$p_evidence") injects ComponentFactory<$p_iface>" "false"
+      done
+    done
+    # UI -> Orchestrator: real evidence -- marketplace-app importing any org.ost.orchestrator.*
+    # class at all (services today; still correct once the flat org.ost.orchestrator.services
+    # package from the pending package-flatten lands too, since this matches the whole subtree).
+    ui_orch_ev="$(grep -rl "import org\.ost\.orchestrator\." "$REPO_ROOT/marketplace-app/src/main/java" --include='*.java' 2>/dev/null | wc -l | tr -d ' ')" || true
+    if [ "${ui_orch_ev:-0}" -gt 0 ]; then
+      add_rel "UI" "Orchestrator" "calls" "extracted" "$ui_orch_ev marketplace-app classes import org.ost.orchestrator.*" "false"
+    fi
+  fi
 
   # "audited via" / "can have" -- real signal: which marketplace-app/spi/*.java class implements
   # AuditActivityFieldsHook (-> audited via Audit) or AuditActivityEnrichHook (-> can have Attachment
@@ -1026,10 +1092,19 @@ bounded_contexts_json() {
   at_evidence="$(grep -rn "TaxonPort.*replaceAssignments\|\.replaceAssignments(" "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/services/advertisement" --include="*.java" 2>/dev/null | head -1 | sed "s|$REPO_ROOT/||")"
   [ -n "$at_evidence" ] && add_rel "Advertisement" "Taxon" "category assignment via" "extracted" "$at_evidence" "false"
 
-  # UI calls every port that has a real implementation somewhere (marketplace-app is the one
-  # exposing the UI over every domain's own port).
-  for d in "${BC_DOMAIN_ORDER_STARTERS[@]}"; do
-    add_rel "UI" "$d" "calls" "extracted" "marketplace-app injects a ComponentFactory/ObjectProvider for ${BC_DOMAIN_MODULE[$d]}'s port(s)" "false"
+  # UI -> starter: real evidence per starter, same shape as the Orchestrator -> starter loop above --
+  # since the true-BFF migration, marketplace-app holds almost no direct *Port reference anymore
+  # (everything routes through marketplace-orchestrator instead), so this must not stay unconditional.
+  local ui_pf ui_p_iface ui_p_evidence
+  for ui_pf in "$REPO_ROOT/platform-commons/src/main/java"/org/ost/platform/*/spi/*Port.java; do
+    [ -f "$ui_pf" ] || continue
+    ui_p_iface="$(basename "$ui_pf" .java)"
+    ui_p_evidence="$(grep -rlP "ComponentFactory<\s*${ui_p_iface}\s*>|\b${ui_p_iface}\s+\w+\s*;" "$REPO_ROOT/marketplace-app/src/main/java" --include='*.java' 2>/dev/null | head -1)" || true
+    [ -z "$ui_p_evidence" ] && continue
+    for d in "${BC_DOMAIN_ORDER_STARTERS[@]}"; do
+      grep -qlP "implements\s+.*\b${ui_p_iface}\b" -r --include='*.java' "$REPO_ROOT/${BC_DOMAIN_MODULE[$d]}/src/main/java" 2>/dev/null || continue
+      add_rel "UI" "$d" "calls" "extracted" "$(sed "s|$REPO_ROOT/||" <<< "$ui_p_evidence") injects $ui_p_iface directly" "false"
+    done
   done
 
   # Audit calls back via every *Hook implementation actually found in marketplace-app/spi -- listed

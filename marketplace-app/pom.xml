@@ -17,6 +17,10 @@
     <name>Marketplace</name>
     <description>Marketplace Platform — Vaadin + Spring Boot application</description>
 
+    <properties>
+        <architecture.boundedContext>ui</architecture.boundedContext>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>

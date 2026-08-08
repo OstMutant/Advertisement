@@ -67,3 +67,72 @@ holds.
 **Consequences:** `AdvertisementService` (starter) no longer depends on `AttachmentPort` at all —
 its only remaining cross-domain dependency is `TaxonPort`, used solely for query-time category-filter
 resolution (a different, deliberately-not-moved concern — see `marketplace-orchestrator/CLAUDE.md`).
+
+---
+
+## ADR-003: `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception
+**Status:** Accepted
+
+**Context:** ADR-001 built this module as a composition layer, but its own guiding spec (preserved
+verbatim in `backlog/completed/issues/improvement-136-marketplace-orchestrator-extraction.md`)
+contained an internal contradiction never caught during that extraction: the target diagram showed
+`Vaadin UI → marketplace-orchestrator → domain starters` with no direct UI-to-starter arrow at all,
+but the accompanying rule only banned `marketplace-app` from composing *multiple* domain Ports for
+one use case — implicitly allowing direct single-Port access, which is what actually got built. 25
+classes in `marketplace-app` ended up holding a direct `ComponentFactory<XPort>` (or, for the
+non-optional `user-spring-boot-starter`, a mandatory direct `*Port` field).
+
+**Decision:** Route every remaining direct domain-Port reference in `marketplace-app` through the
+orchestrator instead, including the 4 presence-only `ifAvailable()` gates that were previously
+carved out as "not orchestration" (that carve-out is now removed — see
+`marketplace-orchestrator/CLAUDE.md`'s history). Six services in the flattened
+`org.ost.orchestrator.services` package absorb this: `AdvertisementReadService`, `TaxonCatalogService`,
+`AttachmentMediaService`, `AuditQueryService` (new), `ActorLookupService` (extended), and
+`UserProfileService` (new, mandatory direct `UserPort`/`UserAccountPort`/`UserPreferencesPort`
+fields, matching `UserDeleteService`'s existing precedent since `user-spring-boot-starter` is never
+optional). A seventh, `EntityExistenceService`, is a deliberate, named exception to the module's
+own ≤2-port rule — it holds all 4 of `AdvertisementPort`/`UserPort`/`TaxonPort`/`ProviderProfilePort`
+directly for `AuditDomainHookImpl`'s per-`EntityType` existence-check routing, allow-listed by name
+in `ArchitectureRulesTest` rather than by loosening the threshold, since its `findExisting()` has no
+cross-port composition logic to extract into a shared collaborator — splitting it into four
+single-port classes plus a coordinator would be ceremony with no cohesion benefit.
+
+One deliberate residual exception remains: `AccessEvaluator` keeps a direct `UserAuthorizationPort`
+field. Role/ownership checks (`isAdmin`/`isModerator`/`isOwner`) are the security boundary itself,
+not a domain read-model this module composes — the same category as a `*Hook`, called on nearly
+every render across the whole UI, where an orchestrator round-trip would cost real latency for no
+architectural benefit. `user-spring-boot-starter` is non-optional, so this carries no decoupling
+risk either.
+
+Alongside this, the module's 9 pre-existing service classes (scattered across 5 domain-scoped
+sub-packages: `shared/`, `advertisement/enrich/`, `advertisement/save/`, `providerprofile/enrich/`,
+`user/delete/`) moved into one flat `org.ost.orchestrator.services` package, so every service —
+old and new — lives in one place instead of forcing a reader to know which sub-package a given
+service happens to sit in.
+
+**Consequences:** `scripts/architecture/generate-architecture-model.sh`'s Bounded Contexts diagram
+now derives `UI → <starter>` edges from real evidence (grepping `marketplace-app` for actual
+`ComponentFactory<XPort>`/direct `*Port` fields) instead of drawing one unconditionally for every
+starter — after this migration, the only surviving edge is `UI → User` (via `AccessEvaluator`).
+`Orchestrator → <starter>` and `UI → Orchestrator` edges are populated the same evidence-based way.
+Every marketplace-app class that used to gate a UI section on `ComponentFactory<XPort>.ifAvailable()`
+now gates on an orchestrator service's own `isAvailable()` method instead — behaviorally identical,
+since the underlying `ComponentFactory` resolves against the same Spring bean registry regardless of
+which class injects it.
+
+**Bug found and fixed during verification:** the new service was first named `AuditReadService`,
+which collided with `audit-spring-boot-starter`'s own internal `org.ost.audit.services.AuditReadService`
+— identical simple class name means an identical default Spring bean name
+(`auditReadService`), so the app failed to boot at all
+(`ConflictingBeanDefinitionException`) despite every unit/integration test passing cleanly (none of
+them boot the full `@SpringBootApplication` context with every starter's autoconfiguration on the
+classpath at once). Caught only by an actual `deploy.sh` + container boot, not by any Maven-level
+test — renamed to `AuditQueryService` and re-verified boot succeeds. Confirmed via a full grep sweep
+that no other new service name collides with an existing class elsewhere in the repo.
+
+**Trigger to revisit:** None currently open — Open Questions A/B/C from
+`backlog/completed/issues/improvement-147-marketplace-orchestrator-followups.md` are all resolved
+(A: route presence-guards through the orchestrator; B: the `EntityExistenceService` exception; C:
+withdrawn, not a real design fork). The module's original single-caller-collaborator question
+(`TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService`) moved
+to `backlog/issues/improvement-124-provider-profile.md`'s Batch 124-C, unrelated to this ADR.

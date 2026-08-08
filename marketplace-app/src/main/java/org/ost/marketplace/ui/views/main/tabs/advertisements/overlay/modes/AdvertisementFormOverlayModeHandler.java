@@ -16,15 +16,16 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.jsoup.Jsoup;
-import org.ost.orchestrator.advertisement.enrich.AdvertisementDisplayEnrichmentService;
+import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
+import org.ost.orchestrator.services.AdvertisementReadService;
+import org.ost.orchestrator.services.AttachmentMediaService;
+import org.ost.orchestrator.services.AuditQueryService;
+import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
-import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
-import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
@@ -50,8 +51,7 @@ import org.ost.marketplace.ui.core.Configurable;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
-import org.ost.platform.taxon.spi.TaxonPort;
-import org.ost.orchestrator.advertisement.save.AdvertisementSaveService;
+import org.ost.orchestrator.services.AdvertisementSaveService;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
@@ -77,20 +77,20 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         @NonNull List<BreadcrumbStep> breadcrumbSteps;
     }
 
-    private final ComponentFactory<AdvertisementPort>                          advertisementPortFactory;
+    private final AdvertisementReadService                                     advertisementReadService;
     private final AdvertisementSaveService                                     advertisementSaveService;
     private final AdvertisementMapper                                          mapper;
     private final AccessEvaluator                                              access;
     @Getter
     private final I18nService                                                  i18nService;
     private final NotificationService                                          notificationService;
-    private final ComponentFactory<AttachmentPort>                             attachmentPortFactory;
+    private final AttachmentMediaService                                       attachmentMediaService;
     private final ComponentFactory<AttachmentGalleryService>                 galleryServiceFactory;
     private final UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>>  formBinderFactory;
-    private final ComponentFactory<AuditPort>                                  auditPortFactory;
+    private final AuditQueryService                                             auditQueryService;
     private final EntityActivityOverlay                                        entityActivityOverlay;
     private final OverlayAdvertisementMetaPanel                                metaPanel;
-    private final ComponentFactory<TaxonPort>                                  taxonPortFactory;
+    private final TaxonCatalogService                                          taxonCatalogService;
     private final LocaleProvider                                               localeProvider;
     private final AdvertisementDisplayEnrichmentService                        enrichmentService;
 
@@ -128,9 +128,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         descriptionField.addClassName("overlay__description-rich-editor");
         descriptionField.getElement().setAttribute("data-testid", "advertisement-overlay-field-description");
 
-        List<TaxonDto> availableCategories = taxonPortFactory.findIfAvailable()
-                .map(p -> p.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale()))
-                .orElse(List.of());
+        List<TaxonDto> availableCategories = taxonCatalogService.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale());
         if (!availableCategories.isEmpty()) {
             categoryComboBox = new MultiSelectComboBox<>();
             categoryComboBox.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
@@ -140,9 +138,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             categoryComboBox.getElement().setAttribute("data-testid", "advertisement-overlay-field-categories");
         }
 
-        List<TaxonDto> availableCities = taxonPortFactory.findIfAvailable()
-                .map(p -> p.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale()))
-                .orElse(List.of());
+        List<TaxonDto> availableCities = taxonCatalogService.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale());
         if (!availableCities.isEmpty()) {
             cityComboBox = new ComboBox<>();
             cityComboBox.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_CITY));
@@ -188,14 +184,14 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div content = new Div(fieldsCard);
-        attachmentPortFactory.ifAvailable(_ -> {
+        if (attachmentMediaService.isAvailable()) {
             AttachmentGalleryService ext = galleryServiceFactory.get();
             this.activeHandle = isCreate
                     ? ext.buildGalleryForCreate(EntityType.ADVERTISEMENT, java.util.UUID.randomUUID().toString())
                     : ext.buildGalleryForEdit(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()));
             activeHandle.setOnChangedListener(() -> updateButtons(true));
             content.add(activeHandle.getComponent());
-        });
+        }
 
         if (!isCreate) {
             content.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
@@ -212,8 +208,8 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
         Div headerActions = new Div(saveButton, discardButton);
         boolean canOperate = !isCreate && access.canOperate(params.getAd().getOwnerUserId());
-        if (canOperate) {
-            auditPortFactory.findIfAvailable().ifPresent(_ -> headerActions.add(buildHistoryButton()));
+        if (canOperate && auditQueryService.isAvailable()) {
+            headerActions.add(buildHistoryButton());
         }
         headerActions.add(closeBtn);
         layout.setHeaderActions(headerActions);
@@ -240,15 +236,14 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
     public boolean save() {
         return binder.save(dto -> {
-            this.savedId = advertisementPortFactory.findIfAvailable()
-                    .map(_ -> advertisementSaveService.save(
+            this.savedId = advertisementSaveService.isAvailable()
+                    ? advertisementSaveService.save(
                             new AdvertisementSaveDto(dto.getId(), dto.getTitle(), dto.getDescription(), dto.getAdKind(), dto.getCategoryIds(), dto.getCityTaxonId(), dto.getVersion()),
                             access.getCurrentUserId(),
-                            entityRef -> activeHandle != null ? activeHandle.commit(entityRef) : null))
-                    .orElse(null);
+                            entityRef -> activeHandle != null ? activeHandle.commit(entityRef) : null)
+                    : null;
             if (savedId != null) {
-                advertisementPortFactory.findIfAvailable()
-                        .flatMap(p -> p.findById(savedId))
+                advertisementReadService.findById(savedId)
                         .map(ad -> enrichmentService.enrichSingle(ad, localeProvider.getCurrentLocale()))
                         .ifPresent(info -> {
                             this.savedInfoDto = info;
@@ -265,21 +260,19 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     }
 
     private void handleRestoreFromActivity(Long snapshotId) {
-        auditPortFactory.ifAvailable(port ->
-                port.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT, AdvertisementSnapshotDto.class)
-                        .ifPresent(content -> {
-                            AdvertisementSnapshotDto snapshot = content.snapshotData();
-                            AdvertisementEditDto dto = mapper.toAdvertisementEdit(params.getAd());
-                            dto.setTitle(snapshot.title());
-                            dto.setDescription(snapshot.description());
-                            dto.setAdKind(snapshot.adKind());
-                            dto.setCategoryIds(snapshot.categoryIds() != null
-                                    ? new java.util.HashSet<>(snapshot.categoryIds()) : new java.util.HashSet<>());
-                            dto.setCityTaxonId(snapshot.cityTaxonId());
-                            loadRestored(dto);
-                            if (activeHandle != null) activeHandle.loadFromSnapshotId(snapshot.attachmentSnapshotId());
-                        })
-        );
+        auditQueryService.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT, AdvertisementSnapshotDto.class)
+                .ifPresent(content -> {
+                    AdvertisementSnapshotDto snapshot = content.snapshotData();
+                    AdvertisementEditDto dto = mapper.toAdvertisementEdit(params.getAd());
+                    dto.setTitle(snapshot.title());
+                    dto.setDescription(snapshot.description());
+                    dto.setAdKind(snapshot.adKind());
+                    dto.setCategoryIds(snapshot.categoryIds() != null
+                            ? new java.util.HashSet<>(snapshot.categoryIds()) : new java.util.HashSet<>());
+                    dto.setCityTaxonId(snapshot.cityTaxonId());
+                    loadRestored(dto);
+                    if (activeHandle != null) activeHandle.loadFromSnapshotId(snapshot.attachmentSnapshotId());
+                });
     }
 
     public void discardChanges() {
@@ -289,8 +282,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             if (activeHandle != null) activeHandle.discard();
             return;
         }
-        advertisementPortFactory.findIfAvailable()
-                .flatMap(p -> p.findById(params.getAd().getId()))
+        advertisementReadService.findById(params.getAd().getId())
                 .map(ad -> enrichmentService.enrichSingle(ad, localeProvider.getCurrentLocale()))
                 .ifPresent(freshAd -> {
                     AdvertisementEditDto fresh = mapper.toAdvertisementEdit(freshAd);

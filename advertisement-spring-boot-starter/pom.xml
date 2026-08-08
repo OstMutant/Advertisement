@@ -16,6 +16,10 @@
     <name>Advertisement Spring Boot Starter</name>
     <description>Advertisement domain module — owns Advertisement entity, repositories, and AdvertisementPort implementation</description>
 
+    <properties>
+        <architecture.boundedContext>starter</architecture.boundedContext>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>

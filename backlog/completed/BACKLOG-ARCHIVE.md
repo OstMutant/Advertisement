@@ -1691,3 +1691,36 @@ Playwright run showed 3 failures; re-verified via the standard `deploy.sh --rese
 `playwright.sh e2e --full --ux` dev workflow — **50/50 passed**, confirming the CI-stack failures
 were Docker-in-Docker environment flakiness, not a real regression. Full detail:
 `completed/issues/improvement-136-marketplace-orchestrator-extraction.md`.
+
+✅ Done (2026-08-08): improvement-147 — flattened `marketplace-orchestrator`'s 9 pre-existing
+service classes (scattered across 5 domain-scoped sub-packages) into one flat
+`org.ost.orchestrator.services` package; added `marketplace-orchestrator` as a real, evidence-based
+node on the Bounded Contexts diagram (`scripts/architecture/generate-architecture-model.sh`) instead
+of the previous hardcoded `Shared`/`UI` + `*-spring-boot-starter`-suffix domain discovery — replaced
+via a self-describing `pom.xml` `<architecture.boundedContext>` property on every module; and made
+`marketplace-app` a true BFF client with zero direct domain `*Port` access, closing the gap between
+`improvement-136`'s own contradictory spec (target diagram showed no direct UI-to-starter arrow, but
+its stated rule only banned composing multiple ports). 25 marketplace-app classes repointed to 6
+new/extended `marketplace-orchestrator` services (`AdvertisementReadService`, `TaxonCatalogService`,
+`AttachmentMediaService`, `AuditQueryService`, extended `ActorLookupService`, `UserProfileService`)
+plus a new `EntityExistenceService` — a named, ArchUnit-allowlisted exception to the module's ≤2-port
+rule for `AuditDomainHookImpl`'s per-`EntityType` existence routing. 4 UI presence-only
+`ifAvailable()` gates also moved through the orchestrator (superseding that carve-out in
+`marketplace-orchestrator/CLAUDE.md`), and a residual 6 direct `User*Port` usages found beyond the
+original 25-class audit (`UserPickerField`, `LocaleSelectorComponent`, `SignUpDialog`, `UserView`,
+`SettingsPaginationService`) were repointed too — `AccessEvaluator`'s `UserAuthorizationPort` is the
+one deliberate, documented residual exception (security-boundary infrastructure, not a domain
+read-model). See `marketplace-orchestrator/DECISIONS.md` ADR-003. Real bug found only by an actual
+`deploy.sh` container boot (invisible to every Maven-level test): the planned service name
+`AuditReadService` collided with `audit-spring-boot-starter`'s own pre-existing internal class of
+the same simple name, producing a `ConflictingBeanDefinitionException` at startup — renamed to
+`AuditQueryService`. `/code-review --fix` (8 finder angles + verification) found and fixed one real
+clarity defect (`AdvertisementFormOverlayModeHandler.save()` gating its write on a sibling read
+service's `isAvailable()` instead of its own save service's); a `TaxonManagementView`/
+`CityManagementView` graceful-degradation gap was confirmed pre-existing (not introduced by this
+migration) and proposed for `improvement-133`'s deferred-findings bucket rather than fixed inline.
+`unit-tests.sh`: 75/75; `integration-tests.sh --sandbox`: 165/165; `deploy.sh --reset` +
+`playwright.sh e2e --full --ux`: **50/50 passed**. The issue's original single-caller-collaborator
+question (`TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService`)
+moved in full to `improvement-124` Batch 124-C, the real second-consumer test. Full detail:
+`completed/issues/improvement-147-marketplace-orchestrator-followups.md`.

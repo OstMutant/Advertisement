@@ -1,12 +1,8 @@
-package org.ost.orchestrator.advertisement.save;
+package org.ost.orchestrator.services;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.orchestrator.shared.AttachmentSnapshotReaderService;
-import org.ost.orchestrator.shared.AttachmentSoftDeleteService;
-import org.ost.orchestrator.shared.TaxonAssignmentWriteService;
-import org.ost.orchestrator.shared.TaxonLookupService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
@@ -92,6 +88,10 @@ public class AdvertisementSaveService {
                     savedId, isNew, catIds.size());
             return savedId;
         });
+    }
+
+    public boolean isAvailable() {
+        return advertisementPortFactory.findIfAvailable().isPresent();
     }
 
     public void delete(@NonNull Long id, @NonNull Long actorId, Long version) {

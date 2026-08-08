@@ -17,12 +17,10 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.orchestrator.services.AuditQueryService;
+import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.model.Role;
-import org.ost.platform.user.spi.UserAccountPort;
-import org.ost.platform.user.spi.UserPort;
 
 import java.lang.reflect.Method;
 import java.time.Instant;
@@ -41,22 +39,21 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserFormOverlayModeHandlerTest {
 
-    @Mock private UserPort userPort;
-    @Mock private UserAccountPort accountPort;
+    @Mock private UserProfileService userProfileService;
     @Mock private UserMapper mapper;
     @Mock private AccessEvaluator access;
     @Mock private I18nService i18nService;
     @Mock private NotificationService notificationService;
     @Mock private UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
-    @Mock private ComponentFactory<AuditPort> auditPortFactory;
+    @Mock private AuditQueryService auditQueryService;
     @Mock private EntityActivityOverlay entityActivityOverlay;
 
     private UserFormOverlayModeHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new UserFormOverlayModeHandler(userPort, accountPort, mapper, access, i18nService, notificationService,
-                formBinderFactory, auditPortFactory, entityActivityOverlay);
+        handler = new UserFormOverlayModeHandler(userProfileService, mapper, access, i18nService, notificationService,
+                formBinderFactory, auditQueryService, entityActivityOverlay);
     }
 
     @Test

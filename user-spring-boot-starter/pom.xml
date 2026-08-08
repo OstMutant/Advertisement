@@ -16,6 +16,10 @@
     <name>User Spring Boot Starter</name>
     <description>User domain module — owns User entity, repositories, and UserPort implementation</description>
 
+    <properties>
+        <architecture.boundedContext>starter</architecture.boundedContext>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>
