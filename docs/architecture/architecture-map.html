@@ -148,7 +148,7 @@ const MODEL =
   "rootArtifactId": "advertisement-parent",
   "rootVersion": "0.0.1-SNAPSHOT",
   "diagramGroups": [
-  {"key": "bounded-contexts", "label": "Bounded Contexts", "file": "real code (live)", "description": "Which domain actually calls which other domain in real code, and why -- entities/services/tables/ports per domain, relationships from real Hook/Port usage signals.", "diagrams": [{"title": "Context Map", "source": ""}]},
+  {"key": "bounded-contexts", "label": "Bounded Contexts", "file": "real code (live)", "description": "Which domain actually calls which other domain in real code, and why -- entities/services/tables/ports per domain, relationships from real Hook/Port usage signals. Split one tab per relationship nature (BFF service calls, reverse Hook callbacks, cross-starter exceptions, derived facts) -- the single combined graph mixed 4 fundamentally different kinds of relationship in one arrow+label visual.", "diagrams": [{"title": "Service Calls (BFF)", "source": "", "category": "orchestration", "description": "Forward-direction real Port calls -- Orchestrator composing each domain, UI calling Orchestrator, and the one documented UI exception (AccessEvaluator -> UserAuthorizationPort). The BFF pattern working as intended."},{"title": "Hook Callbacks", "source": "", "category": "hooks", "description": "Reverse-direction calls -- a starter or Orchestrator calls a *Hook interface it depends on; marketplace-app/marketplace-orchestrator supplies the real implementation. Dependency inversion, not orchestration -- does not violate the BFF principle."},{"title": "Cross-Starter Exceptions", "source": "", "category": "exceptions", "description": "A real starter-to-starter Port call that bypasses the orchestrator -- documented technical debt, not the intended pattern."},{"title": "Derived Facts", "source": "", "category": "derived", "description": "Not code calls at all -- classification/composition facts derived from data (which EntityTypes get audited, which domains can carry attachments)."}]},
   {"key": "02-spi-map", "label": "SPI Map", "file": "platform-commons/src (live)", "description": "Every cross-module Port/Hook interface in platform-commons, who really calls it, and who really implements it -- three real-code facts, not a build-graph fact. Split one tab per subsystem -- the single combined graph got too dense to read.", "diagrams": [{"title": "Audit Subsystem", "source": "", "subsystem": "audit"},{"title": "Attachment Subsystem", "source": "", "subsystem": "attachment"},{"title": "User Subsystem", "source": "", "subsystem": "user"},{"title": "Advertisement Subsystem", "source": "", "subsystem": "advertisement"},{"title": "Taxon (Reference Data) Subsystem", "source": "", "subsystem": "taxon"},{"title": "Provider Profile Subsystem", "source": "", "subsystem": "providerprofile"},{"title": "Core / Platform", "source": "", "subsystem": "core"}]},
   {"key": "01-module-dependencies", "label": "Module Dependencies", "file": "pom.xml (live)", "description": "Which module's JAR ends up on which other module's classpath, per real pom.xml <dependency> declarations -- a Maven build-graph fact, not a real-code-call fact (a module can depend on a JAR nothing in its code calls yet).", "diagrams": [{"title": "Dependency Graph", "source": ""}]},
   {"key": "04-database-erd", "label": "Database ERD", "file": "Liquibase changelogs (live)", "description": "Every table and column this app persists, with the business-meaning remarks pulled live from each Liquibase changelog.", "diagrams": [{"title": "Entity Relationship Diagram", "source": ""}]}
@@ -350,30 +350,30 @@ const MODEL =
     {"id": "ProviderProfile", "label": "Provider Profile Domain", "module": "provider-profile-spring-boot-starter", "confidence": "extracted", "entities": [{"name": "ProviderProfile", "file": "provider-profile-spring-boot-starter/src/main/java/org/ost/provider/entity/ProviderProfile.java"}], "services": [{"name": "ProviderProfileService", "file": "provider-profile-spring-boot-starter/src/main/java/org/ost/provider/services/ProviderProfileService.java"}], "tables": [{"name": "provider_profile", "file": "provider-profile-spring-boot-starter/src/main/resources/db/provider-profile-changelog/changes/01-provider-profile-schema.xml"}], "ports": [{"name": "ProviderProfilePort", "file": "platform-commons/src/main/java/org/ost/platform/providerprofile/spi/ProviderProfilePort.java"}]},
     {"id": "Orchestrator", "label": "Application/BFF Layer", "module": "marketplace-orchestrator", "confidence": "extracted", "entities": [], "services": [{"name": "ActorLookupService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/ActorLookupService.java"}, {"name": "AdvertisementDisplayEnrichmentService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AdvertisementDisplayEnrichmentService.java"}, {"name": "AdvertisementReadService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AdvertisementReadService.java"}, {"name": "AdvertisementSaveService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AdvertisementSaveService.java"}, {"name": "AttachmentMediaService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AttachmentMediaService.java"}, {"name": "AttachmentSnapshotReaderService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AttachmentSnapshotReaderService.java"}, {"name": "AttachmentSoftDeleteService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AttachmentSoftDeleteService.java"}, {"name": "AuditQueryService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AuditQueryService.java"}, {"name": "EntityExistenceService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/EntityExistenceService.java"}, {"name": "ProviderProfileDisplayEnrichmentService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/ProviderProfileDisplayEnrichmentService.java"}, {"name": "TaxonAssignmentWriteService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/TaxonAssignmentWriteService.java"}, {"name": "TaxonCatalogService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/TaxonCatalogService.java"}, {"name": "TaxonLookupService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/TaxonLookupService.java"}, {"name": "UserActorNameService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/UserActorNameService.java"}, {"name": "UserDeleteService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/UserDeleteService.java"}, {"name": "UserProfileService", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/UserProfileService.java"}, {"name": "AuditDomainHookImpl", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi/AuditDomainHookImpl.java"}, {"name": "CurrentActorHookImpl", "file": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi/CurrentActorHookImpl.java"}], "tables": [], "ports": [{"name": "AdvertisementPort", "file": "platform-commons/src/main/java/org/ost/platform/advertisement/spi/AdvertisementPort.java"}, {"name": "AttachmentAuditPort", "file": "platform-commons/src/main/java/org/ost/platform/attachment/spi/AttachmentAuditPort.java"}, {"name": "AttachmentPort", "file": "platform-commons/src/main/java/org/ost/platform/attachment/spi/AttachmentPort.java"}, {"name": "AuditDomainHook", "file": "platform-commons/src/main/java/org/ost/platform/audit/spi/AuditDomainHook.java"}, {"name": "AuditPort", "file": "platform-commons/src/main/java/org/ost/platform/audit/spi/AuditPort.java"}, {"name": "CurrentActorHook", "file": "platform-commons/src/main/java/org/ost/platform/core/spi/CurrentActorHook.java"}, {"name": "ProviderProfilePort", "file": "platform-commons/src/main/java/org/ost/platform/providerprofile/spi/ProviderProfilePort.java"}, {"name": "TaxonPort", "file": "platform-commons/src/main/java/org/ost/platform/taxon/spi/TaxonPort.java"}, {"name": "UserAccountPort", "file": "platform-commons/src/main/java/org/ost/platform/user/spi/UserAccountPort.java"}, {"name": "UserPort", "file": "platform-commons/src/main/java/org/ost/platform/user/spi/UserPort.java"}, {"name": "UserPreferencesPort", "file": "platform-commons/src/main/java/org/ost/platform/user/spi/UserPreferencesPort.java"}]},
     {"id": "UI", "label": "UI/Application Layer", "module": "marketplace-app", "confidence": "extracted", "entities": [], "services": [], "tables": [], "ports": [{"name": "ActivityEnrichHookImpl", "file": "marketplace-app/src/main/java/org/ost/marketplace/spi/ActivityEnrichHookImpl.java"}, {"name": "SessionActorHookImpl", "file": "marketplace-app/src/main/java/org/ost/marketplace/spi/SessionActorHookImpl.java"}, {"name": "UiLabelHookImpl", "file": "marketplace-app/src/main/java/org/ost/marketplace/spi/UiLabelHookImpl.java"}]}
-  ], "relationships": [    {"from": "Shared", "to": "Audit", "label": "decouples", "confidence": "extracted", "evidence": "audit-spring-boot-starter/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
-    {"from": "Shared", "to": "Attachment", "label": "decouples", "confidence": "extracted", "evidence": "attachment-spring-boot-starter/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
-    {"from": "Shared", "to": "User", "label": "decouples", "confidence": "extracted", "evidence": "user-spring-boot-starter/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
-    {"from": "Shared", "to": "Advertisement", "label": "decouples", "confidence": "extracted", "evidence": "advertisement-spring-boot-starter/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
-    {"from": "Shared", "to": "Taxon", "label": "decouples", "confidence": "extracted", "evidence": "taxon-spring-boot-starter/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
-    {"from": "Shared", "to": "ProviderProfile", "label": "decouples", "confidence": "extracted", "evidence": "provider-profile-spring-boot-starter/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
-    {"from": "Shared", "to": "Orchestrator", "label": "decouples", "confidence": "extracted", "evidence": "marketplace-orchestrator/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
-    {"from": "Orchestrator", "to": "Advertisement", "label": "calls", "confidence": "extracted", "evidence": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AdvertisementReadService.java injects ComponentFactory<AdvertisementPort>", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
-    {"from": "Orchestrator", "to": "Attachment", "label": "calls", "confidence": "extracted", "evidence": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AttachmentMediaService.java injects ComponentFactory<AttachmentAuditPort>; marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AdvertisementDisplayEnrichmentService.java injects ComponentFactory<AttachmentPort>", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
-    {"from": "Orchestrator", "to": "Audit", "label": "calls", "confidence": "extracted", "evidence": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AdvertisementSaveService.java injects ComponentFactory<AuditPort>", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
-    {"from": "Orchestrator", "to": "ProviderProfile", "label": "calls", "confidence": "extracted", "evidence": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/EntityExistenceService.java injects ComponentFactory<ProviderProfilePort>", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
-    {"from": "Orchestrator", "to": "Taxon", "label": "calls", "confidence": "extracted", "evidence": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/EntityExistenceService.java injects ComponentFactory<TaxonPort>", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
-    {"from": "Orchestrator", "to": "User", "label": "calls", "confidence": "extracted", "evidence": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/UserDeleteService.java injects ComponentFactory<UserAccountPort>; marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/ActorLookupService.java injects ComponentFactory<UserPort>; marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/UserProfileService.java injects ComponentFactory<UserPreferencesPort>", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
-    {"from": "UI", "to": "Orchestrator", "label": "calls", "confidence": "extracted", "evidence": "30 marketplace-app classes import org.ost.orchestrator.*", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
-    {"from": "Advertisement", "to": "Audit", "label": "audited via", "confidence": "extracted", "evidence": "AuditTimelineRowRenderer.LABELED_ENTITY_TYPES includes EntityType.ADVERTISEMENT", "payload": "AuditableSnapshot (AuditPort.captureCreation/Update/Deletion/Restore)", "dashed": false},
-    {"from": "Taxon", "to": "Audit", "label": "audited via", "confidence": "extracted", "evidence": "AuditTimelineRowRenderer.LABELED_ENTITY_TYPES includes EntityType.TAXON", "payload": "AuditableSnapshot (AuditPort.captureCreation/Update/Deletion/Restore)", "dashed": false},
-    {"from": "User", "to": "Audit", "label": "audited via", "confidence": "extracted", "evidence": "AuditTimelineRowRenderer.LABELED_ENTITY_TYPES includes EntityType.USER; AuditTimelineRowRenderer.LABELED_ENTITY_TYPES includes EntityType.USER_SETTINGS", "payload": "AuditableSnapshot (AuditPort.captureCreation/Update/Deletion/Restore)", "dashed": false},
-    {"from": "Advertisement", "to": "Attachment", "label": "can have", "confidence": "extracted", "evidence": "ActivityEnrichHookImpl.entityType() = ADVERTISEMENT", "payload": "AttachmentMediaSummaryDto (AttachmentPort.getMediaSummaries)", "dashed": false},
-    {"from": "ProviderProfile", "to": "Taxon", "label": "category assignment via", "confidence": "extracted", "evidence": "provider-profile-spring-boot-starter/src/main/java/org/ost/provider/services/ProviderProfileService.java:82:        taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.PROVIDER_PROFILE, id, dto.categoryIds() != null ? dto.categoryIds() : Set.of()));", "payload": "Set<Long> of taxon ids (TaxonPort.replaceAssignments)", "dashed": false},
-    {"from": "UI", "to": "User", "label": "calls", "confidence": "extracted", "evidence": "marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java injects UserAuthorizationPort directly", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
-    {"from": "Audit", "to": "UI", "label": "calls back via Hook implementations", "confidence": "extracted", "evidence": "ActivityEnrichHookImpl implements AuditActivityEnrichHook, called from audit-spring-boot-starter/src/main/java/org/ost/audit/services/AuditReadService.java", "payload": "List<ChangeEntry>/field labels (AuditActivityFieldsHook) or merged List<AuditTimelineItemDto> (AuditActivityEnrichHook)", "dashed": false},
-    {"from": "Audit", "to": "Orchestrator", "label": "calls back via Hook implementations", "confidence": "extracted", "evidence": "AuditDomainHookImpl implements AuditDomainHook, called from audit-spring-boot-starter/src/main/java/org/ost/audit/services/DefaultAuditPort.java; CurrentActorHookImpl implements CurrentActorHook, called from audit-spring-boot-starter/src/main/java/org/ost/audit/services/DefaultAuditPort.java", "payload": "List<ChangeEntry>/field labels (AuditActivityFieldsHook) or merged List<AuditTimelineItemDto> (AuditActivityEnrichHook)", "dashed": false},
-    {"from": "Attachment", "to": "Orchestrator", "label": "calls back via Hook implementations", "confidence": "extracted", "evidence": "CurrentActorHookImpl implements CurrentActorHook, called from attachment-spring-boot-starter/src/main/java/org/ost/attachment/services/AttachmentService.java", "payload": "List<ChangeEntry>/field labels (AuditActivityFieldsHook) or merged List<AuditTimelineItemDto> (AuditActivityEnrichHook)", "dashed": false},
-    {"from": "Orchestrator", "to": "UI", "label": "calls back via Hook implementations", "confidence": "extracted", "evidence": "SessionActorHookImpl implements SessionActorHook, called from marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi/CurrentActorHookImpl.java; UiLabelHookImpl implements UiLabelHook, called from marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/UserActorNameService.java", "payload": "List<ChangeEntry>/field labels (AuditActivityFieldsHook) or merged List<AuditTimelineItemDto> (AuditActivityEnrichHook)", "dashed": false}
+  ], "relationships": [    {"from": "Shared", "to": "Audit", "label": "decouples", "category": "", "confidence": "extracted", "evidence": "audit-spring-boot-starter/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
+    {"from": "Shared", "to": "Attachment", "label": "decouples", "category": "", "confidence": "extracted", "evidence": "attachment-spring-boot-starter/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
+    {"from": "Shared", "to": "User", "label": "decouples", "category": "", "confidence": "extracted", "evidence": "user-spring-boot-starter/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
+    {"from": "Shared", "to": "Advertisement", "label": "decouples", "category": "", "confidence": "extracted", "evidence": "advertisement-spring-boot-starter/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
+    {"from": "Shared", "to": "Taxon", "label": "decouples", "category": "", "confidence": "extracted", "evidence": "taxon-spring-boot-starter/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
+    {"from": "Shared", "to": "ProviderProfile", "label": "decouples", "category": "", "confidence": "extracted", "evidence": "provider-profile-spring-boot-starter/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
+    {"from": "Shared", "to": "Orchestrator", "label": "decouples", "category": "", "confidence": "extracted", "evidence": "marketplace-orchestrator/pom.xml depends on platform-commons", "payload": "Compile-time dependency only -- no runtime payload", "dashed": true},
+    {"from": "Orchestrator", "to": "Advertisement", "label": "calls", "category": "orchestration", "confidence": "extracted", "evidence": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AdvertisementReadService.java injects ComponentFactory<AdvertisementPort>", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
+    {"from": "Orchestrator", "to": "Attachment", "label": "calls", "category": "orchestration", "confidence": "extracted", "evidence": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AttachmentMediaService.java injects ComponentFactory<AttachmentAuditPort>; marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AdvertisementDisplayEnrichmentService.java injects ComponentFactory<AttachmentPort>", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
+    {"from": "Orchestrator", "to": "Audit", "label": "calls", "category": "orchestration", "confidence": "extracted", "evidence": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AdvertisementSaveService.java injects ComponentFactory<AuditPort>", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
+    {"from": "Orchestrator", "to": "ProviderProfile", "label": "calls", "category": "orchestration", "confidence": "extracted", "evidence": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/EntityExistenceService.java injects ComponentFactory<ProviderProfilePort>", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
+    {"from": "Orchestrator", "to": "Taxon", "label": "calls", "category": "orchestration", "confidence": "extracted", "evidence": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/EntityExistenceService.java injects ComponentFactory<TaxonPort>", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
+    {"from": "Orchestrator", "to": "User", "label": "calls", "category": "orchestration", "confidence": "extracted", "evidence": "marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/UserDeleteService.java injects ComponentFactory<UserAccountPort>; marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/ActorLookupService.java injects ComponentFactory<UserPort>; marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/UserProfileService.java injects ComponentFactory<UserPreferencesPort>", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
+    {"from": "UI", "to": "Orchestrator", "label": "calls", "category": "orchestration", "confidence": "extracted", "evidence": "30 marketplace-app classes import org.ost.orchestrator.*", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
+    {"from": "Advertisement", "to": "Audit", "label": "audited via", "category": "derived", "confidence": "extracted", "evidence": "AuditTimelineRowRenderer.LABELED_ENTITY_TYPES includes EntityType.ADVERTISEMENT", "payload": "AuditableSnapshot (AuditPort.captureCreation/Update/Deletion/Restore)", "dashed": false},
+    {"from": "Taxon", "to": "Audit", "label": "audited via", "category": "derived", "confidence": "extracted", "evidence": "AuditTimelineRowRenderer.LABELED_ENTITY_TYPES includes EntityType.TAXON", "payload": "AuditableSnapshot (AuditPort.captureCreation/Update/Deletion/Restore)", "dashed": false},
+    {"from": "User", "to": "Audit", "label": "audited via", "category": "derived", "confidence": "extracted", "evidence": "AuditTimelineRowRenderer.LABELED_ENTITY_TYPES includes EntityType.USER; AuditTimelineRowRenderer.LABELED_ENTITY_TYPES includes EntityType.USER_SETTINGS", "payload": "AuditableSnapshot (AuditPort.captureCreation/Update/Deletion/Restore)", "dashed": false},
+    {"from": "Advertisement", "to": "Attachment", "label": "can have", "category": "derived", "confidence": "extracted", "evidence": "ActivityEnrichHookImpl.entityType() = ADVERTISEMENT", "payload": "AttachmentMediaSummaryDto (AttachmentPort.getMediaSummaries)", "dashed": false},
+    {"from": "ProviderProfile", "to": "Taxon", "label": "category assignment via", "category": "exceptions", "confidence": "extracted", "evidence": "provider-profile-spring-boot-starter/src/main/java/org/ost/provider/services/ProviderProfileService.java:82:        taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.PROVIDER_PROFILE, id, dto.categoryIds() != null ? dto.categoryIds() : Set.of()));", "payload": "Set<Long> of taxon ids (TaxonPort.replaceAssignments)", "dashed": false},
+    {"from": "UI", "to": "User", "label": "calls", "category": "orchestration", "confidence": "extracted", "evidence": "marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java injects UserAuthorizationPort directly", "payload": "Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types", "dashed": false},
+    {"from": "Audit", "to": "UI", "label": "calls back via Hook implementations", "category": "hooks", "confidence": "extracted", "evidence": "ActivityEnrichHookImpl implements AuditActivityEnrichHook, called from audit-spring-boot-starter/src/main/java/org/ost/audit/services/AuditReadService.java", "payload": "AuditActivityEnrichHook: List<AuditTimelineItemDto<T>> (merge), List<AuditActivityItemDto<T>> (enrichActivity), String media state (getMediaStateForSnapshot)", "dashed": false},
+    {"from": "Audit", "to": "Orchestrator", "label": "calls back via Hook implementations", "category": "hooks", "confidence": "extracted", "evidence": "AuditDomainHookImpl implements AuditDomainHook, called from audit-spring-boot-starter/src/main/java/org/ost/audit/services/DefaultAuditPort.java; CurrentActorHookImpl implements CurrentActorHook, called from audit-spring-boot-starter/src/main/java/org/ost/audit/services/DefaultAuditPort.java", "payload": "AuditDomainHook: Map<Long,String> (resolveNames), Set<Long> (findExisting), String (resolveDisplayName), Optional<AuditSnapshotContentDto<T>> (castIfKnown); CurrentActorHook: Optional<Long> (getCurrentActorId)", "dashed": false},
+    {"from": "Attachment", "to": "Orchestrator", "label": "calls back via Hook implementations", "category": "hooks", "confidence": "extracted", "evidence": "CurrentActorHookImpl implements CurrentActorHook, called from attachment-spring-boot-starter/src/main/java/org/ost/attachment/services/AttachmentService.java", "payload": "CurrentActorHook: Optional<Long> (getCurrentActorId)", "dashed": false},
+    {"from": "Orchestrator", "to": "UI", "label": "calls back via Hook implementations", "category": "hooks", "confidence": "extracted", "evidence": "SessionActorHookImpl implements SessionActorHook, called from marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi/CurrentActorHookImpl.java; UiLabelHookImpl implements UiLabelHook, called from marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/UserActorNameService.java", "payload": "SessionActorHook: Optional<Long> (getCurrentActorId); UiLabelHook: String (translateActorDeletedSuffix)", "dashed": false}
   ]},
   "sonarMetrics": null,
   "archUnitMetrics": null,
@@ -2222,16 +2222,16 @@ function buildDbErdMermaidSource() {
 // two flat siblings is the ordinary case dagre handles fine -- it was never the failure mode ADR-016
 // diagnosed. Gets the same native pan/zoom/click/drag interaction every other Cytoscape diagram
 // already has for free, instead of the hand-rolled scroll-drag Mermaid fallback needed elsewhere.
-function buildContextMapGraph() {
+// category: one of BC_CATEGORY_ORDER's keys ("orchestration"/"hooks"/"exceptions"/"derived"), or
+// omitted/falsy for the full, unfiltered graph (used only by the Markdown export -- every live tab
+// always passes its own category). Node set is restricted to domains actually touched by the
+// filtered edges, not all 8 every time -- that's the real decluttering this split exists for.
+function buildContextMapGraph(category) {
   const domains = MODEL.boundedContexts.domains.filter(d => d.id !== "Shared");
   const moduleOf = {};
   MODEL.boundedContexts.domains.forEach(d => { moduleOf[d.id] = d.module; });
-  const nodes = domains.map(d => {
-    const mn = moduleNodes.find(n => n.id === d.module);
-    return { id: d.module, label: d.label, domain: mn ? mn.domain : null };
-  });
   const edges = MODEL.boundedContexts.relationships
-    .filter(r => r.label !== "decouples")
+    .filter(r => r.label !== "decouples" && (!category || r.category === category))
     .map(r => ({
       source: moduleOf[r.from] || r.from, target: moduleOf[r.to] || r.to,
       label: r.label, dashed: r.dashed,
@@ -2239,13 +2239,19 @@ function buildContextMapGraph() {
       // Relationships-table row -- rowId must match bcRelRowId()'s own id exactly, since the
       // Cytoscape node ids above are module ids, not the domain ids the table is keyed by.
       rowId: bcRelRowId(r.from, r.to, r.label)
-    }))
-    .filter(e => nodes.some(n => n.id === e.source) && nodes.some(n => n.id === e.target));
-  return { nodes, edges };
+    }));
+  const involved = new Set(edges.flatMap(e => [e.source, e.target]));
+  const nodes = domains
+    .filter(d => involved.has(d.module))
+    .map(d => {
+      const mn = moduleNodes.find(n => n.id === d.module);
+      return { id: d.module, label: d.label, domain: mn ? mn.domain : null };
+    });
+  return { nodes, edges: edges.filter(e => nodes.some(n => n.id === e.source) && nodes.some(n => n.id === e.target)) };
 }
 
-function renderContextMapGraph() {
-  const g = buildContextMapGraph();
+function renderContextMapGraph(category) {
+  const g = buildContextMapGraph(category);
   const els = [
     ...g.nodes.map(n => ({
       data: { id: n.id, label: n.label, domain: n.domain },
@@ -2337,6 +2343,15 @@ const BC_LABEL_MEANING = {
   "calls back via Hook implementations": "Reverse direction: the source domain (a starter) calls a Hook interface; the target domain supplies the real implementation."
 };
 
+// Category display label for the Markdown export's Category column -- keys match
+// BC_CATEGORY_LABEL in the bash generator exactly (both describe the same fixed category set).
+const BC_CATEGORY_LABEL_JS = {
+  "orchestration": "Service Calls (BFF)",
+  "hooks": "Hook Callbacks",
+  "exceptions": "Cross-Starter Exceptions",
+  "derived": "Derived Facts"
+};
+
 // Finds a real "<module>/src/main/java/.../ClassName.java[:line]" path inside a free-text evidence
 // string and wraps just that substring in a real link to the file -- evidence text is a mix of
 // prose and real paths (e.g. "X.java:82:      someCall()" or "N classes import org.ost.orchestrator.*"),
@@ -2346,10 +2361,20 @@ function linkifyEvidence(text) {
     (m, path, line) => `<a href="../../${path}" target="_blank">${path}${line || ""}</a>`);
 }
 
-function renderBoundedContextsExtrasHtml() {
+// activeCategory: the current tab's category key -- Domain Contents/Overview/Legend stay
+// unfiltered (same domains/text every tab, same precedent as SPI Map's Overview/Legend/Call Flow
+// Examples staying global while only the interface-details table filters per subsystem); only the
+// Relationships table filters to the active tab's edges.
+function renderBoundedContextsExtrasHtml(activeCategory) {
   const category = (label, items) => items.length
     ? `<div><span class="scope-label">${label}</span> ${items.map(bcItemLink).join(", ")}</div>` : "";
-  const domains = MODEL.boundedContexts.domains.filter(d => d.id !== "Shared");
+  const relationships = MODEL.boundedContexts.relationships
+    .filter(r => r.label !== "decouples" && r.category === activeCategory);
+  // Same domain set the diagram itself draws for this tab (buildContextMapGraph's own "involved"
+  // set) -- Domain Contents lists only the domains this category's edges actually touch, not all 8
+  // every tab, so the two sections never disagree about what's "on screen" for this category.
+  const involvedIds = new Set(relationships.flatMap(r => [r.from, r.to]));
+  const domains = MODEL.boundedContexts.domains.filter(d => d.id !== "Shared" && involvedIds.has(d.id));
   const domainRows = domains.map(d => {
     const body = [
       category("Entities", d.entities), category("Services", d.services),
@@ -2359,7 +2384,6 @@ function renderBoundedContextsExtrasHtml() {
       ${body || `<div class="empty-hint">(no directly-owned entities/services/tables)</div>`}
     </div>`;
   }).join("");
-  const relationships = MODEL.boundedContexts.relationships.filter(r => r.label !== "decouples");
   const relRows = relationships.map(r => {
     const rowId = bcRelRowId(r.from, r.to, r.label);
     const meaning = BC_LABEL_MEANING[r.label] || "";
@@ -2370,7 +2394,7 @@ function renderBoundedContextsExtrasHtml() {
       <div class="empty-hint">Domain grouping (entities/services/tables/ports per box) is extracted live from real <code class="path">@Table</code> classes, <code class="path">*Service</code> classes, Liquibase tables, and SPI interface <code class="path">implements</code> relationships. Every relationship below is backed by a real, named code signal, all "extracted" (grep/AST match, never guessed or hand-typed) — see the Evidence column, or hover a Label cell for what it actually means. Not shown on the diagram: <code class="path">platform-commons</code> (the "Shared" module) is a compile-time dependency of every domain and Orchestrator — a real fact, but the same one repeated 7 times, so it's stated once here as text instead of drawn as 7 identical edges.</div>
     </section>
     <section class="block"><h3>Legend</h3>
-      <div class="empty-hint">Click a domain box to open its real module page. Click an arrow to jump to its row in the Relationships table below. Drag empty canvas space to pan.</div>
+      <div class="empty-hint">Click a domain box to open its real module page. Click an arrow to jump to its row in the Relationships table below. Drag empty canvas space to pan. This tab shows only the domains and relationships belonging to the current category — see the diagram-note above for what that category actually means.</div>
       <table class="simple"><tbody>
         <tr><td class="scope-label" style="width:150px">Box</td><td>A bounded context / domain — click to open its real module page. Its entities/services/tables/ports are listed in Domain Contents below, not on the canvas</td></tr>
         <tr><td class="scope-label">──▶ (solid line)</td><td>A real business relationship backed by a concrete code signal — click the arrow to jump to its evidence in the Relationships table below</td></tr>
@@ -2385,7 +2409,7 @@ function renderBoundedContextsExtrasHtml() {
 
 function exportBoundedContextsMarkdown() {
   let md = `# Bounded Contexts — Context Map\n\n`;
-  md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › Bounded Contexts.\n\n`;
+  md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › Bounded Contexts. The live version splits relationships across 4 tabs by category (Service Calls / Hook Callbacks / Cross-Starter Exceptions / Derived Facts); this export keeps all of them in one document, with a Category column.\n\n`;
   md += `## Context Map\n\n\`\`\`mermaid\n${buildContextMapMermaidSource()}\`\`\`\n\n`;
   md += `platform-commons ("Shared") is a compile-time dependency of every domain and Orchestrator -- not drawn above (same fact repeated 7 times), stated once here instead.\n\n`;
   md += `## Domain Contents\n\n`;
@@ -2394,9 +2418,9 @@ function exportBoundedContextsMarkdown() {
     const cat = (label, items) => { if (items.length) md += `**${label}:** ${items.map(i => i.name).join(", ")}\n\n`; };
     cat("Entities", d.entities); cat("Services", d.services); cat("Tables", d.tables); cat("Ports", d.ports);
   });
-  md += `## Relationships\n\nAll rows below are "extracted" -- backed by a real grep/AST code signal, never guessed.\n\n| Relationship | Label | What crosses | Evidence |\n|---|---|---|---|\n`;
+  md += `## Relationships\n\nAll rows below are "extracted" -- backed by a real grep/AST code signal, never guessed.\n\n| Relationship | Category | Label | What crosses | Evidence |\n|---|---|---|---|---|\n`;
   MODEL.boundedContexts.relationships.filter(r => r.label !== "decouples").forEach(r => {
-    md += `| ${r.from} -> ${r.to} | ${r.label} | ${r.payload} | ${r.evidence} |\n`;
+    md += `| ${r.from} -> ${r.to} | ${BC_CATEGORY_LABEL_JS[r.category] || r.category} | ${r.label} | ${r.payload} | ${r.evidence} |\n`;
   });
   downloadMarkdown("bounded-contexts.md", md);
 }
@@ -2618,12 +2642,12 @@ function renderDiagrams() {
     // MODEL.boundedContexts (real code signals -- see the Overview section below) -- no markdown
     // source at all, same "live, not a second copy" pattern as 01/02/04 (see DECISIONS.md
     // ADR-019/ADR-020).
-    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered live from real code — relationships from real Hook/Port usage signals (see the Overview and Relationships sections below); entities/services/tables/ports per domain live in Domain Contents below, not on the canvas. Click a domain to open its real module page. Drag to pan, or use the zoom controls below.</div>
+    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. ${esc(d.description || "")} Click a domain to open its real module page, click an arrow to jump to its evidence row below. Drag to pan, or use the zoom controls below.</div>
       ${zoomControlsHtml}
       <div class="diagram-wrap" id="diagram-cy-wrap" style="padding:0"><div id="diagram-cy" style="width:100%;height:70vh"></div></div>
-      ${renderBoundedContextsExtrasHtml()}`;
+      ${renderBoundedContextsExtrasHtml(d.category)}`;
     document.getElementById("content").innerHTML = html;
-    renderContextMapGraph();
+    renderContextMapGraph(d.category);
   } else if (g.key === "04-database-erd") {
     html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered live from the real Liquibase changelogs (table/column/type/constraints/FKs/indexes/remarks) — an ERD needs a table/column renderer, not a draggable node graph. Solid lines are real foreign keys; dotted lines are relationships this codebase deliberately leaves unconstrained at the SQL level (enforced at the application layer instead — see the notes below). Drag to pan, or use the zoom controls below.</div>
       ${zoomControlsHtml}

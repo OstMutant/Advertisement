@@ -1724,3 +1724,40 @@ migration) and proposed for `improvement-133`'s deferred-findings bucket rather 
 question (`TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService`)
 moved in full to `improvement-124` Batch 124-C, the real second-consumer test. Full detail:
 `completed/issues/improvement-147-marketplace-orchestrator-followups.md`.
+
+✅ Done (2026-08-11): improvement-149 — `System › Diagrams` clarity pass, four fronts. **SPI Map**
+split into 7 per-subsystem tabs (was one dense 71-node canvas), with hover tooltips explaining
+each Direction value. **Bounded Contexts** migrated from Mermaid's hand-rolled scroll-drag to
+Cytoscape (native pan/zoom/drag/click, matching Module Dependencies/SPI Map), then split further
+into 4 tabs by relationship *category* — Service Calls (BFF)/Hook Callbacks/Cross-Starter
+Exceptions/Derived Facts — after a real evidence bug was found and fixed: the old generator
+blanket-labeled every Hook implementation as an "Audit ->" edge regardless of real caller, found by
+the user simply asking "why does Audit call UI" and checking the evidence instead of re-explaining
+the diagram; the fix revealed `Orchestrator -> UI`/`Attachment -> Orchestrator` edges the old code
+had silently mislabeled as `Audit -> UI`. Diagram edges and Relationships-table rows are now
+mutually clickable (arrow -> scroll to evidence row and back). **Hook relocation**: 6 `*Hook`
+implementations moved `marketplace-app` -> `marketplace-orchestrator` via two new forwarder SPIs
+(`UiLabelHook`/`SessionActorHook`, `org.ost.orchestrator.spi` — not `platform-commons`, since
+their only caller is `marketplace-orchestrator` itself, a mandatory dependency); `pom.xml`'s 6
+starter `<dependency>` blocks moved the same direction, superseding the Enforcer rule that used to
+ban it (`marketplace-orchestrator/DECISIONS.md` ADR-004, `platform-commons/DECISIONS.md` ADR-029).
+Simplified across 3 further rounds on direct user pushback each time — a typed `AuditLabelKey` enum
+was added then removed again once raw `Fields.*` constants (already compiler-checked) proved
+sufficient; `AuditActivityFieldsHook` (4 near-identical per-domain implementations, zero real
+domain-specific logic left) was removed entirely, collapsing into one field-label switch directly
+in `AuditTimelineRowRenderer`. **Payload accuracy**: the Relationships table's "What crosses"
+column for Hook Callback edges was one hardcoded text shared across all 4 real edges, citing
+`AuditActivityFieldsHook` — an interface deleted earlier in the same pass — and simply wrong for 3
+of the 4; fixed with `BC_HOOK_PAYLOAD`, a real per-interface method-signature map. Along the way:
+`ChangeEntry.mapField()` added (`platform-commons/core/model`, mirrors the existing
+`replaceIfField()`), `AuditTimelineRowRenderer.applyLabel()` refactored from a hand-rolled `switch`
+to one line using it; `platform-commons/CLAUDE.md`'s "Narrow exception" rule reworded to state the
+pure-derivation principle package-agnostically (`*.dto`/`*.api`/`core.model`) instead of literally
+scoped to `*.dto`, since `ChangeEntry` now demonstrates it twice (`platform-commons/DECISIONS.md`
+ADR-021 amended). `spi_call_flow_examples_json()`'s 3 hand-typed narrative examples found stale
+(citing deleted interfaces/classes) — logged as entry 10 in `improvement-133` rather than fixed
+inline, bigger scope than this pass. `improvement-150` filed mid-session as a tighter follow-up
+(`marketplace-app` should depend on nothing but `marketplace-orchestrator`, not even
+`platform-commons`/`query-lib`). `unit-tests.sh`: 72/72; `integration-tests.sh --sandbox`:
+165/165; `deploy.sh --reset` + `playwright.sh e2e --full --ux`: **50/50 passed**. Full detail:
+`completed/issues/improvement-149-architecture-map-module-deps-vs-bounded-contexts.md`.

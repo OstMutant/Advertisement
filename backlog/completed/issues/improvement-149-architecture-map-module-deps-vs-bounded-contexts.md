@@ -630,6 +630,151 @@ bash generator script — no Java changes — so no new compile check was needed
 Unit/integration/Playwright still pending overall; more refactoring may still be coming in the same
 session.
 
+**Twelfth addition, same session — implemented: split Bounded Contexts into 4 diagrams by
+relationship nature.** User asked "чого діаграма така — ми ж говорили що маєм через
+бфф комунікувати а тут виглядає що стартери зі стартерами аудіт з юай". Traced the real, current
+16 relationships (all non-`decouples` edges) and found they fall into 4 genuinely different kinds
+that all render with the same arrow+label visual today, which is the actual source of confusion —
+not a bug in the relationships themselves, a legibility gap in showing 4 different *kinds* of fact
+on one canvas:
+
+1. **Service Calls (BFF)** — label `"calls"`. `Orchestrator -> {Advertisement, Attachment, Audit,
+   ProviderProfile, Taxon, User}`, `UI -> Orchestrator`, `UI -> User` (the one documented exception,
+   `AccessEvaluator` — see `marketplace-orchestrator/CLAUDE.md`). This is the BFF pattern working
+   as intended.
+2. **Hook Callbacks** — label `"calls back via Hook implementations"`. `Audit -> UI`,
+   `Audit -> Orchestrator`, `Attachment -> Orchestrator`, `Orchestrator -> UI`. Reverse-direction
+   dependency inversion (a starter/Orchestrator asks a higher layer for one piece of context it
+   can't otherwise reach) — a different mechanism than orchestration, not a BFF violation.
+3. **Cross-Starter Exceptions** — label `"category assignment via"`. `ProviderProfile -> Taxon`
+   only. A real, direct starter-to-starter `TaxonPort` call bypassing the orchestrator — documented
+   technical debt (`provider-profile-spring-boot-starter/CLAUDE.md`: "there is no orchestrator save
+   path for this domain yet"), not the intended pattern.
+4. **Derived Facts** — labels `"audited via"` + `"can have"`. `Advertisement/Taxon/User -> Audit`,
+   `Advertisement -> Attachment`. Not code calls at all — classification facts derived from data
+   (which `EntityType`s get audit field-labels, which domains' Hook implementations declare which
+   `entityType()`). Merged into one tab since both are "not a real call" facts of the same kind,
+   rather than 5 tabs for 5 labels.
+
+**Plan:**
+- `scripts/architecture/generate-architecture-model.sh` (bash): add `BC_CATEGORY_ORDER`/
+  `BC_CATEGORY_LABEL`/`BC_CATEGORY_DESC` (mirrors the existing `SPI_SUBSYSTEM_ORDER`/
+  `SPI_SUBSYSTEM_LABEL` pattern used for SPI Map's 7-tab split) and `BC_LABEL_CATEGORY` (maps each
+  of the 5 existing labels to one of the 4 categories above). Add `bounded_contexts_diagrams_json()`
+  (mirrors `spi_map_diagrams_json()`) returning 4 diagram entries, each carrying `category` +
+  `description`. `bounded_contexts_json()`'s relationship JSON gains a `"category"` field per edge.
+  `diagram_groups_json`'s `bounded-contexts` entry gets `"diagrams": [$(bounded_contexts_diagrams_json)]`
+  instead of the current single `{"title": "Context Map", ...}`.
+- JS: `buildContextMapGraph(category)` filters relationships to `r.category === category` (no-arg
+  stays "all", used only by the unfiltered Markdown export); `renderContextMapGraph(category)` and
+  `renderBoundedContextsExtrasHtml(category)` take the active tab's category the same way
+  `renderSpiMapGraph(subsystem)`/`renderSpiMapExtrasHtml(subsystem)` already do for SPI Map. Node
+  set per tab = only domains actually touched by that category's edges (not all 8 every time) —
+  real decluttering for 3 of the 4 tabs (Hook Callbacks: 4 nodes, Cross-Starter Exceptions: 2 nodes,
+  Derived Facts: 5 nodes; Service Calls stays close to the full 8 since it's the main flow). Domain
+  Contents/Overview/Legend stay unfiltered across all 4 tabs (same precedent as SPI Map's Overview/
+  Legend/Call Flow Examples staying global while only the interface-details table filters).
+  Relationships table filters to the active category. `exportBoundedContextsMarkdown()` stays a
+  single unfiltered document (all 16 relationships, one file) with a `Category` column added.
+- Regenerate `architecture-model.json`/`architecture-map.html`, verify JSON validity + freshness
+  check, record the decision in `scripts/architecture/DECISIONS.md` (new ADR, refining ADR-029),
+  regenerate the ADR index.
+
+**Done.** Verified directly, not assumed: regenerated `architecture-model.json` and confirmed via a
+Python check that each of the 16 non-`decouples` relationships now carries the expected
+`"category"` (`orchestration`: 8, `hooks`: 4, `exceptions`: 1, `derived`: 4, matching the plan
+exactly), that `diagramGroups`'s `bounded-contexts` entry now lists the 4 expected diagram titles
+in order, and that the freshness check (`check-architecture-model-freshness.sh`) passes. Extracted
+and `node --check`ed the generated inline `<script>` block to confirm no JS syntax error was
+introduced by the `renderBoundedContextsExtrasHtml`/`buildContextMapGraph`/`renderContextMapGraph`
+signature changes. Recorded as a "Refinement (same session)" note on ADR-029 in
+`scripts/architecture/DECISIONS.md`; ADR index regenerated (`docs/ai/adr-index.md`, 221 entries,
+same 4 pre-existing non-standard-format gaps as before, unrelated to this change).
+Unit/integration/Playwright still pending overall — this round only touched the bash generator
+script, no Java changes, so no new compile check was needed either.
+
+**Thirteenth addition, same session — Domain Contents now filters per active category too.** User
+asked to also filter "Domain Contents (8)" instead of showing all 8 domains unfiltered on every
+tab (the original plan deliberately left it unfiltered, mirroring SPI Map's Overview/Legend/Call
+Flow Examples staying global). `renderBoundedContextsExtrasHtml(activeCategory)` now computes
+`involvedIds` from the active category's own filtered relationships (`r.from`/`r.to`) and filters
+`MODEL.boundedContexts.domains` to that set — the same domain set the diagram canvas itself draws
+for that tab, so Domain Contents and the diagram never disagree about what's "on screen." Verified:
+regenerated `architecture-model.json`/`architecture-map.html`, freshness check passes, extracted
+and `node --check`ed the inline script again — clean.
+
+**Fourteenth addition, same session — the "What crosses (payload type)" column was wrong for 3 of
+4 Hook Callback edges, fixed with per-Hook-interface payloads.** User asked to look closer at
+`Audit -> UI`'s payload cell, which led to two rounds of investigation and a real fix (see
+`scripts/architecture/DECISIONS.md`'s new ADR-030 for the full record):
+
+1. Traced the real `Audit -> UI` call path end to end with actual class/method names
+   (`AuditReadService` holds `List<AuditActivityEnrichHook>`, Spring DI wires in
+   `ActivityEnrichHookImpl` from `marketplace-app`, zero compile-time import either direction) —
+   confirmed this is a legitimate, documented dependency-inversion exception
+   (`marketplace-orchestrator/CLAUDE.md`: `ActivityEnrichHookImpl` stays in marketplace-app because
+   its collaborator does real HTML-diff formatting, not pure delegation), not a BFF violation.
+2. Found the real bug while grounding that explanation: `BC_LABEL_PAYLOAD["calls back via Hook
+   implementations"]` was one hardcoded text shared across all 4 hook-callback edges, and it cited
+   `AuditActivityFieldsHook` — an interface deleted from the codebase entirely earlier this session.
+   Verified: 0 matches for that name anywhere in `.java` source. The text was also simply wrong for
+   3 of the 4 real edges (`Audit -> Orchestrator`/`Attachment -> Orchestrator`/`Orchestrator -> UI`
+   each carry completely different real types).
+3. Fix: added `BC_HOOK_PAYLOAD` (bash, keyed by real interface name — `AuditDomainHook`,
+   `AuditActivityEnrichHook`, `CurrentActorHook`, `UiLabelHook`, `SessionActorHook` — each mapped to
+   its own real method signatures, checked directly against the interface source), extended
+   `add_rel()` with an optional 7th `payload_override` argument accumulated per-edge (parallel
+   `rel_payload` array, deduped by substring so a caller-domain hit twice for the same hook doesn't
+   duplicate its fragment), and passed `"$hook_iface: ${BC_HOOK_PAYLOAD[$hook_iface]}"` from the
+   hook-callback loop. `rel_json` emission now uses the per-edge override when present, falling back
+   to the old generic `BC_LABEL_PAYLOAD[label]` text for every other label (accurate as one fixed
+   text per label there — only the Hook Callbacks label needed per-edge granularity). Also fixed a
+   stale illustrative comment in `spi_map_json()` that cited the same deleted interface as an
+   example, replacing it with the still-real `UiLabelHook`/`SessionActorHook` case.
+4. **Hit and fixed a real bash gotcha while implementing:** an apostrophe inside a `${VAR:-default
+   text}` fallback value, even though the whole expression sat inside outer double quotes, broke
+   bash's parser (`unexpected EOF while looking for matching \`'\``) — confirmed by isolating the
+   single line into a minimal repro script before touching the real fix. Removed the apostrophe
+   from the fallback text instead of fighting the quoting.
+
+**Verified, not assumed:** regenerated `architecture-model.json`, printed every "calls back via
+Hook implementations" edge's `payload` field directly — all 4 now show distinct, real values
+matching each edge's actual `*Hook` interface method signatures (e.g. `Attachment -> Orchestrator`
+now correctly shows only `CurrentActorHook: Optional<Long> (getCurrentActorId)`, not the old
+Audit-specific text). Freshness check passes; extracted and `node --check`ed the inline script —
+clean; `bash -n` on the whole generator script also passes.
+
+**Found but deliberately not fixed this round (flagged, not silently dropped):** while chasing the
+payload bug, found `spi_call_flow_examples_json()` (hand-typed narrative call traces, "carried
+over verbatim from the retired 02-spi-map.md") has drifted stale in all 3 entries after this
+session's Hook-relocation/orchestrator-extraction work — e.g. "Enrich Audit Activity" still cites
+`AuditActivityFieldsHook.fields()`/`AdvertisementActivityFieldsHookImpl` (both deleted), "Create
+Advertisement with Audit" cites `org.ost.marketplace.spi.AuditDomainHookImpl` (moved to
+`marketplace-orchestrator/spi`, and its real methods don't include `.on(CREATED, ...)` either), and
+"Upload Media to Advertisement" cites `AdvertisementService.enrichWithMediaSummary()` (no longer
+exists — enrichment now lives in `marketplace-orchestrator`'s `AdvertisementDisplayEnrichmentService`).
+Rewriting all 3 accurately needs its own scoped pass (verify each full call chain from scratch),
+which is bigger than "fix the payload column" — proposing this as a follow-up rather than expanding
+scope unasked. **Logged as entry 10 in `improvement-133-deferred-oversized-review-findings.md`**
+(the standing deferred-findings bucket — user confirmed that's the right home, not `improvement-150`,
+which is unrelated in scope).
+
+**Fifteenth addition, same session — `ChangeEntry.mapField()` added, `AuditTimelineRowRenderer.
+applyLabel()` refactored to use it (real code change, not just the diagram generator).** User
+spotted that `applyLabel()` (`marketplace-app/.../audit/AuditTimelineRowRenderer.java`) hand-rolled
+its own `switch` over `ChangeEntry.FieldChange`/`MediaChange` to relabel a field name, duplicating
+the exact `instanceof FieldChange(...) / else passthrough` idiom `ChangeEntry.replaceIfField()`
+already existed for — and `replaceIfField`'s own Javadoc claimed to be "the single instanceof-check
+... in the codebase," which `applyLabel()` quietly contradicted. Confirmed `replaceIfField` couldn't
+be reused directly (it targets one known `fieldName` and rewrites values; `applyLabel` needs to
+rewrite whichever field name is present, unconditionally) — added a sibling default method instead:
+`ChangeEntry.mapField(UnaryOperator<String> fieldFn)`, same file, same "pure derivation over the
+record's own fields" precedent `replaceIfField` and `platform-commons/DECISIONS.md` ADR-021
+(`AuditTimelineItemDto.expandedChanges()`) already established. `applyLabel()` now reads
+`entry.mapField(field -> labelFor(entityType, field))` — one line instead of a 5-line switch. Both
+new/edited Javadocs shortened to one line per user request (repo's "one line or none" comment
+convention). Verified: `./mvnw -pl platform-commons,marketplace-app -am compile` — clean, exit 0.
+
 ## Related
 
 - `backlog/issues/improvement-150-marketplace-app-zero-deps-except-orchestrator.md` — direct
@@ -646,3 +791,23 @@ session.
   itself need updating if it doesn't hold up under this issue's own litmus-test approach).
 - `scripts/architecture/DECISIONS.md` ADR-003/ADR-016/ADR-018/ADR-019/ADR-025 — related generator
   design history for both diagrams' evolution.
+
+## Operational notes
+- token_cost_review: n/a (no `/code-review` ran this session; verification was direct manual grep/read/compile, not Agent-tool-based)
+- token_cost_research: n/a (no Agent-tool calls made — all investigation done directly via Bash/Read/Grep in the main thread)
+- token_cost_verification: n/a (test execution was direct script runs via Bash/Monitor, not Agent-tool calls)
+- review_signal_ratio: n/a (no `/code-review` ran this session)
+- context_loading_task_type: Architectural change (new SPI relocation, `*Hook` implementations moved between modules) for the bulk of the session; the final rounds (payload fix, `ChangeEntry.mapField()`) were closer to Local refactor, single class/package
+- context_loading_consulted: yes
+- context_loading_matched: yes — `platform-commons/DECISIONS.md`, `marketplace-orchestrator/CLAUDE.md`/`DECISIONS.md`, and `docs/architecture/architecture-map.html` were all read in full before each design change, matching the "Architectural change" row's guidance
+- flows_situation: iterative diagram-legibility + Hook-relocation + doc-accuracy fixes, driven turn-by-turn by direct user instruction rather than a single up-front plan
+- flows_chosen: n/a — no `/autopilot` or other documented flows.md command was invoked this session; every round was a direct propose-then-approve exchange
+- flows_matched: n/a
+
+### Script/command runs
+- bash scripts/architecture/generate-architecture-model.sh | tail -30 -> Valid JSON, 33 nodes | duration_s=n/a (not individually timed; run repeatedly across ~15 rounds) | mode=background/foreground mixed | result=pass (every run)
+- bash scripts/architecture/check-architecture-model-freshness.sh | duration_s=n/a | mode=foreground | result=pass (every run)
+- bash scripts/ai/generate-adr-index.sh | duration_s=n/a | mode=foreground | result=pass (221 entries, same 4 pre-existing non-standard-format gaps throughout)
+- ./mvnw -pl platform-commons,marketplace-app -am compile | duration_s=n/a | mode=background | result=pass (exit 0)
+- bash scripts/deploy.sh --reset | duration_s=~110 | mode=foreground | result=pass (app started, health check 200)
+- bash scripts/run-all-tests.sh --integration "--sandbox" --playwright "e2e --full --ux" | duration_s=n/a (auto-backgrounded by harness; unit-tests reactor alone reported "Total time: 14:00 min", integration-tests reactor "Total time: 01:55 min", playwright "50 passed (11.3m)") | mode=background | result=pass — unit-tests 72/72, integration-tests 165/165, Playwright 50/50, ALL PASSED

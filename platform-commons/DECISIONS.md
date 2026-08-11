@@ -486,6 +486,12 @@ this record's own fields).
 **Consequences:** `UserActivityFieldsHookImpl`/`UserSettingsActivityFieldsHookImpl` no longer need
 a `UserPort` dependency at all for this method — removed the now-unused field from both.
 
+**Amendment (same precedent, `core.model` this time):** `ChangeEntry` (`core.model`, not `*.dto`)
+gained the same shape of method twice — `replaceIfField()` then `mapField()` — both pure
+derivations over the record's own fields, no external dependencies. `platform-commons/CLAUDE.md`'s
+"Narrow exception" note was reworded to state the principle package-agnostically instead of
+literally scoped to `*.dto`, since this ADR's own reasoning already treated it that way.
+
 ---
 
 ## ADR-022: Dead SPI parameters and methods removed — `AuditPort`, `AuditActivityEnrichHook`, `AuditDomainHook`, `UserPort`, `AttachmentPort`

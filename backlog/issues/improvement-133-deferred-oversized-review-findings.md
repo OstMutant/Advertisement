@@ -165,7 +165,36 @@ same conversation this was found in). Needs its own explicit go-ahead and a deci
 (delete outright vs. fold into a neighboring ADR's Consequences vs. mark `Status: Superseded`)
 before touching it.
 
-### 10. `TaxonManagementView`/`CityManagementView` render the "Add" button unconditionally even when `taxon-spring-boot-starter` is absent (found during improvement-147 review, 2026-08-08)
+### 10. `spi_call_flow_examples_json()`'s 3 hand-typed narrative call traces have drifted stale after this session's Hook-relocation/orchestrator-extraction work (found during improvement-149, 2026-08-11)
+
+`scripts/architecture/generate-architecture-model.sh`'s `spi_call_flow_examples_json()` — 3
+hand-typed narrative call traces "carried over verbatim from the retired 02-spi-map.md", the only
+part of the SPI Map screen with no mechanical/live source — have gone stale in all 3 entries after
+this same session's Hook-relocation and marketplace-orchestrator-extraction work:
+
+- **"Create Advertisement with Audit"** cites `org.ost.marketplace.spi.AuditDomainHookImpl.on(CREATED,
+  ...)`. Wrong on two counts: `AuditDomainHookImpl` moved to `org.ost.orchestrator.spi` this
+  session (no longer in `marketplace-app`), and its real methods are `resolveNames`/
+  `findExisting`/`resolveDisplayName`/`castIfKnown` — there is no `.on(CREATED, ...)` method at
+  all. The step before it (`AdvertisementService.save()` calling `DefaultAuditPort.captureCreation()`
+  directly) is also wrong — that composition now happens in `marketplace-orchestrator`'s
+  `AdvertisementSaveService`, not inside the starter's own `AdvertisementService`.
+- **"Upload Media to Advertisement"** cites `AdvertisementService.enrichWithMediaSummary()` — no
+  longer exists; the real enrichment step is `marketplace-orchestrator`'s
+  `AdvertisementDisplayEnrichmentService`.
+- **"Enrich Audit Activity"** cites `AuditActivityFieldsHook.fields()` and
+  `org.ost.marketplace.spi.AdvertisementActivityFieldsHookImpl` — both deleted from the codebase
+  entirely this same session (the whole `AuditActivityFieldsHook` interface and its four per-domain
+  implementations were removed, see `platform-commons/DECISIONS.md` ADR-029's third refinement).
+
+Not fixed inline when found (during the Bounded Contexts payload-column fix, see
+`scripts/architecture/DECISIONS.md` ADR-029's latest refinement) — rewriting all 3 accurately
+needs its own scoped pass, re-verifying each full call chain end to end from scratch (class names,
+method names, and the real current owning module for each step), which is bigger than the payload
+fix that surfaced it. No design decision needed here, just careful re-tracing — a mechanical fix
+once picked up.
+
+### 11. `TaxonManagementView`/`CityManagementView` render the "Add" button unconditionally even when `taxon-spring-boot-starter` is absent (found during improvement-147 review, 2026-08-08)
 
 `refresh()` in both views constructs and adds the "Add category"/"Add city" button unconditionally,
 outside any `taxonCatalogService.isAvailable()` guard — while the list-rendering/count calls

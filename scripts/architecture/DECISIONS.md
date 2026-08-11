@@ -1905,6 +1905,77 @@ children), re-verify against ADR-016's original diagnosis before assuming dagre 
 the reasoning above is specific to today's flat, no-nested-children shape, not a blanket "dagre
 handles cycles fine now" conclusion.
 
+**Refinement (same session) — split into 4 diagrams by relationship category, since the single
+combined canvas mixed 4 fundamentally different kinds of relationship in one arrow+label visual.**
+User asked directly why the diagram showed starter-to-starter and `Audit -> UI` edges when "we said
+we communicate through the BFF" — traced the real, current 16 non-`decouples` relationships and
+found the confusion wasn't a bug in the data (the previous refinement above already fixed the one
+real bug), it was that 4 genuinely different *kinds* of fact all render identically: (1) real
+forward-direction Port calls implementing the BFF pattern (`Orchestrator -> {6 domains}`,
+`UI -> Orchestrator`, plus the one documented `UI -> User` exception), (2) reverse-direction Hook
+callbacks — dependency inversion, a different mechanism than orchestration, not a BFF violation
+(`Audit -> UI`, `Audit -> Orchestrator`, `Attachment -> Orchestrator`, `Orchestrator -> UI`), (3) one
+real, documented starter-to-starter exception bypassing the orchestrator
+(`ProviderProfile -> Taxon`, tech debt per `provider-profile-spring-boot-starter/CLAUDE.md`), and
+(4) facts that aren't code calls at all — derived/classification data (`audited via`, `can have`).
+Added `BC_CATEGORY_ORDER`/`BC_CATEGORY_LABEL`/`BC_CATEGORY_DESC`/`BC_LABEL_CATEGORY` to the bash
+generator (mirrors `SPI_SUBSYSTEM_ORDER`/`SPI_SUBSYSTEM_LABEL`'s existing per-subsystem split for
+SPI Map) and a `bounded_contexts_diagrams_json()` function (mirrors `spi_map_diagrams_json()`);
+each relationship's JSON gained a `"category"` field. The Bounded Contexts group now has 4 diagram
+tabs ("Service Calls (BFF)", "Hook Callbacks", "Cross-Starter Exceptions", "Derived Facts") instead
+of one "Context Map". `buildContextMapGraph(category)`/`renderContextMapGraph(category)`/
+`renderBoundedContextsExtrasHtml(category)` filter to the active tab's edges, same signature
+pattern `renderSpiMapGraph(subsystem)`/`renderSpiMapExtrasHtml(subsystem)` already use; the node
+set per tab is restricted to domains actually touched by that category's edges (real decluttering:
+Hook Callbacks shows 4 nodes, Cross-Starter Exceptions 2, Derived Facts 5, vs. all 8 before — Service
+Calls stays close to the full 8 since it's the main BFF flow). Domain Contents/Overview/Legend stay
+unfiltered across all 4 tabs, same precedent as SPI Map's Overview/Legend/Call Flow Examples
+staying global while only the interface-details table filters. `exportBoundedContextsMarkdown()`
+stays one unfiltered document (all 16 relationships) with a `Category` column added, using a small
+`BC_CATEGORY_LABEL_JS` JS-side mirror of the bash `BC_CATEGORY_LABEL` map.
+
+**Refinement (same session) — Domain Contents filters per active category too, and the "What
+crosses (payload type)" column was wrong for 3 of 4 Hook Callback edges.** Two follow-ups from the
+category split above.
+
+First: `renderBoundedContextsExtrasHtml(activeCategory)`'s Domain Contents section originally
+stayed unfiltered on every tab (deliberate precedent match with SPI Map's Overview/Legend/Call Flow
+Examples staying global). User asked for it to filter too — now computes `involvedIds` from the
+active category's own relationships and filters `MODEL.boundedContexts.domains` to that set, the
+same domain set the canvas itself draws, so the two sections never disagree about what's on screen.
+
+Second, larger: investigating a specific `Audit -> UI` payload cell led to tracing the real call
+path end to end (`AuditReadService` holds `List<AuditActivityEnrichHook>`, Spring DI wires in
+`ActivityEnrichHookImpl` from `marketplace-app`, zero compile-time import either direction —
+confirmed a legitimate dependency-inversion exception per `marketplace-orchestrator/CLAUDE.md`, not
+a BFF violation), which surfaced a real, separate bug: `BC_LABEL_PAYLOAD["calls back via Hook
+implementations"]` was one hardcoded text shared across all 4 hook-callback edges, and it cited
+`AuditActivityFieldsHook` — an interface deleted from the codebase entirely by this same session's
+earlier refinement (confirmed: 0 matches in `.java` source). The text was also simply wrong for 3
+of the 4 real edges, which carry completely different real types. Fixed by adding `BC_HOOK_PAYLOAD`
+(keyed by real interface name -- `AuditDomainHook`, `AuditActivityEnrichHook`, `CurrentActorHook`,
+`UiLabelHook`, `SessionActorHook` -- each mapped to its own real method signatures, checked
+directly against the interface source) and extending `add_rel()` with an optional 7th
+`payload_override` argument, accumulated per-edge in a parallel `rel_payload` array (deduped by
+substring). `rel_json` emission now prefers the per-edge override, falling back to the old generic
+`BC_LABEL_PAYLOAD[label]` text for every other label (accurate as one fixed text per label there —
+only Hook Callbacks needed per-edge granularity). Also fixed a stale illustrative comment in
+`spi_map_json()` that cited the same deleted interface, replacing the example with the still-real
+`UiLabelHook`/`SessionActorHook` case.
+
+**Bash gotcha hit and fixed while implementing:** an apostrophe inside a `${VAR:-default text}`
+fallback value broke bash's parser (`unexpected EOF while looking for matching` a single quote)
+even though the whole expression sat inside outer double quotes — confirmed by isolating the single
+line into a minimal repro script before touching the real fix, rather than guessing. Removed the
+apostrophe from the fallback text instead of fighting the quoting.
+
+**Found but deliberately not fixed this round:** `spi_call_flow_examples_json()` (hand-typed
+narrative call traces carried over from a retired markdown file) has drifted stale in all 3 entries
+after this session's Hook-relocation/orchestrator-extraction work -- e.g. "Enrich Audit Activity"
+still cites `AuditActivityFieldsHook.fields()`/`AdvertisementActivityFieldsHookImpl` (both deleted).
+Rewriting all 3 accurately needs its own scoped pass (verify each full call chain from scratch),
+proposed as a follow-up rather than expanded unasked.
+
 ---
 
 ## Open goals

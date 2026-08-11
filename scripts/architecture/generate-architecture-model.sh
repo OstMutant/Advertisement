@@ -170,15 +170,63 @@ declare -A BC_ENTITY_TYPE_DOMAIN=(
 # What actually crosses each relationship, keyed by the relationship label -- checked directly
 # against the real Port method signatures, not guessed (AuditPort.capture*() all take
 # AuditableSnapshot; AttachmentPort.getMediaSummaries() returns AttachmentMediaSummaryDto;
-# TaxonPort.replaceAssignments() takes a Set<Long> of taxon ids; AuditActivityFieldsHook/
-# AuditActivityEnrichHook return ChangeEntry/AuditTimelineItemDto).
+# TaxonPort.replaceAssignments() takes a Set<Long> of taxon ids). "calls back via Hook
+# implementations" has no single fixed payload -- see BC_HOOK_PAYLOAD below, which is looked up
+# per real Hook interface instead; the text here is only the fallback for the rare case a
+# hook-callback edge is found with no matching BC_HOOK_PAYLOAD entry (should not happen in
+# practice -- every *Hook.java under platform-commons/marketplace-orchestrator's spi/ packages has
+# one).
 declare -A BC_LABEL_PAYLOAD=(
   ["decouples"]="Compile-time dependency only -- no runtime payload"
   ["audited via"]="AuditableSnapshot (AuditPort.captureCreation/Update/Deletion/Restore)"
   ["can have"]="AttachmentMediaSummaryDto (AttachmentPort.getMediaSummaries)"
   ["category assignment via"]="Set<Long> of taxon ids (TaxonPort.replaceAssignments)"
   ["calls"]="Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types"
-  ["calls back via Hook implementations"]="List<ChangeEntry>/field labels (AuditActivityFieldsHook) or merged List<AuditTimelineItemDto> (AuditActivityEnrichHook)"
+  ["calls back via Hook implementations"]="Varies by which Hook interface backs this edge -- see BC_HOOK_PAYLOAD"
+)
+
+# Real per-method return/parameter types for every *Hook interface that can produce a "calls back
+# via Hook implementations" edge -- checked directly against each interface's own method
+# signatures (see the interfaces themselves under platform-commons/*/spi and
+# marketplace-orchestrator/spi), not a single reused text across all 4 hook-callback edges (that
+# was the bug: the old generic BC_LABEL_PAYLOAD entry above cited AuditActivityFieldsHook, an
+# interface removed from the codebase entirely, and was wrong for 3 of the 4 real edges since they
+# each carry a completely different payload). Keyed by simple interface name so the hook-callback
+# loop below can look it up per real `hook_iface` it discovers.
+declare -A BC_HOOK_PAYLOAD=(
+  [AuditDomainHook]="Map<Long,String> (resolveNames), Set<Long> (findExisting), String (resolveDisplayName), Optional<AuditSnapshotContentDto<T>> (castIfKnown)"
+  [AuditActivityEnrichHook]="List<AuditTimelineItemDto<T>> (merge), List<AuditActivityItemDto<T>> (enrichActivity), String media state (getMediaStateForSnapshot)"
+  [CurrentActorHook]="Optional<Long> (getCurrentActorId)"
+  [UiLabelHook]="String (translateActorDeletedSuffix)"
+  [SessionActorHook]="Optional<Long> (getCurrentActorId)"
+)
+
+# ── Bounded Contexts category split -- the same 16 relationships render with the same arrow+label
+# visual regardless of how different their real nature is (a genuine BFF call vs. a reverse Hook
+# callback vs. a documented starter-to-starter exception vs. a derived, not-a-call fact), which was
+# the actual source of user confusion ("чому стартери зі стартерами, аудіт з юай, а ми ж казали БФФ").
+# One diagram tab per category (mirrors SPI_SUBSYSTEM_ORDER/SPI_SUBSYSTEM_LABEL's per-subsystem
+# split above for SPI Map). BC_LABEL_CATEGORY maps every existing BC_LABEL_PAYLOAD key except
+# "decouples" (never drawn -- see add_rel's Shared loop) to one of the 4 categories below.
+declare -a BC_CATEGORY_ORDER=(orchestration hooks exceptions derived)
+declare -A BC_CATEGORY_LABEL=(
+  [orchestration]="Service Calls (BFF)"
+  [hooks]="Hook Callbacks"
+  [exceptions]="Cross-Starter Exceptions"
+  [derived]="Derived Facts"
+)
+declare -A BC_CATEGORY_DESC=(
+  [orchestration]="Forward-direction real Port calls -- Orchestrator composing each domain, UI calling Orchestrator, and the one documented UI exception (AccessEvaluator -> UserAuthorizationPort). The BFF pattern working as intended."
+  [hooks]="Reverse-direction calls -- a starter or Orchestrator calls a *Hook interface it depends on; marketplace-app/marketplace-orchestrator supplies the real implementation. Dependency inversion, not orchestration -- does not violate the BFF principle."
+  [exceptions]="A real starter-to-starter Port call that bypasses the orchestrator -- documented technical debt, not the intended pattern."
+  [derived]="Not code calls at all -- classification/composition facts derived from data (which EntityTypes get audited, which domains can carry attachments)."
+)
+declare -A BC_LABEL_CATEGORY=(
+  ["calls"]="orchestration"
+  ["calls back via Hook implementations"]="hooks"
+  ["category assignment via"]="exceptions"
+  ["audited via"]="derived"
+  ["can have"]="derived"
 )
 
 # ── Domain grouping + Entities/Key Services/Contract lists per module -- live, same real signals
@@ -534,8 +582,20 @@ spi_map_diagrams_json() {
   echo "$out"
 }
 
+# One tab per relationship category (BC_CATEGORY_ORDER/LABEL/DESC above) instead of one combined
+# canvas -- same per-subsystem split pattern as spi_map_diagrams_json() above.
+bounded_contexts_diagrams_json() {
+  local out="" first=true c
+  for c in "${BC_CATEGORY_ORDER[@]}"; do
+    $first || out="$out,"
+    first=false
+    out="$out{\"title\": \"$(json_escape "${BC_CATEGORY_LABEL[$c]}")\", \"source\": \"\", \"category\": \"$(json_escape "$c")\", \"description\": \"$(json_escape "${BC_CATEGORY_DESC[$c]}")\"}"
+  done
+  echo "$out"
+}
+
 # Order and description are both data here, same source of truth as file/label.
-diagram_groups_json="  {\"key\": \"bounded-contexts\", \"label\": \"Bounded Contexts\", \"file\": \"real code (live)\", \"description\": \"Which domain actually calls which other domain in real code, and why -- entities/services/tables/ports per domain, relationships from real Hook/Port usage signals.\", \"diagrams\": [{\"title\": \"Context Map\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"02-spi-map\", \"label\": \"SPI Map\", \"file\": \"platform-commons/src (live)\", \"description\": \"Every cross-module Port/Hook interface in platform-commons, who really calls it, and who really implements it -- three real-code facts, not a build-graph fact. Split one tab per subsystem -- the single combined graph got too dense to read.\", \"diagrams\": [$(spi_map_diagrams_json)]},"$'\n'"  {\"key\": \"01-module-dependencies\", \"label\": \"Module Dependencies\", \"file\": \"pom.xml (live)\", \"description\": \"Which module's JAR ends up on which other module's classpath, per real pom.xml <dependency> declarations -- a Maven build-graph fact, not a real-code-call fact (a module can depend on a JAR nothing in its code calls yet).\", \"diagrams\": [{\"title\": \"Dependency Graph\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"04-database-erd\", \"label\": \"Database ERD\", \"file\": \"Liquibase changelogs (live)\", \"description\": \"Every table and column this app persists, with the business-meaning remarks pulled live from each Liquibase changelog.\", \"diagrams\": [{\"title\": \"Entity Relationship Diagram\", \"source\": \"\"}]}"
+diagram_groups_json="  {\"key\": \"bounded-contexts\", \"label\": \"Bounded Contexts\", \"file\": \"real code (live)\", \"description\": \"Which domain actually calls which other domain in real code, and why -- entities/services/tables/ports per domain, relationships from real Hook/Port usage signals. Split one tab per relationship nature (BFF service calls, reverse Hook callbacks, cross-starter exceptions, derived facts) -- the single combined graph mixed 4 fundamentally different kinds of relationship in one arrow+label visual.\", \"diagrams\": [$(bounded_contexts_diagrams_json)]},"$'\n'"  {\"key\": \"02-spi-map\", \"label\": \"SPI Map\", \"file\": \"platform-commons/src (live)\", \"description\": \"Every cross-module Port/Hook interface in platform-commons, who really calls it, and who really implements it -- three real-code facts, not a build-graph fact. Split one tab per subsystem -- the single combined graph got too dense to read.\", \"diagrams\": [$(spi_map_diagrams_json)]},"$'\n'"  {\"key\": \"01-module-dependencies\", \"label\": \"Module Dependencies\", \"file\": \"pom.xml (live)\", \"description\": \"Which module's JAR ends up on which other module's classpath, per real pom.xml <dependency> declarations -- a Maven build-graph fact, not a real-code-call fact (a module can depend on a JAR nothing in its code calls yet).\", \"diagrams\": [{\"title\": \"Dependency Graph\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"04-database-erd\", \"label\": \"Database ERD\", \"file\": \"Liquibase changelogs (live)\", \"description\": \"Every table and column this app persists, with the business-meaning remarks pulled live from each Liquibase changelog.\", \"diagrams\": [{\"title\": \"Entity Relationship Diagram\", \"source\": \"\"}]}"
 
 # ── SPI Map: mechanically extracted from real Java source, same "live from real source, not a
 # separately-maintained .md" pattern as Module Dependencies (01) -- every *.spi interface under
@@ -622,11 +682,11 @@ spi_map_json() {
     local candidate_file impl module caller module_c
     local IMPL_PATTERN="implements\s+.*\b${iface}\b"
     # For *Port this is marketplace-app/marketplace-orchestrator/a starter calling another
-    # starter's port; for *Hook this is whichever module actually injects it (confirmed
-    # per-interface, not assumed -- e.g. AuditActivityFieldsHook's real caller is marketplace-app's
-    # AuditTimelineRowRenderer, not the audit-starter, despite the *Hook suffix's usual "starter
-    # calls back" direction). Both injection shapes appear in real code (a single mandatory field,
-    # or a List<Iface> collection for hooks with several registered beans), so both are matched.
+    # starter's port; for *Hook this is whichever module actually injects it -- checked
+    # per-interface via CALLER_PATTERN below, never assumed from the *Hook suffix's usual "starter
+    # calls back" direction alone. Both injection shapes appear in real code (a single mandatory
+    # field, or a List<Iface> collection for hooks with several registered beans), so both are
+    # matched.
     local CALLER_PATTERN="ComponentFactory<\s*${iface}\s*>|List<\s*${iface}\s*>|\b${iface}\s+\w+\s*;"
     while IFS= read -r candidate_file; do
       [ -z "$candidate_file" ] && continue
@@ -1078,7 +1138,14 @@ bounded_contexts_json() {
   # merge multiple real signals for the same conceptual edge (e.g. two different EntityTypes both
   # routing "User -> Audit") into one edge with combined evidence, instead of drawing duplicate
   # parallel lines for what a reader would see as a single relationship.
-  local -a rel_key=() rel_from=() rel_to=() rel_label=() rel_evidence=() rel_dashed=()
+  # rel_payload accumulates a per-edge payload override ($7, optional) -- used only by the
+  # hook-callback loop below, which knows the real *Hook interface(s) behind each specific edge
+  # and passes "InterfaceName: real types" per call. Falls back to BC_LABEL_PAYLOAD[label] (a
+  # single generic text) at rel_json emission time for every other label, where one fixed payload
+  # per label is actually accurate (all "audited via" edges really do carry an AuditableSnapshot,
+  # etc.) -- only "calls back via Hook implementations" needs per-edge granularity, since that one
+  # label covers several unrelated interfaces with genuinely different payload types.
+  local -a rel_key=() rel_from=() rel_to=() rel_label=() rel_evidence=() rel_dashed=() rel_payload=()
   add_rel() {
     local key="$1|$2|$3" i found=""
     for i in "${!rel_key[@]}"; do
@@ -1086,8 +1153,16 @@ bounded_contexts_json() {
     done
     if [ -n "$found" ]; then
       rel_evidence[$found]="${rel_evidence[$found]}; $5"
+      if [ -n "${7:-}" ]; then
+        case "${rel_payload[$found]}" in
+          *"$7"*) ;; # this interface's payload fragment already recorded for this edge
+          "") rel_payload[$found]="$7" ;;
+          *) rel_payload[$found]="${rel_payload[$found]}; $7" ;;
+        esac
+      fi
     else
       rel_key+=("$key"); rel_from+=("$1"); rel_to+=("$2"); rel_label+=("$3"); rel_evidence+=("$5"); rel_dashed+=("$6")
+      rel_payload+=("${7:-}")
     fi
   }
 
@@ -1205,17 +1280,19 @@ bounded_contexts_json() {
       fi
       [ -z "$caller_dom" ] || [ "$caller_dom" = "$impl_domain" ] && continue
       add_rel "$caller_dom" "$impl_domain" "calls back via Hook implementations" "extracted" \
-        "$impl_name implements $hook_iface, called from $(sed "s|$REPO_ROOT/||" <<< "$caller_file")" "false"
+        "$impl_name implements $hook_iface, called from $(sed "s|$REPO_ROOT/||" <<< "$caller_file")" "false" \
+        "$hook_iface: ${BC_HOOK_PAYLOAD[$hook_iface]:-real payload not catalogued -- see that interface method signatures directly}"
     done < <(grep -rlP "List<\s*${hook_iface}\s*>|\b${hook_iface}\s+\w+\s*;|ComponentFactory<\s*${hook_iface}\s*>" \
         "$REPO_ROOT"/*-spring-boot-starter/src/main/java "$REPO_ROOT/marketplace-orchestrator/src/main/java" --include='*.java' 2>/dev/null | sort -u)
   done < <(find "$REPO_ROOT/platform-commons/src/main/java" "$REPO_ROOT/marketplace-orchestrator/src/main/java" \
       -path '*/spi/*Hook.java' 2>/dev/null)
 
-  local rel_json="" first_r=true i
+  local rel_json="" first_r=true i rel_payload_value
   for i in "${!rel_key[@]}"; do
     $first_r || rel_json="$rel_json,"$'\n'
     first_r=false
-    rel_json="$rel_json    {\"from\": \"${rel_from[$i]}\", \"to\": \"${rel_to[$i]}\", \"label\": \"$(json_escape "${rel_label[$i]}")\", \"confidence\": \"extracted\", \"evidence\": \"$(json_escape "${rel_evidence[$i]}")\", \"payload\": \"$(json_escape "${BC_LABEL_PAYLOAD[${rel_label[$i]}]:-}")\", \"dashed\": ${rel_dashed[$i]}}"
+    rel_payload_value="${rel_payload[$i]:-${BC_LABEL_PAYLOAD[${rel_label[$i]}]:-}}"
+    rel_json="$rel_json    {\"from\": \"${rel_from[$i]}\", \"to\": \"${rel_to[$i]}\", \"label\": \"$(json_escape "${rel_label[$i]}")\", \"category\": \"$(json_escape "${BC_LABEL_CATEGORY[${rel_label[$i]}]:-}")\", \"confidence\": \"extracted\", \"evidence\": \"$(json_escape "${rel_evidence[$i]}")\", \"payload\": \"$(json_escape "$rel_payload_value")\", \"dashed\": ${rel_dashed[$i]}}"
   done
 
   echo "{\"domains\": [$domains_json"$'\n'"  ], \"relationships\": [$rel_json"$'\n'"  ]}"
@@ -2689,16 +2766,16 @@ function buildDbErdMermaidSource() {
 // two flat siblings is the ordinary case dagre handles fine -- it was never the failure mode ADR-016
 // diagnosed. Gets the same native pan/zoom/click/drag interaction every other Cytoscape diagram
 // already has for free, instead of the hand-rolled scroll-drag Mermaid fallback needed elsewhere.
-function buildContextMapGraph() {
+// category: one of BC_CATEGORY_ORDER's keys ("orchestration"/"hooks"/"exceptions"/"derived"), or
+// omitted/falsy for the full, unfiltered graph (used only by the Markdown export -- every live tab
+// always passes its own category). Node set is restricted to domains actually touched by the
+// filtered edges, not all 8 every time -- that's the real decluttering this split exists for.
+function buildContextMapGraph(category) {
   const domains = MODEL.boundedContexts.domains.filter(d => d.id !== "Shared");
   const moduleOf = {};
   MODEL.boundedContexts.domains.forEach(d => { moduleOf[d.id] = d.module; });
-  const nodes = domains.map(d => {
-    const mn = moduleNodes.find(n => n.id === d.module);
-    return { id: d.module, label: d.label, domain: mn ? mn.domain : null };
-  });
   const edges = MODEL.boundedContexts.relationships
-    .filter(r => r.label !== "decouples")
+    .filter(r => r.label !== "decouples" && (!category || r.category === category))
     .map(r => ({
       source: moduleOf[r.from] || r.from, target: moduleOf[r.to] || r.to,
       label: r.label, dashed: r.dashed,
@@ -2706,13 +2783,19 @@ function buildContextMapGraph() {
       // Relationships-table row -- rowId must match bcRelRowId()'s own id exactly, since the
       // Cytoscape node ids above are module ids, not the domain ids the table is keyed by.
       rowId: bcRelRowId(r.from, r.to, r.label)
-    }))
-    .filter(e => nodes.some(n => n.id === e.source) && nodes.some(n => n.id === e.target));
-  return { nodes, edges };
+    }));
+  const involved = new Set(edges.flatMap(e => [e.source, e.target]));
+  const nodes = domains
+    .filter(d => involved.has(d.module))
+    .map(d => {
+      const mn = moduleNodes.find(n => n.id === d.module);
+      return { id: d.module, label: d.label, domain: mn ? mn.domain : null };
+    });
+  return { nodes, edges: edges.filter(e => nodes.some(n => n.id === e.source) && nodes.some(n => n.id === e.target)) };
 }
 
-function renderContextMapGraph() {
-  const g = buildContextMapGraph();
+function renderContextMapGraph(category) {
+  const g = buildContextMapGraph(category);
   const els = [
     ...g.nodes.map(n => ({
       data: { id: n.id, label: n.label, domain: n.domain },
@@ -2804,6 +2887,15 @@ const BC_LABEL_MEANING = {
   "calls back via Hook implementations": "Reverse direction: the source domain (a starter) calls a Hook interface; the target domain supplies the real implementation."
 };
 
+// Category display label for the Markdown export's Category column -- keys match
+// BC_CATEGORY_LABEL in the bash generator exactly (both describe the same fixed category set).
+const BC_CATEGORY_LABEL_JS = {
+  "orchestration": "Service Calls (BFF)",
+  "hooks": "Hook Callbacks",
+  "exceptions": "Cross-Starter Exceptions",
+  "derived": "Derived Facts"
+};
+
 // Finds a real "<module>/src/main/java/.../ClassName.java[:line]" path inside a free-text evidence
 // string and wraps just that substring in a real link to the file -- evidence text is a mix of
 // prose and real paths (e.g. "X.java:82:      someCall()" or "N classes import org.ost.orchestrator.*"),
@@ -2813,10 +2905,20 @@ function linkifyEvidence(text) {
     (m, path, line) => `<a href="../../${path}" target="_blank">${path}${line || ""}</a>`);
 }
 
-function renderBoundedContextsExtrasHtml() {
+// activeCategory: the current tab's category key -- Domain Contents/Overview/Legend stay
+// unfiltered (same domains/text every tab, same precedent as SPI Map's Overview/Legend/Call Flow
+// Examples staying global while only the interface-details table filters per subsystem); only the
+// Relationships table filters to the active tab's edges.
+function renderBoundedContextsExtrasHtml(activeCategory) {
   const category = (label, items) => items.length
     ? `<div><span class="scope-label">${label}</span> ${items.map(bcItemLink).join(", ")}</div>` : "";
-  const domains = MODEL.boundedContexts.domains.filter(d => d.id !== "Shared");
+  const relationships = MODEL.boundedContexts.relationships
+    .filter(r => r.label !== "decouples" && r.category === activeCategory);
+  // Same domain set the diagram itself draws for this tab (buildContextMapGraph's own "involved"
+  // set) -- Domain Contents lists only the domains this category's edges actually touch, not all 8
+  // every tab, so the two sections never disagree about what's "on screen" for this category.
+  const involvedIds = new Set(relationships.flatMap(r => [r.from, r.to]));
+  const domains = MODEL.boundedContexts.domains.filter(d => d.id !== "Shared" && involvedIds.has(d.id));
   const domainRows = domains.map(d => {
     const body = [
       category("Entities", d.entities), category("Services", d.services),
@@ -2826,7 +2928,6 @@ function renderBoundedContextsExtrasHtml() {
       ${body || `<div class="empty-hint">(no directly-owned entities/services/tables)</div>`}
     </div>`;
   }).join("");
-  const relationships = MODEL.boundedContexts.relationships.filter(r => r.label !== "decouples");
   const relRows = relationships.map(r => {
     const rowId = bcRelRowId(r.from, r.to, r.label);
     const meaning = BC_LABEL_MEANING[r.label] || "";
@@ -2837,7 +2938,7 @@ function renderBoundedContextsExtrasHtml() {
       <div class="empty-hint">Domain grouping (entities/services/tables/ports per box) is extracted live from real <code class="path">@Table</code> classes, <code class="path">*Service</code> classes, Liquibase tables, and SPI interface <code class="path">implements</code> relationships. Every relationship below is backed by a real, named code signal, all "extracted" (grep/AST match, never guessed or hand-typed) — see the Evidence column, or hover a Label cell for what it actually means. Not shown on the diagram: <code class="path">platform-commons</code> (the "Shared" module) is a compile-time dependency of every domain and Orchestrator — a real fact, but the same one repeated 7 times, so it's stated once here as text instead of drawn as 7 identical edges.</div>
     </section>
     <section class="block"><h3>Legend</h3>
-      <div class="empty-hint">Click a domain box to open its real module page. Click an arrow to jump to its row in the Relationships table below. Drag empty canvas space to pan.</div>
+      <div class="empty-hint">Click a domain box to open its real module page. Click an arrow to jump to its row in the Relationships table below. Drag empty canvas space to pan. This tab shows only the domains and relationships belonging to the current category — see the diagram-note above for what that category actually means.</div>
       <table class="simple"><tbody>
         <tr><td class="scope-label" style="width:150px">Box</td><td>A bounded context / domain — click to open its real module page. Its entities/services/tables/ports are listed in Domain Contents below, not on the canvas</td></tr>
         <tr><td class="scope-label">──▶ (solid line)</td><td>A real business relationship backed by a concrete code signal — click the arrow to jump to its evidence in the Relationships table below</td></tr>
@@ -2852,7 +2953,7 @@ function renderBoundedContextsExtrasHtml() {
 
 function exportBoundedContextsMarkdown() {
   let md = `# Bounded Contexts — Context Map\n\n`;
-  md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › Bounded Contexts.\n\n`;
+  md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › Bounded Contexts. The live version splits relationships across 4 tabs by category (Service Calls / Hook Callbacks / Cross-Starter Exceptions / Derived Facts); this export keeps all of them in one document, with a Category column.\n\n`;
   md += `## Context Map\n\n\`\`\`mermaid\n${buildContextMapMermaidSource()}\`\`\`\n\n`;
   md += `platform-commons ("Shared") is a compile-time dependency of every domain and Orchestrator -- not drawn above (same fact repeated 7 times), stated once here instead.\n\n`;
   md += `## Domain Contents\n\n`;
@@ -2861,9 +2962,9 @@ function exportBoundedContextsMarkdown() {
     const cat = (label, items) => { if (items.length) md += `**${label}:** ${items.map(i => i.name).join(", ")}\n\n`; };
     cat("Entities", d.entities); cat("Services", d.services); cat("Tables", d.tables); cat("Ports", d.ports);
   });
-  md += `## Relationships\n\nAll rows below are "extracted" -- backed by a real grep/AST code signal, never guessed.\n\n| Relationship | Label | What crosses | Evidence |\n|---|---|---|---|\n`;
+  md += `## Relationships\n\nAll rows below are "extracted" -- backed by a real grep/AST code signal, never guessed.\n\n| Relationship | Category | Label | What crosses | Evidence |\n|---|---|---|---|---|\n`;
   MODEL.boundedContexts.relationships.filter(r => r.label !== "decouples").forEach(r => {
-    md += `| ${r.from} -> ${r.to} | ${r.label} | ${r.payload} | ${r.evidence} |\n`;
+    md += `| ${r.from} -> ${r.to} | ${BC_CATEGORY_LABEL_JS[r.category] || r.category} | ${r.label} | ${r.payload} | ${r.evidence} |\n`;
   });
   downloadMarkdown("bounded-contexts.md", md);
 }
@@ -3085,12 +3186,12 @@ function renderDiagrams() {
     // MODEL.boundedContexts (real code signals -- see the Overview section below) -- no markdown
     // source at all, same "live, not a second copy" pattern as 01/02/04 (see DECISIONS.md
     // ADR-019/ADR-020).
-    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered live from real code — relationships from real Hook/Port usage signals (see the Overview and Relationships sections below); entities/services/tables/ports per domain live in Domain Contents below, not on the canvas. Click a domain to open its real module page. Drag to pan, or use the zoom controls below.</div>
+    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. ${esc(d.description || "")} Click a domain to open its real module page, click an arrow to jump to its evidence row below. Drag to pan, or use the zoom controls below.</div>
       ${zoomControlsHtml}
       <div class="diagram-wrap" id="diagram-cy-wrap" style="padding:0"><div id="diagram-cy" style="width:100%;height:70vh"></div></div>
-      ${renderBoundedContextsExtrasHtml()}`;
+      ${renderBoundedContextsExtrasHtml(d.category)}`;
     document.getElementById("content").innerHTML = html;
-    renderContextMapGraph();
+    renderContextMapGraph(d.category);
   } else if (g.key === "04-database-erd") {
     html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered live from the real Liquibase changelogs (table/column/type/constraints/FKs/indexes/remarks) — an ERD needs a table/column renderer, not a draggable node graph. Solid lines are real foreign keys; dotted lines are relationships this codebase deliberately leaves unconstrained at the SQL level (enforced at the application layer instead — see the notes below). Drag to pan, or use the zoom controls below.</div>
       ${zoomControlsHtml}

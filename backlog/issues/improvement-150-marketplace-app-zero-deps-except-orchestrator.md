@@ -54,6 +54,25 @@ substantial:
    between "zero pom.xml dependency on platform-commons" and "these classes must implement a
    platform-commons interface to exist at all." Needs to be resolved as a design question, not
    assumed solvable.
+
+   **Concrete angle on `ActivityEnrichHookImpl`, found while investigating why it wasn't moved
+   alongside the other 6 Hooks in improvement-149 Point 4:** its real collaborator,
+   `AdvertisementAuditEnrichService` (`marketplace-app/services/advertisement`), has 4 fields —
+   `AttachmentMediaService`/`TaxonLookupService` (both already live in `marketplace-orchestrator`,
+   zero Vaadin) vs. `LocaleProvider`/`I18nService` (both `marketplace-app`-only; the real
+   `LocaleProvider` implementation, `VaadinLocaleProvider`, reads the current Vaadin session's
+   locale directly). Only 2 of its 4 methods actually touch the UI-only pair: `labelFor(AdKind)`
+   (`i18nService.get(...)`) and `resolveNames(Set<Long>)` (`localeProvider.getCurrentLocale()`,
+   passed into `taxonLookupService.findByIds()`). This suggests the service could split: a
+   `marketplace-orchestrator`-friendly part (category/city/attachment-state resolution, pure data,
+   no i18n) plus a thin `marketplace-app` translation wrapper the orchestrator part calls back into
+   — the same forwarder-SPI shape already used for `UiLabelHook`/`SessionActorHook`, rather than
+   assuming the whole service is stuck in `marketplace-app` as one unit. Not designed in detail —
+   this is a starting angle for whoever picks up this issue, not a finished plan. Worth noting: the
+   original "`ActivityEnrichHookImpl` stays in `marketplace-app`" call
+   (`marketplace-orchestrator/DECISIONS.md` ADR-004) was an unreviewed technical judgment made while
+   proposing improvement-149 Point 4's overall plan, not a specific design the user separately
+   evaluated and approved — worth real scrutiny here rather than treating it as settled.
 3. Re-run `improvement-149`'s Definition of Done (full reactor build, `deploy.sh` boot, unit +
    integration + Playwright) once a plan is agreed and implemented.
 

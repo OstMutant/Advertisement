@@ -148,17 +148,10 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
     }
 
     private ChangeEntry applyLabel(ChangeEntry entry, EntityType entityType) {
-        return switch (entry) {
-            case ChangeEntry.FieldChange(var field, var from, var to) -> new ChangeEntry.FieldChange(labelFor(entityType, field), from, to);
-            case ChangeEntry.MediaChange _ -> entry;
-        };
+        return entry.mapField(field -> labelFor(entityType, field));
     }
 
-    // The only place mapping a raw entity field name to its translated label -- collapsed here
-    // from four near-identical per-domain Hook implementations that used to live in
-    // marketplace-orchestrator, once it became clear none of them ever varied by domain beyond
-    // this switch. rawFieldKey is always a DTO's own @FieldNameConstants-generated Fields.*
-    // constant, never a hand-typed string.
+    // rawFieldKey is always a DTO's own @FieldNameConstants-generated Fields.* constant, never a hand-typed string.
     private String labelFor(EntityType entityType, String rawFieldKey) {
         I18nKey key = switch (entityType) {
             case ADVERTISEMENT -> switch (rawFieldKey) {
