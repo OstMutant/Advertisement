@@ -509,15 +509,11 @@ issue_list_json() {
 # for this group) purely so the Diagrams list page has a card to link from.
 # All four diagrams (Module Dependencies/SPI Map/Database ERD/Bounded Contexts) render live --
 # no markdown source is parsed for the Diagrams list anymore.
-diagram_groups_json="  {\"key\": \"01-module-dependencies\", \"label\": \"Module Dependencies\", \"file\": \"pom.xml (live)\", \"diagrams\": [{\"title\": \"Dependency Graph\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"02-spi-map\", \"label\": \"SPI Map\", \"file\": \"platform-commons/src (live)\", \"diagrams\": [{\"title\": \"SPI Dependency Graph\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"04-database-erd\", \"label\": \"Database ERD\", \"file\": \"Liquibase changelogs (live)\", \"diagrams\": [{\"title\": \"Entity Relationship Diagram\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"bounded-contexts\", \"label\": \"Bounded Contexts\", \"file\": \"real code (live)\", \"diagrams\": [{\"title\": \"Context Map\", \"source\": \"\"}]}"
-
-# ── SPI Map: mechanically extracted from real Java source, same "live from real source, not a
-# separately-maintained .md" pattern as Module Dependencies (01) -- every *.spi interface under
-# platform-commons + every real `implements` of it across the starters/marketplace-app, via grep
-# (text-pattern matching, not full semantic/bytecode analysis -- same bar as module_deps()).
-# "Purpose" one-liners are the one genuinely-editorial part with no mechanical source, carried over
-# from the retired docs/architecture/02-spi-map.md as a static lookup, same exception Module
-# Dependencies' Key Observations already established.
+# ── SPI Map subsystem order/labels -- declared before diagram_groups_json below since the SPI Map
+# group now has one diagram per subsystem (7 tabs instead of one 71-node canvas -- user reported
+# the single flat graph was too cluttered to read). Reused again inside spi_map_json() further
+# down instead of a second, separately-maintained local copy.
+declare -a SPI_SUBSYSTEM_ORDER=(audit attachment user advertisement taxon providerprofile core)
 declare -A SPI_SUBSYSTEM_LABEL=(
   [audit]="Audit Subsystem"
   [attachment]="Attachment Subsystem"
@@ -527,6 +523,27 @@ declare -A SPI_SUBSYSTEM_LABEL=(
   [providerprofile]="Provider Profile Subsystem"
   [core]="Core / Platform"
 )
+
+spi_map_diagrams_json() {
+  local out="" first=true s
+  for s in "${SPI_SUBSYSTEM_ORDER[@]}"; do
+    $first || out="$out,"
+    first=false
+    out="$out{\"title\": \"$(json_escape "${SPI_SUBSYSTEM_LABEL[$s]}")\", \"source\": \"\", \"subsystem\": \"$(json_escape "$s")\"}"
+  done
+  echo "$out"
+}
+
+# Order and description are both data here, same source of truth as file/label.
+diagram_groups_json="  {\"key\": \"bounded-contexts\", \"label\": \"Bounded Contexts\", \"file\": \"real code (live)\", \"description\": \"Which domain actually calls which other domain in real code, and why -- entities/services/tables/ports per domain, relationships from real Hook/Port usage signals.\", \"diagrams\": [{\"title\": \"Context Map\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"02-spi-map\", \"label\": \"SPI Map\", \"file\": \"platform-commons/src (live)\", \"description\": \"Every cross-module Port/Hook interface in platform-commons, who really calls it, and who really implements it -- three real-code facts, not a build-graph fact. Split one tab per subsystem -- the single combined graph got too dense to read.\", \"diagrams\": [$(spi_map_diagrams_json)]},"$'\n'"  {\"key\": \"01-module-dependencies\", \"label\": \"Module Dependencies\", \"file\": \"pom.xml (live)\", \"description\": \"Which module's JAR ends up on which other module's classpath, per real pom.xml <dependency> declarations -- a Maven build-graph fact, not a real-code-call fact (a module can depend on a JAR nothing in its code calls yet).\", \"diagrams\": [{\"title\": \"Dependency Graph\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"04-database-erd\", \"label\": \"Database ERD\", \"file\": \"Liquibase changelogs (live)\", \"description\": \"Every table and column this app persists, with the business-meaning remarks pulled live from each Liquibase changelog.\", \"diagrams\": [{\"title\": \"Entity Relationship Diagram\", \"source\": \"\"}]}"
+
+# ── SPI Map: mechanically extracted from real Java source, same "live from real source, not a
+# separately-maintained .md" pattern as Module Dependencies (01) -- every *.spi interface under
+# platform-commons + every real `implements` of it across the starters/marketplace-app, via grep
+# (text-pattern matching, not full semantic/bytecode analysis -- same bar as module_deps()).
+# "Purpose" one-liners are the one genuinely-editorial part with no mechanical source, carried over
+# from the retired docs/architecture/02-spi-map.md as a static lookup, same exception Module
+# Dependencies' Key Observations already established.
 # Subsystem-level editorial notes carried over verbatim -- explain a non-obvious absence (Attachment
 # has no starter->marketplace media-change callback) or a design rationale (User's 4-port split) that
 # the mechanical per-interface extraction has no way to produce on its own.
@@ -536,6 +553,7 @@ declare -A SPI_SUBSYSTEM_NOTE=(
 )
 spi_kind_for() {
   case "$1" in
+    UiLabelHook|SessionActorHook) echo "Hook (marketplace-orchestrator -> marketplace-app)" ;;
     *Port) echo "Port (marketplace -> starter)" ;;
     *Hook) echo "Hook (starter -> marketplace)" ;;
     *) echo "type contract" ;;
@@ -579,7 +597,7 @@ spi_javadoc_purpose_for() {
 
 spi_map_json() {
   local nodes="" edges="" details="" first_node=true first_edge=true first_detail=true
-  local -A group_seen=()
+  local -A group_seen=() caller_node_seen=()
   local iface_file iface impl_file impl module kind pkg subsystem
   for iface_file in $(find "$REPO_ROOT/platform-commons/src/main/java" -path "*/spi/*.java" | sort); do
     iface="$(basename "$iface_file" .java)"
@@ -596,32 +614,67 @@ spi_map_json() {
     first_node=false
     nodes="$nodes    {\"id\": \"$(json_escape "$iface")\", \"label\": \"$(json_escape "$iface")\", \"parent\": \"platform-commons\", \"file\": \"$(json_escape "${iface_file#"$REPO_ROOT"/}")\"}"
 
+    # One tree-walk finds every candidate file (implementor OR caller OR both), then two cheap
+    # single-file greps classify each candidate -- avoids walking the same directory set twice per
+    # interface (a real, measured ~2x slowdown when this was two separate `grep -rl` tree-walks).
     local impls_json="" first_impl=true
-    while IFS= read -r impl_file; do
-      [ -z "$impl_file" ] && continue
-      impl="$(basename "$impl_file" .java)"
-      module="${impl_file#"$REPO_ROOT"/}"
-      module="${module%%/*}"
-      if [ -z "${group_seen[$module]:-}" ]; then
-        group_seen[$module]=1
-        nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module")\", \"label\": \"$(json_escape "$module")\", \"isGroup\": true}"
+    local callers_json="" first_caller=true
+    local candidate_file impl module caller module_c
+    local IMPL_PATTERN="implements\s+.*\b${iface}\b"
+    # For *Port this is marketplace-app/marketplace-orchestrator/a starter calling another
+    # starter's port; for *Hook this is whichever module actually injects it (confirmed
+    # per-interface, not assumed -- e.g. AuditActivityFieldsHook's real caller is marketplace-app's
+    # AuditTimelineRowRenderer, not the audit-starter, despite the *Hook suffix's usual "starter
+    # calls back" direction). Both injection shapes appear in real code (a single mandatory field,
+    # or a List<Iface> collection for hooks with several registered beans), so both are matched.
+    local CALLER_PATTERN="ComponentFactory<\s*${iface}\s*>|List<\s*${iface}\s*>|\b${iface}\s+\w+\s*;"
+    while IFS= read -r candidate_file; do
+      [ -z "$candidate_file" ] && continue
+      if grep -qP "$IMPL_PATTERN" "$candidate_file" 2>/dev/null; then
+        impl="$(basename "$candidate_file" .java)"
+        module="${candidate_file#"$REPO_ROOT"/}"
+        module="${module%%/*}"
+        if [ -z "${group_seen[$module]:-}" ]; then
+          group_seen[$module]=1
+          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module")\", \"label\": \"$(json_escape "$module")\", \"isGroup\": true}"
+        fi
+        nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$impl")\", \"label\": \"$(json_escape "$impl")\", \"parent\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
+        $first_edge || edges="$edges,"$'\n'
+        first_edge=false
+        edges="$edges    {\"source\": \"$(json_escape "$iface")\", \"target\": \"$(json_escape "$impl")\", \"label\": \"implemented by\"}"
+        $first_impl || impls_json="$impls_json, "
+        first_impl=false
+        impls_json="$impls_json{\"class\": \"$(json_escape "$impl")\", \"module\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
       fi
-      nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$impl")\", \"label\": \"$(json_escape "$impl")\", \"parent\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${impl_file#"$REPO_ROOT"/}")\"}"
-      $first_edge || edges="$edges,"$'\n'
-      first_edge=false
-      edges="$edges    {\"source\": \"$(json_escape "$iface")\", \"target\": \"$(json_escape "$impl")\"}"
-      $first_impl || impls_json="$impls_json, "
-      first_impl=false
-      impls_json="$impls_json{\"class\": \"$(json_escape "$impl")\", \"module\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${impl_file#"$REPO_ROOT"/}")\"}"
-    done < <(grep -rlP "implements\s+.*\b${iface}\b" "$REPO_ROOT"/*-spring-boot-starter/src/main/java "$REPO_ROOT"/marketplace-app/src/main/java 2>/dev/null | sort -u)
+      if grep -qP "$CALLER_PATTERN" "$candidate_file" 2>/dev/null; then
+        caller="$(basename "$candidate_file" .java)"
+        module_c="${candidate_file#"$REPO_ROOT"/}"
+        module_c="${module_c%%/*}"
+        if [ -z "${group_seen[$module_c]:-}" ]; then
+          group_seen[$module_c]=1
+          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module_c")\", \"label\": \"$(json_escape "$module_c")\", \"isGroup\": true}"
+        fi
+        if [ -z "${caller_node_seen[$caller]:-}" ]; then
+          caller_node_seen[$caller]=1
+          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "call_$caller")\", \"label\": \"$(json_escape "$caller")\", \"parent\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
+        fi
+        $first_edge || edges="$edges,"$'\n'
+        first_edge=false
+        edges="$edges    {\"source\": \"$(json_escape "call_$caller")\", \"target\": \"$(json_escape "$iface")\", \"label\": \"calls\"}"
+        $first_caller || callers_json="$callers_json, "
+        first_caller=false
+        callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
+      fi
+    done < <(grep -rlP "${IMPL_PATTERN}|${CALLER_PATTERN}" \
+        "$REPO_ROOT"/*-spring-boot-starter/src/main/java "$REPO_ROOT"/marketplace-app/src/main/java \
+        "$REPO_ROOT"/marketplace-orchestrator/src/main/java 2>/dev/null | sort -u)
 
     $first_detail || details="$details,"$'\n'
     first_detail=false
-    details="$details    {\"interface\": \"$(json_escape "$iface")\", \"file\": \"$(json_escape "${iface_file#"$REPO_ROOT"/}")\", \"package\": \"$(json_escape "$pkg")\", \"subsystem\": \"$(json_escape "$subsystem")\", \"kind\": \"$(json_escape "$kind")\", \"purpose\": \"$(json_escape "$(spi_javadoc_purpose_for "$iface_file")")\", \"implementations\": [$impls_json]}"
+    details="$details    {\"interface\": \"$(json_escape "$iface")\", \"file\": \"$(json_escape "${iface_file#"$REPO_ROOT"/}")\", \"package\": \"$(json_escape "$pkg")\", \"subsystem\": \"$(json_escape "$subsystem")\", \"kind\": \"$(json_escape "$kind")\", \"purpose\": \"$(json_escape "$(spi_javadoc_purpose_for "$iface_file")")\", \"implementations\": [$impls_json], \"callers\": [$callers_json]}"
   done
-  local subsystem_order=(audit attachment user advertisement taxon providerprofile core)
   local labels_json="" notes_json="" first_s=true
-  for s in "${subsystem_order[@]}"; do
+  for s in "${SPI_SUBSYSTEM_ORDER[@]}"; do
     $first_s || labels_json="$labels_json, "
     $first_s || notes_json="$notes_json, "
     first_s=false
@@ -632,7 +685,7 @@ spi_map_json() {
   echo "  \"nodes\": [${nodes}"$'\n'"  ],"
   echo "  \"edges\": [${edges}"$'\n'"  ],"
   echo "  \"details\": [${details}"$'\n'"  ],"
-  echo "  \"subsystemOrder\": $(json_str_array "$(printf '%s\n' "${subsystem_order[@]}")"),"
+  echo "  \"subsystemOrder\": $(json_str_array "$(printf '%s\n' "${SPI_SUBSYSTEM_ORDER[@]}")"),"
   echo "  \"subsystemLabels\": {$labels_json},"
   echo "  \"subsystemNotes\": {$notes_json}"
   echo "}"
@@ -986,14 +1039,19 @@ bounded_contexts_json() {
       done)")"
     elif [ "$d" = "Orchestrator" ]; then
       entities_json="[]"; tables_json="[]"
-      services_json="$(json_named_file_array "$(find "$REPO_ROOT/$mod/src/main/java" -name '*Service.java' 2>/dev/null | sort | while read -r f; do
+      # *Service.java (services/, composition/lookup) and *HookImpl.java (spi/, Hook implementations
+      # that only need domain-port access -- see marketplace-orchestrator/CLAUDE.md) are two
+      # sibling packages under this one module; both are real "what this module owns" content.
+      services_json="$(json_named_file_array "$(find "$REPO_ROOT/$mod/src/main/java" \( -name '*Service.java' -o -name '*HookImpl.java' \) 2>/dev/null | sort | while read -r f; do
         printf '%s\t%s\n' "$(basename "$f" .java)" "${f#"$REPO_ROOT"/}"
       done)")"
-      # No "implements XPort" here -- Orchestrator calls Ports via ComponentFactory<XPort>, it
-      # never implements them. Real signal: which *Port types it actually injects.
+      # Orchestrator calls *Port interfaces via ComponentFactory<XPort> (never implements them) but
+      # since the Hook relocation it does genuinely `implements` several *Hook interfaces too (the
+      # six *HookImpl classes above) -- both real signals belong in this one "what Orchestrator
+      # depends on/fulfills" ports list.
       ports_json="$(json_named_file_array "$(find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
         iface="$(basename "$ifile" .java)"
-        grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;" -r --include='*.java' "$REPO_ROOT/$mod/src/main/java" 2>/dev/null && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
+        grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;|implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$mod/src/main/java" 2>/dev/null && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
       done)")"
     else
       entities_json="$(json_named_file_array "$(grep -rl '^@Table\|@Table(' "$REPO_ROOT/$mod/src/main/java" --include='*.java' 2>/dev/null | sort | while read -r f; do
@@ -1063,23 +1121,34 @@ bounded_contexts_json() {
     fi
   fi
 
-  # "audited via" / "can have" -- real signal: which marketplace-app/spi/*.java class implements
-  # AuditActivityFieldsHook (-> audited via Audit) or AuditActivityEnrichHook (-> can have Attachment
-  # enrichment), and what EntityType its entityType() method declares.
-  local hf etype dom
+  # "audited via" -- real signal: AuditTimelineRowRenderer.LABELED_ENTITY_TYPES, the single
+  # constant listing which EntityTypes have field-label support in the audit timeline UI (replaces
+  # the old "implements AuditActivityFieldsHook" grep -- that interface and its four per-domain
+  # implementations were removed entirely once every one of them converged to an identical
+  # one-line delegation with zero domain-specific logic, see platform-commons/DECISIONS.md ADR-029's
+  # third refinement).
+  local audit_timeline_renderer="$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/ui/views/components/audit/AuditTimelineRowRenderer.java"
+  local etype dom
+  for etype in $(sed -n '/LABELED_ENTITY_TYPES/,/;/p' "$audit_timeline_renderer" 2>/dev/null | grep -oP 'EntityType\.\K\w+'); do
+    dom="${BC_ENTITY_TYPE_DOMAIN[$etype]:-}"
+    [ -z "$dom" ] && continue
+    add_rel "$dom" "Audit" "audited via" "extracted" "AuditTimelineRowRenderer.LABELED_ENTITY_TYPES includes EntityType.$etype" "false"
+  done
+
+  # "can have" -- real signal: which *.java class implements AuditActivityEnrichHook (unaffected by
+  # the removal above -- ActivityEnrichHookImpl still does real HTML-diff formatting, not a
+  # mechanical delegation), and what EntityType its entityType() method declares.
+  local hf
   while IFS= read -r hf; do
     [ -z "$hf" ] && continue
     etype="$(grep -A2 "entityType()" "$hf" | grep -oP 'EntityType\.\K\w+' | head -1)"
     [ -z "$etype" ] && continue
     dom="${BC_ENTITY_TYPE_DOMAIN[$etype]:-}"
     [ -z "$dom" ] && continue
-    if grep -q "implements AuditActivityFieldsHook" "$hf"; then
-      add_rel "$dom" "Audit" "audited via" "extracted" "$(basename "$hf" .java).entityType() = $etype" "false"
-    fi
-    if grep -q "implements AuditActivityEnrichHook" "$hf"; then
-      add_rel "$dom" "Attachment" "can have" "extracted" "$(basename "$hf" .java).entityType() = $etype" "false"
-    fi
-  done < <(grep -rl "implements AuditActivityFieldsHook\|implements AuditActivityEnrichHook" "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/spi" --include="*.java" 2>/dev/null)
+    add_rel "$dom" "Attachment" "can have" "extracted" "$(basename "$hf" .java).entityType() = $etype" "false"
+  done < <(grep -rl "implements AuditActivityEnrichHook" \
+      "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/spi" \
+      "$REPO_ROOT/marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi" --include="*.java" 2>/dev/null)
 
   # "category assignment via" -- real replaceAssignments() call sites. Provider's own service calls
   # it directly; Advertisement's real call site is marketplace-app's AdvertisementSaveService
@@ -1107,11 +1176,40 @@ bounded_contexts_json() {
     done
   done
 
-  # Audit calls back via every *Hook implementation actually found in marketplace-app/spi -- listed
-  # by name (not just one representative), since each is independent real evidence.
-  local hook_impls
-  hook_impls="$(grep -rl 'implements .*Hook' "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/spi" --include='*.java' 2>/dev/null | xargs -r -I{} basename {} .java | sort | paste -sd, -)"
-  [ -n "$hook_impls" ] && add_rel "Audit" "UI" "calls back via Hook implementations" "extracted" "marketplace-app/spi: $hook_impls" "false"
+  # *Hook implementations calling back into either UI or Orchestrator -- one edge per real
+  # (caller-domain, implementor-domain) pair, not a blanket "Audit -> X" for every Hook
+  # implementation found in those two folders. That blanket version was wrong: verified directly
+  # (not assumed) that UiLabelHook/SessionActorHook's real caller is marketplace-orchestrator's own
+  # Hook classes, not any starter -- a real "Orchestrator -> UI" fact, not "Audit -> UI" -- and that
+  # CurrentActorHook has two real callers (audit-starter AND attachment-starter), not just audit.
+  # Found by the user asking "why does Audit call UI" and the evidence not actually supporting it.
+  local hif hook_iface impl_file impl_domain impl_name caller_file caller_dom cd
+  while IFS= read -r hif; do
+    [ -z "$hif" ] && continue
+    hook_iface="$(basename "$hif" .java)"
+    impl_file="$(grep -rlP "implements\s+.*\b${hook_iface}\b" \
+        "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/spi" \
+        "$REPO_ROOT/marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi" --include='*.java' 2>/dev/null | head -1)"
+    [ -z "$impl_file" ] && continue
+    impl_domain="UI"
+    case "$impl_file" in "$REPO_ROOT/marketplace-orchestrator/"*) impl_domain="Orchestrator" ;; esac
+    impl_name="$(basename "$impl_file" .java)"
+    while IFS= read -r caller_file; do
+      [ -z "$caller_file" ] && continue
+      caller_dom=""
+      for cd in "${BC_DOMAIN_ORDER_STARTERS[@]}"; do
+        case "$caller_file" in "$REPO_ROOT/${BC_DOMAIN_MODULE[$cd]}/"*) caller_dom="$cd"; break ;; esac
+      done
+      if [ -z "$caller_dom" ]; then
+        case "$caller_file" in "$REPO_ROOT/marketplace-orchestrator/"*) caller_dom="Orchestrator" ;; esac
+      fi
+      [ -z "$caller_dom" ] || [ "$caller_dom" = "$impl_domain" ] && continue
+      add_rel "$caller_dom" "$impl_domain" "calls back via Hook implementations" "extracted" \
+        "$impl_name implements $hook_iface, called from $(sed "s|$REPO_ROOT/||" <<< "$caller_file")" "false"
+    done < <(grep -rlP "List<\s*${hook_iface}\s*>|\b${hook_iface}\s+\w+\s*;|ComponentFactory<\s*${hook_iface}\s*>" \
+        "$REPO_ROOT"/*-spring-boot-starter/src/main/java "$REPO_ROOT/marketplace-orchestrator/src/main/java" --include='*.java' 2>/dev/null | sort -u)
+  done < <(find "$REPO_ROOT/platform-commons/src/main/java" "$REPO_ROOT/marketplace-orchestrator/src/main/java" \
+      -path '*/spi/*Hook.java' 2>/dev/null)
 
   local rel_json="" first_r=true i
   for i in "${!rel_key[@]}"; do
@@ -1446,8 +1544,10 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
      with zoom, so this container never really overflows and native scrollbars never engage. Drag
      empty canvas space to pan instead (see the diagram-note text above each one). */
   #diagram-cy-wrap { overflow: hidden; max-height: none; }
-  #diagram-zoom-box { transform-origin: top left; width: fit-content; transition: transform .1s ease-out; }
+  #diagram-zoom-box { transform-origin: top left; width: fit-content; margin: 0 auto; transition: transform .1s ease-out; }
   .diagram-note { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .rel-row-flash { animation: rel-row-flash-anim 1.5s ease-out; }
+  @keyframes rel-row-flash-anim { 0% { background: #fff3bf; } 100% { background: transparent; } }
   .diagram-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   .diagram-toolbar button { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
   .diagram-toolbar button:hover { background: var(--bg); }
@@ -2256,7 +2356,7 @@ function renderBacklog() {
 // table/column renderer Cytoscape doesn't give for free; sequence diagrams are temporal/lifeline
 // diagrams, not spatial node graphs -- dragging boxes around doesn't map onto what they show) --
 // those stay Mermaid, with pan+zoom, and the UI says why rather than silently behaving differently.
-const GRAPH_TYPE_KEYS = ["01-module-dependencies", "02-spi-map"];
+const GRAPH_TYPE_KEYS = ["01-module-dependencies", "02-spi-map", "bounded-contexts"];
 
 // Minimal parser for this repo's own Mermaid dialect -- only what docs/architecture/01-03 actually
 // use: `graph LR|TD|TB`, `ID["Label<br/>text"]` node declarations, `subgraph ID["Label"] ... end`
@@ -2363,8 +2463,24 @@ function renderCytoscapeDiagram(source, rankDir) {
 // starters/marketplace-app) -- same "live, not a separately-maintained .md" pattern as Module
 // Dependencies. Left-to-right layout (interfaces on the left, implementations on the right) reads
 // better for this 2-level interface->impl shape than top-to-bottom.
-function renderSpiMapGraph() {
-  renderCytoscapeFromGraph(MODEL.spiMap.nodes, MODEL.spiMap.edges, "LR");
+// One diagram per subsystem instead of one 70+-node canvas -- the combined graph (every SPI
+// interface's callers + implementations on one page) was too dense to read. An interface belongs
+// to a subsystem per MODEL.spiMap.details; edges/nodes pulled in are whatever actually touches
+// that subsystem's own interfaces, same node/edge shape renderCytoscapeFromGraph already expects.
+function spiMapNodesForSubsystem(subsystem) {
+  const ifaceIds = new Set(MODEL.spiMap.details.filter(d => d.subsystem === subsystem).map(d => d.interface));
+  const edges = MODEL.spiMap.edges.filter(e => ifaceIds.has(e.source) || ifaceIds.has(e.target));
+  const nodeIds = new Set(ifaceIds);
+  edges.forEach(e => { nodeIds.add(e.source); nodeIds.add(e.target); });
+  const leafNodes = MODEL.spiMap.nodes.filter(n => !n.isGroup && nodeIds.has(n.id));
+  const usedParents = new Set(leafNodes.map(n => n.parent));
+  const groupNodes = MODEL.spiMap.nodes.filter(n => n.isGroup && usedParents.has(n.id));
+  return { nodes: [...groupNodes, ...leafNodes], edges };
+}
+
+function renderSpiMapGraph(subsystem) {
+  const filtered = spiMapNodesForSubsystem(subsystem);
+  renderCytoscapeFromGraph(filtered.nodes, filtered.edges, "LR");
 }
 
 // Real link, readable class name as the visible text -- same "open the actual source, short
@@ -2375,30 +2491,59 @@ function spiFileLink(file, label) {
 
 // One table per subsystem (package prefix shown once per heading, same as the retired .md did) --
 // not one flat table -- plus each subsystem's own editorial note (SPI_SUBSYSTEM_NOTE) when present.
-function renderSpiSubsystemTables() {
-  return MODEL.spiMap.subsystemOrder.map(s => {
+// With the SPI Map diagram now split per subsystem, a specific subsystem restricts this to just
+// its own table, matching whichever diagram tab is on screen; omitted only by the (now unused)
+// caller with no subsystem context.
+// Plain-English meaning of each "Direction" (kind) value -- same tooltip treatment Bounded
+// Contexts' Label column already got, since "Port (marketplace -> starter)"/"Hook (starter ->
+// marketplace)" name the *direction* but not *why* a reader should care which one a given
+// interface is. Matched by prefix since spi_kind_for() appends the concrete module pair
+// (e.g. "Hook (marketplace-orchestrator -> marketplace-app)" for UiLabelHook/SessionActorHook).
+const SPI_KIND_MEANING = {
+  "Port": "Forward direction: marketplace/orchestrator calls a method the starter implements -- a normal, top-down API call.",
+  "Hook": "Reverse direction: the caller (a starter, or marketplace-orchestrator for the two forwarder Hooks) calls back into a layer above it for something only that layer can provide -- domain data, translations, session state.",
+  "type contract": "A plain shared type, not a call-direction interface -- e.g. a marker/principal type multiple modules reference but nothing \"calls\" through."
+};
+function spiKindMeaning(kind) {
+  const key = Object.keys(SPI_KIND_MEANING).find(k => kind.startsWith(k));
+  return key ? SPI_KIND_MEANING[key] : "";
+}
+
+function renderSpiSubsystemTables(subsystem) {
+  const order = subsystem ? [subsystem] : MODEL.spiMap.subsystemOrder;
+  return order.map(s => {
     const rows = MODEL.spiMap.details.filter(d => d.subsystem === s);
     if (!rows.length) return "";
     const note = MODEL.spiMap.subsystemNotes[s];
     const trs = rows.map(d => {
+      const callers = d.callers && d.callers.length
+        ? d.callers.map(i => `${spiFileLink(i.file, i.class)} <span class="scope-label">${esc(i.module)}</span>`).join("<br>")
+        : `<span class="empty-hint">no caller found</span>`;
       const impls = d.implementations.length
         ? d.implementations.map(i => `${spiFileLink(i.file, i.class)} <span class="scope-label">${esc(i.module)}</span>`).join("<br>")
         : `<span class="empty-hint">no implementation found</span>`;
-      return `<tr><td>${spiFileLink(d.file, d.interface)}</td><td class="scope-label">${esc(d.kind)}</td><td>${impls}</td><td>${esc(d.purpose)}</td></tr>`;
+      return `<tr><td>${callers}</td><td>${spiFileLink(d.file, d.interface)}</td><td class="scope-label" title="${esc(spiKindMeaning(d.kind))}" style="cursor:help">${esc(d.kind)}</td><td>${impls}</td><td>${esc(d.purpose)}</td></tr>`;
     }).join("");
     return `
       <div class="domain-group">
         <h3>${esc(MODEL.spiMap.subsystemLabels[s])} <code class="path">${esc(rows[0].package)}</code></h3>
-        <table class="simple"><thead><tr><th>Interface</th><th>Direction</th><th>Implementation(s)</th><th>Purpose</th></tr></thead><tbody>${trs}</tbody></table>
+        <table class="simple"><thead><tr>
+          <th title="Real caller classes -- who actually injects/calls this interface, from ComponentFactory&lt;X&gt;/List&lt;X&gt;/field grep, not who's allowed to" style="cursor:help">Caller(s)</th>
+          <th>Interface</th>
+          <th title="Which way the call goes -- hover a row's value for what it means" style="cursor:help">Direction</th>
+          <th title="Real classes that implement this interface" style="cursor:help">Implementation(s)</th>
+          <th>Purpose</th>
+        </tr></thead><tbody>${trs}</tbody></table>
         ${note ? `<div class="empty-hint" style="margin-top:8px">${mdInlineToHtml(note)}</div>` : ""}
       </div>`;
   }).join("");
 }
 
-function renderSpiMapExtrasHtml() {
+function renderSpiMapExtrasHtml(subsystem) {
   const flows = MODEL.spiCallFlowExamples.map(f =>
     `<div class="adr-item"><strong>${esc(f.title)}</strong><ol class="info-list">${f.steps.map(s => `<li>${mdInlineToHtml(s)}</li>`).join("")}</ol></div>`
   ).join("");
+  const detailCount = subsystem ? MODEL.spiMap.details.filter(d => d.subsystem === subsystem).length : MODEL.spiMap.details.length;
   return `
     <section class="block"><h3>Overview</h3>
       <div class="empty-hint">All cross-module extension points (Ports and Hooks) live in <code class="path">platform-commons</code> to decouple starters from marketplace-app. Suffixes encode call direction: <code class="path">*Port</code> = marketplace &rarr; starter (marketplace calls the starter); <code class="path">*Hook</code> = starter &rarr; marketplace (starter calls back to marketplace). See ${sourceLink("platform-commons/CLAUDE.md")}'s "SPI Interface Naming" table for the authoritative direction/role definition of each suffix.</div>
@@ -2406,12 +2551,13 @@ function renderSpiMapExtrasHtml() {
     <section class="block"><h3>Legend</h3>
       <div class="empty-hint">Click a node to open its real <code class="path">.java</code> file. Drag a node to reposition it, drag empty canvas space to pan.</div>
       <table class="simple"><tbody>
-        <tr><td class="scope-label" style="width:150px">Dashed gray box</td><td>A module boundary (<code class="path">platform-commons</code>, a starter, or <code class="path">marketplace-app</code>)</td></tr>
-        <tr><td class="scope-label">Blue rounded box</td><td>A Java interface or implementation class</td></tr>
-        <tr><td class="scope-label">──▶</td><td>"Implements" — arrow points from the interface to its implementation class</td></tr>
+        <tr><td class="scope-label" style="width:150px">Dashed gray box</td><td>A module boundary (<code class="path">platform-commons</code>, a starter, <code class="path">marketplace-app</code>, or <code class="path">marketplace-orchestrator</code>)</td></tr>
+        <tr><td class="scope-label">Blue rounded box</td><td>A Java interface, an implementation class, or a real caller class</td></tr>
+        <tr><td class="scope-label">──calls──▶</td><td>A real caller class injects/calls the interface — arrow points from the caller to the interface</td></tr>
+        <tr><td class="scope-label">──implemented by──▶</td><td>Arrow points from the interface to its implementation class</td></tr>
       </tbody></table>
     </section>
-    <section class="block"><h3>SPI Interface Details (${MODEL.spiMap.details.length})</h3>${renderSpiSubsystemTables()}</section>
+    <section class="block"><h3>SPI Interface Details (${detailCount})</h3>${renderSpiSubsystemTables(subsystem)}</section>
     <section class="block"><h3>Call Flow Examples</h3>${flows}</section>
     <section class="block"><h3>Implementation Rules</h3>
       <div class="empty-hint">All implementations follow these patterns (core "pure delegation" rule stated once, canonically, in ${sourceLink("platform-commons/CLAUDE.md")}'s "Hook and Port Implementation Rules" section — not restated here):</div>
@@ -2423,8 +2569,8 @@ function renderSpiMapExtrasHtml() {
       </div>
       <div class="adr-item"><strong>Hook Implementation (*HookImpl)</strong>
         <ul class="info-list">
-          <li>Location: service module that implements the hook</li>
-          <li>Example: <code class="path">org.ost.marketplace.spi.CurrentActorHookImpl</code> calls <code class="path">AuthContextService.getCurrentActorId()</code></li>
+          <li>Location: service module that implements the hook — <code class="path">marketplace-orchestrator/spi</code> for Hooks needing only domain-port access, <code class="path">marketplace-app/spi</code> for the two forwarder Hooks needing a UI-shell resource (translations, HTTP session)</li>
+          <li>Example: <code class="path">org.ost.orchestrator.spi.CurrentActorHookImpl</code> calls <code class="path">SessionActorHook.getCurrentActorId()</code>, implemented by <code class="path">org.ost.marketplace.spi.SessionActorHookImpl</code> against <code class="path">AuthContextService</code></li>
         </ul>
       </div>
     </section>`;
@@ -2442,7 +2588,7 @@ function buildSpiMapMermaid() {
     ns.forEach(n => { out += `        ${n.id}["${n.label}"]\n`; });
     out += `    end\n`;
   });
-  MODEL.spiMap.edges.forEach(e => { out += `    ${e.source} -->|implemented by| ${e.target}\n`; });
+  MODEL.spiMap.edges.forEach(e => { out += `    ${e.source} -->|${e.label || "implemented by"}| ${e.target}\n`; });
   return out;
 }
 
@@ -2456,10 +2602,11 @@ function exportSpiMapMarkdown() {
     const rows = MODEL.spiMap.details.filter(d => d.subsystem === s);
     if (!rows.length) return;
     md += `### ${MODEL.spiMap.subsystemLabels[s]} — \`${rows[0].package}\`\n\n`;
-    md += `| Interface | Direction | Implementation(s) | Purpose |\n|---|---|---|---|\n`;
+    md += `| Caller(s) | Interface | Direction | Implementation(s) | Purpose |\n|---|---|---|---|---|\n`;
     rows.forEach(d => {
+      const callers = d.callers && d.callers.length ? d.callers.map(i => `${i.class} (${i.module})`).join("; ") : "no caller found";
       const impls = d.implementations.length ? d.implementations.map(i => `${i.class} (${i.module})`).join("; ") : "no implementation found";
-      md += `| ${d.interface} | ${d.kind} | ${impls} | ${d.purpose} |\n`;
+      md += `| ${callers} | ${d.interface} | ${d.kind} | ${impls} | ${d.purpose} |\n`;
     });
     md += "\n";
     if (MODEL.spiMap.subsystemNotes[s]) md += `${MODEL.spiMap.subsystemNotes[s]}\n\n`;
@@ -2524,41 +2671,119 @@ function buildDbErdMermaidSource() {
   return out;
 }
 
-// Bounded Contexts' subgraph ids -> the real module each domain maps to. Mermaid's flowchart
-// renderer gives each subgraph's SVG cluster group an id exactly equal to the subgraph id itself
-// (e.g. "User", "Audit" -- no prefix/uuid, unlike erDiagram's entity ids), so no name-matching
-// regex is needed here, just a direct lookup against MODEL.boundedContexts.domains -- the same
-// live data the diagram itself is built from, not a second hand-typed copy of the mapping.
-function wireBoundedContextsClicks() {
-  document.querySelectorAll(".cluster").forEach(g => {
-    const domain = MODEL.boundedContexts.domains.find(d => d.id === g.id);
-    const mod = domain && domain.module;
-    if (!mod || !byId[mod]) return;
-    g.style.cursor = "pointer";
-    g.addEventListener("click", () => navigate({ screen: "module", id: mod }));
+// Live from MODEL.boundedContexts (real @Table entities/*Service classes/tables/SPI ports per
+// domain, real relationships detected from AuditTimelineRowRenderer.LABELED_ENTITY_TYPES,
+// AuditActivityEnrichHook entityType() declarations, and other concrete signals -- see
+// bounded_contexts_json() for exactly what backs each fact).
+//
+// Rendered via Cytoscape (renderModuleDependencyGraph()'s own engine), not Mermaid -- ADR-016
+// documented a real, structural reason the original Cytoscape+dagre attempt was dropped for this
+// diagram: nesting each domain's entities/services/tables/ports as *compound-child* nodes created
+// cycles spanning compound boundaries (a domain's own child linking back to a sibling domain),
+// which dagre's compound-aware ranking cannot resolve -- it collapsed the whole graph onto one
+// column. This version sidesteps that failure mode at the root instead of retrying it: domains are
+// flat, non-compound nodes (matching Module Dependencies' own shape) with no item children on the
+// canvas at all -- entities/services/tables/ports live only in the "Domain Contents" table below
+// and each domain's own module page (one click away), never as canvas nodes. A same-shape 2-node
+// cycle still exists in the real relationships today (Orchestrator <-> Audit), but a cycle between
+// two flat siblings is the ordinary case dagre handles fine -- it was never the failure mode ADR-016
+// diagnosed. Gets the same native pan/zoom/click/drag interaction every other Cytoscape diagram
+// already has for free, instead of the hand-rolled scroll-drag Mermaid fallback needed elsewhere.
+function buildContextMapGraph() {
+  const domains = MODEL.boundedContexts.domains.filter(d => d.id !== "Shared");
+  const moduleOf = {};
+  MODEL.boundedContexts.domains.forEach(d => { moduleOf[d.id] = d.module; });
+  const nodes = domains.map(d => {
+    const mn = moduleNodes.find(n => n.id === d.module);
+    return { id: d.module, label: d.label, domain: mn ? mn.domain : null };
   });
+  const edges = MODEL.boundedContexts.relationships
+    .filter(r => r.label !== "decouples")
+    .map(r => ({
+      source: moduleOf[r.from] || r.from, target: moduleOf[r.to] || r.to,
+      label: r.label, dashed: r.dashed,
+      // Carried through purely so the diagram's edge-tap handler can find this edge's real
+      // Relationships-table row -- rowId must match bcRelRowId()'s own id exactly, since the
+      // Cytoscape node ids above are module ids, not the domain ids the table is keyed by.
+      rowId: bcRelRowId(r.from, r.to, r.label)
+    }))
+    .filter(e => nodes.some(n => n.id === e.source) && nodes.some(n => n.id === e.target));
+  return { nodes, edges };
 }
 
-// Live from MODEL.boundedContexts (real @Table entities/*Service classes/tables/SPI ports per
-// domain, real relationships detected from AuditActivityFieldsHook/AuditActivityEnrichHook
-// entityType() declarations and other concrete signals -- see bounded_contexts_json() for exactly
-// what backs each fact). Mirrors buildDbErdMermaidSource()'s shape: generate Mermaid source live,
-// don't read a hand-typed file.
-function buildBoundedContextsMermaidSource() {
-  let out = "graph TB\n";
-  MODEL.boundedContexts.domains.forEach(d => {
-    out += `    subgraph ${d.id}["${esc(d.label)}<br/>(${esc(d.module)})"]\n`;
-    let i = 0;
-    [...d.entities, ...d.services, ...d.tables, ...d.ports].forEach(item => {
-      out += `        ${d.id}_n${i++}["${esc(item.name).replace(/"/g, "'")}"]\n`;
-    });
-    out += `    end\n`;
+function renderContextMapGraph() {
+  const g = buildContextMapGraph();
+  const els = [
+    ...g.nodes.map(n => ({
+      data: { id: n.id, label: n.label, domain: n.domain },
+      style: { "background-color": domainColor(n.domain) }
+    })),
+    ...g.edges.map((e, i) => ({
+      data: { id: "e" + i, source: e.source, target: e.target, label: e.label || "", dashed: e.dashed, rowId: e.rowId }
+    }))
+  ];
+  const hasDagre = typeof cytoscapeDagre !== "undefined";
+  diagramCy = cytoscape({
+    container: document.getElementById("diagram-cy"),
+    elements: els,
+    style: [
+      { selector: "node", style: {
+          "label": "data(label)", "font-size": 11, "color": "#fff", "text-valign": "center", "text-halign": "center",
+          "border-width": 0, "shape": "round-rectangle", "width": "label", "height": "label",
+          "padding": "12px", "text-wrap": "wrap", "text-max-width": 130, "font-weight": 600
+        } },
+      { selector: "edge", style: {
+          "width": 1.5, "line-color": "#a0aec0", "target-arrow-color": "#a0aec0",
+          "target-arrow-shape": "triangle", "curve-style": "bezier",
+          "font-size": 9, "label": "data(label)", "color": "#4a5568",
+          "text-background-color": "#f7f8fa", "text-background-opacity": 0.9, "text-background-padding": 2
+        } },
+      { selector: "edge[?dashed]", style: { "line-style": "dashed" } }
+    ],
+    layout: hasDagre
+      ? { name: "dagre", rankDir: "TB", nodeSep: 30, rankSep: 80, padding: 20 }
+      : { name: "breadthfirst", directed: true, padding: 20 }
   });
-  MODEL.boundedContexts.relationships.forEach(r => {
-    const arrow = r.dashed ? "-.->" : "-->";
-    out += `    ${r.from} ${arrow}|${r.label.replace(/\|/g, "/")}| ${r.to}\n`;
+  diagramCy.on("zoom", () => {
+    const label = document.getElementById("zoom-label");
+    if (label) label.textContent = Math.round(diagramCy.zoom() * 100) + "%";
+  });
+  diagramCy.on("tap", "node", e => navigate({ screen: "module", id: e.target.id() }));
+  diagramCy.on("tap", "edge", e => jumpToRelationshipRow(e.target.data("rowId")));
+  diagramCy.nodes().style("cursor", "pointer");
+  diagramCy.edges().style("cursor", "pointer");
+}
+
+// Scrolls to and briefly flashes the Relationships-table row a diagram edge maps to -- the
+// evidence (which real method/class the arrow represents) lives in that row, not in a second copy
+// on the canvas itself.
+function jumpToRelationshipRow(rowId) {
+  const row = document.getElementById(rowId);
+  if (!row) return;
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
+  row.classList.add("rel-row-flash");
+  setTimeout(() => row.classList.remove("rel-row-flash"), 1500);
+}
+
+// Kept only for the Markdown export (a static text document has none of the live interaction
+// concerns above) -- flat nodes/edges matching the live Cytoscape graph's own shape, not the old
+// compound-subgraph-with-items version.
+function buildContextMapMermaidSource() {
+  const g = buildContextMapGraph();
+  let out = "graph TB\n";
+  g.nodes.forEach(n => { out += `    ${n.id}["${esc(n.label)}"]\n`; });
+  g.edges.forEach(e => {
+    const arrow = e.dashed ? "-.->" : "-->";
+    out += `    ${e.source} ${arrow}|${e.label.replace(/\|/g, "/")}| ${e.target}\n`;
   });
   return out;
+}
+
+// Stable, collision-safe id for a relationship's <tr> -- shared between the row itself and the
+// diagram's edge-tap handler (renderContextMapGraph()) so clicking an arrow can scroll straight to
+// its evidence instead of leaving the reader to hunt for the matching row by eye.
+function bcRelRowId(from, to, label) {
+  return "rel-" + [from, to, label].join("|").replace(/[^a-zA-Z0-9]+/g, "-");
 }
 
 // Readable name as the link text, real file underneath -- same "short label, real link" pattern
@@ -2568,10 +2793,31 @@ function bcItemLink(item) {
   return item.file ? `<a href="../../${esc(item.file)}" target="_blank">${esc(item.name)}</a>` : esc(item.name);
 }
 
+// Plain-English meaning of each relationship label -- shown as a tooltip on the Label cell, since
+// "calls"/"audited via"/"can have" read as cryptic shorthand without it. Keys match
+// BC_LABEL_PAYLOAD in the bash generator exactly (both describe the same fixed label set).
+const BC_LABEL_MEANING = {
+  "calls": "The source domain directly invokes a method on the target domain's own Port interface (a real method call, not just a Maven dependency).",
+  "audited via": "The source domain's entities get captured as audit-log snapshots through the Audit domain.",
+  "can have": "The source domain's entities may carry attachment/media data, resolved through the Attachment domain at read time.",
+  "category assignment via": "The source domain writes its taxon/category assignments through the target domain's Port.",
+  "calls back via Hook implementations": "Reverse direction: the source domain (a starter) calls a Hook interface; the target domain supplies the real implementation."
+};
+
+// Finds a real "<module>/src/main/java/.../ClassName.java[:line]" path inside a free-text evidence
+// string and wraps just that substring in a real link to the file -- evidence text is a mix of
+// prose and real paths (e.g. "X.java:82:      someCall()" or "N classes import org.ost.orchestrator.*"),
+// so this only linkifies the part that's actually a path, leaving the rest as plain text.
+function linkifyEvidence(text) {
+  return esc(text).replace(/([\w.-]+\/src\/main\/java\/[\w./]+\.java)(:\d+)?/g,
+    (m, path, line) => `<a href="../../${path}" target="_blank">${path}${line || ""}</a>`);
+}
+
 function renderBoundedContextsExtrasHtml() {
   const category = (label, items) => items.length
     ? `<div><span class="scope-label">${label}</span> ${items.map(bcItemLink).join(", ")}</div>` : "";
-  const domainRows = MODEL.boundedContexts.domains.map(d => {
+  const domains = MODEL.boundedContexts.domains.filter(d => d.id !== "Shared");
+  const domainRows = domains.map(d => {
     const body = [
       category("Entities", d.entities), category("Services", d.services),
       category("Tables", d.tables), category("Ports", d.ports)
@@ -2580,40 +2826,44 @@ function renderBoundedContextsExtrasHtml() {
       ${body || `<div class="empty-hint">(no directly-owned entities/services/tables)</div>`}
     </div>`;
   }).join("");
-  const relRows = MODEL.boundedContexts.relationships.map(r =>
-    `<tr><td>${esc(r.from)} → ${esc(r.to)}</td><td>${esc(r.label)}</td><td>${esc(r.payload)}</td><td class="scope-label">${esc(r.confidence)}</td><td>${esc(r.evidence)}</td></tr>`
-  ).join("");
+  const relationships = MODEL.boundedContexts.relationships.filter(r => r.label !== "decouples");
+  const relRows = relationships.map(r => {
+    const rowId = bcRelRowId(r.from, r.to, r.label);
+    const meaning = BC_LABEL_MEANING[r.label] || "";
+    return `<tr id="${rowId}"><td>${esc(r.from)} → ${esc(r.to)}</td><td title="${esc(meaning)}" style="cursor:help">${esc(r.label)}</td><td>${esc(r.payload)}</td><td>${linkifyEvidence(r.evidence)}</td></tr>`;
+  }).join("");
   return `
     <section class="block"><h3>Overview</h3>
-      <div class="empty-hint">Domain grouping (entities/services/tables/ports per box) is extracted live from real <code class="path">@Table</code> classes, <code class="path">*Service</code> classes, Liquibase tables, and SPI interface <code class="path">implements</code> relationships. Every relationship below is backed by a real, named code signal (mostly <code class="path">AuditActivityFieldsHook</code>/<code class="path">AuditActivityEnrichHook</code> <code class="path">entityType()</code> declarations) — see the Evidence column.</div>
+      <div class="empty-hint">Domain grouping (entities/services/tables/ports per box) is extracted live from real <code class="path">@Table</code> classes, <code class="path">*Service</code> classes, Liquibase tables, and SPI interface <code class="path">implements</code> relationships. Every relationship below is backed by a real, named code signal, all "extracted" (grep/AST match, never guessed or hand-typed) — see the Evidence column, or hover a Label cell for what it actually means. Not shown on the diagram: <code class="path">platform-commons</code> (the "Shared" module) is a compile-time dependency of every domain and Orchestrator — a real fact, but the same one repeated 7 times, so it's stated once here as text instead of drawn as 7 identical edges.</div>
     </section>
     <section class="block"><h3>Legend</h3>
-      <div class="empty-hint">Click a domain box to open its real module page. Drag a node to reposition it, drag empty canvas space to pan.</div>
+      <div class="empty-hint">Click a domain box to open its real module page. Click an arrow to jump to its row in the Relationships table below. Drag empty canvas space to pan.</div>
       <table class="simple"><tbody>
-        <tr><td class="scope-label" style="width:150px">Box (subgraph)</td><td>A bounded context / domain — its real entities, services, tables, and SPI ports are listed inside</td></tr>
-        <tr><td class="scope-label">──▶ (solid line)</td><td>A real business relationship backed by a concrete code signal (see the Relationships table below)</td></tr>
-        <tr><td class="scope-label">┄┄▶ (dashed line)</td><td>"decouples" — a compile-time module dependency only (Shared → every domain), not a runtime call</td></tr>
+        <tr><td class="scope-label" style="width:150px">Box</td><td>A bounded context / domain — click to open its real module page. Its entities/services/tables/ports are listed in Domain Contents below, not on the canvas</td></tr>
+        <tr><td class="scope-label">──▶ (solid line)</td><td>A real business relationship backed by a concrete code signal — click the arrow to jump to its evidence in the Relationships table below</td></tr>
       </tbody></table>
     </section>
-    <section class="block"><h3>Domain Contents (${MODEL.boundedContexts.domains.length})</h3>${domainRows}</section>
-    <section class="block"><h3>Relationships (${MODEL.boundedContexts.relationships.length}) — all "extracted" (real code signal, not hand-typed)</h3>
-      <table class="simple"><thead><tr><th>Relationship</th><th>Label</th><th>What crosses</th><th>Confidence</th><th>Evidence</th></tr></thead><tbody>${relRows}</tbody></table>
+    <section class="block"><h3>Domain Contents (${domains.length})</h3>${domainRows}</section>
+    <section class="block"><h3>Relationships (${relationships.length}) — all "extracted" (real code signal, not hand-typed)</h3>
+      <div class="empty-hint">Hover a Label cell for what it means. Evidence links open the real file where the relationship was found.</div>
+      <table class="simple"><thead><tr><th>Relationship</th><th>Label</th><th>What crosses (payload type)</th><th>Evidence</th></tr></thead><tbody>${relRows}</tbody></table>
     </section>`;
 }
 
 function exportBoundedContextsMarkdown() {
   let md = `# Bounded Contexts — Context Map\n\n`;
   md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › Bounded Contexts.\n\n`;
-  md += `## Context Map\n\n\`\`\`mermaid\n${buildBoundedContextsMermaidSource()}\`\`\`\n\n`;
+  md += `## Context Map\n\n\`\`\`mermaid\n${buildContextMapMermaidSource()}\`\`\`\n\n`;
+  md += `platform-commons ("Shared") is a compile-time dependency of every domain and Orchestrator -- not drawn above (same fact repeated 7 times), stated once here instead.\n\n`;
   md += `## Domain Contents\n\n`;
   MODEL.boundedContexts.domains.forEach(d => {
     md += `### ${d.label} — \`${d.module}\`\n\n`;
     const cat = (label, items) => { if (items.length) md += `**${label}:** ${items.map(i => i.name).join(", ")}\n\n`; };
     cat("Entities", d.entities); cat("Services", d.services); cat("Tables", d.tables); cat("Ports", d.ports);
   });
-  md += `## Relationships\n\n| Relationship | Label | What crosses | Confidence | Evidence |\n|---|---|---|---|---|\n`;
-  MODEL.boundedContexts.relationships.forEach(r => {
-    md += `| ${r.from} -> ${r.to} | ${r.label} | ${r.payload} | ${r.confidence} | ${r.evidence} |\n`;
+  md += `## Relationships\n\nAll rows below are "extracted" -- backed by a real grep/AST code signal, never guessed.\n\n| Relationship | Label | What crosses | Evidence |\n|---|---|---|---|\n`;
+  MODEL.boundedContexts.relationships.filter(r => r.label !== "decouples").forEach(r => {
+    md += `| ${r.from} -> ${r.to} | ${r.label} | ${r.payload} | ${r.evidence} |\n`;
   });
   downloadMarkdown("bounded-contexts.md", md);
 }
@@ -2774,7 +3024,9 @@ function renderDiagrams() {
       <div class="screen-desc">${totalDiagramCount} diagrams, all rendered live from pom.xml/real Java source/real Liquibase changelogs -- no separately-maintained markdown source for any of them.</div>`;
     MODEL.diagramGroups.forEach(g => {
       const graphType = GRAPH_TYPE_KEYS.includes(g.key);
-      html += `<div class="domain-group"><h3>${esc(g.label)} <code class="path">(${esc(g.file)})</code> ${graphType ? '<span class="badge ACTIVE">draggable</span>' : ""}</h3><div class="card-grid">`;
+      html += `<div class="domain-group"><h3>${esc(g.label)} <code class="path">(${esc(g.file)})</code> ${graphType ? '<span class="badge ACTIVE">draggable</span>' : ""}</h3>
+        ${g.description ? `<div class="empty-hint">${esc(g.description)}</div>` : ""}
+        <div class="card-grid">`;
       g.diagrams.forEach((d, i) => {
         html += `<div class="card" onclick="navigate({screen:'diagrams',groupKey:'${g.key}',diagramIndex:${i}})">
           <div class="card-title">${esc(d.title || g.label)}</div>
@@ -2819,27 +3071,26 @@ function renderDiagrams() {
     document.getElementById("content").innerHTML = html;
     renderModuleDependencyGraph();
   } else if (g.key === "02-spi-map") {
-    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered from real Java source (platform-commons/*/spi interfaces + their real \`implements\` across starters/marketplace-app), click a node to open its real .java file — drag a node to reposition it, drag empty canvas space to pan the view.</div>
+    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered from real Java source (this subsystem's platform-commons/*/spi interfaces + their real callers/\`implements\` across starters/marketplace-app/marketplace-orchestrator), click a node to open its real .java file — drag a node to reposition it, drag empty canvas space to pan the view.</div>
       ${zoomControlsHtml}
       <div class="diagram-wrap" id="diagram-cy-wrap" style="padding:0"><div id="diagram-cy" style="width:100%;height:70vh"></div></div>
-      ${renderSpiMapExtrasHtml()}`;
+      ${renderSpiMapExtrasHtml(d.subsystem)}`;
     document.getElementById("content").innerHTML = html;
-    renderSpiMapGraph();
+    renderSpiMapGraph(d.subsystem);
   } else if (g.key === "bounded-contexts") {
-    // Rendered via Mermaid's own native engine (mermaid.run(), same mechanism as the Database ERD),
-    // not the removed Cytoscape+dagre compound-node pipeline -- that
-    // pipeline collapsed this graph onto one column (real cross-domain cycles via the UI/Audit hub,
-    // a documented dagre compound-layout limitation, see DECISIONS.md ADR-016). Domain contents and
-    // relationships are generated live from MODEL.boundedContexts (real code signals -- see the
-    // Overview section below) -- no markdown source at all, same "live, not a second copy" pattern
-    // as 01/02/04 (see DECISIONS.md ADR-019/ADR-020).
-    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered live from real code — entities/services/tables/SPI ports per domain, relationships from real Hook entityType() declarations and other concrete signals (see the Overview and Relationships sections below). Click a domain to open its real module page. Drag to pan, or use the zoom controls below.</div>
+    // Rendered via Cytoscape (renderContextMapGraph(), same engine/interaction as Module
+    // Dependencies and SPI Map -- see that function's own comment for why the original 2026
+    // Cytoscape attempt was dropped (DECISIONS.md ADR-016) and why this flat-node version doesn't
+    // hit the same failure mode). Domain contents and relationships are generated live from
+    // MODEL.boundedContexts (real code signals -- see the Overview section below) -- no markdown
+    // source at all, same "live, not a second copy" pattern as 01/02/04 (see DECISIONS.md
+    // ADR-019/ADR-020).
+    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered live from real code — relationships from real Hook/Port usage signals (see the Overview and Relationships sections below); entities/services/tables/ports per domain live in Domain Contents below, not on the canvas. Click a domain to open its real module page. Drag to pan, or use the zoom controls below.</div>
       ${zoomControlsHtml}
-      <div class="diagram-wrap" id="diagram-scroll"><div id="diagram-zoom-box"><pre class="mermaid">${esc(buildBoundedContextsMermaidSource())}</pre></div></div>
+      <div class="diagram-wrap" id="diagram-cy-wrap" style="padding:0"><div id="diagram-cy" style="width:100%;height:70vh"></div></div>
       ${renderBoundedContextsExtrasHtml()}`;
     document.getElementById("content").innerHTML = html;
-    enableDragToPan(document.getElementById("diagram-scroll"));
-    mermaid.run({ querySelector: ".mermaid" }).then(() => wireBoundedContextsClicks());
+    renderContextMapGraph();
   } else if (g.key === "04-database-erd") {
     html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered live from the real Liquibase changelogs (table/column/type/constraints/FKs/indexes/remarks) — an ERD needs a table/column renderer, not a draggable node graph. Solid lines are real foreign keys; dotted lines are relationships this codebase deliberately leaves unconstrained at the SQL level (enforced at the application layer instead — see the notes below). Drag to pan, or use the zoom controls below.</div>
       ${zoomControlsHtml}

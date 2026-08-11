@@ -10,8 +10,9 @@ Java package root: `org.ost.orchestrator`
 
 ## What it owns
 
-Every service lives in one flat package, `org.ost.orchestrator.services` — no per-domain
-sub-packages:
+Two sibling packages, mirroring `marketplace-app`'s own `services`/`spi` split: composition/
+lookup services live in one flat `org.ost.orchestrator.services` (no per-domain sub-packages);
+`*Hook` SPI implementations live in `org.ost.orchestrator.spi`, listed separately below.
 
 - `TaxonLookupService` / `ActorLookupService` — shared read-only lookups (`TaxonPort`/`UserPort`),
   reused by every domain's own display-enrichment step. Return raw `TaxonDto`/`UserDto` data —
@@ -46,6 +47,25 @@ sub-packages:
 - `EntityExistenceService` — a named, documented exception to the ≤2-port rule (see below): holds
   `AdvertisementPort`/`UserPort`/`TaxonPort`/`ProviderProfilePort` directly for pure
   per-`EntityType` existence-check routing (`findExisting`).
+- `UserActorNameService` — actor-name-resolution collaborator `AuditDomainHookImpl` (in `spi/`,
+  below) delegates to; stays in `services/` since it doesn't itself implement an SPI interface.
+
+`org.ost.orchestrator.spi` — the `*Hook` implementations (see "Hook implementations" below):
+`AuditDomainHookImpl`, `CurrentActorHookImpl` (`AuditActivityFieldsHook` and its four per-domain
+implementations were removed entirely — see `platform-commons/DECISIONS.md` ADR-029's second
+refinement: every implementation had converged to a one-line delegation with zero domain-specific
+logic, and the interface's only real caller was already `marketplace-app`'s own
+`AuditTimelineRowRenderer`, so the whole per-domain Hook pattern collapsed into one field-name-to-
+label mapping directly in that class). Also owns the forwarder SPI these two implementations call
+through to reach a UI-shell resource — `UiLabelHook` (`translateActorDeletedSuffix(String)`, the
+one remaining case needing translation server-side, since its real caller is the audit-starter,
+which has no i18n awareness of its own) and `SessionActorHook` (current actor ID).
+Neither forwarder SPI lives in `platform-commons`: both are called only by this module's own Hook
+implementations, never a starter, and this module is a mandatory, never-optional dependency of
+`marketplace-app` — the *Port/*Hook-must-live-in-platform-commons rule exists
+specifically for starter optionality, which doesn't apply here. `marketplace-app`'s
+`UiLabelHookImpl`/`SessionActorHookImpl` (in its own `spi/` package) implement these two
+interfaces, a legal import since `marketplace-app` already depends on `marketplace-orchestrator`.
 
 **Autoconfiguration entry point:** `OrchestratorAutoConfiguration` (`@ComponentScan` over
 `org.ost.orchestrator`, since this module is a mandatory, non-optional dependency of
@@ -57,14 +77,20 @@ inventing a second wiring approach for one module).
 
 ## Key constraints
 
-- **Never depends on a starter jar directly.** `pom.xml` depends only on `platform-commons` +
-  `spring-boot-starter` + `lombok` — enforced by a Maven Enforcer `bannedDependencies` rule
-  (mirrors every starter's own `enforce-no-starter-to-starter-deps` rule). Every domain access goes
-  through `ComponentFactory<XPort>`, exactly the mechanism `marketplace-app` itself already uses —
-  this preserves today's optional-module behavior unchanged (`taxon`/`provider-profile` stay
-  `<scope>runtime</scope>` in `marketplace-app/pom.xml`; this module has no compile-time visibility
-  into any starter's concrete classes to begin with, so it cannot make an optional starter
-  mandatory).
+- **`pom.xml` declares all 6 starter `<dependency>` blocks** (`audit`/`attachment`/`user`/
+  `advertisement` at `compile` scope, `taxon`/`provider-profile` at `runtime` scope, preserving
+  their existing optional-module semantics unchanged) — this is the one module in the app that
+  pulls every starter JAR onto the runtime classpath, since `marketplace-app` no longer declares
+  them itself (`marketplace-app/pom.xml` depends only on `platform-commons` +
+  `marketplace-orchestrator`, so `Module Dependencies`/`Bounded Contexts` show the same converged
+  shape — see `platform-commons/DECISIONS.md` for the ADR reversing the earlier
+  "orchestrator must depend only on platform-commons" rule). This is a Maven-classpath-assembly
+  concern only, not a license to touch starter internals — **no class in this module imports a
+  starter's concrete class, ever.** Every domain access still goes through `ComponentFactory<XPort>`
+  against a `platform-commons` interface, exactly the mechanism `marketplace-app` itself used to
+  use directly — enforced at the code level (not the Maven level) by
+  `ArchitectureRulesTest.marketplace_must_not_import_starter_internals`, which bans importing any
+  starter's `util`/`services`/`repository` package regardless of what's on the classpath.
 - **≤2 domain `*Port` types per class, via `ComponentFactory` only.** Enforced by
   `ArchitectureRulesTest.orchestrator_classes_depend_on_at_most_two_domain_ports`. Counts only
   `ComponentFactory<XPort>`-wrapped fields — a direct, mandatory `*Port` field (e.g.
@@ -92,10 +118,26 @@ inventing a second wiring approach for one module).
   reporting) and `UserService.cleanup()` calling `AdvertisementPort`/`ProviderProfilePort.findOwnerIds()`
   (narrow, scheduled-job-scoped referential-integrity cooperation) also stay in their starters —
   neither is the "assemble a read-model from several domains" pattern this module exists for.
-- **`*Hook` implementations never live here.** Hooks (`AuditDomainHookImpl`, `*ActivityFieldsHookImpl`,
-  etc.) stay in `marketplace-app` by convention regardless of how many domain ports they touch — a
-  `*Hook` that dispatches to exactly one of several ports per call, based on `EntityType`, is
-  per-branch pure delegation, not the simultaneous-composition shape the ≤2-port rule targets.
+- **Hook implementations that only need domain-port access live here, in their own `spi/`
+  package parallel to `services/`; the two that need UI-shell resources (translations, the HTTP
+  session) go through a forwarder SPI instead of pulling `marketplace-app` in as a dependency.**
+  `AuditDomainHookImpl` and `CurrentActorHookImpl` live in `org.ost.orchestrator.spi` — a `*Hook`
+  that dispatches to exactly one of several ports per call, based on `EntityType`, is per-branch
+  pure delegation, not the simultaneous-composition shape the ≤2-port rule targets, so this module
+  is still the natural home even though the package is separate from `services/`. Two forwarder
+  SPIs, also in `org.ost.orchestrator.spi` (not platform-commons — see above), make this possible
+  without an illegal `marketplace-orchestrator -> marketplace-app` dependency (the compile
+  direction only ever runs the other way): `UiLabelHook` (`translateActorDeletedSuffix`) and
+  `SessionActorHook` (read the current actor ID from the HTTP session) — both implemented by a
+  thin `*Impl` that stays in `marketplace-app` (`UiLabelHookImpl`/`SessionActorHookImpl`),
+  wrapping `I18nService`/`AuthContextService`. `ActivityEnrichHookImpl` is the one exception that
+  stays in `marketplace-app` — its collaborator does real HTML-diff formatting, not a single-value
+  lookup, so a forwarder-SPI extraction doesn't fit the same mechanical pattern.
+  `AuditActivityFieldsHook` — the fourth Hook interface, previously implemented by four per-domain
+  classes here — was removed entirely: every implementation had converged to a one-line delegation
+  with zero domain-specific logic left, and its only real caller was already `marketplace-app`'s
+  own `AuditTimelineRowRenderer`, so the whole field-name-to-label mapping now lives directly in
+  that class instead of crossing the module boundary at all.
 - **UI presence-guards also route through the orchestrator.** For literal BFF purity — zero direct
   `*Port` reference of any kind in marketplace-app — even a presence-only check (e.g. "is the
   attachment starter on the classpath, to decide whether to render a gallery button") goes through

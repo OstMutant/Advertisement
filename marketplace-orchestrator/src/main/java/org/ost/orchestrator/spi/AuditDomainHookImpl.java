@@ -1,14 +1,14 @@
-package org.ost.marketplace.spi;
+package org.ost.orchestrator.spi;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.orchestrator.services.EntityExistenceService;
+import org.ost.orchestrator.services.UserActorNameService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.model.EntityType;
-import org.ost.marketplace.services.user.UserActorNameService;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;

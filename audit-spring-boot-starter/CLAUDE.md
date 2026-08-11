@@ -24,6 +24,6 @@ Tables: `audit_log` (single table; snapshots stored in its `snapshot_data` colum
 
 ## Key constraints
 
-- `AuditPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook` live in `platform-commons` — the starter implements them, marketplace-app calls/wires them.
+- `AuditPort`, `AuditDomainHook`, `AuditActivityEnrichHook` live in `platform-commons` — the starter implements `AuditPort` and calls the two Hooks; `marketplace-orchestrator`/`marketplace-app` implement the Hooks (`AuditActivityFieldsHook` does not exist — see `marketplace-app/CLAUDE.md`'s `AuditTimelineRowRenderer`).
 - `@EnableJdbcRepositories(basePackages = "org.ost.audit.repository")` declared in `AuditAutoConfiguration` — required because marketplace's `@SpringBootApplication` scan covers only `org.ost.marketplace`.
 - `DefaultAuditPort` and all `*HookImpl` classes are pure delegation — no business logic, no JSON parsing, no conditionals beyond routing. Logic belongs in services.

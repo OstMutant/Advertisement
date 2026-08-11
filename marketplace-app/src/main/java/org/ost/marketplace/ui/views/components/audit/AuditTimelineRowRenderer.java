@@ -13,19 +13,22 @@ import org.ost.marketplace.ui.core.Initialization;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
-import org.ost.platform.audit.spi.AuditActivityFieldsHook;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.InstantFormatter;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.taxon.dto.TaxonSnapshotDto;
+import org.ost.platform.user.dto.SettingsSnapshotDto;
+import org.ost.platform.user.dto.UserSnapshotDto;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -39,20 +42,22 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
     private static final String CSS_CHANGES         = "activity-feed-changes";
     private static final String CSS_HISTORY_CHANGES = "entity-activity-changes";
 
+    // Entity types with a real field-name-to-label mapping below -- everything else falls back
+    // to changeFormatter.buildChangesList() (raw, unexpanded changes, no label translation).
+    private static final Set<EntityType> LABELED_ENTITY_TYPES =
+            EnumSet.of(EntityType.ADVERTISEMENT, EntityType.TAXON, EntityType.USER, EntityType.USER_SETTINGS);
+
     private final I18nService                   i18n;
     private final InstantFormatter              formatter;
     private final AuditChangeFormatter          changeFormatter;
-    private final List<AuditActivityFieldsHook> fieldsProviderList;
     private final List<AuditActivityEnrichHook<?>> enrichHookList;
 
-    private Map<EntityType, AuditActivityFieldsHook> fieldsProviders;
     private Map<EntityType, AuditActivityEnrichHook<?>> enrichHooks;
 
     @Override
     @PostConstruct
     public AuditTimelineRowRenderer init() {
-        fieldsProviders = fieldsProviderList.stream().collect(Collectors.toMap(AuditActivityFieldsHook::entityType, h -> h, (a, _) -> a, () -> new EnumMap<>(EntityType.class)));
-        enrichHooks     = enrichHookList.stream().collect(Collectors.toMap(AuditActivityEnrichHook::entityType, h -> h, (a, _) -> a, () -> new EnumMap<>(EntityType.class)));
+        enrichHooks = enrichHookList.stream().collect(Collectors.toMap(AuditActivityEnrichHook::entityType, h -> h, (a, _) -> a, () -> new EnumMap<>(EntityType.class)));
         return this;
     }
 
@@ -100,7 +105,8 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
     }
 
     private Div buildActivityFieldsList(AuditTimelineItemDto<AuditableSnapshot> item) {
-        AuditActivityEnrichHook<?> enrichHook = enrichHooks.get(item.entityRef().entityType());
+        EntityType entityType = item.entityRef().entityType();
+        AuditActivityEnrichHook<?> enrichHook = enrichHooks.get(entityType);
         if (enrichHook != null) {
             Long attachmentSnapshotId = item.snapshotData() instanceof AdvertisementSnapshotDto s
                     ? s.attachmentSnapshotId() : null;
@@ -108,20 +114,19 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
                     attachmentSnapshotId != null
                             ? () -> enrichHook.getMediaStateForSnapshot(item.entityRef(), attachmentSnapshotId)
                             : null,
-                    fieldsProviders.get(item.entityRef().entityType()));
+                    entityType);
         }
-        AuditActivityFieldsHook provider = fieldsProviders.get(item.entityRef().entityType());
-        if (provider != null && item.snapshotData() != null) {
-            return buildActivityChangesDiv(provider.expandFields(item), provider);
+        if (LABELED_ENTITY_TYPES.contains(entityType) && item.snapshotData() != null) {
+            return buildActivityChangesDiv(item.expandedChanges(), entityType);
         }
         return changeFormatter.buildChangesList(item.changes(), CSS_CHANGES);
     }
 
-    private Div buildActivityChangesDiv(List<ChangeEntry> entries, AuditActivityFieldsHook labelHook) {
+    private Div buildActivityChangesDiv(List<ChangeEntry> entries, EntityType entityType) {
         Div container = new Div();
         container.addClassName(CSS_CHANGES);
         for (ChangeEntry entry : entries) {
-            ChangeEntry resolved = applyLabel(entry, labelHook);
+            ChangeEntry resolved = applyLabel(entry, entityType);
             boolean unchanged = switch (resolved) {
                 case ChangeEntry.FieldChange(_, var from, _) -> from == null || from.isBlank();
                 case ChangeEntry.MediaChange(var before, _)  -> before == null || before.isBlank();
@@ -139,20 +144,58 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
                 ? () -> enrichHook.getMediaStateForSnapshot(ref, attachmentSnapshotId)
                 : null;
         return buildEntityChangesDiv(h.changes(), h.snapshotData(), CSS_HISTORY_CHANGES, mediaLookup,
-                fieldsProviders.get(ref.entityType()));
+                ref.entityType());
     }
 
-    private static ChangeEntry applyLabel(ChangeEntry entry, AuditActivityFieldsHook labelHook) {
-        if (labelHook == null) return entry;
+    private ChangeEntry applyLabel(ChangeEntry entry, EntityType entityType) {
         return switch (entry) {
-            case ChangeEntry.FieldChange(var field, var from, var to) -> new ChangeEntry.FieldChange(labelHook.labelFor(field), from, to);
+            case ChangeEntry.FieldChange(var field, var from, var to) -> new ChangeEntry.FieldChange(labelFor(entityType, field), from, to);
             case ChangeEntry.MediaChange _ -> entry;
         };
     }
 
+    // The only place mapping a raw entity field name to its translated label -- collapsed here
+    // from four near-identical per-domain Hook implementations that used to live in
+    // marketplace-orchestrator, once it became clear none of them ever varied by domain beyond
+    // this switch. rawFieldKey is always a DTO's own @FieldNameConstants-generated Fields.*
+    // constant, never a hand-typed string.
+    private String labelFor(EntityType entityType, String rawFieldKey) {
+        I18nKey key = switch (entityType) {
+            case ADVERTISEMENT -> switch (rawFieldKey) {
+                case AdvertisementSnapshotDto.Fields.title       -> I18nKey.CHANGES_FIELD_TITLE;
+                case AdvertisementSnapshotDto.Fields.description -> I18nKey.CHANGES_FIELD_DESCRIPTION;
+                case AdvertisementSnapshotDto.Fields.adKind      -> I18nKey.CHANGES_FIELD_AD_KIND;
+                case AdvertisementSnapshotDto.Fields.categoryIds -> I18nKey.CHANGES_FIELD_CATEGORY;
+                case AdvertisementSnapshotDto.Fields.cityTaxonId -> I18nKey.CHANGES_FIELD_CITY;
+                default                                          -> null;
+            };
+            case TAXON -> switch (rawFieldKey) {
+                case TaxonSnapshotDto.Fields.nameEn        -> I18nKey.CHANGES_FIELD_NAME_EN;
+                case TaxonSnapshotDto.Fields.descriptionEn -> I18nKey.CHANGES_FIELD_DESCRIPTION_EN;
+                case TaxonSnapshotDto.Fields.nameUk        -> I18nKey.CHANGES_FIELD_NAME_UK;
+                case TaxonSnapshotDto.Fields.descriptionUk -> I18nKey.CHANGES_FIELD_DESCRIPTION_UK;
+                default                                    -> null;
+            };
+            case USER -> switch (rawFieldKey) {
+                case UserSnapshotDto.Fields.name  -> I18nKey.CHANGES_FIELD_NAME;
+                case UserSnapshotDto.Fields.email -> I18nKey.CHANGES_FIELD_EMAIL;
+                case UserSnapshotDto.Fields.role  -> I18nKey.CHANGES_FIELD_ROLE;
+                default                           -> null;
+            };
+            case USER_SETTINGS -> switch (rawFieldKey) {
+                case SettingsSnapshotDto.Fields.adsPageSize      -> I18nKey.CHANGES_SETTING_ADS_PAGE_SIZE;
+                case SettingsSnapshotDto.Fields.usersPageSize    -> I18nKey.CHANGES_SETTING_USERS_PAGE_SIZE;
+                case SettingsSnapshotDto.Fields.timelinePageSize -> I18nKey.CHANGES_SETTING_TIMELINE_PAGE_SIZE;
+                default                                          -> null;
+            };
+            default -> null;
+        };
+        return key != null ? i18n.get(key) : rawFieldKey;
+    }
+
     private Div buildEntityChangesDiv(List<ChangeEntry> changes, AuditableSnapshot snapshotData,
                                       String cssBase, Supplier<String> mediaStateLookup,
-                                      AuditActivityFieldsHook labelHook) {
+                                      EntityType entityType) {
         Div container = new Div();
         container.addClassName(cssBase);
 
@@ -167,7 +210,7 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
 
         List<ChangeEntry> expanded = expandTextFields(snapshotData, textChanges);
         for (ChangeEntry rawEntry : expanded) {
-            ChangeEntry entry = applyLabel(rawEntry, labelHook);
+            ChangeEntry entry = applyLabel(rawEntry, entityType);
             boolean unchanged = switch (entry) {
                 case ChangeEntry.FieldChange(_, var from, _) -> from == null || from.isBlank();
                 case ChangeEntry.MediaChange _               -> false;

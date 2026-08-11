@@ -28,7 +28,8 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
  * {@code marketplace-app/DECISIONS.md} for the rationale (two real violations, improvement-011 and
  * improvement-010, previously reached working code unnoticed under the prose-only approach).
  * Scans the whole {@code org.ost} tree, which this module's test classpath can already see in
- * full (marketplace-app depends on every starter + platform-commons + query-lib).
+ * full (every starter reaches marketplace-app transitively via marketplace-orchestrator, plus
+ * platform-commons + query-lib direct).
  */
 @AnalyzeClasses(packages = "org.ost", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureRulesTest {
@@ -62,14 +63,28 @@ class ArchitectureRulesTest {
                             + "platform-commons/CLAUDE.md \"Why ports and hooks must live in "
                             + "platform-commons\"");
 
+    // UiLabelHook/SessionActorHook are the one named exception: called only by marketplace-
+    // orchestrator (a mandatory, non-optional dependency of marketplace-app, never absent), never
+    // by a starter, so the starter-optionality reasoning below doesn't apply to this pair — they
+    // live in org.ost.orchestrator.spi instead. See marketplace-orchestrator/CLAUDE.md.
+    private static final List<String> ORCHESTRATOR_HOOK_ALLOWLIST = List.of("UiLabelHook", "SessionActorHook");
+
     @ArchTest
     static final ArchRule hooks_live_only_in_platform_commons =
             classes().that().areInterfaces().and().haveSimpleNameEndingWith("Hook")
+                    .and(new DescribedPredicate<JavaClass>("are not the orchestrator-only Hook exceptions") {
+                        @Override
+                        public boolean test(JavaClass input) {
+                            return !ORCHESTRATOR_HOOK_ALLOWLIST.contains(input.getSimpleName());
+                        }
+                    })
                     .should().resideInAPackage("org.ost.platform..")
                     .because("*Hook SPI interfaces live in platform-commons so marketplace always "
                             + "sees the type regardless of which starters are present — see "
                             + "platform-commons/CLAUDE.md \"Why ports and hooks must live in "
-                            + "platform-commons\"");
+                            + "platform-commons\". UiLabelHook/SessionActorHook are allow-listed "
+                            + "above: called only by the mandatory marketplace-orchestrator "
+                            + "dependency, never a starter, so they live in org.ost.orchestrator.spi.");
 
     @ArchTest
     static final ArchRule no_class_level_preauthorize_on_services =

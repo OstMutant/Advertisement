@@ -84,7 +84,7 @@ Translation keys — single consolidated enum:
 **Rules:**
 - Never use raw `MessageSource` directly in UI components — use `I18nService.get(I18nKey)`.
 - Never use `msg(String key, String fallback)` — missing keys must fail fast, not silently fall back.
-- Never build keys dynamically: `"changes.field." + fieldName` — use typed enum with explicit mapping.
+- Never build keys dynamically: `"changes.field." + fieldName` — use typed enum with explicit mapping. `AuditTimelineRowRenderer`'s `labelFor(EntityType, String rawFieldKey)` is the one place resolving a raw DTO field-name constant to its label — a `switch` on the already-compiler-checked `Fields.*` constant, not a dynamically-built key, so it already follows this rule rather than needing an exception.
 - `I18nParams` interface: implement `getI18nService()` to get `getValue(I18nKey, ...)` and `formatAction(ActionType)` as defaults.
 
 ---
@@ -129,7 +129,7 @@ Translation keys — single consolidated enum:
 - `services/auth/` — authentication (`AuthService` — login/logout + rate limiting, `AuthContextService` — current-user context)
 - `services/i18n/` — `I18nKey` enum, `I18nService`, `I18nServiceImpl`, `LocaleProvider`, `InstantFormatter`
 - `services/security/` — `AccessEvaluator` (role/ownership checks live in `user-spring-boot-starter` — see this module's own `README.md` "Responsibilities" section)
-- `spi/` — hook implementations (`CurrentActorHookImpl`, `AuditDomainHookImpl`, `*ActivityFieldsHookImpl`, `ActivityEnrichHookImpl`)
+- `spi/` — hook implementations that need a UI-shell resource: `ActivityEnrichHookImpl` (HTML-diff formatting, implements `AuditActivityEnrichHook` directly), `UiLabelHookImpl`/`SessionActorHookImpl` (thin forwarders over `I18nService`/`AuthContextService`, implementing the `UiLabelHook`/`SessionActorHook` SPIs that `marketplace-orchestrator`'s own `AuditDomainHookImpl`/`CurrentActorHookImpl` call through — see `marketplace-orchestrator/CLAUDE.md`)
 - `rest/` — non-Vaadin REST controllers (`HealthController` only today)
 - `ui/core/` — `Configurable<T,P>`, `Initialization<T>`, `UiComponentFactory<T>`, `PaginationDefaults`
 - `ui/dto/` — `Identifiable` and other shared UI DTOs

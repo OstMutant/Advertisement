@@ -1630,6 +1630,283 @@ separate edit to `generate-architecture-model.sh` required, closing the exact ga
 for `marketplace-orchestrator`. Regenerated via `bash scripts/architecture/generate-architecture-model.sh`;
 `check-architecture-model-freshness.sh` confirmed green.
 
+## ADR-026: Bounded Contexts UX fixes — decouples-edge toggle, Diagrams card reorder/description, SPI Map caller column, Hook-relocation evidence-path update
+
+**Status:** Accepted
+
+**Context:** `improvement-149` (filed after the user found `Module Dependencies` visually
+unchanged post-true-BFF-migration, then found `Bounded Contexts` still visually confusing after
+that was explained) surfaced four separate, real UX gaps in this tool, on top of the pom.xml/Hook
+relocation covered in `marketplace-orchestrator/DECISIONS.md` ADR-004:
+
+1. **Bounded Contexts conflated `Shared -> X` (`decouples`, a compile-time fact repeated once per
+   domain — 7+ edges) with real `UI/Orchestrator -> X` (`calls`) edges** — both drawn as lines on
+   the same canvas, distinguished only by solid-vs-dashed style, easy to mistake at a glance.
+2. **The Diagrams screen's card order and per-card text gave no hint which diagram answers which
+   question** — `Module Dependencies` (a Maven build-graph fact) and `Bounded Contexts` (a
+   real-code-call fact) sat side by side with no visible explanation of what makes them different,
+   which is exactly the confusion the whole investigation started from.
+3. **SPI Map showed only `interface -> implementation`, never who actually calls the interface** —
+   answering "who implements X" but not "who actually depends on X," even though the same
+   evidence-gathering mechanism (`ComponentFactory<XPort>` grep) already existed elsewhere in this
+   script (Bounded Contexts' Orchestrator/UI edges, added in ADR-019's line of work).
+4. **Both diagrams' `*Hook`-implementation evidence-gathering only ever searched
+   `marketplace-app/src/main/java/org/ost/marketplace/spi`** — a hardcoded path that went stale the
+   moment `marketplace-orchestrator/DECISIONS.md` ADR-004 moved 6 of 7 Hook implementations out of
+   that directory.
+
+**Decision:**
+1. `buildBoundedContextsMermaidSource()` filters out `decouples`-labeled edges by default, behind a
+   new `showDecouplesEdges` toggle (checkbox above the diagram, off by default) — the fact itself
+   ("platform-commons is a compile dependency of every domain/Orchestrator") is stated once in the
+   Legend section instead of drawn 7+ times. The `Shared` subgraph also gets a distinct
+   `classDef`/`fill` when the toggle is off, so it reads visually as "the thing everything depends
+   on," not just another domain box.
+2. `diagram_groups_json` reordered to Bounded Contexts → SPI Map → Module Dependencies → Database
+   ERD (most-distinctive-fact first), and gained a hand-written one-line `description` field per
+   group, stored in the same generated JSON as `label`/`file` (not a second hardcoded copy in the
+   HTML template) — rendered under each group's heading on the Diagrams list screen.
+3. `spi_map_json()` gained a symmetric caller-detection pass per interface: grep every module
+   (starters + `marketplace-app` + `marketplace-orchestrator`) for `ComponentFactory<Iface>`,
+   `List<Iface>`, or a bare `Iface field;` — both injection shapes appear in real code (confirmed
+   directly, not assumed: `AuditActivityFieldsHook`'s real caller turned out to be
+   `marketplace-app`'s `AuditTimelineRowRenderer` via `List<AuditActivityFieldsHook>`, not the
+   audit-starter the `*Hook` suffix's usual direction would suggest). Caller nodes render as a
+   third node group with a `caller -> interface "calls"` edge, alongside the existing
+   `interface -> implementation "implemented by"` edge — both edges now carry an explicit `label`
+   in the live JSON (previously only the separate Markdown-export function hardcoded label text;
+   the live interactive diagram rendered unlabeled arrows), so arrow direction + label is the
+   distinguishing signal between the two edge kinds, per the user's own call not to add a separate
+   color/icon split sight-unseen.
+4. The `*Hook`-implementation grep in both Bounded Contexts (`"$dom" -> "Audit"`/`"Audit" -> "UI"`
+   edges) and the caller-search reuse now scan `marketplace-orchestrator/src/main/java/org/ost/
+   orchestrator/services` in addition to `marketplace-app/src/main/java/org/ost/marketplace/spi`.
+   The `Audit -> UI` edge itself split into two real edges — `Audit -> Orchestrator` for the 6
+   relocated Hook implementations, `Audit -> UI` for the one (`ActivityEnrichHookImpl`) that stayed
+   — rather than a single edge pointing at whichever module happened to be checked first.
+
+**Consequences:** Regenerated via `bash scripts/architecture/generate-architecture-model.sh`;
+`check-architecture-model-freshness.sh` confirmed green. `platform-commons/CLAUDE.md`'s SPI naming
+table gained `marketplace-orchestrator` as a legitimate `*Hook` caller (previously only "starter")
+— see `platform-commons/DECISIONS.md` ADR-029.
+
+**Refinements found by `/code-review` on the same diff, applied before landing:** the
+`Orchestrator` branch's `ports_json` computation only grepped for `ComponentFactory<XPort>`/bare-
+field injection, so the diagram silently omitted `AuditDomainHook`/`AuditActivityFieldsHook`/
+`CurrentActorHook` from Orchestrator's Ports list even though it now genuinely implements them —
+fixed by also grepping `implements` in that branch, mirroring the starter branch. `spi_map_json()`'s
+caller-detection loop walked the same three directory trees a second time per interface (measured
+~2x slower); combined into one `grep -rlP` tree-walk per interface followed by cheap per-file
+re-classification, preserving identical output. The new caller edge's JSON-comma bookkeeping didn't
+participate in the same `first_edge`/`first_edge=false` guard the implementor edge used, producing
+invalid JSON when a caller edge was the very first edge emitted for the whole file — fixed to share
+the same guard. The "Show decouples edges" checkbox called the same full `renderDiagrams()` used for
+page navigation, which unconditionally resets zoom to 100% — fixed with a dedicated
+`toggleDecouplesEdges()` handler that saves/restores `zoomLevel` around the re-render.
+
+---
+
+## ADR-027: SPI Map splits into one diagram per subsystem instead of one combined canvas
+
+**Status:** Accepted
+
+**Context:** ADR-026's new caller column made the SPI Map's single combined Cytoscape canvas
+genuinely too dense to read — 71 nodes / 66 edges across all 16 `platform-commons` SPI interfaces
+on one page (`TaxonPort` alone has 9 real callers, `AdvertisementPort`/`AuditPort` 6 each), user-
+reported directly as unreadable. Considered and rejected before landing on this fix: a checkbox
+toggling the caller column off by default (loses the exact information the column was added for,
+doesn't actually reduce interface count either); collapsing callers to one node per module instead
+of per class (still one shared canvas, doesn't address the "too many unrelated interfaces on one
+page" half of the problem); a text-search/focus-one-interface control (solves it interactively but
+still starts every visit on the overwhelming full view).
+
+**Decision:** The `02-spi-map` diagram group now has 7 diagrams instead of 1 — one per subsystem
+(`audit`, `attachment`, `user`, `advertisement`, `taxon`, `providerprofile`, `core`), matching the
+subsystem grouping the "SPI Interface Details" table already used below the diagram. Each tab's
+Cytoscape graph is filtered client-side (`spiMapNodesForSubsystem()`): start from that subsystem's
+own interfaces (via `MODEL.spiMap.details[].subsystem`), pull in every node/edge actually touching
+them, drop now-unused module-group boxes. No new server-side/bash computation needed — the full,
+unfiltered `MODEL.spiMap.nodes/edges/details` stays exactly as ADR-026 left it; only the JS
+rendering layer picks a subset per tab. The "SPI Interface Details" table below the diagram
+(`renderSpiSubsystemTables(subsystem)`) filters to the same one subsystem for consistency — the
+Overview/Legend/Call-Flow-Examples/Implementation-Rules sections stay generic, shown on every tab.
+`exportSpiMapMarkdown()` deliberately still exports everything in one document, unfiltered — a
+markdown file doesn't have the same eye-parsing-a-canvas problem an interactive diagram does, so
+splitting the export into 7 files would be solving a problem that export format doesn't have.
+
+**Consequences:** Real per-tab node counts after the split: `user` (largest, 7 interfaces) 20 leaf
+nodes, `audit` 16, `taxon` 11, `attachment`/`advertisement` 8-9, `providerprofile` 6, `core` 4 —
+down from one shared 62-leaf-node canvas. `SPI_SUBSYSTEM_ORDER` (bash) hoisted to a shared global
+array, reused by both `diagram_groups_json`'s new `spi_map_diagrams_json()` helper and
+`spi_map_json()` itself, instead of two separately-maintained copies of the same 7-subsystem list.
+Regenerated via `bash scripts/architecture/generate-architecture-model.sh`;
+`check-architecture-model-freshness.sh` confirmed green.
+
+**Refinement (same session) — Direction column gets the same tooltip treatment Bounded Contexts'
+Label column got.** `d.kind` values (`"Port (marketplace -> starter)"`, `"Hook (starter ->
+marketplace)"`, `"type contract"`) already name the direction in the cell text, but not *why* it
+matters which one an interface is. `SPI_KIND_MEANING` (prefix-matched via `spiKindMeaning()`, so
+the module-specific suffix `spi_kind_for()` appends for `UiLabelHook`/`SessionActorHook` still
+resolves correctly) adds a one-sentence `title` tooltip per row. Column headers
+(`Caller(s)`/`Direction`/`Implementation(s)`) also gained tooltips explaining what each actually
+shows. Diagram edges were deliberately left unwired to a scroll-to-row jump (unlike Bounded
+Contexts' `bcRelRowId()`/`jumpToRelationshipRow()`) — not asked for this round, and SPI Map's
+shared `renderCytoscapeFromGraph()` also backs Module Dependencies, so adding edge-click behavior
+there needs its own scoped decision, not a side effect of this change.
+
+---
+
+## ADR-028: Bounded Contexts splits into Context Map + Shared Dependencies; per-box item cap; tighter Mermaid spacing; audited-via evidence repaired
+
+**Status:** Accepted
+
+**Context:** Three separate, real problems surfaced on the Bounded Contexts diagram in the same
+sitting. (1) User reported the `showDecouplesEdges` checkbox (ADR-026) itself was unclear — mixing
+"here's a toggle for a secondary fact" into the primary call-graph view was confusing regardless of
+wording. (2) The diagram was "розтягнута" (stretched) well past one screen — measured cause:
+`Orchestrator`'s domain box alone lists 29 items (18 services + 11 ports), dwarfing every other
+domain (max 11) and dominating the page height in Mermaid's `graph TB` vertical layout; Mermaid's
+default `nodeSpacing`/`rankSpacing` (50/50) compounded this further. (3) `platform-commons/
+DECISIONS.md` ADR-029's third refinement (`AuditActivityFieldsHook` removed entirely) had already
+flagged, as a known but unfixed consequence, that the `"$dom" -> "Audit" "audited via"` relationship
+edges lost their only evidence source and vanished from the diagram — a real signal loss, not
+cosmetic, confirmed here by inspecting the regenerated model directly (19 relationships, zero
+`audited via` entries).
+
+**Decision:**
+1. **Checkbox removed, split into two diagrams** — same mechanism `02-spi-map` (ADR-027) already
+   uses (multiple entries in one `diagramGroups[].diagrams` array): "Context Map" (default; real
+   business relationships only, `Shared` domain excluded entirely since it never participates in a
+   real call, only `decouples`) and "Shared Dependencies" (the `decouples` edges only, simple
+   domain-name boxes with no entity/service/table/port lists, since this diagram exists purely to
+   show one compile-time fact). `buildBoundedContextsMermaidSource()` split into
+   `buildContextMapMermaidSource()`/`buildSharedDependenciesMermaidSource()`;
+   `renderBoundedContextsExtrasHtml(view)` filters Domain Contents/Relationships/Legend to match
+   whichever tab is open, mirroring `renderSpiMapExtrasHtml(subsystem)`'s ADR-027 pattern.
+2. **Per-box item cap** — `BC_MAX_ITEMS_PER_BOX = 8`; a domain with more items shows the first 8
+   plus a `"+N more -- see Domain Contents below"` pseudo-node instead of every item inline. Full
+   list stays one click away in the existing "Domain Contents" section.
+3. **Tighter Mermaid spacing** — `flowchart.nodeSpacing`/`rankSpacing`/`padding` set to 12/25/6
+   (from Mermaid's defaults of roughly 50/50/8) in the one global `mermaid.initialize()` call;
+   Bounded Contexts is the sole live `graph`-type flowchart consumer, so this doesn't affect the ERD
+   (its own `er` config) or SPI Map (Cytoscape-rendered, not Mermaid, since ADR-018).
+4. **`audited via` evidence repaired** — new source is `AuditTimelineRowRenderer.
+   LABELED_ENTITY_TYPES`, the `Set<EntityType>` constant introduced when `AuditActivityFieldsHook`
+   was removed (`platform-commons/DECISIONS.md` ADR-029's third refinement) — parsed via
+   `sed -n '/LABELED_ENTITY_TYPES/,/;/p' | grep -oP 'EntityType\.\K\w+'` against that one file,
+   replacing the old multi-file `implements AuditActivityFieldsHook` scan. `can have`
+   (`AuditActivityEnrichHook`) evidence-gathering is unaffected — that interface still has a real
+   implementation with real per-call logic.
+
+**Consequences:** Regenerated and confirmed: `audited via` edges back (`Advertisement`/`Taxon` ->
+`Audit`, `User` -> `Audit` with both `USER`/`USER_SETTINGS` folded into one edge's evidence, same
+`add_rel()` merge behavior as before). Two diagram tabs confirmed present in the regenerated model.
+`check-architecture-model-freshness.sh` green.
+
+---
+
+## ADR-029: Bounded Contexts moves from Mermaid back to Cytoscape — flat domain nodes, no compound item children, closing the "Shared Dependencies" diagram from ADR-028
+
+**Status:** Accepted
+
+**Context:** ADR-028's fixes (checkbox removal, item cap, tighter Mermaid spacing) didn't resolve
+the underlying complaint — the diagram still read as visually stretched/uncentered, and separately
+the user directly compared the interaction quality against Cytoscape-rendered diagrams (Module
+Dependencies, SPI Map): dragging those shows real, native visual feedback (Cytoscape's own
+pan/grab handling); the Mermaid `enableDragToPan()` fallback (a hand-rolled `scrollLeft`/`scrollTop`
+hack) has none of that polish. The user asked directly whether Bounded Contexts could just work
+the same way those do.
+
+That question runs straight into `DECISIONS.md` ADR-016, which explicitly reverted an earlier
+Cytoscape+dagre attempt at this exact diagram: nesting each domain's entities/services/tables/ports
+as *compound-child* nodes created a cycle spanning compound boundaries (`UI`'s children linked to
+`Audit`'s children and back), which dagre's compound-aware ranking cannot resolve — the whole graph
+collapsed onto one column. Checked directly whether this failure mode still applies today rather
+than assuming either way: the current relationship set (post true-BFF migration, post
+`AuditActivityFieldsHook` removal) still has a 2-node cycle (`Orchestrator <-> Audit`, both
+directions real edges), but it's now a cycle between two *flat, top-level, non-nested* domains —
+not the parent-child-crossing-boundary shape ADR-016 diagnosed. A cycle between plain sibling nodes
+is the ordinary case dagre handles without difficulty; it was never the specific failure mode that
+broke the original attempt.
+
+**Decision:** Bounded Contexts' "Context Map" now renders via Cytoscape
+(`renderContextMapGraph()`), reusing `renderModuleDependencyGraph()`'s own shape: one flat node per
+domain (no compound nesting, no item children on the canvas at all), colored via the same
+`domainColor()`/`moduleNodes` lookup Module Dependencies already uses, native
+pan/zoom/click/`tap`-to-navigate — the identical interaction model as every other Cytoscape diagram
+in this tool, not an approximation of it. Entities/services/tables/ports (previously rendered as
+compound-child nodes, then item-capped Mermaid boxes under ADR-028) now live only in the existing
+"Domain Contents" table below the diagram and each domain's own module page — never on the canvas.
+`buildContextMapMermaidSource()` kept, narrowed to Markdown-export use only (a static text document
+has none of the live-interaction concerns above), rebuilt to emit the same flat-node shape as the
+live graph instead of the old compound-subgraph-with-items version.
+
+**Also decided in the same pass: ADR-028's "Shared Dependencies" second diagram removed again.**
+Asked directly what value it actually provided; honest answer was very little — 7-8 identical
+dashed edges from one node, restating a single fact ("platform-commons is a compile dependency of
+everything") with no further detail, already stated in prose in the Overview section. Removed the
+second `diagrams[]` entry, `buildSharedDependenciesMermaidSource()`, and the Legend/Overview
+branching in `renderBoundedContextsExtrasHtml()` that supported it — Bounded Contexts is back to
+one diagram, the "everything depends on Shared" fact stated once as plain text instead of drawn.
+
+**Consequences:** `GRAPH_TYPE_KEYS` (drives the "draggable" badge on the Diagrams list screen) now
+includes `bounded-contexts`. `wireBoundedContextsClicks()` (Mermaid-cluster click wiring) deleted
+as dead code — Cytoscape's own `tap` handler replaces it. The `mermaid.initialize()` `flowchart`
+config tuning and its accompanying `.mermaid .node`/`.nodeLabel` CSS overrides from ADR-028 are
+also dead now (no live Mermaid `graph`-type flowchart consumer remains anywhere in the tool — DB
+ERD uses `erDiagram`, the generic fallback uses `sequenceDiagram`) — removed rather than left as
+inert config nobody would think to question. Regenerated;
+`check-architecture-model-freshness.sh` confirmed green.
+
+**Refinement (same session) — arrows clickable, Confidence column dropped, Evidence/Label made
+readable.** Once the diagram itself worked, follow-up feedback on the "Relationships" table below
+it: `Confidence` always read `"extracted"` (every row, no exception) — a column with one constant
+value across every row conveys nothing, so it was dropped rather than kept as decoration; the fact
+itself is now stated once in the section header ("all 'extracted'") instead of repeated per row.
+`Label` values (`"calls"`, `"audited via"`, etc.) get a `title` tooltip with a plain-English
+sentence explaining what each one actually means (`BC_LABEL_MEANING`, keyed the same as the bash
+generator's own `BC_LABEL_PAYLOAD`). `Evidence` text — a mix of prose and real file paths — now
+runs through `linkifyEvidence()`, which finds and wraps just the real
+`<module>/src/main/java/.../X.java[:line]` substring in a working link, leaving surrounding prose
+untouched (evidence strings that don't reference one single file, e.g. "30 marketplace-app classes
+import ...", correctly stay plain text — confirmed against real evidence strings, not assumed from
+the regex alone). Diagram edges are now clickable too (`diagramCy.on("tap", "edge", ...)`) —
+`bcRelRowId(from, to, label)` produces one canonical, collision-safe id shared by both the table
+row and the edge's own `rowId` data field, so a click scrolls to and briefly flashes the matching
+Relationships row instead of leaving the reader to hunt for it by eye.
+
+**Bug found and fixed (same session) — the two "calls back via Hook implementations" edges were
+factually wrong, not just imprecise.** User asked directly why the diagram showed `Audit -> UI`,
+which prompted checking the evidence rather than defending or re-explaining it — and the evidence
+didn't hold up. The old code labeled *every* Hook implementation file found in
+`marketplace-app/spi`/`marketplace-orchestrator/spi` as caused by "Audit", regardless of who
+actually calls it. Verified per-interface via grep, not assumed: `UiLabelHook`/`SessionActorHook`'s
+real caller is `marketplace-orchestrator`'s own Hook classes (`UserActorNameService`,
+`CurrentActorHookImpl`) — a real `Orchestrator -> UI` fact, never an `Audit -> UI` one; and
+`CurrentActorHook` has two real callers, `audit-spring-boot-starter` (`DefaultAuditPort`) **and**
+`attachment-spring-boot-starter` (`AttachmentService`), not just audit. Replaced the blanket
+per-folder grep with a per-interface loop: for each `*Hook.java` interface (scanned across
+`platform-commons/*/spi` and `marketplace-orchestrator/*/spi`, since `UiLabelHook`/`SessionActorHook`
+no longer live in platform-commons), find its real implementor (decides `UI` vs `Orchestrator`),
+then find every real caller across every starter plus `marketplace-orchestrator` itself, and add
+one edge per distinct (caller-domain, implementor-domain) pair — skipping self-edges where a
+domain's own forwarder calls its own SPI. Real result after the fix: `Audit -> UI` now carries only
+`AuditActivityEnrichHook` (the one genuinely correct fact); `Audit -> Orchestrator` carries
+`AuditDomainHook` + `CurrentActorHook`; two new, previously-missing edges appeared —
+`Attachment -> Orchestrator` (`CurrentActorHook`'s second real caller) and `Orchestrator -> UI`
+(`UiLabelHook`/`SessionActorHook`'s real caller, orchestrator's own classes).
+`UserSettingsChangedHook` stays unaccounted for either way (its real implementor,
+`SettingsPaginationService`, lives outside the `spi/` package this search scope covers) — a
+pre-existing gap, not a regression from this fix, not chased further here.
+
+**Trigger to revisit:** If the `Orchestrator <-> Audit` cycle ever grows into a larger
+compound-boundary-crossing cycle again (e.g. if item nodes are ever reintroduced as canvas
+children), re-verify against ADR-016's original diagnosis before assuming dagre still handles it —
+the reasoning above is specific to today's flat, no-nested-children shape, not a blanket "dagre
+handles cycles fine now" conclusion.
+
+---
+
 ## Open goals
 
 ~~Mechanize `bounded-contexts.md` the same "scatter into real source" way as ADR-017~~ — done, see

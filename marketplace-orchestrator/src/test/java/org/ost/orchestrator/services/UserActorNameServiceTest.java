@@ -1,12 +1,11 @@
-package org.ost.marketplace.services.user;
+package org.ost.orchestrator.services;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ost.marketplace.services.i18n.I18nService;
-import org.ost.orchestrator.services.ActorLookupService;
+import org.ost.orchestrator.spi.UiLabelHook;
 
 import java.util.Map;
 import java.util.Set;
@@ -18,13 +17,13 @@ import static org.mockito.Mockito.when;
 class UserActorNameServiceTest {
 
     @Mock private ActorLookupService actorLookupService;
-    @Mock private I18nService i18n;
+    @Mock private UiLabelHook uiLabelHook;
 
     private UserActorNameService service;
 
     @BeforeEach
     void setUp() {
-        service = new UserActorNameService(actorLookupService, i18n);
+        service = new UserActorNameService(actorLookupService, uiLabelHook);
     }
 
     @Test
@@ -41,7 +40,7 @@ class UserActorNameServiceTest {
     void resolveNames_deletedActor_appendsI18nSuffix() {
         when(actorLookupService.findActorNames(Set.of(1L, 2L))).thenReturn(Map.of(1L, "Alice", 2L, "Bob"));
         when(actorLookupService.findDeletedIds(Set.of(1L, 2L))).thenReturn(Set.of(2L));
-        when(i18n.get(org.ost.marketplace.services.i18n.I18nKey.AUDIT_ACTOR_DELETED_NAME, "Bob"))
+        when(uiLabelHook.translateActorDeletedSuffix("Bob"))
                 .thenReturn("Bob (deleted)");
 
         Map<Long, String> result = service.resolveNames(Set.of(1L, 2L));

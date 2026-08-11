@@ -214,12 +214,26 @@ Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply 
 - token_cost_review: <tokens summed from Agent-tool review-purpose calls, or n/a>
 - token_cost_research: <tokens summed from Agent-tool research/investigation calls, or n/a>
 - token_cost_verification: <tokens summed from Agent-tool verification/testing calls, or n/a>
+- review_signal_ratio: <CONFIRMED/PLAUSIBLE findings that survived verification> / <total candidate findings raised across all finder angles>, or n/a if no /code-review ran this task
 - context_loading_task_type: <the matching docs/ai/context-loading.md row, or n/a>
 - context_loading_consulted: <yes/no/n/a>
 - context_loading_matched: <yes/no/n/a — did the actual read pattern match that row's guidance>
 - flows_situation: <short phrase describing the situation, or n/a>
 - flows_chosen: <the command/skill actually used, or n/a>
 - flows_matched: <yes/no/n/a — did it match docs/ai/flows.md's recommendation for that situation>
+
+### Agent calls
+- <purpose> | subagent_type=<X> | tokens=<N> | tool_uses=<N> | duration_s=<N> | mode=<foreground|background> | batch=<parallel-group-id or solo>
+(one line per Agent-tool invocation this task made; omit the whole subsection, not empty, if none)
+
+### Script/command runs
+- <script + args> | duration_s=<N> | mode=<foreground|background> | result=<pass|fail|n/a>
+(one line per scripts/*.sh invocation this task made; omit the whole subsection, not empty, if none)
+
+### Review angle yield
+- <finder angle name> | survived=<N> | total_candidates=<N> | tokens=<N>
+(one line per finder angle from that /code-review run — this is what review_signal_ratio's
+aggregate is computed from; omit the whole subsection, not empty, if no /code-review ran)
 ```
 
 Show this same block in the chat final report too, not only in the issue file — writing it to the
@@ -230,6 +244,25 @@ Token totals are never a full accounting — no tool reports main-thread token u
 context if asked, not inside the block itself (keep the block just the key: value lines, nothing
 else, so parsing stays trivial). See `.claude/commands/sync-docs.md`'s Full Audit Mode for where
 this data gets aggregated and acted on.
+
+**`review_signal_ratio`** exists to answer, over time and across many tasks, whether a given
+`/code-review` effort level actually pays for itself — a low ratio sustained across many runs is
+evidence a lower effort level (fewer finder angles, less exhaustive verification) would have found
+the same real bugs for less cost; a high ratio is evidence the current level is well-calibrated.
+Compute it honestly from the real counts of that run, not a rounded guess. The per-angle
+**Review angle yield** breakdown exists specifically so this decision can be made per-angle, not
+just for the review process as a whole — an angle that's consistently expensive and low-yield
+across many tasks is a candidate to drop or narrow; an angle that keeps finding real bugs
+regardless of cost stays. Never drop an angle from one run's data alone.
+
+**Agent calls vs. Script/command runs — different metrics, don't conflate them.** Every Agent-tool
+task-notification carries real `<usage>` data (`subagent_tokens`/`tool_uses`/`duration_ms`) — use
+it verbatim, don't estimate. Scripts (`unit-tests.sh`, `deploy.sh`, `playwright.sh`, etc.) are not
+LLM calls and have no token cost of their own — never invent one; only record their real wall-clock
+duration and pass/fail result. Main-thread (this conversation's own) token usage has no reporting
+tool at all — not a policy choice, a real gap, confirmed via `ToolSearch` finding no matching tool
+before writing this rule (2026-08-08) — do not estimate it either; the `token_cost_*` fields above
+stay Agent-only for this reason.
 
 ### Review-skill effort level — default stays put; deviation allowed only when obvious, always disclosed
 A review-style skill's effort level defaults to whatever it defaults to when the user doesn't name

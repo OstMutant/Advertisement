@@ -828,3 +828,114 @@ raw return DTOs (`AdvertisementInfoDto`/`ProviderProfileDto`) are unchanged in s
 composition-enriched fields (category/city/actor names, media summary) simply arrive unset until
 the caller explicitly enriches, matching the DTOs' pre-existing hybrid nature (domain-owned fields
 + composition-enriched fields in one flat class, unchanged by this ADR).
+
+## ADR-029: `UiLabelHook`/`SessionActorHook` — forwarder SPIs so `marketplace-orchestrator` can own `*Hook` implementations that need a UI-shell resource
+
+**Status:** Accepted
+
+**Context:** Moving `AuditDomainHookImpl`, `AdvertisementActivityFieldsHookImpl`,
+`TaxonActivityFieldsHookImpl`, `UserActivityFieldsHookImpl`, `UserSettingsActivityFieldsHookImpl`,
+and `CurrentActorHookImpl` out of `marketplace-app/spi` and into `marketplace-orchestrator/services`
+(see `marketplace-orchestrator/DECISIONS.md` for the reasoning) hit a real compile-visibility
+problem: three of these classes called `I18nService.get(I18nKey ...)` for field-label translation,
+and one called `AuthContextService`/`SecurityContextHolder` for the current actor's ID — both types
+live in `marketplace-app`, and the dependency direction only ever runs
+`marketplace-app -> marketplace-orchestrator`, never the reverse, so `marketplace-orchestrator`
+code cannot import either type directly.
+
+The obvious-looking fix — move the whole `I18nKey` enum (and `AuthContextService`) into
+`platform-commons` so both modules can see them — was rejected: `I18nKey` alone carries roughly
+300 UI-specific translation keys, the overwhelming majority used only by `marketplace-app`'s own
+Vaadin components and completely unrelated to any Hook. Relocating it would contradict
+`marketplace-app/CLAUDE.md`'s own stated rule ("Starters have no i18n infrastructure of their
+own — all UI i18n lives here") for a 6-key-out-of-300 need, and would ripple through the ~67 files
+that reference it today for no real benefit.
+
+**Decision:** Two narrow forwarder SPIs in `platform-commons/core/spi`:
+- `UiLabelHook.translate(String messageKey, Object... args)` — takes the raw message-bundle key
+  string (the same string `I18nKey.key()` already resolves to), not the `I18nKey` enum itself.
+  Implemented by `UiLabelHookImpl` in `marketplace-app/spi`, delegating to
+  `I18nService.get(String key, Object... args)` — already this interface's primary,
+  already-sanctioned method (`I18nService.get(I18nKey key, ...)` is a default method that wraps
+  it), so this is not a new bypass of the "never call raw `MessageSource`" rule.
+- `SessionActorHook.getCurrentActorId()` — same shape as the existing `CurrentActorHook` one layer
+  up, deliberately: it is a like-for-like duplicate, not a redesign, since the goal was purely to
+  get `CurrentActorHookImpl` physically out of `marketplace-app`, not to change its behavior.
+  Implemented by `SessionActorHookImpl` in `marketplace-app/spi`, delegating to
+  `AuthContextService`.
+
+Moved classes now depend on these two SPIs instead of `I18nService`/`AuthContextService` directly.
+Callers pass message-bundle key string literals as `private static final String` constants
+(mirroring the exact dot-path string `I18nKey.SOME_KEY.key()` already resolves to) instead of
+referencing the enum — a deliberate, narrow exception to this codebase's usual "typed constant,
+not a raw string" preference, scoped to exactly the 15 keys these 6 classes need, chosen over
+moving ~300 unrelated keys across a module boundary. `ActivityEnrichHookImpl` was evaluated and
+explicitly excluded from this move — its dependency (`AdvertisementAuditEnrichService`) does real
+HTML-diff formatting, not a single-value lookup, so a forwarder-SPI extraction doesn't fit the same
+mechanical pattern; it stays in `marketplace-app/spi`.
+
+**Consequences:** `platform-commons/CLAUDE.md`'s `*Hook` row in the SPI naming table now names
+`marketplace-orchestrator` as a second legitimate `*Hook` caller alongside "starter" — the
+direction/role table entry was updated rather than treated as an exception. The SPI Map diagram's
+evidence-gathering (`scripts/architecture/generate-architecture-model.sh`) now scans
+`marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi` in addition to
+`marketplace-app/src/main/java/org/ost/marketplace/spi` when looking for `*Hook`
+implementations, or these six would silently disappear from the live diagram after the move (the
+six landed in `org.ost.orchestrator.services` initially, then moved into their own sibling
+`org.ost.orchestrator.spi` package in the same session — see `marketplace-orchestrator/DECISIONS.md`
+ADR-004's refinement note).
+
+**Refinement (same session) — `UiLabelHook`/`SessionActorHook` moved out of `platform-commons`
+entirely, and the raw-string message keys got a typed home too.** Two follow-up problems raised
+after this ADR first landed: (1) the `private static final String` message-key constants this ADR
+accepted as a "deliberate, narrow exception" were pushed back on directly as real coupling — no
+compiler check keeps `I18nKey.java`'s literals and these constants in sync. (2) whether
+`UiLabelHook`/`SessionActorHook` needed to live in `platform-commons` at all was questioned: the
+*Hook-must-live-in-platform-commons rule exists specifically because starters are optional and
+marketplace must compile without one present — a reasoning that never applied to this pair, since
+no starter calls either interface (only `marketplace-orchestrator`'s own Hook implementations do),
+and `marketplace-orchestrator` is a mandatory, never-optional dependency of `marketplace-app`.
+
+Both problems share one root fix: `marketplace-app` already legally depends on
+`marketplace-orchestrator` (the normal, intended direction), so any type `marketplace-orchestrator`
+defines is visible to `marketplace-app` — nothing needs `platform-commons` for this pair at all.
+Landed: a new `AuditLabelKey` enum in `marketplace-orchestrator/src/main/java/org/ost/orchestrator/
+spi/AuditLabelKey.java` (one canonical entry per message key, matching `I18nKey`'s existing
+constant names) that `I18nKey.java` now references via `AuditLabelKey.X.key()` instead of
+duplicating the literal — a rename in `AuditLabelKey` is a compile error in `I18nKey.java`, closing
+the original coupling gap. `UiLabelHook`/`SessionActorHook` themselves moved from
+`platform-commons/core/spi` into `org.ost.orchestrator.spi`, now typed
+(`UiLabelHook.translate(AuditLabelKey key, ...)`, not `String messageKey`) — the only remaining
+untyped boundary is `UiLabelHookImpl`'s single `I18nService.get(key.key(), args)` call.
+`platform-commons` ends up with **zero new types** from the whole Point 4 line of work — both
+forwarder SPIs live in `marketplace-orchestrator` instead. See
+`marketplace-orchestrator/DECISIONS.md` ADR-004 for the mirrored refinement note, and
+`backlog/issues/improvement-149-architecture-map-module-deps-vs-bounded-contexts.md`'s
+implementation log for the full back-and-forth.
+
+**Second refinement (same session) — `AuditLabelKey` itself removed; no key enum at all.** The
+`AuditLabelKey` enum introduced by the refinement above baked a resource-bundle-path convention
+(`"changes.field.title"`) into `marketplace-orchestrator`, which has no real need to know how
+`marketplace-app` organizes its message bundles — flagged directly, and fixed by recognizing that
+each DTO's own `@FieldNameConstants`-generated `Fields.*` constant is already the compiler-checked
+identifier this problem needed; no parallel enum required. `UiLabelHook.translate()` now takes the
+raw `Fields.*` constant plus `EntityType` directly; the field-name-to-`I18nKey` mapping lives
+entirely in `marketplace-app`'s `UiLabelHookImpl`. See `marketplace-orchestrator/DECISIONS.md`
+ADR-004's third refinement note for the full record.
+
+**Third refinement (same session) — `AuditActivityFieldsHook` removed from `platform-commons`
+entirely; the whole per-domain Hook pattern for field labels is gone.** Asked directly whether the
+four per-domain `*ActivityFieldsHookImpl` classes were still earning their keep as separate
+plugin-style implementations, given `labelFor()` had just collapsed to an identical one-line
+delegation in every one of them. Checked before answering, not assumed: `expandFields()` had
+*always* been `item.expandedChanges()` in all four (never actually domain-specific), and
+`AuditActivityFieldsHook`'s only real caller anywhere in the repo was `marketplace-app`'s own
+`AuditTimelineRowRenderer` (confirmed by grep, not the audit-starter the interface's own Javadoc
+described). With zero remaining domain-specific behavior and zero external callers beyond the one
+class that could trivially own this logic directly, the interface, its four implementations, and
+`UiLabelHook`'s `translate(EntityType, String, ...)` method were all deleted — the field-name-to-
+label switch moved, unchanged in substance, into a private method on `AuditTimelineRowRenderer`
+itself. `UiLabelHook` is now a single-method `@FunctionalInterface` again
+(`translateActorDeletedSuffix(String)`), the one case that still has a genuine cross-module need
+(its real caller, `UserActorNameService`, serves the audit-starter, which has no i18n awareness of
+its own). See `marketplace-orchestrator/DECISIONS.md` ADR-004's fourth refinement note.
