@@ -1,20 +1,17 @@
-package org.ost.marketplace.services.advertisement;
+package org.ost.orchestrator.services;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ost.marketplace.services.i18n.I18nKey;
-import org.ost.marketplace.services.i18n.I18nService;
-import org.ost.marketplace.services.i18n.LocaleProvider;
-import org.ost.orchestrator.services.AttachmentMediaService;
+import org.ost.orchestrator.spi.CurrentLocaleHook;
+import org.ost.orchestrator.spi.UiLabelHook;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.attachment.spi.AttachmentAuditPort;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
-import org.ost.orchestrator.services.TaxonLookupService;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
@@ -42,17 +39,18 @@ class AdvertisementAuditEnrichServiceTest {
 
     @Mock private AttachmentMediaService attachmentMediaService;
     @Mock private TaxonLookupService taxonLookupService;
-    @Mock private LocaleProvider localeProvider;
-    @Mock private I18nService i18nService;
+    @Mock private CurrentLocaleHook currentLocaleHook;
+    @Mock private UiLabelHook uiLabelHook;
 
     private AdvertisementAuditEnrichService service;
 
     @BeforeEach
     void setUp() {
-        lenient().when(localeProvider.getCurrentLocale()).thenReturn(Locale.ENGLISH);
-        lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_AD_KIND_OFFER)).thenReturn("Offer");
-        lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_AD_KIND_PRODUCT)).thenReturn("Product");
-        service = new AdvertisementAuditEnrichService(attachmentMediaService, taxonLookupService, localeProvider, i18nService);
+        lenient().when(currentLocaleHook.getCurrentLocale()).thenReturn(Locale.ENGLISH);
+        lenient().when(uiLabelHook.labelFor(AdKind.OFFER)).thenReturn("Offer");
+        lenient().when(uiLabelHook.labelFor(AdKind.PRODUCT)).thenReturn("Product");
+        lenient().when(uiLabelHook.noMediaPlaceholder()).thenReturn("—");
+        service = new AdvertisementAuditEnrichService(attachmentMediaService, taxonLookupService, currentLocaleHook, uiLabelHook);
     }
 
     private static TaxonDto taxon(Long id, String name) {

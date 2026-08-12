@@ -213,6 +213,7 @@ public enum I18nKey {
     AUDIT_VALUE_TRUNCATED("audit.value.truncated"),
     AUDIT_CHANGES_SHOW_MORE("audit.changes.show.more"),
     AUDIT_CHANGES_SHOW_LESS("audit.changes.show.less"),
+    AUDIT_CHANGES_NO_MEDIA("audit.changes.no.media"),
 
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),

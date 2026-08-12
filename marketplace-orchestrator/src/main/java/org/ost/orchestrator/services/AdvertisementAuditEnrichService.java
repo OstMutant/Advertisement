@@ -1,14 +1,11 @@
-package org.ost.marketplace.services.advertisement;
+package org.ost.orchestrator.services;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.orchestrator.spi.CurrentLocaleHook;
+import org.ost.orchestrator.spi.UiLabelHook;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
-import org.ost.marketplace.services.i18n.I18nKey;
-import org.ost.marketplace.services.i18n.I18nService;
-import org.ost.marketplace.services.i18n.LocaleProvider;
-import org.ost.orchestrator.services.AttachmentMediaService;
-import org.ost.orchestrator.services.TaxonLookupService;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.core.model.ChangeEntry;
@@ -33,8 +30,8 @@ public class AdvertisementAuditEnrichService {
 
     private final AttachmentMediaService attachmentMediaService;
     private final TaxonLookupService      taxonLookupService;
-    private final LocaleProvider         localeProvider;
-    private final I18nService             i18nService;
+    private final CurrentLocaleHook currentLocaleHook;
+    private final UiLabelHook       uiLabelHook;
 
     public List<AuditTimelineItemDto<AdvertisementSnapshotDto>> mergeMediaChanges(
             List<AuditTimelineItemDto<AdvertisementSnapshotDto>> items) {
@@ -99,8 +96,6 @@ public class AdvertisementAuditEnrichService {
 
     // ── Shared ───────────────────────────────────────────────────────────────────────────────
 
-    private static final ChangeEntry NO_MEDIA_ENTRY = new ChangeEntry.MediaChange(null, "—");
-
     // skipMediaMergeIfUnchanged: Activity skips an unchanged media entry; Timeline always merges it.
     private List<ChangeEntry> mergeChanges(List<ChangeEntry> changes, AdvertisementSnapshotDto snapshot,
                                             AdvertisementSnapshotDto prev, Map<Long, String> nameById,
@@ -121,7 +116,9 @@ public class AdvertisementAuditEnrichService {
     }
 
     private List<ChangeEntry> mediaChangesFor(Long attachmentSnapshotId) {
-        if (attachmentSnapshotId == null) return List.of(NO_MEDIA_ENTRY);
+        if (attachmentSnapshotId == null) {
+            return List.of(new ChangeEntry.MediaChange(null, uiLabelHook.noMediaPlaceholder()));
+        }
         return attachmentMediaService.getChangesBySnapshotId(attachmentSnapshotId);
     }
 
@@ -183,7 +180,7 @@ public class AdvertisementAuditEnrichService {
     }
 
     private String labelFor(AdKind kind) {
-        return kind == null ? "" : i18nService.get(I18nKey.forAdKind(kind));
+        return kind == null ? "" : uiLabelHook.labelFor(kind);
     }
 
     private static String idsToNames(List<Long> ids, Map<Long, String> nameById) {
@@ -198,12 +195,12 @@ public class AdvertisementAuditEnrichService {
 
     private Map<Long, String> resolveNames(Set<Long> ids) {
         if (ids.isEmpty()) return Map.of();
-        return taxonLookupService.findByIds(ids, localeProvider.getCurrentLocale())
+        return taxonLookupService.findByIds(ids, currentLocaleHook.getCurrentLocale())
                 .entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> nameOrStrikethrough(e.getValue())));
     }
 
-    private static String nameOrStrikethrough(TaxonDto taxon) {
-        return taxon.isDeleted() ? "<s>" + taxon.getName() + "</s>" : taxon.getName();
+    private String nameOrStrikethrough(TaxonDto taxon) {
+        return taxon.isDeleted() ? uiLabelHook.markDeleted(taxon.getName()) : taxon.getName();
     }
 }

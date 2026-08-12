@@ -23,10 +23,10 @@ import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.Ov
 import org.ost.marketplace.ui.views.services.AppLinkService;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.utils.ShareUtil;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.orchestrator.services.AttachmentMediaService;
 import org.ost.orchestrator.services.TaxonLookupService;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.marketplace.ui.views.rules.I18nParams;

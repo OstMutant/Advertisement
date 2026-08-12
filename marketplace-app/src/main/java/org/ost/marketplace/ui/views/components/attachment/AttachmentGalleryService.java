@@ -4,9 +4,9 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.orchestrator.services.AttachmentMediaService;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 

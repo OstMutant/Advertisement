@@ -13,9 +13,9 @@ import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.Initialization;
-import org.ost.platform.core.ComponentFactory;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;

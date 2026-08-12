@@ -46,9 +46,9 @@ import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryServi
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.orchestrator.services.AdvertisementSaveService;

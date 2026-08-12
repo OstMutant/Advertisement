@@ -167,6 +167,10 @@ dispatches to one port per call based on `EntityType` was never the shape the �
 `ActivityEnrichHookImpl` stays in `marketplace-app/spi` — its dependency does real HTML-diff
 formatting, not a mechanical forwarder-shaped lookup.
 
+**Superseded by ADR-005:** the call above was revisited — `AdvertisementAuditEnrichService`'s only
+two UI-shell touchpoints turned out to be single-value lookups (current locale, an `AdKind` label),
+not the HTML-diff formatting itself. Both moved here behind forwarder SPIs; see ADR-005.
+
 **Decision, part 2 — `pom.xml` dependency relocation, superseding ADR-001:** ADR-001's original
 "never depends on a starter jar directly" rule (enforced via a Maven Enforcer `bannedDependencies`
 rule) is **reversed**. All 6 starter `<dependency>` declarations moved from `marketplace-app/pom.xml`
@@ -278,3 +282,53 @@ deferred to the same later sweep, flagged here so the size of the gap isn't lost
 **Trigger to revisit:** None currently open — `improvement-150` (filed 2026-08-11) tracks a further
 tightening (removing `platform-commons`/`query-lib` from `marketplace-app/pom.xml` entirely), not
 yet designed.
+
+---
+
+## ADR-005: `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern
+**Status:** Accepted
+
+**Context:** ADR-004 kept `ActivityEnrichHookImpl` in `marketplace-app/spi`, reasoning its
+collaborator (`AdvertisementAuditEnrichService`) did real HTML-diff formatting rather than a
+mechanical lookup, unlike `AuditDomainHookImpl`/`CurrentActorHookImpl`. Re-examining that service
+while scoping `improvement-150` found the claim didn't hold: its only two UI-shell dependencies —
+`LocaleProvider` (for `Locale`-aware taxon name resolution) and `I18nService` (for `AdKind` label
+text) — are each a single-value lookup, exactly the shape the forwarder-SPI pattern already covers
+elsewhere. The HTML-diff/change-merging logic itself never touches either dependency directly.
+
+**Decision:** One new forwarder SPI, `org.ost.orchestrator.spi.CurrentLocaleHook`
+(`getCurrentLocale(): Locale`), joins `UiLabelHook`/`SessionActorHook`. `UiLabelHook` itself gains
+a second method, `labelFor(AdKind): String` — a dedicated `AdKindLabelHook` was drafted first but
+folded back in immediately: both methods wrap the same `I18nService`, both are implemented by the
+same class, and no caller ever needs `labelFor` without also being able to reach
+`translateActorDeletedSuffix`, so a second single-method interface bought nothing but an extra
+file. `AdvertisementAuditEnrichService` moves to `org.ost.orchestrator.services`, its constructor
+now taking `CurrentLocaleHook`/`UiLabelHook` instead of `LocaleProvider`/`I18nService`.
+`ActivityEnrichHookImpl` moves to `org.ost.orchestrator.spi` alongside
+`AuditDomainHookImpl`/`CurrentActorHookImpl`, unchanged otherwise. `marketplace-app` gains one
+thin `*Impl` class in its own `spi/` package — `CurrentLocaleHookImpl` (wraps `LocaleProvider`) —
+matching `UiLabelHookImpl`/`SessionActorHookImpl`'s existing shape; `UiLabelHookImpl` itself gains
+the `labelFor` delegation.
+
+**Consequences:** `marketplace-app`'s `services/advertisement/` package is now empty and removed
+— `AdvertisementSaveService` (ADR-001) and `AdvertisementAuditEnrichService` (this ADR) were its
+only two members, and both now live in `marketplace-orchestrator`. `AuditActivityEnrichHook` now
+has zero implementations left in `marketplace-app` — every `*Hook` interface's real implementation
+lives in this module, with only thin UI-shell forwarders remaining on the `marketplace-app` side.
+None of the three forwarder SPIs is `@FunctionalInterface` in practice usage — every implementor is
+a `@Component` class, never a lambda — so `UiLabelHook` carrying multiple methods costs nothing a
+single-method shape would have preserved. The moved unit test
+(`AdvertisementAuditEnrichServiceTest`) required no logic changes, only mock types swapped from
+`LocaleProvider`/`I18nService` to `CurrentLocaleHook`/`UiLabelHook`.
+
+**Follow-up correction (same batch):** the moved service still carried two more UI-shell decisions
+after the move — `nameOrStrikethrough()` built raw `<s>...</s>` HTML markup for a soft-deleted
+taxon's name, and a `NO_MEDIA_ENTRY` constant hardcoded the non-localized placeholder text `"—"`
+for "no attachment yet". Both are presentation decisions, not data composition, and both slipped
+through because the file moved verbatim from `marketplace-app` (where they were legitimate) without
+re-auditing its content for UI-shaped logic. Fixed the same way: `UiLabelHook` gained
+`markDeleted(String): String` and `noMediaPlaceholder(): String`; the latter is backed by a real
+`I18nKey.AUDIT_CHANGES_NO_MEDIA` translation entry (`audit.changes.no.media`, `—` in both
+`messages_en.properties`/`messages_uk.properties`) rather than a bare literal, since it is
+user-facing text. `AdvertisementAuditEnrichService` now calls both through `uiLabelHook` and
+carries no string/markup literals of its own.

@@ -233,6 +233,54 @@ Playwright) once Steps 2-4 are implemented.
   ~30 new marketplace-app-owned wrapper types plus mapping at every `marketplace-orchestrator` call
   site to reach literal zero — a large, permanent dual-maintenance cost for no functional benefit,
   flagged as disproportionate rather than started without explicit sign-off.
+- **2026-08-12** — Implemented the two actionable items from the cost quantification above
+  ("bucket A+B"): (A) duplicated a minimal local `ComponentFactory<T>` in
+  `marketplace-app/ui/core`, repointing 13 files off `platform-commons`'s version; (B) moved
+  `ActivityEnrichHookImpl`/`AdvertisementAuditEnrichService` into `marketplace-orchestrator`
+  (`marketplace-orchestrator/DECISIONS.md` ADR-005), adding `CurrentLocaleHook` and extending
+  `UiLabelHook` with `labelFor(AdKind)` so the service's 2 i18n-touching calls go through a
+  forwarder instead of a direct `LocaleProvider`/`I18nService` dependency — mirroring the
+  `AuditDomainHookImpl`/`CurrentActorHookImpl` precedent. While reviewing the moved service, found
+  and fixed two more UI-shaped leaks that slipped through the move unnoticed: raw `<s>` HTML markup
+  for a soft-deleted taxon name, and a hardcoded non-localized `"—"` placeholder for "no media" —
+  both moved behind `UiLabelHook` too (`markDeleted(String)`, `noMediaPlaceholder()` — the latter
+  backed by a real `I18nKey.AUDIT_CHANGES_NO_MEDIA` translation entry, not a bare literal). Also
+  caught and fixed a real bug surfaced by this same review: `ArchitectureRulesTest`'s
+  `ORCHESTRATOR_HOOK_ALLOWLIST` never had `CurrentLocaleHook` added when it was introduced, so the
+  `hooks_live_only_in_platform_commons` ArchUnit rule would have failed on it. None of this was
+  compiled/tested end-to-end before the next entry below.
+- **2026-08-12** — Reverted part (A) above (the local `ComponentFactory<T>` duplication) after
+  discussion surfaced the actual trade-off it created: `platform-commons`'s `ComponentFactory<T>`
+  is genuinely used by 8+ modules (every domain starter, for wrapping optional `*Port` beans, plus
+  `marketplace-orchestrator`/`integration-tests`) — a real shared-kernel type per
+  `platform-commons/CLAUDE.md`'s own "used by ≥2 modules" allowance, and it cannot move into
+  `marketplace-orchestrator` (starters must never depend on it — "Module Import Rules"). Duplicating
+  it in `marketplace-app` bought one fewer `platform-commons` import at the cost of two divergent
+  classes with the same name to maintain in parallel, for a type with no actual coupling pain on
+  its own (unlike the real DTO/enum bulk in bucket C/D/E). Decision: not worth it — `ComponentFactory<T>`
+  stays a `platform-commons` import in `marketplace-app`, same footing as `AccessEvaluator`'s
+  `UserAuthorizationPort` (see the next entry). Reverted: deleted
+  `marketplace-app/ui/core/ComponentFactory.java`, restored all 13 files'
+  `import org.ost.platform.core.ComponentFactory;`, restored `UiComponentFactory<T>`'s import, and
+  restored `marketplace-app/CLAUDE.md`'s "Configurable prototype beans" section and `ui/core/`
+  bullet to their pre-bucket-A wording (verified byte-identical to `git show HEAD` for those
+  sections). Part (B) — the `ActivityEnrichHookImpl`/`AdvertisementAuditEnrichService` move and its
+  two follow-up UI-leak fixes — was **not** reverted and stays in place. Not yet compiled/tested.
+- **2026-08-12** — Resolved the open question in "Related" below about `AccessEvaluator`'s direct
+  `UserAuthorizationPort` field: it should **not** stay a permanent exception. The rationale
+  originally used to justify it ("hot path, no architectural benefit to routing through the
+  orchestrator") didn't account for the reason `marketplace-orchestrator` exists in the first
+  place — `improvement-136`'s founding target-architecture diagram shows both the current Vaadin UI
+  *and* a future REST API feeding through the orchestrator, and
+  `marketplace-orchestrator/DECISIONS.md` ADR-001 explicitly rejected keeping cross-domain logic in
+  `marketplace-app` because it would leave "no room to add a REST adapter later." A REST client
+  would have no equivalent to `AccessEvaluator` at all — `isAdmin`/`isModerator`/`isOwner` checks
+  only exist today in a class a REST caller can never reach. If/when a REST adapter is actually
+  built, this becomes a functional gap, not just a purity one. Decision: this exception is
+  temporary, not by-design-permanent — moving `AccessEvaluator`'s authorization checks into
+  `marketplace-orchestrator` is accepted as eventual scope for this issue (or a follow-up), sized
+  and picked up as a future step, not as part of the current implementation batch. Implementation
+  not started.
 
 ## Related
 
@@ -243,5 +291,6 @@ Playwright) once Steps 2-4 are implemented.
 - `marketplace-orchestrator/DECISIONS.md` ADR-004, `platform-commons/DECISIONS.md` ADR-029 — the
   Hook-relocation precedent this issue's fix would likely extend further.
 - `marketplace-orchestrator/CLAUDE.md` — documents `AccessEvaluator`'s direct `UserAuthorizationPort`
-  as "the one remaining direct `*Port` reference in marketplace-app, by design" — this issue would
-  need to either accept that exception still holds, or also close it.
+  as "the one remaining direct `*Port` reference in marketplace-app, by design." Resolved in the
+  Decisions log above (2026-08-12): not a permanent exception — accepted as eventual scope, not yet
+  implemented.

@@ -1,8 +1,8 @@
-package org.ost.marketplace.spi;
+package org.ost.orchestrator.spi;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.services.advertisement.AdvertisementAuditEnrichService;
+import org.ost.orchestrator.services.AdvertisementAuditEnrichService;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;

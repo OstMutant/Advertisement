@@ -63,11 +63,12 @@ class ArchitectureRulesTest {
                             + "platform-commons/CLAUDE.md \"Why ports and hooks must live in "
                             + "platform-commons\"");
 
-    // UiLabelHook/SessionActorHook are the one named exception: called only by marketplace-
-    // orchestrator (a mandatory, non-optional dependency of marketplace-app, never absent), never
-    // by a starter, so the starter-optionality reasoning below doesn't apply to this pair — they
-    // live in org.ost.orchestrator.spi instead. See marketplace-orchestrator/CLAUDE.md.
-    private static final List<String> ORCHESTRATOR_HOOK_ALLOWLIST = List.of("UiLabelHook", "SessionActorHook");
+    // UiLabelHook/SessionActorHook/CurrentLocaleHook are the named exceptions: called only by
+    // marketplace-orchestrator (a mandatory, non-optional dependency of marketplace-app, never
+    // absent), never by a starter, so the starter-optionality reasoning below doesn't apply to
+    // this set — they live in org.ost.orchestrator.spi instead. See marketplace-orchestrator/CLAUDE.md.
+    private static final List<String> ORCHESTRATOR_HOOK_ALLOWLIST =
+            List.of("UiLabelHook", "SessionActorHook", "CurrentLocaleHook");
 
     @ArchTest
     static final ArchRule hooks_live_only_in_platform_commons =
@@ -82,8 +83,8 @@ class ArchitectureRulesTest {
                     .because("*Hook SPI interfaces live in platform-commons so marketplace always "
                             + "sees the type regardless of which starters are present — see "
                             + "platform-commons/CLAUDE.md \"Why ports and hooks must live in "
-                            + "platform-commons\". UiLabelHook/SessionActorHook are allow-listed "
-                            + "above: called only by the mandatory marketplace-orchestrator "
+                            + "platform-commons\". UiLabelHook/SessionActorHook/CurrentLocaleHook are "
+                            + "allow-listed above: called only by the mandatory marketplace-orchestrator "
                             + "dependency, never a starter, so they live in org.ost.orchestrator.spi.");
 
     @ArchTest

@@ -125,11 +125,10 @@ Translation keys — single consolidated enum:
 
 ### Package structure
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/`, `config/seo/` for sub-domains)
-- `services/advertisement/` — advertisement UI-side orchestration (`AdvertisementSaveService` — transactional save + audit capture, `AdvertisementAuditEnrichService` — category-name resolution for audit diffs)
 - `services/auth/` — authentication (`AuthService` — login/logout + rate limiting, `AuthContextService` — current-user context)
 - `services/i18n/` — `I18nKey` enum, `I18nService`, `I18nServiceImpl`, `LocaleProvider`, `InstantFormatter`
 - `services/security/` — `AccessEvaluator` (role/ownership checks live in `user-spring-boot-starter` — see this module's own `README.md` "Responsibilities" section)
-- `spi/` — hook implementations that need a UI-shell resource: `ActivityEnrichHookImpl` (HTML-diff formatting, implements `AuditActivityEnrichHook` directly), `UiLabelHookImpl`/`SessionActorHookImpl` (thin forwarders over `I18nService`/`AuthContextService`, implementing the `UiLabelHook`/`SessionActorHook` SPIs that `marketplace-orchestrator`'s own `AuditDomainHookImpl`/`CurrentActorHookImpl` call through — see `marketplace-orchestrator/CLAUDE.md`)
+- `spi/` — thin forwarders over a UI-shell resource, implementing the `UiLabelHook`/`SessionActorHook`/`CurrentLocaleHook` SPIs that `marketplace-orchestrator`'s own `AuditDomainHookImpl`/`CurrentActorHookImpl`/`ActivityEnrichHookImpl` call through — see `marketplace-orchestrator/CLAUDE.md`. `UiLabelHookImpl` wraps `I18nService` (`translateActorDeletedSuffix`, `labelFor(AdKind)`, `markDeleted(String)` — wraps a name in strikethrough markup, `noMediaPlaceholder()` — one interface, since all four wrap the same resource or produce presentation output); `SessionActorHookImpl` wraps `AuthContextService`; `CurrentLocaleHookImpl` wraps `LocaleProvider`. `AuditActivityEnrichHook`'s only real implementation, `ActivityEnrichHookImpl`, now lives in `marketplace-orchestrator` (not here) — see that module's `CLAUDE.md`.
 - `rest/` — non-Vaadin REST controllers (`HealthController` only today)
 - `ui/core/` — `Configurable<T,P>`, `Initialization<T>`, `UiComponentFactory<T>`, `PaginationDefaults`
 - `ui/dto/` — `Identifiable` and other shared UI DTOs

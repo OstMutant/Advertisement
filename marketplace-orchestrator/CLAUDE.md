@@ -26,6 +26,11 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
 - `AdvertisementSaveService` — the atomic save/delete transaction for an advertisement: write +
   category/city assignment + attachment gallery commit + audit capture, all in one
   `TransactionTemplate`-bounded unit.
+- `AdvertisementAuditEnrichService` — resolves raw category/city taxon ids and `AdKind` into
+  display labels for audit timeline/activity diffs, and merges in attachment-domain media
+  changes. The 2 i18n-touching lookups (locale, `AdKind` label) go through the
+  `CurrentLocaleHook`/`UiLabelHook` forwarder pair (see "Hook implementations" below) instead
+  of a direct `LocaleProvider`/`I18nService` dependency.
 - `ProviderProfileDisplayEnrichmentService` — the ProviderProfile equivalent of the Advertisement
   enrichment service (category/city/actor only — no attachments).
 - `UserDeleteService` — cascades a user's own dependent data (advertisements, provider profile)
@@ -52,21 +57,26 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   below) delegates to; stays in `services/` since it doesn't itself implement an SPI interface.
 
 `org.ost.orchestrator.spi` — the `*Hook` implementations (see "Hook implementations" below):
-`AuditDomainHookImpl`, `CurrentActorHookImpl` (`AuditActivityFieldsHook` and its four per-domain
-implementations were removed entirely — see `platform-commons/DECISIONS.md` ADR-029's second
-refinement: every implementation had converged to a one-line delegation with zero domain-specific
-logic, and the interface's only real caller was already `marketplace-app`'s own
+`AuditDomainHookImpl`, `CurrentActorHookImpl`, `ActivityEnrichHookImpl` (`AuditActivityFieldsHook`
+and its four per-domain implementations were removed entirely — see `platform-commons/DECISIONS.md`
+ADR-029's second refinement: every implementation had converged to a one-line delegation with zero
+domain-specific logic, and the interface's only real caller was already `marketplace-app`'s own
 `AuditTimelineRowRenderer`, so the whole per-domain Hook pattern collapsed into one field-name-to-
-label mapping directly in that class). Also owns the forwarder SPI these two implementations call
+label mapping directly in that class). Also owns the forwarder SPIs these implementations call
 through to reach a UI-shell resource — `UiLabelHook` (`translateActorDeletedSuffix(String)`, the
-one remaining case needing translation server-side, since its real caller is the audit-starter,
-which has no i18n awareness of its own) and `SessionActorHook` (current actor ID).
-Neither forwarder SPI lives in `platform-commons`: both are called only by this module's own Hook
-implementations, never a starter, and this module is a mandatory, never-optional dependency of
-`marketplace-app` — the *Port/*Hook-must-live-in-platform-commons rule exists
-specifically for starter optionality, which doesn't apply here. `marketplace-app`'s
-`UiLabelHookImpl`/`SessionActorHookImpl` (in its own `spi/` package) implement these two
-interfaces, a legal import since `marketplace-app` already depends on `marketplace-orchestrator`.
+one remaining audit-starter translation case, since its real caller has no i18n awareness of its
+own; also carries `labelFor(AdKind)`, `markDeleted(String)` (wraps a name in strikethrough markup
+for a soft-deleted taxon), and `noMediaPlaceholder()` (the "no attachment" placeholder text) for
+`AdvertisementAuditEnrichService` — all four wrap the same `I18nService`/produce presentation
+output only marketplace-app should own, so they share one interface rather than four),
+`SessionActorHook` (current actor ID), and `CurrentLocaleHook` (current request locale, used by
+`AdvertisementAuditEnrichService`). None of these forwarder SPIs live in `platform-commons`: all
+are called only by this module's own Hook implementations or services, never a starter, and this
+module is a mandatory, never-optional dependency of `marketplace-app` — the
+*Port/*Hook-must-live-in-platform-commons rule exists specifically for starter optionality, which
+doesn't apply here. `marketplace-app`'s `UiLabelHookImpl`/`SessionActorHookImpl`/
+`CurrentLocaleHookImpl` (in its own `spi/` package) implement these three interfaces, a legal
+import since `marketplace-app` already depends on `marketplace-orchestrator`.
 
 **Autoconfiguration entry point:** `OrchestratorAutoConfiguration` (`@ComponentScan` over
 `org.ost.orchestrator`, since this module is a mandatory, non-optional dependency of
@@ -120,25 +130,34 @@ inventing a second wiring approach for one module).
   (narrow, scheduled-job-scoped referential-integrity cooperation) also stay in their starters —
   neither is the "assemble a read-model from several domains" pattern this module exists for.
 - **Hook implementations that only need domain-port access live here, in their own `spi/`
-  package parallel to `services/`; the two that need UI-shell resources (translations, the HTTP
-  session) go through a forwarder SPI instead of pulling `marketplace-app` in as a dependency.**
-  `AuditDomainHookImpl` and `CurrentActorHookImpl` live in `org.ost.orchestrator.spi` — a `*Hook`
-  that dispatches to exactly one of several ports per call, based on `EntityType`, is per-branch
-  pure delegation, not the simultaneous-composition shape the ≤2-port rule targets, so this module
-  is still the natural home even though the package is separate from `services/`. Two forwarder
-  SPIs, also in `org.ost.orchestrator.spi` (not platform-commons — see above), make this possible
-  without an illegal `marketplace-orchestrator -> marketplace-app` dependency (the compile
-  direction only ever runs the other way): `UiLabelHook` (`translateActorDeletedSuffix`) and
-  `SessionActorHook` (read the current actor ID from the HTTP session) — both implemented by a
-  thin `*Impl` that stays in `marketplace-app` (`UiLabelHookImpl`/`SessionActorHookImpl`),
-  wrapping `I18nService`/`AuthContextService`. `ActivityEnrichHookImpl` is the one exception that
-  stays in `marketplace-app` — its collaborator does real HTML-diff formatting, not a single-value
-  lookup, so a forwarder-SPI extraction doesn't fit the same mechanical pattern.
-  `AuditActivityFieldsHook` — the fourth Hook interface, previously implemented by four per-domain
-  classes here — was removed entirely: every implementation had converged to a one-line delegation
-  with zero domain-specific logic left, and its only real caller was already `marketplace-app`'s
-  own `AuditTimelineRowRenderer`, so the whole field-name-to-label mapping now lives directly in
-  that class instead of crossing the module boundary at all.
+  package parallel to `services/`; ones that need UI-shell resources (translations, locale, the
+  HTTP session) go through a forwarder SPI instead of pulling `marketplace-app` in as a
+  dependency.** `AuditDomainHookImpl`, `CurrentActorHookImpl`, and `ActivityEnrichHookImpl` live in
+  `org.ost.orchestrator.spi` — a `*Hook` that dispatches to exactly one of several ports per call,
+  based on `EntityType`, is per-branch pure delegation, not the simultaneous-composition shape the
+  ≤2-port rule targets, so this module is still the natural home even though the package is
+  separate from `services/`. Three forwarder SPIs, also in `org.ost.orchestrator.spi` (not
+  platform-commons — see above), make this possible without an illegal
+  `marketplace-orchestrator -> marketplace-app` dependency (the compile direction only ever runs
+  the other way): `UiLabelHook` (`translateActorDeletedSuffix`, plus `labelFor(AdKind)`,
+  `markDeleted(String)`, and `noMediaPlaceholder()` — all four wrap the same `I18nService` or
+  produce presentation output only marketplace-app should own, so one interface covers all four
+  rather than a separate single-method Hook per lookup), `SessionActorHook` (read the current
+  actor ID from the HTTP session), and `CurrentLocaleHook` (current request locale) — each
+  implemented by a thin `*Impl` that stays in `marketplace-app`
+  (`UiLabelHookImpl`/`SessionActorHookImpl`/`CurrentLocaleHookImpl`), wrapping
+  `I18nService`/`AuthContextService`/`LocaleProvider`. `ActivityEnrichHookImpl`'s real collaborator,
+  `AdvertisementAuditEnrichService`, does real category/city/`AdKind` diff-label resolution, not a
+  single-value lookup — but only the UI-shell-touching calls (locale, `AdKind`/deleted-taxon/
+  no-media label text) go through `CurrentLocaleHook`/`UiLabelHook`, so it splits the same way the
+  narrower Hooks do: the pure-data majority (change-merging, field resolution) stays a
+  `marketplace-orchestrator` service (see `marketplace-orchestrator/DECISIONS.md` ADR-005,
+  reversing ADR-004's original call that this one couldn't follow the same pattern).
+  `AuditActivityFieldsHook` — the fourth original Hook interface, previously implemented by four
+  per-domain classes here — was removed entirely: every implementation had converged to a one-line
+  delegation with zero domain-specific logic left, and its only real caller was already
+  `marketplace-app`'s own `AuditTimelineRowRenderer`, so the whole field-name-to-label mapping now
+  lives directly in that class instead of crossing the module boundary at all.
 - **UI presence-guards also route through the orchestrator.** For literal BFF purity — zero direct
   `*Port` reference of any kind in marketplace-app — even a presence-only check (e.g. "is the
   attachment starter on the classpath, to decide whether to render a gallery button") goes through

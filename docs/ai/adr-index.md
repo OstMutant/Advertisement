@@ -142,6 +142,7 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-002 (marketplace-orchestrator) | marketplace-orchestrator | Accepted | `AdvertisementSaveService`'s cascade-cleanup-on-delete folds into the same transaction, not a separate step |
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
 | ADR-004 (marketplace-orchestrator) | marketplace-orchestrator | Accepted | `*Hook` implementations that only need domain-port access move here; `pom.xml` gains all 6 starter dependencies directly, superseding ADR-001's "never depends on a starter jar" |
+| ADR-005 (marketplace-orchestrator) | marketplace-orchestrator | Accepted | `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern |
 | ADR-001 (platform-commons) | platform-commons | Accepted | Package restructure — core / audit / attachment / user / advertisement |
 | ADR-002 (platform-commons) | platform-commons | Accepted | Package semantics — api vs spi vs dto |
 | ADR-003 (platform-commons) | platform-commons | Accepted | SPI naming convention — Port and Hook suffixes |

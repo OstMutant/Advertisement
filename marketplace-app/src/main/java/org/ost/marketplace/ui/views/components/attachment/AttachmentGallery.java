@@ -17,13 +17,13 @@ import lombok.AccessLevel;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.orchestrator.services.AttachmentMediaService;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
 import org.ost.marketplace.services.i18n.I18nService;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
 
