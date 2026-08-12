@@ -6,6 +6,7 @@ import liquibase.integration.spring.SpringLiquibase;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.config.CleanupProperties;
+import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.ost.platform.user.spi.UserAccountPort;
 import org.ost.platform.user.spi.UserAuthorizationPort;
 import org.ost.platform.user.spi.UserPort;
@@ -116,6 +117,12 @@ public class UserAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ComponentFactory<UserSettingsChangedHook> userSettingsChangedHookFactory(ObjectProvider<UserSettingsChangedHook> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<ProviderProfilePort> providerProfilePortFactory(ObjectProvider<ProviderProfilePort> p) {
         return new ComponentFactory<>(p);
     }
 

@@ -1761,3 +1761,17 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
 `platform-commons`/`query-lib`). `unit-tests.sh`: 72/72; `integration-tests.sh --sandbox`:
 165/165; `deploy.sh --reset` + `playwright.sh e2e --full --ux`: **50/50 passed**. Full detail:
 `completed/issues/improvement-149-architecture-map-module-deps-vs-bounded-contexts.md`.
+
+- ✅ Done (2026-08-12): improvement-148 — re-verified optional-starter removability after the
+  true-BFF migration. `taxon-spring-boot-starter` removal passed cleanly (app boots, degrades
+  gracefully). `provider-profile-spring-boot-starter` removal **failed to boot**
+  (`UnsatisfiedDependencyException` — `UserService`'s mandatory `ComponentFactory<ProviderProfilePort>`
+  field had no fallback producer once that starter left the classpath; the only producers lived in
+  the starter itself and in `AdvertisementAutoConfiguration`, both absent). Fixed by adding the
+  missing `@Bean` to `UserAutoConfiguration`, mirroring the existing `ComponentFactory<TaxonPort>`
+  fallback pattern (`platform-commons/DECISIONS.md` ADR-006 amendment). Re-ran the removal test
+  after the fix: clean boot, `/health` 200, no errors. `EntityExistenceService`'s 4-branch
+  degradation spot-checked via code inspection — structurally sound. `unit-tests.sh`: 72/72
+  (including `ArchitectureRulesTest`); `integration-tests.sh --sandbox`: 165/165. No Playwright run
+  — config-only fix, not UI-visible. Full detail:
+  `completed/issues/improvement-148-reverify-optional-module-removal-after-bff-migration.md`.

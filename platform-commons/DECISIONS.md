@@ -168,6 +168,20 @@ generically via reflection/`InjectionPoint`).
   `InjectionPoint`-resolved factory bean — replaced by one explicit `@Bean` per type, which is more
   boilerplate but fully type-safe and requires no reflection.
 
+**Amendment (verified 2026-08-12 — one explicit `@Bean` per type must exist on every consuming
+config class, not just the port's own starter):** re-verifying optional-starter removability
+(a `provider-profile-spring-boot-starter` removal test) found `UserAutoConfiguration` missing a
+`ComponentFactory<ProviderProfilePort>` `@Bean` even though `UserService` holds a mandatory field
+of that type — `ProviderProfilePort`'s only fallback producer lived in its own starter and in
+`AdvertisementAutoConfiguration`, neither of which is present once `provider-profile-spring-boot-
+starter` is removed from the build, so the app failed to boot (`UnsatisfiedDependencyException`)
+instead of degrading gracefully. Fixed by adding the missing `@Bean` to `UserAutoConfiguration`,
+mirroring the existing `ComponentFactory<TaxonPort>` fallback already duplicated in
+`AdvertisementAutoConfiguration`/`ProviderProfileAutoConfiguration`. Lesson: this ADR's "one
+explicit `@Bean` per type" rule must be satisfied on **every** config class that holds a mandatory
+field of that port type, not just the port's defining starter — an easy gap to miss since nothing
+fails at compile time, only at runtime once the dependent starter is actually absent.
+
 ---
 
 ## ADR-007: StorageService moved out of platform-commons into attachment-starter

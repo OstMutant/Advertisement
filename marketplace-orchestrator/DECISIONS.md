@@ -194,6 +194,15 @@ notes for the concrete run once that issue closes. This also closes
 `backlog/completed/issues/improvement-148-reverify-optional-module-removal-after-bff-migration.md`'s
 scope — the same removal proof, not duplicated as a second test.
 
+**Correction (verified 2026-08-12):** the taxon-removal proof above was real but incomplete — it
+did not cover `provider-profile-spring-boot-starter`. Repeating the same removal test for that
+starter found a real boot failure (`UserService`'s mandatory `ComponentFactory<ProviderProfilePort>`
+field had no fallback producer once that starter left the classpath), fixed by adding the missing
+`@Bean` to `UserAutoConfiguration` — see `platform-commons/DECISIONS.md` ADR-006's amendment. Both
+starters are now confirmed removable; "this also closes improvement-148's scope" above should be
+read as "closes the taxon half of it" — the provider-profile half needed an actual code fix, not
+just a re-run of the same proof.
+
 **Refinement (same session):** the six moved `*HookImpl` classes were first landed directly inside
 `org.ost.orchestrator.services` (the existing flat services package), then split out into their
 own sibling `org.ost.orchestrator.spi` package — mirroring `marketplace-app`'s own `services`/`spi`
