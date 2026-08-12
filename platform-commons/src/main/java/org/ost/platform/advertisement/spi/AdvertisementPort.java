@@ -27,7 +27,7 @@ public interface AdvertisementPort {
     Long save(@NonNull AdvertisementSaveDto dto);
 
     /** {@code version} must be the value the caller last read; a stale value throws
-     *  {@link org.springframework.dao.OptimisticLockingFailureException}. */
+     *  OptimisticLockingFailureException. */
     void delete(@NonNull Long id, @NonNull Long actingUserId, Long version);
 
     Set<Long> findExistingIds(@NonNull Set<Long> ids);

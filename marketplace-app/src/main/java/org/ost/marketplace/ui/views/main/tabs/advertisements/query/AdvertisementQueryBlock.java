@@ -27,6 +27,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
+@SuppressWarnings("java:S2065") // Vaadin Component is Serializable; transient excludes non-serializable Spring proxies
 public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> {
 
     @Getter

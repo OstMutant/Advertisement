@@ -43,9 +43,4 @@ public class AuditDomainHookImpl implements AuditDomainHook {
             return Optional.empty();
         }
     }
-
-    @Override
-    public String resolveDisplayName(@NonNull AuditableSnapshot snapshot) {
-        return snapshot.displayName().orElse("");
-    }
 }

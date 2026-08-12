@@ -15,6 +15,4 @@ public interface UserPreferencesPort {
     void saveSettings(@NonNull Long userId, @NonNull UserSettingsDto settings);
 
     void updateLocale(@NonNull Long userId, @NonNull String locale);
-
-    String findLocale(@NonNull Long userId);
 }

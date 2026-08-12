@@ -29,6 +29,7 @@ public class ProviderProfile {
     @CreatedDate
     Instant createdAt;
 
+    // write-only from Java's side -- Spring Data JDBC populates it on save; read back via raw SQL elsewhere, not via this field.
     @LastModifiedDate
     Instant updatedAt;
 

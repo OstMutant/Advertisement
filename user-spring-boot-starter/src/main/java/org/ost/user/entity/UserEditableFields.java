@@ -20,6 +20,7 @@ public class UserEditableFields {
     String name;
     Role role;
 
+    // write-only from Java's side -- Spring Data JDBC populates it on save; read back via raw SQL in UserRepository, not via this field.
     @LastModifiedDate
     Instant updatedAt;
 

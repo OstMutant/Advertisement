@@ -18,8 +18,8 @@ import java.util.List;
 /**
  * Full attachment gallery lifecycle ({@link AttachmentPort}) plus audit-diff media state
  * ({@link AttachmentAuditPort}), reused by every marketplace-app adapter. Reuses
- * {@link AttachmentSnapshotReaderService}/{@link AttachmentSoftDeleteService} internally for
- * {@code getLatestSnapshotId}/{@code softDeleteAll} instead of re-wrapping those port calls again.
+ * {@link AttachmentSnapshotReaderService} internally for {@code getLatestSnapshotId} instead of
+ * re-wrapping that port call again.
  */
 @Service
 @RequiredArgsConstructor
@@ -28,7 +28,6 @@ public class AttachmentMediaService {
     private final ComponentFactory<AttachmentPort>      attachmentPortFactory;
     private final ComponentFactory<AttachmentAuditPort>  attachmentAuditPortFactory;
     private final AttachmentSnapshotReaderService         attachmentSnapshotReaderService;
-    private final AttachmentSoftDeleteService             attachmentSoftDeleteService;
 
     // ── gallery queries ───────────────────────────────────────────────────────
 

@@ -162,7 +162,10 @@ public class TaxonService {
 
     // hardcoded en/uk, not a supportedLocales() loop -- TaxonSnapshotDto has a fixed 4-field shape
     private TaxonSnapshotDto buildSnapshotFromTranslations(List<TaxonTranslation> translations) {
-        String nameEn = null, descEn = null, nameUk = null, descUk = null;
+        String nameEn = null;
+        String descEn = null;
+        String nameUk = null;
+        String descUk = null;
         for (TaxonTranslation t : translations) {
             if ("en".equals(t.getLocale()))       { nameEn = t.getName(); descEn = t.getDescription(); }
             else if ("uk".equals(t.getLocale()))  { nameUk = t.getName(); descUk = t.getDescription(); }

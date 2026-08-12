@@ -31,9 +31,4 @@ public class UserPreferencesPortImpl implements UserPreferencesPort {
     public void updateLocale(@NonNull Long userId, @NonNull String locale) {
         preferencesService.updateLocale(userId, locale);
     }
-
-    @Override
-    public String findLocale(@NonNull Long userId) {
-        return preferencesService.findLocale(userId);
-    }
 }

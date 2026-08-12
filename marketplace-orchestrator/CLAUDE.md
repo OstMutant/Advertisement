@@ -37,8 +37,9 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   — distinct from `TaxonLookupService`, which stays narrowly scoped to entity-assignment lookups.
 - `AttachmentMediaService` — wraps `ComponentFactory<AttachmentPort>` +
   `ComponentFactory<AttachmentAuditPort>` for the full gallery lifecycle (upload/commit/delete/
-  restore) plus audit-diff media state; reuses `AttachmentSnapshotReaderService`/
-  `AttachmentSoftDeleteService` internally instead of re-wrapping their calls.
+  restore) plus audit-diff media state; reuses `AttachmentSnapshotReaderService` internally instead
+  of re-wrapping its call. `AttachmentSoftDeleteService`'s `softDeleteAll` is used directly by
+  `AdvertisementSaveService`'s delete cascade, not through this class.
 - `AuditQueryService` — wraps `ComponentFactory<AuditPort>`'s read-side methods (`getLastSnapshot`/
   `getEntityActivity`/`getSnapshotContent`/`getTimelinePage`/`countTimeline`).
 - `UserProfileService` — mandatory direct `UserPort`/`UserAccountPort`/`UserPreferencesPort` fields

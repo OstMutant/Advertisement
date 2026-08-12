@@ -148,7 +148,7 @@ public class UserView extends VerticalLayout {
         int currentTotal;
         try {
             currentTotal = userProfileService.count(filter);
-        } catch (Exception ex) {
+        } catch (Exception _) {
             return;
         }
         refreshButton.setVisible(currentTotal != lastKnownTotal);

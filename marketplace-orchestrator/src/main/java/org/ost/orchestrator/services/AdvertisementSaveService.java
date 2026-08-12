@@ -55,21 +55,12 @@ public class AdvertisementSaveService {
 
             Set<Long> catIds = dto.categoryIds() != null ? dto.categoryIds() : Set.of();
             Long cityId = dto.cityTaxonId();
-            // replaceAssignments() diff-replaces ALL taxon types at once -- ids must be unioned into one call.
-            Set<Long> assignmentIds = cityId != null
-                    ? Stream.concat(catIds.stream(), Stream.of(cityId)).collect(Collectors.toSet())
-                    : catIds;
-            taxonAssignmentWriteService.replace(EntityType.ADVERTISEMENT, savedId, assignmentIds);
+            taxonAssignmentWriteService.replace(EntityType.ADVERTISEMENT, savedId, unionAssignmentIds(catIds, cityId));
 
             // Last mutation before commit -- shrinks the window for a post-move rollback to orphan S3 files.
             EntityRef entityRef = new EntityRef(EntityType.ADVERTISEMENT, savedId);
             Long gallerySnapshotId = commitGallery.apply(entityRef);
-            Long attachmentSnapshotId;
-            if (gallerySnapshotId != null) {
-                attachmentSnapshotId = gallerySnapshotId;
-            } else {
-                attachmentSnapshotId = before != null ? before.attachmentSnapshotId() : null;
-            }
+            Long attachmentSnapshotId = resolveAttachmentSnapshotId(gallerySnapshotId, before);
             registerOrphanWarningOnRollback(entityRef, gallerySnapshotId);
 
             AdvertisementInfoDto saved = advertisementPortFactory.get().findById(savedId).orElseThrow();
@@ -77,17 +68,33 @@ public class AdvertisementSaveService {
             AdvertisementSnapshotDto after = new AdvertisementSnapshotDto(
                     saved.getTitle(), saved.getDescription(), saved.getAdKind(), sortedCatIds, cityId, attachmentSnapshotId);
 
-            if (isNew) {
-                auditPortFactory.ifAvailable(p -> p.captureCreation(savedId, after, actorId));
-            } else if (before != null) {
-                auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, after, actorId));
-            } else {
-                log.warn("Advertisement {} updated but no 'before' snapshot was available (concurrent delete?) - skipping audit capture", savedId);
-            }
+            captureAudit(isNew, savedId, before, after, actorId);
             log.info("Advertisement save transaction complete: id={}, isNew={}, categories={}",
                     savedId, isNew, catIds.size());
             return savedId;
         });
+    }
+
+    // replaceAssignments() diff-replaces ALL taxon types at once -- ids must be unioned into one call.
+    private static Set<Long> unionAssignmentIds(Set<Long> catIds, Long cityId) {
+        return cityId != null
+                ? Stream.concat(catIds.stream(), Stream.of(cityId)).collect(Collectors.toSet())
+                : catIds;
+    }
+
+    private static Long resolveAttachmentSnapshotId(Long gallerySnapshotId, AdvertisementSnapshotDto before) {
+        if (gallerySnapshotId != null) return gallerySnapshotId;
+        return before != null ? before.attachmentSnapshotId() : null;
+    }
+
+    private void captureAudit(boolean isNew, Long savedId, AdvertisementSnapshotDto before, AdvertisementSnapshotDto after, Long actorId) {
+        if (isNew) {
+            auditPortFactory.ifAvailable(p -> p.captureCreation(savedId, after, actorId));
+        } else if (before != null) {
+            auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, after, actorId));
+        } else {
+            log.warn("Advertisement {} updated but no 'before' snapshot was available (concurrent delete?) - skipping audit capture", savedId);
+        }
     }
 
     public boolean isAvailable() {

@@ -23,6 +23,7 @@ public abstract class BaseOverlay extends Div {
 
     private static final String FOCUSABLE_SELECTOR =
             "input, textarea, select, button, [tabindex]:not([tabindex='-1']), a[href]";
+    private static final String VISIBLE_CLASS = "overlay--visible";
 
     protected void open() {
         getUI().ifPresent(ui -> ui.getPage().executeJs(
@@ -44,12 +45,12 @@ public abstract class BaseOverlay extends Div {
                         "el.addEventListener('keydown', el.__trapHandler);",
                 getElement(), FOCUSABLE_SELECTOR
         ));
-        addClassName("overlay--visible");
+        addClassName(VISIBLE_CLASS);
         getUI().ifPresent(ui -> escShortcut = Shortcuts.addShortcutListener(ui, this::onEsc, Key.ESCAPE));
     }
 
     protected void closeToList() {
-        removeClassName("overlay--visible");
+        removeClassName(VISIBLE_CLASS);
         unregisterEsc();
         getUI().ifPresent(ui -> ui.getPage().executeJs(
                 "var y = parseInt($0.dataset.savedScroll || '0', 10);" +
@@ -71,12 +72,12 @@ public abstract class BaseOverlay extends Div {
     }
 
     protected void openNested() {
-        addClassName("overlay--visible");
+        addClassName(VISIBLE_CLASS);
         getUI().ifPresent(ui -> escShortcut = Shortcuts.addShortcutListener(ui, this::onEsc, Key.ESCAPE));
     }
 
     protected void closeNested() {
-        removeClassName("overlay--visible");
+        removeClassName(VISIBLE_CLASS);
         unregisterEsc();
     }
 }

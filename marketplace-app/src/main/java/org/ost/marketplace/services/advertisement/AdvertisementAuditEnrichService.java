@@ -162,7 +162,7 @@ public class AdvertisementAuditEnrichService {
                 .map(entry -> entry.replaceIfField(field, _ -> prevResolved, _ -> currResolved))
                 .toList();
         boolean hasEntry = resolved.stream().anyMatch(
-                e -> e instanceof ChangeEntry.FieldChange(var f, var _, var _) && f.equals(field));
+                e -> e instanceof ChangeEntry.FieldChange(var f, _, _) && f.equals(field));
         if (hasEntry || !hasValue) return resolved;
         List<ChangeEntry> withEntry = new ArrayList<>(resolved);
         withEntry.add(new ChangeEntry.FieldChange(field, null, currResolved));
@@ -172,7 +172,7 @@ public class AdvertisementAuditEnrichService {
     // AdKind is never absent, so this only relabels an entry diff() already produced -- never manufactures one.
     private List<ChangeEntry> resolveAdKind(List<ChangeEntry> changes, AdvertisementSnapshotDto snapshot, AdvertisementSnapshotDto prev) {
         boolean hasEntry = changes.stream().anyMatch(
-                e -> e instanceof ChangeEntry.FieldChange(var f, var _, var _)
+                e -> e instanceof ChangeEntry.FieldChange(var f, _, _)
                         && f.equals(AdvertisementSnapshotDto.Fields.adKind));
         if (!hasEntry) return changes;
 

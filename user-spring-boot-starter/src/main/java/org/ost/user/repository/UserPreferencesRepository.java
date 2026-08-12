@@ -3,6 +3,7 @@ package org.ost.user.repository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -24,7 +25,7 @@ public class UserPreferencesRepository {
     private final ObjectMapper mapper;
 
     public void insertDefault(@NonNull Long actorId) {
-        String json = writeSettings(actorId, UserSettingsDto.defaultSettings());
+        String json = writeSettings(UserSettingsDto.defaultSettings());
         jdbcClient.sql("INSERT INTO user_preferences (actor_id, settings) VALUES (:actorId, :settings::jsonb)")
                   .paramSource(new MapSqlParameterSource()
                           .addValue("actorId",  actorId)
@@ -60,7 +61,7 @@ public class UserPreferencesRepository {
     @Transactional
     public void saveSettings(@NonNull Long actorId, @NonNull UserSettingsDto settings) {
         UserSettingsDto toStore = settings.toBuilder().version(settings.getVersion() + 1).build();
-        String json = writeSettings(actorId, toStore);
+        String json = writeSettings(toStore);
         int updated = jdbcClient.sql("""
                         UPDATE user_preferences SET settings = :settings::jsonb
                         WHERE actor_id = :actorId AND (settings->>'version')::bigint = :expectedVersion
@@ -93,25 +94,18 @@ public class UserPreferencesRepository {
         }
     }
 
-    private String writeSettings(Long actorId, UserSettingsDto settings) {
-        try {
-            return mapper.writeValueAsString(settings);
-        } catch (Exception ex) {
-            log.error("Failed to serialize settings for actorId={}", actorId, ex);
-            throw new RuntimeException("Failed to serialize settings for actorId=" + actorId, ex);
-        }
+    @SneakyThrows
+    private String writeSettings(UserSettingsDto settings) {
+        return mapper.writeValueAsString(settings);
     }
 
+    @SneakyThrows
     private UserSettingsDto readSettings(Long actorId, String json) {
-        try {
-            UserSettingsDto settings = mapper.readValue(json, UserSettingsDto.class);
-            if (settings.getSchemaVersion() != UserSettingsDto.SCHEMA_VERSION) {
-                log.warn("Settings schema version mismatch for actorId={}: stored={}, expected={}",
-                        actorId, settings.getSchemaVersion(), UserSettingsDto.SCHEMA_VERSION);
-            }
-            return settings;
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+        UserSettingsDto settings = mapper.readValue(json, UserSettingsDto.class);
+        if (settings.getSchemaVersion() != UserSettingsDto.SCHEMA_VERSION) {
+            log.warn("Settings schema version mismatch for actorId={}: stored={}, expected={}",
+                    actorId, settings.getSchemaVersion(), UserSettingsDto.SCHEMA_VERSION);
         }
+        return settings;
     }
 }

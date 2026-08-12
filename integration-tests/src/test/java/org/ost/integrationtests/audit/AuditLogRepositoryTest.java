@@ -96,11 +96,6 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
                 }
 
                 @Override
-                public String resolveDisplayName(@NonNull AuditableSnapshot snapshot) {
-                    return "";
-                }
-
-                @Override
                 public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(
                         @NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content, @NonNull Class<T> targetClass) {
                     try {

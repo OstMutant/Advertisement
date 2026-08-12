@@ -11,7 +11,7 @@ import java.util.Set;
 
 /**
  * Hook: audit-starter → marketplace.
- * Combines actor name resolution, entity existence checks, and display name resolution —
+ * Combines actor name resolution, entity existence checks, and snapshot type casting —
  * all are domain lookups that audit-starter delegates to marketplace.
  * Marketplace implements this against its own user and entity repositories.
  * Injected via {@code ObjectProvider} — gracefully absent when not registered.
@@ -21,8 +21,6 @@ public interface AuditDomainHook {
     Map<Long, String> resolveNames(@NonNull Set<Long> actorIds);
 
     Set<Long> findExisting(@NonNull EntityType entityType, @NonNull Set<Long> entityIds);
-
-    String resolveDisplayName(@NonNull AuditableSnapshot snapshot);
 
     <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(
             @NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content, @NonNull Class<T> targetClass);

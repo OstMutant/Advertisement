@@ -24,12 +24,14 @@ public class Advertisement {
     @CreatedDate
     Instant createdAt;
 
+    // write-only from Java's side -- Spring Data JDBC populates it on save; read back via raw SQL in AdvertisementRepository's ROW_MAPPER, not via this field.
     @LastModifiedDate
     Instant updatedAt;
 
     @CreatedBy
     Long createdBy;
 
+    // write-only -- see updatedAt above; no DTO surfaces this column's value today.
     @LastModifiedBy
     Long updatedBy;
 

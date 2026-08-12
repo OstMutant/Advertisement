@@ -114,12 +114,7 @@ public class UserService {
 
         int purged = 0;
         for (Long id : candidates) {
-            if (adOwnerIds.contains(id)) {
-                log.warn("Skipped purging user {} - still owns an advertisement, will retry next run", id);
-                continue;
-            }
-            if (providerProfileOwnerIds.contains(id)) {
-                log.warn("Skipped purging user {} - still owns a provider profile, will retry next run", id);
+            if (isStillOwner(id, adOwnerIds, providerProfileOwnerIds)) {
                 continue;
             }
             preferencesRepository.deleteByActorId(id);
@@ -127,6 +122,18 @@ public class UserService {
             purged++;
         }
         log.info("User cleanup finished: purged={}, skipped={}", purged, candidates.size() - purged);
+    }
+
+    private boolean isStillOwner(Long id, Set<Long> adOwnerIds, Set<Long> providerProfileOwnerIds) {
+        if (adOwnerIds.contains(id)) {
+            log.warn("Skipped purging user {} - still owns an advertisement, will retry next run", id);
+            return true;
+        }
+        if (providerProfileOwnerIds.contains(id)) {
+            log.warn("Skipped purging user {} - still owns a provider profile, will retry next run", id);
+            return true;
+        }
+        return false;
     }
 
     @Transactional

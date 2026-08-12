@@ -68,6 +68,8 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayModeHandler<AdvertisementEditDto>
         implements Configurable<AdvertisementFormOverlayModeHandler, AdvertisementFormOverlayModeHandler.Parameters>, I18nParams {
 
+    private static final String DATA_TESTID = "data-testid";
+
     @Value
     @lombok.Builder
     public static class Parameters {
@@ -126,7 +128,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         descriptionField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION));
         descriptionField.setMaxLength(AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH);
         descriptionField.addClassName("overlay__description-rich-editor");
-        descriptionField.getElement().setAttribute("data-testid", "advertisement-overlay-field-description");
+        descriptionField.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-description");
 
         List<TaxonDto> availableCategories = taxonCatalogService.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale());
         if (!availableCategories.isEmpty()) {
@@ -135,7 +137,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             categoryComboBox.setItemLabelGenerator(TaxonDto::getName);
             categoryComboBox.setItems(availableCategories);
             categoryComboBox.getElement().setProperty("maxSelectedItemsCount", 10);
-            categoryComboBox.getElement().setAttribute("data-testid", "advertisement-overlay-field-categories");
+            categoryComboBox.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-categories");
         }
 
         List<TaxonDto> availableCities = taxonCatalogService.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale());
@@ -145,14 +147,14 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             cityComboBox.setItemLabelGenerator(TaxonDto::getName);
             cityComboBox.setItems(availableCities);
             cityComboBox.setClearButtonVisible(true);
-            cityComboBox.getElement().setAttribute("data-testid", "advertisement-overlay-field-city");
+            cityComboBox.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-city");
         }
 
         adKindField = new RadioButtonGroup<>();
         adKindField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_AD_KIND));
         adKindField.setItems(AdKind.values());
         adKindField.setItemLabelGenerator(t -> getValue(forAdKind(t)));
-        adKindField.getElement().setAttribute("data-testid", "advertisement-overlay-field-ad-kind");
+        adKindField.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-ad-kind");
 
         AdvertisementEditDto dto = isCreate
                 ? AdvertisementEditDto.builder().adKind(AdKind.OFFER).build()
@@ -240,7 +242,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                     ? advertisementSaveService.save(
                             new AdvertisementSaveDto(dto.getId(), dto.getTitle(), dto.getDescription(), dto.getAdKind(), dto.getCategoryIds(), dto.getCityTaxonId(), dto.getVersion()),
                             access.getCurrentUserId(),
-                            entityRef -> activeHandle != null ? activeHandle.commit(entityRef) : null)
+                            this::commitGallery)
                     : null;
             if (savedId != null) {
                 advertisementReadService.findById(savedId)
@@ -251,6 +253,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                         });
             }
         });
+    }
+
+    private Long commitGallery(EntityRef entityRef) {
+        return activeHandle != null ? activeHandle.commit(entityRef) : null;
     }
 
     public void loadRestored(@NonNull AdvertisementEditDto restoredDto) {
