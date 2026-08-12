@@ -3,10 +3,10 @@ package org.ost.marketplace.ui.views.components.audit;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
+import org.ost.orchestrator.services.UserActorNameService;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
-import org.ost.platform.audit.spi.AuditDomainHook;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -20,8 +20,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AuditActivityListRenderer {
 
-    private final AuditDomainHook                                    auditDomainHook;
-    private final ComponentFactory<AuditActivityRowRenderer>          rowRendererFactory;
+    private final UserActorNameService                        userActorNameService;
+    private final ComponentFactory<AuditActivityRowRenderer>  rowRendererFactory;
 
     List<Div> buildRows(List<AuditActivityItemDto<? extends AuditableSnapshot>> items, AuditActivityRowRenderer.RenderConfig cfg) {
         AuditActivityRowRenderer.RowContext ctx = new AuditActivityRowRenderer.RowContext(resolveActorNames(items));
@@ -36,6 +36,6 @@ public class AuditActivityListRenderer {
                 .map(AuditActivityItemDto::actorId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        return ids.isEmpty() ? Map.of() : auditDomainHook.resolveNames(ids);
+        return ids.isEmpty() ? Map.of() : userActorNameService.resolveNames(ids);
     }
 }

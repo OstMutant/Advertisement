@@ -1,7 +1,7 @@
-# improvement-150: marketplace-app should depend on nothing but marketplace-orchestrator — not even platform-commons or query-lib
+# improvement-150: marketplace-app should have zero direct `*Port`/`*Hook` (SPI) usage from platform-commons — not a zero-dependency goal
 
 **Type:** architecture change
-**Module:** `marketplace-app/pom.xml`, `marketplace-app/src/main/java/org/ost/marketplace/spi/*` (UiLabelHookImpl, SessionActorHookImpl, ActivityEnrichHookImpl), `marketplace-app/services/security/AccessEvaluator.java`, `platform-commons`, `marketplace-orchestrator`
+**Module:** `marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java`, `marketplace-app/src/main/java/org/ost/marketplace/ui/views/components/audit/{AuditActivityListRenderer,AuditTimelineListRenderer,AuditTimelineRowRenderer}.java`, `marketplace-app/src/test/java/org/ost/marketplace/architecture/ArchitectureRulesTest.java`, `marketplace-orchestrator`
 **Priority:** 🔴 top — explicit user request to rank at the very top of the backlog
 **When:** independent, no blockers (follow-up to improvement-149 Point 5)
 
@@ -14,9 +14,15 @@ This matched what improvement-149's own issue text recorded as the agreed direct
 ("`marketplace-app` depends only on `marketplace-orchestrator`" — *plus* `platform-commons`,
 `query-lib`, Vaadin, etc.).
 
-The user's expectation, restated explicitly in this session, is stricter: **zero direct
-dependencies from `marketplace-app` except `marketplace-orchestrator`** — not even
-`platform-commons` or `query-lib`. Verified against real code, not assumed:
+**Scope narrowed (2026-08-12):** the goal is not a literal zero-`platform-commons`-import
+dependency. DTOs (`UserDto`, `AdvertisementInfoDto`, `TaxonDto`, etc.) and shared-kernel utility
+types (`ComponentFactory<T>`, reverted back to a `platform-commons` import after bucket A —
+see Decisions log) are accepted to stay. The actual target is narrower: **zero direct `*Port`/
+`*Hook` (SPI) usage from `platform-commons` in `marketplace-app`** — SPI types are the ones that
+couple `marketplace-app` to a starter's/orchestrator's implementation shape, unlike a DTO, which is
+just a data carrier. Earlier framing below (verified against real code before the scope narrowed,
+still useful for the `query-lib` and general `platform-commons` usage count) predates this
+narrowing:
 
 - **`query-lib`**: zero files under `marketplace-app/src/main/java` import `org.ost.query.*` —
   this dependency appears to be entirely unused by `marketplace-app`'s own code already. Removing
@@ -76,19 +82,19 @@ substantial:
 3. Re-run `improvement-149`'s Definition of Done (full reactor build, `deploy.sh` boot, unit +
    integration + Playwright) once a plan is agreed and implemented.
 
+**Superseded by the "Scope narrowed" note above and Step 6 below:** point 2 here assumed the goal
+was zero `platform-commons` imports entirely (DTOs included). It no longer is — see Step 6 for the
+current, narrower, actionable plan (SPI-only).
+
 ## Step-by-step plan
 
-**Step 1 — remove `query-lib` (in progress).** Confirmed zero `org.ost.query.*` imports under
-`marketplace-app/src/main/java`. Fix:
-1. `marketplace-app/pom.xml` — delete the `<dependency>` block for `org.ost:query-lib` (lines
-   33-36).
-2. `mvn -pl marketplace-app -am compile` to confirm the module still compiles clean with the
-   dependency gone.
-3. No source changes expected — pure pom.xml edit.
+**Step 1 — remove `query-lib`. ✅ Done** (see Decisions log). Confirmed zero `org.ost.query.*`
+imports under `marketplace-app/src/main/java`; dependency block deleted, verified with
+`bash scripts/unit-tests.sh marketplace-app`, no source changes needed.
 
-**Step 2 — fix the 17 real Sonar findings from the `bash scripts/sonar.sh` run below (in
-progress).** Quality Gate is currently FAILED on this branch (`new_violations=17`). Full list, in
-Sonar's own severity order:
+**Step 2 — fix the 17 real Sonar findings. ✅ Done** (see Decisions log). Quality Gate was FAILED
+on this branch (`new_violations=17`); all 11 listed fixes applied, re-verified with
+`bash scripts/sonar.sh`: `new_violations=0`. Full list, in Sonar's own severity order:
 1. CRITICAL `marketplace-orchestrator/.../AdvertisementSaveService.java:48` (S3776) — cognitive
    complexity 16 > 15 in `save()`, needs refactor to reduce branching.
 2. CRITICAL `marketplace-app/.../AdvertisementFormOverlayModeHandler.java:129` (S1192) —
@@ -114,28 +120,58 @@ Sonar's own severity order:
 11. INFO×4 `marketplace-app/.../AdvertisementAuditEnrichService.java:165,175` (S7475) — unused
     type in unnamed pattern.
 
-**Step 3 — IDEA "unused declaration" dump triage.** A full-repo IntelliJ inspection export was
-pasted into chat (hundreds of entries) — assessed as near-total Spring/Vaadin framework-DI false
-positive noise (see Decisions log). A background agent is verifying a hand-filtered shortlist of
-the strongest-signal entries (literal "is never used", zero-usage-count only, not the far weaker
-"N usages but not reachable from entry points" shape) against real code — pending report. Anything
-the agent confirms as genuinely dead code becomes this step's concrete fix list; everything else
-in the dump stays unactioned noise.
+**Step 3 — IDEA "unused declaration" dump triage. ✅ Done** (see Decisions log). 4 confirmed real
+(write-only `@LastModifiedDate`/`@LastModifiedBy` fields, documented not deleted), 4 false
+positives (framework/codegen blind spots).
 
-**Step 4 — `platform-commons` removal from `marketplace-app`** (pushed down from the original
-Step 2). Real remaining scope, per the investigation already done this session: only
-`ActivityEnrichHookImpl`/`AdvertisementAuditEnrichService` is realistically movable — split it into
-a `marketplace-orchestrator`-friendly part (category/city/attachment-state, no i18n) plus a thin
-`UiLabelHook`-shaped forwarder for the 2 i18n-touching methods (`labelFor(AdKind)`,
-`resolveNames(Set<Long>)`). Everything else investigated (the ~65-file DTO/enum/`ComponentFactory<T>`
-bulk, `CleanupProperties`, `YoutubeUtil`, `AccessEvaluator`'s `UserAuthorizationPort`/`UserIdMarker`,
-`SettingsPaginationService`'s Vaadin-coupled `UserSettingsChangedHook` impl) is either an
-already-documented deliberate exception, a legitimate shared-kernel type, or would require
-disproportionate wrapper-DTO duplication to remove — not yet approved for action, see Decisions
-log for the full per-category breakdown.
+**Step 4 — SPI dead-method sweep across every `*Port`/`*Hook` interface. ✅ Done** (see Decisions
+log; this step's actual content — swept every `platform-commons` SPI method for real call-site
+evidence — superseded the "platform-commons removal" text this step number originally held).
+2 genuinely dead methods removed (`UserPreferencesPort.findLocale`,
+`AuditDomainHookImpl.resolveDisplayName`); 4 more confirmed "0 usages" but intentionally kept
+(`ProviderProfilePort`'s planned-but-unwired public API).
 
-**Step 5 — re-run Definition of Done** (full reactor build, `deploy.sh` boot, unit + integration +
-Playwright) once Steps 2-4 are implemented.
+**Step 5 (bucket A+B) — `ActivityEnrichHookImpl`/`AdvertisementAuditEnrichService` move. ✅ Done**
+(see Decisions log, ADR-005). Split `AdvertisementAuditEnrichService` so its 2 i18n-touching calls
+go through the `UiLabelHook`/`CurrentLocaleHook` forwarder pair, moved it plus `ActivityEnrichHookImpl`
+into `marketplace-orchestrator`. Bucket A (`ComponentFactory<T>` duplication) was tried and
+reverted — see Decisions log for why. Verified end-to-end (unit + integration + a real
+`deploy.sh --reset` + Playwright `e2e --ux`, all green) and committed as `79f44c91`.
+
+**Step 6 (current) — close the remaining `*Port`/`*Hook` gaps found while reviewing Step 5, per
+the "Scope narrowed" note above.** Full inventory in the Decisions log entry below. Three code
+changes, then a guard test:
+
+1. **`AuditActivityListRenderer`/`AuditTimelineListRenderer`** — stop injecting `AuditDomainHook`
+   directly. Both calls it makes (`.resolveNames(Set<Long>)`, `.findExisting(EntityType,
+   Set<Long>)`) are pure delegation in `AuditDomainHookImpl` to two already-public
+   `marketplace-orchestrator` services — `UserActorNameService.resolveNames(Set<Long>)` and
+   `EntityExistenceService.findExisting(EntityType, Set<Long>)`. Repoint both renderers to call
+   those services directly instead of the raw `platform-commons` interface — a 1:1 swap, no new
+   orchestrator code needed.
+2. **`AuditTimelineRowRenderer`** — stop collecting `List<AuditActivityEnrichHook<?>>` directly.
+   Add a small `marketplace-orchestrator` service (new method on `AuditQueryService`, or a new
+   dedicated service) that itself collects `List<AuditActivityEnrichHook<?>>` (the orchestrator is
+   the correct place for this — it already owns `ActivityEnrichHookImpl`, the interface's only real
+   implementation) and exposes plain DTO-in/DTO-out methods (`mergeTimelineItems`,
+   `enrichActivityItems`, `getMediaStateForSnapshot`) that dispatch by `EntityType` internally.
+   Repoint `AuditTimelineRowRenderer` to call that service instead.
+3. **`AccessEvaluator`** — move its `UserAuthorizationPort`/`UserIdMarker` usage into
+   `marketplace-orchestrator` (already accepted as necessary, not just for SPI purity but for
+   future REST-adapter readiness — see the AccessEvaluator Decisions log entry above). Design not
+   yet detailed: needs an orchestrator-facing authorization service exposing
+   `isAdmin`/`isModerator`/`isOwner`-shaped checks without introducing >2-port coupling.
+4. **Add the ArchUnit guard, last, after 1-3 land** — a new rule in `ArchitectureRulesTest`
+   banning any `org.ost.marketplace..` class from depending on `org.ost.platform..spi..`, with an
+   allowlist (mirroring `ORCHESTRATOR_HOOK_ALLOWLIST`'s existing shape) for the legitimate
+   remaining cases: `AuthenticatedPrincipal` (consumed via `instanceof`, never implemented) and
+   `UserSettingsChangedHook` (`SettingsPaginationService` implements it — correct `*Hook`
+   direction, starter calls back into marketplace-app). Adding this test *before* 1-3 land would
+   force a large allowlist that immediately shrinks to nothing useful — sequence it last so the
+   test locks in the narrow, final shape rather than documenting a temporary wide one.
+
+**Step 7 — re-run Definition of Done** (full reactor build, `deploy.sh` boot, unit + integration +
+Playwright) once Step 6 is implemented.
 
 ## Decisions log
 
@@ -281,6 +317,58 @@ Playwright) once Steps 2-4 are implemented.
   `marketplace-orchestrator` is accepted as eventual scope for this issue (or a follow-up), sized
   and picked up as a future step, not as part of the current implementation batch. Implementation
   not started.
+- **2026-08-12** — Verified bucket B end-to-end and committed. `bash scripts/run-all-tests.sh
+  --integration "--sandbox"`: unit-tests PASSED (72 tests, incl. `ArchitectureRulesTest` 16/16
+  confirming the `ORCHESTRATOR_HOOK_ALLOWLIST` fix), integration-tests PASSED (165/165). The same
+  run's Playwright leg (5 failed) was discarded as a false signal — it exercised a stale Docker
+  image never rebuilt this session, not the current code (`playwright.sh` only resets the DB and
+  restarts the existing container, it never runs `docker build`). Re-verified properly: `bash
+  scripts/deploy.sh --reset` (full image rebuild + DB/MinIO wipe) followed by `bash
+  scripts/playwright.sh e2e --ux` — 37 passed, 0 failed, 13 skipped (spec 05's `--full`-gated
+  boundary tests, expected). Notably test #22 (`adminEn edits Electronics — ... advertisement view
+  and activity diff show struck-through category while deleted ...`) exercises the moved
+  `markDeleted()` path directly. Committed as `79f44c91`
+  ("feat(improvement-150): move ActivityEnrichHookImpl/AdvertisementAuditEnrichService to
+  marketplace-orchestrator") — 28 files. `docs/test-coverage.md` deliberately left uncommitted:
+  its regenerated 37/50 line reflects only that this particular verification run used `e2e --ux`
+  without `--full`, not a real coverage regression from the prior committed 50/50, so committing it
+  would misrepresent actual coverage. Also caught and reverted before staging: an unrelated,
+  unintentional formatting corruption in `platform-commons/.../ValidRangeValidator.java` (a stray
+  line break splitting `public class` in two) that had nothing to do with this batch of work.
+- **2026-08-12** — Scope narrowed (see the "Scope narrowed" note under Problem above): DTOs and
+  `ComponentFactory<T>` are accepted platform-commons dependencies; the real target is zero direct
+  `*Port`/`*Hook` usage. Full inventory of every `org.ost.platform.*.spi.*` import remaining in
+  `marketplace-app/src/main/java` (grep-verified):
+  - `AuthContextService` → `AuthenticatedPrincipal` — consumed only (an `instanceof` cast on the
+    Spring Security principal), never implemented here. Correct shape as-is.
+  - `SettingsPaginationService implements UserSettingsChangedHook` — correct `*Hook` direction
+    (starter calls back into marketplace-app to refresh cached pagination sizes on settings
+    change). Correct shape as-is.
+  - `AccessEvaluator` → `UserAuthorizationPort`, `UserIdMarker` — already decided (see the
+    AccessEvaluator entry above): not a permanent exception, future scope, not yet implemented.
+  - `AuditActivityListRenderer`/`AuditTimelineListRenderer` → `AuditDomainHook` — both hold a
+    direct field and call `.resolveNames(Set<Long>)`/`.findExisting(EntityType, Set<Long>)` for
+    their own UI-rendering needs (actor-name resolution, entity-existence checks for the timeline).
+    `AuditDomainHook`'s real implementor (`AuditDomainHookImpl`) already lives in
+    `marketplace-orchestrator`, which already has `ActorLookupService`/`AuditQueryService` wrapper
+    services doing adjacent work — these two renderers bypass that layer and call the raw
+    `platform-commons` interface directly. Candidate for routing through an orchestrator service
+    instead — investigation pending (next step, this session).
+  - `AuditTimelineRowRenderer` → `List<AuditActivityEnrichHook<?>>` — collects every registered
+    `AuditActivityEnrichHook` bean directly (keyed by `EntityType`) and calls
+    `.merge()`/`.enrichActivity()`/`.getMediaStateForSnapshot()`. The interface's only real
+    implementation, `ActivityEnrichHookImpl`, was just moved into `marketplace-orchestrator` this
+    session (ADR-005) — this renderer still reaches past that move to the raw `platform-commons`
+    interface and multi-bean collection pattern directly, rather than through an
+    orchestrator-owned service. Same candidate status as the two renderers above — investigation
+    pending.
+- **2026-08-12** — Step 6 item 1 done: `AuditActivityListRenderer`/`AuditTimelineListRenderer`
+  repointed off `AuditDomainHook` onto `marketplace-orchestrator`'s already-public
+  `UserActorNameService.resolveNames(Set<Long>)`/`EntityExistenceService.findExisting(EntityType,
+  Set<Long>)` — a 1:1 swap, no new orchestrator code needed. Verified with `bash
+  scripts/unit-tests.sh marketplace-app`: BUILD SUCCESS, `ArchitectureRulesTest` 16/16 (confirms no
+  architecture rule broke). Not yet committed at the time this entry was written. Items 2
+  (`AuditTimelineRowRenderer`), 3 (`AccessEvaluator`), and 4 (the ArchUnit guard) remain.
 
 ## Related
 
