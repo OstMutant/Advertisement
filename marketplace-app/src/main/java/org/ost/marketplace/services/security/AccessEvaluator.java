@@ -3,7 +3,6 @@ package org.ost.marketplace.services.security;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.spi.UserAuthorizationPort;
-import org.ost.platform.user.spi.UserIdMarker;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.springframework.stereotype.Component;
 
@@ -31,18 +30,6 @@ public class AccessEvaluator {
 
     public boolean canView() {
         return isPrivileged();
-    }
-
-    public boolean canNotEdit(UserIdMarker target) {
-        return !canOperate(target);
-    }
-
-    public boolean canNotDelete(UserIdMarker target) {
-        return !canOperate(target);
-    }
-
-    public boolean canOperate(UserIdMarker target) {
-        return canOperate(u -> authorizationPort.isOwner(u, target));
     }
 
     public boolean canNotEdit(Long ownerUserId) {

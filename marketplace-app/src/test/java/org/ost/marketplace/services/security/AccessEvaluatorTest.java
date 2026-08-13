@@ -7,7 +7,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.platform.user.dto.UserDto;
-import org.ost.platform.user.spi.UserIdMarker;
 import org.ost.platform.user.spi.UserAuthorizationPort;
 
 import java.util.Optional;
@@ -27,7 +26,6 @@ class AccessEvaluatorTest {
     private static final UserDto ADMIN_USER = user(1L, "admin@example.com");
     private static final UserDto MODERATOR_USER = user(2L, "moderator@example.com");
     private static final UserDto PLAIN_USER = user(3L, "plain@example.com");
-    private static final UserIdMarker TARGET = () -> 99L;
     private static final Long TARGET_OWNER_ID = 99L;
 
     @Mock
@@ -119,62 +117,6 @@ class AccessEvaluatorTest {
     void getCurrentUserId_returnsNull_whenLoggedOut() {
         loggedOut();
         assertThat(accessEvaluator.getCurrentUserId()).isNull();
-    }
-
-    // --- canOperate(UserIdMarker) / canNotEdit / canNotDelete ---
-
-    @Test
-    void canOperate_targetOverload_admin_returnsTrue_regardlessOfOwnership() {
-        loggedInAs(ADMIN_USER);
-        when(authorizationPort.isAdmin(ADMIN_USER)).thenReturn(true);
-
-        assertThat(accessEvaluator.canOperate(TARGET)).isTrue();
-        assertThat(accessEvaluator.canNotEdit(TARGET)).isFalse();
-        assertThat(accessEvaluator.canNotDelete(TARGET)).isFalse();
-    }
-
-    @Test
-    void canOperate_targetOverload_moderator_returnsTrue_regardlessOfOwnership() {
-        loggedInAs(MODERATOR_USER);
-        when(authorizationPort.isAdmin(MODERATOR_USER)).thenReturn(false);
-        when(authorizationPort.isModerator(MODERATOR_USER)).thenReturn(true);
-
-        assertThat(accessEvaluator.canOperate(TARGET)).isTrue();
-        assertThat(accessEvaluator.canNotEdit(TARGET)).isFalse();
-        assertThat(accessEvaluator.canNotDelete(TARGET)).isFalse();
-    }
-
-    @Test
-    void canOperate_targetOverload_owner_returnsTrue_whenNotPrivileged() {
-        loggedInAs(PLAIN_USER);
-        when(authorizationPort.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(authorizationPort.isModerator(PLAIN_USER)).thenReturn(false);
-        when(authorizationPort.isOwner(PLAIN_USER, TARGET)).thenReturn(true);
-
-        assertThat(accessEvaluator.canOperate(TARGET)).isTrue();
-        assertThat(accessEvaluator.canNotEdit(TARGET)).isFalse();
-        assertThat(accessEvaluator.canNotDelete(TARGET)).isFalse();
-    }
-
-    @Test
-    void canOperate_targetOverload_nonOwnerNonPrivileged_returnsFalse() {
-        loggedInAs(PLAIN_USER);
-        when(authorizationPort.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(authorizationPort.isModerator(PLAIN_USER)).thenReturn(false);
-        when(authorizationPort.isOwner(PLAIN_USER, TARGET)).thenReturn(false);
-
-        assertThat(accessEvaluator.canOperate(TARGET)).isFalse();
-        assertThat(accessEvaluator.canNotEdit(TARGET)).isTrue();
-        assertThat(accessEvaluator.canNotDelete(TARGET)).isTrue();
-    }
-
-    @Test
-    void canOperate_targetOverload_loggedOut_returnsFalse() {
-        loggedOut();
-
-        assertThat(accessEvaluator.canOperate(TARGET)).isFalse();
-        assertThat(accessEvaluator.canNotEdit(TARGET)).isTrue();
-        assertThat(accessEvaluator.canNotDelete(TARGET)).isTrue();
     }
 
     // --- canOperate(Long ownerUserId) / canNotEdit / canNotDelete ---

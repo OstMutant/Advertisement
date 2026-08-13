@@ -14,7 +14,5 @@ public interface UserAuthorizationPort {
 
     boolean isModerator(@NonNull UserDto user);
 
-    boolean isOwner(@NonNull UserDto user, @NonNull UserIdMarker target);
-
     boolean isOwner(@NonNull UserDto user, @NonNull Long ownerId);
 }

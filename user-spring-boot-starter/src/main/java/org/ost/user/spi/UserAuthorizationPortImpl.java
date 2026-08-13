@@ -4,7 +4,6 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.spi.UserAuthorizationPort;
-import org.ost.platform.user.spi.UserIdMarker;
 import org.ost.user.security.OwnershipChecker;
 import org.ost.user.security.RoleChecker;
 import org.springframework.stereotype.Service;
@@ -24,11 +23,6 @@ public class UserAuthorizationPortImpl implements UserAuthorizationPort {
     @Override
     public boolean isModerator(@NonNull UserDto user) {
         return roleChecker.isModerator(user);
-    }
-
-    @Override
-    public boolean isOwner(@NonNull UserDto user, @NonNull UserIdMarker target) {
-        return ownershipChecker.isOwner(user, target);
     }
 
     @Override

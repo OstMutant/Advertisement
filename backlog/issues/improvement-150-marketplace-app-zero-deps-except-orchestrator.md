@@ -382,6 +382,19 @@ Playwright) once Step 6 is implemented.
   `{ return this; }`, matching the sibling `AuditActivityRowRenderer`'s existing shape. Verified
   with `bash scripts/unit-tests.sh marketplace-app`: BUILD SUCCESS (10m19s), `ArchitectureRulesTest`
   16/16. Items 3 (`AccessEvaluator`) and 4 (the ArchUnit guard) remain.
+- **2026-08-13** — Step 6 item 3, part 1: removed `UserIdMarker` entirely as dead code, found
+  while scoping the `AccessEvaluator` move. Confirmed via grep before deleting: zero classes
+  anywhere in the repo `implements UserIdMarker` — no real DTO ever adopted the marker — and every
+  real UI call site of `AccessEvaluator.canOperate`/`canNotEdit`/`canNotDelete` already passed a
+  plain `Long` (`ad.getOwnerUserId()`, `user.id()`), never the marker-typed overload. Only
+  consumer was `AccessEvaluatorTest`'s own test-only lambda (`() -> 99L`). Removed:
+  `UserIdMarker.java` (whole file), `UserAuthorizationPort.isOwner(UserDto, UserIdMarker)`,
+  `OwnershipChecker`/`UserAuthorizationPortImpl`'s matching overloads, `AccessEvaluator`'s three
+  `UserIdMarker`-typed methods, and the corresponding 5-test block in `AccessEvaluatorTest`.
+  Verified with `bash scripts/unit-tests.sh marketplace-app`: BUILD SUCCESS (11m51s),
+  `AccessEvaluatorTest` 12/12 (down from 17), `ArchitectureRulesTest` 16/16. Part 2 (moving the
+  live `isAdmin`/`isModerator`/`isOwner(UserDto, Long)` calls behind an orchestrator service)
+  remains.
 
 ## Related
 
