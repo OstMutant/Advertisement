@@ -5,8 +5,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.orchestrator.services.AuthorizationService;
+import org.ost.orchestrator.services.CurrentUserService;
 import org.ost.platform.user.dto.UserDto;
 
 import java.util.Optional;
@@ -18,7 +18,7 @@ import static org.mockito.Mockito.when;
  * The app's only server-side authorization chokepoint — every overlay/view calls
  * {@link AccessEvaluator} instead of {@code @PreAuthorize} (intentionally absent, see
  * {@code marketplace-app/CLAUDE.md} "Security"). No Spring context needed:
- * {@link AuthorizationService} and {@link AuthContextService} are mocked directly.
+ * {@link AuthorizationService} and {@link CurrentUserService} are mocked directly.
  */
 @ExtendWith(MockitoExtension.class)
 class AccessEvaluatorTest {
@@ -32,13 +32,13 @@ class AccessEvaluatorTest {
     private AuthorizationService authorizationService;
 
     @Mock
-    private AuthContextService authContextService;
+    private CurrentUserService currentUserService;
 
     private AccessEvaluator accessEvaluator;
 
     @BeforeEach
     void setUp() {
-        accessEvaluator = new AccessEvaluator(authorizationService, authContextService);
+        accessEvaluator = new AccessEvaluator(authorizationService, currentUserService);
     }
 
     private static UserDto user(Long id, String email) {
@@ -46,11 +46,11 @@ class AccessEvaluatorTest {
     }
 
     private void loggedOut() {
-        when(authContextService.getCurrentUser()).thenReturn(Optional.empty());
+        when(currentUserService.getCurrentUser()).thenReturn(Optional.empty());
     }
 
     private void loggedInAs(UserDto currentUser) {
-        when(authContextService.getCurrentUser()).thenReturn(Optional.of(currentUser));
+        when(currentUserService.getCurrentUser()).thenReturn(Optional.of(currentUser));
     }
 
     // --- isLoggedIn() ---

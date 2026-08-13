@@ -55,28 +55,53 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   per-`EntityType` existence-check routing (`findExisting`).
 - `UserActorNameService` — actor-name-resolution collaborator `AuditDomainHookImpl` (in `spi/`,
   below) delegates to; stays in `services/` since it doesn't itself implement an SPI interface.
+- `AuthorizationService` — pure delegation over a direct, mandatory `UserAuthorizationPort` field
+  (same shape as `UserDeleteService`'s `UserAccountPort`), exposing `isAdmin`/`isModerator`/
+  `isOwner`. `marketplace-app`'s `AccessEvaluator` depends on this instead of holding
+  `UserAuthorizationPort` directly — see the "Forwarder SPI pattern" section below for why this
+  isn't itself a forwarder SPI (it wraps a genuine `platform-commons` `*Port`, not a UI-shell
+  resource).
+- `CurrentUserService` — thin wrapper over the `CurrentUserHook` forwarder SPI (see below),
+  exposing `getCurrentUser()`/`getCurrentUserLocale()` to any orchestrator-side or future-adapter
+  caller without assuming how identity is resolved.
 
 `org.ost.orchestrator.spi` — the `*Hook` implementations (see "Hook implementations" below):
-`AuditDomainHookImpl`, `CurrentActorHookImpl`, `ActivityEnrichHookImpl` (`AuditActivityFieldsHook`
-and its four per-domain implementations were removed entirely — see `platform-commons/DECISIONS.md`
-ADR-029's second refinement: every implementation had converged to a one-line delegation with zero
-domain-specific logic, and the interface's only real caller was already `marketplace-app`'s own
-`AuditTimelineRowRenderer`, so the whole per-domain Hook pattern collapsed into one field-name-to-
-label mapping directly in that class). Also owns the forwarder SPIs these implementations call
-through to reach a UI-shell resource — `UiLabelHook` (`translateActorDeletedSuffix(String)`, the
-one remaining audit-starter translation case, since its real caller has no i18n awareness of its
-own; also carries `labelFor(AdKind)`, `markDeleted(String)` (wraps a name in strikethrough markup
-for a soft-deleted taxon), and `noMediaPlaceholder()` (the "no attachment" placeholder text) for
-`AdvertisementAuditEnrichService` — all four wrap the same `I18nService`/produce presentation
-output only marketplace-app should own, so they share one interface rather than four),
-`SessionActorHook` (current actor ID), and `CurrentLocaleHook` (current request locale, used by
-`AdvertisementAuditEnrichService`). None of these forwarder SPIs live in `platform-commons`: all
-are called only by this module's own Hook implementations or services, never a starter, and this
-module is a mandatory, never-optional dependency of `marketplace-app` — the
-*Port/*Hook-must-live-in-platform-commons rule exists specifically for starter optionality, which
-doesn't apply here. `marketplace-app`'s `UiLabelHookImpl`/`SessionActorHookImpl`/
-`CurrentLocaleHookImpl` (in its own `spi/` package) implement these three interfaces, a legal
-import since `marketplace-app` already depends on `marketplace-orchestrator`.
+`AuditDomainHookImpl`, `CurrentActorHookImpl`, `ActivityEnrichHookImpl`, `UserSettingsChangedHookImpl`
+(`AuditActivityFieldsHook` and its four per-domain implementations were removed entirely — see
+`platform-commons/DECISIONS.md` ADR-029's second refinement: every implementation had converged to
+a one-line delegation with zero domain-specific logic, and the interface's only real caller was
+already `marketplace-app`'s own `AuditTimelineRowRenderer`, so the whole per-domain Hook pattern
+collapsed into one field-name-to-label mapping directly in that class).
+
+### Forwarder SPI pattern
+
+The same shape recurs whenever an orchestrator-owned `*Hook` implementation (or an orchestrator
+service) needs a single value only a UI-shell resource can answer (translations, the current
+locale, the HTTP session, live Vaadin UI state) — declare a small, orchestrator-owned interface in
+`org.ost.orchestrator.spi`, let `marketplace-app` implement it with a thin `*Impl` wrapping the
+real resource. This is distinct from a genuine `platform-commons` `*Port`/`*Hook` (e.g.
+`UserAuthorizationPort`, wrapped by `AuthorizationService`): a forwarder SPI's only real caller and
+only real implementor are both inside this app (no starter involved), and it exists purely to keep
+a UI-shell dependency out of `marketplace-orchestrator` rather than to cross the
+starter-optionality boundary. Five so far:
+
+| Forwarder SPI | Real caller | `marketplace-app` implementor | Wraps |
+|---|---|---|---|
+| `UiLabelHook` | `AuditDomainHookImpl` (actor-deleted suffix), `AdvertisementAuditEnrichService` (`AdKind` label, strikethrough markup, no-media text) | `UiLabelHookImpl` | `I18nService` |
+| `SessionActorHook` | `CurrentActorHookImpl` | `SessionActorHookImpl` | `AuthContextService` (actor id only) |
+| `CurrentLocaleHook` | `AdvertisementAuditEnrichService` | `CurrentLocaleHookImpl` | `LocaleProvider` |
+| `SettingsChangeHook` | `UserSettingsChangedHookImpl` | `SettingsPaginationService` | live `PaginationBar` push (100% Vaadin, nothing to split out) |
+| `CurrentUserHook` | `CurrentUserService` | `AuthContextService` | `SecurityContextHolder` (full `UserDto` + locale) |
+
+None of these five live in `platform-commons`: all are called only by this module's own Hook
+implementations or services, never a starter, and this module is a mandatory, never-optional
+dependency of `marketplace-app` — the *Port/*Hook-must-live-in-platform-commons rule exists
+specifically for starter optionality, which doesn't apply here. Each `marketplace-app` `*Impl`
+lives in that module's own `spi/` package, a legal import since `marketplace-app` already depends
+on `marketplace-orchestrator`. Enforced by
+`ArchitectureRulesTest.marketplace_app_must_not_depend_on_platform_commons_spi_directly` (bans any
+other direct `platform-commons` `*.spi` import from `marketplace-app`; `AuthenticatedPrincipal` is
+the one allow-listed exception — see that test's own comment for why).
 
 **Autoconfiguration entry point:** `OrchestratorAutoConfiguration` (`@ComponentScan` over
 `org.ost.orchestrator`, since this module is a mandatory, non-optional dependency of
@@ -130,46 +155,39 @@ inventing a second wiring approach for one module).
   (narrow, scheduled-job-scoped referential-integrity cooperation) also stay in their starters —
   neither is the "assemble a read-model from several domains" pattern this module exists for.
 - **Hook implementations that only need domain-port access live here, in their own `spi/`
-  package parallel to `services/`; ones that need UI-shell resources (translations, locale, the
-  HTTP session) go through a forwarder SPI instead of pulling `marketplace-app` in as a
-  dependency.** `AuditDomainHookImpl`, `CurrentActorHookImpl`, and `ActivityEnrichHookImpl` live in
-  `org.ost.orchestrator.spi` — a `*Hook` that dispatches to exactly one of several ports per call,
-  based on `EntityType`, is per-branch pure delegation, not the simultaneous-composition shape the
-  ≤2-port rule targets, so this module is still the natural home even though the package is
-  separate from `services/`. Three forwarder SPIs, also in `org.ost.orchestrator.spi` (not
-  platform-commons — see above), make this possible without an illegal
-  `marketplace-orchestrator -> marketplace-app` dependency (the compile direction only ever runs
-  the other way): `UiLabelHook` (`translateActorDeletedSuffix`, plus `labelFor(AdKind)`,
-  `markDeleted(String)`, and `noMediaPlaceholder()` — all four wrap the same `I18nService` or
-  produce presentation output only marketplace-app should own, so one interface covers all four
-  rather than a separate single-method Hook per lookup), `SessionActorHook` (read the current
-  actor ID from the HTTP session), and `CurrentLocaleHook` (current request locale) — each
-  implemented by a thin `*Impl` that stays in `marketplace-app`
-  (`UiLabelHookImpl`/`SessionActorHookImpl`/`CurrentLocaleHookImpl`), wrapping
-  `I18nService`/`AuthContextService`/`LocaleProvider`. `ActivityEnrichHookImpl`'s real collaborator,
-  `AdvertisementAuditEnrichService`, does real category/city/`AdKind` diff-label resolution, not a
-  single-value lookup — but only the UI-shell-touching calls (locale, `AdKind`/deleted-taxon/
-  no-media label text) go through `CurrentLocaleHook`/`UiLabelHook`, so it splits the same way the
-  narrower Hooks do: the pure-data majority (change-merging, field resolution) stays a
-  `marketplace-orchestrator` service (see `marketplace-orchestrator/DECISIONS.md` ADR-005,
-  reversing ADR-004's original call that this one couldn't follow the same pattern).
-  `AuditActivityFieldsHook` — the fourth original Hook interface, previously implemented by four
-  per-domain classes here — was removed entirely: every implementation had converged to a one-line
-  delegation with zero domain-specific logic left, and its only real caller was already
-  `marketplace-app`'s own `AuditTimelineRowRenderer`, so the whole field-name-to-label mapping now
-  lives directly in that class instead of crossing the module boundary at all.
+  package parallel to `services/`; ones that need UI-shell resources go through a forwarder SPI
+  instead of pulling `marketplace-app` in as a dependency** — see the "Forwarder SPI pattern"
+  section above for the full list. `AuditDomainHookImpl`, `CurrentActorHookImpl`, and
+  `ActivityEnrichHookImpl` live in `org.ost.orchestrator.spi` — a `*Hook` that dispatches to
+  exactly one of several ports per call, based on `EntityType`, is per-branch pure delegation, not
+  the simultaneous-composition shape the ≤2-port rule targets, so this module is still the natural
+  home even though the package is separate from `services/`. `ActivityEnrichHookImpl`'s real
+  collaborator, `AdvertisementAuditEnrichService`, does real category/city/`AdKind` diff-label
+  resolution, not a single-value lookup — but only the UI-shell-touching calls go through
+  `CurrentLocaleHook`/`UiLabelHook`, so it splits the same way the narrower Hooks do: the pure-data
+  majority (change-merging, field resolution) stays a `marketplace-orchestrator` service (see
+  `marketplace-orchestrator/DECISIONS.md` ADR-005, reversing ADR-004's original call that this one
+  couldn't follow the same pattern). `AuditActivityFieldsHook` — the fourth original Hook
+  interface, previously implemented by four per-domain classes here — was removed entirely: every
+  implementation had converged to a one-line delegation with zero domain-specific logic left, and
+  its only real caller was already `marketplace-app`'s own `AuditTimelineRowRenderer`, so the whole
+  field-name-to-label mapping now lives directly in that class instead of crossing the module
+  boundary at all.
 - **UI presence-guards also route through the orchestrator.** For literal BFF purity — zero direct
   `*Port` reference of any kind in marketplace-app — even a presence-only check (e.g. "is the
   attachment starter on the classpath, to decide whether to render a gallery button") goes through
   an orchestrator service's own `isAvailable()` method rather than a local `ComponentFactory<XPort>`
   field. `AdvertisementReadService`/`TaxonCatalogService`/`AttachmentMediaService`/`AuditQueryService`
   each expose `isAvailable()` for exactly this.
-- **One remaining direct `*Port` reference in marketplace-app, by design:** `AccessEvaluator`
-  (`services/security/`) keeps a direct `UserAuthorizationPort` field. Authorization/ownership
-  checks (`isAdmin`/`isModerator`/`isOwner`) are the security boundary itself, not a domain
-  read-model this module composes — the same category as a `*Hook`, called on nearly every render
-  across the whole UI, where adding an orchestrator round-trip would cost real latency for no
-  architectural benefit. `user-spring-boot-starter` is non-optional, so this carries no
-  decoupling risk either. Every other `User*Port` usage in marketplace-app (search/filter,
-  registration, locale, settings, pagination) routes through `UserProfileService`/
-  `ActorLookupService` — `AccessEvaluator` is the one deliberate, named exception.
+- **Zero direct `*Port`/`*Hook` references remain in marketplace-app** (`AuthenticatedPrincipal`
+  is the one allow-listed exception — see the "Forwarder SPI pattern" section above). Authorization/
+  ownership checks (`isAdmin`/`isModerator`/`isOwner`), called on nearly every render across the
+  whole UI, previously stayed as a direct `UserAuthorizationPort` field on `AccessEvaluator`
+  (`services/security/`) on the reasoning that an orchestrator round-trip would cost real latency
+  for no benefit — reversed once a future REST adapter entered the picture (see `improvement-150`):
+  a REST caller has no `AccessEvaluator` to reach, so the check needed to exist in the orchestrator
+  regardless. `AccessEvaluator` now depends on `AuthorizationService` (a thin wrapper over the same
+  direct, mandatory `UserAuthorizationPort` field, just relocated). Every other `User*Port` usage
+  in marketplace-app (search/filter, registration, locale, settings, pagination) routes through
+  `UserProfileService`/`ActorLookupService`, same as `AccessEvaluator` now does via
+  `AuthorizationService` — no remaining exception.

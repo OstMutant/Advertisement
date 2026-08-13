@@ -138,40 +138,31 @@ into `marketplace-orchestrator`. Bucket A (`ComponentFactory<T>` duplication) wa
 reverted — see Decisions log for why. Verified end-to-end (unit + integration + a real
 `deploy.sh --reset` + Playwright `e2e --ux`, all green) and committed as `79f44c91`.
 
-**Step 6 (current) — close the remaining `*Port`/`*Hook` gaps found while reviewing Step 5, per
-the "Scope narrowed" note above.** Full inventory in the Decisions log entry below. Three code
-changes, then a guard test:
+**Step 6 — close the remaining `*Port`/`*Hook` gaps found while reviewing Step 5, per the "Scope
+narrowed" note above. ✅ All 4 items done** (see Decisions log below for the real implementation,
+which went further than originally planned — items 2 and 3 grew a genuine `platform-commons` `*Hook`
+dependency each, `AuditActivityEnrichHook`/`UserSettingsChangedHook`, that also needed a forwarder
+SPI, not just a redirect to an existing orchestrator service):
 
-1. **`AuditActivityListRenderer`/`AuditTimelineListRenderer`** — stop injecting `AuditDomainHook`
-   directly. Both calls it makes (`.resolveNames(Set<Long>)`, `.findExisting(EntityType,
-   Set<Long>)`) are pure delegation in `AuditDomainHookImpl` to two already-public
-   `marketplace-orchestrator` services — `UserActorNameService.resolveNames(Set<Long>)` and
-   `EntityExistenceService.findExisting(EntityType, Set<Long>)`. Repoint both renderers to call
-   those services directly instead of the raw `platform-commons` interface — a 1:1 swap, no new
-   orchestrator code needed.
-2. **`AuditTimelineRowRenderer`** — stop collecting `List<AuditActivityEnrichHook<?>>` directly.
-   Add a small `marketplace-orchestrator` service (new method on `AuditQueryService`, or a new
-   dedicated service) that itself collects `List<AuditActivityEnrichHook<?>>` (the orchestrator is
-   the correct place for this — it already owns `ActivityEnrichHookImpl`, the interface's only real
-   implementation) and exposes plain DTO-in/DTO-out methods (`mergeTimelineItems`,
-   `enrichActivityItems`, `getMediaStateForSnapshot`) that dispatch by `EntityType` internally.
-   Repoint `AuditTimelineRowRenderer` to call that service instead.
-3. **`AccessEvaluator`** — move its `UserAuthorizationPort`/`UserIdMarker` usage into
-   `marketplace-orchestrator` (already accepted as necessary, not just for SPI purity but for
-   future REST-adapter readiness — see the AccessEvaluator Decisions log entry above). Design not
-   yet detailed: needs an orchestrator-facing authorization service exposing
-   `isAdmin`/`isModerator`/`isOwner`-shaped checks without introducing >2-port coupling.
-4. **Add the ArchUnit guard, last, after 1-3 land** — a new rule in `ArchitectureRulesTest`
-   banning any `org.ost.marketplace..` class from depending on `org.ost.platform..spi..`, with an
-   allowlist (mirroring `ORCHESTRATOR_HOOK_ALLOWLIST`'s existing shape) for the legitimate
-   remaining cases: `AuthenticatedPrincipal` (consumed via `instanceof`, never implemented) and
-   `UserSettingsChangedHook` (`SettingsPaginationService` implements it — correct `*Hook`
-   direction, starter calls back into marketplace-app). Adding this test *before* 1-3 land would
-   force a large allowlist that immediately shrinks to nothing useful — sequence it last so the
-   test locks in the narrow, final shape rather than documenting a temporary wide one.
+1. **`AuditActivityListRenderer`/`AuditTimelineListRenderer`** — ✅ repointed onto
+   `UserActorNameService`/`EntityExistenceService`, no new orchestrator code needed.
+2. **`AuditTimelineRowRenderer`** — ✅ `AuditQueryService` gained `hasEnrichHook`/
+   `getMediaStateForSnapshot` (plain linear scan, no `@PostConstruct`).
+3. **`AccessEvaluator`** — ✅ new `AuthorizationService` (direct mandatory `UserAuthorizationPort`
+   field). Along the way, found and removed `UserIdMarker` as dead code (zero real implementors
+   anywhere in the repo). Also found `AuthContextService`/`SettingsPaginationService` still held
+   direct `platform-commons` `*Hook`/SPI usage — both got their own new forwarder SPIs
+   (`CurrentUserHook`, `SettingsChangeHook`) rather than moving into the orchestrator directly, to
+   keep the actual identity/UI-push resolution swappable per future adapter.
+4. **ArchUnit guard** — ✅ `marketplace_app_must_not_depend_on_platform_commons_spi_directly`,
+   allowlist narrowed to just `AuthenticatedPrincipal` (down from the 2 originally anticipated,
+   since `UserSettingsChangedHook`/`CurrentUserHook` both ended up behind new forwarder SPIs
+   instead of being implemented directly against `platform-commons`).
 
-**Step 7 — re-run Definition of Done** (full reactor build, `deploy.sh` boot, unit + integration +
-Playwright) once Step 6 is implemented.
+**Step 7 — re-run Definition of Done. ✅ Done** (2026-08-13): `bash scripts/deploy.sh --reset` +
+`bash scripts/run-all-tests.sh --integration "--sandbox" --playwright "e2e --full --ux"` — unit
+PASSED, integration 165/165, Playwright 50/50 (full suite, no skips). Architecture model
+regenerated via `bash scripts/architecture/generate-architecture-model.sh`.
 
 ## Decisions log
 
@@ -404,6 +395,54 @@ Playwright) once Step 6 is implemented.
   scripts/unit-tests.sh marketplace-app`: BUILD SUCCESS (10m26s), `AccessEvaluatorTest` 12/12,
   `ArchitectureRulesTest` 16/16. **Step 6 items 1-3 all done.** Only item 4 (the ArchUnit guard
   rule) and Step 7 (Definition of Done re-run) remain.
+- **2026-08-13** — Found, while reviewing item 3, that `AuthContextService`
+  (`AuthenticatedPrincipal`) and `SettingsPaginationService implements UserSettingsChangedHook`
+  were also direct `platform-commons` SPI usages, beyond `AccessEvaluator`. Considered moving
+  `AuthContextService` wholesale into `marketplace-orchestrator` (its `SecurityContextHolder`-based
+  logic has zero Vaadin code, so it's technically portable) but rejected: this module already has a
+  precedent for exactly this situation — `SessionActorHook` lets `marketplace-orchestrator` ask
+  "who is the current actor" without assuming *how* identity is resolved, so a future REST adapter
+  with a different auth mechanism could implement it differently. Baking `SecurityContextHolder`
+  reads directly into the orchestrator would have removed that flexibility for the one adapter that
+  would benefit most from it.
+- **2026-08-13** — Applied the same forwarder-SPI pattern to both remaining cases instead:
+  - `SettingsChangeHook` (`marketplace-orchestrator/spi`) + `UserSettingsChangedHookImpl` (thin,
+    implements `platform-commons`'s real `UserSettingsChangedHook`, forwards to the new interface).
+    `SettingsPaginationService` now implements `SettingsChangeHook` instead of the `platform-commons`
+    type directly — its own Vaadin-UI-push logic (100% of the class, nothing to split out) is
+    unchanged.
+  - `CurrentUserHook` (`marketplace-orchestrator/spi`, `getCurrentUser()`/`getCurrentUserLocale()`)
+    + `CurrentUserService` (orchestrator wrapper). `AuthContextService` now implements
+    `CurrentUserHook` — its internal `SecurityContextHolder`/`instanceof AuthenticatedPrincipal`
+    logic is completely unchanged, only the public contract it satisfies moved. `AccessEvaluator`
+    and `VaadinLocaleProvider` now call `CurrentUserService` (orchestrator) instead of
+    `AuthContextService` (marketplace-app) directly.
+  - Caught and fixed the same `ORCHESTRATOR_HOOK_ALLOWLIST` gap twice more (`SettingsChangeHook`,
+    then `CurrentUserHook`) — same class of miss as `CurrentLocaleHook` earlier in this issue,
+    confirmed by a real `ArchitectureRulesTest` failure both times before the fix.
+  - Result: `marketplace-app` now has exactly one direct `platform-commons..spi..` import left —
+    `AuthenticatedPrincipal` in `AuthContextService` (an `instanceof` read, never implemented).
+- **2026-08-13** — Step 6 item 4: added
+  `ArchitectureRulesTest.marketplace_app_must_not_depend_on_platform_commons_spi_directly` — bans
+  any `org.ost.marketplace..` class from depending on `org.ost.platform..spi..`, allowlist of one:
+  `AuthenticatedPrincipal`. Verified with `bash scripts/unit-tests.sh marketplace-app`: BUILD
+  SUCCESS (10m52s), `AuthContextServiceTest` 7/7, `AccessEvaluatorTest` 12/12, `ArchitectureRulesTest`
+  16/16.
+- **2026-08-13** — Documented the forwarder-SPI pattern generally (it now has 5 instances:
+  `UiLabelHook`, `SessionActorHook`, `CurrentLocaleHook`, `SettingsChangeHook`, `CurrentUserHook`) —
+  new "Forwarder SPI pattern" section in `marketplace-orchestrator/CLAUDE.md` with a summary table
+  (real caller / marketplace-app implementor / wrapped resource per row), replacing scattered prose
+  mentions. Also corrected two now-stale claims found while updating: the "One remaining direct
+  `*Port` reference in marketplace-app, by design" bullet (no longer true — `AccessEvaluator` moved
+  in item 3) and `marketplace-app/CLAUDE.md`'s `spi/` package bullet (didn't distinguish dedicated
+  `spi/`-package forwarders from existing classes that also implement a forwarder interface in
+  their own natural package).
+- **2026-08-13** — Full Definition of Done re-run: `bash scripts/deploy.sh --reset` (real image
+  rebuild, not reused from an earlier session), `bash scripts/run-all-tests.sh --integration
+  "--sandbox" --playwright "e2e --full --ux"` — unit-tests PASSED, integration-tests 165/165,
+  Playwright **50/50** (full suite including spec 05's seeded-pagination tests, zero skips, zero
+  failures). Architecture model regenerated: `bash scripts/architecture/generate-architecture-model.sh`.
+  **Step 6 and Step 7 both fully done.**
 
 ## Related
 

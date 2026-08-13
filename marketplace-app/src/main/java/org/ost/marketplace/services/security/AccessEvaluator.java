@@ -2,8 +2,8 @@ package org.ost.marketplace.services.security;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.AuthorizationService;
+import org.ost.orchestrator.services.CurrentUserService;
 import org.ost.platform.user.dto.UserDto;
-import org.ost.marketplace.services.auth.AuthContextService;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -14,10 +14,10 @@ import java.util.function.Predicate;
 public class AccessEvaluator {
 
     private final AuthorizationService authorizationService;
-    private final AuthContextService   authContextService;
+    private final CurrentUserService   currentUserService;
 
     public boolean isLoggedIn() {
-        return authContextService.getCurrentUser().isPresent();
+        return currentUserService.getCurrentUser().isPresent();
     }
 
     public boolean isPrivileged() {
@@ -51,6 +51,6 @@ public class AccessEvaluator {
     }
 
     private Optional<UserDto> currentUser() {
-        return authContextService.getCurrentUser();
+        return currentUserService.getCurrentUser();
     }
 }

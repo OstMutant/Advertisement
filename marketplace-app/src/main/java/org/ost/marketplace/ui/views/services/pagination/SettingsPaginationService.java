@@ -5,8 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.orchestrator.services.UserProfileService;
+import org.ost.orchestrator.spi.SettingsChangeHook;
 import org.ost.platform.user.dto.UserSettingsDto;
-import org.ost.platform.user.spi.UserSettingsChangedHook;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -15,7 +15,7 @@ import java.util.function.ToIntFunction;
 
 @Component
 @RequiredArgsConstructor
-public class SettingsPaginationService implements UserSettingsChangedHook {
+public class SettingsPaginationService implements SettingsChangeHook {
 
     private final AuthContextService authContextService;
     private final UserProfileService userProfileService;

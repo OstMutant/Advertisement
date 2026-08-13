@@ -63,12 +63,13 @@ class ArchitectureRulesTest {
                             + "platform-commons/CLAUDE.md \"Why ports and hooks must live in "
                             + "platform-commons\"");
 
-    // UiLabelHook/SessionActorHook/CurrentLocaleHook are the named exceptions: called only by
-    // marketplace-orchestrator (a mandatory, non-optional dependency of marketplace-app, never
-    // absent), never by a starter, so the starter-optionality reasoning below doesn't apply to
-    // this set — they live in org.ost.orchestrator.spi instead. See marketplace-orchestrator/CLAUDE.md.
-    private static final List<String> ORCHESTRATOR_HOOK_ALLOWLIST =
-            List.of("UiLabelHook", "SessionActorHook", "CurrentLocaleHook");
+    // UiLabelHook/SessionActorHook/CurrentLocaleHook/SettingsChangeHook/CurrentUserHook are the
+    // named exceptions: called only by marketplace-orchestrator (a mandatory, non-optional
+    // dependency of marketplace-app, never absent), never by a starter, so the
+    // starter-optionality reasoning below doesn't apply to this set — they live in
+    // org.ost.orchestrator.spi instead. See marketplace-orchestrator/CLAUDE.md.
+    private static final List<String> ORCHESTRATOR_HOOK_ALLOWLIST = List.of(
+            "UiLabelHook", "SessionActorHook", "CurrentLocaleHook", "SettingsChangeHook", "CurrentUserHook");
 
     @ArchTest
     static final ArchRule hooks_live_only_in_platform_commons =
@@ -83,9 +84,34 @@ class ArchitectureRulesTest {
                     .because("*Hook SPI interfaces live in platform-commons so marketplace always "
                             + "sees the type regardless of which starters are present — see "
                             + "platform-commons/CLAUDE.md \"Why ports and hooks must live in "
-                            + "platform-commons\". UiLabelHook/SessionActorHook/CurrentLocaleHook are "
-                            + "allow-listed above: called only by the mandatory marketplace-orchestrator "
-                            + "dependency, never a starter, so they live in org.ost.orchestrator.spi.");
+                            + "platform-commons\". UiLabelHook/SessionActorHook/CurrentLocaleHook/"
+                            + "SettingsChangeHook/CurrentUserHook are allow-listed above: called only by "
+                            + "the mandatory marketplace-orchestrator dependency, never a starter, so they live in "
+                            + "org.ost.orchestrator.spi.");
+
+    // AuthenticatedPrincipal is the one named exception: marketplace-app's AuthContextService
+    // reads it via instanceof from Spring Security's Authentication.getPrincipal() -- the
+    // adapter-specific boundary where a generic Object becomes a typed contract, deliberately not
+    // routed through the orchestrator so a future adapter (e.g. REST) can resolve identity its own
+    // way instead of inheriting Vaadin's session-based resolution. See improvement-150.
+    private static final List<String> PLATFORM_SPI_ALLOWLIST = List.of("AuthenticatedPrincipal");
+
+    @ArchTest
+    static final ArchRule marketplace_app_must_not_depend_on_platform_commons_spi_directly =
+            noClasses().that().resideInAPackage("org.ost.marketplace..")
+                    .should().dependOnClassesThat(new DescribedPredicate<JavaClass>(
+                            "reside in a platform-commons *.spi package and are not allow-listed") {
+                        @Override
+                        public boolean test(JavaClass input) {
+                            String pkg = input.getPackageName();
+                            return pkg.startsWith("org.ost.platform.") && pkg.endsWith(".spi")
+                                    && !PLATFORM_SPI_ALLOWLIST.contains(input.getSimpleName());
+                        }
+                    })
+                    .because("marketplace-app should have zero direct *Port/*Hook usage from "
+                            + "platform-commons — cross-domain composition routes through "
+                            + "marketplace-orchestrator instead, see improvement-150. "
+                            + "AuthenticatedPrincipal is allow-listed above.");
 
     @ArchTest
     static final ArchRule no_class_level_preauthorize_on_services =
