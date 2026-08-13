@@ -1794,3 +1794,30 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   "Forwarder SPI pattern" section. `unit-tests.sh`: PASSED; `integration-tests.sh --sandbox`:
   165/165; `deploy.sh --reset` + `playwright.sh e2e --full --ux`: **50/50 passed**. Full detail:
   `completed/issues/improvement-150-marketplace-app-zero-deps-except-orchestrator.md`.
+
+- ✅ Done (2026-08-13): improvement-151 — architecture-generator content-drift cleanup
+  (`scripts/architecture/generate-architecture-model.sh`). Removed `spi_call_flow_examples_json()`
+  and the whole "Call Flow Examples" section outright (stale hardcoded class references, some
+  already moved/deleted). Built the `#arch-embed:KEY` marker convention — a depth-tracked bash
+  extractor (`arch_embed_raw()`/`arch_embeds_json()`) reads marked excerpts directly out of
+  `platform-commons/CLAUDE.md` instead of hand-copied HTML strings, closing a real drift gap (a
+  `<!-- #arch-diagram:KEY -->` marker already existed but nothing read it). Used for
+  Implementation Rules (moved out of per-subsystem SPI Map tabs into one instance at the bottom of
+  `System › Diagrams`) and 4 new SPI/Port/Hook glossary paragraphs. New
+  `docs/architecture/arch-embed-index.md` — a generated, repo-wide index of every `#arch-embed`
+  marker (mirrors `docs/ai/adr-index.md`'s discovery role), regenerated as part of the same script
+  run, not a separate manually-triggered one. New standing rule in `.claude/rules.md` ("a comment
+  above a method states what that method's own body does"). **Notable mid-session correction, twice
+  over**: a systematic re-check found roughly half of this issue's own "Done" bullets (a
+  `screenshot-architecture-map.sh` fix, an entire fictional `@flow` source-tag mechanism with an
+  11-item design log and a fabricated "Verified" paragraph, clickable-module-link claims, a
+  "Diagram-Specific Comments" file/table) described work that was never actually present in the
+  repo — confirmed file-by-file (grep, `git log`, direct file existence checks) and removed
+  outright rather than kept for "historical value." Real work verified via multiple successful
+  `bash scripts/architecture/generate-architecture-model.sh` regenerations (`Valid JSON` each time)
+  plus standalone Node scripts exercising the real render functions against real `MODEL.archEmbeds`
+  data. This issue's original topic (`scripts/build.sh`, a redundant-recompile fix never
+  implemented here), a Track B/ArchUnit unblock investigation this issue's own SPI Map findings
+  motivated, and its SPI Interface Details table redesign idea all moved to `improvement-152`.
+  Docs/tooling-only change — no Java touched, so no unit/integration/Playwright run applicable.
+  Full detail: `completed/issues/improvement-151-scripts-avoid-redundant-recompile.md`.
