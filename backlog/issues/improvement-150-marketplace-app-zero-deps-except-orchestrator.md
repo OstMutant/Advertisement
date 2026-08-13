@@ -395,6 +395,15 @@ Playwright) once Step 6 is implemented.
   `AccessEvaluatorTest` 12/12 (down from 17), `ArchitectureRulesTest` 16/16. Part 2 (moving the
   live `isAdmin`/`isModerator`/`isOwner(UserDto, Long)` calls behind an orchestrator service)
   remains.
+- **2026-08-13** — Step 6 item 3, part 2 done: new `AuthorizationService`
+  (`marketplace-orchestrator/services`) — pure delegation over a direct, mandatory
+  `UserAuthorizationPort` field (not `ComponentFactory`-wrapped, same shape as
+  `UserDeleteService`'s `UserAccountPort`, since `user-spring-boot-starter` is non-optional).
+  `AccessEvaluator` now depends on `AuthorizationService` instead of `UserAuthorizationPort`
+  directly — its own remaining `platform-commons` SPI usage is now zero. Verified with `bash
+  scripts/unit-tests.sh marketplace-app`: BUILD SUCCESS (10m26s), `AccessEvaluatorTest` 12/12,
+  `ArchitectureRulesTest` 16/16. **Step 6 items 1-3 all done.** Only item 4 (the ArchUnit guard
+  rule) and Step 7 (Definition of Done re-run) remain.
 
 ## Related
 

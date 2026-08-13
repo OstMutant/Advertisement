@@ -1,8 +1,8 @@
 package org.ost.marketplace.services.security;
 
 import lombok.RequiredArgsConstructor;
+import org.ost.orchestrator.services.AuthorizationService;
 import org.ost.platform.user.dto.UserDto;
-import org.ost.platform.user.spi.UserAuthorizationPort;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.springframework.stereotype.Component;
 
@@ -13,15 +13,15 @@ import java.util.function.Predicate;
 @RequiredArgsConstructor
 public class AccessEvaluator {
 
-    private final UserAuthorizationPort authorizationPort;
-    private final AuthContextService    authContextService;
+    private final AuthorizationService authorizationService;
+    private final AuthContextService   authContextService;
 
     public boolean isLoggedIn() {
         return authContextService.getCurrentUser().isPresent();
     }
 
     public boolean isPrivileged() {
-        return currentUser().map(u -> authorizationPort.isAdmin(u) || authorizationPort.isModerator(u)).orElse(false);
+        return currentUser().map(u -> authorizationService.isAdmin(u) || authorizationService.isModerator(u)).orElse(false);
     }
 
     public Long getCurrentUserId() {
@@ -41,12 +41,12 @@ public class AccessEvaluator {
     }
 
     public boolean canOperate(Long ownerUserId) {
-        return canOperate(u -> authorizationPort.isOwner(u, ownerUserId));
+        return canOperate(u -> authorizationService.isOwner(u, ownerUserId));
     }
 
     private boolean canOperate(Predicate<UserDto> isOwner) {
         return currentUser()
-                .map(u -> authorizationPort.isAdmin(u) || authorizationPort.isModerator(u) || isOwner.test(u))
+                .map(u -> authorizationService.isAdmin(u) || authorizationService.isModerator(u) || isOwner.test(u))
                 .orElse(false);
     }
 
