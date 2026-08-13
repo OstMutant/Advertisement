@@ -61,6 +61,12 @@ session — those files get updated mid-session precisely because a run just rev
 > number-free version on the first pass; do not wait to be told to fix it. Violating this rule has
 > happened repeatedly.
 
+> ## ⛔ A comment above a method states what that method's own body does
+> A one-line comment above a method describes what that method actually does, verified by reading
+> its body — never a narrative about which other class/method calls it or is called by it, and
+> never written from the method name/tag alone without checking the code. If the comment claims to
+> summarize the whole method, it must cover every real branch, not just the first path.
+
 > ## ⛔ No issue/ticket numbers or dated "resolved" narrative in current-state documentation
 > The same "no ticket numbers" principle above extends to every file that describes the system's
 > *current* state — `CLAUDE.md`, `README.md`, `docs/architecture/*.md`, `docs/ai/*.md`, skill/

@@ -21,6 +21,39 @@ NOT ALLOWED:
 
 ---
 
+<!-- #arch-embed:spi-glossary -->
+**What is SPI?** SPI (Service Provider Interface) is the general pattern this project uses for
+every cross-module extension point: a plain interface owned by the layer that needs to call out,
+implemented by whichever module can actually satisfy it, resolved at runtime instead of a
+compile-time import — the same shape as `java.util.ServiceLoader` or Spring's own
+auto-configuration provider interfaces. This project narrows the pattern to a `*Port`/`*Hook`
+naming convention (see the table below) so the call direction is visible from the interface name
+alone.
+<!-- /#arch-embed -->
+
+<!-- #arch-embed:port-glossary -->
+**What is a Port?** A `*Port` interface is the SPI shape where marketplace (or
+`marketplace-orchestrator`) calls into a domain starter — e.g. `AdvertisementPort`, `UserPort`.
+The starter implements it; the caller depends only on the interface, never on the starter's own
+classes.
+<!-- /#arch-embed -->
+
+<!-- #arch-embed:hook-glossary -->
+**What is a Hook?** A `*Hook` interface is the reverse SPI shape: a starter (or
+`marketplace-orchestrator`, for the two forwarder Hooks) calls back into the layer above it for
+something only that layer can supply — domain data, translations, session state, e.g.
+`AuditDomainHook`, `CurrentActorHook`. The layer above implements it; the starter depends only on
+the interface.
+<!-- /#arch-embed -->
+
+<!-- #arch-embed:why-port-hook-glossary -->
+**Why use Port/Hook?** Every domain starter (advertisement, user, taxon, ...) is optional —
+marketplace compiles and boots without it, wiring it in only via `ObjectProvider`. Port/Hook is
+the mechanism that makes that possible: the caller depends only on a `platform-commons` interface,
+never on a starter's own classes, so adding, removing, or swapping a starter never breaks
+compilation or forces a change in the layer that calls it.
+<!-- /#arch-embed -->
+
 ## Package Semantics
 
 Sub-packages inside each subsystem namespace carry distinct roles:
@@ -69,6 +102,12 @@ public interface AuditPort {
 Convention: first line states `Port: <caller> → <implementor>.` / `Hook: <caller> → <implementor>.` (matching the direction in the table above), followed by 1-3 sentences on what the interface actually does. `@FunctionalInterface`-annotated interfaces put the annotation between the Javadoc and the `interface` keyword — the extraction skips over it.
 
 ## Hook and Port Implementation Rules
+
+<!-- #arch-embed:spi-implementation-rules -->
+**Port Implementation (`*PortImpl`, `Default*Port`):** same module as the port interface. Example: `org.ost.audit.services.DefaultAuditPort` delegates all methods to `AuditLogRepository` and `AuditReadService`.
+
+**Hook Implementation (`*HookImpl`):** service module that implements the hook — `marketplace-orchestrator/spi` for Hooks needing only domain-port access, `marketplace-app/spi` for the two forwarder Hooks needing a UI-shell resource (translations, HTTP session). Example: `org.ost.orchestrator.spi.CurrentActorHookImpl` calls `SessionActorHook.getCurrentActorId()`, implemented by `org.ost.marketplace.spi.SessionActorHookImpl` against `AuthContextService`.
+<!-- /#arch-embed -->
 
 **Naming:** `*Hook` implementations → `*HookImpl`; `*Port` implementations → `*PortImpl` or `Default*Port` (for primary implementations with non-trivial coordination logic).
 

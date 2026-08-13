@@ -1775,3 +1775,22 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   (including `ArchitectureRulesTest`); `integration-tests.sh --sandbox`: 165/165. No Playwright run
   — config-only fix, not UI-visible. Full detail:
   `completed/issues/improvement-148-reverify-optional-module-removal-after-bff-migration.md`.
+
+- ✅ Done (2026-08-13): improvement-150 — tightened improvement-149 Point 5 to zero direct
+  `*Port`/`*Hook` (SPI) usage from `platform-commons` in `marketplace-app` (not a literal
+  zero-dependency goal — DTOs/enums/`ComponentFactory<T>` stay). Removed the unused `query-lib`
+  dependency; fixed 17 real Sonar findings; triaged an IDE "unused declaration" dump (4 real
+  write-only `@LastModifiedDate`/`@LastModifiedBy` fields documented, not deleted; 4 false
+  positives); swept all `*Port`/`*Hook` interfaces for dead methods (2 removed); moved
+  `ActivityEnrichHookImpl`/`AdvertisementAuditEnrichService` into `marketplace-orchestrator`
+  behind new `CurrentLocaleHook`/extended `UiLabelHook` forwarders; repointed
+  `AuditActivityListRenderer`/`AuditTimelineListRenderer`/`AuditTimelineRowRenderer` off raw
+  `AuditDomainHook`/`AuditActivityEnrichHook` onto orchestrator services; moved `AccessEvaluator`'s
+  authorization checks into a new `AuthorizationService` (removing dead `UserIdMarker` along the
+  way); added `SettingsChangeHook`/`CurrentUserHook` forwarders for `SettingsPaginationService`/
+  `AuthContextService`; added the `ArchitectureRulesTest` guard banning any direct
+  `platform-commons..spi..` import from `marketplace-app` (allowlist of one: `AuthenticatedPrincipal`).
+  Result: 5 forwarder-SPI pairs total, documented in `marketplace-orchestrator/CLAUDE.md`'s new
+  "Forwarder SPI pattern" section. `unit-tests.sh`: PASSED; `integration-tests.sh --sandbox`:
+  165/165; `deploy.sh --reset` + `playwright.sh e2e --full --ux`: **50/50 passed**. Full detail:
+  `completed/issues/improvement-150-marketplace-app-zero-deps-except-orchestrator.md`.

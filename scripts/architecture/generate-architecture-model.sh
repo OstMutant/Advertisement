@@ -751,26 +751,13 @@ spi_map_json() {
   echo "}"
 }
 
-# Three narrative call traces, carried over verbatim from the retired 02-spi-map.md -- genuinely
-# editorial content (a specific example path through the system) with no mechanical source.
-spi_call_flow_examples_json() {
-  cat <<'EOF'
-[
-  {"title": "Create Advertisement with Audit", "steps": ["marketplace-app (UI) calls AdvertisementPort.save()", "org.ost.advertisement.spi.AdvertisementPortImpl", "org.ost.advertisement.services.AdvertisementService.save()", "org.ost.audit.services.DefaultAuditPort.captureCreation()", "org.ost.marketplace.spi.AuditDomainHookImpl.on(CREATED, ...)", "marketplace-app (custom domain handlers)"]},
-  {"title": "Upload Media to Advertisement", "steps": ["marketplace-app (UI) calls AttachmentPort.upload()", "org.ost.attachment.spi.DefaultAttachmentPort", "org.ost.attachment.services.AttachmentService.save()", "Media summaries are never stored on the advertisement row -- computed at read time: AdvertisementService.enrichWithMediaSummary() -> AttachmentPort.getMediaSummaries() (bulk lookup, one query per list render)"]},
-  {"title": "Enrich Audit Activity", "steps": ["marketplace-app (viewing activity feed) calls AuditPort.getEntityActivity()", "org.ost.audit.services.DefaultAuditPort", "calls AuditActivityFieldsHook.fields() for each activity item", "org.ost.marketplace.spi.AdvertisementActivityFieldsHookImpl", "returns field labels: \"Title\", \"Description\", etc."]}
-]
-EOF
-}
-
 # ── Database ERD: live from the real Liquibase changelogs (table/column/type/constraints/FKs/
 # indexes/remarks -- single source of truth, see root CLAUDE.md's "Database Changes" guideline and
 # the sibling SPI Javadoc convention above). What's NOT mechanically derivable: cross-table
 # relationships with no real SQL-level FK (this codebase deliberately decouples actor-reference
 # columns -- advertisement.created_by, audit_log.actor_id, provider_profile.city_taxon_id, etc. --
 # see marketplace-app/DECISIONS.md ADR-034/ADR-035). Those stay a hand-preserved list, carried over
-# verbatim from the retired 04-database-erd.md's ER diagram -- same exception class as
-# spi_call_flow_examples_json() above. Real FKs (taxon_translation/taxon_assignment -> taxon,
+# verbatim from the retired 04-database-erd.md's ER diagram. Real FKs (taxon_translation/taxon_assignment -> taxon,
 # user_information's self-referential deleted_by) are NOT duplicated here -- they come live from
 # liquibase-schema-to-json.js.
 db_erd_conceptual_relationships_json() {
@@ -1344,6 +1331,48 @@ runtime_notes_json() {
   node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$RUNTIME_NOTES_FILE"
 }
 
+# ── Marked excerpts embedded directly inside a module's own CLAUDE.md (`<!-- #arch-embed:KEY -->
+# ... <!-- /#arch-embed -->` convention) -- lets a paragraph live once, in the doc a human reader
+# already reads for that topic, and be pulled onto this generated page verbatim instead of a
+# hand-copied second version here that can drift out of sync with it. Same node JSON.stringify
+# read as runtime_notes_json() above (not json_escape(), which strips newlines and mishandles
+# CRLF -- platform-commons/CLAUDE.md uses CRLF line endings).
+ARCH_EMBED_KEYS=(
+  "platform-commons/CLAUDE.md:spi-glossary"
+  "platform-commons/CLAUDE.md:port-glossary"
+  "platform-commons/CLAUDE.md:hook-glossary"
+  "platform-commons/CLAUDE.md:why-port-hook-glossary"
+  "platform-commons/CLAUDE.md:spi-implementation-rules"
+)
+arch_embed_raw() {
+  local file="$1" key="$2"
+  # Depth-tracked, not a flat on/off flag: a nested `<!-- #arch-embed:OTHER -->` (any key) inside
+  # our target block increments depth instead of ending capture at its own closing tag -- a flat
+  # flag would truncate the outer block's remaining content at the *inner* block's
+  # `<!-- /#arch-embed -->`. Nested marker lines themselves are skipped (never printed); the real
+  # text between/around them is still captured. Multiple separate (non-nested) blocks sharing the
+  # same key still concatenate, same as before -- depth returns to 0 after each one, ready to
+  # re-enter on the next match.
+  awk -v key="$key" '
+    depth == 0 && $0 ~ ("<!-- #arch-embed:" key " -->") { depth = 1; next }
+    depth > 0 && $0 ~ /<!-- #arch-embed:[^ ]+ -->/ { depth++; next }
+    depth > 0 && $0 ~ "<!-- /#arch-embed -->" { depth--; next }
+    depth > 0 { print }
+  ' "$REPO_ROOT/$file"
+}
+arch_embeds_json() {
+  local out="" first=true entry file key raw
+  for entry in "${ARCH_EMBED_KEYS[@]}"; do
+    file="${entry%%:*}"
+    key="${entry##*:}"
+    $first || out="$out,"
+    first=false
+    raw="$(arch_embed_raw "$file" "$key")"
+    out="$out\"$key\": $(printf '%s' "$raw" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))')"
+  done
+  echo "{$out}"
+}
+
 [ -n "$WITH_SONAR" ] && ensure_sonar_fresh
 
 sonar_json="null"
@@ -1362,9 +1391,9 @@ archunit_json="null"
   echo "  ],"
   echo "  \"dockerFiles\": $(docker_files_json),"
   echo "  \"runtimeNotes\": $(runtime_notes_json),"
+  echo "  \"archEmbeds\": $(arch_embeds_json),"
   echo "  \"backlogPriorityOrder\": $(backlog_priority_order_json),"
   echo "  \"spiMap\": $(spi_map_json),"
-  echo "  \"spiCallFlowExamples\": $(spi_call_flow_examples_json),"
   echo "  \"dbErd\": $(db_erd_json),"
   echo "  \"boundedContexts\": $(bounded_contexts_json),"
   echo "  \"sonarMetrics\": $sonar_json,"
@@ -2617,14 +2646,8 @@ function renderSpiSubsystemTables(subsystem) {
 }
 
 function renderSpiMapExtrasHtml(subsystem) {
-  const flows = MODEL.spiCallFlowExamples.map(f =>
-    `<div class="adr-item"><strong>${esc(f.title)}</strong><ol class="info-list">${f.steps.map(s => `<li>${mdInlineToHtml(s)}</li>`).join("")}</ol></div>`
-  ).join("");
   const detailCount = subsystem ? MODEL.spiMap.details.filter(d => d.subsystem === subsystem).length : MODEL.spiMap.details.length;
   return `
-    <section class="block"><h3>Overview</h3>
-      <div class="empty-hint">All cross-module extension points (Ports and Hooks) live in <code class="path">platform-commons</code> to decouple starters from marketplace-app. Suffixes encode call direction: <code class="path">*Port</code> = marketplace &rarr; starter (marketplace calls the starter); <code class="path">*Hook</code> = starter &rarr; marketplace (starter calls back to marketplace). See ${sourceLink("platform-commons/CLAUDE.md")}'s "SPI Interface Naming" table for the authoritative direction/role definition of each suffix.</div>
-    </section>
     <section class="block"><h3>Legend</h3>
       <div class="empty-hint">Click a node to open its real <code class="path">.java</code> file. Drag a node to reposition it, drag empty canvas space to pan.</div>
       <table class="simple"><tbody>
@@ -2634,22 +2657,79 @@ function renderSpiMapExtrasHtml(subsystem) {
         <tr><td class="scope-label">──implemented by──▶</td><td>Arrow points from the interface to its implementation class</td></tr>
       </tbody></table>
     </section>
-    <section class="block"><h3>SPI Interface Details (${detailCount})</h3>${renderSpiSubsystemTables(subsystem)}</section>
-    <section class="block"><h3>Call Flow Examples</h3>${flows}</section>
+    <section class="block"><h3>SPI Interface Details (${detailCount})</h3>${renderSpiSubsystemTables(subsystem)}</section>`;
+}
+
+// Parses one "**Heading:** location sentence. Example: example sentence." paragraph from the
+// platform-commons/CLAUDE.md#spi-implementation-rules arch-embed into the pieces
+// renderImplementationRulesHtml()/exportSpiMapMarkdown() both render as a Location/Example pair
+// -- generic over the paragraph's own content, so a third implementation-kind paragraph added to
+// that CLAUDE.md section later needs no code change here. Returns raw markdown (backticks intact,
+// not HTML-escaped) -- each caller does its own target-format conversion.
+function parseImplementationRuleParagraphs() {
+  const raw = (MODEL.archEmbeds && MODEL.archEmbeds["spi-implementation-rules"]) || "";
+  const stripPeriod = t => t.trim().replace(/\.$/, "");
+  return raw.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean).map(p => {
+    const m = p.match(/^\*\*(.+?):\*\*\s*([\s\S]*)$/);
+    if (!m) return null;
+    const heading = m[1];
+    const rest = m[2];
+    const exIdx = rest.indexOf("Example:");
+    const location = stripPeriod(exIdx >= 0 ? rest.slice(0, exIdx) : rest);
+    const example = exIdx >= 0 ? stripPeriod(rest.slice(exIdx + "Example:".length)) : "";
+    return { heading, location, example };
+  }).filter(Boolean);
+}
+
+// Glossary content (SPI/Port/Hook) -- subsystem-independent, so rendered once at the bottom of
+// the top-level Diagrams listing screen (next to Implementation Rules), not once per SPI Map
+// subsystem tab -- renderSpiMapExtrasHtml() used to repeat the SPI paragraph on every tab before
+// this. All three paragraphs are live-read platform-commons/CLAUDE.md arch-embeds (MODEL.archEmbeds).
+// Parses one "**Heading** body text" glossary paragraph -- same bold-lead-in shape as
+// parseImplementationRuleParagraphs() but without the required ":" before the closing "**"
+// (a glossary heading is a short phrase/question, not a label).
+function parseGlossaryEntry(raw) {
+  const p = (raw || "").trim().replace(/\s+/g, " ");
+  const m = p.match(/^\*\*(.+?)\*\*\s*(.*)$/);
+  return m ? { heading: m[1], body: m[2].trim() } : null;
+}
+
+// Same adr-item visual style as renderImplementationRulesHtml() below -- one <strong> heading per
+// glossary term, not a plain markdown paragraph.
+function renderDiagramsOverviewHtml() {
+  const toPathCode = t => esc(t).replace(/`([^`]+)`/g, '<code class="path">$1</code>');
+  const items = ["spi-glossary", "port-glossary", "hook-glossary", "why-port-hook-glossary"]
+    .map(k => MODEL.archEmbeds && MODEL.archEmbeds[k] ? parseGlossaryEntry(MODEL.archEmbeds[k]) : null)
+    .filter(Boolean)
+    .map(g => `<div class="adr-item"><strong>${esc(g.heading)}</strong>
+        <div class="empty-hint">${toPathCode(g.body)}</div>
+      </div>`).join("");
+  return `
+    <section class="block"><h3>Overview</h3>
+      ${items}
+      <div class="empty-hint">All cross-module extension points (Ports and Hooks) live in <code class="path">platform-commons</code> to decouple starters from marketplace-app — see ${sourceLink("platform-commons/CLAUDE.md")}'s "SPI Interface Naming" table for the authoritative direction/role definition of each suffix.</div>
+    </section>`;
+}
+
+// Static, subsystem-independent content -- rendered once at the bottom of the top-level Diagrams
+// listing screen instead of once per SPI Map subsystem tab (renderSpiMapExtrasHtml used to repeat
+// this identical block on every tab). Text itself is read live from the
+// platform-commons/CLAUDE.md#spi-implementation-rules arch-embed (MODEL.archEmbeds), not
+// hand-copied here, so the two can't drift apart the way the old hardcoded version already had
+// once (a stale CurrentActorHookImpl package path, fixed earlier this session).
+function renderImplementationRulesHtml() {
+  const toPathCode = t => esc(t).replace(/`([^`]+)`/g, '<code class="path">$1</code>');
+  const items = parseImplementationRuleParagraphs()
+    .map(it => `<div class="adr-item"><strong>${esc(it.heading.replace(/`/g, ""))}</strong>
+        <ul class="info-list">
+          <li>Location: ${toPathCode(it.location)}</li>
+          ${it.example ? `<li>Example: ${toPathCode(it.example)}</li>` : ""}
+        </ul>
+      </div>`).join("");
+  return `
     <section class="block"><h3>Implementation Rules</h3>
-      <div class="empty-hint">All implementations follow these patterns (core "pure delegation" rule stated once, canonically, in ${sourceLink("platform-commons/CLAUDE.md")}'s "Hook and Port Implementation Rules" section — not restated here):</div>
-      <div class="adr-item"><strong>Port Implementation (*PortImpl, Default*Port)</strong>
-        <ul class="info-list">
-          <li>Location: same module as the port interface</li>
-          <li>Example: <code class="path">org.ost.audit.services.DefaultAuditPort</code> delegates all methods to <code class="path">AuditLogRepository</code> and <code class="path">AuditReadService</code></li>
-        </ul>
-      </div>
-      <div class="adr-item"><strong>Hook Implementation (*HookImpl)</strong>
-        <ul class="info-list">
-          <li>Location: service module that implements the hook — <code class="path">marketplace-orchestrator/spi</code> for Hooks needing only domain-port access, <code class="path">marketplace-app/spi</code> for the two forwarder Hooks needing a UI-shell resource (translations, HTTP session)</li>
-          <li>Example: <code class="path">org.ost.orchestrator.spi.CurrentActorHookImpl</code> calls <code class="path">SessionActorHook.getCurrentActorId()</code>, implemented by <code class="path">org.ost.marketplace.spi.SessionActorHookImpl</code> against <code class="path">AuthContextService</code></li>
-        </ul>
-      </div>
+      ${items}
+      <div class="empty-hint">All implementations follow these patterns — the core "pure delegation" rule is stated once, canonically, in ${sourceLink("platform-commons/CLAUDE.md")}'s "Hook and Port Implementation Rules" section, not restated here.</div>
     </section>`;
 }
 
@@ -2688,13 +2768,10 @@ function exportSpiMapMarkdown() {
     md += "\n";
     if (MODEL.spiMap.subsystemNotes[s]) md += `${MODEL.spiMap.subsystemNotes[s]}\n\n`;
   });
-  md += `## Call Flow Examples\n\n`;
-  MODEL.spiCallFlowExamples.forEach(f => {
-    md += `### ${f.title}\n\n${f.steps.map(s => `1. ${s}`).join("\n")}\n\n`;
-  });
   md += `## Implementation Rules\n\nAll implementations follow these patterns (core "pure delegation" rule stated once, canonically, in platform-commons/CLAUDE.md's "Hook and Port Implementation Rules" section):\n\n`;
-  md += `### Port Implementation (*PortImpl, Default*Port)\n- Location: same module as the port interface\n- Example: org.ost.audit.services.DefaultAuditPort delegates all methods to AuditLogRepository and AuditReadService\n\n`;
-  md += `### Hook Implementation (*HookImpl)\n- Location: service module that implements the hook\n- Example: org.ost.marketplace.spi.CurrentActorHookImpl calls AuthContextService.getCurrentActorId()\n`;
+  parseImplementationRuleParagraphs().forEach(it => {
+    md += `### ${it.heading}\n- Location: ${it.location}\n${it.example ? `- Example: ${it.example}\n` : ""}\n`;
+  });
   downloadMarkdown("spi-map.md", md);
 }
 
@@ -3135,6 +3212,8 @@ function renderDiagrams() {
       });
       html += `</div></div>`;
     });
+    html += renderDiagramsOverviewHtml();
+    html += renderImplementationRulesHtml();
     document.getElementById("content").innerHTML = html;
     return;
   }
