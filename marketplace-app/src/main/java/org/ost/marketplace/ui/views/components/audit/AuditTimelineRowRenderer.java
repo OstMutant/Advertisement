@@ -4,15 +4,14 @@ import org.ost.marketplace.services.i18n.I18nKey;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import jakarta.annotation.PostConstruct;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.orchestrator.services.AuditQueryService;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.marketplace.ui.core.Initialization;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
-import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.InstantFormatter;
 import org.ost.platform.core.model.ActionType;
@@ -26,13 +25,11 @@ import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 @SpringComponent
 @Scope("prototype")
@@ -47,17 +44,13 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
     private static final Set<EntityType> LABELED_ENTITY_TYPES =
             EnumSet.of(EntityType.ADVERTISEMENT, EntityType.TAXON, EntityType.USER, EntityType.USER_SETTINGS);
 
-    private final I18nService                   i18n;
-    private final InstantFormatter              formatter;
-    private final AuditChangeFormatter          changeFormatter;
-    private final List<AuditActivityEnrichHook<?>> enrichHookList;
-
-    private Map<EntityType, AuditActivityEnrichHook<?>> enrichHooks;
+    private final I18nService          i18n;
+    private final InstantFormatter     formatter;
+    private final AuditChangeFormatter changeFormatter;
+    private final AuditQueryService    auditQueryService;
 
     @Override
-    @PostConstruct
     public AuditTimelineRowRenderer init() {
-        enrichHooks = enrichHookList.stream().collect(Collectors.toMap(AuditActivityEnrichHook::entityType, h -> h, (a, _) -> a, () -> new EnumMap<>(EntityType.class)));
         return this;
     }
 
@@ -106,13 +99,12 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
 
     private Div buildActivityFieldsList(AuditTimelineItemDto<AuditableSnapshot> item) {
         EntityType entityType = item.entityRef().entityType();
-        AuditActivityEnrichHook<?> enrichHook = enrichHooks.get(entityType);
-        if (enrichHook != null) {
+        if (auditQueryService.hasEnrichHook(entityType)) {
             Long attachmentSnapshotId = item.snapshotData() instanceof AdvertisementSnapshotDto s
                     ? s.attachmentSnapshotId() : null;
             return buildEntityChangesDiv(item.changes(), item.snapshotData(), CSS_CHANGES,
                     attachmentSnapshotId != null
-                            ? () -> enrichHook.getMediaStateForSnapshot(item.entityRef(), attachmentSnapshotId)
+                            ? () -> auditQueryService.getMediaStateForSnapshot(item.entityRef(), attachmentSnapshotId)
                             : null,
                     entityType);
         }
@@ -137,11 +129,10 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
     }
 
     Div buildActivityFieldsList(AuditActivityItemDto<? extends AuditableSnapshot> h, EntityRef ref) {
-        AuditActivityEnrichHook<?> enrichHook = enrichHooks.get(ref.entityType());
         Long attachmentSnapshotId = h.snapshotData() instanceof AdvertisementSnapshotDto s
                 ? s.attachmentSnapshotId() : null;
-        Supplier<String> mediaLookup = (enrichHook != null && attachmentSnapshotId != null)
-                ? () -> enrichHook.getMediaStateForSnapshot(ref, attachmentSnapshotId)
+        Supplier<String> mediaLookup = (attachmentSnapshotId != null && auditQueryService.hasEnrichHook(ref.entityType()))
+                ? () -> auditQueryService.getMediaStateForSnapshot(ref, attachmentSnapshotId)
                 : null;
         return buildEntityChangesDiv(h.changes(), h.snapshotData(), CSS_HISTORY_CHANGES, mediaLookup,
                 ref.entityType());

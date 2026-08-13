@@ -369,6 +369,19 @@ Playwright) once Step 6 is implemented.
   scripts/unit-tests.sh marketplace-app`: BUILD SUCCESS, `ArchitectureRulesTest` 16/16 (confirms no
   architecture rule broke). Not yet committed at the time this entry was written. Items 2
   (`AuditTimelineRowRenderer`), 3 (`AccessEvaluator`), and 4 (the ArchUnit guard) remain.
+- **2026-08-12** — Item 1 committed as `731b3b4a`.
+- **2026-08-13** — Step 6 item 2 done: `AuditTimelineRowRenderer` no longer collects
+  `List<AuditActivityEnrichHook<?>>` directly. `AuditQueryService` (marketplace-orchestrator)
+  gained the field plus two new methods — `hasEnrichHook(EntityType)` and
+  `getMediaStateForSnapshot(EntityRef, Long)` — both a plain linear scan over the (currently
+  single-entry) hook list, no `@PostConstruct`/map-building introduced, matching this module's
+  existing `@RequiredArgsConstructor`-only convention (confirmed via grep: zero `@PostConstruct`
+  usage anywhere else in `marketplace-orchestrator` before this change, so a map-building lifecycle
+  method would have been a new, unprecedented pattern for the module — a linear scan over a
+  single-digit-sized list needs no such machinery). The renderer's `init()` collapsed to a trivial
+  `{ return this; }`, matching the sibling `AuditActivityRowRenderer`'s existing shape. Verified
+  with `bash scripts/unit-tests.sh marketplace-app`: BUILD SUCCESS (10m19s), `ArchitectureRulesTest`
+  16/16. Items 3 (`AccessEvaluator`) and 4 (the ArchUnit guard) remain.
 
 ## Related
 

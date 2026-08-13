@@ -7,8 +7,10 @@ import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.dto.AuditTimelineFilterDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
+import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ import java.util.Optional;
 public class AuditQueryService {
 
     private final ComponentFactory<AuditPort> auditPortFactory;
+    private final List<AuditActivityEnrichHook<?>> enrichHookList;
 
     public Optional<AuditableSnapshot> getLastSnapshot(@NonNull EntityType entityType, @NonNull Long entityId) {
         return auditPortFactory.findIfAvailable().flatMap(p -> p.getLastSnapshot(entityType, entityId));
@@ -52,5 +55,17 @@ public class AuditQueryService {
 
     public boolean isAvailable() {
         return auditPortFactory.findIfAvailable().isPresent();
+    }
+
+    public boolean hasEnrichHook(@NonNull EntityType entityType) {
+        return enrichHookList.stream().anyMatch(h -> h.entityType() == entityType);
+    }
+
+    public String getMediaStateForSnapshot(@NonNull EntityRef ref, @NonNull Long attachmentSnapshotId) {
+        return enrichHookList.stream()
+                .filter(h -> h.entityType() == ref.entityType())
+                .findFirst()
+                .map(h -> h.getMediaStateForSnapshot(ref, attachmentSnapshotId))
+                .orElse(null);
     }
 }
