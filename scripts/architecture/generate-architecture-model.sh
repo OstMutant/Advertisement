@@ -74,19 +74,20 @@ FULL_DECISIONS_MODULES=(attachment-spring-boot-starter audit-spring-boot-starter
 
 # ── Non-Maven tooling directories -- get a SCRIPT_GROUP node (same ADR-embedding/popup mechanism
 # as MODULE nodes) so their files/decisions are visible on the Tooling & Pipelines screen, not
-# invisible outside the interactive tool. "category" drives the page's AI Tooling vs Other Scripts
-# split. Not every SCRIPT_GROUP dir has its own DECISIONS.md -- scripts/ai's own history moved to
-# scripts/architecture/DECISIONS.md wholesale (see scripts/architecture/DECISIONS.md ADR-021), so
-# scripts/ai now gets a files-only node, no ADR/decisions section (decisions_json_for/
-# adr_intent_for_module both degrade to empty for a module with no DECISIONS.md, not a special
-# case here).
+# invisible outside the interactive tool. "category" is the group heading each dir's card renders
+# under -- one heading per dir (AI Tooling / Build architecture page / Playwright / Sonar / CI /
+# Other Scripts), not a two-bucket ai/scripts split. Not every SCRIPT_GROUP dir has its own
+# DECISIONS.md -- scripts/ai's own history moved to scripts/architecture/DECISIONS.md wholesale
+# (see scripts/architecture/DECISIONS.md ADR-021), so scripts/ai now gets a files-only node, no
+# ADR/decisions section (decisions_json_for/adr_intent_for_module both degrade to empty for a
+# module with no DECISIONS.md, not a special case here).
 declare -A SCRIPT_GROUP_CATEGORY=(
-  [scripts/ai]="ai"
-  [scripts/architecture]="ai"
-  [scripts]="scripts"
-  [scripts/ci]="scripts"
-  [scripts/sonar]="scripts"
-  [playwright]="scripts"
+  [scripts/ai]="AI Tooling"
+  [scripts/architecture]="Build architecture page"
+  [scripts]="Other Scripts"
+  [scripts/ci]="CI"
+  [scripts/sonar]="Sonar"
+  [playwright]="Playwright"
 )
 SCRIPT_GROUP_DIRS=(scripts/ai scripts/architecture scripts scripts/ci scripts/sonar playwright)
 
@@ -96,6 +97,7 @@ SCRIPT_GROUP_DIRS=(scripts/ai scripts/architecture scripts scripts/ci scripts/so
 declare -A SCRIPT_GROUP_FILE_ORDER=(
   [scripts/ai]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh"
   [scripts/architecture]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh"
+  [scripts/sonar]="run.sh run.bat docker-compose.sonar.yml sonar-project.properties"
 )
 decisions_json_for() {
   local module="$1"
@@ -111,6 +113,16 @@ decisions_json_for() {
   for m in "${FULL_DECISIONS_MODULES[@]}"; do [ "$m" = "$module" ] && found=true; done
   $found || { echo "null"; return; }
   node "$REPO_ROOT/scripts/architecture/md-to-decisions-json.js" --stdout "$module"
+}
+
+# A SCRIPT_GROUP dir's own README.md (if it has one), read raw via Node's JSON.stringify -- same
+# reasoning as runtime_notes_json() below: json_escape() strips newlines, unsuitable for
+# multi-paragraph content. Always embedded (unlike decisions_json_for(), which is opt-in behind
+# --with-adr-details) -- a README is orders of magnitude smaller than a full ADR history.
+readme_json_for() {
+  local dir="$1"
+  [ -f "$REPO_ROOT/$dir/README.md" ] || { echo "null"; return; }
+  node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$REPO_ROOT/$dir/README.md"
 }
 
 # ── Module list, in pom.xml reactor order ───────────────────────────────────────────────────
@@ -1009,19 +1021,22 @@ god_packages_json() {
   echo "[$items_json"$'\n'"  ]"
 }
 
-# ── Self-documenting tooling: walks scripts/architecture/ dynamically (no hardcoded file list) and
-# extracts each script's own "Description:"/"Uses:"/"Input:"/"Output:" header comment fields --
-# single source of truth right next to the code, feeds the System screen's "How this page is
-# built" section instead of hand-written prose that can silently drift from what the scripts
-# actually do. A new script dropped into the folder with the same header convention shows up here
-# with no generator edit needed.
-architecture_tooling_self_docs_json() {
+# ── Self-documenting tooling: extracts each file's own "Description:"/"Usage:"/"Uses:"/"Input:"/
+# "Output:" header comment fields (see .claude/skills/doc-standards/SKILL.md "Script header
+# convention") -- single source of truth right next to the code, feeds each SCRIPT_GROUP node's own
+# Tooling & Pipelines card instead of hand-written prose that can silently drift from what the
+# files actually do. Takes the same file list already computed for that node (never re-globs
+# separately, so "files shown" and "headers parsed" can't drift from each other) -- a file whose
+# comment style this can't parse (#, // only) or that simply has no header yet yields no entry, not
+# an error, so a new file with the convention shows up with no generator edit needed.
+script_headers_json() {
+  local dir="$1" files="$2"
   python3 -c "
 import json, os, re, sys
 
 repo_root = sys.argv[1]
-folder = os.path.join(repo_root, 'scripts', 'architecture')
-files = sorted(f for f in os.listdir(folder) if f.endswith(('.sh', '.js')))
+dir_rel = sys.argv[2]
+files = [f for f in sys.argv[3].splitlines() if f]
 
 def extract(path):
     with open(path) as fh:
@@ -1029,37 +1044,49 @@ def extract(path):
     text = []
     for l in lines:
         l = l.rstrip('\n')
+        if l.strip().lower() == '@echo off':
+            continue  # .bat's structural equivalent of a shebang -- always first, never the header
         if l.startswith('#'):
             text.append(l[1:].lstrip())
         elif l.startswith('//'):
             text.append(l[2:].lstrip())
+        elif re.match(r'^REM(\s|$)', l, re.I):
+            text.append(l[3:].lstrip())
         else:
             break
-    fields = {'Description': '', 'Uses': '', 'Input': '', 'Output': ''}
+    fields = {'Description': '', 'Usage': '', 'Uses': '', 'Env': '', 'Input': '', 'Outputs': '', 'Returns': ''}
     current = None
     for l in text:
-        m = re.match(r'^(Description|Uses|Input|Output):\s*(.*)', l)
+        m = re.match(r'^(Description|Usage|Uses|Env|Input|Outputs|Returns):\s*(.*)', l)
         if m:
             current = m.group(1)
             fields[current] = m.group(2)
-        elif current and l.strip() == '':
-            current = None
+        elif current and (l.strip() == '' or re.match(r'^─+$', l.strip())):
+            break  # a blank line or the closing #-delimiter line ends the whole header block --
+                   # don't keep scanning for a stray field-name match further down in unrelated
+                   # prose (a real bug this once hit), and don't swallow the delimiter itself into
+                   # the last field's value as a continuation line (another real bug this once hit)
         elif current:
             fields[current] += ' ' + l.strip()
     return fields
 
 out = []
 for f in files:
-    fields = extract(os.path.join(folder, f))
+    fields = extract(os.path.join(repo_root, dir_rel, f))
+    if not fields['Description']:
+        continue
     out.append({
-        'file': 'scripts/architecture/' + f,
+        'file': dir_rel + '/' + f,
         'description': fields['Description'],
+        'usage': fields['Usage'],
         'uses': fields['Uses'],
+        'env': fields['Env'],
         'input': fields['Input'],
-        'output': fields['Output'],
+        'outputs': fields['Outputs'],
+        'returns': fields['Returns'],
     })
 print(json.dumps(out))
-" "$REPO_ROOT"
+" "$REPO_ROOT" "$dir" "$files"
 }
 
 # ── Bounded Contexts: live from real source wherever a real signal exists, reusing the existing
@@ -1442,7 +1469,6 @@ archunit_json="null"
   echo "  \"largestJavaFiles\": $(largest_java_files_json),"
   echo "  \"constructorInjection\": $(constructor_injection_json),"
   echo "  \"godPackages\": $(god_packages_json),"
-  echo "  \"architectureToolingSelfDocs\": $(architecture_tooling_self_docs_json),"
   echo "  \"allAdrs\": $(all_adrs_json),"
   echo "  \"nodes\": ["
 
@@ -1541,10 +1567,12 @@ archunit_json="null"
         [ -f "$REPO_ROOT/$d/$f" ] && files_list="$files_list$f"$'\n'
       done
     else
-      files_list="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' \) -printf '%f\n' 2>/dev/null | sort)"
+      files_list="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' -o -name '*.bat' -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' -o -name 'Dockerfile' \) -printf '%f\n' 2>/dev/null | sort)"
     fi
     files_json="$(json_str_array "$files_list")"
     decisions_field="$(decisions_json_for "$d")"
+    readme_field="$(readme_json_for "$d")"
+    headers_field="$(script_headers_json "$d" "$files_list")"
     evidence_file="$d/DECISIONS.md"
     [ -f "$REPO_ROOT/$d/DECISIONS.md" ] || evidence_file="$d"
     echo "    ,"
@@ -1560,6 +1588,8 @@ archunit_json="null"
     echo "      \"description\": \"$(json_escape "$desc")\","
     echo "      \"files\": $files_json,"
     echo "      \"decisions\": $decisions_field,"
+    echo "      \"readme\": $readme_field,"
+    echo "      \"headers\": $headers_field,"
     echo "      \"edges\": {}"
     echo "    }"
   done
@@ -1679,10 +1709,16 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   table.simple a.module-badge:hover { opacity: 0.85; text-decoration: none; }
   .scope-label { font-size: 12px; color: var(--muted); }
   code.path { font-size: 11px; color: var(--muted); }
+  .md-code { background: #1e293b; color: #e2e8f0; padding: 10px 14px; border-radius: 6px; font-size: 12px; line-height: 1.5; overflow-x: auto; margin: 8px 0; }
   .info-list { list-style: none; margin: 0; padding: 0; }
   .info-list li { padding: 6px 0; border-bottom: 1px solid #f0f2f4; font-size: 13px; line-height: 1.5; }
   .info-list li:last-child { border-bottom: none; }
   .info-list code { background: #f1f3f5; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .header-entry { padding: 14px 0; border-bottom: 1px solid #e5e8eb; }
+  .header-entry:last-child { border-bottom: none; }
+  .header-entry-file { font-family: monospace; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .header-entry-field { font-size: 13px; line-height: 1.5; margin: 3px 0; }
+  .header-entry-field strong { color: var(--muted); font-weight: 600; }
   .table-chip { display: inline-block; background: #f1f3f5; color: var(--ink); font-size: 11px; padding: 3px 9px; border-radius: 6px; margin: 2px 4px 2px 0; font-family: monospace; }
   .diagram-wrap { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 20px; overflow: auto; max-height: 75vh; }
   /* Cytoscape-rendered diagrams (Module Dependencies, SPI Map, bounded-contexts graph) manage
@@ -1773,6 +1809,19 @@ const commandNodes = MODEL.nodes.filter(n => n.type === "COMMAND");
 const skillNodes = MODEL.nodes.filter(n => n.type === "SKILL");
 const scriptGroupNodes = MODEL.nodes.filter(n => n.type === "SCRIPT_GROUP");
 const backlogNode = MODEL.nodes.find(n => n.type === "BACKLOG_SUMMARY");
+
+// ── Tooling & Pipelines' own card->detail groups -- one card per tool, same drill-down shape as
+// Diagrams' groupKey (list view with no view.groupId, detail view once one is picked). "category"
+// matches each SCRIPT_GROUP node's own category field (SCRIPT_GROUP_CATEGORY in the bash generator).
+const PIPELINE_GROUPS = {
+  "ai-tooling": { icon: "🤖", label: "AI Tooling", category: "AI Tooling", desc: `${commandNodes.length} commands, ${skillNodes.length} skills, scripts/ai` },
+  "build-architecture-page": { icon: "🗺️", label: "Build architecture page", category: "Build architecture page", desc: "scripts/architecture — this page's own generator" },
+  "playwright": { icon: "🎭", label: "Playwright", category: "Playwright", desc: "playwright/ — UI test runner" },
+  "sonar": { icon: "📊", label: "Sonar", category: "Sonar", desc: "scripts/sonar — static analysis" },
+  "ci": { icon: "⚙️", label: "CI", category: "CI", desc: "scripts/ci — local isolated CI runner" },
+  "other-scripts": { icon: "📜", label: "Other Scripts", category: "Other Scripts", desc: "scripts/ — deploy & misc" }
+};
+const PIPELINE_GROUP_ORDER = ["ai-tooling", "build-architecture-page", "playwright", "sonar", "ci", "other-scripts"];
 const totalDiagramCount = MODEL.diagramGroups.reduce((sum, g) => sum + g.diagrams.length, 0);
 let zoomLevel = 1;
 
@@ -1800,7 +1849,10 @@ let crumbStack = []; // steps between the implicit "System" root and the current
 
 function crumbLabelFor(v) {
   if (v.screen === "module") return displayName(v.id);
-  if (v.screen === "pipelines") return "Tooling & Pipelines";
+  if (v.screen === "pipelines") {
+    if (v.groupId) return PIPELINE_GROUPS[v.groupId] ? PIPELINE_GROUPS[v.groupId].label : v.groupId;
+    return "Tooling & Pipelines";
+  }
   if (v.screen === "backlog") return "Backlog";
   if (v.screen === "adrs") return "ADRs";
   if (v.screen === "codequality") return "Code Quality";
@@ -2006,10 +2058,10 @@ function mdInlineToHtml(s) {
   return esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
 }
 
-// Paragraph/list/table markdown -> HTML for ADR body text (Context/Decision/Consequences,
-// amendments, tables -- real ADR content has all of these). Not a general markdown parser --
-// same "only what's needed" scope as parseMermaidGraph(). Reuses mdInlineToHtml() for **bold**/
-// `code` within each block.
+// Paragraph/list/table/heading/fenced-code markdown -> HTML for ADR body text (Context/Decision/
+// Consequences, amendments, tables) and README.md content (headings, fenced "how to run" bash
+// blocks). Not a general markdown parser -- same "only what's needed" scope as
+// parseMermaidGraph(). Reuses mdInlineToHtml() for **bold**/`code` within each non-code block.
 function mdBlockToHtml(text) {
   if (!text) return "";
   // Blocks break on a blank line OR on a line-type transition (e.g. "**Decision:**" directly
@@ -2018,32 +2070,58 @@ function mdBlockToHtml(text) {
   // item, not a new paragraph -- real ADR list items wrap across multiple source lines.
   const blocks = [];
   let current = null;
-  text.split("\n").forEach(raw => {
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
     const line = raw.trim();
-    if (line === "") { current = null; return; }
+    if (line.startsWith("```")) {
+      // Fenced code block -- consumed verbatim (no inline markdown, no wrapping into the
+      // surrounding paragraph/list logic) until the matching closing fence or end of text. The
+      // language tag (```mermaid) decides how it renders -- see the "code" block-type mapping below.
+      const lang = line.slice(3).trim();
+      const codeLines = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith("```")) { codeLines.push(lines[i]); i++; }
+      blocks.push({ type: "code", lang, text: codeLines.join("\n") });
+      current = null;
+      continue;
+    }
+    if (line === "") { current = null; continue; }
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) {
+      blocks.push({ type: "h", level: heading[1].length, text: heading[2] });
+      current = null;
+      continue;
+    }
     if (/^[-*] /.test(line)) {
       if (!current || current.type !== "ul") { current = { type: "ul", items: [] }; blocks.push(current); }
       current.items.push(line.replace(/^[-*] /, ""));
-      return;
+      continue;
     }
     if (/^\d+\. /.test(line)) {
       if (!current || current.type !== "ol") { current = { type: "ol", items: [] }; blocks.push(current); }
       current.items.push(line.replace(/^\d+\. /, ""));
-      return;
+      continue;
     }
     if (line.startsWith("|")) {
       if (!current || current.type !== "table") { current = { type: "table", lines: [] }; blocks.push(current); }
       current.lines.push(line);
-      return;
+      continue;
     }
     if (current && (current.type === "ul" || current.type === "ol") && current.items.length) {
       current.items[current.items.length - 1] += " " + line;
-      return;
+      continue;
     }
     if (!current || current.type !== "p") { current = { type: "p", lines: [] }; blocks.push(current); }
     current.lines.push(line);
-  });
+  }
   return blocks.map(b => {
+    if (b.type === "code" && b.lang === "mermaid") return `<div class="diagram-wrap" style="padding:8px"><pre class="mermaid">${esc(b.text)}</pre></div>`;
+    if (b.type === "code") return `<pre class="md-code">${esc(b.text)}</pre>`;
+    // +3: a README's top-level "#" title would collide with the surrounding page's own <h2>/<h3>
+    // screen chrome -- start one level down (## -> <h4>) same as this tool's other embedded-markdown
+    // headings.
+    if (b.type === "h") { const lvl = Math.min(b.level + 3, 6); return `<h${lvl}>${mdInlineToHtml(b.text)}</h${lvl}>`; }
     if (b.type === "ul") return "<ul>" + b.items.map(l => `<li>${mdInlineToHtml(l)}</li>`).join("") + "</ul>";
     if (b.type === "ol") return "<ol>" + b.items.map(l => `<li>${mdInlineToHtml(l)}</li>`).join("") + "</ol>";
     if (b.type === "table" && b.lines.length > 1 && /^\|[\s:|-]+\|$/.test(b.lines[1])) {
@@ -2351,57 +2429,115 @@ function sourceLink(relPath) {
 }
 
 function renderScriptGroupSection(n) {
-  let html = `<section class="block"><h3>${esc(n.id)}</h3>`;
-  if (n.description) html += `<div class="screen-desc">${esc(n.description)}</div>`;
-  if (n.files && n.files.length) {
-    html += `<div class="table-chip-row">` + n.files.map(f => sourceLink(`${n.id}/${f}`)).join(" ") + `</div>`;
+  // Only chip files that DON'T already get their own full block in the "Script headers" list
+  // below -- a file with a real parsed header would otherwise appear twice on the same card (a
+  // bare chip up here, the real thing right after), the exact kind of duplicate this generator's
+  // "one fact, one canonical home" discipline exists to avoid.
+  const headeredFiles = new Set((n.headers || []).map(h => h.file.split("/").pop()));
+  const chipFiles = (n.files || []).filter(f => !headeredFiles.has(f));
+  let html = "";
+  // Skip the whole heading+box when there's nothing left to put in it (every file already has its
+  // own header block below, and there's no group-level description either) -- an empty box with
+  // just a heading is exactly the kind of leftover-looking dead space a reader stops to ask about.
+  if (n.description || chipFiles.length) {
+    html += `<section class="block"><h3>${esc(n.id)}</h3>`;
+    if (n.description) html += `<div class="screen-desc">${esc(n.description)}</div>`;
+    if (chipFiles.length) {
+      html += `<div class="table-chip-row">` + chipFiles.map(f => sourceLink(`${n.id}/${f}`)).join(" ") + `</div>`;
+    }
+    html += `</section>`;
   }
-  html += `</section>`;
+  // Each file's own structured Description/Usage/Uses/Env/Input/Outputs/Returns header (see
+  // .claude/skills/infra-doc-standards/SKILL.md) -- read live from the file itself, self-contained
+  // ("what does this do, how do I run it, what do I get"), not a restatement of README's own job
+  // (the flow *between* files, rendered right after via n.readme below). A vertical list (one
+  // block per file, divided by a horizontal rule) reads far better than a wide table once a file
+  // has multi-line field values -- a table cell wraps awkwardly, a block doesn't. Order matches
+  // n.files (SCRIPT_GROUP_FILE_ORDER when the dir declares one, entry points listed first).
+  if (n.headers && n.headers.length) {
+    html += `<section class="block"><h3>Script headers</h3>`;
+    n.headers.forEach(h => {
+      html += `<div class="header-entry"><div class="header-entry-file">${sourceLink(h.file)}</div>`;
+      [["Description", h.description], ["Usage", h.usage], ["Uses", h.uses], ["Env", h.env],
+       ["Input", h.input], ["Outputs", h.outputs], ["Returns", h.returns]].forEach(([label, value]) => {
+        if (value) html += `<div class="header-entry-field"><strong>${esc(label)}:</strong> ${esc(value)}</div>`;
+      });
+      html += `</div>`;
+    });
+    html += `</section>`;
+  }
+  // The dir's own README.md (if any) -- the flow *between* files, not each file's own behavior
+  // again (that's n.headers above) -- rendered as its own block right after.
+  if (n.readme) {
+    html += `<section class="block">${mdBlockToHtml(n.readme)}<div class="empty-hint">Source: ${sourceLink(`${n.id}/README.md`)}</div></section>`;
+  }
   return html;
 }
 
+// Same list-then-drill-in shape as renderDiagrams() (no view.groupId -> card grid of tools;
+// view.groupId set -> that one tool's content only). Docker and Runtime stay plain inline
+// sections on the list view, not cards -- they're single, already-scoped sources, not a
+// multi-directory bucket that needed splitting the way the 6 script groups did.
 function renderPipelines() {
+  if (!view.groupId) {
+    let html = backButtonHtml();
+    html += `<h2 class="screen-title">Tooling &amp; Pipelines</h2>
+      <div class="screen-desc">Slash commands, skills, and scripts available in this repo — sourced from .claude/commands, .claude/skills, and scripts/**, cross-checked against docs/ai/flows.md. Click a card to see its content.</div>`;
+
+    html += `<div class="card-grid">`;
+    PIPELINE_GROUP_ORDER.forEach(id => {
+      const g = PIPELINE_GROUPS[id];
+      html += `<div class="card" onclick="navigate({screen:'pipelines',groupId:'${id}'})">
+        <div class="card-title">${g.icon} ${esc(g.label)}</div>
+        <div class="card-desc">${esc(g.desc)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+
+    html += `<h3 class="group-heading">Docker</h3>`;
+    html += renderDockerSection();
+
+    html += `<h3 class="group-heading">Runtime</h3>`;
+    html += renderRuntimeSection();
+
+    document.getElementById("content").innerHTML = html;
+    return;
+  }
+
+  const g = PIPELINE_GROUPS[view.groupId];
+  if (!g) { navigate({ screen: "pipelines" }); return; }
+
   let html = backButtonHtml();
-  html += `<h2 class="screen-title">Tooling &amp; Pipelines</h2>
-    <div class="screen-desc">Slash commands, skills, and scripts available in this repo — sourced from .claude/commands, .claude/skills, and scripts/**, cross-checked against docs/ai/flows.md.</div>`;
+  html += `<h2 class="screen-title">${g.icon} ${esc(g.label)}</h2>`;
 
-  html += `<h3 class="group-heading">AI Tooling</h3>`;
-  html += `<section class="block"><h3>Commands (${commandNodes.length})</h3><table class="simple"><thead><tr><th>Command</th><th>Description</th><th>Source</th></tr></thead><tbody>`;
-  commandNodes.forEach(n => {
-    html += `<tr><td>/${esc(displayName(n.id))}</td><td>${esc(n.description)}</td><td>${sourceLink(n.evidence[0].file)}</td></tr>`;
-  });
-  html += `</tbody></table></section>`;
+  if (view.groupId === "ai-tooling") {
+    html += `<section class="block"><h3>Commands (${commandNodes.length})</h3><table class="simple"><thead><tr><th>Command</th><th>Description</th><th>Source</th></tr></thead><tbody>`;
+    commandNodes.forEach(n => {
+      html += `<tr><td>/${esc(displayName(n.id))}</td><td>${esc(n.description)}</td><td>${sourceLink(n.evidence[0].file)}</td></tr>`;
+    });
+    html += `</tbody></table></section>`;
 
-  html += `<section class="block"><h3>Skills (${skillNodes.length})</h3><table class="simple"><thead><tr><th>Skill</th><th>Description</th><th>Source</th></tr></thead><tbody>`;
-  skillNodes.forEach(n => {
-    html += `<tr><td>${esc(displayName(n.id))}</td><td>${esc(n.description)}</td><td>${sourceLink(n.evidence[0].file)}</td></tr>`;
-  });
-  html += `</tbody></table></section>`;
+    html += `<section class="block"><h3>Skills (${skillNodes.length})</h3><table class="simple"><thead><tr><th>Skill</th><th>Description</th><th>Source</th></tr></thead><tbody>`;
+    skillNodes.forEach(n => {
+      html += `<tr><td>${esc(displayName(n.id))}</td><td>${esc(n.description)}</td><td>${sourceLink(n.evidence[0].file)}</td></tr>`;
+    });
+    html += `</tbody></table></section>`;
+  }
 
-  scriptGroupNodes.filter(n => n.category === "ai").forEach(n => { html += renderScriptGroupSection(n); });
+  scriptGroupNodes.filter(n => n.category === g.category).forEach(n => { html += renderScriptGroupSection(n); });
 
-  html += `<h3 class="group-heading">Other Scripts</h3>`;
-  scriptGroupNodes.filter(n => n.category === "scripts").forEach(n => { html += renderScriptGroupSection(n); });
-
-  html += `<h3 class="group-heading">Docker</h3>`;
-  html += renderDockerSection();
-
-  html += `<h3 class="group-heading">Runtime</h3>`;
-  html += renderRuntimeSection();
-
-  html += `<section class="block"><h3>How this page is built</h3>
-    <div class="empty-hint">
-      <strong>Rendering:</strong> Cytoscape.js + cytoscape-dagre for the draggable graphs (Module Dependencies, SPI Map); Mermaid.js for the Database ERD and Sequence Diagrams.
-    </div>
-    <table class="simple"><thead><tr><th>Script</th><th>Description</th><th>Uses</th><th>Input</th><th>Output</th></tr></thead><tbody>`;
-  (MODEL.architectureToolingSelfDocs || []).forEach(s => {
-    html += `<tr><td>${sourceLink(s.file)}</td><td>${esc(s.description)}</td><td>${esc(s.uses)}</td><td>${esc(s.input)}</td><td>${esc(s.output)}</td></tr>`;
-  });
-  html += `</tbody></table>
-    <div class="empty-hint">Read live from each script's own header comment (<code class="path">scripts/architecture/</code>) — not hand-written here, so it can't silently drift from what the scripts actually do. A small amount of genuinely non-mechanical content (a few call-flow examples, database relationships with no real foreign key) is hand-preserved as static data in the generator itself, not re-derived every run.</div>
-  </section>`;
+  // A fact about this page's own rendering tech stack -- not per-file, so it doesn't belong in any
+  // single file's own header (renderScriptGroupSection() above already shows every file's real
+  // Description/Usage/Uses/Input/Output, mechanically, no second copy of that table here).
+  if (view.groupId === "build-architecture-page") {
+    html += `<div class="empty-hint"><strong>Rendering:</strong> Cytoscape.js + cytoscape-dagre for the draggable graphs (Module Dependencies, SPI Map); Mermaid.js for the Database ERD and Sequence Diagrams.</div>`;
+  }
 
   document.getElementById("content").innerHTML = html;
+  // A README's own ```mermaid fenced block (rendered as <pre class="mermaid"> by mdBlockToHtml())
+  // needs this same call every other Mermaid diagram on this tool already uses -- the fence's raw
+  // text sits inert in the DOM as plain text until mermaid.run() finds and replaces it with SVG.
+  mermaid.run({ querySelector: ".mermaid" });
 }
 
 // ── Runtime group (Tooling & Pipelines): hand-authored operational-topology prose from

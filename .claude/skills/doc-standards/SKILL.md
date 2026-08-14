@@ -11,7 +11,9 @@ optimizing an ADR for brevity over completeness is the wrong trade) and `backlog
 (already has its own format, defined in `.claude/commands/feature.md`). This carve-out covers ADR
 *content* only — `DECISIONS.md` still follows `.claude/rules.md`'s "No issue/ticket numbers ...
 in current-state documentation" rule (drop the `improvement-NNN` citation from each entry, keep
-the decision and its reasoning).
+the decision and its reasoning). Also out of scope: infrastructure/tooling files (bash/batch
+scripts, `docker-compose*.yml`, `.properties`) — a separate concern, covered by the sibling
+`infra-doc-standards` skill.
 
 ## Why this exists
 
@@ -56,11 +58,12 @@ fact, not a constraint.
 | Module → module dependencies | `docs/architecture/architecture-map.html` (Diagrams › Module Dependencies — rendered live from `pom.xml`) | State only a local one-line summary if it's load-bearing for a constraint; otherwise reference the tool |
 | Port/Hook implementation mapping | `docs/architecture/architecture-map.html` (Diagrams › SPI Map — rendered live from real Java source) | Name the port/hook this file's module implements (one line — that's local and real), don't restate the graph |
 | Class existence + one-line role | `README.md`'s class table (per module) | `CLAUDE.md` references it; only restates a class's role if that role *is* a constraint (e.g. "pure delegation — no business logic here") |
-| ADR rationale / historical decisions | `DECISIONS.md` (per module) — subject to the worthiness gate in `.claude/commands/decision.md`; not every change belongs here | Reference by ADR number, never restate the reasoning inline — this is already done correctly in most existing files; keep doing it |
+| ADR rationale / historical decisions | `DECISIONS.md` (per module) — subject to the worthiness gate in `.claude/commands/decision.md`; not every change belongs here | Reference generically ("see `DECISIONS.md`"), never a specific `ADR-NNN` number and never restate the reasoning inline — see `.claude/rules.md`'s "no ADR number citations outside DECISIONS.md" rule |
 | Task-type → what-to-read routing | `docs/ai/context-loading.md` | Don't re-derive routing logic in `flows.md` or a command file |
 | Situation → command/skill mapping | `docs/ai/flows.md` | Don't restate in individual command files |
 | Backlog issue format | `.claude/commands/feature.md` | Other commands reference it, don't redefine it |
 | Cross-cutting standing rules | `.claude/rules.md` | Commands/skills reference a rule by name, don't restate its content |
+| Code comment rationale trimmed under the one-line-or-none rule | `DECISIONS.md` (design rationale — why a piece of logic exists or works the way it does) or a module's `README.md` (usage/how-to-run) | The comment itself keeps one line, pointing at the ADR number or README section — same "reference, don't restate" pattern as every other row |
 
 This table itself has one canonical home: **here.** If a one-off task (a cleanup pass, a
 migration prompt) needs this table, it references this file — it does not keep its own copy.

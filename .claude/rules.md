@@ -59,7 +59,10 @@ session — those files get updated mid-session precisely because a run just rev
 > (`improvement-NNN`, etc.) inside a code comment — it looks bad and rots as issues get renumbered
 > or archived; that traceability belongs in the commit message, not the code. Write the one-line,
 > number-free version on the first pass; do not wait to be told to fix it. Violating this rule has
-> happened repeatedly.
+> happened repeatedly. When the rationale being trimmed out is a real fact or design decision (not
+> just local code context), route it to its canonical home per
+> `.claude/skills/doc-standards/SKILL.md`'s ownership table — write that entry first if it doesn't
+> exist yet, then leave a one-line reference in the code — never just delete the explanation.
 
 > ## ⛔ A comment above a method states what that method's own body does
 > A one-line comment above a method describes what that method actually does, verified by reading
@@ -89,6 +92,39 @@ session — those files get updated mid-session precisely because a run just rev
 > reverse link — which ticket produced a given current line — is `git blame`/`git log`, already
 > free via this repo's `feat(improvement-NNN): ...` commit convention; do not build or maintain a
 > new index for this purpose.
+
+> ## ⛔ Comments, README, and other markdown files never cite a specific ADR number
+> A code comment, `README.md`, or any other markdown file may say "see `DECISIONS.md`" but must
+> never cite a specific `ADR-NNN` number. `DECISIONS.md` itself is the one place ADR numbers are
+> written — every ADR entry states which file(s)/module it governs directly in its own text, so a
+> reader finds the relevant entry by searching `DECISIONS.md` for the fact in question, not by
+> following a numbered pointer planted somewhere else.
+>
+> **Why:** an ADR number planted in a comment/README is a forward-link like a ticket number — it
+> goes stale the moment ADRs get renumbered, split, or superseded, and it invites casually citing
+> a number "just in case" rather than actually stating the fact that matters. Traceability should
+> flow from the decision record outward (the ADR says what it governs), not from scattered
+> pointers inward.
+>
+> **How to apply:** going forward only — existing `ADR-NNN` citations already in the repo are not
+> retroactively scrubbed by this rule; it governs new/edited content from here on.
+
+> ## ⛔ Files that govern Claude's own behavior state the target only — never a before/after
+> `CLAUDE.md`, a skill's `SKILL.md`, `.claude/commands/*.md`, and `.claude/rules.md` itself describe
+> the convention/standard to follow, directly — never as an "as-is today" vs. "target" comparison.
+> State only what should be done; do not narrate what a file currently looks like before the
+> convention is applied.
+>
+> **Why:** these files are read as standing instruction, not as a changelog — a reader (human or
+> Claude) consulting one mid-task needs the rule itself, not a reconstruction of what preceded it.
+> A before/after pair doubles the content for no operational benefit and reads as unfinished
+> migration notes left in place.
+>
+> **How to apply:** a before/after comparison is fine *in chat*, while proposing a change for
+> approval — that's exactly what it's for. Once approved and written into the control file, only
+> the target state goes in. Concrete examples illustrating the target are still welcome (e.g. a
+> real file's header rewritten to the new convention) — just don't pair each one with what it used
+> to look like.
 
 ## Approval Rule
 **Every action must be approved by the user before execution — no exceptions.**

@@ -1,13 +1,20 @@
 #!/bin/bash
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: Runs SonarQube static analysis against the whole Maven reactor -- ensures the
+#   SonarQube server and scanner images/containers are current, compiles all modules, uploads the
+#   analysis, and generates a local HTML report.
+# Usage: bash scripts/sonar.sh [--no-gate]. --no-gate skips quality-gate blocking (always exits 0);
+#   default blocks on a gate result of ERROR (exits non-zero).
+# Uses: bash, docker (SonarQube server + scanner containers), mvn (compile), python3 (HTML report).
+# Env: None.
+# Input: sonar-project.properties, each module's compiled target/classes, the running SonarQube
+#   server's own API.
+# Outputs: analysis uploaded to http://localhost:9099/dashboard?id=advertisement (anonymous
+#   browsing enabled every run -- see DECISIONS.md); local report at
+#   scripts/sonar/report/report.html.
+# Returns: 0 on success (or always, with --no-gate); non-zero if the quality gate result is ERROR.
+# ────────────────────────────────────────────────────────────────────────────
 set -e
-# Usage:
-#   bash /app/scripts/sonar/run.sh          — run analysis, exit non-zero if the quality gate
-#                                              fails (blocking by default)
-#   bash /app/scripts/sonar/run.sh --no-gate — run analysis, always exit 0 regardless of the
-#                                               quality gate result (informational-only)
-#
-# SonarQube server starts automatically if not running (localhost:9099).
-# Results: http://localhost:9099/dashboard?id=advertisement
 
 NO_GATE=""
 for arg in "$@"; do
@@ -22,25 +29,98 @@ COMPOSE_FILE="/app/scripts/sonar/docker-compose.sonar.yml"
 SCANNER_CONTAINER="sonar-scanner"
 PROPS_FILE="/app/scripts/sonar/sonar-project.properties"
 
+# ── Validate sonar-project.properties module list against pom.xml, auto-fix drift ────────────
+# Keeps `newline=''` on read/write -- this repo's working tree is CRLF, and Python's default text
+# mode would silently rewrite the whole file to LF, producing a spurious full-file diff.
+echo "Validating sonar-project.properties module list against pom.xml..."
+python3 - "$PROPS_FILE" << 'PYEOF'
+import re, sys
+
+props_file = sys.argv[1]
+pom_file = "/app/pom.xml"
+
+with open(pom_file) as f:
+    pom = f.read()
+modules_block = re.search(r"<modules>(.*?)</modules>", pom, re.S).group(1)
+real_modules = re.findall(r"<module>([^<]+)</module>", modules_block)
+real_modules = [m for m in real_modules if m != "integration-tests"]
+
+with open(props_file, newline='') as f:
+    lines = f.readlines()
+
+def line_ending(l):
+    return "\r\n" if l.endswith("\r\n") else "\n"
+
+def rewrite_block(lines, key, suffix):
+    start = None
+    for i, l in enumerate(lines):
+        if l.startswith(key + "="):
+            start = i
+            break
+    if start is None:
+        return lines, False
+    nl = line_ending(lines[start])
+    end = start
+    while lines[end].rstrip("\r\n").endswith("\\"):
+        end += 1
+    new_lines = [f"{key}=\\{nl}"]
+    for j, mod in enumerate(real_modules):
+        suffix_line = f"  {mod}/{suffix}"
+        if j < len(real_modules) - 1:
+            new_lines.append(f"{suffix_line},\\{nl}")
+        else:
+            new_lines.append(f"{suffix_line}{nl}")
+    old_block = lines[start:end + 1]
+    if old_block == new_lines:
+        return lines, False
+    return lines[:start] + new_lines + lines[end + 1:], True
+
+lines, changed1 = rewrite_block(lines, "sonar.sources", "src/main/java")
+lines, changed2 = rewrite_block(lines, "sonar.java.binaries", "target/classes")
+
+if changed1 or changed2:
+    with open(props_file, "w", newline='') as f:
+        f.writelines(lines)
+    print("  sonar-project.properties module list updated to match pom.xml.")
+else:
+    print("  sonar-project.properties module list already matches pom.xml.")
+PYEOF
+
 # ── Ensure docker compose plugin is available ────────────────────────────────
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/ensure-docker-plugins.sh"
 ensure_docker_compose
 
-# ── Ensure SonarQube server is running ───────────────────────────────────────
-if ! curl -s -o /dev/null "$SONAR_URL/api/system/status"; then
-  echo "SonarQube not running — starting..."
-  docker compose -f "$COMPOSE_FILE" up -d
-  echo "Waiting for SonarQube to be ready..."
-  until curl -s "$SONAR_URL/api/system/status" | grep -q '"status":"UP"'; do
-    sleep 5
-  done
-  echo "SonarQube ready."
-fi
+# ── Ensure SonarQube server image is current, container exists and is running (see DECISIONS.md) ──
+echo "Checking SonarQube server image is up to date..."
+docker compose -f "$COMPOSE_FILE" pull -q
+docker compose -f "$COMPOSE_FILE" up -d
+
+echo "Waiting for SonarQube to be ready..."
+# A stale-image version jump can dead-end in DB_MIGRATION_NEEDED (embedded-DB, NOT_SUPPORTED) -- see DECISIONS.md.
+MIGRATION_TRIGGERED=""
+while true; do
+  STATUS=$(curl -s "$SONAR_URL/api/system/status" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+  [ "$STATUS" = "UP" ] && break
+  if [ "$STATUS" = "DB_MIGRATION_NEEDED" ] && [ -z "$MIGRATION_TRIGGERED" ]; then
+    MIGRATION_TRIGGERED=1
+    echo "SonarQube schema needs migrating after the image update — triggering..."
+    MIGRATE_RESULT=$(curl -s -X POST "$SONAR_URL/api/system/migrate_db")
+    if echo "$MIGRATE_RESULT" | grep -q '"state":"NOT_SUPPORTED"'; then
+      echo "Migration not supported on the embedded database — wiping local scan history and starting fresh on the new image..."
+      docker compose -f "$COMPOSE_FILE" down -v
+      docker compose -f "$COMPOSE_FILE" up -d
+    fi
+  fi
+  sleep 5
+done
+echo "SonarQube ready."
+
+# ── Allow anonymous dashboard browsing -- resets to default (auth required) on every wipe/create ──
+curl -s -u admin:admin -X POST "$SONAR_URL/api/settings/set" \
+  -d "key=sonar.forceAuthentication&value=false" >/dev/null
 
 # ── Ensure sonar token is valid; regenerate via admin/admin if not ───────────
-# This repo's working tree uses CRLF line endings (core.autocrlf) -- `cut` on a CRLF line leaves
-# a trailing \r on the extracted value, which silently corrupts the Basic Auth header (SonarQube
-# then reports the token "invalid" even though the visible characters are correct). Strip it.
+# Strip a trailing \r (CRLF checkout) or it silently corrupts the Basic Auth header -- see DECISIONS.md.
 CURRENT_TOKEN=$(grep "^sonar.token=" "$PROPS_FILE" | cut -d= -f2 | tr -d '\r')
 if ! curl -s -u "$CURRENT_TOKEN:" "$SONAR_URL/api/authentication/validate" | grep -q '"valid":true'; then
   echo "Sonar token invalid or missing — generating new token..."
@@ -54,18 +134,20 @@ if ! curl -s -u "$CURRENT_TOKEN:" "$SONAR_URL/api/authentication/validate" | gre
   echo "New token saved to sonar-project.properties."
 fi
 
-# ── Reuse scanner container if already running, otherwise start it ────────────
-if ! docker inspect "$SCANNER_CONTAINER" &>/dev/null; then
+# ── Ensure scanner image is current, container exists and is running (see DECISIONS.md) ──
+echo "Checking scanner image is up to date..."
+docker pull -q sonarsource/sonar-scanner-cli:latest >/dev/null
+LATEST_IMAGE_ID=$(docker image inspect -f '{{.Id}}' sonarsource/sonar-scanner-cli:latest)
+CONTAINER_IMAGE_ID=$(docker inspect -f '{{.Image}}' "$SCANNER_CONTAINER" 2>/dev/null || true)
+CONTAINER_STATUS=$(docker inspect -f '{{.State.Status}}' "$SCANNER_CONTAINER" 2>/dev/null || true)
+if [ "$CONTAINER_IMAGE_ID" != "$LATEST_IMAGE_ID" ] || [ "$CONTAINER_STATUS" != "running" ]; then
+  [ -n "$CONTAINER_STATUS" ] && docker rm -f "$SCANNER_CONTAINER" >/dev/null
   docker run -d --name "$SCANNER_CONTAINER" --network host \
-    sonarsource/sonar-scanner-cli:latest sleep 86400
-else
-  STATUS=$(docker inspect -f '{{.State.Status}}' "$SCANNER_CONTAINER" 2>/dev/null)
-  if [ "$STATUS" != "running" ]; then
-    docker rm -f "$SCANNER_CONTAINER"
-    docker run -d --name "$SCANNER_CONTAINER" --network host \
-      sonarsource/sonar-scanner-cli:latest sleep 86400
-  fi
+    sonarsource/sonar-scanner-cli:latest sleep 86400 >/dev/null
 fi
+
+# Prune any now-dangling image left by either freshness check above (same as deploy.sh, see DECISIONS.md).
+docker image prune -f >/dev/null
 
 # ── Compile all modules ───────────────────────────────────────────────────────
 echo "Compiling modules..."
@@ -90,14 +172,7 @@ done
 docker cp "$PROPS_FILE" "$SCANNER_CONTAINER:/tmp/sonar-src/sonar-project.properties"
 
 # ── Run analysis ──────────────────────────────────────────────────────────────
-# -Dsonar.qualitygate.wait=true (default; --no-gate to skip) makes the scanner poll the quality
-# gate's computed status after upload and exit non-zero if it's ERROR. `$?`
-# after a pipe is `tee`'s own exit status (always 0), not sonar-scanner's, so ${PIPESTATUS[0]} is
-# read instead. `set +e`/`set -e` bracket the pipe (not `|| true` on the same line) so `set -e`
-# doesn't abort the script on a gate failure -- report generation below still needs to run, it's
-# exactly the output someone needs to see *why* the gate failed -- while also not clobbering
-# PIPESTATUS the way a trailing `|| true` would (bash treats `true` as its own pipeline, which
-# would overwrite PIPESTATUS with `true`'s own exit code before this script gets to read it).
+# Real exit code read via PIPESTATUS, not `$?` (tee's) -- see DECISIONS.md.
 GATE_FLAG="-Dsonar.qualitygate.wait=true"
 [ -n "$NO_GATE" ] && GATE_FLAG=""
 

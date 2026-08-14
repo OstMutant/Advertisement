@@ -212,6 +212,9 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-027 (scripts/architecture) | scripts/architecture | Accepted | SPI Map splits into one diagram per subsystem instead of one combined canvas |
 | ADR-028 (scripts/architecture) | scripts/architecture | Accepted | Bounded Contexts splits into Context Map + Shared Dependencies; per-box item cap; tighter Mermaid spacing; audited-via evidence repaired |
 | ADR-029 (scripts/architecture) | scripts/architecture | Accepted | Bounded Contexts moves from Mermaid back to Cytoscape — flat domain nodes, no compound item children, closing the "Shared Dependencies" diagram from ADR-028 |
+| ADR-030 (scripts/architecture) | scripts/architecture | Accepted | Tooling & Pipelines regrouped into one card per tool — AI Tooling / Build architecture page / Playwright / Sonar / CI / Other Scripts, replacing the ai/scripts binary split |
+| ADR-031 (scripts/architecture) | scripts/architecture | Accepted | SCRIPT_GROUP cards gain a broader file glob and a rendered `README.md` — one canonical home for "what does this file do / how do I run it" content |
+| ADR-032 (scripts/architecture) | scripts/architecture | Accepted | repo-wide script header convention (Description/Usage/Uses/Input/Output) — generalized from `scripts/architecture` to every `SCRIPT_GROUP` dir |
 | ADR-001 (scripts/ci) | scripts/ci | Accepted | ci-runner container via Docker-outside-of-Docker, not Docker-in-Docker |
 | ADR-002 (scripts/ci) | scripts/ci | Accepted | Background by default, live progress via `docker cp`-polled `progress.txt` |
 | ADR-003 (scripts/ci) | scripts/ci | Accepted | Default stage selection is the most extensive run, not the narrowest |
@@ -226,6 +229,15 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-009 (scripts) | scripts | Accepted | DB/S3 credentials consolidated into the repo-root `.env`, loaded as fallback defaults (not unconditional overrides) so CI's per-run port overrides survive |
 | ADR-010 (scripts) | scripts | Accepted | `deploy.sh` auto-recovers from a Liquibase checksum mismatch (stale local dev DB) |
 | ADR-011 (scripts) | scripts | Accepted | `.env` parser strips a trailing `\r` — CRLF line endings silently broke `deploy.sh` |
+| ADR-001 (scripts/sonar) | scripts/sonar | Accepted | SonarQube setup via Docker, no pom.xml changes |
+| ADR-002 (scripts/sonar) | scripts/sonar | Accepted | `sonar.java.binaries` required for full Java analysis |
+| ADR-003 (scripts/sonar) | scripts/sonar | Accepted | `sonar.java.libraries` intentionally left empty |
+| ADR-004 (scripts/sonar) | scripts/sonar | Accepted | Quality gate blocking by default, opt-out via `--no-gate` |
+| ADR-005 (scripts/sonar) | scripts/sonar | Accepted | `sonar.coverage.exclusions` for `ui/query/elements/**`; JaCoCo gap discovered |
+| ADR-006 (scripts/sonar) | scripts/sonar | Accepted | SonarQube server container gets a pull-then-up freshness check, not just an API health check |
+| ADR-007 (scripts/sonar) | scripts/sonar | Accepted | strip CRLF from the stored token before using it for Basic Auth |
+| ADR-008 (scripts/sonar) | scripts/sonar | Accepted | `sonar.sources`/`sonar.java.binaries` module list auto-validated against `pom.xml` before every run, not hand-maintained |
+| ADR-009 (scripts/sonar) | scripts/sonar | Accepted | dashboard browsable anonymously — `sonar.forceAuthentication` set to `false` every run, not once by hand |
 | ADR-001 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Accepted | Filter resolves through `Set<Long>`, not SQL JOIN |
 | ADR-002 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Accepted (done 2026-06-26) | DefaultTaxonPort is a coordination layer, not pure delegation |
 | ADR-003 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Accepted (done 2026-06-26) | TaxonType enum is a closed set in platform-commons |
@@ -234,4 +246,4 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 
 ## Known gaps
 
-- `advertisement-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `provider-profile-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `scripts/sonar/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `user-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n
+- `advertisement-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `provider-profile-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `user-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n

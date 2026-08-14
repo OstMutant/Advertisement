@@ -1,17 +1,171 @@
-# improvement-152: `scripts/build.sh` (redundant recompile fix) + ArchUnit Track B unblock investigation + SPI Interface Details table redesign
+# improvement-152: `scripts/build.sh` (redundant recompile fix) + ArchUnit Track B unblock investigation + SPI Interface Details table redesign + Tooling & Pipelines regroup + repo-wide script documentation convention
 
-**Type:** improvement + investigation + design idea — three independent topics filed together, all
-split out of `improvement-151` once that issue's own real (verified) work was done and ready to
-close.
-**Module:** `scripts/unit-tests.sh`, `scripts/unit-tests/run.sh`, `scripts/integration-tests.sh`,
+**Type:** improvement + investigation + design idea — five independent topics filed together
+(three split out of `improvement-151` once that issue's own real (verified) work was done and
+ready to close; Parts D and E added later per explicit user request).
+**Module:** `.claude/skills/doc-standards/SKILL.md`, `.claude/rules.md`, every repo script
+(`scripts/**/*.sh`, `*.bat`, `docker-compose*.yml`, `*.properties`), `scripts/architecture/
+generate-architecture-model.sh` (Part E); `scripts/architecture/generate-architecture-model.sh`
+(Part D); `scripts/unit-tests.sh`, `scripts/unit-tests/run.sh`, `scripts/integration-tests.sh`,
 `integration-tests/run.sh`, `scripts/run-all-tests.sh` (Part A); `marketplace-app/src/test/java/
 org/ost/marketplace/architecture/ArchitectureMetricsExport.java`, `scripts/architecture/
 generate-architecture-model.sh` (Part B and Part C).
 **Priority:** Top — inherits `improvement-151`'s original "explicit user request to rank at the
 very top" positioning for Part A; Part B and Part C are investigation/design-only, not yet
-actioned.
-**When:** Part A — independent, no blockers. Part B — blocked, see below; not started. Part C —
-independent, not started.
+actioned; Parts D and E are actioned immediately, ahead of A/B/C.
+**When:** Part E — done for `scripts/sonar/` (proving case) + the generalized mechanism; rolling
+onto every other script is explicit future work, not started. Part D — done. Part A — independent,
+no blockers, next. Part B — blocked, see below; not started. Part C — independent, not started.
+
+## Part E — Repo-wide script documentation convention: self-contained script header, README describes flow, architecture-map surfaces both live (design done — `.claude/skills/infra-doc-standards/SKILL.md`; real application to `scripts/sonar/` still pending)
+
+**Design shipped**, in its own dedicated skill (`.claude/skills/infra-doc-standards/SKILL.md`, split
+out from `doc-standards` once the two topics — Java-app docs vs. infra/script docs — turned out to
+need separate ownership; `doc-standards` keeps a one-line "out of scope, see infra-doc-standards"
+pointer, no duplicate content between the two). Covers: the 7-field file-level header (`Description`/
+`Usage`/`Uses`/`Env`/`Input`/`Outputs`/`Returns`), per-function headers for `source`d library files,
+`.bat` delegator forwarding (`same as <file>`), Dockerfile and `.properties` field adaptations, and
+the `README.md` "Flow" section (Mermaid diagrams, multi-entry-point handling, condition-tracing
+rule). Grounded in the Google Shell Style Guide and ISO/ANSI flowchart notation, both confirmed via
+live web search, not assumed. `scripts/architecture/DECISIONS.md` ADR-032 covers the generator-side
+mechanism (`script_headers_json()`, generalized from the `scripts/architecture`-only original) and
+two real bugs found and fixed while verifying it (extractor over-scanning past the header block;
+header must sit immediately after the shebang, before `set -e`). `scripts/sonar/DECISIONS.md` ADR-008
+covers a real, applied feature that came out of this same work: `run.sh` now auto-validates
+`sonar-project.properties`'s module list against `pom.xml` before every run.
+
+**Done, applied for real** (was "design-only so far" — now actually executed against
+`scripts/sonar/`):
+1. ✅ **Applied the skill to `scripts/sonar/`** — all 4 files (`docker-compose.sonar.yml`,
+   `run.bat`, `run.sh`, `sonar-project.properties`) carry real, finalized headers (7-field for
+   `.sh`, delimiter-framed; 6-field for `docker-compose.yml`; 3-field for `.properties`; `run.bat`'s
+   `same as run.sh` forwarding template). `README.md` rewritten with the `## Flow` section (2 entry
+   points converging into one Mermaid diagram, 3 decision diamonds tracing real conditional
+   behavior — image recreate, DB-migration wipe, token regen, module-list auto-fix).
+   Verified end to end: `bash scripts/sonar/run.sh --no-gate` still reaches `ANALYSIS SUCCESSFUL`
+   after all header edits.
+2. ✅ **Regenerated `architecture-model.json`/`architecture-map.html`.** Surfaced two more real
+   bugs in `script_headers_json()` while doing so (`Output`→`Outputs` rename never reached the
+   parser's own regex; `Env`/`Returns` were never in its field list at all — see
+   `scripts/architecture/DECISIONS.md` ADR-032's third/fourth bug notes) — fixed and re-verified via
+   screenshot: all 7 header columns now render correctly on the Sonar card, with each file-type's
+   deliberately-omitted fields (e.g. `Returns` for Docker, 4 fields for `.properties`) rendering
+   empty rather than absorbing a neighboring field's content.
+3. **Still open:** remove the `scripts/sonar`-specific illustrative example content from
+   `infra-doc-standards/SKILL.md` now that the real files carry the real headers (the skill's own
+   copy is now a `doc-standards`-style "one fact, one canonical home" duplicate) — not done this
+   pass, needs explicit confirmation before editing the skill again.
+
+Follow-up beyond `scripts/sonar/` (also not started): roll the same convention onto every other
+script in the repo (root `scripts/*.sh`/`*.bat`, `scripts/ai/`, `scripts/ci/`, `playwright/`).
+
+### Problem
+
+While fixing `scripts/sonar`'s README/comments (Part D follow-up work), a top-of-file "Usage:"
+comment got trimmed down to a bare pointer at `README.md` ("see README.md 'How to run'") under the
+"one line or none" code-comment rule. Rejected: a script's own top comment must be self-contained
+— what it does, what parameters are valid, what result to expect — not a redirect to another file.
+This surfaced a real, repo-wide gap: `scripts/architecture/*.sh`/`*.js` already have a real,
+mechanically-parsed 4-field header (`Description:`/`Uses:`/`Input:`/`Output:` — see
+`scripts/architecture/DECISIONS.md` ADR-022, read live by `architecture_tooling_self_docs_json()`
+and shown on the "Build architecture page" card), but this convention (a) is undocumented as a
+standing rule anywhere outside that one generator function's own code, (b) is hardcoded to only
+scan `scripts/architecture/` (`architecture_tooling_self_docs_json()`'s `folder =
+os.path.join(repo_root, 'scripts', 'architecture')`), never applied to any other script directory,
+and (c) has no field for valid CLI parameters/flags — exactly the gap that triggered this.
+
+### Research grounding (2026-08-14, web search)
+
+Checked against real bash-scripting convention before finalizing, per explicit request: the
+[Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html) — the most widely
+cited authoritative bash convention — requires a top-of-file header comment (brief overview) and,
+for functions, a structured block: `Description`, `Globals`, `Arguments`, `Outputs`, `Returns`.
+This validates both the general shape (structured header block, not prose) and specifically the
+missing field this issue exists to add — Google's `Arguments` is exactly our `Input:`/`Uses:`
+fields' missing sibling for "what CLI flags does invoking this take."
+
+### Decision — three-layer documentation, one canonical home each
+
+1. **Script's own top-of-file header — self-contained, mechanically parsed.** Every script gets a
+   structured header, extending the existing 4-field convention with a 5th field:
+   `Description:` / `Usage:` (valid CLI parameters/flags — the new field) / `Uses:` / `Input:` /
+   `Output:`. This is a deliberate, explicit exception to the "one line or none" code-comment rule
+   (a structured metadata block, not prose rationale) — the rule needs an explicit carve-out
+   documenting this, not just tacit precedent in one directory.
+2. **README.md (per script-group directory) — describes the *flow between* scripts, not each
+   script's own behavior again.** One script's output frequently feeds another's input (e.g.
+   `scripts/sonar.sh` → `scripts/sonar/run.sh`; `scripts/ci.sh` → `scripts/ci/run.sh` →
+   `scripts/unit-tests.sh`/`integration-tests.sh`/`deploy.sh`+`playwright/run.sh`/`sonar.sh`).
+   README's job is to document that chain — what calls what, in what order, what the end-to-end
+   result is — referencing each script's own header (by name/path) instead of restating its
+   Description/Usage/Output. The existing `scripts/sonar/README.md` "Key files" table's Role
+   column currently *restates* a shortened version of what the header now says — needs trimming
+   once headers exist, per "one fact, one canonical home."
+3. **`architecture-map.html`'s Tooling & Pipelines cards — renders both live, no third copy.**
+   `architecture_tooling_self_docs_json()` (renamed/generalized, no longer hardcoded to
+   `scripts/architecture`) scans every `SCRIPT_GROUP_DIRS` entry's own files for this header,
+   parses the 5 fields (added: `Usage`), and renders a per-file table on that group's own card —
+   the exact mechanism already built for "Build architecture page," extended repo-wide. The
+   README's flow/chain content renders alongside via the already-built `readme_json_for()` +
+   `mdBlockToHtml()` path (Part D/ADR-031) — two distinct sections on one page, sourced from two
+   distinct files, no restatement between them.
+
+### Where the convention itself gets documented (not the case study)
+
+Per `.claude/rules.md`'s own "state the abstract principle, not a case study" rule: the concrete
+5-field spec and the "header vs. README vs. architecture-map" layering belongs in
+`.claude/skills/doc-standards/SKILL.md` (already the "how do facts about this repo get organized
+across files" hub, already has a "Code comment rationale" ownership-table row added this session) —
+a new dedicated section, not a second skill file. `.claude/rules.md`'s "Code comments: one line or
+none" rule gets one added sentence carving out this structured header as an explicit exception,
+cross-referencing the doc-standards section for the exact field spec — same "one canonical home,
+cross-referenced" shape as the fix already applied earlier this session for where trimmed-comment
+rationale goes.
+
+### Scope for the first pass
+
+`scripts/sonar/` (the 4 files already touched this session: `run.sh`, `run.bat`,
+`docker-compose.sonar.yml`, `sonar-project.properties`) as the proving case — including a header
+adapted for YAML/properties comment syntax (`#`-prefixed, same 5 fields). Generalizing
+`architecture_tooling_self_docs_json()` to scan every `SCRIPT_GROUP_DIRS` entry (not just
+`scripts/architecture`) is part of this pass so the Sonar card actually shows the new headers
+live — doing the convention without the live-render half would leave it exactly as
+un-discoverable as the gap this issue starts from. Rolling the header onto every *other* script in
+the repo (root `scripts/*.sh`/`*.bat`, `scripts/ai/`, `scripts/ci/`, `playwright/`) is explicitly
+**not** in this pass — flagged as follow-up work once the convention/mechanism is proven on one
+directory, not assumed to be needed here.
+
+## Part D — Tooling & Pipelines screen: regroup script cards by tool, not by ai/scripts category (done)
+
+**Shipped.** See `scripts/architecture/DECISIONS.md` ADR-030.
+
+### Problem
+
+`renderPipelines()` (`scripts/architecture/generate-architecture-model.sh`) groups all 6
+`SCRIPT_GROUP_DIRS` (`scripts/ai`, `scripts/architecture`, `scripts`, `scripts/ci`,
+`scripts/sonar`, `playwright`) into only two buckets via `SCRIPT_GROUP_CATEGORY`: `ai` → "AI
+Tooling" heading (currently `scripts/ai` + `scripts/architecture` together, alongside the
+Commands/Skills tables), `scripts` → "Other Scripts" heading (currently `scripts`, `scripts/ci`,
+`scripts/sonar`, `playwright` all together). The "How this page is built" self-docs table
+(`MODEL.architectureToolingSelfDocs`, describing `scripts/architecture`'s own generator scripts)
+renders as a separate trailing section instead of being part of that directory's own card.
+
+### Fix
+
+Split into one group heading/card per tool instead of the current 2-bucket split (Docker and
+Runtime sections are unaffected — stay exactly as they are today):
+
+- **AI Tooling** — `scripts/ai` only (drop `scripts/architecture` out of this bucket)
+- **Build architecture page** — `scripts/architecture` (the architecture-map generator itself),
+  with the existing "How this page is built"/`architectureToolingSelfDocs` table folded into this
+  card instead of a separate trailing section
+- **Playwright** — `playwright`
+- **Sonar** — `scripts/sonar`
+- **CI** — `scripts/ci`
+- **Other Scripts** — `scripts` (root-level scripts not covered by any of the above)
+
+Implementation: replace the binary `SCRIPT_GROUP_CATEGORY` (`ai`/`scripts`) with a 1:1
+per-directory group-heading label, one heading per `SCRIPT_GROUP_DIRS` entry.
 
 ## Part A — `scripts/build.sh`: unit-tests.sh → integration-tests.sh redundantly recompiles/reinstalls the same modules
 

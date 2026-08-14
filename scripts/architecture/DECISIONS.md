@@ -1978,6 +1978,235 @@ proposed as a follow-up rather than expanded unasked.
 
 ---
 
+## ADR-030: Tooling & Pipelines regrouped into one card per tool — AI Tooling / Build architecture page / Playwright / Sonar / CI / Other Scripts, replacing the ai/scripts binary split
+
+**Status:** Accepted
+
+**Context:** `renderPipelines()` grouped all 6 `SCRIPT_GROUP_DIRS` (`scripts/ai`,
+`scripts/architecture`, `scripts`, `scripts/ci`, `scripts/sonar`, `playwright`) into only two
+buckets via `SCRIPT_GROUP_CATEGORY`: `ai` (`scripts/ai` + `scripts/architecture` together, next to
+the Commands/Skills tables) and `scripts` (`scripts`, `scripts/ci`, `scripts/sonar`, `playwright`
+all together under one "Other Scripts" heading). The generator itself (`scripts/architecture`) sat
+lumped in with `scripts/ai` despite being a distinct tool, and its own "How this page is built"
+self-docs table (`architectureToolingSelfDocs`) rendered as an unrelated trailing section instead
+of next to that directory's file list. User asked for one card per tool instead.
+
+**Decision (refined twice in the same session):** First pass changed `SCRIPT_GROUP_CATEGORY` to
+one group-heading label per directory and rendered all 6 as inline `group-heading` sections on one
+long scrolling page — that wasn't what was asked. User clarified: the group should behave as a
+**clickable card**, same drill-down shape as the System screen's own top-level cards (click →
+navigate to a dedicated detail screen, not an inline heading on the same page). Reworked
+`renderPipelines()` to mirror `renderDiagrams()`'s own list-then-drill-in shape (no
+`view.groupId` → a `card-grid` of the 6 tools; `view.groupId` set → that one tool's content only,
+via a `PIPELINE_GROUPS` lookup table keyed by group id, each entry holding `icon`/`label`/
+`category`/`desc`) instead of introducing a new top-level `screen` value — `crumbLabelFor()`
+extended the same way `diagrams`'s `groupKey` branch already resolves a sub-label. The "How this
+page is built" self-docs table now renders inside the "Build architecture page" card's own detail
+view, right after `scripts/architecture`'s file-list section, instead of a standalone trailing
+section. Docker and Runtime stay exactly as they were — plain inline sections on the card-grid list
+view, not cards themselves, since each is already a single, already-scoped source with nothing to
+split (this was an explicit, separate instruction, not an oversight). Verified via
+`scripts/architecture/screenshot-architecture-map.sh`'s underlying mechanism (ad hoc
+headless-browser script driving the regenerated `architecture-map.html`: card-grid list view, click
+into "AI Tooling", click into "Build architecture page", back button, breadcrumb — the screenshot
+script's own SPI-diagram navigation step has an unrelated, pre-existing timeout that blocks its
+normal run before reaching this screen, not a regression from this change).
+
+---
+
+## ADR-031: SCRIPT_GROUP cards gain a broader file glob and a rendered `README.md` — one canonical home for "what does this file do / how do I run it" content
+
+**Status:** Accepted
+
+**Context:** The Sonar card's file list showed only `run.sh` (the `find -name '*.sh' -o -name
+'*.js'` glob used for every `SCRIPT_GROUP` dir with no `SCRIPT_GROUP_FILE_ORDER` override) —
+`run.bat`, `docker-compose.sonar.yml`, and `sonar-project.properties` were invisible on the page
+despite being real, load-bearing files in that directory, and none of the four had any description
+anywhere in the tool. Same gap for every other `SCRIPT_GROUP` dir with non-`.sh`/`.js` files
+(`scripts/ci/Dockerfile`+`run.bat`, root `scripts/*.bat`, `playwright/run.bat`). Per
+`.claude/skills/doc-standards/SKILL.md`'s ownership table, "class existence + one-line role"
+already canonically lives in a module's own `README.md` (e.g. `audit-spring-boot-starter/
+README.md`'s "Key classes" table) — the same shape applies one-for-one to a script directory's own
+files, just with a "Key files" table instead of "Key classes".
+
+**Decision:** Two changes. (1) The `SCRIPT_GROUP` file glob (`generate-architecture-model.sh`'s
+node-emission loop) now also matches `*.bat`/`*.yml`/`*.yaml`/`*.properties`/`Dockerfile`, not just
+`*.sh`/`*.js` — mechanical, not a per-directory override, so it self-extends to any future file
+type without another generator edit. (2) A new `readme_json_for()` helper reads `<dir>/README.md`
+(if present) via the same Node `JSON.stringify` pattern `runtime_notes_json()` already uses for
+multi-paragraph content (`json_escape()` strips newlines, unsuitable here) into a new `readme`
+field on the `SCRIPT_GROUP` node — always embedded (unlike `decisions_json_for()`, which stays
+gated behind `--with-adr-details`, since a README is orders of magnitude smaller than a full ADR
+history). `renderScriptGroupSection()` renders it via `mdBlockToHtml()` right after the file-chip
+row, sourced-linked back to the real file. `scripts/sonar/README.md` written as the first
+consumer — intro paragraph, a fenced `bash` "How to run" block, and a "Key files" table describing
+`run.sh`/`run.bat`/`docker-compose.sonar.yml`/`sonar-project.properties`.
+
+**`mdBlockToHtml()` extended to support `#`-`######` headings and fenced ` ``` ` code blocks** —
+real GitHub-flavored markdown a README is expected to contain, which the function's previous scope
+(paragraphs/lists/tables only, built for ADR body text) didn't cover; feeding a real README through
+it without this would have rendered a `## How to run` line as a literal paragraph and a fenced
+`bash` block as garbled inline text. Headings render 3 levels down (`##` → `<h5>`, capped at
+`<h6>`) so an embedded README's own top-level heading never collides with the surrounding screen's
+`<h2>`/`<h3>` chrome. This also fixes existing ADR body content that already contains fenced code
+blocks (confirmed: `scripts/sonar/DECISIONS.md` ADR-001 and `playwright/DECISIONS.md` both do) —
+previously mis-rendered as plain paragraphs in the `--with-adr-details` popup, not a regression
+introduced here. Verified via the same ad hoc headless-browser screenshot mechanism as ADR-030 —
+the Sonar card's detail page: 4 file chips (was 1), rendered README with heading/code
+block/table/bullet list, no console errors.
+
+---
+
+## ADR-032: repo-wide script header convention (Description/Usage/Uses/Input/Output) — generalized from `scripts/architecture` to every `SCRIPT_GROUP` dir
+
+**Status:** Accepted
+
+**Context:** `scripts/architecture/*.sh`/`*.js` already had a real, mechanically-parsed 4-field
+header (`Description:`/`Uses:`/`Input:`/`Output:`, ADR-022) read by a function hardcoded to only
+scan `scripts/architecture/` — undocumented as a standing convention anywhere outside that one
+function's own code, with no field for a script's valid CLI parameters. Trimming
+`scripts/sonar/run.sh`'s top comment under the "one line or none" rule to a bare pointer at
+`README.md` was rejected — a script's own top comment must be self-contained, not a redirect.
+Checked against real bash convention before finalizing (2026-08-14 web search): the
+[Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html) requires a
+top-of-file header and, for functions, a structured `Description`/`Globals`/`Arguments`/`Outputs`/
+`Returns` block — validating both the structured-header shape and the missing `Arguments`-shaped
+field this ADR adds. Full three-layer design (header / README / architecture-map), later split into
+its own dedicated `.claude/skills/infra-doc-standards/SKILL.md` (distinct from `doc-standards`,
+which covers Java-app documentation, not infra/script files) — this ADR covers only the
+generator-side mechanism change.
+
+**Decision:** `architecture_tooling_self_docs_json()` (hardcoded to `scripts/architecture`, fed a
+top-level `MODEL.architectureToolingSelfDocs` field only that screen's "How this page is built"
+table read) replaced with `script_headers_json(dir, files)` — takes the same file list already
+computed for a `SCRIPT_GROUP` node (never re-globs separately, so "files shown" and "headers
+parsed" can't drift from each other), adds a 5th field (`Usage`), and is called once per
+`SCRIPT_GROUP_DIRS` entry, embedding its own `headers` array directly on that node — same shape as
+the `readme`/`decisions` fields already on each node. `renderScriptGroupSection()` (used by every
+Tooling & Pipelines card, not just Build architecture page) renders it as a generic "Script
+headers" table, positioned between the file-chip row and the `readme` block per the layering
+spec (header = self-contained per-file facts, README = flow between files). The Build architecture
+page's own former special-cased self-docs table collapsed into this generic mechanism — only a
+single hand-written sentence about the page's own rendering tech stack (Cytoscape.js/Mermaid.js,
+not a per-file fact) remains hardcoded there.
+
+**Bug found and fixed while verifying — extractor over-scanned past the header block.** First
+verification pass against the real regenerated page showed `md-to-decisions-json.js`'s "Usage"
+column populated with garbled, truncated text that didn't belong to its real header at all. Root
+cause: the extractor scanned the whole 20-line read window for *any* line matching a field-name
+prefix, not just a single contiguous block — `md-to-decisions-json.js` has its real 4-field header
+(lines 2-9) followed by an unrelated second prose paragraph and a genuine but separate `Usage:`
+usage-example block further down (lines 11-20+), written by a human long before this convention
+existed; the extractor picked up that second, unrelated `Usage:` and truncated it at the read
+window's edge. Fixed: `extract()` now `break`s the loop entirely on the first blank line following
+a matched field (previously only reset `current = None` and kept scanning) — a header is one
+contiguous comment block starting right after the shebang, not "any field-name-prefixed line
+anywhere in the read window." Re-verified: the same file's headers table now shows an empty
+`Usage` column (correct — it has no real `Usage:` field in its own structured block) and a complete,
+untruncated `Output` value.
+
+**Second bug found and fixed while verifying — header must sit immediately after the shebang, with
+nothing (not even `set -e`) between.** `scripts/sonar/run.sh`'s own new header (added as part of
+this same change) didn't appear on its Tooling & Pipelines card at all — `extract()` stops reading
+at the first line that isn't a `#`/`//` comment, and `set -e` sat between the shebang and the
+header. Fixed by moving `set -e` after the header block; documented as an explicit placement
+requirement in the doc-standards convention section so the next file added under this convention
+doesn't repeat it.
+
+**Scope for this pass:** `scripts/sonar/`'s 4 files (`run.sh`, `docker-compose.sonar.yml`,
+`sonar-project.properties` got real 5-field headers; `run.bat` has none — its `REM`/`::` comment
+syntax isn't one `extract()` parses, by design, not an oversight) as the proving case, plus the
+generalized mechanism itself (needed for the Sonar card to show the new headers live at all).
+Rolling the header onto every *other* script in the repo (root `scripts/*.sh`/`*.bat`,
+`scripts/ai/`, `scripts/ci/`, `playwright/`) is explicitly deferred, not assumed needed by this
+change.
+
+**Third and fourth bugs found and fixed while actually applying the finalized convention to
+`scripts/sonar/` for real (not just the proving-case draft above).** The convention grew two more
+fields (`Env`, `Returns`) and renamed `Output` to `Outputs` (matching Google's own function-level
+field name exactly) during design work that happened in `infra-doc-standards/SKILL.md` — but
+`script_headers_json()`'s own field list/regex was never updated to match, since all verification
+up to that point only exercised the original 5-field set. Applying the real 7-field headers to
+`scripts/sonar/run.sh`/`docker-compose.sonar.yml`/`sonar-project.properties` surfaced this
+immediately: the "Outputs" column rendered empty on every row, and its real content silently
+appeared appended to the previous field (`Input`) instead, because the parser's regex still matched
+literal `Output:` — which no longer occurs anywhere now that every real file says `Outputs:`. `Env`
+and `Returns` were never in the parser's field dict at all, so they were silently dropped
+regardless of the rename. Fixed: `script_headers_json()`'s `fields` dict, regex, and output JSON
+keys all extended to the real 7-field set (`Description`/`Usage`/`Uses`/`Env`/`Input`/`Outputs`/
+`Returns`); `renderScriptGroupSection()`'s "Script headers" table gained the two missing columns.
+Verified directly: regenerated the model, screenshotted the Sonar card — all 7 columns now populate
+correctly per file, with the fields each file-type convention says to omit (`Returns` for
+`docker-compose.sonar.yml`, `Uses`/`Input`/`Outputs`/`Returns` for `sonar-project.properties`)
+correctly rendering empty rather than absorbing a neighboring field's content.
+
+**Fifth bug found and fixed — a literal `"` inside a Python comment broke the surrounding bash
+double-quoted string.** Applying the finalized 7-field convention for real (all headers on
+`scripts/sonar/`'s 4 files, this generator's own `script_headers_json()` update) produced invalid
+JSON on the very next regeneration — every `SCRIPT_GROUP` node's `"headers"` value was empty
+(`"headers": ,` — not even `[]`), because `python3 -c "..."` (the whole Python source embedded in
+one bash double-quoted string) received a *different* comment text than what the file actually
+shows: `break  # ... closing "# ──...──" delimiter ...` — the two unescaped `"` characters around
+`# ──...──` closed the bash string early, and everything after got reinterpreted as separate shell
+tokens instead of Python source, so the `-c` script bash actually ran was silently malformed (no
+traceback, because it was no longer valid Python at all by the time bash finished mangling it).
+Confirmed via `bash -x` trace on an isolated copy of the function — the traced command showed the
+comment text corrupted mid-string, unlike every other line. Fixed by rewriting the comment without
+literal double quotes. General lesson, not specific to this one line: a Python (or any) script
+embedded in a bash `"..."`-quoted string must never contain an unescaped `"`, including inside its
+own comments — bash's quote parser doesn't know or care that the character sits inside what Python
+considers a comment.
+
+**Sixth bug fixed — extended `extract()` to recognize `REM`-prefixed comments, not just `#`/`//`.**
+`scripts/sonar/run.bat` already carried a real structured header once the `.bat` delegator-forwarding
+convention was applied, but `extract()` only recognized `#`/`//` as comment prefixes, so `.bat`
+files were always silently excluded from the "Script headers" list — correct by original design
+for a file with *no* header, but no longer correct once a file actually has one in `REM` form.
+Fixed: `extract()` now also matches `re.match(r'^REM(\s|$)', l, re.I)` (word-boundary-safe, so a
+line like `REMOVE ...` doesn't false-positive), and skips a leading `@echo off` line the same way
+it already skips past a shebang — `.bat`'s own structural equivalent, always first, never part of
+the header itself.
+
+**Table redesigned as a divided vertical list, per-directory file order made explicit.** A wide
+table read poorly once real multi-line field values (the common case for `Outputs`/`Usage`) forced
+awkward cell wrapping — replaced with one block per file (`Description`/`Usage`/... as labeled
+lines) separated by a horizontal rule, only non-empty fields shown. `SCRIPT_GROUP_FILE_ORDER`
+(already the mechanism `scripts/ai`/`scripts/architecture` used to declare their own file order)
+gained a `scripts/sonar` entry listing `run.sh`/`run.bat` (the real entry points) before the two
+supporting config files — the list now reads top-to-bottom in the same "start from what you'd
+actually run" order the directory's own `README.md` Flow section already uses.
+
+**A README's own `mermaid` fenced block now actually renders as a diagram on this tool, not just
+on GitHub.** `mdBlockToHtml()`'s fenced-code-block handling only ever produced a plain `<pre>` —
+correct for genuine code samples, wrong for a `\`\`\`mermaid` block, which rendered as inert source
+text instead of the diagram it's meant to be. Fixed: the fence's language tag is now captured, and
+a `mermaid`-tagged block renders as `<pre class="mermaid">` (wrapped in the same scrollable
+`.diagram-wrap` container the tool's other diagrams already use, since a real call-flow diagram can
+render wider than the content column), with `mermaid.run({ querySelector: ".mermaid" })` called
+once after the screen's HTML is inserted — the same call every other Mermaid diagram on this page
+already needs, just newly reached from this render path too.
+
+**Seventh fix — the top-of-card file-chip row duplicated files that already get a full block in
+"Script headers" below.** Once `scripts/sonar/`'s 4 files all had real, parseable headers, its card
+showed every one of them twice: a bare chip in the original `n.files` row, then the same file again
+as its own detailed block in "Script headers." Fixed: `renderScriptGroupSection()` now chips only
+the files *not* already covered by `n.headers` — a group with no headers parsed yet (most other
+`SCRIPT_GROUP` dirs, not yet rolled out) keeps its full chip row unchanged, since for those the
+chip is still the only listing that exists at all. Verified directly: regenerated and
+screenshotted both the Sonar card (chip row now empty, all 4 files only in "Script headers") and
+the CI card (headers not yet applied there — chip row unchanged, all 4 files still chipped).
+
+**Eighth fix — the now-empty chip row still left its own heading box behind.** The seventh fix
+above emptied the chip row but not the surrounding `<section><h3>${n.id}</h3>...</section>`
+wrapper, so the Sonar card still showed a bare "scripts/sonar" heading with nothing under it —
+dead space a reader stops to ask about, not actually gone. Fixed: `renderScriptGroupSection()`
+now skips the whole heading+box (not just the chip row inside it) whenever there's neither a
+group-level description nor any chip left to show. Verified directly: regenerated and
+screenshotted again — the Sonar card now opens directly on "Script headers," no empty box above
+it; the CI card (still no headers parsed) keeps its full heading+chips box exactly as before.
+
+---
+
 ## Open goals
 
 ~~Mechanize `bounded-contexts.md` the same "scatter into real source" way as ADR-017~~ — done, see
