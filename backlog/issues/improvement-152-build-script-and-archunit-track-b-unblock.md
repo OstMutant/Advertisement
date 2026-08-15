@@ -343,6 +343,22 @@ only ever handles "copy into an already-running container + restart it" and fail
 error if the named container doesn't exist. The generic container never learns how to build any
 specific app from scratch — that knowledge stays wherever it already lives today.
 
+**Grounding: this shape matches established CI pipeline vocabulary, not an ad-hoc invention.**
+Checked (2026-08-15 web search) against GitLab CI/Azure Pipelines/GitHub Actions, which all
+converge on the same structure: a **stage** is a sequential phase (`build → test → deploy`);
+**jobs** inside one stage run in **parallel** by default; **`needs:`**-style dependencies let a
+later job skip waiting for an entire stage; **artifacts** are what one job produces and another
+consumes. Sources:
+[Reintech — Mastering Multi-Stage Pipelines in GitLab CI](https://reintech.io/blog/mastering-multi-stage-pipelines-gitlab-ci),
+[OneUptime — Parallel Jobs in Azure Pipelines](https://oneuptime.com/blog/post/2026-02-16-how-to-set-up-parallel-jobs-in-azure-pipelines-to-speed-up-build-and-test-execution/view),
+[DevOpsil — GitLab CI Pipeline Optimization: Caching, DAG, and Parallel Jobs](https://devopsil.com/articles/2026-03-21-gitlab-ci-pipeline-optimization-speed).
+This design's `build` → `unit-tests ‖ integration-tests ‖ sonar` → optional `deploy` is
+exactly that shape (one stage, N parallel jobs, next stage), just without the vocabulary. Adopting
+an actual heavyweight tool (Jenkins et al.) as a running service would be a mismatch for this
+project's local dev-sandbox scale — and the project already has its own lightweight, hand-rolled
+equivalent of the same philosophy, `scripts/ci.sh` (stages + parallelism + progress tracking, all
+in bash) — so this design borrows the proven *structure*, not the tooling.
+
 **Folder/file skeleton (proposed, not yet built):**
 ```
 scripts/build-deploy-tests/
@@ -422,12 +438,247 @@ mechanisms:
    shape (only the copy *source* changes, from `$ROOT/$module/target/classes` to a temp dir), but
    less clean than option 1.
 
-**Explicitly out of scope, investigated and rejected in `improvement-151`:**
-- Merging `deploy.sh`/`deploy-dev.sh` into one parametrized script — considered; `deploy.sh` (318
+Option 1 (shared volume) is also strictly faster: `docker cp` isn't a plain file copy — Docker
+tar-archives the source inside the source container, streams it over the Docker API, then
+extracts it on the other end, once per direction per module. A shared volume mount needs none of
+that — both containers do plain filesystem I/O against the same underlying storage, zero
+archive/stream/extract overhead.
+
+**Initial idea (superseded below — see "Takari Concurrent Local Repository investigated and
+rejected" in the Step 1 section further down): concurrent callers of the build step handled by
+the Takari Concurrent Local Repository Maven extension, not a hand-rolled lock.** If
+independently-invoked entry points (`sonar.bat`, `unit-tests.bat`, etc.) each unconditionally
+trigger the build step as their own first action rather than assuming one central orchestrator ran
+it first, two of them could race to `mvn install`/`compile` against the same shared, isolated
+`.m2` volume at the same time — the same class of concurrent-write risk already identified for
+host-vs-sandbox builds earlier in this issue, and a real, documented Maven limitation (its default
+local-repository access is not designed for concurrent multi-process/multi-thread use and can
+corrupt repository metadata under real concurrency — confirmed via
+[Baeldung — Caching Maven Dependencies with Docker](https://www.baeldung.com/ops/docker-cache-maven-dependencies)
+and [mvysny — Docker buildx mount cache](https://mvysny.github.io/docker-build-cache/), 2026-08-15
+web search grounding this rather than assuming it).
+
+An initial idea (wrap the whole build invocation in `flock` against a lock file in the persistent
+volume) looked like a coarser, hand-rolled substitute for a purpose-built tool that already
+exists: the **[Takari Concurrent Local Repository](https://github.com/takari/takari-local-repository)**
+Maven extension ([Maven coordinates](https://mvnrepository.com/artifact/io.takari.aether/takari-concurrent-localrepo):
+`io.takari.aether:takari-concurrent-localrepo`; background on the company/author —
+[Takari — About Us](http://takari.io/aboutUs.html), founded by Jason van Zyl, Maven's original
+creator), built specifically to make local-repository access safe under real concurrent Maven
+invocations (its own stated use case: CI systems building several projects in parallel).
+Registered declaratively via `.mvn/extensions.xml` — no wrapping required around every invocation,
+and it only serializes the actual repository-write operations that need it rather than the whole
+build, so it preserves more real parallelism than an external `flock` around the entire command
+would. Also confirmed as the same underlying principle Docker BuildKit itself already ships for
+the analogous build-time case (`--mount=type=cache,sharing=locked` — exclusive, wait-for-access
+cache mounts) — not directly reusable here since that's a `docker build`-time feature and this
+design uses `docker run`, but it validates that serialized-access-to-a-shared-cache is the
+established pattern, not something invented for this project.
+
+**Step 1 — done, verified.** Implemented the build-only slice of the design (the part that fixes
+the confirmed real problem: Windows/WSL without a working Java cannot run `scripts/build.sh`):
+- `scripts/deploy-dev-env/` renamed to `scripts/build-deploy-tests/` (`git mv` + every reference
+  fixed: `deploy-dev.sh`, `scripts/README.md`, `generate-architecture-model.sh`'s `DOCKER_FILES`/
+  `SCRIPT_GROUP_*` tables). Its dead `docker-compose.yml` (see "Environment findings" above)
+  deleted, not carried forward.
+- `scripts/build-deploy-tests/build.sh` (runs inside the container) gained a `BUILD_ONLY=true`
+  mode: reads the module list live from `pom.xml` (same logic `scripts/build/run.sh` had) and runs
+  `mvn install` against it. Default mode (no `BUILD_ONLY`) is untouched — still `deploy-dev.sh`'s
+  existing package/hot-swap/restart flow.
+- **Takari Concurrent Local Repository investigated and rejected** in favor of `flock`: its
+  documented successor (Maven Resolver 1.7+'s built-in Named Locks, shipped since Maven 3.9.0 —
+  [Maven 3.9.0 release notes](https://maven.apache.org/docs/3.9.0/release-notes.html),
+  [Artifact Resolver — Local Repository](https://maven.apache.org/resolver-1.x/local-repository.html),
+  [Named Locks (resolver 1.7.3)](https://maven.apache.org/resolver-archives/resolver-1.7.3/maven-resolver-named-locks/index.html))
+  only protects **threads within one JVM**, not **separate `mvn`
+  processes** — our actual scenario (each `docker run` is its own process). Takari's own OS-level
+  file locks would cover that, but it's an archived, no-longer-maintained dependency for something
+  a single `flock` line does just as well, with no external dependency at all. Both `mvn`
+  invocations in `build.sh` (`install` in build-only mode, `clean package` in deploy mode) now run
+  through `flock /root/.m2/.build.lock -c "..."` — the lock file lives inside the shared
+  `maven-cache` named volume itself, so it's visible to every container instance that mounts that
+  volume, not scoped to one container.
+- New outer `scripts/build.sh` (host/WSL-facing): ensures the image exists, tar-pipes source in,
+  `docker run` with `-v maven-cache:/root/.m2 -e BUILD_ONLY=true` (no `docker.sock` mount — this
+  mode never touches another container). `scripts/build.bat` updated to call it via the same
+  `wslpath -u` pattern already fixed for `sonar.bat`. Old `scripts/build/run.sh` (direct `mvnw`
+  call, no container) and its `README.md` deleted — no direct-execution fallback kept, per explicit
+  instruction; `scripts/build.sh` always goes through the container now.
+- `scripts/build-deploy-tests/README.md` written per `infra-doc-standards` (tool-intro paragraph,
+  two Flow diagrams — `build.sh` and `deploy-dev.sh` as separate diagrams, little shared logic past
+  the image itself — plus an "Environment notes" section on the isolated-`.m2`/`flock` mechanics).
+  `architecture-map.html`'s "Build" card updated to point at the new directory.
+- **Verified end to end in this sandbox:** `bash scripts/build.sh` reaches `BUILD SUCCESS`,
+  installing all 7 modules into the container's isolated `.m2` (cold-cache run, ~31s, downloads
+  everything fresh — expected, first use of the new named volume).
+
+**Verified end to end on the real Windows machine this whole design exists for.** `./scripts/build.bat`
+now reaches `BUILD SUCCESS` on Windows/WSL — the original blocking problem
+(`Error: JAVA_HOME is not defined correctly`) is resolved. ~26s total, all 7 modules installed.
+
+**Real bug found and fixed during that Windows run: `tar` (via WSL) failed on 10 files with
+`Permission denied`** — `docs/ai/adr-index.md` and 9 Vaadin-generated files under
+`marketplace-app/src/main/frontend/generated/` (a live IDE/dev-server process likely holding them
+open — not confirmed which one). The overall run still succeeded only because `tar -czf - ... |
+docker run ...` is a plain pipe without `pipefail`, so bash's `set -e` only inspects `docker run`'s
+own exit status, not `tar`'s — `docker run` received a partial-but-sufficient archive (missing only
+files irrelevant to a library-module install) and completed normally. This was luck, not design: if
+a file actually needed by the 7 installed modules had hit the same permission error, the build would
+have failed with a confusing downstream compile error instead of a clear cause. Fixed properly, not
+left to luck: both `scripts/build.sh` and `scripts/deploy-dev.sh`'s `tar` invocations now
+`--exclude` `marketplace-app/src/main/frontend/generated` (Vaadin regenerates this directory from
+scratch during `package` regardless, so excluding pre-existing copies loses nothing) and
+`docs/ai/adr-index.md` (not consumed by either script's build). **Re-verified on the real Windows
+machine** — re-ran `./scripts/build.bat`, zero `tar` permission errors, `BUILD SUCCESS` in 25.6s.
+
+**Also done: explicit, fixed container names for both entry points** (previously `deploy-dev.sh`
+reused the image name as its container name too, confusingly; `build.sh` had no fixed name at
+all). `build.sh` now runs as `advertisement-build-only`, `deploy-dev.sh` as
+`advertisement-deploy-dev` — both attachable directly via `docker exec -it <name> bash` while a
+run is in progress, without first needing `docker ps` to find an auto-generated name. Documented
+in both scripts' `Description` header field and `scripts/build-deploy-tests/README.md`'s
+Environment notes. New standing rule added to `infra-doc-standards/SKILL.md`: any script that
+gives its own container/image a fixed, meaningful name records that name in the `Description`
+field, not just in the script body.
+
+**Also done: `scripts/build.sh` gained `--reset-cache`/`--rebuild-image` flags, and both
+`build.sh`/`deploy-dev.sh` now detect Dockerfile staleness automatically** — comparing
+`scripts/build-deploy-tests/Dockerfile`'s mtime against the existing image's `docker image
+inspect -f '{{.Created}}'` timestamp, rebuilding automatically when the Dockerfile is newer
+(previously only checked "does an image with this name exist at all," never freshness).
+`build.sh` also prunes dangling images (`docker image prune -f`) after every run, matching
+`deploy.sh`'s existing precedent.
+
+**Decision, made explicitly, not a silent revert:** `build-deploy-tests/build.sh`'s (deploy mode)
+cleanup step briefly had its unconditional `docker container prune -f`/`docker volume prune -f`
+narrowed to image-only pruning, matching the host-wide-pruning-is-opt-in-only policy documented in
+`scripts/CLAUDE.md`/`scripts/ci/DECISIONS.md` ADR-001 (a real past incident: unscoped pruning
+removed *other*, unrelated stopped containers/volumes on the same machine, not just this
+project's). Reverted back to the original unconditional all-three-types prune after being told
+that exact risk plainly and choosing speed/simplicity over it anyway — recorded here as a
+deliberate, informed choice for this specific script, not a precedent that overrides the general
+policy elsewhere (`deploy.sh`'s `--prune-all` gate, and the general rule itself, both stay as they
+are).
+
+**Not yet done — the rest of the design above:** `--deploy <container>` flag (wiring
+`deploy-dev.sh` through the same parameterized `run.sh`-style entrypoint rather than its own
+separate call path), `--unit`/`--integration` flags and the `run-all-tests.sh` parallelization,
+the `.properties`-file defaults, and `sonar/run.sh` delegating compilation to this container
+instead of calling `mvnw` directly.
+
+### `deploy-dev` simplification — design discussed, not yet implemented
+
+Reconsidered whether `deploy-dev.sh` needs its own distinct "check if `marketplace-app` exists,
+hot-swap into it" flow at all, now that build already runs through the shared, `flock`-protected
+container.
+
+**Problem with the current shape:** `deploy-dev.sh`'s inner `build.sh` runs its own `mvn clean
+package` for `marketplace-app` specifically, entirely separate from `scripts/build.sh`'s own `mvn
+install` for the 7 library modules — two different Maven invocations, both going through the same
+container image but never sharing a build step with each other.
+
+**Simplified design, agreed in chat:**
+1. The shared `build` step's scope grows to also produce `marketplace-app`'s own runnable JAR
+   (not just install the 7 library modules) — one Maven invocation covers everything any consumer
+   needs, instead of two separate ones.
+2. The resulting JAR is copied to a **fixed path inside the same shared `maven-cache` volume**,
+   outside Maven's own `.m2/repository` tree — proposed: `/root/.m2/artifacts/marketplace-app.jar`
+   (overwritten on every build). No second volume needed — the existing volume already persists
+   across separate container invocations, which is exactly what's needed here: the artifact must
+   survive between a `build` run and a later, separate `reload` run.
+3. **`marketplace-app` itself stays the same, persistent container** — never destroyed and
+   recreated from scratch. A new, much thinner "reload" step replaces `deploy-dev.sh`'s current
+   hot-swap logic: copy the JAR from that fixed shared-volume path into the running
+   `marketplace-app` container, `docker restart` it. No `mvn` invocation happens in this step at
+   all anymore — it only ever reads what the shared `build` step already produced.
+4. Net effect: `deploy-dev.sh` (or whatever replaces it) becomes "run build, then reload" instead
+   of "run its own separate package + hot-swap" — one shared build step for every consumer
+   (tests, sonar once that's wired up, and now the running dev app too), reload reduced to a pure
+   copy+restart with no Maven work of its own.
+
+**Not yet decided:** exact command/flag shape for triggering "reload" (a flag on `build.sh`
+itself? a separate `scripts/reload.sh`?), and whether the container-existence check
+(`marketplace-app` missing → fall back to `deploy.sh`) still belongs in this reload step or moves
+elsewhere — same app-specific-knowledge boundary question already resolved once for the generic
+`--deploy <container>` design above, likely resolved the same way (reload step never learns how to
+create a container from scratch, only ever acts on one already running).
+
+**Confirmed: the same "one shared build, everyone else just reads the result" pattern extends to
+Sonar and Playwright too, in the future** — not just `deploy-dev`. Sonar's own case is already
+recorded above ("Another real consumer for the same container"). Playwright's e2e suite doesn't
+run Maven at all, but it does need `marketplace-app` up and running with current code before its
+tests can exercise it — the same `reload` step this section designs (copy the shared-volume JAR
+into the running container, restart) is exactly what it would need too, not a separate mechanism
+of its own.
+
+**Done: `deploy-dev.sh` eliminated, folded into `deploy.sh --reload`; `.properties` defaults +
+real `--unit`/`--integration` test execution — verified end to end.** Full sequence implemented
+and confirmed working in this sandbox:
+- `scripts/deploy-dev-env/` → `scripts/build-tests/` (second rename, "deploy" dropped from the
+  name entirely once the concept did). `scripts/deploy-dev.sh`/`.bat` deleted. `deploy.sh` gained
+  `--reload` (see `scripts/DECISIONS.md` ADR-012 for the full reasoning, including the reversal of
+  the earlier "don't merge deploy.sh/deploy-dev.sh" rejection this same issue recorded above).
+- `scripts/build-tests/build.sh` (inside the container) now always builds the **whole reactor**
+  (not just the 7 library modules) and always refreshes `marketplace-app.jar` at a fixed path
+  inside the shared `maven-cache` volume (`/root/.m2/artifacts/marketplace-app.jar`) — no separate
+  "build-only" vs "full" mode, one behavior regardless of caller, per the explicit "at every
+  build, overwrite the artifact — whoever reads it later doesn't need to know or care who built
+  it or when" instruction.
+- `scripts/build-tests/build-tests.properties` — new `.properties` defaults file (`unit=true`,
+  `integration=true`), same shape as `sonar-project.properties`. `scripts/build.sh` reads it as
+  baseline; `--unit`/`--no-unit`/`--integration`/`--no-integration` override per invocation.
+- Real test execution added inside the container: unit (`./mvnw -pl
+  query-lib,marketplace-app,marketplace-orchestrator test`, no Docker needed) and integration
+  (`./mvnw -pl integration-tests test`, needs `docker.sock` mounted in so Testcontainers can reach
+  the host's Docker daemon and spin up its own Postgres as a sibling container). `docker.sock` is
+  mounted into the container only when `integration=true` (least privilege — never mounted for a
+  unit-only or build-only run). Sandbox-only Testcontainers workarounds
+  (`TESTCONTAINERS_RYUK_DISABLED`, `INTEGRATION_TESTS_POSTGRES_FIXED_PORT`) pass through into the
+  container only if already set in the caller's own environment.
+- **Verified end to end in this sandbox:** `bash scripts/build.sh` (both flags at their
+  `true` default) — whole-reactor build succeeds, 53 unit tests pass (0 failures), 85 integration
+  tests pass (0 failures, Testcontainers successfully created its Postgres container via the
+  passed-through `docker.sock`), all inside one container invocation.
+
+**Also not yet done — keeping the build flow clean of stale images/containers, raised after the
+Windows test above.** Two real gaps identified, both to close by applying policy this repo has
+already established elsewhere rather than inventing new behavior:
+1. **Image staleness is never checked, only existence.** `docker image inspect "$BUILD_IMAGE"`
+   only asks "does an image with this name exist at all" — if `scripts/build-deploy-tests/
+   Dockerfile` changes (new package, JDK bump), the stale image keeps getting reused silently,
+   unlike `scripts/sonar/run.sh`'s own image-freshness check (compares image IDs, rebuilds on
+   mismatch). Fix: add the same kind of freshness check here, plus an explicit `--rebuild-image`
+   flag for forcing it on demand.
+2. **No automatic dangling-image cleanup after a build**, unlike `deploy.sh` (which already runs
+   `docker image prune -f` post-build — safe, since it only removes images nothing references,
+   never actively-used ones). Fix: add the same `docker image prune -f` call after `build.sh`/
+   `deploy-dev.sh` finish, matching existing precedent instead of introducing a new pattern.
+
+**Explicitly staying manual, not automatic — consistent with this repo's own established
+policy** (`scripts/CLAUDE.md`, `scripts/ci/DECISIONS.md` ADR-001): host-wide `docker container
+prune`/`docker volume prune` are never run automatically anywhere in this repo, only via the
+explicit, opt-in `--prune-all` flag — because they can remove *other*, unrelated stopped
+containers/volumes on the same machine, not just this project's own (a real past incident, not a
+hypothetical). `--reset-cache` (already implemented in `deploy-dev.sh`, needs adding to
+`build.sh` too for consistency) stays the explicit, opt-in mechanism for wiping the shared
+`maven-cache` volume — never automatic, same reasoning.
+
+**Superseded — the merge below did happen, once the reasoning that blocked it no longer applied:**
+- ~~Merging `deploy.sh`/`deploy-dev.sh` into one parametrized script — considered; `deploy.sh` (318
   lines, infra bootstrap, Liquibase self-heal, CI isolated-stack env-var overrides) and
   `deploy-dev.sh` (64 lines, assumes infra/app already running) are different-shaped flows, not
   parameter variations of the same one; merging would either bloat `deploy.sh` with a branch where
-  most of its own flags become meaningless, or duplicate bootstrap logic. Not pursued.
+  most of its own flags become meaningless, or duplicate bootstrap logic. Not pursued.~~ Reversed:
+  `deploy-dev.sh` deleted entirely, its capability now lives as `deploy.sh --reload`. What changed
+  since the original rejection: `deploy-dev.sh`'s own `mvn package` got replaced by the shared,
+  `flock`-protected `build-tests` container step (the same one `scripts/build.sh` and future
+  sonar/Playwright consumers use) — so "reload" is no longer a full flow of its own with real
+  bootstrap logic to duplicate, just a thin "run the shared build step, then copy+restart" branch,
+  genuinely a parameter variation now rather than a different-shaped flow. `--reload` skips infra
+  entirely and exits early, before any of `deploy.sh`'s own Step 1/2/3 logic runs, so none of its
+  existing flags become meaningless for the normal (non-reload) path.
+
+**Explicitly out of scope, investigated and rejected in `improvement-151` (still applies):**
 - Making `deploy.sh`'s Docker image build reuse host-compiled classes — rejected on principle:
   the deploy image must build reproducibly from source in an isolated context, not from
   potentially-stale/uncommitted host artifacts. Only the external-dependency download cache

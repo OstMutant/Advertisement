@@ -20,6 +20,7 @@ services:
       - sonarqube_data:/opt/sonarqube/data
       - sonarqube_logs:/opt/sonarqube/logs
       - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_temp:/opt/sonarqube/temp
     environment:
       SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
     restart: unless-stopped
@@ -28,3 +29,4 @@ volumes:
   sonarqube_data:
   sonarqube_logs:
   sonarqube_extensions:
+  sonarqube_temp:

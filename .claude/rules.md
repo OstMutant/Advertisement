@@ -210,10 +210,18 @@ After fixing a bug, cover all affected flows with Playwright tests before markin
 
 ## Scripts
 Always use project scripts — never raw docker/mvn commands:
-- `bash scripts/deploy-dev.sh` — dev deploy (JAR hot-swap, ~3-4 min)
+- `bash scripts/build-and-test.sh` — build the reactor (+ optional unit/integration tests), no local Java needed
 - `bash scripts/deploy.sh` — full rebuild (~7-10 min)
 - `bash scripts/playwright.sh [scenario]` — Playwright tests
 - `mvn clean test 2>&1 | tee /tmp/test.log` — JUnit tests
+
+**Script-group directory structure:** when a script's own logic needs supporting files (a
+Dockerfile, `.properties`, fixtures, multiple scenarios) and gets its own subdirectory under
+`scripts/`, that subdirectory owns all of the logic — the corresponding top-level
+`scripts/<name>.sh` is a thin entry point only, forwarding arguments to `scripts/<name>/run.sh`
+with no logic of its own. A script that stays self-contained, with no subdirectory of its own,
+carries its full logic directly in the top-level `scripts/<name>.sh` file — no artificial
+subdirectory split for something that doesn't need one.
 
 **Run all scripts with Monitor + tee pattern:**
 1. Launch Monitor (`persistent: true`) watching the log file every 10s — reports stuck/error/success

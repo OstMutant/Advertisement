@@ -207,7 +207,6 @@ All developer scripts live in `scripts/`. See [`scripts/README.md`](scripts/READ
 | Script | Purpose |
 |---|---|
 | `scripts/deploy.sh` / `scripts/deploy.bat` | Full deploy pipeline: pull images → start infra → build → run → wait for startup |
-| `scripts/deploy-dev.sh` / `scripts/deploy-dev.bat` | Fast dev deploy — hot-swaps a freshly built JAR into the running container (~3-4 min vs ~7-10 min for a full rebuild) |
 | `scripts/run-local.bat` | Run the app via Maven with no Docker image rebuild (dev or prod Vaadin mode) |
 | `scripts/unit-tests.sh` / `scripts/unit-tests.bat` | Run plain JUnit unit tests — no Docker, no database |
 | `scripts/integration-tests.sh` / `scripts/integration-tests.bat` | Run Testcontainers-based repository tests against a real Postgres |

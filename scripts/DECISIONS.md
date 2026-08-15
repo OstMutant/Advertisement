@@ -14,7 +14,7 @@ and `playwright/`.
 | Operation | Script |
 |---|---|
 | Full prod rebuild + start | `bash scripts/deploy.sh` |
-| Fast JAR hot-swap | `bash scripts/deploy-dev.sh` |
+| Fast JAR hot-swap | `bash scripts/deploy.sh --reload` |
 | Run all Playwright tests | `bash scripts/playwright.sh` |
 | Run one scenario | `bash scripts/playwright.sh <scenario>` |
 | SonarQube analysis | `bash scripts/sonar.sh` |
@@ -276,3 +276,55 @@ real cause.
   MinIO's wait now resolves immediately, the full build/start pipeline completes normally.
 - No new script flag or manual step introduced — this is a pure correctness fix to logic that
   already existed (ADR-009), not a new mechanism.
+
+---
+
+## ADR-012: `deploy-dev.sh` eliminated — its capability folded into `deploy.sh --reload`, backed by the shared `build-and-test` container
+
+**Status:** Partially reverted — see update note at the end of this entry.
+
+**Context:** `deploy-dev.sh` ran its own `mvn clean package` for `marketplace-app` directly on
+whatever host it was invoked from, entirely separate from `scripts/build-and-test.sh`'s own Maven
+invocation for the library modules — two unrelated build steps sharing nothing. On a Windows/WSL
+machine without a working local Java install, this failed outright (`Error: JAVA_HOME is not
+defined correctly`) until `scripts/build-and-test.sh` was moved onto a shared, containerized build step
+(`scripts/build-and-test`, JDK 25 + Docker CLI, no local Java required) to work around the same
+Windows/WSL Java-path-translation gap. Once that container's build step also produced
+`marketplace-app`'s own JAR (installing the whole reactor, not just the 7 library modules) and
+persisted it to a fixed path inside the shared `maven-cache` volume
+(`/root/.m2/artifacts/marketplace-app.jar`), `deploy-dev.sh`'s own separate `mvn package` step
+became pure duplication — the artifact it needed was already being produced and refreshed by the
+shared build step regardless.
+
+**Decision:** `deploy-dev.sh`/`deploy-dev.bat` deleted entirely. `deploy.sh` gained a `--reload`
+mode instead: skips infra bootstrap and the Docker image rebuild entirely, runs the shared
+`build-and-test` container's build step (same one `scripts/build-and-test.sh` uses), then hot-swaps the
+resulting `marketplace-app.jar` into the already-running `marketplace-app` container (`docker cp`
++ `docker restart`) — no `mvn` invocation of its own. This reverses this same file's earlier
+recorded rejection of merging `deploy.sh`/`deploy-dev.sh` (see the annotated, struck-through entry
+in `backlog/completed/issues/` once `improvement-152` closes) — the original rejection reasoning
+("different-shaped flows, not parameter variations") no longer applies once `--reload` is a thin
+branch reusing a shared step, not a full flow duplicating `deploy.sh`'s own bootstrap logic.
+
+**Consequences:**
+- `deploy.sh --reload` requires infra and `marketplace-app` already running, same precondition
+  `deploy-dev.sh` always had — it never learns how to create `marketplace-app` from scratch; a
+  missing container is a clear, immediate error telling the caller to run a plain `deploy.sh`
+  first, not an automatic fallback into a full deploy triggered from inside the reload path.
+- The `build-and-test` container's own build step always builds the whole reactor and always
+  refreshes `marketplace-app.jar` in the shared volume, regardless of which entry point
+  (`build-and-test.sh` or `deploy.sh --reload`) triggered it — Maven's own incremental compilation makes a
+  no-op rebuild cheap, so there is no separate "library modules only" vs "whole reactor" mode to
+  keep in sync between the two callers.
+- Concurrent invocations across the two entry points are serialized via `flock` against a lock
+  file living inside the same shared `maven-cache` volume — see `improvement-152` for the fuller
+  investigation (Takari Concurrent Local Repository considered and rejected in favor of this).
+
+**Update (reverted):** The `deploy.sh --reload` portion of this decision was reverted —
+`deploy.sh`/`deploy.bat` no longer carry a `--reload` mode, and the container-side hot-swap branch
+(`docker cp` + `docker restart` against a running `marketplace-app`) was removed from
+`scripts/build-and-test/build.sh` entirely. `deploy-dev.sh`/`deploy-dev.bat` remain deleted. There
+is currently no fast JAR hot-swap deploy mechanism in this repo — `scripts/build-and-test.sh` only
+builds the reactor into the shared `maven-cache` volume, it does not deploy or restart anything
+running. The "Consequences" bullets above describing `deploy.sh --reload` no longer reflect
+current behavior; kept here for historical context rather than rewritten in place.

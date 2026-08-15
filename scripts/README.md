@@ -51,48 +51,21 @@ scripts\deploy.bat                       # Windows (calls deploy.sh via WSL)
 | `--reset` | Stop + remove ALL containers and volumes, then start from scratch |
 | `--restart-infra` | Remove and restart DB + MinIO containers, volumes preserved |
 | `--reset-db` | Truncate app tables (`reset-clean.sql`) before starting the app — no volume wipe |
+| `--reload` | Fast path: build the whole reactor in the `build-and-test` container and hot-swap the resulting `marketplace-app.jar` into the already-running `marketplace-app` container — no Docker image rebuild, no infra changes. Requires infra + `marketplace-app` already running (plain `deploy.sh` first if not). See "Reload mode" below. |
 | `--prune-all` | Also run `docker container prune -f`/`docker volume prune -f` — host-wide, not scoped to this app's own resources; opt-in only, see `scripts/CLAUDE.md` |
 
 Flags can be combined: `bash scripts/deploy.sh --no-cache --file`
 
----
-
-## deploy-dev.sh / deploy-dev.bat
-
-Fast dev deploy: pipes source files into a throwaway `advertisement-build-env` container, builds the JAR, and hot-swaps it into `marketplace-app`. No Docker image rebuild — typically **3-4 min** vs 7-10 min for a full prod rebuild.
-
-Maven dependencies are cached in a named Docker volume (`maven-cache`) — persists between runs regardless of whether the container is removed.
-
-```bash
-bash scripts/deploy-dev.sh                 # Linux / WSL — full output to console
-bash scripts/deploy-dev.sh --file          # filtered output + full log to /tmp/deploy-dev.log
-bash scripts/deploy-dev.sh --reset-cache   # wipe Maven cache volume before building (re-downloads all dependencies)
-bash scripts/deploy-dev.sh --reset-db      # truncate app tables (reset-clean.sql) before the hot-swap restart
-scripts\deploy-dev.bat                     # Windows (calls deploy-dev.sh via WSL)
-```
-
-**Self-healing:** builds `advertisement-build-env` image if missing. If `marketplace-app` is missing — runs `deploy.sh` first; if stopped — starts it.
-
-### Maven cache
-
-Dependencies are stored in Docker named volume `maven-cache` mounted at `/root/.m2` inside the build container. First run downloads everything; subsequent runs reuse the cache.
-
-Use `--reset-cache` to wipe the volume and force a full re-download (e.g. after dependency conflicts or a corrupt cache).
-
-### What it does
-
 | Step | Action |
 |------|--------|
-| 1 | Build `advertisement-build-env` image if not present (JDK 25 + Docker CLI) |
-| 2 | If `marketplace-app` missing → run `deploy.sh`; if stopped → start it |
-| 3 | Pipe source files into `advertisement-build-env` via tar (excludes `target/`, `.git/`) |
-| 4 | Build JAR with `mvn clean package -DskipTests` inside the container |
-| 5 | `docker cp` the JAR into the running `marketplace-app` container |
-| 6 | `docker restart marketplace-app` and wait for `"Started Application"` (timeout 180s) |
+| 1 | (if `--reset-db`) truncate app tables (`reset-clean.sql`) |
+| 2 | Build/refresh the `advertisement-build-env` image if missing or `Dockerfile` changed |
+| 3 | Pipe source into the container, run the shared build step (whole reactor, `flock`-protected against the shared `maven-cache` volume) |
+| 4 | Inside the container: `docker cp` the freshly-built `marketplace-app.jar` into the running `marketplace-app` container, `docker restart` it, wait for `"Started Application"` |
 
-### How Windows deploy works
-
-`deploy-dev.bat` calls `wsl bash deploy-dev.sh`. The build runs inside `advertisement-build-env` container — no Java or Maven required on the developer's machine. Source files are streamed in via tar pipe; build logs are visible in Docker Desktop and in the console.
+`--reload` exits before any of the normal Steps 1-3 (infra bootstrap, Docker image rebuild) run —
+it assumes infra and `marketplace-app` are already up (run a plain `bash scripts/deploy.sh` first
+otherwise). See `scripts/build-and-test/README.md` for the shared container's own Flow diagram.
 
 ---
 
@@ -236,10 +209,10 @@ scripts\claude.bat your.email@gmail.com
 
 ## Docker socket constraint
 
-`deploy-dev.sh` and `playwright/run.sh` both run builds/tests inside Docker containers that need access to the Docker daemon. Volume mounts (`-v /host/path:/container/path`) do not work when the caller is itself a Docker container (e.g. the Claude dev container) — Docker resolves the host path from the **host machine**, not from inside the caller container, resulting in an empty mount.
+`scripts/build-and-test/run.sh` and `playwright/run.sh` both run builds/tests inside Docker containers that need access to the Docker daemon. Volume mounts (`-v /host/path:/container/path`) do not work when the caller is itself a Docker container (e.g. the Claude dev container) — Docker resolves the host path from the **host machine**, not from inside the caller container, resulting in an empty mount.
 
 Both scripts work around this the same way:
-- **`deploy-dev.sh`** — streams source files into `advertisement-build-env` via tar pipe: `tar | docker run -i ... bash -c "tar -xzf - && build.sh"`
+- **`scripts/build-and-test/run.sh`** — streams source files into `advertisement-build-env` via tar pipe: `tar | docker run -i ... bash -c "tar -xzf - && build.sh"`
 - **`playwright/run.sh`** — copies test files into `pw-runner` via `docker cp`
 
 This means both scripts work correctly from any context: Windows WSL, a terminal, or the Claude dev container.
@@ -253,7 +226,7 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 | `advertisement-db` | `postgres:15-alpine` | `5432` | `deploy.sh`, `docker-compose.db.yml` | PostgreSQL database |
 | `advertisement-minio` | `minio/minio:latest` | `9000` (API), `9001` (console) | `deploy.sh`, `docker-compose.minio.yml` | S3-compatible storage (MinIO) |
 | `marketplace-app` | built from `Dockerfile` | `8081` | `deploy.sh` | Spring Boot + Vaadin application |
-| `advertisement-build-env` | built from `scripts/deploy-dev-env/Dockerfile` | — | `deploy-dev.sh` (throwaway `--rm`, per build) | JDK 25 + Docker CLI — builds JAR, hot-swaps into marketplace-app |
+| `advertisement-build-only` | `advertisement-build-env`, built from `scripts/build-and-test/Dockerfile` | — | `build-and-test.sh` (throwaway `--rm`, per build) | JDK 25 — builds the reactor into the shared `~/.m2` |
 | `pw-runner` | `mcr.microsoft.com/playwright:v1.61.1-jammy` | — | `playwright/run.sh` (reused across runs) | Playwright test runner |
 | `claude-dev` | built from `Dockerfile.ai` | — | `scripts/claude.bat` | Claude Code dev environment |
 
@@ -263,7 +236,7 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 |--------|---------|---------|
 | `advertisement_postgres_data` | `advertisement-db` | PostgreSQL data (persists across container restarts) |
 | `advertisement_minio_data` | `advertisement-minio` | MinIO object storage data |
-| `maven-cache` | `advertisement-build-env` | Maven `~/.m2/repository` — persists between `deploy-dev.sh` runs |
+| `maven-cache` | `advertisement-build-env` | Maven `~/.m2/repository` — persists between `build-and-test.sh` runs; also holds `artifacts/marketplace-app.jar`, the shared build's own output |
 
 **Credentials:**
 - DB: `experiments_user` / `experiments_user_password`, database `experiments`
@@ -277,7 +250,7 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 ```
 scripts/
   infra/           — Docker Compose files for local infrastructure (DB, MinIO, app stack)
-  deploy-dev-env/  — Docker build environment for deploy-dev (JDK 25 + Docker CLI)
+  build-and-test/     — Docker build environment used by build-and-test.sh (JDK 25)
   database/        — SQL scripts and database helpers (reset-clean.sql)
   sonar/           — SonarQube configuration and scanner
   ci/              — isolated local CI runner (Dockerfile, entrypoint.sh, own README/DECISIONS.md)

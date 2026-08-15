@@ -145,6 +145,7 @@ docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-co
 
 **Slash commands available:**
 - `/build` — rebuild Docker image and start app
+- `/build-and-test` — build the whole reactor (+ optional unit/integration tests) via the shared build-and-test container, no local Java needed
 - `/playwright [scenario] [--ux]` — run Playwright tests
 - `/sonar` — run SonarQube analysis
 - `/decision <module> — <title>` — record architectural decision

@@ -87,10 +87,10 @@ declare -A SCRIPT_GROUP_CATEGORY=(
   [scripts]="Other Scripts"
   [scripts/ci]="CI"
   [scripts/sonar]="Sonar"
-  [scripts/build]="Build"
+  [scripts/build-and-test]="Build and Test"
   [playwright]="Playwright"
 )
-SCRIPT_GROUP_DIRS=(scripts/ai scripts/architecture scripts scripts/ci scripts/sonar scripts/build playwright)
+SCRIPT_GROUP_DIRS=(scripts/ai scripts/architecture scripts scripts/ci scripts/sonar scripts/build-and-test playwright)
 
 # Explicit "what matters first" ordering per directory -- entry points and generators before the
 # CI gates that verify their output, dev-only tooling last. Falls back to alphabetical (find |
@@ -99,6 +99,7 @@ declare -A SCRIPT_GROUP_FILE_ORDER=(
   [scripts/ai]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh"
   [scripts/architecture]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh"
   [scripts/sonar]="run.sh run.bat docker-compose.sonar.yml sonar-project.properties"
+  [scripts/build-and-test]="run.sh build.sh build-and-test.properties Dockerfile"
 )
 decisions_json_for() {
   local module="$1"
@@ -1321,13 +1322,12 @@ bounded_contexts_json() {
 DOCKER_FILES=(
   "Dockerfile|dockerfile|Main app image (multi-stage build)"
   "Dockerfile.ai|dockerfile|Claude Code dev sandbox environment -- not part of the app build"
-  "scripts/deploy-dev-env/Dockerfile|dockerfile|Local deploy-dev-env container"
+  "scripts/build-and-test/Dockerfile|dockerfile|Local build-and-test container"
   "scripts/ci/Dockerfile|dockerfile|Isolated CI runner image"
   "scripts/infra/docker-compose.app.yml|compose|App container (dev infra)"
   "scripts/infra/docker-compose.db.yml|compose|PostgreSQL (dev infra)"
   "scripts/infra/docker-compose.minio.yml|compose|MinIO S3-compatible storage (dev infra)"
   "scripts/sonar/docker-compose.sonar.yml|compose|SonarQube server"
-  "scripts/deploy-dev-env/docker-compose.yml|compose|deploy-dev-env container wrapper"
 )
 docker_files_json() {
   local out="" first=true entry file kind label items_json
@@ -1820,7 +1820,7 @@ const PIPELINE_GROUPS = {
   "playwright": { icon: "🎭", label: "Playwright", category: "Playwright", desc: "playwright/ — UI test runner" },
   "sonar": { icon: "📊", label: "Sonar", category: "Sonar", desc: "scripts/sonar — static analysis" },
   "ci": { icon: "⚙️", label: "CI", category: "CI", desc: "scripts/ci — local isolated CI runner" },
-  "build": { icon: "🔨", label: "Build", category: "Build", desc: "scripts/build — warms ~/.m2 for tests" },
+  "build": { icon: "🔨", label: "Build and Test", category: "Build and Test", desc: "scripts/build-and-test — builds the reactor, optional unit/integration tests" },
   "other-scripts": { icon: "📜", label: "Other Scripts", category: "Other Scripts", desc: "scripts/ — deploy & misc" }
 };
 const PIPELINE_GROUP_ORDER = ["ai-tooling", "build", "build-architecture-page", "playwright", "sonar", "ci", "other-scripts"];
@@ -3589,7 +3589,7 @@ const GLOSSARY = [
 // compose service names) only -- the actual deployment workflow explanation stays in
 // scripts/CLAUDE.md's "Deployment" section, linked to below, never restated here.
 function renderDockerSection() {
-  let html = `<div class="screen-desc">What builds/runs in this repo, straight from the real files — see ${sourceLink("scripts/CLAUDE.md")} for the actual deploy workflow (deploy.sh/deploy-dev.sh flags, when to use which).</div>`;
+  let html = `<div class="screen-desc">What builds/runs in this repo, straight from the real files — see ${sourceLink("scripts/CLAUDE.md")} for the actual deploy workflow (deploy.sh flags, plain vs --reload, when to use which).</div>`;
 
   const dockerfiles = MODEL.dockerFiles.filter(f => f.kind === "dockerfile");
   const composeFiles = MODEL.dockerFiles.filter(f => f.kind === "compose");

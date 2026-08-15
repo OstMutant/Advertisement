@@ -59,7 +59,7 @@ After run:
    then runs `npx playwright test`.
 
 To start from an already-clean DB without the stop/reset/start cycle, deploy with `--reset-db`
-(`bash scripts/deploy.sh --reset-db` or `bash scripts/deploy-dev.sh --reset-db`) — run.sh will
+(`bash scripts/deploy.sh --reset-db`) — run.sh will
 detect the empty tables and skip its own reset.
 
 ## Test accounts

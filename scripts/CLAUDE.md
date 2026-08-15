@@ -80,25 +80,12 @@ not just this sandbox.
    ```
    with `timeout: 600000`
 
-**How to run dev deploy (deploy-dev.sh):** same Monitor + tee pattern as deploy.sh, but log to `/tmp/deploy-dev.log`.
-
 ### Local run (Maven, no Docker image rebuild)
 ```bat
 scripts\run-local.bat           REM dev profile — Vaadin dev mode, port 8080
 scripts\run-local.bat --prod    REM production Vaadin build, prod profile, port 8080
 ```
 Windows-only (native Maven + Java — no WSL). Requires DB and MinIO already running. Use when you need to compare local vs Docker behaviour.
-
-### Dev deploy (fast JAR hot-swap)
-```bash
-bash scripts/deploy-dev.sh    # Linux / WSL
-scripts\deploy-dev.bat        # Windows
-```
-Builds the JAR locally (`mvn clean package -DskipTests`), copies it into the running container via `docker cp`, and restarts the container. **No Docker image rebuild** — typically ~3-4 min vs ~7-10 min for prod.
-
-Use `--reset-cache` to clear the Maven cache volume before building. Use `--reset-db` to truncate app tables (`reset-clean.sql`) before the hot-swap restart.
-
-**Requires:** infra (DB, MinIO) and the `marketplace-app` container already running. Run `deploy.sh` once first.
 
 ---
 
@@ -210,13 +197,12 @@ TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432 mv
 `-am` also builds whichever starters `integration-tests` currently depends on (required — they
 are not otherwise built by a scoped `-pl integration-tests` alone).
 
-### Never run via `deploy.sh`/`deploy-dev.sh`
+### Never run via `deploy.sh`
 
-Both build Maven inside a `docker build` stage (multi-stage `Dockerfile`) that already skips tests
-(`./mvnw install -DskipTests`) and, even if it didn't, has no access to the outer Docker socket
-(standard Docker-in-Docker isolation — no socket mount configured for the `builder` stage).
-Testcontainers-based tests need a real reachable Docker daemon, which only exists when `mvn test`
-is run directly, never inside the image build.
+`deploy.sh` runs Maven with `-DskipTests` inside a `docker build` stage with no access to the
+outer Docker socket — standard Docker-in-Docker isolation, no socket mount configured for the
+`builder` stage. Testcontainers-based tests need a real reachable Docker daemon, which only exists
+when `mvn test` is run directly, never inside this build path.
 
 ### Why this sandbox needs `INTEGRATION_TESTS_POSTGRES_FIXED_PORT` / `TESTCONTAINERS_RYUK_DISABLED`
 

@@ -100,6 +100,57 @@ silently wipes something under a condition), that fact belongs in the relevant f
 reasoning — not just buried there where a reader has to already know to look. The header is what
 someone sees first; `DECISIONS.md` is where they go if they want the *why*.
 
+## Explicit container/image names belong in the Description field
+
+When a script gives its own Docker container or image a fixed, meaningful name (rather than
+leaving Docker to assign a random one), that name goes in the header's `Description` field, not
+just in the script body — so a reader can `docker exec`/`docker logs`/`docker inspect` into a
+running instance directly, without first opening the script to find out what it's called.
+
+## Header fields follow the same "no real file as pointer" discipline as README/SKILL/rules/commands
+
+A header field (`Description`/`Usage`/`Env`/`Outputs`, etc.) never names a real file elsewhere in
+the repo as a pointer — the same discipline `.claude/rules.md`'s "name a real file only when
+unavoidable" rule already applies to `SKILL.md`/commands/`rules.md`/`README.md`. The one sanctioned
+exception, matching the repo-wide convention: a generic "see DECISIONS.md" (never a specific
+`ADR-NNN` number) — no other real file name belongs in a header field.
+
+## `Env` field distinguishes "set automatically by a caller" from "set directly by you"
+
+When a script is invoked by another script/container-run rather than typed directly by a human,
+its `Env` field must mark each variable as one of two kinds, not describe them all the same way:
+- **Set automatically by whatever invokes this file** (translated from that caller's own flags,
+  passed via `-e VAR=value` on `docker run` or similar) — never exported directly by a user.
+- **May be exported directly in the calling shell** — a user genuinely might set this themselves.
+
+Mixing both kinds under one undifferentiated list (as if all of them were things a user types)
+produces exactly the confusion this rule exists to prevent: a reader can't tell "do I type
+`export X=...` myself, or does something else do this for me automatically."
+
+## `UPPER_CASE` for constants (including CLI-flag results) and exported env vars; `lower_case` only for genuinely local/loop state
+
+Per the Google Shell Style Guide's own "Constants and Environment Variable Names" section:
+constants and anything exported to the environment are `UPPER_CASE`. This explicitly includes a
+variable set once from a CLI flag and never reassigned afterward — the Guide's own example ("some
+things become constant at their first setting, for example via getopts... it's OK to set a
+constant in getopts or based on a condition, but it should be made readonly right after") treats a
+parsed-flag variable as a constant from that point on, same as a value that was fixed from the
+start. `lower_case` belongs to the Guide's separate "Variable Names" section — genuinely local,
+potentially-reassigned state such as a loop counter or an accumulator, not a value that's fixed
+once parsing completes.
+
+In practice this means most of a typical script's top-level variables (paths, image/container
+names, flags derived from CLI arguments) legitimately stay `UPPER_CASE` — matching this repo's
+existing convention throughout `scripts/`. This is not a license to rename them.
+
+## `Description` stays lean — flag-specific detail belongs in `Usage`/`Env`, not duplicated here
+
+`Description` states the file's core purpose in one short paragraph — what it fundamentally does,
+not a blow-by-blow of every flag's own conditional behavior (that's `Usage`'s job for CLI flags,
+`Env`'s job for environment variables). Cramming per-flag detail into `Description` too duplicates
+what `Usage`/`Env` already say, and makes the one field meant to answer "what is this file, in
+short" hard to actually read at a glance.
+
 ## Where a real finding about a script or directory gets recorded
 
 A significant fact discovered while actually running or investigating a script (not obvious from
@@ -276,10 +327,16 @@ Example — `scripts/sonar/README.md`:
 Every script-group directory's `README.md` gets a `## Flow` section covering the sequence between
 files — not what each file does on its own (that's the file's own header, see above).
 
-1. **Entry point(s) — named explicitly.** State which file(s) actually trigger the flow. A
-   directory can have more than one real entry point (e.g. an OS-specific pair like `run.sh`/
-   `run.bat`, or a script meant to be run manually vs. one invoked automatically by CI) — list all
-   of them, never assume there's exactly one.
+1. **Entry point(s) — named explicitly, and only if they actually belong to this directory.**
+   State which file(s) actually trigger the flow. A directory can have more than one real entry
+   point (e.g. an OS-specific pair like `run.sh`/`run.bat`, or a script meant to be run manually
+   vs. one invoked automatically by CI) — list all of them, never assume there's exactly one. But
+   an entry point is a dedicated wrapper whose own sole purpose is invoking this directory's
+   logic — not any external, independent script (living elsewhere, with its own separate purpose)
+   that merely calls into this directory as one step of its own larger flow. The latter is not
+   this directory's concern to document at all — it never appears in this directory's own Flow
+   section, not even as a prose note naming it; if that external script wants to document its own
+   dependency on this directory, that's its own README's job, not this one's.
 2. A command block showing how to invoke each entry point.
 3. One or two sentences of context for *why* there's branching worth diagramming — not a
    restatement of any single file's own `Description`.
@@ -367,3 +424,13 @@ scope is brought into full compliance with the standard described above — head
 Flow section, everything — not a partial pass. There is no "is this file already compliant"
 tracking inside this skill itself; that's a per-run decision, made when the skill is actually
 invoked, not a state this document maintains.
+
+## Independent review — verify docs actually cover the script's real capabilities
+
+After applying this standard to a directory, spawn a fresh agent (no prior context of this
+conversation) to independently re-read the actual script files and the resulting header/README
+content, and report back whether the written documentation actually covers everything the script
+really does — every flag, every conditional branch, every real side effect. Catches the class of
+gap a same-context self-review misses (a flag added to the code but never mentioned in the
+header's `Usage` field, a real fact left out of `Env`/`Outputs`) precisely because the reviewer
+starts cold, from the real files, not from what was already believed to be true while writing.

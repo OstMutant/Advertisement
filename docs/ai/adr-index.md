@@ -229,6 +229,7 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-009 (scripts) | scripts | Accepted | DB/S3 credentials consolidated into the repo-root `.env`, loaded as fallback defaults (not unconditional overrides) so CI's per-run port overrides survive |
 | ADR-010 (scripts) | scripts | Accepted | `deploy.sh` auto-recovers from a Liquibase checksum mismatch (stale local dev DB) |
 | ADR-011 (scripts) | scripts | Accepted | `.env` parser strips a trailing `\r` — CRLF line endings silently broke `deploy.sh` |
+| ADR-012 (scripts) | scripts | Partially reverted — see update note at the end of this entry. | `deploy-dev.sh` eliminated — its capability folded into `deploy.sh --reload`, backed by the shared `build-and-test` container |
 | ADR-001 (scripts/sonar) | scripts/sonar | Accepted | SonarQube setup via Docker, no pom.xml changes |
 | ADR-002 (scripts/sonar) | scripts/sonar | Accepted | `sonar.java.binaries` required for full Java analysis |
 | ADR-003 (scripts/sonar) | scripts/sonar | Accepted | `sonar.java.libraries` intentionally left empty |

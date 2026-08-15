@@ -13,7 +13,7 @@ directly, and not inside any of this project's own containers (`marketplace-app`
   host's real Docker Engine, without being a Docker-in-Docker setup.
 
 **Compiling and running the app:** `mvn`/`java` execute directly inside `claude-dev` whenever a
-script (`deploy-dev.sh`, `unit-tests.sh`, `integration-tests.sh`) invokes Maven itself — there is
+script (`unit-tests.sh`, `integration-tests.sh`) invokes Maven itself — there is
 no separate build container for that path. `deploy.sh`'s full image build instead hands a
 `docker build` command to the mounted socket, which the host's real Docker Engine executes; the
 resulting image and its container (`marketplace-app`) then run as a sibling, not nested inside
