@@ -59,6 +59,37 @@ covers a real, applied feature that came out of this same work: `run.sh` now aut
 Follow-up beyond `scripts/sonar/` (also not started): roll the same convention onto every other
 script in the repo (root `scripts/*.sh`/`*.bat`, `scripts/ai/`, `scripts/ci/`, `playwright/`).
 
+### `playwright/` — two-level directory structure, design discussed, not started
+
+`playwright/` is the first `SCRIPT_GROUP_DIRS` candidate with real nested content the current
+`-maxdepth 1` file-glob never reaches: `playwright/e2e/` (7 `.spec.js` + `_helpers.js`) and
+`playwright/e2e/_flows/` (14 `.flow.js`, `require()`d by 2+ spec files — the JS analogue of the
+existing "per-function header for files `source`d by other scripts" convention). `playwright/e2e/`
+also has its own `README.md`, a test catalog — a genuinely different document shape from the
+`## Flow` call-chain section the convention defines for a script directory's `README.md`.
+
+**Design direction agreed in chat, not yet implemented:** card-then-drill-down, one level at a
+time — not stacking `playwright`/`e2e`/`_flows` as multiple sections on one page. Clicking the
+"Playwright" card on the Tooling & Pipelines list shows only `playwright/`'s own top-level files
+(`run.sh`/`run.bat`/`playwright.config.js`/`reporter.js`) + its own `README.md`, plus one
+subdirectory card ("e2e"). Clicking that card opens its own page: `playwright/e2e/`'s own files +
+its own `README.md` (the existing test catalog, unchanged), plus one further subdirectory card
+("_flows"). Clicking that opens `playwright/e2e/_flows/`'s own files, no further subdirectory
+cards. Each level is `SCRIPT_GROUP_DIRS`'s existing flat, `-maxdepth 1`-per-directory shape —
+nothing new needed for file discovery — the new part is a drill-down screen (generalizes the same
+card→detail pattern already used for the System module screen and the Diagrams groupKey screen)
+that resolves child cards purely from other `SCRIPT_GROUP` node ids sharing the parent id as a
+prefix (`playwright/e2e` is a child of `playwright`; `playwright/e2e/_flows` is a child of
+`playwright/e2e`) — no hardcoded "e2e"/"_flows" names in the renderer.
+
+Still open, not decided:
+- Whether `.spec.js`/`.flow.js` files get a lighter-weight header-field adaptation (most fields
+  `None`, `Description` + a pointer to `e2e/README.md`'s own per-test detail) instead of the full
+  7-field script header — proposed in chat, not confirmed.
+- Exact mechanics of the new drill-down screen/router state (a new `screen` type vs. extending the
+  existing `pipelines` screen with a path array) — not designed yet, only the card-per-level UX is
+  agreed.
+
 ### Problem
 
 While fixing `scripts/sonar`'s README/comments (Part D follow-up work), a top-of-file "Usage:"

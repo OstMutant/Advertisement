@@ -1,7 +1,10 @@
 # scripts/sonar
 
-SonarQube static analysis tooling for the marketplace app — runs the scanner in an isolated Docker
-container against a local SonarQube server, no `pom.xml` changes (see `DECISIONS.md`).
+SonarQube is a static-analysis tool that scans the codebase for bugs, code smells, and security
+vulnerabilities, enforcing a quality gate on every run. This project runs it locally in an isolated
+Docker container instead of a hosted SonarCloud instance, so results stay available offline and the
+quality gate can block a local run without depending on an external service — no `pom.xml` changes
+(see `DECISIONS.md`).
 
 ## Flow
 
@@ -16,15 +19,21 @@ SonarQube server container itself (recreating it on a stale image, wiping it if 
 makes the embedded database unmigratable — see `DECISIONS.md`) before running the scanner:
 
 ```mermaid
-flowchart LR
-    A1[sonar.sh] -->|Linux/WSL| B[run.sh]
-    A2[sonar.bat] -->|Windows, via WSL| B
-    B --> C[docker-compose.sonar.yml]
-    C -->|image changed?| D{recreate}
-    C -->|DB migration NOT_SUPPORTED?| E{wipe volumes}
-    B --> F[sonar-project.properties]
-    F -->|token invalid?| G{regenerate token}
-    F -->|module list drifted from pom.xml?| H{auto-fix}
+flowchart TD
+    A1[sonar.sh] --> B[run.sh]
+    A2[sonar.bat] --> B
+    B --> F1[sonar-project.properties]
+    F1 --> H{"module list drifted<br/>from pom.xml?"}
+    H -->|yes| H1[auto-fix] --> C
+    H -->|no| C[docker-compose.sonar.yml]
+    C --> D{"image<br/>changed?"}
+    D -->|yes| D1[recreate] --> E
+    D -->|no| E{"DB migration<br/>NOT_SUPPORTED?"}
+    E -->|yes| E1[wipe volumes] --> F2
+    E -->|no| F2[sonar-project.properties]
+    F2 --> G{"token<br/>invalid?"}
+    G -->|yes| G1[regenerate token] --> Z
+    G -->|no| Z["scanner runs -><br/>analysis uploaded + report generated"]
 ```
 
 Each file's own header (open the file, or this directory's Tooling & Pipelines card on

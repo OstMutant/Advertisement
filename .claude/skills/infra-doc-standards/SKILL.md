@@ -237,6 +237,20 @@ file's header carries.
 | `Outputs` | files written, side effects | static config, produces nothing on its own | Yes -- always `None`, field omitted |
 | `Returns` | exit codes | it's never executed | Yes -- always `N/A`, field omitted |
 
+## README — what the tool is, why we use it
+
+Every script-group directory's `README.md` opens with a short paragraph (a few sentences) naming
+the real external tool the directory wraps and, when relevant, why this project uses it — before
+the `## Flow` section, not folded into it (`Flow` covers the file-to-file sequence, not what the
+tool itself is or why it's in this project).
+
+Example — `scripts/sonar/README.md`:
+
+> SonarQube is a static-analysis tool that scans the codebase for bugs, code smells, and security
+> vulnerabilities, enforcing a quality gate on every run. This project runs it locally in an
+> isolated Docker container instead of a hosted SonarCloud instance, so results stay available
+> offline and the quality gate can block a local run without depending on an external service.
+
 ## README "Flow" section
 
 Every script-group directory's `README.md` gets a `## Flow` section covering the sequence between
@@ -268,6 +282,16 @@ files — not what each file does on its own (that's the file's own header, see 
    modify it under some condition? If yes, that's a decision diamond on the diagram, not a plain
    arrow — skipping this check produces a diagram that looks complete but silently omits real
    behavior.
+6. **Diagram order reflects real chronological execution, not grouping by file.** If a file is
+   touched at two separate points in the real sequence with something else happening in between,
+   draw it as two separate touches in that real order — don't merge them into one box just because
+   it's the same file. Grouping by file instead of by real execution order produces a diagram that
+   looks tidy but misrepresents when things actually happen.
+7. **Every path ends at a real terminus, never a placeholder dead end.** A decision's `no`/false
+   branch flows directly into whatever real step happens next — never into a vague box like
+   "continue" that goes nowhere on the diagram. The diagram's own last node is the entry point's
+   real output (the same fact already stated in that file's own `Outputs` field) — so every path a
+   reader's eye can follow actually arrives somewhere concrete.
 
 ### Why Mermaid, not a hand-rolled notation
 
@@ -281,6 +305,40 @@ already uses Mermaid elsewhere (Database ERD, Sequence Diagrams on `architecture
 isn't a new tool being introduced. Caveat: outside GitHub (an npm/PyPI page, a static site generator,
 a PDF export) a Mermaid block falls back to a plain code block — not universal everywhere, but
 correct on GitHub, where this repo is actually hosted and read.
+
+### Decision diamond labeling — ISO 5807
+
+Every decision diamond follows [ISO 5807](https://www.conceptdraw.com/How-To-Guide/flowchart-symbols)'s
+convention exactly: the diamond node itself states the question/condition; only the arrows leaving
+the diamond carry a label (`yes`/`no`), with at least two outgoing paths, one per outcome. A plain
+process arrow (unconditional, between two non-decision nodes) never carries a label — labels exist
+only to distinguish a decision's own outcomes, nowhere else in the diagram.
+
+Example:
+
+```mermaid
+flowchart LR
+    A1[entry-point-a] --> B[shared-script]
+    A2[entry-point-b] --> B
+    B --> C[config-file-one]
+    C --> E{condition one?}
+    E -->|yes| E1[action] --> D
+    E -->|no| D[config-file-two]
+    D --> F{condition two?}
+    F -->|yes| F1[action] --> Z
+    F -->|no| Z[terminal output]
+```
+
+### Choosing direction, keeping labels compact
+
+Mermaid has no built-in way to wrap a flowchart across multiple rows the way text wraps — a long
+`LR` chain with several decision diamonds just keeps growing wider until it needs a scrollbar. Two
+real levers instead of that: pick `TD` (top-down) when a diagram has more decision diamonds than
+straight-line steps — vertical growth reads better than an ever-widening horizontal chain; and keep
+node/diamond label text short, using `<br/>` to force a line break inside a label rather than
+letting one long line dictate the whole node's width — a diamond in particular grows fastest of any
+node shape as its label gets longer, since the shape needs extra padding at its own corners to stay
+readable.
 
 ## Applying this standard
 

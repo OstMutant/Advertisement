@@ -109,6 +109,27 @@ session — those files get updated mid-session precisely because a run just rev
 > **How to apply:** going forward only — existing `ADR-NNN` citations already in the repo are not
 > retroactively scrubbed by this rule; it governs new/edited content from here on.
 
+> ## ⛔ Skills, commands, rules, and README files name a real repo file only when unavoidable
+> `SKILL.md`, `.claude/commands/*.md`, `.claude/rules.md`, and any `README.md` stay maximally
+> abstract, lean units. Illustrating a convention with an example is fine — but naming a specific
+> real file in this repo as that example's reference point is not, unless there is genuinely no way
+> to make the point without it, or the user explicitly asks for the concrete reference to stay.
+> Prefer a generic or placeholder name (invented content, or a pattern like `<sibling>.sh`) over a
+> real path.
+>
+> **Why:** a named real file is a forward-link exactly like a ticket or ADR number — it goes stale
+> the moment that file is renamed, moved, split, or removed, and nobody remembers every markdown
+> file that quietly depends on the old name until something breaks. Finding and fixing every stale
+> reference afterward means grepping the whole repo for a name that no longer exists — real effort
+> spent on upkeep the rule itself exists to prevent.
+>
+> **How to apply:** going forward only — existing real-file references already in the repo are not
+> retroactively scrubbed by this rule; it governs new/edited content from here on. When an example
+> genuinely needs to be traceable to real, already-applied behavior (proving a convention was
+> actually followed, not just described), naming the real file is the unavoidable case this rule
+> already carves out — keep it, and say so, rather than leaving an untraceable abstract mockup in
+> its place.
+
 > ## ⛔ Files that govern Claude's own behavior state the target only — never a before/after
 > `CLAUDE.md`, a skill's `SKILL.md`, `.claude/commands/*.md`, and `.claude/rules.md` itself describe
 > the convention/standard to follow, directly — never as an "as-is today" vs. "target" comparison.
