@@ -255,7 +255,7 @@ scripts/
   sonar/           — SonarQube configuration and scanner
   ci/              — isolated local CI runner (Dockerfile, entrypoint.sh, own README/DECISIONS.md)
   hooks/           — git hooks (pre-commit, commit-msg), installed via install-hooks.sh
-  run-all-tests/   — reports/ output for run-all-tests.sh
+  run-all-tests/   — run.sh + reports/ output for run-all-tests.sh
   unit-tests/      — run.sh + reports/ output for unit-tests.sh
 ```
 
