@@ -40,6 +40,9 @@
 # Unit test artifacts
 /scripts/unit-tests/reports/
 
+# build-and-test artifacts
+/scripts/build-and-test/reports/
+
 # run-all-tests artifacts
 /scripts/run-all-tests/reports/
 

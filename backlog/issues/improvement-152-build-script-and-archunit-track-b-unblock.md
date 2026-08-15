@@ -13,9 +13,10 @@ generate-architecture-model.sh` (Part B and Part C).
 **Priority:** Top — inherits `improvement-151`'s original "explicit user request to rank at the
 very top" positioning for Part A; Part B and Part C are investigation/design-only, not yet
 actioned; Parts D and E are actioned immediately, ahead of A/B/C.
-**When:** Part E — done for `scripts/sonar/` (proving case) + the generalized mechanism; rolling
-onto every other script is explicit future work, not started. Part D — done. Part A — independent,
-no blockers, next. Part B — blocked, see below; not started. Part C — independent, not started.
+**When:** Part E — done for `scripts/sonar/` and `scripts/build-and-test/`; rolling onto every
+other script (`scripts/ai/`, `scripts/ci/`, root `scripts/*.sh`, `playwright/`) is explicit future
+work, not started. Part D — done. Part A — done, see the final-state update at the end of its own
+section below. Part B — blocked, see below; not started. Part C — independent, not started.
 
 ## Part E — Repo-wide script documentation convention: self-contained script header, README describes flow, architecture-map surfaces both live (design done — `.claude/skills/infra-doc-standards/SKILL.md`; real application to `scripts/sonar/` still pending)
 
@@ -678,6 +679,12 @@ hypothetical). `--reset-cache` (already implemented in `deploy-dev.sh`, needs ad
   entirely and exits early, before any of `deploy.sh`'s own Step 1/2/3 logic runs, so none of its
   existing flags become meaningless for the normal (non-reload) path.
 
+**Reversed again:** the `deploy.sh --reload` addition itself was reverted (`deploy.sh`/`deploy.bat`
+restored to their pre-`--reload` committed state, by explicit instruction — only those two files,
+`deploy-dev.sh`/`.bat` stayed deleted). See the final-state update at the end of this Part A
+section for the current, real state: there is no fast JAR hot-swap/live-redeploy mechanism in this
+repo anymore, only the build step itself (`scripts/build-and-test.sh`).
+
 **Explicitly out of scope, investigated and rejected in `improvement-151` (still applies):**
 - Making `deploy.sh`'s Docker image build reuse host-compiled classes — rejected on principle:
   the deploy image must build reproducibly from source in an isolated context, not from
@@ -686,6 +693,202 @@ hypothetical). `--reset-cache` (already implemented in `deploy-dev.sh`, needs ad
 - `ArchitectureRulesTest`'s own ~195s ArchUnit classpath scan and Vaadin's ~61s
   `prepare-frontend` class scan — both inherent to the tools themselves, not fixable via build
   artifact reuse.
+
+### Final state (done, committed `7ece7117`) — supersedes every intermediate name/design above
+
+Part A is complete. The directory/entry-point name churned twice more since "Name settled:
+`scripts/build-deploy-tests/`" above — final name is `scripts/build-and-test/`, matching the
+established `scripts/sonar.sh`→`scripts/sonar/`, `scripts/ci.sh`→`scripts/ci/` convention (entry
+point basename == subdirectory name). Structure:
+
+- **`scripts/build-and-test.sh` / `.bat`** — thin entry points (2-3 lines each, no logic of their
+  own), matching the `sonar.sh`/`ci.sh` precedent exactly. New standing rule recorded in
+  `.claude/rules.md`'s "Scripts" section: a script-group subdirectory owns all its own logic; the
+  top-level `scripts/<name>.sh` is a thin delegator to `scripts/<name>/run.sh`.
+- **`scripts/build-and-test/run.sh`** — all host-side logic moved here from the old top-level
+  `build.sh` (flag parsing, `.properties` defaults, image-staleness check, `--reset-cache`/
+  `--rebuild-image`, tar-pipe, `docker run`, dangling-image prune).
+- **`scripts/build-and-test/build.sh`** — runs inside the container: full-reactor `mvn install`,
+  optional unit/integration tests, `flock`-serialized against the shared `maven-cache` volume.
+
+**`deploy.sh --reload` and the container-side hot-swap branch were both removed, not just
+reverted in one place.** Per explicit instruction ("ми відмовились від цього, просто виставляєм
+джарку і невідомо хто її підбере" — we're not doing this anymore, we just always publish the jar
+and it's someone else's problem who picks it up): `deploy.sh`/`deploy.bat` were restored to their
+pre-`--reload` state, and the `RELOAD` branch (container inspect/`docker cp`/`docker restart`/wait
+loop/prune, needing `docker.sock` mounted in) was deleted from `build-and-test/build.sh` entirely.
+`docker.io` (Docker CLI) was then also removed from the `Dockerfile` — nothing left inside the
+container calls the `docker` binary; `RUN_INTEGRATION`'s Testcontainers reaches `docker.sock`
+directly via its own Java client, no CLI needed. **Net effect: there is currently no fast JAR
+hot-swap / live-redeploy mechanism anywhere in this repo** — `build-and-test.sh` only refreshes
+`marketplace-app.jar` in the shared volume; nothing deploys or restarts a running container.
+`deploy-dev.sh`/`.bat` remain deleted (never restored). `scripts/DECISIONS.md` ADR-012 was
+annotated (not silently rewritten) to record this.
+
+**Widespread documentation drift this caused was found (independent-review agent + manual sweep)
+and fixed**, all describing the now-removed `--reload`/hot-swap capability as if it still existed:
+`CLAUDE.md`, `scripts/CLAUDE.md`, `scripts/README.md`, `scripts/DECISIONS.md`, `docs/ai/flows.md`,
+`playwright/README.md`, `docs/architecture/runtime-notes.md`, and root `README.md`'s own script
+table. The `.claude/commands/deploy-dev.md` slash command was repurposed into
+`.claude/commands/build-and-test.md` (`/build-and-test`), now invoking the real
+`scripts/build-and-test.sh` instead of a command that no longer does anything.
+
+**`infra-doc-standards/SKILL.md` gained three more rules** while applying the standard to this
+directory for real: `Env` fields must distinguish "set automatically by whatever invokes this
+file" from "may be exported directly by a user"; `UPPER_CASE` is correct (not a bug) for
+constants including CLI-flag-derived values, per the Google Shell Style Guide's own "Constants and
+Environment Variable Names" section — corrected after an earlier, wrongly-scoped attempt at a
+blanket lowercase-for-locals rule would have contradicted every existing script in this repo
+(`deploy.sh`, `sonar/run.sh`); `Description` stays lean, flag detail belongs in `Usage`/`Env`.
+
+**Architecture map**: `scripts/build-and-test` gained an explicit `SCRIPT_GROUP_FILE_ORDER` entry
+(`run.sh build.sh build-and-test.properties Dockerfile` — real flow order, was falling back to
+alphabetical) and its Tooling & Pipelines card was renamed from the stale "Build" (with a stale
+"scripts/build — warms ~/.m2 for tests" description, left over from an even earlier iteration) to
+"Build and Test". `architecture-model.json`/`architecture-map.html` regenerated and validated
+fresh after every change in this batch.
+
+### Real bug found and fixed: `RUN_INTEGRATION` silently ran zero real Testcontainers tests
+
+`integration-tests/pom.xml` defaults `surefire.excludedGroups=testcontainers` (so a plain `mvn
+test` from the repo root never needs a reachable Docker daemon) — `integration-tests/run.sh`
+overrides this back to empty via `-Dsurefire.excludedGroups=`, the sanctioned way to actually run
+these tests. `scripts/build-and-test/build.sh`'s `RUN_INTEGRATION` branch never applied that
+override. Confirmed empirically: `bash scripts/build-and-test.sh --no-unit --integration` reported
+"85 tests, BUILD SUCCESS" in 11s — none of them a real `*RepositoryTest`, no Testcontainers
+Postgres ever started (11s is physically too fast). Fixed by adding
+`-Dsurefire.excludedGroups=` to that `flock`/`mvn` invocation. Re-verified: 165 tests now run for
+real (including `ProviderProfileRepositoryTest` and every other `*RepositoryTest`, real
+Testcontainers Postgres via `docker.sock`), `BUILD SUCCESS`, 48.985s, 0 failures/errors — matches
+`integration-tests/run.sh`'s own real suite.
+
+### Known gaps vs. `unit-tests.sh`/`integration-tests.sh` — to close before further consolidation
+
+Compared directly against `scripts/unit-tests/run.sh` and `integration-tests/run.sh`'s real code.
+Not yet closed — `build-and-test`'s `RUN_UNIT`/`RUN_INTEGRATION` are a thinner subset of what the
+standalone scripts already do:
+
+**Missing from `RUN_UNIT` (vs. `unit-tests.sh`/`run.sh`):**
+1. No module/single-test-class selection — always runs all of
+   `query-lib,marketplace-app,marketplace-orchestrator`, no equivalent of
+   `unit-tests.sh marketplace-app` / `unit-tests.sh AccessEvaluatorTest`.
+2. No report artifacts copied to the host — Surefire reports/`run.log` stay inside the throwaway
+   container only, lost once it exits (`--rm`); `unit-tests.sh` copies them to
+   `scripts/unit-tests/reports/surefire/<module>/`.
+3. No clear PASSED/FAILED console summary or list of failing test files.
+4. No explicit exit-code-driven trailer ("Full log:"/"Surefire reports:").
+
+**Missing from `RUN_INTEGRATION` (vs. `integration-tests.sh`/`run.sh`):**
+1. No scenario/single-test-class selection (`smoke`, `AdvertisementRepositoryTest`).
+2. No `--sandbox` flag shorthand — the sandbox workarounds only reach the container via raw
+   `TESTCONTAINERS_RYUK_DISABLED`/`INTEGRATION_TESTS_POSTGRES_FIXED_PORT` env vars already set in
+   the caller's own shell (functionally present, just no ergonomic alias).
+3. No `GITHUB_ACTIONS` guard — `integration-tests/run.sh` fails fast if a sandbox-only workaround
+   leaks into a real CI run; `build-and-test` has no equivalent check.
+4. No Docker-daemon-reachable precheck before Testcontainers starts — `integration-tests/run.sh`
+   fails with a clear message first; `build-and-test` would surface a less clear error deep inside
+   Testcontainers' own connection probing.
+5. No staleness check — `build-and-test` always runs a full-reactor `mvn install` every time
+   (cheap via Maven's own incremental compile, but a different, less targeted strategy than
+   `integration-tests/run.sh`'s per-starter mtime comparison that skips installing entirely when
+   nothing changed).
+6. No report artifacts copied to the host (same gap as `RUN_UNIT` above).
+7. No PASSED/FAILED summary / failing-test-file list (same gap as `RUN_UNIT` above).
+
+Explicit instruction: close these gaps before any further consolidation/parallelization work on
+`run-all-tests.sh`.
+
+### Plan to close the gaps (approved, in progress)
+
+**Shared across `RUN_UNIT`/`RUN_INTEGRATION`:**
+- Reports reach the host via a mounted volume, not a copy race against `--rm`:
+  `run.sh` adds `-v "$ROOT/scripts/build-and-test/reports:/reports"` to the `docker run` call;
+  `build.sh` (in-container) copies each module's `target/surefire-reports` into `/reports/...`
+  after its own test invocation.
+- `build.sh` prints the same PASSED/FAILED console summary + failing-test-file listing style
+  `unit-tests/run.sh`/`integration-tests/run.sh` already use, for both `RUN_UNIT` and
+  `RUN_INTEGRATION`, driven off each `mvn test` call's own exit code.
+
+**`RUN_UNIT` only:**
+- New disguised argument `UNIT_TEST_ARG` (forwarded from a new `--unit-test <module-or-class>`
+  flag on `run.sh`, same shape as `unit-tests.sh`'s own single positional arg) — `build.sh` uses it
+  to narrow `-pl`/`-Dtest=` instead of always running all 3 modules.
+
+**`RUN_INTEGRATION` only:**
+- New disguised argument `INTEGRATION_TEST_ARG` (from `--integration-test <scenario>` on `run.sh`),
+  same narrowing role as above.
+- `--sandbox` flag on `run.sh` — sets `TESTCONTAINERS_RYUK_DISABLED=true`/
+  `INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432` itself, in addition to the existing raw-env-var
+  passthrough (both stay supported, `--sandbox` is just the ergonomic alias).
+- `GITHUB_ACTIONS` guard on `run.sh`, before the container starts — same check
+  `integration-tests/run.sh` already has (fail fast if a sandbox-only workaround leaks into real
+  CI).
+- Docker-daemon-reachable precheck on `run.sh`, before the container starts — same `docker info`
+  check `integration-tests/run.sh` already has.
+- Staleness check (`integration-tests/run.sh`'s per-starter mtime comparison) — **not ported**;
+  `build-and-test` keeps its always-full-reactor-install strategy, a deliberate different
+  trade-off, not a gap.
+
+**Not part of this pass:** the actual unit+integration parallelization design in
+`run-all-tests.sh` — explicitly deferred until this gap-closing work is done first.
+
+### Gap-closing plan — done, verified end to end
+
+All items implemented in `scripts/build-and-test/run.sh` (host) + `scripts/build-and-test/build.sh`
+(container). Real bug found and fixed along the way, not anticipated by the plan: the first
+attempt used a bind-mount volume (`-v "$REPORT_DIR:/reports"`) to get Surefire reports onto the
+host — confirmed empty every time, same documented class of failure `playwright/run.sh` and
+`sonar`'s scanner container already work around (`scripts/CLAUDE.md` "Docker socket constraint"):
+a host-path bind mount resolves against the wrong filesystem when the caller is itself a Docker
+container (this claude-dev sandbox). Fixed the same way those two already do — dropped `--rm` from
+the `docker run`, `build.sh` copies reports to `/tmp/reports` inside the container, `run.sh` pulls
+them out via `docker cp advertisement-build-only:/tmp/reports/. "$REPORT_DIR/"` after the run,
+then explicitly `docker rm`s the container.
+
+Verified for real, this sandbox:
+- `bash scripts/build-and-test.sh --sandbox --unit --integration` — 165 integration tests (real
+  `*RepositoryTest` classes, real Testcontainers Postgres) + all unit tests, both PASSED summaries
+  print correctly, reports land in `scripts/build-and-test/reports/surefire/<module>/` on the host.
+- `--unit-test marketplace-orchestrator` — correctly narrows to only that module's 4 test classes.
+- `--integration-test smoke` — correctly narrows to only `PostgresContainerSmokeTest`.
+- Container cleanup confirmed: `docker ps -a --filter name=advertisement-build-only` empty after
+  each run.
+- `scripts/build-and-test/reports/` added to `.gitignore` (same pattern as
+  `scripts/unit-tests/reports/`, `integration-tests/reports/`).
+
+`GITHUB_ACTIONS` guard and the Docker-daemon-reachable precheck were added to `run.sh` matching
+`integration-tests/run.sh`'s own logic exactly, but not separately exercised in this sandbox (no
+way to simulate `GITHUB_ACTIONS=true` or a down daemon safely here) — code-reviewed against the
+original, not independently run.
+
+### Unit + integration parallelization inside `build-and-test/build.sh` — done, verified
+
+Once the shared `~/.m2` install step finishes (still `flock`-serialized against other concurrent
+callers), the unit-test and integration-test phases only *read* it and touch different `target/`
+directories (`query-lib`/`marketplace-app`/`marketplace-orchestrator` vs `integration-tests`) — no
+write conflict, so no lock needed *between* them. Restructured `build.sh`'s test phase: when both
+`RUN_UNIT`/`RUN_INTEGRATION` are true, `run_unit_tests`/`run_integration_tests` (each its own
+function, output captured to `/tmp/unit-tests.log`/`/tmp/integration-tests.log`) launch as
+background jobs, `wait` for both, then print each captured log + PASSED/FAILED summary in a fixed
+order (unit then integration) so parallel execution doesn't interleave output into something
+unreadable. Single-suite runs (`--unit`/`--integration` alone) skip the backgrounding entirely, no
+behavior change for that case.
+
+**Verified end to end, this sandbox:** `bash scripts/build-and-test.sh --sandbox --unit
+--integration` — exit 0, both suites PASSED (unit 50.220s, integration 56.531s, ran concurrently
+per their own `[INFO] Total time` lines), reports for both landed on the host correctly. Total
+wall time ≈ install time + max(unit, integration) instead of install + unit + integration
+sequentially — the slower suite's own duration is the floor, not fixable by this change alone, but
+real savings versus running them one after another.
+
+**Future consideration, not decided, not started:** now that `build-and-test`'s `RUN_UNIT`/
+`RUN_INTEGRATION` have reached feature parity with the standalone `scripts/unit-tests.sh`/
+`scripts/integration-tests.sh` (module/test selection, host-copied reports, PASSED/FAILED
+summaries, `--sandbox`), the two standalone scripts may become redundant duplication rather than a
+genuinely separate capability. Retiring them in favor of `build-and-test.sh` exclusively is a
+real future option — not decided, not scheduled, needs its own explicit go-ahead before touching
+either script (both are still referenced throughout `scripts/CLAUDE.md`, `run-all-tests.sh`, and
+CI-adjacent tooling, so removal is a real, multi-file change, not a quick delete).
 
 ## Part B — ArchUnit Track B unblock investigation (not started, background/decision material only)
 

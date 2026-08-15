@@ -12,13 +12,19 @@
 #     RUN_INTEGRATION (true/false, default false) -- also runs Testcontainers-based integration
 #       tests (needs docker.sock mounted in -- Testcontainers itself creates a sibling Postgres
 #       container).
+#     UNIT_TEST_ARG (default empty) -- narrows RUN_UNIT to one module (query-lib/marketplace-app/
+#       marketplace-orchestrator) or one test class by name; empty runs all 3 modules.
+#     INTEGRATION_TEST_ARG (default empty) -- narrows RUN_INTEGRATION to one scenario ("smoke") or
+#       one test class by name; empty runs the whole integration-tests module.
 #   May be exported directly in the calling shell if needed:
 #     TESTCONTAINERS_RYUK_DISABLED / INTEGRATION_TESTS_POSTGRES_FIXED_PORT -- sandbox-only
 #       Testcontainers workarounds, passed through only if already set.
 # Input: tar-piped repo source at /app; the shared maven-cache Docker volume at /root/.m2.
 # Outputs: fresh jars for every module in the shared /root/.m2 (library modules installed;
 #   marketplace-app's own JAR copied to /root/.m2/artifacts/marketplace-app.jar). RUN_UNIT/
-#   RUN_INTEGRATION=true -- Surefire reports under the respective module's target/surefire-reports.
+#   RUN_INTEGRATION=true -- PASSED/FAILED summary on stdout, failing test files listed; Surefire
+#   reports copied to /tmp/reports/surefire/<module>/ (reaches the host via run.sh's own
+#   `docker cp` after this container exits).
 # Returns: 0 on success, non-zero on build/test failure.
 # ────────────────────────────────────────────────────────────────────────────
 set -e
@@ -52,15 +58,110 @@ echo ""
 echo "=== Build done ==="
 
 # ── Unit tests: plain JUnit, no Docker needed ─────────────────────────────────
-if [ "$RUN_UNIT" = "true" ]; then
+# No flock here (unlike the install step above) -- once ~/.m2 is installed, both this and the
+# integration-test block below only *read* it, never write, so they're safe to run concurrently
+# against each other. They touch different target/ dirs too (query-lib/marketplace-app/
+# marketplace-orchestrator vs integration-tests), so no output collision either.
+run_unit_tests() {
+  UNIT_MODULES="query-lib,marketplace-app,marketplace-orchestrator"
+  UNIT_TEST_FLAG=""
+  if [ "$UNIT_TEST_ARG" = "query-lib" ] || [ "$UNIT_TEST_ARG" = "marketplace-app" ] || [ "$UNIT_TEST_ARG" = "marketplace-orchestrator" ]; then
+    UNIT_MODULES="$UNIT_TEST_ARG"
+  elif [ -n "$UNIT_TEST_ARG" ]; then
+    UNIT_TEST_FLAG="-Dtest=${UNIT_TEST_ARG} -Dsurefire.failIfNoSpecifiedTests=false"
+  fi
+
+  ./mvnw -pl "$UNIT_MODULES" test $UNIT_TEST_FLAG > /tmp/unit-tests.log 2>&1
+  UNIT_EXIT=$?
+
+  mkdir -p /tmp/reports/surefire
+  for m in query-lib marketplace-app marketplace-orchestrator; do
+    if [ -d "$ROOT/$m/target/surefire-reports" ]; then
+      mkdir -p "/tmp/reports/surefire/$m"
+      cp -r "$ROOT/$m"/target/surefire-reports/* "/tmp/reports/surefire/$m/" 2>/dev/null || true
+    fi
+  done
+  return $UNIT_EXIT
+}
+
+print_unit_summary() {
+  cat /tmp/unit-tests.log
   echo ""
-  echo "=== Running unit tests ==="
-  flock "$MVN_LOCK" -c "./mvnw -pl query-lib,marketplace-app,marketplace-orchestrator test"
-fi
+  if [ "$UNIT_EXIT" -eq 0 ]; then
+    echo "===== UNIT TESTS PASSED ====="
+  else
+    echo "===== UNIT TESTS FAILED (exit $UNIT_EXIT) ====="
+    echo "Failing tests, if any:"
+    grep -rl "FAILED\|ERROR" /tmp/reports/surefire/*/*.txt 2>/dev/null | sed 's|.*/||'
+  fi
+}
 
 # ── Integration tests: Testcontainers spins up its own Postgres via docker.sock ──
-if [ "$RUN_INTEGRATION" = "true" ]; then
+# -Dsurefire.excludedGroups= (empty) overrides integration-tests/pom.xml's default
+# "testcontainers" exclusion -- without it, every real @Tag("testcontainers") repository test is
+# silently skipped, same override integration-tests/run.sh already applies.
+run_integration_tests() {
+  INTEGRATION_TEST_FLAG=""
+  if [ "$INTEGRATION_TEST_ARG" = "smoke" ]; then
+    INTEGRATION_TEST_FLAG="-Dtest=PostgresContainerSmokeTest -Dsurefire.failIfNoSpecifiedTests=false"
+  elif [ -n "$INTEGRATION_TEST_ARG" ]; then
+    INTEGRATION_TEST_FLAG="-Dtest=${INTEGRATION_TEST_ARG} -Dsurefire.failIfNoSpecifiedTests=false"
+  fi
+
+  ./mvnw -pl integration-tests test -Dsurefire.excludedGroups= $INTEGRATION_TEST_FLAG > /tmp/integration-tests.log 2>&1
+  INTEGRATION_EXIT=$?
+
+  mkdir -p /tmp/reports/surefire/integration-tests
+  cp -r "$ROOT"/integration-tests/target/surefire-reports/* /tmp/reports/surefire/integration-tests/ 2>/dev/null || true
+  return $INTEGRATION_EXIT
+}
+
+print_integration_summary() {
+  cat /tmp/integration-tests.log
+  echo ""
+  if [ "$INTEGRATION_EXIT" -eq 0 ]; then
+    echo "===== INTEGRATION TESTS PASSED ====="
+  else
+    echo "===== INTEGRATION TESTS FAILED (exit $INTEGRATION_EXIT) ====="
+    echo "Failing tests, if any:"
+    grep -l "FAILED\|ERROR" /tmp/reports/surefire/integration-tests/*.txt 2>/dev/null | sed 's|.*/||'
+  fi
+}
+
+FINAL_EXIT=0
+if [ "$RUN_UNIT" = "true" ] && [ "$RUN_INTEGRATION" = "true" ]; then
+  echo ""
+  echo "=== Running unit + integration tests in parallel ==="
+  set +e
+  run_unit_tests & UNIT_PID=$!
+  run_integration_tests & INTEGRATION_PID=$!
+  wait $UNIT_PID; UNIT_EXIT=$?
+  wait $INTEGRATION_PID; INTEGRATION_EXIT=$?
+  set -e
+  print_unit_summary
+  print_integration_summary
+  echo "Surefire reports: scripts/build-and-test/reports/surefire/"
+  [ "$UNIT_EXIT" -eq 0 ] || FINAL_EXIT=$UNIT_EXIT
+  [ "$INTEGRATION_EXIT" -eq 0 ] || FINAL_EXIT=$INTEGRATION_EXIT
+elif [ "$RUN_UNIT" = "true" ]; then
+  echo ""
+  echo "=== Running unit tests ==="
+  set +e
+  run_unit_tests
+  UNIT_EXIT=$?
+  set -e
+  print_unit_summary
+  echo "Surefire reports: scripts/build-and-test/reports/surefire/"
+  FINAL_EXIT=$UNIT_EXIT
+elif [ "$RUN_INTEGRATION" = "true" ]; then
   echo ""
   echo "=== Running integration tests ==="
-  flock "$MVN_LOCK" -c "./mvnw -pl integration-tests test"
+  set +e
+  run_integration_tests
+  INTEGRATION_EXIT=$?
+  set -e
+  print_integration_summary
+  echo "Surefire reports: scripts/build-and-test/reports/surefire/"
+  FINAL_EXIT=$INTEGRATION_EXIT
 fi
+[ "$FINAL_EXIT" -eq 0 ] || exit $FINAL_EXIT

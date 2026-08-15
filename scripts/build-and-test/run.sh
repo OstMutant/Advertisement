@@ -7,22 +7,32 @@
 #   inside that same container (defaults from scripts/build-and-test/build-and-test.properties).
 #   Image: advertisement-build-env. Container (while running): advertisement-build-only -- attach
 #   with `docker exec -it advertisement-build-only bash` to inspect a run in progress.
-# Usage: bash scripts/build-and-test.sh [--reset-cache] [--rebuild-image] [--unit|--no-unit] [--integration|--no-integration]
-#   --reset-cache      wipe the shared maven-cache volume before building (re-downloads everything)
-#   --rebuild-image    force-rebuild the build-and-test image even if one already exists
-#   --unit/--no-unit               override build-and-test.properties' unit= default for this run
-#   --integration/--no-integration override build-and-test.properties' integration= default for this run
+# Usage: bash scripts/build.sh [--reset-cache] [--rebuild-image] [--unit|--no-unit]
+#   [--integration|--no-integration] [--unit-test <module-or-class>]
+#   [--integration-test <scenario-or-class>] [--sandbox]
+#   --reset-cache        wipe the shared maven-cache volume before building (re-downloads everything)
+#   --rebuild-image      force-rebuild the build-and-test image even if one already exists
+#   --unit/--no-unit                 override build-and-test.properties' unit= default for this run
+#   --integration/--no-integration   override build-and-test.properties' integration= default for this run
+#   --unit-test <arg>                narrow RUN_UNIT to one module (query-lib/marketplace-app/
+#                                     marketplace-orchestrator) or one test class by name
+#   --integration-test <arg>         narrow RUN_INTEGRATION to one scenario (smoke) or one test
+#                                     class by name
+#   --sandbox                        this claude-dev sandbox's Testcontainers workarounds (Ryuk
+#                                     disabled, fixed Postgres port) -- shorthand for exporting
+#                                     TESTCONTAINERS_RYUK_DISABLED/INTEGRATION_TESTS_POSTGRES_FIXED_PORT
+#                                     yourself; never needed on a normal developer machine
 # Uses: bash, docker, tar.
 # Env: None directly; TESTCONTAINERS_RYUK_DISABLED / INTEGRATION_TESTS_POSTGRES_FIXED_PORT are
 #   passed through into the container if already set in the caller's own environment (sandbox-only
-#   Testcontainers workarounds, see scripts/CLAUDE.md).
+#   Testcontainers workarounds, see scripts/CLAUDE.md) -- same effect as passing --sandbox.
 # Input: repo source; scripts/build-and-test/build-and-test.properties (unit=/integration= defaults).
 # Outputs: fresh jars for the whole reactor in the shared maven-cache Docker volume (never the
 #   host's own ~/.m2 -- see scripts/build-and-test/README.md); marketplace-app.jar refreshed at
 #   /root/.m2/artifacts/marketplace-app.jar inside that same volume. With unit/integration enabled,
-#   Surefire reports under each module's own target/surefire-reports (inside the container only --
-#   not copied back to the host). Prunes dangling Docker images after every run.
-# Returns: 0 on success, non-zero on install/test failure.
+#   PASSED/FAILED summary on stdout plus Surefire reports copied to
+#   scripts/build-and-test/reports/surefire/<module>/. Prunes dangling Docker images after every run.
+# Returns: 0 on success, non-zero on install/test/precondition failure.
 # ────────────────────────────────────────────────────────────────────────────
 set -e
 
@@ -30,6 +40,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BUILD_IMAGE="advertisement-build-env"
 DOCKERFILE="$ROOT/scripts/build-and-test/Dockerfile"
 PROPS_FILE="$ROOT/scripts/build-and-test/build-and-test.properties"
+REPORT_DIR="$ROOT/scripts/build-and-test/reports"
 
 # ── Defaults from build-and-test.properties ──────────────────────────────────────
 RUN_UNIT="$(grep '^unit=' "$PROPS_FILE" | cut -d= -f2)"
@@ -37,7 +48,15 @@ RUN_INTEGRATION="$(grep '^integration=' "$PROPS_FILE" | cut -d= -f2)"
 
 RESET_CACHE=false
 REBUILD_IMAGE=false
+SANDBOX=false
+UNIT_TEST_ARG=""
+INTEGRATION_TEST_ARG=""
+NEXT=""
 for arg in "$@"; do
+  case "$NEXT" in
+    unit-test)        UNIT_TEST_ARG="$arg"; NEXT=""; continue ;;
+    integration-test)  INTEGRATION_TEST_ARG="$arg"; NEXT=""; continue ;;
+  esac
   case "$arg" in
     --reset-cache)      RESET_CACHE=true ;;
     --rebuild-image)    REBUILD_IMAGE=true ;;
@@ -45,8 +64,29 @@ for arg in "$@"; do
     --no-unit)          RUN_UNIT=false ;;
     --integration)      RUN_INTEGRATION=true ;;
     --no-integration)   RUN_INTEGRATION=false ;;
+    --unit-test)        NEXT=unit-test ;;
+    --integration-test) NEXT=integration-test ;;
+    --sandbox)          SANDBOX=true ;;
   esac
 done
+
+if $SANDBOX; then
+  TESTCONTAINERS_RYUK_DISABLED=true
+  INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432
+  echo "Applying sandbox Docker workarounds (--sandbox): Ryuk disabled, fixed Postgres port 25432."
+fi
+
+# CI-environment guard: --sandbox and the sandbox-only env vars it sets are workarounds for this
+# specific claude-dev sandbox's Docker networking limitations -- never needed, and never correct,
+# on a real CI runner with normal Docker networking. Fail fast instead of letting someone
+# copy-paste a --sandbox invocation into a future CI config without realizing why it's there.
+if [ -n "$GITHUB_ACTIONS" ] && { $SANDBOX || [ -n "$TESTCONTAINERS_RYUK_DISABLED" ] || [ -n "$INTEGRATION_TESTS_POSTGRES_FIXED_PORT" ]; }; then
+  echo "ERROR: --sandbox / TESTCONTAINERS_RYUK_DISABLED / INTEGRATION_TESTS_POSTGRES_FIXED_PORT" \
+       "detected under GITHUB_ACTIONS. These are workarounds for this project's claude-dev sandbox" \
+       "only -- a real CI runner has normal Docker networking and must never set them. Remove the" \
+       "flag/env var from the CI config."
+  exit 1
+fi
 
 # ── Clear Maven cache if requested ───────────────────────────────────────────
 if $RESET_CACHE; then
@@ -73,6 +113,14 @@ fi
 DOCKER_SOCK_MOUNT=()
 if [ "$RUN_INTEGRATION" = "true" ]; then
   DOCKER_SOCK_MOUNT=(-v /var/run/docker.sock:/var/run/docker.sock)
+
+  # Docker-daemon precheck: fail with a clear message here instead of letting the failure surface
+  # deep inside Testcontainers' own (slower, less clear) connection probing.
+  if ! docker info >/dev/null 2>&1; then
+    echo "ERROR: Docker daemon not reachable. RUN_INTEGRATION requires a running Docker daemon" \
+         "(Testcontainers starts a real Postgres container). Start Docker Desktop / dockerd and retry."
+    exit 1
+  fi
 fi
 
 # ── Sandbox-only Testcontainers workarounds, passed through only if already set ──
@@ -80,23 +128,40 @@ SANDBOX_ENV=()
 [ -n "$TESTCONTAINERS_RYUK_DISABLED" ] && SANDBOX_ENV+=(-e "TESTCONTAINERS_RYUK_DISABLED=$TESTCONTAINERS_RYUK_DISABLED")
 [ -n "$INTEGRATION_TESTS_POSTGRES_FIXED_PORT" ] && SANDBOX_ENV+=(-e "INTEGRATION_TESTS_POSTGRES_FIXED_PORT=$INTEGRATION_TESTS_POSTGRES_FIXED_PORT")
 
+mkdir -p "$REPORT_DIR"
+
 # ── Pipe sources + build (+ optional unit/integration tests) ─────────────────
 # Excludes generated/build-artifact paths not needed for a build -- on Windows, tar (via WSL) has
 # been observed unable to read some of these (Permission denied, likely a live process holding
 # them open), so excluding them also avoids that failure, not just extra bytes.
+# No --rm here (unlike before) -- Surefire reports are pulled out via `docker cp` after this
+# container exits, the same workaround playwright/run.sh already uses, since a host-path bind
+# mount (-v host:container) resolves against the wrong filesystem when the caller is itself a
+# Docker container (e.g. this claude-dev sandbox) -- confirmed directly: an earlier -v attempt
+# here left the mount empty. The container is removed explicitly right after the copy instead.
+set +e
 tar -czf - --exclude='*/target' --exclude='.git' \
   --exclude='marketplace-app/src/main/frontend/generated' --exclude='docs/ai/adr-index.md' \
   -C "$ROOT" . \
-  | docker run --rm -i \
+  | docker run -i \
       --name advertisement-build-only \
       -v maven-cache:/root/.m2 \
       "${DOCKER_SOCK_MOUNT[@]}" \
       -e RUN_UNIT="$RUN_UNIT" \
       -e RUN_INTEGRATION="$RUN_INTEGRATION" \
+      -e UNIT_TEST_ARG="$UNIT_TEST_ARG" \
+      -e INTEGRATION_TEST_ARG="$INTEGRATION_TEST_ARG" \
       "${SANDBOX_ENV[@]}" \
       "$BUILD_IMAGE" \
       bash -c "tar -xzf - -C /app && bash /app/scripts/build-and-test/build.sh"
+BUILD_EXIT=$?
+set -e
+
+docker cp advertisement-build-only:/tmp/reports/. "$REPORT_DIR/" 2>/dev/null || true
+docker rm advertisement-build-only >/dev/null 2>&1 || true
 
 # ── Keep the build environment clean: prune dangling images (never containers/volumes --
 # those are host-wide operations, opt-in only, see scripts/CLAUDE.md) ─────────
 docker image prune -f >/dev/null
+
+[ "$BUILD_EXIT" -eq 0 ] || exit $BUILD_EXIT
