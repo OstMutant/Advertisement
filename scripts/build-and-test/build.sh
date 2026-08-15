@@ -3,7 +3,8 @@
 # Description: Runs INSIDE the build-and-test Docker container (JDK 25). Always builds
 #   the full reactor and refreshes marketplace-app's JAR in the shared volume, regardless of who
 #   called it -- Maven's own incremental compilation makes a no-op rebuild cheap either way. Also
-#   optionally runs unit/integration tests -- see Env below.
+#   optionally runs unit/integration tests -- when both are enabled they run concurrently
+#   (background jobs, waited on together), not one after another -- see Env below.
 # Usage: not invoked directly -- tar-piped and run via `docker run` by an external caller.
 # Uses: bash, mvn, flock.
 # Env:

@@ -890,7 +890,29 @@ real future option — not decided, not scheduled, needs its own explicit go-ahe
 either script (both are still referenced throughout `scripts/CLAUDE.md`, `run-all-tests.sh`, and
 CI-adjacent tooling, so removal is a real, multi-file change, not a quick delete).
 
-## Part B — ArchUnit Track B unblock investigation (not started, background/decision material only)
+### Real gap found, not fixed: Playwright in `run-all-tests.sh` never sees `build-and-test.sh`'s fresh build
+
+Confirmed by reading `playwright/run.sh` directly: it only checks that `marketplace-app` is
+already running and drives HTTP tests against it — zero interaction with the `maven-cache` Docker
+volume, `marketplace-app.jar`, or anything `build-and-test.sh` just produced. `run-all-tests/
+run.sh` runs `build-and-test.sh --unit --integration` and `playwright.sh` in parallel, but the two
+are completely disconnected — `playwright.sh` tests whatever was last deployed via a separate,
+manual `bash scripts/deploy.sh` run, which could be arbitrarily stale relative to current source.
+This isn't a regression from this session's work — the original `run-all-tests.sh` had the exact
+same property (`unit-tests.sh`/`integration-tests.sh` never updated `marketplace-app` either) — but
+it's now a sharper gap given `deploy.sh --reload`'s hot-swap mechanism was removed entirely this
+same session, so there is currently **no automated path at all** from "fresh build" to "what
+Playwright actually tests." `run-all-tests.sh` reporting `ALL PASSED` does not mean current source
+passed Playwright — only that whatever's currently deployed did.
+
+**Not fixed now, explicit decision:** the fix requires redesigning the whole test/deploy chain
+around `build-and-test` as the one shared build step every consumer (unit, integration, Sonar,
+Playwright, and a real dev-deploy) reads from — the same "one shared build, everyone else just
+reads the result" pattern already recorded earlier in this issue for Sonar's own case. This is a
+real, multi-file redesign (`deploy.sh`, `playwright/run.sh`, possibly a real `--deploy` step
+resurrected in `build-and-test` itself, this time reading the artifact instead of rebuilding it),
+not a small patch — needs its own explicit scoping/go-ahead before starting, not bundled into this
+already-large batch.
 
 ### Why this is being looked at
 

@@ -111,6 +111,17 @@ scripts (`unit-tests.sh`, `integration-tests.sh`, `playwright.sh`) remain the de
 entry points for day-to-day iteration — `run-all-tests.sh` is an additional, opt-in grouping, not a
 replacement.
 
+**Update (unit/integration pairing superseded):** the "isolate into a separate git worktree"
+blocker above no longer applies — `scripts/build-and-test.sh --unit --integration` installs the
+whole reactor into its own container-isolated `~/.m2` (a named Docker volume, never the host's
+real one) *before* either suite runs, so by the time tests start, neither one writes to shared
+state anymore, only reads it. `scripts/run-all-tests/run.sh` now calls `build-and-test.sh --unit
+--integration` instead of `unit-tests.sh` → `integration-tests.sh` sequentially — real 3-way
+parallelism (unit ‖ integration ‖ Playwright), verified end to end (unit 50.2s, integration 56.5s,
+both concurrent, both PASSED). `unit-tests.sh`/`integration-tests.sh` remain the standalone,
+single-suite entry points for day-to-day iteration outside `run-all-tests.sh` — unaffected by this
+change, still run directly on the host, not through the container.
+
 ---
 
 ## ADR-005 through ADR-008: moved to scripts/ci/DECISIONS.md

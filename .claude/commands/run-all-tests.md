@@ -1,25 +1,27 @@
 Run all three test suites for daily iteration: unit-tests, integration-tests, and Playwright.
 
-Usage: /run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]
+Usage: /run-all-tests [--unit-test <arg>] [--integration-test <arg>] [--sandbox] [--playwright "..."] [--background]
 Examples:
   /run-all-tests
-  /run-all-tests --unit "AccessEvaluatorTest" --integration "--sandbox smoke" --playwright "01-marketplace-empty-flow --ux"
+  /run-all-tests --unit-test AccessEvaluatorTest --integration-test smoke --sandbox --playwright "01-marketplace-empty-flow --ux"
   /run-all-tests --background
 
-unit-tests -> integration-tests run sequentially (both can compile the same starter modules'
-target/ dirs -- concurrent runs risk a Maven build race, see scripts/DECISIONS.md ADR-004), while
-playwright runs in parallel from the start (no Maven reactor involved, only an already-running
-Docker container -- see scripts/CLAUDE.md and playwright/CLAUDE.md). unit-tests, integration-tests,
-and Playwright use fully separate databases (dev Postgres on 5432 for Playwright's app container
-vs. an ephemeral Testcontainers Postgres for integration-tests, different port and DB name) -- no
-cross-suite data interference.
+Runs scripts/build-and-test.sh --unit --integration (installs the whole reactor once, then runs
+unit+integration tests in parallel against it -- see scripts/DECISIONS.md ADR-004's annotation)
+and playwright in parallel with that (no Maven reactor involved, only an already-running Docker
+container -- see scripts/CLAUDE.md and playwright/CLAUDE.md). unit/integration and Playwright use
+fully separate databases (dev Postgres on 5432 for Playwright's app container vs. an ephemeral
+Testcontainers Postgres for integration tests, different port and DB name) -- no cross-suite data
+interference. --sandbox is only needed inside this claude-dev sandbox (Testcontainers/Ryuk
+networking workaround) -- never pass it on a real developer machine.
 
 Steps:
-1. Parse $ARGUMENTS: forward everything after --unit/--integration/--playwright verbatim to that
-   suite. If a --playwright block is present and doesn't already include --ux, append it (project
-   convention — always run Playwright with --ux).
+1. Parse $ARGUMENTS: --unit-test/--integration-test take one value each (module/class name),
+   --sandbox is a bare flag, --playwright takes one quoted block forwarded verbatim to
+   playwright.sh. If a --playwright block is present and doesn't already include --ux, append it
+   (project convention — always run Playwright with --ux).
 2. Launch two Monitor tool calls (persistent: true):
-   - watching scripts/run-all-tests/reports/unit-then-integration.log every 10s, catch
+   - watching scripts/run-all-tests/reports/build-and-test.log every 10s, catch
      PASSED|FAILED|ERROR|BUILD SUCCESS|BUILD FAILURE
    - watching scripts/run-all-tests/reports/playwright.log every 10s, catch passed|failed|Error
 3. Default (no --background): run synchronously in foreground with tee, same pattern as every

@@ -88,9 +88,10 @@ declare -A SCRIPT_GROUP_CATEGORY=(
   [scripts/ci]="CI"
   [scripts/sonar]="Sonar"
   [scripts/build-and-test]="Build and Test"
+  [scripts/run-all-tests]="Run All Tests"
   [playwright]="Playwright"
 )
-SCRIPT_GROUP_DIRS=(scripts/ai scripts/architecture scripts scripts/ci scripts/sonar scripts/build-and-test playwright)
+SCRIPT_GROUP_DIRS=(scripts/ai scripts/architecture scripts scripts/ci scripts/sonar scripts/build-and-test scripts/run-all-tests playwright)
 
 # Explicit "what matters first" ordering per directory -- entry points and generators before the
 # CI gates that verify their output, dev-only tooling last. Falls back to alphabetical (find |
@@ -100,6 +101,7 @@ declare -A SCRIPT_GROUP_FILE_ORDER=(
   [scripts/architecture]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh"
   [scripts/sonar]="run.sh run.bat docker-compose.sonar.yml sonar-project.properties"
   [scripts/build-and-test]="run.sh build.sh build-and-test.properties Dockerfile"
+  [scripts/run-all-tests]="run.sh"
 )
 decisions_json_for() {
   local module="$1"
@@ -1821,9 +1823,10 @@ const PIPELINE_GROUPS = {
   "sonar": { icon: "📊", label: "Sonar", category: "Sonar", desc: "scripts/sonar — static analysis" },
   "ci": { icon: "⚙️", label: "CI", category: "CI", desc: "scripts/ci — local isolated CI runner" },
   "build": { icon: "🔨", label: "Build and Test", category: "Build and Test", desc: "scripts/build-and-test — builds the reactor, optional unit/integration tests" },
+  "run-all-tests": { icon: "🧪", label: "Run All Tests", category: "Run All Tests", desc: "scripts/run-all-tests — build-and-test + Playwright together, daily-iteration loop" },
   "other-scripts": { icon: "📜", label: "Other Scripts", category: "Other Scripts", desc: "scripts/ — deploy & misc" }
 };
-const PIPELINE_GROUP_ORDER = ["ai-tooling", "build", "build-architecture-page", "playwright", "sonar", "ci", "other-scripts"];
+const PIPELINE_GROUP_ORDER = ["ai-tooling", "build", "run-all-tests", "build-architecture-page", "playwright", "sonar", "ci", "other-scripts"];
 const totalDiagramCount = MODEL.diagramGroups.reduce((sum, g) => sum + g.diagrams.length, 0);
 let zoomLevel = 1;
 

@@ -32,12 +32,18 @@ flowchart TD
     F --> G["mvn install<br/>whole reactor (via flock)"]
     G --> H["refresh marketplace-app.jar<br/>in shared volume"]
     H --> I{"RUN_UNIT?"}
-    I -->|yes| I1["mvn test<br/>unit (via flock)"] --> J
-    I -->|no| J{"RUN_INTEGRATION?"}
-    J -->|yes| J1["mvn test<br/>integration (via flock)"] --> K
-    J -->|no| K["docker image<br/>prune -f"]
+    H --> J{"RUN_INTEGRATION?"}
+    I -->|yes| I1["mvn test unit<br/>(background)"] --> M
+    I -->|no| M
+    J -->|yes| J1["mvn test integration<br/>(background)"] --> M
+    J -->|no| M
+    M["wait for both,<br/>docker cp reports out,<br/>docker rm"] --> K["docker image<br/>prune -f"]
     K --> Z[done]
 ```
+
+`I`/`J` fire at the same time, not one after the other — once the reactor install finishes, unit
+and integration tests only *read* the shared `~/.m2` and touch disjoint `target/` dirs, so
+`build.sh` runs them as background jobs and waits for both instead of serializing them.
 
 `RUN_UNIT`/`RUN_INTEGRATION` are both **on** by default (`build-and-test.properties`); `run.sh`
 sets them from flags/`.properties` defaults before invoking the container. The build step always

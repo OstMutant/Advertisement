@@ -278,20 +278,19 @@ a single commit with `SKIP_AUDIT=1 git commit`.
 
 ## run-all-tests.sh / run-all-tests.bat
 
-Orchestrates unit tests → integration tests sequentially (both can compile the same starter
-modules into shared `target/` dirs, so they don't run concurrently) plus Playwright in parallel
-(it never touches the Maven reactor). Delegates to `scripts/unit-tests.sh`/
-`scripts/integration-tests.sh`/`scripts/playwright.sh`, forwarding each suite's own flags unchanged.
+Runs `scripts/build-and-test.sh --unit --integration` (installs the whole reactor once, then runs
+unit+integration tests in parallel against it) and `scripts/playwright.sh` in parallel with that
+(it never touches the Maven reactor). See `scripts/DECISIONS.md` ADR-004's annotation.
 
 ```bash
 bash scripts/run-all-tests.sh
-bash scripts/run-all-tests.sh --unit "AccessEvaluatorTest" \
-                               --integration "--sandbox TaxonRepositoryTest" \
+bash scripts/run-all-tests.sh --unit-test AccessEvaluatorTest \
+                               --integration-test TaxonRepositoryTest --sandbox \
                                --playwright "e2e --ux"
 ```
 
-Reports: `scripts/run-all-tests/reports/`. See `scripts/DECISIONS.md` ADR-004 for the
-sequencing rationale.
+Reports: `scripts/run-all-tests/reports/build-and-test.log` + `playwright.log`; Surefire reports
+under `scripts/build-and-test/reports/surefire/`.
 
 ---
 
