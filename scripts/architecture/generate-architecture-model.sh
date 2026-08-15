@@ -87,9 +87,10 @@ declare -A SCRIPT_GROUP_CATEGORY=(
   [scripts]="Other Scripts"
   [scripts/ci]="CI"
   [scripts/sonar]="Sonar"
+  [scripts/build]="Build"
   [playwright]="Playwright"
 )
-SCRIPT_GROUP_DIRS=(scripts/ai scripts/architecture scripts scripts/ci scripts/sonar playwright)
+SCRIPT_GROUP_DIRS=(scripts/ai scripts/architecture scripts scripts/ci scripts/sonar scripts/build playwright)
 
 # Explicit "what matters first" ordering per directory -- entry points and generators before the
 # CI gates that verify their output, dev-only tooling last. Falls back to alphabetical (find |
@@ -1819,9 +1820,10 @@ const PIPELINE_GROUPS = {
   "playwright": { icon: "🎭", label: "Playwright", category: "Playwright", desc: "playwright/ — UI test runner" },
   "sonar": { icon: "📊", label: "Sonar", category: "Sonar", desc: "scripts/sonar — static analysis" },
   "ci": { icon: "⚙️", label: "CI", category: "CI", desc: "scripts/ci — local isolated CI runner" },
+  "build": { icon: "🔨", label: "Build", category: "Build", desc: "scripts/build — warms ~/.m2 for tests" },
   "other-scripts": { icon: "📜", label: "Other Scripts", category: "Other Scripts", desc: "scripts/ — deploy & misc" }
 };
-const PIPELINE_GROUP_ORDER = ["ai-tooling", "build-architecture-page", "playwright", "sonar", "ci", "other-scripts"];
+const PIPELINE_GROUP_ORDER = ["ai-tooling", "build", "build-architecture-page", "playwright", "sonar", "ci", "other-scripts"];
 const totalDiagramCount = MODEL.diagramGroups.reduce((sum, g) => sum + g.diagrams.length, 0);
 let zoomLevel = 1;
 

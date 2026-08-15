@@ -100,6 +100,26 @@ silently wipes something under a condition), that fact belongs in the relevant f
 reasoning — not just buried there where a reader has to already know to look. The header is what
 someone sees first; `DECISIONS.md` is where they go if they want the *why*.
 
+## Where a real finding about a script or directory gets recorded
+
+A significant fact discovered while actually running or investigating a script (not obvious from
+reading the code alone — an environment quirk, a real risk, why something behaves the way it
+does) gets written into whichever file the finding is actually about, not left only in a chat
+transcript or a backlog issue:
+
+- **Concerns one script's own behavior** (its own side effect, a risk specific to running it, a
+  non-obvious fact about what it does) → that script's own header `Description` field (see
+  "Non-obvious operational side effects" above for the same rule applied to side effects
+  specifically).
+- **Concerns the sequence/interaction between two or more files in the directory** (what one file
+  does that affects another, environment facts that shape how the whole flow behaves) → the
+  directory's own `README.md`, in its `## Flow` section (or a new section, if the finding isn't
+  about sequence but about the directory's environment/tooling as a whole).
+
+A finding captured only in a backlog issue during investigation is a legitimate intermediate step
+(the issue is where it's confirmed and worded first) — but once confirmed, it belongs in the file
+it actually describes, not left permanently in the issue as the only record.
+
 ## Per-function headers — only for files that are `source`d by other scripts
 
 Google's structured block is really meant for functions. Most of our scripts don't export

@@ -16,6 +16,8 @@
 # ────────────────────────────────────────────────────────────────────────────
 set -e
 
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+
 NO_GATE=""
 for arg in "$@"; do
   [ "$arg" = "--no-gate" ] && NO_GATE=1
@@ -25,19 +27,19 @@ LOG=/tmp/sonar.log
 trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "Last output:"; tail -20 "$LOG" 2>/dev/null; echo "Full log: $LOG"; exit $_rc' ERR
 
 SONAR_URL="http://localhost:9099"
-COMPOSE_FILE="/app/scripts/sonar/docker-compose.sonar.yml"
+COMPOSE_FILE="$ROOT/scripts/sonar/docker-compose.sonar.yml"
 SCANNER_CONTAINER="sonar-scanner"
-PROPS_FILE="/app/scripts/sonar/sonar-project.properties"
+PROPS_FILE="$ROOT/scripts/sonar/sonar-project.properties"
 
 # ── Validate sonar-project.properties module list against pom.xml, auto-fix drift ────────────
 # Keeps `newline=''` on read/write -- this repo's working tree is CRLF, and Python's default text
 # mode would silently rewrite the whole file to LF, producing a spurious full-file diff.
 echo "Validating sonar-project.properties module list against pom.xml..."
-python3 - "$PROPS_FILE" << 'PYEOF'
+python3 - "$PROPS_FILE" "$ROOT" << 'PYEOF'
 import re, sys
 
 props_file = sys.argv[1]
-pom_file = "/app/pom.xml"
+pom_file = sys.argv[2] + "/pom.xml"
 
 with open(pom_file) as f:
     pom = f.read()
@@ -87,7 +89,7 @@ else:
 PYEOF
 
 # ── Ensure docker compose plugin is available ────────────────────────────────
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/ensure-docker-plugins.sh"
+source "$ROOT/scripts/ensure-docker-plugins.sh"
 ensure_docker_compose
 
 # ── Ensure SonarQube server image is current, container exists and is running (see DECISIONS.md) ──
@@ -151,7 +153,7 @@ docker image prune -f >/dev/null
 
 # ── Compile all modules ───────────────────────────────────────────────────────
 echo "Compiling modules..."
-/app/mvnw -f /app/pom.xml compile -q -DskipTests 2>&1
+"$ROOT/mvnw" -f "$ROOT/pom.xml" compile -q -DskipTests 2>&1
 
 # ── Copy source and compiled files to container ───────────────────────────────
 echo "Copying source files..."
@@ -159,13 +161,13 @@ docker exec --user root "$SCANNER_CONTAINER" rm -rf /tmp/sonar-src
 docker exec "$SCANNER_CONTAINER" mkdir -p /tmp/sonar-src
 
 for module in query-lib platform-commons audit-spring-boot-starter attachment-spring-boot-starter user-spring-boot-starter advertisement-spring-boot-starter taxon-spring-boot-starter provider-profile-spring-boot-starter marketplace-orchestrator marketplace-app; do
-  if [ -d "/app/$module/src/main/java" ]; then
+  if [ -d "$ROOT/$module/src/main/java" ]; then
     docker exec "$SCANNER_CONTAINER" mkdir -p "/tmp/sonar-src/$module/src/main/java"
-    docker cp "/app/$module/src/main/java/." "$SCANNER_CONTAINER:/tmp/sonar-src/$module/src/main/java/"
+    docker cp "$ROOT/$module/src/main/java/." "$SCANNER_CONTAINER:/tmp/sonar-src/$module/src/main/java/"
   fi
-  if [ -d "/app/$module/target/classes" ]; then
+  if [ -d "$ROOT/$module/target/classes" ]; then
     docker exec "$SCANNER_CONTAINER" mkdir -p "/tmp/sonar-src/$module/target/classes"
-    docker cp "/app/$module/target/classes/." "$SCANNER_CONTAINER:/tmp/sonar-src/$module/target/classes/"
+    docker cp "$ROOT/$module/target/classes/." "$SCANNER_CONTAINER:/tmp/sonar-src/$module/target/classes/"
   fi
 done
 
@@ -186,7 +188,7 @@ EXIT_CODE=${PIPESTATUS[0]}
 set -e
 
 # ── Generate HTML report (runs inside sonar-scanner container) ────────────────
-REPORT_DIR="/app/scripts/sonar/report"
+REPORT_DIR="$ROOT/scripts/sonar/report"
 REPORT_FILE="$REPORT_DIR/report.html"
 mkdir -p "$REPORT_DIR"
 

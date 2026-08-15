@@ -227,22 +227,200 @@ redundant recompilation of source `unit-tests.sh` had already compiled seconds e
 "nothing to compile" — but the `mvn install` invocation itself still always runs, paying its own
 Maven-startup/dependency-resolution overhead for no reason.
 
-### Suggested fix
+### Suggested fix — done
 
-Introduce `scripts/build.sh` — a single `mvn install -DskipTests` for the whole reactor (or at
-least the modules `integration-tests` depends on: `platform-commons` + 6 starters +
-`marketplace-orchestrator`). No changes needed to `unit-tests.sh`/`integration-tests.sh`
-themselves — both already degrade correctly to "nothing to compile"/"nothing stale" once this
-runs first:
+Implemented as `scripts/build.sh` / `scripts/build.bat` (thin wrappers) → `scripts/build/run.sh`
+(real logic): a single `mvn install -DskipTests` for platform-commons + all 6 domain starters —
+**not** "+ marketplace-orchestrator" as originally guessed above; confirmed directly against
+`integration-tests/pom.xml` that `marketplace-orchestrator` is not one of its dependencies at all.
+The module list is read live from `pom.xml`'s own `<module>` entries (`platform-commons` plus
+anything named `*-spring-boot-starter`) instead of hardcoded, so a newly added starter is picked
+up automatically. Verified end to end: `bash scripts/build.sh` reaches `BUILD SUCCESS`, installing
+all 7 modules into `~/.m2` in ~1:18.
+
+No changes needed to `unit-tests.sh`/`integration-tests.sh` themselves — both already degrade
+correctly to "nothing to compile"/"nothing stale" once this runs first:
 - `unit-tests.sh`'s `mvn test` skips recompilation via Maven's own incremental compiler check
   (unchanged `target/classes`).
 - `integration-tests.sh`'s existing staleness check (ADR-007) compares `~/.m2`-installed JAR
   mtimes against source — once `build.sh` has installed fresh JARs, it finds nothing stale and
   skips its own `install` step entirely, going straight to `mvn -pl integration-tests test`.
 
-`run-all-tests.sh` calls `build.sh` once as its first step, before launching the
-unit-tests → integration-tests sequence and the parallel Playwright leg (Playwright itself never
-touches Maven, so it doesn't need or benefit from this — see ADR-004).
+Not yet done: wiring `build.sh` as `run-all-tests.sh`'s first step (before launching the
+unit-tests → integration-tests sequence and the parallel Playwright leg — Playwright itself never
+touches Maven, so it doesn't need or benefit from this, see ADR-004), and
+`integration-tests/run.sh`'s own hardcoded `STARTER_MODULES` list (line 99) still duplicates this
+same list by hand instead of also reading it from `pom.xml` — flagged, not yet actioned per
+explicit "розберемось пізніше" instruction.
+
+### Environment findings from verifying this (candidate README/DECISIONS.md content, not yet moved there)
+
+Discovered while testing `scripts/build.sh` for real:
+
+- This Claude Code sandbox runs as its own Docker container (`claude-dev`, image `claude-j25-dev`)
+  — a sibling to `marketplace-app`/`advertisement-db`/etc., not nested inside them. Its
+  `/var/run/docker.sock` is the *host's* socket (Docker-outside-of-Docker, same mechanism
+  `scripts/ci/DECISIONS.md` ADR-001 already documents for the CI runner).
+- Its `/app` is a **bind mount** of the real project folder on the host Windows machine, and its
+  `~/.m2` is a bind mount of the host's real `~/.m2` — not copies. Any `mvnw` invocation run
+  directly in this sandbox (`scripts/build.sh`, `scripts/unit-tests.sh`, `integration-tests.sh`)
+  writes to the exact same files a locally-running IDE build would.
+- **Real write-conflict risk**: running a build in this sandbox and a build in a local IDE at the
+  same time, against the same modules, both write to the same physical `target/`/`~/.m2` files —
+  last-writer-wins, or a corrupted/partial jar if truly concurrent. No existing script currently
+  guards against this.
+- `deploy-dev.sh`'s containerized build (`deploy-dev-env`) does *not* have this risk — but not by
+  design intent. Its actual documented reason (`deploy-dev-env/Dockerfile`'s own comment) is a
+  Windows/WSL Java path-translation problem, not conflict avoidance. The isolation is a side
+  effect of *how* it delivers source into the container (a tar pipe into a throwaway container's
+  own filesystem, never the host bind mount) — confirmed the resulting JAR only ever reaches the
+  running `marketplace-app` container via `docker cp`, never back to the host's own
+  `marketplace-app/target/`.
+- Maven's `jar:jar` goal skips repackaging when it detects no compiled-class changes ("Nothing to
+  compile - all classes are up to date") — so after `scripts/build.sh` runs, not every one of the
+  7 modules' `target/*.jar` gets a fresh timestamp, even though all 7 do get freshly copied into
+  `~/.m2` by the `install:install` goal regardless. Confirmed directly: of the 7, only
+  `audit-spring-boot-starter`'s jar was rebuilt (real source changed since the prior build); the
+  other 6 kept their prior `target/*.jar` file untouched.
+
+### Follow-up design (not yet started) — one isolated container for build/unit-tests/integration-tests/deploy-dev
+
+Grew out of trying to run `scripts/build.bat` for real on a Windows machine without a working Java
+in WSL (`Error: JAVA_HOME is not defined correctly`) — the same root cause
+`scripts/build-deploy-env/Dockerfile`'s own comment already documents for why `deploy-dev.sh`
+containerizes its own build (Windows/WSL Java path-translation problem — WSL can technically
+invoke a Windows `.exe` via interop, but a Linux-path-generating script like `mvnw` and a
+Windows-path-expecting `java.exe` don't translate paths for each other automatically).
+
+**Rejected first idea:** bind-mount the real host `~/.m2` into the container so `scripts/build.sh`
+writes to the same repository a WSL-run `integration-tests.sh` would read. Rejected in favor of
+the design below — a fully isolated, container-only `.m2` is safer (no risk of a container build
+corrupting the developer's real local repository) and, combined with moving every Maven-touching
+script into the same container, sidesteps the whole "does WSL have Java" question for every one of
+them, not just `build.sh`.
+
+**Design:**
+1. One container (rename target still open — reflects it now serves build, both test suites, and
+   deploy-dev, not just deploy-dev) with its own **persistent, isolated named Docker volume** for
+   `.m2` — populated once, reused across runs (not re-downloaded every invocation), never touching
+   the host's real `~/.m2`.
+2. Parameterized entrypoint: a Maven goal/module-set to run inside the container (`install` for
+   the build step, `test` for either test suite), plus an optional `--deploy <container-name>` flag
+   — when present, after the build step, copy the resulting `marketplace-app` JAR into the named
+   target container and restart it (generalizes today's `deploy-dev-env/build.sh`, which hardcodes
+   the target container name, into a reusable parameter).
+3. **Sequencing unlocks real parallelism.** Today `unit-tests.sh` → `integration-tests.sh` run
+   strictly sequentially specifically to avoid two concurrent `mvn` processes both deciding to
+   install/write into `~/.m2` at the same time (a real corruption risk, not just a style
+   preference). Once the shared container's `.m2` is fully warmed by one `build` step *first*,
+   neither test suite needs to write to it anymore — both only *read* dependencies, which is safe
+   to do concurrently across separate `mvn` processes. New order: `build` (once) → `unit-tests` ‖
+   `integration-tests` (parallel, each its own container instance, same already-warmed `.m2`
+   volume) ‖ Playwright (already parallel today, unaffected — it never touches Maven at all, only
+   needs `marketplace-app` up to date, i.e. the same `--deploy` step `deploy-dev.sh` already uses).
+4. Playwright's own container (`pw-runner`) is unrelated to this change — it never runs Maven, it
+   only exercises an already-running `marketplace-app` over HTTP.
+
+**Affected, once actually implemented:** the container (currently `scripts/build-deploy-env/`,
+name still open), `scripts/build.sh`/`scripts/build.bat`, `scripts/build/run.sh`,
+`scripts/unit-tests/run.sh`, `integration-tests/run.sh`, `scripts/deploy-dev.sh`,
+`scripts/run-all-tests.sh` (the parallel-orchestration rewrite). Sequenced after the rename in
+Part A's own "done" section above (`build-env` → `deploy-dev-env`) since this design builds on
+that same container. Not started — this is the recorded plan, not yet actioned; explicit
+confirmation needed before implementation begins, given the size (5+ files, changes to how
+`run-all-tests.sh` orchestrates parallelism).
+
+**Name settled:** `scripts/build-deploy-tests/` (supersedes the earlier `build-deploy-env` guess)
+— reflects the three real capabilities (build, deploy, run tests), not just two.
+
+**Deploy-target coupling — resolved.** A restart after a JAR swap is fully generic (`docker
+restart <name>` works for any JVM container reading its jar at startup, no app-specific knowledge
+needed). "Does the target container exist yet, and if not, how do I create it" is genuinely
+app-specific (image, ports, env vars, network) and stays **outside** the generic container —
+`deploy-dev.sh` keeps its own existing pre-check ("does `marketplace-app` exist? if not, call
+`deploy.sh`") *before* invoking the generic container's own `--deploy <name>` step, which itself
+only ever handles "copy into an already-running container + restart it" and fails with a clear
+error if the named container doesn't exist. The generic container never learns how to build any
+specific app from scratch — that knowledge stays wherever it already lives today.
+
+**Folder/file skeleton (proposed, not yet built):**
+```
+scripts/build-deploy-tests/
+  Dockerfile          -- JDK 25 + Docker CLI (today's scripts/deploy-dev-env/Dockerfile content)
+  run.sh              -- parameterized entrypoint: --deploy <container-name>, --unit true/false,
+                          --integration true/false; tar-pipes source in, runs against an isolated
+                          persistent named .m2 volume (never the host's real ~/.m2), writes
+                          progress to progress.txt the same way scripts/ci.sh already does
+  README.md
+```
+Thin wrappers in `scripts/` each call this same `run.sh` with different flags: `build.sh`/`.bat`
+(no flags — build only), `deploy-dev.sh`/`.bat` (`--deploy marketplace-app`), `run-all-tests.sh`
+(`--unit true --integration true`, replacing its current sequential `unit-tests.sh` →
+`integration-tests.sh` calls with one parallel containerized run).
+
+**Still open, not decided:**
+1. Whether `scripts/unit-tests.sh`/`scripts/integration-tests.sh` survive as their own thin
+   entry points (for running just one suite standalone, still delegating into the same `run.sh`
+   with one flag set), or collapse entirely into `build-deploy-tests/run.sh` with no separate
+   top-level wrapper at all.
+2. `scripts/deploy-dev-env/docker-compose.yml` is confirmed dead code (never invoked by anything,
+   see the "Environment findings" note above) — new `build-deploy-tests/` should not carry a
+   `docker-compose.yml` forward at all, direct `docker build`/`docker run` only, matching what
+   `deploy-dev.sh` actually already does today in practice.
+3. **`--deploy <container> --profile dev|prod` — resolved the same way as "container doesn't
+   exist yet."** `docker restart` cannot change an existing container's environment variables —
+   they are fixed at `docker run` time, so switching profile actually requires removing and
+   re-creating the container (full `docker run` knowledge: ports, network, volumes) — the same
+   app-specific knowledge the generic container must never own. Resolution: the generic step
+   checks the target container's *current* running profile against the requested one; same
+   profile → cheap `docker cp` + `docker restart` (today's behavior); different profile → fail
+   with a clear error instead of attempting any recreate itself. The caller (which does have the
+   full `docker run` knowledge) decides what to do next — no auto-recreate logic inside the
+   generic container at all.
+
+**Settled: a `.properties` file carries the default flag values, same shape as
+`sonar-project.properties`.** `scripts/build-deploy-tests/build-deploy-tests.properties` holds
+defaults (`deploy=marketplace-app`, `profile=dev`, `unit=true`, `integration=true`); `run.sh`
+reads these as its baseline, and any CLI flag passed explicitly (`--deploy`, `--profile`,
+`--unit`, `--integration`) overrides just that one value for that single invocation — mirrors how
+`scripts/sonar/run.sh --no-gate` already overrides a default behavior on top of
+`sonar-project.properties`. Lets `run-all-tests.sh`/CI pass explicit flags regardless of the file's
+defaults, while a developer's routine local call (`bash run.sh`, no flags) gets their own usual
+defaults without retyping them every time.
+
+**Real bugs found and fixed while testing `build.bat`/`sonar.bat` for real on Windows (done,
+separate from the design above):**
+- `scripts/build.bat`/`scripts/sonar.bat` hardcoded `wsl bash /app/...` — only resolves inside this
+  Claude Code sandbox's own mount convention, not a real developer's WSL (confirmed directly:
+  `bash: /app/scripts/build/run.sh: No such file or directory` on a real Windows machine). Fixed
+  both to use the same `wsl wslpath -u "%~dp0..."` dynamic-resolution pattern `deploy.bat`/
+  `deploy-dev.bat` already used correctly — `ci.bat`/`integration-tests.bat`/`playwright.bat`/
+  `unit-tests.bat` still carry the same bug, not yet fixed (deferred, not in this pass).
+- `scripts/sonar/run.sh` itself had the identical hardcoded-`/app` bug in 8 places
+  (`COMPOSE_FILE`, `PROPS_FILE`, the module-list-validation Python step's `pom_file`, the `mvnw`
+  compile invocation, the per-module source/target copy loop, `REPORT_DIR`) — fixed by computing
+  `ROOT="$(cd "$(dirname "$0")/../.." && pwd)"` once at the top and routing every one of them
+  through it. Verified both fixes for real: re-ran `bash scripts/sonar/run.sh --no-gate` in this
+  sandbox (still reaches `ANALYSIS SUCCESSFUL`), and the user re-ran `sonar.bat` on the real
+  Windows machine — it now correctly resolves the path and progresses all the way to the
+  "Compiling modules" step, where it hits the *already-known* missing-Java-in-WSL gap (not a new
+  bug — the exact problem this whole "Follow-up design" section exists to solve).
+
+**Another real consumer for the same container, surfaced by that Windows test:**
+`scripts/sonar/run.sh`'s own "Compiling modules" step (`mvnw compile`, to produce `target/classes`
+for the scanner to analyze) hits the identical missing-Java-in-WSL problem `build.sh` does — it's
+not unique to `build-deploy-tests`. Once that container exists, `sonar/run.sh` could delegate
+compilation to it instead of calling `mvnw` directly, which would fix `sonar.bat` on Windows too,
+for free. Open question, not decided: how the compiled classes get from the build container to the
+`sonar-scanner` container (both are Docker containers, neither is the host) — two candidate
+mechanisms:
+1. A **shared Docker volume** between `build-deploy-tests` and `sonar-scanner` — the build
+   container writes `target/classes` there, the scanner container reads directly from the same
+   volume, no host hop at all.
+2. **Two hops through the host** — `docker cp` the build container's output to a host temp
+   directory, then `docker cp` that into `sonar-scanner` — closer to `sonar/run.sh`'s current code
+   shape (only the copy *source* changes, from `$ROOT/$module/target/classes` to a temp dir), but
+   less clean than option 1.
 
 **Explicitly out of scope, investigated and rejected in `improvement-151`:**
 - Merging `deploy.sh`/`deploy-dev.sh` into one parametrized script — considered; `deploy.sh` (318
