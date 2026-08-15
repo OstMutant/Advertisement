@@ -20,7 +20,7 @@ services:
     container_name: advertisement-build-env
     build:
       context: ../..
-      dockerfile: scripts/build-env/Dockerfile
+      dockerfile: scripts/deploy-dev-env/Dockerfile
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /app

@@ -253,7 +253,7 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 | `advertisement-db` | `postgres:15-alpine` | `5432` | `deploy.sh`, `docker-compose.db.yml` | PostgreSQL database |
 | `advertisement-minio` | `minio/minio:latest` | `9000` (API), `9001` (console) | `deploy.sh`, `docker-compose.minio.yml` | S3-compatible storage (MinIO) |
 | `marketplace-app` | built from `Dockerfile` | `8081` | `deploy.sh` | Spring Boot + Vaadin application |
-| `advertisement-build-env` | built from `scripts/build-env/Dockerfile` | — | `deploy-dev.sh` (throwaway `--rm`, per build) | JDK 25 + Docker CLI — builds JAR, hot-swaps into marketplace-app |
+| `advertisement-build-env` | built from `scripts/deploy-dev-env/Dockerfile` | — | `deploy-dev.sh` (throwaway `--rm`, per build) | JDK 25 + Docker CLI — builds JAR, hot-swaps into marketplace-app |
 | `pw-runner` | `mcr.microsoft.com/playwright:v1.61.1-jammy` | — | `playwright/run.sh` (reused across runs) | Playwright test runner |
 | `claude-dev` | built from `Dockerfile.ai` | — | `scripts/claude.bat` | Claude Code dev environment |
 
@@ -277,7 +277,7 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 ```
 scripts/
   infra/           — Docker Compose files for local infrastructure (DB, MinIO, app stack)
-  build-env/       — Docker build environment for deploy-dev (JDK 25 + Docker CLI)
+  deploy-dev-env/  — Docker build environment for deploy-dev (JDK 25 + Docker CLI)
   database/        — SQL scripts and database helpers (reset-clean.sql)
   sonar/           — SonarQube configuration and scanner
   ci/              — isolated local CI runner (Dockerfile, entrypoint.sh, own README/DECISIONS.md)

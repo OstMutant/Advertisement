@@ -29,7 +29,7 @@ done
 # ── Ensure build image exists ─────────────────────────────────────────────────
 if ! docker image inspect "$BUILD_IMAGE" >/dev/null 2>&1; then
   echo "Building $BUILD_IMAGE image..."
-  docker build -f "$ROOT/scripts/build-env/Dockerfile" -t "$BUILD_IMAGE" "$ROOT"
+  docker build -f "$ROOT/scripts/deploy-dev-env/Dockerfile" -t "$BUILD_IMAGE" "$ROOT"
 fi
 
 # ── Clear Maven cache if requested ───────────────────────────────────────────
@@ -50,7 +50,7 @@ if $FILE_MODE; then
         -v /var/run/docker.sock:/var/run/docker.sock \
         -e RESET_DB="$RESET_DB" \
         "$BUILD_IMAGE" \
-        bash -c "tar -xzf - -C /app && bash /app/scripts/build-env/build.sh" \
+        bash -c "tar -xzf - -C /app && bash /app/scripts/deploy-dev-env/build.sh" \
     2>&1 | tee "$LOG" | grep --line-buffered -E "^\[ERROR\]|^=== |BUILD SUCCESS|BUILD FAILURE|Started Application"
 else
   tar -czf - --exclude='*/target' --exclude='.git' -C "$ROOT" . \
@@ -60,5 +60,5 @@ else
         -v /var/run/docker.sock:/var/run/docker.sock \
         -e RESET_DB="$RESET_DB" \
         "$BUILD_IMAGE" \
-        bash -c "tar -xzf - -C /app && bash /app/scripts/build-env/build.sh"
+        bash -c "tar -xzf - -C /app && bash /app/scripts/deploy-dev-env/build.sh"
 fi

@@ -1320,13 +1320,13 @@ bounded_contexts_json() {
 DOCKER_FILES=(
   "Dockerfile|dockerfile|Main app image (multi-stage build)"
   "Dockerfile.ai|dockerfile|Claude Code dev sandbox environment -- not part of the app build"
-  "scripts/build-env/Dockerfile|dockerfile|Local build-env container"
+  "scripts/deploy-dev-env/Dockerfile|dockerfile|Local deploy-dev-env container"
   "scripts/ci/Dockerfile|dockerfile|Isolated CI runner image"
   "scripts/infra/docker-compose.app.yml|compose|App container (dev infra)"
   "scripts/infra/docker-compose.db.yml|compose|PostgreSQL (dev infra)"
   "scripts/infra/docker-compose.minio.yml|compose|MinIO S3-compatible storage (dev infra)"
   "scripts/sonar/docker-compose.sonar.yml|compose|SonarQube server"
-  "scripts/build-env/docker-compose.yml|compose|Build-env container wrapper"
+  "scripts/deploy-dev-env/docker-compose.yml|compose|deploy-dev-env container wrapper"
 )
 docker_files_json() {
   local out="" first=true entry file kind label items_json
