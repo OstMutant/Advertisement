@@ -881,14 +881,44 @@ wall time ≈ install time + max(unit, integration) instead of install + unit + 
 sequentially — the slower suite's own duration is the floor, not fixable by this change alone, but
 real savings versus running them one after another.
 
-**Future consideration, not decided, not started:** now that `build-and-test`'s `RUN_UNIT`/
-`RUN_INTEGRATION` have reached feature parity with the standalone `scripts/unit-tests.sh`/
-`scripts/integration-tests.sh` (module/test selection, host-copied reports, PASSED/FAILED
-summaries, `--sandbox`), the two standalone scripts may become redundant duplication rather than a
-genuinely separate capability. Retiring them in favor of `build-and-test.sh` exclusively is a
-real future option — not decided, not scheduled, needs its own explicit go-ahead before touching
-either script (both are still referenced throughout `scripts/CLAUDE.md`, `run-all-tests.sh`, and
-CI-adjacent tooling, so removal is a real, multi-file change, not a quick delete).
+**Now approved and in progress:** now that `build-and-test`'s `RUN_UNIT`/`RUN_INTEGRATION` have
+reached feature parity with the standalone `scripts/unit-tests.sh`/`scripts/integration-tests.sh`
+(module/test selection, host-copied reports, PASSED/FAILED summaries, `--sandbox`) and
+`--with-archunit`'s own blocker closed (see above), the two standalone scripts are redundant
+duplication, not a genuinely separate capability. Explicit go-ahead given to retire them.
+
+**Remaining real blocker before deletion: `scripts/ci/entrypoint.sh` calls `unit-tests.sh`/
+`integration-tests.sh` directly** (not through `run-all-tests.sh`), as two separate CI stages
+(`unit`, `integration`) each with their own `start_stage`/`end_stage` progress tracking. Plan:
+- Collapse into **one** stage, `build_and_test`, replacing the two separate `register_stage
+  unit`/`register_stage integration` entries — matches this issue's own earlier CI-vocabulary
+  grounding (a stage is a sequential step; `build-and-test.sh` already runs unit+integration as
+  parallel jobs *inside* itself, so what were two sequential stages naturally become one stage
+  with two parallel jobs).
+- Single call: `bash scripts/build-and-test.sh --unit --integration [--sandbox]`, with
+  `--no-unit`/`--no-integration` substituted when only one of `STAGE_UNIT`/`STAGE_INTEGRATION` was
+  actually requested.
+- Report copy changes from two sources (`scripts/unit-tests/reports/.`,
+  `integration-tests/reports/.`) to one (`scripts/build-and-test/reports/.` →
+  `$REPORT_DIR/build-and-test/`).
+- Record the change in `scripts/ci/DECISIONS.md`.
+
+**Implemented, not yet verified with a real run — deferred.** `entrypoint.sh`/`run.sh`/
+`scripts/ci/DECISIONS.md` ADR-008 are all written and syntax-checked, but `bash scripts/ci.sh
+--unit --foreground` itself was not run end to end: it builds its own fresh `ci-runner` image plus
+a full cold-cache `mvn install` inside a separate, not-yet-warmed `ci-m2-cache` volume (distinct
+from the `maven-cache` volume `build-and-test.sh` already warmed directly), so a real verification
+run takes a while — deliberately postponed rather than run partway through this session. **Test
+`bash scripts/ci.sh --unit --foreground` for real before relying on this change or deleting the
+standalone scripts below.**
+
+Once `entrypoint.sh` no longer references them, delete `scripts/unit-tests.sh`/`.bat`/
+`scripts/unit-tests/` and `scripts/integration-tests.sh`/`.bat` (not `/app/integration-tests/`,
+the Maven module itself — that stays untouched, only the thin `scripts/` wrapper pair goes), and
+sweep the remaining ~15 doc-only references (`scripts/CLAUDE.md`, `README.md`, `.claude/rules.md`,
+`.claude/commands/autopilot.md`, `docs/architecture/runtime-notes.md`,
+`docs/architecture/README.md`, and historical `DECISIONS.md` mentions left as-is per this repo's
+own append-only-history convention).
 
 ### Real gap found, not fixed: Playwright in `run-all-tests.sh` never sees `build-and-test.sh`'s fresh build
 

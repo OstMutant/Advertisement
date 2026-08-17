@@ -124,7 +124,7 @@ run_and_collect() {
     docker logs -f "$CONTAINER"
   else
     # Poll the whole report tree out every 5s while the container runs -- not just progress.txt,
-    # so a stage's reports (unit-tests/, integration-tests/, ...) show up on the host as soon as
+    # so a stage's reports (build-and-test/, playwright/, ...) show up on the host as soon as
     # that stage finishes inside the container, not only after the entire run ends. Bind mounts
     # don't work from inside this sandbox (same constraint playwright/CLAUDE.md documents), so
     # `docker cp` is the only way to surface this live.

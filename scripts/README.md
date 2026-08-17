@@ -104,47 +104,46 @@ scripts\playwright.bat e2e --ux         # Windows
 
 ---
 
-## unit-tests.sh / unit-tests.bat
+## build-and-test.sh / build-and-test.bat — unit + integration tests
 
-Run plain JUnit 5 unit tests — no Docker, no Testcontainers, no real database (`query-lib`,
-`marketplace-app`'s non-UI service layer). Delegates to `scripts/unit-tests/run.sh`.
+Preferred way to run unit and/or integration tests — no local Java install needed, builds the
+whole reactor once, then runs both in parallel inside the same container. See
+`scripts/build-and-test/README.md` for the full flow.
 
 ```bash
-bash scripts/unit-tests.sh                       # all plain unit tests (query-lib + marketplace-app)
-bash scripts/unit-tests.sh marketplace-app       # one module only
-bash scripts/unit-tests.sh AccessEvaluatorTest   # one test class by name
-scripts\unit-tests.bat                           # Windows
+bash scripts/build-and-test.sh --sandbox --unit --integration      # both, in parallel
+bash scripts/build-and-test.sh --unit --no-integration              # unit only
+bash scripts/build-and-test.sh --no-unit --integration --sandbox    # integration only
+bash scripts/build-and-test.sh --unit-test AccessEvaluatorTest --no-integration
+bash scripts/build-and-test.sh --no-unit --integration-test AdvertisementRepositoryTest --sandbox
 ```
 
-Reports after each run: `scripts/unit-tests/reports/run.log` (full output) and
-`scripts/unit-tests/reports/surefire/<module>/` (pass/fail per test class, split by module). For
-Testcontainers-based repository tests against a real Postgres, use `integration-tests.sh` below
-instead.
+Reports: `scripts/build-and-test/reports/surefire/<module>/`. `--sandbox` is only needed in this
+claude-dev sandbox (dynamic Testcontainers ports aren't reachable there) — omit it on a normal
+developer machine.
 
----
+## `integration-tests/run.sh` — direct alternative, needs a local Java install
 
-## integration-tests.sh / integration-tests.bat
-
-Run Testcontainers-based repository tests + fixtures (module `integration-tests` — owns every
-such test for every starter, so starters carry none themselves). Delegates to
-`integration-tests/run.sh`.
+Testcontainers-based repository tests + fixtures (module `integration-tests` — owns every such
+test for every starter, so starters carry none themselves) can also run directly, without a
+container, via this module's own entry point — with capabilities `build-and-test.sh` deliberately
+doesn't replicate (a targeted per-starter staleness check instead of always installing the whole
+reactor, `--no-check` to bypass it entirely):
 
 ```bash
-bash scripts/integration-tests.sh                          # all integration tests
-bash scripts/integration-tests.sh smoke                    # just PostgresContainerSmokeTest
-bash scripts/integration-tests.sh AdvertisementRepositoryTest  # one class by name
-bash scripts/integration-tests.sh --sandbox smoke          # + this sandbox's Docker workarounds
-bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the staleness check
-scripts\integration-tests.bat --sandbox                    # Windows
+bash integration-tests/run.sh                          # all integration tests
+bash integration-tests/run.sh smoke                    # just PostgresContainerSmokeTest
+bash integration-tests/run.sh AdvertisementRepositoryTest  # one class by name
+bash integration-tests/run.sh --sandbox smoke          # + this sandbox's Docker workarounds
+bash integration-tests/run.sh --no-check TaxonRepositoryTest  # skip the staleness check
 ```
 
 Reports after each run: `integration-tests/reports/run.log` (full output) and
-`integration-tests/reports/surefire/` (pass/fail per test class). `--sandbox` is only needed in
-the claude-dev sandbox (dynamic Testcontainers ports aren't reachable there) — omit it on a normal
-developer machine. `run.sh` auto-detects whether the starter modules it depends on changed since
-their last install and only rebuilds those before testing (~1:47-3:35 vs. 3-7 min walking the full
-reactor every time) — no manual flag needed. `--no-check` skips that detection entirely, testing
-against whatever's already in `~/.m2`; see `integration-tests/CLAUDE.md` for the full rule.
+`integration-tests/reports/surefire/` (pass/fail per test class). `run.sh` auto-detects whether the
+starter modules it depends on changed since their last install and only rebuilds those before
+testing (~1:47-3:35 vs. 3-7 min walking the full reactor every time) — no manual flag needed.
+`--no-check` skips that detection entirely, testing against whatever's already in `~/.m2`; see
+`integration-tests/CLAUDE.md` for the full rule.
 
 ---
 
@@ -256,7 +255,6 @@ scripts/
   ci/              — isolated local CI runner (Dockerfile, entrypoint.sh, own README/DECISIONS.md)
   hooks/           — git hooks (pre-commit, commit-msg), installed via install-hooks.sh
   run-all-tests/   — run.sh + reports/ output for run-all-tests.sh
-  unit-tests/      — run.sh + reports/ output for unit-tests.sh
 ```
 
 ---
@@ -307,6 +305,6 @@ bash scripts/ci.sh --integration --sandbox      # this sandbox's Testcontainers 
 bash scripts/ci.sh --foreground                 # block and stream instead of the background default
 ```
 
-Reports: `scripts/ci/reports/<timestamp>/{unit-tests,integration-tests,playwright,sonar}/`
+Reports: `scripts/ci/reports/<timestamp>/{build-and-test,playwright,sonar}/`
 (pruned to the last 3 runs by default — see `--keep-reports`). Full detail: `scripts/ci/README.md`
 and `scripts/ci/DECISIONS.md`.

@@ -18,7 +18,7 @@
 # own `intent[]` list instead, reusing adr-index.md rather than reparsing every DECISIONS.md.
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 OUTPUT="$REPO_ROOT/docs/architecture/architecture-model.json"
 HTML_OUTPUT="$REPO_ROOT/docs/architecture/architecture-map.html"
 ARCH_EMBED_INDEX="$REPO_ROOT/docs/architecture/arch-embed-index.md"
@@ -27,8 +27,8 @@ FLOWS="$REPO_ROOT/docs/ai/flows.md"
 ROOT_CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
 
 # Opt-in Sonar/ArchUnit/ADR-details fetch -- all off by default so a plain run never triggers a
-# SonarQube rescan, depends on unit-tests.sh having run recently, or bakes every module's full ADR
-# text into the output. See scripts/architecture/DECISIONS.md.
+# SonarQube rescan, depends on build-and-test.sh --archunit-metrics having run recently, or bakes
+# every module's full ADR text into the output. See docs/architecture/scripts/DECISIONS.md.
 WITH_SONAR=""
 WITH_ARCHUNIT=""
 WITH_ADR_DETAILS=""
@@ -66,24 +66,24 @@ json_escape() {
 # already uses) -- NOT a separate <module>/DECISIONS.json loaded at runtime via <script src>. That
 # design was tried and reverted: it depends on browser-specific file:// security policy for
 # cross-directory script loading, an unacceptable dependency for a tool meant to just work when
-# double-clicked -- see scripts/architecture/DECISIONS.md ADR-008. Parsing lives in md-to-decisions-json.js
+# double-clicked -- see docs/architecture/scripts/DECISIONS.md ADR-008. Parsing lives in md-to-decisions-json.js
 # (Node) -- an earlier awk version hit two real bugs on real content (label+list with no blank
 # line merging into one paragraph; multi-line list items losing their numbering) that
 # JSON.stringify()'s correct-by-construction escaping and normal regex/string methods avoid.
-FULL_DECISIONS_MODULES=(attachment-spring-boot-starter audit-spring-boot-starter integration-tests marketplace-app platform-commons query-lib taxon-spring-boot-starter scripts scripts/architecture scripts/ci scripts/sonar playwright)
+FULL_DECISIONS_MODULES=(attachment-spring-boot-starter audit-spring-boot-starter integration-tests marketplace-app platform-commons query-lib taxon-spring-boot-starter scripts docs/architecture/scripts scripts/ci scripts/sonar playwright)
 
 # ── Non-Maven tooling directories -- get a SCRIPT_GROUP node (same ADR-embedding/popup mechanism
 # as MODULE nodes) so their files/decisions are visible on the Tooling & Pipelines screen, not
 # invisible outside the interactive tool. "category" is the group heading each dir's card renders
 # under -- one heading per dir (AI Tooling / Build architecture page / Playwright / Sonar / CI /
 # Other Scripts), not a two-bucket ai/scripts split. Not every SCRIPT_GROUP dir has its own
-# DECISIONS.md -- scripts/ai's own history moved to scripts/architecture/DECISIONS.md wholesale
-# (see scripts/architecture/DECISIONS.md ADR-021), so scripts/ai now gets a files-only node, no
+# DECISIONS.md -- docs/ai/scripts's own history moved to docs/architecture/scripts/DECISIONS.md wholesale
+# (see docs/architecture/scripts/DECISIONS.md ADR-021), so docs/ai/scripts now gets a files-only node, no
 # ADR/decisions section (decisions_json_for/adr_intent_for_module both degrade to empty for a
 # module with no DECISIONS.md, not a special case here).
 declare -A SCRIPT_GROUP_CATEGORY=(
-  [scripts/ai]="AI Tooling"
-  [scripts/architecture]="Build architecture page"
+  [docs/ai/scripts]="AI Tooling"
+  [docs/architecture/scripts]="Build architecture page"
   [scripts]="Other Scripts"
   [scripts/ci]="CI"
   [scripts/sonar]="Sonar"
@@ -91,14 +91,14 @@ declare -A SCRIPT_GROUP_CATEGORY=(
   [scripts/run-all-tests]="Run All Tests"
   [playwright]="Playwright"
 )
-SCRIPT_GROUP_DIRS=(scripts/ai scripts/architecture scripts scripts/ci scripts/sonar scripts/build-and-test scripts/run-all-tests playwright)
+SCRIPT_GROUP_DIRS=(docs/ai/scripts docs/architecture/scripts scripts scripts/ci scripts/sonar scripts/build-and-test scripts/run-all-tests playwright)
 
 # Explicit "what matters first" ordering per directory -- entry points and generators before the
 # CI gates that verify their output, dev-only tooling last. Falls back to alphabetical (find |
 # sort) for any directory not listed here.
 declare -A SCRIPT_GROUP_FILE_ORDER=(
-  [scripts/ai]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh"
-  [scripts/architecture]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh"
+  [docs/ai/scripts]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh"
+  [docs/architecture/scripts]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh"
   [scripts/sonar]="run.sh run.bat docker-compose.sonar.yml sonar-project.properties"
   [scripts/build-and-test]="run.sh build.sh build-and-test.properties Dockerfile"
   [scripts/run-all-tests]="run.sh"
@@ -116,7 +116,7 @@ decisions_json_for() {
   local found=false
   for m in "${FULL_DECISIONS_MODULES[@]}"; do [ "$m" = "$module" ] && found=true; done
   $found || { echo "null"; return; }
-  node "$REPO_ROOT/scripts/architecture/md-to-decisions-json.js" --stdout "$module"
+  node "$REPO_ROOT/docs/architecture/scripts/md-to-decisions-json.js" --stdout "$module"
 }
 
 # A SCRIPT_GROUP dir's own README.md (if it has one), read raw via Node's JSON.stringify -- same
@@ -139,7 +139,7 @@ mapfile -t MODULES < <(sed -n '/<modules>/,/<\/modules>/p' "$REPO_ROOT/pom.xml" 
 # bounded context and gets no box on the diagram; this is how a brand-new module type (e.g.
 # marketplace-orchestrator's "orchestrator" kind) becomes visible on this diagram automatically,
 # from the same commit that adds the module, with no separate edit to this script required.
-# See scripts/architecture/DECISIONS.md ADR-019 "Open goals" (superseded by this ADR entry) and the
+# See docs/architecture/scripts/DECISIONS.md ADR-019 "Open goals" (superseded by this ADR entry) and the
 # new ADR recorded alongside this change.
 declare -A BC_DOMAIN_MODULE=() BC_DOMAIN_LABEL=() BC_DOMAIN_KIND=()
 BC_DOMAIN_ORDER=() BC_DOMAIN_ORDER_STARTERS=()
@@ -289,7 +289,7 @@ while IFS=$'\t' read -r tbl_module tbl_name; do
 done < <(
   files=()
   for f in "${DB_ERD_CHANGELOG_FILES[@]}"; do files+=("$REPO_ROOT/$f"); done
-  node "$REPO_ROOT/scripts/architecture/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}" \
+  node "$REPO_ROOT/docs/architecture/scripts/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}" \
     | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>JSON.parse(d).forEach(t=>console.log(t.module+"\t"+t.name)))'
 )
 
@@ -312,7 +312,7 @@ fi
 #    itself. DECISIONS.md is the one place that text lives; this tool always resolves to it, it
 #    never restates it (doc-standards/SKILL.md's own "reference by ADR number, never restate the
 #    reasoning inline" rule -- an earlier version of this feature embedded the full body text, and
-#    a version after that added a line number, both corrected -- see scripts/architecture/DECISIONS.md
+#    a version after that added a line number, both corrected -- see docs/architecture/scripts/DECISIONS.md
 #    ADR-006). No line number: a raw .md opened via file:// has no heading anchors for a fragment
 #    to jump to anyway (no markdown rendering happens), and a line number needs recalculating on
 #    every edit to any ADR above it in the same file for a benefit that was never real navigation,
@@ -382,7 +382,7 @@ generate_pointer_decisions_md() {
     echo "This module has no \`DECISIONS.md\` of its own — decisions about it are recorded in"
     echo "other modules' files and cross-listed here via their own \`**Also affects:**\` tag."
     echo "Do not hand-edit this file — add \`**Also affects:** $module\` to the real ADR in its"
-    echo "home file instead, then regenerate via \`bash scripts/architecture/generate-architecture-model.sh\`."
+    echo "home file instead, then regenerate via \`bash docs/architecture/scripts/generate-architecture-model.sh\`."
     echo
     if [ -z "$items" ]; then
       echo "No ADRs currently cross-reference this module."
@@ -570,7 +570,7 @@ issue_list_json() {
 # Diagrams page straight from MODULES/module_deps()/ROOT_ARTIFACT_ID (see renderModuleDependencyGraph()
 # and its accompanying table/notes in the HTML template below) -- one source (pom.xml), not a
 # second, separately-extracted copy (user-requested unification, 2026-08-04; see
-# scripts/architecture/DECISIONS.md ADR-003/005). Its diagramGroups entry is synthesized directly below,
+# docs/architecture/scripts/DECISIONS.md ADR-003/005). Its diagramGroups entry is synthesized directly below,
 # with an empty "source" (nothing reads it -- the special-cased renderer never parses Mermaid text
 # for this group) purely so the Diagrams list page has a card to link from.
 # All four diagrams (Module Dependencies/SPI Map/Database ERD/Bounded Contexts) render live --
@@ -798,7 +798,7 @@ db_erd_json() {
   local f
   for f in "${DB_ERD_CHANGELOG_FILES[@]}"; do files+=("$REPO_ROOT/$f"); done
   local tables_json relationships_json
-  tables_json="$(node "$REPO_ROOT/scripts/architecture/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}")"
+  tables_json="$(node "$REPO_ROOT/docs/architecture/scripts/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}")"
   relationships_json="$(db_erd_conceptual_relationships_json)"
   echo "{\"tables\": $tables_json, \"conceptualRelationships\": $relationships_json}"
 }
@@ -1423,7 +1423,7 @@ arch_embeds_json() {
 arch_embed_index_md() {
   echo "# Arch-embed marker index (generated)"
   echo
-  echo "Generated by \`scripts/architecture/generate-architecture-model.sh\` from every"
+  echo "Generated by \`docs/architecture/scripts/generate-architecture-model.sh\` from every"
   echo "\`<!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->\` marker found in any \`CLAUDE.md\` in"
   echo "this repo -- do not hand-edit, rerun the generator after any marker changes instead."
   echo "Description is derived from the marker's own leading \`**bold**\` phrase(s), not"
@@ -1461,7 +1461,7 @@ archunit_json="null"
 
 {
   echo "{"
-  echo "  \"generated_by\": \"scripts/architecture/generate-architecture-model.sh\","
+  echo "  \"generated_by\": \"docs/architecture/scripts/generate-architecture-model.sh\","
   echo "  \"generated_note\": \"Track A, plus real SonarQube/ArchUnit metrics -- modules+deps from pom.xml, domain grouping/entities/services/contracts derived live from real Java source and the module list, tables live from the real Liquibase changelogs. Module Dependencies (01)/SPI Map (02)/Database ERD (04)/Bounded Contexts have no .md counterpart -- rendered live on this tool's own Diagrams page instead, lifecycle from DECISIONS.md/backlog, pipeline nodes from docs/ai/flows.md + .claude/commands + .claude/skills.\","
   echo "  \"rootArtifactId\": \"$(json_escape "$ROOT_ARTIFACT_ID")\","
   echo "  \"rootVersion\": \"$(json_escape "$ROOT_VERSION")\","
@@ -1568,7 +1568,7 @@ archunit_json="null"
     echo "    }"
   done < <(find "$REPO_ROOT/.claude/skills" -name "SKILL.md" -print0 2>/dev/null | sort -z)
 
-  # SCRIPT_GROUP nodes -- non-Maven tooling directories, most (not all -- see scripts/ai above)
+  # SCRIPT_GROUP nodes -- non-Maven tooling directories, most (not all -- see docs/ai/scripts above)
   # with their own DECISIONS.md
   for d in "${SCRIPT_GROUP_DIRS[@]}"; do
     desc=""
@@ -1783,7 +1783,7 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
 <body>
 <header>
   <h1>Architecture Control Plane</h1>
-  <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, docs/ai/flows.md, .claude/commands, .claude/skills, root CLAUDE.md — regenerate via <code>bash scripts/architecture/generate-architecture-model.sh</code>. Track A only: module-level granularity; Contract/Implementation/Method levels are placeholders until Track B's ArchUnit exporter lands.</div>
+  <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, docs/ai/flows.md, .claude/commands, .claude/skills, root CLAUDE.md — regenerate via <code>bash docs/architecture/scripts/generate-architecture-model.sh</code>. Track A only: module-level granularity; Contract/Implementation/Method levels are placeholders until Track B's ArchUnit exporter lands.</div>
   <nav id="breadcrumb"></nav>
 </header>
 <main id="content"></main>
@@ -1826,8 +1826,8 @@ const backlogNode = MODEL.nodes.find(n => n.type === "BACKLOG_SUMMARY");
 // Diagrams' groupKey (list view with no view.groupId, detail view once one is picked). "category"
 // matches each SCRIPT_GROUP node's own category field (SCRIPT_GROUP_CATEGORY in the bash generator).
 const PIPELINE_GROUPS = {
-  "ai-tooling": { icon: "🤖", label: "AI Tooling", category: "AI Tooling", desc: `${commandNodes.length} commands, ${skillNodes.length} skills, scripts/ai` },
-  "build-architecture-page": { icon: "🗺️", label: "Build architecture page", category: "Build architecture page", desc: "scripts/architecture — this page's own generator" },
+  "ai-tooling": { icon: "🤖", label: "AI Tooling", category: "AI Tooling", desc: `${commandNodes.length} commands, ${skillNodes.length} skills, docs/ai/scripts` },
+  "build-architecture-page": { icon: "🗺️", label: "Build architecture page", category: "Build architecture page", desc: "docs/architecture/scripts — this page's own generator" },
   "playwright": { icon: "🎭", label: "Playwright", category: "Playwright", desc: "playwright/ — UI test runner" },
   "sonar": { icon: "📊", label: "Sonar", category: "Sonar", desc: "scripts/sonar — static analysis" },
   "ci": { icon: "⚙️", label: "CI", category: "CI", desc: "scripts/ci — local isolated CI runner" },
@@ -1928,7 +1928,7 @@ function renderBreadcrumb() {
 
 // ── System screen: just the 3 entry-point cards. Module browsing lives under Diagrams ›
 // Module Dependencies (one shared graph-building function, not a second copy — see
-// renderModuleDependencyGraph() and scripts/architecture/DECISIONS.md ADR-003). ──────────────────────────
+// renderModuleDependencyGraph() and docs/architecture/scripts/DECISIONS.md ADR-003). ──────────────────────────
 function renderSystem() {
   let html = `<h2 class="screen-title">System</h2>
     <div class="screen-desc">${moduleNodes.length} modules across ${domainOrder.length} domains. Pick where to start.</div>`;
@@ -2009,7 +2009,7 @@ function renderModuleDependencyGraph() {
 
 // Scope-grouped dependency list for one module -- built from the same edges the graph/module
 // pages use, not a second hand-typed table (this replaces the old docs/architecture/
-// 01-module-dependencies.md "Dependency Table", see scripts/architecture/DECISIONS.md ADR-005). Returns
+// 01-module-dependencies.md "Dependency Table", see docs/architecture/scripts/DECISIONS.md ADR-005). Returns
 // [{label, deps}] groups; moduleDepsScopeText()/moduleDepsScopeHtml() below render this the same
 // shape two ways (plain text for the markdown export, linked HTML for the on-page table) instead
 // of each re-deriving compile/optional/runtime grouping independently.
@@ -2256,7 +2256,7 @@ function buildModuleDependencyMermaid() {
 // the repo; this is for pasting into a wiki/issue/chat, not a tracked file, so there is no
 // staleness risk to guard against (contrast the retired approach of committing a generated block
 // into docs/architecture/01-module-dependencies.md, which needed its own CI freshness gate --
-// see scripts/architecture/DECISIONS.md ADR-005). Shared by every "Export as Markdown" button in this tool.
+// see docs/architecture/scripts/DECISIONS.md ADR-005). Shared by every "Export as Markdown" button in this tool.
 function downloadMarkdown(filename, content) {
   const blob = new Blob([content], { type: "text/markdown" });
   const a = document.createElement("a");
@@ -2371,7 +2371,7 @@ function renderCodeQuality() {
   if (!arch) {
     html += `<div class="empty-hint">No data -- regenerate with <code>--with-archunit</code> (requires <code>bash scripts/build-and-test.sh --archunit-metrics</code> to have run at least once).</div>`;
   } else {
-    html += `<div class="empty-hint">Source: ArchUnit (from the last <code>bash scripts/unit-tests.sh</code> run).</div>
+    html += `<div class="empty-hint">Source: ArchUnit (from the last <code>bash scripts/build-and-test.sh --archunit-metrics</code> run).</div>
       <table class="simple"><thead><tr><th>Module</th><th>Efferent coupling</th><th>Afferent coupling</th><th>Instability</th><th>Abstractness</th><th>Distance from Main Sequence</th></tr></thead><tbody>`;
     moduleNodes.forEach(n => {
       const m = arch.modules && arch.modules[n.id];
@@ -3527,7 +3527,7 @@ function renderAdrs() {
   });
   groups.forEach(grp => {
     // Only a real MODULE node has a Module-detail page to link to -- SCRIPT_GROUP entries
-    // (scripts/architecture, scripts/ci, etc.) stay plain text, no dead/wrong-feeling navigation.
+    // (docs/architecture/scripts, scripts/ci, etc.) stay plain text, no dead/wrong-feeling navigation.
     const grpNode = byId[grp.module];
     const grpHeading = grpNode && grpNode.type === "MODULE"
       ? `<a class="module-link" onclick="navigate({screen:'module', id:'${esc(grp.module)}'})">${esc(grp.module)}</a>`
@@ -3547,7 +3547,7 @@ function renderAdrs() {
 
 // Always opens the popup -- title/status come from MODEL.allAdrs (always populated, passed in
 // directly from the calling row so there's no second lookup) -- the body is the full embedded
-// text only if that module's full ADR content was embedded (see scripts/architecture/DECISIONS.md
+// text only if that module's full ADR content was embedded (see docs/architecture/scripts/DECISIONS.md
 // ADR-008's FULL_DECISIONS_MODULES, gated behind --with-adr-details); otherwise a real link to the
 // source file plus a generic pointer to where that flag is documented, not a copy of the exact
 // command here (kept deliberately decoupled from one script's exact CLI shape). Takes the ADR id +

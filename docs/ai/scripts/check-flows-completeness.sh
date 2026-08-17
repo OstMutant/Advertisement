@@ -5,7 +5,7 @@
 # own "Staying correct" section).
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 FLOWS="$REPO_ROOT/docs/ai/flows.md"
 
 # Scope the search to the "Project" section only -- stop at the "Built-in" header.

@@ -10,7 +10,7 @@ constraints together — is fresh before any implementation begins, not assemble
 memory partway through.
 
 Same discipline before **every individual script run**, not only once per command/skill
-invocation: before `deploy.sh`/`playwright.sh`/`unit-tests.sh`/`integration-tests.sh` etc., re-Read
+invocation: before `deploy.sh`/`playwright.sh`/`build-and-test.sh` etc., re-Read
 the relevant `CLAUDE.md` (`scripts/CLAUDE.md`, `playwright/CLAUDE.md`) for that script's current
 documented behavior/flags/constraints rather than acting on what was true earlier in the same
 session — those files get updated mid-session precisely because a run just revealed a gap.
@@ -41,7 +41,7 @@ session — those files get updated mid-session precisely because a run just rev
 > ## ⛔ Any `DECISIONS.md` edit regenerates the ADR index in the same operation
 > Whenever any `DECISIONS.md` file is created, edited, or has an ADR added/changed — by any
 > workflow, command, or skill, not only `/decision` — run
-> `bash scripts/ai/generate-adr-index.sh` and include the resulting `docs/ai/adr-index.md` diff in
+> `bash docs/ai/scripts/generate-adr-index.sh` and include the resulting `docs/ai/adr-index.md` diff in
 > the same change before considering it complete. This applies even to direct edits made outside
 > any specific skill's own steps; the index going stale is not a lesser concern just because the
 > edit didn't go through the one command that happens to mention it.
@@ -328,7 +328,7 @@ regardless of cost stays. Never drop an angle from one run's data alone.
 
 **Agent calls vs. Script/command runs — different metrics, don't conflate them.** Every Agent-tool
 task-notification carries real `<usage>` data (`subagent_tokens`/`tool_uses`/`duration_ms`) — use
-it verbatim, don't estimate. Scripts (`unit-tests.sh`, `deploy.sh`, `playwright.sh`, etc.) are not
+it verbatim, don't estimate. Scripts (`build-and-test.sh`, `deploy.sh`, `playwright.sh`, etc.) are not
 LLM calls and have no token cost of their own — never invent one; only record their real wall-clock
 duration and pass/fail result. Main-thread (this conversation's own) token usage has no reporting
 tool at all — not a policy choice, a real gap, confirmed via `ToolSearch` finding no matching tool
@@ -346,8 +346,8 @@ not acceptable even when the choice itself was reasonable.
 
 ## Definition of Done
 A feature or fix is not complete until all of the following hold:
-- The relevant full test suite is green: `bash scripts/unit-tests.sh` + `bash scripts/integration-
-  tests.sh --sandbox` always; the full Playwright `e2e --full --ux` scenario too whenever the
+- The relevant full test suite is green: `bash scripts/build-and-test.sh --unit --integration
+  --sandbox` always; the full Playwright `e2e --full --ux` scenario too whenever the
   change touches UI-visible behavior. `bash scripts/ci.sh` (`/ci`) runs this whole chain
   (unit → integration → e2e → Sonar) in one pass when a single command is preferred over running
   each stage separately.

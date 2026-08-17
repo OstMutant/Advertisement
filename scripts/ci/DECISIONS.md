@@ -315,3 +315,36 @@ gap.
   that already ran the old version), and removing it would only reintroduce a checksum-mismatch
   failure on those same already-migrated databases without fixing the missing-columns gap either
   way.
+
+---
+
+## ADR-008: `unit`/`integration` stages merged into one `build_and_test` stage
+
+**Status:** Accepted
+
+**Context:** `entrypoint.sh` ran `unit`/`integration` as two separate, sequential stages, each
+calling `scripts/unit-tests.sh`/`scripts/integration-tests.sh` directly. `scripts/build-and-test.sh`
+(improvement-152) now installs the whole reactor once and runs unit and integration tests as
+parallel jobs internally, reaching feature parity with both standalone scripts (module/test
+selection, host-copied reports, PASSED/FAILED summaries, `--sandbox`). Keeping `entrypoint.sh` on
+the two standalone scripts would mean CI duplicates a full reactor install/compile cycle that
+`build-and-test.sh` already does once, and blocks retiring the standalone scripts.
+
+**Decision:** `STAGE_UNIT`/`STAGE_INTEGRATION` (still two separate env vars, still independently
+toggleable) now drive a single `build_and_test` stage that calls `bash scripts/build-and-test.sh`
+with `--unit`/`--no-unit` and `--integration`/`--no-integration` set accordingly, forwarding
+`--sandbox` only when integration is requested. Reports move from two sources
+(`scripts/unit-tests/reports/`, `integration-tests/reports/`) to one
+(`scripts/build-and-test/reports/` → `$REPORT_DIR/build-and-test/`).
+
+**Consequences:**
+- `progress.txt` shows one `build_and_test` line instead of separate `unit`/`integration` lines
+  when either or both are requested — matches this repo's own CI-vocabulary grounding (a stage is
+  a sequential step; what were two sequential stages are now one stage with two parallel jobs
+  inside it, the same shape `build-and-test.sh` already uses standalone).
+- Requesting only one of `--unit`/`--integration` still works exactly as before (the other side
+  gets `--no-unit`/`--no-integration`) — no change in what a caller can select, only in how the
+  single resulting Maven invocation is organized internally.
+- Unblocks retiring `scripts/unit-tests.sh`/`.bat`/`scripts/unit-tests/` and
+  `scripts/integration-tests.sh`/`.bat` — this was the last real code dependency on either script
+  outside `run-all-tests.sh` (already migrated).

@@ -13,13 +13,13 @@
 # parsing logic to keep in sync. Same pattern as check-adr-index-freshness.sh.
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 JSON="$REPO_ROOT/docs/architecture/architecture-model.json"
 HTML="$REPO_ROOT/docs/architecture/architecture-map.html"
 
 if [ ! -f "$JSON" ] || [ ! -f "$HTML" ]; then
   echo "ERROR: architecture-model.json / architecture-map.html don't exist yet."
-  echo "Run: bash scripts/architecture/generate-architecture-model.sh and commit the result."
+  echo "Run: bash docs/architecture/scripts/generate-architecture-model.sh and commit the result."
   exit 1
 fi
 
@@ -29,7 +29,7 @@ trap 'mv "$BACKUP_JSON" "$JSON"; mv "$BACKUP_HTML" "$HTML"' EXIT
 
 cp "$JSON" "$BACKUP_JSON"
 cp "$HTML" "$BACKUP_HTML"
-bash "$REPO_ROOT/scripts/architecture/generate-architecture-model.sh" > /dev/null
+bash "$REPO_ROOT/docs/architecture/scripts/generate-architecture-model.sh" > /dev/null
 
 # sonarMetrics.analysisDate is a live SonarQube scan timestamp -- it legitimately differs between
 # two runs even when nothing "architectural" changed (e.g. someone reran a Sonar scan for an
@@ -49,7 +49,7 @@ if ! diff -q <(normalize "$BACKUP_HTML") <(normalize "$HTML") > /dev/null 2>&1; 
 fi
 
 if [ "$stale" -ne 0 ]; then
-  echo "Run: bash scripts/architecture/generate-architecture-model.sh, review the diff, and commit the result."
+  echo "Run: bash docs/architecture/scripts/generate-architecture-model.sh, review the diff, and commit the result."
   exit 1
 fi
 

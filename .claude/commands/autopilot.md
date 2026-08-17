@@ -66,7 +66,7 @@ Steps:
    - Never sit idle waiting on a backgrounded step. The moment something is backgrounded, start
      the next independent unit of work in the same turn (write the Playwright test, the ADR, a
      docs update, read files for the next step) — always through this project's existing scripts
-     (`./mvnw`, `scripts/unit-tests.sh`, `scripts/deploy.sh`, `scripts/playwright.sh`, etc.), never
+     (`./mvnw`, `scripts/build-and-test.sh`, `scripts/deploy.sh`, `scripts/playwright.sh`, etc.), never
      raw substitutes. Only wait/block when every remaining unit of work in the plan has a real
      dependency on the thing currently running (e.g. deploying before compile is confirmed clean,
      or running Playwright before deploy finishes) — in that case say so briefly and wait for the

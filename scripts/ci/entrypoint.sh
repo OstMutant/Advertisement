@@ -6,8 +6,10 @@
 # the *host*, not nested ones. See scripts/ci/DECISIONS.md ADR-001 for the full design rationale.
 #
 # Env vars (all set by scripts/ci/run.sh -- not meant to be set by hand):
-#   STAGE_UNIT / STAGE_INTEGRATION / STAGE_E2E / STAGE_SONAR -- "1" to run that stage
-#   SANDBOX      -- "1" to forward --sandbox to integration-tests.sh (this claude-dev sandbox only)
+#   STAGE_UNIT / STAGE_INTEGRATION -- "1" to include --unit/--integration in the single
+#     build_and_test stage's build-and-test.sh call (either, both, or neither)
+#   STAGE_E2E / STAGE_SONAR -- "1" to run that stage
+#   SANDBOX      -- "1" to forward --sandbox to build-and-test.sh (this claude-dev sandbox only)
 #   KEEP_INFRA   -- "1" to skip tearing down the isolated ci-* e2e stack after the run (debugging)
 #   REPORT_ID    -- directory name used for this run's consolidated report output
 #   PLAYWRIGHT_ARGS -- extra args forwarded to playwright/run.sh unchanged (e.g. "e2e --full --ux")
@@ -96,8 +98,7 @@ end_stage() {
 }
 
 register_stage docs
-[ "$STAGE_UNIT" = "1" ]        && register_stage unit
-[ "$STAGE_INTEGRATION" = "1" ] && register_stage integration
+{ [ "$STAGE_UNIT" = "1" ] || [ "$STAGE_INTEGRATION" = "1" ]; } && register_stage build_and_test
 [ "$STAGE_E2E" = "1" ]         && register_stage e2e
 [ "$STAGE_SONAR" = "1" ]       && register_stage sonar
 write_progress
@@ -108,10 +109,10 @@ write_progress
 #    "Staying correct" section for why its "Built-in Claude Code skills" table isn't covered here.
 start_stage docs
 DOCS_RC=0
-bash "$ROOT/scripts/ai/check-adr-index-freshness.sh" || DOCS_RC=1
-bash "$ROOT/scripts/ai/check-flows-completeness.sh" || DOCS_RC=1
-bash "$ROOT/scripts/ai/check-hardcoded-counts.sh" || DOCS_RC=1
-bash "$ROOT/scripts/architecture/check-architecture-model-freshness.sh" || DOCS_RC=1
+bash "$ROOT/docs/ai/scripts/check-adr-index-freshness.sh" || DOCS_RC=1
+bash "$ROOT/docs/ai/scripts/check-flows-completeness.sh" || DOCS_RC=1
+bash "$ROOT/docs/ai/scripts/check-hardcoded-counts.sh" || DOCS_RC=1
+bash "$ROOT/docs/architecture/scripts/check-architecture-model-freshness.sh" || DOCS_RC=1
 [ "$DOCS_RC" -ne 0 ] && OVERALL_EXIT=1
 end_stage docs "$DOCS_RC"
 
@@ -150,26 +151,26 @@ cleanup_on_exit() {
 # heartbeat is active) so any early exit/failure anywhere in this script still guarantees cleanup.
 trap cleanup_on_exit EXIT
 
-if [ "$STAGE_UNIT" = "1" ]; then
-  start_stage unit
-  bash "$ROOT/scripts/unit-tests.sh"
+if [ "$STAGE_UNIT" = "1" ] || [ "$STAGE_INTEGRATION" = "1" ]; then
+  start_stage build_and_test
+  BUILD_AND_TEST_FLAGS=()
+  if [ "$STAGE_UNIT" = "1" ]; then
+    BUILD_AND_TEST_FLAGS+=(--unit)
+  else
+    BUILD_AND_TEST_FLAGS+=(--no-unit)
+  fi
+  if [ "$STAGE_INTEGRATION" = "1" ]; then
+    BUILD_AND_TEST_FLAGS+=(--integration)
+    [ "$SANDBOX" = "1" ] && BUILD_AND_TEST_FLAGS+=(--sandbox)
+  else
+    BUILD_AND_TEST_FLAGS+=(--no-integration)
+  fi
+  bash "$ROOT/scripts/build-and-test.sh" "${BUILD_AND_TEST_FLAGS[@]}"
   RC=$?
   [ "$RC" -ne 0 ] && OVERALL_EXIT=1
-  mkdir -p "$REPORT_DIR/unit-tests"
-  cp -r "$ROOT/scripts/unit-tests/reports/." "$REPORT_DIR/unit-tests/" 2>/dev/null || true
-  end_stage unit "$RC"
-fi
-
-if [ "$STAGE_INTEGRATION" = "1" ]; then
-  start_stage integration
-  SANDBOX_FLAG=""
-  [ "$SANDBOX" = "1" ] && SANDBOX_FLAG="--sandbox"
-  bash "$ROOT/scripts/integration-tests.sh" $SANDBOX_FLAG
-  RC=$?
-  [ "$RC" -ne 0 ] && OVERALL_EXIT=1
-  mkdir -p "$REPORT_DIR/integration-tests"
-  cp -r "$ROOT/integration-tests/reports/." "$REPORT_DIR/integration-tests/" 2>/dev/null || true
-  end_stage integration "$RC"
+  mkdir -p "$REPORT_DIR/build-and-test"
+  cp -r "$ROOT/scripts/build-and-test/reports/." "$REPORT_DIR/build-and-test/" 2>/dev/null || true
+  end_stage build_and_test "$RC"
 fi
 
 if [ "$STAGE_E2E" = "1" ]; then

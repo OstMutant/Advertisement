@@ -26,7 +26,7 @@ commands as the canonical way to run it.
 ---
 
 ## ADR-002: scripts/ folder for all developer scripts
-**Status:** Accepted
+**Status:** Accepted, with one carved-out exception — see the update note below.
 
 **Context:** Root-level scripts cluttered the project root. Scripts are developer tooling,
 not project artifacts.
@@ -36,6 +36,16 @@ Each script resolves the project root via `cd /d "%~dp0.."` (bat) or `$(dirname 
 
 **Consequences:** `mvn.bat` stays at the root — invoked too frequently during development
 to be ergonomic elsewhere.
+
+**Update (exception carved out):** `scripts/architecture/` and `scripts/ai/` moved to
+`docs/architecture/scripts/` and `docs/ai/scripts/` respectively — a deliberate exception to this
+ADR's "all developer scripts live in `scripts/`" rule, chosen for navigation convenience: both
+directories exist purely to generate/verify the docs they now sit next to
+(`architecture-model.json`/`architecture-map.html`, `adr-index.md`), so keeping them beside their
+own output outweighs strict adherence to the original one-home-for-all-scripts rule for this one
+case. Every other script-group directory (`scripts/ci/`, `scripts/sonar/`, `scripts/build-and-test/`,
+etc.) still lives under `scripts/` per the original decision — this is a narrow, named exception,
+not a reversal.
 
 ---
 

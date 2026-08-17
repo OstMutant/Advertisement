@@ -14,7 +14,7 @@ Available modules and their DECISIONS.md paths (if a module isn't listed, check 
 - scripts            → /app/scripts/DECISIONS.md
 - scripts/ci         → /app/scripts/ci/DECISIONS.md
 - scripts/sonar      → /app/scripts/sonar/DECISIONS.md
-- scripts/architecture → /app/scripts/architecture/DECISIONS.md
+- docs/architecture/scripts → /app/docs/architecture/scripts/DECISIONS.md
 - integration-tests  → /app/integration-tests/DECISIONS.md
 - taxon-starter      → /app/taxon-spring-boot-starter/DECISIONS.md
 
@@ -55,9 +55,9 @@ Steps:
    then `**Context:**` (what prompted this), `**Decision:**` (what was decided), and optionally
    `**Rejected alternatives:**` — this is the format every existing `DECISIONS.md` entry actually
    uses (also documented in `.claude/commands/sync-docs.md`'s "Documentation Rules") and the one
-   `scripts/ai/generate-adr-index.sh` parses; a differently-shaped entry will not appear in
+   `docs/ai/scripts/generate-adr-index.sh` parses; a differently-shaped entry will not appear in
    `docs/ai/adr-index.md`
 5. Present the draft and wait for confirmation before writing
 6. Insert the new entry at the top of the file, after the `# ...` heading, before existing entries
-7. Regenerate `docs/ai/adr-index.md`: `bash scripts/ai/generate-adr-index.sh` — mandatory, same
+7. Regenerate `docs/ai/adr-index.md`: `bash docs/ai/scripts/generate-adr-index.sh` — mandatory, same
    change, not a follow-up (see `docs/ai/README.md`)

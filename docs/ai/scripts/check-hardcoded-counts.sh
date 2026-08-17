@@ -2,7 +2,7 @@
 # Backstop behind the doc-standards skill's checklist -- fails if a doc's hard-coded module count no longer matches pom.xml.
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 REAL_COUNT="$(grep -c '<module>' "$REPO_ROOT/pom.xml")"
 
 SEARCH_PATHS=(
@@ -14,17 +14,18 @@ while IFS= read -r -d '' f; do SEARCH_PATHS+=("$f"); done < <(find "$REPO_ROOT" 
 
 mismatch=""
 
-# architecture-model.json / architecture-map.html carry full ADR body text (scripts/architecture/DECISIONS.md
-# ADR-008) -- historical ADR prose can legitimately mention an unrelated past "N modules" count
-# (e.g. a starter-list length, a table/module split) that has nothing to do with the reactor's
-# total module count; excluded here, same as ADR-006 covered before this was briefly reverted.
+# architecture-model.json / architecture-map.html carry full ADR body text -- historical ADR prose
+# can legitimately mention an unrelated past "N modules" count (e.g. a starter-list length, a
+# table/module split) that has nothing to do with the reactor's total module count; excluded here,
+# same as this repo's own DECISIONS.md files are excluded below for the identical reason -- any
+# DECISIONS.md is an append-only historical record, never rewritten to keep a past count current.
 while IFS=: read -r file lineno match; do
   num="${match%% *}"
   if [ "$num" -ne "$REAL_COUNT" ]; then
     mismatch="${mismatch}- ${file#"$REPO_ROOT"/}:$lineno -- claims \"$match\", pom.xml currently has $REAL_COUNT modules\n"
   fi
 done < <(grep -rnoP '(?<!≥)[0-9]+ modules?\b' "${SEARCH_PATHS[@]}" 2>/dev/null \
-  | grep -v -e '^'"$REPO_ROOT"'/docs/architecture/architecture-model.json:' -e '^'"$REPO_ROOT"'/docs/architecture/architecture-map.html:' \
+  | grep -v -e '^'"$REPO_ROOT"'/docs/architecture/architecture-model.json:' -e '^'"$REPO_ROOT"'/docs/architecture/architecture-map.html:' -e '/DECISIONS\.md:' \
   || true)
 
 if [ -n "$mismatch" ]; then

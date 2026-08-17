@@ -208,10 +208,9 @@ All developer scripts live in `scripts/`. See [`scripts/README.md`](scripts/READ
 |---|---|
 | `scripts/deploy.sh` / `scripts/deploy.bat` | Full deploy pipeline: pull images → start infra → build → run → wait for startup |
 | `scripts/run-local.bat` | Run the app via Maven with no Docker image rebuild (dev or prod Vaadin mode) |
-| `scripts/unit-tests.sh` / `scripts/unit-tests.bat` | Run plain JUnit unit tests — no Docker, no database |
-| `scripts/integration-tests.sh` / `scripts/integration-tests.bat` | Run Testcontainers-based repository tests against a real Postgres |
+| `scripts/build-and-test.sh` / `scripts/build-and-test.bat` | Build the whole reactor, optionally run unit/integration tests in parallel — no local Java needed |
 | `scripts/playwright.sh` / `scripts/playwright.bat` | Run Playwright end-to-end tests (delegates to `playwright/run.sh`) |
-| `scripts/run-all-tests.sh` | Orchestrate unit → integration tests sequentially plus Playwright in parallel, one command |
+| `scripts/run-all-tests.sh` / `scripts/run-all-tests.bat` | `build-and-test.sh` (unit + integration in parallel) plus Playwright in parallel with that, one command |
 | `scripts/sonar.sh` / `scripts/sonar.bat` | Run SonarQube static analysis (delegates to `scripts/sonar/run.sh`) |
 | `scripts/ci.sh` / `scripts/ci.bat` | Isolated local CI pipeline — unit + integration + e2e + Sonar in one backgrounded pass |
 | `scripts/install-hooks.sh` | Install this repo's git hooks (pre-commit doc sync, commit-msg changelog) |

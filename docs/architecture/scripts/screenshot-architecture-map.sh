@@ -3,7 +3,7 @@
 #   browser, since the generated file has no automated visual test of its own.
 # Uses: bash, a headless Playwright browser (Docker, same pinned image/version as playwright/run.sh).
 # Input: docs/architecture/architecture-map.html (must already exist and be current).
-# Output: scripts/architecture/architecture-map-screenshots/{01-system,02-diagrams-list,
+# Output: docs/architecture/scripts/architecture-map-screenshots/{01-system,02-diagrams-list,
 #   03-diagram-module-deps,04-module-detail,05-diagram-spi,06-diagram-spi-zoomed,07-pipelines,
 #   08-backlog}.png (gitignored -- ephemeral verification artifacts, not committed).
 #
@@ -11,12 +11,12 @@
 # suite -- it screenshots a static generated file, not the running app.
 #
 # Usage:
-#   bash scripts/architecture/screenshot-architecture-map.sh
+#   bash docs/architecture/scripts/screenshot-architecture-map.sh
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 HTML="$REPO_ROOT/docs/architecture/architecture-map.html"
-OUT_DIR="$REPO_ROOT/scripts/architecture/architecture-map-screenshots"
+OUT_DIR="$REPO_ROOT/docs/architecture/scripts/architecture-map-screenshots"
 CONTAINER="arch-map-shot"
 PLAYWRIGHT_VERSION="1.61.1"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"

@@ -22,11 +22,11 @@ substitute for the full e2e run before any deploy.
 ### Linux / WSL
 
 ```bash
-bash scripts/integration-tests.sh                             # all tests
-bash scripts/integration-tests.sh smoke                       # just PostgresContainerSmokeTest
-bash scripts/integration-tests.sh AdvertisementRepositoryTest # one class by name
-bash scripts/integration-tests.sh --sandbox smoke             # + this sandbox's Docker workarounds
-bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the staleness check below
+bash integration-tests/run.sh                             # all tests
+bash integration-tests/run.sh smoke                       # just PostgresContainerSmokeTest
+bash integration-tests/run.sh AdvertisementRepositoryTest # one class by name
+bash integration-tests/run.sh --sandbox smoke             # + this sandbox's Docker workarounds
+bash integration-tests/run.sh --no-check TaxonRepositoryTest  # skip the staleness check below
 ```
 
 `run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon`/`audit`/
@@ -40,11 +40,12 @@ build. See `CLAUDE.md` for the full rule.
 ### Windows
 
 ```bat
-scripts\integration-tests.bat
-scripts\integration-tests.bat AdvertisementRepositoryTest
+wsl bash integration-tests/run.sh
+wsl bash integration-tests/run.sh AdvertisementRepositoryTest
 ```
 
-Delegates to `wsl bash /app/integration-tests/run.sh`.
+Or, without a local Java install at all: `scripts\build-and-test.bat --integration` (a different
+tool, container-based — no `--no-check`, single-class selection via `--integration-test` instead).
 
 ### Direct Maven (no script, no reports folder)
 
@@ -266,6 +267,6 @@ Testcontainers + `@SpringBootTest`.
    "Reusable test support" for the exact shape).
 3. Plain unit test: just a normal JUnit 5 test class, no base class needed.
 4. Place it in `src/test/java/org/ost/integrationtests/<domain>/`.
-5. Run with `bash scripts/integration-tests.sh <ClassName> --sandbox` (drop `--sandbox` on a
+5. Run with `bash integration-tests/run.sh <ClassName> --sandbox` (drop `--sandbox` on a
    normal developer machine).
 6. Update the table above.

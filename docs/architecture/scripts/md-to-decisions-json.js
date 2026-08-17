@@ -9,21 +9,21 @@
 //   <module>/DECISIONS.json (batch mode); or raw markdown for one/a few ADR ids (--extract mode).
 //
 // Parses a module's DECISIONS.md into structured data -- {title, adrs:[{id,title,status,body}],
-// extra:[{heading,body}]} -- see scripts/architecture/DECISIONS.md for the design history.
+// extra:[{heading,body}]} -- see docs/architecture/scripts/DECISIONS.md for the design history.
 // Replaces an earlier awk-based version that hit two real bugs on real content (label+list with
 // no blank line between merging into one paragraph; multi-line list items losing their numbering)
 // -- JSON.stringify() gives correct escaping by construction and normal string/regex methods
 // handle block parsing far more reliably than a hand-rolled awk state machine.
 //
 // Usage:
-//   node scripts/architecture/md-to-decisions-json.js <module> [<module> ...]        -- writes <module>/DECISIONS.json
-//   node scripts/architecture/md-to-decisions-json.js --stdout <module>              -- prints one module's
+//   node docs/architecture/scripts/md-to-decisions-json.js <module> [<module> ...]        -- writes <module>/DECISIONS.json
+//   node docs/architecture/scripts/md-to-decisions-json.js --stdout <module>              -- prints one module's
 //     parsed object as a single line of JSON to stdout, for embedding directly into
 //     architecture-model.json (no separate <module>/DECISIONS.json file, no runtime file:// load
-//     -- see scripts/architecture/DECISIONS.md ADR-008 for why the separate-file/<script src> design was
+//     -- see docs/architecture/scripts/DECISIONS.md ADR-008 for why the separate-file/<script src> design was
 //     abandoned: it depends on browser-specific file:// security policy, an unacceptable
 //     dependency for a tool meant to just work when double-clicked).
-//   node scripts/architecture/md-to-decisions-json.js --extract <module> <ADR-NNN>[,<ADR-NNN>...]
+//   node docs/architecture/scripts/md-to-decisions-json.js --extract <module> <ADR-NNN>[,<ADR-NNN>...]
 //     -- prints the requested ADR(s) as raw markdown (heading + full body), separated by "---"
 //     when more than one -- for Claude to read just the ADR(s) a task needs instead of the whole
 //     DECISIONS.md file (see improvement-145, backlog/completed/issues/ once done).

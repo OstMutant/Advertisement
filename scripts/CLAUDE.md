@@ -111,64 +111,57 @@ The script starts SonarQube automatically if not running, copies source files in
 
 ---
 
-## Plain Unit Tests (no Docker)
+## Unit / Integration Tests
 
-Fast JUnit 5 (+ Mockito where needed) unit tests with no Testcontainers, no real database, and
-usually no Spring context — e.g. `query-lib`'s `SqlConditionTest`/`SqlOperatorTest`,
-`marketplace-app`'s `AccessEvaluatorTest`/`AuthServiceTest`. Run via `scripts/unit-tests.sh`, never
-raw `mvn`:
+Two ways to run these, covering the same tests either way:
+
+### Via `build-and-test.sh` (preferred — no local Java needed, unit + integration in parallel)
 
 ```bash
-bash scripts/unit-tests.sh                       # all plain unit tests (query-lib + marketplace-app)
-bash scripts/unit-tests.sh marketplace-app        # one module only
-bash scripts/unit-tests.sh query-lib              # one module only
-bash scripts/unit-tests.sh AccessEvaluatorTest    # one test class by name
-scripts\unit-tests.bat                            # Windows
+bash scripts/build-and-test.sh --sandbox --unit --integration      # both, in parallel
+bash scripts/build-and-test.sh --unit --no-integration              # unit only
+bash scripts/build-and-test.sh --no-unit --integration --sandbox    # integration only
+bash scripts/build-and-test.sh --unit-test AccessEvaluatorTest --no-integration  # one class
+bash scripts/build-and-test.sh --no-unit --integration-test AdvertisementRepositoryTest --sandbox
 ```
 
-Delegates to `scripts/unit-tests/run.sh`. Streams full Maven output live via `tee`. After the run:
-- `scripts/unit-tests/reports/run.log` — full streamed output
-- `scripts/unit-tests/reports/surefire/<module>/` — one `.txt`/`.xml` report per test class, split
-  by module
+Builds the whole reactor into a container-isolated `~/.m2` first, then runs unit
+(`query-lib`/`marketplace-app`/`marketplace-orchestrator`) and integration (`integration-tests`
+module — Testcontainers-based repository tests, real Postgres) as parallel jobs inside that same
+container. See `scripts/build-and-test/README.md` for the full flow and
+`scripts/build-and-test/build.sh`'s own header for every flag. `--sandbox` applies
+`TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432` — **only needed in
+this claude-dev sandbox**, never on a normal developer machine (see below for why).
 
-No Docker, no `--sandbox` flag — these tests never touch a container. If a test needs a real
-Postgres, it belongs in `integration-tests` (see below), not here.
+Reports: `scripts/build-and-test/reports/surefire/<module>/`.
 
 **How to run it (Monitor + tee pattern, same as everything else):** launch a `Monitor` watching
-`scripts/unit-tests/reports/run.log` (10s interval, catch `PASSED|FAILED|ERROR`), then run
-synchronously: `bash scripts/unit-tests.sh [scenario] 2>&1 | tee /tmp/unit-tests.log` with
-`timeout: 600000`.
+`scripts/build-and-test/reports/surefire/` (10s interval, catch new `.txt` files) or just the
+console output itself (`PASSED|FAILED|ERROR|BUILD SUCCESS|BUILD FAILURE`), then run synchronously:
+`bash scripts/build-and-test.sh --sandbox --unit --integration 2>&1 | tee /tmp/build-and-test.log`
+with `timeout: 600000`.
 
----
+### Via direct Maven/module scripts (need a local Java install)
 
-## Unit / Testcontainers Tests
+Plain unit tests, no Docker: `mvn -pl query-lib,marketplace-app,marketplace-orchestrator test`.
 
-All Testcontainers-based tests and their fixtures live in the `integration-tests` module (see
-`integration-tests/CLAUDE.md` for why domain starters carry none of this themselves). For
-Docker-free plain unit tests (`query-lib`, `marketplace-app`'s non-UI service layer), see "Plain
-Unit Tests (no Docker)" above instead.
-
-### Via script (preferred — streaming, reports folder, scenario selection)
+Integration tests (Testcontainers, real Postgres) — `integration-tests/run.sh` still exists as its
+own standalone entry point, with capabilities `build-and-test.sh` deliberately doesn't replicate
+(a targeted per-starter staleness check instead of always installing the whole reactor,
+`--no-check` to bypass it entirely):
 
 ```bash
-bash scripts/integration-tests.sh                          # Linux / WSL — every test
-scripts\integration-tests.bat                               # Windows
-
-bash scripts/integration-tests.sh smoke                     # just PostgresContainerSmokeTest
-bash scripts/integration-tests.sh AdvertisementRepositoryTest  # one class by name
-bash scripts/integration-tests.sh --sandbox smoke            # + this sandbox's Docker workarounds
-bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the staleness check
+bash integration-tests/run.sh                          # every test
+bash integration-tests/run.sh smoke                     # just PostgresContainerSmokeTest
+bash integration-tests/run.sh AdvertisementRepositoryTest  # one class by name
+bash integration-tests/run.sh --sandbox smoke            # + this sandbox's Docker workarounds
+bash integration-tests/run.sh --no-check TaxonRepositoryTest  # skip the staleness check
 ```
 
-Delegates to `integration-tests/run.sh` (same thin-wrapper shape as `scripts/playwright.sh` →
-`playwright/run.sh`). Streams full Maven/Testcontainers output live via `tee`. After the run:
+Streams full Maven/Testcontainers output live via `tee`. After the run:
 - `integration-tests/reports/run.log` — full streamed output
 - `integration-tests/reports/surefire/` — one `.txt`/`.xml` pass/fail report per test class
   (copied from Maven's own `target/surefire-reports/`)
-
-`--sandbox` applies `TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`
-— **only needed in this claude-dev sandbox**, never on a normal developer machine (see below for
-why). Omit it there; Testcontainers' defaults just work.
 
 `run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon`/`audit`/`attachment`/
 `provider-profile-spring-boot-starter` changed since their last `~/.m2` install (comparing each
@@ -182,22 +175,12 @@ nothing changed. `--no-check` bypasses the detection entirely (test against what
 right now) — only for deliberately reproducing behavior against an older build. See
 `integration-tests/CLAUDE.md` and `DECISIONS.md` ADR-007 for the full rule.
 
-**How to run it (Monitor + tee pattern, same as deploy/Playwright):** launch a `Monitor` watching
-`integration-tests/reports/run.log` (10s interval, catch `PASSED|FAILED|ERROR`), then run
-synchronously: `bash scripts/integration-tests.sh --sandbox [scenario] 2>&1 | tee /tmp/integration-tests.log`
-with `timeout: 600000`.
-
-### Via direct command (no script, no reports folder)
-
-```bash
-mvn -pl integration-tests -am test
-# or, in this sandbox only:
-TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432 mvn -pl integration-tests -am test
-```
+Raw `mvn`, no reports folder: `mvn -pl integration-tests -am test` (or, in this sandbox only,
+prefixed with `TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`).
 `-am` also builds whichever starters `integration-tests` currently depends on (required — they
 are not otherwise built by a scoped `-pl integration-tests` alone).
 
-### Never run via `deploy.sh`
+### Never run integration tests via `deploy.sh`
 
 `deploy.sh` runs Maven with `-DskipTests` inside a `docker build` stage with no access to the
 outer Docker socket — standard Docker-in-Docker isolation, no socket mount configured for the
@@ -269,12 +252,12 @@ seconds, updated via periodic `docker cp` while the container runs, since bind m
 this sandbox — same constraint as `playwright/CLAUDE.md`) and `run.log` (the outer orchestrator's
 own stdout — container build/run/wait bookkeeping, not any stage's command output).
 Check in on a running background job anytime with `cat <path>/progress.txt` — no need to attach to
-anything. Reports land in `scripts/ci/reports/<timestamp>/{unit-tests,integration-tests,playwright,
+anything. Reports land in `scripts/ci/reports/<timestamp>/{build-and-test,playwright,
 sonar}/` (gitignored, pruned to the last 3 runs by default — see `--keep-reports`), each with its
 own `run.log` holding that stage's actual command output (see `scripts/ci/DECISIONS.md` ADR-006).
 Maven
 dependencies are cached across runs via the `ci-m2-cache` named volume. No stage logic is
-reimplemented — `entrypoint.sh` calls the existing `unit-tests.sh`/`integration-tests.sh`/
+reimplemented — `entrypoint.sh` calls the existing `build-and-test.sh`/
 `deploy.sh`+`playwright/run.sh`/`sonar.sh` scripts, with `deploy.sh` and `playwright/run.sh` now
 accepting env-var overrides (container/network names, ports, volume names — default to the exact
 values already in use, so normal dev usage is unaffected) for the isolated e2e stack.

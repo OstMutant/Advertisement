@@ -11,7 +11,7 @@ everyday work that goes through neither, it does not redefine either.
 Use [adr-index.md](adr-index.md) to find a specific `DECISIONS.md` entry by module/status instead
 of opening a full file speculatively. Once the index narrows it down to one or a few ADR ids in
 one module, read just those via
-`node scripts/architecture/md-to-decisions-json.js --extract <module> <ADR-NNN>[,<ADR-NNN>...]`
+`node docs/architecture/scripts/md-to-decisions-json.js --extract <module> <ADR-NNN>[,<ADR-NNN>...]`
 (prints the requested ADR(s) as raw markdown — see [README.md](README.md)) instead of opening the
 whole `DECISIONS.md` file. Open the whole file directly only when most of it is actually relevant
 (e.g. the "Architectural change" row below) — extraction is for the common case of needing a
