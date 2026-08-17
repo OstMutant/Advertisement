@@ -6,8 +6,8 @@ serial and ordered, each spec file builds on state left by the previous one).
 ## Requirements
 
 - Docker Desktop (Windows) or Docker Engine (Linux/WSL2)
-- App image already built and `marketplace-app` container created (`bash scripts/deploy.sh` once)
-- DB + MinIO containers running (started automatically by `deploy.sh`)
+- App image already built and `marketplace-app` container created (`bash scripts/deploy-and-run.sh` once)
+- DB + MinIO containers running (started automatically by `deploy-and-run.sh`)
 
 The `marketplace-app` container is started automatically if stopped. The database is reset
 automatically before each run — see "Database reset" below.
@@ -49,7 +49,7 @@ After run:
 1. **App readiness** — if `marketplace-app` is stopped, starts it and waits for `Started Application`
    in Docker logs (up to 120 s). If the container doesn't exist, prints the exact `docker run` command and exits.
 2. **Database reset** — checks whether `user_information` is already empty; if so, skips the reset
-   entirely. Otherwise stops `marketplace-app`, truncates all app tables (`scripts/database/reset-clean.sql`),
+   entirely. Otherwise stops `marketplace-app`, truncates all app tables (`scripts/deploy-and-run/reset-clean.sql`),
    then starts the app again and waits for `Started Application`. Tables are never truncated while
    the app is live.
 3. **pw-runner container** — reuses (or creates) a long-lived `mcr.microsoft.com/playwright:v1.61.1-jammy`
@@ -58,8 +58,8 @@ After run:
    `@playwright/test` npm packages once, syncs the current spec files from `e2e/` via `docker cp`,
    then runs `npx playwright test`.
 
-To start from an already-clean DB without the stop/reset/start cycle, deploy with `--reset-db`
-(`bash scripts/deploy.sh --reset-db`) — run.sh will
+To start from an already-clean DB without the stop/reset/start cycle, deploy with `--reset-only-db`
+(`bash scripts/deploy-and-run.sh --reset-only-db`) — run.sh will
 detect the empty tables and skip its own reset.
 
 ## Test accounts

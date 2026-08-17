@@ -211,7 +211,7 @@ After fixing a bug, cover all affected flows with Playwright tests before markin
 ## Scripts
 Always use project scripts — never raw docker/mvn commands:
 - `bash scripts/build-and-test.sh` — build the reactor (+ optional unit/integration tests), no local Java needed
-- `bash scripts/deploy.sh` — full rebuild (~7-10 min)
+- `bash scripts/deploy-and-run.sh` — full rebuild (~7-10 min)
 - `bash scripts/playwright.sh [scenario]` — Playwright tests
 - `mvn clean test 2>&1 | tee /tmp/test.log` — JUnit tests
 
@@ -233,7 +233,7 @@ subdirectory split for something that doesn't need one.
 2. Launch Monitor watching `/tmp/playwright.log` (10s interval, catch `failed|Error|passed`)
 3. Then run: `bash scripts/playwright.sh [scenario] 2>&1 | tee /tmp/playwright.log`
 
-**Before running deploy.sh** — launch Monitor watching `/tmp/deploy.log` (10s interval, catch `ERROR|BUILD SUCCESS|Started Application`), then run: `bash scripts/deploy.sh [args] 2>&1 | tee /tmp/deploy.log`
+**Before running deploy-and-run.sh** — launch Monitor watching `/tmp/deploy.log` (10s interval, catch `ERROR|BUILD SUCCESS|Started Application`), then run: `bash scripts/deploy-and-run.sh [args] 2>&1 | tee /tmp/deploy.log`
 
 ## Issue Lifecycle
 

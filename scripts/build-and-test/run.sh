@@ -5,8 +5,12 @@
 #   instead of triggering a redundant install mid-suite. Runs inside the build-and-test container
 #   so it works even without a local JDK. Optionally also runs unit and/or integration tests
 #   inside that same container (defaults from scripts/build-and-test/build-and-test.properties).
-#   Image: advertisement-build-env. Container (while running): advertisement-build-only -- attach
-#   with `docker exec -it advertisement-build-only bash` to inspect a run in progress.
+#   Image: advertisement-build-env. Container (while running): advertisement-build-only by default
+#   -- attach with `docker exec -it advertisement-build-only bash` to inspect a run in progress.
+#   Override via BUILD_CONTAINER_NAME (see Env below) when a caller needs to run this script
+#   concurrently with another invocation of itself -- e.g. scripts/deploy-and-run/run.sh's own
+#   internal call, which must not collide with a caller-level direct build-and-test.sh invocation
+#   running at the same time (see scripts/DECISIONS.md).
 # Usage: bash scripts/build.sh [--reset-cache] [--rebuild-image] [--unit|--no-unit]
 #   [--integration|--no-integration] [--unit-test <module-or-class>]
 #   [--integration-test <scenario-or-class>] [--sandbox] [--archunit-metrics]
@@ -27,9 +31,14 @@
 #                                     architecture-map.html --with-archunit); several minutes even
 #                                     on a warm build, run this occasionally, not on every call
 # Uses: bash, docker, tar.
-# Env: None directly; TESTCONTAINERS_RYUK_DISABLED / INTEGRATION_TESTS_POSTGRES_FIXED_PORT are
-#   passed through into the container if already set in the caller's own environment (sandbox-only
-#   Testcontainers workarounds, see scripts/CLAUDE.md) -- same effect as passing --sandbox.
+# Env: BUILD_CONTAINER_NAME (default advertisement-build-only) -- overridable so two invocations of
+#   this script can run concurrently without a Docker container-name collision (Docker container
+#   names must be unique; a fixed name means a second concurrent `docker run` with the same name
+#   fails outright with "Conflict... name already in use", independent of and before the internal
+#   flock below ever gets a chance to serialize anything). TESTCONTAINERS_RYUK_DISABLED /
+#   INTEGRATION_TESTS_POSTGRES_FIXED_PORT are passed through into the container if already set in
+#   the caller's own environment (sandbox-only Testcontainers workarounds, see scripts/CLAUDE.md)
+#   -- same effect as passing --sandbox.
 # Input: repo source; scripts/build-and-test/build-and-test.properties (unit=/integration= defaults).
 # Outputs: fresh jars for the whole reactor in the shared maven-cache Docker volume (never the
 #   host's own ~/.m2 -- see scripts/build-and-test/README.md); marketplace-app.jar refreshed at
@@ -44,6 +53,7 @@ set -e
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BUILD_IMAGE="advertisement-build-env"
+BUILD_CONTAINER_NAME="${BUILD_CONTAINER_NAME:-advertisement-build-only}"
 DOCKERFILE="$ROOT/scripts/build-and-test/Dockerfile"
 PROPS_FILE="$ROOT/scripts/build-and-test/build-and-test.properties"
 REPORT_DIR="$ROOT/scripts/build-and-test/reports"
@@ -147,12 +157,17 @@ mkdir -p "$REPORT_DIR"
 # mount (-v host:container) resolves against the wrong filesystem when the caller is itself a
 # Docker container (e.g. this claude-dev sandbox) -- confirmed directly: an earlier -v attempt
 # here left the mount empty. The container is removed explicitly right after the copy instead.
+# Defensive rm before create -- a prior run that was interrupted or failed before reaching its own
+# cleanup below (e.g. the container-name conflict this same variable was introduced to prevent)
+# would otherwise leave a stale container behind that blocks every subsequent run with the same
+# name, requiring manual `docker rm` to recover.
+docker rm -f "$BUILD_CONTAINER_NAME" 2>/dev/null || true
 set +e
 tar -czf - --exclude='*/target' --exclude='.git' \
   --exclude='marketplace-app/src/main/frontend/generated' --exclude='docs/ai/adr-index.md' \
   -C "$ROOT" . \
   | docker run -i \
-      --name advertisement-build-only \
+      --name "$BUILD_CONTAINER_NAME" \
       -v maven-cache:/root/.m2 \
       "${DOCKER_SOCK_MOUNT[@]}" \
       -e RUN_UNIT="$RUN_UNIT" \
@@ -166,8 +181,8 @@ tar -czf - --exclude='*/target' --exclude='.git' \
 BUILD_EXIT=$?
 set -e
 
-docker cp advertisement-build-only:/tmp/reports/. "$REPORT_DIR/" 2>/dev/null || true
-docker rm advertisement-build-only >/dev/null 2>&1 || true
+docker cp "$BUILD_CONTAINER_NAME":/tmp/reports/. "$REPORT_DIR/" 2>/dev/null || true
+docker rm "$BUILD_CONTAINER_NAME" >/dev/null 2>&1 || true
 
 # ── Keep the build environment clean: prune dangling images (never containers/volumes --
 # those are host-wide operations, opt-in only, see scripts/CLAUDE.md) ─────────

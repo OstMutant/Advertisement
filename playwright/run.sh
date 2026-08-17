@@ -23,7 +23,7 @@ done
 
 # ── Ensure marketplace-app is running ──────────────────────────────────────
 # All names/ports below are overridable via env vars (default shown), so a second, isolated
-# stack (see scripts/deploy.sh's own override block) can run this same script concurrently with
+# stack (see scripts/deploy-and-run.sh's own override block) can run this same script concurrently with
 # a normal dev stack — used by scripts/ci/entrypoint.sh.
 APP_URL="${APP_URL:-http://localhost:8081}"
 APP_CONTAINER="${APP_CONTAINER:-marketplace-app}"
@@ -40,7 +40,7 @@ PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
 if ! docker inspect "$APP_CONTAINER" &>/dev/null; then
   echo "ERROR: Container '$APP_CONTAINER' not found. Build and start it:"
   echo "  docker build -f Dockerfile -t marketplace-app ."
-  echo "  docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml up -d"
+  echo "  docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.minio.yml up -d"
   echo "  docker run -d --name marketplace-app --network host \\"
   echo "    -e SPRING_PROFILES_ACTIVE=prod -e DB_HOST=localhost -e DB_PORT=5432 \\"
   echo "    -e DB_NAME=experiments -e DB_USER=experiments_user \\"
@@ -87,9 +87,7 @@ if [ -n "$DB_CONTAINER" ]; then
   else
     echo "Database has data — stopping app, resetting, restarting..."
     docker stop "$APP_CONTAINER" >/dev/null
-    docker cp /app/scripts/database/reset-clean.sql "$DB_CONTAINER":/tmp/pw-reset.sql 2>/dev/null
-    docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
-      -f /tmp/pw-reset.sql -q 2>/dev/null && echo "Database reset (clean)."
+    DB_NAME="$DB_NAME" DB_USER="$DB_USER" bash /app/scripts/deploy-and-run/reset.sh --container "$DB_CONTAINER"
     RESTART_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     docker start "$APP_CONTAINER" >/dev/null
     echo "Waiting for application to restart..."

@@ -51,18 +51,18 @@ actual structured header spec rather than free-form prose advice. Two relevant p
 The `# ── Header ──` / `# ──` pair bounds the block explicitly, so a parser (or a human) never has
 to guess where it ends from context (a blank line, the next line of code, or nothing at all).
 
-### Example — `scripts/deploy.sh`
+### Example — `scripts/deploy-and-run.sh`
 
 ```bash
 #!/bin/bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Full prod deploy -- builds Docker image from scratch, starts all services on port 8081.
-# Usage: bash scripts/deploy.sh [--reset] [--restart-infra] [--file] [--no-cache] [--reset-db] [--prune-all]
+# Usage: bash scripts/deploy-and-run.sh [--reset] [--restart-infra] [--file] [--no-cache] [--reset-only-db] [--prune-all]
 #   --reset          wipe DB/MinIO volumes, then rebuild
 #   --restart-infra  restart infra containers only (no rebuild)
 #   --file           filtered console output + full log to /tmp/deploy.log
 #   --no-cache       force rebuild ignoring Docker layer cache
-#   --reset-db       truncate app tables (reset-clean.sql) before starting the app
+#   --reset-only-db       truncate app tables (reset-clean.sql) before starting the app
 #   --prune-all      also prune stopped containers/volumes HOST-WIDE (see DECISIONS.md ADR-001)
 # Uses: bash, docker buildx, docker compose.
 # Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), MINIO_CONTAINER
@@ -212,25 +212,25 @@ nothing of their own). For these, fields whose value is identical to the target 
 get a short `same as <file>` instead of restating the content — only fields with something genuinely
 `.bat`-specific (a narrower flag set, Windows-only usage tips) keep their own full text.
 
-### Example — `scripts/deploy.bat`
+### Example — `scripts/deploy-and-run.bat`
 
 ```bat
 @echo off
 REM ── Header ──────────────────────────────────────────────────────────────────
 REM Description: Full prod deploy -- builds Docker image from scratch, starts all services on port 8081.
 REM Usage:
-REM   scripts\deploy.bat                    -- full image rebuild + start
-REM   scripts\deploy.bat --no-cache         -- force rebuild ignoring Docker layer cache
-REM   scripts\deploy.bat --reset            -- wipe DB/MinIO volumes, then rebuild
-REM   scripts\deploy.bat --restart-infra    -- restart infra containers only (no rebuild)
-REM   scripts\deploy.bat --reset-db         -- truncate app tables before starting the app
-REM Uses: WSL (wsl bash scripts/deploy.sh).
-REM Env: same as scripts/deploy.sh.
+REM   scripts\deploy-and-run.bat                    -- full image rebuild + start
+REM   scripts\deploy-and-run.bat --no-cache         -- force rebuild ignoring Docker layer cache
+REM   scripts\deploy-and-run.bat --reset            -- wipe DB/MinIO volumes, then rebuild
+REM   scripts\deploy-and-run.bat --restart-infra    -- restart infra containers only (no rebuild)
+REM   scripts\deploy-and-run.bat --reset-only-db         -- truncate app tables before starting the app
+REM Uses: WSL (wsl bash scripts/deploy-and-run.sh).
+REM Env: same as scripts/deploy-and-run.sh.
 REM Input: None.
 REM Outputs:
-REM   Filtered console output (WSL/Git Bash): bash scripts/deploy.sh 2>&1 | tee /tmp/deploy.log | grep -E "BUILD|ERROR|Started|Waiting|ready|FAILED"
+REM   Filtered console output (WSL/Git Bash): bash scripts/deploy-and-run.sh 2>&1 | tee /tmp/deploy.log | grep -E "BUILD|ERROR|Started|Waiting|ready|FAILED"
 REM   Stream full app log after deploy: docker logs -f marketplace-app
-REM Returns: same as scripts/deploy.sh (0 = success, non-zero = build/startup failure).
+REM Returns: same as scripts/deploy-and-run.sh (0 = success, non-zero = build/startup failure).
 REM ────────────────────────────────────────────────────────────────────────────
 ```
 

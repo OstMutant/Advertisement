@@ -88,10 +88,11 @@ declare -A SCRIPT_GROUP_CATEGORY=(
   [scripts/ci]="CI"
   [scripts/sonar]="Sonar"
   [scripts/build-and-test]="Build and Test"
+  [scripts/deploy-and-run]="Deploy and Run"
   [scripts/run-all-tests]="Run All Tests"
   [playwright]="Playwright"
 )
-SCRIPT_GROUP_DIRS=(docs/ai/scripts docs/architecture/scripts scripts scripts/ci scripts/sonar scripts/build-and-test scripts/run-all-tests playwright)
+SCRIPT_GROUP_DIRS=(docs/ai/scripts docs/architecture/scripts scripts scripts/ci scripts/sonar scripts/build-and-test scripts/deploy-and-run scripts/run-all-tests playwright)
 
 # Explicit "what matters first" ordering per directory -- entry points and generators before the
 # CI gates that verify their output, dev-only tooling last. Falls back to alphabetical (find |
@@ -101,6 +102,7 @@ declare -A SCRIPT_GROUP_FILE_ORDER=(
   [docs/architecture/scripts]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh"
   [scripts/sonar]="run.sh run.bat docker-compose.sonar.yml sonar-project.properties"
   [scripts/build-and-test]="run.sh build.sh build-and-test.properties Dockerfile"
+  [scripts/deploy-and-run]="run.sh reset.sh Dockerfile docker-compose.db.yml docker-compose.minio.yml docker-compose.app.yml"
   [scripts/run-all-tests]="run.sh"
 )
 decisions_json_for() {
@@ -1335,9 +1337,9 @@ DOCKER_FILES=(
   "Dockerfile.ai|dockerfile|Claude Code dev sandbox environment -- not part of the app build"
   "scripts/build-and-test/Dockerfile|dockerfile|Local build-and-test container"
   "scripts/ci/Dockerfile|dockerfile|Isolated CI runner image"
-  "scripts/infra/docker-compose.app.yml|compose|App container (dev infra)"
-  "scripts/infra/docker-compose.db.yml|compose|PostgreSQL (dev infra)"
-  "scripts/infra/docker-compose.minio.yml|compose|MinIO S3-compatible storage (dev infra)"
+  "scripts/deploy-and-run/docker-compose.app.yml|compose|App container (dev infra)"
+  "scripts/deploy-and-run/docker-compose.db.yml|compose|PostgreSQL (dev infra)"
+  "scripts/deploy-and-run/docker-compose.minio.yml|compose|MinIO S3-compatible storage (dev infra)"
   "scripts/sonar/docker-compose.sonar.yml|compose|SonarQube server"
 )
 docker_files_json() {
@@ -1832,10 +1834,11 @@ const PIPELINE_GROUPS = {
   "sonar": { icon: "📊", label: "Sonar", category: "Sonar", desc: "scripts/sonar — static analysis" },
   "ci": { icon: "⚙️", label: "CI", category: "CI", desc: "scripts/ci — local isolated CI runner" },
   "build": { icon: "🔨", label: "Build and Test", category: "Build and Test", desc: "scripts/build-and-test — builds the reactor, optional unit/integration tests" },
+  "deploy-and-run": { icon: "🚀", label: "Deploy and Run", category: "Deploy and Run", desc: "scripts/deploy-and-run — reuses build-and-test's shared jar, deploys the full local stack" },
   "run-all-tests": { icon: "🧪", label: "Run All Tests", category: "Run All Tests", desc: "scripts/run-all-tests — build-and-test + Playwright together, daily-iteration loop" },
   "other-scripts": { icon: "📜", label: "Other Scripts", category: "Other Scripts", desc: "scripts/ — deploy & misc" }
 };
-const PIPELINE_GROUP_ORDER = ["ai-tooling", "build", "run-all-tests", "build-architecture-page", "playwright", "sonar", "ci", "other-scripts"];
+const PIPELINE_GROUP_ORDER = ["ai-tooling", "build", "deploy-and-run", "run-all-tests", "build-architecture-page", "playwright", "sonar", "ci", "other-scripts"];
 const totalDiagramCount = MODEL.diagramGroups.reduce((sum, g) => sum + g.diagrams.length, 0);
 let zoomLevel = 1;
 

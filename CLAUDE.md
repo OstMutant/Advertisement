@@ -133,7 +133,7 @@ Reference implementations: `UserRepository` in user-spring-boot-starter, `Advert
 
 Local infrastructure only (IDE dev mode):
 ```bash
-docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml up -d
+docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.minio.yml up -d
 ```
 
 ---
@@ -144,8 +144,8 @@ docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-co
 → SonarQube static analysis: @scripts/CLAUDE.md
 
 **Slash commands available:**
-- `/build` — rebuild Docker image and start app
 - `/build-and-test` — build the whole reactor (+ optional unit/integration tests) via the shared build-and-test container, no local Java needed
+- `/deploy-and-run` — rebuild the Docker image and start the app; reuses `/build-and-test`'s shared jar internally, no duplicate compile
 - `/playwright [scenario] [--ux]` — run Playwright tests
 - `/sonar` — run SonarQube analysis
 - `/decision <module> — <title>` — record architectural decision

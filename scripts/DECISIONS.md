@@ -132,6 +132,18 @@ both concurrent, both PASSED). `unit-tests.sh`/`integration-tests.sh` remain the
 single-suite entry points for day-to-day iteration outside `run-all-tests.sh` — unaffected by this
 change, still run directly on the host, not through the container.
 
+**Update (Playwright no longer purely parallel from the start):** Playwright previously tested
+whatever `marketplace-app` container already happened to be running, with no freshness guarantee
+and no relation to the concurrent `build-and-test.sh` run. `scripts/run-all-tests/run.sh` now runs
+`deploy-and-run.sh` (always clearing app data first — `--reset-only-db` by default, `--reset` when
+`--reset` is passed to `run-all-tests.sh`) sequentially, then `playwright.sh` once that succeeds —
+this whole sequence still starts in parallel with the direct `build-and-test.sh --unit --integration`
+call, unchanged from the decision above. The two resulting `build-and-test.sh` invocations (this
+script's own, and the one `deploy-and-run.sh` triggers internally to reuse its shared jar) are safe
+to run concurrently — see `scripts/build-and-test/run.sh`'s own `BUILD_CONTAINER_NAME` env var,
+added specifically because the first real concurrent case (this one) hit a genuine Docker
+container-name collision the shared-volume `flock` alone doesn't prevent.
+
 ---
 
 ## ADR-005 through ADR-008: moved to scripts/ci/DECISIONS.md

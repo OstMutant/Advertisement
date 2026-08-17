@@ -3,7 +3,7 @@
 After making UI changes, verify them by running the Playwright script inside Docker.
 
 ### Prerequisites
-- DB and MinIO already running (started separately via scripts/infra/docker-compose.db.yml / scripts/infra/docker-compose.minio.yml)
+- DB and MinIO already running (started separately via scripts/deploy-and-run/docker-compose.db.yml / scripts/deploy-and-run/docker-compose.minio.yml)
 - App image built with: `docker build -f Dockerfile -t marketplace-app .` (always run with `SPRING_PROFILES_ACTIVE=prod`, which sets `vaadin.productionMode=true`)
 - App must be running:
 ```bash
@@ -41,15 +41,20 @@ only when the change actually touches spec 05's seeded-pagination scenario — `
 needed just to make a later spec's preconditions exist, since categories/cities are seeded in spec
 03, not spec 05).
 
-**Always deploy with `--reset` (`bash scripts/deploy.sh --reset`, wipes DB/MinIO volumes)
+**Always deploy with a clean database (`bash scripts/deploy-and-run.sh --reset-only-db` — truncate,
+fast — or `--reset` — full DB/MinIO volume wipe, only needed when the schema itself changed)
 immediately before running the full `e2e --ux` suite for verification purposes** — never reuse
 whatever state happens to be sitting in the dev DB from an earlier run this session. This is not
 optional/best-effort: rerunning the same full suite twice against a non-reset DB produces test
 failures from state pollution (e.g. leftover rows from the first run's category/city assignments)
 that look like real regressions but aren't — confirmed directly (a `category added and removed
 with diff` assertion failed on a reused DB, passed clean on a fresh one, no code difference between
-the two runs). Reset first, every time, rather than debugging a failure and only then guessing it
-might be stale state.
+the two runs). Clear the data first, every time, rather than debugging a failure and only then
+guessing it might be stale state. `bash scripts/run-all-tests.sh` already enforces this
+automatically — its own `deploy-and-run.sh` call always clears data first (`--reset-only-db` by
+default, `--reset` when `--reset` is passed to `run-all-tests.sh` itself), never conditional — so
+this manual step is only needed when running `playwright.sh`/`playwright/run.sh` directly, outside
+that orchestrator.
 
 ### Workflow for UI changes
 1. Make code changes

@@ -66,7 +66,7 @@ Steps:
    - Never sit idle waiting on a backgrounded step. The moment something is backgrounded, start
      the next independent unit of work in the same turn (write the Playwright test, the ADR, a
      docs update, read files for the next step) — always through this project's existing scripts
-     (`./mvnw`, `scripts/build-and-test.sh`, `scripts/deploy.sh`, `scripts/playwright.sh`, etc.), never
+     (`./mvnw`, `scripts/build-and-test.sh`, `scripts/deploy-and-run.sh`, `scripts/playwright.sh`, etc.), never
      raw substitutes. Only wait/block when every remaining unit of work in the plan has a real
      dependency on the thing currently running (e.g. deploying before compile is confirmed clean,
      or running Playwright before deploy finishes) — in that case say so briefly and wait for the
@@ -104,7 +104,7 @@ Steps:
    the change actually touches — unit tests always; integration tests when a repository/schema/
    port contract changed; a full Playwright `e2e --full --ux` pass when anything UI-visible
    changed — using this project's normal Monitor+tee patterns (see `scripts/CLAUDE.md`). Before
-   that Playwright run, always `bash scripts/deploy.sh --reset` first — never reuse whatever DB
+   that Playwright run, always `bash scripts/deploy-and-run.sh --reset` first — never reuse whatever DB
    state happens to be sitting around from an earlier run this session (see `playwright/CLAUDE.md`);
    this is unconditional, not something to reach for reactively after a failure looks suspicious.
    If a test fails, root-cause and fix it in the same run rather than reporting a partial result and

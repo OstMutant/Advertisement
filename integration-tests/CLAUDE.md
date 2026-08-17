@@ -57,7 +57,7 @@ would mask real cross-module schema-compatibility regressions that a test agains
 - `SharedEnvConfig` — reads the repo-root `.env` file (walking up from the JVM's working
   directory, so it resolves whether launched from the repo root, a module subdirectory, or an IDE
   test runner). `AbstractPostgresIntegrationTest` uses it to source `POSTGRES_IMAGE`, the single
-  source of truth also read natively by `scripts/infra/docker-compose.db.yml` — renaming the
+  source of truth also read natively by `scripts/deploy-and-run/docker-compose.db.yml` — renaming the
   Postgres version updates both consumers from one place, no drift possible. The repo-root `.env`
   is intentionally **committed** (not `.gitignore`d) and must only ever hold non-secret, dev-only
   values (currently just `POSTGRES_IMAGE`) — any future addition to it must keep that invariant;
@@ -143,7 +143,7 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
   Tests" for the Docker-in-Docker constraint (never runs inside `deploy.sh`'s image build, only
   via a direct `mvn test`).
 - The Postgres image tag is sourced from the repo-root `.env` (`POSTGRES_IMAGE`), the same value
-  `scripts/infra/docker-compose.db.yml` reads natively — no hardcoded duplication, though the two
+  `scripts/deploy-and-run/docker-compose.db.yml` reads natively — no hardcoded duplication, though the two
   are never the same running container (Testcontainers always starts its own ephemeral instance,
   never reuses the persistent dev one). `deploy.sh`'s own `docker pull`/`docker run` for Postgres
   still hardcode the tag separately — out of scope here.

@@ -8,7 +8,7 @@ Examples:
   /ci --e2e
   /ci --foreground --unit                # block until this one stage finishes (rare -- see step 2)
 
-**Do NOT wrap this in the Monitor + `| tee` blocking pattern used for deploy.sh/playwright.sh/
+**Do NOT wrap this in the Monitor + `| tee` blocking pattern used for deploy-and-run.sh/playwright.sh/
 sonar.sh.** `scripts/ci.sh` already backgrounds itself by default and writes a live progress file
 -- re-wrapping it in a blocking foreground call defeats the point (confirmed directly: doing this
 once blocked the whole conversation for the full run length and drew direct user pushback). Always

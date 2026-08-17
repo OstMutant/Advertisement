@@ -69,6 +69,11 @@ itself lives at a fixed path inside the same volume (`/root/.m2/artifacts/market
 outside Maven's own `.m2/repository` tree — the volume doubles as the shared artifact store, no
 second volume needed.
 
-`run.sh` runs under a fixed container name so a run in progress can be attached to
+`run.sh` runs under a fixed container name by default so a run in progress can be attached to
 directly, without first looking it up: `advertisement-build-only` (`docker exec -it
-advertisement-build-only bash`).
+advertisement-build-only bash`). Override via `BUILD_CONTAINER_NAME` when a caller needs to invoke
+this script concurrently with another invocation of itself — Docker container names must be
+unique, so two concurrent runs under the same name fail outright with a name conflict, independent
+of and before the shared-volume `flock` above ever gets a chance to serialize anything (e.g.
+`scripts/deploy-and-run/run.sh`'s own internal call uses `advertisement-build-only-deploy` for
+exactly this reason).

@@ -1,46 +1,50 @@
 #!/bin/bash
-# Full prod deploy: builds Docker image from scratch and starts all services on port 8081.
-#
-# Usage:
-#   bash scripts/deploy.sh                      — full output to console (default)
-#   bash scripts/deploy.sh --file               — filtered output + full log to /tmp/deploy.log
-#   bash scripts/deploy.sh --no-cache           — force rebuild ignoring Docker layer cache
-#   bash scripts/deploy.sh --reset              — wipe DB/MinIO volumes, then rebuild
-#   bash scripts/deploy.sh --restart-infra      — restart infra containers only (no rebuild)
-#   bash scripts/deploy.sh --reset-db           — truncate app tables (reset-clean.sql) before starting the app
-#   bash scripts/deploy.sh --prune-all          — ALSO run `docker container prune -f` and
-#                                                  `docker volume prune -f` after the build. These
-#                                                  act HOST-WIDE, not scoped to this app -- they
-#                                                  will remove any other stopped container / unused
-#                                                  volume on the machine, dev or otherwise. Opt-in
-#                                                  only, never run automatically -- see
-#                                                  scripts/ci/DECISIONS.md ADR-001 for the incident that made
-#                                                  this explicit instead of unconditional.
-#
-# Liquibase checksum mismatch (a changeset was edited in place instead of adding a new one --
-# e.g. removing a FK constraint -- while the local dev DB still has the old version applied) is
-# detected automatically and self-heals: the script wipes
-# dev DB/MinIO volumes and retries once, same as --reset, no re-run needed. Dev-only; a real
-# deployed database would need a proper migration, not a wipe.
-#
-# Stream full app log after deploy:
-#   docker logs -f marketplace-app
-#
-# All container/network/volume names and host ports are overridable via env vars (default shown
-# above each), e.g. for a second, isolated stack run alongside the normal dev one:
-#   NETWORK=ci-advertisement DB_CONTAINER=ci-advertisement-db MINIO_CONTAINER=ci-advertisement-minio \
-#   APP_CONTAINER=ci-marketplace-app APP_IMAGE=marketplace-app-ci \
-#   DB_PORT=15432 MINIO_PORT=19000 MINIO_CONSOLE_PORT=19001 APP_PORT=18081 \
-#   DB_VOLUME=ci_advertisement_postgres_data MINIO_VOLUME=ci_advertisement_minio_data \
-#   bash scripts/deploy.sh
-# Used by scripts/ci/entrypoint.sh for an isolated e2e run.
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: Full prod deploy -- reuses scripts/build-and-test.sh's shared maven-cache jar by
+#   default (thin runtime-only image, no Maven build inside Docker), starts all services on port
+#   8081. A Liquibase checksum mismatch (a changeset edited in place instead of a new one added,
+#   e.g. a removed FK constraint, while the local dev DB still has the old version applied) is
+#   detected automatically and self-heals: wipes dev DB/MinIO volumes and retries once, same as
+#   --reset, no re-run needed -- dev-only, a real deployed database needs a proper migration, not a
+#   wipe. See DECISIONS.md for the full reuse-jar rationale.
+# Usage: bash scripts/deploy-and-run.sh [--reset] [--restart-infra] [--file] [--no-cache]
+#   [--reset-only-db] [--with-tests] [--from-scratch] [--prune-all]
+#   --reset          wipe DB/MinIO volumes, then rebuild
+#   --restart-infra  restart infra containers only (no rebuild)
+#   --file           filtered console output + full log to /tmp/deploy.log
+#   --no-cache       force rebuild ignoring Docker layer cache
+#   --reset-only-db  truncate app tables (reset-clean.sql) before starting the app, via reset.sh
+#   --with-tests     also run unit+integration tests as part of the build-and-test.sh reuse step
+#                    (default: build only, no tests, for deploy speed)
+#   --from-scratch   skip the build-and-test.sh reuse step and build the full multi-stage
+#                    Dockerfile in complete isolation instead (the old, pre-reuse behavior)
+#   --prune-all      ALSO run `docker container prune -f` and `docker volume prune -f` after the
+#                    build -- HOST-WIDE, not scoped to this app, will remove any other stopped
+#                    container / unused volume on the machine. Opt-in only, never automatic -- see
+#                    scripts/ci/DECISIONS.md ADR-001 for the incident that made this explicit.
+# Uses: bash, docker buildx, docker compose, scripts/build-and-test.sh (unless --from-scratch),
+#   scripts/deploy-and-run/reset.sh (with --reset-only-db).
+# Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), MINIO_CONTAINER
+#   (advertisement-minio), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
+#   (5432), MINIO_PORT (9000), MINIO_CONSOLE_PORT (9001), APP_PORT (8081), DB_VOLUME
+#   (advertisement_postgres_data), MINIO_VOLUME (advertisement_minio_data) -- all overridable, used
+#   by scripts/ci/entrypoint.sh for its isolated e2e stack. DB_NAME/DB_USER/DB_PASSWORD/
+#   S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET/S3_REGION fall back to the repo-root .env, then a
+#   hardcoded default.
+# Input: repo source, .env (DB_*/S3_* fallback defaults -- NOT POSTGRES_IMAGE: this script's own
+#   Postgres container always hardcodes postgres:15-alpine, unlike docker-compose.db.yml which
+#   does honor POSTGRES_IMAGE), the shared maven-cache Docker volume (unless --from-scratch).
+# Outputs: running marketplace-app container on APP_PORT; scripts/deploy-and-run/marketplace-app.jar
+#   (extracted from maven-cache, gitignored) unless --from-scratch.
+# Returns: 0 on success, non-zero on build/startup failure.
+# ────────────────────────────────────────────────────────────────────────────
 set -e
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LOG=/tmp/deploy.log
 
 # Load shared credential/port defaults from the repo-root .env (also read natively by
-# scripts/infra/docker-compose*.yml and integration-tests' Testcontainers) into ENV_*-prefixed
+# scripts/deploy-and-run/docker-compose*.yml and integration-tests' Testcontainers) into ENV_*-prefixed
 # vars -- NOT exported/sourced directly, so an already-exported override (e.g. DB_PORT=15432 from
 # scripts/ci/entrypoint.sh's isolated e2e stack) is never clobbered. Used only as the fallback
 # default below, same precedence every other var here already has.
@@ -74,16 +78,20 @@ S3_REGION="${S3_REGION:-${ENV_S3_REGION:-us-east-1}}"
 MODE="default"
 FILE_MODE=false
 NO_CACHE=false
-RESET_DB=false
+RESET_ONLY_DB=false
 PRUNE_ALL=false
+WITH_TESTS=false
+FROM_SCRATCH=false
 for arg in "$@"; do
   case "$arg" in
     --reset)         MODE="reset" ;;
     --restart-infra) MODE="restart-infra" ;;
     --file)          FILE_MODE=true ;;
     --no-cache)      NO_CACHE=true ;;
-    --reset-db)      RESET_DB=true ;;
+    --reset-only-db) RESET_ONLY_DB=true ;;
     --prune-all)     PRUNE_ALL=true ;;
+    --with-tests)    WITH_TESTS=true ;;
+    --from-scratch)  FROM_SCRATCH=true ;;
   esac
 done
 
@@ -206,11 +214,28 @@ fi
 
 start_infra
 
-if $RESET_DB; then
+if $RESET_ONLY_DB; then
   echo "Resetting database (reset-clean.sql)..."
-  docker cp "$ROOT/scripts/database/reset-clean.sql" "$DB_CONTAINER:/tmp/reset-clean.sql"
-  docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -f /tmp/reset-clean.sql -q \
-    && echo "Database reset."
+  DB_NAME="$DB_NAME" DB_USER="$DB_USER" bash "$ROOT/scripts/deploy-and-run/reset.sh" --container "$DB_CONTAINER"
+fi
+
+# ── Step 1.5: reuse build-and-test.sh's shared jar (skipped with --from-scratch) ──────────────
+if ! $FROM_SCRATCH; then
+  echo ""
+  echo "=== Step 1.5: Build via build-and-test.sh (shared maven-cache jar) ==="
+  BUILD_AND_TEST_FLAGS=(--no-unit --no-integration)
+  $WITH_TESTS && BUILD_AND_TEST_FLAGS=(--unit --integration)
+  # Distinct container name (not build-and-test.sh's own default) -- this call can run
+  # concurrently with a caller-level direct build-and-test.sh invocation (e.g.
+  # scripts/run-all-tests.sh runs both from one top-level command), and Docker container names
+  # must be unique -- see scripts/build-and-test/run.sh's own Env doc for why.
+  BUILD_CONTAINER_NAME="advertisement-build-only-deploy" bash "$ROOT/scripts/build-and-test.sh" "${BUILD_AND_TEST_FLAGS[@]}"
+
+  echo "Extracting marketplace-app.jar from the shared maven-cache volume..."
+  docker rm -f jar-extract-tmp 2>/dev/null || true
+  docker run -d --name jar-extract-tmp --entrypoint sleep -v maven-cache:/root/.m2 alpine:latest infinity >/dev/null
+  docker cp jar-extract-tmp:/root/.m2/artifacts/marketplace-app.jar "$ROOT/scripts/deploy-and-run/marketplace-app.jar"
+  docker rm -f jar-extract-tmp >/dev/null
 fi
 
 # ── Step 2: Build ─────────────────────────────────────────────────────────────
@@ -223,12 +248,20 @@ docker rm -f "$APP_CONTAINER" 2>/dev/null || true
 BUILD_FLAGS=""
 $NO_CACHE && BUILD_FLAGS="--no-cache"
 
+if $FROM_SCRATCH; then
+  DOCKERFILE_PATH="$ROOT/Dockerfile"
+  BUILD_CONTEXT="$ROOT"
+else
+  DOCKERFILE_PATH="$ROOT/scripts/deploy-and-run/Dockerfile"
+  BUILD_CONTEXT="$ROOT/scripts/deploy-and-run"
+fi
+
 if $FILE_MODE; then
-  docker build --progress=plain $BUILD_FLAGS -f "$ROOT/Dockerfile" -t "$APP_IMAGE" "$ROOT" 2>&1 \
+  docker build --progress=plain $BUILD_FLAGS -f "$DOCKERFILE_PATH" -t "$APP_IMAGE" "$BUILD_CONTEXT" 2>&1 \
     | tee "$LOG" \
     | grep --line-buffered -E "^Step [0-9]+|^#[0-9]+ |Building .+\[[0-9]+/[0-9]+\]|BUILD (SUCCESS|FAILURE)|=== |ERROR|Successfully built"
 else
-  docker build $BUILD_FLAGS -f "$ROOT/Dockerfile" -t "$APP_IMAGE" "$ROOT"
+  docker build $BUILD_FLAGS -f "$DOCKERFILE_PATH" -t "$APP_IMAGE" "$BUILD_CONTEXT"
 fi
 
 # Only dangling (untagged) images are pruned automatically -- by definition unreferenced by any

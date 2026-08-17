@@ -9,7 +9,7 @@ Flags:
 
 Steps:
 1. Check app is running: `docker ps --filter name=marketplace-app --format '{{.Names}}'`
-   - If not running, tell the user to run /build first
+   - If not running, tell the user to run /deploy-and-run first
 2. Kill stale processes: `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`
 3. Launch Monitor tool (persistent: true) watching /tmp/playwright.log every 10s:
    - If 2 minutes with no new output → report "process may be stuck"

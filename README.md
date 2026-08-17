@@ -156,16 +156,16 @@ The project uses three separate Docker Compose files:
 
 | File | Purpose |
 |---|---|
-| `scripts/infra/docker-compose.db.yml` | PostgreSQL |
-| `scripts/infra/docker-compose.minio.yml` | MinIO (S3-compatible storage, emulates Supabase Storage) |
-| `scripts/infra/docker-compose.app.yml` | Application (production build) |
+| `scripts/deploy-and-run/docker-compose.db.yml` | PostgreSQL |
+| `scripts/deploy-and-run/docker-compose.minio.yml` | MinIO (S3-compatible storage, emulates Supabase Storage) |
+| `scripts/deploy-and-run/docker-compose.app.yml` | Application (production build) |
 
 ### Option 1 — Dev mode (run from IDE)
 
 Start only the infrastructure:
 
 ```bash
-docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml up -d
+docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.minio.yml up -d
 ```
 
 Then run the application from your IDE with the `dev` Spring profile active.  
@@ -178,24 +178,24 @@ Open the app: http://localhost:8080
 
 ### Option 2 — Full Docker (local production simulation)
 
-**Recommended path:** `bash scripts/deploy.sh` — the canonical, actively-maintained way to run
+**Recommended path:** `bash scripts/deploy-and-run.sh` — the canonical, actively-maintained way to run
 the full production build locally (BuildKit caching, automatic Docker garbage pruning, startup
-detection, `--reset`/`--restart-infra`/`--reset-db`/`--no-cache` flags). See
+detection, `--reset`/`--restart-infra`/`--reset-only-db`/`--no-cache` flags). See
 [`scripts/README.md`](scripts/README.md) and [`scripts/CLAUDE.md`](scripts/CLAUDE.md) for details.
 **This starts the app on port 8081**, not 8080 (8080 is reserved for Option 1's IDE dev mode).
 
 The raw `docker-compose.app.yml` file below also exists and works, but publishes on **port 8080**
-(a different port than `deploy.sh`) and has none of `deploy.sh`'s caching/pruning/flag support —
-prefer `deploy.sh` unless you specifically need the bare compose file:
+(a different port than `deploy-and-run.sh`) and has none of `deploy-and-run.sh`'s caching/pruning/flag support —
+prefer `deploy-and-run.sh` unless you specifically need the bare compose file:
 
 ```bash
-docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml -f scripts/infra/docker-compose.app.yml up --build
+docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.minio.yml -f scripts/deploy-and-run/docker-compose.app.yml up --build
 ```
 
 To stop and remove volumes:
 
 ```bash
-docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml -f scripts/infra/docker-compose.app.yml down -v
+docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.minio.yml -f scripts/deploy-and-run/docker-compose.app.yml down -v
 ```
 
 ---
@@ -206,7 +206,7 @@ All developer scripts live in `scripts/`. See [`scripts/README.md`](scripts/READ
 
 | Script | Purpose |
 |---|---|
-| `scripts/deploy.sh` / `scripts/deploy.bat` | Full deploy pipeline: pull images → start infra → build → run → wait for startup |
+| `scripts/deploy-and-run.sh` / `scripts/deploy-and-run.bat` | Full deploy pipeline: pull images → start infra → build → run → wait for startup |
 | `scripts/run-local.bat` | Run the app via Maven with no Docker image rebuild (dev or prod Vaadin mode) |
 | `scripts/build-and-test.sh` / `scripts/build-and-test.bat` | Build the whole reactor, optionally run unit/integration tests in parallel — no local Java needed |
 | `scripts/playwright.sh` / `scripts/playwright.bat` | Run Playwright end-to-end tests (delegates to `playwright/run.sh`) |
@@ -219,9 +219,9 @@ All developer scripts live in `scripts/`. See [`scripts/README.md`](scripts/READ
 | `scripts/claude.bat` | Start Claude Code container with project and auth mounts |
 
 ```bash
-bash scripts/deploy.sh                  # default: skip already-running containers
-bash scripts/deploy.sh --reset          # wipe everything and start from scratch
-bash scripts/deploy.sh --restart-infra  # restart DB + MinIO, redeploy app
+bash scripts/deploy-and-run.sh                  # default: skip already-running containers
+bash scripts/deploy-and-run.sh --reset          # wipe everything and start from scratch
+bash scripts/deploy-and-run.sh --restart-infra  # restart DB + MinIO, redeploy app
 ```
 
 All scripts resolve the project root automatically — run them from any directory.
@@ -236,7 +236,8 @@ wraps the day-to-day loop — build, test, document, review — into single, rep
 
 | Command | Purpose |
 |---|---|
-| `/build` | Rebuild the Docker image and start the app |
+| `/build-and-test` | Build the reactor (+ optional tests) |
+| `/deploy-and-run` | Rebuild the Docker image and start the app |
 | `/playwright` | Run the Playwright end-to-end suite |
 | `/sonar` | Run SonarQube static analysis |
 | `/run-all-tests` | Unit tests → integration tests sequentially, Playwright in parallel |
@@ -263,7 +264,7 @@ Chat history and project context are shared across accounts (same mounted projec
 only the auth config folder is per-account, so switching accounts on rate limits keeps the
 conversation going.
 
-Once the container is up: running the deploy script (`scripts/deploy.sh`) to build and start the
+Once the container is up: running the deploy script (`scripts/deploy-and-run.sh`) to build and start the
 app, then the Playwright script (`scripts/playwright.sh`) against it, is already a complete,
 working test environment — real Postgres, real MinIO, a real production-mode build, and a full
 browser-driven end-to-end suite — with no extra setup beyond those two commands.
@@ -272,19 +273,19 @@ browser-driven end-to-end suite — with no extra setup beyond those two command
 
 ## Database Scripts
 
-All database scripts live in `scripts/database/`:
+All database scripts live in `scripts/deploy-and-run/`:
 
 | File | Purpose |
 |---|---|
-| `scripts/database/reset.sh` / `scripts/database/reset.bat` | Truncates all application data without restarting the app or touching MinIO volumes (~1s) — runs `reset-clean.sql` |
-| `scripts/database/reset-clean.sql` | Truncates all tables (no seed data). Run automatically by `playwright/run.sh` before every test run. |
+| `scripts/deploy-and-run/reset.sh` / `scripts/deploy-and-run/reset.bat` | Truncates all application data without restarting the app or touching MinIO volumes (~1s) — runs `reset-clean.sql` |
+| `scripts/deploy-and-run/reset-clean.sql` | Truncates all tables (no seed data). Run automatically by `playwright/run.sh` before every test run. |
 
 ---
 
 ## Environment Variables
 
 Key variables used by the application.
-* For **local Docker testing**, configure them in `scripts/infra/docker-compose.app.yml`.
+* For **local Docker testing**, configure them in `scripts/deploy-and-run/docker-compose.app.yml`.
 * For **production**, set them directly in the hosting provider's dashboard/secrets manager.
 
 | Variable | Description | Example |

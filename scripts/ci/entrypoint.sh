@@ -117,7 +117,7 @@ bash "$ROOT/docs/architecture/scripts/check-architecture-model-freshness.sh" || 
 end_stage docs "$DOCS_RC"
 
 # ── Isolated e2e stack -- unique names/ports so it never collides with the persistent dev stack,
-#    forwarded as env overrides to the *existing*, unmodified scripts/deploy.sh + playwright/run.sh
+#    forwarded as env overrides to the *existing*, unmodified scripts/deploy-and-run.sh + playwright/run.sh
 #    (see their own override blocks) -- no e2e logic is reimplemented here. ────────────────────
 CI_NETWORK=ci-advertisement
 CI_DB_CONTAINER=ci-advertisement-db
@@ -182,7 +182,7 @@ if [ "$STAGE_E2E" = "1" ]; then
     APP_CONTAINER="$CI_APP_CONTAINER" APP_IMAGE="$CI_APP_IMAGE" \
     DB_PORT="$CI_DB_PORT" MINIO_PORT="$CI_MINIO_PORT" MINIO_CONSOLE_PORT="$CI_MINIO_CONSOLE_PORT" \
     APP_PORT="$CI_APP_PORT" DB_VOLUME="$CI_DB_VOLUME" MINIO_VOLUME="$CI_MINIO_VOLUME" \
-    bash "$ROOT/scripts/deploy.sh"
+    bash "$ROOT/scripts/deploy-and-run.sh"
     DEPLOY_RC=$?
 
     if [ "$DEPLOY_RC" -eq 0 ]; then
@@ -191,7 +191,7 @@ if [ "$STAGE_E2E" = "1" ]; then
       bash "$ROOT/playwright/run.sh" $PLAYWRIGHT_ARGS
       RC=$?
     else
-      echo "deploy.sh failed (exit $DEPLOY_RC) -- skipping playwright."
+      echo "deploy-and-run.sh failed (exit $DEPLOY_RC) -- skipping playwright."
       RC=$DEPLOY_RC
     fi
     echo "$RC" > "$REPORT_DIR/playwright/.exit_code"

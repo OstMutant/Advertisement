@@ -2,8 +2,8 @@
 
 ### Prod deploy (full image rebuild)
 ```bash
-bash scripts/deploy.sh        # Linux / WSL
-scripts\deploy.bat            # Windows
+bash scripts/deploy-and-run.sh        # Linux / WSL
+scripts\deploy-and-run.bat            # Windows
 ```
 Builds a Docker image from scratch (`mvn package` inside Docker — Vaadin's production bundle is built automatically by `vaadin-maven-plugin`, no Maven profile needed; `SPRING_PROFILES_ACTIVE=prod` at runtime sets `vaadin.productionMode=true`), starts all infra + app on **port 8081** (8080 reserved for local IntelliJ dev server).
 After build, dangling (untagged) Docker images are pruned automatically (`docker image prune -f`
@@ -13,22 +13,22 @@ resources). `docker container prune -f`/`docker volume prune -f` are opt-in only
 remove any other stopped container / unused volume on the machine too (see `scripts/ci/DECISIONS.md` ADR-001
 for the incident that made this explicit instead of automatic).
 
-Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache. Use `--prune-all` for a deliberate, whole-machine deep clean (see warning above).
+Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-only-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache. Use `--prune-all` for a deliberate, whole-machine deep clean (see warning above).
 
 **Streaming output requirement — BuildKit + buildx:**
 Docker Engine must have BuildKit enabled AND the `buildx` CLI plugin must be installed at
 `~/.docker/cli-plugins/docker-buildx` — without it, plain `docker build` fails outright on this
 sandbox's Docker version whenever the Dockerfile uses `--mount=type=cache` (confirmed directly:
 `ERROR: BuildKit is enabled but the buildx component is missing`, not just a silent legacy-builder
-fallback). The `--progress=plain` flag in `deploy.sh` then enables line-by-line streaming once
+fallback). The `--progress=plain` flag in `deploy-and-run.sh` then enables line-by-line streaming once
 BuildKit is active.
 
-**`docker compose` CLI plugin** — needed by `scripts/database/reset.sh` (starting dev DB when no
+**`docker compose` CLI plugin** — needed by `scripts/deploy-and-run/reset.sh` (starting dev DB when no
 container exists yet) and `scripts/sonar/run.sh` (starting the SonarQube stack). Not present by
 default in this sandbox.
 
 **Both plugins are installed automatically, not manually — `scripts/ensure-docker-plugins.sh`.**
-`deploy.sh` (`ensure_buildx`, before its build step), `scripts/database/reset.sh` and
+`deploy-and-run.sh` (`ensure_buildx`, before its build step), `scripts/deploy-and-run/reset.sh` and
 `scripts/sonar/run.sh` (`ensure_docker_compose`, before their respective `docker compose` calls)
 all source this shared script and call the relevant function; each function checks `docker buildx
 version` / `docker compose version` first and only downloads+installs if missing, so it's a no-op
@@ -51,24 +51,24 @@ chmod +x ~/.docker/cli-plugins/docker-compose
 Verify: `docker buildx version` / `docker compose version`.
 
 **`--project-directory` is required whenever `-f` points outside the repo root.**
-`scripts/infra/docker-compose.db.yml`/`docker-compose.app.yml`/`docker-compose.minio.yml` live in
-`scripts/infra/`, not the repo root, but read `${POSTGRES_IMAGE}`/`${DB_NAME}`/`${DB_USER}`/
+`scripts/deploy-and-run/docker-compose.db.yml`/`docker-compose.app.yml`/`docker-compose.minio.yml` live in
+`scripts/deploy-and-run/`, not the repo root, but read `${POSTGRES_IMAGE}`/`${DB_NAME}`/`${DB_USER}`/
 `${DB_PASSWORD}`/`${DB_PORT}`/`${S3_ACCESS_KEY}`/`${S3_SECRET_KEY}`/`${S3_BUCKET}`/`${S3_REGION}`/
 `${S3_PORT}` from the repo-root `.env` — the single source of truth for these values, also read as
-fallback defaults by `deploy.sh`/`scripts/database/reset.sh` and as `${VAR:default}` Spring
+fallback defaults by `deploy-and-run.sh`/`scripts/deploy-and-run/reset.sh` and as `${VAR:default}` Spring
 placeholders by `application-dev.yml` (see `DECISIONS.md` ADR-009). Compose's default project
 directory — where it looks for `.env` — is the directory containing the first `-f` file, **not**
 the invoking shell's working directory. Always pass `--project-directory .` (run from the repo
 root) or `--project-directory "$ROOT"` (absolute path), e.g.:
 ```bash
-docker compose --project-directory . -f scripts/infra/docker-compose.db.yml up -d
+docker compose --project-directory . -f scripts/deploy-and-run/docker-compose.db.yml up -d
 ```
 Omitting it silently resolves `${POSTGRES_IMAGE}` to an empty string and fails with "service db
 has neither an image nor a build context specified" — confirmed by direct testing, not assumption.
 This is documented, version-independent Compose behavior — the same fix applies on any machine,
 not just this sandbox.
 
-**How to run deploy.sh:**
+**How to run deploy-and-run.sh:**
 1. First launch Monitor with `persistent: true` watching `/tmp/deploy.log`:
    - Every 10s check if file size changed
    - If 1 minute with no new output → report "process may be stuck"
@@ -76,7 +76,7 @@ not just this sandbox.
    - If BUILD SUCCESS or Started Application → report and stop
 2. Then run synchronously (user sees streaming output):
    ```
-   bash scripts/deploy.sh [args] 2>&1 | tee /tmp/deploy.log
+   bash scripts/deploy-and-run.sh [args] 2>&1 | tee /tmp/deploy.log
    ```
    with `timeout: 600000`
 
@@ -180,9 +180,9 @@ prefixed with `TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXE
 `-am` also builds whichever starters `integration-tests` currently depends on (required — they
 are not otherwise built by a scoped `-pl integration-tests` alone).
 
-### Never run integration tests via `deploy.sh`
+### Never run integration tests via `deploy-and-run.sh`
 
-`deploy.sh` runs Maven with `-DskipTests` inside a `docker build` stage with no access to the
+`deploy-and-run.sh` runs Maven with `-DskipTests` inside a `docker build` stage with no access to the
 outer Docker socket — standard Docker-in-Docker isolation, no socket mount configured for the
 `builder` stage. Testcontainers-based tests need a real reachable Docker daemon, which only exists
 when `mvn test` is run directly, never inside this build path.
@@ -258,7 +258,7 @@ own `run.log` holding that stage's actual command output (see `scripts/ci/DECISI
 Maven
 dependencies are cached across runs via the `ci-m2-cache` named volume. No stage logic is
 reimplemented — `entrypoint.sh` calls the existing `build-and-test.sh`/
-`deploy.sh`+`playwright/run.sh`/`sonar.sh` scripts, with `deploy.sh` and `playwright/run.sh` now
+`deploy-and-run.sh`+`playwright/run.sh`/`sonar.sh` scripts, with `deploy-and-run.sh` and `playwright/run.sh` now
 accepting env-var overrides (container/network names, ports, volume names — default to the exact
 values already in use, so normal dev usage is unaffected) for the isolated e2e stack.
 

@@ -9,23 +9,23 @@ If a container is stopped — it starts it. If an image is missing — it pulls 
 
 ---
 
-## deploy.sh / deploy.bat
+## deploy-and-run.sh / deploy-and-run.bat
 
 Full local deploy pipeline. Builds a Docker image from scratch and starts all services.
 
 Maven dependencies are cached in Docker layer cache — if `pom.xml` files have not changed, dependencies are not re-downloaded on the next run.
 
 ```bash
-bash scripts/deploy.sh                   # Linux / WSL — full output to console
-bash scripts/deploy.sh --file            # filtered output + full log to /tmp/deploy.log
-bash scripts/deploy.sh --no-cache        # force rebuild ignoring Docker layer cache (re-downloads all dependencies)
-bash scripts/deploy.sh --reset           # wipe all containers + volumes, start fresh
-bash scripts/deploy.sh --restart-infra   # restart DB + MinIO (volumes preserved), redeploy app
-bash scripts/deploy.sh --reset-db        # truncate app tables (reset-clean.sql) before starting the app
-bash scripts/deploy.sh --prune-all       # deliberate whole-machine deep clean: also prunes stopped
+bash scripts/deploy-and-run.sh                   # Linux / WSL — full output to console
+bash scripts/deploy-and-run.sh --file            # filtered output + full log to /tmp/deploy.log
+bash scripts/deploy-and-run.sh --no-cache        # force rebuild ignoring Docker layer cache (re-downloads all dependencies)
+bash scripts/deploy-and-run.sh --reset           # wipe all containers + volumes, start fresh
+bash scripts/deploy-and-run.sh --restart-infra   # restart DB + MinIO (volumes preserved), redeploy app
+bash scripts/deploy-and-run.sh --reset-only-db        # truncate app tables (reset-clean.sql) before starting the app
+bash scripts/deploy-and-run.sh --prune-all       # deliberate whole-machine deep clean: also prunes stopped
                                           # containers + unused volumes host-wide, not scoped to
                                           # this app (see scripts/CLAUDE.md, scripts/ci/DECISIONS.md ADR-001)
-scripts\deploy.bat                       # Windows (calls deploy.sh via WSL)
+scripts\deploy-and-run.bat                       # Windows (calls run.sh via WSL)
 ```
 
 ### What it does (default mode)
@@ -50,28 +50,28 @@ scripts\deploy.bat                       # Windows (calls deploy.sh via WSL)
 | `--no-cache` | Force `docker build --no-cache` — ignores all cached layers, re-downloads all Maven dependencies |
 | `--reset` | Stop + remove ALL containers and volumes, then start from scratch |
 | `--restart-infra` | Remove and restart DB + MinIO containers, volumes preserved |
-| `--reset-db` | Truncate app tables (`reset-clean.sql`) before starting the app — no volume wipe |
-| `--reload` | Fast path: build the whole reactor in the `build-and-test` container and hot-swap the resulting `marketplace-app.jar` into the already-running `marketplace-app` container — no Docker image rebuild, no infra changes. Requires infra + `marketplace-app` already running (plain `deploy.sh` first if not). See "Reload mode" below. |
+| `--reset-only-db` | Truncate app tables (`reset-clean.sql`) before starting the app — no volume wipe |
+| `--reload` | Fast path: build the whole reactor in the `build-and-test` container and hot-swap the resulting `marketplace-app.jar` into the already-running `marketplace-app` container — no Docker image rebuild, no infra changes. Requires infra + `marketplace-app` already running (plain `deploy-and-run.sh` first if not). See "Reload mode" below. |
 | `--prune-all` | Also run `docker container prune -f`/`docker volume prune -f` — host-wide, not scoped to this app's own resources; opt-in only, see `scripts/CLAUDE.md` |
 
-Flags can be combined: `bash scripts/deploy.sh --no-cache --file`
+Flags can be combined: `bash scripts/deploy-and-run.sh --no-cache --file`
 
 | Step | Action |
 |------|--------|
-| 1 | (if `--reset-db`) truncate app tables (`reset-clean.sql`) |
+| 1 | (if `--reset-only-db`) truncate app tables (`reset-clean.sql`) |
 | 2 | Build/refresh the `advertisement-build-env` image if missing or `Dockerfile` changed |
 | 3 | Pipe source into the container, run the shared build step (whole reactor, `flock`-protected against the shared `maven-cache` volume) |
 | 4 | Inside the container: `docker cp` the freshly-built `marketplace-app.jar` into the running `marketplace-app` container, `docker restart` it, wait for `"Started Application"` |
 
 `--reload` exits before any of the normal Steps 1-3 (infra bootstrap, Docker image rebuild) run —
-it assumes infra and `marketplace-app` are already up (run a plain `bash scripts/deploy.sh` first
+it assumes infra and `marketplace-app` are already up (run a plain `bash scripts/deploy-and-run.sh` first
 otherwise). See `scripts/build-and-test/README.md` for the shared container's own Flow diagram.
 
 ---
 
 ## run-local.bat
 
-Run the application locally via Maven without a Docker image rebuild. Requires DB and MinIO already running (start via `scripts/infra/`).
+Run the application locally via Maven without a Docker image rebuild. Requires DB and MinIO already running (start via `scripts/deploy-and-run/`).
 
 ```bat
 scripts\run-local.bat           REM dev profile — Vaadin dev mode, port 8080
@@ -161,18 +161,18 @@ Results: `http://localhost:9099/dashboard?id=advertisement`
 
 ---
 
-## scripts/database/reset.sh / reset.bat
+## scripts/deploy-and-run/reset.sh / reset.bat
 
 Truncates all application data without restarting the app or touching MinIO volumes. Use when you need a clean DB for manual testing.
 
 ```bash
-bash scripts/database/reset.sh
-scripts\database\reset.bat
+bash scripts/deploy-and-run/reset.sh
+scripts\deploy-and-run\reset.bat
 ```
 
 **Self-healing:** if the DB container is stopped — starts it automatically.
 
-**vs `deploy.sh --reset`:** `reset.sh` only truncates tables — containers and volumes stay intact, completes in ~1s. `deploy.sh --reset` destroys all containers and Docker volumes (DB + MinIO), then does a full rebuild (~7-10 min).
+**vs `deploy-and-run.sh --reset`:** `reset.sh` only truncates tables — containers and volumes stay intact, completes in ~1s. `deploy-and-run.sh --reset` destroys all containers and Docker volumes (DB + MinIO), then does a full rebuild (~7-10 min).
 
 ---
 
@@ -222,9 +222,9 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 
 | Container | Image | Ports | Started by | Purpose |
 |-----------|-------|-------|-----------|---------|
-| `advertisement-db` | `postgres:15-alpine` | `5432` | `deploy.sh`, `docker-compose.db.yml` | PostgreSQL database |
-| `advertisement-minio` | `minio/minio:latest` | `9000` (API), `9001` (console) | `deploy.sh`, `docker-compose.minio.yml` | S3-compatible storage (MinIO) |
-| `marketplace-app` | built from `Dockerfile` | `8081` | `deploy.sh` | Spring Boot + Vaadin application |
+| `advertisement-db` | `postgres:15-alpine` | `5432` | `deploy-and-run.sh`, `docker-compose.db.yml` | PostgreSQL database |
+| `advertisement-minio` | `minio/minio:latest` | `9000` (API), `9001` (console) | `deploy-and-run.sh`, `docker-compose.minio.yml` | S3-compatible storage (MinIO) |
+| `marketplace-app` | built from `Dockerfile` | `8081` | `deploy-and-run.sh` | Spring Boot + Vaadin application |
 | `advertisement-build-only` | `advertisement-build-env`, built from `scripts/build-and-test/Dockerfile` | — | `build-and-test.sh` (throwaway `--rm`, per build) | JDK 25 — builds the reactor into the shared `~/.m2` |
 | `pw-runner` | `mcr.microsoft.com/playwright:v1.61.1-jammy` | — | `playwright/run.sh` (reused across runs) | Playwright test runner |
 | `claude-dev` | built from `Dockerfile.ai` | — | `scripts/claude.bat` | Claude Code dev environment |
@@ -248,9 +248,9 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 
 ```
 scripts/
-  infra/           — Docker Compose files for local infrastructure (DB, MinIO, app stack)
+  deploy-and-run/  — deploy pipeline logic, Docker Compose files for local infrastructure (DB,
+                     MinIO, app stack), database reset script
   build-and-test/     — Docker build environment used by build-and-test.sh (JDK 25)
-  database/        — SQL scripts and database helpers (reset-clean.sql)
   sonar/           — SonarQube configuration and scanner
   ci/              — isolated local CI runner (Dockerfile, entrypoint.sh, own README/DECISIONS.md)
   hooks/           — git hooks (pre-commit, commit-msg), installed via install-hooks.sh
