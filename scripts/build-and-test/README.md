@@ -33,23 +33,29 @@ flowchart TD
     G --> H["refresh marketplace-app.jar<br/>in shared volume"]
     H --> I{"RUN_UNIT?"}
     H --> J{"RUN_INTEGRATION?"}
-    I -->|yes| I1["mvn test unit<br/>(background)"] --> M
-    I -->|no| M
+    I -->|yes| I1["mvn test unit"] --> I2{"ARCHUNIT_METRICS?"}
+    I -->|no| I2
+    I2 -->|yes| I3["mvn test<br/>ArchitectureMetricsExport"] --> M
+    I2 -->|no| M
     J -->|yes| J1["mvn test integration<br/>(background)"] --> M
     J -->|no| M
     M["wait for both,<br/>docker cp reports out,<br/>docker rm"] --> K["docker image<br/>prune -f"]
     K --> Z[done]
 ```
 
-`I`/`J` fire at the same time, not one after the other — once the reactor install finishes, unit
-and integration tests only *read* the shared `~/.m2` and touch disjoint `target/` dirs, so
-`build.sh` runs them as background jobs and waits for both instead of serializing them.
+`I`+`I2` (unit tests, then the ArchUnit metrics export) run as one sequential group, backgrounded
+together against `J` (integration tests), not fully three-way parallel — once the reactor install
+finishes, both sides only *read* the shared `~/.m2`, but unit tests and the ArchUnit export both
+touch `marketplace-app`'s own `target/`, so they stay sequential against each other and only the
+group as a whole runs concurrently with integration tests (a disjoint `target/` dir).
 
-`RUN_UNIT`/`RUN_INTEGRATION` are both **on** by default (`build-and-test.properties`); `run.sh`
-sets them from flags/`.properties` defaults before invoking the container. The build step always
-builds the whole reactor and always refreshes `marketplace-app.jar` in the shared volume
-regardless — Maven's own incremental compilation makes a no-op rebuild cheap, so there's no
-separate "build-only" vs "full" mode to keep in sync.
+`RUN_UNIT`/`RUN_INTEGRATION` are both **on** by default (`build-and-test.properties`);
+`ARCHUNIT_METRICS` is **off** by default (CLI flag only, not in `.properties`) — the export takes
+several minutes even on a warm build, disproportionate to run on every call. `run.sh` sets these
+from flags/`.properties` defaults before invoking the container. The build step always builds the
+whole reactor and always refreshes `marketplace-app.jar` in the shared volume regardless —
+Maven's own incremental compilation makes a no-op rebuild cheap, so there's no separate
+"build-only" vs "full" mode to keep in sync.
 
 ## Environment notes
 

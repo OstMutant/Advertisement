@@ -19,9 +19,12 @@ scripts\run-all-tests.bat              # Windows
 flowchart LR
     A1[run-all-tests.sh] --> R[run.sh]
     A2[run-all-tests.bat] --> R
-    R --> B["build-and-test.sh<br/>--unit --integration"]
+    R --> C{"--archunit-metrics?"}
+    C -->|yes| B["build-and-test.sh<br/>--unit --integration<br/>--archunit-metrics"]
+    C -->|no| B2["build-and-test.sh<br/>--unit --integration"]
     R --> P[playwright.sh]
     B --> S[summary]
+    B2 --> S
     P --> S
 ```
 
@@ -33,7 +36,9 @@ each one's own exit code.
 
 ## Environment notes
 
-`--unit-test`/`--integration-test`/`--sandbox` are forwarded verbatim to `build-and-test.sh`'s own
-flags of the same name — no separate parsing logic, no risk of the two argument sets drifting
-apart. `--playwright "<args>"` is the one flag with no `build-and-test.sh` equivalent, forwarded
-directly to `playwright.sh` instead.
+`--unit-test`/`--integration-test`/`--sandbox`/`--archunit-metrics` are forwarded verbatim to
+`build-and-test.sh`'s own flags of the same name — no separate parsing logic, no risk of the
+argument sets drifting apart. `--archunit-metrics` is off by default, same as on `build-and-test.sh`
+itself (several minutes even on a warm build) — not part of the normal daily loop.
+`--playwright "<args>"` is the one flag with no `build-and-test.sh` equivalent, forwarded directly
+to `playwright.sh` instead.

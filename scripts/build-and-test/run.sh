@@ -9,7 +9,7 @@
 #   with `docker exec -it advertisement-build-only bash` to inspect a run in progress.
 # Usage: bash scripts/build.sh [--reset-cache] [--rebuild-image] [--unit|--no-unit]
 #   [--integration|--no-integration] [--unit-test <module-or-class>]
-#   [--integration-test <scenario-or-class>] [--sandbox]
+#   [--integration-test <scenario-or-class>] [--sandbox] [--archunit-metrics]
 #   --reset-cache        wipe the shared maven-cache volume before building (re-downloads everything)
 #   --rebuild-image      force-rebuild the build-and-test image even if one already exists
 #   --unit/--no-unit                 override build-and-test.properties' unit= default for this run
@@ -22,6 +22,10 @@
 #                                     disabled, fixed Postgres port) -- shorthand for exporting
 #                                     TESTCONTAINERS_RYUK_DISABLED/INTEGRATION_TESTS_POSTGRES_FIXED_PORT
 #                                     yourself; never needed on a normal developer machine
+#   --archunit-metrics               off by default -- also runs marketplace-app's
+#                                     ArchitectureMetricsExport (module-level coupling metrics for
+#                                     architecture-map.html --with-archunit); several minutes even
+#                                     on a warm build, run this occasionally, not on every call
 # Uses: bash, docker, tar.
 # Env: None directly; TESTCONTAINERS_RYUK_DISABLED / INTEGRATION_TESTS_POSTGRES_FIXED_PORT are
 #   passed through into the container if already set in the caller's own environment (sandbox-only
@@ -31,7 +35,9 @@
 #   host's own ~/.m2 -- see scripts/build-and-test/README.md); marketplace-app.jar refreshed at
 #   /root/.m2/artifacts/marketplace-app.jar inside that same volume. With unit/integration enabled,
 #   PASSED/FAILED summary on stdout plus Surefire reports copied to
-#   scripts/build-and-test/reports/surefire/<module>/. Prunes dangling Docker images after every run.
+#   scripts/build-and-test/reports/surefire/<module>/. With --archunit-metrics, also
+#   scripts/build-and-test/reports/architecture-metrics.json. Prunes dangling Docker images after
+#   every run.
 # Returns: 0 on success, non-zero on install/test/precondition failure.
 # ────────────────────────────────────────────────────────────────────────────
 set -e
@@ -49,6 +55,7 @@ RUN_INTEGRATION="$(grep '^integration=' "$PROPS_FILE" | cut -d= -f2)"
 RESET_CACHE=false
 REBUILD_IMAGE=false
 SANDBOX=false
+ARCHUNIT_METRICS=false
 UNIT_TEST_ARG=""
 INTEGRATION_TEST_ARG=""
 NEXT=""
@@ -67,6 +74,7 @@ for arg in "$@"; do
     --unit-test)        NEXT=unit-test ;;
     --integration-test) NEXT=integration-test ;;
     --sandbox)          SANDBOX=true ;;
+    --archunit-metrics) ARCHUNIT_METRICS=true ;;
   esac
 done
 
@@ -149,6 +157,7 @@ tar -czf - --exclude='*/target' --exclude='.git' \
       "${DOCKER_SOCK_MOUNT[@]}" \
       -e RUN_UNIT="$RUN_UNIT" \
       -e RUN_INTEGRATION="$RUN_INTEGRATION" \
+      -e ARCHUNIT_METRICS="$ARCHUNIT_METRICS" \
       -e UNIT_TEST_ARG="$UNIT_TEST_ARG" \
       -e INTEGRATION_TEST_ARG="$INTEGRATION_TEST_ARG" \
       "${SANDBOX_ENV[@]}" \

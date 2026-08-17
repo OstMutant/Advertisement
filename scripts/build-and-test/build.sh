@@ -3,8 +3,7 @@
 # Description: Runs INSIDE the build-and-test Docker container (JDK 25). Always builds
 #   the full reactor and refreshes marketplace-app's JAR in the shared volume, regardless of who
 #   called it -- Maven's own incremental compilation makes a no-op rebuild cheap either way. Also
-#   optionally runs unit/integration tests -- when both are enabled they run concurrently
-#   (background jobs, waited on together), not one after another -- see Env below.
+#   optionally runs unit/integration tests and an ArchUnit metrics export -- see Env below.
 # Usage: not invoked directly -- tar-piped and run via `docker run` by an external caller.
 # Uses: bash, mvn, flock.
 # Env:
@@ -13,6 +12,11 @@
 #     RUN_INTEGRATION (true/false, default false) -- also runs Testcontainers-based integration
 #       tests (needs docker.sock mounted in -- Testcontainers itself creates a sibling Postgres
 #       container).
+#     ARCHUNIT_METRICS (true/false, default false) -- also runs marketplace-app's
+#       ArchitectureMetricsExport (module-level coupling metrics for architecture-map.html
+#       --with-archunit); several minutes even on a warm build, grouped sequentially with
+#       RUN_UNIT (both touch marketplace-app's own target/), parallel-safe against
+#       RUN_INTEGRATION only.
 #     UNIT_TEST_ARG (default empty) -- narrows RUN_UNIT to one module (query-lib/marketplace-app/
 #       marketplace-orchestrator) or one test class by name; empty runs all 3 modules.
 #     INTEGRATION_TEST_ARG (default empty) -- narrows RUN_INTEGRATION to one scenario ("smoke") or
@@ -24,8 +28,9 @@
 # Outputs: fresh jars for every module in the shared /root/.m2 (library modules installed;
 #   marketplace-app's own JAR copied to /root/.m2/artifacts/marketplace-app.jar). RUN_UNIT/
 #   RUN_INTEGRATION=true -- PASSED/FAILED summary on stdout, failing test files listed; Surefire
-#   reports copied to /tmp/reports/surefire/<module>/ (reaches the host via run.sh's own
-#   `docker cp` after this container exits).
+#   reports copied to /tmp/reports/surefire/<module>/. ARCHUNIT_METRICS=true -- architecture-
+#   metrics.json moved to /tmp/reports/architecture-metrics.json. Everything under /tmp/reports
+#   reaches the host via run.sh's own `docker cp` after this container exits.
 # Returns: 0 on success, non-zero on build/test failure.
 # ────────────────────────────────────────────────────────────────────────────
 set -e
@@ -129,31 +134,83 @@ print_integration_summary() {
   fi
 }
 
-FINAL_EXIT=0
-if [ "$RUN_UNIT" = "true" ] && [ "$RUN_INTEGRATION" = "true" ]; then
+# ── ArchUnit metrics export: needs the full reactor already installed (it scans every module's
+# classes on one combined classpath), and touches marketplace-app's own target/ the same as
+# run_unit_tests does -- grouped with it below, never run concurrently against it, to avoid both
+# writing into that same target/ at once. Off by default -- see Env below -- since a cold run
+# takes several minutes just for this one export, disproportionate to add to every build.
+run_archunit_metrics() {
+  ./mvnw -pl marketplace-app test -Dtest=ArchitectureMetricsExport -Dsurefire.failIfNoSpecifiedTests=false > /tmp/archunit-metrics.log 2>&1
+  ARCHUNIT_METRICS_EXIT=$?
+
+  mkdir -p /tmp/reports
+  if [ -f "$ROOT/marketplace-app/target/architecture-metrics.json" ]; then
+    mv "$ROOT/marketplace-app/target/architecture-metrics.json" /tmp/reports/architecture-metrics.json
+  fi
+  return $ARCHUNIT_METRICS_EXIT
+}
+
+print_archunit_metrics_summary() {
+  cat /tmp/archunit-metrics.log
   echo ""
-  echo "=== Running unit + integration tests in parallel ==="
+  if [ "$ARCHUNIT_METRICS_EXIT" -eq 0 ]; then
+    echo "===== ARCHUNIT METRICS EXPORT PASSED ====="
+  else
+    echo "===== ARCHUNIT METRICS EXPORT FAILED (exit $ARCHUNIT_METRICS_EXIT) ====="
+  fi
+}
+
+# ── Everything touching marketplace-app's own target/ (unit tests, ArchUnit metrics export) is
+# grouped here and runs sequentially within the group -- integration tests are the only genuinely
+# independent piece (its own, disjoint target/ dir), so they're the one thing safe to parallelize
+# against this group. Printing happens inside the group itself (not after) so it still shows up
+# correctly even when the group runs backgrounded -- a subshell's own variables don't survive it
+# exiting, but its stdout does.
+run_marketplace_app_group() {
+  GROUP_EXIT=0
+  if [ "$RUN_UNIT" = "true" ]; then
+    run_unit_tests
+    UNIT_EXIT=$?
+    print_unit_summary
+    [ "$UNIT_EXIT" -eq 0 ] || GROUP_EXIT=$UNIT_EXIT
+  fi
+  if [ "$ARCHUNIT_METRICS" = "true" ]; then
+    run_archunit_metrics
+    ARCHUNIT_METRICS_EXIT=$?
+    print_archunit_metrics_summary
+    [ "$ARCHUNIT_METRICS_EXIT" -eq 0 ] || GROUP_EXIT=$ARCHUNIT_METRICS_EXIT
+  fi
+  return $GROUP_EXIT
+}
+
+NEED_MARKETPLACE_APP_GROUP=false
+if [ "$RUN_UNIT" = "true" ] || [ "$ARCHUNIT_METRICS" = "true" ]; then
+  NEED_MARKETPLACE_APP_GROUP=true
+fi
+
+FINAL_EXIT=0
+if $NEED_MARKETPLACE_APP_GROUP && [ "$RUN_INTEGRATION" = "true" ]; then
+  echo ""
+  echo "=== Running marketplace-app tests + integration tests in parallel ==="
   set +e
-  run_unit_tests & UNIT_PID=$!
+  run_marketplace_app_group & GROUP_PID=$!
   run_integration_tests & INTEGRATION_PID=$!
-  wait $UNIT_PID; UNIT_EXIT=$?
+  wait $GROUP_PID; GROUP_EXIT=$?
   wait $INTEGRATION_PID; INTEGRATION_EXIT=$?
   set -e
-  print_unit_summary
   print_integration_summary
   echo "Surefire reports: scripts/build-and-test/reports/surefire/"
-  [ "$UNIT_EXIT" -eq 0 ] || FINAL_EXIT=$UNIT_EXIT
+  [ "$GROUP_EXIT" -eq 0 ] || FINAL_EXIT=$GROUP_EXIT
   [ "$INTEGRATION_EXIT" -eq 0 ] || FINAL_EXIT=$INTEGRATION_EXIT
-elif [ "$RUN_UNIT" = "true" ]; then
+elif $NEED_MARKETPLACE_APP_GROUP; then
   echo ""
-  echo "=== Running unit tests ==="
+  echo "=== Running marketplace-app tests ==="
   set +e
-  run_unit_tests
-  UNIT_EXIT=$?
+  run_marketplace_app_group
+  GROUP_EXIT=$?
   set -e
-  print_unit_summary
   echo "Surefire reports: scripts/build-and-test/reports/surefire/"
-  FINAL_EXIT=$UNIT_EXIT
+  FINAL_EXIT=$GROUP_EXIT
 elif [ "$RUN_INTEGRATION" = "true" ]; then
   echo ""
   echo "=== Running integration tests ==="

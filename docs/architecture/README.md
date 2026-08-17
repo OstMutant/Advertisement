@@ -44,5 +44,5 @@ this `README.md` is the only file here.
 - Analyzed schemas: every Liquibase migration under `*/src/main/resources/db/*/changes/`.
 - `pom.xml` files for every module listed in the root `pom.xml`'s `<modules>` block.
 - A running SonarQube server (`localhost:9099`) for code-quality metrics, and the last
-  `bash scripts/unit-tests.sh` run's `ArchitectureMetricsExport` output for coupling metrics —
-  both optional; the tool degrades gracefully when either is unavailable.
+  `bash scripts/build-and-test.sh --archunit-metrics` run's `ArchitectureMetricsExport` output for
+  coupling metrics — both optional; the tool degrades gracefully when either is unavailable.

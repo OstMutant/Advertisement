@@ -905,16 +905,25 @@ print(json.dumps(out))
 }
 
 # ── ArchUnit: real Efferent/Afferent Coupling, Instability, Abstractness per module, computed by
-# ArchitectureMetricsExport (marketplace-app/src/test/java/org/ost/marketplace/architecture) and
-# written to a fixed JSON path every time `bash scripts/unit-tests.sh` runs. Read here if present;
-# null if the test hasn't run yet -- optional data, no auto-trigger (running the full unit-test
-# suite from inside this generator would be a much bigger cost than SonarQube's own staleness
-# check, so this stays passively "as fresh as the last test run" instead).
+# ArchitectureMetricsExport (marketplace-app/src/test/java/org/ost/marketplace/architecture).
+# Its class name doesn't match Surefire's default *Test/Test*/*Tests/*TestCase include patterns,
+# so it never runs as part of a normal `mvn test` -- must be explicitly forced
+# (-Dtest=ArchitectureMetricsExport), and needs the full reactor already installed (it scans every
+# module's classes on one combined classpath). Two possible sources, checked in order: a direct
+# host-side forced run writes straight to marketplace-app/target/; `bash scripts/build-and-test.sh
+# --archunit-metrics` runs it inside a throwaway container instead and moves the result to
+# scripts/build-and-test/reports/architecture-metrics.json. Read here if present; null if neither
+# has run yet -- optional data, no auto-trigger (several minutes even on a warm build, a much
+# bigger cost than SonarQube's own staleness check, so this stays passively "as fresh as the last
+# run" instead).
 ARCHUNIT_METRICS_FILE="$REPO_ROOT/marketplace-app/target/architecture-metrics.json"
+ARCHUNIT_METRICS_FILE_FALLBACK="$REPO_ROOT/scripts/build-and-test/reports/architecture-metrics.json"
 
 archunit_metrics_json() {
   if [ -f "$ARCHUNIT_METRICS_FILE" ]; then
     cat "$ARCHUNIT_METRICS_FILE"
+  elif [ -f "$ARCHUNIT_METRICS_FILE_FALLBACK" ]; then
+    cat "$ARCHUNIT_METRICS_FILE_FALLBACK"
   else
     echo "null"
   fi
@@ -2360,7 +2369,7 @@ function renderCodeQuality() {
 
   html += `<section class="block"><h3>ArchUnit</h3>`;
   if (!arch) {
-    html += `<div class="empty-hint">No data -- regenerate with <code>--with-archunit</code> (requires <code>bash scripts/unit-tests.sh</code> to have run at least once).</div>`;
+    html += `<div class="empty-hint">No data -- regenerate with <code>--with-archunit</code> (requires <code>bash scripts/build-and-test.sh --archunit-metrics</code> to have run at least once).</div>`;
   } else {
     html += `<div class="empty-hint">Source: ArchUnit (from the last <code>bash scripts/unit-tests.sh</code> run).</div>
       <table class="simple"><thead><tr><th>Module</th><th>Efferent coupling</th><th>Afferent coupling</th><th>Instability</th><th>Abstractness</th><th>Distance from Main Sequence</th></tr></thead><tbody>`;

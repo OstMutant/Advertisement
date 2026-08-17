@@ -1,10 +1,11 @@
 Run all three test suites for daily iteration: unit-tests, integration-tests, and Playwright.
 
-Usage: /run-all-tests [--unit-test <arg>] [--integration-test <arg>] [--sandbox] [--playwright "..."] [--background]
+Usage: /run-all-tests [--unit-test <arg>] [--integration-test <arg>] [--sandbox] [--archunit-metrics] [--playwright "..."] [--background]
 Examples:
   /run-all-tests
   /run-all-tests --unit-test AccessEvaluatorTest --integration-test smoke --sandbox --playwright "01-marketplace-empty-flow --ux"
   /run-all-tests --background
+  /run-all-tests --archunit-metrics
 
 Runs scripts/build-and-test.sh --unit --integration (installs the whole reactor once, then runs
 unit+integration tests in parallel against it -- see scripts/DECISIONS.md ADR-004's annotation)
@@ -17,9 +18,9 @@ networking workaround) -- never pass it on a real developer machine.
 
 Steps:
 1. Parse $ARGUMENTS: --unit-test/--integration-test take one value each (module/class name),
-   --sandbox is a bare flag, --playwright takes one quoted block forwarded verbatim to
-   playwright.sh. If a --playwright block is present and doesn't already include --ux, append it
-   (project convention — always run Playwright with --ux).
+   --sandbox and --archunit-metrics are bare flags, --playwright takes one quoted block forwarded
+   verbatim to playwright.sh. If a --playwright block is present and doesn't already include
+   --ux, append it (project convention — always run Playwright with --ux).
 2. Launch two Monitor tool calls (persistent: true):
    - watching scripts/run-all-tests/reports/build-and-test.log every 10s, catch
      PASSED|FAILED|ERROR|BUILD SUCCESS|BUILD FAILURE

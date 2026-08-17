@@ -6,20 +6,24 @@
 #   reactor and has nothing to race with the build-and-test container. See DECISIONS.md ADR-004's
 #   annotation for the unit/integration pairing's own history.
 # Usage: bash scripts/run-all-tests.sh [--unit-test <module-or-class>]
-#   [--integration-test <scenario-or-class>] [--sandbox] [--playwright "<args>"]
+#   [--integration-test <scenario-or-class>] [--sandbox] [--archunit-metrics] [--playwright "<args>"]
 #   --unit-test <arg>          forwarded to build-and-test.sh's own --unit-test
 #   --integration-test <arg>   forwarded to build-and-test.sh's own --integration-test
 #   --sandbox                  forwarded to build-and-test.sh's own --sandbox -- this claude-dev
 #                               sandbox's Testcontainers workaround only, never needed on a real
 #                               developer machine
+#   --archunit-metrics         forwarded to build-and-test.sh's own --archunit-metrics -- off by
+#                               default, not part of the normal daily loop (several minutes even
+#                               on a warm build)
 #   --playwright "<args>"      forwarded verbatim to playwright.sh
 # Uses: bash, scripts/build-and-test.sh, scripts/playwright.sh.
 # Env: None directly -- flags forwarded to build-and-test.sh/playwright.sh carry their own Env
 #   behavior, see those scripts' own headers.
 # Input: None beyond CLI flags.
 # Outputs: scripts/run-all-tests/reports/build-and-test.log + playwright.log. Surefire reports
-#   under scripts/build-and-test/reports/surefire/ (produced by build-and-test.sh itself, not
-#   duplicated here).
+#   under scripts/build-and-test/reports/surefire/, and with --archunit-metrics also
+#   scripts/build-and-test/reports/architecture-metrics.json (produced by build-and-test.sh
+#   itself, not duplicated here).
 # Returns: 0 if both build-and-test.sh and playwright.sh succeed, 1 if either fails.
 # ────────────────────────────────────────────────────────────────────────────
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -29,6 +33,7 @@ mkdir -p "$REPORT_DIR"
 UNIT_TEST_ARG=""
 INTEGRATION_TEST_ARG=""
 SANDBOX=false
+ARCHUNIT_METRICS=false
 PLAYWRIGHT_ARGS=""
 NEXT=""
 for arg in "$@"; do
@@ -41,6 +46,7 @@ for arg in "$@"; do
     --unit-test)         NEXT=unit-test ;;
     --integration-test)  NEXT=integration-test ;;
     --sandbox)           SANDBOX=true ;;
+    --archunit-metrics)  ARCHUNIT_METRICS=true ;;
     --playwright)        NEXT=playwright ;;
   esac
 done
@@ -49,6 +55,7 @@ BUILD_AND_TEST_FLAGS=(--unit --integration)
 [ -n "$UNIT_TEST_ARG" ] && BUILD_AND_TEST_FLAGS+=(--unit-test "$UNIT_TEST_ARG")
 [ -n "$INTEGRATION_TEST_ARG" ] && BUILD_AND_TEST_FLAGS+=(--integration-test "$INTEGRATION_TEST_ARG")
 $SANDBOX && BUILD_AND_TEST_FLAGS+=(--sandbox)
+$ARCHUNIT_METRICS && BUILD_AND_TEST_FLAGS+=(--archunit-metrics)
 
 PW_LOG="$REPORT_DIR/playwright.log"
 BUILD_LOG="$REPORT_DIR/build-and-test.log"

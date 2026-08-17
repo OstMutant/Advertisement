@@ -935,16 +935,26 @@ three gaps — see chat discussion this session for the fuller reasoning (real c
 edges verified by bytecode, method-level granularity, distinguishing real calls from DI-wiring-only
 references, and a path to a real Test Coverage overlay).
 
-### What already exists
+### What already exists — correction: not actually working (found 2026-08-16)
 
 - `ArchitectureMetricsExport` (`marketplace-app/src/test/java/org/ost/marketplace/architecture`) —
-  a real ArchUnit test/exporter, already wired: writes `marketplace-app/target/architecture-metrics
-  .json` every time `bash scripts/unit-tests.sh` runs. `generate-architecture-model.sh
-  --with-archunit` reads it — but **only module-level metrics today** (Efferent/Afferent Coupling,
-  Instability, Abstractness), no interface/method/contract-level data.
-- The Code Quality screen already has placeholder rows anticipating exactly this gap: "Contract
-  method signatures & types", "Implementation classes", "Methods", "Test coverage (DIRECT/INDIRECT/
-  E2E)" — all tagged `needs ArchUnit exporter`.
+  an ArchUnit exporter meant to write `marketplace-app/target/architecture-metrics.json` (module-
+  level Efferent/Afferent Coupling, Instability, Abstractness), read by
+  `generate-architecture-model.sh --with-archunit`. **Confirmed broken, not just stale docs.** The
+  class name doesn't match Surefire's default include patterns (`*Test`/`Test*`/`*Tests`/
+  `*TestCase` — "ArchitectureMetricsExport" matches none), so a plain `mvn test` — via
+  `unit-tests.sh` or anything else — never discovers or runs it at all; it silently never executes.
+  Forcing it directly (`-Dtest=ArchitectureMetricsExport`, which bypasses the naming filter) shows
+  it also **fails** when run scoped to fewer than all modules:
+  `IllegalArgumentException: This package does not contain any sub package 'org.ost.audit'` — its
+  `@AnalyzeClasses(packages = "org.ost")` scan needs every module's classes on the classpath
+  simultaneously, not just the 2-3 modules any of today's test scripts scope to. Net effect:
+  `--with-archunit`'s module-coupling table has almost certainly never actually populated from a
+  real run — this was already broken before this session, unrelated to any change made here.
+- The Code Quality screen already has placeholder rows anticipating the *next* gap beyond this one
+  (interface/method-level data, not just module coupling): "Contract method signatures & types",
+  "Implementation classes", "Methods", "Test coverage (DIRECT/INDIRECT/E2E)" — all tagged
+  `needs ArchUnit exporter`.
 
 ### The real blocker — this is a decision gate, not a technical one
 

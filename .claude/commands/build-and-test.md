@@ -1,4 +1,4 @@
-Builds the whole reactor inside the shared build-and-test container (works even without a local Java install) — refreshes marketplace-app.jar in the shared maven-cache volume. Optionally runs unit/integration tests too (see scripts/build-and-test/build-and-test.properties for defaults, or pass --unit/--no-unit/--integration/--no-integration).
+Builds the whole reactor inside the shared build-and-test container (works even without a local Java install) — refreshes marketplace-app.jar in the shared maven-cache volume. Optionally runs unit/integration tests too (see scripts/build-and-test/build-and-test.properties for defaults, or pass --unit/--no-unit/--integration/--no-integration). Pass --archunit-metrics to also export marketplace-app's ArchUnit module-coupling metrics (architecture-map.html --with-archunit data) — off by default, several minutes even on a warm build, run this occasionally, not on every call.
 
 Steps:
 1. Launch Monitor tool (persistent: true) watching /tmp/build-and-test.log every 10s:
