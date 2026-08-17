@@ -1821,3 +1821,58 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   motivated, and its SPI Interface Details table redesign idea all moved to `improvement-152`.
   Docs/tooling-only change — no Java touched, so no unit/integration/Playwright run applicable.
   Full detail: `completed/issues/improvement-151-scripts-avoid-redundant-recompile.md`.
+
+- ✅ Done (2026-08-17): improvement-152 — `scripts/build.sh` redundant-recompile fix + Tooling &
+  Pipelines regroup. Part A: consolidated `scripts/unit-tests.sh`/`scripts/integration-tests.sh`
+  into `scripts/build-and-test.sh` (parallel unit+integration, module/test-class selection,
+  host-copied reports, PASSED/FAILED summaries, `--sandbox`); found and fixed a real bug along the
+  way (`RUN_INTEGRATION` silently ran zero real Testcontainers tests). Legacy standalone scripts
+  deleted, `scripts/ci/entrypoint.sh` rewired to one merged `build_and_test` stage. Part D:
+  Tooling & Pipelines screen regrouped from a 2-bucket AI/Other split into one card per tool.
+  Both parts done and verified. **Parts B, C, and E each split out to their own issue once A/D
+  were ready to close** — not because they were abandoned, but because each had grown into
+  independent, separately-trackable work: `improvement-156` (ArchUnit Track B unblock decision
+  gate — its own technical prerequisite, `ArchitectureMetricsExport`'s module-coupling exporter,
+  fixed and verified as part of this issue via a new `--archunit-metrics` flag before the split),
+  `improvement-157` (SPI Interface Details table redesign), `improvement-155` (repo-wide
+  `infra-doc-standards` script-header/README-flow convention rollout). Two smaller loose ends from
+  Part A also moved out: `improvement-153` (verify the merged CI stage for real) and
+  `improvement-154` (deploy reusing `build-and-test.sh`'s shared-volume jar, closing the
+  documented Playwright-freshness gap). Full detail:
+  `completed/issues/improvement-152-build-script-and-archunit-track-b-unblock.md`.
+
+- ✅ Done (2026-08-17): improvement-154 — `scripts/deploy.sh` restructured into
+  `scripts/deploy-and-run/` (`run.sh`, `reset.sh`, `docker-compose*.yml`; `scripts/infra`/
+  `scripts/database` folded in), 3 duplicate DB-truncate implementations unified into one shared
+  `reset.sh`. `deploy-and-run.sh` no longer duplicates `build-and-test.sh`'s compile step — by
+  default it now runs the app directly against the shared `maven-cache` volume from a plain
+  `eclipse-temurin:25-jre` container (`docker run` mounts a named volume directly; no image build,
+  no bridge container needed at all — an earlier version of this fix used a jar-extraction
+  bridge-container + a thin Dockerfile, replaced once the app-container step turned out not to
+  need a built, tagged image in the common case). `--from-scratch` keeps the original full,
+  isolated, tagged-image build for when one is genuinely needed. `run-all-tests.sh` now runs
+  `deploy-and-run.sh` (always clearing app data first) sequentially before `playwright.sh`,
+  closing the documented Playwright-freshness gap. Found and fixed a real bug this reuse surfaced:
+  `build-and-test.sh`'s fixed container name collided under two concurrent invocations — added an
+  overridable `BUILD_CONTAINER_NAME` plus defensive cleanup. `infra-doc-standards` applied to
+  `scripts/deploy-and-run/`; new architecture-map card. Verified end to end with real Docker runs
+  at every stage, including a full `run-all-tests.sh --sandbox` pass (unit 53/53, integration
+  165/165, e2e ALL PASSED). Also removed `scripts/hooks/`/`scripts/install-hooks.sh` (never
+  installed/used in this environment — the "should this run repo-wide" question was already
+  flagged as an explicit user decision in `improvement-138`; user confirmed removal). Full detail:
+  `completed/issues/improvement-154-deploy-reuses-build-and-test-jar.md`.
+
+- ✅ Done (2026-08-17): improvement-158 — same shared-jar-reuse pattern from improvement-154
+  applied to `scripts/sonar/run.sh`: drops its own local `mvnw compile` (no local Java needed
+  anymore), calls `scripts/build-and-test.sh` first, mounts the shared `maven-cache` volume
+  directly into the sonar-scanner container instead of copying host-compiled classes in
+  (`sonar.java.binaries` doesn't accept jars directly, confirmed via SonarQube docs — only
+  directories of `.class` files, so `build-and-test/build.sh` now also refreshes each module's own
+  `target/classes` into the volume, alongside the jar). Found and fixed a real pre-existing bug
+  during testing: `--no-gate` used to also clear `sonar.qualitygate.wait=true`, so the scanner
+  returned before SonarQube finished processing the just-uploaded report — the HTML-report step
+  then hit an API timeout and silently skipped writing the report file. The wait flag now always
+  stays on; `--no-gate` only controls whether a failed gate makes the script itself exit non-zero.
+  Verified end to end: real scan uploaded, gate evaluated (3 real issues found), HTML report
+  written (2810 bytes). Full detail:
+  `completed/issues/improvement-158-sonar-reuses-build-and-test-jar.md`.

@@ -148,20 +148,37 @@ places, found during discussion:
   `DB_CONTAINER` themselves (fixed default vs. dynamic `docker ps` lookup); `reset.sh` doesn't take
   it as a parameter today since it doesn't use `docker exec` at all.
 
-### Phase 2 — the actual improvement-154 behavior (done)
+### Phase 2 — the actual improvement-154 behavior (done, redesigned after initial implementation)
 
-Implemented and verified: `bash scripts/deploy-and-run.sh` (no flags) now runs
-`bash scripts/build-and-test.sh --no-unit --no-integration` first (Step 1.5), extracts
-`marketplace-app.jar` from the `maven-cache` volume via a short-lived helper container
-(`jar-extract-tmp`, removed after `docker cp`) into `scripts/deploy-and-run/marketplace-app.jar`
-(gitignored), then builds the image from a new thin `scripts/deploy-and-run/Dockerfile`
-(`FROM eclipse-temurin:25-jre` + `COPY marketplace-app.jar app.jar` — no `mvn` invocation inside
-this image at all). `--with-tests` forwards `--unit --integration` to the `build-and-test.sh` call;
-`--from-scratch` skips Step 1.5 entirely and falls back to the original full multi-stage root
-`Dockerfile` build — the mount-mechanism question resolved to "extract via a helper container",
-and the opt-in-vs-default question resolved to "default, `--from-scratch` is the opt-out."
-Real run: infra up → build-and-test.sh build → jar extracted (69MB) → thin image built (~8s,
-`COPY` only) → app started → HTTP 200 on port 8081.
+**Initial implementation** (superseded, see below): `bash scripts/deploy-and-run.sh` ran
+`build-and-test.sh`, extracted `marketplace-app.jar` from the `maven-cache` volume via a
+short-lived helper container (`jar-extract-tmp`), then built a new thin
+`scripts/deploy-and-run/Dockerfile` (`COPY marketplace-app.jar app.jar`) from that extracted jar.
+
+**Redesigned, simpler, same session:** the helper container and the thin Dockerfile are both gone
+entirely for the default path. `docker build` needs its input files on the host disk (a Dockerfile
+`COPY` cannot reference a named volume directly) — that constraint is what forced the
+extract-to-host-then-build shape in the first place. But `deploy-and-run.sh` doesn't actually need
+a *built, tagged image* for its default (fast, dev-loop) path — only `--from-scratch` does, since
+that's the one case an actual portable image matters. So the default path now skips "Step 2: Build
+image" entirely and, in Step 3, runs the app straight from a plain `eclipse-temurin:25-jre`
+container with the `maven-cache` volume mounted directly (`-v maven-cache:/root/.m2 --entrypoint
+java ... -jar /root/.m2/artifacts/marketplace-app.jar`) — `docker run` (unlike `docker build`) can
+mount a named volume directly, no host round-trip needed at all. `--from-scratch` is unchanged:
+still builds a real, tagged `marketplace-app` image from the full multi-stage root `Dockerfile`,
+for when an actual portable/deployable image is genuinely needed. `scripts/deploy-and-run/Dockerfile`
+was deleted (dead code — nothing builds it anymore); the `.gitignore` entry for the
+now-never-produced `marketplace-app.jar` was removed too.
+
+Real run (redesigned version): infra up → build-and-test.sh build (jar refreshed in volume, no
+extraction) → Step 2 skipped entirely → app container started directly from
+`eclipse-temurin:25-jre` with the volume mounted → HTTP 200 on port 8081, confirmed
+`docker ps` shows the container's image as `eclipse-temurin:25-jre` (not a custom-built tag), and
+no `jar-extract-tmp` container was ever created.
+
+`--with-tests` forwards `--unit --integration` to the `build-and-test.sh` call; the
+opt-in-vs-default question resolved to "default, `--from-scratch` is the opt-out" — both
+unchanged by the redesign.
 
 Confirmed facts from this session's discussion (verified against `scripts/build-and-test/build.sh`
 and `scripts/build-and-test/run.sh`):
