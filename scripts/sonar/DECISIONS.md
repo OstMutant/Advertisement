@@ -37,6 +37,13 @@ Java projects.
 scanner container and referenced via `sonar.java.binaries`. The project must be compiled locally
 (by IDE or `mvn compile`) before running `run.sh`.
 
+**Update (local compile requirement dropped):** `run.sh` no longer requires a local compile at
+all — it runs `scripts/build-and-test.sh` first (no local Java needed), which now also refreshes
+each module's `target/classes` into the shared `maven-cache` volume. The scanner container mounts
+that volume directly (`-v maven-cache:/root/.m2`) and copies the needed classes into its own
+`/tmp/sonar-src/<module>/target/classes` internally (container-to-container, via `docker exec`) —
+`sonar.java.binaries` itself still points at the same relative paths as before, unchanged.
+
 ---
 
 ## ADR-003: `sonar.java.libraries` intentionally left empty

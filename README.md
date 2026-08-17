@@ -213,7 +213,6 @@ All developer scripts live in `scripts/`. See [`scripts/README.md`](scripts/READ
 | `scripts/run-all-tests.sh` / `scripts/run-all-tests.bat` | `build-and-test.sh` (unit + integration in parallel) plus Playwright in parallel with that, one command |
 | `scripts/sonar.sh` / `scripts/sonar.bat` | Run SonarQube static analysis (delegates to `scripts/sonar/run.sh`) |
 | `scripts/ci.sh` / `scripts/ci.bat` | Isolated local CI pipeline — unit + integration + e2e + Sonar in one backgrounded pass |
-| `scripts/install-hooks.sh` | Install this repo's git hooks (pre-commit doc sync, commit-msg changelog) |
 | `scripts/clean.bat` | Remove Maven `target/` directories and Vaadin generated files |
 | `scripts/collect-code.bat` | Collect all source files into a single `all-code.txt` for AI analysis |
 | `scripts/claude.bat` | Start Claude Code container with project and auth mounts |

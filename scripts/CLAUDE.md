@@ -1,19 +1,25 @@
 ## Deployment
 
-### Prod deploy (full image rebuild)
+### Prod deploy (local dev-loop, no image build by default)
 ```bash
 bash scripts/deploy-and-run.sh        # Linux / WSL
 scripts\deploy-and-run.bat            # Windows
 ```
-Builds a Docker image from scratch (`mvn package` inside Docker — Vaadin's production bundle is built automatically by `vaadin-maven-plugin`, no Maven profile needed; `SPRING_PROFILES_ACTIVE=prod` at runtime sets `vaadin.productionMode=true`), starts all infra + app on **port 8081** (8080 reserved for local IntelliJ dev server).
-After build, dangling (untagged) Docker images are pruned automatically (`docker image prune -f`
-only — scoped by definition to unreferenced images, so it can never touch another stack's
-resources). `docker container prune -f`/`docker volume prune -f` are opt-in only, via
-`--prune-all` — both act host-wide, not scoped to this app's own containers/volumes, so they will
-remove any other stopped container / unused volume on the machine too (see `scripts/ci/DECISIONS.md` ADR-001
-for the incident that made this explicit instead of automatic).
+By default, no Docker image is built at all — the app container runs `java -jar` directly against
+the shared `maven-cache` volume (already refreshed by an internal `scripts/build-and-test.sh` call,
+Vaadin's production bundle included; `SPRING_PROFILES_ACTIVE=prod` at runtime sets
+`vaadin.productionMode=true`), starts all infra + app on **port 8081** (8080 reserved for local
+IntelliJ dev server). `--from-scratch` builds a real, separately tagged image instead, from the
+full multi-stage root `Dockerfile` — needed when an actual portable/deployable image is genuinely
+required, not just a running local container. With `--from-scratch`, dangling (untagged) Docker
+images are pruned automatically after the build (`docker image prune -f` only — scoped by
+definition to unreferenced images, so it can never touch another stack's resources).
+`docker container prune -f`/`docker volume prune -f` are opt-in only, via `--prune-all` — both act
+host-wide, not scoped to this app's own containers/volumes, so they will remove any other stopped
+container / unused volume on the machine too (see `scripts/ci/DECISIONS.md` ADR-001 for the
+incident that made this explicit instead of automatic).
 
-Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-only-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache. Use `--prune-all` for a deliberate, whole-machine deep clean (see warning above).
+Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-only-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache (only meaningful with `--from-scratch`). Use `--prune-all` for a deliberate, whole-machine deep clean (see warning above).
 
 **Streaming output requirement — BuildKit + buildx:**
 Docker Engine must have BuildKit enabled AND the `buildx` CLI plugin must be installed at
@@ -105,9 +111,9 @@ scripts\sonar.bat                  # Windows -- same
 bash scripts/sonar.sh --no-gate    # informational only, always exits 0
 ```
 
-The script starts SonarQube automatically if not running, copies source files into a scanner container via `docker cp`, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`. Quality-gate-blocking is the default (`-Dsonar.qualitygate.wait=true`) — see `scripts/sonar/DECISIONS.md` for why this needed more than just adding that flag (a `tee`d exit-code bug meant the flag alone wouldn't have blocked anything).
+The script starts SonarQube automatically if not running, builds all modules via `scripts/build-and-test.sh` (no local Java needed), copies source files into the scanner container via `docker cp`, mounts the shared `maven-cache` volume directly into the scanner container for compiled classes, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`. The scanner always waits for server-side report processing (`-Dsonar.qualitygate.wait=true`, unconditional — needed so the HTML-report step below doesn't query the issues API before the server finishes indexing); `--no-gate` only changes whether a failed gate makes the script itself exit non-zero, not whether it waits. See `scripts/sonar/DECISIONS.md` for the quality-gate-blocking history (a `tee`d exit-code bug meant the flag alone wouldn't have blocked anything).
 
-**IMPORTANT:** Same Docker socket constraint as Playwright — never use `docker run -v`. The script uses `docker cp` internally.
+**IMPORTANT:** Same Docker socket constraint as Playwright for host-path bind mounts (`-v /host/path:/container/path`) — never use those, the script uses `docker cp` for host-to-container file transfer instead. This does NOT apply to named-volume mounts (`-v maven-cache:/root/.m2`), which the scanner container itself now uses directly — those aren't host paths and don't hit the same bug.
 
 ---
 

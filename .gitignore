@@ -60,8 +60,5 @@
 /all-code.txt
 /temp_files_list.tmp
 
-# deploy-and-run: jar extracted from the shared maven-cache volume for the thin runtime image build
-/scripts/deploy-and-run/marketplace-app.jar
-
 # local-only strategy docs (also in .git/info/exclude — belt and suspenders)
 /private/

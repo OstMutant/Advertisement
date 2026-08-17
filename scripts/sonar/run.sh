@@ -1,14 +1,18 @@
 #!/bin/bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Runs SonarQube static analysis against the whole Maven reactor -- ensures the
-#   SonarQube server and scanner images/containers are current, compiles all modules, uploads the
-#   analysis, and generates a local HTML report.
+#   SonarQube server and scanner images/containers are current, builds all modules via
+#   scripts/build-and-test.sh (no local Java needed -- compiled classes come from the shared
+#   maven-cache volume, mounted directly into the scanner container), uploads the analysis, and
+#   generates a local HTML report.
 # Usage: bash scripts/sonar.sh [--no-gate]. --no-gate skips quality-gate blocking (always exits 0);
 #   default blocks on a gate result of ERROR (exits non-zero).
-# Uses: bash, docker (SonarQube server + scanner containers), mvn (compile), python3 (HTML report).
+# Uses: bash, docker (SonarQube server + scanner containers), scripts/build-and-test.sh, python3
+#   (HTML report).
 # Env: None.
-# Input: sonar-project.properties, each module's compiled target/classes, the running SonarQube
-#   server's own API.
+# Input: sonar-project.properties, each module's src/main/java (copied from the host), the shared
+#   maven-cache Docker volume's target-classes/<module> (mounted into the scanner container), the
+#   running SonarQube server's own API.
 # Outputs: analysis uploaded to http://localhost:9099/dashboard?id=advertisement (anonymous
 #   browsing enabled every run -- see DECISIONS.md); local report at
 #   scripts/sonar/report/report.html.
@@ -145,17 +149,18 @@ CONTAINER_STATUS=$(docker inspect -f '{{.State.Status}}' "$SCANNER_CONTAINER" 2>
 if [ "$CONTAINER_IMAGE_ID" != "$LATEST_IMAGE_ID" ] || [ "$CONTAINER_STATUS" != "running" ]; then
   [ -n "$CONTAINER_STATUS" ] && docker rm -f "$SCANNER_CONTAINER" >/dev/null
   docker run -d --name "$SCANNER_CONTAINER" --network host \
+    -v maven-cache:/root/.m2 \
     sonarsource/sonar-scanner-cli:latest sleep 86400 >/dev/null
 fi
 
-# Prune any now-dangling image left by either freshness check above (same as deploy.sh, see DECISIONS.md).
+# Prune any now-dangling image left by either freshness check above (same as deploy-and-run.sh, see DECISIONS.md).
 docker image prune -f >/dev/null
 
-# ── Compile all modules ───────────────────────────────────────────────────────
-echo "Compiling modules..."
-"$ROOT/mvnw" -f "$ROOT/pom.xml" compile -q -DskipTests 2>&1
+# ── Build all modules via build-and-test.sh (shared maven-cache volume, no local Java needed) ──
+echo "Building modules via build-and-test.sh..."
+bash "$ROOT/scripts/build-and-test.sh" --no-unit --no-integration
 
-# ── Copy source and compiled files to container ───────────────────────────────
+# ── Copy source files from host; compiled classes come from the mounted maven-cache volume ────
 echo "Copying source files..."
 docker exec --user root "$SCANNER_CONTAINER" rm -rf /tmp/sonar-src
 docker exec "$SCANNER_CONTAINER" mkdir -p /tmp/sonar-src
@@ -165,9 +170,9 @@ for module in query-lib platform-commons audit-spring-boot-starter attachment-sp
     docker exec "$SCANNER_CONTAINER" mkdir -p "/tmp/sonar-src/$module/src/main/java"
     docker cp "$ROOT/$module/src/main/java/." "$SCANNER_CONTAINER:/tmp/sonar-src/$module/src/main/java/"
   fi
-  if [ -d "$ROOT/$module/target/classes" ]; then
+  if docker exec "$SCANNER_CONTAINER" test -d "/root/.m2/target-classes/$module"; then
     docker exec "$SCANNER_CONTAINER" mkdir -p "/tmp/sonar-src/$module/target/classes"
-    docker cp "$ROOT/$module/target/classes/." "$SCANNER_CONTAINER:/tmp/sonar-src/$module/target/classes/"
+    docker exec "$SCANNER_CONTAINER" bash -c "cp -r /root/.m2/target-classes/$module/. /tmp/sonar-src/$module/target/classes/"
   fi
 done
 
@@ -175,8 +180,13 @@ docker cp "$PROPS_FILE" "$SCANNER_CONTAINER:/tmp/sonar-src/sonar-project.propert
 
 # ── Run analysis ──────────────────────────────────────────────────────────────
 # Real exit code read via PIPESTATUS, not `$?` (tee's) -- see DECISIONS.md.
+# sonar.qualitygate.wait=true always stays on, even with --no-gate -- it's what makes the scanner
+# block until the server has actually finished processing the just-uploaded report, not just a
+# gate-blocking toggle. Without it, the HTML-report step below queries the issues API before the
+# server has indexed anything, hits a timeout, and silently skips writing the report file
+# (confirmed directly: exactly this happened with --no-gate before this fix). --no-gate's own
+# contract (always exit 0, gate result informational only) is enforced separately at the bottom.
 GATE_FLAG="-Dsonar.qualitygate.wait=true"
-[ -n "$NO_GATE" ] && GATE_FLAG=""
 
 echo "Running SonarQube analysis..."
 set +e
@@ -299,4 +309,8 @@ if [ "$EXIT_CODE" -ne 0 ] && [ -z "$NO_GATE" ]; then
   echo "=== QUALITY GATE FAILED (exit $EXIT_CODE) === (--no-gate to make this informational only)"
 fi
 
+# --no-gate always exits 0 -- gate result is informational only, per its own documented contract.
+# GATE_FLAG (sonar.qualitygate.wait=true) still ran above regardless, so EXIT_CODE may be non-zero
+# here even under --no-gate; that's expected and deliberately not surfaced as a failure.
+[ -n "$NO_GATE" ] && exit 0
 exit $EXIT_CODE

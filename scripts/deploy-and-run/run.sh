@@ -1,7 +1,8 @@
 #!/bin/bash
 # ── Header ──────────────────────────────────────────────────────────────────
-# Description: Full prod deploy -- reuses scripts/build-and-test.sh's shared maven-cache jar by
-#   default (thin runtime-only image, no Maven build inside Docker), starts all services on port
+# Description: Full local deploy -- reuses scripts/build-and-test.sh's shared maven-cache jar by
+#   default: no Docker image is built at all, `java -jar` runs directly against the mounted
+#   maven-cache volume inside a plain eclipse-temurin:25-jre container. Starts all services on port
 #   8081. A Liquibase checksum mismatch (a changeset edited in place instead of a new one added,
 #   e.g. a removed FK constraint, while the local dev DB still has the old version applied) is
 #   detected automatically and self-heals: wipes dev DB/MinIO volumes and retries once, same as
@@ -16,14 +17,17 @@
 #   --reset-only-db  truncate app tables (reset-clean.sql) before starting the app, via reset.sh
 #   --with-tests     also run unit+integration tests as part of the build-and-test.sh reuse step
 #                    (default: build only, no tests, for deploy speed)
-#   --from-scratch   skip the build-and-test.sh reuse step and build the full multi-stage
-#                    Dockerfile in complete isolation instead (the old, pre-reuse behavior)
+#   --from-scratch   skip the build-and-test.sh reuse step; instead build a real, tagged image from
+#                    the full multi-stage root Dockerfile in complete isolation (the old, pre-reuse
+#                    behavior) -- needed when an actual portable image is required, not just a
+#                    running local container
 #   --prune-all      ALSO run `docker container prune -f` and `docker volume prune -f` after the
 #                    build -- HOST-WIDE, not scoped to this app, will remove any other stopped
 #                    container / unused volume on the machine. Opt-in only, never automatic -- see
 #                    scripts/ci/DECISIONS.md ADR-001 for the incident that made this explicit.
-# Uses: bash, docker buildx, docker compose, scripts/build-and-test.sh (unless --from-scratch),
-#   scripts/deploy-and-run/reset.sh (with --reset-only-db).
+# Uses: bash, docker, docker compose, docker buildx (--from-scratch only),
+#   scripts/build-and-test.sh (unless --from-scratch), scripts/deploy-and-run/reset.sh
+#   (with --reset-only-db).
 # Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), MINIO_CONTAINER
 #   (advertisement-minio), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
 #   (5432), MINIO_PORT (9000), MINIO_CONSOLE_PORT (9001), APP_PORT (8081), DB_VOLUME
@@ -33,9 +37,11 @@
 #   hardcoded default.
 # Input: repo source, .env (DB_*/S3_* fallback defaults -- NOT POSTGRES_IMAGE: this script's own
 #   Postgres container always hardcodes postgres:15-alpine, unlike docker-compose.db.yml which
-#   does honor POSTGRES_IMAGE), the shared maven-cache Docker volume (unless --from-scratch).
-# Outputs: running marketplace-app container on APP_PORT; scripts/deploy-and-run/marketplace-app.jar
-#   (extracted from maven-cache, gitignored) unless --from-scratch.
+#   does honor POSTGRES_IMAGE), the shared maven-cache Docker volume (mounted directly into the app
+#   container unless --from-scratch).
+# Outputs: running marketplace-app container on APP_PORT -- a real, separately built and tagged
+#   "marketplace-app" image only with --from-scratch; the default path runs `java -jar` inside a
+#   plain eclipse-temurin:25-jre container with no image of its own.
 # Returns: 0 on success, non-zero on build/startup failure.
 # ────────────────────────────────────────────────────────────────────────────
 set -e
@@ -230,43 +236,32 @@ if ! $FROM_SCRATCH; then
   # scripts/run-all-tests.sh runs both from one top-level command), and Docker container names
   # must be unique -- see scripts/build-and-test/run.sh's own Env doc for why.
   BUILD_CONTAINER_NAME="advertisement-build-only-deploy" bash "$ROOT/scripts/build-and-test.sh" "${BUILD_AND_TEST_FLAGS[@]}"
-
-  echo "Extracting marketplace-app.jar from the shared maven-cache volume..."
-  docker rm -f jar-extract-tmp 2>/dev/null || true
-  docker run -d --name jar-extract-tmp --entrypoint sleep -v maven-cache:/root/.m2 alpine:latest infinity >/dev/null
-  docker cp jar-extract-tmp:/root/.m2/artifacts/marketplace-app.jar "$ROOT/scripts/deploy-and-run/marketplace-app.jar"
-  docker rm -f jar-extract-tmp >/dev/null
 fi
 
-# ── Step 2: Build ─────────────────────────────────────────────────────────────
-echo ""
-echo "=== Step 2: Build image ==="
-source "$ROOT/scripts/ensure-docker-plugins.sh"
-ensure_buildx
-docker rm -f "$APP_CONTAINER" 2>/dev/null || true
-
-BUILD_FLAGS=""
-$NO_CACHE && BUILD_FLAGS="--no-cache"
-
+# ── Step 2: Build (--from-scratch only -- the default path runs java directly against the
+# mounted maven-cache volume in Step 3 below, no image build at all) ──────────────────────────
 if $FROM_SCRATCH; then
-  DOCKERFILE_PATH="$ROOT/Dockerfile"
-  BUILD_CONTEXT="$ROOT"
-else
-  DOCKERFILE_PATH="$ROOT/scripts/deploy-and-run/Dockerfile"
-  BUILD_CONTEXT="$ROOT/scripts/deploy-and-run"
-fi
+  echo ""
+  echo "=== Step 2: Build image ==="
+  source "$ROOT/scripts/ensure-docker-plugins.sh"
+  ensure_buildx
+  docker rm -f "$APP_CONTAINER" 2>/dev/null || true
 
-if $FILE_MODE; then
-  docker build --progress=plain $BUILD_FLAGS -f "$DOCKERFILE_PATH" -t "$APP_IMAGE" "$BUILD_CONTEXT" 2>&1 \
-    | tee "$LOG" \
-    | grep --line-buffered -E "^Step [0-9]+|^#[0-9]+ |Building .+\[[0-9]+/[0-9]+\]|BUILD (SUCCESS|FAILURE)|=== |ERROR|Successfully built"
-else
-  docker build $BUILD_FLAGS -f "$DOCKERFILE_PATH" -t "$APP_IMAGE" "$BUILD_CONTEXT"
-fi
+  BUILD_FLAGS=""
+  $NO_CACHE && BUILD_FLAGS="--no-cache"
 
-# Only dangling (untagged) images are pruned automatically -- by definition unreferenced by any
-# tag/container, so this can never touch another stack's active image.
-docker image prune -f
+  if $FILE_MODE; then
+    docker build --progress=plain $BUILD_FLAGS -f "$ROOT/Dockerfile" -t "$APP_IMAGE" "$ROOT" 2>&1 \
+      | tee "$LOG" \
+      | grep --line-buffered -E "^Step [0-9]+|^#[0-9]+ |Building .+\[[0-9]+/[0-9]+\]|BUILD (SUCCESS|FAILURE)|=== |ERROR|Successfully built"
+  else
+    docker build $BUILD_FLAGS -f "$ROOT/Dockerfile" -t "$APP_IMAGE" "$ROOT"
+  fi
+
+  # Only dangling (untagged) images are pruned automatically -- by definition unreferenced by any
+  # tag/container, so this can never touch another stack's active image.
+  docker image prune -f
+fi
 
 if $PRUNE_ALL; then
   echo ""
@@ -280,18 +275,31 @@ fi
 # ── Helper: start the app container ───────────────────────────────────────────
 start_app_container() {
   docker rm -f "$APP_CONTAINER" 2>/dev/null || true
-  docker run -d --name "$APP_CONTAINER" --network "$NETWORK" \
-    -p "$APP_PORT":8080 \
-    -e SPRING_PROFILES_ACTIVE=prod \
-    -e DB_HOST="$DB_CONTAINER" -e DB_PORT=5432 -e DB_NAME="$DB_NAME" \
-    -e DB_USER="$DB_USER" -e DB_PASSWORD="$DB_PASSWORD" \
-    -e S3_ENDPOINT="http://$MINIO_CONTAINER:9000" -e S3_BUCKET="$S3_BUCKET" \
-    -e S3_ACCESS_KEY="$S3_ACCESS_KEY" -e S3_SECRET_KEY="$S3_SECRET_KEY" \
-    -e S3_REGION="$S3_REGION" \
-    -e S3_PUBLIC_URL="http://localhost:$MINIO_PORT/$S3_BUCKET" \
-    -e APP_PUBLIC_URL="http://localhost:$APP_PORT" \
-    -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC" \
-    "$APP_IMAGE"
+  RUN_FLAGS=(-d --name "$APP_CONTAINER" --network "$NETWORK"
+    -p "$APP_PORT":8080
+    -e SPRING_PROFILES_ACTIVE=prod
+    -e DB_HOST="$DB_CONTAINER" -e DB_PORT=5432 -e DB_NAME="$DB_NAME"
+    -e DB_USER="$DB_USER" -e DB_PASSWORD="$DB_PASSWORD"
+    -e S3_ENDPOINT="http://$MINIO_CONTAINER:9000" -e S3_BUCKET="$S3_BUCKET"
+    -e S3_ACCESS_KEY="$S3_ACCESS_KEY" -e S3_SECRET_KEY="$S3_SECRET_KEY"
+    -e S3_REGION="$S3_REGION"
+    -e S3_PUBLIC_URL="http://localhost:$MINIO_PORT/$S3_BUCKET"
+    -e APP_PUBLIC_URL="http://localhost:$APP_PORT"
+    -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC")
+
+  if $FROM_SCRATCH; then
+    docker run "${RUN_FLAGS[@]}" "$APP_IMAGE"
+  else
+    # No built image at all -- mount the shared maven-cache volume directly into a plain JRE base
+    # image and run the jar straight out of it. docker run (unlike docker build) can mount a named
+    # volume directly, so this skips the image-build step and the host-side jar-extraction
+    # bridge-container that step used to need entirely.
+    docker run "${RUN_FLAGS[@]}" \
+      -v maven-cache:/root/.m2 \
+      --entrypoint java \
+      eclipse-temurin:25-jre \
+      -jar /root/.m2/artifacts/marketplace-app.jar
+  fi
 }
 
 # ── Helper: wait for the app to start. Returns 0 = started, 1 = Liquibase
@@ -321,6 +329,7 @@ wait_for_app() {
 # ── Step 3: Start application ─────────────────────────────────────────────────
 echo ""
 echo "=== Step 3: Start application ==="
+$FROM_SCRATCH || pull_if_missing "eclipse-temurin:25-jre"
 start_app_container
 
 status=0

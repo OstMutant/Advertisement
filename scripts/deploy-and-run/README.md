@@ -1,11 +1,13 @@
 # deploy-and-run
 
-The local prod-simulation deploy pipeline: builds the application into a Docker image and starts
-it alongside PostgreSQL and MinIO, so the full stack runs the same way locally as it would in a
-real deployment (production Vaadin bundle, real Postgres, real S3-compatible storage) — without
-needing a hosted environment. Also owns this project's shared local infrastructure (the raw
-`docker-compose*.yml` files for DB/MinIO/app, usable independently of the deploy pipeline itself)
-and the database-truncate script (`reset.sh`) both the deploy pipeline and Playwright call into.
+The local prod-simulation deploy pipeline: starts the application alongside PostgreSQL and MinIO,
+so the full stack runs the same way locally as it would in a real deployment (production Vaadin
+bundle, real Postgres, real S3-compatible storage) — without needing a hosted environment. Runs
+the app directly from the shared `maven-cache` volume by default (no image build); `--from-scratch`
+builds a real, separately tagged Docker image instead, for when one is actually needed. Also owns
+this project's shared local infrastructure (the raw `docker-compose*.yml` files for DB/MinIO/app,
+usable independently of the deploy pipeline itself) and the database-truncate script (`reset.sh`)
+both the deploy pipeline and Playwright call into.
 
 ## Flow
 
@@ -35,21 +37,24 @@ flowchart TD
     D -->|yes| D1[reset.sh --container DB_CONTAINER] --> E
     D -->|no| E{--from-scratch?}
     E -->|no| E2{--with-tests?}
-    E2 -->|yes| E1a[build-and-test.sh --unit --integration, extract jar] --> F1[build scripts/deploy-and-run/Dockerfile]
-    E2 -->|no| E1b[build-and-test.sh --no-unit --no-integration, extract jar] --> F1
-    E -->|yes| F2[build repo-root Dockerfile, full multi-stage]
-    F1 --> G[start app container, wait for Started Application]
-    F2 --> G
+    E2 -->|yes| E1a[build-and-test.sh --unit --integration] --> G
+    E2 -->|no| E1b[build-and-test.sh --no-unit --no-integration] --> G
+    E -->|yes| F2[build repo-root Dockerfile, full multi-stage, real tagged image] --> G
+    G[start app container, wait for Started Application]
     G --> H{Liquibase checksum mismatch?}
     H -->|yes| H1[reset infra, restart app, retry once] --> I[app ready on APP_PORT]
     H -->|no| I
 ```
 
-By default (no `--from-scratch`), the runtime image build never runs Maven itself — it reuses
-`scripts/build-and-test.sh`'s already-built jar from the shared `maven-cache` Docker volume,
-eliminating the duplicate full-project compile the old (pre-reuse) deploy path used to do. See
-DECISIONS.md for the full rationale and the container-name-collision issue this reuse surfaced
-(two concurrent `build-and-test.sh` invocations need distinct container names).
+By default (no `--from-scratch`), no Docker image is built at all: the app container runs
+`java -jar` directly out of a plain `eclipse-temurin:25-jre` container with the shared
+`maven-cache` volume mounted (`docker run`, unlike `docker build`, can mount a named volume
+directly), reusing `scripts/build-and-test.sh`'s already-built jar and eliminating the duplicate
+full-project compile the old (pre-reuse) deploy path used to do. `--from-scratch` still builds a
+real, separately tagged `marketplace-app` image from the full multi-stage root `Dockerfile`, for
+when an actual portable/deployable image is genuinely needed. See DECISIONS.md for the full
+rationale and the container-name-collision issue the build-and-test.sh reuse surfaced (two
+concurrent `build-and-test.sh` invocations need distinct container names).
 
 ### Standalone DB reset (`reset.sh` / `reset.bat`)
 

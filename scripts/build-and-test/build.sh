@@ -26,7 +26,9 @@
 #       Testcontainers workarounds, passed through only if already set.
 # Input: tar-piped repo source at /app; the shared maven-cache Docker volume at /root/.m2.
 # Outputs: fresh jars for every module in the shared /root/.m2 (library modules installed;
-#   marketplace-app's own JAR copied to /root/.m2/artifacts/marketplace-app.jar). RUN_UNIT/
+#   marketplace-app's own JAR copied to /root/.m2/artifacts/marketplace-app.jar); each module's own
+#   target/classes also refreshed under /root/.m2/target-classes/<module>/, for scripts/sonar/run.sh
+#   to mount and read directly instead of compiling locally. RUN_UNIT/
 #   RUN_INTEGRATION=true -- PASSED/FAILED summary on stdout, failing test files listed; Surefire
 #   reports copied to /tmp/reports/surefire/<module>/. ARCHUNIT_METRICS=true -- architecture-
 #   metrics.json moved to /tmp/reports/architecture-metrics.json. Everything under /tmp/reports
@@ -54,6 +56,22 @@ echo "=== Building (full reactor) ==="
 cd "$ROOT"
 mkdir -p "$ARTIFACT_DIR"
 flock "$MVN_LOCK" -c "./mvnw install -DskipTests"
+
+# ── Also refresh each module's own target/classes into the shared volume, for
+# scripts/sonar/run.sh to mount and read directly (sonar.java.binaries needs a directory of
+# .class files, not a jar) -- excludes integration-tests, which sonar-project.properties never
+# scans (test-only module). ──────────────────────────────────────────────────
+TARGET_CLASSES_DIR=/root/.m2/target-classes
+mkdir -p "$TARGET_CLASSES_DIR"
+for module in query-lib platform-commons audit-spring-boot-starter attachment-spring-boot-starter \
+              user-spring-boot-starter advertisement-spring-boot-starter taxon-spring-boot-starter \
+              provider-profile-spring-boot-starter marketplace-orchestrator marketplace-app; do
+  if [ -d "$ROOT/$module/target/classes" ]; then
+    rm -rf "$TARGET_CLASSES_DIR/$module"
+    mkdir -p "$TARGET_CLASSES_DIR/$module"
+    cp -r "$ROOT/$module/target/classes/." "$TARGET_CLASSES_DIR/$module/"
+  fi
+done
 
 JAR=$(ls "$ROOT/marketplace-app/target/"*.jar 2>/dev/null | grep -v '\.original$' | head -1)
 if [ -n "$JAR" ]; then

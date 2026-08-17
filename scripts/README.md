@@ -11,9 +11,10 @@ If a container is stopped — it starts it. If an image is missing — it pulls 
 
 ## deploy-and-run.sh / deploy-and-run.bat
 
-Full local deploy pipeline. Builds a Docker image from scratch and starts all services.
-
-Maven dependencies are cached in Docker layer cache — if `pom.xml` files have not changed, dependencies are not re-downloaded on the next run.
+Full local deploy pipeline. By default, no Docker image is built at all — it reuses
+`scripts/build-and-test.sh`'s shared jar and runs it directly against the mounted `maven-cache`
+volume. `--from-scratch` builds a real, separately tagged image instead, from the full multi-stage
+root `Dockerfile`, for when an actual portable/deployable image is genuinely needed.
 
 ```bash
 bash scripts/deploy-and-run.sh                   # Linux / WSL — full output to console
@@ -36,9 +37,9 @@ scripts\deploy-and-run.bat                       # Windows (calls run.sh via WSL
 | 2 | Start DB + MinIO (skips already-running containers) |
 | 3 | Wait for DB (`pg_isready`) and MinIO (`/minio/health/live`) to be healthy |
 | 4 | Create `advertisement` MinIO bucket if it does not exist |
-| 5 | Remove existing `marketplace-app` container |
-| 6 | Build Docker image from `Dockerfile` (multi-stage: JDK builder → JRE runtime) |
-| 7 | Start `marketplace-app` container with production env vars |
+| 5 | Run `scripts/build-and-test.sh` (refreshes `marketplace-app.jar` in the shared `maven-cache` volume) |
+| 6 | Remove existing `marketplace-app` container |
+| 7 | Start `marketplace-app` container directly from `eclipse-temurin:25-jre`, `maven-cache` volume mounted, running `java -jar` straight out of it — no image build |
 | 8 | Wait for `"Started Application"` in logs (timeout 180s) |
 
 ### Flags
@@ -47,25 +48,15 @@ scripts\deploy-and-run.bat                       # Windows (calls run.sh via WSL
 |------|--------|
 | _(none)_ | Full output to console; start stopped infra containers, skip already-running ones |
 | `--file` | Filtered output to console + full log saved to `/tmp/deploy.log` |
-| `--no-cache` | Force `docker build --no-cache` — ignores all cached layers, re-downloads all Maven dependencies |
+| `--no-cache` | Force `docker build --no-cache` — only meaningful with `--from-scratch`, ignores all cached layers, re-downloads all Maven dependencies |
 | `--reset` | Stop + remove ALL containers and volumes, then start from scratch |
 | `--restart-infra` | Remove and restart DB + MinIO containers, volumes preserved |
 | `--reset-only-db` | Truncate app tables (`reset-clean.sql`) before starting the app — no volume wipe |
-| `--reload` | Fast path: build the whole reactor in the `build-and-test` container and hot-swap the resulting `marketplace-app.jar` into the already-running `marketplace-app` container — no Docker image rebuild, no infra changes. Requires infra + `marketplace-app` already running (plain `deploy-and-run.sh` first if not). See "Reload mode" below. |
+| `--with-tests` | Also run unit+integration tests as part of the `build-and-test.sh` step (default: build only, no tests, for deploy speed) |
+| `--from-scratch` | Build a real, separately tagged `marketplace-app` image from the full multi-stage root `Dockerfile`, in complete isolation — the old, pre-reuse behavior, for when an actual portable/deployable image is genuinely needed |
 | `--prune-all` | Also run `docker container prune -f`/`docker volume prune -f` — host-wide, not scoped to this app's own resources; opt-in only, see `scripts/CLAUDE.md` |
 
 Flags can be combined: `bash scripts/deploy-and-run.sh --no-cache --file`
-
-| Step | Action |
-|------|--------|
-| 1 | (if `--reset-only-db`) truncate app tables (`reset-clean.sql`) |
-| 2 | Build/refresh the `advertisement-build-env` image if missing or `Dockerfile` changed |
-| 3 | Pipe source into the container, run the shared build step (whole reactor, `flock`-protected against the shared `maven-cache` volume) |
-| 4 | Inside the container: `docker cp` the freshly-built `marketplace-app.jar` into the running `marketplace-app` container, `docker restart` it, wait for `"Started Application"` |
-
-`--reload` exits before any of the normal Steps 1-3 (infra bootstrap, Docker image rebuild) run —
-it assumes infra and `marketplace-app` are already up (run a plain `bash scripts/deploy-and-run.sh` first
-otherwise). See `scripts/build-and-test/README.md` for the shared container's own Flow diagram.
 
 ---
 
@@ -253,24 +244,8 @@ scripts/
   build-and-test/     — Docker build environment used by build-and-test.sh (JDK 25)
   sonar/           — SonarQube configuration and scanner
   ci/              — isolated local CI runner (Dockerfile, entrypoint.sh, own README/DECISIONS.md)
-  hooks/           — git hooks (pre-commit, commit-msg), installed via install-hooks.sh
   run-all-tests/   — run.sh + reports/ output for run-all-tests.sh
 ```
-
----
-
-## install-hooks.sh
-
-Installs this repo's git hooks (`scripts/hooks/pre-commit`, `scripts/hooks/commit-msg`) by
-pointing `core.hooksPath` at `scripts/hooks` — run once after cloning.
-
-```bash
-bash scripts/install-hooks.sh
-```
-
-`pre-commit` syncs `docs/architecture/`, `DECISIONS.md`, `CLAUDE.md`, `backlog/issues/`.
-`commit-msg` prepends an entry to `CHANGELOG.md` from the conventional-commit message. Bypass for
-a single commit with `SKIP_AUDIT=1 git commit`.
 
 ---
 
