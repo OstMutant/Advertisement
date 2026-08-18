@@ -19,7 +19,7 @@ core.validation — ValidRange, ValidRangeValidator
 
 audit.api      — AuditableSnapshot
 audit.dto      — AuditActivityItemDto, AuditSnapshotContentDto, AuditTimelineItemDto, AuditTimelineFilterDto
-audit.spi      — AuditPort, AuditDomainHook, AuditActivityFieldsHook, AuditActivityEnrichHook
+audit.spi      — AuditPort, AuditDomainHook, AuditActivityEnrichHook
 
 attachment.dto     — AttachmentMediaSummaryDto, AttachmentItemDto, TempAttachmentDto
 attachment.model   — AttachmentMediaContentType
@@ -30,8 +30,8 @@ attachment.util    — YoutubeUtil
 user.dto       — UserDto, UserFilterDto, UserProfileDto, UserSettingsDto,
                  UserSnapshotDto, SettingsSnapshotDto, SignUpDto
 user.model     — Role
-user.spi       — UserPort, AuthenticatedPrincipal, UserSettingsChangedHook, UserIdMarker
-                 (UserIdMarker moved from user.security, see ADR-025)
+user.spi       — UserPort, UserAccountPort, UserAuthorizationPort, UserPreferencesPort,
+                 AuthenticatedPrincipal, UserSettingsChangedHook
 
 advertisement.dto  — AdvertisementInfoDto, AdvertisementFilterDto,
                      AdvertisementSaveDto, AdvertisementSnapshotDto
@@ -83,9 +83,11 @@ strategy.
 | `*Port` | marketplace → starter | Service facade: marketplace issues commands/queries to the starter |
 | `*Hook` | starter → marketplace | Starter calls back for domain data, events, or UI contributions |
 
-Current `*Port` interfaces: `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort`, `TaxonPort`.
-Current `*Hook` interfaces: `CurrentActorHook`, `AuditDomainHook`, `AuditActivityFieldsHook`,
-`AuditActivityEnrichHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`, `UserSettingsChangedHook`.
+Current `*Port` interfaces: `AuditPort`, `AttachmentPort`, `AttachmentAuditPort`, `UserPort`,
+`UserAccountPort`, `UserAuthorizationPort`, `UserPreferencesPort`, `AdvertisementPort`, `TaxonPort`,
+`ProviderProfilePort`.
+Current `*Hook` interfaces: `CurrentActorHook`, `AuditDomainHook`, `AuditActivityEnrichHook`,
+`UserSettingsChangedHook`.
 
 **Consequences:**
 - New suffixes require a DECISIONS.md entry. Existing suffixes must not be repurposed.
@@ -700,7 +702,9 @@ findings, grouped together since all three touch this module's own naming/packag
   `org.ost.platform.user.spi` — `user.security` was never a documented package role (only
   `api`/`spi`/`dto`, per ADR-002), and `UserIdMarker` is exactly a `*.spi` marker: implemented by
   domain types, consumed across the module boundary (`UserPort`, `OwnershipChecker`,
-  `AccessEvaluator`).
+  `AccessEvaluator`). `UserIdMarker` itself was later removed entirely as dead code — zero real
+  implementors ever adopted the marker (see `marketplace-app/DECISIONS.md`'s zero-deps-except-
+  orchestrator entry).
 
 **Consequences:**
 - `user.security` package no longer exists in `platform-commons`; any future marker/contract that

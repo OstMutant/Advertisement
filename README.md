@@ -81,13 +81,15 @@ declaratively and kept strongly typed.
 ```
 advertisement-parent
 ├── query-lib                         — framework-agnostic SQL query-building library
-├── integration-tests                 — Testcontainers repository tests + fixtures (test-only)
 ├── platform-commons                  — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter         — audit subsystem: write side + read side
 ├── attachment-spring-boot-starter    — photo/attachment module + S3 storage
 ├── user-spring-boot-starter          — User domain + Spring Security integration
 ├── advertisement-spring-boot-starter — Advertisement domain
 ├── taxon-spring-boot-starter         — Taxonomy domain: categories, tags, classifiers
+├── provider-profile-spring-boot-starter — Provider profile domain (backend only, no UI yet)
+├── integration-tests                 — Testcontainers repository tests + fixtures (test-only)
+├── marketplace-orchestrator           — application/BFF layer: cross-domain use-case orchestration
 └── marketplace-app                   — Vaadin application (all UI)
 ```
 
@@ -96,13 +98,15 @@ Per-module documentation:
 | Module | README | Decisions |
 |---|---|---|
 | query-lib | [README](query-lib/README.md) | [DECISIONS](query-lib/DECISIONS.md) |
-| integration-tests | [README](integration-tests/README.md) | [DECISIONS](integration-tests/DECISIONS.md) |
 | platform-commons | — | [DECISIONS](platform-commons/DECISIONS.md) |
 | audit-spring-boot-starter | [README](audit-spring-boot-starter/README.md) | [DECISIONS](audit-spring-boot-starter/DECISIONS.md) |
 | attachment-spring-boot-starter | [README](attachment-spring-boot-starter/README.md) | [DECISIONS](attachment-spring-boot-starter/DECISIONS.md) |
 | user-spring-boot-starter | [README](user-spring-boot-starter/README.md) | — |
 | advertisement-spring-boot-starter | [README](advertisement-spring-boot-starter/README.md) | — |
 | taxon-spring-boot-starter | — | [DECISIONS](taxon-spring-boot-starter/DECISIONS.md) |
+| provider-profile-spring-boot-starter | — | [DECISIONS](provider-profile-spring-boot-starter/DECISIONS.md) |
+| integration-tests | [README](integration-tests/README.md) | [DECISIONS](integration-tests/DECISIONS.md) |
+| marketplace-orchestrator | — | [DECISIONS](marketplace-orchestrator/DECISIONS.md) |
 | marketplace-app | [README](marketplace-app/README.md) | [DECISIONS](marketplace-app/DECISIONS.md) |
 | playwright | [README](playwright/README.md) | [DECISIONS](playwright/DECISIONS.md) |
 | scripts | [README](scripts/README.md) | [DECISIONS](scripts/DECISIONS.md) |

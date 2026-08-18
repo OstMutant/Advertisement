@@ -28,7 +28,7 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-003 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted | Full decoupling from advertisement domain |
 | ADR-004 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted | Starter owns `auditObjectMapper` with @Qualifier; audit.enabled removed |
 | ADR-005 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted | Actor-centric SPI vocabulary; user-domain types purged |
-| ADR-006 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted | AuditActivityFieldsHook SPI — expanded field display in activity feed |
+| ADR-006 (audit-spring-boot-starter) | audit-spring-boot-starter | Superseded — see ADR-011's note on `AuditActivityFieldsHook`'s later removal | AuditActivityFieldsHook SPI — expanded field display in activity feed |
 | ADR-007 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted | Action badge — two CSS classes (base + modifier) |
 | ADR-008 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted | Restore semantics — getSnapshotContent is the restore source |
 | ADR-009 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted | Jackson Id.NAME + subtype registration in marketplace JacksonConfig |
@@ -133,15 +133,15 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-041 (marketplace-app) | marketplace-app | Accepted | ArchUnit codifies cross-module architecture rules — lives in `marketplace-app/src/test`, not a new module |
 | ADR-042 (marketplace-app) | marketplace-app | Accepted | `UserPickerField` gains an offset-based lookup (`OffsetPageable`) instead of deriving a page number from Vaadin's raw offset |
 | ADR-043 (marketplace-app) | marketplace-app | Accepted | Timeline tab resolves category names via a typed `prevSnapshotData` on `AuditTimelineItemDto`; `ChangeEntry.replaceIfField()` consolidates the one unavoidable type check |
-| ADR-044 (marketplace-app) | marketplace-app | Accepted | `UserSettingsRepository` optimistic-locking version lives inside the `settings` JSONB blob, not a new SQL column |
+| ADR-044 (marketplace-app) | marketplace-app | Superseded by ADR-070 — `locale`/`settings` moved off `user_information` into their own `user_preferences` table; the repository is now `UserPreferencesRepository`, not `UserSettingsRepository`. The version-inside-JSONB mechanism this ADR decided is otherwise still current — see `user-spring-boot-starter/CLAUDE.md`. | `UserSettingsRepository` optimistic-locking version lives inside the `settings` JSONB blob, not a new SQL column |
 | ADR-045 (marketplace-app) | marketplace-app | Accepted | New `QueryLongField` (text-backed) replaces `NumberField` (`Double`-backed) for the user id range filter — neither Vaadin numeric field type actually fits a `Long` |
 | ADR-046 (marketplace-app) | marketplace-app | Accepted | `AbstractFormOverlayModeHandler.buildContentWithActivity()` unifies the Edit/Activity tab choreography across Advertisement/Taxon/User form handlers; fixes `UserFormOverlayModeHandler`'s viewer/subject `userId` bug |
-| ADR-047 (marketplace-app) | marketplace-app | Accepted | `AdvertisementSaveService.save()` moves the attachment-gallery commit to just before the transaction's own commit; logs loudly if it rolls back after the S3 move anyway |
+| ADR-047 (marketplace-app) | marketplace-app | Accepted — `AdvertisementSaveService` itself later relocated to `marketplace-orchestrator` (see ADR-073); this decision's reasoning still applies to that class in its new location. | `AdvertisementSaveService.save()` moves the attachment-gallery commit to just before the transaction's own commit; logs loudly if it rolls back after the S3 move anyway |
 | ADR-048 (marketplace-app) | marketplace-app | Accepted | `UserPickerField` rewritten from `CustomField<UserDto>` (single value) to `CustomField<Set<UserDto>>` (chip list) for the Timeline actor filter |
 | ADR-049 (marketplace-app) | marketplace-app | Accepted (rejection of a proposed change) | `I18nKey` stays one consolidated enum — domain-split considered and rejected |
-| ADR-050 (marketplace-app) | marketplace-app | Accepted | Advertisement delete-side audit capture moves into `AdvertisementSaveService`, matching save's existing orchestration |
-| ADR-050 (marketplace-app) | advertisement-spring-boot-starter | Accepted | Advertisement delete-side audit capture moves into `AdvertisementSaveService`, matching save's existing orchestration |
-| ADR-051 (marketplace-app) | marketplace-app | Accepted | User deletion — soft-delete, cascade to the user's own ads, retention purge, actor-name annotation |
+| ADR-050 (marketplace-app) | marketplace-app | Accepted — `AdvertisementSaveService` itself later relocated to `marketplace-orchestrator` (see ADR-073); this decision's reasoning still applies to that class in its new location. | Advertisement delete-side audit capture moves into `AdvertisementSaveService`, matching save's existing orchestration |
+| ADR-050 (marketplace-app) | advertisement-spring-boot-starter | Accepted — `AdvertisementSaveService` itself later relocated to `marketplace-orchestrator` (see ADR-073); this decision's reasoning still applies to that class in its new location. | Advertisement delete-side audit capture moves into `AdvertisementSaveService`, matching save's existing orchestration |
+| ADR-051 (marketplace-app) | marketplace-app | Accepted — `UserDeleteService`, `UserActorNameService`, and `AuditDomainHookImpl` (described below as living in `marketplace-app`) all later relocated to `marketplace-orchestrator` (see ADR-073 and `marketplace-orchestrator/CLAUDE.md`); this decision's reasoning still applies to those classes in their new location. | User deletion — soft-delete, cascade to the user's own ads, retention purge, actor-name annotation |
 | ADR-052 (marketplace-app) | marketplace-app | Accepted | Leaf UI buttons converted from `@SpringComponent` prototype beans to plain classes (Batch 1) |
 | ADR-053 (marketplace-app) | marketplace-app | Accepted | Leaf UI fields converted from `@SpringComponent` prototype beans to plain classes (Batch 2) |
 | ADR-054 (marketplace-app) | marketplace-app | Accepted | Structural leaf components (`EmptyStateView`, `DialogLayout`, `OverlayLayout`) converted to plain classes (Batch 3); `PaginationBar` deliberately kept a Spring bean |
@@ -151,7 +151,7 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-058 (marketplace-app) | marketplace-app | Accepted | `UiComponentFactory<T>` bounded to `T extends Configurable<T, ?>`; non-`Configurable` consumers migrated to plain `ComponentFactory<T>` |
 | ADR-059 (marketplace-app) | marketplace-app | Accepted | F-01 deep links + Open Graph meta tags — step 1 (prototype gate) |
 | ADR-060 (marketplace-app) | marketplace-app | Accepted | F-01 "Share" button — native Web Share API with clipboard-copy fallback |
-| ADR-061 (marketplace-app) | marketplace-app | Accepted | F-01 `sitemap.xml` — paginated port scan, Caffeine-cached; `deploy.sh` now sets `APP_PUBLIC_URL` |
+| ADR-061 (marketplace-app) | marketplace-app | Accepted | F-01 `sitemap.xml` — paginated port scan, Caffeine-cached; `deploy-and-run.sh` now sets `APP_PUBLIC_URL` |
 | ADR-062 (marketplace-app) | marketplace-app | Accepted | F-01 remaining items — `twitter:card` fix, `og:image` cache-busting, JSON-LD, History API sync |
 | ADR-063 (marketplace-app) | marketplace-app | Accepted | List stability after edit — splice-in-place instead of full refresh (Advertisement, User, Taxon) |
 | ADR-064 (marketplace-app) | marketplace-app | Accepted | `advertisement` → `user_information` hard FK coupling removed — last one between starters |
@@ -159,14 +159,14 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-065 (marketplace-app) | marketplace-app | Accepted | F-02 city dictionary + geo filter — `TaxonType.CITY` reusing the existing taxon assignment mechanism, no schema change |
 | ADR-066 (marketplace-app) | marketplace-app | Accepted | F-03 listing types (Offer/Request/Product) — new `ad_kind` column, `RadioButtonGroup` (first use in this codebase), multi-select filter |
 | ADR-067 (marketplace-app) | marketplace-app | Accepted, rolled out to all five domains (Settings, Advertisement, Taxon, City, User) | Activity/restore moved from an "Activity" tab to a stacked nested overlay |
-| ADR-068 (marketplace-app) | marketplace-app | Accepted | `findById()` locale fix + `AdvertisementEnrichmentService` extraction (Batch A) |
+| ADR-068 (marketplace-app) | marketplace-app | Accepted — two later changes moved past what's described below: `AdvertisementPort .findById()`'s `Locale` parameter was subsequently removed again (category/city enrichment moved to read-time display composition in `marketplace-orchestrator`, which resolves locale itself); and `AdvertisementEnrichmentService` was renamed/relocated to `marketplace-orchestrator`'s `AdvertisementDisplayEnrichmentService` (see ADR-073). This entry's own reasoning for extracting enrichment out of `AdvertisementService` still holds — only the exact signature/location changed. | `findById()` locale fix + `AdvertisementEnrichmentService` extraction (Batch A) |
 | ADR-069 (marketplace-app) | marketplace-app | Accepted | `user-spring-boot-starter` doc fix + `User.toDto()` dedup + `@NonNull` sweep (Batch C) |
 | ADR-070 (marketplace-app) | marketplace-app | Accepted | F-04 Batch A — `locale`/`settings` split out of `user_information` into `user_preferences` |
 | ADR-071 (marketplace-app) | marketplace-app | Accepted | `UserDto.locale` removed, `UserProfileUpdate` renamed, `UserPort` split (Batch A2) |
 | ADR-071 (marketplace-app) | user-spring-boot-starter | Accepted | `UserDto.locale` removed, `UserProfileUpdate` renamed, `UserPort` split (Batch A2) |
 | ADR-072 (marketplace-app) | marketplace-app | Accepted | `EntityType.PROVIDER_PROFILE` compiler-forced touches (F-04 Batch B) |
 | ADR-072 (marketplace-app) | provider-profile-spring-boot-starter | Accepted | `EntityType.PROVIDER_PROFILE` compiler-forced touches (F-04 Batch B) |
-| ADR-073 (marketplace-app) | marketplace-app | Accepted | `AdvertisementSaveService`/`UserDeleteService` move to `marketplace-orchestrator`; `AdvertisementAuditEnrichService` stays |
+| ADR-073 (marketplace-app) | marketplace-app | Accepted — the "`AdvertisementAuditEnrichService` stays in `marketplace-app`" call below was itself reversed shortly after, see `marketplace-orchestrator/DECISIONS.md` ADR-005: its two real UI-shell touchpoints (current locale, an `AdKind` label) turned out to be single-value lookups rather than the HTML-diff formatting itself, so both moved behind the `CurrentLocaleHook`/ `UiLabelHook` forwarder-SPI pair and `AdvertisementAuditEnrichService` now lives in `marketplace-orchestrator` too, not `marketplace-app`. | `AdvertisementSaveService`/`UserDeleteService` move to `marketplace-orchestrator`; `AdvertisementAuditEnrichService` stays |
 | ADR-001 (marketplace-orchestrator) | marketplace-orchestrator | Accepted | Extract a dedicated Application/BFF module instead of moving orchestration into marketplace-app |
 | ADR-002 (marketplace-orchestrator) | marketplace-orchestrator | Accepted | `AdvertisementSaveService`'s cascade-cleanup-on-delete folds into the same transaction, not a separate step |
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
@@ -225,11 +225,11 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-008 (scripts/ci) | scripts/ci | Accepted | `unit`/`integration` stages merged into one `build_and_test` stage |
 | ADR-001 (scripts) | scripts | Accepted | All operations via project scripts — no raw commands |
 | ADR-002 (scripts) | scripts | Accepted, with one carved-out exception — see the update note below. | scripts/ folder for all developer scripts |
-| ADR-003 (scripts) | scripts | Accepted — **code has since reverted to the originally-rejected approach** (see correction below); documenting current reality rather than the original design | deploy.sh startup detection |
+| ADR-003 (scripts) | scripts | Accepted — **code has since reverted to the originally-rejected approach** (see correction below); documenting current reality rather than the original design | deploy-and-run.sh startup detection |
 | ADR-004 (scripts) | scripts | Accepted | run-all-tests.sh — sequential Maven suites, parallel Playwright |
 | ADR-009 (scripts) | scripts | Accepted | DB/S3 credentials consolidated into the repo-root `.env`, loaded as fallback defaults (not unconditional overrides) so CI's per-run port overrides survive |
-| ADR-010 (scripts) | scripts | Accepted | `deploy.sh` auto-recovers from a Liquibase checksum mismatch (stale local dev DB) |
-| ADR-011 (scripts) | scripts | Accepted | `.env` parser strips a trailing `\r` — CRLF line endings silently broke `deploy.sh` |
+| ADR-010 (scripts) | scripts | Accepted | `deploy-and-run.sh` auto-recovers from a Liquibase checksum mismatch (stale local dev DB) |
+| ADR-011 (scripts) | scripts | Accepted | `.env` parser strips a trailing `\r` — CRLF line endings silently broke `deploy-and-run.sh` |
 | ADR-012 (scripts) | scripts | Partially reverted — see update note at the end of this entry. | `deploy-dev.sh` eliminated — its capability folded into `deploy.sh --reload`, backed by the shared `build-and-test` container |
 | ADR-001 (scripts/sonar) | scripts/sonar | Accepted | SonarQube setup via Docker, no pom.xml changes |
 | ADR-002 (scripts/sonar) | scripts/sonar | Accepted | `sonar.java.binaries` required for full Java analysis |

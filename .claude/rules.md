@@ -10,7 +10,7 @@ constraints together — is fresh before any implementation begins, not assemble
 memory partway through.
 
 Same discipline before **every individual script run**, not only once per command/skill
-invocation: before `deploy.sh`/`playwright.sh`/`build-and-test.sh` etc., re-Read
+invocation: before `deploy-and-run.sh`/`playwright.sh`/`build-and-test.sh` etc., re-Read
 the relevant `CLAUDE.md` (`scripts/CLAUDE.md`, `playwright/CLAUDE.md`) for that script's current
 documented behavior/flags/constraints rather than acting on what was true earlier in the same
 session — those files get updated mid-session precisely because a run just revealed a gap.
@@ -328,7 +328,7 @@ regardless of cost stays. Never drop an angle from one run's data alone.
 
 **Agent calls vs. Script/command runs — different metrics, don't conflate them.** Every Agent-tool
 task-notification carries real `<usage>` data (`subagent_tokens`/`tool_uses`/`duration_ms`) — use
-it verbatim, don't estimate. Scripts (`build-and-test.sh`, `deploy.sh`, `playwright.sh`, etc.) are not
+it verbatim, don't estimate. Scripts (`build-and-test.sh`, `deploy-and-run.sh`, `playwright.sh`, etc.) are not
 LLM calls and have no token cost of their own — never invent one; only record their real wall-clock
 duration and pass/fail result. Main-thread (this conversation's own) token usage has no reporting
 tool at all — not a policy choice, a real gap, confirmed via `ToolSearch` finding no matching tool

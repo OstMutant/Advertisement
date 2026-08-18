@@ -14,7 +14,9 @@ properties added to `pom.xml`. The scanner runs in a `sonarsource/sonar-scanner-
 `docker cp` (same pattern as Playwright). The SonarQube server runs separately in Docker
 (`scripts/sonar/docker-compose.sonar.yml`, port 9099). `scripts/sonar/run.sh` starts the server
 automatically if not running, copies source and compiled classes, runs analysis, and prints the
-dashboard URL:
+dashboard URL. **(Update, see ADR-002 below: "compiled classes" no longer means host-copied
+`target/classes` — the scanner container now mounts the shared `maven-cache` volume directly
+instead.)**
 ```bash
 bash scripts/sonar.sh   # Linux / WSL
 scripts\sonar.bat       # Windows

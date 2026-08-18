@@ -72,7 +72,7 @@ invocation; Ryuk (when not disabled — see ADR-004) tears it down at JVM exit.
 
 **Context:** The first draft of `AbstractPostgresIntegrationTest` hardcoded `"postgres:15-alpine"`
 as a Java string literal, independent of the identical hardcoded value in
-`scripts/infra/docker-compose.db.yml` — a two-places-to-update-in-sync risk, applied to config
+`scripts/deploy-and-run/docker-compose.db.yml` — a two-places-to-update-in-sync risk, applied to config
 instead of SQL/logic.
 
 **Decision:** A repo-root `.env` (`POSTGRES_IMAGE=postgres:15-alpine`) is the single source read by
@@ -85,8 +85,8 @@ isn't found — no silent default.
 
 **Consequences:**
 - Renaming the Postgres version updates both consumers from one place.
-- `deploy.sh`'s own separate `docker pull`/`docker run` references to `postgres:15-alpine` were
-  **not** touched by this decision — tracked separately in the backlog.
+- `deploy-and-run.sh`'s own separate `docker pull`/`docker run` references to `postgres:15-alpine`
+  were **not** touched by this decision — tracked separately in the backlog.
 - Neither Docker Compose's `.env` auto-load nor `SharedEnvConfig`'s upward search is AI-specific —
   both work identically for a human running the same commands from a terminal or an IDE.
 
@@ -110,8 +110,8 @@ this repo's code or in Testcontainers itself — the same class of issue as the 
 `PostgreSQLContainer.setPortBindings()` instead of Testcontainers' normal random-port assignment.
 `TESTCONTAINERS_RYUK_DISABLED=true` disables the reaper. Both are env-gated — unset (the default,
 e.g. on a real developer machine with normal Docker networking), behavior is unchanged.
-`scripts/integration-tests.sh --sandbox` sets both automatically; omit `--sandbox` on a normal
-machine.
+`bash integration-tests/run.sh --sandbox` (or `bash scripts/build-and-test.sh --sandbox --integration`)
+sets both automatically; omit `--sandbox` on a normal machine.
 
 **Consequences:**
 - Not fixable from within this repo — it's sandbox infrastructure, not application code.

@@ -269,19 +269,19 @@ Spring multi-bean lookup provided (falls back to `changeFormatter.buildChangesLi
 types with no label mapping), so this is a structural simplification, not an observable behavior
 change. See `platform-commons/DECISIONS.md` ADR-029's third refinement for the mirrored record.
 
-**Known consequence, not yet swept:** `scripts/architecture/generate-architecture-model.sh`'s
-Bounded Contexts relationship-building (`"$dom" -> "Audit" "audited via"` edges) sourced its
-evidence entirely from `grep implements AuditActivityFieldsHook` — with that interface gone, this
-specific evidence-gathering method now finds nothing, so those edges will silently disappear from
-the diagram on next regeneration even though the underlying fact (Advertisement/Taxon/User/
-UserSettings genuinely are audited) hasn't changed. This is a bigger gap than the earlier
-"SPI Map loses two nodes" note — an actual relationship signal is now undetectable by the
-generator's current evidence-gathering approach, not just a cosmetic diagram change. Not fixed —
-deferred to the same later sweep, flagged here so the size of the gap isn't lost.
+**Known consequence — fixed:** `docs/architecture/scripts/generate-architecture-model.sh`'s
+Bounded Contexts relationship-building (`"$dom" -> "Audit" "audited via"` edges) originally sourced
+its evidence entirely from `grep implements AuditActivityFieldsHook` — with that interface gone,
+this evidence-gathering method found nothing, so those edges silently disappeared from the diagram
+even though the underlying fact (Advertisement/Taxon/User/UserSettings genuinely are audited)
+hadn't changed. Fixed: the generator now derives this evidence from
+`AuditTimelineRowRenderer.LABELED_ENTITY_TYPES` instead.
 
-**Trigger to revisit:** None currently open — `improvement-150` (filed 2026-08-11) tracks a further
-tightening (removing `platform-commons`/`query-lib` from `marketplace-app/pom.xml` entirely), not
-yet designed.
+**Trigger to revisit:** None currently open — the further tightening this ADR anticipated
+(removing `platform-commons`/`query-lib` from `marketplace-app/pom.xml` entirely) was later scoped
+down: `query-lib` was removed, but a full `platform-commons` removal was deliberately dropped in
+favor of a narrower "zero direct `*Port`/`*Hook` (SPI) usage" goal — `platform-commons` DTOs are
+still genuinely used for UI binding and remain a direct dependency.
 
 ---
 

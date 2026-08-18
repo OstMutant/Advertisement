@@ -13,12 +13,11 @@ and `playwright/`.
 
 | Operation | Script |
 |---|---|
-| Full prod rebuild + start | `bash scripts/deploy.sh` |
-| Fast JAR hot-swap | `bash scripts/deploy.sh --reload` |
+| Full local deploy + start | `bash scripts/deploy-and-run.sh` |
 | Run all Playwright tests | `bash scripts/playwright.sh` |
 | Run one scenario | `bash scripts/playwright.sh <scenario>` |
 | SonarQube analysis | `bash scripts/sonar.sh` |
-| Run Testcontainers repository tests + plain unit tests | `bash scripts/integration-tests.sh` |
+| Run Testcontainers repository tests + plain unit tests | `bash scripts/build-and-test.sh --unit --integration` |
 
 **Consequences:** If a new recurring operation is needed, add a script — do not document raw
 commands as the canonical way to run it.
@@ -49,7 +48,7 @@ not a reversal.
 
 ---
 
-## ADR-003: deploy.sh startup detection
+## ADR-003: deploy-and-run.sh startup detection
 **Status:** Accepted — **code has since reverted to the originally-rejected approach** (see
 correction below); documenting current reality rather than the original design
 
@@ -58,7 +57,7 @@ correction below); documenting current reality rather than the original design
 **Original decision (no longer what the code does):** wait for `"Started Application"` via a
 single streaming `docker logs -f | grep -qm1` call with an external `timeout`.
 
-**Correction (verified 2026-07-13):** current `scripts/deploy.sh` (lines ~191-201) does not do
+**Correction (verified 2026-07-13):** current `scripts/deploy-and-run/run.sh` does not do
 this — it uses exactly the pattern this ADR originally rejected:
 ```bash
 end=$((SECONDS + 180))
@@ -76,10 +75,10 @@ session with no observed flakiness — the "wastes cycles" concern in the origin
 appear to have materialized as an actual problem at this polling interval (2s) and timeout (180s).
 Documenting current behavior as-is rather than reverting working deploy code to match a
 stale ADR; if the original streaming approach is preferred, that's a separate, deliberate change
-to make to `deploy.sh` itself, not a docs fix.
+to make to `deploy-and-run/run.sh` itself, not a docs fix.
 
-**Consequences:** `deploy.sh`'s current startup-detection mechanism is the polling loop shown
-above, not the streaming `grep -qm1` originally decided here.
+**Consequences:** `deploy-and-run.sh`'s current startup-detection mechanism is the polling loop
+shown above, not the streaming `grep -qm1` originally decided here.
 
 ---
 
@@ -128,9 +127,14 @@ real one) *before* either suite runs, so by the time tests start, neither one wr
 state anymore, only reads it. `scripts/run-all-tests/run.sh` now calls `build-and-test.sh --unit
 --integration` instead of `unit-tests.sh` → `integration-tests.sh` sequentially — real 3-way
 parallelism (unit ‖ integration ‖ Playwright), verified end to end (unit 50.2s, integration 56.5s,
-both concurrent, both PASSED). `unit-tests.sh`/`integration-tests.sh` remain the standalone,
-single-suite entry points for day-to-day iteration outside `run-all-tests.sh` — unaffected by this
-change, still run directly on the host, not through the container.
+both concurrent, both PASSED).
+
+**Update (unit-tests.sh/integration-tests.sh retired):** the claim directly above — that
+`unit-tests.sh`/`integration-tests.sh` "remain the standalone, single-suite entry points... still
+run directly on the host" — no longer holds. Both scripts were deleted entirely once
+`build-and-test.sh` reached feature parity with them (module/test selection, host-copied reports,
+`--sandbox`); day-to-day single-suite iteration outside `run-all-tests.sh` now goes through
+`bash scripts/build-and-test.sh --unit --no-integration` / `--no-unit --integration` instead.
 
 **Update (Playwright no longer purely parallel from the start):** Playwright previously tested
 whatever `marketplace-app` container already happened to be running, with no freshness guarantee
@@ -164,7 +168,7 @@ own `DECISIONS.md`/`README.md` once the tool had enough surface area to warrant 
 and MinIO/S3 credentials (`admin`/`admin12345`, bucket `advertisement`, region `us-east-1`) were
 each hardcoded independently across 4-5 files of different formats: `docker-compose.db.yml`,
 `docker-compose.minio.yml`, `docker-compose.app.yml`, `application-dev.yml`,
-`scripts/deploy.sh`, `scripts/database/reset.sh` — the same class of duplication already closed
+`scripts/deploy-and-run.sh`, `scripts/deploy-and-run/reset.sh` — the same class of duplication already closed
 for `POSTGRES_IMAGE` alone. Not a live bug (every copy still agreed), but a real drift risk:
 changing one copy and missing the others fails as a confusing "connection refused" at runtime,
 not a build error.
@@ -180,7 +184,7 @@ never sources `.env`) keeps working unmodified; this does mean the *default* lit
 second copy of the value, an acknowledged residual duplication Spring's inability to natively read
 `.env` files makes unavoidable without extra script plumbing IDE runs don't go through anyway.
 
-**`scripts/deploy.sh` / `scripts/database/reset.sh` — the tricky part:** both already had
+**`scripts/deploy-and-run.sh` / `scripts/deploy-and-run/reset.sh` — the tricky part:** both already had
 `VAR="${VAR:-literal-default}"` override variables (`DB_PORT`, `MINIO_PORT`, etc.) that
 `scripts/ci/entrypoint.sh` relies on for its isolated e2e stack (e.g. `DB_PORT=15432`). A naive
 `set -a; source .env; set +a` would unconditionally overwrite any already-exported value —
@@ -189,7 +193,7 @@ prior export. Instead, `.env` is parsed into `ENV_*`-prefixed variables (never e
 then used only as the *second* fallback tier: `DB_PORT="${DB_PORT:-${ENV_DB_PORT:-5432}}"`. This
 preserves the exact existing override precedence (explicit env var wins, `.env` is the new
 fallback default, the old hardcoded literal is now only the last-resort fallback if `.env` itself
-is missing) — confirmed via a full `bash scripts/deploy.sh --reset` (fresh DB/MinIO
+is missing) — confirmed via a full `bash scripts/deploy-and-run.sh --reset` (fresh DB/MinIO
 volumes+containers+image) and a full Playwright e2e run (48/48 green).
 
 `playwright/run.sh`'s DB/S3-flag `echo` lines (a printed usage-example message, not runtime logic)
@@ -202,7 +206,7 @@ same-format duplication, unrelated to the `.env` story but cheap to fix in the s
 issue's own item 5).
 
 **What was deliberately left hardcoded, not parameterized:** `DB_PORT: 5432` inside
-`docker-compose.app.yml`'s `app` service environment and `deploy.sh`'s app-container `-e
+`docker-compose.app.yml`'s `app` service environment and `deploy-and-run.sh`'s app-container `-e
 DB_PORT=5432` both refer to the **container-internal** Docker-network port (`db`'s own listening
 port, always 5432 regardless of the host-side `${DB_PORT}` mapping) — conflating this with the
 host-facing `.env` value would be semantically wrong even though they share the same number today.
@@ -216,10 +220,10 @@ host-facing occurrences (`S3_PUBLIC_URL`, the host port mappings themselves) wer
   verified its override precedence survives the `.env`-as-fallback change.
 - Explicitly out of scope, per the originating issue: secrets management (these remain committed,
   non-production dev credentials, same as before — moving them to `.env` is a pure refactor, not
-  a security hardening pass) and `deploy.sh`'s deliberate `8081` vs `8080` port distinction
+  a security hardening pass) and `deploy-and-run.sh`'s deliberate `8081` vs `8080` port distinction
   (untouched, must stay distinct).
 
-## ADR-010: `deploy.sh` auto-recovers from a Liquibase checksum mismatch (stale local dev DB)
+## ADR-010: `deploy-and-run.sh` auto-recovers from a Liquibase checksum mismatch (stale local dev DB)
 
 **Status:** Accepted
 
@@ -228,12 +232,12 @@ host-facing occurrences (`S3_PUBLIC_URL`, the host port mappings themselves) wer
 the `advertisement`→`user_information` FK constraints — deliberate, since the DB has never been
 released, so preserving changelog history across a content edit was never a goal). Every local dev
 DB that had already run the old version of that changeset then fails Liquibase's own checksum
-validation on the next `deploy.sh` run — a `ValidationFailedException` that crashes the app
+validation on the next `deploy-and-run.sh` run — a `ValidationFailedException` that crashes the app
 container on startup. This is a predictable, recurring class of event for this project (any future
 in-place changeset edit on a still-unreleased table hits the same wall), not a one-off — worth
 teaching the script instead of re-explaining it and manually running `--reset` every time it recurs.
 
-**Decision:** `deploy.sh`'s Step 3 (`wait_for_app`) now distinguishes three outcomes instead of a
+**Decision:** `deploy-and-run.sh`'s Step 3 (`wait_for_app`) now distinguishes three outcomes instead of a
 flat "started or timed out": `0` = `Started Application` seen, `1` = the app container's logs
 contain the Liquibase checksum-mismatch signature (`changesets check sum`/`ValidationFailedException`),
 `2` = anything else (container exited for a different reason, or a genuine timeout). On `1`, the
@@ -259,29 +263,29 @@ reintroduce:**
 
 **Consequences:**
 - Verified end-to-end, not just by inspection: manually corrupted the `databasechangelog` row's
-  `md5sum` in the running dev DB to force the exact failure, ran `deploy.sh` unmodified, confirmed
+  `md5sum` in the running dev DB to force the exact failure, ran `deploy-and-run.sh` unmodified, confirmed
   the auto-recovery message, volume wipe, and successful retry all fired for real, then confirmed
   the checksum was correctly re-applied afterward. Also verified the untouched happy path (normal
-  `deploy.sh`, no corruption) still passes straight through unaffected.
+  `deploy-and-run.sh`, no corruption) still passes straight through unaffected.
 - Scoped to local dev only, by construction — the auto-wipe is the same disposable dev DB/MinIO
   volumes `--reset` already destroys today, never anything resembling a deployed database (this
   project has none yet). A future real migration story for a released database is a separate,
   unrelated problem this ADR does not attempt to solve.
 
-## ADR-011: `.env` parser strips a trailing `\r` — CRLF line endings silently broke `deploy.sh`
+## ADR-011: `.env` parser strips a trailing `\r` — CRLF line endings silently broke `deploy-and-run.sh`
 
 **Status:** Accepted
 
 **Context:** ADR-009's `.env`-as-fallback parser (`while IFS='=' read -r _env_key _env_value; do
-... printf -v "ENV_$_env_key" '%s' "$_env_value"; done`, in both `deploy.sh` and
-`scripts/database/reset.sh`) reads the repo-root `.env` line by line. The repo-root `.env` had
+... printf -v "ENV_$_env_key" '%s' "$_env_value"; done`, in both `deploy-and-run.sh` and
+`scripts/deploy-and-run/reset.sh`) reads the repo-root `.env` line by line. The repo-root `.env` had
 picked up Windows (CRLF, `\r\n`) line endings at some point (likely a Windows editor/git
 `autocrlf` interaction — not committed maliciously, just drifted). `read` strips the trailing
 `\n` but not a preceding `\r`, so every `ENV_*`-prefixed variable this loop produced silently
 carried a trailing carriage return — confirmed directly: `printf "%s" "$ENV_S3_PORT" | od -c`
 showed `9 0 0 0 \r`, not a clean `9000`.
 
-This surfaced as `deploy.sh` hanging indefinitely on "Waiting for MinIO..." — `MINIO_PORT`
+This surfaced as `deploy-and-run.sh` hanging indefinitely on "Waiting for MinIO..." — `MINIO_PORT`
 resolved to `"9000\r"`, so the health-check `curl` hit a malformed URL
 (`http://localhost:9000\r/minio/health/live`) and never succeeded, even though the MinIO
 container itself was healthy and answered instantly to a `curl` run outside the script (verified
@@ -292,7 +296,7 @@ real cause.
 **Decision:** Two-part fix, not either alone:
 1. Normalized `.env` itself to LF line endings (`sed -i 's/\r$//'`) — removes the root cause for
    every current consumer of this file.
-2. Made both parsers in `deploy.sh` and `scripts/database/reset.sh` defensively strip a trailing
+2. Made both parsers in `deploy-and-run.sh` and `scripts/deploy-and-run/reset.sh` defensively strip a trailing
    `\r` from the parsed value regardless: `printf -v "ENV_$_env_key" '%s' "${_env_value%$'\r'}"`.
    Belt-and-suspenders — (1) alone would silently break again if any future editor/tool
    reintroduces CRLF into `.env`, since nothing enforces its line-ending style; (2) alone would
@@ -304,8 +308,8 @@ real cause.
   affected — the JDK `Properties` format explicitly handles `\n`, `\r`, and `\r\n` line
   terminators natively, confirmed by reading its actual parsing logic before ruling it out as a
   second occurrence of this bug, not by assumption.
-- Verified end-to-end: killed the hung `deploy.sh` process, confirmed no `docker build` had even
-  started yet (the hang was before Step 2), applied both fixes, reran `deploy.sh` from scratch —
+- Verified end-to-end: killed the hung `deploy-and-run.sh` process, confirmed no `docker build` had even
+  started yet (the hang was before Step 2), applied both fixes, reran `deploy-and-run.sh` from scratch —
   MinIO's wait now resolves immediately, the full build/start pipeline completes normally.
 - No new script flag or manual step introduced — this is a pure correctness fix to logic that
   already existed (ADR-009), not a new mechanism.

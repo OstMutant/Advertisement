@@ -244,7 +244,7 @@ Plain JUnit, no Spring, no DB.
 | `require_noEnvFileWithinSearchRange_throwsIllegalStateException` | No `.env` anywhere in range fails fast |
 | `require_envFilePresentButKeyMissing_throwsIllegalStateExceptionMentioningKey` | An `.env` that exists but lacks the requested key fails fast, naming the missing key |
 
-### `user/UserSettingsRepositoryTest`
+### `user/UserPreferencesRepositoryTest`
 
 Testcontainers + `@SpringBootTest`.
 

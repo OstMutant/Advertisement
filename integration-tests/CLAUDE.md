@@ -140,13 +140,13 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
 ## Key constraints
 
 - Requires a reachable Docker daemon at test time — see `scripts/CLAUDE.md` "Unit / Testcontainers
-  Tests" for the Docker-in-Docker constraint (never runs inside `deploy.sh`'s image build, only
-  via a direct `mvn test`).
+  Tests" for the Docker-in-Docker constraint (never runs inside `deploy-and-run.sh`'s image build,
+  only via a direct `mvn test`).
 - The Postgres image tag is sourced from the repo-root `.env` (`POSTGRES_IMAGE`), the same value
   `scripts/deploy-and-run/docker-compose.db.yml` reads natively — no hardcoded duplication, though the two
   are never the same running container (Testcontainers always starts its own ephemeral instance,
-  never reuses the persistent dev one). `deploy.sh`'s own `docker pull`/`docker run` for Postgres
-  still hardcode the tag separately — out of scope here.
+  never reuses the persistent dev one). `deploy-and-run.sh`'s own `docker pull`/`docker run` for
+  Postgres still hardcode the tag separately — out of scope here.
 - Data isolation across `*RepositoryTest` classes sharing the one physical container: each
   applies its own starter's real Liquibase changelog against the shared container/database:
   Postgres allows multiple independent tables per database, so distinct starters' schemas

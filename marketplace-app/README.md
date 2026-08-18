@@ -1,6 +1,8 @@
 # marketplace-app
 
-The main Vaadin application — all UI lives here. Depends on all starters via Spring Boot autoconfiguration.
+The main Vaadin application — all UI lives here. Depends only on `platform-commons` and
+`marketplace-orchestrator` — never directly on a domain starter; `marketplace-orchestrator` is the
+one module that pulls in every starter and composes cross-domain use cases.
 
 ## Responsibilities
 
@@ -33,6 +35,7 @@ Prototype beans use `Configurable<T, Parameters>` + `UiComponentFactory`. See [C
 
 ## Dependencies
 
-- All starters (`audit`, `attachment`, `user`, `advertisement`, `taxon`) via autoconfiguration
+- `marketplace-orchestrator` — the application/BFF layer; pulls in every domain starter and
+  composes cross-domain use cases, so marketplace-app never depends on a starter directly
 - `platform-commons` — SPI contracts and DTOs
 - Vaadin 25, Spring Boot 4, Spring Security

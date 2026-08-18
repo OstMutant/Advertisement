@@ -93,8 +93,10 @@ would couple business logic to audit infrastructure.
 **Decision:** The full audit subsystem (write + read sides) lives in `audit-spring-boot-starter`.
 All Vaadin audit UI lives in `marketplace-app`. Domain services call `AuditPort` (contract interface).
 The starter contains zero advertisement-specific knowledge — all domain coupling expressed through
-SPIs (`AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`) implemented in
-`marketplace-app`.
+SPIs (`AuditDomainHook`, `AuditActivityEnrichHook`), both now implemented in
+`marketplace-orchestrator` (`org.ost.orchestrator.spi`) — see `marketplace-orchestrator/CLAUDE.md`'s
+"Forwarder SPI pattern" for why the two implementations that still need a UI-shell resource go
+through a forwarder SPI instead of living directly in `marketplace-app`.
 
 **Consequences:** Rejected: conditional Spring annotations in `platform-commons` — contracts must
 be Spring-free pure Java.
@@ -242,7 +244,7 @@ correctly placed audit calls inside the service.
 
 **Decision:** `AuditPort.captureUpdate` / `captureCreation` / `captureDeletion` must only be
 called from `*Service` classes — never from UI overlays, view components, or `*HookImpl` classes.
-`UserSettingsService.save()` now loads old settings, saves, publishes the domain event, and
+`UserPreferencesService.save()` now loads old settings, saves, publishes the domain event, and
 captures the audit entry.
 
 **Consequences:** When a save/update/delete operation needs to be audited, put the `AuditPort`
@@ -767,7 +769,7 @@ accident. Several alternatives were discussed and rejected before settling on th
 **Decision:** `version BIGINT NOT NULL DEFAULT 0` added directly to the existing
 `01-advertisement-schema.xml`, `01-user-schema.xml`, and `001-taxon.xml` changesets (DB not yet
 in production — no new migration file, per the same rationale as the `taxon.deleted_by` column;
-requires `deploy.sh --reset` locally). `@Version private Long version;` added to `Advertisement`,
+requires `deploy-and-run.sh --reset` locally). `@Version private Long version;` added to `Advertisement`,
 `User`, `Taxon`.
 
 For `Advertisement` and `Taxon`, saves go through `CrudRepository.save()`, so Spring Data JDBC's
@@ -785,9 +787,11 @@ bypassed `CrudRepository` entirely via hand-written SQL, so `@Version` alone did
 version = :version`, throwing `OptimisticLockingFailureException` manually when zero rows match.
 
 **Update (2026-07-14) — `User` moved onto native `CrudRepository.save()` too:** a second, narrower
-entity, `UserProfileUpdate` (`id`, `name`, `role`, `updatedAt`, `version` — deliberately excludes
-`email`/`passwordHash`), mapped to the same `user_information` table via its own
-`UserProfileCrudRepository`, replaces the hand-written SQL in `UserRepository.updateProfile()`.
+entity, `UserProfileUpdate` (later renamed `UserEditableFields`, and its repository
+`UserProfileCrudRepository` renamed `UserEditableFieldsCrudRepository` — see
+`user-spring-boot-starter/CLAUDE.md`; `id`, `name`, `role`, `updatedAt`, `version` — deliberately
+excludes `email`/`passwordHash`), mapped to the same `user_information` table via its own
+dedicated repository, replaces the hand-written SQL in `UserRepository.updateProfile()`.
 This was chosen over mirroring `AdvertisementService.buildEntity()`/`TaxonService.update()`
 (rebuild the full entity via `Builder`, forwarding every unedited field from `before`) precisely
 because that pattern's known failure mode — forgetting to forward a field — is far more dangerous
@@ -1055,16 +1059,19 @@ for no functional reason, unlike `taxon`'s already-established `created_by`/`upd
   plain column). The three dead `ORDER BY` alias entries for `u.id`/`u.name`/`u.email` were
   removed together with the join — verified dead: `AdvertisementSortMeta` only exposes
   `TITLE`/`CREATED_AT`/`UPDATED_AT`, so no UI path ever built a `Sort` reaching those aliases.
-- `AdvertisementService.enrichWithActorInfo(ads)` (new, mirrors `enrichWithCategories()` exactly,
-  same `ComponentFactory<UserPort>` optional-dependency shape as `ComponentFactory<TaxonPort>`)
-  merges `createdByUserName`/`createdByUserEmail` into `AdvertisementInfoDto` after the repository
-  call, in `getFiltered()` and `findById()`. `UserPortImpl`/`AdvertisementPortImpl` stay pure
-  delegation — the merge logic lives only in the service, per `platform-commons/CLAUDE.md`'s
-  `*PortImpl` rule.
+- `AdvertisementService.enrichWithActorInfo(ads)` (new at the time, mirroring
+  `enrichWithCategories()`) merges `createdByUserName`/`createdByUserEmail` into
+  `AdvertisementInfoDto` after the repository call, in `getFiltered()` and `findById()`.
+  `UserPortImpl`/`AdvertisementPortImpl` stay pure delegation — the merge logic lives only in the
+  service, per `platform-commons/CLAUDE.md`'s `*PortImpl` rule. **Later relocated:** this
+  enrichment step now lives in `marketplace-orchestrator`'s
+  `AdvertisementDisplayEnrichmentService.enrichWithActorInfo()` — see
+  `marketplace-orchestrator/CLAUDE.md`; `advertisement-spring-boot-starter`'s own
+  `AdvertisementService` no longer performs display enrichment at all.
 - Renamed `advertisement`'s actor-reference columns to match `taxon`: `created_by_user_id` →
   `created_by`, `last_modified_by_user_id` → `updated_by`, `deleted_by_user_id` → `deleted_by`
   (direct edit of `01-advertisement-schema.xml` — DB not yet in production, same practice as
-  every prior schema edit — requires `deploy.sh --reset` for the Liquibase checksum). Matching
+  every prior schema edit — requires `deploy-and-run.sh --reset` for the Liquibase checksum). Matching
   Java field renames: `Advertisement.createdByUserId`→`createdBy` (`@CreatedBy`),
   `.lastModifiedByUserId`→`updatedBy` (`@LastModifiedBy`); `AdvertisementInfoDto.createdByUserId`
   (platform-commons) and `AdvertisementEditDto.createdByUserId`/`.lastModifiedByUserId`
@@ -1085,7 +1092,7 @@ knowing the referenced table) that this ADR does not attempt to resolve.
 
 **Consequences:**
 - Full e2e suite must stay green — the advertisement card's author-email display
-  (`AdvertisementCardView.java:187`, `ad.getCreatedByUserEmail()`) and the owner-only edit/delete
+  (`AdvertisementCardView`, `ad.getCreatedByUserEmail()`) and the owner-only edit/delete
   button visibility (`getOwnerUserId()`, used in `AdvertisementCardView`,
   `AdvertisementFormOverlayModeHandler`, `AdvertisementViewOverlayModeHandler`) are the concrete
   regression detectors.
@@ -1117,14 +1124,21 @@ lookup replaces the denormalized cache.
   using `ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at ASC)` to pick each entity's
   earliest attachment as its "main" one, plus `COUNT(*) OVER (PARTITION BY entity_id)`, matching
   the existing single-entity method's semantics exactly (`loadMediaStats(EntityType, Long)`,
-  unchanged, still used by the single-entity path).
-- `AdvertisementService.enrichWithMediaSummary(ads)` (new, same shape as `enrichWithCategories()`/
-  `enrichWithActorInfo()`) merges `mediaUrl`/`mediaContentType`/`mediaCount` into
-  `AdvertisementInfoDto` at read time in `getFiltered()`/`findById()`, using the already-existing
-  `ComponentFactory<AttachmentPort> attachmentPortFactory` field. Entities with zero attachments
-  fall back to `AttachmentMediaSummaryDto.empty()`.
+  unchanged, still used by the single-entity path). **Later removed:** the port-level single-entity
+  `getMediaSummary(EntityRef)` was dropped once every real caller was confirmed to use the bulk
+  variant — `AttachmentRepository.loadMediaStats(EntityType, Long)` itself stays, since it has its
+  own direct repository-level test coverage. See `attachment-spring-boot-starter/CLAUDE.md`.
+- `AdvertisementService.enrichWithMediaSummary(ads)` (new at the time, same shape as
+  `enrichWithCategories()`/`enrichWithActorInfo()`) merges `mediaUrl`/`mediaContentType`/
+  `mediaCount` into `AdvertisementInfoDto` at read time in `getFiltered()`/`findById()`, using the
+  already-existing `ComponentFactory<AttachmentPort> attachmentPortFactory` field. Entities with
+  zero attachments fall back to `AttachmentMediaSummaryDto.empty()`. **Later relocated:** this
+  enrichment step now lives in `marketplace-orchestrator`'s
+  `AdvertisementDisplayEnrichmentService` — see `marketplace-orchestrator/CLAUDE.md`;
+  `advertisement-spring-boot-starter`'s own `AdvertisementService` no longer performs display
+  enrichment at all.
 - The three columns were removed from `advertisement` (`01-advertisement-schema.xml`, direct
-  edit — DB not yet in production, `deploy.sh --reset` required), along with
+  edit — DB not yet in production, `deploy-and-run.sh --reset` required), along with
   `AdvertisementRepository.updateMedia()` and the three dead `ORDER BY` sort-alias entries for
   them (confirmed unreachable — `AdvertisementSortMeta` never exposed a media-related sort).
 - **The write-triggered sync path was deleted entirely, not just emptied**: `MediaChangeHookImpl`
@@ -1509,12 +1523,15 @@ failure.
 **Decision:** Added ArchUnit (`com.tngtech.archunit:archunit-junit5:1.4.2`, test-scope) directly to
 `marketplace-app`'s existing test tree — `marketplace-app/src/test/java/org/ost/marketplace/
 architecture/ArchitectureRulesTest.java` — rather than a new dedicated module. `marketplace-app`
-already depends on every starter + `platform-commons` + `query-lib` (confirmed directly), so its
-test classpath already has every compiled class ArchUnit needs to check cross-module rules (e.g.
-"no Vaadin in starters" needs starter classes; "UI must not call repositories directly" needs
-marketplace-app's own `ui` package) — no new module, no new dependency wiring. This also means
-these checks run automatically as part of the existing `scripts/unit-tests.sh`/`scripts/ci.sh
---unit` stage, with zero new script/CI plumbing.
+depended on every starter + `platform-commons` + `query-lib` at the time (confirmed directly), so
+its test classpath already had every compiled class ArchUnit needs to check cross-module rules
+(e.g. "no Vaadin in starters" needs starter classes; "UI must not call repositories directly"
+needs marketplace-app's own `ui` package) — no new module, no new dependency wiring. Still true
+today even though `marketplace-app` no longer declares starter/`query-lib` dependencies directly:
+`marketplace-orchestrator` (a mandatory `marketplace-app` dependency) now pulls every starter onto
+the classpath instead, and `marketplace-app`'s test classpath still sees those classes
+transitively. This also means these checks run automatically as part of the existing
+`scripts/build-and-test.sh --unit`/`scripts/ci.sh --unit` stage, with zero new script/CI plumbing.
 
 Seven rules implemented, mapping directly to the seven prose rules identified earlier:
 UI-must-not-call-repositories, no-Vaadin-in-starters, Ports/Hooks-live-only-in-platform-commons
@@ -1662,12 +1679,15 @@ discarding `row.prevSnapshot()` even though `AuditLogProjection` already had it.
 
 ## ADR-044: `UserSettingsRepository` optimistic-locking version lives inside the `settings` JSONB blob, not a new SQL column
 
-**Status:** Accepted
+**Status:** Superseded by ADR-070 — `locale`/`settings` moved off `user_information` into their own
+`user_preferences` table; the repository is now `UserPreferencesRepository`, not
+`UserSettingsRepository`. The version-inside-JSONB mechanism this ADR decided is otherwise still
+current — see `user-spring-boot-starter/CLAUDE.md`.
 
 **Context:** `UserSettingsRepository.save()` had no conflict detection at all — a bare
 `UPDATE user_information SET settings = :settings::jsonb WHERE id = :userId`, unlike every other
 mutable entity in this codebase (`Advertisement`, `Taxon`, `user_information` name/role via
-`UserProfileUpdate` — all `@Version`-column optimistic locking per ADR-029). Two browser tabs of
+`UserEditableFields` — all `@Version`-column optimistic locking per ADR-029). Two browser tabs of
 the same user editing settings would silently clobber each other: the second tab's save overwrites
 the *entire* JSONB blob with its own stale copy, discarding whatever the first tab's save had just
 written, with no error and no conflict notification. Traced the full call chain
@@ -1834,7 +1854,9 @@ tab-building shell was shared. `UserFormOverlayModeHandler` was fixed to
 
 ## ADR-047: `AdvertisementSaveService.save()` moves the attachment-gallery commit to just before the transaction's own commit; logs loudly if it rolls back after the S3 move anyway
 
-**Status:** Accepted
+**Status:** Accepted — `AdvertisementSaveService` itself later relocated to
+`marketplace-orchestrator` (see ADR-073); this decision's reasoning still applies to that class in
+its new location.
 
 **Context:** `save()`'s `tx.execute(...)` block called `commitGallery.apply(...)` (which triggers
 `AttachmentService.commitTempUploadsQuiet()`'s non-transactional, physical S3 file move) right
@@ -1873,7 +1895,7 @@ sufficient to eventually clean up any orphan, but only on its next nightly run):
   them as-is; the `isSynchronizationActive()` guard is what keeps the new rollback-logging code
   from breaking them (confirmed: without the guard, `save_galleryTouched_...` throws
   `IllegalStateException` since its mocked `tx` never activates real transaction synchronization).
-- Verified via `bash scripts/unit-tests.sh marketplace-app` (`AdvertisementSaveServiceTest` 5/5)
+- Verified via `bash scripts/build-and-test.sh --unit` (`AdvertisementSaveServiceTest` 5/5)
   and a full Playwright e2e pass (specs 01-06, `--ux`): 35/35 non-skipped green, including every
   advertisement create/edit/restore flow that exercises the gallery commit path.
 
@@ -1995,12 +2017,14 @@ all member enums' keys as a hard requirement.
 
 ## ADR-050: Advertisement delete-side audit capture moves into `AdvertisementSaveService`, matching save's existing orchestration
 
-**Status:** Accepted
+**Status:** Accepted — `AdvertisementSaveService` itself later relocated to
+`marketplace-orchestrator` (see ADR-073); this decision's reasoning still applies to that class in
+its new location.
 
 **Also affects:** advertisement-spring-boot-starter
 
 **Context:** Audit-snapshot capture for advertisements was split: save-side lived in
-`AdvertisementSaveService` (`marketplace-app`), delete-side lived inline in
+`AdvertisementSaveService` (`marketplace-app` at the time), delete-side lived inline in
 `AdvertisementService.delete()` (`advertisement-spring-boot-starter`), doing near-identical
 snapshot assembly (title/description + category ids via `TaxonPort` + attachment snapshot id via
 `AttachmentPort`) in two different modules. Every other domain (user, taxon) captures entirely
@@ -2038,7 +2062,10 @@ robustness versus the previous `ifAvailable()` guard.
 
 ## ADR-051: User deletion — soft-delete, cascade to the user's own ads, retention purge, actor-name annotation
 
-**Status:** Accepted
+**Status:** Accepted — `UserDeleteService`, `UserActorNameService`, and `AuditDomainHookImpl`
+(described below as living in `marketplace-app`) all later relocated to `marketplace-orchestrator`
+(see ADR-073 and `marketplace-orchestrator/CLAUDE.md`); this decision's reasoning still applies to
+those classes in their new location.
 
 **Context:** `UserService.delete()` was a hard `DELETE`, the only hard-delete lifecycle mutation in the system
 and the only one with no audit capture. User picked Option A: soft-delete, aligning with
@@ -2511,7 +2538,7 @@ deep link from ADR-059.
   only the fallback path is exercisable in CI) and asserts the "Link copied" notification appears.
   Full e2e suite 50/50.
 
-## ADR-061: F-01 `sitemap.xml` — paginated port scan, Caffeine-cached; `deploy.sh` now sets `APP_PUBLIC_URL`
+## ADR-061: F-01 `sitemap.xml` — paginated port scan, Caffeine-cached; `deploy-and-run.sh` now sets `APP_PUBLIC_URL`
 
 **Status:** Accepted
 
@@ -2534,11 +2561,11 @@ Vaadin-served response), this is a genuine new REST endpoint.
 - Reuses `AppLinkService.advertisementUrl(id)` from ADR-060 for each `<loc>`.
 
 **Bug found and fixed while verifying (unrelated to the endpoint's own logic):**
-`app.public-base-url` defaults to `http://localhost:8080` (`application.yml`), but `deploy.sh`
+`app.public-base-url` defaults to `http://localhost:8080` (`application.yml`), but `deploy-and-run.sh`
 publishes the app container's internal port 8080 to host port **8081** (`-p "$APP_PORT":8080`,
 `APP_PORT` defaulting to 8081 — see `scripts/CLAUDE.md`, "port 8081, 8080 reserved for local
-IntelliJ dev server"). Confirmed directly: a local `deploy.sh` run produced `<loc>` entries
-pointing at `localhost:8080`, unreachable from outside the container. Fixed by having `deploy.sh`
+IntelliJ dev server"). Confirmed directly: a local `deploy-and-run.sh` run produced `<loc>` entries
+pointing at `localhost:8080`, unreachable from outside the container. Fixed by having `deploy-and-run.sh`
 pass `-e APP_PUBLIC_URL="http://localhost:$APP_PORT"` to the app container, mirroring the exact
 pattern already used for `S3_PUBLIC_URL` (`http://localhost:$MINIO_PORT/$S3_BUCKET`) — this also
 correctly follows `APP_PORT` when it's overridden (e.g. `scripts/ci/entrypoint.sh`'s isolated e2e
@@ -2546,7 +2573,7 @@ stack passing `APP_PORT="$CI_APP_PORT"`), with no separate case needed.
 
 **Consequences:**
 - Any real deployment (Render, etc.) still needs its own `APP_PUBLIC_URL` env var pointing at the
-  actual public domain — `deploy.sh`'s fix only corrects the *local* dev/test case.
+  actual public domain — `deploy-and-run.sh`'s fix only corrects the *local* dev/test case.
 - Verified via a new Playwright assertion (extends the same ADR-059/060 test): `GET /sitemap.xml`
   returns valid XML containing the just-created test advertisement's `/ads/:id` link. Full e2e
   suite 50/50.
@@ -3297,7 +3324,12 @@ backlog with the full cost/risk comparison.
 
 ## ADR-068: `findById()` locale fix + `AdvertisementEnrichmentService` extraction (Batch A)
 
-**Status:** Accepted
+**Status:** Accepted — two later changes moved past what's described below: `AdvertisementPort
+.findById()`'s `Locale` parameter was subsequently removed again (category/city enrichment moved
+to read-time display composition in `marketplace-orchestrator`, which resolves locale itself); and
+`AdvertisementEnrichmentService` was renamed/relocated to `marketplace-orchestrator`'s
+`AdvertisementDisplayEnrichmentService` (see ADR-073). This entry's own reasoning for extracting
+enrichment out of `AdvertisementService` still holds — only the exact signature/location changed.
 
 **Context:** `/deep-review full` (2026-07-29) found
 `AdvertisementService.findById()` hardcoded `Locale.ENGLISH` for category/city enrichment, while
@@ -3582,21 +3614,27 @@ registration). The first user-visible surface for provider profiles is Batch C's
 ---
 
 ## ADR-073: `AdvertisementSaveService`/`UserDeleteService` move to `marketplace-orchestrator`; `AdvertisementAuditEnrichService` stays
-**Status:** Accepted
+**Status:** Accepted — the "`AdvertisementAuditEnrichService` stays in `marketplace-app`" call below
+was itself reversed shortly after, see `marketplace-orchestrator/DECISIONS.md` ADR-005: its two
+real UI-shell touchpoints (current locale, an `AdKind` label) turned out to be single-value lookups
+rather than the HTML-diff formatting itself, so both moved behind the `CurrentLocaleHook`/
+`UiLabelHook` forwarder-SPI pair and `AdvertisementAuditEnrichService` now lives in
+`marketplace-orchestrator` too, not `marketplace-app`.
 
 **Context:** `AdvertisementSaveService` and `UserDeleteService` lived in `marketplace-app` but
 performed cross-domain application-level orchestration (multi-Port composition for one atomic use
 case) — exactly the concern a new `marketplace-orchestrator` module was extracted to own. See
 `marketplace-orchestrator/DECISIONS.md` ADR-001 for the full extraction rationale.
 
-**Decision:** Both classes moved to `org.ost.orchestrator.advertisement.save`/
-`org.ost.orchestrator.user.delete`, unchanged in behavior. `AdvertisementAuditEnrichService`
+**Decision:** Both classes moved to `org.ost.orchestrator.services` (the module's flat services
+package — not a per-domain sub-package), unchanged in behavior. `AdvertisementAuditEnrichService`
 (audit-diff display-string resolution for the Timeline/Activity tabs) was evaluated for the same
-move and rejected: it field-injects `LocaleProvider`/`I18nService`
+move and rejected at the time: it field-injected `LocaleProvider`/`I18nService`
 (`marketplace-app/services/i18n`), an application-shell/UI-formatting concern this repo's
-Architecture Guidelines explicitly keep in `marketplace-app`, not the orchestrator. It stays here,
+Architecture Guidelines explicitly keep in `marketplace-app`, not the orchestrator. It stayed here,
 simplified to depend on `marketplace-orchestrator`'s `TaxonLookupService` collaborator instead of
-its own `ComponentFactory<TaxonPort>` field.
+its own `ComponentFactory<TaxonPort>` field — see the Status line above for how this was later
+reversed.
 
 **Consequences:** `AdvertisementFormOverlayModeHandler`/`AdvertisementCardView`/`AdvertisementsView`
 now inject `AdvertisementSaveService`/`AdvertisementDisplayEnrichmentService` from

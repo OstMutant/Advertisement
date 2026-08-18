@@ -92,20 +92,22 @@ property and `@ConditionalOnAuditEnabled` removed entirely.
 ---
 
 ## ADR-006: AuditActivityFieldsHook SPI — expanded field display in activity feed
-**Status:** Accepted
+**Status:** Superseded — see ADR-011's note on `AuditActivityFieldsHook`'s later removal
 
 **Context:** Activity feed was showing only changed fields. Domain-specific field lists must not
 be hardcoded in the starter.
 
 **Decision:** `AuditActivityFieldsHook` SPI lets consumers supply a merged `List<ChangeEntry>`
 (changed + unchanged fields) for their entity types. Called from
-`AuditTimelineRowRenderer.buildActivityFieldsList()` (verified 2026-07-13 — not
-`AuditActivityRowRenderer.buildRow` as originally written here; `AuditActivityRowRenderer`
-delegates field-list rendering to that method instead of calling the hook itself) for non-settings
-items; falls back to raw `changes` when no provider registered.
+`AuditTimelineRowRenderer.buildActivityFieldsList()` for non-settings items; falls back to raw
+`changes` when no provider registered.
 
 **Consequences:** Rejected: hardcoding field names in `AuditActivityRowRenderer` — introduces
-domain coupling into the starter.
+domain coupling into the starter. Superseded once every implementation of this Hook converged to a
+one-line delegation with zero domain-specific logic — `AuditActivityFieldsHook` was removed
+entirely and its only real caller, `AuditTimelineRowRenderer`, now does the field-name-to-label
+mapping directly instead of crossing the module boundary (see `platform-commons/DECISIONS.md`
+ADR-029's second refinement).
 
 ---
 
@@ -203,8 +205,11 @@ marketplace-app. The split served no isolation purpose, just added indirection.
    `getMediaStateForSnapshot`, `getMediaStateAtVersion`.
 
 **Consequences:** Interface count reduced from 13 to 10. 4 files deleted.
-Rule: `AuditActivityFieldsHook.expandFields()` must never call `I18nService`. `labelFor()` is
-the correct place for i18n (invoked from the UI thread in the renderer).
+Rule (moot — see below): `AuditActivityFieldsHook.expandFields()` must never call `I18nService`.
+`labelFor()` is the correct place for i18n (invoked from the UI thread in the renderer).
+`AuditActivityFieldsHook` itself was later removed entirely (see ADR-006's Superseded note); the
+real current `AuditActivityEnrichHook` (item 3 above) never grew a `getMediaStateAtVersion` method
+— only `getMediaStateForSnapshot` — that part of item 3 did not ship as originally decided here.
 
 ---
 

@@ -373,7 +373,15 @@ json_adr_array() {
 # adding a new cross-reference means tagging the real ADR in its home file, not this file.
 POINTER_DECISIONS_MODULES=()
 for m in "${MODULES[@]}"; do
-  [ -f "$REPO_ROOT/$m/DECISIONS.md" ] || POINTER_DECISIONS_MODULES+=("$m")
+  f="$REPO_ROOT/$m/DECISIONS.md"
+  # Regenerate when there's no file at all, OR the existing file is itself a previously-generated
+  # pointer (first-line marker below) -- a real, hand-authored DECISIONS.md never carries this
+  # marker, so it's never touched. Without this content check, a pointer file that already exists
+  # on disk from an earlier run would be skipped forever (mere -f existence looks identical to a
+  # real DECISIONS.md), leaving it to silently drift out of sync with real "Also affects" tags.
+  if [ ! -f "$f" ] || head -1 "$f" | grep -q '(generated index)$'; then
+    POINTER_DECISIONS_MODULES+=("$m")
+  fi
 done
 generate_pointer_decisions_md() {
   local module="$1" items home id title

@@ -32,23 +32,26 @@ mounted, `--network host` (so ports its own sibling containers publish are reach
 `localhost:PORT` exactly like a non-containerized run — no bridge-network DNS indirection to design
 around), and a `ci-m2-cache` named volume at `/root/.m2`. `scripts/ci/entrypoint.sh` runs inside
 that container and, per requested stage, calls the **existing, unmodified-in-substance**
-`scripts/unit-tests.sh` / `scripts/integration-tests.sh --sandbox` / (`scripts/deploy.sh` +
+`scripts/unit-tests.sh` / `scripts/integration-tests.sh --sandbox` / (`scripts/deploy-and-run.sh` +
 `playwright/run.sh`, both env-overridable — see below) / `scripts/sonar.sh` — no stage logic is
-reimplemented, only wrapped.
+reimplemented, only wrapped. (Superseded on the unit/integration point by ADR-008 below: those two
+scripts were later merged into one `build_and_test` stage calling `scripts/build-and-test.sh`, and
+both standalone scripts were deleted — this ADR-001 passage describes the original wiring at the
+time of this decision, not current behavior for that part.)
 
-**e2e isolation reuses `deploy.sh`'s own env-var overrides, not a new compose file.** An earlier
+**e2e isolation reuses `deploy-and-run.sh`'s own env-var overrides, not a new compose file.** An earlier
 draft of this design planned a dedicated `scripts/infra/docker-compose.ci.yml` for isolated
-Postgres/MinIO. Rejected once it became clear `deploy.sh` doesn't use `docker-compose.*.yml` at
+Postgres/MinIO. Rejected once it became clear `deploy-and-run.sh` doesn't use `docker-compose.*.yml` at
 all (those exist only for IDE-only dev-mode infra) — it already does raw `docker run` for
 everything. So instead, `NETWORK`/`DB_CONTAINER`/`MINIO_CONTAINER`/`APP_CONTAINER`/`APP_IMAGE`/
 `DB_PORT`/`MINIO_PORT`/`MINIO_CONSOLE_PORT`/`APP_PORT`/`DB_VOLUME`/`MINIO_VOLUME` in
-`scripts/deploy.sh`, and `APP_CONTAINER`/`PW_CONTAINER`/`DB_PORT`/`DB_USER`/`DB_NAME` in
+`scripts/deploy-and-run.sh`, and `APP_CONTAINER`/`PW_CONTAINER`/`DB_PORT`/`DB_USER`/`DB_NAME` in
 `playwright/run.sh`, were all made overridable via the already-established `"${VAR:-default}"`
 idiom (`playwright/run.sh`'s own `APP_URL` already used this). `entrypoint.sh` calls both scripts
 with a `ci-*`-prefixed set of overrides (distinct network/container names, host ports
 15432/19000/19001/18081, distinct volume names) — zero duplicated e2e orchestration logic, and the
-normal dev workflow (`bash scripts/deploy.sh`, no env vars set) is byte-for-byte unchanged, verified
-directly (full `deploy.sh` + `playwright.sh e2e --ux` run, 35/48 passed, matching the pre-change
+normal dev workflow (`bash scripts/deploy-and-run.sh`, no env vars set) is byte-for-byte unchanged, verified
+directly (full `deploy-and-run.sh` + `playwright.sh e2e --ux` run, 35/48 passed, matching the pre-change
 baseline exactly).
 
 **`ci-pw-runner` is deliberately excluded from the post-run teardown.** Unlike `ci-db`/`ci-minio`/
@@ -80,17 +83,17 @@ defeat the "cached artifacts, not re-fetched" goal for no isolation benefit, so 
   exist inside the minimal `ci-runner` image (only the Maven wrapper `./mvnw` is copied in) —
   invisible on a normal dev machine where `mvn` is installed system-wide. Fixed by switching to
   `/app/mvnw`, matching every other script in the project.
-- Surfaced a real, unrelated latent bug in `scripts/deploy.sh` during this verification: its
+- Surfaced a real, unrelated latent bug in `scripts/deploy-and-run.sh` during this verification: its
   post-build `docker container prune -f` / `docker volume prune -f` act host-wide, not scoped to
-  this app's own resources. Running `deploy.sh` from inside `scripts/ci/run.sh` (via the mounted
+  this app's own resources. Running `deploy-and-run.sh` from inside `scripts/ci/run.sh` (via the mounted
   `docker.sock`) while the dev `marketplace-app`/`pw-runner`/`sonarqube` containers happened to be
   stopped (for an unrelated diagnostic) deleted all three outright — confirmed directly, not
   theoretical. Underlying data survived (Postgres/MinIO/SonarQube state all live in named volumes
   that were never touched, since `advertisement-db`/`advertisement-minio` were never stopped), but
   the containers themselves had to be manually recreated. Fixed by making both prune calls opt-in
-  via a new `deploy.sh --prune-all` flag (explicit host-wide-effect warning printed before running),
+  via a new `deploy-and-run.sh --prune-all` flag (explicit host-wide-effect warning printed before running),
   no longer part of the automatic post-build step. Explicit, scoped cleanup of this app's own
-  containers/volumes already exists via `deploy.sh --reset`; `--prune-all` is for a deliberate,
+  containers/volumes already exists via `deploy-and-run.sh --reset`; `--prune-all` is for a deliberate,
   whole-machine deep clean when that's actually wanted.
 
 ---
@@ -235,13 +238,13 @@ retrievable reason" gap
 **Context:** Confirmed directly (a real `bash scripts/ci.sh` run, not theoretical): when the `e2e`
 and `sonar` stages fail, `entrypoint.sh` only ever copied the stage's *final* artifact
 (`playwright/pw-report/.` → `$REPORT_DIR/playwright/`, `scripts/sonar/report/.` →
-`$REPORT_DIR/sonar/`) — never the stdout of `deploy.sh`/`playwright/run.sh`/`scripts/sonar.sh`
+`$REPORT_DIR/sonar/`) — never the stdout of `deploy-and-run.sh`/`playwright/run.sh`/`scripts/sonar.sh`
 while they ran. Once the ephemeral `ci-runner-<timestamp>` container is `docker rm -f`'d after the
 run (see ADR-002), that stdout is gone permanently — a failed `e2e`/`sonar` stage surfaces only
 `FAILED` in `progress.txt`, with zero way to find out *why* after the fact. This is unlike `unit`/
 `integration`, which already had real logs because the scripts they call
 (`unit-tests.sh`/`integration-tests.sh`) already `tee` their own output to their own
-`reports/run.log` internally — `deploy.sh` and `scripts/sonar/run.sh` also `tee` to a log file
+`reports/run.log` internally — `deploy-and-run.sh` and `scripts/sonar/run.sh` also `tee` to a log file
 (`/tmp/deploy.log`, `/tmp/sonar.log`), but only inside `/tmp` on whichever container runs them,
 never copied into the shared report tree; `playwright/run.sh` doesn't self-log its own stdout at
 all (the `/tmp/pw-live.log` reference at its tail is a best-effort `docker cp` from the *pw-runner*
@@ -249,7 +252,7 @@ container for a file nothing actually writes there — a dead reference, not a w
 
 **Decision:** Wrapped each of the `e2e` and `sonar` stage blocks in `entrypoint.sh` in a `{ ... }
 2>&1 | tee "$REPORT_DIR/<stage>/run.log"` — the same manual-tee convention used everywhere else in
-this repo (`deploy.sh`, `sonar/run.sh`, interactive Monitor+tee invocations), just applied at the
+this repo (`deploy-and-run.sh`, `sonar/run.sh`, interactive Monitor+tee invocations), just applied at the
 one place (`entrypoint.sh`) that previously had none. Exit code is captured via a temp
 `.exit_code` file written *inside* the piped block and read back after, not via `$?` directly after
 the pipe — `$?` after a pipe is `tee`'s own exit status (always 0), the exact "tee'd exit-code bug"
@@ -345,6 +348,7 @@ with `--unit`/`--no-unit` and `--integration`/`--no-integration` set accordingly
 - Requesting only one of `--unit`/`--integration` still works exactly as before (the other side
   gets `--no-unit`/`--no-integration`) — no change in what a caller can select, only in how the
   single resulting Maven invocation is organized internally.
-- Unblocks retiring `scripts/unit-tests.sh`/`.bat`/`scripts/unit-tests/` and
+- Unblocked retiring `scripts/unit-tests.sh`/`.bat`/`scripts/unit-tests/` and
   `scripts/integration-tests.sh`/`.bat` — this was the last real code dependency on either script
-  outside `run-all-tests.sh` (already migrated).
+  outside `run-all-tests.sh` (already migrated). **Done:** both scripts and the `scripts/unit-tests/`
+  directory have since been deleted entirely.
