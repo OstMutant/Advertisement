@@ -11,6 +11,12 @@ for %%d in (
     attachment-spring-boot-starter\target
     audit-spring-boot-starter\target
     query-lib\target
+    user-spring-boot-starter\target
+    advertisement-spring-boot-starter\target
+    taxon-spring-boot-starter\target
+    provider-profile-spring-boot-starter\target
+    marketplace-orchestrator\target
+    integration-tests\target
 ) do (
     if exist "%ROOT%%%d" (
         rmdir /s /q "%ROOT%%%d"
