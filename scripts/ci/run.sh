@@ -1,66 +1,105 @@
 #!/bin/bash
-# Local, isolated, parameterized CI runner.
-#
-# Usage:
-#   bash scripts/ci/run.sh                                   — default: most extensive run
-#                                                                 (unit + integration + e2e + sonar,
-#                                                                 e2e's Playwright pass uses
-#                                                                 "e2e --full --ux"), runs in the
-#                                                                 background (see below)
-#   bash scripts/ci/run.sh --unit --integration --e2e         — chosen stages only
-#   bash scripts/ci/run.sh --all                              — unit + integration + e2e (no sonar)
-#   bash scripts/ci/run.sh --all --sonar                       — + SonarQube analysis
-#   bash scripts/ci/run.sh --playwright-args "e2e --ux"        — override the e2e stage's
-#                                                                  Playwright args (default when
-#                                                                  unset: "e2e --full --ux")
-#   bash scripts/ci/run.sh --report-dir /some/path              — configurable report destination
-#   bash scripts/ci/run.sh --keep-reports 5                      — keep the last N report dirs,
-#                                                                    prune older ones (default: 3;
-#                                                                    0 = never prune)
-#   bash scripts/ci/run.sh --keep-infra                           — don't tear down the isolated
-#                                                                     e2e stack after (debugging)
-#   bash scripts/ci/run.sh --sandbox                               — this claude-dev sandbox's
-#                                                                      Testcontainers workaround
-#   bash scripts/ci/run.sh --foreground                             — block and stream output
-#                                                                       instead of the default
-#                                                                       background run (this is
-#                                                                       what a Monitor+tee-based
-#                                                                       invocation should use)
-#
-# Background by default: the image build runs in the foreground (fast feedback if it fails), then
-# the actual test run detaches -- the script prints the PID and report paths and returns control
-# immediately. Check progress anytime with:
-#   cat scripts/ci/reports/<timestamp>/progress.txt
-#
-# One CI-runner container (scripts/ci/Dockerfile), built fresh from the current source tree and run
-# with the host's /var/run/docker.sock mounted (Docker-outside-of-Docker) -- it can then create and
-# tear down its own isolated ci-* sibling containers (Postgres, MinIO, the built app, Playwright)
-# without ever touching the persistent dev stack (marketplace-app/advertisement-db/...). Maven
-# dependencies are cached across runs via the ci-m2-cache named volume. See scripts/ci/entrypoint.sh
-# for the in-container orchestration and scripts/ci/DECISIONS.md ADR-001 for the full design.
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: Thin trigger over a persistent Dagu server. (Re)builds the ci-runner image,
+#   (re)starts the ci-runner container (Docker-outside-of-Docker: docker.sock mounted, so it can
+#   create/tear down its own isolated ci-* sibling containers) plus its ci-runner-dagu-proxy
+#   sidecar, then fires a DAG run (scripts/ci/dagu/ci.yaml) inside it with the requested params.
+#   Dagu replaces the orchestration/UI layer only -- every DAG step calls the exact same scripts
+#   this project's other tools already use (build-and-test.sh, deploy-and-run.sh, playwright/
+#   run.sh, sonar.sh).
+# Usage: bash scripts/ci/run.sh [flags]
+#   (no flags)               -- most extensive run: unit + integration + e2e + sonar +
+#                                archunit_metrics + docs
+#   --unit                   -- run the unit stage
+#   --integration            -- run the integration stage (always applies the Testcontainers
+#                                sandbox workaround internally -- see DECISIONS.md)
+#   --e2e                    -- run the e2e stage
+#   --sonar                  -- run the sonar stage
+#   --all                    -- unit + integration + e2e (no sonar)
+#   --no-docs                -- skip the doc-freshness stage
+#   --playwright-args <arg>  -- override the e2e stage's Playwright args (default
+#                                "e2e --full --ux")
+#   --reset-e2e-db           -- deploy e2e's stack with a full --reset (DB/MinIO volume wipe, full
+#                                Liquibase replay) instead of the default --reset-only-db (fast
+#                                truncate) -- only needed when the DB schema itself changed since
+#                                the isolated e2e stack was last brought up
+#   --no-keep-e2e-infra      -- tear down the isolated e2e stack after the run instead of leaving
+#                                it up (on by default -- leaving it up is the debugging-friendly
+#                                default, so a failed run's containers/logs/DB state are still
+#                                there to inspect without having to remember the flag ahead of time)
+#   --foreground              -- block and stream this run's output instead of firing it and
+#                                 returning immediately; also syncs artifacts (see Outputs)
+#                                 automatically once the run finishes
+#   --no-rebuild               -- trigger a new DAG run against the already-running ci-runner
+#                                  container instead of rebuilding/recreating it
+#   --refresh-tools              -- force re-download of buildx/compose/dagu into ci-tools-cache
+#                                    even if already cached (e.g. after bumping DAGU_VERSION)
+#   --no-archunit-metrics           -- skip ArchUnit's module-coupling export (on by default --
+#                                      cheap compared to e2e, feeds
+#                                      generate-architecture-model.sh --with-archunit)
+#   --sync-artifacts                 -- pull whatever architecture-metrics.json/
+#                                        pipeline-metrics.json the container has produced onto the
+#                                        host, without triggering a new run (automatic after
+#                                        --foreground; needed manually after a background run, or
+#                                        after triggering a run directly from Dagu's own web UI)
+# Uses: bash, docker, curl.
+# Env: None read directly -- every flag above is translated into either a container-start env var
+#   (FORCE_TOOLS_REFRESH, passed via `docker run -e`) or a Dagu param (passed via
+#   `dagu start ... -- key=value`).
+# Input: scripts/ci/Dockerfile, scripts/ci/dagu/ci.yaml.
+# Outputs: (unless --no-rebuild/--sync-artifacts) three lasting named volumes (ci-m2-cache,
+#   ci-dagu-home, ci-tools-cache) and two persistent containers (ci-runner, ci-runner-dagu-proxy)
+#   that remain running on the host after this script exits. The ci-runner container's Dagu web
+#   UI, reachable at http://localhost:8082 through the ci-runner-dagu-proxy sidecar (ci-runner
+#   itself runs --network host, whose bound ports aren't reachable from a real browser in this
+#   sandbox -- see DECISIONS.md). With --foreground or --sync-artifacts, also refreshes
+#   scripts/build-and-test/reports/architecture-metrics.json and
+#   scripts/ci/reports/pipeline-metrics.json on the host.
+# Returns: 0 on success; non-zero on an unrecognized flag, image-build failure, Dagu-startup
+#   failure, or (--foreground only) a failed DAG run -- a backgrounded run always returns 0 once
+#   triggered, regardless of how the DAG run itself later finishes.
+# ────────────────────────────────────────────────────────────────────────────
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 IMAGE=ci-runner
+CONTAINER=ci-runner
+DAGU_PORT=18080
+UI_PROXY_CONTAINER=ci-runner-dagu-proxy
+UI_PROXY_PORT=8082
 
 STAGE_UNIT=""
 STAGE_INTEGRATION=""
 STAGE_E2E=""
 STAGE_SONAR=""
-SANDBOX=""
-KEEP_INFRA=""
+STAGE_DOCS=1
+KEEP_INFRA="true"
+RESET_E2E_DB="false"
 FOREGROUND=""
-REPORT_DIR="$ROOT/scripts/ci/reports"
+NO_REBUILD=""
+REFRESH_TOOLS="false"
+ARCHUNIT_METRICS="true"
+SYNC_ARTIFACTS_ONLY=""
 PLAYWRIGHT_ARGS="e2e --full --ux"
-KEEP_REPORTS=3
 ANY_STAGE_FLAG=""
+
+# `docker cp`'s "local" side always resolves in the caller's own filesystem -- run from here (the
+# real host), not from inside a DAG step (confirmed directly: a step-side `docker cp` landed the
+# file inside ci-runner's own filesystem, not the host's, even with docker.sock mounted). Copies
+# whatever's present regardless of exit code, so a failed/partial run still surfaces whatever
+# archunit_metrics/pipeline_metrics managed to produce before failing.
+sync_artifacts() {
+  mkdir -p "$ROOT/scripts/build-and-test/reports" "$ROOT/scripts/ci/reports"
+  docker cp "$CONTAINER:/app/scripts/build-and-test/reports/architecture-metrics.json" \
+    "$ROOT/scripts/build-and-test/reports/architecture-metrics.json" 2>/dev/null
+  docker cp "$CONTAINER:/app/scripts/ci/reports/pipeline-metrics.json" \
+    "$ROOT/scripts/ci/reports/pipeline-metrics.json" 2>/dev/null
+}
 
 NEXT=""
 for arg in "$@"; do
   if [ -n "$NEXT" ]; then
     case "$NEXT" in
-      report-dir)       REPORT_DIR="$arg" ;;
-      playwright-args)  PLAYWRIGHT_ARGS="$arg" ;;
-      keep-reports)     KEEP_REPORTS="$arg" ;;
+      playwright-args) PLAYWRIGHT_ARGS="$arg" ;;
     esac
     NEXT=""
     continue
@@ -70,13 +109,16 @@ for arg in "$@"; do
     --integration)      STAGE_INTEGRATION=1; ANY_STAGE_FLAG=1 ;;
     --e2e)               STAGE_E2E=1; ANY_STAGE_FLAG=1 ;;
     --sonar)              STAGE_SONAR=1; ANY_STAGE_FLAG=1 ;;
+    --no-docs)             STAGE_DOCS="" ;;
     --all)                 STAGE_UNIT=1; STAGE_INTEGRATION=1; STAGE_E2E=1; ANY_STAGE_FLAG=1 ;;
-    --sandbox)             SANDBOX=1 ;;
-    --keep-infra)          KEEP_INFRA=1 ;;
+    --no-keep-e2e-infra)   KEEP_INFRA="false" ;;
+    --reset-e2e-db)        RESET_E2E_DB="true" ;;
     --foreground)          FOREGROUND=1 ;;
-    --report-dir)          NEXT=report-dir ;;
+    --no-rebuild)          NO_REBUILD=1 ;;
+    --refresh-tools)       REFRESH_TOOLS="true" ;;
+    --no-archunit-metrics) ARCHUNIT_METRICS="false" ;;
+    --sync-artifacts)      SYNC_ARTIFACTS_ONLY=1 ;;
     --playwright-args)     NEXT=playwright-args ;;
-    --keep-reports)        NEXT=keep-reports ;;
     *)
       echo "Unknown flag: $arg"
       echo "See usage at the top of scripts/ci/run.sh"
@@ -84,6 +126,13 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+if [ -n "$SYNC_ARTIFACTS_ONLY" ]; then
+  sync_artifacts
+  echo "Synced architecture-metrics.json/pipeline-metrics.json from $CONTAINER onto the host" \
+       "(whatever was present -- no-op for either file the container hasn't produced yet)."
+  exit 0
+fi
 
 # No explicit stage flag at all -> default to the most extensive run (mirrors
 # `playwright.sh e2e --full --ux` being the thorough option there).
@@ -94,91 +143,106 @@ if [ -z "$ANY_STAGE_FLAG" ]; then
   STAGE_SONAR=1
 fi
 
-REPORT_ID="$(date +%Y%m%d-%H%M%S)"
-RUN_REPORT_DIR="$REPORT_DIR/$REPORT_ID"
-mkdir -p "$RUN_REPORT_DIR"
-CONTAINER="ci-runner-$REPORT_ID"
+bool() { [ -n "$1" ] && echo true || echo false; }
 
-echo "=== Building ci-runner image ==="
-docker build -f "$ROOT/scripts/ci/Dockerfile" -t "$IMAGE" "$ROOT"
-BUILD_RC=$?
-if [ "$BUILD_RC" -ne 0 ]; then
-  echo "===== FAILED (ci-runner image build, exit $BUILD_RC) ====="
-  exit $BUILD_RC
-fi
-
-docker volume create ci-m2-cache >/dev/null
-
-run_and_collect() {
-  docker run -d --name "$CONTAINER" \
-    --network host \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v ci-m2-cache:/root/.m2 \
-    -e STAGE_UNIT="$STAGE_UNIT" -e STAGE_INTEGRATION="$STAGE_INTEGRATION" \
-    -e STAGE_E2E="$STAGE_E2E" -e STAGE_SONAR="$STAGE_SONAR" \
-    -e SANDBOX="$SANDBOX" -e KEEP_INFRA="$KEEP_INFRA" -e REPORT_ID="$REPORT_ID" \
-    -e PLAYWRIGHT_ARGS="$PLAYWRIGHT_ARGS" \
-    "$IMAGE" >/dev/null
-
-  if [ -n "$FOREGROUND" ]; then
-    docker logs -f "$CONTAINER"
-  else
-    # Poll the whole report tree out every 5s while the container runs -- not just progress.txt,
-    # so a stage's reports (build-and-test/, playwright/, ...) show up on the host as soon as
-    # that stage finishes inside the container, not only after the entire run ends. Bind mounts
-    # don't work from inside this sandbox (same constraint playwright/CLAUDE.md documents), so
-    # `docker cp` is the only way to surface this live.
-    while [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null)" = "true" ]; do
-      docker cp "$CONTAINER:/app/ci-reports/$REPORT_ID/." "$RUN_REPORT_DIR/" 2>/dev/null
-      sleep 5
-    done
+if [ -z "$NO_REBUILD" ]; then
+  echo "=== Building ci-runner image ==="
+  docker build -f "$ROOT/scripts/ci/Dockerfile" -t "$IMAGE" "$ROOT"
+  BUILD_RC=$?
+  if [ "$BUILD_RC" -ne 0 ]; then
+    echo "===== FAILED (ci-runner image build, exit $BUILD_RC) ====="
+    exit $BUILD_RC
   fi
 
-  EXIT_CODE=$(docker wait "$CONTAINER" 2>/dev/null)
-  EXIT_CODE=${EXIT_CODE:-1}
+  docker volume create ci-m2-cache >/dev/null
+  docker volume create ci-dagu-home >/dev/null
+  docker volume create ci-tools-cache >/dev/null
 
-  docker cp "$CONTAINER:/app/ci-reports/$REPORT_ID/." "$RUN_REPORT_DIR/" 2>/dev/null
   docker rm -f "$CONTAINER" >/dev/null 2>&1
 
-  if [ "$KEEP_REPORTS" -gt 0 ] 2>/dev/null; then
-    ls -1dt "$REPORT_DIR"/*/ 2>/dev/null | tail -n +$(( KEEP_REPORTS + 1 )) | xargs -r rm -rf
+  echo ""
+  echo "=== Starting ci-runner (Dagu server) ==="
+  docker run -d --name "$CONTAINER" \
+    --network host \
+    -e FORCE_TOOLS_REFRESH="$REFRESH_TOOLS" \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v ci-m2-cache:/root/.m2 \
+    -v ci-dagu-home:/root/.dagu \
+    -v ci-tools-cache:/root/.ci-tools \
+    "$IMAGE" >/dev/null
+
+  echo "Waiting for Dagu's web UI to come up (first start downloads buildx/compose/dagu into" \
+       "ci-tools-cache if not already cached there -- can take a minute)..."
+  UP=""
+  for _ in $(seq 1 120); do
+    if curl -sf "http://localhost:$DAGU_PORT/" >/dev/null 2>&1; then
+      UP=1
+      break
+    fi
+    sleep 1
+  done
+  if [ -z "$UP" ]; then
+    echo "===== FAILED (Dagu web UI never came up on :$DAGU_PORT -- check: docker logs $CONTAINER) ====="
+    exit 1
   fi
 
-  {
-    echo ""
-    if [ "$EXIT_CODE" -eq 0 ]; then
-      echo "===== PASSED ====="
-    else
-      echo "===== FAILED (exit $EXIT_CODE) ====="
-    fi
-    echo "Reports: $RUN_REPORT_DIR/"
-  } >> "$RUN_REPORT_DIR/progress.txt"
+  # Dagu UI proxy: $CONTAINER runs with --network host (needed so its own shell steps reach
+  # sibling ci-* containers at plain localhost:PORT, same reasoning as DECISIONS.md's DooD design) -- but a
+  # host-network container's bound ports are not forwarded to a real browser the way an explicit
+  # `docker run -p` publish is, confirmed directly by comparing against marketplace-app's own
+  # (bridge + `-p`) port, which is reachable. This tiny socat sidecar republishes $DAGU_PORT via a
+  # normal bridge + `-p` so the same forwarding path that already works for every other container
+  # in this project also carries Dagu's UI. `host.docker.internal` was tried first (the portable,
+  # documented option) but resolved to an address that refused the connection in this sandbox --
+  # confirmed directly, not assumed -- so the default bridge network's own gateway IP (where a
+  # --network host container's bound ports are actually reachable from a bridge-network sibling)
+  # is read directly from Docker instead of hardcoding a guessed address.
+  BRIDGE_GATEWAY="$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}')"
+  docker rm -f "$UI_PROXY_CONTAINER" >/dev/null 2>&1
+  docker run -d --name "$UI_PROXY_CONTAINER" \
+    -p "$UI_PROXY_PORT:$UI_PROXY_PORT" \
+    alpine/socat "TCP-LISTEN:$UI_PROXY_PORT,fork,reuseaddr" "TCP:$BRIDGE_GATEWAY:$DAGU_PORT" >/dev/null
 
-  return "$EXIT_CODE"
-}
+  echo "Dagu web UI is up: http://localhost:$UI_PROXY_PORT"
+fi
+
+DAGU_PARAMS=(
+  "unit=$(bool "$STAGE_UNIT")"
+  "integration=$(bool "$STAGE_INTEGRATION")"
+  "e2e=$(bool "$STAGE_E2E")"
+  "sonar=$(bool "$STAGE_SONAR")"
+  "archunit_metrics=$ARCHUNIT_METRICS"
+  "docs=$(bool "$STAGE_DOCS")"
+  "keep_e2e_infra=$KEEP_INFRA"
+  "reset_e2e_db=$RESET_E2E_DB"
+  "e2e_args=$PLAYWRIGHT_ARGS"
+)
 
 echo ""
-echo "=== Running ci-runner (unit=${STAGE_UNIT:-0} integration=${STAGE_INTEGRATION:-0}" \
-     "e2e=${STAGE_E2E:-0} sonar=${STAGE_SONAR:-0}) ==="
+echo "=== Triggering ci DAG run (${DAGU_PARAMS[*]}) ==="
+
+# A bare DAG name (`dagu start ci`) resolves against $DAGU_HOME/dags, not the --dags directory
+# start-all was launched with -- confirmed directly, not assumed. The file path resolves correctly
+# instead, relative to the image's WORKDIR (/app).
+DAG_FILE=scripts/ci/dagu/ci.yaml
 
 if [ -n "$FOREGROUND" ]; then
-  run_and_collect
+  docker exec "$CONTAINER" dagu start "$DAG_FILE" -- "${DAGU_PARAMS[@]}"
   EXIT_CODE=$?
+  sync_artifacts
   echo ""
   if [ "$EXIT_CODE" -eq 0 ]; then
     echo "===== PASSED ====="
   else
     echo "===== FAILED (exit $EXIT_CODE) ====="
   fi
-  echo "Reports: $RUN_REPORT_DIR/"
+  echo "Full history: http://localhost:$UI_PROXY_PORT"
   exit $EXIT_CODE
 else
-  ( run_and_collect ) </dev/null >"$RUN_REPORT_DIR/run.log" 2>&1 &
-  BGPID=$!
-  disown
-  echo "Running in background (PID $BGPID)."
-  echo "Progress:  $RUN_REPORT_DIR/progress.txt"
-  echo "Full log:  $RUN_REPORT_DIR/run.log"
-  echo "Check anytime: cat $RUN_REPORT_DIR/progress.txt"
-  exit 0
+  docker exec -d "$CONTAINER" dagu start "$DAG_FILE" -- "${DAGU_PARAMS[@]}"
+  echo ""
+  echo "DAG run triggered in the background."
+  echo "Watch live status/logs: http://localhost:$UI_PROXY_PORT"
+  echo "Once it finishes, run 'bash scripts/ci/run.sh --sync-artifacts' to pull" \
+       "architecture-metrics.json/pipeline-metrics.json onto the host."
 fi

@@ -223,6 +223,8 @@ an ADR under other modules too — one extra row per affected module, same ADR, 
 | ADR-006 (scripts/ci) | scripts/ci | Accepted | `e2e`/`sonar` stages now write their own `run.log` — closes a real "failed with no retrievable reason" gap |
 | ADR-007 (scripts/ci) | scripts/ci | Accepted | `teardown_e2e_stack()` now also removes `CI_DB_VOLUME`/`CI_MINIO_VOLUME` |
 | ADR-008 (scripts/ci) | scripts/ci | Accepted | `unit`/`integration` stages merged into one `build_and_test` stage |
+| ADR-009 (scripts/ci) | scripts/ci | Accepted | `progress.txt` polling replaced by a persistent Dagu server; three problems only found by running it for real |
+| ADR-010 (scripts/ci) | scripts/ci | Accepted | CI pipeline metrics + ArchUnit export as DAG steps; three more real bugs; a genuine build-speed fix along the way |
 | ADR-001 (scripts) | scripts | Accepted | All operations via project scripts — no raw commands |
 | ADR-002 (scripts) | scripts | Accepted, with one carved-out exception — see the update note below. | scripts/ folder for all developer scripts |
 | ADR-003 (scripts) | scripts | Accepted — **code has since reverted to the originally-rejected approach** (see correction below); documenting current reality rather than the original design | deploy-and-run.sh startup detection |

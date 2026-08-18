@@ -21,6 +21,12 @@
 #       marketplace-orchestrator) or one test class by name; empty runs all 3 modules.
 #     INTEGRATION_TEST_ARG (default empty) -- narrows RUN_INTEGRATION to one scenario ("smoke") or
 #       one test class by name; empty runs the whole integration-tests module.
+#     SKIP_VAADIN (true/false, default false) -- adds -Dvaadin.skip=true to the reactor install,
+#       skipping the frontend bundle (npm/Vite) for callers that only need compiled classes. Never
+#       set when the resulting jar/target-classes need to be a real, runnable build (the plain
+#       cache-priming build, or anything deploy-and-run.sh/e2e relies on) -- marketplace-app's own
+#       jar/target-classes refresh into the shared volume is skipped whenever this is true, so a
+#       partial build never overwrites what a real one produced.
 #   May be exported directly in the calling shell if needed:
 #     TESTCONTAINERS_RYUK_DISABLED / INTEGRATION_TESTS_POSTGRES_FIXED_PORT -- sandbox-only
 #       Testcontainers workarounds, passed through only if already set.
@@ -51,21 +57,35 @@ ARTIFACT_DIR=/root/.m2/artifacts
 ARTIFACT="$ARTIFACT_DIR/marketplace-app.jar"
 
 # ── Build: always the full reactor, always refreshes the shared artifact ─────
+# SKIP_VAADIN=true adds -Dvaadin.skip=true, skipping vaadin-maven-plugin's build-frontend goal
+# (npm install + Vite bundle, ~3-4 min) for callers that only need compiled Java classes (unit/
+# integration tests, ArchUnit metrics) -- none of them exercise Vaadin UI rendering, so the
+# frontend bundle is pure unneeded cost for them. Never set for the plain "prime the cache" build
+# (no RUN_UNIT/RUN_INTEGRATION/ARCHUNIT_METRICS) or anything deploy-and-run.sh/e2e relies on --
+# those need a real, runnable jar with the frontend actually bundled.
 echo ""
 echo "=== Building (full reactor) ==="
 cd "$ROOT"
 mkdir -p "$ARTIFACT_DIR"
-flock "$MVN_LOCK" -c "./mvnw install -DskipTests"
+MVN_INSTALL_FLAGS="-DskipTests"
+[ "$SKIP_VAADIN" = "true" ] && MVN_INSTALL_FLAGS="$MVN_INSTALL_FLAGS -Dvaadin.skip=true"
+flock "$MVN_LOCK" -c "./mvnw install $MVN_INSTALL_FLAGS"
 
 # ── Also refresh each module's own target/classes into the shared volume, for
 # scripts/sonar/run.sh to mount and read directly (sonar.java.binaries needs a directory of
 # .class files, not a jar) -- excludes integration-tests, which sonar-project.properties never
-# scans (test-only module). ──────────────────────────────────────────────────
+# scans (test-only module). marketplace-app itself is excluded from this refresh (and from the JAR
+# copy below) when SKIP_VAADIN=true -- its target/classes and jar are missing the Vaadin frontend
+# bundle in that case, and both this shared volume path and $ARTIFACT are read by other callers
+# (sonar, deploy-and-run.sh/e2e) that need the real thing, not a partial one. ──────────
 TARGET_CLASSES_DIR=/root/.m2/target-classes
 mkdir -p "$TARGET_CLASSES_DIR"
 for module in query-lib platform-commons audit-spring-boot-starter attachment-spring-boot-starter \
               user-spring-boot-starter advertisement-spring-boot-starter taxon-spring-boot-starter \
               provider-profile-spring-boot-starter marketplace-orchestrator marketplace-app; do
+  if [ "$module" = "marketplace-app" ] && [ "$SKIP_VAADIN" = "true" ]; then
+    continue
+  fi
   if [ -d "$ROOT/$module/target/classes" ]; then
     rm -rf "$TARGET_CLASSES_DIR/$module"
     mkdir -p "$TARGET_CLASSES_DIR/$module"
@@ -73,10 +93,12 @@ for module in query-lib platform-commons audit-spring-boot-starter attachment-sp
   fi
 done
 
-JAR=$(ls "$ROOT/marketplace-app/target/"*.jar 2>/dev/null | grep -v '\.original$' | head -1)
-if [ -n "$JAR" ]; then
-  cp "$JAR" "$ARTIFACT"
-  echo "marketplace-app.jar refreshed in the shared volume."
+if [ "$SKIP_VAADIN" != "true" ]; then
+  JAR=$(ls "$ROOT/marketplace-app/target/"*.jar 2>/dev/null | grep -v '\.original$' | head -1)
+  if [ -n "$JAR" ]; then
+    cp "$JAR" "$ARTIFACT"
+    echo "marketplace-app.jar refreshed in the shared volume."
+  fi
 fi
 echo ""
 echo "=== Build done ==="

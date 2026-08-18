@@ -74,11 +74,12 @@ ends split to improvement-153/154.
 see `completed/BACKLOG-ARCHIVE.md`; also unblocked the `scripts/deploy.sh` → `scripts/deploy-and-run/`
 restructure this issue itself was sequenced after, and spun off `improvement-158` (same reuse
 pattern applied to `scripts/sonar/run.sh`), also shipped the same session.
+**improvement-153 (Dagu-backed local CI visualization, replacing `progress.txt` polling) shipped
+2026-08-18** — see `completed/BACKLOG-ARCHIVE.md`.
 improvement-118 stays blocked (needs a public URL this sandbox doesn't have).
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| Top | 🟡 | 153 | improvement-153 (filed 2026-08-17) — replace `scripts/ci.sh`'s hand-rolled `progress.txt` polling with Dagu, a single-binary no-database DAG engine with a built-in web UI (clickable trigger, live per-stage status/logs, run history). Jenkins/Woodpecker/local `act`/`gitlab-ci-local` all evaluated and rejected as heavier or a translation mismatch with no real payoff. Also carries a prerequisite moved from improvement-152 Part A: verify `bash scripts/ci.sh --unit --foreground` for real. Design only, not started — open questions on persistent-vs-on-demand container, exact DAG shape, and Docker-socket access model |
 | Top | 🟡 | 155 | improvement-155 (filed 2026-08-17, split out of improvement-152 Part E) — repo-wide rollout of the `infra-doc-standards` script-header/README-flow convention. Design shipped, applied for real only to `scripts/sonar/` and `scripts/build-and-test/` so far. Not started: `docs/ai/scripts/`, `scripts/ci/`, root `scripts/*.sh`, `playwright/` (own two-level card-drill-down design, agreed but not implemented), the new `scripts/deploy-and-run/` |
 | Top | 🟡 | 156 | improvement-156 (filed 2026-08-17, split out of improvement-152 Part B) — ArchUnit Track B unblock decision gate. Technical prerequisite fixed and verified: `ArchitectureMetricsExport`'s module-coupling exporter (`--archunit-metrics`, real non-placeholder output). Actual unblock still gated on `improvement-138`'s two conditions (`improvement-135` item 5) — neither met. The larger method-level `spi_map_json()` replacement (real caller/implementor edges, closing improvement-157's data gap) remains fully undesigned |
 | Top | 🟡 | 157 | improvement-157 (filed 2026-08-17, split out of improvement-152 Part C) — SPI Interface Details table redesign: split Callers/Implemented By into two tables, group by Module → Class → Method instead of today's single class-level table. Design only, no code — depends on improvement-156 for real method-level caller/implementor data; open questions on DI-wiring-only-caller display and generic-interface type-argument display |

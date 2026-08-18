@@ -1,7 +1,8 @@
 #!/bin/bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Daily-iteration test loop -- runs scripts/build-and-test.sh --unit --integration
-#   (whole reactor installed once, unit+integration tests against it) in parallel with a
+#   --skip-vaadin (whole reactor installed once, skipping the Vaadin frontend bundle neither test
+#   suite touches, unit+integration tests against it) in parallel with a
 #   deploy-and-run.sh + playwright.sh sequence (deploy-and-run.sh first, so playwright always tests
 #   a freshly-rebuilt marketplace-app container, then playwright.sh once that succeeds). The deploy
 #   call always clears app data first -- by default via `--reset-only-db` (truncate, fast: schema/
@@ -70,7 +71,7 @@ for arg in "$@"; do
   esac
 done
 
-BUILD_AND_TEST_FLAGS=(--unit --integration)
+BUILD_AND_TEST_FLAGS=(--unit --integration --skip-vaadin)
 [ -n "$UNIT_TEST_ARG" ] && BUILD_AND_TEST_FLAGS+=(--unit-test "$UNIT_TEST_ARG")
 [ -n "$INTEGRATION_TEST_ARG" ] && BUILD_AND_TEST_FLAGS+=(--integration-test "$INTEGRATION_TEST_ARG")
 $SANDBOX && BUILD_AND_TEST_FLAGS+=(--sandbox)

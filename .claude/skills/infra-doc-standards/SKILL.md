@@ -282,9 +282,11 @@ per the general "one line or none" rule.
 #   touching the persistent dev stack. Full design rationale: scripts/ci/DECISIONS.md ADR-001.
 # Usage: docker build -f scripts/ci/Dockerfile -t ci-runner .
 # Uses: eclipse-temurin:25-jdk base image.
-# Env: None (build-time only, no ARG/ENV declared).
+# Env: DAGU_VERSION, DAGU_HOME, DAGU_PORT, DAGU_AUTH_MODE (all declared via ENV, not
+#   caller-overridable at build time).
 # Input: repo source (mvnw, pom.xml).
-# Outputs: ci-runner image -- see scripts/ci/entrypoint.sh for the in-container orchestration logic.
+# Outputs: ci-runner image -- see scripts/ci/docker-entrypoint.sh for the in-container
+#   orchestration logic.
 # ────────────────────────────────────────────────────────────────────────────
 FROM eclipse-temurin:25-jdk
 ```

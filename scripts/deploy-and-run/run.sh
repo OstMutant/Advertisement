@@ -32,7 +32,7 @@
 #   (advertisement-minio), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
 #   (5432), MINIO_PORT (9000), MINIO_CONSOLE_PORT (9001), APP_PORT (8081), DB_VOLUME
 #   (advertisement_postgres_data), MINIO_VOLUME (advertisement_minio_data) -- all overridable, used
-#   by scripts/ci/entrypoint.sh for its isolated e2e stack. DB_NAME/DB_USER/DB_PASSWORD/
+#   by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack. DB_NAME/DB_USER/DB_PASSWORD/
 #   S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET/S3_REGION fall back to the repo-root .env, then a
 #   hardcoded default.
 # Input: repo source, .env (DB_*/S3_* fallback defaults -- NOT POSTGRES_IMAGE: this script's own
@@ -52,7 +52,7 @@ LOG=/tmp/deploy.log
 # Load shared credential/port defaults from the repo-root .env (also read natively by
 # scripts/deploy-and-run/docker-compose*.yml and integration-tests' Testcontainers) into ENV_*-prefixed
 # vars -- NOT exported/sourced directly, so an already-exported override (e.g. DB_PORT=15432 from
-# scripts/ci/entrypoint.sh's isolated e2e stack) is never clobbered. Used only as the fallback
+# scripts/ci/dagu/ci.yaml's isolated e2e stack) is never clobbered. Used only as the fallback
 # default below, same precedence every other var here already has.
 if [ -f "$ROOT/.env" ]; then
   while IFS='=' read -r _env_key _env_value; do

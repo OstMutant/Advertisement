@@ -24,7 +24,7 @@ done
 # ── Ensure marketplace-app is running ──────────────────────────────────────
 # All names/ports below are overridable via env vars (default shown), so a second, isolated
 # stack (see scripts/deploy-and-run.sh's own override block) can run this same script concurrently with
-# a normal dev stack — used by scripts/ci/entrypoint.sh.
+# a normal dev stack — used by scripts/ci/dagu/ci.yaml's e2e step.
 APP_URL="${APP_URL:-http://localhost:8081}"
 APP_CONTAINER="${APP_CONTAINER:-marketplace-app}"
 PW_CONTAINER="${PW_CONTAINER:-pw-runner}"

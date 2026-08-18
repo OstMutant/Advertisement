@@ -13,7 +13,7 @@
 #   running at the same time (see scripts/DECISIONS.md).
 # Usage: bash scripts/build.sh [--reset-cache] [--rebuild-image] [--unit|--no-unit]
 #   [--integration|--no-integration] [--unit-test <module-or-class>]
-#   [--integration-test <scenario-or-class>] [--sandbox] [--archunit-metrics]
+#   [--integration-test <scenario-or-class>] [--sandbox] [--archunit-metrics] [--skip-vaadin]
 #   --reset-cache        wipe the shared maven-cache volume before building (re-downloads everything)
 #   --rebuild-image      force-rebuild the build-and-test image even if one already exists
 #   --unit/--no-unit                 override build-and-test.properties' unit= default for this run
@@ -30,6 +30,11 @@
 #                                     ArchitectureMetricsExport (module-level coupling metrics for
 #                                     architecture-map.html --with-archunit); several minutes even
 #                                     on a warm build, run this occasionally, not on every call
+#   --skip-vaadin                    off by default -- skips vaadin-maven-plugin's frontend bundle
+#                                     (npm install + Vite, ~3-4 min) during the reactor install; use
+#                                     for --unit/--integration/--archunit-metrics runs, never for a
+#                                     plain cache-priming build or anything deploy-and-run.sh/e2e
+#                                     relies on (see build.sh's own header for why)
 # Uses: bash, docker, tar.
 # Env: BUILD_CONTAINER_NAME (default advertisement-build-only) -- overridable so two invocations of
 #   this script can run concurrently without a Docker container-name collision (Docker container
@@ -66,6 +71,7 @@ RESET_CACHE=false
 REBUILD_IMAGE=false
 SANDBOX=false
 ARCHUNIT_METRICS=false
+SKIP_VAADIN=false
 UNIT_TEST_ARG=""
 INTEGRATION_TEST_ARG=""
 NEXT=""
@@ -85,6 +91,7 @@ for arg in "$@"; do
     --integration-test) NEXT=integration-test ;;
     --sandbox)          SANDBOX=true ;;
     --archunit-metrics) ARCHUNIT_METRICS=true ;;
+    --skip-vaadin)       SKIP_VAADIN=true ;;
   esac
 done
 
@@ -173,6 +180,7 @@ tar -czf - --exclude='*/target' --exclude='.git' \
       -e RUN_UNIT="$RUN_UNIT" \
       -e RUN_INTEGRATION="$RUN_INTEGRATION" \
       -e ARCHUNIT_METRICS="$ARCHUNIT_METRICS" \
+      -e SKIP_VAADIN="$SKIP_VAADIN" \
       -e UNIT_TEST_ARG="$UNIT_TEST_ARG" \
       -e INTEGRATION_TEST_ARG="$INTEGRATION_TEST_ARG" \
       "${SANDBOX_ENV[@]}" \

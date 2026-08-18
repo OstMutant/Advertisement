@@ -1876,3 +1876,45 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   Verified end to end: real scan uploaded, gate evaluated (3 real issues found), HTML report
   written (2810 bytes). Full detail:
   `completed/issues/improvement-158-sonar-reuses-build-and-test-jar.md`.
+
+- ✅ Done (2026-08-18): improvement-153 — replaced `scripts/ci.sh`'s hand-rolled `progress.txt`
+  polling with Dagu (single-binary DAG engine, built-in web UI). `ci-runner` becomes a persistent
+  container running `dagu start-all`; `scripts/ci/dagu/ci.yaml` defines the same stage sequence
+  as a real DAG (`build` → `unit`/`integration`/`e2e`/`sonar` in parallel → `docs`), each step
+  calling the same existing scripts, no stage logic reimplemented. `scripts/ci/run.sh` rewritten
+  into a thin trigger (build/start the container, fire a DAG run via `docker exec`). Three problems
+  found only by actually running it, none documented in Dagu's own docs: `dagu start <name>`
+  resolves against `$DAGU_HOME/dags`, not the server's `--dags` directory (fixed by triggering via
+  file path); each step runs in an isolated working directory by default (fixed with
+  `working_dir: /app`); a `--network host` container's bound ports aren't reachable from a real
+  browser in this sandbox, unlike an explicit `-p` publish (fixed with a small `alpine/socat` proxy
+  sidecar reading the actual default-bridge gateway IP from Docker, since `host.docker.internal`
+  resolved to an address that refused the connection here). Also fixed, unrelated to Dagu itself:
+  the image's build-time binary installs (buildx/compose/Dagu, ~190MB) re-downloaded on every
+  rebuild whenever an earlier Docker layer's cache missed, often in this sandbox — moved to a
+  `ci-tools-cache` named volume with a download-if-missing check at container start
+  (`scripts/ci/docker-entrypoint.sh`) instead of image build time; `--refresh-tools` forces a
+  re-download. Verified end to end: image build → container start → Dagu web UI reachable from a
+  real external browser → "Start" dialog renders a field per DAG param (confirmed by the user) →
+  `unit` stage genuinely passing (53/53) → persistent dev stack (`marketplace-app`) still healthy
+  throughout.
+
+  **Follow-up, same day:** added a `pipeline_metrics` DAG step (per-step status/duration, feeding
+  `generate-architecture-model.sh --with-ci-metrics`) and an on-demand `archunit_metrics` step
+  (module-coupling export), plus a `--skip-vaadin` flag on `build-and-test.sh`/`build.sh` so
+  test-only stages skip the unneeded ~3-4 min Vaadin frontend bundle (`unit` 209s→124s,
+  `archunit_metrics` 298s→132s, measured). Running the resulting default pipeline end to end
+  surfaced several more real gaps: `archunit_metrics` flipped on by default (its own cost is small
+  next to `e2e`'s); `run-all-tests.sh` was missing the same `--skip-vaadin` its own `ci.yaml`
+  equivalent already had; `scripts/ci/watch-run.py` added as a Monitor-backed replacement for
+  manually polling Dagu's API (two real bugs fixed building it — Python stdout buffering without
+  `python3 -u`, and a silent stall looking identical to a healthy long step without a heartbeat
+  line); `keep_infra` renamed `keep_e2e_infra` with its default flipped to `true` (debugging-
+  friendly by default), which in turn exposed a real, pre-existing gap: `e2e`'s own deploy call
+  passed no DB-reset flag at all, unlike `run-all-tests.sh` — fixed with a new `reset_e2e_db` param
+  (`--reset-only-db` by default, full `--reset` opt-in for schema changes) after a run without it
+  produced a stale-data test failure that a re-run with the reset applied did not reproduce.
+  Verified end to end twice more: a full `ci.sh --reset-e2e-db` run (`e2e` now succeeded) and two
+  direct `deploy-and-run.sh` + `playwright.sh e2e --full --ux` runs (50/50 passed both times,
+  including the specific test that had failed on stale data). Full detail:
+  `completed/issues/improvement-153-dagu-local-ci-visualization.md`.

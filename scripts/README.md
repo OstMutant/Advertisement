@@ -243,7 +243,7 @@ scripts/
                      MinIO, app stack), database reset script
   build-and-test/     — Docker build environment used by build-and-test.sh (JDK 25)
   sonar/           — SonarQube configuration and scanner
-  ci/              — isolated local CI runner (Dockerfile, entrypoint.sh, own README/DECISIONS.md)
+  ci/              — isolated local CI runner (Dockerfile, docker-entrypoint.sh, own README/DECISIONS.md)
   run-all-tests/   — run.sh + reports/ output for run-all-tests.sh
 ```
 
@@ -269,17 +269,19 @@ under `scripts/build-and-test/reports/surefire/`.
 
 ## ci.sh / ci.bat
 
-Isolated local CI runner: builds a dedicated CI-runner container (Docker-outside-of-Docker, own
-`/var/run/docker.sock` mount) and runs unit → integration → e2e → Sonar in one pass, without
-touching the persistent dev stack. Backgrounded by default, with a live `progress.txt`.
+Isolated local CI runner: builds a persistent CI-runner container (Docker-outside-of-Docker, own
+`/var/run/docker.sock` mount) running Dagu, a DAG engine with a built-in web UI, orchestrating
+build → unit/integration/e2e/sonar/archunit_metrics in parallel → pipeline_metrics → docs, without
+touching the persistent dev stack. Triggering a run returns immediately by default; watch it via
+Dagu's own web UI or `scripts/ci/watch-run.py`.
 
 ```bash
-bash scripts/ci.sh                              # default: unit+integration+e2e+sonar, backgrounded
+bash scripts/ci.sh                              # default: unit+integration+e2e+sonar+
+                                                 # archunit_metrics+docs
 bash scripts/ci.sh --unit --integration --e2e   # chosen stages only
-bash scripts/ci.sh --integration --sandbox      # this sandbox's Testcontainers workaround
+bash scripts/ci.sh --no-archunit-metrics        # skip ArchUnit's module-coupling export
 bash scripts/ci.sh --foreground                 # block and stream instead of the background default
 ```
 
-Reports: `scripts/ci/reports/<timestamp>/{build-and-test,playwright,sonar}/`
-(pruned to the last 3 runs by default — see `--keep-reports`). Full detail: `scripts/ci/README.md`
+Live status, logs, and run history: `http://localhost:8082`. Full detail: `scripts/ci/README.md`
 and `scripts/ci/DECISIONS.md`.

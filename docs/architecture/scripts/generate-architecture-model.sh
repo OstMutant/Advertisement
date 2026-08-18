@@ -26,16 +26,19 @@ ADR_INDEX="$REPO_ROOT/docs/ai/adr-index.md"
 FLOWS="$REPO_ROOT/docs/ai/flows.md"
 ROOT_CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
 
-# Opt-in Sonar/ArchUnit/ADR-details fetch -- all off by default so a plain run never triggers a
-# SonarQube rescan, depends on build-and-test.sh --archunit-metrics having run recently, or bakes
-# every module's full ADR text into the output. See docs/architecture/scripts/DECISIONS.md.
+# Opt-in Sonar/ArchUnit/CI-metrics/ADR-details fetch -- all off by default so a plain run never
+# triggers a SonarQube rescan, depends on build-and-test.sh --archunit-metrics having run
+# recently, depends on a Dagu CI run having run recently, or bakes every module's full ADR text
+# into the output. See docs/architecture/scripts/DECISIONS.md.
 WITH_SONAR=""
 WITH_ARCHUNIT=""
+WITH_CI_METRICS=""
 WITH_ADR_DETAILS=""
 for arg in "$@"; do
   case "$arg" in
     --with-sonar) WITH_SONAR=1 ;;
     --with-archunit) WITH_ARCHUNIT=1 ;;
+    --with-ci-metrics) WITH_CI_METRICS=1 ;;
     --with-adr-details) WITH_ADR_DETAILS=1 ;;
   esac
 done
@@ -939,6 +942,21 @@ archunit_metrics_json() {
   fi
 }
 
+# ── CI pipeline run metrics: each step's status/duration from the last `bash scripts/ci.sh` run,
+# written by the `pipeline_metrics` step in scripts/ci/dagu/ci.yaml (queries Dagu's own API for
+# its own just-finished run, `docker cp`s the result onto the host). Read here if present; null if
+# no Dagu-backed CI run has ever finished -- same passive, no-auto-trigger shape as
+# archunit_metrics_json() above, and this generator never talks to Dagu directly either way.
+CI_PIPELINE_METRICS_FILE="$REPO_ROOT/scripts/ci/reports/pipeline-metrics.json"
+
+ci_pipeline_metrics_json() {
+  if [ -f "$CI_PIPELINE_METRICS_FILE" ]; then
+    cat "$CI_PIPELINE_METRICS_FILE"
+  else
+    echo "null"
+  fi
+}
+
 # ── Live coupling checks: re-runs real grep commands, each producing a PASS/FAIL with the real
 # evidence, not hand-typed "checkmark" text.
 coupling_checks_json() {
@@ -1468,6 +1486,8 @@ sonar_json="null"
 [ -n "$WITH_SONAR" ] && sonar_json="$(sonar_metrics_json)"
 archunit_json="null"
 [ -n "$WITH_ARCHUNIT" ] && archunit_json="$(archunit_metrics_json)"
+ci_metrics_json="null"
+[ -n "$WITH_CI_METRICS" ] && ci_metrics_json="$(ci_pipeline_metrics_json)"
 
 {
   echo "{"
@@ -1487,6 +1507,7 @@ archunit_json="null"
   echo "  \"boundedContexts\": $(bounded_contexts_json),"
   echo "  \"sonarMetrics\": $sonar_json,"
   echo "  \"archUnitMetrics\": $archunit_json,"
+  echo "  \"ciPipelineMetrics\": $ci_metrics_json,"
   echo "  \"couplingChecks\": $(coupling_checks_json),"
   echo "  \"largestJavaFiles\": $(largest_java_files_json),"
   echo "  \"constructorInjection\": $(constructor_injection_json),"
@@ -2469,6 +2490,22 @@ function renderScriptGroupSection(n) {
     if (n.description) html += `<div class="screen-desc">${esc(n.description)}</div>`;
     if (chipFiles.length) {
       html += `<div class="table-chip-row">` + chipFiles.map(f => sourceLink(`${n.id}/${f}`)).join(" ") + `</div>`;
+    }
+    html += `</section>`;
+  }
+  // Last Dagu-backed CI run's per-step status/duration (scripts/ci only) -- opt-in
+  // (--with-ci-metrics), passively read from whatever scripts/ci/reports/pipeline-metrics.json
+  // already contains; no live query against Dagu itself, same reasoning as Sonar/ArchUnit above.
+  if (n.id === "scripts/ci") {
+    const ci = MODEL.ciPipelineMetrics;
+    html += `<section class="block"><h3>Last CI run</h3>`;
+    if (!ci) {
+      html += `<div class="empty-hint">No data -- regenerate with <code>--with-ci-metrics</code> (requires <code>bash scripts/ci.sh</code> to have completed at least once).</div>`;
+    } else {
+      html += `<div class="empty-hint">Source: Dagu run <code>${esc(ci.dagRunId || "unknown")}</code>, finished ${esc(ci.generatedAt || "unknown")}.</div>
+        <table class="simple"><thead><tr><th>Step</th><th>Status</th><th>Duration</th></tr></thead><tbody>` +
+        (ci.steps || []).map(s => `<tr><td>${esc(s.name || "?")}</td><td>${esc(s.status || "?")}</td><td>${s.durationSeconds != null ? esc(s.durationSeconds.toFixed(0) + "s") : "-"}</td></tr>`).join("") +
+        `</tbody></table>`;
     }
     html += `</section>`;
   }

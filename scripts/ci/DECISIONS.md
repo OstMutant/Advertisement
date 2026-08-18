@@ -352,3 +352,225 @@ with `--unit`/`--no-unit` and `--integration`/`--no-integration` set accordingly
   `scripts/integration-tests.sh`/`.bat` — this was the last real code dependency on either script
   outside `run-all-tests.sh` (already migrated). **Done:** both scripts and the `scripts/unit-tests/`
   directory have since been deleted entirely.
+
+---
+
+## ADR-009: `progress.txt` polling replaced by a persistent Dagu server; three problems only found by running it for real
+
+**Status:** Accepted
+
+**Context:** ADR-002's `docker cp`-polled `progress.txt` gives no live per-stage view, no clickable
+trigger, and no run history beyond one text file per run. Dagu (https://github.com/dagucloud/dagu)
+is a single-binary DAG engine with a built-in web UI — clickable "Start", live per-stage status/
+logs, run history — evaluated against Jenkins/Woodpecker/`act`/`gitlab-ci-local` and chosen as
+materially lighter (no persistent server+DB+agent architecture to operate) and closer-fitting to
+this project's existing container model.
+
+**Decision:** `ci-runner` stops being a one-shot "build image, run once, exit" container (ADR-002's
+shape) and becomes persistent, with Dagu's own web server (`dagu start-all`) as its long-running
+process — `scripts/ci/run.sh` (re)builds the image and (re)starts the container fresh (same
+"always fresh" discipline `deploy-and-run.sh` already applies), then fires a DAG run inside it via
+`docker exec`, instead of waiting on the whole container to exit. `scripts/ci/entrypoint.sh` (the
+in-container orchestrator `progress.txt` polling depended on) is deleted; `scripts/ci/dagu/ci.yaml`
+defines the same stage sequence as a real DAG (`build` → `unit`/`integration`/`e2e`/`sonar` in
+parallel → `docs`), each step calling the exact same existing scripts
+(`build-and-test.sh`/`deploy-and-run.sh`+`playwright/run.sh`/`sonar.sh`) `entrypoint.sh` used to —
+Dagu replaces only the orchestration/UI layer, none of the actual build/test logic.
+
+**Why `ci-runner` rebuilds (`COPY . .`) instead of a live bind mount of the source tree:** a host-path
+bind mount doesn't work reliably when the caller invoking `docker run` is itself running inside a
+container (this project's claude-dev sandbox) — the same root cause `scripts/build-and-test/run.sh`'s
+own comment already documents (confirmed directly there: an earlier `-v` attempt left the mount
+empty). `ci-runner` follows the same already-established pattern for the identical reason, not a
+separate decision: `bash scripts/ci.sh` (re-)builds the image to pick up source changes; the
+container never sees a live-edited file without that rebuild — including changes made *after*
+`ci-runner` is already running and its Dagu web UI's own "Start" button is used directly (that
+button only re-triggers a run against whatever code the image was last built from, it never
+rebuilds).
+
+**Three problems only surfaced by actually running it, not by reading Dagu's docs:**
+1. **`dagu start <name>` resolves against `$DAGU_HOME/dags`, not the `--dags` directory the server
+   was started with.** `dagu start-all --dags scripts/ci/dagu` makes the web UI/scheduler watch
+   that directory, but a *separate* `dagu start ci` CLI invocation (used to trigger a run) looks
+   for a DAG named `ci` under `$DAGU_HOME/dags` instead — confirmed directly (`Error: failed to
+   load DAG from ci: ... no such file or directory`). Fixed by triggering via the DAG's file path
+   (`dagu start scripts/ci/dagu/ci.yaml -- ...`) instead of its bare name.
+2. **Each step runs in an isolated `DAG_RUN_WORK_DIR` by default, not the process's own cwd.**
+   `bash scripts/build-and-test.sh` inside a step failed with `No such file or directory` even
+   though the server itself was launched from `/app` (the image's `WORKDIR`) — Dagu's own docs
+   confirm relative paths are resolved from a per-run working directory it manages, not inherited
+   from the launching process. Fixed with `working_dir: /app` at the DAG's top level.
+3. **A `--network host` container's bound ports are not reachable from a real browser in this
+   sandbox, unlike an explicit `docker run -p` publish.** `ci-runner` needs `--network host` so its
+   own DAG steps can reach sibling `ci-*` containers at plain `localhost:PORT` (ADR-001's original
+   reasoning) — but Dagu's web UI, now a first-class requirement this container never had before,
+   turned out unreachable from an actual browser even though `curl` from inside the sandbox itself
+   reached it fine. Confirmed by comparison: `marketplace-app`, published the ordinary way
+   (bridge network + `-p 8081:8080`), *is* browser-reachable. Fixed with a small `alpine/socat`
+   sidecar (`ci-runner-dagu-proxy`) on the default bridge network, published via a normal `-p`,
+   forwarding to Dagu's real host-network-bound port. `host.docker.internal` (the documented,
+   portable way to reach the host from a bridge container) was tried first but resolved to an
+   address that refused the connection in this specific sandbox — confirmed directly, not assumed
+   — so the sidecar instead reads the default bridge network's actual gateway IP from Docker itself
+   (`docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}'`) rather than
+   hardcoding a guessed address, keeping the fix portable across environments where the gateway IP
+   differs.
+
+**A fourth problem, found afterward, not Dagu-specific:** the ci-runner image's own build-time
+`RUN` steps for installing the buildx/compose CLI plugins and the Dagu binary (~190MB total)
+re-executed on every rebuild whenever an earlier Docker layer's cache didn't hit — which happened
+often in this sandbox, for reasons independent of Dagu (repeated `apt-get`-layer cache misses were
+observed too, not fully root-caused, but a known instance of this sandbox's general
+build-cache-flakiness rather than anything wrong with the Dockerfile itself). Fixed by moving these
+three installs out of the Dockerfile entirely, into `scripts/ci/docker-entrypoint.sh` (the
+container's real `ENTRYPOINT` now) — it downloads each binary only if missing from the
+`ci-tools-cache` named volume (mounted at `/root/.ci-tools`), the same pattern already used for
+`ci-m2-cache`/`ci-dagu-home`. Since this volume survives independently of image rebuilds, a rebuild
+never re-triggers these downloads regardless of what else invalidated the image's layer cache.
+`scripts/ci/run.sh --refresh-tools` forces a re-download of all three regardless of cache state
+(e.g. after bumping `DAGU_VERSION`).
+
+**Consequences:**
+- `scripts/ci/run.sh` no longer produces a `scripts/ci/reports/<timestamp>/` tree at all — Dagu's
+  own run history (backed by the `ci-dagu-home` volume) and web UI replace ADR-002 through ADR-004
+  in full. `--keep-reports`/`--report-dir` are gone; `--refresh-tools` and `--no-rebuild` (trigger
+  a new DAG run against the already-running container instead of rebuilding it) are new.
+- The container name is fixed (`ci-runner`, `ci-runner-dagu-proxy`), not templated per run
+  (ADR-002's `ci-runner-<timestamp>`) — concurrent invocations now queue through Dagu's own
+  scheduler rather than through separate containers; no new isolation problem observed, but not
+  independently stress-tested either.
+- Verified end to end: image build → container start → Dagu web UI reachable from a real browser
+  (not just `curl` inside the sandbox) → DAG trigger → `unit` stage genuinely passing (53/53).
+
+---
+
+## ADR-010: CI pipeline metrics + ArchUnit export as DAG steps; three more real bugs; a genuine
+build-speed fix along the way
+
+**Status:** Accepted
+
+**Context:** Follow-up to ADR-009, same day. Wanted real CI-run data (per-step status/duration)
+and the existing ArchUnit module-coupling export both feeding into
+`docs/architecture/scripts/generate-architecture-model.sh`, matching the existing `--with-sonar`/
+`--with-archunit` opt-in-file pattern, wired as on-demand DAG steps instead of a separate manual
+command.
+
+**Decision:** `scripts/ci/dagu/ci.yaml` gets a new `archunit_metrics` param (default `false`) +
+step, parallel to `unit`/`integration`/`e2e`/`sonar`, and a new `pipeline_metrics` step that runs
+after all five and before `docs`. `scripts/ci/dagu/pipeline-metrics.py` (a real file, not inline
+YAML) queries Dagu's own local API (`GET /api/v1/dag-runs/{name}/{run-id}`, `$DAG_NAME`/
+`$DAG_RUN_ID` auto-injected into every step) for the run's own per-step data.
+`generate-architecture-model.sh` gets `--with-ci-metrics` + `ci_pipeline_metrics_json()` (passive
+file read, same shape as `archunit_metrics_json()` — no live Dagu API call from the generator
+itself), rendered as a "Last CI run" table on the `scripts/ci` Tooling & Pipelines card.
+
+**Three more problems found only by running this, none of them assumption:**
+1. **Embedding multi-line Python inside a YAML `run: |` block scalar is structurally
+   incompatible, not just risky.** YAML block scalars require every line indented at least as much
+   as the block's base; Python top-level statements must have zero indentation — no indentation
+   satisfies both at once. First attempt (`python3 -c '...'` inline) failed immediately:
+   `could not find end character of single-quoted text`. Fixed by moving the parser to a real
+   `.py` file, called as `python3 <path>` — a one-line `run:` entry.
+2. **`docker cp`'s "local" side resolves in the *caller's* filesystem, not the real host — even
+   from a container with `docker.sock` mounted.** The daemon-socket mount gives *control* over the
+   real daemon (start/stop/inspect containers, stream a container's files as a tar archive); the
+   actual local-filesystem write for `docker cp CONTAINER:SRC LOCAL_DEST` is performed by the
+   *client process issuing the command*. A step-side `docker cp` (with an `HOST_REPO_ROOT` env var
+   pointing at the real host path) ran without error and silently did nothing useful — the file
+   landed inside `ci-runner`'s own filesystem regardless of the path string passed, confirmed
+   directly by comparing file timestamps inside vs. outside the container at the identical nominal
+   path. Fixed by moving both `docker cp` calls into `scripts/ci/run.sh` (a real host-side
+   process) as `sync_artifacts()`, run automatically after every `--foreground` DAG trigger and
+   available on demand via `--sync-artifacts` (needed manually after a backgrounded trigger, which
+   has no natural "the run is done" moment to hook into).
+3. **A step whose only `depends:` are `skipped` (not `succeeded`) is itself silently `skipped`,
+   with no error.** `pipeline_metrics` (`depends: [unit, integration, e2e, sonar,
+   archunit_metrics]`) came back `skipped` in a run where 3 of those 5 legitimately skipped via
+   their own `${params.X}` precondition — found only by inspecting the run's real per-step JSON
+   via Dagu's API, not documented as a dependency rule anywhere obvious in Dagu's own docs. Fixed
+   by adding `continue_on: {skipped: true}` alongside each of those five steps' existing
+   `continue_on: {failure: true}` — tells Dagu their own `skipped` outcome should still satisfy a
+   downstream `depends:`. Every ADR-009 verification run happened to also skip `docs` for an
+   unrelated reason (`docs=false` in every test invocation), so this exact failure mode was never
+   actually exercised until this follow-up.
+
+**A genuine build-speed fix, found and fixed the same session (not deferred):** confirmed directly
+that `mvn install` on the full reactor triggers `marketplace-app`'s Vaadin `build-frontend` goal
+(npm install + Vite bundle, ~3-4 min) regardless of which stage is running — `unit`, `integration`,
+and `archunit_metrics` all paid this cost even though none of them touch UI code, since each uses
+its own `BUILD_CONTAINER_NAME` (a separate container filesystem, so none of them share the
+previous stage's already-built frontend bundle) and Maven runs the full reactor's lifecycle either
+way. Fixed with a new `SKIP_VAADIN` env var / `--skip-vaadin` flag
+(`scripts/build-and-test/build.sh`/`run.sh`) adding `-Dvaadin.skip=true` to the reactor install.
+**Guarded so a vaadin-skipped build never overwrites the shared `maven-cache` volume's real
+jar/`target-classes`** — both refreshes are skipped whenever `SKIP_VAADIN=true`, since
+`deploy-and-run.sh`/`e2e` and `scripts/sonar/run.sh` read that same shared volume and need the
+real, fully-bundled build, and all of `build`/`unit`/`integration`/`e2e`/`sonar`/`archunit_metrics`
+write into the *same* shared volume regardless of `BUILD_CONTAINER_NAME` (only the container name
+differs, not the mounted volume). Applied to `ci.yaml`'s `unit`/`integration`/`archunit_metrics`
+steps only — never `build` (primes the cache `e2e` needs) or `sonar`/`e2e` themselves.
+
+**Consequences:**
+- Verified end to end, real numbers not estimates: `unit` 209s → 124s (-41%), `archunit_metrics`
+  298s → 132s (-56%) on an otherwise-identical warm-cache run. Both
+  `scripts/build-and-test/reports/architecture-metrics.json` and
+  `scripts/ci/reports/pipeline-metrics.json` confirmed fresh on the host with real content;
+  `marketplace-app` confirmed healthy throughout.
+- `scripts/CLAUDE.md`'s Local CI Runner section, `scripts/ci/run.sh`'s own usage comment, and
+  `scripts/build-and-test/run.sh`'s own usage comment all updated with the new flags in the same
+  change.
+
+**Addendum, same day — `sandbox` param removed, `--sandbox` always applied to `integration`:** a
+Dagu-UI-triggered `integration` run failed because the "Start" dialog's `sandbox` checkbox defaults
+unchecked and nothing catches a forgotten one. Since `ci-runner` is itself a Docker-outside-of-Docker
+container regardless of the host it runs on, its `integration` step hits the same
+dynamically-assigned-Testcontainers-port problem `--sandbox` works around on every host, not just
+this specific claude-dev sandbox — there is no real "don't need it" case for this one step. Removed
+`sandbox` from `ci.yaml`'s `params` entirely; the `integration` step now passes `--sandbox`
+unconditionally. `scripts/ci/run.sh`'s own `--sandbox` CLI flag and `SANDBOX` variable removed to
+match — nothing reads it anymore.
+
+**Addendum — `archunit_metrics` on by default.** With `--skip-vaadin`, this step's own measured
+cost (132s warm-cache) is small next to `e2e`'s (~17 min), so keeping it opt-in bought nothing —
+flipped `ci.yaml`'s `archunit_metrics` param default and `scripts/ci/run.sh`'s own
+`ARCHUNIT_METRICS` default to `true`; the CLI flag became the opt-out `--no-archunit-metrics`,
+matching the existing `--no-docs` shape rather than a new positive flag.
+
+**Addendum — `scripts/ci/watch-run.py`, a Monitor-backed replacement for manual API polling.**
+`ci.sh` (backgrounded, the default) returns as soon as a run is triggered — there's no single
+streaming log file the way `deploy.sh`/`playwright.sh` have, so the Monitor+log-tail pattern used
+for those doesn't apply directly. This script polls Dagu's REST API instead and prints one line per
+step-status transition, exiting once the run reaches a terminal state — the shape Monitor expects
+for "one notification per occurrence, until a known end." Two real bugs found running it for real,
+not assumed:
+1. **Python buffers stdout when it isn't a TTY.** A first version produced zero visible output for
+   several minutes of a real run despite the run itself progressing normally — `print()` calls sat
+   in a buffer instead of flushing per line. Fixed by requiring `python3 -u` (documented in the
+   script's own header and every place that invokes it).
+2. **A silent stall (a step hung without any status change) would look identical to a healthy long
+   step, with zero output either way** — unlike a `tail -f`'d log, which at least keeps producing
+   *some* line during normal progress. Added a ~60s heartbeat line listing currently-running steps
+   whenever nothing has transitioned in that window, so the watcher itself staying alive is always
+   visible, even though this script has no notion of any one step's own normal duration and so
+   cannot itself distinguish a genuine hang from a slow-but-fine step.
+
+**Addendum — `keep_infra` renamed `keep_e2e_infra`, default flipped to `true`; new
+`reset_e2e_db` param.** `--keep-infra` didn't say what it kept at a glance (the whole CI runner? the
+persistent dev stack?) — renamed to `keep_e2e_infra`, scoping it to what it actually governs (the
+isolated e2e stack's containers/network/volumes). Default flipped `false` → `true`: leaving the
+stack up after a run (browsable at `localhost:18081`, inspectable via `docker logs`/`exec`) is far
+more useful after a failure than a clean teardown, and the CLI flag became the opt-out
+`--no-keep-e2e-infra`, matching the `--no-docs`/`--no-archunit-metrics` shape.
+
+Flipping the default surfaced a real, pre-existing gap it exposed rather than caused: the `e2e`
+step's own `deploy-and-run.sh` call passed **no reset flag at all**, unlike `run-all-tests.sh`
+(which always applies `--reset-only-db` before Playwright, per `playwright/CLAUDE.md`'s "Always
+deploy with a clean database" rule). With the stack's containers/volumes now persisting by default
+across runs, a stale prior run's leftover data could bleed into the next one — confirmed live: a
+run right after this change failed `05-seed-filter-sort-pagination.spec.js`'s category-filter
+assertion (`expected "of 12", got "1–20 of 69 records"`, i.e. more rows in the grid than that run's
+own 60-ad seed accounts for). Fixed by adding a `reset_e2e_db` param (default `false`): the `e2e`
+step now always passes `--reset-only-db` to its `deploy-and-run.sh` call by default (fast, clears
+leftover data, matches `run-all-tests.sh`'s own precedent), or `--reset` (full volume wipe, full
+Liquibase replay) when `reset_e2e_db=true` — needed only when the DB schema itself changed since
+the stack was last brought up. CLI: `--reset-e2e-db`.

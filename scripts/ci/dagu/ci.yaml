@@ -1,0 +1,165 @@
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: The "ci" DAG -- build (reactor compile+install) -> unit/integration/e2e/sonar/
+#   archunit_metrics in parallel -> pipeline_metrics -> docs. Loaded by Dagu's server
+#   (scripts/ci/docker-entrypoint.sh's `dagu start-all --dags scripts/ci/dagu`) and triggered
+#   either from Dagu's own web UI ("Start" button) or via `dagu start <this-file-path>` (a bare
+#   DAG name resolves against $DAGU_HOME/dags instead -- see DECISIONS.md).
+# Usage: triggered via scripts/ci/run.sh, or the "Start" button on Dagu's web UI -- never edited
+#   to change a single run's behavior, use the params below instead.
+# Uses: bash, mvn (via build-and-test.sh), docker, python3 (pipeline-metrics.py).
+# Env: None read directly by this file -- each step's own `run:` block sets whatever env vars the
+#   script it calls needs.
+# Input: params (unit/integration/e2e/sonar/archunit_metrics/docs -- all boolean, gate the
+#   matching step via preconditions; keep_e2e_infra -- boolean, default true, skip e2e's stack
+#   teardown; reset_e2e_db -- boolean, default false, use a full --reset instead of e2e's default
+#   --reset-only-db before deploying (only needed when the DB schema itself changed); e2e_args --
+#   string, forwarded to playwright/run.sh).
+# Outputs: PASSED/FAILED per step in Dagu's own web UI and run history. With archunit_metrics
+#   enabled, refreshes scripts/build-and-test/reports/architecture-metrics.json.
+#   scripts/ci/reports/pipeline-metrics.json is refreshed unconditionally by the pipeline_metrics
+#   step, which has no precondition of its own -- not gated by the docs param, only by its five
+#   upstream dependencies finishing or skipping. Both files are synced onto the host by
+#   scripts/ci/run.sh, not by this DAG itself -- see DECISIONS.md for why.
+# Returns: N/A -- Dagu tracks each step's own exit status individually, not one process return code.
+# ────────────────────────────────────────────────────────────────────────────
+name: ci
+working_dir: /app
+params:
+  - name: unit
+    type: boolean
+    default: true
+  - name: integration
+    type: boolean
+    default: true
+  - name: reset_e2e_db
+    type: boolean
+    default: false
+  - name: e2e_args
+    type: string
+    default: "e2e --full --ux"
+  - name: e2e
+    type: boolean
+    default: true
+  - name: sonar
+    type: boolean
+    default: true
+  - name: archunit_metrics
+    type: boolean
+    default: true
+  - name: docs
+    type: boolean
+    default: true
+  - name: keep_e2e_infra
+    type: boolean
+    default: true
+
+steps:
+  - id: build
+    run: bash scripts/build-and-test.sh --no-unit --no-integration
+    continue_on:
+      failure: true
+
+  - id: unit
+    depends: build
+    run: BUILD_CONTAINER_NAME=advertisement-build-only-unit bash scripts/build-and-test.sh --unit --no-integration --skip-vaadin
+    continue_on:
+      failure: true
+      skipped: true
+    preconditions:
+      - condition: "${params.unit}"
+        expected: "true"
+
+  # --sandbox is always applied here, not a toggleable param -- ci-runner's own DooD nature
+  # (Testcontainers spinning up a sibling Postgres container from inside an already-containerized
+  # ci-runner) hits the same dynamically-assigned-port unreachability this flag works around
+  # regardless of host machine, so there is no real "don't need it" case for this step. See
+  # DECISIONS.md.
+  - id: integration
+    depends: build
+    run: |
+      BUILD_CONTAINER_NAME=advertisement-build-only-integration \
+        bash scripts/build-and-test.sh --no-unit --integration --skip-vaadin --sandbox
+    continue_on:
+      failure: true
+      skipped: true
+    preconditions:
+      - condition: "${params.integration}"
+        expected: "true"
+
+  - id: e2e
+    depends: build
+    run: |
+      teardown() {
+        [ "${params.keep_e2e_infra}" = "true" ] && return
+        docker rm -f ci-marketplace-app ci-advertisement-db ci-advertisement-minio 2>/dev/null || true
+        docker network rm ci-advertisement 2>/dev/null || true
+        docker volume rm ci_advertisement_postgres_data ci_advertisement_minio_data 2>/dev/null || true
+      }
+      trap teardown EXIT
+      RESET_FLAG="--reset-only-db"
+      [ "${params.reset_e2e_db}" = "true" ] && RESET_FLAG="--reset"
+      NETWORK=ci-advertisement DB_CONTAINER=ci-advertisement-db MINIO_CONTAINER=ci-advertisement-minio \
+        APP_CONTAINER=ci-marketplace-app APP_IMAGE=marketplace-app-ci \
+        DB_PORT=15432 MINIO_PORT=19000 MINIO_CONSOLE_PORT=19001 APP_PORT=18081 \
+        DB_VOLUME=ci_advertisement_postgres_data MINIO_VOLUME=ci_advertisement_minio_data \
+        bash scripts/deploy-and-run.sh "$RESET_FLAG"
+      APP_URL=http://localhost:18081 APP_CONTAINER=ci-marketplace-app \
+        PW_CONTAINER=ci-pw-runner DB_PORT=15432 \
+        bash playwright/run.sh ${params.e2e_args}
+    continue_on:
+      failure: true
+      skipped: true
+    preconditions:
+      - condition: "${params.e2e}"
+        expected: "true"
+
+  - id: sonar
+    depends: build
+    run: bash scripts/sonar.sh
+    continue_on:
+      failure: true
+      skipped: true
+    preconditions:
+      - condition: "${params.sonar}"
+        expected: "true"
+
+  # On by default -- cheap compared to e2e, feeds docs/architecture/scripts/generate-architecture-model.sh
+  # --with-archunit (module coupling metrics).
+  - id: archunit_metrics
+    depends: build
+    run: |
+      BUILD_CONTAINER_NAME=advertisement-build-only-archunit \
+        bash scripts/build-and-test.sh --no-unit --no-integration --archunit-metrics --skip-vaadin
+    continue_on:
+      failure: true
+      skipped: true
+    preconditions:
+      - condition: "${params.archunit_metrics}"
+        expected: "true"
+
+  # Both this step's own output (scripts/ci/reports/pipeline-metrics.json) and
+  # archunit_metrics' output (scripts/build-and-test/reports/architecture-metrics.json) exist only
+  # inside this container's own filesystem at this point -- `docker cp` cannot pull them onto the
+  # real host from *inside* a DAG step (its "local" side resolves inside this container's own
+  # filesystem too, even with docker.sock mounted -- confirmed directly, not assumed). run.sh
+  # copies both out from the real host side after this DAG run finishes instead.
+  - id: pipeline_metrics
+    depends: [unit, integration, e2e, sonar, archunit_metrics]
+    run: |
+      mkdir -p scripts/ci/reports
+      python3 scripts/ci/dagu/pipeline-metrics.py > scripts/ci/reports/pipeline-metrics.json
+    continue_on:
+      failure: true
+
+  - id: docs
+    depends: [pipeline_metrics]
+    run: |
+      bash docs/ai/scripts/check-adr-index-freshness.sh
+      bash docs/ai/scripts/check-flows-completeness.sh
+      bash docs/ai/scripts/check-hardcoded-counts.sh
+      bash docs/architecture/scripts/check-architecture-model-freshness.sh
+    continue_on:
+      failure: true
+    preconditions:
+      - condition: "${params.docs}"
+        expected: "true"

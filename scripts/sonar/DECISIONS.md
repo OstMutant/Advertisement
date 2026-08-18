@@ -75,8 +75,8 @@ anything.
 scanner polls the server for the computed quality gate status after upload and the script exits
 non-zero if it's `ERROR`. `run.sh --no-gate` (forwarded through `scripts/sonar.sh`) restores the
 old informational-only behavior (always exits 0 regardless of the gate result) for a quick manual
-scan without waiting on gate computation. `scripts/ci/entrypoint.sh`'s `sonar` stage takes the
-default (blocking) — the whole point of wiring this stage into `scripts/ci.sh` was for the gate to
+scan without waiting on gate computation. `scripts/ci/dagu/ci.yaml`'s `sonar` step takes the
+default (blocking) — the whole point of wiring this step into `scripts/ci.sh` was for the gate to
 actually fail a CI run, not just produce a report nobody's obligated to look at. Fixed by reading
 `${PIPESTATUS[0]}` instead of `$?`. `set -e` is also active in this script, which would otherwise
 abort mid-script on a gate failure (before the HTML report gets generated — exactly the output

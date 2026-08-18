@@ -223,17 +223,24 @@ with no logic of its own. A script that stays self-contained, with no subdirecto
 carries its full logic directly in the top-level `scripts/<name>.sh` file — no artificial
 subdirectory split for something that doesn't need one.
 
-**Run all scripts with Monitor + tee pattern:**
-1. Launch Monitor (`persistent: true`) watching the log file every 10s — reports stuck/error/success
-2. Run synchronously with `timeout: 600000` piped to `tee /tmp/<script>.log`
-3. User sees full streaming output directly
-
-**Before running Playwright** — kill old processes first:
-1. `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`
-2. Launch Monitor watching `/tmp/playwright.log` (10s interval, catch `failed|Error|passed`)
-3. Then run: `bash scripts/playwright.sh [scenario] 2>&1 | tee /tmp/playwright.log`
-
-**Before running deploy-and-run.sh** — launch Monitor watching `/tmp/deploy.log` (10s interval, catch `ERROR|BUILD SUCCESS|Started Application`), then run: `bash scripts/deploy-and-run.sh [args] 2>&1 | tee /tmp/deploy.log`
+**Run all scripts backgrounded, watched by Monitor — never a bare `tail -f`:**
+1. Start the target command with `run_in_background: true`, output redirected to a real log file,
+   as one Bash call — never nest a second `&` inside that same call to background it a second way;
+   that loses reliable track of which process is actually the live one.
+2. Immediately attach `Monitor` with a command that waits for the log to exist/have content before
+   tailing it: `until [ -s <log> ]; do sleep 0.5; done; tail -f <log>`. A bare `tail -f` on a file
+   that doesn't exist yet fails immediately and stops watching — the underlying process is
+   unaffected, but the live view is lost. The same wait-then-tail wrapper applies when the output
+   lives inside a Docker container (`docker exec <container> sh -c 'until [ -s <path> ]; do sleep
+   0.5; done; tail -f <path>'`) or via `docker logs -f <container>` — same mechanism regardless of
+   where the stream originates.
+3. Stay silent on routine per-event progress (a passing test, a completed build step) — don't add
+   chat commentary to every one; the streamed event itself is the update. Speak up only for a real
+   signal: an error, a stall (no new output far longer than that step normally takes), the final
+   result, or when explicitly asked for the current status — answer with the real current state
+   then, never with continued silence.
+4. Before running Playwright specifically, kill stale processes first:
+   `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`.
 
 ## Issue Lifecycle
 

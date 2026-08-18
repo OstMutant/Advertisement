@@ -95,6 +95,20 @@ Still open, not decided:
   existing `pipelines` screen with a path array) — not designed yet, only the card-per-level UX is
   agreed.
 
+### Skill improvements raised while applying it to `scripts/ci/` (2026-08-18) — not yet actioned
+
+- The skill's own file-type coverage (script/`.bat`/Dockerfile/`.properties`) has no dedicated,
+  strict comment-convention section for YAML files, Python files, or JavaScript files — all three
+  were touched applying the skill to `scripts/ci/` (`ci.yaml`, `pipeline-metrics.py`) without one
+  to follow, improvised ad hoc instead. Needs a real section per file type, not an improvisation
+  each time a new language shows up.
+- A reminder/rule that applying the skill to one directory should stay bounded to that directory,
+  not follow every adjacent stale reference found elsewhere in the repo while working — a real
+  tendency observed this session (fixing unrelated stale references in other files while the skill
+  was scoped to `scripts/ci/`).
+- Organize the skill's file-type sections into a tree-shaped hierarchy — raised in chat, not
+  specified further; revisit what this means concretely when this item is actually picked up.
+
 ## Original problem statement
 
 While fixing `scripts/sonar`'s README/comments, a top-of-file "Usage:" comment got trimmed down to

@@ -158,7 +158,8 @@ docker image prune -f >/dev/null
 
 # ── Build all modules via build-and-test.sh (shared maven-cache volume, no local Java needed) ──
 echo "Building modules via build-and-test.sh..."
-bash "$ROOT/scripts/build-and-test.sh" --no-unit --no-integration
+# Distinct container name -- lets this run concurrently with a parallel Dagu DAG branch.
+BUILD_CONTAINER_NAME="advertisement-build-only-sonar" bash "$ROOT/scripts/build-and-test.sh" --no-unit --no-integration
 
 # ── Copy source files from host; compiled classes come from the mounted maven-cache volume ────
 echo "Copying source files..."
