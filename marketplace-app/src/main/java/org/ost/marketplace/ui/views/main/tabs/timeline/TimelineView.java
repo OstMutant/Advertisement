@@ -8,11 +8,11 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.platform.core.ComponentFactory;
+import org.ost.orchestrator.services.AuditQueryService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineFilterDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
-import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.query.QueryStatusBar;
@@ -30,7 +30,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class TimelineView extends VerticalLayout {
 
-    private final transient ComponentFactory<AuditPort>                    auditPortFactory;
+    private final transient AuditQueryService                               auditQueryService;
     private final transient AccessEvaluator                                access;
     private final QueryStatusBar<AuditTimelineFilterDto>                   queryStatusBar;
     private final transient ComponentFactory<AuditTimelineListRenderer>  rendererFactory;
@@ -79,8 +79,7 @@ public class TimelineView extends VerticalLayout {
     }
 
     private void refresh() {
-        AuditPort auditPort = auditPortFactory.getIfAvailable();
-        if (auditPort == null) {
+        if (!auditQueryService.isAvailable()) {
             feed.removeAll();
             paginationBar.setTotalCount(0);
             return;
@@ -104,10 +103,11 @@ public class TimelineView extends VerticalLayout {
                 : baseFilter.toBuilder().actorIds(Set.of(currentUserId)).build();
 
         try {
-            List<AuditTimelineItemDto<AuditableSnapshot>> items = auditPort.getTimelinePage(
+            List<AuditTimelineItemDto<AuditableSnapshot>> items = auditQueryService.getTimelinePage(
                     filter, queryBlock.getSortProcessor().getOriginalSort().getSort(), page, size);
-            paginationBar.setTotalCount(auditPort.countTimeline(filter));
+            paginationBar.setTotalCount(auditQueryService.countTimeline(filter));
             renderFeed(items);
+        // single-tier by design -- AuditPort's timeline methods carry no @Valid, so ConstraintViolationException can't reach here
         } catch (Exception ex) {
             log.error("Failed to load timeline page", ex);
             feed.removeAll();

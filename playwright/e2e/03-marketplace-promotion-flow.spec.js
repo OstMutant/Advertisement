@@ -1,13 +1,14 @@
 const { test, expect, screenshot, closeNotification, TEST_USERS } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runSwitchToUkrainianLoggedInFlow } = require('./_flows/language-switch.flow');
-const { runNavigateToUsersTabFlow, runPromoteUserFlow, runOpenUserEditViaListFlow, runOpenUserEditViaViewFlow, runFillUserRoleFlow, runSaveUserEditFlow, clearUserFilter, closeUserOverlay, closeUserOverlayFromEdit } = require('./_flows/user-management.flow');
+const { runNavigateToUsersTabFlow, runPromoteUserFlow, runOpenUserEditViaListFlow, runOpenUserEditViaViewFlow, runFillUserRoleFlow, runSaveUserEditFlow, clearUserFilter, closeUserOverlay, closeUserOverlayFromEdit, runVerifyOuterLinkClosesToListFlow } = require('./_flows/user-management.flow');
 const { openTimelineTab, assertFeedHasRow, assertTimelineHasRows } = require('./_flows/timeline.flow');
 const { runSignUpFlow } = require('./_flows/signup.flow');
 const { loginBulk, logoutBulk } = require('./_flows/seed.flow');
 const { runCreateSimpleAdvertisementFlow } = require('./_flows/delete.flow');
 const { cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList } = require('./_flows/advertisement.flow');
 const { selectCategoryInAdForm, assertViewOverlayHasDeletedCategory, assertActivityDiffHasStruckThroughCategory } = require('./_flows/category.flow');
+const { openEntityActivity, closeEntityActivity } = require('./_flows/entity-activity.flow');
 
 // Section 3 helpers — taxon management
 async function openRefDataTab(page) {
@@ -22,6 +23,7 @@ async function waitForTaxonOverlay(page) {
 }
 
 async function closeTaxonOverlay(page) {
+  await closeEntityActivity(page);
   await page.locator('.taxon-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .click();
@@ -54,6 +56,7 @@ async function openTaxonEdit(page, name) {
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:pencil"]') })
     .click();
   await waitForTaxonOverlay(page);
+  await expect(page.locator('.taxon-overlay .overlay__breadcrumb-back')).toHaveCount(1, { timeout: 3000 });
 }
 
 // Section 3 helpers — city management (mirrors taxon helpers above, scoped to the Cities sub-tab)
@@ -68,6 +71,7 @@ async function waitForCityOverlay(page) {
 }
 
 async function closeCityOverlay(page) {
+  await closeEntityActivity(page);
   await page.locator('.city-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .click();
@@ -100,6 +104,7 @@ async function openCityEdit(page, name) {
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:pencil"]') })
     .click();
   await waitForCityOverlay(page);
+  await expect(page.locator('.city-overlay .overlay__breadcrumb-back')).toHaveCount(1, { timeout: 3000 });
 }
 
 const CAT1 = { nameEn: 'Electronics', descEn: 'Electronic devices and accessories',         nameUk: 'Електроніка', descUk: 'Електронні пристрої та аксесуари' };
@@ -123,11 +128,12 @@ test.describe('Promotion flow', () => {
 
   // === Section 1: Role promotion ===
 
-  test('adminEn promotes moderatorUk to MODERATOR — activity shows updated role, role badge in view and grid', async () => {
+  test('adminEn promotes moderatorUk to MODERATOR — activity shows updated role, role badge in view and grid, outer breadcrumb link closes directly to list', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runNavigateToUsersTabFlow(page, expect);
     await runPromoteUserFlow(page, expect, TEST_USERS.moderatorUk, { role: 'MODERATOR' });
+    await runVerifyOuterLinkClosesToListFlow(page, expect, TEST_USERS.moderatorUk.email);
     await openTimelineTab(page);
     await assertFeedHasRow(page, expect, { action: 'updated', entityType: 'user', screenshotName: 'timeline-moderatoruk-promoted' });
     await runLogoutFlow(page, expect);
@@ -190,9 +196,7 @@ test.describe('Promotion flow', () => {
 
     await test.step('cross-actor edit visible in userEn profile activity', async () => {
       await runOpenUserEditViaViewFlow(page, TEST_USERS.userEn.email);
-      await page.locator('.user-overlay vaadin-tab').filter({ hasText: /activity|активність/i }).click();
-      const activityList = page.locator('.user-overlay .entity-activity-list');
-      await activityList.waitFor({ timeout: 5000 });
+      const activityList = await openEntityActivity(page, '.user-history-button');
       const latestRow = activityList.locator('.entity-activity-row').nth(0);
       await expect(latestRow.locator('.entity-activity-action')).toContainText(/updated|оновлено/i);
       await expect(latestRow.locator('.entity-activity-changes')).toContainText(editedName);
@@ -201,11 +205,10 @@ test.describe('Promotion flow', () => {
     });
 
     await test.step('restore reverts name — activity records restore entry', async () => {
-      const activityList = page.locator('.user-overlay .entity-activity-list');
-      await activityList.locator('.entity-activity-restore-btn').first().click();
+      await page.locator('.entity-activity-overlay .entity-activity-list .entity-activity-restore-btn').first().click();
+      await page.locator('.entity-activity-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 8000 });
       await runSaveUserEditFlow(page, expect, 'cross-actor-restore');
-      await page.locator('.user-overlay vaadin-tab').filter({ hasText: /activity|активність/i }).click();
-      await activityList.waitFor({ timeout: 5000 });
+      const activityList = await openEntityActivity(page, '.user-history-button');
       const rowCount = await activityList.locator('.entity-activity-row').count();
       expect(rowCount).toBeGreaterThanOrEqual(2);
       await expect(activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes')).toContainText(originalName);
@@ -304,7 +307,7 @@ test.describe('Promotion flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, all fields in timeline diff, delete and restore recorded in activity, advertisement view and activity diff show struck-through category while deleted, edits Lviv city with activity diff and restore', async () => {
+  test('adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, outer breadcrumb link closes directly to list, all fields in timeline diff, delete and restore recorded in activity, advertisement view and activity diff show struck-through category while deleted, edits Lviv city with activity diff, restore, and outer breadcrumb link', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await openRefDataTab(page);
@@ -336,9 +339,7 @@ test.describe('Promotion flow', () => {
       await closeNotification(page);
       await screenshot(page, 'taxon-04-edit-saved');
 
-      await overlay.locator('vaadin-tab').filter({ hasText: 'Activity' }).click();
-      const activityList = overlay.locator('.entity-activity-list');
-      await activityList.waitFor({ timeout: 5000 });
+      const activityList = await openEntityActivity(page, '.taxon-history-button');
       await expect(activityList.locator('.entity-activity-row')).toHaveCount(2, { timeout: 8000 });
       await expect(activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-action')).toContainText(/updated|оновлено/i);
       await expect(activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-version')).toContainText('v2');
@@ -348,12 +349,13 @@ test.describe('Promotion flow', () => {
 
     await test.step('restore from activity v1 — form reverts to original name, save applies restore', async () => {
       const overlay      = page.locator('.taxon-overlay');
-      const activityList = overlay.locator('.entity-activity-list');
+      const activityList = page.locator('.entity-activity-overlay .entity-activity-list');
       const v1Row        = activityList.locator('.entity-activity-row').nth(1);
       await v1Row.locator('.entity-activity-restore-btn').click();
+      await page.locator('.entity-activity-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 8000 });
       await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
       await closeNotification(page);
-      // form switches back to Edit tab with original name
+      // history overlay closes itself, revealing the edit form with the original name
       await expect(overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input')).toHaveValue(CAT1.nameEn, { timeout: 5000 });
       await screenshot(page, 'taxon-05-restored-form');
       const saveBtn = overlay.locator('vaadin-button').filter({ hasText: 'Save' });
@@ -364,6 +366,19 @@ test.describe('Promotion flow', () => {
       await closeTaxonOverlay(page);
       await expect(page.locator('.taxon-row-name', { hasText: CAT1.nameEn })).toBeVisible({ timeout: 5000 });
       await screenshot(page, 'taxon-05-restored-in-list');
+    });
+
+    await test.step('outer breadcrumb link in nested history closes directly to list, even after View→Edit', async () => {
+      await page.locator('.taxon-row-name', { hasText: CAT1.nameEn }).click();
+      await waitForTaxonOverlay(page);
+      await page.locator('.taxon-overlay vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
+      await page.locator('.taxon-overlay .taxon-locale-content').nth(0).locator('vaadin-text-field input').waitFor({ timeout: 5000 });
+      await expect(page.locator('.taxon-overlay .overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
+      await openEntityActivity(page, '.taxon-history-button');
+      await closeEntityActivity(page, 'outer');
+      await expect(page.locator('.base-overlay.overlay--visible')).toHaveCount(0, { timeout: 5000 });
+      await expect(page.locator('.taxon-management-view')).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'taxon-05b-outer-link-to-list');
     });
 
     await test.step('timeline — taxon created and updated entries visible, single-field edit shows all 4 fields in diff', async () => {
@@ -396,15 +411,14 @@ test.describe('Promotion flow', () => {
       await closeNotification(page);
       await screenshot(page, 'city-02-edit-saved');
 
-      await overlay.locator('vaadin-tab').filter({ hasText: 'Activity' }).click();
-      const activityList = overlay.locator('.entity-activity-list');
-      await activityList.waitFor({ timeout: 5000 });
+      const activityList = await openEntityActivity(page, '.city-history-button');
       await expect(activityList.locator('.entity-activity-row')).toHaveCount(2, { timeout: 8000 });
       await expect(activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-version')).toContainText('v2');
       await screenshot(page, 'city-02-activity-two-rows');
 
       const v1Row = activityList.locator('.entity-activity-row').nth(1);
       await v1Row.locator('.entity-activity-restore-btn').click();
+      await page.locator('.entity-activity-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 8000 });
       await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
       await closeNotification(page);
       await expect(overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input')).toHaveValue(CITY1.nameEn, { timeout: 5000 });
@@ -414,6 +428,19 @@ test.describe('Promotion flow', () => {
       await closeCityOverlay(page);
       await expect(page.locator('.city-management-view .taxon-row-name', { hasText: CITY1.nameEn })).toBeVisible({ timeout: 5000 });
       await screenshot(page, 'city-02-restored-in-list');
+    });
+
+    await test.step('outer breadcrumb link in nested history closes directly to list, even after View→Edit', async () => {
+      await page.locator('.city-management-view .taxon-row-name', { hasText: CITY1.nameEn }).click();
+      await waitForCityOverlay(page);
+      await page.locator('.city-overlay vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
+      await page.locator('.city-overlay .taxon-locale-content').nth(0).locator('vaadin-text-field input').waitFor({ timeout: 5000 });
+      await expect(page.locator('.city-overlay .overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
+      await openEntityActivity(page, '.city-history-button');
+      await closeEntityActivity(page, 'outer');
+      await expect(page.locator('.base-overlay.overlay--visible')).toHaveCount(0, { timeout: 5000 });
+      await expect(page.locator('.city-management-view')).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'city-02b-outer-link-to-list');
     });
 
     const STRIKETHROUGH_AD_TITLE = 'Electronics Strikethrough Test Ad';
@@ -476,12 +503,9 @@ test.describe('Promotion flow', () => {
       await expect(page.locator('.taxon-row-name', { hasText: CAT1.nameEn })).toBeVisible({ timeout: 5000 });
       await screenshot(page, 'taxon-07-electronics-restored');
 
-      // Open edit overlay → Activity tab → verify deleted and restored events are present
+      // Open edit overlay → history overlay → verify deleted and restored events are present
       await openTaxonEdit(page, CAT1.nameEn);
-      const overlay = page.locator('.taxon-overlay');
-      await overlay.locator('vaadin-tab').filter({ hasText: 'Activity' }).click();
-      const activityList = overlay.locator('.entity-activity-list');
-      await activityList.waitFor({ timeout: 5000 });
+      const activityList = await openEntityActivity(page, '.taxon-history-button');
       await expect(
         activityList.locator('.entity-activity-row')
           .filter({ has: page.locator('.entity-activity-action--deleted') })
@@ -539,9 +563,7 @@ test.describe('Max-boundary users and categories', () => {
     const nameInput = page.locator('.user-overlay vaadin-text-field input').first();
     await expect(nameInput).toHaveValue(MAX_NAME_100, { timeout: 5000 });
     await screenshot(page, 'max-01-en-user-name-100');
-    await page.locator('.user-overlay vaadin-tab').filter({ hasText: /activity|активність/i }).click();
-    const activityList = page.locator('.user-overlay .entity-activity-list');
-    await activityList.waitFor({ timeout: 5000 });
+    const activityList = await openEntityActivity(page, '.user-history-button');
     await expect(activityList.locator('.entity-activity-action--created').first()).toBeVisible({ timeout: 5000 });
     await screenshot(page, 'max-02-en-user-activity-created');
     await closeUserOverlay(page);
@@ -557,9 +579,7 @@ test.describe('Max-boundary users and categories', () => {
     const nameInput = page.locator('.user-overlay vaadin-text-field input').first();
     await expect(nameInput).toHaveValue(MAX_NAME_100, { timeout: 5000 });
     await screenshot(page, 'max-03-uk-user-name-100');
-    await page.locator('.user-overlay vaadin-tab').filter({ hasText: /activity|активність/i }).click();
-    const activityList = page.locator('.user-overlay .entity-activity-list');
-    await activityList.waitFor({ timeout: 5000 });
+    const activityList = await openEntityActivity(page, '.user-history-button');
     await expect(activityList.locator('.entity-activity-action--created').first()).toBeVisible({ timeout: 5000 });
     await screenshot(page, 'max-04-uk-user-activity-created');
     await closeUserOverlay(page);

@@ -1,6 +1,8 @@
 # marketplace-app
 
-The main Vaadin application — all UI lives here. Depends on all starters via Spring Boot autoconfiguration.
+The main Vaadin application — all UI lives here. Depends only on `platform-commons` and
+`marketplace-orchestrator` — never directly on a domain starter; `marketplace-orchestrator` is the
+one module that pulls in every starter and composes cross-domain use cases.
 
 ## Responsibilities
 
@@ -21,8 +23,8 @@ The main Vaadin application — all UI lives here. Depends on all starters via S
 | `config/` | Spring configuration (DB auditing, UI factories) |
 | `services/i18n/` | `I18nKey`, `I18nService`, `LocaleProvider`, `InstantFormatter` |
 | `services/auth/` | `AuthContextService` — current-user access |
-| `services/security/` | `AccessEvaluator` only (`RoleChecker`/`OwnershipChecker` are owned by user-spring-boot-starter — see above) |
-| `ui/views/components/audit/` | Activity/Timeline row renderers (`AuditActivityListRenderer`, `AuditTimelineRowRenderer`, etc.) — the read-side SQL itself lives in `audit-spring-boot-starter`'s `AuditReadService`, not a marketplace-app `repository/activity/` package (that package does not exist; corrected 2026-07-13) |
+| `services/security/` | `AccessEvaluator` only — see "Responsibilities" above for where role/ownership checks actually live |
+| `ui/views/components/audit/` | Activity/Timeline row renderers (`AuditActivityListRenderer`, `AuditTimelineRowRenderer`, etc.) — the read-side SQL itself lives in `audit-spring-boot-starter`'s `AuditReadService`; there is no marketplace-app `repository/activity/` package |
 | `ui/views/main/tabs/timeline/` | Dedicated top-level Timeline tab (`TimelineView`) |
 | `ui/core/` | `Configurable<T,P>`, `Initialization<T>`, `UiComponentFactory<T>` |
 | `ui/views/components/` | Reusable panels, overlays, audit/attachment UI |
@@ -33,6 +35,7 @@ Prototype beans use `Configurable<T, Parameters>` + `UiComponentFactory`. See [C
 
 ## Dependencies
 
-- All starters (`audit`, `attachment`, `user`, `advertisement`, `taxon`) via autoconfiguration
+- `marketplace-orchestrator` — the application/BFF layer; pulls in every domain starter and
+  composes cross-domain use cases, so marketplace-app never depends on a starter directly
 - `platform-commons` — SPI contracts and DTOs
 - Vaadin 25, Spring Boot 4, Spring Security

@@ -1,27 +1,27 @@
 package org.ost.marketplace.services.security;
 
 import lombok.RequiredArgsConstructor;
+import org.ost.orchestrator.services.AuthorizationService;
+import org.ost.orchestrator.services.CurrentUserService;
 import org.ost.platform.user.dto.UserDto;
-import org.ost.platform.user.security.UserIdMarker;
-import org.ost.platform.user.spi.UserPort;
-import org.ost.marketplace.services.auth.AuthContextService;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.function.Predicate;
 
 @Component
 @RequiredArgsConstructor
 public class AccessEvaluator {
 
-    private final UserPort           userPort;
-    private final AuthContextService authContextService;
+    private final AuthorizationService authorizationService;
+    private final CurrentUserService   currentUserService;
 
     public boolean isLoggedIn() {
-        return authContextService.getCurrentUser().isPresent();
+        return currentUserService.getCurrentUser().isPresent();
     }
 
     public boolean isPrivileged() {
-        return currentUser().map(u -> userPort.isAdmin(u) || userPort.isModerator(u)).orElse(false);
+        return currentUser().map(u -> authorizationService.isAdmin(u) || authorizationService.isModerator(u)).orElse(false);
     }
 
     public Long getCurrentUserId() {
@@ -30,20 +30,6 @@ public class AccessEvaluator {
 
     public boolean canView() {
         return isPrivileged();
-    }
-
-    public boolean canNotEdit(UserIdMarker target) {
-        return !canOperate(target);
-    }
-
-    public boolean canNotDelete(UserIdMarker target) {
-        return !canOperate(target);
-    }
-
-    public boolean canOperate(UserIdMarker target) {
-        return currentUser()
-                .map(u -> userPort.isAdmin(u) || userPort.isModerator(u) || userPort.isOwner(u, target))
-                .orElse(false);
     }
 
     public boolean canNotEdit(Long ownerUserId) {
@@ -55,12 +41,16 @@ public class AccessEvaluator {
     }
 
     public boolean canOperate(Long ownerUserId) {
+        return canOperate(u -> authorizationService.isOwner(u, ownerUserId));
+    }
+
+    private boolean canOperate(Predicate<UserDto> isOwner) {
         return currentUser()
-                .map(u -> userPort.isAdmin(u) || userPort.isModerator(u) || userPort.isOwner(u, ownerUserId))
+                .map(u -> authorizationService.isAdmin(u) || authorizationService.isModerator(u) || isOwner.test(u))
                 .orElse(false);
     }
 
     private Optional<UserDto> currentUser() {
-        return authContextService.getCurrentUser();
+        return currentUserService.getCurrentUser();
     }
 }

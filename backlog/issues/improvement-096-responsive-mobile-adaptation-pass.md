@@ -3,7 +3,7 @@
 **Type:** improvement — UX foundation gap. Found via UX review over the 2026-07-19 e2e screenshot
 set + theme CSS audit.
 **Module:** `marketplace-app` (theme CSS, view layouts), `playwright` (mobile viewport coverage)
-**Priority:** high (UX) — a marketplace's buyer traffic is predominantly mobile; the app currently
+**Priority:** 🟡 high (UX) — a marketplace's buyer traffic is predominantly mobile; the app currently
 has no meaningful adaptation below desktop widths
 **When:** its own multi-phase program (like improvement-025) — too large to ride in another batch;
 schedule before any public launch

@@ -4,7 +4,7 @@
 a currently-observed failure — a preventive measure, not a bug fix.
 **Module:** `playwright/` (test conventions), `marketplace-app` (`QuillEditor`, `AttachmentGallery`
 and any other custom Vaadin web components with async JS initialization).
-**Priority:** low — no flaky failure from this specific cause has actually been observed/reported in
+**Priority:** ⚪ low — no flaky failure from this specific cause has actually been observed/reported in
 this suite yet; filed to track the risk and the fix shape before one shows up, not to chase a
 current symptom.
 **When:** independent, no blockers.

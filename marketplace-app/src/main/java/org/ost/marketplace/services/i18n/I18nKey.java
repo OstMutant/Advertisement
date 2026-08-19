@@ -3,6 +3,7 @@ package org.ost.marketplace.services.i18n;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.model.ActionType;
+import org.ost.platform.core.model.EntityType;
 
 @RequiredArgsConstructor
 public enum I18nKey {
@@ -120,6 +121,7 @@ public enum I18nKey {
     ADVERTISEMENT_VIEW_NOTIFICATION_DELETED("advertisement.view.notification.deleted"),
     ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR("advertisement.view.notification.delete.error"),
     ADVERTISEMENT_VIEW_NOTIFICATION_REFRESH_ERROR("advertisement.view.notification.refresh.error"),
+    ADVERTISEMENT_VIEW_NOTIFICATION_VALIDATION_FAILED("advertisement.view.notification.validation.failed"),
     ADVERTISEMENT_VIEW_TOOLTIP_REFRESH_AVAILABLE("advertisement.view.tooltip.refresh.available"),
 
     // === User Filter ===
@@ -211,6 +213,7 @@ public enum I18nKey {
     AUDIT_VALUE_TRUNCATED("audit.value.truncated"),
     AUDIT_CHANGES_SHOW_MORE("audit.changes.show.more"),
     AUDIT_CHANGES_SHOW_LESS("audit.changes.show.less"),
+    AUDIT_CHANGES_NO_MEDIA("audit.changes.no.media"),
 
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
@@ -224,6 +227,13 @@ public enum I18nKey {
     MAIN_TAB_USERS("main.tab.users"),
     MAIN_TAB_TIMELINE("main.tab.timeline"),
     MAIN_TAB_REFERENCE_DATA("main.tab.referenceData"),
+
+    // === Entity Type ===
+    ENTITY_TYPE_ADVERTISEMENT("entityType.advertisement"),
+    ENTITY_TYPE_USER("entityType.user"),
+    ENTITY_TYPE_USER_SETTINGS("entityType.userSettings"),
+    ENTITY_TYPE_TAXON("entityType.taxon"),
+    ENTITY_TYPE_PROVIDER_PROFILE("entityType.providerProfile"),
 
     // === Timeline Filter ===
     TIMELINE_FILTER_ENTITY_TYPE("timeline.filter.entityType"),
@@ -272,6 +282,9 @@ public enum I18nKey {
     OVERLAY_UNSAVED_CONFIRM("overlay.unsaved.confirm"),
     OVERLAY_UNSAVED_CANCEL("overlay.unsaved.cancel"),
 
+    // === Overlay Breadcrumb ===
+    OVERLAY_BREADCRUMB_VIEW("overlay.breadcrumb.view"),
+
     // === Form Restore ===
     FORM_RESTORE_BANNER("form.restore.banner"),
     FORM_DISCARD_CHANGES("form.discard.changes"),
@@ -286,11 +299,11 @@ public enum I18nKey {
     SETTINGS_PAGE_SIZE_RANGE("settings.page.size.range"),
 
     // === Activity ===
-    USER_ACTIVITY_TAB("user.activity.tab"),
-    SETTINGS_ACTIVITY_TAB("settings.activity.tab"),
+    USER_ACTIVITY_BUTTON("user.activity.button"),
+    SETTINGS_ACTIVITY_BUTTON("settings.activity.button"),
 
     // === Advertisement History ===
-    ADVERTISEMENT_ACTIVITY_TAB("advertisement.activity.tab"),
+    ADVERTISEMENT_ACTIVITY_BUTTON("advertisement.activity.button"),
 
     // === Change field labels ===
     CHANGES_FIELD_TITLE("changes.field.title"),
@@ -318,8 +331,7 @@ public enum I18nKey {
     // === Taxon Overlay ===
     TAXON_OVERLAY_TITLE_NEW("taxon.overlay.title.new"),
     TAXON_OVERLAY_TITLE_EDIT("taxon.overlay.title.edit"),
-    TAXON_OVERLAY_TAB_EDIT("taxon.overlay.tab.edit"),
-    TAXON_OVERLAY_TAB_ACTIVITY("taxon.overlay.tab.activity"),
+    TAXON_ACTIVITY_BUTTON("taxon.activity.button"),
     TAXON_OVERLAY_LOCALE_TAB_EN("taxon.overlay.locale.tab.en"),
     TAXON_OVERLAY_LOCALE_TAB_UK("taxon.overlay.locale.tab.uk"),
     TAXON_OVERLAY_FIELD_NAME("taxon.overlay.field.name"),
@@ -356,8 +368,7 @@ public enum I18nKey {
     // === City Overlay ===
     CITY_OVERLAY_TITLE_NEW("city.overlay.title.new"),
     CITY_OVERLAY_TITLE_EDIT("city.overlay.title.edit"),
-    CITY_OVERLAY_TAB_EDIT("city.overlay.tab.edit"),
-    CITY_OVERLAY_TAB_ACTIVITY("city.overlay.tab.activity"),
+    CITY_ACTIVITY_BUTTON("city.activity.button"),
     CITY_OVERLAY_LOCALE_TAB_EN("city.overlay.locale.tab.en"),
     CITY_OVERLAY_LOCALE_TAB_UK("city.overlay.locale.tab.uk"),
     CITY_OVERLAY_FIELD_NAME("city.overlay.field.name"),
@@ -409,6 +420,16 @@ public enum I18nKey {
             case OFFER   -> ADVERTISEMENT_AD_KIND_OFFER;
             case REQUEST -> ADVERTISEMENT_AD_KIND_REQUEST;
             case PRODUCT -> ADVERTISEMENT_AD_KIND_PRODUCT;
+        };
+    }
+
+    public static I18nKey forEntityType(EntityType entityType) {
+        return switch (entityType) {
+            case ADVERTISEMENT -> ENTITY_TYPE_ADVERTISEMENT;
+            case USER          -> ENTITY_TYPE_USER;
+            case USER_SETTINGS -> ENTITY_TYPE_USER_SETTINGS;
+            case TAXON         -> ENTITY_TYPE_TAXON;
+            case PROVIDER_PROFILE -> ENTITY_TYPE_PROVIDER_PROFILE;
         };
     }
 

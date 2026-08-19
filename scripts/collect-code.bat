@@ -19,7 +19,7 @@ goto :main
 :: still mid-execution of that same file is a known-fragile self-read pattern in cmd.exe and can
 :: silently truncate the output - this script's source is always available locally anyway, no
 :: need to have it re-dump itself into all-code.txt.
-for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\ \\private\\ \\pw-report\\ \\integration-tests\\reports\\ \\ci\\reports\\ \\unit-tests\\reports\\ \\run-all-tests\\reports\\ \\sonar\\report\\ collect-code\.bat" ') do (
+for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\ \\frontend\\index\.html \\bundles\\ \\screenshots\\ \\private\\ \\pw-report\\ \\integration-tests\\reports\\ \\ci\\reports\\ \\unit-tests\\reports\\ \\run-all-tests\\reports\\ \\build-and-test\\reports\\ \\sonar\\report\\ \\backlog\\completed\\ package\.json package-lock\.json tsconfig\.json collect-code\.bat" ') do (
     echo %%A >> "%FILE_LIST%"
 )
 goto :EOF
@@ -57,7 +57,6 @@ type nul > "%FILE_LIST%"
 :: 2. Collect files by extension across the entire project (including all modules)
 :: The :FindFiles function automatically ignores target, node_modules, etc.
 call :FindFiles "*.java"
-call :FindFiles "pom.xml"
 call :FindFiles "*.css"
 call :FindFiles "*.yml"
 call :FindFiles "*.properties"
@@ -69,17 +68,23 @@ call :FindFiles "*.json"
 call :FindFiles "*.js"
 call :FindFiles "*.sh"
 call :FindFiles "*.md"
+call :FindFiles "*.html"
 
-:: 3. Add specific root-level files
-for %%F in (README.md CLAUDE.md Dockerfile Dockerfile.ai lombok.config mvn.bat mvnw mvnw.cmd .env scripts\infra\docker-compose.app.yml scripts\infra\docker-compose.db.yml scripts\infra\docker-compose.minio.yml) do (
+:: 3. Add specific root-level files -- only ones with no extension already covered by a
+:: FindFiles pattern above (README.md/CLAUDE.md/mvn.bat/docker-compose*.yml are already
+:: collected via *.md/*.bat/*.yml -- listing them again here would duplicate their content).
+for %%F in (Dockerfile Dockerfile.ai lombok.config mvnw mvnw.cmd .env) do (
     if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
 
-:: 3b. Add .claude/ rules and commands (excluded from FindFiles by pattern)
+:: 3b. Add .claude/ rules, commands, and skills (excluded from FindFiles by pattern)
 for %%F in (.claude\rules.md) do (
     if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
 for /f "delims=" %%A in ('dir /S /B ".claude\commands\*.md" 2^>nul') do (
+    echo %%A >> "%FILE_LIST%"
+)
+for /f "delims=" %%A in ('dir /S /B ".claude\skills\*.md" 2^>nul') do (
     echo %%A >> "%FILE_LIST%"
 )
 
@@ -102,7 +107,8 @@ for /F "usebackq delims=" %%F in ("%FILE_LIST%") do (
 echo.
 echo ===== SUMMARY =====
 call :CountFiles ".java" "Java files"
-call :CountFiles "pom.xml" "POM files"
+call :CountFiles ".xml" "XML files (includes pom.xml)"
+call :CountFiles "pom.xml" "  of which POM files"
 call :CountFiles ".css" "CSS files"
 call :CountFiles ".yml" "YAML files"
 call :CountFiles ".properties" "Properties files"
@@ -113,6 +119,7 @@ call :CountFiles ".json" "JSON files"
 call :CountFiles ".js" "JS files (Playwright)"
 call :CountFiles ".sh" "Shell scripts"
 call :CountFiles ".md" "Markdown files"
+call :CountFiles ".html" "HTML files"
 
 echo.
 echo Check root files:
@@ -126,6 +133,8 @@ call :CheckRootFile "scripts\infra\docker-compose.db.yml"
 call :CheckRootFile "scripts\infra\docker-compose.minio.yml"
 call :CheckRootFile "lombok.config"
 call :CheckRootFile "scripts\database\reset-clean.sql"
+call :CheckRootFile ".claude\skills\doc-standards\SKILL.md"
+call :CheckRootFile ".claude\skills\deep-review\SKILL.md"
 
 :: Clean up the temporary file
 del "%FILE_LIST%"

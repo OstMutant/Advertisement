@@ -1,19 +1,23 @@
 package org.ost.marketplace.ui.views.components.overlay;
 
+import com.vaadin.flow.component.Component;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
-import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.springframework.dao.OptimisticLockingFailureException;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.ost.marketplace.services.i18n.I18nKey.OVERLAY_BREADCRUMB_VIEW;
 
 @SuppressWarnings("java:S110")
 public abstract class AbstractEntityOverlay<H extends AbstractFormOverlayModeHandler<?>> extends BaseOverlay {
 
     public record SaveConfig(I18nKey success, I18nKey validFailed, I18nKey saveError, I18nKey conflict) {}
 
-    protected OverlayLayout               layout;
-    protected OverlayBreadcrumbBackButton breadcrumbButton;
-    protected H                           currentFormHandler;
+    protected OverlayLayout layout;
+    protected H             currentFormHandler;
 
     protected abstract EntityOverlaySupport getSupport();
     protected abstract String               getOverlayCssClass();
@@ -28,6 +32,30 @@ public abstract class AbstractEntityOverlay<H extends AbstractFormOverlayModeHan
 
     protected final boolean hasUnsavedChanges() {
         return currentFormHandler != null && currentFormHandler.hasChanges();
+    }
+
+    // Overridden by overlays with a View mode; Settings keeps the false defaults.
+    protected boolean isEditMode()      { return false; }
+    protected boolean enteredFromView() { return false; }
+
+    protected List<BreadcrumbStep> buildBreadcrumbSteps() {
+        List<BreadcrumbStep> steps = new ArrayList<>();
+        steps.add(new BreadcrumbStep(i18n().get(getBreadcrumbLabelKey()), this::closeToList));
+        if (isEditMode() && enteredFromView()) {
+            steps.add(new BreadcrumbStep(i18n().get(OVERLAY_BREADCRUMB_VIEW), this::handleCancel));
+        }
+        return steps;
+    }
+
+    protected List<Component> buildBreadcrumbLinks() {
+        return buildBreadcrumbLinks(buildBreadcrumbSteps());
+    }
+
+    // Reuses an already-computed steps list, avoiding a duplicate buildBreadcrumbSteps() call.
+    protected List<Component> buildBreadcrumbLinks(List<BreadcrumbStep> steps) {
+        return steps.stream()
+                .<Component>map(step -> getSupport().createBreadcrumbButton(step.label(), step.onClick()))
+                .toList();
     }
 
     protected final void handleSave() {
@@ -59,7 +87,6 @@ public abstract class AbstractEntityOverlay<H extends AbstractFormOverlayModeHan
     @Override
     protected void buildContent() {
         addClassName(getOverlayCssClass());
-        breadcrumbButton = getSupport().createBreadcrumbButton(getBreadcrumbLabelKey(), this::closeToList);
     }
 
     @Override
@@ -69,7 +96,7 @@ public abstract class AbstractEntityOverlay<H extends AbstractFormOverlayModeHan
 
     protected void launchSession(Runnable doSwitch) {
         if (layout != null) layout.removeFromParent();
-        layout = getSupport().createLayout(breadcrumbButton);
+        layout = getSupport().createLayout(List.<Component>of());
         doSwitch.run();
         add(layout);
         open();

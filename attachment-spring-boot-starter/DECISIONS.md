@@ -14,7 +14,13 @@ Auto-configured via Spring Boot's autoconfiguration mechanism.
 **Consequences:** UI components (`AttachmentGallery`, `CardMediaLightbox`, `AttachmentLightbox`,
 `AttachmentThumbnail`, `CardLightboxStrip`, `CardLightboxViewer`) moved to `marketplace-app`
 as part of UI monolith consolidation (2026-06-13). The starter owns only domain logic and
-JdbcClient persistence — no Vaadin UI.
+JdbcClient persistence — no Vaadin UI. Internal package is `org.ost.attachment.services`
+(plural), matching `audit-spring-boot-starter`'s convention. The starter carries no i18n
+infrastructure of its own — attachment i18n keys live in the single consolidated
+`org.ost.marketplace.services.i18n.I18nKey` enum, per `marketplace-app/CLAUDE.md`'s "single
+consolidated enum" rule. `DefaultAttachmentPort` is discovered via `@Component` ComponentScan,
+not an explicit `@Bean` in `AttachmentAutoConfiguration`. `AttachmentGalleryPort` does not
+exist — all UI logic lives in marketplace-app; do not re-introduce it.
 
 ---
 
@@ -50,7 +56,8 @@ column. Domain Spring events replaced by SPI calls. S3 folder layout:
 
 **Consequences:**
 - ✅ `EntityRef(EntityType, Long)` record implemented in `platform-commons/core.model`.
-- → [improvement-003-deferred-performance](../backlog/issues/improvement-003-deferred-performance.md) (items G, H)
+- Some related performance optimizations remain deferred, tracked in the backlog until their
+  triggers fire.
 - Rejected: keeping the event-based flow alongside the SPI — the starter speaks SPI and only SPI.
 
 ---
@@ -99,45 +106,20 @@ and applies to bots, workflows, or service accounts.
 
 ---
 
-## ADR-007: Symmetry with audit-starter — package rename, i18n enum, port via @Component
-**Status:** Accepted
-
-**Context:** Reducing cognitive overhead when reading across starters requires identical conventions.
-`AutoConfiguration` should be lean: only beans requiring `@ConditionalOnMissingBean` or
-infrastructure setup.
-
-**Decision:** Three structural changes:
-1. Package rename: `org.ost.attachment.service` → `org.ost.attachment.services` (plural).
-2. i18n: `AttachmentMessages` removed, not renamed (corrected 2026-07-16 — no `AttachmentI18n`
-   class exists anywhere in the repo). Attachment i18n keys now live in the single consolidated
-   `org.ost.marketplace.services.i18n.I18nKey` enum, per `marketplace-app/CLAUDE.md`'s "single
-   consolidated enum" rule — starters carry no i18n infrastructure of their own.
-3. Port registration via `@Component` — `DefaultAttachmentPort` discovered by ComponentScan,
-   not an explicit `@Bean` in `AttachmentAutoConfiguration`.
-
-**Consequences:** `AttachmentGalleryPort` and `AttachmentGalleryPortImpl` removed (2026-06-15) —
-all UI logic moved to marketplace-app; the port was unnecessary indirection.
-Do not re-introduce `AttachmentGalleryPort`.
-
----
-
 ## ADR-008: IFrame sandbox attribute on all video embeds
 **Status:** Accepted
 
 **Context:** Without `sandbox`, the embedded iframe has unrestricted browser capabilities.
 
-**Decision:** All `IFrame` components for video embedding carry:
-`sandbox="allow-scripts allow-same-origin allow-presentation"` (corrected 2026-07-13 — written as
-including `allow-forms` originally; verified in `AttachmentLightbox.java:83` and
-`CardLightboxViewer.java:44` (line numbers re-verified 2026-07-16, drifted from the original
-citation after later refactors — substance unchanged, neither carries `allow-forms`). **Corrected
-2026-07-27:** the attribute is no longer set inline at those call sites at all — both now delegate
-to `LightboxUtil.applyEmbedIframeAttributes(iframe, isYoutube)` /
+**Decision:** All `IFrame` components for video embedding carry a `sandbox` attribute, set via
+`LightboxUtil.applyEmbedIframeAttributes(iframe, isYoutube)` /
 `LightboxUtil.embedSandbox(isYoutube)` (`org.ost.marketplace.ui.views.utils.LightboxUtil`), which
-centralizes the exact same flag string (YouTube gets `allow-same-origin` in addition, since its
-player needs Cache Storage to bootstrap; non-YouTube embeds omit it).
+centralizes the flag string: `allow-scripts allow-same-origin allow-presentation`. YouTube gets
+`allow-same-origin` in addition, since its player needs Cache Storage to bootstrap; non-YouTube
+embeds omit it.
 
-**Consequences:** Minimum flags required for YouTube and generic embed playback.
+**Consequences:** Minimum flags required for YouTube and generic embed playback, centralized in
+one utility rather than set inline at each call site.
 
 ---
 
@@ -147,13 +129,8 @@ player needs Cache Storage to bootstrap; non-YouTube embeds omit it).
 **Context:** `IFrame.setSrc()` / `setProperty("src", ...)` is silently ignored by the client
 after initial render — the property diff is not propagated to the DOM.
 
-**Decision:** In `CardLightboxViewer` (corrected 2026-07-13 — written as `CardMediaLightbox`
-originally, which today is a dialog/navigation orchestrator with no `IFrame`/`executeJs` code at
-all; the actual iframe-patching class is `CardLightboxViewer.java`, line numbers re-verified
-2026-07-16 — the paired `setAttribute("src", ...)` / `getPage().executeJs(...)` calls now span
-lines 77-98, drifted from the original "62-85" citation after later refactors, substance
-unchanged), iframe `src` is updated via `UI.getCurrent().getPage().executeJs(...)` in addition to
-`getElement().setAttribute(...)`.
+**Decision:** In `CardLightboxViewer`, iframe `src` is updated via
+`UI.getCurrent().getPage().executeJs(...)` in addition to `getElement().setAttribute(...)`.
 
 **Consequences:** `setAttribute` is kept in sync so Vaadin's internal state stays consistent.
 Rejected: using only `setSrc()` or `setProperty()` — confirmed non-functional via diagnostic
@@ -161,174 +138,44 @@ Rejected: using only `setSrc()` or `setProperty()` — confirmed non-functional 
 
 ---
 
-## ADR-010: marketplace-app attachment UI imports starter internals directly
-**Status:** Resolved (2026-06-26) — was tracked as open work, now closed
-
-**Context (historical):** Six UI components in marketplace-app directly imported
-`attachment-spring-boot-starter` internals (`Attachment` entity, `AttachmentService`,
-`AttachmentSnapshotService`, `MediaContentTypeUtil`) instead of going through `AttachmentPort` /
-platform-commons DTOs.
-
-**Resolution (verified 2026-07-13):** all six violations fixed —
-`org.ost.attachment.services|repository|entities` imports in marketplace-app: zero matches.
-`MediaContentTypeUtil` merged into `AttachmentMediaContentType` (platform-commons). See
-`backlog/completed/issues/improvement-001-attachment-ui-boundary-violation.md` for the full
-resolution record; that issue file's own Status line already says RESOLVED — this ADR's Status
-line was the one place still describing it as open work.
-
----
-
-## ADR-011: `AttachmentService` closes upload `InputStream`s explicitly; `AttachmentCleanupService` gains a DB-cross-checked orphan sweep for entity-folder S3 files
+## ADR-014: `AttachmentVideoUtil` extracted from `AttachmentService`; video/embed classification consolidated onto `AttachmentMediaContentType`
 
 **Status:** Accepted
 
-**Context:** Two independent findings, fixed together since both touch the upload/cleanup path.
+**Context:** A repo-wide SOLID/DRY review found `AttachmentService` mixed five concerns (gallery queries, upload/video-ingestion,
+commit/restore orchestration, snapshot delegation, media-summary DTO shaping) in one class, and
+"is this a video/embed" was checked three independent, non-identical ways: `AttachmentService`'s
+own `CT_YOUTUBE`/`CT_EMBED` constants + private `isVideo()`, the platform-commons
+`AttachmentMediaContentType.isEmbedded()` authority, and `AttachmentSnapshotService.filename()`'s
+inline `YoutubeUtil.extractId(url) != null` check.
 
-1. [improvement-064](../backlog/completed/issues/improvement-064-s3storageservice-inputstream-not-closed.md)
-   — `RequestBody.fromInputStream(InputStream, long)` (AWS SDK v2) documents that it does not
-   close the given stream, to support retries. Neither `S3StorageService.upload()` nor its two
-   `AttachmentService` call sites (`upload()`, `uploadTemp()`) ever closed it.
-2. [improvement-069](../backlog/completed/issues/improvement-069-attachment-s3-move-inside-db-transaction-orphans-on-rollback.md)
-   — `AttachmentService.commitTempUploadsQuiet()`'s `storageService.move()` physically relocates
-   S3 files as a non-transactional side effect, called from inside
-   `AdvertisementSaveService.save()`'s DB transaction (see `marketplace-app/DECISIONS.md`
-   ADR-047). If a later step in that same transaction fails, the DB rolls back but the already
-   -moved S3 files do not — an orphan with no `attachment` row at all, active or soft-deleted.
-   Neither of `AttachmentCleanupService`'s two existing cleanup passes could ever catch this
-   shape: `deleteStaleTempUploads()` only looks under `temp/`, and `deleteAttachments()` only acts
-   on urls a DB row already names. This was an explicitly flagged open question in
-   [improvement-049](../backlog/completed/issues/improvement-049-taxon-attachment-incomplete-rollback-bugs.md)'s
-   "Required verification" section ("confirm whether the scheduled job would actually catch"),
-   never previously answered.
+**Decision:** Extracted `AttachmentVideoUtil` — `public final class`,
+`@NoArgsConstructor(access = PRIVATE)`, all-static methods, package `org.ost.attachment.util`
+(mirrors `platform-commons`' `attachment.util` package housing `YoutubeUtil`) — holding
+`VideoDescriptor`, `resolveVideoDescriptor(url)`, `resolveDisplayUrl(url, contentType)`,
+`embedFilename(url)`, `validateEmbedUrl(url)`, and the `ALLOWED_EMBED_HOSTS` allowlist, called
+directly by `AttachmentService` with no injection (zero dependencies, zero mutable state, same
+shape as `YoutubeUtil`, which it delegates to — not a Spring bean, since no real call site ever
+needs DI substitution). `AttachmentService` keeps only upload/commit/delete orchestration and
+calls the utility statically for video-URL resolution. Removed `AttachmentService`'s local
+`CT_YOUTUBE`/`CT_EMBED` constants and private `isVideo()` entirely — every remaining call site
+(`commitTempUploadsQuiet`, `discardTempUploads`, `AttachmentVideoUtil.resolveVideoDescriptor`/
+`resolveDisplayUrl`) now uses `AttachmentMediaContentType.YOUTUBE.getValue()`/`.EMBED.getValue()`
+for the string literals and `AttachmentMediaContentType.isEmbedded(contentType)` for the boolean
+check — one shared authority instead of three.
 
-**Decision:**
-1. `AttachmentService` gets a private `closeQuietly(InputStream)` helper (catches and logs
-   `IOException`, never throws) called right after `storageService.upload(...)` returns in both
-   `upload()` and `uploadTemp()`. Deliberately not try-with-resources: wrapping the call in one
-   would make a `close()` failure *after* a successful S3 upload throw from the enclosing
-   try-with-resources statement, which would then incorrectly look like the upload itself failed
-   (and, in `upload()`, would trigger the surrounding catch block's `storageService.delete(url)`
-   cleanup on a file that actually made it to S3 successfully). Logging and swallowing the close
-   failure keeps "did the upload succeed" and "did we manage to close an unrelated stream"
-   independent, as they should be.
-2. `AttachmentRepository` gains `findExistingUrls(Collection<String>)` — `SELECT url FROM
-   attachment WHERE url = ANY(:urls)` (array bind, matching the `= ANY()` convention already
-   established for every bulk lookup in this codebase, not `IN`). `AttachmentCleanupService.cleanup()`
-   gains a third pass, `sweepOrphanedEntityFiles()`, run after the two existing ones: for every
-   `EntityType`, list S3 objects under `<type>/` older than 1 day (`storageService.listByPrefix`,
-   already used for the `temp/` sweep), cross-check against `findExistingUrls`, delete whichever
-   have no matching row at all. No new scheduling infrastructure — `cleanup()` already runs on
-   `CleanupProperties.cronExpression()` (`AttachmentAutoConfiguration`'s `SchedulingConfigurer`
-   bean), this is a third step inside the method that's already wired to fire nightly.
+`AttachmentSnapshotService.filename()`'s `YoutubeUtil.extractId(url) != null` check was
+deliberately left untouched, not retargeted onto a content-type lookup: it classifies by URL
+pattern, not stored content type, which is exactly why it still resolves a real YouTube filename
+for historical snapshot URLs whose underlying `attachment` row has since been purged past
+retention by `AttachmentCleanupService` (a content-type lookup requires the row to still exist, a
+URL-pattern check does not). It already calls the same canonical `YoutubeUtil.extractId` used by
+`AttachmentVideoUtil`, so there was no duplicated constant or predicate to remove — only a
+different, legitimately narrower classification for a different purpose (historical-display
+fallback naming, not upload/storage routing): for a live YouTube row, the URL-pattern branch and
+the (unused) DB-filename branch always compute the identical string; for a live EMBED row, the
+method already falls through correctly to the DB-resolved filename on the very next branch.
 
 **Consequences:**
-- Closes improvement-049's open "Required verification" question definitively: no, the existing
-  scheduled job did not catch this orphan shape before this ADR: now it does.
-- The 1-day age cutoff means a file orphaned by a rollback isn't swept instantly — it's caught by
-  the next nightly run once it's old enough, same latency profile as the existing `temp/` sweep.
-  Combined with `marketplace-app/DECISIONS.md` ADR-047's reorder + rollback log, an operator sees
-  the orphan in logs immediately even though the sweep itself waits.
-- Iterates all four `EntityType` values generically (matches ADR-003's "generic over EntityType"
-  principle) even though only `ADVERTISEMENT` has a live caller of `commitTempUploadsQuiet()`
-  today — a future entity type adopting the attachment gallery gets orphan-sweep coverage for
-  free, no code change needed here.
-- New tests: `AttachmentServiceTest` (`upload_closesInputStreamAfterS3UploadSucceeds`,
-  `uploadTemp_closesInputStreamAfterS3UploadSucceeds`) and `AttachmentCleanupServiceTest`
-  (`cleanup_orphanedEntityFileWithNoDbRow_getsDeleted`,
-  `cleanup_entityFileWithMatchingDbRow_isNotDeleted`), same plain-Mockito, no-Spring-context shape
-  as their existing siblings in the same files. `AttachmentRepositoryTest` (real Postgres)
-  re-verified green after adding `findExistingUrls`. Full `integration-tests` (`AttachmentServiceTest`,
-  `AttachmentCleanupServiceTest`, `AttachmentRepositoryTest`) and a full Playwright e2e pass
-  (35/35 non-skipped) both green.
-
----
-
-## ADR-012: `AttachmentSnapshotRepository.extractUrls()` reads the `attachment_urls` array via `Array.getResultSet()` — no cast at all, not even to `Object[]`
-
-**Status:** Accepted
-
-**Context:** [improvement-070](../backlog/completed/issues/improvement-070-attachmentsnapshotrepository-unsafe-array-cast-silent-swallow.md)
-— `extractUrls()` did `(String[]) arr.getArray()`, an unchecked cast resting on PostgreSQL JDBC
-driver convention rather than a `java.sql.Array` contract guarantee, wrapped in `catch (Exception
-_) { return List.of(); }` — any failure, including a `ClassCastException` from the cast itself,
-silently became an empty result with no log trace.
-
-**Decision:** Standing project preference against casts (not just unsafe ones). The initially
-proposed fix — cast to `Object[]` instead of `String[]`, then `Stream.of(raw).map(String::valueOf)`
-— was rejected on exactly that basis even though it's the safe/conventional version of this fix
-(array covariance guarantees any reference-type array is assignable to `Object[]`). Replaced
-instead with `java.sql.Array.getResultSet()` — part of the `java.sql.Array` interface itself, not
-driver-specific behavior: it returns a two-column `ResultSet` (array index, element value) that's
-read via `arrRs.getString(2)`, so the driver does the type conversion, not our code. Zero casts of
-any kind. `catch (Exception _)` narrowed to `catch (SQLException e)` (the only checked exception
-`getArray()`/`getResultSet()`/`getString()` can throw) with a `log.warn(...)`.
-
-**Consequences:**
-- No other place in this codebase reads a Postgres array column back via `getArray()` (writing
-  arrays via `= ANY(:array)` bind params is common; this was the only read side), so there was no
-  existing convention to stay consistent with — free to pick the cast-free option.
-- New `AttachmentSnapshotRepositoryTest` (real Postgres, first test coverage this repository has
-  ever had) round-trips multiple urls through `insert()` → `getPrevUrls()`/`getUrlsById()`,
-  proving the new extraction against a real `text[]` column rather than mocking
-  `java.sql.Array`/`ResultSet` — 3/3 green, plus the 4 other attachment-domain integration test
-  classes re-verified green (21/21 total) to rule out any regression in adjacent tests that
-  exercise the same starter.
-
----
-
-## ADR-013: `AttachmentSnapshotService` resolves real filenames from `attachment.filename` by url, instead of deriving a display name from the S3 object key
-
-**Status:** Accepted
-
-**Context:** [improvement-068](../backlog/completed/issues/improvement-068-attachment-audit-shows-uuid-not-original-filename.md)
-— `AttachmentSnapshotService.filename(url)` took the last path segment of the stored URL as the
-displayed media name in Activity/Timeline diffs. Since `S3StorageService.upload()` always names
-uploaded objects `UUID + extension` (never the original filename), every non-video media change
-showed something like `550e8400-e29b....png → 6789bcde-f123....png`, meaningless to the user who
-actually uploaded `sofa-front.jpg`. A dedicated research pass (prompted by "this same fix should
-apply to Activity and views too") confirmed the bug is fully isolated to this one method — gallery
-/lightbox/card UI components already display the real `attachment.filename` column end-to-end via
-`AttachmentItemDto`, and Activity/Timeline rendering only ever displays whatever string this
-method already produced at snapshot-capture time, re-deriving nothing themselves. Fixing this one
-method was therefore sufficient, no changes needed elsewhere.
-
-**Decision:** Picked option 2 from the issue (repository lookup) over option 1 (extend the
-snapshot schema/payload) — no schema change, and the `attachment` row reliably still exists at
-every point `filename()` is called (capture always runs right after the row's own
-insert/soft-delete in the same or an immediately following transaction). New private
-`resolveFilenames(EntityType, Long, List<String> urls)` bulk-resolves via
-`AttachmentRepository.findByEntityAndUrls()` into a `Map<url, filename>` — **keyed by url, not by
-filename**, so two attachments legitimately sharing the same original filename (e.g. uploaded from
-different devices) can never collide in the lookup; each url still resolves to its own correct
-name independently, even if both display the same string. `filename(url, urlToFilename)` checks
-this map after the existing YouTube-id branch, before falling back to the old last-path-segment
-behavior (only reachable now if the attachment row is gone entirely, e.g. purged past retention).
-`buildDiff()` (capture-time, called from `captureAndGetId()`) and `getMediaStateForSnapshot()`
-(render-time) both resolve once per call via one bulk lookup covering every url they need, not one
-lookup per url.
-
-**Consequences:**
-- New snapshots capture the real filename permanently into `changes_summary` at write time — no
-  later re-resolution needed, and no dependency on the `attachment` row still existing once
-  captured. Snapshots captured before this fix keep showing their already-baked-in UUID-derived
-  names (no data migration; out of scope, same precedent as every other in-place fix in this
-  codebase).
-- If an attachment is later hard-deleted (past the 90-day retention purge in
-  `AttachmentCleanupService`), a *new* snapshot capture for the same entity would fall back to the
-  old UUID-derived name for that url, since no row remains to resolve against — an acknowledged,
-  narrow edge case matching the issue's own framing, not fixed here.
-- New `AttachmentSnapshotServiceTest` (`integration-tests`, plain Mockito, no Spring context) — 4
-  tests: real filename resolved on first capture, fallback to url segment when no attachment row
-  matches, `getMediaStateForSnapshot()` resolves correctly, and two attachments sharing an
-  identical original filename resolve independently without collision. Full attachment-domain
-  integration sweep (25/25) and a full Playwright e2e pass (35/35 non-skipped) both green.
-- **Bug found during improvement-075's Playwright pass (2026-07-18):** `resolveFilenames()`'s
-  `Collectors.toMap(Attachment::getUrl, Attachment::getFilename)` had no merge function, so it
-  threw `IllegalStateException: Duplicate key <url>` whenever `findByEntityAndUrls()` returned two
-  rows sharing the same url — not the "same filename, different url" case this ADR already
-  guarded against, but the inverse: **the same url appearing on two rows**, e.g. a YouTube
-  attachment soft-deleted and then re-added with the same video url. `findByEntityAndUrls()` does
-  not filter `deleted_at`, so both rows come back. Only ever exercised by a heavier scenario (spec
-  04's 10-item gallery replace) than this ADR's own original test coverage exercised. Fixed with a
-  `(a, b) -> a` merge function — either name is acceptable since both rows resolve to the same
-  underlying url/attachment identity for display purposes.
+- No public method signature on `AttachmentService`/`AttachmentPort` changed — this is an internal
+  reorganization, no UI-visible behavior change, no Playwright coverage needed.

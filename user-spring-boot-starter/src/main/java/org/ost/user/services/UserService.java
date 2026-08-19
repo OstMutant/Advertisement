@@ -9,7 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.user.dto.SettingsSnapshotDto;
+import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
@@ -19,6 +19,7 @@ import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
 import org.ost.user.entity.User;
 import org.ost.query.sort.OffsetPageable;
+import org.ost.user.repository.UserPreferencesRepository;
 import org.ost.user.repository.UserRepository;
 import org.ost.user.security.UserPrincipal;
 import org.springframework.dao.DuplicateKeyException;
@@ -56,16 +57,19 @@ public class UserService {
             .build();
 
     private final UserRepository                       repository;
+    private final UserPreferencesRepository             preferencesRepository;
     private final PasswordEncoder                      passwordEncoder;
+    private final UserPreferencesService                preferencesService;
     private final ComponentFactory<AuditPort>           auditPortFactory;
     private final ComponentFactory<AdvertisementPort>   advertisementPortFactory;
+    private final ComponentFactory<ProviderProfilePort> providerProfilePortFactory;
 
     public List<UserDto> getFiltered(@Valid @NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
-        return repository.findByFilter(filter, PageRequest.of(page, size, sort)).stream().map(this::toDto).toList();
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort)).stream().map(User::toDto).toList();
     }
 
     public List<UserDto> getFilteredByOffset(@Valid @NonNull UserFilterDto filter, long offset, int limit, @NonNull Sort sort) {
-        return repository.findByFilter(filter, new OffsetPageable(offset, limit, sort)).stream().map(this::toDto).toList();
+        return repository.findByFilter(filter, new OffsetPageable(offset, limit, sort)).stream().map(User::toDto).toList();
     }
 
     public int count(@Valid @NonNull UserFilterDto filter) {
@@ -81,11 +85,6 @@ public class UserService {
                 auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
                         toSnapshot(updated),
                         actingUserId)));
-    }
-
-    @Transactional
-    public void updateLocale(@NonNull Long userId, @NonNull String locale) {
-        repository.updateLocale(userId, locale);
     }
 
     @Transactional
@@ -106,20 +105,35 @@ public class UserService {
 
         Set<Long> candidateIds = Set.copyOf(candidates);
         advertisementPortFactory.ifAvailable(p -> p.clearActorReferences(candidateIds));
-        Set<Long> ownerIds = advertisementPortFactory.findIfAvailable()
+        Set<Long> adOwnerIds = advertisementPortFactory.findIfAvailable()
+                .map(p -> p.findOwnerIds(candidateIds))
+                .orElse(Set.of());
+        Set<Long> providerProfileOwnerIds = providerProfilePortFactory.findIfAvailable()
                 .map(p -> p.findOwnerIds(candidateIds))
                 .orElse(Set.of());
 
         int purged = 0;
         for (Long id : candidates) {
-            if (ownerIds.contains(id)) {
-                log.warn("Skipped purging user {} - still owns an advertisement, will retry next run", id);
+            if (isStillOwner(id, adOwnerIds, providerProfileOwnerIds)) {
                 continue;
             }
+            preferencesRepository.deleteByActorId(id);
             repository.deleteById(id);
             purged++;
         }
         log.info("User cleanup finished: purged={}, skipped={}", purged, candidates.size() - purged);
+    }
+
+    private boolean isStillOwner(Long id, Set<Long> adOwnerIds, Set<Long> providerProfileOwnerIds) {
+        if (adOwnerIds.contains(id)) {
+            log.warn("Skipped purging user {} - still owns an advertisement, will retry next run", id);
+            return true;
+        }
+        if (providerProfileOwnerIds.contains(id)) {
+            log.warn("Skipped purging user {} - still owns a provider profile, will retry next run", id);
+            return true;
+        }
+        return false;
     }
 
     @Transactional
@@ -143,21 +157,26 @@ public class UserService {
             attempts.incrementAndGet();
             throw ex;
         }
+        preferencesRepository.insertDefault(saved.getId());
         UserSettingsDto defaults = UserSettingsDto.defaultSettings();
         auditPortFactory.ifAvailable(p -> {
             p.captureCreation(saved.getId(), toSnapshot(saved),                       saved.getId());
-            p.captureCreation(saved.getId(), SettingsSnapshotDto.from(defaults),      saved.getId());
+            p.captureCreation(saved.getId(), preferencesService.toSettingsSnapshot(defaults), saved.getId());
         });
     }
 
     public Optional<UserDto> findById(@NonNull Long id) {
-        return repository.findById(id).map(this::toDto);
+        return repository.findById(id).map(User::toDto);
+    }
+
+    public UserPrincipal toPrincipal(@NonNull User user) {
+        return new UserPrincipal(user, preferencesService.findLocale(user.getId()));
     }
 
     public void refreshSecurityContext(@NonNull Long userId) {
         try {
             User user = repository.findById(userId).orElseThrow();
-            UserPrincipal principal = new UserPrincipal(user);
+            UserPrincipal principal = toPrincipal(user);
             Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
             Authentication newAuth = currentAuth != null
                     ? new UsernamePasswordAuthenticationToken(principal, currentAuth.getCredentials(), principal.getAuthorities())
@@ -174,7 +193,7 @@ public class UserService {
     }
 
     public Optional<UserDto> findDtoByEmail(@NonNull String email) {
-        return repository.findByEmail(email).map(this::toDto);
+        return repository.findByEmail(email).map(User::toDto);
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
@@ -188,12 +207,7 @@ public class UserService {
 
     public Map<Long, UserDto> findByIds(@NonNull Set<Long> ids) {
         return repository.findByIds(ids.toArray(new Long[0])).stream()
-                .collect(Collectors.toMap(User::getId, this::toDto));
-    }
-
-    private UserDto toDto(User user) {
-        return new UserDto(user.getId(), user.getName(), user.getEmail(), user.getRole(),
-                user.getCreatedAt(), user.getUpdatedAt(), user.getLocale(), user.getVersion());
+                .collect(Collectors.toMap(User::getId, User::toDto));
     }
 
     private static UserSnapshotDto toSnapshot(User user) {

@@ -16,6 +16,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.main.header.dialogs.LoginDialog;
 import org.ost.marketplace.ui.views.main.header.dialogs.LogoutDialog;
 import org.ost.marketplace.ui.views.main.header.dialogs.SignUpDialog;
+import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.marketplace.ui.views.main.header.settings.SettingsOverlay;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -30,6 +31,7 @@ public class HeaderBar extends HorizontalLayout {
     private final LogoutDialog            logoutDialog;
     private final SignUpDialog            signUpDialog;
     private final SettingsOverlay         settingsOverlay;
+    private final EntityActivityOverlay   entityActivityOverlay;
     private final transient I18nService          i18n;
     private final transient AuthContextService   authContextService;
 
@@ -37,6 +39,7 @@ public class HeaderBar extends HorizontalLayout {
     protected void init() {
         addClassName("header-bar");
         add(settingsOverlay);
+        add(entityActivityOverlay);
         add(buildLogo());
         add(initAuthBlock());
     }

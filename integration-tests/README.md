@@ -13,7 +13,7 @@ substitute for the full e2e run before any deploy.
 ## Requirements
 
 - A reachable Docker daemon (Testcontainers starts a real ephemeral Postgres container per `mvn
-  test` reactor run — see ADR-002 in `DECISIONS.md`)
+  test` reactor run — the singleton-container pattern, see `docs/ai/adr-index.md`)
 - Nothing else needs to be running first — unlike Playwright, this does not need the app itself,
   MinIO, or the persistent dev Postgres container
 
@@ -22,16 +22,16 @@ substitute for the full e2e run before any deploy.
 ### Linux / WSL
 
 ```bash
-bash scripts/integration-tests.sh                             # all tests
-bash scripts/integration-tests.sh smoke                       # just PostgresContainerSmokeTest
-bash scripts/integration-tests.sh AdvertisementRepositoryTest # one class by name
-bash scripts/integration-tests.sh --sandbox smoke             # + this sandbox's Docker workarounds
-bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the staleness check below
+bash integration-tests/run.sh                             # all tests
+bash integration-tests/run.sh smoke                       # just PostgresContainerSmokeTest
+bash integration-tests/run.sh AdvertisementRepositoryTest # one class by name
+bash integration-tests/run.sh --sandbox smoke             # + this sandbox's Docker workarounds
+bash integration-tests/run.sh --no-check TaxonRepositoryTest  # skip the staleness check below
 ```
 
 `run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon`/`audit`/
-`attachment-spring-boot-starter` (6 modules, corrected 2026-07-27 — `audit`/`attachment` were
-added since this note was first written) changed since their last install and only rebuilds those
+`attachment`/`provider-profile-spring-boot-starter` changed since their last install
+and only rebuilds those
 before testing (~1:47-3:35 vs. 3-7 min walking the full reactor every time) — no manual flag
 needed for the common case. `--no-check` skips that detection entirely, testing against whatever
 is already in `~/.m2` even if stale — only for deliberately reproducing behavior against an older
@@ -40,11 +40,12 @@ build. See `CLAUDE.md` for the full rule.
 ### Windows
 
 ```bat
-scripts\integration-tests.bat
-scripts\integration-tests.bat AdvertisementRepositoryTest
+wsl bash integration-tests/run.sh
+wsl bash integration-tests/run.sh AdvertisementRepositoryTest
 ```
 
-Delegates to `wsl bash /app/integration-tests/run.sh`.
+Or, without a local Java install at all: `scripts\build-and-test.bat --integration` (a different
+tool, container-based — no `--no-check`, single-class selection via `--integration-test` instead).
 
 ### Direct Maven (no script, no reports folder)
 
@@ -59,8 +60,8 @@ they aren't otherwise built by a scoped `-pl integration-tests` alone.
 
 Run any `*Test` class directly via the gutter icon — no script needed. `SharedEnvConfig` resolves
 the repo-root `.env` correctly even when IntelliJ sets the module directory (not the reactor root)
-as the working directory (see ADR-003 in `DECISIONS.md`). On a normal developer machine, no env
-vars are required — the sandbox-only `--sandbox` workarounds (ADR-004) do not apply.
+as the working directory (see `docs/ai/adr-index.md`). On a normal developer machine, no env
+vars are required — the sandbox-only `--sandbox` workarounds (also documented there) do not apply.
 
 ## What `run.sh` does
 
@@ -82,26 +83,29 @@ vars are required — the sandbox-only `--sandbox` workarounds (ADR-004) do not 
 | `PostgresContainerSmokeTest` | Testcontainers, no Spring context | Proves the scaffolding itself: container starts, Liquibase applies a trivial changelog, a verification query succeeds |
 | `advertisement/AdvertisementRepositoryTest` | Testcontainers + `@SpringBootTest` | Real SQL correctness for `AdvertisementRepository` — the highest-risk dynamic-SQL paths (filter, sort, pagination, optimistic locking), against real `advertisement-spring-boot-starter` + `user-spring-boot-starter` autoconfiguration |
 | `advertisement/AdvertisementSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `AdvertisementSnapshotDto.diff()` — pure field-comparison logic, zero side effects |
-| `advertisement/AdvertisementServiceHtmlSanitizationTest` | Plain JUnit + Mockito, no Spring, no DB | `AdvertisementService`'s HTML sanitization policy (OWASP sanitizer + Jsoup visible-text-length cap), tested through the real public `save()` entry point, not the `private static sanitizeHtml()` directly — improvement-027 Batch 2 |
+| `advertisement/AdvertisementServiceHtmlSanitizationTest` | Plain JUnit + Mockito, no Spring, no DB | `AdvertisementService`'s HTML sanitization policy (OWASP sanitizer + Jsoup visible-text-length cap), tested through the real public `save()` entry point, not the `private static sanitizeHtml()` directly |
 | `advertisement/AdvertisementServiceCategoryFilterTest` | Plain JUnit + Mockito, no Spring, no DB | `AdvertisementService.getFiltered()`/`count()` resolve a category-name filter to taxon ids before querying the repository, short-circuiting to empty/zero without a repository call when no taxon matches, and degrading to no restriction when the taxon starter is absent |
-| `taxon/TaxonRepositoryTest` | Testcontainers + `@SpringBootTest` | `TaxonRepository.findByIds()` — deliberately **includes** soft-deleted rows (not excludes; see `taxon-spring-boot-starter/CLAUDE.md` on why `DefaultTaxonPort.indexById()` needs deleted taxons visible) — corrected 2026-07-27, this table previously stated the reverse |
-| `taxon/TaxonPortTranslationFallbackTest` | Testcontainers + `@SpringBootTest` | `TaxonPort.findById()`'s translation-fallback chain (requested locale → configured default → first available → blank), tested through the public port, not the package-private `resolveTranslation()` — see `DECISIONS.md` ADR-008 |
-| `taxon/TaxonServiceTest` | Testcontainers + `@SpringBootTest` | `TaxonService.update()` preserves `deletedBy` on an already soft-deleted taxon (Spring Data JDBC's full-row `UPDATE` was silently reverting it to `NULL`) — improvement-049 item 1 |
+| `taxon/TaxonRepositoryTest` | Testcontainers + `@SpringBootTest` | `TaxonRepository.findByIds()` — deliberately **includes** soft-deleted rows (not excludes; see `taxon-spring-boot-starter/CLAUDE.md` on why `DefaultTaxonPort.indexById()` needs deleted taxons visible) |
+| `taxon/TaxonPortTranslationFallbackTest` | Testcontainers + `@SpringBootTest` | `TaxonPort.findById()`'s translation-fallback chain (requested locale → configured default → first available → blank), tested through the public port, not the package-private `resolveTranslation()` — see `docs/ai/adr-index.md` |
+| `taxon/TaxonServiceTest` | Testcontainers + `@SpringBootTest` | `TaxonService.update()` preserves `deletedBy` on an already soft-deleted taxon (Spring Data JDBC's full-row `UPDATE` was silently reverting it to `NULL`) |
 | `taxon/TaxonSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `TaxonSnapshotDto.diff()` — pure field-comparison logic, direct analogy with `AdvertisementSnapshotDtoTest` |
-| `taxon/TaxonAssignmentRepositoryTest` | Testcontainers + `@SpringBootTest` | `TaxonAssignmentRepository`'s many-to-many join table: idempotent `assign()` (`ON CONFLICT DO NOTHING`), `unassign()`/`deleteAllByEntity()` scoping, both directions of bulk lookup, both count variants — improvement-027 Batch 3 |
+| `taxon/TaxonAssignmentRepositoryTest` | Testcontainers + `@SpringBootTest` | `TaxonAssignmentRepository`'s many-to-many join table: idempotent `assign()` (`ON CONFLICT DO NOTHING`), `unassign()`/`deleteAllByEntity()` scoping, both directions of bulk lookup, both count variants |
 | `user/UserRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserRepository.updateProfile()` — optimistic locking, and that the narrower `UserProfileUpdate` entity structurally cannot touch `email`/`passwordHash` |
 | `user/UserServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `UserService.register()` rate-limiting: threshold blocks before save, duplicate-key failures count, successful registration does **not** reset the IP counter (asymmetry vs. login), different IPs tracked separately |
 | `user/SettingsSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `SettingsSnapshotDto.diff()` — pure field-comparison logic, direct analogy with `AdvertisementSnapshotDtoTest` |
-| `user/UserSettingsDtoTest` | Plain JUnit, no Spring, no DB | Confirms Jackson's builder-based deserialization correctly applies `UserSettingsDto`'s `@Builder.Default timelinePageSize = 20` for a JSON payload missing that key — improvement-050 item 5's "Required verification" |
-| `attachment/AttachmentServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentService.commitTempUploadsQuiet()` cleans up already-moved files on a mid-batch `storageService.move()` failure, instead of leaking them — improvement-049 item 2 |
-| `attachment/AttachmentServiceTransactionTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | `AttachmentService.upload()` rolls back its DB row (real transaction, real Postgres) when a post-save step throws — improvement-049 item 3 |
-| `attachment/AttachmentCleanupServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentCleanupService.deleteAttachments()` deletes DB rows before S3 objects (`InOrder`-verified), and a storage failure never affects the already-completed DB delete — improvement-049 item 4 |
-| `attachment/AttachmentRepositoryTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | Soft-delete visibility, the two-step restore-to-urls flow, retention-based cleanup selection, and both `loadMediaStats()` overloads (including the bulk one's `ROW_NUMBER() OVER (PARTITION BY entity_id ...)` window function) — improvement-027 Batch 3 |
+| `user/UserSettingsDtoTest` | Plain JUnit, no Spring, no DB | Confirms Jackson's builder-based deserialization correctly applies `UserSettingsDto`'s `@Builder.Default timelinePageSize = 20` for a JSON payload missing that key |
+| `attachment/AttachmentServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentService.commitTempUploadsQuiet()` cleans up already-moved files on a mid-batch `storageService.move()` failure, instead of leaking them |
+| `attachment/AttachmentServiceTransactionTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | `AttachmentService.upload()` rolls back its DB row (real transaction, real Postgres) when a post-save step throws |
+| `attachment/AttachmentCleanupServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentCleanupService.deleteAttachments()` deletes DB rows before S3 objects (`InOrder`-verified), and a storage failure never affects the already-completed DB delete |
+| `attachment/AttachmentRepositoryTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | Soft-delete visibility, the two-step restore-to-urls flow, retention-based cleanup selection, and both `loadMediaStats()` overloads (including the bulk one's `ROW_NUMBER() OVER (PARTITION BY entity_id ...)` window function) |
 | `attachment/AttachmentSnapshotRepositoryTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | `AttachmentSnapshotRepository`'s URL-history round-trip (insert + `getPrevUrls`/`getUrlsById`) and `deleteOlderThan()`'s retention-window cutoff |
 | `attachment/AttachmentSnapshotServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentSnapshotService`'s filename resolution (real filename vs. URL-segment fallback when no matching attachment row exists) and independent resolution of duplicate original filenames across URLs |
-| `audit/AuditLogRepositoryTest` | Testcontainers + `@SpringBootTest` | `AuditLogRepository.findTimeline()`/`getSnapshotContent()`'s `version`-numbering subqueries get an `id` tiebreaker for same-`created_at` rows — improvement-050 item 4; first `AuditLogRepositoryTest`, improvement-027 Batch 3 |
+| `audit/AuditLogRepositoryTest` | Testcontainers + `@SpringBootTest` | `AuditLogRepository.findTimeline()`/`getSnapshotContent()`'s `version`-numbering subqueries get an `id` tiebreaker for same-`created_at` rows |
+| `providerprofile/ProviderProfileRepositoryTest` | Testcontainers + `@SpringBootTest` | Real SQL correctness for `ProviderProfileRepository` — filter (kind, cityTaxonId), sort, pagination, `findOwnerIds()`, optimistic-locked `delete()` — against real `provider-profile-spring-boot-starter` + `user-spring-boot-starter` autoconfiguration |
+| `providerprofile/ProviderProfileServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `ProviderProfileService`'s HTML sanitization policy (mirrors `AdvertisementServiceHtmlSanitizationTest`) and the `kind == SUPPORT` requires-privileged-actor authorization rule (accept/reject) |
+| `providerprofile/ProviderProfileSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `ProviderProfileSnapshotDto.diff()` — pure field-comparison logic — plus a Jackson polymorphic round-trip (de)serialization test, the first of any `AuditableSnapshot` subtype to have one |
 | `SharedEnvConfigTest` | Plain JUnit, no Spring, no DB | `SharedEnvConfig.require()` walking up directories to find the repo-root `.env`, and its failure modes (no `.env` in range, key missing from an `.env` that does exist) |
-| `user/UserSettingsRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserSettingsRepository.save()`'s optimistic locking embedded in the `settings` JSONB column's own `version` field (fresh row starts at 0, stale version throws, correct version succeeds and increments) |
+| `user/UserPreferencesRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserPreferencesRepository.save()`'s optimistic locking embedded in the `settings` JSONB column's own `version` field (fresh row starts at 0, stale version throws, correct version succeeds and increments) |
 
 ### `PostgresContainerSmokeTest`
 
@@ -113,9 +117,8 @@ vars are required — the sandbox-only `--sandbox` workarounds (ADR-004) do not 
 
 Boots both `advertisement-spring-boot-starter` and `user-spring-boot-starter`'s real
 autoconfiguration in one Spring context (satisfying `AdvertisementAutoConfiguration`'s
-`@DependsOn("userLiquibase")`, needed for changelog ordering — corrected 2026-07-27: not for an FK
-constraint, since `advertisement.created_by` → `user_information.id` had no SQL-level FK to begin
-with and improvement-120 later confirmed/hardened that it never gets one). Uses
+`@DependsOn("userLiquibase")`, needed for changelog ordering — not for an FK constraint, since
+`advertisement.created_by` → `user_information.id` has no SQL-level FK). Uses
 `RepositoryTestSupport` + `TestDataCleaner` (see `CLAUDE.md` "Reusable test support").
 
 | Test | Verifies |
@@ -146,8 +149,6 @@ comparison building `ChangeEntry.FieldChange` records.
 | `constructor_nullCategoryIds_defaultsToEmptyList` | A `null` `categoryIds` argument never leaks a `null` into the record — defaults to `List.of()` |
 
 ### `taxon/TaxonRepositoryTest`
-
-Corrected 2026-07-27 — this section previously described the opposite behavior.
 
 | Test | Verifies |
 |---|---|
@@ -243,7 +244,7 @@ Plain JUnit, no Spring, no DB.
 | `require_noEnvFileWithinSearchRange_throwsIllegalStateException` | No `.env` anywhere in range fails fast |
 | `require_envFilePresentButKeyMissing_throwsIllegalStateExceptionMentioningKey` | An `.env` that exists but lacks the requested key fails fast, naming the missing key |
 
-### `user/UserSettingsRepositoryTest`
+### `user/UserPreferencesRepositoryTest`
 
 Testcontainers + `@SpringBootTest`.
 
@@ -266,6 +267,6 @@ Testcontainers + `@SpringBootTest`.
    "Reusable test support" for the exact shape).
 3. Plain unit test: just a normal JUnit 5 test class, no base class needed.
 4. Place it in `src/test/java/org/ost/integrationtests/<domain>/`.
-5. Run with `bash scripts/integration-tests.sh <ClassName> --sandbox` (drop `--sandbox` on a
+5. Run with `bash integration-tests/run.sh <ClassName> --sandbox` (drop `--sandbox` on a
    normal developer machine).
 6. Update the table above.

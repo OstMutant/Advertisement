@@ -5,8 +5,8 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Scope;
 import org.springframework.context.annotation.ScopedProxyMode;
-import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
+import org.ost.orchestrator.services.CurrentUserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +20,7 @@ public class VaadinLocaleProvider implements LocaleProvider {
 
     private static final Logger log = LoggerFactory.getLogger(VaadinLocaleProvider.class);
 
-    private final AuthContextService authContextService;
+    private final CurrentUserService currentUserService;
 
     @Override
     public Locale getCurrentLocale() {
@@ -37,10 +37,8 @@ public class VaadinLocaleProvider implements LocaleProvider {
             log.warn("UI is null in getCurrentLocale; returning default locale");
             return Locale.getDefault();
         }
-        Optional<Locale> userLocale = authContextService.getCurrentUser()
-                .map(u -> u.locale() != null && !u.locale().isBlank()
-                        ? Locale.forLanguageTag(u.locale())
-                        : null);
+        Optional<Locale> userLocale = currentUserService.getCurrentUserLocale()
+                .map(locale -> locale != null && !locale.isBlank() ? Locale.forLanguageTag(locale) : null);
         return userLocale.orElseGet(() -> {
             var session = ui.getSession();
             return session != null ? session.getLocale() : Locale.getDefault();

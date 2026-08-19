@@ -8,12 +8,10 @@ Java package root: `org.ost.user`
 
 ## What it owns
 
-- `User` entity + `UserProfileUpdate` entity + `UserRepository` — CRUD and bespoke queries
-- `UserService` — user creation, role management, profile updates
-- `UserSettingsService` — per-user settings (page sizes, locale)
-- `UserPrincipal` — Spring Security `UserDetails` implementation
-- `UserPortImpl` — implements `UserPort`; thin delegation to services
-- `UserSettingsChangedHook` dispatch — fires `UserSettingsChangedHook` implementations on settings change
+See `user-spring-boot-starter/README.md`'s "Key classes" table for the class list and one-line
+roles — not restated here. `UserPreferences` is table-only (no entity —
+`UserPreferencesRepository` uses raw `JdbcClient`); `UserSettingsChangedHook` implementations
+fire on settings change.
 
 **Autoconfiguration entry point:** `UserAutoConfiguration`
 
@@ -22,16 +20,21 @@ Java package root: `org.ost.user`
 ## Schema
 
 Liquibase changelog: `db/user-changelog/user-changelog-master.xml`  
-Tables: `user_information` (single table; per-user settings live in its `settings` JSONB column — no separate settings table)
-
-Starters own their own Liquibase changelogs — never merge into a shared file.
+Tables: `user_information` (auth only — email, password hash, role, name), `user_preferences`
+(locale + settings JSONB, one row per actor, keyed by `actor_id` with no FK — matches this
+codebase's actor-reference-column convention, e.g. `advertisement.created_by`)
 
 ---
 
 ## Key constraints
 
-- No Vaadin dependency. No UI code here.
-- `UserPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook` live in `platform-commons`.
+- `UserPort` (query), `UserAccountPort` (save/delete/register/refresh), `UserAuthorizationPort`
+  (isAdmin/isModerator/isOwner), `UserPreferencesPort` (settings/locale), `AuthenticatedPrincipal`,
+  `UserSettingsChangedHook` all live in `platform-commons`. Split into 4 narrow ports (not 1) —
+  each consumer injects only the port(s) it actually calls; no runtime-toggle benefit (all 4 are
+  always implemented by this one module), the split is purely for interface cohesion. See
+  `docs/ai/adr-index.md` for both the `UserDto`/consumer-repointing side and the
+  starter-module-level port-split rationale.
 - `@EnableJdbcRepositories(basePackages = "org.ost.user.repository")` declared in `UserAutoConfiguration`.
 - First registered user is auto-promoted to `ADMIN` role — enforced in `UserService`.
 - `@PreAuthorize` must NOT be placed at class level on service beans — see marketplace-app/CLAUDE.md.
@@ -43,25 +46,31 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
   `HttpServletRequest`) to stay transport-agnostic — marketplace-app extracts
   `request.getRemoteAddr()` and passes it down. Rate-limited via an in-memory Caffeine cache
   (5 failures / 15 min), counting only `DuplicateKeyException` failures — never successful
-  registrations (see `marketplace-app/DECISIONS.md` ADR-026).
+  registrations (see `docs/ai/adr-index.md`).
 - `User.version` (`@Version`) is used by `UserRepository.save()` (registration, via
   `UserCrudRepository`). The real profile-edit path (`UserService.save()` →
   `UserRepository.updateProfile()`) goes through a second, narrower entity —
-  `UserProfileUpdate` (`id`, `name`, `role`, `updatedAt`, `version` — no `email`/`passwordHash`)
-  — mapped to the same `user_information` table via its own `UserProfileCrudRepository`. Spring
-  Data JDBC's native `@Version` handling applies (throws `OptimisticLockingFailureException` on a
-  version mismatch, same as `Advertisement`/`Taxon`), and because `passwordHash`/`email` are not
-  mapped properties on `UserProfileUpdate`, the generated `UPDATE` cannot touch them — this
-  eliminates the class of bug where a profile edit accidentally forwards the wrong (or missing)
-  value for a sensitive field, without relying on builder discipline. `UserService.applyUserRestore()`
-  (name/role restore from a snapshot) reuses the same `updateProfile()` method. See
-  `marketplace-app/DECISIONS.md` ADR-029.
-- `UserSettingsRepository.save()` also enforces optimistic locking, but via a version embedded
-  **inside** the `settings` JSONB column (`UserSettingsDto.version`) rather than a separate SQL
-  column — since this repository already serializes/deserializes the whole DTO directly into that
-  one column, the version round-trips through the same Jackson (de)serialization for free. The
-  `UPDATE`'s `WHERE` clause checks `(settings->>'version')::bigint = :expectedVersion`; 0 affected
-  rows throws `OptimisticLockingFailureException`, same as `User.version`/`UserProfileUpdate` above.
+  `UserEditableFields` (`id`, `name`, `role`, `updatedAt`, `version` — no `email`/`passwordHash`,
+  named for the restricted-column-set it represents, not "profile" — that word is reserved for
+  F-04's provider-profile concept) — mapped to the same `user_information` table via its own
+  `UserEditableFieldsCrudRepository`. Spring Data JDBC's native `@Version` handling applies (throws
+  `OptimisticLockingFailureException` on a version mismatch, same as `Advertisement`/`Taxon`), and
+  because `passwordHash`/`email` are not mapped properties on `UserEditableFields`, the generated
+  `UPDATE` cannot touch them — this eliminates the class of bug where a profile edit accidentally
+  forwards the wrong (or missing) value for a sensitive field, without relying on builder
+  discipline. There is no dedicated server-side restore-apply method — restoring a user from a
+  snapshot is client-side only (`UserFormOverlayModeHandler.loadRestored()` loads the snapshot's
+  name/role into the edit form), and only takes effect once the moderator explicitly saves, going
+  through the same `save()` → `updateProfile()` path as any other profile edit. See
+  `docs/ai/adr-index.md`.
+- `UserPreferencesRepository.saveSettings()` also enforces optimistic locking, but via a version
+  embedded **inside** the `settings` JSONB column (`UserSettingsDto.version`) rather than a
+  separate SQL column — since this repository already serializes/deserializes the whole DTO
+  directly into that one column, the version round-trips through the same Jackson
+  (de)serialization for free. The `UPDATE`'s `WHERE` clause checks
+  `(settings->>'version')::bigint = :expectedVersion`; 0 affected rows throws
+  `OptimisticLockingFailureException`, same as `User.version`/`UserEditableFields` above.
   Deliberately does **not** reuse the row's shared `user_information.version` — that would couple
-  a settings save to an unrelated profile-name edit in another tab. See
-  `marketplace-app/DECISIONS.md` ADR-044.
+  a settings save to an unrelated profile-name edit in another tab. The original design and its
+  later supersession — `settings`/`locale` now live in their own `user_preferences` table, not on
+  `user_information` — are both recorded in `docs/ai/adr-index.md`.

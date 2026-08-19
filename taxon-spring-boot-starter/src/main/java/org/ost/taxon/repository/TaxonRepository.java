@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.ost.query.filter.SqlCondition.like;
+import static org.ost.taxon.repository.TaxonFilter.Fields.*;
 
 @Repository
 @RequiredArgsConstructor
@@ -48,7 +49,7 @@ public class TaxonRepository {
     };
 
     private static final SqlFilterBuilder<TaxonFilter> FILTER = new SqlFilterBuilder<>(List.of(
-            SqlBoundFilter.of("name", "tt.name", (m, f) -> like(m, f.name()))
+            SqlBoundFilter.of(name, "tt.name", (m, f) -> like(m, f.name()))
     ));
 
     private static final Map<String, String> SORT_ALIASES = Map.of(
@@ -89,9 +90,9 @@ public class TaxonRepository {
         return jdbcClient.sql("""
                         SELECT id, type, code, deleted_at, deleted_by, created_at, updated_at, created_by, updated_by, version
                         FROM taxon
-                        WHERE id IN (:ids)
+                        WHERE id = ANY(:ids)
                         """)
-                         .paramSource(new MapSqlParameterSource("ids", ids))
+                         .paramSource(new MapSqlParameterSource("ids", ids.toArray(new Long[0])))
                          .query(ROW_MAPPER)
                          .list();
     }
@@ -118,8 +119,8 @@ public class TaxonRepository {
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
-        return new HashSet<>(jdbcClient.sql("SELECT id FROM taxon WHERE id IN (:ids)")
-                         .paramSource(new MapSqlParameterSource("ids", ids))
+        return new HashSet<>(jdbcClient.sql("SELECT id FROM taxon WHERE id = ANY(:ids)")
+                         .paramSource(new MapSqlParameterSource("ids", ids.toArray(new Long[0])))
                          .query(Long.class)
                          .list());
     }

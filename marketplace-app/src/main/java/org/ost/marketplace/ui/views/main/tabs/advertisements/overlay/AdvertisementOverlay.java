@@ -10,12 +10,14 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -63,6 +65,9 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
 
     @Override protected String    getOverlayCssClass()    { return "advertisement-overlay"; }
     @Override protected I18nKey   getBreadcrumbLabelKey() { return MAIN_TAB_ADVERTISEMENTS; }
+
+    @Override protected boolean isEditMode()      { return session.mode() == Mode.EDIT; }
+    @Override protected boolean enteredFromView() { return session.enteredFromView(); }
 
     @Override
     protected SaveConfig saveConfig() {
@@ -121,6 +126,8 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
     @Override
     protected void switchTo() {
         currentFormHandler = null;
+        List<BreadcrumbStep> breadcrumbSteps = buildBreadcrumbSteps();
+        layout.setBreadcrumbLinks(buildBreadcrumbLinks(breadcrumbSteps));
         OverlayModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerFactory.build(
                     AdvertisementViewOverlayModeHandler.Parameters.builder()
@@ -134,6 +141,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
                                 .ad(session.ad())
                                 .onSave(this::handleSave)
                                 .onCancel(this::handleCancel)
+                                .breadcrumbSteps(breadcrumbSteps)
                                 .build());
                 yield currentFormHandler;
             }
@@ -142,11 +150,10 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
         handler.activate(layout);
 
         layout.getBreadcrumbCurrent().setText(switch (session.mode()) {
-            case VIEW   -> "";
+            case VIEW   -> i18n().get(OVERLAY_BREADCRUMB_VIEW);
             case EDIT   -> i18n().get(ADVERTISEMENT_OVERLAY_TITLE_EDIT);
             case CREATE -> i18n().get(ADVERTISEMENT_OVERLAY_TITLE_NEW);
         });
-        layout.getBreadcrumbCurrent().setVisible(session.mode() != Mode.VIEW);
     }
 
     private void switchToEdit() {

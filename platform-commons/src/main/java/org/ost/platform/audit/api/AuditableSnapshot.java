@@ -17,6 +17,7 @@ public interface AuditableSnapshot {
     Optional<String> displayName();
     List<ChangeEntry> diff(AuditableSnapshot previous);
     List<ChangeEntry.FieldChange> allFields();
+    int schemaVersion();
 
     default List<ChangeEntry> expandWithChanges(List<ChangeEntry> changes) {
         Map<String, ChangeEntry.FieldChange> index = new HashMap<>();

@@ -4,7 +4,7 @@
 e2e screenshot set.
 **Module:** `marketplace-app` (login dialog, new recovery UI), `user-spring-boot-starter`
 (recovery tokens, password reset), new infrastructure: outbound email
-**Priority:** medium — irrelevant for the current dev/test audience, blocking for any real public
+**Priority:** 🟡 medium — irrelevant for the current dev/test audience, blocking for any real public
 audience (a locked-out user is a lost user with no self-service path)
 **When:** Deferred — trigger: project nearing public launch (same gate as improvement-052);
 requires an email-infrastructure decision first, which nothing else in the project needs yet

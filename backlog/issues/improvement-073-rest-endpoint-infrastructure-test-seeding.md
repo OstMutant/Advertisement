@@ -6,7 +6,7 @@ future REST-dependent work. Filed 2026-07-16 after deciding a browser-driven Pla
 SQL (breaks the spec's own timeline assertions — see improvement-035's correction) or full UI
 automation (slow — the actual thing being optimized away).
 **Module:** `marketplace-app` (new `web/` or `api/` package for REST controllers, `SecurityConfig`).
-**Priority:** low — deliberately sequenced *after* everything achievable on the existing codebase
+**Priority:** 🔵 low — deliberately sequenced *after* everything achievable on the existing codebase
 without new infrastructure; genuinely new surface area (this app's first *profile-gated,
 business-logic-invoking* REST endpoint — `HealthController` is neither) and shouldn't be rushed
 ahead of cheaper, already-scoped fixes.

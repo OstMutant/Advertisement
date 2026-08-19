@@ -3,17 +3,17 @@ package org.ost.marketplace.ui.views.components.audit;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
+import org.ost.orchestrator.services.EntityExistenceService;
+import org.ost.orchestrator.services.UserActorNameService;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
-import org.ost.platform.audit.spi.AuditDomainHook;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +24,9 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AuditTimelineListRenderer {
 
-    private final AuditDomainHook                            auditDomainHook;
-    private final ComponentFactory<AuditTimelineRowRenderer> rowRendererFactory;
+    private final UserActorNameService                        userActorNameService;
+    private final EntityExistenceService                      entityExistenceService;
+    private final ComponentFactory<AuditTimelineRowRenderer>  rowRendererFactory;
 
     public List<Div> buildRows(List<AuditTimelineItemDto<AuditableSnapshot>> items) {
         AuditTimelineRowRenderer.RowContext ctx = buildRowContext(items);
@@ -40,26 +41,19 @@ public class AuditTimelineListRenderer {
 
     private AuditTimelineRowRenderer.RowContext buildRowContext(List<AuditTimelineItemDto<AuditableSnapshot>> items) {
         Set<Long> actorIds = new HashSet<>();
-        Map<Long, String> displayNames = new HashMap<>();
         Map<EntityType, Set<Long>> byType = new EnumMap<>(EntityType.class);
 
         for (AuditTimelineItemDto<AuditableSnapshot> item : items) {
             if (item.changedByActorId() != null) actorIds.add(item.changedByActorId());
-            displayNames.computeIfAbsent(item.entityRef().entityId(), _ -> {
-                    AuditableSnapshot snapshot = item.snapshotData();
-                    return snapshot != null
-                            ? auditDomainHook.resolveDisplayName(snapshot)
-                            : "";
-                });
             byType.computeIfAbsent(item.entityRef().entityType(), _ -> new HashSet<>()).add(item.entityRef().entityId());
         }
 
-        Map<Long, String> actorNames = actorIds.isEmpty() ? Map.of() : auditDomainHook.resolveNames(actorIds);
+        Map<Long, String> actorNames = actorIds.isEmpty() ? Map.of() : userActorNameService.resolveNames(actorIds);
 
         Set<EntityRef> existingRefs = new HashSet<>();
         byType.forEach((type, ids) ->
-                auditDomainHook.findExisting(type, ids).forEach(id -> existingRefs.add(new EntityRef(type, id))));
+                entityExistenceService.findExisting(type, ids).forEach(id -> existingRefs.add(new EntityRef(type, id))));
 
-        return new AuditTimelineRowRenderer.RowContext(actorNames, displayNames, existingRefs);
+        return new AuditTimelineRowRenderer.RowContext(actorNames, existingRefs);
     }
 }

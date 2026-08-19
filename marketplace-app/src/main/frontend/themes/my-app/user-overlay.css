@@ -13,6 +13,19 @@
     overflow: hidden;
 }
 
+/* Accent border matching the role badge color -- see user-grid.css's role badge */
+.user-view-card--admin {
+    border-top-color: var(--app-accent-primary-strong) !important;
+}
+
+.user-view-card--user {
+    border-top-color: var(--app-status-success-role-text) !important;
+}
+
+.user-view-card--moderator {
+    border-top-color: var(--app-status-moderator-text) !important;
+}
+
 .user-view-profile-row {
     display: flex;
     align-items: center;
@@ -83,12 +96,5 @@
     font-size: 0.9rem;
     color: var(--app-text-secondary);
     font-weight: 500;
-}
-
-/* ── Activity tabs ────────────────────────────────────────────────── */
-
-.user-view-tabs {
-    margin-bottom: 12px;
-    border-bottom: 1px solid var(--app-border-default);
 }
 

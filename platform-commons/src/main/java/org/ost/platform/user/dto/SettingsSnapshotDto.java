@@ -19,11 +19,14 @@ import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 public record SettingsSnapshotDto(
         int adsPageSize,
         int usersPageSize,
-        int timelinePageSize
+        int timelinePageSize,
+        int schemaVersion
 ) implements AuditableSnapshot {
 
-    public static SettingsSnapshotDto from(UserSettingsDto settings) {
-        return new SettingsSnapshotDto(settings.getAdsPageSize(), settings.getUsersPageSize(), settings.getTimelinePageSize());
+    public static final int SCHEMA_VERSION = 1;
+
+    public SettingsSnapshotDto(int adsPageSize, int usersPageSize, int timelinePageSize) {
+        this(adsPageSize, usersPageSize, timelinePageSize, SCHEMA_VERSION);
     }
 
     @Override

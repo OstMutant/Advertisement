@@ -9,33 +9,30 @@
         <validCheckSum>ANY</validCheckSum>
 
         <!-- ── user_information ────────────────────────────────────────────── -->
-        <createTable tableName="user_information">
-            <column name="id" type="BIGSERIAL">
+        <createTable tableName="user_information"
+                      remarks="First registered user auto-promoted to ADMIN. locale/settings moved out to user_preferences -- see marketplace-app/DECISIONS.md ADR-070.">
+            <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="name" type="VARCHAR(100)">
+            <column name="name" type="VARCHAR(100)" remarks="User's display name">
                 <constraints nullable="false"/>
             </column>
-            <column name="email" type="VARCHAR(255)">
+            <column name="email" type="VARCHAR(255)" remarks="Login email">
                 <constraints nullable="false" unique="true"/>
             </column>
-            <column name="password_hash" type="VARCHAR(255)"/>
-            <column name="role" type="VARCHAR(50)">
+            <column name="password_hash" type="VARCHAR(255)" remarks="Hash of password (delegating encoder, {bcrypt}-prefixed)"/>
+            <column name="role" type="VARCHAR(50)" remarks="Authorization role">
                 <constraints nullable="false"/>
             </column>
-            <column name="locale" type="VARCHAR(10)"/>
-            <column name="settings" type="JSONB" defaultValue='{"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20,"version":0}'>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Account creation timestamp">
                 <constraints nullable="false"/>
             </column>
-            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" remarks="Last profile update"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0" remarks="Optimistic-lock counter (checked manually in UserRepository.updateProfile() -- User's edit path bypasses CrudRepository; see marketplace-app/DECISIONS.md ADR-029)">
                 <constraints nullable="false"/>
             </column>
-            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
-            <column name="version" type="BIGINT" defaultValueNumeric="0">
-                <constraints nullable="false"/>
-            </column>
-            <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE"/>
-            <column name="deleted_by" type="BIGINT"/>
+            <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE" remarks="Soft-delete timestamp"/>
+            <column name="deleted_by" type="BIGINT" remarks="Who soft-deleted this account"/>
         </createTable>
 
         <sql>
@@ -55,6 +52,31 @@
         <createIndex indexName="idx_user_deleted_at" tableName="user_information">
             <column name="deleted_at"/>
         </createIndex>
+
+    </changeSet>
+
+    <changeSet id="01-user-preferences-schema" author="ostap">
+        <validCheckSum>ANY</validCheckSum>
+
+        <!-- ── user_preferences ────────────────────────────────────────────── -->
+        <createTable tableName="user_preferences"
+                      remarks="One row per actor, created lazily on first settings write. Optimistic locking checked via (settings-&gt;&gt;'version')::bigint = :expectedVersion, not user_information.version -- deliberately decoupled from profile-name edits.">
+            <column name="id" type="BIGSERIAL" remarks="Auto-increment">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="actor_id" type="BIGINT" remarks="No FK -- matches this codebase's actor-reference-column convention">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="locale" type="VARCHAR(10)" remarks="BCP-47 language tag (e.g., 'en', 'uk')"/>
+            <column name="settings" type="JSONB" defaultValue='{"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20,"version":0}'
+                    remarks="Pagination defaults; own optimistic-lock version embedded in the JSONB, not a SQL column -- see marketplace-app/DECISIONS.md ADR-044 (superseded by ADR-070)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Row creation timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" remarks="Last settings update"/>
+        </createTable>
 
     </changeSet>
 

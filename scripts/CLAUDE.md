@@ -1,34 +1,40 @@
 ## Deployment
 
-### Prod deploy (full image rebuild)
+### Prod deploy (local dev-loop, no image build by default)
 ```bash
-bash scripts/deploy.sh        # Linux / WSL
-scripts\deploy.bat            # Windows
+bash scripts/deploy-and-run.sh        # Linux / WSL
+scripts\deploy-and-run.bat            # Windows
 ```
-Builds a Docker image from scratch (`mvn package` inside Docker — Vaadin's production bundle is built automatically by `vaadin-maven-plugin`, no Maven profile needed; `SPRING_PROFILES_ACTIVE=prod` at runtime sets `vaadin.productionMode=true`), starts all infra + app on **port 8081** (8080 reserved for local IntelliJ dev server).
-After build, dangling (untagged) Docker images are pruned automatically (`docker image prune -f`
-only — scoped by definition to unreferenced images, so it can never touch another stack's
-resources). `docker container prune -f`/`docker volume prune -f` are opt-in only, via
-`--prune-all` — both act host-wide, not scoped to this app's own containers/volumes, so they will
-remove any other stopped container / unused volume on the machine too (see `scripts/ci/DECISIONS.md` ADR-001
-for the incident that made this explicit instead of automatic).
+By default, no Docker image is built at all — the app container runs `java -jar` directly against
+the shared `maven-cache` volume (already refreshed by an internal `scripts/build-and-test.sh` call,
+Vaadin's production bundle included; `SPRING_PROFILES_ACTIVE=prod` at runtime sets
+`vaadin.productionMode=true`), starts all infra + app on **port 8081** (8080 reserved for local
+IntelliJ dev server). `--from-scratch` builds a real, separately tagged image instead, from the
+full multi-stage root `Dockerfile` — needed when an actual portable/deployable image is genuinely
+required, not just a running local container. With `--from-scratch`, dangling (untagged) Docker
+images are pruned automatically after the build (`docker image prune -f` only — scoped by
+definition to unreferenced images, so it can never touch another stack's resources).
+`docker container prune -f`/`docker volume prune -f` are opt-in only, via `--prune-all` — both act
+host-wide, not scoped to this app's own containers/volumes, so they will remove any other stopped
+container / unused volume on the machine too (see `docs/ai/adr-index.md` for the incident that
+made this explicit instead of automatic).
 
-Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache. Use `--prune-all` for a deliberate, whole-machine deep clean (see warning above).
+Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-only-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache (only meaningful with `--from-scratch`). Use `--prune-all` for a deliberate, whole-machine deep clean (see warning above).
 
 **Streaming output requirement — BuildKit + buildx:**
 Docker Engine must have BuildKit enabled AND the `buildx` CLI plugin must be installed at
 `~/.docker/cli-plugins/docker-buildx` — without it, plain `docker build` fails outright on this
 sandbox's Docker version whenever the Dockerfile uses `--mount=type=cache` (confirmed directly:
 `ERROR: BuildKit is enabled but the buildx component is missing`, not just a silent legacy-builder
-fallback). The `--progress=plain` flag in `deploy.sh` then enables line-by-line streaming once
+fallback). The `--progress=plain` flag in `deploy-and-run.sh` then enables line-by-line streaming once
 BuildKit is active.
 
-**`docker compose` CLI plugin** — needed by `scripts/database/reset.sh` (starting dev DB when no
+**`docker compose` CLI plugin** — needed by `scripts/deploy-and-run/reset.sh` (starting dev DB when no
 container exists yet) and `scripts/sonar/run.sh` (starting the SonarQube stack). Not present by
 default in this sandbox.
 
 **Both plugins are installed automatically, not manually — `scripts/ensure-docker-plugins.sh`.**
-`deploy.sh` (`ensure_buildx`, before its build step), `scripts/database/reset.sh` and
+`deploy-and-run.sh` (`ensure_buildx`, before its build step), `scripts/deploy-and-run/reset.sh` and
 `scripts/sonar/run.sh` (`ensure_docker_compose`, before their respective `docker compose` calls)
 all source this shared script and call the relevant function; each function checks `docker buildx
 version` / `docker compose version` first and only downloads+installs if missing, so it's a no-op
@@ -51,36 +57,27 @@ chmod +x ~/.docker/cli-plugins/docker-compose
 Verify: `docker buildx version` / `docker compose version`.
 
 **`--project-directory` is required whenever `-f` points outside the repo root.**
-`scripts/infra/docker-compose.db.yml`/`docker-compose.app.yml`/`docker-compose.minio.yml` live in
-`scripts/infra/`, not the repo root, but read `${POSTGRES_IMAGE}`/`${DB_NAME}`/`${DB_USER}`/
+`scripts/deploy-and-run/docker-compose.db.yml`/`docker-compose.app.yml`/`docker-compose.minio.yml` live in
+`scripts/deploy-and-run/`, not the repo root, but read `${POSTGRES_IMAGE}`/`${DB_NAME}`/`${DB_USER}`/
 `${DB_PASSWORD}`/`${DB_PORT}`/`${S3_ACCESS_KEY}`/`${S3_SECRET_KEY}`/`${S3_BUCKET}`/`${S3_REGION}`/
 `${S3_PORT}` from the repo-root `.env` — the single source of truth for these values, also read as
-fallback defaults by `deploy.sh`/`scripts/database/reset.sh` and as `${VAR:default}` Spring
-placeholders by `application-dev.yml` (see `DECISIONS.md` ADR-009). Compose's default project
+fallback defaults by `deploy-and-run.sh`/`scripts/deploy-and-run/reset.sh` and as `${VAR:default}` Spring
+placeholders by `application-dev.yml` (see `docs/ai/adr-index.md`). Compose's default project
 directory — where it looks for `.env` — is the directory containing the first `-f` file, **not**
 the invoking shell's working directory. Always pass `--project-directory .` (run from the repo
 root) or `--project-directory "$ROOT"` (absolute path), e.g.:
 ```bash
-docker compose --project-directory . -f scripts/infra/docker-compose.db.yml up -d
+docker compose --project-directory . -f scripts/deploy-and-run/docker-compose.db.yml up -d
 ```
 Omitting it silently resolves `${POSTGRES_IMAGE}` to an empty string and fails with "service db
 has neither an image nor a build context specified" — confirmed by direct testing, not assumption.
 This is documented, version-independent Compose behavior — the same fix applies on any machine,
 not just this sandbox.
 
-**How to run deploy.sh:**
-1. First launch Monitor with `persistent: true` watching `/tmp/deploy.log`:
-   - Every 10s check if file size changed
-   - If 1 minute with no new output → report "process may be stuck"
-   - If ERROR appears in new output → report immediately
-   - If BUILD SUCCESS or Started Application → report and stop
-2. Then run synchronously (user sees streaming output):
-   ```
-   bash scripts/deploy.sh [args] 2>&1 | tee /tmp/deploy.log
-   ```
-   with `timeout: 600000`
-
-**How to run dev deploy (deploy-dev.sh):** same Monitor + tee pattern as deploy.sh, but log to `/tmp/deploy-dev.log`.
+**How to run deploy-and-run.sh:** per `.claude/rules.md`'s "Scripts" section — background
+`bash scripts/deploy-and-run.sh [args] > /tmp/deploy.log 2>&1`, then attach `Monitor` with the
+wait-then-tail wrapper against `/tmp/deploy.log`; stay quiet on routine progress, surface errors,
+a stall well past normal build time, or `BUILD SUCCESS`/`Started Application`.
 
 ### Local run (Maven, no Docker image rebuild)
 ```bat
@@ -88,17 +85,6 @@ scripts\run-local.bat           REM dev profile — Vaadin dev mode, port 8080
 scripts\run-local.bat --prod    REM production Vaadin build, prod profile, port 8080
 ```
 Windows-only (native Maven + Java — no WSL). Requires DB and MinIO already running. Use when you need to compare local vs Docker behaviour.
-
-### Dev deploy (fast JAR hot-swap)
-```bash
-bash scripts/deploy-dev.sh    # Linux / WSL
-scripts\deploy-dev.bat        # Windows
-```
-Builds the JAR locally (`mvn clean package -DskipTests`), copies it into the running container via `docker cp`, and restarts the container. **No Docker image rebuild** — typically ~3-4 min vs ~7-10 min for prod.
-
-Use `--reset-cache` to clear the Maven cache volume before building. Use `--reset-db` to truncate app tables (`reset-clean.sql`) before the hot-swap restart.
-
-**Requires:** infra (DB, MinIO) and the `marketplace-app` container already running. Run `deploy.sh` once first.
 
 ---
 
@@ -115,107 +101,89 @@ docker compose -f scripts/sonar/docker-compose.sonar.yml up -d
 ```bash
 bash scripts/sonar.sh              # Linux / WSL -- blocking: exits non-zero if the quality gate fails
 scripts\sonar.bat                  # Windows -- same
-bash scripts/sonar.sh --no-gate    # informational only, always exits 0 (improvement-032)
+bash scripts/sonar.sh --no-gate    # informational only, always exits 0
 ```
 
-The script starts SonarQube automatically if not running, copies source files into a scanner container via `docker cp`, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`. Quality-gate-blocking is the default (`-Dsonar.qualitygate.wait=true`) — see `scripts/sonar/DECISIONS.md` for why this needed more than just adding that flag (a `tee`d exit-code bug meant the flag alone wouldn't have blocked anything).
+The script starts SonarQube automatically if not running, builds all modules via `scripts/build-and-test.sh` (no local Java needed), copies source files into the scanner container via `docker cp`, mounts the shared `maven-cache` volume directly into the scanner container for compiled classes, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`. The scanner always waits for server-side report processing (`-Dsonar.qualitygate.wait=true`, unconditional — needed so the HTML-report step below doesn't query the issues API before the server finishes indexing); `--no-gate` only changes whether a failed gate makes the script itself exit non-zero, not whether it waits. See `scripts/sonar/DECISIONS.md` for the quality-gate-blocking history (a `tee`d exit-code bug meant the flag alone wouldn't have blocked anything).
 
-**IMPORTANT:** Same Docker socket constraint as Playwright — never use `docker run -v`. The script uses `docker cp` internally.
+**IMPORTANT:** Same Docker socket constraint as Playwright for host-path bind mounts (`-v /host/path:/container/path`) — never use those, the script uses `docker cp` for host-to-container file transfer instead. This does NOT apply to named-volume mounts (`-v maven-cache:/root/.m2`), which the scanner container itself now uses directly — those aren't host paths and don't hit the same bug.
 
 ---
 
-## Plain Unit Tests (no Docker)
+## Unit / Integration Tests
 
-Fast JUnit 5 (+ Mockito where needed) unit tests with no Testcontainers, no real database, and
-usually no Spring context — e.g. `query-lib`'s `SqlConditionTest`/`SqlOperatorTest`,
-`marketplace-app`'s `AccessEvaluatorTest`/`AuthServiceTest`. Run via `scripts/unit-tests.sh`, never
-raw `mvn`:
+Two ways to run these, covering the same tests either way:
 
-```bash
-bash scripts/unit-tests.sh                       # all plain unit tests (query-lib + marketplace-app)
-bash scripts/unit-tests.sh marketplace-app        # one module only
-bash scripts/unit-tests.sh query-lib              # one module only
-bash scripts/unit-tests.sh AccessEvaluatorTest    # one test class by name
-scripts\unit-tests.bat                            # Windows
-```
-
-Delegates to `scripts/unit-tests/run.sh`. Streams full Maven output live via `tee`. After the run:
-- `scripts/unit-tests/reports/run.log` — full streamed output
-- `scripts/unit-tests/reports/surefire/<module>/` — one `.txt`/`.xml` report per test class, split
-  by module
-
-No Docker, no `--sandbox` flag — these tests never touch a container. If a test needs a real
-Postgres, it belongs in `integration-tests` (see below), not here.
-
-**How to run it (Monitor + tee pattern, same as everything else):** launch a `Monitor` watching
-`scripts/unit-tests/reports/run.log` (10s interval, catch `PASSED|FAILED|ERROR`), then run
-synchronously: `bash scripts/unit-tests.sh [scenario] 2>&1 | tee /tmp/unit-tests.log` with
-`timeout: 600000`.
-
----
-
-## Unit / Testcontainers Tests
-
-All Testcontainers-based tests and their fixtures live in the `integration-tests` module (see
-`integration-tests/CLAUDE.md` for why domain starters carry none of this themselves). For
-Docker-free plain unit tests (`query-lib`, `marketplace-app`'s non-UI service layer), see "Plain
-Unit Tests (no Docker)" above instead.
-
-### Via script (preferred — streaming, reports folder, scenario selection)
+### Via `build-and-test.sh` (preferred — no local Java needed, unit + integration in parallel)
 
 ```bash
-bash scripts/integration-tests.sh                          # Linux / WSL — every test
-scripts\integration-tests.bat                               # Windows
-
-bash scripts/integration-tests.sh smoke                     # just PostgresContainerSmokeTest
-bash scripts/integration-tests.sh AdvertisementRepositoryTest  # one class by name
-bash scripts/integration-tests.sh --sandbox smoke            # + this sandbox's Docker workarounds
-bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the staleness check
+bash scripts/build-and-test.sh --sandbox --unit --integration      # both, in parallel
+bash scripts/build-and-test.sh --unit --no-integration              # unit only
+bash scripts/build-and-test.sh --no-unit --integration --sandbox    # integration only
+bash scripts/build-and-test.sh --unit-test AccessEvaluatorTest --no-integration  # one class
+bash scripts/build-and-test.sh --no-unit --integration-test AdvertisementRepositoryTest --sandbox
 ```
 
-Delegates to `integration-tests/run.sh` (same thin-wrapper shape as `scripts/playwright.sh` →
-`playwright/run.sh`). Streams full Maven/Testcontainers output live via `tee`. After the run:
+Builds the whole reactor into a container-isolated `~/.m2` first, then runs unit
+(`query-lib`/`marketplace-app`/`marketplace-orchestrator`) and integration (`integration-tests`
+module — Testcontainers-based repository tests, real Postgres) as parallel jobs inside that same
+container. See `scripts/build-and-test/README.md` for the full flow and
+`scripts/build-and-test/build.sh`'s own header for every flag. `--sandbox` applies
+`TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432` — **only needed in
+this claude-dev sandbox**, never on a normal developer machine (see below for why).
+
+Reports: `scripts/build-and-test/reports/surefire/<module>/`.
+
+**How to run it:** per `.claude/rules.md`'s "Scripts" section — background
+`bash scripts/build-and-test.sh --sandbox --unit --integration > /tmp/build-and-test.log 2>&1`,
+then attach `Monitor` with the wait-then-tail wrapper against that log; stay quiet on routine
+progress, surface errors, a stall, or `PASSED|FAILED|BUILD SUCCESS|BUILD FAILURE`.
+
+### Via direct Maven/module scripts (need a local Java install)
+
+Plain unit tests, no Docker: `mvn -pl query-lib,marketplace-app,marketplace-orchestrator test`.
+
+Integration tests (Testcontainers, real Postgres) — `integration-tests/run.sh` still exists as its
+own standalone entry point, with capabilities `build-and-test.sh` deliberately doesn't replicate
+(a targeted per-starter staleness check instead of always installing the whole reactor,
+`--no-check` to bypass it entirely):
+
+```bash
+bash integration-tests/run.sh                          # every test
+bash integration-tests/run.sh smoke                     # just PostgresContainerSmokeTest
+bash integration-tests/run.sh AdvertisementRepositoryTest  # one class by name
+bash integration-tests/run.sh --sandbox smoke            # + this sandbox's Docker workarounds
+bash integration-tests/run.sh --no-check TaxonRepositoryTest  # skip the staleness check
+```
+
+Streams full Maven/Testcontainers output live via `tee`. After the run:
 - `integration-tests/reports/run.log` — full streamed output
 - `integration-tests/reports/surefire/` — one `.txt`/`.xml` pass/fail report per test class
   (copied from Maven's own `target/surefire-reports/`)
 
-`--sandbox` applies `TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`
-— **only needed in this claude-dev sandbox**, never on a normal developer machine (see below for
-why). Omit it there; Testcontainers' defaults just work.
-
-`run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon`/`audit`/`attachment-spring-boot-starter`
-changed since their last `~/.m2` install (comparing each module's newest `.java` file's mtime
-against its installed JAR) and only reinstalls those before testing, instead of rebuilding all 7
-non-`integration-tests` reactor modules every run (measured ~1:47-3:35 total when nothing needed
+`run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon`/`audit`/`attachment`/
+`provider-profile-spring-boot-starter` changed since their last `~/.m2` install (comparing each
+module's newest `.java` file's mtime against its installed JAR) and only reinstalls those before
+testing, instead of rebuilding all 9 non-`integration-tests` reactor modules every run (measured
+~1:47-3:35 total when nothing needed
 reinstalling vs. 3-7 min walking the full reactor, dominated by ~100s of "nothing to compile"
 Maven overhead across those modules in this sandbox). No manual flag needed — confirmed the
 detection correctly triggers a reinstall when a starter file actually changes, not just when
 nothing changed. `--no-check` bypasses the detection entirely (test against whatever's in `~/.m2`
 right now) — only for deliberately reproducing behavior against an older build. See
-`integration-tests/CLAUDE.md` and `DECISIONS.md` ADR-007 for the full rule.
+`integration-tests/CLAUDE.md` and `docs/ai/adr-index.md` for the full rule.
 
-**How to run it (Monitor + tee pattern, same as deploy/Playwright):** launch a `Monitor` watching
-`integration-tests/reports/run.log` (10s interval, catch `PASSED|FAILED|ERROR`), then run
-synchronously: `bash scripts/integration-tests.sh --sandbox [scenario] 2>&1 | tee /tmp/integration-tests.log`
-with `timeout: 600000`.
-
-### Via direct command (no script, no reports folder)
-
-```bash
-mvn -pl integration-tests -am test
-# or, in this sandbox only:
-TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432 mvn -pl integration-tests -am test
-```
+Raw `mvn`, no reports folder: `mvn -pl integration-tests -am test` (or, in this sandbox only,
+prefixed with `TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`).
 `-am` also builds whichever starters `integration-tests` currently depends on (required — they
 are not otherwise built by a scoped `-pl integration-tests` alone).
 
-### Never run via `deploy.sh`/`deploy-dev.sh`
+### Never run integration tests via `deploy-and-run.sh`
 
-Both build Maven inside a `docker build` stage (multi-stage `Dockerfile`) that already skips tests
-(`./mvnw install -DskipTests`) and, even if it didn't, has no access to the outer Docker socket
-(standard Docker-in-Docker isolation — no socket mount configured for the `builder` stage).
-Testcontainers-based tests need a real reachable Docker daemon, which only exists when `mvn test`
-is run directly, never inside the image build.
+`deploy-and-run.sh` runs Maven with `-DskipTests` inside a `docker build` stage with no access to the
+outer Docker socket — standard Docker-in-Docker isolation, no socket mount configured for the
+`builder` stage. Testcontainers-based tests need a real reachable Docker daemon, which only exists
+when `mvn test` is run directly, never inside this build path.
 
 ### Why this sandbox needs `INTEGRATION_TESTS_POSTGRES_FIXED_PORT` / `TESTCONTAINERS_RYUK_DISABLED`
 
@@ -231,74 +199,102 @@ Ryuk cleanup both just work outside this sandbox.
 
 ## Running Playwright Tests
 
-**How to run playwright.sh:**
+**How to run playwright.sh:** per `.claude/rules.md`'s "Scripts" section.
 1. Kill stale processes: `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`
-2. Launch Monitor with `persistent: true` watching `/tmp/playwright.log`:
-   - Poll every 10s for new output
-   - If 2 minutes with no new output → report "process may be stuck"
-   - If `failed` or `Error` appears → report immediately
-   - If `passed` summary line appears → report and stop
-3. Then run synchronously (user sees streaming output):
-   ```
-   bash scripts/playwright.sh [scenario] 2>&1 | tee /tmp/playwright.log
-   ```
-   with `timeout: 600000`
+2. Background `bash scripts/playwright.sh [scenario] > /tmp/playwright.log 2>&1`, then attach
+   `Monitor` with the wait-then-tail wrapper against that log.
+3. Stay quiet on routine per-test progress; surface a real error, a stall, or the final
+   `passed`/`failed` summary line.
 
 ---
 
-## Local CI Runner (isolated, parameterized) — improvement-059
+## Local CI Runner (isolated, parameterized, Dagu-backed)
 
 Lives in `scripts/ci/` (own `DECISIONS.md`/`README.md`, matching `scripts/sonar/`'s nested-module
 shape, not `playwright/`'s root-level one — this is a tool wrapping other scripts, not a separate
-test-authoring ecosystem). One CI-runner container (`scripts/ci/Dockerfile`), built fresh from the
-current source tree and run with the host's `/var/run/docker.sock` mounted
+test-authoring ecosystem). One persistent `ci-runner` container (`scripts/ci/Dockerfile`), built
+from the current source tree and run with the host's `/var/run/docker.sock` mounted
 (Docker-outside-of-Docker) — it creates and tears down its own isolated `ci-*`-named sibling
-containers, never touching the persistent dev stack. See `scripts/ci/DECISIONS.md` ADR-001 for the
-full design (why DooD, not DinD) and `scripts/ci/entrypoint.sh` for the in-container orchestration.
+containers, never touching the persistent dev stack. `ci-runner` runs Dagu
+(https://github.com/dagucloud/dagu), a single-binary DAG engine with a built-in web UI, orchestrating
+the stage sequence defined in `scripts/ci/dagu/ci.yaml` (`build` → `unit`/`integration`/`e2e`/
+`sonar`/`archunit_metrics` in parallel → `pipeline_metrics` → `docs`) — each step calls the same
+existing scripts (`build-and-test.sh`/`deploy-and-run.sh`+`playwright/run.sh`/`sonar.sh`) directly,
+no stage logic reimplemented. `unit`/`integration`/`archunit_metrics` pass `--skip-vaadin` to
+`build-and-test.sh` (skips the Vaadin frontend bundle none of them need — see
+`docs/ai/adr-index.md`). See `docs/ai/adr-index.md` for the DooD (Docker-outside-of-Docker)
+design, the Dagu migration, and the pipeline-metrics/ArchUnit-export follow-up.
 
 ```bash
-bash scripts/ci.sh                                        # default: most extensive run
-                                                            # (unit+integration+e2e+sonar, e2e uses
-                                                            # "e2e --full --ux"), backgrounded
+bash scripts/ci.sh                                        # build the image, start the persistent
+                                                            # container, trigger the most extensive
+                                                            # run (unit+integration+e2e+sonar+
+                                                            # archunit_metrics+docs)
 bash scripts/ci.sh --unit --integration --e2e              # chosen stages only
 bash scripts/ci.sh --all --sonar                            # everything, explicit
-bash scripts/ci.sh --playwright-args "e2e --ux"              # override the e2e stage's Playwright args
-bash scripts/ci.sh --report-dir /some/path                    # configurable report destination
-bash scripts/ci.sh --keep-reports 5                             # keep last N report dirs (default 3)
-bash scripts/ci.sh --keep-infra                                  # don't tear down the isolated
-                                                                   # e2e stack after (debugging)
-bash scripts/ci.sh --integration --sandbox                        # this claude-dev sandbox's
-                                                                    # Testcontainers workaround
-bash scripts/ci.sh --foreground                                    # block and stream instead of
-                                                                     # the background default (see
-                                                                     # "How to run it" below)
+bash scripts/ci.sh --no-docs                                 # skip the doc-freshness stage
+bash scripts/ci.sh --playwright-args "e2e --ux"                # override the e2e stage's
+                                                                 # Playwright args
+bash scripts/ci.sh --no-keep-e2e-infra                            # tear down the isolated e2e
+                                                                   # stack after (on by default,
+                                                                   # left up for debugging)
+bash scripts/ci.sh --reset-e2e-db                                  # full --reset (volume wipe)
+                                                                    # before e2e's deploy instead
+                                                                    # of the default --reset-only-db
+                                                                    # -- only needed when the DB
+                                                                    # schema itself changed
+bash scripts/ci.sh --foreground                                     # block and stream this run's
+                                                                      # output instead of firing it
+                                                                      # and returning immediately
+bash scripts/ci.sh --no-rebuild                                      # trigger a new run against
+                                                                       # the already-running
+                                                                       # container instead of
+                                                                       # rebuilding/recreating it
+bash scripts/ci.sh --refresh-tools                                    # force re-download of
+                                                                        # buildx/compose/dagu even
+                                                                        # if already cached
+bash scripts/ci.sh --no-archunit-metrics                                # skip ArchUnit's
+                                                                          # module-coupling export
+                                                                          # (on by default)
+bash scripts/ci.sh --sync-artifacts                                      # pull architecture-metrics.json/
+                                                                           # pipeline-metrics.json onto
+                                                                           # the host without
+                                                                           # triggering a new run
+                                                                           # (automatic after
+                                                                           # --foreground; manual
+                                                                           # after a backgrounded run)
 ```
 
-**Background by default, with a live progress file.** A bare `bash scripts/ci.sh` builds the image
-in the foreground (fast, fails loudly), then detaches and returns control within seconds, printing
-the background PID and two paths: `scripts/ci/reports/<timestamp>/progress.txt` (a small,
-continuously-rewritten status file — per-stage `PENDING`/`RUNNING`/`DONE`/`FAILED` with elapsed
-seconds, updated via periodic `docker cp` while the container runs, since bind mounts don't work in
-this sandbox — same constraint as `playwright/CLAUDE.md`) and `run.log` (the outer orchestrator's
-own stdout — container build/run/wait bookkeeping, not any stage's command output).
-Check in on a running background job anytime with `cat <path>/progress.txt` — no need to attach to
-anything. Reports land in `scripts/ci/reports/<timestamp>/{unit-tests,integration-tests,playwright,
-sonar}/` (gitignored, pruned to the last 3 runs by default — see `--keep-reports`), each with its
-own `run.log` holding that stage's actual command output (see `scripts/ci/DECISIONS.md` ADR-006).
-Maven
-dependencies are cached across runs via the `ci-m2-cache` named volume. No stage logic is
-reimplemented — `entrypoint.sh` calls the existing `unit-tests.sh`/`integration-tests.sh`/
-`deploy.sh`+`playwright/run.sh`/`sonar.sh` scripts, with `deploy.sh` and `playwright/run.sh` now
-accepting env-var overrides (container/network names, ports, volume names — default to the exact
-values already in use, so normal dev usage is unaffected) for the isolated e2e stack.
+**Live status, logs, and run history: `http://localhost:8082`** — Dagu's own web UI, reached
+through a small `alpine/socat` proxy sidecar (`ci-runner-dagu-proxy`) rather than directly, since a
+`--network host` container's bound ports (needed so `ci-runner`'s own DAG steps reach sibling
+`ci-*` containers at plain `localhost:PORT`) aren't reachable from a real browser in this sandbox —
+see `docs/ai/adr-index.md`. There is no `scripts/ci/reports/` tree, `progress.txt`, or
+`--report-dir`/`--keep-reports` flag anymore — Dagu's UI and run history (backed by the
+`ci-dagu-home` named volume) replace all of that. Once the container is running, a DAG run can also
+be triggered directly from that UI ("Start" on the `ci` DAG opens a dialog with a field per
+`scripts/ci/dagu/ci.yaml` param) — `bash scripts/ci.sh` itself is only needed to build/start the
+container in the first place, or to trigger a run from a script/CI context. **Triggering from the
+UI never picks up source changes made since the last `bash scripts/ci.sh` rebuild** — the container
+has no live view of the working tree (see `docs/ai/adr-index.md` for why a bind mount
+isn't used instead); re-run `bash scripts/ci.sh` after any code change before relying on the UI's
+"Start" button again. Maven dependencies are
+cached across runs via the `ci-m2-cache` named volume; buildx/compose/Dagu's own binaries are
+cached via `ci-tools-cache` (downloaded once, reused across image rebuilds — see
+`scripts/ci/docker-entrypoint.sh`). `deploy-and-run.sh` and `playwright/run.sh` accept env-var
+overrides (container/network names, ports, volume names — default to the exact values already in
+use, so normal dev usage is unaffected) for the isolated e2e stack.
 
-**How to run it (when *you*, not the user, need to verify a change to this tool itself):** unlike
-every other script in this file, do NOT use the Monitor + `| tee` pattern here for a normal
-end-to-end run — `scripts/ci.sh`'s own background mode plus `progress.txt` already gives you a
-non-blocking way to watch it, and re-wrapping that in a blocking foreground call defeats the whole
-point of this tool. Launch it plain (`bash scripts/ci.sh [flags]`, no `--foreground`, no
-backgrounding wrapper needed since it returns on its own in seconds), then either poll
-`progress.txt` yourself between other work, or set up a `Monitor` that periodically reads
-`progress.txt` (not raw stdout) and reports on `RESULT:`. Reserve `--foreground` + Monitor+`tee` for
-the rare case where you need a single blocking call with a definite end (e.g. scripted verification
-inside a larger multi-step check).
+**How to run it (Monitor-backed, same pattern as deploy/playwright/build-and-test):**
+1. Trigger: `bash scripts/ci.sh [flags]` (no `--foreground`) — returns once the image is built, the
+   container is up, and the run is triggered.
+2. Launch `Monitor` with `command: "python3 -u scripts/ci/watch-run.py"` (`-u` is required, see the
+   script's own header) — polls Dagu's REST API
+   (through the proxy sidecar, not a log file, since a triggered run has no single streaming log)
+   and emits one line per step-status transition, then a final `RUN <status>` line and exits on its
+   own once the run reaches a terminal state. Unlike `deploy.log`/`playwright.log`, there's no file
+   to `tail`, so this script — not a raw shell command — is what Monitor watches.
+
+Use `--foreground` + Monitor+`tee` on `ci.sh` itself only when a single blocking call with a
+definite end is actually needed (e.g. scripted verification inside a larger multi-step check) —
+`--no-docs` keeps that call short when only a specific stage's pass/fail matters.

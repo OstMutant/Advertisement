@@ -1,0 +1,37 @@
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: PostgreSQL for local development (IDE dev mode) -- the application itself runs via
+#   IDE with the "dev" profile, not this file; it only provisions the database container.
+# Usage: docker compose --project-directory . -f scripts/deploy-and-run/docker-compose.db.yml up -d
+#   docker compose --project-directory . -f scripts/deploy-and-run/docker-compose.db.yml down
+#   --project-directory is required: Compose's default project directory is the directory
+#   containing this file (scripts/deploy-and-run/), NOT the repo root, so without it the
+#   repo-root .env below is never found. Always run from the repo root.
+# Uses: postgres image (tag from POSTGRES_IMAGE).
+# Env: POSTGRES_IMAGE, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT -- all read from the repo-root .env
+#   (via --project-directory), no hardcoded fallback in this file.
+# Input: repo-root .env.
+# Outputs: advertisement-db container, publishing DB_PORT -> 5432, named volume postgres_data.
+# ────────────────────────────────────────────────────────────────────────────
+version: '3.8'
+
+services:
+  db:
+    container_name: advertisement-db
+    image: ${POSTGRES_IMAGE}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

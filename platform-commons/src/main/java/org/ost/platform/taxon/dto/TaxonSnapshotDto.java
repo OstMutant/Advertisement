@@ -20,8 +20,15 @@ public record TaxonSnapshotDto(
         String nameEn,
         String descriptionEn,
         String nameUk,
-        String descriptionUk
+        String descriptionUk,
+        int schemaVersion
 ) implements AuditableSnapshot {
+
+    public static final int SCHEMA_VERSION = 1;
+
+    public TaxonSnapshotDto(String nameEn, String descriptionEn, String nameUk, String descriptionUk) {
+        this(nameEn, descriptionEn, nameUk, descriptionUk, SCHEMA_VERSION);
+    }
 
     @Override
     public EntityType entityType() { return EntityType.TAXON; }

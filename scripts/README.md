@@ -9,23 +9,24 @@ If a container is stopped — it starts it. If an image is missing — it pulls 
 
 ---
 
-## deploy.sh / deploy.bat
+## deploy-and-run.sh / deploy-and-run.bat
 
-Full local deploy pipeline. Builds a Docker image from scratch and starts all services.
-
-Maven dependencies are cached in Docker layer cache — if `pom.xml` files have not changed, dependencies are not re-downloaded on the next run.
+Full local deploy pipeline. By default, no Docker image is built at all — it reuses
+`scripts/build-and-test.sh`'s shared jar and runs it directly against the mounted `maven-cache`
+volume. `--from-scratch` builds a real, separately tagged image instead, from the full multi-stage
+root `Dockerfile`, for when an actual portable/deployable image is genuinely needed.
 
 ```bash
-bash scripts/deploy.sh                   # Linux / WSL — full output to console
-bash scripts/deploy.sh --file            # filtered output + full log to /tmp/deploy.log
-bash scripts/deploy.sh --no-cache        # force rebuild ignoring Docker layer cache (re-downloads all dependencies)
-bash scripts/deploy.sh --reset           # wipe all containers + volumes, start fresh
-bash scripts/deploy.sh --restart-infra   # restart DB + MinIO (volumes preserved), redeploy app
-bash scripts/deploy.sh --reset-db        # truncate app tables (reset-clean.sql) before starting the app
-bash scripts/deploy.sh --prune-all       # deliberate whole-machine deep clean: also prunes stopped
+bash scripts/deploy-and-run.sh                   # Linux / WSL — full output to console
+bash scripts/deploy-and-run.sh --file            # filtered output + full log to /tmp/deploy.log
+bash scripts/deploy-and-run.sh --no-cache        # force rebuild ignoring Docker layer cache (re-downloads all dependencies)
+bash scripts/deploy-and-run.sh --reset           # wipe all containers + volumes, start fresh
+bash scripts/deploy-and-run.sh --restart-infra   # restart DB + MinIO (volumes preserved), redeploy app
+bash scripts/deploy-and-run.sh --reset-only-db        # truncate app tables (reset-clean.sql) before starting the app
+bash scripts/deploy-and-run.sh --prune-all       # deliberate whole-machine deep clean: also prunes stopped
                                           # containers + unused volumes host-wide, not scoped to
-                                          # this app (see scripts/CLAUDE.md, scripts/ci/DECISIONS.md ADR-001)
-scripts\deploy.bat                       # Windows (calls deploy.sh via WSL)
+                                          # this app (see scripts/CLAUDE.md, docs/ai/adr-index.md)
+scripts\deploy-and-run.bat                       # Windows (calls run.sh via WSL)
 ```
 
 ### What it does (default mode)
@@ -36,9 +37,9 @@ scripts\deploy.bat                       # Windows (calls deploy.sh via WSL)
 | 2 | Start DB + MinIO (skips already-running containers) |
 | 3 | Wait for DB (`pg_isready`) and MinIO (`/minio/health/live`) to be healthy |
 | 4 | Create `advertisement` MinIO bucket if it does not exist |
-| 5 | Remove existing `marketplace-app` container |
-| 6 | Build Docker image from `Dockerfile` (multi-stage: JDK builder → JRE runtime) |
-| 7 | Start `marketplace-app` container with production env vars |
+| 5 | Run `scripts/build-and-test.sh` (refreshes `marketplace-app.jar` in the shared `maven-cache` volume) |
+| 6 | Remove existing `marketplace-app` container |
+| 7 | Start `marketplace-app` container directly from `eclipse-temurin:25-jre`, `maven-cache` volume mounted, running `java -jar` straight out of it — no image build |
 | 8 | Wait for `"Started Application"` in logs (timeout 180s) |
 
 ### Flags
@@ -47,58 +48,21 @@ scripts\deploy.bat                       # Windows (calls deploy.sh via WSL)
 |------|--------|
 | _(none)_ | Full output to console; start stopped infra containers, skip already-running ones |
 | `--file` | Filtered output to console + full log saved to `/tmp/deploy.log` |
-| `--no-cache` | Force `docker build --no-cache` — ignores all cached layers, re-downloads all Maven dependencies |
+| `--no-cache` | Force `docker build --no-cache` — only meaningful with `--from-scratch`, ignores all cached layers, re-downloads all Maven dependencies |
 | `--reset` | Stop + remove ALL containers and volumes, then start from scratch |
 | `--restart-infra` | Remove and restart DB + MinIO containers, volumes preserved |
-| `--reset-db` | Truncate app tables (`reset-clean.sql`) before starting the app — no volume wipe |
+| `--reset-only-db` | Truncate app tables (`reset-clean.sql`) before starting the app — no volume wipe |
+| `--with-tests` | Also run unit+integration tests as part of the `build-and-test.sh` step (default: build only, no tests, for deploy speed) |
+| `--from-scratch` | Build a real, separately tagged `marketplace-app` image from the full multi-stage root `Dockerfile`, in complete isolation — the old, pre-reuse behavior, for when an actual portable/deployable image is genuinely needed |
 | `--prune-all` | Also run `docker container prune -f`/`docker volume prune -f` — host-wide, not scoped to this app's own resources; opt-in only, see `scripts/CLAUDE.md` |
 
-Flags can be combined: `bash scripts/deploy.sh --no-cache --file`
-
----
-
-## deploy-dev.sh / deploy-dev.bat
-
-Fast dev deploy: pipes source files into a throwaway `advertisement-build-env` container, builds the JAR, and hot-swaps it into `marketplace-app`. No Docker image rebuild — typically **3-4 min** vs 7-10 min for a full prod rebuild.
-
-Maven dependencies are cached in a named Docker volume (`maven-cache`) — persists between runs regardless of whether the container is removed.
-
-```bash
-bash scripts/deploy-dev.sh                 # Linux / WSL — full output to console
-bash scripts/deploy-dev.sh --file          # filtered output + full log to /tmp/deploy-dev.log
-bash scripts/deploy-dev.sh --reset-cache   # wipe Maven cache volume before building (re-downloads all dependencies)
-bash scripts/deploy-dev.sh --reset-db      # truncate app tables (reset-clean.sql) before the hot-swap restart
-scripts\deploy-dev.bat                     # Windows (calls deploy-dev.sh via WSL)
-```
-
-**Self-healing:** builds `advertisement-build-env` image if missing. If `marketplace-app` is missing — runs `deploy.sh` first; if stopped — starts it.
-
-### Maven cache
-
-Dependencies are stored in Docker named volume `maven-cache` mounted at `/root/.m2` inside the build container. First run downloads everything; subsequent runs reuse the cache.
-
-Use `--reset-cache` to wipe the volume and force a full re-download (e.g. after dependency conflicts or a corrupt cache).
-
-### What it does
-
-| Step | Action |
-|------|--------|
-| 1 | Build `advertisement-build-env` image if not present (JDK 25 + Docker CLI) |
-| 2 | If `marketplace-app` missing → run `deploy.sh`; if stopped → start it |
-| 3 | Pipe source files into `advertisement-build-env` via tar (excludes `target/`, `.git/`) |
-| 4 | Build JAR with `mvn clean package -DskipTests` inside the container |
-| 5 | `docker cp` the JAR into the running `marketplace-app` container |
-| 6 | `docker restart marketplace-app` and wait for `"Started Application"` (timeout 180s) |
-
-### How Windows deploy works
-
-`deploy-dev.bat` calls `wsl bash deploy-dev.sh`. The build runs inside `advertisement-build-env` container — no Java or Maven required on the developer's machine. Source files are streamed in via tar pipe; build logs are visible in Docker Desktop and in the console.
+Flags can be combined: `bash scripts/deploy-and-run.sh --no-cache --file`
 
 ---
 
 ## run-local.bat
 
-Run the application locally via Maven without a Docker image rebuild. Requires DB and MinIO already running (start via `scripts/infra/`).
+Run the application locally via Maven without a Docker image rebuild. Requires DB and MinIO already running (start via `scripts/deploy-and-run/`).
 
 ```bat
 scripts\run-local.bat           REM dev profile — Vaadin dev mode, port 8080
@@ -131,47 +95,46 @@ scripts\playwright.bat e2e --ux         # Windows
 
 ---
 
-## unit-tests.sh / unit-tests.bat
+## build-and-test.sh / build-and-test.bat — unit + integration tests
 
-Run plain JUnit 5 unit tests — no Docker, no Testcontainers, no real database (`query-lib`,
-`marketplace-app`'s non-UI service layer). Delegates to `scripts/unit-tests/run.sh`.
+Preferred way to run unit and/or integration tests — no local Java install needed, builds the
+whole reactor once, then runs both in parallel inside the same container. See
+`scripts/build-and-test/README.md` for the full flow.
 
 ```bash
-bash scripts/unit-tests.sh                       # all plain unit tests (query-lib + marketplace-app)
-bash scripts/unit-tests.sh marketplace-app       # one module only
-bash scripts/unit-tests.sh AccessEvaluatorTest   # one test class by name
-scripts\unit-tests.bat                           # Windows
+bash scripts/build-and-test.sh --sandbox --unit --integration      # both, in parallel
+bash scripts/build-and-test.sh --unit --no-integration              # unit only
+bash scripts/build-and-test.sh --no-unit --integration --sandbox    # integration only
+bash scripts/build-and-test.sh --unit-test AccessEvaluatorTest --no-integration
+bash scripts/build-and-test.sh --no-unit --integration-test AdvertisementRepositoryTest --sandbox
 ```
 
-Reports after each run: `scripts/unit-tests/reports/run.log` (full output) and
-`scripts/unit-tests/reports/surefire/<module>/` (pass/fail per test class, split by module). For
-Testcontainers-based repository tests against a real Postgres, use `integration-tests.sh` below
-instead.
+Reports: `scripts/build-and-test/reports/surefire/<module>/`. `--sandbox` is only needed in this
+claude-dev sandbox (dynamic Testcontainers ports aren't reachable there) — omit it on a normal
+developer machine.
 
----
+## `integration-tests/run.sh` — direct alternative, needs a local Java install
 
-## integration-tests.sh / integration-tests.bat
-
-Run Testcontainers-based repository tests + fixtures (module `integration-tests` — owns every
-such test for every starter, so starters carry none themselves). Delegates to
-`integration-tests/run.sh`.
+Testcontainers-based repository tests + fixtures (module `integration-tests` — owns every such
+test for every starter, so starters carry none themselves) can also run directly, without a
+container, via this module's own entry point — with capabilities `build-and-test.sh` deliberately
+doesn't replicate (a targeted per-starter staleness check instead of always installing the whole
+reactor, `--no-check` to bypass it entirely):
 
 ```bash
-bash scripts/integration-tests.sh                          # all integration tests
-bash scripts/integration-tests.sh smoke                    # just PostgresContainerSmokeTest
-bash scripts/integration-tests.sh AdvertisementRepositoryTest  # one class by name
-bash scripts/integration-tests.sh --sandbox smoke          # + this sandbox's Docker workarounds
-bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the staleness check
-scripts\integration-tests.bat --sandbox                    # Windows
+bash integration-tests/run.sh                          # all integration tests
+bash integration-tests/run.sh smoke                    # just PostgresContainerSmokeTest
+bash integration-tests/run.sh AdvertisementRepositoryTest  # one class by name
+bash integration-tests/run.sh --sandbox smoke          # + this sandbox's Docker workarounds
+bash integration-tests/run.sh --no-check TaxonRepositoryTest  # skip the staleness check
 ```
 
 Reports after each run: `integration-tests/reports/run.log` (full output) and
-`integration-tests/reports/surefire/` (pass/fail per test class). `--sandbox` is only needed in
-the claude-dev sandbox (dynamic Testcontainers ports aren't reachable there) — omit it on a normal
-developer machine. `run.sh` auto-detects whether the starter modules it depends on changed since
-their last install and only rebuilds those before testing (~1:47-3:35 vs. 3-7 min walking the full
-reactor every time) — no manual flag needed. `--no-check` skips that detection entirely, testing
-against whatever's already in `~/.m2`; see `integration-tests/CLAUDE.md` for the full rule.
+`integration-tests/reports/surefire/` (pass/fail per test class). `run.sh` auto-detects whether the
+starter modules it depends on changed since their last install and only rebuilds those before
+testing (~1:47-3:35 vs. 3-7 min walking the full reactor every time) — no manual flag needed.
+`--no-check` skips that detection entirely, testing against whatever's already in `~/.m2`; see
+`integration-tests/CLAUDE.md` for the full rule.
 
 ---
 
@@ -182,25 +145,25 @@ Run SonarQube analysis. Starts SonarQube automatically if not running. Delegates
 ```bash
 bash scripts/sonar.sh              # blocking: exits non-zero if the quality gate fails
 scripts\sonar.bat                  # Windows — same
-bash scripts/sonar.sh --no-gate    # informational only, always exits 0 (improvement-032)
+bash scripts/sonar.sh --no-gate    # informational only, always exits 0
 ```
 
 Results: `http://localhost:9099/dashboard?id=advertisement`
 
 ---
 
-## scripts/database/reset.sh / reset.bat
+## scripts/deploy-and-run/reset.sh / reset.bat
 
 Truncates all application data without restarting the app or touching MinIO volumes. Use when you need a clean DB for manual testing.
 
 ```bash
-bash scripts/database/reset.sh
-scripts\database\reset.bat
+bash scripts/deploy-and-run/reset.sh
+scripts\deploy-and-run\reset.bat
 ```
 
 **Self-healing:** if the DB container is stopped — starts it automatically.
 
-**vs `deploy.sh --reset`:** `reset.sh` only truncates tables — containers and volumes stay intact, completes in ~1s. `deploy.sh --reset` destroys all containers and Docker volumes (DB + MinIO), then does a full rebuild (~7-10 min).
+**vs `deploy-and-run.sh --reset`:** `reset.sh` only truncates tables — containers and volumes stay intact, completes in ~1s. `deploy-and-run.sh --reset` destroys all containers and Docker volumes (DB + MinIO), then does a full rebuild (~7-10 min).
 
 ---
 
@@ -236,10 +199,10 @@ scripts\claude.bat your.email@gmail.com
 
 ## Docker socket constraint
 
-`deploy-dev.sh` and `playwright/run.sh` both run builds/tests inside Docker containers that need access to the Docker daemon. Volume mounts (`-v /host/path:/container/path`) do not work when the caller is itself a Docker container (e.g. the Claude dev container) — Docker resolves the host path from the **host machine**, not from inside the caller container, resulting in an empty mount.
+`scripts/build-and-test/run.sh` and `playwright/run.sh` both run builds/tests inside Docker containers that need access to the Docker daemon. Volume mounts (`-v /host/path:/container/path`) do not work when the caller is itself a Docker container (e.g. the Claude dev container) — Docker resolves the host path from the **host machine**, not from inside the caller container, resulting in an empty mount.
 
 Both scripts work around this the same way:
-- **`deploy-dev.sh`** — streams source files into `advertisement-build-env` via tar pipe: `tar | docker run -i ... bash -c "tar -xzf - && build.sh"`
+- **`scripts/build-and-test/run.sh`** — streams source files into `advertisement-build-env` via tar pipe: `tar | docker run -i ... bash -c "tar -xzf - && build.sh"`
 - **`playwright/run.sh`** — copies test files into `pw-runner` via `docker cp`
 
 This means both scripts work correctly from any context: Windows WSL, a terminal, or the Claude dev container.
@@ -250,11 +213,11 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 
 | Container | Image | Ports | Started by | Purpose |
 |-----------|-------|-------|-----------|---------|
-| `advertisement-db` | `postgres:15-alpine` | `5432` | `deploy.sh`, `docker-compose.db.yml` | PostgreSQL database |
-| `advertisement-minio` | `minio/minio:latest` | `9000` (API), `9001` (console) | `deploy.sh`, `docker-compose.minio.yml` | S3-compatible storage (MinIO) |
-| `marketplace-app` | built from `Dockerfile` | `8081` | `deploy.sh` | Spring Boot + Vaadin application |
-| `advertisement-build-env` | built from `scripts/build-env/Dockerfile` | — | `deploy-dev.sh` (throwaway `--rm`, per build) | JDK 25 + Docker CLI — builds JAR, hot-swaps into marketplace-app |
-| `pw-runner` | `mcr.microsoft.com/playwright:v1.61.1-jammy` (corrected 2026-07-27 from `v1.52.0-jammy`) | — | `playwright/run.sh` (reused across runs) | Playwright test runner |
+| `advertisement-db` | `postgres:15-alpine` | `5432` | `deploy-and-run.sh`, `docker-compose.db.yml` | PostgreSQL database |
+| `advertisement-minio` | `minio/minio:latest` | `9000` (API), `9001` (console) | `deploy-and-run.sh`, `docker-compose.minio.yml` | S3-compatible storage (MinIO) |
+| `marketplace-app` | built from `Dockerfile` | `8081` | `deploy-and-run.sh` | Spring Boot + Vaadin application |
+| `advertisement-build-only` | `advertisement-build-env`, built from `scripts/build-and-test/Dockerfile` | — | `build-and-test.sh` (throwaway `--rm`, per build) | JDK 25 — builds the reactor into the shared `~/.m2` |
+| `pw-runner` | `mcr.microsoft.com/playwright:v1.61.1-jammy` | — | `playwright/run.sh` (reused across runs) | Playwright test runner |
 | `claude-dev` | built from `Dockerfile.ai` | — | `scripts/claude.bat` | Claude Code dev environment |
 
 ### Volumes
@@ -263,7 +226,7 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 |--------|---------|---------|
 | `advertisement_postgres_data` | `advertisement-db` | PostgreSQL data (persists across container restarts) |
 | `advertisement_minio_data` | `advertisement-minio` | MinIO object storage data |
-| `maven-cache` | `advertisement-build-env` | Maven `~/.m2/repository` — persists between `deploy-dev.sh` runs |
+| `maven-cache` | `advertisement-build-env` | Maven `~/.m2/repository` — persists between `build-and-test.sh` runs; also holds `artifacts/marketplace-app.jar`, the shared build's own output |
 
 **Credentials:**
 - DB: `experiments_user` / `experiments_user_password`, database `experiments`
@@ -276,65 +239,50 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 
 ```
 scripts/
-  infra/           — Docker Compose files for local infrastructure (DB, MinIO, app stack)
-  build-env/       — Docker build environment for deploy-dev (JDK 25 + Docker CLI)
-  database/        — SQL scripts and database helpers (reset-clean.sql)
+  deploy-and-run/  — deploy pipeline logic, Docker Compose files for local infrastructure (DB,
+                     MinIO, app stack), database reset script
+  build-and-test/     — Docker build environment used by build-and-test.sh (JDK 25)
   sonar/           — SonarQube configuration and scanner
-  ci/              — isolated local CI runner (Dockerfile, entrypoint.sh, own README/DECISIONS.md)
-  hooks/           — git hooks (pre-commit, commit-msg), installed via install-hooks.sh
-  run-all-tests/   — reports/ output for run-all-tests.sh
-  unit-tests/      — run.sh + reports/ output for unit-tests.sh
+  ci/              — isolated local CI runner (Dockerfile, docker-entrypoint.sh, own README/DECISIONS.md)
+  run-all-tests/   — run.sh + reports/ output for run-all-tests.sh
 ```
-
----
-
-## install-hooks.sh
-
-Installs this repo's git hooks (`scripts/hooks/pre-commit`, `scripts/hooks/commit-msg`) by
-pointing `core.hooksPath` at `scripts/hooks` — run once after cloning.
-
-```bash
-bash scripts/install-hooks.sh
-```
-
-`pre-commit` syncs `docs/architecture/`, `DECISIONS.md`, `CLAUDE.md`, `backlog/issues/`.
-`commit-msg` prepends an entry to `CHANGELOG.md` from the conventional-commit message. Bypass for
-a single commit with `SKIP_AUDIT=1 git commit`.
 
 ---
 
 ## run-all-tests.sh / run-all-tests.bat
 
-Orchestrates unit tests → integration tests sequentially (both can compile the same starter
-modules into shared `target/` dirs, so they don't run concurrently) plus Playwright in parallel
-(it never touches the Maven reactor). Delegates to `scripts/unit-tests.sh`/
-`scripts/integration-tests.sh`/`scripts/playwright.sh`, forwarding each suite's own flags unchanged.
+Runs `scripts/build-and-test.sh --unit --integration` (installs the whole reactor once, then runs
+unit+integration tests in parallel against it) and `scripts/playwright.sh` in parallel with that
+(it never touches the Maven reactor). See `docs/ai/adr-index.md` for the unit/integration
+pairing's annotation.
 
 ```bash
 bash scripts/run-all-tests.sh
-bash scripts/run-all-tests.sh --unit "AccessEvaluatorTest" \
-                               --integration "--sandbox TaxonRepositoryTest" \
+bash scripts/run-all-tests.sh --unit-test AccessEvaluatorTest \
+                               --integration-test TaxonRepositoryTest --sandbox \
                                --playwright "e2e --ux"
 ```
 
-Reports: `scripts/run-all-tests/reports/`. See `scripts/DECISIONS.md` ADR-004 for the
-sequencing rationale (improvement-051).
+Reports: `scripts/run-all-tests/reports/build-and-test.log` + `playwright.log`; Surefire reports
+under `scripts/build-and-test/reports/surefire/`.
 
 ---
 
 ## ci.sh / ci.bat
 
-Isolated local CI runner: builds a dedicated CI-runner container (Docker-outside-of-Docker, own
-`/var/run/docker.sock` mount) and runs unit → integration → e2e → Sonar in one pass, without
-touching the persistent dev stack. Backgrounded by default, with a live `progress.txt`.
+Isolated local CI runner: builds a persistent CI-runner container (Docker-outside-of-Docker, own
+`/var/run/docker.sock` mount) running Dagu, a DAG engine with a built-in web UI, orchestrating
+build → unit/integration/e2e/sonar/archunit_metrics in parallel → pipeline_metrics → docs, without
+touching the persistent dev stack. Triggering a run returns immediately by default; watch it via
+Dagu's own web UI or `scripts/ci/watch-run.py`.
 
 ```bash
-bash scripts/ci.sh                              # default: unit+integration+e2e+sonar, backgrounded
+bash scripts/ci.sh                              # default: unit+integration+e2e+sonar+
+                                                 # archunit_metrics+docs
 bash scripts/ci.sh --unit --integration --e2e   # chosen stages only
-bash scripts/ci.sh --integration --sandbox      # this sandbox's Testcontainers workaround
+bash scripts/ci.sh --no-archunit-metrics        # skip ArchUnit's module-coupling export
 bash scripts/ci.sh --foreground                 # block and stream instead of the background default
 ```
 
-Reports: `scripts/ci/reports/<timestamp>/{unit-tests,integration-tests,playwright,sonar}/`
-(pruned to the last 3 runs by default — see `--keep-reports`). Full detail: `scripts/ci/README.md`
-and `scripts/ci/DECISIONS.md` (improvement-059).
+Live status, logs, and run history: `http://localhost:8082`. Full detail: `scripts/ci/README.md`
+and `scripts/ci/DECISIONS.md`.

@@ -1,0 +1,52 @@
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: MinIO (S3-compatible storage) for local development -- emulates Cloudflare R2/S3.
+#   Console: http://localhost:9001. API: http://localhost:9000. Login: admin / admin12345.
+# Usage: docker compose --project-directory . -f scripts/deploy-and-run/docker-compose.minio.yml up -d
+#   docker compose --project-directory . -f scripts/deploy-and-run/docker-compose.minio.yml down
+#   --project-directory is required for the same reason as docker-compose.db.yml's own header --
+#   without it, the Env vars below silently resolve to empty strings.
+# Uses: minio/minio image, minio/mc image (one-shot bucket-creation init container).
+# Env: S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET, S3_PORT -- all read from the repo-root .env.
+# Input: repo-root .env.
+# Outputs: advertisement-minio container (publishing S3_PORT -> 9000, 9001 -> 9001, named volume
+#   minio_data); a minio-init container that creates and publicly exposes the S3_BUCKET bucket,
+#   then exits.
+# ────────────────────────────────────────────────────────────────────────────
+version: '3.8'
+
+services:
+  minio:
+    container_name: advertisement-minio
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
+    ports:
+      - "${S3_PORT}:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${S3_ACCESS_KEY} ${S3_SECRET_KEY};
+      mc mb --ignore-existing local/${S3_BUCKET};
+      mc anonymous set public local/${S3_BUCKET};
+      echo 'Bucket created successfully';
+      "
+    restart: on-failure
+
+volumes:
+  minio_data:

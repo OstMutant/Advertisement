@@ -16,6 +16,10 @@
     <name>Audit Spring Boot Starter</name>
     <description>Audit module — captures entity changes, diffs snapshots, stores audit_log; read side with activity feed and history UI</description>
 
+    <properties>
+        <architecture.boundedContext>starter</architecture.boundedContext>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>
@@ -78,6 +82,7 @@
                                         <exclude>org.ost:user-spring-boot-starter</exclude>
                                         <exclude>org.ost:advertisement-spring-boot-starter</exclude>
                                         <exclude>org.ost:taxon-spring-boot-starter</exclude>
+                                        <exclude>org.ost:provider-profile-spring-boot-starter</exclude>
                                     </excludes>
                                     <message>Starters must not depend on each other directly (see
                                         .claude/rules.md "Module Import Rules"). Use

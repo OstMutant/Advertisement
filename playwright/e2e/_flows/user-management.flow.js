@@ -1,7 +1,17 @@
-const { screenshot } = require('../_helpers');
+const { expect } = require('@playwright/test');
+const { screenshot, assertComputedColor, assertRightAligned } = require('../_helpers');
 const { closeNotification } = require('../_helpers');
+const { openEntityActivity, closeEntityActivity } = require('./entity-activity.flow');
+
+// Expected computed colors per role -- must match user-grid.css's role badge colors exactly.
+const ROLE_COLOR = {
+  admin:     'rgb(29, 78, 216)',
+  user:      'rgb(21, 128, 61)',
+  moderator: 'rgb(194, 65, 12)',
+};
 
 async function closeUserOverlay(page) {
+  await closeEntityActivity(page);
   await page.locator('.user-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first()
@@ -40,6 +50,7 @@ async function runOpenUserEditViaViewFlow(page, email) {
   await runOpenUserViewDialogFlow(page, email);
   await page.locator('.user-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).click();
   await page.locator('.user-overlay vaadin-combo-box').waitFor({ timeout: 5000 });
+  await expect(page.locator('.user-overlay .overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
   await screenshot(page, 'user-management-promote-dialog-opened');
 }
 
@@ -49,6 +60,7 @@ async function runOpenUserEditViaListFlow(page, email) {
   await editButton.waitFor({ timeout: 5000 });
   await editButton.click();
   await page.locator('.user-overlay.overlay--visible').waitFor({ timeout: 5000 });
+  await expect(page.locator('.user-overlay .overlay__breadcrumb-back')).toHaveCount(1, { timeout: 3000 });
   await page.locator('.user-overlay vaadin-combo-box').waitFor({ timeout: 5000 });
   await screenshot(page, 'user-management-promote-dialog-opened');
 }
@@ -81,6 +93,7 @@ async function runSaveUserEditFlow(page, expect, role) {
 }
 
 async function closeUserOverlayFromEdit(page) {
+  await closeEntityActivity(page);
   await page.locator('.user-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first().click();
@@ -94,14 +107,19 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   await runSaveUserEditFlow(page, expect, role);
 
   // Check activity in EDIT overlay — v2 updated + v1 created
-  await page.locator('.user-overlay vaadin-tab').filter({ hasText: /Activity|Активність/i }).click();
-  const activityList = page.locator('.user-overlay .entity-activity-list');
-  await activityList.waitFor({ timeout: 5000 });
+  const activityList = await openEntityActivity(page, '.user-history-button');
   await expect(activityList.locator('.entity-activity-row')).toHaveCount(2, { timeout: 5000 });
 
   const row0 = activityList.locator('.entity-activity-row').nth(0);
   await expect(row0.locator('.entity-activity-action')).toContainText(/updated/i);
   await expect(row0.locator('.entity-activity-version')).toContainText('v2');
+  // The actor name and the timestamp must both sit flush against the row's right edge (improvement-126).
+  const meta0 = row0.locator('.entity-activity-meta');
+  await assertRightAligned(expect, meta0.locator('.entity-activity-time'), meta0);
+  const userBox = await meta0.locator('.entity-activity-user').boundingBox();
+  const timeBox = await meta0.locator('.entity-activity-time').boundingBox();
+  expect(userBox.x, 'actor name must sit to the left of the timestamp, both on the right side of the row').toBeLessThan(timeBox.x);
+  expect(timeBox.x - (userBox.x + userBox.width), 'actor name and timestamp must be adjacent, not far apart').toBeLessThan(20);
   const changes0 = row0.locator('.entity-activity-changes');
   await expect(changes0).toContainText(/Role/i);
   await expect(changes0).toContainText('USER');
@@ -121,6 +139,7 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   await screenshot(page, `user-management-promoted-${role.toLowerCase()}-edit-activity`);
 
   // EDIT → VIEW
+  await closeEntityActivity(page);
   await page.locator('.user-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first().click();
@@ -128,7 +147,14 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
 
   // Check role in VIEW mode
   await expect(page.locator('.user-overlay .user-role-badge')).toContainText(role);
-  await screenshot(page, `user-management-promoted-${role.toLowerCase()}-view`);
+  // The view-card's accent border must match the role badge color -- header text stays static.
+  const roleClass = role.toLowerCase();
+  const expectedColor = ROLE_COLOR[roleClass];
+  const viewCard = page.locator(`.user-overlay .user-view-card.user-view-card--${roleClass}`);
+  await expect(viewCard).toHaveCount(1);
+  await assertComputedColor(expect, viewCard, 'borderTopColor', expectedColor);
+  await expect(page.locator(`.user-overlay .overlay__view-card-header.overlay__view-card-header--${roleClass}`)).toHaveCount(1);
+  await screenshot(page, `user-management-promoted-${roleClass}-view`);
 
   // VIEW → close
   await closeUserOverlay(page);
@@ -137,6 +163,17 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   await expect(page.locator('.user-list-layout .user-role-badge:visible').first()).toContainText(role);
   await screenshot(page, `user-management-promoted-${role.toLowerCase()}-grid`);
 
+  await clearUserFilter(page);
+}
+
+// Outer breadcrumb link must close all the way to the list, even when entered via View.
+async function runVerifyOuterLinkClosesToListFlow(page, expect, email) {
+  await runOpenUserEditViaViewFlow(page, email);
+  await openEntityActivity(page, '.user-history-button');
+  await closeEntityActivity(page, 'outer');
+  await expect(page.locator('.base-overlay.overlay--visible')).toHaveCount(0, { timeout: 5000 });
+  await expect(page.locator('.user-list-layout')).toBeVisible({ timeout: 5000 });
+  await screenshot(page, 'user-management-outer-link-to-list');
   await clearUserFilter(page);
 }
 
@@ -152,4 +189,5 @@ module.exports = {
   runFillUserRoleFlow,
   runSaveUserEditFlow,
   runPromoteUserFlow,
+  runVerifyOuterLinkClosesToListFlow,
 };

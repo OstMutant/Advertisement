@@ -3,7 +3,7 @@
 **Type:** improvement — performance, no code changes needed. Migrated from `backlog/process-
 improvements.md` Part 3, item 19.
 **Module:** `advertisement-spring-boot-starter` (Liquibase changeset only)
-**Priority:** low now, rising with data volume — first real performance cliff as the advertisement
+**Priority:** 🔵 low now, rising with data volume — first real performance cliff as the advertisement
 table grows past what a full scan tolerates comfortably
 **When:** trigger-based — do when advertisement row count starts making title search noticeably
 slow, or opportunistically alongside any other advertisement-schema touch; not urgent at current

@@ -3,7 +3,7 @@
 **Type:** improvement — observability. Migrated from `backlog/process-improvements.md` Part 3,
 item 17.
 **Module:** all Spring Boot modules (root `pom.xml` dependency, `application.yml` config)
-**Priority:** medium — baseline expectation for any production service; **do not confuse with
+**Priority:** 🟡 medium — baseline expectation for any production service; **do not confuse with
 improvement-023** (already done) — that added a request-correlation id (MDC `requestId`) and
 closed several silent-logging gaps in individual services, but added no `actuator`, no metrics,
 and no structured (JSON) log output. This issue is the still-open remainder.

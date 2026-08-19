@@ -1,7 +1,7 @@
 const { expect } = require('@playwright/test');
+const { openEntityActivity, closeEntityActivity, restoreFromEntityActivity } = require('./entity-activity.flow');
 
 // Opens settings overlay, sets both page size fields, and saves.
-// Leaves the overlay open on the settings tab after save.
 async function changePageSizes(page, adsSize, usersSize) {
   await page.locator('.header-settings-button').click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
@@ -15,11 +15,22 @@ async function changePageSizes(page, adsSize, usersSize) {
     .filter({ hasText: /зберегти|save/i }).click();
 }
 
-// Inside an open settings overlay with the activity tab already shown,
-// clicks the first restore button, waits for Save to become enabled, and saves.
-// After save the overlay resets to the settings tab (afterSave behaviour).
+// Opens the Settings history overlay -- thin Settings-specific wrapper over the shared
+// entity-activity helper (Settings uses the same EntityActivityOverlay as every other domain now).
+async function openHistory(page) {
+  return openEntityActivity(page, '.settings-history-button');
+}
+
+// Closes the history overlay. `via: 'settings'` (default) and `via: 'x'` both go back to Settings;
+// `via: 'home'` exits all the way out. Maps onto the shared helper's generic 'parent'/'x'/'outer'.
+async function closeHistory(page, via = 'settings') {
+  const mapped = { settings: 'parent', x: 'x', home: 'outer' }[via];
+  await closeEntityActivity(page, mapped);
+}
+
+// Restores the first history entry, then saves the staged values -- same two-step contract as before.
 async function restoreLatestFromActivity(page) {
-  await page.locator('.entity-activity-list .entity-activity-restore-btn').first().click();
+  await restoreFromEntityActivity(page);
   await expect(
     page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i })
   ).toBeEnabled({ timeout: 5000 });
@@ -34,9 +45,9 @@ async function getPageSizes(page) {
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
   const adsPageSize   = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input').inputValue(), 10);
   const usersPageSize = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input').inputValue(), 10);
-  await page.locator('.overlay__breadcrumb-back').click();
+  await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
   return { adsPageSize, usersPageSize };
 }
 
-module.exports = { changePageSizes, restoreLatestFromActivity, getPageSizes };
+module.exports = { changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes };

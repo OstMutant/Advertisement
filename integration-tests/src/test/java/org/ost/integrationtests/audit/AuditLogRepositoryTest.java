@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.ost.audit.config.AuditAutoConfiguration;
 import org.ost.audit.repository.AuditLogProjection;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
+import org.ost.integrationtests.support.RepositoryTestAutoConfig;
 import org.ost.integrationtests.support.TestDataCleaner;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
@@ -18,17 +19,8 @@ import org.ost.platform.core.spi.CurrentActorHook;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
-import org.springframework.boot.autoconfigure.context.ConfigurationPropertiesAutoConfiguration;
-import org.springframework.boot.data.jdbc.autoconfigure.DataJdbcRepositoriesAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration;
-import org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.transaction.autoconfigure.TransactionAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
@@ -49,8 +41,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * b.created_at <= f.created_at} with no {@code id} tiebreaker — two rows for the same entity
  * sharing an identical {@code created_at} (plausible: two audit writes in the same transaction/
  * millisecond, e.g. a user snapshot plus its default-settings snapshot) got the <em>same</em>
- * computed version number, which {@code marketplace-app/DECISIONS.md} ADR-022's "current state"
- * badge logic relies on to distinguish timeline entries. Fixed by comparing {@code (created_at,
+ * computed version number, which the "current state" badge logic (see {@code docs/ai/adr-index.md})
+ * relies on to distinguish timeline entries. Fixed by comparing {@code (created_at,
  * id)} tuples instead of {@code created_at} alone.
  *
  * <p>Rows are inserted directly via {@code jdbcClient}, not {@link
@@ -60,8 +52,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Own minimal {@code TestConfig} rather than {@code RepositoryTestSupport} — needs the real
  * {@link AuditAutoConfiguration} wired (not stubbed absent), same shape and same
- * {@code @ImportAutoConfiguration} allow-list as {@code UserServiceRestoreTest} (see
- * {@code integration-tests/DECISIONS.md} ADR-009) — no {@code UserAutoConfiguration} needed here,
+ * {@link RepositoryTestAutoConfig} allow-list as {@code UserServiceRestoreTest} (see
+ * {@code docs/ai/adr-index.md}) — no {@code UserAutoConfiguration} needed here,
  * {@code audit_log.actor_id} has no FK.</p>
  */
 @SpringBootTest(classes = {
@@ -71,16 +63,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
 
     @TestConfiguration
-    @ImportAutoConfiguration({
-            DataSourceAutoConfiguration.class,
-            DataSourceTransactionManagerAutoConfiguration.class,
-            JdbcClientAutoConfiguration.class,
-            JdbcTemplateAutoConfiguration.class,
-            DataJdbcRepositoriesAutoConfiguration.class,
-            LiquibaseAutoConfiguration.class,
-            TransactionAutoConfiguration.class,
-            ConfigurationPropertiesAutoConfiguration.class
-    })
+    @RepositoryTestAutoConfig
     @EnableJdbcAuditing
     static class TestConfig {
 
@@ -110,11 +93,6 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
                 @Override
                 public Set<Long> findExisting(@NonNull EntityType entityType, @NonNull Set<Long> entityIds) {
                     return Set.of();
-                }
-
-                @Override
-                public String resolveDisplayName(@NonNull AuditableSnapshot snapshot) {
-                    return "";
                 }
 
                 @Override
@@ -249,6 +227,21 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
         AuditableSnapshot last = auditLogRepository.getLastSnapshot(EntityType.USER, 6L).orElseThrow();
 
         assertThat(last.displayName()).contains("second");
+    }
+
+    // insertRowWithSnapshot() writes snapshot_data with no "schemaVersion" key -- must still deserialize.
+    @Test
+    void getLastSnapshot_legacySnapshotWithNoSchemaVersionKey_stillDeserializesCorrectly() {
+        Instant t = Instant.parse("2026-01-01T00:00:00Z");
+        insertRowWithSnapshot(EntityType.USER, 7L, t, "legacy");
+
+        AuditableSnapshot snapshot = auditLogRepository.getLastSnapshot(EntityType.USER, 7L).orElseThrow();
+
+        assertThat(snapshot).isInstanceOf(UserSnapshotDto.class);
+        UserSnapshotDto userSnapshot = (UserSnapshotDto) snapshot;
+        assertThat(userSnapshot.name()).isEqualTo("legacy");
+        assertThat(userSnapshot.email()).isEqualTo("legacy@example.com");
+        assertThat(userSnapshot.role()).isEqualTo("USER");
     }
 
     // Covers improvement-075: actorIds filter matches any of the selected actors via = ANY(),

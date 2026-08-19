@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@link TaxonRepository#findByIds} returns soft-deleted rows too (reversed 2026-07-21,
- * improvement-008/101 — see {@code taxon-spring-boot-starter/DECISIONS.md} ADR-005): its only
+ * improvement-008/101 — see {@code docs/ai/adr-index.md}): its only
  * caller, {@code DefaultTaxonPort.indexById()}, needs deleted taxons visible so the advertisement
  * view overlay can render them struck-through and audit diffs can resolve their real name instead
  * of a bare id.

@@ -1,5 +1,6 @@
 package org.ost.marketplace.ui.views.components.overlay;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
@@ -9,6 +10,8 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.marketplace.ui.views.services.NotificationService;
+
+import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -21,15 +24,20 @@ public class EntityOverlaySupport {
     private final I18nService                                          i18n;
     private final NotificationService                                  notification;
 
-    public OverlayBreadcrumbBackButton createBreadcrumbButton(I18nKey labelKey, Runnable onBack) {
-        OverlayBreadcrumbBackButton btn = new OverlayBreadcrumbBackButton(i18n.get(labelKey));
+    public OverlayBreadcrumbBackButton createBreadcrumbButton(String label, Runnable onBack) {
+        OverlayBreadcrumbBackButton btn = new OverlayBreadcrumbBackButton(label);
         btn.addClickListener(_ -> onBack.run());
         return btn;
     }
 
-    public OverlayLayout createLayout(OverlayBreadcrumbBackButton breadcrumbButton) {
+    public OverlayBreadcrumbBackButton createBreadcrumbButton(I18nKey labelKey, Runnable onBack) {
+        return createBreadcrumbButton(i18n.get(labelKey), onBack);
+    }
+
+    // For a breadcrumb chain of arbitrary depth, e.g. "Home > Settings > Activity".
+    public OverlayLayout createLayout(List<Component> breadcrumbLinks) {
         OverlayLayout layout = new OverlayLayout();
-        layout.setBreadcrumbButton(breadcrumbButton);
+        layout.setBreadcrumbLinks(breadcrumbLinks);
         return layout;
     }
 

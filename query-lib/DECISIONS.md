@@ -2,32 +2,21 @@
 
 ---
 
-## ADR-001: Renamed from query-starter to query-lib
+## ADR-001: Renamed from query-starter to query-lib — plain Java library, no Spring autoconfiguration
 **Status:** Accepted
 
 **Context:** The `-starter` suffix implies Spring Boot autoconfiguration. This module provides
 none — it is a static SQL helper library used directly by repositories as `private static final`
-constants.
+constants. Repositories need dynamic filter/sort SQL without coupling to Spring context (to allow
+pure JUnit testing without an application context).
 
-**Decision:** Module renamed to `query-lib`.
-
-**Consequences:** Consumers import the artifact as a plain library dependency, not as a starter.
-No `META-INF/spring` registration, no `@AutoConfiguration`.
-
----
-
-## ADR-002: Plain Java library — no Spring autoconfiguration
-**Status:** Accepted
-
-**Context:** Repositories need dynamic filter/sort SQL without coupling to Spring context
-(to allow pure JUnit testing without an application context).
-
-**Decision:** `query-lib` provides only `SqlFilterBuilder`, `SqlBoundFilter`, `SqlCondition`,
-`SqlFilterBinding`, `SqlFilterMapping`, `SqlOperator`, `OrderByBuilder`, and `PaginationSqlBuilder`
-(added later — see ADR-003's amendment).
-No `@AutoConfiguration`, no Spring beans, no `META-INF/spring` registration.
+**Decision:** Module renamed to `query-lib`. It provides only `SqlFilterBuilder`, `SqlBoundFilter`,
+`SqlCondition`, `SqlFilterBinding`, `SqlFilterMapping`, `SqlOperator`, `OrderByBuilder`, and
+`PaginationSqlBuilder` (added later — see ADR-003's amendment). No `@AutoConfiguration`, no Spring
+beans, no `META-INF/spring` registration.
 
 **Consequences:**
+- Consumers import the artifact as a plain library dependency, not as a starter.
 - Unit-testable without Spring context.
 - Domain concerns cannot leak into the infrastructure layer through this library.
 
@@ -71,8 +60,8 @@ are null-safe. A null filter value silently skips the condition.
 
 **Status:** Accepted
 
-**Context:** [improvement-075](../backlog/completed/issues/improvement-075-timeline-actor-filter-multi-select.md)
-needed the Timeline actor filter to match "any of N selected user ids" — `Set<Long>` — against
+**Context:** The Timeline actor filter needed to match "any of N selected user ids" —
+`Set<Long>` — against
 `audit_log.actor_id`. `SqlCondition.inSet()` (ADR-004's sibling) already covers "match any of a
 set," but is typed `<E extends Enum<E>>` and hardcodes `Enum::name` as its value mapper — it
 cannot take a `Set<Long>` as-is, and a same-named overload isn't possible: `Set<E>` and `Set<Long>`
@@ -80,8 +69,8 @@ erase to the same raw `Set` parameter type, so `inSet(SqlFilterMapping, Set<Long
 compile-time erasure clash against the existing generic method, not a valid overload. Separately,
 `inSet()`'s `IN (:param)` template (`SqlOperator.IN`) is safe for enum sets (fixed, tiny
 cardinality — 4 `EntityType` values, a handful of `ActionType` values) but is exactly the unbounded
--placeholder-expansion shape improvement-054/067 already fixed twice elsewhere in this session for
-`Set<Long>`-typed id filters, whose cardinality is caller-controlled and not bounded the same way.
+-placeholder-expansion shape already fixed twice elsewhere in this codebase for `Set<Long>`-typed
+id filters, whose cardinality is caller-controlled and not bounded the same way.
 
 **Decision:** New `SqlOperator.ANY_OF` (`"%s = ANY(:%s)"`) and `SqlCondition.anyOf(SqlFilterMapping,
 Set<Long>)` (array-bind via `.toArray(new Long[0])`, matching every other `= ANY()` call site in
@@ -111,8 +100,7 @@ express this) rather than generalizing speculatively.
 
 **Status:** Accepted
 
-**Context:** [improvement-106](../backlog/completed/issues/improvement-106-timeline-non-admin-empty-actorids-fail-open.md) —
-`TimelineView` built a non-admin's "restrict to my own activity" filter as `actorIds(Set.of())`
+**Context:** `TimelineView` built a non-admin's "restrict to my own activity" filter as `actorIds(Set.of())`
 when the current user id wasn't resolvable yet. `SqlCondition.anyOf()` returns `null` on an empty
 set, `SqlFilterBuilder` drops `null` conditions, so the predicate vanished and the non-admin saw
 every actor's activity — fail-open, not fail-closed.
@@ -141,8 +129,7 @@ invoked with an empty security-narrowing set at all.
 
 **Status:** Accepted
 
-**Context:** [improvement-108](../backlog/completed/issues/improvement-108-ilike-wildcard-not-escaped.md)
-— `like()` wrapped the caller's raw value in `%…%` with no escaping. Postgres `ILIKE` treats `%`
+**Context:** `like()` wrapped the caller's raw value in `%…%` with no escaping. Postgres `ILIKE` treats `%`
 and `_` as wildcards and `\` as its escape character, so a search term containing any of them
 (`"100%"`, `"user_name"`, a trailing `\`) silently matched the wrong rows instead of the literal
 text — not SQL injection (values are bound as parameters), but wildcard-semantics leakage into

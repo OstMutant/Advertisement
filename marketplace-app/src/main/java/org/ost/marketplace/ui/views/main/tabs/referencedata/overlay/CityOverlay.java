@@ -8,14 +8,15 @@ import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityViewOverlayModeHandler;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
-import org.ost.platform.taxon.spi.TaxonPort;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 
@@ -44,12 +45,15 @@ public class CityOverlay extends AbstractEntityOverlay<CityFormOverlayModeHandle
     @Getter private final EntityOverlaySupport support;
     private final UiComponentFactory<CityViewOverlayModeHandler> viewModeHandlerFactory;
     private final UiComponentFactory<CityFormOverlayModeHandler> formModeHandlerFactory;
-    private final ComponentFactory<TaxonPort>                    taxonPortFactory;
+    private final TaxonCatalogService                            taxonCatalogService;
 
     private OverlaySession session;
 
     @Override protected String  getOverlayCssClass()   { return "city-overlay"; }
     @Override protected I18nKey getBreadcrumbLabelKey() { return MAIN_TAB_REFERENCE_DATA; }
+
+    @Override protected boolean isEditMode()      { return session.mode() == Mode.EDIT; }
+    @Override protected boolean enteredFromView() { return session.enteredFromView(); }
 
     @Override
     protected SaveConfig saveConfig() {
@@ -63,9 +67,7 @@ public class CityOverlay extends AbstractEntityOverlay<CityFormOverlayModeHandle
     @Override
     protected void proceed() {
         Long savedId = currentFormHandler.getSavedCityId();
-        TaxonDto fresh = savedId == null ? null : taxonPortFactory.findIfAvailable()
-                .flatMap(p -> p.findById(savedId, Locale.ENGLISH))
-                .orElse(null);
+        TaxonDto fresh = savedId == null ? null : taxonCatalogService.findById(savedId, Locale.ENGLISH).orElse(null);
         if (fresh == null) return;
 
         session = session.withCity(fresh);
@@ -109,6 +111,8 @@ public class CityOverlay extends AbstractEntityOverlay<CityFormOverlayModeHandle
     @Override
     protected void switchTo() {
         currentFormHandler = null;
+        List<BreadcrumbStep> breadcrumbSteps = buildBreadcrumbSteps();
+        layout.setBreadcrumbLinks(buildBreadcrumbLinks(breadcrumbSteps));
 
         OverlayModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerFactory.build(
@@ -127,6 +131,7 @@ public class CityOverlay extends AbstractEntityOverlay<CityFormOverlayModeHandle
                                 .mode(handlerMode)
                                 .onSave(this::handleSave)
                                 .onCancel(this::handleCancel)
+                                .breadcrumbSteps(breadcrumbSteps)
                                 .build());
                 yield currentFormHandler;
             }
@@ -134,13 +139,11 @@ public class CityOverlay extends AbstractEntityOverlay<CityFormOverlayModeHandle
 
         handler.activate(layout);
 
-        String breadcrumb = switch (session.mode()) {
-            case VIEW   -> "";
+        layout.getBreadcrumbCurrent().setText(switch (session.mode()) {
+            case VIEW   -> i18n().get(OVERLAY_BREADCRUMB_VIEW);
             case EDIT   -> i18n().get(CITY_OVERLAY_TITLE_EDIT);
             case CREATE -> i18n().get(CITY_OVERLAY_TITLE_NEW);
-        };
-        layout.getBreadcrumbCurrent().setText(breadcrumb);
-        layout.getBreadcrumbCurrent().setVisible(!breadcrumb.isEmpty());
+        });
     }
 
     private void switchToEdit() {

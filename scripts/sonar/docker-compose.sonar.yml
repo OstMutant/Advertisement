@@ -1,3 +1,15 @@
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: Defines the local SonarQube server container (sonarqube:community, port 9099) that
+#   scripts/sonar/run.sh's scanner uploads analysis to.
+# Usage: docker compose -f scripts/sonar/docker-compose.sonar.yml up -d -- not invoked directly in
+#   normal use, run.sh owns this container's full lifecycle (pull/create/recreate/start).
+# Uses: docker compose.
+# Env: SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true (Elasticsearch bootstrap checks off, needed for the
+#   embedded DB on a typical dev machine's resource limits).
+# Input: none (self-contained service definition).
+# Outputs: a running `sonarqube` container; dashboard at http://localhost:9099 once up.
+# ────────────────────────────────────────────────────────────────────────────
+
 services:
   sonarqube:
     image: sonarqube:community
@@ -8,6 +20,7 @@ services:
       - sonarqube_data:/opt/sonarqube/data
       - sonarqube_logs:/opt/sonarqube/logs
       - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_temp:/opt/sonarqube/temp
     environment:
       SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
     restart: unless-stopped
@@ -16,3 +29,4 @@ volumes:
   sonarqube_data:
   sonarqube_logs:
   sonarqube_extensions:
+  sonarqube_temp:

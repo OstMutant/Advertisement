@@ -13,6 +13,8 @@
 /query-lib/target/
 /taxon-spring-boot-starter/target/
 /integration-tests/target/
+/provider-profile-spring-boot-starter/target/
+/marketplace-orchestrator/target/
 
 # Vaadin frontend generated files
 /marketplace-app/src/main/frontend/generated/
@@ -30,12 +32,16 @@
 # Playwright artifacts
 /playwright/screenshots/
 /playwright/pw-report/
+/scripts/architecture/architecture-map-screenshots/
 
 # Integration test artifacts
 /integration-tests/reports/
 
 # Unit test artifacts
 /scripts/unit-tests/reports/
+
+# build-and-test artifacts
+/scripts/build-and-test/reports/
 
 # run-all-tests artifacts
 /scripts/run-all-tests/reports/

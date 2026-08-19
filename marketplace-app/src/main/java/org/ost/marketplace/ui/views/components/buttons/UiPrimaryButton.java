@@ -3,14 +3,15 @@ package org.ost.marketplace.ui.views.components.buttons;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.icon.Icon;
+import lombok.NonNull;
 
 public class UiPrimaryButton extends Button {
 
-    public UiPrimaryButton(String label) {
+    public UiPrimaryButton(@NonNull String label) {
         this(label, null);
     }
 
-    public UiPrimaryButton(String label, Icon icon) {
+    public UiPrimaryButton(@NonNull String label, Icon icon) {
         addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         addClassName("primary-button");
         setText(label);

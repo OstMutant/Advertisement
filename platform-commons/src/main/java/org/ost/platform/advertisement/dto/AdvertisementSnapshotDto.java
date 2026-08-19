@@ -25,11 +25,19 @@ public record AdvertisementSnapshotDto(
         AdKind adKind,
         List<Long> categoryIds,
         Long cityTaxonId,
-        Long attachmentSnapshotId
+        Long attachmentSnapshotId,
+        int schemaVersion
 ) implements AuditableSnapshot {
+
+    public static final int SCHEMA_VERSION = 1;
 
     public AdvertisementSnapshotDto {
         categoryIds = categoryIds != null ? List.copyOf(categoryIds.stream().sorted().toList()) : List.of();
+    }
+
+    public AdvertisementSnapshotDto(String title, String description, AdKind adKind,
+                                     List<Long> categoryIds, Long cityTaxonId, Long attachmentSnapshotId) {
+        this(title, description, adKind, categoryIds, cityTaxonId, attachmentSnapshotId, SCHEMA_VERSION);
     }
 
     @Override

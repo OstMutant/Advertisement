@@ -3,7 +3,7 @@
 **Type:** improvement — resilience. Found via edge-case review (2026-07-19).
 **Module:** `advertisement-spring-boot-starter` (`AdvertisementService.enrichWithMediaSummary` /
 `enrichWithActorInfo` / `enrichWithCategories`)
-**Priority:** medium — a media/user/taxon subsystem hiccup takes down the core browse experience,
+**Priority:** 🟡 medium — a media/user/taxon subsystem hiccup takes down the core browse experience,
 which is exactly the page that should be most resilient
 **When:** Deferred — batch with any advertisement-service resilience touch; cheap and standalone
 

@@ -1357,3 +1357,577 @@ non-seed ads from earlier specs always inflate one of the three buckets — swit
 idiom `verifyDateRangeFilters()` already used for this exact class of problem). See
 `marketplace-app/DECISIONS.md` ADR-066. Verified: unit-tests 77/77, integration-tests unaffected
 (schema/repository-only change), Playwright `e2e --full --ux` 50/50.
+
+✅ Done (2026-07-27): [improvement-125](issues/improvement-125-overlay-accent-color-sync.md) — synced
+the view-overlay's accent border color with `AdKind` (advertisements) / `Role` (users), matching
+the already-correct card left-border / role-badge colors that existed only in the list view, not
+the detail overlay. `AdvertisementViewOverlayModeHandler`/`UserViewOverlayModeHandler` each gained
+one modifier class name; `advertisement-overlay.css`/`user-overlay.css` gained the corresponding
+CSS rules reusing the exact color variables the badges already used — no new colors introduced.
+Users grid row border explicitly deferred, out of scope. Extended (not added) Playwright coverage:
+`assertViewOverlayHasAdKind` (advertisement flow) and `runPromoteUserFlow` (user promotion flow)
+now also assert the accent-border modifier class. Implemented via `/autopilot`. Along the way,
+found and fixed an unrelated real bug blocking the verification deploy: the repo-root `.env` had
+CRLF line endings, silently breaking `deploy.sh`'s/`reset.sh`'s manual `.env` parser (a trailing
+`\r` on every parsed value) and hanging `deploy.sh` indefinitely on the MinIO health check — see
+`scripts/DECISIONS.md` ADR-011. Verified: full Playwright `e2e --ux` run, 37/37 non-skipped passed.
+**Reopened same day, now fully closed (2026-07-27):** Phase 2 — `.attachment-gallery` (view mode
+only; users have no gallery) synced to `AdKind`, same modifier-class pattern as Phase 1; "Listing
+type" label renamed to "Advertisement kind" across all 4 English and 4 Ukrainian ("Тип оголошення"
+→ "Вид оголошення") keys. Phase 3 — the view-mode header strip (`.overlay__view-card-header`,
+shows "Advertisement"/"View" text) synced to `AdKind`/`Role` the same way; edit mode
+(`.overlay__form-card-header`, always blue) deliberately left untouched since `AdKind`/role can
+change interactively before save and live-updating it is a separate, bigger feature not undertaken
+here. Playwright coverage extended further: `assertViewOverlayHasAdKind`/`runPromoteUserFlow` now
+assert actual computed `getComputedStyle` colors (not just class-name presence) via a new shared
+`assertComputedColor` helper in `_helpers.js`, since a class being present doesn't by itself prove
+the CSS rule actually won. Verified: full Playwright `e2e --full --ux`, 50/50 passed.
+**Phase 4 (2026-07-28, closes this issue):** dialed the whole thing back further per direct UX
+feedback — removed the header/gallery background fill (Phase 3's tinted band), then removed the
+header/gallery *text* color too — the accent now lives only in the border, the calm signal the
+user settled on after seeing the fuller-color version and finding it too busy. Verified: full
+Playwright `e2e --full --ux`, 50/50 passed, plus direct visual confirmation via screenshot.
+
+✅ Done (2026-07-28): [improvement-126](issues/improvement-126-timeline-activity-diff-findings.md) —
+Timeline row header no longer repeats the entity's display name (already shown in full in the
+always-visible field-dump body) — `AuditTimelineRowRenderer`/`AuditTimelineListRenderer` dropped
+`nameSpan()`/`displayNames` entirely, body untouched by design. Phase 2 (found the same day):
+actor + timestamp right-aligned as one adjacent group in both Timeline (`.activity-feed-row`, wrapped
+in a new `.activity-feed-right-group` div since the editor badge is conditionally present) and the
+per-entity Activity tab (`.entity-activity-meta`, fixed a real `width: 100%` bug — the meta div was
+shrink-to-fit, so `margin-left: auto` on the actor span was only reaching the edge of that narrow
+box, not the actual card edge). A first-pass geometry-only Playwright assertion had gone green while
+the Activity tab was still visually broken (it measured against the same too-narrow container that
+was the bug), caught only by looking at an actual rendered screenshot directly — added adjacency
+checks (`timeBox.x - (actorBox.x + actorBox.width) < 20px`) to the tests afterward so a regression
+back to "technically right-aligned but visually far apart" would actually fail. Verified: full
+Playwright `e2e --full --ux`, 50/50 passed, confirmed visually via screenshot both before and after
+the wrapper-group fix. [improvement-127](issues/improvement-127-entitytype-localization-taxon-color.md)
+(EntityType i18n + TAXON badge color) carved out from this fix, completed separately same day — see below.
+
+✅ Done (2026-07-28): [improvement-127](issues/improvement-127-entitytype-localization-taxon-color.md) —
+`EntityType` Timeline badge (`AuditTimelineRowRenderer.typeSpan()`) and the Timeline "Entity type"
+filter dropdown (`TimelineQueryBlock`, found widening scope during investigation — same raw-enum-
+name gap) now show localized labels (`Advertisement`/`User`/`User Settings`/`Category`, EN+UK) via
+a new `I18nKey.forEntityType(EntityType)` mirroring `forAdKind(AdKind)`'s shape, instead of the raw
+Java enum name. `TAXON` also got its own badge color — brand-new teal
+(`--app-status-entity-taxon-bg`/`-text`), not reused from any existing status/action color, added
+to `activity-feed.css` alongside the existing advertisement/user/user_settings modifiers. Wording
+and color both confirmed with the user before implementing; executed end-to-end via `/autopilot`.
+Verified: `unit-tests.sh` (77/77), `integration-tests.sh --sandbox` (130/130), full Playwright
+`e2e --full --ux` (50/50), plus direct visual confirmation of the new teal `Category` badge via
+screenshot.
+
+✅ Done (2026-07-28): [improvement-002](issues/improvement-002-snapshot-schema-versioning.md) —
+snapshot schema versioning for all three JSON-persisted blobs in the system. Landed as the
+prerequisite for F-04/improvement-124 (first new snapshot-bearing domain since this issue was
+filed). Went through two intermediate designs before the final one — a reflection-based
+`@SchemaVersion` annotation + `JsonNode` tree-parsing with a legacy-shape fallback for
+`attachment_snapshot.changes_summary`, then a shared `SchemaVersionCheck` tree-reading helper —
+both reverted per direct user feedback favoring a genuinely bound field over reflection/tree-
+parsing, and because this app has never run in production (no real legacy-shaped data to protect
+against). Final design: `AdvertisementSnapshotDto`/`TaxonSnapshotDto`/`UserSnapshotDto`/
+`SettingsSnapshotDto` and `AttachmentMediaChange` each gained a real `int schemaVersion` record
+component (last position) plus a `SCHEMA_VERSION` constant and a second, non-canonical constructor
+matching the old parameter list so every existing call site kept compiling unchanged;
+`UserSettingsDto` (a Lombok builder class, not a record) got the same field via `@Builder.Default`
+directly, no extra constructor needed. `AuditableSnapshot.schemaVersion()` is now a plain abstract
+interface method. Full rationale and the two rejected designs: `platform-commons/DECISIONS.md`
+ADR-024. Verified: `unit-tests.sh` (77/77), `integration-tests.sh --sandbox` (133/133, incl. 4 new
+schema-version tests), full Playwright `e2e --full --ux` (50/50) — the first two full-suite runs
+surfaced an unrelated, pre-existing timing fragility in `runSubmitLoginFlow`
+(`playwright/e2e/_flows/auth.flow.js`): an 8s timeout was too tight for `LoginDialog`'s full
+`ui.getPage().reload()` on login (not an in-place push update) under sandbox load. Root-caused via
+repeated full-suite runs (zero server-side exceptions any run, different unrelated failure each
+time) before fixing (wait for `networkidle`, 15s timeout).
+
+✅ Done (2026-07-28): improvement-128 — Activity/restore panel redesign, filed and fully completed
+the same day. The 1-content-tab + 1-Activity-tab pattern (`buildContentWithActivity()`) didn't
+generalize past one content tab, surfaced while planning improvement-124's 3-tab Account overlay.
+Replaced with one shared `EntityActivityOverlay` (`ui/views/components/audit/`) — a stacked nested
+overlay, not a tab, with a real multi-segment breadcrumb (`Home`/list-view label / form-section
+label / current) via new `OverlayLayout.setBreadcrumbLinks()`. Piloted on Settings first (own
+`SettingsActivityOverlay`, later deleted once generalized), then rolled out to Advertisement,
+Taxon, City, and User the same day, deleting `AbstractFormOverlayModeHandler`'s dead tab machinery
+once all five callers migrated. Two real bugs caught by the user testing the running app mid-pilot
+(X wired to the wrong target; a doubled/uneven breadcrumb separator) and one real bug caught by an
+explicit stale-CSS-reference sweep before the final rollout run (`.settings-activity-*` classes
+still referenced after Settings moved onto the generic component). Full rationale, both correction
+rounds, and the rollout details: `marketplace-app/DECISIONS.md` ADR-067,
+`completed/issues/improvement-128-activity-restore-panel-redesign.md`. Verified (final, full
+rollout): `unit-tests.sh` 77/77, `integration-tests.sh --sandbox` 133/133 (no schema/repository
+changes — pure UI refactor), Playwright `e2e --full --ux` 50/50. Unblocks improvement-124, which
+can now call `EntityActivityOverlay.openFor()` directly for its Account overlay's 2 history icons.
+
+✅ Done (2026-07-29): improvement-121 — superseded by improvement-132. The new `.claude/skills/
+deep-review/` skill's first full-mode run (9-agent, all 9 modules) individually re-verified every
+one of improvement-121's original 24 findings against current code before merging: 18 still
+accurate (folded into improvement-132's module sections), 6 resolved as stale/invalid/already-fixed
+(a `vaadin-grid`-free `BaseActionButton` extraction already landed; the tab-based activity pattern
+one item described was deleted entirely by the same-day breadcrumb/ADR-067 refactor; a SQL-constant
+-extraction suggestion contradicted this project's own documented `@SuppressWarnings("java:S1192")`
+convention; two doc-drift items were already fixed; one query-lib finding was independently
+re-derived, not duplicated). improvement-132 also added 13 newly-found items (including one live
+i18n bug — `AdvertisementService.findById()` hardcoding English category names on the detail view).
+Full reconciliation table: `completed/issues/improvement-121-solid-dry-review-findings.md`'s
+supersession banner, `completed/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md`'s
+"How this was found" section.
+
+✅ Done (2026-07-31): improvement-132 — all 11 execution batches resolved. Batches A, B, C, D, F,
+G, H, I, J, K (items 1-11, 13-15, 17-31) fixed directly across 2026-07-30/31, each its own commit
+(see this file's earlier entries and each module's `DECISIONS.md` for individual batch rationale —
+notably ADR-014 in `attachment-spring-boot-starter` for Batch I's corrected `AttachmentVideoUtil`
+shape, ADR-025 in `platform-commons` for Batch G's corrected `UserSettingsService` instance-method
+shape). Batch E (item 12, `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` pure
+duplication) needs a design decision rather than a mechanical edit, so it was deferred to
+`issues/improvement-133-deferred-oversized-review-findings.md` entry 8 for later analysis instead
+of holding this issue open indefinitely. Full detail:
+`completed/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md`.
+
+✅ Done (2026-07-31): improvement-134 — additive AI-navigation/context-efficiency layer, filed and
+implemented same day via `/autopilot` once the spec was approved. `docs/ai/adr-index.md`
+(mechanically generated by `scripts/ai/generate-adr-index.sh` from every `DECISIONS.md`'s own
+`## ADR-NNN:`/`**Status:**` text, 174 entries across 12 files), `docs/ai/context-loading.md`,
+`docs/ai/flows.md`, and `docs/ai/README.md` (the layer's entry point). Explicitly rejected with
+evidence: a `module-index.md` (duplicates `docs/architecture/03-bounded-contexts.md`) and a
+`database-ownership.md` (duplicates `04-database-erd.md`) — see `scripts/ai/DECISIONS.md` ADR-001.
+Mandatory hooks wired into `.claude/commands/decision.md`/`feature.md`/`sync-docs.md`,
+`.claude/rules.md`, and root `CLAUDE.md`; while touching `decision.md`/`sync-docs.md`, also fixed
+two pre-existing bugs the audit surfaced (a stale ADR-authoring template and a `find -maxdepth 2`
+that silently skipped nested `scripts/*/DECISIONS.md` files). 4 confirmed stale
+`docs/architecture/*.md` items corrected (`AttachmentMediaChangeHook` references left over from
+improvement-102, FK-coupling/optional-deps sections left over from improvement-120/improvement-011).
+`/code-review --fix` (8-angle, high effort) caught and fixed a real bug in the generator itself
+(multi-line ADR `Status:`/heading text was silently truncated) plus two more instances of the same
+stale-doc pattern Phase 3 was already fixing. Full detail:
+`completed/issues/improvement-134-ai-navigation-context-efficiency-layer.md`.
+
+✅ Done (2026-08-04): improvement-137 — new `.claude/skills/doc-standards/SKILL.md` (canonical-
+ownership table + fact-vs-constraint test + pre-write checklist) plus a repo-wide documentation
+dedup pass, executed via `/autopilot` with Explore-agent-cluster discovery (4 parallel agents, one
+per file cluster). Fixed: stale "9 modules"/table/SPI counts across `docs/architecture/*.md`
+(including a fuller regeneration of `01-module-dependencies.md`'s graph/table to add the missing
+`provider-profile-spring-boot-starter` node), a `RoleChecker`/`OwnershipChecker` duplication in
+`marketplace-app`, a missing `UserEditableFields` README entry, and ADR/issue-format restatements
+in `.claude/commands/sync-docs.md`/`deep-review/SKILL.md` collapsed to references. Added
+`scripts/ai/check-hardcoded-counts.sh` (new CI gate, `scripts/ai/DECISIONS.md` ADR-002) mirroring
+`check-adr-index-freshness.sh`/`check-flows-completeness.sh`. Deliberately deferred (too large for
+a dedup pass, cross-referenced to `improvement-138` instead): `02-spi-map.md`'s SPI diagram still
+names a removed/renamed hook and is missing the `UserPort` split/`ProviderProfilePort`;
+`03-bounded-contexts.md`/`04-database-erd.md`'s deeper content predates `taxon`/`provider-profile`.
+`/code-review --fix` (high effort, 8 finder angles + 8 verifiers) caught and fixed 8 confirmed
+findings, including two real regressions this same session introduced (a dead section
+cross-reference in `marketplace-app/README.md`; an incorrect "compile" scope claim for
+`taxon`/`provider-profile` in `01-module-dependencies.md`, actually `runtime`-scoped) and a stale
+"7.1/10" architecture score synced to the real current 7.7/10 from `08-scorecard.md`. Companion
+**improvement-139** (`deep-review` full-mode's module scope list missing
+`provider-profile-spring-boot-starter`) fixed in the same change. `bash scripts/unit-tests.sh`:
+108/108 passed. Full detail: `completed/issues/improvement-137-doc-standards-skill-and-dedup-cleanup.md`,
+`completed/issues/improvement-139-deep-review-missing-provider-profile-module.md`.
+
+✅ Done (2026-08-04): improvement-140 — documentation shrink pass finishing what improvement-137
+deferred, executed via `/autopilot`. Deduped restated facts (DAG/no-cycles, "marketplace-app
+depends on all starters", "Vaadin only in marketplace-app", AccessEvaluator-resolved, optional-
+deps-not-guarded, `UserPort`'s 4-way split, `query-lib`'s API tables, SPI-implementation lines) to
+one canonical location each across `docs/architecture/*.md`/starter `README.md`/`CLAUDE.md` pairs.
+Replaced improvement-137's own hedges with real fixes: `02-spi-map.md` rewritten (removed the
+staleness banner, `AttachmentMediaChangeHook`, renamed `AttachmentAuditHook`→`AttachmentAuditPort`,
+added `UserPort`'s split + `ProviderProfilePort`); `docs/architecture/README.md`'s Key Metrics
+table recomputed with real numbers instead of "not re-verified this pass"; `03-bounded-contexts.md`
+gained a full Provider Profile domain section; `04-database-erd.md` gained `user_preferences`/
+`provider_profile` tables and corrected `user_information` (settings/locale moved out per
+ADR-070). Consolidated 2 verbatim starter-wide constraints ("No Vaadin dependency"/"own Liquibase
+changelog") into root `CLAUDE.md`, trimmed from all 6 starter `CLAUDE.md`s; `doc-standards/SKILL.md`
+gained a clarification that an identical-everywhere constraint is really a fact. Compressed
+`platform-commons/DECISIONS.md` ADR-025 item 20's 18-line narrative to 7 lines. Trimmed
+`BACKLOG.md`'s "At a glance" from a 54-line narrative wall to a short completed-list + active-work
+summary. Net result: **+32 lines (+0.4%)** vs. the 7,434-line baseline, not a shrink —
+`CLAUDE.md`/`BACKLOG.md` shrank as intended (-38/-27) but `docs/architecture/*.md` grew (+113)
+because the real fixes filled genuine content gaps (Provider Profile section, 2 missing ERD
+tables) rather than restating existing content; reported plainly rather than reframed as a shrink
+that didn't happen. A follow-up `/code-review --fix` pass (8 parallel finder agents + verify)
+caught 6 more pre-existing stale facts sitting directly adjacent to the edited lines
+(`AccessEvaluator`'s description still named the pre-split `UserPort` instead of
+`UserAuthorizationPort`; "optional deps not guarded" and "Advertisement→User FK coupling" both
+already resolved but still described as open in 3 files each; a stale `I18nKey.java` line count;
+a "largest file" column dropped with a pointer that delivered nothing) and fixed all of them
+directly. `bash scripts/unit-tests.sh`: 79/79 passed;
+`check-adr-index-freshness.sh`/`check-flows-completeness.sh`/`check-hardcoded-counts.sh`: all
+pass. Full detail: `completed/issues/improvement-140-documentation-shrink-and-dedup-completion.md`.
+
+✅ Done (2026-08-04): improvement-141 — new standing rule (`.claude/rules.md`): current-state
+documentation (`CLAUDE.md`, `README.md`, `docs/architecture/*.md`, `docs/ai/*.md`, skill/command
+`.md` files, `.sh` script comments) never cites an `improvement-NNN`/`goal-NNN`/`feature-NNN`
+ticket and never carries dated "resolved"/"corrected \<date\>" narrative about a prior state —
+history lives only in `backlog/completed/`, discoverable via `git blame`/keyword grep, not
+embedded forward-links. `DECISIONS.md` keeps its append-only ADR character but likewise drops the
+issue-number citation from every entry. Executed across 54 files: 11 "✅ RESOLVED" blocks removed
+from `docs/architecture/*.md`; all 8 `CLAUDE.md`, 5 `README.md`, `deep-review` skill, 3 commands,
+8 `.sh` scripts, and all 12 `DECISIONS.md` (largest: `marketplace-app/DECISIONS.md`'s 113
+references, delegated to a subagent following the pattern already proven by hand on the other 11
+files, then independently spot-verified). A follow-up sweep (Phase 9) caught the same "dated
+narrative" smell without an attached ticket number in 9 more files (`playwright/CLAUDE.md`/
+`README.md`, `query-lib/README.md`, `integration-tests/CLAUDE.md`/`README.md`,
+`marketplace-app/README.md`, `advertisement-spring-boot-starter/README.md`, `scripts/README.md`).
+`docs/ai/adr-index.md` (180 entries) and `architecture-model.json`/`architecture-map.html`
+regenerated; all CI freshness gates (`check-adr-index-freshness.sh`/`check-flows-completeness.sh`/
+`check-architecture-model-freshness.sh`/`check-hardcoded-counts.sh`) and `bash
+scripts/unit-tests.sh` (79/79) green. Full detail:
+`completed/issues/improvement-141-strip-issue-references-from-current-docs.md`.
+
+✅ Done (2026-08-06): improvement-143 — the `docs/architecture/05-08-*.md` mechanization batch
+extracted from improvement-138, executed end-to-end via `/autopilot`. All seven planned pieces
+landed: SonarQube metrics (`ncloc`/`complexity`/`cognitiveComplexity`/`codeSmells`/
+`javaFileCount`) and ArchUnit `componentDependencyMetrics()` (Efferent/Afferent Coupling,
+Instability, Abstractness) on each module's Code Metrics section; 6 new `@ArchTest` rules added to
+`ArchitectureRulesTest` (14 total) closing real gaps against `.claude/rules.md`/module
+`CLAUDE.md` text (starter-to-starter imports, marketplace-internal-impl imports, `*Util`
+non-instantiability, `*Config`/`@Configuration`, `MessageSource` confinement, package-level cycle
+freedom); a live "Architecture Checks" section (real grep-based coupling verification) plus
+"Largest Java Files"/"Constructor Injection"/"Largest Packages" tables on the Module Dependencies
+page; `05-sequence-diagrams.md`, `06-coupling-analysis.md`, `07-risk-report.md`, and
+`08-scorecard.md` all deleted (full content captured in `improvement-142` beforehand); and
+`architecture-map.html`/`architecture-model.json` moved from `docs/` into `docs/architecture/`
+(5 relative-link generators + 4 CI freshness gates + every doc referencing the old path updated).
+A `/code-review --fix` self-review pass (8 parallel finder agents + 1-vote verify per candidate)
+found and fixed several real bugs before the test run: a wrong package derivation in the
+starter-to-starter coupling check (`org.ost.provider-profile` instead of the real `org.ost.provider`,
+confirmed via direct `find`), a vacuous ArchUnit `slices()` pattern (`(**)` instead of `(*)..`,
+confirmed by compiling a standalone `PackageMatcher` test program against the real 1.4.2 jar), an
+`esc()` crash on numeric fields (confirmed via a live Playwright container run), test files
+polluting two production-complexity tables, and 2 ticket-number-in-comment rule violations; one
+finding (replacing the hand-rolled starter-coupling rule with `slices().notDependOnEachOther()`)
+was deliberately skipped after `javap` showed it would need multiple `ignoreDependency()` calls to
+reproduce correctly. `bash scripts/unit-tests.sh`: 85/85 passed (includes all 14
+`ArchitectureRulesTest` rules); `bash scripts/integration-tests.sh --sandbox`: 164/164 passed;
+Playwright e2e skipped as not required — no `marketplace-app` Vaadin UI was touched, only the
+standalone `architecture-map.html` tool, already verified directly via isolated Playwright
+container runs during implementation. `scripts/ai/DECISIONS.md` ADR-020 records the full decision;
+`docs/ai/adr-index.md` regenerated. Full detail:
+`completed/issues/improvement-143-architecture-docs-05-08-mechanization-batch.md`.
+
+✅ Done (2026-08-06): improvement-144 — opt-in `--with-sonar`/`--with-archunit` flags on
+`generate-architecture-model.sh` (default off, `ensure_sonar_fresh` no longer runs unconditionally);
+architecture-generation tooling (`generate-architecture-model.sh`, the freshness/screenshot
+scripts, both Node parsers, `architecture-map-screenshots/`, and the whole `DECISIONS.md`, ADR
+numbers unchanged) moved from `scripts/ai/` into a new sibling `scripts/architecture/` directory
+(`scripts/ai/` keeps only the ADR-index/flows/doc-standards scripts, now with no `DECISIONS.md` of
+its own); every `scripts/architecture/` script gained a standardized 4-field header
+(`Description:`/`Uses:`/`Input:`/`Output:`) that the System screen's "How this page is built"
+section now reads dynamically instead of hardcoding; two new System-screen cards/screens —
+**ADRs** (flat, deduplicated, filterable-by-status, grouped-by-module list of every ADR across
+every module, full-content popup reusing the Module page's existing mechanism, a glossary Overview
+section explaining what an ADR is/how it's used/its boundaries) and **Code Quality** (SonarQube +
+ArchUnit metrics per module, one table per source, derived ratio columns color-coded
+green/yellow/red against real thresholds, an Overview section explaining every field) — both
+replacing content that used to live inline on every Module page. Full detail across
+`scripts/architecture/DECISIONS.md` ADR-021/022/023/024. The one piece of the original scope not
+built — a companion-server on-demand refresh trigger — was split into `improvement-146` once
+everything else landed, since that piece's priority was still undecided while the rest was ready
+to close. Full detail:
+`completed/issues/improvement-144-code-metrics-dedicated-card-refresh-trigger.md`.
+
+✅ Done (2026-08-07): improvement-145 — `md-to-decisions-json.js` gained
+`--extract <module> <ADR-NNN>[,...]`, printing the requested ADR(s) as raw markdown instead of the
+whole `DECISIONS.md` (94-98% fewer tokens across 4 measured samples). Wired into the actual
+AI-facing flow, not just documented: `docs/ai/context-loading.md`'s single-module task rows now
+say "filter the index, then `--extract`" instead of "open the whole file"; `docs/ai/README.md`
+notes it as `adr-index.md`'s companion. `scripts/architecture/DECISIONS.md`'s "AI-layer L3" open
+goal struck through as done; ADR-008 (the embed-everything design behind the human-facing ADR
+popup) briefly marked legacy here, floating a possible future companion server — superseded the
+same day by `improvement-146`'s entry below (decided against a server; resolved with an opt-in
+generation flag instead). Also resolved in place
+in the same conversation (not relocated to a separate issue, per direct decision): the
+`architecture-map.html`/Tooling & Pipelines restructuring thread — new "Docker" and "Runtime"
+groups, "How this page is built" relocated off the System screen, removed a duplicated ADR-listing
+block, and two rounds of dead-code/dead-data cleanup this surfaced (`renderAdrList`/
+`openAdrPopupForIntent`/`adrFileLink`, and unused `.intent` payload on `SCRIPT_GROUP` nodes).
+Tightened `.claude/commands/decision.md`'s ADR-worthiness gate: a tool being about "architecture"
+doesn't exempt its own UI/layout changes from the gate. Full detail:
+`completed/issues/improvement-145-adr-extraction-token-efficiency.md`.
+
+✅ Done (2026-08-07): improvement-146 — closed with the companion server explicitly **decided
+against** (cost — new long-running process, port/lifecycle, unverified CORS — outweighed a rare,
+low-friction problem), not deferred. The issue's other half — ADR-008's 605KB/72%
+full-text-embedding duplication in `architecture-model.json` — shipped instead, without a server:
+a new `--with-adr-details` opt-in flag on `generate-architecture-model.sh` (same pattern as
+`--with-sonar`/`--with-archunit`), off by default (842KB → 244KB). `openAdrPopupForAdr()` now
+always opens the popup (title/status from the always-lean `MODEL.allAdrs`), falling back to a
+source-file link + a generic pointer to the Tooling & Pipelines screen — not a hardcoded command —
+when the full text isn't embedded. ADR-008 amended twice (measurement + the same-day
+reconsideration), dropping the ticket-number citation the first Amendment had briefly reintroduced.
+`docs/architecture/runtime-notes.md` gained an "Architecture map tooling" group covering every
+script involved in building the map (parameters, manual invocation, sandbox notes), replacing the
+single `--extract`-only bullet it had before. Full detail:
+`completed/issues/improvement-146-code-quality-refresh-companion-server.md`.
+
+✅ Done (2026-08-07): improvement-136 — extracted a new `marketplace-orchestrator` Maven module
+(Application/BFF composition layer between `marketplace-app` and the domain starters), moving
+`AdvertisementEnrichmentService`/`ProviderProfileEnrichmentService` (both starter-internal
+cross-domain composition) and `marketplace-app`'s own `AdvertisementSaveService`/`UserDeleteService`
+into `orchestrator.advertisement.{enrich,save}`/`orchestrator.providerprofile.enrich`/
+`orchestrator.user.delete`, built on shared single-port `orchestrator.shared.*` collaborators
+(`TaxonLookupService`, `ActorLookupService`, `TaxonAssignmentWriteService`,
+`AttachmentSnapshotReaderService`, `AttachmentSoftDeleteService`). `AdvertisementPort`/
+`ProviderProfilePort` dropped their `Locale` parameter (see `platform-commons/DECISIONS.md`
+ADR-028) now that enrichment happens downstream of the port call. Two new ArchUnit rules
+(`orchestrator_classes_depend_on_at_most_two_domain_ports`, `orchestrator_has_no_persistence_access`)
+enforce the module's own boundary going forward. `AdvertisementAuditEnrichService` stayed in
+`marketplace-app` (needs `LocaleProvider`/`I18nService`, an application-shell concern the
+orchestrator must never depend on) — a real correction caught mid-implementation, not assumed at
+planning time. Adjacent fix: `ProviderProfilePort.findOwnerIds()` purge-guard, documented but never
+wired, now actually checked in `UserService.cleanup()` and the moved `UserDeleteService`. Root
+`CLAUDE.md`'s "Architecture Guidelines" now describe three layers, not two.
+`/code-review --fix` (8 finder angles + verification) found and fixed real issues: duplicated
+`enrichSingle()` across two UI classes (centralized), stale `advertisement-spring-boot-starter`/
+`provider-profile-spring-boot-starter` `CLAUDE.md` claims, a ticket number in a Javadoc comment, a
+multi-line code comment, a defensive empty-check misplaced inside a method body, a missing singular
+`findById` on `TaxonLookupService`. Verification found and fixed 3 more real, pre-existing
+infrastructure gaps unrelated to this issue's own logic (same "forgot to update the module list"
+class of bug `improvement-138` already hit once): root `Dockerfile` missing
+`marketplace-orchestrator` in 3 places, `scripts/ci/Dockerfile` missing `nodejs` (needed by the
+architecture-model generator), and the same module-list gap in `scripts/sonar/`'s config. A CI-stack
+Playwright run showed 3 failures; re-verified via the standard `deploy.sh --reset` +
+`playwright.sh e2e --full --ux` dev workflow — **50/50 passed**, confirming the CI-stack failures
+were Docker-in-Docker environment flakiness, not a real regression. Full detail:
+`completed/issues/improvement-136-marketplace-orchestrator-extraction.md`.
+
+✅ Done (2026-08-08): improvement-147 — flattened `marketplace-orchestrator`'s 9 pre-existing
+service classes (scattered across 5 domain-scoped sub-packages) into one flat
+`org.ost.orchestrator.services` package; added `marketplace-orchestrator` as a real, evidence-based
+node on the Bounded Contexts diagram (`scripts/architecture/generate-architecture-model.sh`) instead
+of the previous hardcoded `Shared`/`UI` + `*-spring-boot-starter`-suffix domain discovery — replaced
+via a self-describing `pom.xml` `<architecture.boundedContext>` property on every module; and made
+`marketplace-app` a true BFF client with zero direct domain `*Port` access, closing the gap between
+`improvement-136`'s own contradictory spec (target diagram showed no direct UI-to-starter arrow, but
+its stated rule only banned composing multiple ports). 25 marketplace-app classes repointed to 6
+new/extended `marketplace-orchestrator` services (`AdvertisementReadService`, `TaxonCatalogService`,
+`AttachmentMediaService`, `AuditQueryService`, extended `ActorLookupService`, `UserProfileService`)
+plus a new `EntityExistenceService` — a named, ArchUnit-allowlisted exception to the module's ≤2-port
+rule for `AuditDomainHookImpl`'s per-`EntityType` existence routing. 4 UI presence-only
+`ifAvailable()` gates also moved through the orchestrator (superseding that carve-out in
+`marketplace-orchestrator/CLAUDE.md`), and a residual 6 direct `User*Port` usages found beyond the
+original 25-class audit (`UserPickerField`, `LocaleSelectorComponent`, `SignUpDialog`, `UserView`,
+`SettingsPaginationService`) were repointed too — `AccessEvaluator`'s `UserAuthorizationPort` is the
+one deliberate, documented residual exception (security-boundary infrastructure, not a domain
+read-model). See `marketplace-orchestrator/DECISIONS.md` ADR-003. Real bug found only by an actual
+`deploy.sh` container boot (invisible to every Maven-level test): the planned service name
+`AuditReadService` collided with `audit-spring-boot-starter`'s own pre-existing internal class of
+the same simple name, producing a `ConflictingBeanDefinitionException` at startup — renamed to
+`AuditQueryService`. `/code-review --fix` (8 finder angles + verification) found and fixed one real
+clarity defect (`AdvertisementFormOverlayModeHandler.save()` gating its write on a sibling read
+service's `isAvailable()` instead of its own save service's); a `TaxonManagementView`/
+`CityManagementView` graceful-degradation gap was confirmed pre-existing (not introduced by this
+migration) and proposed for `improvement-133`'s deferred-findings bucket rather than fixed inline.
+`unit-tests.sh`: 75/75; `integration-tests.sh --sandbox`: 165/165; `deploy.sh --reset` +
+`playwright.sh e2e --full --ux`: **50/50 passed**. The issue's original single-caller-collaborator
+question (`TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService`)
+moved in full to `improvement-124` Batch 124-C, the real second-consumer test. Full detail:
+`completed/issues/improvement-147-marketplace-orchestrator-followups.md`.
+
+✅ Done (2026-08-11): improvement-149 — `System › Diagrams` clarity pass, four fronts. **SPI Map**
+split into 7 per-subsystem tabs (was one dense 71-node canvas), with hover tooltips explaining
+each Direction value. **Bounded Contexts** migrated from Mermaid's hand-rolled scroll-drag to
+Cytoscape (native pan/zoom/drag/click, matching Module Dependencies/SPI Map), then split further
+into 4 tabs by relationship *category* — Service Calls (BFF)/Hook Callbacks/Cross-Starter
+Exceptions/Derived Facts — after a real evidence bug was found and fixed: the old generator
+blanket-labeled every Hook implementation as an "Audit ->" edge regardless of real caller, found by
+the user simply asking "why does Audit call UI" and checking the evidence instead of re-explaining
+the diagram; the fix revealed `Orchestrator -> UI`/`Attachment -> Orchestrator` edges the old code
+had silently mislabeled as `Audit -> UI`. Diagram edges and Relationships-table rows are now
+mutually clickable (arrow -> scroll to evidence row and back). **Hook relocation**: 6 `*Hook`
+implementations moved `marketplace-app` -> `marketplace-orchestrator` via two new forwarder SPIs
+(`UiLabelHook`/`SessionActorHook`, `org.ost.orchestrator.spi` — not `platform-commons`, since
+their only caller is `marketplace-orchestrator` itself, a mandatory dependency); `pom.xml`'s 6
+starter `<dependency>` blocks moved the same direction, superseding the Enforcer rule that used to
+ban it (`marketplace-orchestrator/DECISIONS.md` ADR-004, `platform-commons/DECISIONS.md` ADR-029).
+Simplified across 3 further rounds on direct user pushback each time — a typed `AuditLabelKey` enum
+was added then removed again once raw `Fields.*` constants (already compiler-checked) proved
+sufficient; `AuditActivityFieldsHook` (4 near-identical per-domain implementations, zero real
+domain-specific logic left) was removed entirely, collapsing into one field-label switch directly
+in `AuditTimelineRowRenderer`. **Payload accuracy**: the Relationships table's "What crosses"
+column for Hook Callback edges was one hardcoded text shared across all 4 real edges, citing
+`AuditActivityFieldsHook` — an interface deleted earlier in the same pass — and simply wrong for 3
+of the 4; fixed with `BC_HOOK_PAYLOAD`, a real per-interface method-signature map. Along the way:
+`ChangeEntry.mapField()` added (`platform-commons/core/model`, mirrors the existing
+`replaceIfField()`), `AuditTimelineRowRenderer.applyLabel()` refactored from a hand-rolled `switch`
+to one line using it; `platform-commons/CLAUDE.md`'s "Narrow exception" rule reworded to state the
+pure-derivation principle package-agnostically (`*.dto`/`*.api`/`core.model`) instead of literally
+scoped to `*.dto`, since `ChangeEntry` now demonstrates it twice (`platform-commons/DECISIONS.md`
+ADR-021 amended). `spi_call_flow_examples_json()`'s 3 hand-typed narrative examples found stale
+(citing deleted interfaces/classes) — logged as entry 10 in `improvement-133` rather than fixed
+inline, bigger scope than this pass. `improvement-150` filed mid-session as a tighter follow-up
+(`marketplace-app` should depend on nothing but `marketplace-orchestrator`, not even
+`platform-commons`/`query-lib`). `unit-tests.sh`: 72/72; `integration-tests.sh --sandbox`:
+165/165; `deploy.sh --reset` + `playwright.sh e2e --full --ux`: **50/50 passed**. Full detail:
+`completed/issues/improvement-149-architecture-map-module-deps-vs-bounded-contexts.md`.
+
+- ✅ Done (2026-08-12): improvement-148 — re-verified optional-starter removability after the
+  true-BFF migration. `taxon-spring-boot-starter` removal passed cleanly (app boots, degrades
+  gracefully). `provider-profile-spring-boot-starter` removal **failed to boot**
+  (`UnsatisfiedDependencyException` — `UserService`'s mandatory `ComponentFactory<ProviderProfilePort>`
+  field had no fallback producer once that starter left the classpath; the only producers lived in
+  the starter itself and in `AdvertisementAutoConfiguration`, both absent). Fixed by adding the
+  missing `@Bean` to `UserAutoConfiguration`, mirroring the existing `ComponentFactory<TaxonPort>`
+  fallback pattern (`platform-commons/DECISIONS.md` ADR-006 amendment). Re-ran the removal test
+  after the fix: clean boot, `/health` 200, no errors. `EntityExistenceService`'s 4-branch
+  degradation spot-checked via code inspection — structurally sound. `unit-tests.sh`: 72/72
+  (including `ArchitectureRulesTest`); `integration-tests.sh --sandbox`: 165/165. No Playwright run
+  — config-only fix, not UI-visible. Full detail:
+  `completed/issues/improvement-148-reverify-optional-module-removal-after-bff-migration.md`.
+
+- ✅ Done (2026-08-13): improvement-150 — tightened improvement-149 Point 5 to zero direct
+  `*Port`/`*Hook` (SPI) usage from `platform-commons` in `marketplace-app` (not a literal
+  zero-dependency goal — DTOs/enums/`ComponentFactory<T>` stay). Removed the unused `query-lib`
+  dependency; fixed 17 real Sonar findings; triaged an IDE "unused declaration" dump (4 real
+  write-only `@LastModifiedDate`/`@LastModifiedBy` fields documented, not deleted; 4 false
+  positives); swept all `*Port`/`*Hook` interfaces for dead methods (2 removed); moved
+  `ActivityEnrichHookImpl`/`AdvertisementAuditEnrichService` into `marketplace-orchestrator`
+  behind new `CurrentLocaleHook`/extended `UiLabelHook` forwarders; repointed
+  `AuditActivityListRenderer`/`AuditTimelineListRenderer`/`AuditTimelineRowRenderer` off raw
+  `AuditDomainHook`/`AuditActivityEnrichHook` onto orchestrator services; moved `AccessEvaluator`'s
+  authorization checks into a new `AuthorizationService` (removing dead `UserIdMarker` along the
+  way); added `SettingsChangeHook`/`CurrentUserHook` forwarders for `SettingsPaginationService`/
+  `AuthContextService`; added the `ArchitectureRulesTest` guard banning any direct
+  `platform-commons..spi..` import from `marketplace-app` (allowlist of one: `AuthenticatedPrincipal`).
+  Result: 5 forwarder-SPI pairs total, documented in `marketplace-orchestrator/CLAUDE.md`'s new
+  "Forwarder SPI pattern" section. `unit-tests.sh`: PASSED; `integration-tests.sh --sandbox`:
+  165/165; `deploy.sh --reset` + `playwright.sh e2e --full --ux`: **50/50 passed**. Full detail:
+  `completed/issues/improvement-150-marketplace-app-zero-deps-except-orchestrator.md`.
+
+- ✅ Done (2026-08-13): improvement-151 — architecture-generator content-drift cleanup
+  (`scripts/architecture/generate-architecture-model.sh`). Removed `spi_call_flow_examples_json()`
+  and the whole "Call Flow Examples" section outright (stale hardcoded class references, some
+  already moved/deleted). Built the `#arch-embed:KEY` marker convention — a depth-tracked bash
+  extractor (`arch_embed_raw()`/`arch_embeds_json()`) reads marked excerpts directly out of
+  `platform-commons/CLAUDE.md` instead of hand-copied HTML strings, closing a real drift gap (a
+  `<!-- #arch-diagram:KEY -->` marker already existed but nothing read it). Used for
+  Implementation Rules (moved out of per-subsystem SPI Map tabs into one instance at the bottom of
+  `System › Diagrams`) and 4 new SPI/Port/Hook glossary paragraphs. New
+  `docs/architecture/arch-embed-index.md` — a generated, repo-wide index of every `#arch-embed`
+  marker (mirrors `docs/ai/adr-index.md`'s discovery role), regenerated as part of the same script
+  run, not a separate manually-triggered one. New standing rule in `.claude/rules.md` ("a comment
+  above a method states what that method's own body does"). **Notable mid-session correction, twice
+  over**: a systematic re-check found roughly half of this issue's own "Done" bullets (a
+  `screenshot-architecture-map.sh` fix, an entire fictional `@flow` source-tag mechanism with an
+  11-item design log and a fabricated "Verified" paragraph, clickable-module-link claims, a
+  "Diagram-Specific Comments" file/table) described work that was never actually present in the
+  repo — confirmed file-by-file (grep, `git log`, direct file existence checks) and removed
+  outright rather than kept for "historical value." Real work verified via multiple successful
+  `bash scripts/architecture/generate-architecture-model.sh` regenerations (`Valid JSON` each time)
+  plus standalone Node scripts exercising the real render functions against real `MODEL.archEmbeds`
+  data. This issue's original topic (`scripts/build.sh`, a redundant-recompile fix never
+  implemented here), a Track B/ArchUnit unblock investigation this issue's own SPI Map findings
+  motivated, and its SPI Interface Details table redesign idea all moved to `improvement-152`.
+  Docs/tooling-only change — no Java touched, so no unit/integration/Playwright run applicable.
+  Full detail: `completed/issues/improvement-151-scripts-avoid-redundant-recompile.md`.
+
+- ✅ Done (2026-08-17): improvement-152 — `scripts/build.sh` redundant-recompile fix + Tooling &
+  Pipelines regroup. Part A: consolidated `scripts/unit-tests.sh`/`scripts/integration-tests.sh`
+  into `scripts/build-and-test.sh` (parallel unit+integration, module/test-class selection,
+  host-copied reports, PASSED/FAILED summaries, `--sandbox`); found and fixed a real bug along the
+  way (`RUN_INTEGRATION` silently ran zero real Testcontainers tests). Legacy standalone scripts
+  deleted, `scripts/ci/entrypoint.sh` rewired to one merged `build_and_test` stage. Part D:
+  Tooling & Pipelines screen regrouped from a 2-bucket AI/Other split into one card per tool.
+  Both parts done and verified. **Parts B, C, and E each split out to their own issue once A/D
+  were ready to close** — not because they were abandoned, but because each had grown into
+  independent, separately-trackable work: `improvement-156` (ArchUnit Track B unblock decision
+  gate — its own technical prerequisite, `ArchitectureMetricsExport`'s module-coupling exporter,
+  fixed and verified as part of this issue via a new `--archunit-metrics` flag before the split),
+  `improvement-157` (SPI Interface Details table redesign), `improvement-155` (repo-wide
+  `infra-doc-standards` script-header/README-flow convention rollout). Two smaller loose ends from
+  Part A also moved out: `improvement-153` (verify the merged CI stage for real) and
+  `improvement-154` (deploy reusing `build-and-test.sh`'s shared-volume jar, closing the
+  documented Playwright-freshness gap). Full detail:
+  `completed/issues/improvement-152-build-script-and-archunit-track-b-unblock.md`.
+
+- ✅ Done (2026-08-17): improvement-154 — `scripts/deploy.sh` restructured into
+  `scripts/deploy-and-run/` (`run.sh`, `reset.sh`, `docker-compose*.yml`; `scripts/infra`/
+  `scripts/database` folded in), 3 duplicate DB-truncate implementations unified into one shared
+  `reset.sh`. `deploy-and-run.sh` no longer duplicates `build-and-test.sh`'s compile step — by
+  default it now runs the app directly against the shared `maven-cache` volume from a plain
+  `eclipse-temurin:25-jre` container (`docker run` mounts a named volume directly; no image build,
+  no bridge container needed at all — an earlier version of this fix used a jar-extraction
+  bridge-container + a thin Dockerfile, replaced once the app-container step turned out not to
+  need a built, tagged image in the common case). `--from-scratch` keeps the original full,
+  isolated, tagged-image build for when one is genuinely needed. `run-all-tests.sh` now runs
+  `deploy-and-run.sh` (always clearing app data first) sequentially before `playwright.sh`,
+  closing the documented Playwright-freshness gap. Found and fixed a real bug this reuse surfaced:
+  `build-and-test.sh`'s fixed container name collided under two concurrent invocations — added an
+  overridable `BUILD_CONTAINER_NAME` plus defensive cleanup. `infra-doc-standards` applied to
+  `scripts/deploy-and-run/`; new architecture-map card. Verified end to end with real Docker runs
+  at every stage, including a full `run-all-tests.sh --sandbox` pass (unit 53/53, integration
+  165/165, e2e ALL PASSED). Also removed `scripts/hooks/`/`scripts/install-hooks.sh` (never
+  installed/used in this environment — the "should this run repo-wide" question was already
+  flagged as an explicit user decision in `improvement-138`; user confirmed removal). Full detail:
+  `completed/issues/improvement-154-deploy-reuses-build-and-test-jar.md`.
+
+- ✅ Done (2026-08-17): improvement-158 — same shared-jar-reuse pattern from improvement-154
+  applied to `scripts/sonar/run.sh`: drops its own local `mvnw compile` (no local Java needed
+  anymore), calls `scripts/build-and-test.sh` first, mounts the shared `maven-cache` volume
+  directly into the sonar-scanner container instead of copying host-compiled classes in
+  (`sonar.java.binaries` doesn't accept jars directly, confirmed via SonarQube docs — only
+  directories of `.class` files, so `build-and-test/build.sh` now also refreshes each module's own
+  `target/classes` into the volume, alongside the jar). Found and fixed a real pre-existing bug
+  during testing: `--no-gate` used to also clear `sonar.qualitygate.wait=true`, so the scanner
+  returned before SonarQube finished processing the just-uploaded report — the HTML-report step
+  then hit an API timeout and silently skipped writing the report file. The wait flag now always
+  stays on; `--no-gate` only controls whether a failed gate makes the script itself exit non-zero.
+  Verified end to end: real scan uploaded, gate evaluated (3 real issues found), HTML report
+  written (2810 bytes). Full detail:
+  `completed/issues/improvement-158-sonar-reuses-build-and-test-jar.md`.
+
+- ✅ Done (2026-08-18): improvement-153 — replaced `scripts/ci.sh`'s hand-rolled `progress.txt`
+  polling with Dagu (single-binary DAG engine, built-in web UI). `ci-runner` becomes a persistent
+  container running `dagu start-all`; `scripts/ci/dagu/ci.yaml` defines the same stage sequence
+  as a real DAG (`build` → `unit`/`integration`/`e2e`/`sonar` in parallel → `docs`), each step
+  calling the same existing scripts, no stage logic reimplemented. `scripts/ci/run.sh` rewritten
+  into a thin trigger (build/start the container, fire a DAG run via `docker exec`). Three problems
+  found only by actually running it, none documented in Dagu's own docs: `dagu start <name>`
+  resolves against `$DAGU_HOME/dags`, not the server's `--dags` directory (fixed by triggering via
+  file path); each step runs in an isolated working directory by default (fixed with
+  `working_dir: /app`); a `--network host` container's bound ports aren't reachable from a real
+  browser in this sandbox, unlike an explicit `-p` publish (fixed with a small `alpine/socat` proxy
+  sidecar reading the actual default-bridge gateway IP from Docker, since `host.docker.internal`
+  resolved to an address that refused the connection here). Also fixed, unrelated to Dagu itself:
+  the image's build-time binary installs (buildx/compose/Dagu, ~190MB) re-downloaded on every
+  rebuild whenever an earlier Docker layer's cache missed, often in this sandbox — moved to a
+  `ci-tools-cache` named volume with a download-if-missing check at container start
+  (`scripts/ci/docker-entrypoint.sh`) instead of image build time; `--refresh-tools` forces a
+  re-download. Verified end to end: image build → container start → Dagu web UI reachable from a
+  real external browser → "Start" dialog renders a field per DAG param (confirmed by the user) →
+  `unit` stage genuinely passing (53/53) → persistent dev stack (`marketplace-app`) still healthy
+  throughout.
+
+  **Follow-up, same day:** added a `pipeline_metrics` DAG step (per-step status/duration, feeding
+  `generate-architecture-model.sh --with-ci-metrics`) and an on-demand `archunit_metrics` step
+  (module-coupling export), plus a `--skip-vaadin` flag on `build-and-test.sh`/`build.sh` so
+  test-only stages skip the unneeded ~3-4 min Vaadin frontend bundle (`unit` 209s→124s,
+  `archunit_metrics` 298s→132s, measured). Running the resulting default pipeline end to end
+  surfaced several more real gaps: `archunit_metrics` flipped on by default (its own cost is small
+  next to `e2e`'s); `run-all-tests.sh` was missing the same `--skip-vaadin` its own `ci.yaml`
+  equivalent already had; `scripts/ci/watch-run.py` added as a Monitor-backed replacement for
+  manually polling Dagu's API (two real bugs fixed building it — Python stdout buffering without
+  `python3 -u`, and a silent stall looking identical to a healthy long step without a heartbeat
+  line); `keep_infra` renamed `keep_e2e_infra` with its default flipped to `true` (debugging-
+  friendly by default), which in turn exposed a real, pre-existing gap: `e2e`'s own deploy call
+  passed no DB-reset flag at all, unlike `run-all-tests.sh` — fixed with a new `reset_e2e_db` param
+  (`--reset-only-db` by default, full `--reset` opt-in for schema changes) after a run without it
+  produced a stale-data test failure that a re-run with the reset applied did not reproduce.
+  Verified end to end twice more: a full `ci.sh --reset-e2e-db` run (`e2e` now succeeded) and two
+  direct `deploy-and-run.sh` + `playwright.sh e2e --full --ux` runs (50/50 passed both times,
+  including the specific test that had failed on stale data). Full detail:
+  `completed/issues/improvement-153-dagu-local-ci-visualization.md`.
+
+✅ Done (2026-08-19): improvement-159 — full 9-step ADR system review, all steps executed for real,
+  not just analyzed. Classified all 229 ADRs across 16 `DECISIONS.md` files (KEEP/MERGE/SUPERSEDE/
+  DEMOTE/REMOVE/REWRITE), fixed 8 stale `Status:` fields, updated `.claude/rules.md`'s ADR-citation
+  rule to point at `docs/ai/adr-index.md` instead of raw `DECISIONS.md`/ADR-number citations and
+  swept 68 citations across 38 files to match, renamed `/decision` → `/record-decision` with a new
+  worthiness-gate granularity rule ("one ADR per decision, not per batch") and an update-discipline
+  rule ("supersede, don't append a correction layer"), added an optional lazy `**Verified:**` field
+  (+ index column) replacing a one-time code-consistency audit that failed mid-run. Migration
+  actually applied across all 13 non-empty `DECISIONS.md` files by 6 parallel agents: **229 → 172
+  active ADRs**. A post-migration cross-file integrity sweep found and fixed 6 dangling references
+  to deleted ADR numbers. Full detail: `completed/issues/improvement-159-adr-system-review-and-
+  refinement.md`.

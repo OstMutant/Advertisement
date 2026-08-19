@@ -26,7 +26,9 @@ advertisement-parent (root pom)
 ├── user-spring-boot-starter          — User domain: entity, service, security, UserPortImpl (auto-configured starter)
 ├── advertisement-spring-boot-starter — Advertisement domain: entity, service, AdvertisementPortImpl (auto-configured starter)
 ├── taxon-spring-boot-starter         — Taxonomy domain: taxon/category/tag management, TaxonPort (auto-configured starter)
+├── provider-profile-spring-boot-starter — Provider profile domain: MASTER/SHOP/SUPPORT catalog entries, ProviderProfilePort (auto-configured starter)
 ├── integration-tests                 — Testcontainers repository tests + fixtures for every starter (test-only, never shipped)
+├── marketplace-orchestrator           — application/BFF layer: cross-domain use-case orchestration between marketplace-app and the domain starters
 └── marketplace-app                   — main Vaadin application (all UI)
 ```
 
@@ -36,11 +38,12 @@ advertisement-parent (root pom)
 
 **platform-commons** defines the cross-module contracts, organized into semantic packages:
 - `core.*` — shared by all modules: `ComponentFactory` (top-level, not a sub-package), `core.model` (`ActionType`, `ChangeEntry`, `EntityRef`, `EntityType`), `core.config` (`CleanupProperties`), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`)
-- `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`, `AuditTimelineFilterDto`), `audit.spi` (`AuditPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`)
-- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentAuditHook`) — note `AttachmentMediaChangeHook` was removed entirely (improvement-102, zero consumers) — `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
-- `user.*` — `user.spi` (`UserPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
+- `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`, `AuditTimelineFilterDto`), `audit.spi` (`AuditPort`, `AuditDomainHook`, `AuditActivityEnrichHook` — note `AuditActivityFieldsHook` does not exist: field-name-to-label mapping lives entirely in `marketplace-app`'s `AuditTimelineRowRenderer`, not a per-domain Hook)
+- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentAuditPort`) — note `AttachmentMediaChangeHook` does not exist — `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
+- `user.*` — `user.spi` (`UserPort`/`UserAccountPort`/`UserAuthorizationPort`/`UserPreferencesPort` — one logical split, see `platform-commons/CLAUDE.md`; plus `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
 - `advertisement.*` — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto` (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`, `AdvertisementSnapshotDto`), `advertisement.model` (`AdKind`)
 - `taxon.*` — `taxon.spi` (`TaxonPort`), `taxon.dto` (`TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`), `taxon.model` (`TaxonType`)
+- `providerprofile.*` — `providerprofile.spi` (`ProviderProfilePort`), `providerprofile.dto` (`ProviderProfileDto`, `ProviderProfileSaveDto`, `ProviderProfileFilterDto`, `ProviderProfileSnapshotDto`), `providerprofile.model` (`ProviderKind`)
 
 → Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: @platform-commons/CLAUDE.md
 
@@ -54,16 +57,41 @@ advertisement-parent (root pom)
 
 → Taxon/reference data domain (owned classes): @taxon-spring-boot-starter/CLAUDE.md
 
+→ Provider profile domain (owned classes): @provider-profile-spring-boot-starter/CLAUDE.md
+
+→ Application/BFF orchestration layer (cross-domain use cases, owned classes): @marketplace-orchestrator/CLAUDE.md
+
 ---
 
 ## Architecture Guidelines
 
 1. **Explicit over implicit:** Avoid hidden framework magic. If simple Java code works, use it.
-2. **UI is a monolith:** All Vaadin UI code lives in `marketplace-app`. Decoupling is required only at the **service ↔ UI boundary** (starters vs marketplace-app). Within `marketplace-app`, UI components may freely reference each other — no ports, no hooks, no indirection needed between UI classes.
+2. **Three layers, not two:** `marketplace-app` (UI adapter: Vaadin, auth, locale — application-shell
+   concerns only) → `marketplace-orchestrator` (application/BFF layer: cross-domain use-case
+   composition) → domain starters (each owns its own bounded context). A domain starter must not
+   orchestrate another domain, and `marketplace-app` must not directly compose multiple domain
+   Ports for a single application use case — that composition belongs in `marketplace-orchestrator`.
+   All Vaadin UI code still lives in `marketplace-app` only; within `marketplace-app`, UI components
+   may freely reference each other — no ports, no hooks, no indirection needed between UI classes.
+   No single class in `marketplace-orchestrator` may depend on more than two domain `*Port`
+   interfaces via `ComponentFactory` — split into smaller, composed use-case services instead (see
+   `marketplace-orchestrator/CLAUDE.md`). `marketplace-orchestrator` never touches `JdbcClient`,
+   any `*Repository`, or any `*CrudRepository` — it composes results from domain Ports only.
 3. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserPort` or `AdvertisementPort`.
-3. **Modular Storage:** `StorageService` and its implementations live in `attachment-spring-boot-starter` (`org.ost.attachment.services`). UI components MUST degrade gracefully via `ObjectProvider.ifAvailable()` when the attachment starter is absent from the classpath.
-4. **Validation:** Use declarative validation rules in DTOs.
-5. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
+4. **Modular Storage:** `StorageService` and its implementations live in `attachment-spring-boot-starter` (`org.ost.attachment.services`). UI components MUST degrade gracefully via `ObjectProvider.ifAvailable()` when the attachment starter is absent from the classpath.
+5. **Validation:** Use declarative validation rules in DTOs.
+6. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
+   Every `<column>`/`<createTable>` MUST carry a `remarks="..."` attribute with the business-meaning
+   explanation (why the column/table exists, cross-references to the ADR that decided its shape).
+   This is the single source of truth — `docs/architecture/scripts/generate-architecture-model.sh`'s Database ERD
+   page parses these `remarks` live and shows them next to each column/table. Do not duplicate the
+   same explanation in a separate markdown file; if the meaning changes, edit the `remarks`
+   attribute in the changelog, not a second copy elsewhere.
+7. **Starter independence:** No starter has a Vaadin dependency and no starter contains UI code —
+   Vaadin only exists in `marketplace-app` (guideline 2 above). Each starter owns its own Liquibase
+   changelog under its own `db/*-changelog/` directory; changelogs are never merged into a shared
+   file across starters. Every starter `CLAUDE.md`'s own "Key constraints"/"Schema" section states
+   only what's specific to that module beyond this baseline.
 
 **Pattern-first:** Before introducing a new abstraction or naming a class, scan the existing codebase for how similar things are already done. Symmetry with existing code is a first-class goal.
 
@@ -105,7 +133,7 @@ Reference implementations: `UserRepository` in user-spring-boot-starter, `Advert
 
 Local infrastructure only (IDE dev mode):
 ```bash
-docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml up -d
+docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.minio.yml up -d
 ```
 
 ---
@@ -116,15 +144,17 @@ docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-co
 → SonarQube static analysis: @scripts/CLAUDE.md
 
 **Slash commands available:**
-- `/build` — rebuild Docker image and start app
+- `/build-and-test` — build the whole reactor (+ optional unit/integration tests) via the shared build-and-test container, no local Java needed
+- `/deploy-and-run` — rebuild the Docker image and start the app; reuses `/build-and-test`'s shared jar internally, no duplicate compile
 - `/playwright [scenario] [--ux]` — run Playwright tests
 - `/sonar` — run SonarQube analysis
-- `/decision <module> — <title>` — record architectural decision
+- `/record-decision <module> — <title>` — record architectural decision
 - `/sync-docs [ref]` — sync architecture docs with code (default: origin/main); **run manually** after significant changes (new module, new SPI, schema changes) — not triggered automatically
-- `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `scripts/DECISIONS.md` ADR-004
+- `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `docs/ai/adr-index.md`
 - `/ci [flags]` — run the isolated local CI runner (unit+integration+e2e+sonar by default, backgrounded); see `scripts/ci/README.md`/`DECISIONS.md`
-- `/feature <title>` — scaffold a new `backlog/issues/<prefix>-NNN-<slug>.md` from the standard template and rank it in `BACKLOG.md`'s priority table (improvement-034)
+- `/feature <title>` — scaffold a new `backlog/issues/<prefix>-NNN-<slug>.md` from the standard template and rank it in `BACKLOG.md`'s priority table
 - `/autopilot <task>` — plan once, approve once, then implement/test/document a task end-to-end with no further check-ins until it's done; explicit per-run opt-out of the standing Approval Rule's per-step gating, not a permanent one
+- `/deep-review` / `/deep-review full [module]` — evidence-verified code review, findings-only, never writes code; diff mode (default, reviews the last commit or a git ref) for cheap frequent checks, full mode for periodic whole-repo SOLID/DRY/KISS sweeps; every finding is independently validated against the real file before being reported — see `.claude/skills/deep-review/SKILL.md`
 
 ---
 
@@ -138,14 +168,26 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/query-lib/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
 - `/app/scripts/DECISIONS.md`
+- `/app/scripts/ci/DECISIONS.md`
+- `/app/scripts/sonar/DECISIONS.md`
+- `/app/docs/architecture/scripts/DECISIONS.md`
 - `/app/integration-tests/DECISIONS.md`
 - `/app/taxon-spring-boot-starter/DECISIONS.md`
+- `/app/marketplace-orchestrator/DECISIONS.md`
 
-Note: `user-spring-boot-starter` and `advertisement-spring-boot-starter` have no `DECISIONS.md` —
-their key decisions are recorded in `marketplace-app/DECISIONS.md` (domain extraction) and
-`platform-commons/DECISIONS.md` (port interfaces).
+Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`, and
+`provider-profile-spring-boot-starter` have no hand-authored `DECISIONS.md` of their own — their
+key decisions are recorded in `marketplace-app/DECISIONS.md` and `platform-commons/DECISIONS.md`
+instead. Each of these three modules has a generated, pointer-only `DECISIONS.md`
+(`bash docs/architecture/scripts/generate-architecture-model.sh`) listing whichever ADRs cross-reference it via
+the home ADR's own `**Also affects:**` tag — never hand-edit these three files directly.
+
+→ ADR discovery index (generated, one line per decision across every `DECISIONS.md`):
+`docs/ai/adr-index.md` — see `docs/ai/README.md` for the full AI-navigation layer.
 
 **Rules:**
-- Record any new substantial architectural or technical decision there immediately — before the conversation ends.
+- Record any new substantial architectural or technical decision there immediately — before the
+  conversation ends — via `/record-decision`, never by hand-writing a `DECISIONS.md` entry
+  directly (its worthiness gate and format checks are the point).
 - When a decision contradicts or supersedes an existing entry, update or annotate the existing entry rather than only adding a new one.
 - Each `DECISIONS.md` also tracks open goals (work not yet done). When implementing something that realizes a stated goal, mark it done in the same PR.

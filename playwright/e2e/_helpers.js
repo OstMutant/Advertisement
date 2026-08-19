@@ -27,7 +27,10 @@ async function waitForOverlayClosed(page, timeout = 10000) {
 }
 
 async function closeOverlay(page) {
-  await page.locator('.overlay__breadcrumb-back').click();
+  // Scoped to the currently-visible overlay -- more than one *Overlay component (e.g. a
+  // header-level overlay plus a nested one) can be initialized in the DOM at once, though only
+  // one is ever ".overlay--visible" at a time.
+  await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
   await waitForOverlayClosed(page).catch(() => {});
 }
 
@@ -74,6 +77,24 @@ async function assertOverlayHasText(page, expect, overlay, selector, expectedTex
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
+// ── Computed style assertion (proves a CSS rule actually resolved, not just that a class is present) ──
+
+async function assertComputedColor(expect, locator, cssProperty, expectedRgb) {
+  const actual = await locator.evaluate((el, prop) => getComputedStyle(el)[prop], cssProperty);
+  expect(actual, `expected ${cssProperty} to be ${expectedRgb}, got ${actual}`).toBe(expectedRgb);
+}
+
+// ── Geometry assertion (proves an element is actually flush against its container's right edge) ──
+
+async function assertRightAligned(expect, elementLocator, containerLocator, toleranceInPx = 3) {
+  const elBox = await elementLocator.boundingBox();
+  const containerBox = await containerLocator.boundingBox();
+  expect(elBox, 'element must have a bounding box').not.toBeNull();
+  expect(containerBox, 'container must have a bounding box').not.toBeNull();
+  const gap = containerBox.x + containerBox.width - (elBox.x + elBox.width);
+  expect(gap, `expected element's right edge within ${toleranceInPx}px of container's right edge, gap was ${gap}px`).toBeLessThanOrEqual(toleranceInPx);
+}
+
 // ── Download helper ───────────────────────────────────────────────────────────
 
 function downloadPng(url, dest) {
@@ -93,5 +114,5 @@ module.exports = {
   waitForOverlayClosed, closeOverlay,
   closeNotification,
   screenshot, downloadPng,
-  assertCardHasText, assertOverlayHasText,
+  assertCardHasText, assertOverlayHasText, assertComputedColor, assertRightAligned,
 };

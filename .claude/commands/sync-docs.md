@@ -31,14 +31,10 @@ Use this mapping table:
 
 | Changed file pattern | Documentation targets |
 |----------------------|-----------------------|
-| `**/pom.xml` | `docs/architecture/01-module-dependencies.md` |
-| `platform-commons/**/spi/**`, `**/*Port*.java`, `**/*Hook*.java`, `**/*Impl.java` | `docs/architecture/02-spi-map.md` |
-| New packages or moved domain classes | `docs/architecture/03-bounded-contexts.md` |
-| `**/db/changelog/**` | `docs/architecture/04-database-erd.md` |
-| `**/*Service.java`, `**/*Repository.java` | `docs/architecture/05-sequence-diagrams.md` |
-| Any `*.java` | `docs/architecture/06-coupling-analysis.md`, `07-risk-report.md`, `08-scorecard.md` |
+| `**/*.java` (main or test), `**/pom.xml`, `**/db/changelog/**`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `docs/ai/flows.md` | `docs/architecture/architecture-model.json` + `docs/architecture/architecture-map.html` — every diagram (Module Dependencies, SPI Map, Database ERD, Bounded Contexts) and every module page's Code Metrics/Architecture Checks/Largest Files sections render live from real source; there is no separate `.md` to hand-edit for any of them. Regenerate via `bash docs/architecture/scripts/generate-architecture-model.sh`. A schema change still needs its new/changed `<column>`/`<createTable>` to carry a real `remarks=` attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that edit happens in the changelog, not in the generated doc. **Run this last, after Step 4's other file updates** — the generator reads every `DECISIONS.md` as input, so it must run after those are updated, not before, or it regenerates from stale input. |
 | Any `*.java` or `**/pom.xml` | `CLAUDE.md` (per changed module), `DECISIONS.md` (per changed module) |
 | Any `*.java` or `**/pom.xml` | `backlog/issues/` — create/close/update tracked issues |
+| Any `**/DECISIONS.md` | `docs/ai/adr-index.md` — regenerate via `bash docs/ai/scripts/generate-adr-index.sh` |
 
 Print which targets are affected before proceeding.
 
@@ -46,18 +42,21 @@ Print which targets are affected before proceeding.
 
 ## Step 3 — Read actual source
 
-For each affected target, read the relevant source files:
-- For `01`: read all `pom.xml` files
-- For `02`: read all files in `platform-commons/**/spi/` and `platform-commons/**/api/`; find `*PortImpl`, `*HookImpl`, `Default*Port` classes
-- For `04`: read all Liquibase migration files in `**/db/changelog/changes/`
-- For `05`: read changed `*Service.java` and `*Repository.java` files
-- For `06/07/08`: read all changed Java files and scan for import violations
+No manual read-and-rewrite step is needed for `docs/architecture-map.html`'s content — every
+diagram and every module-page section renders live from `pom.xml`/real Java source/real Liquibase
+changelogs/a running SonarQube server/the last `ArchitectureMetricsExport` test run, directly
+inside `bash docs/architecture/scripts/generate-architecture-model.sh` (see Step 4's ordering note below). A
+schema change still needs its new/changed `<column>`/`<createTable>` to carry a real `remarks=`
+attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that edit
+happens in the changelog, not in a generated doc.
 
 ---
 
 ## Step 4 — Update affected files
 
-**docs/architecture/ files** — rewrite only the sections that changed. Keep unchanged sections intact.
+There is no `docs/architecture/` markdown content left to hand-edit — `docs/architecture/README.md`
+is a pointer to the live tool, and every diagram/module-page section renders directly from source
+(see Step 3). Start straight from the other targets below.
 
 **DECISIONS.md** (per module) — ADR audit:
 - Mark realized open goals as done (add date)
@@ -77,8 +76,16 @@ For each affected target, read the relevant source files:
 - Update issue file if scope or constraints changed
 
 **README.md** — update only the block between `<!-- arch:start -->` and `<!-- arch:end -->`:
-- Replace the module dependency diagram with the updated one from `01-module-dependencies.md`
+- Point at the live module dependency graph in `docs/architecture/architecture-map.html` (Diagrams › Module
+  Dependencies) rather than embedding a diagram — there is no separate `.md` copy to pull from
 - Keep all other README content untouched
+
+**Last action of this step, always, if anything above touched a file the generator reads**
+(any `DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`,
+`docs/ai/flows.md`, or `**/pom.xml`): run `bash docs/architecture/scripts/generate-architecture-model.sh` — one
+trigger, run once, after every other file this step touches, so
+`docs/architecture/architecture-model.json`/`docs/architecture/architecture-map.html` never
+regenerate from stale input.
 
 ---
 
@@ -102,10 +109,19 @@ wrongly claiming `taxon-spring-boot-starter` had no `DECISIONS.md` when it actua
 module-listing claim in a *different* file than the one that changed never appears in any single
 commit's diff.
 
+### Step A0 — Regenerate the ADR index
+
+Run `bash docs/ai/scripts/generate-adr-index.sh` and check whether it changed `docs/ai/adr-index.md`
+(`git diff --stat docs/ai/adr-index.md`) — if so, a `DECISIONS.md` entry was added/changed since
+the index was last regenerated. Include this in the Step A5 report regardless of outcome.
+
 ### Step A1 — Enumerate targets
 
-`find . -maxdepth 2 -iname "DECISIONS.md" -o -maxdepth 2 -iname "README.md" -o -maxdepth 2 -iname
-"CLAUDE.md"` (excluding `target/`/`node_modules/`). Note which modules have no README.md, no
+`find . -maxdepth 3 -iname "DECISIONS.md" -o -maxdepth 3 -iname "README.md" -o -maxdepth 3 -iname
+"CLAUDE.md"` (excluding `target/`/`node_modules/`) — `maxdepth 3`, not `2`: nested tool
+directories (`scripts/ci/`, `scripts/sonar/`, `docs/ai/scripts/`) each carry their own `DECISIONS.md`/
+`README.md` one level deeper than top-level modules; `maxdepth 2` silently skips all three
+(confirmed directly). Note which modules have no README.md, no
 DECISIONS.md, or no CLAUDE.md — that alone is not necessarily a problem (e.g. a pure-contracts
 module may not need a README), but flag it in the report rather than silently skipping.
 
@@ -162,12 +178,32 @@ plus:
   documentation. Never touch code in `--full-audit` mode. Documentation always changes to match
   code, never the reverse.
 
-### Step A5 — Report
+### Step A5 — Aggregate operational self-tracking notes
+
+Per `.claude/rules.md`'s "Final reports record real operational data in a fixed, mechanically-
+parseable block" rule, completed issues carry a `## Operational notes` block with fixed `key:
+value` lines (`token_cost_review`, `token_cost_research`, `token_cost_verification`,
+`context_loading_task_type`, `context_loading_consulted`, `context_loading_matched`,
+`flows_situation`, `flows_chosen`, `flows_matched`). Grep `backlog/completed/issues/` (and
+`backlog/issues/` for in-progress work) for `## Operational notes` blocks added since the last
+full-audit and aggregate mechanically (parse the `key: value` lines directly, the same way
+`generate-adr-index.sh` parses `## ADR-NNN:`/`**Status:**` — do not rely on prose parsing):
+- Token cost trend by purpose (`token_cost_review`/`research`/`verification`) across the sampled
+  issues — sum and average, `n/a` entries excluded from the average, not treated as zero.
+- `context_loading_matched` yes/no/n/a tally, grouped by `context_loading_task_type`.
+- `flows_matched` yes/no/n/a tally.
+Feed the result into `docs/ai/`'s own governing rule — no new navigation content until this data
+shows the existing layer earns its cost: this is real evidence for or against expanding/trimming
+the navigation layer, not a synthetic exercise. If too
+few blocks have accumulated since the last audit to say anything meaningful, report that plainly —
+absence of data is itself a finding (the recording practice may not be happening consistently).
+
+### Step A6 — Report
 
 Same shape as Step 5, plus: a per-file table of ADR verdicts (VALID count vs. each flagged entry
 with a one-line reason), the same per-file verdict shape for every README.md and CLAUDE.md
-checked, and an explicit list of anything found stale in code itself (not just in docs) that was
-deliberately left unfixed per the rule above — so it doesn't silently disappear after the audit.
+checked, an explicit list of anything found stale in code itself (not just in docs) that was
+deliberately left unfixed per the rule above, and Step A5's operational self-tracking aggregate.
 
 ---
 
@@ -177,6 +213,6 @@ deliberately left unfixed per the rule above — so it doesn't silently disappea
 - If something cannot be proven from code, mark it UNKNOWN
 - All diagrams must use Mermaid syntax
 - All conclusions must reference actual class names or file paths
-- ADR format: `## ADR-NNN: Title` + `Status:` + `Context / Decision / Consequences`
-- Issue format: `prefix-NNN-title.md` with Type / Module / Priority / Problem sections
+- ADR format: see `.claude/commands/record-decision.md` step 3
+- Issue format: see `.claude/commands/feature.md` step 3
 - Never duplicate issues — update existing ones rather than creating new

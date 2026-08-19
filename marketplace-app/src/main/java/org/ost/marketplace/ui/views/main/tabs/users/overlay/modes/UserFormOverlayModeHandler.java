@@ -10,19 +10,20 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import org.ost.orchestrator.services.AuditQueryService;
+import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
-import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
-import org.ost.platform.audit.spi.AuditPort;
-import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
+import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.utils.BeforeUnloadUtil;
@@ -32,7 +33,6 @@ import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.core.UiComponentFactory;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.core.Configurable;
@@ -40,6 +40,7 @@ import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
 import java.util.Arrays;
+import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -55,17 +56,18 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         @NonNull UserDto  user;
         @NonNull Runnable onSave;
         @NonNull Runnable onCancel;
+        @NonNull List<BreadcrumbStep> breadcrumbSteps;
     }
 
-    private final UserPort                                              userPort;
+    private final UserProfileService                                    userProfileService;
     private final UserMapper                                            mapper;
     private final AccessEvaluator                                       access;
     @Getter
     private final I18nService                                           i18nService;
     private final NotificationService                                   notificationService;
     private final UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
-    private final ComponentFactory<AuditPort>                        auditPortFactory;
-    private final UiComponentFactory<AuditActivityPanel>             auditActivityPanelFactory;
+    private final AuditQueryService                                   auditQueryService;
+    private final EntityActivityOverlay                              entityActivityOverlay;
 
     private Parameters params;
     @Getter
@@ -110,28 +112,38 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div editContent = new Div(fieldsCard);
+        layout.setContent(editContent);
 
-        Div content = buildContentWithActivity(ActivityTabParams.builder()
-                .canOperate(access.canOperate(params.getUser().id()))
-                .isCreateMode(false)
-                .editTabLabel(getValue(USER_DIALOG_SECTION_LABEL))
-                .activityTabLabel(getValue(USER_ACTIVITY_TAB))
-                .tabsCssClass("user-form-tabs")
-                .secondaryContentCssClass("activity-feed-content")
-                .editContent(editContent)
-                .auditPortFactory(auditPortFactory)
-                .activityContentLoader(this::buildActivityContent)
-                .build());
-
-        layout.setContent(content);
-        layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
+        Div headerActions = new Div(saveButton, discardButton);
+        boolean canOperate = access.canOperate(params.getUser().id());
+        if (canOperate && auditQueryService.isAvailable()) {
+            headerActions.add(buildHistoryButton());
+        }
+        headerActions.add(closeBtn);
+        layout.setHeaderActions(headerActions);
         updateButtons(false);
+    }
+
+    private UiIconButton buildHistoryButton() {
+        UiIconButton historyBtn = new UiIconButton(getValue(USER_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
+        historyBtn.addClassName("user-history-button");
+        historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.USER, params.getUser().id()))
+                .userId(access.getCurrentUserId())
+                .isPrivileged(access.isPrivileged())
+                .canOperate(access.canOperate(params.getUser().id()))
+                .parentSteps(params.getBreadcrumbSteps())
+                .parentFormLabel(params.getUser().name())
+                .currentLabelKey(USER_ACTIVITY_BUTTON)
+                .onRestoreRequested(this::handleRestoreFromActivity)
+                .build()));
+        return historyBtn;
     }
 
     public boolean save() {
         return binder.save(dto -> {
-            userPort.save(mapper.copy(dto), access.getCurrentUserId());
-            userPort.findById(params.getUser().id()).ifPresent(u -> {
+            userProfileService.save(mapper.copy(dto), access.getCurrentUserId());
+            userProfileService.findById(params.getUser().id()).ifPresent(u -> {
                 savedUser = u;
                 dto.setVersion(u.version());
             });
@@ -145,32 +157,19 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         });
         notificationService.success(FORM_RESTORE_BANNER);
         updateButtons(true);
-        if (formTabs != null) formTabs.setSelectedTab(editTab);
-    }
-
-    private com.vaadin.flow.component.Component buildActivityContent() {
-        return auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
-                .entityRef(new EntityRef(EntityType.USER, params.getUser().id()))
-                .userId(access.getCurrentUserId())
-                .isPrivileged(access.isPrivileged())
-                .canOperate(access.canOperate(params.getUser().id()))
-                .onRestoreRequested(this::handleRestoreFromActivity)
-                .build());
     }
 
     private void handleRestoreFromActivity(Long snapshotId) {
-        auditPortFactory.ifAvailable(port ->
-                port.getSnapshotContent(snapshotId, EntityType.USER, UserSnapshotDto.class)
-                        .map(AuditSnapshotContentDto::snapshotData)
-                        .ifPresent(snapshot -> {
-                            UserEditDto dto = new UserEditDto(params.getUser().id(), snapshot.name(), Role.valueOf(snapshot.role()), params.getUser().version());
-                            loadRestored(dto);
-                        })
-        );
+        auditQueryService.getSnapshotContent(snapshotId, EntityType.USER, UserSnapshotDto.class)
+                .map(AuditSnapshotContentDto::snapshotData)
+                .ifPresent(snapshot -> {
+                    UserEditDto dto = new UserEditDto(params.getUser().id(), snapshot.name(), Role.valueOf(snapshot.role()), params.getUser().version());
+                    loadRestored(dto);
+                });
     }
 
     public void discardChanges() {
-        userPort.findById(params.getUser().id()).ifPresent(freshUser -> {
+        userProfileService.findById(params.getUser().id()).ifPresent(freshUser -> {
             UserEditDto fresh = mapper.toUserEdit(freshUser);
             binder.reload(fresh, (src, tgt) -> {
                 tgt.setName(src.getName());
@@ -181,13 +180,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     }
 
     public void afterSave(boolean success) {
-        if (success) {
-            updateButtons(false);
-            if (formTabs != null) formTabs.setSelectedTab(editTab);
-            if (tabbedSecondaryContent != null) tabbedSecondaryContent.removeAll();
-        } else {
-            updateButtons(true);
-        }
+        updateButtons(!success);
     }
 
     private void updateButtons(boolean hasChanges) {

@@ -7,7 +7,7 @@ Auto-configured photo/attachment module with S3-compatible storage for the Adver
 - Upload, delete, and restore attachments linked to any entity
 - S3-compatible storage via AWS SDK (`S3StorageService`)
 - Scheduled cleanup of orphaned attachments (`AttachmentCleanupService`)
-- **SPI implementations:** `AttachmentPort`, `AttachmentAuditHook` (called by marketplace-app)
+- **SPI implementations:** `AttachmentPort`, `AttachmentAuditPort` (called by marketplace-app)
 
 ## Key classes
 
@@ -20,10 +20,10 @@ Auto-configured photo/attachment module with S3-compatible storage for the Adver
 | `AttachmentSnapshotRepository` | Stores attachment snapshots for audit/restore |
 | `S3StorageService` / `StorageService` | S3-compatible file upload/delete (`org.ost.attachment.services`) |
 | `AttachmentCleanupService` | Scheduled orphan cleanup |
-| `AttachmentAuditHookImpl` | Implements `AttachmentAuditHook`; thin delegation |
+| `AttachmentAuditPortImpl` | Implements `AttachmentAuditPort`; thin delegation |
 
 ## Dependencies
 
-- `platform-commons` — SPI interfaces (`AttachmentPort`, `AttachmentAuditHook`) and DTOs
-  (`AttachmentMediaChangeHook` removed entirely, improvement-102 — zero implementations)
+- `platform-commons` — SPI interfaces (`AttachmentPort`, `AttachmentAuditPort`) and DTOs
+  (`AttachmentMediaChangeHook` does not exist)
 - Spring Boot, Spring JDBC, Liquibase, AWS SDK S3

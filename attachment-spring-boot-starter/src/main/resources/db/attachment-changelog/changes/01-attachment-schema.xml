@@ -9,33 +9,34 @@
         <validCheckSum>ANY</validCheckSum>
 
         <!-- ── attachment ──────────────────────────────────────────────────── -->
-        <createTable tableName="attachment">
-            <column name="id" type="BIGSERIAL">
+        <createTable tableName="attachment"
+                      remarks="Generic: can attach to any entity type (ADVERTISEMENT, USER, TAXON, etc.). No FK to user_information (loosely coupled). Actual file stored in S3 (StorageService); database only tracks metadata. Supports soft-delete: deleted_at IS NULL identifies active records.">
+            <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="entity_type" type="VARCHAR(50)">
+            <column name="entity_type" type="VARCHAR(50)" remarks="Entity type (e.g., 'ADVERTISEMENT')">
                 <constraints nullable="false"/>
             </column>
-            <column name="entity_id" type="BIGINT">
+            <column name="entity_id" type="BIGINT" remarks="ID of owner entity">
                 <constraints nullable="false"/>
             </column>
-            <column name="url" type="VARCHAR(1024)">
+            <column name="url" type="VARCHAR(1024)" remarks="S3/storage URL">
                 <constraints nullable="false"/>
             </column>
-            <column name="filename" type="VARCHAR(255)">
+            <column name="filename" type="VARCHAR(255)" remarks="Original filename">
                 <constraints nullable="false"/>
             </column>
-            <column name="content_type" type="VARCHAR(127)">
+            <column name="content_type" type="VARCHAR(127)" remarks="MIME type (e.g., 'image/jpeg')">
                 <constraints nullable="false"/>
             </column>
-            <column name="size" type="BIGINT">
+            <column name="size" type="BIGINT" remarks="File size in bytes">
                 <constraints nullable="false"/>
             </column>
-            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Upload timestamp">
                 <constraints nullable="false"/>
             </column>
-            <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE"/>
-            <column name="deleted_by_actor_id" type="BIGINT"/>
+            <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE" remarks="Soft-delete timestamp"/>
+            <column name="deleted_by_actor_id" type="BIGINT" remarks="User ID who deleted"/>
         </createTable>
 
         <createIndex indexName="idx_attachment_entity" tableName="attachment">
@@ -47,23 +48,24 @@
         </createIndex>
 
         <!-- ── attachment_snapshot ─────────────────────────────────────────── -->
-        <createTable tableName="attachment_snapshot">
-            <column name="id" type="BIGSERIAL">
+        <createTable tableName="attachment_snapshot"
+                      remarks="Used for point-in-time snapshot recovery. changes_summary is JSONB for flexible schema.">
+            <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="entity_type" type="VARCHAR(50)">
+            <column name="entity_type" type="VARCHAR(50)" remarks="Entity type (e.g., 'ADVERTISEMENT')">
                 <constraints nullable="false"/>
             </column>
-            <column name="entity_id" type="BIGINT">
+            <column name="entity_id" type="BIGINT" remarks="ID of owner entity">
                 <constraints nullable="false"/>
             </column>
-            <column name="attachment_urls" type="TEXT[]"/>
-            <column name="changes_summary" type="JSONB"/>
-            <column name="version" type="INT" defaultValueNumeric="0">
+            <column name="attachment_urls" type="TEXT[]" remarks="Array of file URLs at snapshot time"/>
+            <column name="changes_summary" type="JSONB" remarks="Summary of changes (which files added/removed)"/>
+            <column name="version" type="INT" defaultValueNumeric="0" remarks="Optimistic-lock counter">
                 <constraints nullable="false"/>
             </column>
-            <column name="changed_by_actor_id" type="BIGINT"/>
-            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            <column name="changed_by_actor_id" type="BIGINT" remarks="User ID who triggered the change"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Snapshot timestamp"/>
         </createTable>
 
         <createIndex indexName="idx_attachment_snapshot_entity" tableName="attachment_snapshot">

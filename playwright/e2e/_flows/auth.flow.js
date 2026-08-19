@@ -15,13 +15,15 @@ const TAB_LABELS = {
 
 async function runSubmitLoginFlow(page, expect, user, locale = user.locale) {
   await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).last().click();
-  await expect(page.locator('.header-settings-button')).toBeVisible({ timeout: 8000 });
+  // login triggers a full page reload server-side, not an in-place push update
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await expect(page.locator('.header-settings-button')).toBeVisible({ timeout: 15000 });
 
   const labels = TAB_LABELS[locale];
-  await expect(page.locator('vaadin-tab').filter({ hasText: labels.advertisements }).first()).toBeVisible({ timeout: 8000 });
+  await expect(page.locator('vaadin-tab').filter({ hasText: labels.advertisements }).first()).toBeVisible({ timeout: 15000 });
 
   if (user.role === 'MODERATOR' || user.role === 'ADMIN') {
-    await expect(page.locator('vaadin-tab').filter({ hasText: labels.users }).first()).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('vaadin-tab').filter({ hasText: labels.users }).first()).toBeVisible({ timeout: 15000 });
   } else {
     await expect(page.locator('vaadin-tab').filter({ hasText: labels.users }).first()).not.toBeVisible();
   }

@@ -3,6 +3,7 @@ package org.ost.integrationtests;
 import lombok.NonNull;
 import org.ost.platform.user.model.Role;
 import org.ost.user.entity.User;
+import org.ost.user.repository.UserPreferencesRepository;
 import org.ost.user.repository.UserRepository;
 
 /**
@@ -36,5 +37,13 @@ public final class UserTestFixtures {
                 .role(Role.USER)
                 .build();
         return userRepository.save(user);
+    }
+
+    /** Same as {@link #createTestUser}, also creating the matching {@code user_preferences} row (mirrors production registration). */
+    public static User createTestUserWithPreferences(@NonNull UserRepository userRepository,
+            @NonNull UserPreferencesRepository preferencesRepository, @NonNull String name, @NonNull String email) {
+        User user = createTestUser(userRepository, name, email);
+        preferencesRepository.insertDefault(user.getId());
+        return user;
     }
 }

@@ -23,10 +23,10 @@ import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.Ov
 import org.ost.marketplace.ui.views.services.AppLinkService;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.utils.ShareUtil;
-import org.ost.marketplace.ui.core.Configurable;
-import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.taxon.spi.TaxonPort;
+import org.ost.marketplace.ui.core.Configurable;
+import org.ost.orchestrator.services.AttachmentMediaService;
+import org.ost.orchestrator.services.TaxonLookupService;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.marketplace.ui.views.rules.I18nParams;
@@ -55,9 +55,9 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     @Getter
     private final I18nService                                       i18nService;
     private final OverlayAdvertisementMetaPanel                     metaPanel;
-    private final ComponentFactory<AttachmentPort>                  attachmentPortFactory;
+    private final AttachmentMediaService                            attachmentMediaService;
     private final ComponentFactory<AttachmentGalleryService>      galleryServiceFactory;
-    private final ComponentFactory<TaxonPort>                       taxonPortFactory;
+    private final TaxonLookupService                                taxonLookupService;
     private final LocaleProvider                                    localeProvider;
     private final AppLinkService                                    appLinkService;
     private final NotificationService                               notificationService;
@@ -81,23 +81,26 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
 
         Div cardHeader = new Div(VaadinIcon.EYE.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_VIEW)));
         cardHeader.addClassName("overlay__view-card-header");
+        cardHeader.addClassName("overlay__view-card-header--" + params.getAd().getAdKind().name().toLowerCase());
 
         Div textCard = new Div(cardHeader, title, description);
         textCard.addClassName("overlay__view-card");
+        textCard.addClassName("overlay__view-card--" + params.getAd().getAdKind().name().toLowerCase());
 
-        taxonPortFactory.ifAvailable(taxonPort -> {
-            var taxons = taxonPort.getForEntity(EntityType.ADVERTISEMENT, params.getAd().getId(), localeProvider.getCurrentLocale());
-            buildChipRow(textCard, taxons, TaxonType.CATEGORY, "advertisement-categories-chips",
-                    "advertisement-category-chip", getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
-            buildChipRow(textCard, taxons, TaxonType.CITY, "advertisement-city-chips",
-                    "advertisement-city-chip", getValue(ADVERTISEMENT_OVERLAY_FIELD_CITY));
-        });
+        var taxons = taxonLookupService.getForEntity(EntityType.ADVERTISEMENT, params.getAd().getId(), localeProvider.getCurrentLocale());
+        buildChipRow(textCard, taxons, TaxonType.CATEGORY, "advertisement-categories-chips",
+                "advertisement-category-chip", getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
+        buildChipRow(textCard, taxons, TaxonType.CITY, "advertisement-city-chips",
+                "advertisement-city-chip", getValue(ADVERTISEMENT_OVERLAY_FIELD_CITY));
 
         textCard.add(buildAdKindBadge(params.getAd()));
 
         Div viewBody = new Div(textCard);
-        attachmentPortFactory.ifAvailable(_ -> viewBody.add(
-                galleryServiceFactory.get().buildGalleryForView(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))));
+        if (attachmentMediaService.isAvailable()) {
+            var gallery = galleryServiceFactory.get().buildGalleryForView(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()));
+            gallery.addClassName("attachment-gallery--" + params.getAd().getAdKind().name().toLowerCase());
+            viewBody.add(gallery);
+        }
         viewBody.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         viewBody.addClassName("overlay__view-body");
 

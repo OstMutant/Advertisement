@@ -16,10 +16,9 @@ import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.CityOverlay;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
-import org.ost.platform.taxon.spi.TaxonPort;
 
 import java.util.List;
 import java.util.Map;
@@ -32,7 +31,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @RequiredArgsConstructor
 public class CityManagementView extends Div {
 
-    private final ComponentFactory<TaxonPort>              taxonPortFactory;
+    private final TaxonCatalogService                      taxonCatalogService;
     private final I18nService                              i18n;
     private final NotificationService                      notificationService;
     private final AccessEvaluator                          access;
@@ -60,23 +59,21 @@ public class CityManagementView extends Div {
             addBtn.addClickListener(_ -> overlay.openForCreate(this::refresh));
             listContainer.add(addBtn);
 
-            taxonPortFactory.ifAvailable(port -> {
-                List<TaxonDto> all     = port.listAllByType(TaxonType.CITY, java.util.Locale.ENGLISH, true);
-                Map<Long, Long> counts = all.isEmpty() ? Map.of() : port.getUsageCounts(TaxonType.CITY);
+            List<TaxonDto> all     = taxonCatalogService.listAllByType(TaxonType.CITY, java.util.Locale.ENGLISH, true);
+            Map<Long, Long> counts = all.isEmpty() ? Map.of() : taxonCatalogService.getUsageCounts(TaxonType.CITY);
 
-                List<TaxonDto> active  = all.stream().filter(t -> !t.isDeleted()).toList();
-                List<TaxonDto> deleted = all.stream().filter(TaxonDto::isDeleted).toList();
+            List<TaxonDto> active  = all.stream().filter(t -> !t.isDeleted()).toList();
+            List<TaxonDto> deleted = all.stream().filter(TaxonDto::isDeleted).toList();
 
-                if (active.isEmpty() && deleted.isEmpty()) {
-                    Span empty = new Span(i18n.get(CITY_VIEW_EMPTY));
-                    empty.addClassName("taxon-empty-state");
-                    listContainer.add(empty);
-                    return;
-                }
+            if (active.isEmpty() && deleted.isEmpty()) {
+                Span empty = new Span(i18n.get(CITY_VIEW_EMPTY));
+                empty.addClassName("taxon-empty-state");
+                listContainer.add(empty);
+                return;
+            }
 
-                active.forEach(t  -> listContainer.add(buildRow(t, counts.getOrDefault(t.getId(), 0L), false)));
-                deleted.forEach(t -> listContainer.add(buildRow(t, counts.getOrDefault(t.getId(), 0L), true)));
-            });
+            active.forEach(t  -> listContainer.add(buildRow(t, counts.getOrDefault(t.getId(), 0L), false)));
+            deleted.forEach(t -> listContainer.add(buildRow(t, counts.getOrDefault(t.getId(), 0L), true)));
         } catch (Exception ex) {
             log.error("Failed to refresh city list", ex);
             notificationService.error(CITY_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
@@ -120,9 +117,7 @@ public class CityManagementView extends Div {
                 .findFirst()
                 .ifPresent(old -> {
                     int index = listContainer.indexOf(old);
-                    long usageCount = taxonPortFactory.findIfAvailable()
-                            .map(p -> p.getUsageCounts(TaxonType.CITY).getOrDefault(fresh.getId(), 0L))
-                            .orElse(0L);
+                    long usageCount = taxonCatalogService.getUsageCounts(TaxonType.CITY).getOrDefault(fresh.getId(), 0L);
                     Div updated = buildRow(fresh, usageCount, fresh.isDeleted());
                     listContainer.remove(old);
                     listContainer.addComponentAtIndex(index, updated);
@@ -157,7 +152,7 @@ public class CityManagementView extends Div {
                 i18n.get(CITY_VIEW_CONFIRM_CANCEL_BUTTON),
                 () -> {
                     try {
-                        taxonPortFactory.ifAvailable(p -> p.softDelete(city.getId(), access.getCurrentUserId(), city.getVersion()));
+                        taxonCatalogService.softDelete(city.getId(), access.getCurrentUserId(), city.getVersion());
                         notificationService.success(CITY_VIEW_NOTIFICATION_DELETED);
                         refresh();
                     } catch (Exception e) {
@@ -170,7 +165,7 @@ public class CityManagementView extends Div {
 
     private void doRestore(TaxonDto city) {
         try {
-            taxonPortFactory.ifAvailable(p -> p.restore(city.getId(), access.getCurrentUserId()));
+            taxonCatalogService.restore(city.getId(), access.getCurrentUserId());
             notificationService.success(CITY_VIEW_NOTIFICATION_RESTORED);
             refresh();
         } catch (Exception e) {

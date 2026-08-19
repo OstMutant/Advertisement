@@ -45,6 +45,16 @@ public class AttachmentRepository {
                 .build();
     };
 
+    private static final RowMapper<DeletableAttachment> DELETABLE_ATTACHMENT_ROW_MAPPER =
+            (rs, _) -> new DeletableAttachment(rs.getString("url"), rs.getString("content_type"));
+
+    private static final RowMapper<MediaStats> MEDIA_STATS_ROW_MAPPER =
+            (rs, _) -> new MediaStats(rs.getString("url"), rs.getString("content_type"), rs.getInt("total_count"));
+
+    private static final RowMapper<Map.Entry<Long, MediaStats>> ENTITY_MEDIA_STATS_ROW_MAPPER =
+            (rs, _) -> Map.entry(rs.getObject("entity_id", Long.class),
+                    new MediaStats(rs.getString("url"), rs.getString("content_type"), rs.getInt("cnt")));
+
     private final JdbcClient jdbcClient;
     private final AttachmentCrudRepository crud;
 
@@ -152,7 +162,7 @@ public class AttachmentRepository {
                         WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)
                         """)
                          .paramSource(new MapSqlParameterSource("days", days))
-                         .query((rs, _) -> new DeletableAttachment(rs.getString("url"), rs.getString("content_type")))
+                         .query(DELETABLE_ATTACHMENT_ROW_MAPPER)
                          .list();
     }
 
@@ -184,7 +194,7 @@ public class AttachmentRepository {
                          .paramSource(new MapSqlParameterSource()
                                  .addValue("entityType", entityType.name())
                                  .addValue("entityId",   entityId))
-                         .query((rs, _) -> new MediaStats(rs.getString("url"), rs.getString("content_type"), rs.getInt("total_count")))
+                         .query(MEDIA_STATS_ROW_MAPPER)
                          .optional()
                          .orElse(new MediaStats(null, null, 0));
     }
@@ -203,8 +213,7 @@ public class AttachmentRepository {
                          .paramSource(new MapSqlParameterSource()
                                  .addValue("entityType", entityType.name())
                                  .addValue("entityIds", entityIds.toArray(new Long[0])))
-                         .query((rs, _) -> Map.entry(rs.getObject("entity_id", Long.class),
-                                 new MediaStats(rs.getString("url"), rs.getString("content_type"), rs.getInt("cnt"))))
+                         .query(ENTITY_MEDIA_STATS_ROW_MAPPER)
                          .list()
                          .stream()
                          .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));

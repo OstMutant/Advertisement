@@ -7,9 +7,11 @@ async function waitForOverlay(page, timeout = 10000) {
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList, deleteAllGalleryItems } = require('./_flows/advertisement.flow');
 const { runCreateSimpleAdvertisementFlow } = require('./_flows/delete.flow');
+const { closeEntityActivity } = require('./_flows/entity-activity.flow');
 const { openTimelineTab, openTimelineFilter, closeTimelineFilter, fillEntityType, assertFeedHasRow, assertTimelineHasRows } = require('./_flows/timeline.flow');
 const { waitForLightboxOpen, waitForLightboxClosed, getIframeSrc, clickLightboxThumb, getVideoSrc, isVideoWrapperVisible, waitForVideoWrapperVisible, waitForMainImageVisible } = require('./_flows/attachment.flow');
 const { loginBulk, logoutBulk } = require('./_flows/seed.flow');
+const { assertViewOverlayHasCategories } = require('./_flows/category.flow');
 
 test.describe.configure({ mode: 'serial' });
 
@@ -85,7 +87,7 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('userEn edits advertisement — discard, two saves with activity diff, all rich formats in view and card, format-only edit, admin timeline check', async () => {
+  test('userEn edits advertisement — discard, two saves with activity diff, all rich formats in view and card, format-only edit, outer breadcrumb link closes directly to list, admin timeline check', async () => {
     await runFillLoginFormFlow(page, CREATE.enAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
     await runEditAdvertisementFlow(page, expect, {
@@ -94,6 +96,7 @@ test.describe('Advertisement flow', () => {
       startingVersion: 1,
       startingVisibleRows: 1,
       richText: true,
+      verifyOuterLinkClosesToList: true,
       screenshotPrefix: 'adv-useren-edit',
     });
     await runLogoutFlow(page, expect);
@@ -105,15 +108,15 @@ test.describe('Advertisement flow', () => {
       await openTimelineFilter(page);
       await fillEntityType(page, 'ADVERTISEMENT');
       await closeTimelineFilter(page);
-      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 2, titleText: UPDATE.enAd.title, screenshotName: 'adv-useren-edit-timeline-admin' });
+      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 2, allFieldsText: [UPDATE.enAd.title], screenshotName: 'adv-useren-edit-timeline-admin' });
 
       // Collect all change-item HTML across all rows for this ad to verify every rich format tag
       const tlRows = page.locator('.activity-feed .activity-feed-row');
       const tlRowCount = await tlRows.count();
       let tlAllHtml = '';
       for (let i = 0; i < tlRowCount; i++) {
-        const rowTitle = await tlRows.nth(i).locator('.activity-feed-name').textContent().catch(() => '');
-        if (!rowTitle.includes(UPDATE.enAd.title)) continue;
+        const rowChangesText = await tlRows.nth(i).locator('.activity-feed-changes').textContent().catch(() => '');
+        if (!rowChangesText.includes(UPDATE.enAd.title)) continue;
         const items = tlRows.nth(i).locator('.activity-feed-changes-item');
         const n = await items.count();
         for (let j = 0; j < n; j++) tlAllHtml += await items.nth(j).innerHTML();
@@ -142,7 +145,7 @@ test.describe('Advertisement flow', () => {
       await openTimelineFilter(page);
       await fillEntityType(page, 'ADVERTISEMENT');
       await closeTimelineFilter(page);
-      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: UPDATE.ukAd.title, screenshotName: 'adv-useruk-edit-timeline-admin' });
+      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, allFieldsText: [UPDATE.ukAd.title, UPDATE.ukAd.description], screenshotName: 'adv-useruk-edit-timeline-admin' });
       await runLogoutFlow(page, expect);
     });
   });
@@ -196,7 +199,7 @@ test.describe('Advertisement flow', () => {
     await openTimelineFilter(page);
     await fillEntityType(page, 'ADVERTISEMENT');
     await closeTimelineFilter(page);
-    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: CROSS_UPDATE.enAd.title, actorText: TEST_USERS.moderatorEn.name, screenshotName: 'timeline-moderatoren-edit-ad' });
+    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, allFieldsText: [CROSS_UPDATE.enAd.title], actorText: TEST_USERS.moderatorEn.name, screenshotName: 'timeline-moderatoren-edit-ad' });
     await runLogoutFlow(page, expect);
   });
 
@@ -265,9 +268,8 @@ test.describe('Advertisement flow', () => {
     await openTimelineFilter(page);
     await fillEntityType(page, 'ADVERTISEMENT');
     await closeTimelineFilter(page);
-    // changesText: 'Vehicles' confirms the Timeline tab resolves the category id to its name
-    // (improvement-058) instead of showing the raw taxon id.
-    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: CROSS_UPDATE.ukAd.title, actorText: TEST_USERS.adminEn.name, changesText: 'Vehicles', screenshotName: 'timeline-adminen-edit-ad' });
+    // changesText: 'Vehicles' confirms the Timeline tab resolves the category id to its name, not the raw taxon id.
+    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, allFieldsText: [CROSS_UPDATE.ukAd.title], actorText: TEST_USERS.adminEn.name, changesText: 'Vehicles', screenshotName: 'timeline-adminen-edit-ad' });
     await runLogoutFlow(page, expect);
   });
 
@@ -396,11 +398,11 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay, share button copies link, sitemap.xml lists the ad', async () => {
+  test('userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay, share button copies link, sitemap.xml lists the ad, userUk reopens the same link with the category shown in Ukrainian', async () => {
     const title = 'Deep Link Test Advertisement';
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
-    await runCreateSimpleAdvertisementFlow(page, { title, description: 'Advertisement used to verify the /ads/:id deep link.', screenshotPrefix: 'adv-deep-link-create' });
+    await runCreateSimpleAdvertisementFlow(page, { title, description: 'Advertisement used to verify the /ads/:id deep link.', screenshotPrefix: 'adv-deep-link-create', categories: ['Vehicles'] });
 
     const card = cardByTitle(page, title);
     await card.first().waitFor({ timeout: 5000 });
@@ -455,6 +457,17 @@ test.describe('Advertisement flow', () => {
       await overlay.waitFor({ state: 'hidden', timeout: 10000 });
       await expect(page).toHaveURL(/\/$/);
       await screenshot(page, 'adv-deep-link-history-back');
+    });
+
+    await test.step('userUk opens the same deep link — category chip renders in Ukrainian, not English', async () => {
+      await runLogoutFlow(page, expect);
+      await runFillLoginFormFlow(page, TEST_USERS.userUk);
+      await runSubmitLoginFlow(page, expect, TEST_USERS.userUk);
+      await page.goto(`/ads/${adId}`);
+      await overlay.waitFor({ timeout: 10000 });
+      await assertViewOverlayHasCategories(page, expect, overlay, ['Транспорт'], 'adv-deep-link-locale-uk-category');
+      await expect(overlay.locator('.advertisement-category-chip', { hasText: 'Vehicles' })).toHaveCount(0);
+      await closeOverlay(page);
     });
 
     await runLogoutFlow(page, expect);
@@ -587,6 +600,7 @@ test.describe('Max-content advertisement boundary', () => {
     });
 
     await test.step('view reflects saved state with full 10-item gallery', async () => {
+      await closeEntityActivity(page);
       await overlay.locator('vaadin-button')
         .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
         .first().click();
@@ -673,6 +687,7 @@ test.describe('Max-content advertisement boundary', () => {
     });
 
     await test.step('view reflects saved state with full 10-item gallery', async () => {
+      await closeEntityActivity(page);
       await overlay.locator('vaadin-button')
         .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
         .first().click();

@@ -3,8 +3,6 @@ package org.ost.marketplace.ui.views.main.header.settings;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.tabs.Tab;
-import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.data.binder.Setter;
 import com.vaadin.flow.data.value.ValueChangeMode;
@@ -16,26 +14,28 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.PaginationDefaults;
+import org.ost.orchestrator.services.AuditQueryService;
+import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserSettingsDto;
-import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.ui.dto.SettingsEditDto;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.services.i18n.I18nService;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.core.Configurable;
-import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
 import org.springframework.context.annotation.Scope;
+
+import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -55,17 +55,16 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
     @Getter
     private final I18nService                                       i18nService;
-    private final UserPort                                          userPort;
+    private final UserProfileService                                userProfileService;
     private final AccessEvaluator                                   access;
     private final UiComponentFactory<OverlayFormBinder<SettingsEditDto>> formBinderFactory;
-    private final ComponentFactory<AuditPort>                           auditPortFactory;
-    private final UiComponentFactory<AuditActivityPanel>                auditActivityPanelFactory;
+    private final AuditQueryService                                       auditQueryService;
+    private final EntityActivityOverlay                                  entityActivityOverlay;
 
     private Parameters       params;
     private IntegerField     adsPageSizeField;
     private IntegerField     usersPageSizeField;
     private IntegerField     timelinePageSizeField;
-    private Tab              settingsTab;
     private UiPrimaryButton  saveButton;
     private UiTertiaryButton discardButton;
 
@@ -77,7 +76,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
     @Override
     public void activate(OverlayLayout layout) {
-        UserSettingsDto current = userPort.loadSettings(params.getUserId());
+        UserSettingsDto current = userProfileService.loadSettings(params.getUserId());
         SettingsEditDto dto = SettingsEditDto.builder()
                 .id(params.getUserId())
                 .adsPageSize(current.getAdsPageSize())
@@ -111,25 +110,36 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div settingsContent = new Div(fieldsCard);
+        settingsContent.addClassName("settings-overlay-content");
+        layout.setContent(settingsContent);
 
-        Div content = auditPortFactory.findIfAvailable()
-                .map(_ -> {
-                    settingsTab = new Tab(getValue(SETTINGS_SECTION_TITLE));
-                    Tab historyTab = new Tab(getValue(SETTINGS_ACTIVITY_TAB));
-                    formTabs = new Tabs(settingsTab, historyTab);
-                    formTabs.addClassName("user-view-tabs");
-                    return buildTabbedContent(formTabs, settingsTab, settingsContent, this::buildHistoryContent);
-                })
-                .orElse(settingsContent);
-
-        content.addClassName("settings-overlay-content");
-        layout.setContent(content);
-        layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
+        Div headerActions = new Div(saveButton, discardButton);
+        if (auditQueryService.isAvailable()) {
+            headerActions.add(buildHistoryButton());
+        }
+        headerActions.add(closeBtn);
+        layout.setHeaderActions(headerActions);
         updateButtons(false);
     }
 
+    private UiIconButton buildHistoryButton() {
+        UiIconButton historyBtn = new UiIconButton(getValue(SETTINGS_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
+        historyBtn.addClassName("settings-history-button");
+        historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.USER_SETTINGS, params.getUserId()))
+                .userId(params.getUserId())
+                .isPrivileged(true)
+                .canOperate(true)
+                .parentSteps(List.of(new BreadcrumbStep(getValue(HEADER_HOME), params.getOnCancel())))
+                .parentFormLabel(getValue(SETTINGS_SECTION_TITLE))
+                .currentLabelKey(SETTINGS_ACTIVITY_BUTTON)
+                .onRestoreRequested(this::handleRestoreFromActivity)
+                .build()));
+        return historyBtn;
+    }
+
     public boolean save() {
-        return binder.save(dto -> userPort.saveSettings(dto.getId(), UserSettingsDto.builder()
+        return binder.save(dto -> userProfileService.saveSettings(dto.getId(), UserSettingsDto.builder()
                 .adsPageSize(dto.getAdsPageSize() != null ? dto.getAdsPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .usersPageSize(dto.getUsersPageSize() != null ? dto.getUsersPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .timelinePageSize(dto.getTimelinePageSize() != null ? dto.getTimelinePageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
@@ -138,17 +148,11 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     }
 
     public void afterSave(boolean success) {
-        if (success) {
-            if (tabbedSecondaryContent != null) tabbedSecondaryContent.removeAll();
-            if (formTabs               != null) formTabs.setSelectedTab(settingsTab);
-            updateButtons(false);
-        } else {
-            updateButtons(true);
-        }
+        updateButtons(!success);
     }
 
     public void discardChanges() {
-        UserSettingsDto fresh = userPort.loadSettings(params.getUserId());
+        UserSettingsDto fresh = userProfileService.loadSettings(params.getUserId());
         binder.reload(
                 SettingsEditDto.builder()
                         .id(params.getUserId())
@@ -166,29 +170,18 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         updateButtons(false);
     }
 
-    private com.vaadin.flow.component.Component buildHistoryContent() {
-        return auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
-                .entityRef(new EntityRef(EntityType.USER_SETTINGS, params.getUserId()))
-                .userId(params.getUserId())
-                .isPrivileged(true)
-                .canOperate(true)
-                .onRestoreRequested(this::handleRestoreFromActivity)
-                .build());
-    }
-
     private void handleRestoreFromActivity(Long snapshotId) {
-        auditPortFactory.ifAvailable(port ->
-                port.getSnapshotContent(snapshotId, EntityType.USER_SETTINGS, SettingsSnapshotDto.class)
-                        .map(c -> UserSettingsDto.builder()
-                                .adsPageSize(c.snapshotData().adsPageSize())
-                                .usersPageSize(c.snapshotData().usersPageSize())
-                                .timelinePageSize(c.snapshotData().timelinePageSize())
-                                // Restore only stages values into the form -- the eventual save()
-                                // still checks against the current DB version, never the snapshot's
-                                // (snapshots don't carry one; they predate optimistic locking here).
-                                .version(userPort.loadSettings(params.getUserId()).getVersion())
-                                .build())
-                        .ifPresent(this::loadRestored));
+        auditQueryService.getSnapshotContent(snapshotId, EntityType.USER_SETTINGS, SettingsSnapshotDto.class)
+                .map(c -> UserSettingsDto.builder()
+                        .adsPageSize(c.snapshotData().adsPageSize())
+                        .usersPageSize(c.snapshotData().usersPageSize())
+                        .timelinePageSize(c.snapshotData().timelinePageSize())
+                        // Restore only stages values into the form -- the eventual save()
+                        // still checks against the current DB version, never the snapshot's
+                        // (snapshots don't carry one; they predate optimistic locking here).
+                        .version(userProfileService.loadSettings(params.getUserId()).getVersion())
+                        .build())
+                .ifPresent(this::loadRestored);
     }
 
     private void loadRestored(UserSettingsDto restored) {
@@ -207,7 +200,6 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                     tgt.setVersion(src.getVersion());
                 });
         updateButtons(true);
-        if (formTabs != null) formTabs.setSelectedTab(settingsTab);
     }
 
     private void buildBinder(SettingsEditDto dto) {

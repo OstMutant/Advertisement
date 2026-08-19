@@ -7,13 +7,18 @@ import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Port: marketplace → advertisement-starter.
+ * CRUD advertisements, filtered/paginated queries, ownership checks, and purge-safety helpers
+ * (findOwnerIds/clearActorReferences) used when a user account is deleted.
+ * Implementation lives in advertisement-spring-boot-starter.
+ */
 public interface AdvertisementPort {
 
-    List<AdvertisementInfoDto> getFiltered(@NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale);
+    List<AdvertisementInfoDto> getFiltered(@NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort);
 
     int count(@NonNull AdvertisementFilterDto filter);
 
@@ -22,7 +27,7 @@ public interface AdvertisementPort {
     Long save(@NonNull AdvertisementSaveDto dto);
 
     /** {@code version} must be the value the caller last read; a stale value throws
-     *  {@link org.springframework.dao.OptimisticLockingFailureException}. */
+     *  OptimisticLockingFailureException. */
     void delete(@NonNull Long id, @NonNull Long actingUserId, Long version);
 
     Set<Long> findExistingIds(@NonNull Set<Long> ids);

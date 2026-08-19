@@ -5,7 +5,7 @@ today). Found via edge-case review (2026-07-19).
 **Module:** `advertisement-spring-boot-starter` (`AdvertisementService`, `AdvertisementPortImpl`),
 `user-spring-boot-starter` (`UserService`), `taxon-spring-boot-starter` (`TaxonService`);
 authorization currently lives in `marketplace-app` (`services/security/AccessEvaluator`)
-**Priority:** medium — no open hole in the current UI-only architecture, but mandatory to resolve
+**Priority:** 🔵 medium — no open hole in the current UI-only architecture, but mandatory to resolve
 before the first non-UI mutation caller (REST/seeding/OG-bot) exists
 **When:** Deferred — trigger: before any non-UI endpoint that mutates domain state ships (hard
 gate, same shape as the completed improvement-020 security baseline); needs a design decision

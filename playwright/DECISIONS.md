@@ -21,22 +21,12 @@ The value is the `I18nKey` name converted to kebab-case
 ---
 
 ## ADR-002: No waitForTimeout — wait on Vaadin state attributes
-**Status:** Accepted — **known current code drift, not yet fixed** (see note below)
+**Status:** Accepted
 
 **Context:** Fixed timeouts are fragile — too short causes flaky tests, too long wastes time.
 Vaadin sets DOM attributes (`[opened]`, `[opening]`) to signal animation state.
 
 **Decision:** Never use `page.waitForTimeout()`. Always wait on a deterministic DOM condition.
-
-**Known violation (found 2026-07-13, not fixed as part of this documentation pass):** two live
-`page.waitForTimeout()` calls exist today — `e2e/02-marketplace-authentication-flow.spec.js:116`
-(`waitForTimeout(2000)` immediately before an `expect(...).not.toBeVisible({ timeout: 3000 })`,
-which already polls on its own — the fixed wait looks redundant, not load-bearing) and
-`e2e/_flows/advertisement-filter.flow.js:46` (`waitForTimeout(300)` after dispatching date-picker
-change events, before reading a combo-box — waiting for some client-side reactive update to
-settle with no deterministic signal identified yet). This ADR's rule is still correct and still
-the standard; these two spots need a real fix (replace with a deterministic wait + a green e2e
-run to confirm), not a documentation change — left as a follow-up, not silently patched here.
 
 **Consequences:**
 
@@ -49,6 +39,10 @@ await screenshot(page, 'some-dialog');
 `:not([opening])` is required — `[opened]` alone fires at animation start (overlay still
 invisible). `page.waitForFunction` + `getComputedStyle` does NOT work here because
 `document.querySelector` cannot pierce Playwright's shadow DOM.
+
+Two known `page.waitForTimeout()` calls currently violate this rule
+(`e2e/02-marketplace-authentication-flow.spec.js`, `e2e/_flows/advertisement-filter.flow.js`) and
+still need a deterministic-wait replacement — the rule itself remains the standard.
 
 ---
 

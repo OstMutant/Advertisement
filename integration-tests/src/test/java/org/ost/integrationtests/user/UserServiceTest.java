@@ -10,12 +10,15 @@ import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
 import org.ost.user.entity.User;
+import org.ost.user.repository.UserPreferencesRepository;
 import org.ost.user.repository.UserRepository;
+import org.ost.user.services.UserPreferencesService;
 import org.ost.user.services.UserService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
@@ -63,7 +66,13 @@ class UserServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private UserPreferencesRepository preferencesRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private UserPreferencesService preferencesService;
 
     @Mock
     private AuditPort auditPort;
@@ -71,8 +80,12 @@ class UserServiceTest {
     @Mock
     private AdvertisementPort advertisementPort;
 
+    @Mock
+    private ProviderProfilePort providerProfilePort;
+
     private ObjectProvider<AuditPort> auditPortProvider;
     private ObjectProvider<AdvertisementPort> advertisementPortProvider;
+    private ObjectProvider<ProviderProfilePort> providerProfilePortProvider;
 
     private UserService userService;
 
@@ -81,9 +94,11 @@ class UserServiceTest {
     void setUp() {
         auditPortProvider = mock(ObjectProvider.class);
         advertisementPortProvider = mock(ObjectProvider.class);
+        providerProfilePortProvider = mock(ObjectProvider.class);
         ComponentFactory<AuditPort> auditPortFactory = new ComponentFactory<>(auditPortProvider);
         ComponentFactory<AdvertisementPort> advertisementPortFactory = new ComponentFactory<>(advertisementPortProvider);
-        userService = new UserService(userRepository, passwordEncoder, auditPortFactory, advertisementPortFactory);
+        ComponentFactory<ProviderProfilePort> providerProfilePortFactory = new ComponentFactory<>(providerProfilePortProvider);
+        userService = new UserService(userRepository, preferencesRepository, passwordEncoder, preferencesService, auditPortFactory, advertisementPortFactory, providerProfilePortFactory);
         lenient().when(userRepository.countByFilter(UserFilterDto.empty())).thenReturn(5L);
         lenient().when(passwordEncoder.encode(org.mockito.ArgumentMatchers.anyString())).thenReturn("encoded");
     }
@@ -103,6 +118,10 @@ class UserServiceTest {
             consumer.accept(advertisementPort);
             return null;
         }).when(advertisementPortProvider).ifAvailable(any());
+    }
+
+    private void stubProviderProfilePortAvailable() {
+        lenient().when(providerProfilePortProvider.getIfAvailable()).thenReturn(providerProfilePort);
     }
 
     private static SignUpDto signUpDto(String email) {
@@ -238,7 +257,20 @@ class UserServiceTest {
     }
 
     @Test
-    void cleanup_advertisementPortAbsent_purgesAllCandidates() {
+    void cleanup_rowStillOwnsProviderProfile_skipsItButStillPurgesTheRest() {
+        when(userRepository.findIdsDeletedOlderThan(90)).thenReturn(List.of(1L, 2L, 3L));
+        stubProviderProfilePortAvailable();
+        when(providerProfilePort.findOwnerIds(Set.of(1L, 2L, 3L))).thenReturn(Set.of(2L));
+
+        userService.cleanup(90);
+
+        verify(userRepository).deleteById(1L);
+        verify(userRepository, never()).deleteById(2L);
+        verify(userRepository).deleteById(3L);
+    }
+
+    @Test
+    void cleanup_advertisementAndProviderProfilePortsAbsent_purgesAllCandidates() {
         when(userRepository.findIdsDeletedOlderThan(90)).thenReturn(List.of(1L, 2L));
 
         userService.cleanup(90);

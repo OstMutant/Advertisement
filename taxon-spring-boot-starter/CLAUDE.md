@@ -27,39 +27,35 @@ Java package root: `org.ost.taxon`
 Liquibase changelog: `db/taxon-changelog/master.xml`  
 Tables: `taxon`, `taxon_translation`, `taxon_assignment`
 
-- `taxon` — core entry: type (VARCHAR), optional stable code, deleted_at/deleted_by for soft-delete, `version` (optimistic locking via `@Version`, see `marketplace-app/DECISIONS.md` ADR-029)
+- `taxon` — core entry: type (VARCHAR), optional stable code, deleted_at/deleted_by for soft-delete, `version` (optimistic locking via `@Version`, see `docs/ai/adr-index.md`)
 - `taxon_translation` — PK: (taxon_id, locale), stores name + description per locale
 - `taxon_assignment` — PK: (entity_type, entity_id, taxon_id), records which entities carry which taxons
 
 Partial unique index: `uidx_taxon_type_code ON taxon (type, code) WHERE code IS NOT NULL` — only enforced for named entries.
 
-Starters own their own Liquibase changelogs — never merge into a shared file.
-
 ---
 
 ## Key constraints
 
-- No Vaadin dependency. No UI code here. UI (`TaxonManagementView`, `TaxonOverlay`) lives in `marketplace-app`.
+- UI (`TaxonManagementView`, `TaxonOverlay`) lives in `marketplace-app`.
 - `TaxonPort` lives in `platform-commons` (`org.ost.platform.taxon.spi`).
 - `TaxonType` enum lives in `platform-commons` (`org.ost.platform.taxon.model`). Adding a new type is a release-level change requiring UI, audit translations, and seed entries.
 - `@EnableJdbcRepositories(basePackages = "org.ost.taxon.repository")` declared in `TaxonAutoConfiguration`.
 - `DefaultTaxonPort` is a coordination layer, not pure delegation — it resolves translations, filters active records, and builds DTOs. Business logic stays in `TaxonService` and `TaxonAssignmentService`.
-- **`TaxonAuditHook` was removed entirely (improvement-058, 2026-07-17)** — it had zero
-  implementations, and both of its call sites (`TaxonAssignmentService.replaceAssignments()`,
-  invoked only from an advertisement save or delete) already sit inside a flow that produces its
-  own audit snapshot. `TaxonAssignmentService.assign()`/`unassign()` (the standalone wrapper
-  methods, distinct from the repository-level methods of the same name still used internally by
-  `replaceAssignments()`) were removed too, along with `TaxonPort.findByCode()`
-  (zero callers). Category-name display in audit diffs is handled by
-  `AdvertisementEnrichService` (`marketplace-app`) resolving raw taxon ids via
-  `TaxonPort.findByIds()` at read time — see `marketplace-app/DECISIONS.md` ADR-019.
+- **`TaxonAuditHook` does not exist** — both of `TaxonAssignmentService.replaceAssignments()`'s
+  call sites (invoked only from an advertisement save or delete) already sit inside a flow that
+  produces its own audit snapshot. There is no standalone `TaxonAssignmentService.assign()`/
+  `unassign()` wrapper (distinct from the repository-level methods of the same name still used
+  internally by `replaceAssignments()`), and no `TaxonPort.findByCode()`. Category-name display in
+  audit diffs is handled by `AdvertisementAuditEnrichService` (`marketplace-app`) resolving raw
+  taxon ids via `TaxonPort.findByIds()` at read time — see `docs/ai/adr-index.md`.
 - `Taxon.version` (`@Version`) enforces optimistic locking on `save()` and `softDelete()`.
   `TaxonService.update()` must always forward the caller-supplied `version` when rebuilding the
   entity via `Builder` — never re-derive it from the `existing` row fetched in the same method,
-  or the check silently stops detecting conflicts. See `marketplace-app/DECISIONS.md` ADR-029.
+  or the check silently stops detecting conflicts. See `docs/ai/adr-index.md`.
 - `TaxonRepository.findByIds()` returns soft-deleted rows too (no `deleted_at` filter) — its only
   caller, `DefaultTaxonPort.indexById()`, needs deleted taxons visible so `getForEntity()` can
   surface them (struck-through via `TaxonDto.deleted` in the advertisement view overlay) and the
   port-level `findByIds()` can resolve their real name for audit-diff rendering instead of a bare
   id. Any *new* caller of `findByIds()`/`indexById()` must pass its own `activeOnly` filtering
-  intent explicitly — see `DECISIONS.md` ADR-005.
+  intent explicitly — see `docs/ai/adr-index.md`.

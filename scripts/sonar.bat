@@ -1,2 +1,3 @@
 @echo off
-wsl bash /app/scripts/sonar/run.sh %*
+for /f "delims=" %%i in ('wsl wslpath -u "%~dp0sonar\run.sh"') do set SCRIPT=%%i
+wsl bash "%SCRIPT%" %*

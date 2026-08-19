@@ -8,7 +8,8 @@ import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
-import org.ost.platform.attachment.util.YoutubeUtil;
+import org.ost.attachment.util.AttachmentVideoUtil;
+import org.ost.platform.attachment.model.AttachmentMediaContentType;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.springframework.stereotype.Service;
@@ -16,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,17 +28,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AttachmentService {
 
-    private static final String CT_YOUTUBE = "video/youtube";
-    private static final String CT_EMBED   = "video/embed";
-    private static final Set<String> ALLOWED_EMBED_HOSTS = Set.of("vimeo.com", "player.vimeo.com");
-
     private final StorageService              storageService;
     private final AttachmentRepository        attachmentRepository;
     private final AttachmentSnapshotService   attachmentSnapshotService;
     private final CurrentActorHook            currentActorHook;
 
     public List<AttachmentItemDto> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
-        return attachmentRepository.getByEntityId(entityType, entityId).stream().map(AttachmentService::toDto).toList();
+        return attachmentRepository.getByEntityId(entityType, entityId).stream().map(Attachment::toDto).toList();
     }
 
     public Map<Long, AttachmentMediaSummaryDto> getMediaSummaries(@NonNull EntityType entityType, @NonNull Set<Long> entityIds) {
@@ -47,17 +42,10 @@ public class AttachmentService {
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> {
                     AttachmentRepository.MediaStats stats = e.getValue();
                     return new AttachmentMediaSummaryDto(
-                            resolveDisplayUrl(stats.mainUrl(), stats.mainContentType()),
+                            AttachmentVideoUtil.resolveDisplayUrl(stats.mainUrl(), stats.mainContentType()),
                             stats.mainContentType(),
                             stats.count());
                 }));
-    }
-
-    private static String resolveDisplayUrl(String url, String contentType) {
-        if (url == null) return null;
-        if (CT_YOUTUBE.equals(contentType)) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
-        if (CT_EMBED.equals(contentType))   return null;
-        return url;
     }
 
     @Transactional
@@ -77,7 +65,7 @@ public class AttachmentService {
                     .size(contentLength)
                     .build());
             captureMediaChanges(entityType, entityId);
-            return toDto(saved);
+            return saved.toDto();
         } catch (Exception e) {
             storageService.delete(url);
             throw e;
@@ -93,20 +81,20 @@ public class AttachmentService {
     }
 
     public TempAttachmentDto addVideoTemp(@NonNull String url) {
-        VideoDescriptor d = resolveVideoDescriptor(url);
+        AttachmentVideoUtil.VideoDescriptor d = AttachmentVideoUtil.resolveVideoDescriptor(url);
         return new TempAttachmentDto(d.url(), d.filename(), d.contentType(), 0L);
     }
 
     @Transactional
     public AttachmentItemDto addVideo(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String url) {
         log.info("Attachment add video: entityType={}, entityId={}", entityType, entityId);
-        VideoDescriptor d = resolveVideoDescriptor(url);
+        AttachmentVideoUtil.VideoDescriptor d = AttachmentVideoUtil.resolveVideoDescriptor(url);
         Attachment saved = attachmentRepository.save(Attachment.builder()
                 .entityType(entityType).entityId(entityId)
                 .url(d.url()).filename(d.filename())
                 .contentType(d.contentType()).size(0L).build());
         captureMediaChanges(entityType, entityId);
-        return toDto(saved);
+        return saved.toDto();
     }
 
     public TempAttachmentDto uploadTemp(@NonNull String tempSessionId, @NonNull String filename,
@@ -133,7 +121,7 @@ public class AttachmentService {
         List<Attachment> toSave = new ArrayList<>();
         try {
             for (TempAttachmentDto t : temps) {
-                String finalUrl = isVideo(t.contentType())
+                String finalUrl = AttachmentMediaContentType.isEmbedded(t.contentType())
                         ? t.tempUrl()
                         : storageService.move(t.tempUrl(), folder, t.filename());
                 toSave.add(Attachment.builder()
@@ -148,7 +136,7 @@ public class AttachmentService {
             attachmentRepository.saveAll(toSave);
         } catch (Exception e) {
             toSave.stream()
-                    .filter(a -> !isVideo(a.getContentType()))
+                    .filter(a -> !AttachmentMediaContentType.isEmbedded(a.getContentType()))
                     .forEach(a -> storageService.delete(a.getUrl()));
             throw e;
         }
@@ -156,7 +144,7 @@ public class AttachmentService {
 
     public List<AttachmentItemDto> getByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId,
                                                        @NonNull String[] urls) {
-        return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls).stream().map(AttachmentService::toDto).toList();
+        return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls).stream().map(Attachment::toDto).toList();
     }
 
     @Transactional
@@ -183,27 +171,11 @@ public class AttachmentService {
 
     public void discardTempUploads(@NonNull List<TempAttachmentDto> temps) {
         temps.stream()
-             .filter(t -> !isVideo(t.contentType()))
+             .filter(t -> !AttachmentMediaContentType.isEmbedded(t.contentType()))
              .forEach(t -> storageService.delete(t.tempUrl()));
     }
 
     // ── internals ────────────────────────────────────────────────────────────
-
-    public static AttachmentItemDto toDto(Attachment a) {
-        return new AttachmentItemDto(a.getId(), a.getUrl(), a.getFilename(), a.getContentType());
-    }
-
-    private record VideoDescriptor(String url, String filename, String contentType) {}
-
-    private VideoDescriptor resolveVideoDescriptor(String url) {
-        String ytId = YoutubeUtil.extractId(url);
-        if (ytId != null) {
-            return new VideoDescriptor(YoutubeUtil.watchUrl(ytId), YoutubeUtil.filename(ytId), CT_YOUTUBE);
-        }
-        if (url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
-        validateEmbedUrl(url);
-        return new VideoDescriptor(url, embedFilename(url), CT_EMBED);
-    }
 
     // Logged, not thrown -- a close failure shouldn't turn a successful upload into a reported one.
     private static void closeQuietly(InputStream inputStream) {
@@ -212,29 +184,6 @@ public class AttachmentService {
         } catch (IOException e) {
             log.warn("Failed to close attachment upload input stream", e);
         }
-    }
-
-    private static String embedFilename(String url) {
-        return url.replaceAll("https?://", "").replaceAll("[^a-zA-Z0-9._-]", "_");
-    }
-
-    private static void validateEmbedUrl(String url) {
-        URI uri;
-        try {
-            uri = new URI(url);
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("Invalid video URL", e);
-        }
-        String scheme = uri.getScheme();
-        String host = uri.getHost();
-        boolean validScheme = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
-        boolean validHost = host != null && ALLOWED_EMBED_HOSTS.stream()
-                .anyMatch(allowed -> host.equalsIgnoreCase(allowed) || host.toLowerCase().endsWith("." + allowed));
-        if (!validScheme || !validHost) throw new IllegalArgumentException("Invalid video URL");
-    }
-
-    private static boolean isVideo(String contentType) {
-        return CT_YOUTUBE.equals(contentType) || CT_EMBED.equals(contentType);
     }
 
     private static String folder(EntityType entityType, Long entityId) {

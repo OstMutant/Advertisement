@@ -3,7 +3,7 @@
 **Type:** improvement — resource hygiene, follow-up to an already-fixed issue. Found via direct
 code review, verified against current source (2026-07-16).
 **Module:** `marketplace-app` (`ui/views/services/pagination/SettingsPaginationService.java`).
-**Priority:** low-medium — a follow-up on top of a fix already shipped (improvement-018/ADR-028),
+**Priority:** 🔵 low-medium — a follow-up on top of a fix already shipped (improvement-018/ADR-028),
 not a fresh unaddressed area; genuine risk is real but narrower than a first-discovery leak.
 **When:** independent, no blockers.
 

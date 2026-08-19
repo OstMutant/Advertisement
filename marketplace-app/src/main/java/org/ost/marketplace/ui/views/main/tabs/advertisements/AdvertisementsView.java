@@ -12,11 +12,13 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
+import org.ost.orchestrator.services.AdvertisementReadService;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
-import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.UiComponentFactory;
@@ -24,13 +26,13 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.ui.views.components.EmptyStateView;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.QueryStatusBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
+import org.ost.marketplace.ui.views.utils.ValidationErrorUtil;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.springframework.data.domain.Sort;
 
@@ -44,7 +46,8 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @RequiredArgsConstructor
 public class AdvertisementsView extends VerticalLayout {
 
-    private final transient ComponentFactory<AdvertisementPort>         advertisementPortFactory;
+    private final transient AdvertisementReadService                   advertisementReadService;
+    private final transient AdvertisementDisplayEnrichmentService      enrichmentService;
     private final transient AdvertisementOverlay                      overlay;
     private final transient UiComponentFactory<AdvertisementCardView>   cardViewFactory;
     private final transient I18nService                               i18n;
@@ -125,8 +128,8 @@ public class AdvertisementsView extends VerticalLayout {
         PendingAdvertisementDeepLink pending = VaadinSession.getCurrent().getAttribute(PendingAdvertisementDeepLink.class);
         if (pending == null) return;
         VaadinSession.getCurrent().setAttribute(PendingAdvertisementDeepLink.class, null);
-        advertisementPortFactory.findIfAvailable()
-                .flatMap(p -> p.findById(pending.adId()))
+        advertisementReadService.findById(pending.adId())
+                .map(ad -> enrichmentService.enrichSingle(ad, localeProvider.getCurrentLocale()))
                 .ifPresent(ad -> overlay.openForView(ad, this::updateCardInPlace, this::checkForChanges));
     }
 
@@ -166,7 +169,7 @@ public class AdvertisementsView extends VerticalLayout {
     private void checkForChanges() {
         QueryBlock<AdvertisementFilterDto> queryBlock = queryStatusBar.getQueryBlock();
         AdvertisementFilterDto filter = queryBlock.getFilterProcessor().getOriginalFilter();
-        int currentTotal = advertisementPortFactory.findIfAvailable().map(p -> p.count(filter)).orElse(lastKnownTotal);
+        int currentTotal = advertisementReadService.isAvailable() ? advertisementReadService.count(filter) : lastKnownTotal;
         refreshButton.setVisible(currentTotal != lastKnownTotal);
     }
 
@@ -195,12 +198,10 @@ public class AdvertisementsView extends VerticalLayout {
         Sort sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
         try {
-            List<AdvertisementInfoDto> ads = advertisementPortFactory.findIfAvailable()
-                    .map(p -> p.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort, localeProvider.getCurrentLocale()))
-                    .orElse(List.of());
-            int total = advertisementPortFactory.findIfAvailable()
-                    .map(p -> p.count(filter))
-                    .orElse(0);
+            List<AdvertisementInfoDto> fetched = advertisementReadService.getFiltered(
+                    filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort);
+            List<AdvertisementInfoDto> ads = fetched.isEmpty() ? fetched : enrich(fetched);
+            int total = advertisementReadService.count(filter);
             paginationBar.setTotalCount(total);
             lastKnownTotal = total;
             refreshButton.setVisible(false);
@@ -218,6 +219,12 @@ public class AdvertisementsView extends VerticalLayout {
                                         .build()))
                         .forEach(advertisementContainer::add);
             }
+        } catch (ConstraintViolationException ex) {
+            log.warn("Validation error while fetching advertisements: {}", ex.getMessage(), ex);
+            showValidationErrors(ex);
+            refreshButton.setVisible(false);
+            advertisementContainer.removeAll();
+            paginationBar.setTotalCount(0);
         } catch (Exception ex) {
             log.error("Failed to refresh advertisements", ex);
             notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_REFRESH_ERROR);
@@ -228,8 +235,18 @@ public class AdvertisementsView extends VerticalLayout {
         }
     }
 
+    private List<AdvertisementInfoDto> enrich(List<AdvertisementInfoDto> ads) {
+        ads = enrichmentService.enrichWithCategoriesAndCity(ads, localeProvider.getCurrentLocale());
+        ads = enrichmentService.enrichWithActorInfo(ads);
+        return enrichmentService.enrichWithMediaSummary(ads);
+    }
+
     private EmptyStateView buildEmptyState() {
         return new EmptyStateView(VaadinIcon.CLIPBOARD_TEXT,
                 i18n.get(ADVERTISEMENT_EMPTY_TITLE), i18n.get(ADVERTISEMENT_EMPTY_HINT));
+    }
+
+    private void showValidationErrors(ConstraintViolationException ex) {
+        notificationService.error(i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_VALIDATION_FAILED) + "\n" + ValidationErrorUtil.buildMessage(ex));
     }
 }

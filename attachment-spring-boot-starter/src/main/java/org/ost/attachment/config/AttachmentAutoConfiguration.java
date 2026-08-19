@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
 import org.ost.attachment.services.AttachmentCleanupService;
 import org.ost.platform.core.config.CleanupProperties;
-import org.ost.platform.attachment.spi.AttachmentAuditHook;
+import org.ost.platform.attachment.spi.AttachmentAuditPort;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -62,7 +62,7 @@ public class AttachmentAutoConfiguration {
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AttachmentAuditHook> attachmentAuditHookFactory(ObjectProvider<AttachmentAuditHook> p) {
+    public ComponentFactory<AttachmentAuditPort> attachmentAuditPortFactory(ObjectProvider<AttachmentAuditPort> p) {
         return new ComponentFactory<>(p);
     }
 

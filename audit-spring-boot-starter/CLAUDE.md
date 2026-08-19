@@ -8,15 +8,8 @@ Java package root: `org.ost.audit`
 
 ## What it owns
 
-**Write side** — recording audit events:
-- `DefaultAuditPort` — implements `AuditPort`; entry point for all audit writes
-- `AuditLogRepository` — persists `audit_log` rows; supports dynamic filter/sort via query-lib
-
-**Read side** — querying audit data:
-- `AuditReadService` — entity activity rows, timeline pages, snapshot content, and entity history; diff computed at read time via `AuditableSnapshot.diff()` from snapshot pairs
-
-**Housekeeping:**
-- `AuditCleanupService` — scheduled cleanup for orphaned audit rows (uses `CleanupProperties`)
+See `audit-spring-boot-starter/README.md`'s "Key classes" table for the class list and one-line
+roles — not restated here.
 
 **Autoconfiguration entry point:** `AuditAutoConfiguration`
 
@@ -27,13 +20,10 @@ Java package root: `org.ost.audit`
 Liquibase changelog: `db/audit-changelog/audit-changelog-master.xml`  
 Tables: `audit_log` (single table; snapshots stored in its `snapshot_data` column — no separate snapshot table)
 
-Starters own their own Liquibase changelogs — never merge into a shared file.
-
 ---
 
 ## Key constraints
 
-- No Vaadin dependency. No UI code here.
-- `AuditPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook` live in `platform-commons` — the starter implements them, marketplace-app calls/wires them.
+- `AuditPort`, `AuditDomainHook`, `AuditActivityEnrichHook` live in `platform-commons` — the starter implements `AuditPort` and calls the two Hooks; `marketplace-orchestrator`/`marketplace-app` implement the Hooks (`AuditActivityFieldsHook` does not exist — see `marketplace-app/CLAUDE.md`'s `AuditTimelineRowRenderer`).
 - `@EnableJdbcRepositories(basePackages = "org.ost.audit.repository")` declared in `AuditAutoConfiguration` — required because marketplace's `@SpringBootApplication` scan covers only `org.ost.marketplace`.
 - `DefaultAuditPort` and all `*HookImpl` classes are pure delegation — no business logic, no JSON parsing, no conditionals beyond routing. Logic belongs in services.

@@ -1,5 +1,27 @@
 ## ⛔ RE-READ ALL RULES BEFORE EVERY ACTION
-Before executing any tool call — re-read this entire file. No exceptions.
+Before executing any tool call — re-read this entire file. No exceptions. This explicitly includes
+the start of every `/command` or Skill invocation (`/autopilot`, `/deep-review`, `/feature`, etc.)
+— re-`Read` this file fresh at that point, not just once at the top of a long session.
+
+Not rules.md alone: re-`Read` the root `/app/CLAUDE.md` plus every module `CLAUDE.md` the task
+actually touches (e.g. `marketplace-app/CLAUDE.md` for UI work, `platform-commons/CLAUDE.md` for
+SPI work) at that same starting point, so the full picture — conventions and module-specific
+constraints together — is fresh before any implementation begins, not assembled piecemeal from
+memory partway through.
+
+Same discipline before **every individual script run**, not only once per command/skill
+invocation: before `deploy-and-run.sh`/`playwright.sh`/`build-and-test.sh` etc., re-Read
+the relevant `CLAUDE.md` (`scripts/CLAUDE.md`, `playwright/CLAUDE.md`) for that script's current
+documented behavior/flags/constraints rather than acting on what was true earlier in the same
+session — those files get updated mid-session precisely because a run just revealed a gap.
+
+Same requirement extends to `docs/ai/context-loading.md` (what to read, by task type) and
+`docs/ai/flows.md` (which command/skill handles it) whenever the task touches `DECISIONS.md`,
+backlog, or a choice between multiple possible commands/skills — re-`Read` both at that same
+starting point, not from memory of what they said earlier in the session. Before dispatching any
+subagent to read or classify `DECISIONS.md` content, check `context-loading.md`'s own routing
+table first — it may already name a specific command/skill (e.g. `deep-review` full mode) that
+owns exactly this task shape instead of a hand-rolled agent dispatch.
 
 ---
 
@@ -8,6 +30,49 @@ Before executing any tool call — re-read this entire file. No exceptions.
 > `git add` runs automatically after every file change — commit does NOT.
 > Violating this rule has happened multiple times. No exceptions.
 
+> ## ⛔ Code quality is the highest-priority goal — surface adjacent quality issues unprompted
+> Code quality outranks minimizing diff size, staying strictly inside a written batch's literal
+> scope, or matching existing precedent for its own sake. When a task touches a design that has an
+> adjacent, obviously-related quality issue — inconsistent layering, a field or method carried by a
+> type that most consumers never use, a misleading name, an interface mixing unrelated concerns —
+> surface it and propose fixing it as part of the same review, before being asked a second time.
+> Look for this class of issue proactively on any change touching a DTO, entity, or interface —
+> don't wait to be asked.
+
+> ## ⛔ Rules in this file must state the abstract principle, not a case study
+> When adding or editing a rule, write the general principle a reader can apply to an unrelated
+> future situation. Do not embed a specific incident's class/method/table names, issue numbers, or
+> a blow-by-blow retelling of what happened — that belongs in a commit message or `DECISIONS.md`,
+> not here. A rule padded with one incident's specifics reads as "this is about X," making it
+> harder to recognize the same principle applies somewhere unrelated to X.
+
+> ## ⛔ Any `DECISIONS.md` edit regenerates the ADR index in the same operation
+> Whenever any `DECISIONS.md` file is created, edited, or has an ADR added/changed — by any
+> workflow, command, or skill, not only `/record-decision` — run
+> `bash docs/ai/scripts/generate-adr-index.sh` and include the resulting `docs/ai/adr-index.md` diff in
+> the same change before considering it complete. This applies even to direct edits made outside
+> any specific skill's own steps; the index going stale is not a lesser concern just because the
+> edit didn't go through the one command that happens to mention it.
+
+> ## ⛔ Stamp an ADR's `Verified:` date whenever you happen to confirm it against real code
+> Every `DECISIONS.md` entry may carry an optional `**Verified:** YYYY-MM-DD` line right after
+> `**Status:**` — today's date, the last time anyone actually checked that entry's claim still
+> matches the real code. Whenever a task (any task, not an ADR-focused one) happens to touch code
+> an existing KEEP/REWRITE-shaped ADR describes, and its claim still holds, stamp it before moving
+> on. This is opportunistic, not a dedicated audit — never go looking for ADRs to verify as a task
+> of its own; only stamp ones you've already confirmed as a side effect of other work. A blank
+> `Verified` field is not itself a problem, just "not independently re-confirmed since written."
+>
+> **Why:** a one-time exhaustive audit of every ADR against current code is expensive and goes
+> stale again the moment it finishes; a lazily-stamped date, accumulated for free across ordinary
+> work over time, gives the same staleness signal without the recurring cost.
+
+> ## ⛔ A new project-local command/skill file adds its own navigation row in the same operation
+> Whenever a new `.claude/commands/*.md` or `.claude/skills/*/SKILL.md` file is added to this repo,
+> add its row to `docs/ai/flows.md`'s "Project commands & skills" table in the same change. An
+> undocumented operational mechanism is exactly the kind of adjacent quality gap the standing
+> "surface it unprompted" rule already covers — don't wait for a later audit to catch it.
+
 > ## ⛔ Code comments: one line or none, never an issue/ticket number
 > Every code comment (production code and test code alike) is either **one line** or **not
 > written at all**. Never a multi-line block explaining background/rationale in full — that
@@ -15,7 +80,96 @@ Before executing any tool call — re-read this entire file. No exceptions.
 > (`improvement-NNN`, etc.) inside a code comment — it looks bad and rots as issues get renumbered
 > or archived; that traceability belongs in the commit message, not the code. Write the one-line,
 > number-free version on the first pass; do not wait to be told to fix it. Violating this rule has
-> happened repeatedly.
+> happened repeatedly. When the rationale being trimmed out is a real fact or design decision (not
+> just local code context), route it to its canonical home per
+> `.claude/skills/doc-standards/SKILL.md`'s ownership table — write that entry first if it doesn't
+> exist yet, then leave a one-line reference in the code — never just delete the explanation.
+
+> ## ⛔ A comment above a method states what that method's own body does
+> A one-line comment above a method describes what that method actually does, verified by reading
+> its body — never a narrative about which other class/method calls it or is called by it, and
+> never written from the method name/tag alone without checking the code. If the comment claims to
+> summarize the whole method, it must cover every real branch, not just the first path.
+
+> ## ⛔ No issue/ticket numbers or dated "resolved" narrative in current-state documentation
+> The same "no ticket numbers" principle above extends to every file that describes the system's
+> *current* state — `CLAUDE.md`, `README.md`, `docs/architecture/*.md`, `docs/ai/*.md`, skill/
+> command `.md` files, and shell-script comments. None of these may cite an
+> `improvement-NNN`/`goal-NNN`/`feature-NNN` reference, and none may carry a dated
+> "resolved"/"as of \<date\>" narrative describing a past state that no longer holds. If a fact
+> changes, delete the old fact — don't mark it resolved in place; a file describing "what is"
+> should read as if it always looked this way. `DECISIONS.md` keeps its own append-only historical
+> character (date, decision, reasoning) but drops the issue-number citation the same way — an ADR
+> records the decision and why, never which ticket produced it.
+>
+> **Why:** a ticket citation is a forward-link that only ever goes stale — issues get renumbered,
+> merged, or archived, while the file citing them keeps being read as live guidance long after the
+> ticket closes. A "resolved" note left in place reads as current information to a reader with no
+> way to tell it stopped mattering.
+>
+> **How to apply:** history lives only in `backlog/completed/issues/*.md` (full detail) and
+> `backlog/completed/BACKLOG-ARCHIVE.md` (searchable one-line index) — keep those naming the real
+> classes/modules/concepts touched, not just "cleanup pass," so a keyword grep finds them. The
+> reverse link — which ticket produced a given current line — is `git blame`/`git log`, already
+> free via this repo's `feat(improvement-NNN): ...` commit convention; do not build or maintain a
+> new index for this purpose.
+
+> ## ⛔ Comments, README, and other markdown files never cite a specific ADR number
+> A code comment, `README.md`, or any other markdown file may say "see `docs/ai/adr-index.md`" but
+> must never cite a specific `ADR-NNN` number directly. The index is searchable by module/status/
+> title, so a reader finds the relevant row by the fact in question, not by following a numbered
+> pointer planted somewhere else; once the index narrows the search to one or a few ADR ids,
+> `node docs/architecture/scripts/md-to-decisions-json.js --extract <module> <ADR-NNN>[,...]` pulls
+> the actual decision text without opening the whole `DECISIONS.md` file.
+>
+> **Why:** an ADR number planted in a comment/README is a forward-link like a ticket number — it
+> goes stale the moment ADRs get renumbered, split, or superseded, and it invites casually citing
+> a number "just in case" rather than actually stating the fact that matters. Traceability should
+> flow from the decision record outward (the ADR says what it governs), not from scattered
+> pointers inward. Pointing at the generated index instead of `DECISIONS.md` directly also
+> decouples the reference from which of the 16 files physically holds the entry.
+>
+> **How to apply:** going forward only — existing `ADR-NNN` citations and `DECISIONS.md` pointers
+> already in the repo are not retroactively scrubbed by this rule; it governs new/edited content
+> from here on.
+
+> ## ⛔ Skills, commands, rules, and README files name a real repo file only when unavoidable
+> `SKILL.md`, `.claude/commands/*.md`, `.claude/rules.md`, and any `README.md` stay maximally
+> abstract, lean units. Illustrating a convention with an example is fine — but naming a specific
+> real file in this repo as that example's reference point is not, unless there is genuinely no way
+> to make the point without it, or the user explicitly asks for the concrete reference to stay.
+> Prefer a generic or placeholder name (invented content, or a pattern like `<sibling>.sh`) over a
+> real path.
+>
+> **Why:** a named real file is a forward-link exactly like a ticket or ADR number — it goes stale
+> the moment that file is renamed, moved, split, or removed, and nobody remembers every markdown
+> file that quietly depends on the old name until something breaks. Finding and fixing every stale
+> reference afterward means grepping the whole repo for a name that no longer exists — real effort
+> spent on upkeep the rule itself exists to prevent.
+>
+> **How to apply:** going forward only — existing real-file references already in the repo are not
+> retroactively scrubbed by this rule; it governs new/edited content from here on. When an example
+> genuinely needs to be traceable to real, already-applied behavior (proving a convention was
+> actually followed, not just described), naming the real file is the unavoidable case this rule
+> already carves out — keep it, and say so, rather than leaving an untraceable abstract mockup in
+> its place.
+
+> ## ⛔ Files that govern Claude's own behavior state the target only — never a before/after
+> `CLAUDE.md`, a skill's `SKILL.md`, `.claude/commands/*.md`, and `.claude/rules.md` itself describe
+> the convention/standard to follow, directly — never as an "as-is today" vs. "target" comparison.
+> State only what should be done; do not narrate what a file currently looks like before the
+> convention is applied.
+>
+> **Why:** these files are read as standing instruction, not as a changelog — a reader (human or
+> Claude) consulting one mid-task needs the rule itself, not a reconstruction of what preceded it.
+> A before/after pair doubles the content for no operational benefit and reads as unfinished
+> migration notes left in place.
+>
+> **How to apply:** a before/after comparison is fine *in chat*, while proposing a change for
+> approval — that's exactly what it's for. Once approved and written into the control file, only
+> the target state goes in. Concrete examples illustrating the target are still welcome (e.g. a
+> real file's header rewritten to the new convention) — just don't pair each one with what it used
+> to look like.
 
 ## Approval Rule
 **Every action must be approved by the user before execution — no exceptions.**
@@ -39,6 +193,11 @@ Example format:
 
 Wait for explicit confirmation before making any change.
 
+Before presenting a plan for a multi-step change, first write the complete, current plan into the
+relevant `backlog/issues/<n>.md` file — never present a plan only in chat. Update the issue file
+again every time the plan changes (new finding, scope correction), then present a short summary
+from that file for approval — never re-paraphrase the whole issue back at length.
+
 ## Module Import Rules
 
 **No direct imports between sibling modules.**
@@ -49,6 +208,14 @@ Wait for explicit confirmation before making any change.
 ## Git Workflow
 - `git add` — run automatically after every file change
 - `git commit` — **ONLY** when the user explicitly says to commit — never otherwise
+- **Before every commit, actually review what's staged — never trust `git add -A`/`git add .` blindly.**
+  Run `git status --short` and `git diff --cached --stat` (or fuller `git diff --cached` for a
+  smaller change) and read the output before running `git commit`, every time, even when the
+  change feels routine. "No untracked files showed up" is not the same check as "the staged diff
+  only contains what I meant to commit" — confirmed directly: build artifacts from a new module's
+  own `target/` directory landed in a commit because `.gitignore`'s per-module list was never
+  updated for that module, and `git add -A` staged them without complaint since nothing about that
+  looked untracked or unusual at a glance.
 
 ## Language
 All repository content must be in **English**: code comments, Javadoc, README files, commit messages, Playwright test descriptions, and any other text checked into the repository.
@@ -67,24 +234,43 @@ After fixing a bug, cover all affected flows with Playwright tests before markin
 
 ## Scripts
 Always use project scripts — never raw docker/mvn commands:
-- `bash scripts/deploy-dev.sh` — dev deploy (JAR hot-swap, ~3-4 min)
-- `bash scripts/deploy.sh` — full rebuild (~7-10 min)
+- `bash scripts/build-and-test.sh` — build the reactor (+ optional unit/integration tests), no local Java needed
+- `bash scripts/deploy-and-run.sh` — full rebuild (~7-10 min)
 - `bash scripts/playwright.sh [scenario]` — Playwright tests
 - `mvn clean test 2>&1 | tee /tmp/test.log` — JUnit tests
 
-**Run all scripts with Monitor + tee pattern:**
-1. Launch Monitor (`persistent: true`) watching the log file every 10s — reports stuck/error/success
-2. Run synchronously with `timeout: 600000` piped to `tee /tmp/<script>.log`
-3. User sees full streaming output directly
+**Script-group directory structure:** when a script's own logic needs supporting files (a
+Dockerfile, `.properties`, fixtures, multiple scenarios) and gets its own subdirectory under
+`scripts/`, that subdirectory owns all of the logic — the corresponding top-level
+`scripts/<name>.sh` is a thin entry point only, forwarding arguments to `scripts/<name>/run.sh`
+with no logic of its own. A script that stays self-contained, with no subdirectory of its own,
+carries its full logic directly in the top-level `scripts/<name>.sh` file — no artificial
+subdirectory split for something that doesn't need one.
 
-**Before running Playwright** — kill old processes first:
-1. `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`
-2. Launch Monitor watching `/tmp/playwright.log` (10s interval, catch `failed|Error|passed`)
-3. Then run: `bash scripts/playwright.sh [scenario] 2>&1 | tee /tmp/playwright.log`
-
-**Before running deploy.sh** — launch Monitor watching `/tmp/deploy.log` (10s interval, catch `ERROR|BUILD SUCCESS|Started Application`), then run: `bash scripts/deploy.sh [args] 2>&1 | tee /tmp/deploy.log`
+**Run all scripts backgrounded, watched by Monitor — never a bare `tail -f`:**
+1. Start the target command with `run_in_background: true`, output redirected to a real log file,
+   as one Bash call — never nest a second `&` inside that same call to background it a second way;
+   that loses reliable track of which process is actually the live one.
+2. Immediately attach `Monitor` with a command that waits for the log to exist/have content before
+   tailing it: `until [ -s <log> ]; do sleep 0.5; done; tail -f <log>`. A bare `tail -f` on a file
+   that doesn't exist yet fails immediately and stops watching — the underlying process is
+   unaffected, but the live view is lost. The same wait-then-tail wrapper applies when the output
+   lives inside a Docker container (`docker exec <container> sh -c 'until [ -s <path> ]; do sleep
+   0.5; done; tail -f <path>'`) or via `docker logs -f <container>` — same mechanism regardless of
+   where the stream originates.
+3. Stay silent on routine per-event progress (a passing test, a completed build step) — don't add
+   chat commentary to every one; the streamed event itself is the update. Speak up only for a real
+   signal: an error, a stall (no new output far longer than that step normally takes), the final
+   result, or when explicitly asked for the current status — answer with the real current state
+   then, never with continued silence.
+4. Before running Playwright specifically, kill stale processes first:
+   `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`.
 
 ## Issue Lifecycle
+
+Before filing a new ADR (`/record-decision`) or a new backlog issue (`/feature`), consult
+`docs/ai/adr-index.md` (if present) for an already-decided overlapping ADR — mandatory, not
+best-effort. See `docs/ai/README.md` for what the file is and how it stays current.
 
 When filing a **new** issue in `backlog/issues/`:
 - Always assign a `**Priority:**` line in the issue file itself — never leave it blank/TBD.
@@ -99,15 +285,106 @@ When an issue in `backlog/issues/` is resolved (fix is implemented and committed
   `backlog/completed/BACKLOG-ARCHIVE.md` under the relevant wave — same operation, see
   `backlog/BACKLOG.md`'s "Maintenance rules"
 
+### Out-of-scope-but-valid findings — propose adding to the standing deferred-findings bucket, never drop silently
+When a `/code-review`/`/deep-review` (or any other review) finding is real and worth fixing but
+its solution is too large to fit in the current batch/PR (a new abstraction, an architectural
+change, a cross-module refactor), do not silently skip it and do not fix it inline outside the
+approved scope either. At the end of the review, propose appending it as a new entry to this
+project's standing collection bucket for exactly this class of finding — search `backlog/issues/`
+for the file covering "deferred oversized review findings" — state what it covers and why it
+doesn't fit now, and wait for approval before writing the entry. Do not create a brand-new issue
+file per finding; that scatters oversized findings across dozens of one-off files instead of one
+triage-able list. Only carve a finding out into its own issue once it's actually being picked up
+and sized for real work.
+
+### Final reports — no file-by-file diff table
+When reporting completed work (autopilot's step-5 final report, or any other end-of-task summary),
+do not include a "what changed" table/list enumerating each file with a description of its diff —
+the user reads the actual code/diff themselves and finds a full file-by-file recap redundant.
+Keep the report human: what was done in plain terms, test results (counts, not just "passed"),
+and review-finding decisions. Skip the enumerated file-changes section entirely.
+
+### Final reports record real operational data in a fixed, mechanically-parseable block
+Whenever completing an issue, append an `## Operational notes` block to that issue file — real
+observations from the real task just done, not a synthetic exercise, and not free-form prose (a
+later aggregate pass greps/parses this across many issue files, the same way `## ADR-NNN:` +
+`**Status:**` makes `DECISIONS.md` mechanically indexable — inconsistent formatting defeats that).
+Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply to this task:
+
+```
+## Operational notes
+- token_cost_review: <tokens summed from Agent-tool review-purpose calls, or n/a>
+- token_cost_research: <tokens summed from Agent-tool research/investigation calls, or n/a>
+- token_cost_verification: <tokens summed from Agent-tool verification/testing calls, or n/a>
+- review_signal_ratio: <CONFIRMED/PLAUSIBLE findings that survived verification> / <total candidate findings raised across all finder angles>, or n/a if no /code-review ran this task
+- context_loading_task_type: <the matching docs/ai/context-loading.md row, or n/a>
+- context_loading_consulted: <yes/no/n/a>
+- context_loading_matched: <yes/no/n/a — did the actual read pattern match that row's guidance>
+- flows_situation: <short phrase describing the situation, or n/a>
+- flows_chosen: <the command/skill actually used, or n/a>
+- flows_matched: <yes/no/n/a — did it match docs/ai/flows.md's recommendation for that situation>
+
+### Agent calls
+- <purpose> | subagent_type=<X> | tokens=<N> | tool_uses=<N> | duration_s=<N> | mode=<foreground|background> | batch=<parallel-group-id or solo>
+(one line per Agent-tool invocation this task made; omit the whole subsection, not empty, if none)
+
+### Script/command runs
+- <script + args> | duration_s=<N> | mode=<foreground|background> | result=<pass|fail|n/a>
+(one line per scripts/*.sh invocation this task made; omit the whole subsection, not empty, if none)
+
+### Review angle yield
+- <finder angle name> | survived=<N> | total_candidates=<N> | tokens=<N>
+(one line per finder angle from that /code-review run — this is what review_signal_ratio's
+aggregate is computed from; omit the whole subsection, not empty, if no /code-review ran)
+```
+
+Show this same block in the chat final report too, not only in the issue file — writing it to the
+file alone is invisible to the user unless they go open that file themselves. Include it verbatim
+(or immediately adjacent to) the rest of the completion report, every time, not just when a number
+happens to look interesting.
+Token totals are never a full accounting — no tool reports main-thread token usage, state that as
+context if asked, not inside the block itself (keep the block just the key: value lines, nothing
+else, so parsing stays trivial). See `.claude/commands/sync-docs.md`'s Full Audit Mode for where
+this data gets aggregated and acted on.
+
+**`review_signal_ratio`** exists to answer, over time and across many tasks, whether a given
+`/code-review` effort level actually pays for itself — a low ratio sustained across many runs is
+evidence a lower effort level (fewer finder angles, less exhaustive verification) would have found
+the same real bugs for less cost; a high ratio is evidence the current level is well-calibrated.
+Compute it honestly from the real counts of that run, not a rounded guess. The per-angle
+**Review angle yield** breakdown exists specifically so this decision can be made per-angle, not
+just for the review process as a whole — an angle that's consistently expensive and low-yield
+across many tasks is a candidate to drop or narrow; an angle that keeps finding real bugs
+regardless of cost stays. Never drop an angle from one run's data alone.
+
+**Agent calls vs. Script/command runs — different metrics, don't conflate them.** Every Agent-tool
+task-notification carries real `<usage>` data (`subagent_tokens`/`tool_uses`/`duration_ms`) — use
+it verbatim, don't estimate. Scripts (`build-and-test.sh`, `deploy-and-run.sh`, `playwright.sh`, etc.) are not
+LLM calls and have no token cost of their own — never invent one; only record their real wall-clock
+duration and pass/fail result. Main-thread (this conversation's own) token usage has no reporting
+tool at all — not a policy choice, a real gap, confirmed via `ToolSearch` finding no matching tool
+before writing this rule (2026-08-08) — do not estimate it either; the `token_cost_*` fields above
+stay Agent-only for this reason.
+
+### Review-skill effort level — default stays put; deviation allowed only when obvious, always disclosed
+A review-style skill's effort level defaults to whatever it defaults to when the user doesn't name
+one explicitly — do not silently change that default based on cost, habit, or a hunch. The user can
+always specify a level explicitly for a given run; when they haven't, choose a level other than the
+default only when it is obviously justified by the change's own size/risk (e.g. a one-line typo
+fix vs. a cross-module architectural rewrite), never as a routine cost-saving move. Whichever level
+actually ran — default or deviated — state it plainly in the report every time; a silent choice is
+not acceptable even when the choice itself was reasonable.
+
 ## Definition of Done
 A feature or fix is not complete until all of the following hold:
-- The relevant full test suite is green: `bash scripts/unit-tests.sh` + `bash scripts/integration-
-  tests.sh --sandbox` always; the full Playwright `e2e --full --ux` scenario too whenever the
+- The relevant full test suite is green: `bash scripts/build-and-test.sh --unit --integration
+  --sandbox` always; the full Playwright `e2e --full --ux` scenario too whenever the
   change touches UI-visible behavior. `bash scripts/ci.sh` (`/ci`) runs this whole chain
   (unit → integration → e2e → Sonar) in one pass when a single command is preferred over running
   each stage separately.
 - `DECISIONS.md` (the relevant module's) is updated if the change is architectural — a new
-  decision, or an annotation to an existing one it supersedes.
+  decision, or an annotation to an existing one it supersedes — via `/record-decision`, not a
+  hand-written entry.
 - The issue file is moved from `backlog/issues/` to `backlog/completed/issues/`, its `BACKLOG.md`
   row removed, and a `✅ Done` entry added to `BACKLOG-ARCHIVE.md` — see "Issue Lifecycle" above.
 
@@ -117,6 +394,9 @@ Wait for the next explicit user message before doing anything.
 
 ## Error Reporting
 When running any script or command that fails, immediately read the error output and show the specific error lines in the chat. Never just report "it failed" without the actual error details.
+
+## Documentation Standards
+Before writing or editing any documentation file, consult `.claude/skills/doc-standards/SKILL.md`.
 
 ---
 
@@ -252,6 +532,28 @@ SortFieldMeta.of("updatedAt", ADVERTISEMENT_SORT_UPDATED)
 
 ---
 
+## Service Class Section Headers
+
+When a service class (or any class with 2+ clearly distinct concerns — query/filter, CRUD,
+enrichment, sanitization, etc.) grows past a handful of methods, divide it into labeled blocks
+with a one-line comment separator, placed directly above the first method of each block:
+
+```java
+// ── Query & filter ───────────────────────────────────────────────────────
+
+public List<AdvertisementInfoDto> getFiltered(...) { ... }
+...
+
+// ── CRUD ─────────────────────────────────────────────────────────────────
+
+public Long save(...) { ... }
+...
+```
+
+One line, no explanation of what the block does beyond the label itself — same "one line or none"
+comment rule applies. Do not add this to small classes with a single concern; it's for classes
+where a reader scrolling through needs a map of what comes next.
+
 ## DTO Field Name Constants
 
 When a DTO needs field name constants (e.g. for `*SortMeta` or `*FilterMeta`), always use
@@ -278,21 +580,47 @@ Import: `lombok.experimental.FieldNameConstants`.
 
 ## Form Handler Pattern
 
-### buildTabbedContent() — do not duplicate
-Lazy-load tab logic lives in `AbstractFormOverlayModeHandler.buildTabbedContent()`.
-Never implement tab-switching manually in concrete handlers — delegate to the base class:
-
-```java
-Div content = buildTabbedContent(
-    "my-tabs-css-class",
-    primaryTab, primaryContent,
-    secondaryTab, this::buildSecondaryContent  // lazy loader
-);
-```
-
 ### buildBinder() — separate method
 Binder creation and field binding logic is always extracted into a separate `buildBinder(EntityDto dto)`
 method, never inlined into `activate()`.
+
+### History access — an icon button opening EntityActivityOverlay, not a tab
+`AbstractFormOverlayModeHandler` has no tab machinery at all (`buildTabbedContent()`,
+`buildContentWithActivity()`, `ActivityTabParams` were removed once all five domains migrated —
+see `docs/ai/adr-index.md`). `layout.setContent(...)` is called unconditionally;
+history/restore is a header-action icon button (`.{domain}-history-button`) that opens the shared
+`EntityActivityOverlay` (`ui/views/components/audit/`) stacked on top via `BaseOverlay.openNested()`:
+
+```java
+private UiIconButton buildHistoryButton() {
+    UiIconButton historyBtn = new UiIconButton(getValue(USER_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
+    historyBtn.addClassName("user-history-button");
+    historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
+            .entityRef(new EntityRef(EntityType.USER, params.getUser().id()))
+            .parentSteps(params.getBreadcrumbSteps())
+            .parentFormLabel(params.getUser().name())
+            .currentLabelKey(USER_ACTIVITY_BUTTON)
+            .onRestoreRequested(this::handleRestoreFromActivity)
+            .build()));
+    return historyBtn;
+}
+```
+
+---
+
+## Breadcrumb Pattern
+
+### BreadcrumbStep — a growing stack, not a fixed back-link
+`record BreadcrumbStep(String label, Runnable onClick)` (`ui/views/components/overlay/`) — `label`
+is an already-resolved `String` (not an `I18nKey`), so it also fits dynamic labels (e.g.
+`UserOverlay`'s current user name). `AbstractEntityOverlay.buildBreadcrumbSteps()` returns the
+list-tab step by default, plus a "View" step (`OVERLAY_BREADCRUMB_VIEW`) whenever
+`isEditMode() && enteredFromView()` — never rewrite existing segments when navigating deeper, only
+append. `OverlayLayout.setBreadcrumbLinks(List<Component>)` renders the chain with `›` separators
+only *between* links. `EntityActivityOverlay.openFor(...)` extends the calling overlay's own
+`buildBreadcrumbSteps()` (passed as `parentSteps`) with one more segment (`parentFormLabel`), so
+the nested history overlay's breadcrumb reflects the real navigation path taken, not a fixed
+2-segment pair. See `docs/ai/adr-index.md` for the full history of this design.
 
 ---
 

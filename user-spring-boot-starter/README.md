@@ -7,20 +7,22 @@ Auto-configured User domain with Spring Security integration for the Advertiseme
 - User registration, role management (USER / MODERATOR / ADMIN), profile and settings
 - Spring Security integration via `UserPrincipal` (`UserDetails` implementation)
 - Per-user settings with change-event dispatch (`UserSettingsChangedHook`)
-- **SPI implementations:** `UserPort` and `AuthenticatedPrincipal` (called by marketplace-app)
+- **SPI implementations:** `UserPort`, `UserAccountPort`, `UserAuthorizationPort`,
+  `UserPreferencesPort`, and `AuthenticatedPrincipal` (called by marketplace-app)
 
 ## Key classes
 
 | Class | Role |
 |---|---|
-| `UserPortImpl` | Entry point — implements `UserPort`, delegates to services |
+| `UserPortImpl` / `UserAccountPortImpl` / `UserAuthorizationPortImpl` / `UserPreferencesPortImpl` | Entry points — implement the 4 `User*Port` interfaces, delegate to services |
 | `UserService` | User creation, role promotion, profile updates |
-| `UserSettingsService` | Per-user settings (page sizes, locale preference) |
+| `UserPreferencesService` | Per-actor settings (page sizes) and locale |
 | `UserRepository` | Persists and queries `user_information`; supports dynamic filter/sort |
+| `UserEditableFields` | Narrower entity (`id`/`name`/`role`/`updatedAt`/`version`, no `email`/`passwordHash`) used for the profile-edit path only — see `CLAUDE.md` for why |
 | `UserPrincipal` | Spring Security `UserDetails` — loaded by `UserDetailsService` |
 
 ## Dependencies
 
-- `platform-commons` — SPI interfaces (`UserPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook`) and DTOs
+- `platform-commons` — SPI interfaces (`UserPort`, `UserAccountPort`, `UserAuthorizationPort`, `UserPreferencesPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook`) and DTOs
 - `query-lib` — `SqlFilterBuilder`, `OrderByBuilder` for dynamic queries
 - Spring Boot, Spring Security, Spring JDBC, Liquibase

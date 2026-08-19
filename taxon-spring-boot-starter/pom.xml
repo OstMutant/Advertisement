@@ -16,6 +16,10 @@
     <name>Taxon Spring Boot Starter</name>
     <description>Generic taxonomy module — manages taxon types (categories, tags, etc.), translations, and assignments to entities</description>
 
+    <properties>
+        <architecture.boundedContext>starter</architecture.boundedContext>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>
@@ -82,6 +86,7 @@
                                         <exclude>org.ost:user-spring-boot-starter</exclude>
                                         <exclude>org.ost:advertisement-spring-boot-starter</exclude>
                                         <exclude>org.ost:taxon-spring-boot-starter</exclude>
+                                        <exclude>org.ost:provider-profile-spring-boot-starter</exclude>
                                     </excludes>
                                     <message>Starters must not depend on each other directly (see
                                         .claude/rules.md "Module Import Rules"). Use

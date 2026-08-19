@@ -24,9 +24,8 @@ org.ost.query.sort
                                raw, possibly non-page-aligned offset
 ```
 
-That's the entire module — 9 classes (corrected 2026-07-27 from an earlier "8" count — `OffsetPageable`
-was added since), two packages. No UI code lives here; Vaadin query-bar components live in
-`marketplace-app`.
+That's the entire module — 9 classes, two packages. No UI code lives here; Vaadin query-bar
+components live in `marketplace-app`.
 
 ---
 
@@ -64,7 +63,7 @@ All are null-safe: return `null` when the filter value is absent; `SqlFilterBuil
 
 | Method | SQL |
 |---|---|
-| `like(mapping, value)` | `col ILIKE '%value%' ESCAPE '\'` — `%`/`_`/`\` in `value` are escaped first (backslash escaped before the wildcard characters, so the escaping itself can't be re-escaped into a wrong pattern), so literal wildcard characters in search terms match literally, not as SQL wildcards (corrected 2026-07-27 — the `ESCAPE` clause and value-escaping were previously omitted from this row) |
+| `like(mapping, value)` | `col ILIKE '%value%' ESCAPE '\'` — `%`/`_`/`\` in `value` are escaped first (backslash escaped before the wildcard characters, so the escaping itself can't be re-escaped into a wrong pattern), so literal wildcard characters in search terms match literally, not as SQL wildcards |
 | `equalsTo(mapping, value)` | `col = :param` |
 | `after(mapping, instant)` | `col >= :param` |
 | `before(mapping, instant)` | `col <= :param` |

@@ -12,7 +12,7 @@ import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
 import org.ost.user.entity.User;
-import org.ost.user.entity.UserProfileUpdate;
+import org.ost.user.entity.UserEditableFields;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -45,7 +45,6 @@ public class UserRepository {
                 .passwordHash(rs.getString("password_hash"))
                 .createdAt(createdAt != null ? createdAt.toInstant() : null)
                 .updatedAt(updatedAt != null ? updatedAt.toInstant() : null)
-                .locale(rs.getString("locale"))
                 .version(rs.getObject("version", Long.class))
                 .build();
     };
@@ -68,7 +67,7 @@ public class UserRepository {
 
     private final JdbcClient jdbcClient;
     private final UserCrudRepository crud;
-    private final UserProfileCrudRepository profileCrud;
+    private final UserEditableFieldsCrudRepository editableFieldsCrud;
 
     public User save(@NonNull User user)                { return crud.save(user); }
     public Optional<User> findById(@NonNull Long id)    { return crud.findById(id); }
@@ -82,9 +81,8 @@ public class UserRepository {
                 UserDto.Fields.email,     "u.email",
                 UserDto.Fields.role,      "u.role",
                 UserDto.Fields.createdAt, "u.created_at",
-                UserDto.Fields.updatedAt, "u.updated_at",
-                UserDto.Fields.locale,    "u.locale"));
-        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information u WHERE u.deleted_at IS NULL%s%s%s"
+                UserDto.Fields.updatedAt, "u.updated_at"));
+        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, version FROM user_information u WHERE u.deleted_at IS NULL%s%s%s"
                 .formatted(FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
@@ -97,7 +95,7 @@ public class UserRepository {
 
     public Optional<User> findByEmail(@NonNull String email) {
         var params = new MapSqlParameterSource();
-        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information u WHERE u.deleted_at IS NULL%s"
+        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, version FROM user_information u WHERE u.deleted_at IS NULL%s"
                 .formatted(EMAIL_FILTER.build(params, email, " AND "));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).optional();
     }
@@ -125,20 +123,12 @@ public class UserRepository {
     }
 
     public void updateProfile(@NonNull UserProfileDto dto) {
-        profileCrud.save(UserProfileUpdate.builder()
+        editableFieldsCrud.save(UserEditableFields.builder()
                 .id(dto.id())
                 .name(dto.name())
                 .role(dto.role())
                 .version(dto.version())
                 .build());
-    }
-
-    public void updateLocale(@NonNull Long userId, @NonNull String locale) {
-        jdbcClient.sql("UPDATE user_information SET locale = :locale WHERE id = :id")
-                  .paramSource(new MapSqlParameterSource()
-                          .addValue("locale", locale)
-                          .addValue("id",     userId))
-                  .update();
     }
 
     public List<Long> findExistingIds(@NonNull Long[] ids) {
@@ -158,7 +148,7 @@ public class UserRepository {
     }
 
     public List<User> findByIds(@NonNull Long[] ids) {
-        return jdbcClient.sql("SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information WHERE id = ANY(:ids)")
+        return jdbcClient.sql("SELECT id, name, email, role, password_hash, created_at, updated_at, version FROM user_information WHERE id = ANY(:ids)")
                 .paramSource(new MapSqlParameterSource("ids", ids))
                 .query(ROW_MAPPER)
                 .list();

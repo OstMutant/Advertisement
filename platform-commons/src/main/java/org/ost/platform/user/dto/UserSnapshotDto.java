@@ -19,8 +19,15 @@ import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 public record UserSnapshotDto(
         String name,
         String email,
-        String role
+        String role,
+        int schemaVersion
 ) implements AuditableSnapshot {
+
+    public static final int SCHEMA_VERSION = 1;
+
+    public UserSnapshotDto(String name, String email, String role) {
+        this(name, email, role, SCHEMA_VERSION);
+    }
 
     @Override
     public EntityType entityType() { return EntityType.USER; }

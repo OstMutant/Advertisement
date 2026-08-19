@@ -2,8 +2,8 @@ package org.ost.user.entity;
 
 import lombok.Builder;
 import lombok.Value;
-import lombok.With;
 import lombok.experimental.FieldNameConstants;
+import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.model.Role;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
@@ -32,9 +32,10 @@ public class User {
     @LastModifiedDate
     Instant updatedAt;
 
-    @With
-    String locale;
-
     @Version
     Long version;
+
+    public UserDto toDto() {
+        return new UserDto(id, name, email, role, createdAt, updatedAt, version);
+    }
 }

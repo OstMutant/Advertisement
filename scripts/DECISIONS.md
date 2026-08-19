@@ -13,12 +13,11 @@ and `playwright/`.
 
 | Operation | Script |
 |---|---|
-| Full prod rebuild + start | `bash scripts/deploy.sh` |
-| Fast JAR hot-swap | `bash scripts/deploy-dev.sh` |
+| Full local deploy + start | `bash scripts/deploy-and-run.sh` |
 | Run all Playwright tests | `bash scripts/playwright.sh` |
 | Run one scenario | `bash scripts/playwright.sh <scenario>` |
 | SonarQube analysis | `bash scripts/sonar.sh` |
-| Run Testcontainers repository tests + plain unit tests | `bash scripts/integration-tests.sh` |
+| Run Testcontainers repository tests + plain unit tests | `bash scripts/build-and-test.sh --unit --integration` |
 
 **Consequences:** If a new recurring operation is needed, add a script — do not document raw
 commands as the canonical way to run it.
@@ -26,7 +25,7 @@ commands as the canonical way to run it.
 ---
 
 ## ADR-002: scripts/ folder for all developer scripts
-**Status:** Accepted
+**Status:** Accepted, with one carved-out exception — see the update note below.
 
 **Context:** Root-level scripts cluttered the project root. Scripts are developer tooling,
 not project artifacts.
@@ -37,19 +36,27 @@ Each script resolves the project root via `cd /d "%~dp0.."` (bat) or `$(dirname 
 **Consequences:** `mvn.bat` stays at the root — invoked too frequently during development
 to be ergonomic elsewhere.
 
+**Update (exception carved out):** `scripts/architecture/` and `scripts/ai/` moved to
+`docs/architecture/scripts/` and `docs/ai/scripts/` respectively — a deliberate exception to this
+ADR's "all developer scripts live in `scripts/`" rule, chosen for navigation convenience: both
+directories exist purely to generate/verify the docs they now sit next to
+(`architecture-model.json`/`architecture-map.html`, `adr-index.md`), so keeping them beside their
+own output outweighs strict adherence to the original one-home-for-all-scripts rule for this one
+case. Every other script-group directory (`scripts/ci/`, `scripts/sonar/`, `scripts/build-and-test/`,
+etc.) still lives under `scripts/` per the original decision — this is a narrow, named exception,
+not a reversal.
+
 ---
 
-## ADR-003: deploy.sh startup detection
-**Status:** Accepted — **code has since reverted to the originally-rejected approach** (see
-correction below); documenting current reality rather than the original design
+## ADR-003: deploy-and-run.sh startup detection
+**Status:** Accepted
 
-**Context:** Polling `docker logs` repeatedly wastes cycles and adds arbitrary sleep delays.
+**Context:** Polling `docker logs` repeatedly wastes cycles and adds arbitrary sleep delays if
+done naively (e.g. tight-loop with no sleep, or re-reading the whole log unnecessarily often).
 
-**Original decision (no longer what the code does):** wait for `"Started Application"` via a
-single streaming `docker logs -f | grep -qm1` call with an external `timeout`.
-
-**Correction (verified 2026-07-13):** current `scripts/deploy.sh` (lines ~191-201) does not do
-this — it uses exactly the pattern this ADR originally rejected:
+**Decision:** `scripts/deploy-and-run/run.sh` waits for `"Started Application"` via a
+`while`/`sleep 2` polling loop against `docker logs` (non-streaming — re-reads the full log each
+iteration rather than following it with `-f`), with the timeout tracked via `$SECONDS`:
 ```bash
 end=$((SECONDS + 180))
 while true; do
@@ -58,68 +65,43 @@ while true; do
   sleep 2
 done
 ```
-A `while`/`sleep 2` polling loop, non-streaming `docker logs` (re-reads the full log each
-iteration rather than `-f` following it), timeout tracked via `$SECONDS` rather than the `timeout`
-command. `git log -p` on this file shows the loop was introduced in a later commit than this ADR,
-with no corresponding ADR update. In practice this has run reliably across many deploys this
-session with no observed flakiness — the "wastes cycles" concern in the original Context does not
-appear to have materialized as an actual problem at this polling interval (2s) and timeout (180s).
-Documenting current behavior as-is rather than reverting working deploy code to match a
-stale ADR; if the original streaming approach is preferred, that's a separate, deliberate change
-to make to `deploy.sh` itself, not a docs fix.
 
-**Consequences:** `deploy.sh`'s current startup-detection mechanism is the polling loop shown
-above, not the streaming `grep -qm1` originally decided here.
+**Consequences:** This has run reliably across many deploys with no observed flakiness at this
+polling interval (2s) and timeout (180s).
 
 ---
 
-## ADR-004: run-all-tests.sh — sequential Maven suites, parallel Playwright
+## ADR-004: run-all-tests.sh — real 3-way parallelism (unit, integration, Playwright)
 **Status:** Accepted
 
-**Context:** Running `unit-tests.sh`, `integration-tests.sh`, and `playwright.sh` one at a time
-during daily iteration is slow. Naive full 3-way parallelism was considered and rejected:
-`unit-tests.sh` (`./mvnw -pl query-lib,marketplace-app -am test`) and `integration-tests.sh`
-(conditional `./mvnw install -pl platform-commons,advertisement-/user-/taxon-spring-boot-starter
--am -DskipTests`) can both compile the *same* starter modules into their shared `target/`
-directories. Running them concurrently right after editing one of those starters risks a genuine
-Maven build race (one process reading/writing `target/classes` while the other recompiles it), not
-just a performance hit. `playwright.sh`, by contrast, never touches the Maven reactor — it only
-drives an already-built, already-running `marketplace-app` Docker container via `docker cp`/`docker
-exec`, so it has nothing to race with the Maven-based suites.
+**Context:** Running unit tests, integration tests, and Playwright one at a time during daily
+iteration is slow. Naive full 3-way parallelism has a real hazard: unit and integration tests both
+compile the same starter modules, so running them concurrently against shared, uncontained
+`target/`/`~/.m2` state risks a genuine Maven build race (one process reading/writing
+`target/classes` while the other recompiles it). Playwright, by contrast, never touches the Maven
+reactor — it only drives an already-built, already-running `marketplace-app` Docker container via
+`docker cp`/`docker exec`, so it has nothing to race with the Maven-based suites. Playwright also
+needs a fresh, known-clean database to avoid state-pollution false failures, and a freshly-deployed
+app to test against.
 
-**Decision:** `scripts/run-all-tests.sh` runs `unit-tests.sh` → `integration-tests.sh`
-sequentially in one stream, while `playwright.sh` starts in parallel with that pair from the very
-beginning (backgrounded, own log file) and is `wait`-ed on at the end. Each suite's own
-flags/scenario args are grouped behind `--unit "..."` / `--integration "..."` / `--playwright
-"..."` and forwarded unchanged — no new flag vocabulary, no duplication of each script's own
-argument parsing.
+**Decision:** `scripts/run-all-tests/run.sh` calls `scripts/build-and-test.sh --unit --integration`
+for the Maven-based suites — it installs the whole reactor into its own container-isolated `~/.m2`
+(a named Docker volume, never the host's real one) *before* either suite runs, so by the time tests
+start, neither one writes to shared state anymore, only reads it, eliminating the race. In
+parallel with that call, `run-all-tests/run.sh` runs `deploy-and-run.sh` (always clearing app data
+first — `--reset-only-db` by default, `--reset` when `--reset` is passed to `run-all-tests.sh`)
+sequentially, then `playwright.sh` once that succeeds. Each suite's own flags/scenario args are
+grouped behind `--unit "..."` / `--integration "..."` / `--playwright "..."` and forwarded
+unchanged — no new flag vocabulary, no duplication of each script's own argument parsing.
 
-Side effect worth noting (not a design requirement, just an observed consequence of the ordering):
-since `unit-tests.sh` already compiles the shared starter modules via its own `-am` reactor build
-moments earlier, `integration-tests.sh`'s subsequent staleness-check/install step (see
-`integration-tests/DECISIONS.md` ADR-007) typically finds a warm compile cache ("Nothing to
-compile") and completes faster than a cold invocation would — even though `unit-tests.sh` never
-installs anything to `~/.m2` itself (`test` goal, not `install`), so the install step still always
-actually runs, just faster.
-
-**Consequences:** True 3-way parallelism (including unit-tests and integration-tests running
-concurrently) was explicitly out of scope for this decision — it would require isolating one of
-the two Maven-based suites into a separate git worktree (or equivalent) so their `target/`
-directories never overlap. Not pursued because the sequential-plus-parallel-Playwright shape
-already captures most of the available time savings without new infrastructure. The individual
-scripts (`unit-tests.sh`, `integration-tests.sh`, `playwright.sh`) remain the default, single-suite
-entry points for day-to-day iteration — `run-all-tests.sh` is an additional, opt-in grouping, not a
-replacement.
-
----
-
-## ADR-005 through ADR-008: moved to scripts/ci/DECISIONS.md
-
-The local CI runner's ADRs (one CI-runner container via Docker-outside-of-Docker, background
-execution with a live progress file, most-extensive-by-default stage selection, report retention)
-now live in `scripts/ci/DECISIONS.md` (its own ADR-001 through ADR-004) — `scripts/ci/` grew its
-own `DECISIONS.md`/`README.md` once the tool had enough surface area to warrant it, matching
-`scripts/sonar/`'s precedent of a nested tool directory with its own ADR file.
+**Consequences:** Verified end to end: real 3-way parallelism (unit ‖ integration ‖ Playwright),
+unit and integration both PASSED running concurrently with no build race. The two resulting
+`build-and-test.sh` invocations in this flow (`run-all-tests.sh`'s own call, and the one
+`deploy-and-run.sh` triggers internally to reuse its shared jar) are safe to run concurrently — see
+`scripts/build-and-test/run.sh`'s own `BUILD_CONTAINER_NAME` env var, which prevents a Docker
+container-name collision the shared-volume `flock` alone doesn't cover. Day-to-day single-suite
+iteration outside `run-all-tests.sh` goes through `bash scripts/build-and-test.sh --unit
+--no-integration` / `--no-unit --integration` directly.
 
 ---
 
@@ -131,10 +113,10 @@ own `DECISIONS.md`/`README.md` once the tool had enough surface area to warrant 
 and MinIO/S3 credentials (`admin`/`admin12345`, bucket `advertisement`, region `us-east-1`) were
 each hardcoded independently across 4-5 files of different formats: `docker-compose.db.yml`,
 `docker-compose.minio.yml`, `docker-compose.app.yml`, `application-dev.yml`,
-`scripts/deploy.sh`, `scripts/database/reset.sh` — the same class of duplication improvement-027
-already closed for `POSTGRES_IMAGE` alone. Not a live bug (every copy still agreed), but a real
-drift risk: changing one copy and missing the others fails as a confusing "connection refused"
-at runtime, not a build error. → [improvement-044](../backlog/completed/issues/improvement-044-shared-env-config-consolidation.md).
+`scripts/deploy-and-run.sh`, `scripts/deploy-and-run/reset.sh` — the same class of duplication already closed
+for `POSTGRES_IMAGE` alone. Not a live bug (every copy still agreed), but a real drift risk:
+changing one copy and missing the others fails as a confusing "connection refused" at runtime,
+not a build error.
 
 **Decision:** Extend the repo-root `.env` (Docker Compose's native mechanism, already used for
 `POSTGRES_IMAGE`) with `DB_NAME`/`DB_USER`/`DB_PASSWORD`/`DB_PORT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/
@@ -147,7 +129,7 @@ never sources `.env`) keeps working unmodified; this does mean the *default* lit
 second copy of the value, an acknowledged residual duplication Spring's inability to natively read
 `.env` files makes unavoidable without extra script plumbing IDE runs don't go through anyway.
 
-**`scripts/deploy.sh` / `scripts/database/reset.sh` — the tricky part:** both already had
+**`scripts/deploy-and-run.sh` / `scripts/deploy-and-run/reset.sh` — the tricky part:** both already had
 `VAR="${VAR:-literal-default}"` override variables (`DB_PORT`, `MINIO_PORT`, etc.) that
 `scripts/ci/entrypoint.sh` relies on for its isolated e2e stack (e.g. `DB_PORT=15432`). A naive
 `set -a; source .env; set +a` would unconditionally overwrite any already-exported value —
@@ -156,7 +138,7 @@ prior export. Instead, `.env` is parsed into `ENV_*`-prefixed variables (never e
 then used only as the *second* fallback tier: `DB_PORT="${DB_PORT:-${ENV_DB_PORT:-5432}}"`. This
 preserves the exact existing override precedence (explicit env var wins, `.env` is the new
 fallback default, the old hardcoded literal is now only the last-resort fallback if `.env` itself
-is missing) — confirmed via a full `bash scripts/deploy.sh --reset` (fresh DB/MinIO
+is missing) — confirmed via a full `bash scripts/deploy-and-run.sh --reset` (fresh DB/MinIO
 volumes+containers+image) and a full Playwright e2e run (48/48 green).
 
 `playwright/run.sh`'s DB/S3-flag `echo` lines (a printed usage-example message, not runtime logic)
@@ -169,7 +151,7 @@ same-format duplication, unrelated to the `.env` story but cheap to fix in the s
 issue's own item 5).
 
 **What was deliberately left hardcoded, not parameterized:** `DB_PORT: 5432` inside
-`docker-compose.app.yml`'s `app` service environment and `deploy.sh`'s app-container `-e
+`docker-compose.app.yml`'s `app` service environment and `deploy-and-run.sh`'s app-container `-e
 DB_PORT=5432` both refer to the **container-internal** Docker-network port (`db`'s own listening
 port, always 5432 regardless of the host-side `${DB_PORT}` mapping) — conflating this with the
 host-facing `.env` value would be semantically wrong even though they share the same number today.
@@ -183,54 +165,34 @@ host-facing occurrences (`S3_PUBLIC_URL`, the host port mappings themselves) wer
   verified its override precedence survives the `.env`-as-fallback change.
 - Explicitly out of scope, per the originating issue: secrets management (these remain committed,
   non-production dev credentials, same as before — moving them to `.env` is a pure refactor, not
-  a security hardening pass) and `deploy.sh`'s deliberate `8081` vs `8080` port distinction
+  a security hardening pass) and `deploy-and-run.sh`'s deliberate `8081` vs `8080` port distinction
   (untouched, must stay distinct).
 
-## ADR-010: `deploy.sh` auto-recovers from a Liquibase checksum mismatch (stale local dev DB)
+---
+
+## ADR-012: `deploy-dev.sh` eliminated
 
 **Status:** Accepted
 
-**Context:** [improvement-120](../backlog/completed/issues/improvement-120-advertisement-user-hard-fk-coupling.md)
-edited an already-applied Liquibase changeset in place (`01-advertisement-schema.xml`, removing
-the `advertisement`→`user_information` FK constraints — deliberate, since the DB has never been
-released, so preserving changelog history across a content edit was never a goal). Every local dev
-DB that had already run the old version of that changeset then fails Liquibase's own checksum
-validation on the next `deploy.sh` run — a `ValidationFailedException` that crashes the app
-container on startup. This is a predictable, recurring class of event for this project (any future
-in-place changeset edit on a still-unreleased table hits the same wall), not a one-off — worth
-teaching the script instead of re-explaining it and manually running `--reset` every time it recurs.
+**Context:** `deploy-dev.sh` ran its own `mvn clean package` for `marketplace-app` directly on
+whatever host it was invoked from, entirely separate from `scripts/build-and-test.sh`'s own Maven
+invocation for the library modules — two unrelated build steps sharing nothing. On a Windows/WSL
+machine without a working local Java install, this failed outright (`Error: JAVA_HOME is not
+defined correctly`) until `scripts/build-and-test.sh` was moved onto a shared, containerized build
+step (`scripts/build-and-test`, JDK 25 + Docker CLI, no local Java required) to work around the
+same Windows/WSL Java-path-translation gap. Once that container's build step also produced
+`marketplace-app`'s own JAR (installing the whole reactor, not just the 7 library modules) and
+persisted it to a fixed path inside the shared `maven-cache` volume
+(`/root/.m2/artifacts/marketplace-app.jar`), `deploy-dev.sh`'s own separate `mvn package` step
+became pure duplication — the artifact it needed was already being produced and refreshed by the
+shared build step regardless.
 
-**Decision:** `deploy.sh`'s Step 3 (`wait_for_app`) now distinguishes three outcomes instead of a
-flat "started or timed out": `0` = `Started Application` seen, `1` = the app container's logs
-contain the Liquibase checksum-mismatch signature (`changesets check sum`/`ValidationFailedException`),
-`2` = anything else (container exited for a different reason, or a genuine timeout). On `1`, the
-script automatically calls the same volume-wipe logic `--reset` already used (`reset_infra`,
-extracted from the `--reset` branch into a reusable function, alongside a new `start_infra`
-covering the rest of Step 1's container/wait/bucket setup), then retries starting the app exactly
-once. A second failure of any kind after the retry fails loudly (`exit 1` with the log tail), not
-silently — this only ever auto-recovers from the one specific, unambiguous signature, never masks
-a different underlying problem.
+**Decision:** `deploy-dev.sh`/`deploy-dev.bat` deleted entirely. A fast JAR hot-swap deploy mode
+(`deploy.sh --reload`, hot-swapping a freshly built `marketplace-app.jar` into an already-running
+container via `docker cp` + `docker restart`) was tried as its replacement and later reverted —
+there is no fast hot-swap deploy mechanism in this repo today. `scripts/build-and-test.sh` only
+builds the reactor into the shared `maven-cache` volume; it does not deploy or restart anything.
+Restarting the app with a fresh build goes through the standard `deploy-and-run.sh` flow.
 
-**Two real bash pitfalls hit and fixed while wiring this up, worth recording since they're easy to
-reintroduce:**
-1. `if ! wait_for_app; then status=$?; ...` — `$?` inside that block is the exit status of the `if`
-   condition test itself (always `0`, since the negated test succeeded), **not** `wait_for_app`'s
-   real return value. Fixed with the standard idiom `wait_for_app && status=0 || status=$?`, which
-   captures the function's own exit code correctly.
-2. Even after fixing (1), a bare `wait_for_app` call (or a `set +e`-wrapped one) still triggered
-   this script's own `ERR` trap and exited immediately — the trap fires on any non-zero-returning
-   command that isn't inside a *tested* construct (`if`/`&&`/`||`/`!`), independent of whether
-   `set -e` itself is currently active. `set +e; wait_for_app; set -e` does not exempt the call;
-   only wrapping it in `&&`/`||` (as in the idiom above) does, since that's what the trap's own
-   exemption rule actually checks for.
-
-**Consequences:**
-- Verified end-to-end, not just by inspection: manually corrupted the `databasechangelog` row's
-  `md5sum` in the running dev DB to force the exact failure, ran `deploy.sh` unmodified, confirmed
-  the auto-recovery message, volume wipe, and successful retry all fired for real, then confirmed
-  the checksum was correctly re-applied afterward. Also verified the untouched happy path (normal
-  `deploy.sh`, no corruption) still passes straight through unaffected.
-- Scoped to local dev only, by construction — the auto-wipe is the same disposable dev DB/MinIO
-  volumes `--reset` already destroys today, never anything resembling a deployed database (this
-  project has none yet). A future real migration story for a released database is a separate,
-  unrelated problem this ADR does not attempt to solve.
+**Consequences:** Day-to-day iteration on `marketplace-app` code changes requires a full
+`deploy-and-run.sh` run to see them reflected in a running container — there is no shortcut path.

@@ -1,8 +1,9 @@
 const fs = require('fs');
-const { test, screenshot, downloadPng, closeNotification, assertCardHasText, assertOverlayHasText } = require('../_helpers');
+const { test, screenshot, downloadPng, closeNotification, assertCardHasText, assertOverlayHasText, assertComputedColor, assertRightAligned } = require('../_helpers');
 const { clickLightboxThumb, getVideoSrc, waitForVideoWrapperVisible } = require('./attachment.flow');
 const { selectCategoryInAdForm, assertCardHasCategories, assertViewOverlayHasCategories } = require('./category.flow');
 const { selectCityInAdForm, assertCardHasCity, assertViewOverlayHasCity } = require('./city.flow');
+const { closeEntityActivity } = require('./entity-activity.flow');
 
 const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
@@ -13,12 +14,37 @@ async function selectAdKind(page, overlay, labelText) {
 
 const DEFAULT_AD_KIND_LABEL = { en: 'Offer', uk: 'Пропозиція' };
 
+const AD_KIND_LABEL_TO_CLASS = {
+  Offer: 'offer', 'Пропозиція': 'offer',
+  Request: 'request', 'Запит': 'request',
+  Product: 'product', 'Товар': 'product',
+};
+
+// Expected computed colors per AdKind -- must match advertisement-card.css's badge colors exactly.
+const AD_KIND_COLOR = {
+  offer:   { text: 'rgb(22, 101, 52)' },
+  request: { text: 'rgb(30, 64, 175)' },
+  product: { text: 'rgb(146, 64, 14)' },
+};
+
 async function assertCardHasAdKind(page, expect, card, labelText, screenshotName) {
   return assertCardHasText(page, expect, card, '.advertisement-ad-kind-badge', labelText, screenshotName, true);
 }
 
 async function assertViewOverlayHasAdKind(page, expect, overlay, labelText, screenshotName) {
-  return assertOverlayHasText(page, expect, overlay, '.advertisement-ad-kind-badge', labelText, screenshotName, true);
+  await assertOverlayHasText(page, expect, overlay, '.advertisement-ad-kind-badge', labelText, screenshotName, true);
+  // The view-card's accent border must match the AdKind badge color -- header text stays static.
+  const kindClass = AD_KIND_LABEL_TO_CLASS[labelText];
+  const expectedTextColor = AD_KIND_COLOR[kindClass].text;
+  const viewCard = overlay.locator(`.overlay__view-card.overlay__view-card--${kindClass}`);
+  await expect(viewCard).toHaveCount(1);
+  await assertComputedColor(expect, viewCard, 'borderTopColor', expectedTextColor);
+  await expect(overlay.locator(`.overlay__view-card-header.overlay__view-card-header--${kindClass}`)).toHaveCount(1);
+  // Gallery only renders when the ad has media -- skip the check when it's absent.
+  const gallery = overlay.locator(`.attachment-gallery--${kindClass}`);
+  if (await gallery.count() > 0) {
+    await assertComputedColor(expect, gallery, 'borderTopColor', expectedTextColor);
+  }
 }
 
 const avatar = seed =>
@@ -69,14 +95,21 @@ async function saveAndWaitForIdle(page, expect, overlay, screenshotPrefix) {
   await screenshot(page, `${screenshotPrefix}-saved`);
 }
 
+// History is a nested overlay now, not a tab inside the advertisement overlay -- opening it
+// doesn't require the caller's `overlay` locator, just the page it belongs to. Defensively closes
+// any already-open history overlay first (idempotent no-op if none), so callers don't need to
+// track whether a previous step left one open -- covers the advertisement overlay's own buttons.
 async function openActivityTab(overlay) {
-  await overlay.locator('.adv-form-tabs vaadin-tab').filter({ hasText: /activ|активн/i }).click();
-  const activityList = overlay.locator('.entity-activity-list');
-  await activityList.waitFor({ timeout: 5000 });
+  const page = overlay.page();
+  await closeEntityActivity(page);
+  await page.locator('.advertisement-history-button').click();
+  const activityList = page.locator('.entity-activity-overlay .entity-activity-list');
+  await activityList.waitFor({ timeout: 8000 });
   return activityList;
 }
 
 async function closeEditAndVerifyView(page, expect, overlay, expectedTitle, expectedDescription, screenshotName) {
+  await closeEntityActivity(page);
   const closeBtn = page.locator('.advertisement-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first();
@@ -88,7 +121,8 @@ async function closeEditAndVerifyView(page, expect, overlay, expectedTitle, expe
 }
 
 async function closeOverlayToList(page, overlay) {
-  await overlay.locator('.overlay__breadcrumb-back').click();
+  await closeEntityActivity(page);
+  await overlay.locator('.overlay__breadcrumb-back').first().click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
 }
 
@@ -117,13 +151,22 @@ async function assertSingleCurrentBadge(page, expect, overlay) {
   const activityList = await openActivityTab(overlay);
   const badgeCount = await activityList.locator('.entity-activity-current-badge').count();
   expect(badgeCount).toBe(1);
+  await closeEntityActivity(overlay.page());
 }
 
 async function assertLatestActivityVersion(page, overlay, expect, version, screenshotName) {
   const activityList = await openActivityTab(overlay);
-  await expect(activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-version'))
-    .toContainText(`v${version}`);
+  const row0 = activityList.locator('.entity-activity-row').nth(0);
+  await expect(row0.locator('.entity-activity-version')).toContainText(`v${version}`);
+  // Actor name and timestamp must both sit flush against the row's right edge, adjacent to each other.
+  const meta0 = row0.locator('.entity-activity-meta');
+  await assertRightAligned(expect, meta0.locator('.entity-activity-time'), meta0);
+  const userBox0 = await meta0.locator('.entity-activity-user').boundingBox();
+  const timeBox0 = await meta0.locator('.entity-activity-time').boundingBox();
+  expect(userBox0.x, 'actor name must sit to the left of the timestamp').toBeLessThan(timeBox0.x);
+  expect(timeBox0.x - (userBox0.x + userBox0.width), 'actor name and timestamp must be adjacent, not far apart').toBeLessThan(20);
   await screenshot(page, screenshotName);
+  await closeEntityActivity(overlay.page());
 }
 
 async function openLightboxAndNavigate(page, card, screenshotPrefix) {
@@ -274,7 +317,7 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   });
 }
 
-async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, startingVisibleRows = null, checkCurrentBadge = false, categoryToAdd = null, categoryToRemove = null, cityToSet = null, adKindToSet = null, richText = false, screenshotPrefix }) {
+async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, startingVisibleRows = null, checkCurrentBadge = false, categoryToAdd = null, categoryToRemove = null, cityToSet = null, adKindToSet = null, richText = false, verifyOuterLinkClosesToList = false, screenshotPrefix }) {
   const editVersion       = startingVersion + 1;
   const textEditVersion   = startingVersion + 2;
   const visibleBase       = startingVisibleRows ?? startingVersion;
@@ -349,7 +392,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   const textOnlyDescription = richText ? RICH_TEXT_FIRST_WORD : newDescription + ' (v3)';
 
   await test.step(`text-only edit v${textEditVersion} — media field shows — after deletion${richText ? ', all Quill formats' : ''}`, async () => {
-    await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+    await closeEntityActivity(overlay.page());
     await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').waitFor({ timeout: 3000 });
 
     if (richText) {
@@ -384,7 +427,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
   if (richText) {
     await test.step(`format-only edit v${textEditVersion + 1} — apply italic to first line, text unchanged`, async () => {
-      await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+      await closeEntityActivity(overlay.page());
       const editor = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
       await editor.click();
       await page.keyboard.press('Control+Home');
@@ -413,7 +456,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
   if (categoryToAdd) {
     await test.step(`add category ${categoryToAdd} — activity diff shows all fields, category assigned`, async () => {
-      await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+      await closeEntityActivity(overlay.page());
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
       await selectCategoryInAdForm(page, overlay, categoryToAdd);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-cat-add`);
@@ -429,7 +472,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
   if (categoryToRemove) {
     await test.step(`remove category ${categoryToRemove} — activity diff shows all fields, category unassigned`, async () => {
-      await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+      await closeEntityActivity(overlay.page());
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
       await selectCategoryInAdForm(page, overlay, categoryToRemove);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-cat-remove`);
@@ -445,7 +488,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
   if (cityToSet) {
     await test.step(`set city ${cityToSet} — activity diff shows city change`, async () => {
-      await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+      await closeEntityActivity(overlay.page());
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
       await selectCityInAdForm(page, overlay, cityToSet);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-city-set`);
@@ -459,8 +502,8 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   }
 
   if (adKindToSet) {
-    await test.step(`set listing type ${adKindToSet} — activity diff shows listing type change`, async () => {
-      await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+    await test.step(`set ad kind ${adKindToSet} — activity diff shows ad kind change`, async () => {
+      await closeEntityActivity(overlay.page());
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
       await selectAdKind(page, overlay, adKindToSet);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-ad-kind-set`);
@@ -468,7 +511,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
       const typeChanges = typeActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
       await expect(typeChanges).toContainText(newTitle, { timeout: 5000 });
       await expect(typeChanges).toContainText(adKindToSet);
-      await expect(typeChanges).toContainText('Listing type');
+      await expect(typeChanges).toContainText('Advertisement kind');
       await screenshot(page, `${screenshotPrefix}-ad-kind-set-activity`);
     });
   }
@@ -484,8 +527,22 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     }
   });
 
+  if (verifyOuterLinkClosesToList) {
+    await test.step('outer breadcrumb link in nested history closes directly to list, even after View→Edit', async () => {
+      await switchToEditMode(page, overlay, null);
+      await expect(overlay.locator('.overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
+      await openActivityTab(overlay);
+      await closeEntityActivity(overlay.page(), 'outer');
+      await expect(page.locator('.base-overlay.overlay--visible')).toHaveCount(0, { timeout: 5000 });
+      await expect(cardByTitle(page, newTitle).first()).toBeVisible({ timeout: 5000 });
+      await screenshot(page, `${screenshotPrefix}-outer-link-to-list`);
+    });
+  }
+
   await test.step(`card reflects saved state${richText ? ' — all Quill formats rendered' : ''}`, async () => {
-    await closeOverlayToList(page, overlay);
+    if (!verifyOuterLinkClosesToList) {
+      await closeOverlayToList(page, overlay);
+    }
     const updatedCard = cardByTitle(page, newTitle).first();
     await verifyCardInList(page, expect, updatedCard, textOnlyDescription, 0, `${screenshotPrefix}-list-updated`);
     if (cityToSet) {
@@ -517,9 +574,10 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
   await expect(v1Row.locator('.entity-activity-version')).toContainText('v1');
   await screenshot(page, `${screenshotPrefix}-before-restore`);
   await v1Row.locator('.entity-activity-restore-btn').click();
+  await page.locator('.entity-activity-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 8000 });
   await closeNotification(page);
 
-  // After restore: auto-switches to "Basic information" tab, form populated with v1 values + 3 media items
+  // After restore: history overlay closes itself, revealing the still-open edit form populated with v1 values + 3 media items
   const titleInput = overlay.locator('[data-testid="advertisement-overlay-field-title"] input');
   await expect(titleInput).toHaveValue(restoredTitle, { timeout: 8000 });
   const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
@@ -577,7 +635,7 @@ async function runCrossUserMediaReplaceFlow(page, expect, { adTitle, startingVer
 
   await test.step(`cross-user replaces image — v${replaceVersion}`, async () => {
     // Switch back to Basic Information tab to access the gallery
-    await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+    await closeEntityActivity(overlay.page());
     await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
 
     await overlay.locator('.attachment-gallery__item .attachment-gallery__delete-btn').first().click();

@@ -1,5 +1,8 @@
 package org.ost.taxon.repository;
 
+import lombok.experimental.FieldNameConstants;
+
+@FieldNameConstants
 public record TaxonFilter(String name, boolean showDeleted) {
 
     public static TaxonFilter of(String name, boolean showDeleted) {

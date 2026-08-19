@@ -19,7 +19,7 @@ boot-starter`, `user-spring-boot-starter`, etc.) never carry test code for this 
 `src/test/java` additions to them, ever. `integration-tests` depends on whichever starters it needs
 to test (`compile` scope, since its own `src/main`/`src/test` reference those classes directly) —
 safe only because this module is never shipped, deployed, or depended upon by anything else (a
-leaf node with zero inbound edges — see `docs/architecture/01-module-dependencies.md`). This does
+leaf node with zero inbound edges — see `docs/architecture-map.html`'s Module Dependencies page). This does
 **not** violate `.claude/rules.md` "Module Import Rules" ("starters must NOT import from each
 other"): that rule governs production runtime composability (a starter must compile and run
 standalone when a sibling isn't on the classpath, because `ObjectProvider`-based optional wiring
@@ -48,13 +48,13 @@ schema would actually catch.
 **Context:** Testcontainers' default per-test-class container lifecycle pays the ~5-10s Postgres
 startup cost once per test class. With multiple `*RepositoryTest` classes across Batches 1-3, that
 cost multiplies linearly and dominates total run time — the opposite of the "~30s inner loop" goal
-this whole test layer exists for (`improvement-027`).
+this whole test layer exists for.
 
 **Decision:** `AbstractPostgresIntegrationTest` starts exactly one `PostgreSQLContainer` via a
 plain static field + static initializer block (not `@Testcontainers`/`@Container`, which are
 per-class) — Testcontainers' documented "singleton container" pattern. Every `*RepositoryTest`
 class extends it and shares the one running container for the entire `mvn test` reactor
-invocation; Ryuk (when not disabled — see ADR-004) tears it down at JVM exit.
+invocation; Ryuk (when not disabled) tears it down at JVM exit.
 
 **Consequences:**
 - Container startup cost is paid once per `mvn test` run, not once per test class.
@@ -67,190 +67,109 @@ invocation; Ryuk (when not disabled — see ADR-004) tears it down at JVM exit.
 
 ---
 
-## ADR-003: Shared `.env` (`POSTGRES_IMAGE`) instead of a hardcoded image string
+## ADR-006: Reusable test "steps" — `RepositoryTestSupport` / `RepositoryTestAutoConfig` / `TestDataCleaner`
 **Status:** Accepted
 
-**Context:** The first draft of `AbstractPostgresIntegrationTest` hardcoded `"postgres:15-alpine"`
-as a Java string literal, independent of the identical hardcoded value in
-`scripts/infra/docker-compose.db.yml` — a two-places-to-update-in-sync risk, applied to config
-instead of SQL/logic.
+**Context:** Every `*RepositoryTest` needs the same `@TestConfiguration` bean bag (Spring Boot
+autoconfiguration for `JdbcClient`/`DataSource`/Liquibase, a `MutableAuditorAware`, empty
+`ComponentFactory<AuditPort>`/`ComponentFactory<AttachmentPort>`/`ComponentFactory<AdvertisementPort>`
+beans representing "starter absent from the classpath") and a per-test DB-cleanup routine. Written
+inline the first time (`AdvertisementRepositoryTest`), this boilerplate was about to be re-typed
+verbatim in every future `*RepositoryTest`. A first cut used `@EnableAutoConfiguration`, which pulls
+in every `@AutoConfiguration` class found anywhere on the classpath, not just what a given test
+declares — a real problem since `integration-tests`' classpath keeps growing as more starter
+dependencies are added: adding a new starter dependency silently broke unrelated tests' Spring
+contexts by pulling in that starter's autoconfiguration for every test using the shared config,
+regardless of whether that test asked for it.
 
-**Decision:** A repo-root `.env` (`POSTGRES_IMAGE=postgres:15-alpine`) is the single source read by
-both consumers: Docker Compose natively, and `SharedEnvConfig.require(key)` — a small helper that
-walks up from the JVM's working directory (bounded, 5 parent levels) to find `.env`, so it resolves
-correctly whether `mvn test` is launched from the repo root, a module subdirectory, or an IDE test
-runner (IntelliJ commonly sets the working directory to the module, not the reactor root, when
-running a single test via the gutter icon). Fails fast with a clear message if `.env` or the key
-isn't found — no silent default.
-
-**Consequences:**
-- Renaming the Postgres version updates both consumers from one place.
-- `deploy.sh`'s own separate `docker pull`/`docker run` references to `postgres:15-alpine` were
-  **not** touched by this decision — tracked separately in
-  [improvement-044](../backlog/issues/improvement-044-shared-env-config-consolidation.md).
-- Neither Docker Compose's `.env` auto-load nor `SharedEnvConfig`'s upward search is AI-specific —
-  both work identically for a human running the same commands from a terminal or an IDE.
-
----
-
-## ADR-004: Sandbox-only env vars — `TESTCONTAINERS_RYUK_DISABLED` / `INTEGRATION_TESTS_POSTGRES_FIXED_PORT`
-**Status:** Accepted
-
-**Context:** In the claude-dev sandbox this module was built in, Testcontainers can create a
-container via the Docker socket successfully, but the test JVM cannot reach the container's
-*dynamically assigned* published port (`Connection refused`, confirmed via both the auto-detected
-Docker host IP and `TESTCONTAINERS_HOST_OVERRIDE=localhost`) — while a direct TCP probe confirmed
-the *static* port already published by `advertisement-db` (`5432`) **is** reachable from the same
-shell. Ryuk (the container reaper) also cannot connect back to the test JVM in this sandbox. Both
-are a Docker Desktop / socket-proxy mismatch specific to this sandbox's networking, not a bug in
-this repo's code or in Testcontainers itself — the same class of issue as the already-documented
-`playwright/CLAUDE.md` note ("Volume mounts don't work from inside the claude container").
-
-**Decision:** `AbstractPostgresIntegrationTest` reads an optional
-`INTEGRATION_TESTS_POSTGRES_FIXED_PORT` env var; when set, it forces a fixed host-port binding via
-`PostgreSQLContainer.setPortBindings()` instead of Testcontainers' normal random-port assignment.
-`TESTCONTAINERS_RYUK_DISABLED=true` disables the reaper. Both are env-gated — unset (the default,
-e.g. on a real developer machine with normal Docker networking), behavior is unchanged.
-`scripts/integration-tests.sh --sandbox` sets both automatically; omit `--sandbox` on a normal
-machine.
+**Decision:** By direct analogy with Playwright's `_flows/*.flow.js` convention (`playwright/
+CLAUDE.md`: extract a shared helper only once two or more consumers need it), extracted to
+`org.ost.integrationtests.support` (in `src/main`, not `src/test`, so `*RepositoryTest` classes can
+import without a test-jar dependency):
+- `RepositoryTestAutoConfig` — a composed `@ImportAutoConfiguration` meta-annotation carrying an
+  explicit allow-list (`DataSourceAutoConfiguration`, `DataSourceTransactionManagerAutoConfiguration`,
+  `JdbcClientAutoConfiguration`, `JdbcTemplateAutoConfiguration`, `DataJdbcRepositoriesAutoConfiguration`,
+  `LiquibaseAutoConfiguration`, `TransactionAutoConfiguration`, `ConfigurationPropertiesAutoConfiguration`)
+  instead of `@EnableAutoConfiguration`'s classpath-wide pull-in. Domain-starter autoconfiguration
+  (`AdvertisementAutoConfiguration`, `TaxonAutoConfiguration`, ...) is never in this list — those are
+  always passed explicitly via each test's own `@SpringBootTest(classes = {...})`, the entire point
+  being that nothing is ever pulled in by implication: a new starter dependency in `pom.xml` can no
+  longer silently affect any existing test's Spring context. This is the sole source of truth for the
+  allow-list — every `*RepositoryTest`/`*TransactionTest` (whether it uses `RepositoryTestSupport`
+  directly or declares its own local `TestConfig` for extra beans) applies `@RepositoryTestAutoConfig`
+  rather than redeclaring the list.
+- `RepositoryTestSupport` — the `@TestConfiguration` bean bag, layering `@RepositoryTestAutoConfig` +
+  `@EnableJdbcAuditing` + `MutableAuditorAware` + the empty `ComponentFactory<...>` beans on top,
+  added to a test's `@SpringBootTest(classes = {...})` list. A test that needs a *different* optional
+  port (e.g. `TaxonPort`) declares its own extra `ComponentFactory` bean locally — this class only
+  covers the ports every repository test has hit so far, not meant to grow into a bean bag for every
+  possible port.
+- `TestDataCleaner.cleanTables(jdbcClient, "table1", "table2", ...)` — FK-ordered row deletion, the
+  lower-level overload; `cleanAll(jdbcClient)` wraps it with the full FK-safe table list and is what
+  `*RepositoryTest` classes should actually call from `@BeforeEach` (see `integration-tests/CLAUDE.md`'s
+  "Always use `cleanAll`" note). Catches and swallows Postgres "undefined table" (SQLSTATE `42P01`)
+  in `cleanTables()` — the singleton-container design (ADR-002) means a test class can legitimately
+  run before some other, later-running test class has applied its own domain's Liquibase changelog,
+  so "nothing to clean because the schema doesn't exist yet" is an expected state, not an error.
 
 **Consequences:**
-- Not fixable from within this repo — it's sandbox infrastructure, not application code.
-- A real CI runner (GitHub Actions, not this sandbox) likely has normal Docker networking and
-  wouldn't need either variable; if it somehow does, the fix at that point is a CI-job-index-derived
-  port, not a single hardcoded one (see `improvement-027`'s "Does a fixed port conflict with
-  parallel test execution?" note for the reasoning on why a single fixed port is safe today but not
-  necessarily under future parallel CI jobs).
-
----
-
-## ADR-005: `jakarta.servlet-api` as a `provided`-scope dependency
-**Status:** Accepted
-
-**Context:** `UserAutoConfiguration` declares a `securityContextRepository()` bean
-(`new HttpSessionSecurityContextRepository()`) whose constructor references
-`jakarta.servlet.http.HttpServletResponse` directly. `integration-tests` has no web/servlet
-dependency (it is a plain test module, not a Vaadin/Spring MVC application) — booting
-`UserAutoConfiguration` in `AdvertisementRepositoryTest`'s Spring context (required for the FK to
-`user_information`) failed with `NoClassDefFoundError: jakarta/servlet/http/HttpServletResponse`
-at bean-instantiation time.
-
-**Decision:** Add `jakarta.servlet:jakarta.servlet-api` as a `provided`-scope dependency in
-`integration-tests/pom.xml` (version managed by the inherited `spring-boot-starter-parent` BOM —
-no explicit version pinned). This satisfies class loading for the bean's constructor without
-pulling in an actual servlet container — the bean is never invoked by a repository test, only
-constructed during context startup.
-
-**Consequences:**
-- Any future `*RepositoryTest` that boots `UserAutoConfiguration` (or any other starter's
-  autoconfiguration that happens to declare a servlet-dependent bean) does not need to repeat this
-  fix — the dependency is module-wide.
-- `provided` scope, not `compile` — this module never ships, so there is no risk of it leaking
-  transitively into anything downstream.
-
----
-
-## ADR-006: Reusable test "steps" — `RepositoryTestSupport` / `TestDataCleaner`
-**Status:** Accepted
-
-**Context:** `AdvertisementRepositoryTest` (Batch 1) needed a `@TestConfiguration` bean bag
-(originally `@EnableAutoConfiguration` — see ADR-009 for why this later changed to
-`@ImportAutoConfiguration` with an explicit class list — plus `@EnableJdbcAuditing`, a
-`MutableAuditorAware`, empty `ComponentFactory<AuditPort>`/`ComponentFactory<AttachmentPort>`
-beans) and a per-test DB-cleanup routine. Written inline the first time, this boilerplate was about
-to be re-typed verbatim in every future `*RepositoryTest` (Batch 3: `AuditLogRepositoryTest`,
-`TaxonAssignmentRepositoryTest`, `AttachmentRepositoryTest` — **done, 2026-07-16 correction:** all
-three now exist and pass, plus several more added since (`AttachmentServiceTest`,
-`AttachmentServiceTransactionTest`, `AttachmentCleanupServiceTest`, `TaxonServiceTest`,
-`TaxonSnapshotDtoTest`) — **corrected 2026-07-27:** `UserServiceRestoreTest` no longer exists in
-`src/test/java` (only stale `target/`/`reports/` surefire output remained from an earlier run);
-removed from this list).
-
-**Decision:** Extract to `org.ost.integrationtests.support` (in `src/main`, not `src/test`, so
-`*RepositoryTest` classes can import without a test-jar dependency), by direct analogy with
-Playwright's `_flows/*.flow.js` convention (`playwright/CLAUDE.md`: extract a shared helper only
-once two or more consumers need it):
-- `RepositoryTestSupport` — the `@TestConfiguration` bean bag, added to a test's
-  `@SpringBootTest(classes = {...})` list.
-- `TestDataCleaner.cleanTables(jdbcClient, "table1", "table2", ...)` — FK-ordered row deletion,
-  the lower-level overload; `cleanAll(jdbcClient)` wraps it with the full FK-safe table list and is
-  what `*RepositoryTest` classes should actually call from `@BeforeEach` (see `integration-tests/
-  CLAUDE.md`'s "Always use `cleanAll`" note).
-
-**Consequences:**
-- A test that needs a *different* optional port (e.g. `TaxonPort` for a future
-  `TaxonAssignmentRepositoryTest`) declares its own extra `ComponentFactory` bean locally —
-  `RepositoryTestSupport` only covers the ports every repository test has hit so far
-  (`AuditPort`, `AttachmentPort`, and — corrected 2026-07-27 — `AdvertisementPort`, added as a
-  `@ConditionalOnMissingBean` bean since `AdvertisementRepositoryTest`'s own
-  `AdvertisementAutoConfiguration` already provides it); it is not meant to grow into a bean bag for
-  every possible port.
 - Full usage example: `integration-tests/CLAUDE.md` "Reusable test support (steps/blocks)".
+- Any *new* `@SpringBootTest`-based test class in this module that needs Boot infrastructure beyond
+  what's in `RepositoryTestAutoConfig`'s list must extend the list explicitly, not reach for
+  `@EnableAutoConfiguration` as a shortcut — that would silently reintroduce the fragility this
+  design removes.
 
 ---
 
 ## ADR-007: `run.sh` auto-detects starter staleness instead of a manual skip-`-am` flag
-**Status:** Accepted (revised same day — see "Revision" below; original manual-flag design is not
-current)
+**Status:** Accepted
 
 **Context:** `run.sh` always ran `./mvnw -pl integration-tests -am test` — `-am` ("also-make")
 rebuilds every module `integration-tests` depends on (`platform-commons`, `advertisement`/`user`/
-`taxon`/`audit-spring-boot-starter` — `audit` added later, see ADR-009 — and
-`attachment-spring-boot-starter`, added since, corrected here 2026-07-16: `run.sh`'s
-`STARTER_MODULES` now lists 6 modules, not the 5 originally described) on every single invocation,
-even when none of them changed. Measured
-directly in this sandbox: ~100s of pure "nothing to compile" Maven plugin overhead walking through
-those 7 reactor modules, on top of the actual test run — meaning re-running a test after only
-editing a test file inside `integration-tests` itself (the common case while writing/fixing tests)
-paid the same cost as a full rebuild. Root cause: `mvn test` (unlike `mvn install`) never publishes
-built artifacts to `~/.m2/repository` — confirmed empirically (`find ~/.m2/repository/org/ost
--name "*.jar"` returned nothing before this session's first `mvn install`) — so without `-am`,
-Maven has no JAR to resolve `integration-tests`' starter dependencies from at all.
-
-**Original decision (superseded same day):** keep `-am` as the default, add an opt-in `--fast`
-flag to drop it. Rejected on reflection — `--fast` was a manual opt-in the developer had to
-remember to use *and* had to remember to stop using right after editing a starter's own source, or
-it would silently test against a stale `~/.m2` JAR. A flag whose safety depends on the developer's
-memory is exactly the kind of footgun this project avoids elsewhere (e.g. the reason
-`UserProfileUpdate` exists as a narrower entity instead of relying on builder discipline — see
+`taxon`/`audit`/`attachment-spring-boot-starter`) on every single invocation, even when none of
+them changed. Measured directly in this sandbox: ~100s of pure "nothing to compile" Maven plugin
+overhead walking through those reactor modules, on top of the actual test run — meaning
+re-running a test after only editing a test file inside `integration-tests` itself (the common
+case while writing/fixing tests) paid the same cost as a full rebuild. Root cause: `mvn test`
+(unlike `mvn install`) never publishes built artifacts to `~/.m2/repository`, so without `-am`,
+Maven has no JAR to resolve `integration-tests`' starter dependencies from at all. A manual opt-in
+flag to drop `-am` was considered and rejected: its safety would depend on the developer
+remembering to stop using it right after editing a starter's own source, or it would silently test
+against a stale `~/.m2` JAR — the kind of footgun this project avoids elsewhere (e.g. the reason
+`UserEditableFields` exists as a narrower entity instead of relying on builder discipline — see
 `user-spring-boot-starter/CLAUDE.md`).
 
-**Revision — automatic staleness detection, no flag required for the common case:** `run.sh` now
-compares each starter module's newest `.java` file (`find <module>/src/main -name
-'*.java' -newer <installed-jar>`) against its installed `~/.m2` JAR's mtime before every run. If
-any source is newer than its JAR (or the JAR doesn't exist yet), it runs a targeted `mvn install
+**Decision:** `run.sh` compares each starter module's newest `.java` file (`find <module>/src/main
+-name '*.java' -newer <installed-jar>`) against its installed `~/.m2` JAR's mtime before every run.
+If any source is newer than its JAR (or the JAR doesn't exist yet), it runs a targeted `mvn install
 -DskipTests` for just those modules first; otherwise it skips straight to `mvn -pl
-integration-tests test` (no `-am`). Confirmed directly, both directions: (a) an unmodified checkout
-correctly skips the reinstall and runs fast, (b) `touch`-ing a starter `.java` file is correctly
-detected and triggers a targeted reinstall before the test runs. A `--no-check` flag remains for
-deliberately bypassing the check (e.g. reproducing behavior against a specific already-built JAR)
-— never for normal edit/test iteration, since it reintroduces the exact stale-JAR risk the
-auto-detection exists to close.
+integration-tests test` (no `-am`) — no flag required for the common case. Confirmed directly, both
+directions: (a) an unmodified checkout correctly skips the reinstall and runs fast, (b) touching a
+starter `.java` file is correctly detected and triggers a targeted reinstall before the test runs.
+A `--no-check` flag bypasses the check entirely (e.g. reproducing behavior against a specific
+already-built JAR) — never for normal edit/test iteration, since it reintroduces the exact
+stale-JAR risk the auto-detection exists to close.
 
 **Consequences:**
 - No developer memory required for the default path — the check runs every time, correctness is
   automatic, not opt-in.
 - The `find -newer` check itself costs a fraction of a second per module — negligible next to the
   ~100s of Maven reactor-walk overhead it replaces.
-- `--no-check` inherits the old `--fast` flag's risk profile explicitly, by name, only when
-  intentionally invoked — never the default.
-- Same rationale applies to the separate, complementary idea of unifying all `*RepositoryTest`
-  classes under one shared `@SpringBootTest(classes = {...})` combination so Spring's own
-  ApplicationContext cache can be reused across classes within a single `mvn test` run — not
-  implemented as part of this ADR (evaluated as roughly break-even for today's 3 repository test
-  classes, with a real test-isolation cost — a broken bean/changelog in any one starter would then
-  fail every repository test together, not just its own domain's), but revisit once Batch 2/3
-  (`AuditLogRepositoryTest`, `AttachmentRepositoryTest`, `TaxonAssignmentRepositoryTest`) land and
-  the per-class bootstrap cost starts dominating total suite time more clearly. **Trigger note
-  (2026-07-16): Batch 2/3 have since landed** (see ADR-006's correction above) — this evaluation
-  was not revisited as part of that work; still an open, undecided question, not a done goal.
+- `--no-check` inherits the dropped-`-am` risk profile explicitly, by name, only when intentionally
+  invoked — never the default.
+- Unifying all `*RepositoryTest` classes under one shared `@SpringBootTest(classes = {...})`
+  combination, so Spring's own ApplicationContext cache could be reused across classes within a
+  single `mvn test` run, remains a separate, undecided, not-implemented idea — it carries a real
+  test-isolation cost (a broken bean/changelog in any one starter would then fail every repository
+  test together, not just its own domain's) that hasn't been weighed against the bootstrap-cost
+  savings for the module's current size.
 
 ---
 
 ## ADR-008: Test package-private/private internal logic through its public entry point, never through a same-package trick or a widened production visibility
 **Status:** Accepted
 
-**Context:** `DefaultTaxonPort.resolveTranslation()` (improvement-045 item 6) is package-private —
+**Context:** `DefaultTaxonPort.resolveTranslation()` is package-private —
 it has no direct external impact of its own; it only matters through the public
 `TaxonPort.findById()`/`getAllByType()` contract that calls it internally via `toDto()`. Two ways
 to unit-test it directly were considered and rejected:
@@ -287,116 +206,12 @@ directly via repositories instead of through the service layer.
   Mockito unit test) than a hypothetical isolated `resolveTranslation()` test would have been —
   accepted, since it also proves the full `toDto()`/repository wiring path works, not just the
   fallback algorithm in isolation.
-- **Applies directly to improvement-045 item 7** (`UserService.applyUserRestore()`) — that method
+- **Applies directly to any future test of `UserService.applyUserRestore()`** — that method
   is `private` (stricter than `resolveTranslation()`'s package-private), called only from the
   public `UserService.restoreToSnapshot()`; the same shape of test (call `restoreToSnapshot()`,
   assert on the result, use repository-level fixture setup for any state the public API can't
   reach) applies when that item is implemented — do not reach for `private`-access workarounds
   there either.
-
----
-
-## ADR-009: `@ImportAutoConfiguration` explicit allow-list instead of `@EnableAutoConfiguration` in shared test config
-**Status:** Accepted
-
-**Context (corrected 2026-07-27: `UserServiceRestoreTest` no longer exists — see ADR-006 — but the
-history below is kept since it's what motivated the decision; the current source of truth is
-`RepositoryTestSupport` alone):** `RepositoryTestSupport` and `UserServiceRestoreTest.TestConfig`
-both originally used `@EnableAutoConfiguration` (with `UserServiceRestoreTest.TestConfig` also
-carrying a hand-written `ComponentFactory<AttachmentPort>` stub bean to compensate for one side
-effect of it). This
-annotation pulls in every `@AutoConfiguration` class found anywhere on the classpath, not just what
-a given test actually declares — a real problem specifically for `integration-tests`, whose own
-design (ADR-001) means its classpath keeps growing over time as Batches 2/3 add more starter
-dependencies. Confirmed directly, twice, in the same session: adding `audit-spring-boot-starter` as
-a dependency (for `UserServiceRestoreTest`, improvement-045 item 7) silently broke
-`AdvertisementRepositoryTest`/`TaxonRepositoryTest`/`TaxonPortTranslationFallbackTest`/
-`UserRepositoryTest` in a full-suite run — the classpath-wide cascade pulled in the real
-`AuditAutoConfiguration` for every test using `RepositoryTestSupport`, whose `defaultAuditPort` bean
-then failed to construct (missing `CurrentActorHook`, which `RepositoryTestSupport` never
-provisions, by design — see its own javadoc). A single-class `-Dtest=X` run never surfaces this,
-since the break depends only on what's on the classpath, not on which test is selected.
-
-An `exclude = AuditAutoConfiguration.class` deny-list fixed that one occurrence, but was explicitly
-rejected as the long-term direction: it's a reactive fix that has to be remembered and repeated for
-every future starter dependency (Batch 3 alone adds three more candidates), with no compiler or
-test enforcement that anyone actually does it — the exact same silent-break shape recurring on a
-schedule tied to how often `integration-tests`' `pom.xml` grows.
-
-**Decision:** Replace `@EnableAutoConfiguration` with `@ImportAutoConfiguration({...})` and an
-explicit class list. Originally applied to both `RepositoryTestSupport` and
-`UserServiceRestoreTest.TestConfig`; now that the latter no longer exists (see ADR-006),
-`RepositoryTestSupport` is the sole surviving instance, and its actual current list (verified
-directly against source, 2026-07-27) is exactly these 7 — no `ConfigurationPropertiesAutoConfiguration`
-entry, since that was only needed by the now-deleted test's own `TestConfig`:
-```java
-@ImportAutoConfiguration({
-        DataSourceAutoConfiguration.class,               // org.springframework.boot.jdbc.autoconfigure
-        DataSourceTransactionManagerAutoConfiguration.class,
-        JdbcClientAutoConfiguration.class,
-        JdbcTemplateAutoConfiguration.class,
-        DataJdbcRepositoriesAutoConfiguration.class,      // org.springframework.boot.data.jdbc.autoconfigure
-        LiquibaseAutoConfiguration.class,                 // org.springframework.boot.liquibase.autoconfigure
-        TransactionAutoConfiguration.class                // org.springframework.boot.transaction.autoconfigure
-})
-```
-Domain-starter autoconfiguration (`AdvertisementAutoConfiguration`, `TaxonAutoConfiguration`, ...)
-is never in this list — those are always passed explicitly via each test's own
-`@SpringBootTest(classes = {...})`, which is the entire point: nothing is ever pulled in by
-implication again, so a new starter dependency in `pom.xml` can no longer silently affect any
-existing test's Spring context.
-
-**Spring Boot 4.0.6 packaging note (worth recording — easy to get wrong without checking):** what
-used to be one monolithic `spring-boot-autoconfigure` jar in Boot 3.x is now split into several
-per-feature modules — `spring-boot-jdbc`, `spring-boot-data-jdbc`, `spring-boot-liquibase`,
-`spring-boot-transaction` each contribute a handful of `*AutoConfiguration` classes under their own
-new package roots (`org.springframework.boot.jdbc.autoconfigure`, etc.), not
-`org.springframework.boot.autoconfigure.jdbc` like in Boot 3.x. `@ImportAutoConfiguration` itself
-did not move — still `org.springframework.boot.autoconfigure.ImportAutoConfiguration`. Verified
-directly against the actual jars in `~/.m2` (`jar tf ... | grep AutoConfiguration.class`), not
-assumed from prior Boot 3.x knowledge.
-
-**Second bug this surfaced — `TestDataCleaner.cleanTables()` assumed every domain's schema always
-exists:** switching away from `@EnableAutoConfiguration` exposed a second, independent latent bug.
-`TestDataCleaner.cleanAll()` unconditionally `DELETE FROM`s every table across every domain (by
-design, ADR-006 — the singleton container means any test class can run after any other). Before
-this ADR, `RepositoryTestSupport`'s old classpath-wide cascade happened to also apply *every*
-starter's Liquibase changelog for *every* test's context as a side effect, so every domain's tables
-always existed by the time any test's `@BeforeEach` ran, regardless of execution order. With the
-explicit allow-list, only the specific domain starters a test actually lists in its own
-`@SpringBootTest(classes = {...})` get their Liquibase changelog applied to the shared database —
-meaning `cleanAll()` could legitimately run before some other, later-running test class has created
-a given domain's tables. Fixed in `TestDataCleaner.cleanTables()`: catch `BadSqlGrammarException`
-and swallow only the Postgres "undefined table" case (SQLSTATE `42P01`) — nothing to clean if the
-schema doesn't exist yet is an expected state under the singleton-container design, not an error.
-
-**Third bug this surfaced — `AuditAutoConfiguration` never self-registered `CleanupProperties`:**
-`AuditCleanupService` (owned by `audit-spring-boot-starter`) directly injects `CleanupProperties`,
-but unlike `AdvertisementAutoConfiguration`/`AttachmentAutoConfiguration` (which each correctly
-self-declare `@EnableConfigurationProperties(CleanupProperties.class)` because they too directly
-consume it) or `TaxonAutoConfiguration` (same pattern, for `TaxonProperties`), `AuditAutoConfiguration`
-never did. It silently worked in every context that happened to also load Advertisement or
-Attachment's autoconfiguration (true in production — `marketplace-app/Application.java` also
-declares it, redundantly but harmlessly) — a real, if previously invisible, production risk: any
-hypothetical minimal deployment running audit-spring-boot-starter without advertisement/attachment
-present would have failed to start. Fixed directly in `AuditAutoConfiguration` (not worked around in
-test config) — see `audit-spring-boot-starter/DECISIONS.md`.
-
-**Consequences:**
-- Adding a new starter dependency to `integration-tests/pom.xml` can never again silently break an
-  unrelated test's Spring context — the failure mode this ADR exists to close is now structurally
-  impossible, not just less likely.
-- `integration-tests/run.sh`'s `STARTER_MODULES` staleness-check list (ADR-007) must include
-  `audit-spring-boot-starter` now that it's a real dependency — added in the same change (was
-  missing, which meant the `AuditAutoConfiguration` fix below wasn't picked up by the staleness
-  check until installed manually once).
-- Any *new* `@SpringBootTest`-based test class in this module that needs Boot infrastructure beyond
-  what's in the list above (e.g. a future `@EnableCaching`-dependent test) must extend the list
-  explicitly, not reach for `@EnableAutoConfiguration` as a shortcut — that would silently
-  reintroduce the exact fragility this ADR removes.
-- Full verification: two consecutive full `bash scripts/integration-tests.sh --sandbox` runs
-  (`mvn -pl integration-tests test`, all classes together, no `-Dtest` filter), 41/41 green both
-  times.
 
 ---
 
@@ -410,7 +225,6 @@ because every Testcontainers-backed test in this module ran unconditionally. If 
 running, the failure surfaced deep inside Testcontainers' own connection probing instead of a
 clear message. Also `SharedEnvConfig` (the repo-root `.env` reader `AbstractPostgresIntegrationTest`
 depends on) had zero test coverage of its own walk-up/missing-file logic.
-→ [improvement-047](../backlog/completed/issues/improvement-047-integration-tests-ci-safety.md).
 
 **Decision:**
 - `@Tag("testcontainers")` placed once on `AbstractPostgresIntegrationTest` — JUnit 5 tags declared
@@ -475,40 +289,3 @@ tests.
 - Explicitly out of scope (per the originating issue): a GitHub Actions workflow itself — this
   repo still has no `.github/workflows/`; the CI-environment guard added here only protects a
   *future* one from a specific copy-paste mistake, it doesn't introduce CI.
-
----
-
-## ADR-011: Explicit `junit-jupiter-api` compile-scope dependency — required for `AbstractPostgresIntegrationTest`'s `@Tag`
-**Status:** Accepted
-
-**Context:** While migrating off the deprecated `org.testcontainers.containers.PostgreSQLContainer`
-(replaced by the non-generic `org.testcontainers.postgresql.PostgreSQLContainer` in Testcontainers
-2.0.5, part of improvement-115's cleanup pass), `bash scripts/integration-tests.sh --sandbox smoke`
-failed to even compile — `AbstractPostgresIntegrationTest.java` (in `src/main/java`, using
-`org.junit.jupiter.api.Tag`) hit `package org.junit.jupiter.api does not exist`.
-
-Confirmed directly, twice, that this predates the Testcontainers migration and is not something it
-caused: running the exact same sanctioned script against a `git stash`-clean checkout of this
-module (before any of this session's edits) reproduces the identical compile failure. `mvn
-dependency:tree` on the unmodified `pom.xml` showed why: `junit-jupiter-api:6.0.3` resolves
-transitively to **`runtime`** scope (via `junit-jupiter:test` → `junit-jupiter-api:runtime`), not
-`compile` or `test` — Maven's main-compile phase only sees `compile`/`provided` scope, so
-`src/main/java` code using JUnit annotations has never had it visible on that classpath in this
-dependency-version combination (JUnit 6.0.3, a recent major bump). `mvn test`'s test-compile phase
-runs *after* main-compile in the lifecycle, so this failure was unconditional — no exclusion or
-`--sandbox` flag route around it.
-
-**Decision:** Added an explicit `org.junit.jupiter:junit-jupiter-api` dependency (default `compile`
-scope, no version — inherited from the Spring Boot BOM) to `integration-tests/pom.xml`, immediately
-after `spring-boot-starter-test`. Verified via `dependency:tree` that this resolves the same
-`6.0.3` artifact at `compile` scope, then reran the full `bash scripts/integration-tests.sh
---sandbox` suite: 127/127 green.
-
-**Consequences:**
-- Any future `src/main/java` class in this module that uses a JUnit Jupiter annotation (mirroring
-  `AbstractPostgresIntegrationTest`'s `@Tag` placement rationale — see ADR-010) can rely on
-  `junit-jupiter-api` being compile-visible without rediscovering this scope gap.
-- This is specifically about the *API* annotations package; test execution engines
-  (`junit-jupiter-engine`, `junit-platform-*`) remain correctly `test`-scoped via
-  `spring-boot-starter-test`/`testcontainers-junit-jupiter` — only the annotation package needed
-  promoting.

@@ -4,7 +4,7 @@
 item 4 (verified 2026-07-04, re-verified during migration on 2026-07-13 — still no `.github/`
 directory in the repo).
 **Module:** repo-wide (CI config, no application code)
-**Priority:** low — [improvement-059](../completed/issues/improvement-059-local-isolated-parameterized-ci-runner.md)
+**Priority:** ⚪ low — [improvement-059](../completed/issues/improvement-059-local-isolated-parameterized-ci-runner.md)
 (the local, isolated, parameterized runner this issue was deferred behind) is now done, so the
 pipeline logic itself is proven; what's left is genuinely GitHub-specific and unrelated to that:
 repo is public so execution is free, but still needs `gh` CLI set up + explicit push authorization,

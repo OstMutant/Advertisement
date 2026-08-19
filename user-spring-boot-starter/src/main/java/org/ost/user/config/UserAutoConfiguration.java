@@ -6,9 +6,12 @@ import liquibase.integration.spring.SpringLiquibase;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.config.CleanupProperties;
+import org.ost.platform.providerprofile.spi.ProviderProfilePort;
+import org.ost.platform.user.spi.UserAccountPort;
+import org.ost.platform.user.spi.UserAuthorizationPort;
 import org.ost.platform.user.spi.UserPort;
+import org.ost.platform.user.spi.UserPreferencesPort;
 import org.ost.platform.user.spi.UserSettingsChangedHook;
-import org.ost.user.security.UserPrincipal;
 import org.ost.user.services.UserService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -68,7 +71,7 @@ public class UserAutoConfiguration {
     @ConditionalOnMissingBean
     public UserDetailsService userDetailsService(UserService userService) {
         return email -> userService.findByEmail(email)
-                .map(UserPrincipal::new)
+                .map(userService::toPrincipal)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
     }
 
@@ -95,7 +98,31 @@ public class UserAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public ComponentFactory<UserAccountPort> userAccountPortFactory(ObjectProvider<UserAccountPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<UserAuthorizationPort> userAuthorizationPortFactory(ObjectProvider<UserAuthorizationPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<UserPreferencesPort> userPreferencesPortFactory(ObjectProvider<UserPreferencesPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public ComponentFactory<UserSettingsChangedHook> userSettingsChangedHookFactory(ObjectProvider<UserSettingsChangedHook> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<ProviderProfilePort> providerProfilePortFactory(ObjectProvider<ProviderProfilePort> p) {
         return new ComponentFactory<>(p);
     }
 

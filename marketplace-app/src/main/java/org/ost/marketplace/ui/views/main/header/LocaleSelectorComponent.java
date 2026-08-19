@@ -11,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.marketplace.services.auth.AuthContextService;
-import org.ost.platform.user.spi.UserPort;
+import org.ost.orchestrator.services.UserProfileService;
 
 import java.util.List;
 import java.util.Locale;
@@ -24,7 +24,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.LOCALE_UKRAINIAN;
 @RequiredArgsConstructor
 public class LocaleSelectorComponent extends HorizontalLayout {
 
-    private final transient UserPort userPort;
+    private final transient UserProfileService userProfileService;
     private final transient I18nService i18n;
     private final transient LocaleProvider localeProvider;
     private final transient AuthContextService authContextService;
@@ -72,8 +72,8 @@ public class LocaleSelectorComponent extends HorizontalLayout {
 
     private void handleLocaleChange(Locale newLocale) {
         authContextService.getCurrentUser().ifPresentOrElse(currentUser -> {
-            userPort.updateLocale(currentUser.id(), newLocale.toLanguageTag());
-            userPort.refreshCurrentUserInContext(currentUser.id());
+            userProfileService.updateLocale(currentUser.id(), newLocale.toLanguageTag());
+            userProfileService.refreshCurrentUserInContext(currentUser.id());
         }, () -> {
             UI ui = UI.getCurrent();
             if (ui != null && ui.getSession() != null) {

@@ -16,15 +16,17 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.jsoup.Jsoup;
+import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
+import org.ost.orchestrator.services.AdvertisementReadService;
+import org.ost.orchestrator.services.AttachmentMediaService;
+import org.ost.orchestrator.services.AuditQueryService;
+import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
-import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
-import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.platform.audit.spi.AuditPort;
-import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
+import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.marketplace.ui.dto.AdvertisementEditDto;
@@ -35,6 +37,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.QuillEditor;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.services.NotificationService;
@@ -43,13 +46,12 @@ import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryServi
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
-import org.ost.platform.taxon.spi.TaxonPort;
-import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
+import org.ost.orchestrator.services.AdvertisementSaveService;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
@@ -66,29 +68,33 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayModeHandler<AdvertisementEditDto>
         implements Configurable<AdvertisementFormOverlayModeHandler, AdvertisementFormOverlayModeHandler.Parameters>, I18nParams {
 
+    private static final String DATA_TESTID = "data-testid";
+
     @Value
     @lombok.Builder
     public static class Parameters {
-        AdvertisementInfoDto ad;
-        @NonNull Runnable    onSave;
-        @NonNull Runnable    onCancel;
+        AdvertisementInfoDto        ad;
+        @NonNull Runnable           onSave;
+        @NonNull Runnable           onCancel;
+        @NonNull List<BreadcrumbStep> breadcrumbSteps;
     }
 
-    private final ComponentFactory<AdvertisementPort>                          advertisementPortFactory;
+    private final AdvertisementReadService                                     advertisementReadService;
     private final AdvertisementSaveService                                     advertisementSaveService;
     private final AdvertisementMapper                                          mapper;
     private final AccessEvaluator                                              access;
     @Getter
     private final I18nService                                                  i18nService;
     private final NotificationService                                          notificationService;
-    private final ComponentFactory<AttachmentPort>                             attachmentPortFactory;
+    private final AttachmentMediaService                                       attachmentMediaService;
     private final ComponentFactory<AttachmentGalleryService>                 galleryServiceFactory;
     private final UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>>  formBinderFactory;
-    private final ComponentFactory<AuditPort>                                  auditPortFactory;
-    private final UiComponentFactory<AuditActivityPanel>                       auditActivityPanelFactory;
+    private final AuditQueryService                                             auditQueryService;
+    private final EntityActivityOverlay                                        entityActivityOverlay;
     private final OverlayAdvertisementMetaPanel                                metaPanel;
-    private final ComponentFactory<TaxonPort>                                  taxonPortFactory;
+    private final TaxonCatalogService                                          taxonCatalogService;
     private final LocaleProvider                                               localeProvider;
+    private final AdvertisementDisplayEnrichmentService                        enrichmentService;
 
     private QuillEditor descriptionField;
     private UiTextField titleField;
@@ -122,37 +128,33 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         descriptionField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION));
         descriptionField.setMaxLength(AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH);
         descriptionField.addClassName("overlay__description-rich-editor");
-        descriptionField.getElement().setAttribute("data-testid", "advertisement-overlay-field-description");
+        descriptionField.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-description");
 
-        List<TaxonDto> availableCategories = taxonPortFactory.findIfAvailable()
-                .map(p -> p.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale()))
-                .orElse(List.of());
+        List<TaxonDto> availableCategories = taxonCatalogService.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale());
         if (!availableCategories.isEmpty()) {
             categoryComboBox = new MultiSelectComboBox<>();
             categoryComboBox.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
             categoryComboBox.setItemLabelGenerator(TaxonDto::getName);
             categoryComboBox.setItems(availableCategories);
             categoryComboBox.getElement().setProperty("maxSelectedItemsCount", 10);
-            categoryComboBox.getElement().setAttribute("data-testid", "advertisement-overlay-field-categories");
+            categoryComboBox.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-categories");
         }
 
-        List<TaxonDto> availableCities = taxonPortFactory.findIfAvailable()
-                .map(p -> p.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale()))
-                .orElse(List.of());
+        List<TaxonDto> availableCities = taxonCatalogService.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale());
         if (!availableCities.isEmpty()) {
             cityComboBox = new ComboBox<>();
             cityComboBox.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_CITY));
             cityComboBox.setItemLabelGenerator(TaxonDto::getName);
             cityComboBox.setItems(availableCities);
             cityComboBox.setClearButtonVisible(true);
-            cityComboBox.getElement().setAttribute("data-testid", "advertisement-overlay-field-city");
+            cityComboBox.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-city");
         }
 
         adKindField = new RadioButtonGroup<>();
         adKindField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_AD_KIND));
         adKindField.setItems(AdKind.values());
         adKindField.setItemLabelGenerator(t -> getValue(forAdKind(t)));
-        adKindField.getElement().setAttribute("data-testid", "advertisement-overlay-field-ad-kind");
+        adKindField.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-ad-kind");
 
         AdvertisementEditDto dto = isCreate
                 ? AdvertisementEditDto.builder().adKind(AdKind.OFFER).build()
@@ -184,14 +186,14 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div content = new Div(fieldsCard);
-        attachmentPortFactory.ifAvailable(_ -> {
+        if (attachmentMediaService.isAvailable()) {
             AttachmentGalleryService ext = galleryServiceFactory.get();
             this.activeHandle = isCreate
                     ? ext.buildGalleryForCreate(EntityType.ADVERTISEMENT, java.util.UUID.randomUUID().toString())
                     : ext.buildGalleryForEdit(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()));
             activeHandle.setOnChangedListener(() -> updateButtons(true));
             content.add(activeHandle.getComponent());
-        });
+        }
 
         if (!isCreate) {
             content.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
@@ -205,35 +207,46 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
         discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));
         discardButton.addClickListener(_ -> discardChanges());
-        layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
+
+        Div headerActions = new Div(saveButton, discardButton);
+        boolean canOperate = !isCreate && access.canOperate(params.getAd().getOwnerUserId());
+        if (canOperate && auditQueryService.isAvailable()) {
+            headerActions.add(buildHistoryButton());
+        }
+        headerActions.add(closeBtn);
+        layout.setHeaderActions(headerActions);
 
         updateButtons(false);
+        layout.setContent(content);
+    }
 
-        Div tabbedContent = buildContentWithActivity(ActivityTabParams.builder()
-                .canOperate(!isCreate && access.canOperate(params.getAd().getOwnerUserId()))
-                .isCreateMode(isCreate)
-                .editTabLabel(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC))
-                .activityTabLabel(getValue(ADVERTISEMENT_ACTIVITY_TAB))
-                .tabsCssClass("adv-form-tabs")
-                .secondaryContentCssClass("entity-activity-content")
-                .editContent(content)
-                .auditPortFactory(auditPortFactory)
-                .activityContentLoader(this::buildActivityContent)
-                .build());
-        layout.setContent(tabbedContent);
+    private UiIconButton buildHistoryButton() {
+        UiIconButton historyBtn = new UiIconButton(getValue(ADVERTISEMENT_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
+        historyBtn.addClassName("advertisement-history-button");
+        historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))
+                .userId(access.getCurrentUserId())
+                .isPrivileged(access.isPrivileged())
+                .canOperate(access.canOperate(params.getAd().getOwnerUserId()))
+                .parentSteps(params.getBreadcrumbSteps())
+                .parentFormLabel(getValue(ADVERTISEMENT_OVERLAY_TITLE_EDIT))
+                .currentLabelKey(ADVERTISEMENT_ACTIVITY_BUTTON)
+                .onRestoreRequested(this::handleRestoreFromActivity)
+                .build()));
+        return historyBtn;
     }
 
     public boolean save() {
         return binder.save(dto -> {
-            this.savedId = advertisementPortFactory.findIfAvailable()
-                    .map(_ -> advertisementSaveService.save(
+            this.savedId = advertisementSaveService.isAvailable()
+                    ? advertisementSaveService.save(
                             new AdvertisementSaveDto(dto.getId(), dto.getTitle(), dto.getDescription(), dto.getAdKind(), dto.getCategoryIds(), dto.getCityTaxonId(), dto.getVersion()),
                             access.getCurrentUserId(),
-                            entityRef -> activeHandle != null ? activeHandle.commit(entityRef) : null))
-                    .orElse(null);
+                            this::commitGallery)
+                    : null;
             if (savedId != null) {
-                advertisementPortFactory.findIfAvailable()
-                        .flatMap(p -> p.findById(savedId))
+                advertisementReadService.findById(savedId)
+                        .map(ad -> enrichmentService.enrichSingle(ad, localeProvider.getCurrentLocale()))
                         .ifPresent(info -> {
                             this.savedInfoDto = info;
                             dto.setVersion(info.getVersion());
@@ -242,84 +255,59 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         });
     }
 
-    public void loadRestored(@NonNull AdvertisementEditDto restoredDto) {
-        binder.loadRestored(restoredDto, (src, tgt) -> {
-            tgt.setTitle(src.getTitle());
-            tgt.setDescription(src.getDescription());
-            tgt.setAdKind(src.getAdKind());
-            tgt.setCategoryIds(src.getCategoryIds());
-            tgt.setCityTaxonId(src.getCityTaxonId());
-        });
-        notificationService.success(FORM_RESTORE_BANNER);
-        updateButtons(true);
-        if (formTabs != null) formTabs.setSelectedTab(editTab);
+    private Long commitGallery(EntityRef entityRef) {
+        return activeHandle != null ? activeHandle.commit(entityRef) : null;
     }
 
-    private com.vaadin.flow.component.Component buildActivityContent() {
-        return auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
-                .entityRef(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))
-                .userId(access.getCurrentUserId())
-                .isPrivileged(access.isPrivileged())
-                .canOperate(access.canOperate(params.getAd().getOwnerUserId()))
-                .onRestoreRequested(this::handleRestoreFromActivity)
-                .build());
+    public void loadRestored(@NonNull AdvertisementEditDto restoredDto) {
+        binder.loadRestored(restoredDto, this::copyEditFields);
+        notificationService.success(FORM_RESTORE_BANNER);
+        updateButtons(true);
     }
 
     private void handleRestoreFromActivity(Long snapshotId) {
-        auditPortFactory.ifAvailable(port ->
-                port.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT, AdvertisementSnapshotDto.class)
-                        .ifPresent(content -> {
-                            AdvertisementSnapshotDto snapshot = content.snapshotData();
-                            AdvertisementEditDto dto = mapper.toAdvertisementEdit(params.getAd());
-                            dto.setTitle(snapshot.title());
-                            dto.setDescription(snapshot.description());
-                            dto.setAdKind(snapshot.adKind());
-                            dto.setCategoryIds(snapshot.categoryIds() != null
-                                    ? new java.util.HashSet<>(snapshot.categoryIds()) : new java.util.HashSet<>());
-                            dto.setCityTaxonId(snapshot.cityTaxonId());
-                            loadRestored(dto);
-                            if (activeHandle != null) activeHandle.loadFromSnapshotId(snapshot.attachmentSnapshotId());
-                        })
-        );
+        auditQueryService.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT, AdvertisementSnapshotDto.class)
+                .ifPresent(content -> {
+                    AdvertisementSnapshotDto snapshot = content.snapshotData();
+                    AdvertisementEditDto dto = mapper.toAdvertisementEdit(params.getAd());
+                    dto.setTitle(snapshot.title());
+                    dto.setDescription(snapshot.description());
+                    dto.setAdKind(snapshot.adKind());
+                    dto.setCategoryIds(snapshot.categoryIds() != null
+                            ? new java.util.HashSet<>(snapshot.categoryIds()) : new java.util.HashSet<>());
+                    dto.setCityTaxonId(snapshot.cityTaxonId());
+                    loadRestored(dto);
+                    if (activeHandle != null) activeHandle.loadFromSnapshotId(snapshot.attachmentSnapshotId());
+                });
     }
 
     public void discardChanges() {
         if (params.getAd() == null) {
-            binder.reload(AdvertisementEditDto.builder().adKind(AdKind.OFFER).build(), (src, tgt) -> {
-                tgt.setTitle(src.getTitle());
-                tgt.setDescription(src.getDescription());
-                tgt.setAdKind(src.getAdKind());
-                tgt.setCategoryIds(src.getCategoryIds());
-                tgt.setCityTaxonId(src.getCityTaxonId());
-            });
+            binder.reload(AdvertisementEditDto.builder().adKind(AdKind.OFFER).build(), this::copyEditFields);
             updateButtons(false);
             if (activeHandle != null) activeHandle.discard();
             return;
         }
-        advertisementPortFactory.findIfAvailable()
-                .flatMap(p -> p.findById(params.getAd().getId()))
+        advertisementReadService.findById(params.getAd().getId())
+                .map(ad -> enrichmentService.enrichSingle(ad, localeProvider.getCurrentLocale()))
                 .ifPresent(freshAd -> {
                     AdvertisementEditDto fresh = mapper.toAdvertisementEdit(freshAd);
-                    binder.reload(fresh, (src, tgt) -> {
-                        tgt.setTitle(src.getTitle());
-                        tgt.setDescription(src.getDescription());
-                        tgt.setAdKind(src.getAdKind());
-                        tgt.setCategoryIds(src.getCategoryIds());
-                        tgt.setCityTaxonId(src.getCityTaxonId());
-                    });
+                    binder.reload(fresh, this::copyEditFields);
                     updateButtons(false);
                 });
         if (activeHandle != null) activeHandle.discard();
     }
 
+    private void copyEditFields(AdvertisementEditDto src, AdvertisementEditDto tgt) {
+        tgt.setTitle(src.getTitle());
+        tgt.setDescription(src.getDescription());
+        tgt.setAdKind(src.getAdKind());
+        tgt.setCategoryIds(src.getCategoryIds());
+        tgt.setCityTaxonId(src.getCityTaxonId());
+    }
+
     public void afterSave(boolean success) {
-        if (success) {
-            updateButtons(false);
-            if (formTabs != null) formTabs.setSelectedTab(editTab);
-            if (tabbedSecondaryContent != null) tabbedSecondaryContent.removeAll();
-        } else {
-            updateButtons(true);
-        }
+        updateButtons(!success);
     }
 
     private void updateButtons(boolean hasChanges) {
@@ -327,6 +315,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         discardButton.setEnabled(hasChanges);
         BeforeUnloadUtil.sync(hasChanges);
     }
+
 
     private void buildBinder(AdvertisementEditDto dto, List<TaxonDto> availableCategories, List<TaxonDto> availableCities) {
         binder = formBinderFactory.build(

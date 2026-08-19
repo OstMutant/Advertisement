@@ -8,14 +8,14 @@ import jakarta.annotation.PostConstruct;
 import lombok.NonNull;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import org.ost.orchestrator.services.AuditQueryService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
-import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.Initialization;
-import org.ost.platform.core.ComponentFactory;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -39,7 +39,7 @@ public class AuditActivityPanel extends Div
     }
 
     private final transient I18nService                                i18n;
-    private final transient ComponentFactory<AuditPort>                auditPortFactory;
+    private final transient AuditQueryService                           auditQueryService;
     private final transient ComponentFactory<AuditActivityListRenderer> listRendererFactory;
 
     @Override
@@ -51,11 +51,10 @@ public class AuditActivityPanel extends Div
 
     @Override
     public AuditActivityPanel configure(@NonNull Parameters p) {
-        AuditPort auditPort = auditPortFactory.get();
-        AuditableSnapshot currentSnapshot = auditPort
+        AuditableSnapshot currentSnapshot = auditQueryService
                 .getLastSnapshot(p.getEntityRef().entityType(), p.getEntityRef().entityId())
                 .orElse(null);
-        List<AuditActivityItemDto<? extends AuditableSnapshot>> items = auditPort
+        List<AuditActivityItemDto<? extends AuditableSnapshot>> items = auditQueryService
                 .getEntityActivity(p.getEntityRef().entityType(), p.getEntityRef().entityId(), p.getUserId(), p.isPrivileged());
         if (items.isEmpty()) {
             add(emptyState());

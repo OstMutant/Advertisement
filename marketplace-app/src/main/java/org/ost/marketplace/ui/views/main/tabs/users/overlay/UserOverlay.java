@@ -8,12 +8,14 @@ import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -46,6 +48,9 @@ public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandle
 
     @Override protected String  getOverlayCssClass()   { return "user-overlay"; }
     @Override protected I18nKey getBreadcrumbLabelKey() { return MAIN_TAB_USERS; }
+
+    @Override protected boolean isEditMode()      { return session.mode() == Mode.EDIT; }
+    @Override protected boolean enteredFromView() { return session.enteredFromView(); }
 
     @Override
     protected SaveConfig saveConfig() {
@@ -93,6 +98,8 @@ public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandle
     @Override
     protected void switchTo() {
         currentFormHandler = null;
+        List<BreadcrumbStep> breadcrumbSteps = buildBreadcrumbSteps();
+        layout.setBreadcrumbLinks(buildBreadcrumbLinks(breadcrumbSteps));
         OverlayModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerFactory.build(
                     UserViewOverlayModeHandler.Parameters.builder()
@@ -106,6 +113,7 @@ public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandle
                                 .user(session.user())
                                 .onSave(this::handleSave)
                                 .onCancel(this::handleCancel)
+                                .breadcrumbSteps(breadcrumbSteps)
                                 .build());
                 yield currentFormHandler;
             }
@@ -113,8 +121,7 @@ public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandle
 
         handler.activate(layout);
 
-        layout.getBreadcrumbCurrent().setText(session.mode() == Mode.EDIT ? session.user().name() : "");
-        layout.getBreadcrumbCurrent().setVisible(session.mode() == Mode.EDIT);
+        layout.getBreadcrumbCurrent().setText(session.mode() == Mode.EDIT ? session.user().name() : i18n().get(OVERLAY_BREADCRUMB_VIEW));
     }
 
     private void switchToEdit() {

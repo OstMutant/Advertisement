@@ -26,6 +26,20 @@
     letter-spacing: 0.08em;
 }
 
+/* Accent color matching the AdKind badge -- see advertisement-card.css's badges (view mode only) */
+.attachment-gallery--offer {
+    border-top-color: var(--app-status-success-badge-text) !important;
+}
+
+.attachment-gallery--request {
+    border-top-color: var(--app-status-info-text) !important;
+}
+
+.attachment-gallery--product {
+    border-top-color: var(--app-status-entity-advertisement-text) !important;
+}
+
+
 .attachment-gallery__thumbnails {
     display: flex;
     flex-direction: row;

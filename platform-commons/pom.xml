@@ -16,6 +16,10 @@
     <name>Platform Commons</name>
     <description>Shared Kernel — stable platform abstractions, SPI interfaces, cross-module DTOs, i18n primitives</description>
 
+    <properties>
+        <architecture.boundedContext>shared</architecture.boundedContext>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

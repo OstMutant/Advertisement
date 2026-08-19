@@ -1,4 +1,5 @@
 const { screenshot } = require('../_helpers');
+const { selectCategoryInAdForm } = require('./category.flow');
 
 async function cancelDeleteDialog(page) {
   await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
@@ -24,12 +25,13 @@ async function confirmDeleteDialog(page) {
   await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
 }
 
-async function runCreateSimpleAdvertisementFlow(page, { title, description, screenshotPrefix }) {
+async function runCreateSimpleAdvertisementFlow(page, { title, description, screenshotPrefix, categories = [] }) {
   await page.locator('.add-advertisement-button').click();
   const overlay = page.locator('.advertisement-overlay');
   await overlay.waitFor({ timeout: 5000 });
   await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
   await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(description);
+  for (const cat of categories) await selectCategoryInAdForm(page, overlay, cat);
   await screenshot(page, `${screenshotPrefix}-form-filled`);
   await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 10000 });

@@ -1,10 +1,13 @@
 Scaffold a new tracked issue in `backlog/issues/` from the standard template, then rank it in
-`backlog/BACKLOG.md`'s priority table — implements improvement-034.
+`backlog/BACKLOG.md`'s priority table.
 
 Usage: /feature <short description or title>
 Example: /feature UserPickerField pagination bug with CallbackDataProvider offset math
 
 Steps:
+0. Check `docs/ai/adr-index.md` (if present) for an already-decided ADR overlapping this request —
+   mandatory, before drafting. Do not file an issue that re-opens a settled decision without
+   noting it.
 1. Determine the prefix (default `improvement` — the dominant convention; use `goal` only if the
    user explicitly frames this as a new capability/epic rather than a fix/improvement, or `feature`
    only if the user explicitly says "feature"). Determine the next available number by scanning

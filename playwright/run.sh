@@ -23,8 +23,8 @@ done
 
 # ── Ensure marketplace-app is running ──────────────────────────────────────
 # All names/ports below are overridable via env vars (default shown), so a second, isolated
-# stack (see scripts/deploy.sh's own override block) can run this same script concurrently with
-# a normal dev stack — used by scripts/ci/entrypoint.sh (improvement-059).
+# stack (see scripts/deploy-and-run.sh's own override block) can run this same script concurrently with
+# a normal dev stack — used by scripts/ci/dagu/ci.yaml's e2e step.
 APP_URL="${APP_URL:-http://localhost:8081}"
 APP_CONTAINER="${APP_CONTAINER:-marketplace-app}"
 PW_CONTAINER="${PW_CONTAINER:-pw-runner}"
@@ -33,14 +33,14 @@ DB_USER="${DB_USER:-experiments_user}"
 DB_NAME="${DB_NAME:-experiments}"
 
 # Playwright version must match image (see playwright/CLAUDE.md) -- one place to bump both
-# instead of two independent literals in the same file (improvement-044).
+# instead of two independent literals in the same file.
 PLAYWRIGHT_VERSION="1.61.1"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
 
 if ! docker inspect "$APP_CONTAINER" &>/dev/null; then
   echo "ERROR: Container '$APP_CONTAINER' not found. Build and start it:"
   echo "  docker build -f Dockerfile -t marketplace-app ."
-  echo "  docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml up -d"
+  echo "  docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.minio.yml up -d"
   echo "  docker run -d --name marketplace-app --network host \\"
   echo "    -e SPRING_PROFILES_ACTIVE=prod -e DB_HOST=localhost -e DB_PORT=5432 \\"
   echo "    -e DB_NAME=experiments -e DB_USER=experiments_user \\"
@@ -87,9 +87,7 @@ if [ -n "$DB_CONTAINER" ]; then
   else
     echo "Database has data — stopping app, resetting, restarting..."
     docker stop "$APP_CONTAINER" >/dev/null
-    docker cp /app/scripts/database/reset-clean.sql "$DB_CONTAINER":/tmp/pw-reset.sql 2>/dev/null
-    docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
-      -f /tmp/pw-reset.sql -q 2>/dev/null && echo "Database reset (clean)."
+    DB_NAME="$DB_NAME" DB_USER="$DB_USER" bash /app/scripts/deploy-and-run/reset.sh --container "$DB_CONTAINER"
     RESTART_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     docker start "$APP_CONTAINER" >/dev/null
     echo "Waiting for application to restart..."
@@ -141,7 +139,6 @@ if [ -d /app/playwright/e2e/_flows ]; then
 fi
 [ -f /app/playwright/e2e/_helpers.js ] && docker cp /app/playwright/e2e/_helpers.js "$PW_CONTAINER":/tmp/e2e/
 docker cp /app/playwright/playwright.config.js "$PW_CONTAINER":/tmp/
-docker cp /app/playwright/reporter.js "$PW_CONTAINER":/tmp/
 
 # ── Build run command ─────────────────────────────────────────────────────────
 # APP_URL must be forwarded explicitly -- playwright.config.js reads it from the pw-runner
@@ -181,10 +178,5 @@ EXIT_CODE=$?
 mkdir -p /app/playwright/pw-report
 docker cp "$PW_CONTAINER":/tmp/pw-report/. /app/playwright/pw-report/ 2>/dev/null && \
   echo "HTML report: /app/playwright/pw-report/index.html"
-
-# ── Update test coverage ──────────────────────────────────────────────────────
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-docker cp "$PW_CONTAINER":/tmp/pw-live.log /tmp/pw-live.log 2>/dev/null || true
-bash "$ROOT/scripts/update-test-coverage.sh" /tmp/pw-live.log || true
 
 exit $EXIT_CODE

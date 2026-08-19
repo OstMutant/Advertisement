@@ -11,12 +11,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 
-public record UserPrincipal(User user) implements UserDetails, AuthenticatedPrincipal {
+public record UserPrincipal(User user, String locale) implements UserDetails, AuthenticatedPrincipal {
 
     @Override
     public UserDto toUserDto() {
-        return new UserDto(user.getId(), user.getName(), user.getEmail(),
-                user.getRole(), user.getCreatedAt(), user.getUpdatedAt(), user.getLocale(), user.getVersion());
+        return user.toDto();
     }
 
     @Override

@@ -3,7 +3,7 @@
 **Type:** verification — manual, inherently not automatable
 **Module:** `marketplace-app` (`config/seo/OgMetaRequestListener.java`), none — no code change
 expected unless the check fails
-**Priority:** high — this is the "day-1 binary gate" the F-01 spec itself calls non-negotiable;
+**Priority:** 🟡 high — this is the "day-1 binary gate" the F-01 spec itself calls non-negotiable;
 until it passes, the whole OG feature (improvement-117) is unconfirmed in the one environment
 that actually matters
 **When:** independent, no blockers — needs only a publicly reachable deployment

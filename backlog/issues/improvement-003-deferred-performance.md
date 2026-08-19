@@ -2,7 +2,7 @@
 
 **Type:** improvement — deferred, negligible impact at current scale
 **Module:** audit-spring-boot-starter
-**Priority:** low — revisit only when triggers are met
+**Priority:** ⚪ low — revisit only when triggers are met
 **When:** Deferred — per-item triggers below
 
 ## Items

@@ -1,6 +1,7 @@
 package org.ost.audit.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -73,11 +74,12 @@ public class AuditLogRepository {
     @Qualifier("auditObjectMapper") private final ObjectMapper objectMapper;
     private final JdbcClient                                   jdbcClient;
     private final ProjectionMapper                             projectionMapper;
+    private final SnapshotContentMapper                        snapshotContentMapper;
 
     // ── Write ─────────────────────────────────────────────────────────────────
 
-    public void save(EntityType entityType, Long entityId, ActionType actionType,
-                     AuditableSnapshot snapshotData, Long actorId) {
+    public void save(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull ActionType actionType,
+                     @NonNull AuditableSnapshot snapshotData, Long actorId) {
         jdbcClient.sql("""
                         INSERT INTO audit_log (entity_type, entity_id, action_type, snapshot_data, actor_id)
                         VALUES (:entityType, :entityId, :actionType, :snapshotData, :actorId)
@@ -98,7 +100,7 @@ public class AuditLogRepository {
 
     // ── Read — generic rows ───────────────────────────────────────────────────
 
-    public List<AuditLogProjection> findRows(EntityType entityType, Long entityId, Long filterActorId, int limit) {
+    public List<AuditLogProjection> findRows(@NonNull EntityType entityType, @NonNull Long entityId, Long filterActorId, int limit) {
         return jdbcClient.sql("""
                         WITH numbered AS (
                             SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
@@ -123,7 +125,7 @@ public class AuditLogRepository {
                          .list();
     }
 
-    public List<AuditLogProjection> findTimeline(AuditTimelineFilterDto filter, Sort sort, int page, int size) {
+    public List<AuditLogProjection> findTimeline(@NonNull AuditTimelineFilterDto filter, @NonNull Sort sort, int page, int size) {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("limit",  size)
                 .addValue("offset", (long) page * size);
@@ -146,7 +148,7 @@ public class AuditLogRepository {
         return jdbcClient.sql(sql).paramSource(params).query(projectionMapper).list();
     }
 
-    public int countTimeline(AuditTimelineFilterDto filter) {
+    public int countTimeline(@NonNull AuditTimelineFilterDto filter) {
         MapSqlParameterSource params = new MapSqlParameterSource();
         String sql = "SELECT COUNT(*) FROM audit_log al WHERE 1=1%s"
                 .formatted(FILTER.build(params, filter, " AND "));
@@ -155,7 +157,7 @@ public class AuditLogRepository {
 
     // ── Read — snapshot-specific (used by DefaultAuditPort for restore flows) ─
 
-    public Optional<AuditableSnapshot> getLastSnapshot(EntityType entityType, Long entityId) {
+    public Optional<AuditableSnapshot> getLastSnapshot(@NonNull EntityType entityType, @NonNull Long entityId) {
         return jdbcClient.sql("""
                         SELECT snapshot_data::text FROM audit_log
                         WHERE entity_type = :entityType AND entity_id = :entityId
@@ -169,7 +171,7 @@ public class AuditLogRepository {
                          .map(json -> ProjectionMapper.parseSnapshot(objectMapper, json));
     }
 
-    public Optional<AuditSnapshotContentDto<? extends AuditableSnapshot>> getSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<AuditSnapshotContentDto<? extends AuditableSnapshot>> getSnapshotContent(@NonNull Long snapshotId, @NonNull EntityType entityType) {
         return jdbcClient.sql("""
                         SELECT a.snapshot_data::text AS snapshot_data,
                                (SELECT COUNT(*) FROM audit_log b
@@ -180,19 +182,14 @@ public class AuditLogRepository {
                         WHERE a.id = :id AND a.entity_type = :entityType
                         """)
                          .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("entityType", entityType.name()))
-                         .query(snapshotContentMapper())
+                         .query(snapshotContentMapper)
                          .optional();
     }
 
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private RowMapper<AuditSnapshotContentDto<? extends AuditableSnapshot>> snapshotContentMapper() {
-        return (rs, _) -> new AuditSnapshotContentDto<>(ProjectionMapper.parseSnapshot(objectMapper, rs.getString("snapshot_data")), rs.getInt("version"));
-    }
-
     private String toSnapshotJson(AuditableSnapshot snapshot) {
-        if (snapshot == null) return null;
         try {
             return objectMapper.writerFor(AuditableSnapshot.class).writeValueAsString(snapshot);
         } catch (Exception e) {
@@ -236,6 +233,18 @@ public class AuditLogRepository {
                 log.warn("Failed to deserialize snapshot: {}", json.substring(0, Math.min(json.length(), 120)), e);
                 return null;
             }
+        }
+    }
+
+    @Component
+    @RequiredArgsConstructor
+    static class SnapshotContentMapper implements RowMapper<AuditSnapshotContentDto<? extends AuditableSnapshot>> {
+
+        @Qualifier("auditObjectMapper") private final ObjectMapper objectMapper;
+
+        @Override
+        public AuditSnapshotContentDto<? extends AuditableSnapshot> mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
+            return new AuditSnapshotContentDto<>(ProjectionMapper.parseSnapshot(objectMapper, rs.getString("snapshot_data")), rs.getInt("version"));
         }
     }
 

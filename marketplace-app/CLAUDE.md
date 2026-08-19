@@ -69,8 +69,8 @@ componentFactory.build(MyPanel.Parameters.builder().entityId(id).onSave(onSave).
 
 Detailed cross-cutting rules for the Overlay pattern (OverlaySession, switchTo vs launchSession,
 currentFormHandler reset, afterSave update), View pattern (init() structure, refresh() guard),
-Query Layer (FilterMeta/SortMeta Fields.* constants), and Form Handler pattern (buildTabbedContent,
-buildBinder) are documented in: @../.claude/rules.md
+Query Layer (FilterMeta/SortMeta Fields.* constants), Form Handler pattern (buildBinder, history
+button), and Breadcrumb pattern (BreadcrumbStep) are documented in: @../.claude/rules.md
 
 ---
 
@@ -84,7 +84,7 @@ Translation keys — single consolidated enum:
 **Rules:**
 - Never use raw `MessageSource` directly in UI components — use `I18nService.get(I18nKey)`.
 - Never use `msg(String key, String fallback)` — missing keys must fail fast, not silently fall back.
-- Never build keys dynamically: `"changes.field." + fieldName` — use typed enum with explicit mapping.
+- Never build keys dynamically: `"changes.field." + fieldName` — use typed enum with explicit mapping. `AuditTimelineRowRenderer`'s `labelFor(EntityType, String rawFieldKey)` is the one place resolving a raw DTO field-name constant to its label — a `switch` on the already-compiler-checked `Fields.*` constant, not a dynamically-built key, so it already follows this rule rather than needing an exception.
 - `I18nParams` interface: implement `getI18nService()` to get `getValue(I18nKey, ...)` and `formatAction(ActionType)` as defaults.
 
 ---
@@ -101,13 +101,13 @@ Translation keys — single consolidated enum:
   next bullet). Any *new* non-Vaadin REST controller must add the same kind of explicit rule for
   its own path prefix, following this precedent.
 - `SecurityConfig` uses `anyRequest().permitAll()` at the URL layer — deny-by-default does not
-  apply to this app's single-route Vaadin SPA model (see `DECISIONS.md` ADR-025).
+  apply to this app's single-route Vaadin SPA model (see `docs/ai/adr-index.md`).
 - Login (`AuthService.login()`) and registration (`UserPort.register()` → `UserService.register()`)
   are rate-limited via an in-memory Caffeine cache (5 attempts / 15 min), counting only real
-  failures — never successes (see `DECISIONS.md` ADR-026).
+  failures — never successes (see `docs/ai/adr-index.md`).
 - `application-prod.yml` sets `server.forward-headers-strategy: framework` — required for
   `request.getRemoteAddr()` to resolve the real client IP behind Render's proxy, not Render's
-  own internal edge address (see `DECISIONS.md` ADR-027).
+  own internal edge address (see `docs/ai/adr-index.md`).
 
 ---
 
@@ -125,11 +125,10 @@ Translation keys — single consolidated enum:
 
 ### Package structure
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/`, `config/seo/` for sub-domains)
-- `services/advertisement/` — advertisement UI-side orchestration (`AdvertisementSaveService` — transactional save + audit capture, `AdvertisementEnrichService` — category-name resolution for audit diffs)
 - `services/auth/` — authentication (`AuthService` — login/logout + rate limiting, `AuthContextService` — current-user context)
 - `services/i18n/` — `I18nKey` enum, `I18nService`, `I18nServiceImpl`, `LocaleProvider`, `InstantFormatter`
-- `services/security/` — `AccessEvaluator` (role/ownership checks live in user-spring-boot-starter's `org.ost.user.security` — `RoleChecker`, `OwnershipChecker`)
-- `spi/` — hook implementations (`CurrentActorHookImpl`, `AuditDomainHookImpl`, `*ActivityFieldsHookImpl`, `ActivityEnrichHookImpl`)
+- `services/security/` — `AccessEvaluator` (role/ownership checks live in `user-spring-boot-starter` — see this module's own `README.md` "Responsibilities" section)
+- `spi/` — thin, dedicated forwarders over a UI-shell resource, implementing the `UiLabelHook`/`SessionActorHook`/`CurrentLocaleHook` SPIs that `marketplace-orchestrator`'s own `AuditDomainHookImpl`/`CurrentActorHookImpl`/`ActivityEnrichHookImpl` call through — see `marketplace-orchestrator/CLAUDE.md`'s "Forwarder SPI pattern" for the full table. `UiLabelHookImpl` wraps `I18nService` (`translateActorDeletedSuffix`, `labelFor(AdKind)`, `markDeleted(String)` — wraps a name in strikethrough markup, `noMediaPlaceholder()` — one interface, since all four wrap the same resource or produce presentation output); `SessionActorHookImpl` wraps `AuthContextService`; `CurrentLocaleHookImpl` wraps `LocaleProvider`. Two more forwarder SPIs are implemented directly by an existing class in its own natural package instead of a dedicated `spi/` wrapper, since each already owns the wrapped resource: `SettingsPaginationService` (`ui/views/services/pagination/`) implements `SettingsChangeHook`; `AuthContextService` (`services/auth/`) implements `CurrentUserHook` against `SecurityContextHolder`. `AuditActivityEnrichHook`'s only real implementation, `ActivityEnrichHookImpl`, now lives in `marketplace-orchestrator` (not here) — see that module's `CLAUDE.md`.
 - `rest/` — non-Vaadin REST controllers (`HealthController` only today)
 - `ui/core/` — `Configurable<T,P>`, `Initialization<T>`, `UiComponentFactory<T>`, `PaginationDefaults`
 - `ui/dto/` — `Identifiable` and other shared UI DTOs

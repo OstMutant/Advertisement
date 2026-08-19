@@ -29,7 +29,7 @@
 # Streams full Maven/Testcontainers output live. Requires a reachable Docker daemon — see
 # integration-tests/CLAUDE.md.
 #
-# Automatic staleness check (default, no flag needed — see DECISIONS.md ADR-007):
+# Automatic staleness check (default, no flag needed — see docs/ai/adr-index.md):
 # integration-tests depends on platform-commons/advertisement-/user-/taxon-/audit-spring-boot-starter
 # as real compiled JARs from ~/.m2, not source. Before testing, this script compares each of those
 # modules' newest .java file against its installed JAR's mtime; if any source is newer (or the JAR
@@ -54,7 +54,7 @@ for arg in "$@"; do
   fi
 done
 
-# CI-environment guard (improvement-047): --sandbox and the sandbox-only env vars it sets are
+# CI-environment guard: --sandbox and the sandbox-only env vars it sets are
 # workarounds for this specific claude-dev sandbox's Docker networking limitations (see
 # scripts/CLAUDE.md "Unit / Testcontainers Tests") -- never needed, and never correct, on a real
 # CI runner with normal Docker networking. Fail fast instead of letting someone copy-paste a
@@ -67,7 +67,7 @@ if [ -n "$GITHUB_ACTIONS" ] && { [ -n "$SANDBOX" ] || [ -n "$TESTCONTAINERS_RYUK
   exit 1
 fi
 
-# Docker daemon precheck (improvement-047): fail with a clear message here instead of letting the
+# Docker daemon precheck: fail with a clear message here instead of letting the
 # failure surface deep inside Testcontainers' own (slower, less clear) connection probing.
 if ! docker info >/dev/null 2>&1; then
   echo "ERROR: Docker daemon not reachable. integration-tests requires a running Docker daemon" \
@@ -96,7 +96,7 @@ if [ -n "$NO_CHECK" ]; then
   echo "Applying --no-check: skipping the staleness check — testing against whatever is already" \
        "in ~/.m2, even if stale."
 else
-  STARTER_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter audit-spring-boot-starter attachment-spring-boot-starter"
+  STARTER_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter audit-spring-boot-starter attachment-spring-boot-starter provider-profile-spring-boot-starter"
   NEEDS_INSTALL=""
   for m in $STARTER_MODULES; do
     JAR="$(find "$HOME/.m2/repository/org/ost/$m" -name '*.jar' 2>/dev/null | head -1)"
@@ -131,7 +131,7 @@ rm -f "$LOG_FILE"
 rm -rf "$REPORT_DIR/surefire"
 
 # -Dsurefire.excludedGroups= (empty) overrides the pom's default "testcontainers" exclusion --
-# this script's whole purpose is running these Docker-backed tests deliberately (improvement-047).
+# this script's whole purpose is running these Docker-backed tests deliberately.
 echo "Running: env ${ENV_PREFIX[*]} ./mvnw -pl integration-tests test -Dsurefire.excludedGroups= $TEST_ARG"
 env "${ENV_PREFIX[@]}" ./mvnw -pl integration-tests test -Dsurefire.excludedGroups= $TEST_ARG 2>&1 | tee "$LOG_FILE"
 EXIT_CODE=${PIPESTATUS[0]}

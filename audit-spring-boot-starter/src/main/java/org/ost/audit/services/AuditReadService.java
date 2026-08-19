@@ -1,5 +1,6 @@
 package org.ost.audit.services;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.audit.repository.AuditLogProjection;
@@ -35,8 +36,8 @@ public class AuditReadService {
     // ── History ───────────────────────────────────────────────────────────────
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public List<AuditActivityItemDto<? extends AuditableSnapshot>> getEntityActivity(EntityType entityType, Long entityId,
-                                                      Long currentUserId, boolean showAll) {
+    public List<AuditActivityItemDto<? extends AuditableSnapshot>> getEntityActivity(@NonNull EntityType entityType, @NonNull Long entityId,
+                                                      @NonNull Long currentUserId, boolean showAll) {
         List<AuditLogProjection> rows = withSameTypePrevSnapshot(
                 repository.findRows(entityType, entityId, showAll ? null : currentUserId, ENTITY_ACTIVITY_MAX_ROWS));
         List items = rows.stream().map(this::toActivityItem).toList();
@@ -48,14 +49,14 @@ public class AuditReadService {
         return items;
     }
 
-    public Optional<AuditableSnapshot> getLastSnapshot(EntityType entityType, Long entityId) {
+    public Optional<AuditableSnapshot> getLastSnapshot(@NonNull EntityType entityType, @NonNull Long entityId) {
         return repository.getLastSnapshot(entityType, entityId);
     }
 
     // ── Activity ──────────────────────────────────────────────────────────────
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public List<AuditTimelineItemDto<AuditableSnapshot>> getTimelinePage(AuditTimelineFilterDto filter, Sort sort, int page, int size) {
+    public List<AuditTimelineItemDto<AuditableSnapshot>> getTimelinePage(@NonNull AuditTimelineFilterDto filter, @NonNull Sort sort, int page, int size) {
         List items = repository.findTimeline(filter, sort, page, size).stream().map(this::toTimelineItem).toList();
         for (AuditActivityEnrichHook hook : activityEnrichHooks) {
             items = hook.merge(items);
@@ -63,7 +64,7 @@ public class AuditReadService {
         return items;
     }
 
-    public int countTimeline(AuditTimelineFilterDto filter) {
+    public int countTimeline(@NonNull AuditTimelineFilterDto filter) {
         return repository.countTimeline(filter);
     }
 

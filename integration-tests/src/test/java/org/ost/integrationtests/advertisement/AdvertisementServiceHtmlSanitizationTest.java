@@ -8,12 +8,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.advertisement.entity.Advertisement;
 import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.advertisement.services.AdvertisementService;
+import org.ost.integrationtests.support.AdvertisementServiceTestSupport;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.model.AdKind;
-import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.spi.TaxonPort;
-import org.ost.platform.user.spi.UserPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -24,10 +23,10 @@ import static org.mockito.Mockito.when;
  * OWASP {@code Sanitizers.FORMATTING.and(LINKS).and(BLOCKS)} plus a Jsoup visible-text-length
  * check (two distinct limits: {@link AdvertisementSaveDto#DESCRIPTION_MAX_LENGTH} for the
  * sanitized visible text, {@link AdvertisementSaveDto#DESCRIPTION_RAW_MAX_LENGTH} for the raw
- * HTML payload — see {@code marketplace-app/DECISIONS.md} ADR-024/ADR-031). Both {@code
+ * HTML payload — see {@code docs/ai/adr-index.md} for the two-limit split rationale). Both {@code
  * sanitizeHtml()} and {@code buildEntity()} are {@code private static} — tested through the real
- * public {@link AdvertisementService#save} entry point instead, per {@code
- * integration-tests/DECISIONS.md} ADR-008.
+ * public {@link AdvertisementService#save} entry point instead, per the private-method-testing
+ * policy in {@code docs/ai/adr-index.md}.
  *
  * <p>No Spring context, no Testcontainers — {@link AdvertisementRepository} and every {@code
  * ComponentFactory} dependency are mocked directly (same shape as {@code UserServiceTest} in this
@@ -40,14 +39,10 @@ class AdvertisementServiceHtmlSanitizationTest {
     @Mock
     private AdvertisementRepository repository;
     @Mock
-    private ComponentFactory<AttachmentPort> attachmentPortFactory;
-    @Mock
     private ComponentFactory<TaxonPort> taxonPortFactory;
-    @Mock
-    private ComponentFactory<UserPort> userPortFactory;
 
     private AdvertisementService newService() {
-        return new AdvertisementService(repository, attachmentPortFactory, taxonPortFactory, userPortFactory);
+        return AdvertisementServiceTestSupport.newService(repository, taxonPortFactory);
     }
 
     @Test

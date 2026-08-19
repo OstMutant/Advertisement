@@ -10,10 +10,16 @@ decision below), `platform-commons` (new `actorprofile.*` packages, new
 `EntityType.ACTOR_PROFILE`), `marketplace-app` (new Providers tab/view/overlay, unified account
 overlay, header entry points, OG/sitemap extension), `services/security/AccessEvaluator` (new
 narrower check).
-**Priority:** high — first item of Phase 2 ("Supply + demand side"), the object reviews (F-06)
+**Priority:** 🟡 high — first item of Phase 2 ("Supply + demand side"), the object reviews (F-06)
 and verification (F-07) attach to for masters/shops.
-**When:** blocked on [improvement-002](improvement-002-snapshot-schema-versioning.md) landing
-first, same batch — `ActorProfileSnapshotDto` ships with `@SchemaVersion` from day one.
+**When:** improvement-002 landed 2026-07-28 — unblocked. `ActorProfileSnapshotDto` ships with the
+real versioning pattern from day one: a plain `int schemaVersion` record component (last position)
++ `SCHEMA_VERSION = 1` constant + a legacy-arity delegating constructor, exactly matching
+`AdvertisementSnapshotDto` (see `platform-commons/DECISIONS.md` ADR-024). **Not** a `@SchemaVersion`
+annotation — that design was tried and explicitly reverted during improvement-002 itself; every
+`@SchemaVersion` mention below is corrected accordingly (verified directly against
+`AuditableSnapshot.java` and `AdvertisementSnapshotDto.java` — the interface has a bare
+`int schemaVersion()` method, no annotation exists anywhere in the codebase).
 
 ## Problem
 
@@ -73,6 +79,65 @@ row also carries locale/settings, removing someone's provider status means nulli
 preferences too. `ActorProfileService`'s "remove provider
 profile" operation must be an update, not a delete.
 
+## Update 2026-07-31 — module/table split reconsidered, supersedes the "one table" decision above
+
+Re-discussed with the user before implementation began. The single-table/single-module design
+above is **superseded** by a 3-table, 2-module split — the merge rationale (`kind IS NOT NULL` as
+the provider-profile existence check, eager row creation at registration) no longer applies.
+
+**Three tables, not one:**
+1. `user_information` (`user-spring-boot-starter`, unchanged) — auth only: email, password hash,
+   role, name.
+2. `user_preferences` (`user-spring-boot-starter`, new — second entity/repository/service in the
+   same module, same shape as the existing `UserProfileUpdate` precedent) — `locale`, `settings`
+   JSONB, `version`. Created eagerly at registration (every actor needs preferences regardless of
+   provider status), same as today.
+3. `provider_profile` (new `provider-profile-spring-boot-starter` module) — `kind` (now
+   **`NOT NULL`**, not nullable — see below), `about`, `city_taxon_id`, `version`. Created
+   **lazily**, only on first "become a provider" save — never eagerly at registration.
+
+**Two modules, not one new one:**
+- `user-spring-boot-starter` absorbs preferences as a second entity/repository/service (mirrors
+  `UserProfileUpdate`) — no new module for this half, since it has no independent
+  toggle/removability need and shares the registration transaction with auth.
+- New `provider-profile-spring-boot-starter` owns only the provider-facing catalog entity — this
+  is the half that behaves like a sibling of `Advertisement` (public catalog, filters, OG/sitemap,
+  portfolio, future reviews/verification), and is the one plausible candidate for independent
+  removal later.
+
+**Simplification this unlocks — lazy creation, `kind NOT NULL`, no existence-guard duplication.**
+Since `provider_profile` no longer also carries preferences, there is no longer a reason to create
+a row for every actor at registration. A row is only created when an actor first opts in as a
+provider, with `kind` supplied at creation time (the create form's `RadioButtonGroup<ProviderKind>`
+already collects this). Consequence: `kind` becomes `NOT NULL`, "does this actor have a provider
+profile" becomes "does a row exist for this `actor_id`" (a plain `findByActorId().isPresent()`),
+and the `kind IS NOT NULL` guard that the original plan needed in three places (repository catalog
+query, `OgMetaRequestListener`, `SitemapController`) is no longer needed anywhere — every row in
+`provider_profile` is by definition a public provider profile. `clearProviderProfile()` also
+becomes a real `DELETE`, not a column-nulling `UPDATE` (the "can't delete, it also carries
+preferences" constraint from the merged-table design no longer applies).
+
+**Naming — rename `ActorProfile*` → `ProviderProfile*` throughout this issue.** The "actor" framing
+came from the row also covering preferences; now that it's provider-only, `ProviderProfile`/
+`ProviderProfilePort`/`ProviderProfileDto`/`EntityType.PROVIDER_PROFILE`/
+`provider-profile-spring-boot-starter`/`provider_profile` table is the consistent name throughout.
+The rest of this document (Part 1's technical plan below) still uses the old `ActorProfile`/
+`EntityType.ACTOR_PROFILE`/`actor-profile-spring-boot-starter` naming from the superseded
+single-table design — apply the rename mechanically during Batch 124-B (see "Execution Batches"
+below); the field lists, SQL shapes, and service responsibilities described below are otherwise
+still accurate for the provider-facing half only (ignore every mention of `locale`/`settings`
+living on this table — those now belong to `user_preferences` per this update).
+
+**Resolves the open question on `EntityType.USER_SETTINGS`.** Since preferences never merges into
+the provider-profile table after all, `USER_SETTINGS` simply keeps being used for the Settings tab
+going forward, unchanged — no permanent-legacy-tag-vs-migrate decision needed.
+
+**Resolves the "Activity/restore tab structure" open question (Part 2).** Three tabs, three
+independent `EntityType`s, three independent Activity/restore panels — Name → `EntityType.USER`
+(existing), Settings → `EntityType.USER_SETTINGS` (existing), Provider Profile → new
+`EntityType.PROVIDER_PROFILE`. No cross-entity-type feed merging needed; `buildTabbedContent()`'s
+N-tab generalization treats each tab's content + Activity panel as one independent pair.
+
 ## Part 1 — the provider-facing half (decisions made 2026-07-27, in order)
 
 1. **improvement-002 lands first, same batch** — detection + logging only (no automatic
@@ -113,6 +178,28 @@ Grounded against current code, not assumed (`AdvertisementAutoConfiguration`, `A
   `switch` to gain a `case ACTOR_PROFILE`, a real compiler-enforced safety net. (Named
   `ACTOR_PROFILE`, not `PROVIDER_PROFILE` — it's the id of the one merged row that categories/
   portfolio attach to via `taxon_assignment`/`attachment`, matching the table it actually is.)
+  **Open question, must be decided before implementation:** `EntityType.USER_SETTINGS` already
+  exists and is actively used today (`SettingsFormModeHandler`'s Activity tab, `SettingsSnapshotDto`
+  audit capture) — real `audit_log` rows already carry this tag. Once settings persistence moves to
+  `ActorProfilePort`/`ACTOR_PROFILE`, decide explicitly: (a) keep `USER_SETTINGS` in the enum
+  permanently as a historical/read-only tag so old rows keep displaying correctly, with all *new*
+  settings writes captured under `ACTOR_PROFILE` instead, or (b) something else. Do **not** remove
+  `USER_SETTINGS` from the enum outright — that would break deserialization/display of every
+  pre-existing settings-change audit row. (a) is the default recommendation unless there's a reason
+  to migrate old rows instead.
+  Full registration checklist for the new enum value, verified against current code (beyond the
+  `AuditDomainHookImpl` case above): `I18nKey.forEntityType()` (compiler-enforced exhaustive switch
+  — new `ENTITY_TYPE_ACTOR_PROFILE` key + EN/UK strings), a new CSS badge color pair in `styles.css`/
+  `activity-feed.css` (`--app-status-entity-actor-profile-bg/-text`, `.activity-feed-type--actor_profile`
+  — **not** compiler-enforced, easy to forget: `TAXON` had none until improvement-127 added it),
+  `JacksonConfig.registerAuditSnapshotSubtypes()` (see below), and the new
+  `ProviderProfileActivityFieldsHookImpl` bean (picked up automatically via Spring's
+  `List<AuditActivityFieldsHook>` injection, no manual registry — but must exist or labels silently
+  fall back to raw field keys). `TimelineQueryBlock`'s entity-type filter and `AuditReadService`
+  need **no** changes — both confirmed fully data-driven off `EntityType.values()` already. The new
+  `actor-profile-spring-boot-starter` itself needs **no** `audit.spi` implementations of its own —
+  all audit-side wiring lives in marketplace-app, exactly matching how `taxon-spring-boot-starter`
+  has none today.
 - New package `org.ost.platform.actorprofile.model` — `ProviderKind { MASTER, SHOP, SUPPORT }`.
 - New package `org.ost.platform.actorprofile.dto`:
   - `ActorProfileDto`: `id`, `actorId`, `actorName`, `actorEmail`, `locale`, `settings`, `kind`
@@ -124,10 +211,21 @@ Grounded against current code, not assumed (`AdvertisementAutoConfiguration`, `A
   - `ProviderProfileFilterDto`: `kinds` (`Set<ProviderKind>`, mirrors F-03's `AdKind` filter
     shape), `categoryIds`, `cityTaxonId` — for the Providers catalog, which only ever lists rows
     where `kind IS NOT NULL`.
-  - `ActorProfileSnapshotDto` implements `AuditableSnapshot`, `@SchemaVersion(1)` — covers the
+  - `ActorProfileSnapshotDto` implements `AuditableSnapshot` — record with `int schemaVersion` as
+    its last component, `public static final int SCHEMA_VERSION = 1`, and a legacy-arity
+    delegating constructor (copy `AdvertisementSnapshotDto`'s exact shape, ADR-024). Covers the
     provider-facing fields only (`kind`, `about`, `categoryIds`, `cityTaxonId`); locale/
     settings changes are not part of the audit trail (they never were, for the same reason
     `UserSettingsDto` today has its own `SettingsSnapshotDto` shape, separate from profile edits).
+    **Must also be added to `JacksonConfig.registerAuditSnapshotSubtypes()`**
+    (`marketplace-app/src/main/java/org/ost/marketplace/config/JacksonConfig.java`) — a hand-maintained
+    `@PostConstruct` list of every `AuditableSnapshot` subtype registered on the polymorphic
+    `auditObjectMapper` (`@JsonTypeInfo(use = NAME, property = "@type")`). This is **not**
+    compiler-enforced and has **no existing test coverage** (confirmed: no test references
+    `JacksonConfig` or exercises subtype registration directly) — omitting `ActorProfileSnapshotDto.class`
+    here does not fail the build, it fails silently at snapshot *read* time later. Add it in the
+    same commit as the DTO itself, and add a round-trip (de)serialization test for it since none
+    of the 4 existing subtypes has one either.
 - New package `org.ost.platform.actorprofile.spi` — `ActorProfilePort`:
   ```java
   public interface ActorProfilePort {
@@ -236,15 +334,29 @@ Grounded against current code, not assumed (`AdvertisementAutoConfiguration`, `A
   compiler-forced.
 - **`services/actorprofile/ProviderProfileEnrichService.java`** + **`spi/ProviderProfileActivityFieldsHookImpl.java`**
   + **`spi/ProviderProfileActivityEnrichHookImpl.java`**: one triad per new domain, same shape as
-  the Advertisement triad — **add every `Fields.*` case from the start** (the exact bug class
-  F-02/F-03 both hit twice; do not repeat it a third time here).
+  the Advertisement triad — **add every `Fields.*` case in `labelFor()` from the start.** Verified
+  root cause of the bug this pre-empts: `labelFor()` is a `switch (rawFieldKey)` over `String`
+  constants with a `default -> rawFieldKey` arm (`AuditActivityFieldsHook`'s own default method
+  does the same) — a `String` switch can never be exhaustive, so the compiler cannot catch a
+  missing `case` the way it catches a missing `EntityType` case. This bit `AdvertisementActivityFieldsHookImpl`
+  for real once (`cityTaxonId` omitted, shipped, then hotfixed — `marketplace-app/DECISIONS.md`
+  ADR-065 "Update (2026-07-25...)") and was pre-empted for `adKind` on the next domain (F-03).
+  `ProviderProfileActivityEnrichHookImpl` is only needed if provider-profile portfolio attachments
+  need enrichment — `TaxonActivityFieldsHookImpl`'s domain has no enrich-hook counterpart at all
+  today (confirmed: only `ActivityEnrichHookImpl`, hardcoded to `EntityType.ADVERTISEMENT`, exists),
+  so skip writing an enrich hook unless there's a concrete need for it, don't cargo-cult the triad.
 - **`OgMetaRequestListener.java`**: add `PROVIDER_PATH = Pattern.compile("^/providers/(\\d+)")`,
   inject `ComponentFactory<ActorProfilePort>`; **skip OG injection entirely when `kind == null`**
   (no provider profile to show).
 - **`SitemapController.java`**: add provider profile URLs, **only for rows where `kind IS NOT
-  NULL`** — same rule as the OG listener and the repository's public-query filter; confirm those
-  three call sites can share one "is this row a public provider profile" predicate rather than
-  reimplementing it.
+  NULL`** — same rule as the OG listener and the repository's public-query filter. Verified: no
+  shared "is this entity publicly listable" predicate exists today — `OgMetaRequestListener` and
+  `SitemapController` are both fully advertisement-specific, hand-rolled, and independent of each
+  other (advertisement has no analogous gate since every ad is inherently public). This is new,
+  net-new convention for this feature, not a refactor of an existing shared helper — write one
+  predicate/method (e.g. on `ActorProfileRepository` or `ActorProfilePort`) and have all three call
+  sites (repository query, OG listener, sitemap) use it, rather than inlining `kind != null` three
+  times independently.
 - **`AppLinkService.java`**: `providerProfileUrl(@NonNull Long id)` mirrors `advertisementUrl()`.
 - **`ProviderProfileDeepLinkView.java`**: `@Route("providers")`, mirrors
   `AdvertisementDeepLinkView`. Optional URL slug (`/providers/42-ivan-plytochnyk`, slug ignored on
@@ -287,20 +399,64 @@ Grounded against current code, not assumed (`AdvertisementAutoConfiguration`, `A
    }
    ```
    (mirrors `canOperate()`'s existing shape/`isOwner()` usage, just without folding
-   `isModerator()` into the edit check).
+   `isModerator()` into the edit check). Verified: `UserPort.isAdmin(UserDto)` and
+   `UserPort.isOwner(UserDto, UserIdMarker|Long)` already exist with exactly these signatures
+   (`platform-commons/.../UserPort.java`) — this snippet calls real, existing API, nothing new
+   needed on `UserPort` itself. `AccessEvaluator` itself has no standalone `isOwner()`/`isAdmin()`
+   of its own today — every existing check inlines the `userPort.isXxx(u)` call directly, so these
+   two new methods follow the exact same style as `canOperate()`/`isPrivileged()`.
 4. **Every tab's data loads lazily, only on first click into that tab** — none of the three load
    eagerly on overlay open, including whichever tab is shown by default. This generalizes the
    existing 2-tab `buildTabbedContent()`'s own behavior (its secondary tab already only loads on
    first switch) to N tabs.
 
+### Open question — Activity/restore tab structure (must be decided before implementation)
+
+Naively pairing each of the 3 form tabs with its own local Activity tab (today's per-entity
+Edit+Activity pattern, `buildContentWithActivity()`) would produce 6 tabs — confirmed not the
+right shape. But the global Timeline tab is **not** a substitute for the local Activity tab:
+verified directly (`AuditTimelineRowRenderer.java` has no restore button/action at all) that
+restore-from-snapshot (`AuditActivityPanel`'s `onRestoreRequested` → `handleRestoreFromActivity`)
+only exists in the per-entity Activity panels (`Settings`, `Advertisement`, `Taxon`, `City`,
+`User` overlays all have it today) — Timeline is flat cross-entity browsing only, with no
+"current entity" context to restore into. Losing restore capability for name/role changes (today
+provided by `UserFormOverlayModeHandler`'s own Activity tab) or for settings/provider-profile
+changes would be a real regression, not a simplification.
+
+Two real entities are involved: `USER` (name, and role when admin-viewed) and `ACTOR_PROFILE`
+(settings + provider profile — same row, two save methods). Options to choose between:
+1. One shared Activity tab per logical row — but `USER` and `ACTOR_PROFILE` are different
+   `EntityType`s with independent snapshot histories, so "shared" would mean interleaving two
+   different `AuditableSnapshot` subtypes' histories in one merged, chronologically-sorted feed
+   (new capability, not something `AuditActivityPanel` does today).
+2. Two Activity tabs: one scoped to `EntityType.USER` (covers Name, and Role when applicable) and
+   one scoped to `EntityType.ACTOR_PROFILE` (covers Settings + Provider Profile) — 5 tabs total,
+   straightforward reuse of the existing per-entity `AuditActivityPanel` pattern twice, no new
+   merging logic needed.
+3. Activity/restore only on the tabs where it currently exists in a comparable form (`Name`
+   inherits `UserFormOverlayModeHandler`'s existing USER-scoped Activity/restore; `Provider
+   Profile` gets a new ACTOR_PROFILE-scoped one) and `Settings` alone has no local Activity tab
+   (its current audit trail is already low-stakes — page-size prefs — no restore need); global
+   Timeline covers browsing everything.
+
+Resolve this with the user before writing the `buildTabbedContent()` generalization below, since
+the answer determines whether N-tab generalization needs 4, 5, or a variable number of tabs, and
+whether any new cross-entity-type activity aggregation is needed.
+
 ### Account overlay — technical plan
 
-- **Generalize `AbstractFormOverlayModeHandler.buildTabbedContent()` to N tabs, not 2.** The
-  current method only supports one primary + one lazy-loaded secondary tab (today's "Edit /
-  Activity" pair everywhere else). Needs either an overload taking a `List<Tab, Supplier<Component>>`
-  or a small generalization — **do not hand-roll a parallel tab-switching implementation for just
-  this overlay** (`.claude/rules.md`'s `buildTabbedContent()` rule). Every existing overlay's
-  2-tab call site must keep working unchanged.
+- **Generalize `AbstractFormOverlayModeHandler.buildTabbedContent()` to N tabs, not 2.** Verified
+  current shape (`AbstractFormOverlayModeHandler.java:52-66`): `buildTabbedContent(Tabs, Tab
+  primaryTab, Div primaryContent, Supplier<Component> secondaryLoader)` is hardcoded to exactly one
+  primary/secondary pair — one `tabbedSecondaryContent` `Div`, one `addSelectedChangeListener`
+  toggling visibility, one lazy-load check (`tabbedSecondaryContent.getChildren().findFirst().isEmpty()`).
+  Generalizing to N tabs means either a new overload taking an ordered list of
+  `(Tab, Div content-or-null, Supplier<Component> lazyLoader)` triples with the "already loaded"
+  check keyed per-tab instead of on one shared `Div`, or restructuring internally — **add a new
+  overload, do not change the existing signature**: `buildContentWithActivity()` and
+  `SettingsFormModeHandler`'s own direct 2-tab call must keep compiling and behaving unchanged.
+  **Do not hand-roll a parallel tab-switching implementation for just this overlay**
+  (`.claude/rules.md`'s `buildTabbedContent()` rule).
 - **`AccountOverlay`** (renames/replaces `SettingsOverlay`): `openFor(Long targetUserId)` replaces
   `openSettings()` — self-view calls it with `currentUser.id()` (header button), the Users grid's
   row-click calls it with the clicked row's id. Each of the three tab contents is its own lazily-
@@ -312,19 +468,48 @@ Grounded against current code, not assumed (`AdvertisementAutoConfiguration`, `A
   **The Name tab's audit trail is unaffected (it already goes through `UserPort.updateProfile()`
   today). The Settings tab's existing `SettingsSnapshotDto` audit capture must be repointed to
   read/write through `ActorProfilePort` instead of the current `UserSettingsRepository`-based
-  path — find whatever marketplace-app service currently builds `SettingsSnapshotDto` and calls
-  `AuditPort.record()` for a settings change today, and repoint its persistence call only, not its
-  audit-capture logic.** The Provider Profile tab's audit trail is the new
-  `ProviderProfileSaveService` above.
+  path.** Verified exact current location:
+  `user-spring-boot-starter`'s `UserSettingsService.save(Long userId, UserSettingsDto settings)`
+  (`@Transactional`) does three things in order — `repository.save(...)` (the persistence call to
+  repoint), `hookFactory.ifAvailable(hook -> hook.onSettingsChanged(...))` (dispatches
+  `UserSettingsChangedHook`), and
+  `auditPortFactory.ifAvailable(p -> p.captureUpdate(userId, SettingsSnapshotDto.from(settings), userId))`
+  (audit capture).
+
+  **Correction after deeper verification — `UserSettingsChangedHook` is NOT dead, do not delete
+  it or its dispatch.** An earlier pass of this issue wrongly claimed "zero implementations exist."
+  Verified directly by reading the class: `marketplace-app`'s `SettingsPaginationService`
+  (`ui/views/services/pagination/SettingsPaginationService.java:18`) **does** implement
+  `UserSettingsChangedHook` — it is the live mechanism that resizes every currently-open pagination
+  bar (Ads/Users/Timeline lists) immediately when a user saves new page-size settings, with no page
+  reload, by pushing to each registered `PaginationBar` via `ui.access(...)` inside
+  `onSettingsChanged()`. Confirmed load-bearing: `SettingsPaginationBinding` (which wraps this
+  service) is registered by `AdvertisementsView`, `TimelineView`, and `UserView` — every list view
+  in the app depends on this hook firing. **The repointed settings-save path must keep calling
+  `hookFactory.ifAvailable(hook -> hook.onSettingsChanged(actorId, settings))` exactly as
+  `UserSettingsService.save()` does today** — dropping this call would silently break live
+  pagination-size updates across the whole app (a saved setting would only take effect after a
+  manual page reload, not immediately).
+
+  So only `UserSettingsService`/`UserSettingsRepository` (the persistence layer itself) become dead
+  code in `user-spring-boot-starter` once repointed — delete those two. Keep
+  `UserSettingsChangedHook` (interface) and `SettingsPaginationService` (implementation) exactly
+  as-is; only re-wire *what* calls the hook (the new settings-save path, wherever it ends up —
+  `ActorProfileService` in the new starter, mirroring today's shape, is the natural home).
+  `UserPort.loadSettings()`/`saveSettings()` do become dead on `UserPort` itself and should be
+  removed from the port + `UserPortImpl` once nothing calls them. The Provider Profile tab's audit
+  trail is the new `ProviderProfileSaveService` above.
 - **"Name" tab**: name field only (role only ever appears when the viewer is `ADMIN` viewing
   someone else, as a second conditionally-shown field on this same tab — mirrors how
   `UserFormOverlayModeHandler`'s `roleComboBox` already sits next to the name field today).
 - **`HeaderBar.createSettingsButton()`** → renamed (e.g. `createAccountButton()`), still opens the
   same header slot, now targets `AccountOverlay.openFor(currentUser.id())`.
 - **Users grid row click**: currently opens `UserOverlay`/`UserFormOverlayModeHandler` — repoint
-  to `AccountOverlay.openFor(clickedRow.id())`. Confirm whether `UserOverlay`/
-  `UserFormOverlayModeHandler` become fully dead code after this (delete, don't leave unused) or
-  keep a thin remnant if anything else still references them directly.
+  to `AccountOverlay.openFor(clickedRow.id())`. Verified: `UserOverlay` has exactly one consumer,
+  `UserView.java`'s two row-click handlers (`openForView()`/`openForEdit()`, lines 90-91) — no
+  other caller exists anywhere in the codebase. Once repointed, `UserOverlay` +
+  `UserFormOverlayModeHandler` + `UserFormOverlayModeHandlerTest` become fully dead code —
+  **delete them outright**, no thin remnant needed.
 - **Field-level enable/disable, not tab hiding**, for the `MODERATOR`-viewing-another-user case:
   all three tabs render the same as for `ADMIN`, but every field is `.setReadOnly(true)`/save
   button `.setEnabled(false)` when `!canEditUserAccount(targetUserId)`.
@@ -383,6 +568,229 @@ Grounded against current code, not assumed (`AdvertisementAutoConfiguration`, `A
      doesn't silently reuse a screenshot name from an earlier step in the same test with different
      content behind it.
 
+## Execution Batches (2026-07-31)
+
+One pass = one PR, one test run, per `.claude/rules.md`. Each batch's gate must be green before
+starting the next — later batches depend on earlier ones compiling and passing.
+
+### Batch 124-A — split preferences into `user_preferences` (user-spring-boot-starter, no UI change) — ✅ DONE (2026-07-31)
+- New `user_preferences` table added directly to `01-user-schema.xml` (edited in place, no
+  migration changeset — pre-production, "from scratch" per explicit user direction), `locale`/
+  `settings` removed from `user_information`. No backfill needed (no prod data to preserve).
+- New `UserPreferencesRepository` (replaces `UserSettingsRepository`, second repo in
+  `user-spring-boot-starter`, mirrors the `UserProfileUpdate` precedent) — keyed by `actor_id`
+  (no FK, deliberate, matches the codebase's actor-reference-column convention).
+- `UserPort.loadSettings()`/`saveSettings()`/`updateLocale()` signatures unchanged,
+  `UserSettingsChangedHook` dispatch unchanged, `EntityType.USER_SETTINGS` audit capture unchanged.
+- **Gate → 124-B/C: PASSED.** `bash scripts/unit-tests.sh` (77/77) + `bash scripts/integration-
+  tests.sh --sandbox` (136/136, every domain) green. `/code-review`'s full 8-angle pass found and
+  fixed 4 real bugs (silent no-op on missing-row locale update, orphaned `user_preferences` row on
+  user purge, two related NPEs in the bulk locale lookup, a dropped legacy-JSON test scenario) plus
+  3 duplication cleanups — see `marketplace-app/DECISIONS.md` ADR-070 for the full list.
+
+### Batch 124-B — new `provider-profile-spring-boot-starter` module (backend only, no UI) — ✅ DONE (2026-08-01)
+- `platform-commons`: `EntityType.PROVIDER_PROFILE`, `ProviderKind`, `ProviderProfileDto`/
+  `ProviderProfileSaveDto`/`ProviderProfileFilterDto`/`ProviderProfileSnapshotDto` (schemaVersion
+  per ADR-024), `ProviderProfilePort`.
+- Compiler-forced marketplace-app touches that must ship in this same batch (the new enum value
+  forces these exhaustive switches to compile): `AuditDomainHookImpl`'s `case PROVIDER_PROFILE`,
+  `I18nKey.forEntityType()`'s new case + EN/UK strings, new CSS badge color pair.
+- New module `provider-profile-spring-boot-starter`: entity, own Liquibase changelog (`kind NOT
+  NULL` per the simplification above — no nullable-kind placeholder rows), repository (no
+  `kind IS NOT NULL` guard needed — every row qualifies), service (sanitization, `SUPPORT`-requires-
+  privileged-actor rule, `deleteProviderProfile()` as a real delete), port impl, autoconfiguration.
+  Root `pom.xml` + `integration-tests` reactor/staleness-check/`TestDataCleaner.cleanAll()`
+  registration.
+- **Gate → 124-B2: PASSED.** `bash scripts/unit-tests.sh` (77/77) + `bash scripts/integration-
+  tests.sh --sandbox` (164/164, +28 new `ProviderProfile*` tests, every domain) green; module
+  builds standalone. `/code-review`'s full 8-angle pass (9 verified candidates) found and fixed 3
+  real bugs — a dead `ProviderProfileFilterDto.cityTaxonId` filter field never wired into SQL, an
+  unguarded taxon-assignment clear on `delete()` for a possibly-nonexistent row, and an unnecessary
+  defensive empty-check in `findCities()` — plus surfaced 2 findings deferred to Batch 124-B2 (see
+  below) since fixing them touches `advertisement-spring-boot-starter`. No Playwright — no UI
+  surfaces this module yet. See `platform-commons/DECISIONS.md` ADR-027 /
+  `marketplace-app/DECISIONS.md` ADR-072 for the full record.
+
+### Batch 124-B2 — cross-domain cleanup surfaced by Batch 124-B's `/code-review --fix` pass
+
+Two findings from Batch 124-B's review survived verification (CONFIRMED/PLAUSIBLE) but require
+touching `advertisement-spring-boot-starter` files outside Batch 124-B's own scope, so they were
+not fixed inline — kept as their own follow-up batch (not `improvement-133`, per explicit user
+direction 2026-08-01) since both are directly caused by mirroring `AdvertisementService`'s shape
+into `ProviderProfileService` in this same issue, not unrelated drive-by findings.
+
+1. **Shared HTML-sanitizer/visible-text-length utility.** `ProviderProfileService.HTML_SANITIZER`/
+   `sanitizeHtml()`/`validateAboutLength()` are near-verbatim copies of `AdvertisementService`'s
+   `HTML_SANITIZER`/`sanitizeHtml()`/`validateDescriptionLength()` — same OWASP `PolicyFactory`
+   construction, same Jsoup-based visible-text-length check shape, differing only in field/constant
+   names and the max-length value. Verifier confirmed a natural home: a new
+   `org.ost.platform.core.util` static utility in `platform-commons` (e.g.
+   `HtmlSanitizerUtil.sanitize(html, maxVisibleLength)`), the same "utility class used by ≥2
+   modules" precedent `YoutubeUtil` already establishes (`platform-commons/CLAUDE.md`) — neither
+   starter currently pulls OWASP/Jsoup into `platform-commons`, but both already depend on
+   `platform-commons`, so this doesn't add a new starter-to-starter coupling. Repoint both
+   `AdvertisementService` and `ProviderProfileService` to call it; delete both local copies.
+2. **Stale-id-during-concurrent-delete edge case in `save()`.** In both `AdvertisementService
+   .save()`/`buildEntity()` and `ProviderProfileService.save()`/`buildEntity()`: when the DTO
+   carries a non-null `id` (an edit) but the row was deleted between read and write,
+   `repository.findById(id)` returns empty, `before` is `null`, and `buildEntity()` silently falls
+   back to insert-shaped defaults (`createdBy`/`createdAt` or `actorId`/`createdAt`) while still
+   carrying the now-stale `id` — Spring Data JDBC then attempts an update-path against a
+   non-existent row instead of surfacing a clear "not found"/conflict error. Confirmed as an exact
+   pre-existing pattern already shipped in `AdvertisementService`, not something Batch 124-B
+   introduced — fix both call sites together (e.g. `before == null && dto.id() != null` →  throw a
+   clear "already deleted" exception) so the two domains don't drift into two different error
+   shapes for the same race.
+
+- **Gate → 124-C:** `bash scripts/unit-tests.sh` + `bash scripts/integration-tests.sh --sandbox`
+  green for both `advertisement-spring-boot-starter` and `provider-profile-spring-boot-starter`;
+  no behavior change for either domain's happy path (verify via existing
+  `AdvertisementServiceHtmlSanitizationTest`/`ProviderProfileServiceTest` continuing to pass
+  unmodified against the new shared utility).
+
+### Batch 124-C — `AccountOverlay`, 3 independent tabs + audit, permission model
+- **Correction (2026-07-31, must be re-verified when this batch starts):** `buildTabbedContent()`/
+  `buildContentWithActivity()`/`ActivityTabParams` were removed entirely per
+  `marketplace-app/DECISIONS.md` ADR-067 — every domain now uses a single content area + a
+  `.{domain}-history-button` icon button that opens the shared `EntityActivityOverlay` as a nested
+  overlay (`.claude/rules.md` "History access"), not a 2-tab Content+Activity pair. The line below
+  ("Generalize `buildTabbedContent()` to N tabs") is stale — it predates ADR-067's removal of that
+  method. The 3 Name/Settings/Provider-Profile sections still need *some* navigation mechanism (a
+  plain `Tabs` component switching between 3 content `Div`s, unrelated to the old
+  Activity-pairing machinery), and each section gets its own history icon button opening
+  `EntityActivityOverlay` for its own `EntityRef` — re-derive this section's technical plan from
+  the current `AbstractFormOverlayModeHandler` shape before writing any code.
+- ~~Generalize `AbstractFormOverlayModeHandler.buildTabbedContent()` to N tabs via a new overload
+  (existing 2-tab callers unchanged).~~
+- `AccountOverlay` (replaces `SettingsOverlay`), `openFor(Long targetUserId)`; Name tab (closes the
+  "plain USER can't self-edit name" gap), Settings tab (reads/writes via Batch 124-A's table),
+  Provider Profile tab (`ProviderProfileSaveService` audit-write orchestration, mirrors
+  `AdvertisementSaveService`; `ProviderProfileActivityFieldsHookImpl` with every `Fields.*` case
+  from day one, per ADR-065). **`ProviderProfileSaveService` lives in `marketplace-orchestrator`
+  (package `org.ost.orchestrator.services`), not `marketplace-app`** — see
+  `improvement-136`'s extraction. Build it with `AdvertisementSaveService`'s exact shape: 2 direct
+  ports (`ProviderProfilePort` + `AuditPort`) + the already-existing `orchestrator.services
+  .TaxonAssignmentWriteService` collaborator for the category-assignment write (currently still
+  called directly from `ProviderProfileService.save()`/`.delete()` in the starter — move that call
+  out to this new service, mirroring how `AdvertisementService.delete()`'s own cascade moved out).
+  **Decision to make once this lands (moved here from `improvement-147`, which tracked it before
+  this batch had a concrete plan):** `TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/
+  `AttachmentSoftDeleteService` (`org.ost.orchestrator.services`, flattened per `improvement-147`)
+  each have exactly one caller today, `AdvertisementSaveService` — built during `improvement-136` as
+  shared/reusable on the assumption this batch would become a second consumer. Once
+  `ProviderProfileSaveService` is built, check directly (grep, not memory) whether it actually ended
+  up calling `TaxonAssignmentWriteService` for its own category-assignment write. If yes and the
+  shared shape holds up as-is — keep it, done, no further action. If no — either it never landed, or
+  it needed a different shape — fold `TaxonAssignmentWriteService` back into
+  `AdvertisementSaveService` as a private method rather than leaving a "shared" class with one
+  permanent caller. `AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService` have no
+  ProviderProfile equivalent (providers don't have attachments) — decide those two separately, on
+  their own merits (real future reuse vs. fold back), regardless of how the Taxon one resolves.
+- New `AccessEvaluator.canEditUserAccount()`/`canViewUserAccount()`; field-level readonly for
+  `MODERATOR` viewing another user.
+- `HeaderBar` button repoint; Users grid row-click repoint; delete `UserOverlay`/
+  `UserFormOverlayModeHandler`/its test once repointed.
+- **Gate → 124-D:** unit tests (`AccessEvaluatorTest` new cases × 3 roles × {self, other}) +
+  integration tests green; Playwright — update spec 03's existing `adminEn edits userEn name` test
+  in place (repoint + extend, per the issue's Testing Strategy step 1), run via
+  `bash scripts/playwright.sh e2e --ux`. Must be fully green — Batch 124-D builds the public
+  surface on top of profiles only creatable through this overlay.
+
+### Batch 124-D — Providers catalog, OG/sitemap, deep link (public-facing)
+- `ProvidersView`/`ProviderProfileCardView`/query-layer trio — lists every `provider_profile` row
+  (no `kind IS NOT NULL` filter needed, per the simplification above).
+- `OgMetaRequestListener` provider path, `SitemapController` provider URLs, shared "is publicly
+  listable" predicate (one method, all 3 call sites — no `kind != null` inlined independently,
+  moot anyway since every row now qualifies).
+- `AppLinkService.providerProfileUrl()`, `ProviderProfileDeepLinkView`.
+- New Playwright spec `08-provider-profile-flow.spec.js` — create/edit/restore/delete for `MASTER`
+  and `SHOP`, `SUPPORT`-rejected-for-non-privileged; audit new screenshot names for collisions
+  against existing specs first.
+- **Gate → Done:** `bash scripts/playwright.sh e2e --ux` green (no `--full` needed — this feature
+  doesn't touch spec 05's seeded-pagination scenario). `marketplace-app/DECISIONS.md` updated
+  (module/table split, `buildTabbedContent()` N-generalization, `EntityType.PROVIDER_PROFILE`
+  naming). Issue moved to `completed/issues/`, `BACKLOG.md` row removed, `BACKLOG-ARCHIVE.md`
+  entry added.
+
+### Batch 124-A2 — UserDto/UserPort cleanup (found via code-quality review after Batch A, 2026-07-31) — ✅ DONE
+
+Not part of the original F-04 plan — surfaced by the user while reviewing Batch A's diff, per the
+new standing rule in `.claude/rules.md` ("Code quality is the highest-priority goal"). Three
+distinct fixes, one pass:
+
+**1. Remove `UserDto.locale` — it forces every `UserDto` construction to pay for a lookup only one
+consumer needs.** Confirmed by grep: `getFiltered`/`getFilteredByOffset`/`findByIds`/
+`findDtoByEmail` (used by the Users grid, `AdvertisementEnrichmentService`'s actor-name enrichment,
+`UserActorNameService`'s audit-actor resolution) never read `.locale()` — only
+`VaadinLocaleProvider` does, via `AuthContextService.getCurrentUser().map(u -> u.locale()...)`.
+- `AuthenticatedPrincipal` (platform-commons) gains `String locale()` — `UserPrincipal` (already a
+  record with a `locale` component from Batch A) satisfies it for free, no new code.
+- `AuthContextService` gains `Optional<String> getCurrentUserLocale()` reading the principal
+  directly (no DB call — same as today, `UserPrincipal.locale` is already resolved once at
+  login/`refreshSecurityContext()`, not re-queried per page load).
+- `VaadinLocaleProvider` repointed to `getCurrentUserLocale()` instead of
+  `getCurrentUser().map(u -> u.locale())`.
+- `UserDto` record drops `locale`. `User.toDto()` reverts to a plain no-arg method (locale
+  composition was only ever needed to populate this field) — this **deletes**
+  `UserService.enrichWithLocale()`/private `toDto(User)`/the bulk `findLocalesByActorIds()` call
+  sites entirely; `getFiltered`/`getFilteredByOffset`/`findById`/`findDtoByEmail`/`findByIds` all
+  go back to plain `.map(User::toDto)`. Net simplification, not just a move.
+- `UserPreferencesRepository`/`UserPreferencesService` (see #3) keep a single-actor
+  `findLocaleByActorId(Long)` (needed later for Batch 124-C's admin-views-another-user Settings
+  tab) but the bulk `findLocalesByActorIds(Set<Long>)` becomes dead code — remove it.
+
+**2. Rename `UserProfileUpdate` → `UserEditableFields`.** Current name reads as "the profile" and
+will collide semantically with F-04's incoming "Provider Profile" concept. `UserEditableFields`
+names what it actually is — the restricted column subset (`id`, `name`, `role`, `updatedAt`,
+`version` — no `email`/`passwordHash`) safe to expose to a profile-edit UPDATE — without hardcoding
+to exactly "name+role" in case the safe-editable set grows later. Touches:
+`UserProfileCrudRepository` → `UserEditableFieldsCrudRepository`, `UserRepository.updateProfile()`
+body only (param type), no external contract change (`UserProfileDto`, the platform-commons DTO,
+keeps its name — this rename is internal to `user-spring-boot-starter`).
+
+**3. Split `UserPort` into 4 ports — verified against every real consumer, not assumed.** Current
+`UserPort` has 19 methods spanning 4 unrelated concerns; grep confirmed most consumers use only
+one slice each:
+
+| New port | Methods | Confirmed consumers |
+|---|---|---|
+| `UserPort` (kept, narrowed to query) | `getFiltered`, `getFilteredByOffset`, `count`, `findById`, `findByEmail`, `findByIds`, `findExistingIds`, `findDeletedIds`, `findActorNames` | `UserPickerField`, `UserView`, `AdvertisementEnrichmentService` (cross-module), `UserActorNameService`, `AuditDomainHookImpl`, `SignUpDialog` (partial), `UserFormOverlayModeHandler` (partial) |
+| `UserAccountPort` (new) | `save`, `delete`, `register`, `refreshCurrentUserInContext` | `UserDeleteService`, `SignUpDialog` (partial), `UserFormOverlayModeHandler` (partial), `LocaleSelectorComponent` (partial) |
+| `UserAuthorizationPort` (new) | `isAdmin`, `isModerator`, `isOwner` (x2 overloads) | `AccessEvaluator` only |
+| `UserPreferencesPort` (new) | `loadSettings`, `saveSettings`, `updateLocale`, `findLocale` (new, single-actor, replaces the deleted bulk lookup for the future admin-views-other-user case) | `SettingsFormModeHandler`, `SettingsPaginationService`, `LocaleSelectorComponent` (partial) |
+
+  All 4 land in `platform-commons/.../user/spi/`, same package. `UserPortImpl` splits into 4 thin
+  delegation classes (`UserPortImpl`, `UserAccountPortImpl`, `UserAuthorizationPortImpl`,
+  `UserPreferencesPortImpl`) in `user-spring-boot-starter`, each still just calling one service
+  method per platform-commons/CLAUDE.md's `*PortImpl` rule — `UserAccountPortImpl`/
+  `UserAuthorizationPortImpl` delegate to the existing `UserService`/`RoleChecker`/
+  `OwnershipChecker`; `UserPreferencesPortImpl` delegates directly to the renamed
+  `UserPreferencesService` (bypassing `UserService` entirely — closes the "middleman doing nothing"
+  gap `UserService.updateLocale()` had). `UserAutoConfiguration` gains 3 more
+  `ComponentFactory<...>` beans (`userAccountPortFactory`, `userAuthorizationPortFactory`,
+  `userPreferencesPortFactory`) alongside the existing `userPortFactory`.
+  **No toggle/decoupling benefit from this split** (all 4 ports are always implemented by the same
+  module) — the justification is purely interface segregation/cohesion, confirmed by the consumer
+  table above, not a runtime-optionality argument.
+- Every listed consumer (+ its test file, where one exists: `AccessEvaluatorTest`,
+  `UserDeleteServiceTest`, `UserFormOverlayModeHandlerTest`) gets its `UserPort userPort` field
+  narrowed to whichever specific port(s) it actually calls — split into 2 fields for the consumers
+  that genuinely span two concerns (`LocaleSelectorComponent`, `SignUpDialog`,
+  `UserFormOverlayModeHandler`).
+
+**Gate → PASSED.** `bash scripts/unit-tests.sh` (79/79) + `bash scripts/integration-tests.sh
+--sandbox` (136/136) + `bash scripts/deploy.sh --reset` + `bash scripts/playwright.sh e2e --ux`
+(37/37, 13 skipped as expected without `--full`) all green — Playwright added on top of the
+original "no Playwright needed" plan, per the user's own call: the Spring DI wiring changed in 6+
+UI components, and a wiring mistake would only surface at real app runtime, not in Mockito-based
+unit tests. `/code-review`'s full 8-angle
+pass found and fixed: missing class-level `@Transactional(readOnly = true)` on 2 of 3 new
+port-impl classes (inconsistent with the established convention), a stale `{@link UserPort}`
+Javadoc reference, a broken cross-reference to a not-yet-written `marketplace-app/DECISIONS.md`
+entry (completed as ADR-071 in the same pass), and a stale `UserSettingsService` mention in
+`user-spring-boot-starter/README.md`. See `marketplace-app/DECISIONS.md` ADR-071 and
+`platform-commons/DECISIONS.md` ADR-026 for the full decision record.
+
 ## Related
 
 - `private/features/F-04-master-profile.md` — base product spec (gitignored, master-only; this
@@ -396,6 +804,12 @@ Grounded against current code, not assumed (`AdvertisementAutoConfiguration`, `A
 - [improvement-122](../completed/issues/improvement-122-f03-listing-types.md) — F-03, the direct
   precedent for the `kind`-column-not-separate-tables pattern and the `labelFor()`/
   `ActivityFieldsHookImpl` bug class that must not repeat a third time.
+- [improvement-013](../completed/issues/improvement-013-raw-field-names-in-activity-diff.md) — the
+  original, distinct bug in this same rendering path: a *wiring* gap (`labelFor()` never called at
+  all on one code path), not a missing `case`. Fixed by threading `AuditActivityFieldsHook` through
+  a shared `applyLabel()` helper (ADR-030). Relevant precedent alongside ADR-065/improvement-122:
+  confirms there are two distinct historical bug classes in this rendering path, both worth
+  guarding against for the new `ActorProfile` domain.
 - `marketplace-app/DECISIONS.md` ADR-065 (city facet reuse), ADR-034 (actor enrichment pattern,
   and the `created_by`/`updated_by`/`deleted_by` actor-reference-column convention this issue's
   `actor_id` column follows), ADR-044 (settings-blob embedded version, superseded by this issue's

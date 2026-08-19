@@ -7,16 +7,15 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserSettingsDto;
-import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
-import org.ost.marketplace.services.user.UserDeleteService;
+import org.ost.orchestrator.services.UserDeleteService;
+import org.ost.orchestrator.services.UserProfileService;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
@@ -27,11 +26,10 @@ import org.ost.marketplace.ui.views.main.tabs.users.overlay.UserOverlay;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
 import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.utils.ValidationErrorUtil;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -41,7 +39,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @RequiredArgsConstructor
 public class UserView extends VerticalLayout {
 
-    private final transient UserPort                               userPort;
+    private final transient UserProfileService                     userProfileService;
     private final transient UserDeleteService                      userDeleteService;
     private final transient AccessEvaluator                        access;
     private final transient I18nService                            i18n;
@@ -111,8 +109,8 @@ public class UserView extends VerticalLayout {
         var sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
         try {
-            List<UserDto> pageData   = userPort.getFiltered(currentFilter, page, size, sort);
-            int           totalCount = userPort.count(currentFilter);
+            List<UserDto> pageData   = userProfileService.getFiltered(currentFilter, page, size, sort);
+            int           totalCount = userProfileService.count(currentFilter);
             paginationBar.setTotalCount(totalCount);
             lastKnownTotal = totalCount;
             refreshButton.setVisible(false);
@@ -121,6 +119,7 @@ public class UserView extends VerticalLayout {
         } catch (ConstraintViolationException ex) {
             log.warn("Validation error while fetching users: {}", ex.getMessage(), ex);
             showValidationErrors(ex);
+            refreshButton.setVisible(false);
             grid.setItems(List.of());
             paginationBar.setTotalCount(0);
         } catch (Exception ex) {
@@ -148,8 +147,8 @@ public class UserView extends VerticalLayout {
         UserFilterDto filter = queryStatusBar.getQueryBlock().getFilterProcessor().getOriginalFilter();
         int currentTotal;
         try {
-            currentTotal = userPort.count(filter);
-        } catch (Exception ex) {
+            currentTotal = userProfileService.count(filter);
+        } catch (Exception _) {
             return;
         }
         refreshButton.setVisible(currentTotal != lastKnownTotal);
@@ -186,12 +185,6 @@ public class UserView extends VerticalLayout {
     }
 
     private void showValidationErrors(ConstraintViolationException ex) {
-        Set<ConstraintViolation<?>> violations = ex.getConstraintViolations();
-        String message = violations.stream()
-                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
-                .distinct()
-                .sorted()
-                .collect(Collectors.joining("\n"));
-        notificationService.error(i18n.get(USER_VIEW_NOTIFICATION_VALIDATION_FAILED) + "\n" + message);
+        notificationService.error(i18n.get(USER_VIEW_NOTIFICATION_VALIDATION_FAILED) + "\n" + ValidationErrorUtil.buildMessage(ex));
     }
 }
