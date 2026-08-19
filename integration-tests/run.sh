@@ -29,7 +29,7 @@
 # Streams full Maven/Testcontainers output live. Requires a reachable Docker daemon — see
 # integration-tests/CLAUDE.md.
 #
-# Automatic staleness check (default, no flag needed — see DECISIONS.md ADR-007):
+# Automatic staleness check (default, no flag needed — see docs/ai/adr-index.md):
 # integration-tests depends on platform-commons/advertisement-/user-/taxon-/audit-spring-boot-starter
 # as real compiled JARs from ~/.m2, not source. Before testing, this script compares each of those
 # modules' newest .java file against its installed JAR's mtime; if any source is newer (or the JAR

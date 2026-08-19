@@ -246,7 +246,7 @@ wraps the day-to-day loop — build, test, document, review — into single, rep
 | `/run-all-tests` | Unit tests → integration tests sequentially, Playwright in parallel |
 | `/ci` | Full isolated CI pipeline — unit + integration + e2e + Sonar, backgrounded |
 | `/sync-docs` | Reconcile architecture docs (`DECISIONS.md`/`CLAUDE.md`) with the actual code |
-| `/decision` | Record a new architectural decision in the relevant module's `DECISIONS.md` |
+| `/record-decision` | Record a new architectural decision in the relevant module's `DECISIONS.md` |
 | `/feature` | Scaffold a new tracked backlog issue, ranked into the priority list |
 | `/autopilot` | Approve a scoped task once, then implement + test + document it end-to-end |
 

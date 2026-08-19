@@ -58,12 +58,12 @@ fact, not a constraint.
 | Module → module dependencies | `docs/architecture/architecture-map.html` (Diagrams › Module Dependencies — rendered live from `pom.xml`) | State only a local one-line summary if it's load-bearing for a constraint; otherwise reference the tool |
 | Port/Hook implementation mapping | `docs/architecture/architecture-map.html` (Diagrams › SPI Map — rendered live from real Java source) | Name the port/hook this file's module implements (one line — that's local and real), don't restate the graph |
 | Class existence + one-line role | `README.md`'s class table (per module) | `CLAUDE.md` references it; only restates a class's role if that role *is* a constraint (e.g. "pure delegation — no business logic here") |
-| ADR rationale / historical decisions | `DECISIONS.md` (per module) — subject to the worthiness gate in `.claude/commands/decision.md`; not every change belongs here | Reference generically ("see `DECISIONS.md`"), never a specific `ADR-NNN` number and never restate the reasoning inline — see `.claude/rules.md`'s "no ADR number citations outside DECISIONS.md" rule |
+| ADR rationale / historical decisions | `DECISIONS.md` (per module) — subject to the worthiness gate in `.claude/commands/record-decision.md`; not every change belongs here | Never restate the reasoning inline — see `.claude/rules.md`'s ADR-citation rule |
 | Task-type → what-to-read routing | `docs/ai/context-loading.md` | Don't re-derive routing logic in `flows.md` or a command file |
 | Situation → command/skill mapping | `docs/ai/flows.md` | Don't restate in individual command files |
 | Backlog issue format | `.claude/commands/feature.md` | Other commands reference it, don't redefine it |
 | Cross-cutting standing rules | `.claude/rules.md` | Commands/skills reference a rule by name, don't restate its content |
-| Code comment rationale trimmed under the one-line-or-none rule | `DECISIONS.md` (design rationale — why a piece of logic exists or works the way it does) or a module's `README.md` (usage/how-to-run) | The comment itself keeps one line, pointing at the ADR number or README section — same "reference, don't restate" pattern as every other row |
+| Code comment rationale trimmed under the one-line-or-none rule | `DECISIONS.md` (design rationale — why a piece of logic exists or works the way it does) or a module's `README.md` (usage/how-to-run) | The comment itself keeps one line, pointing at `docs/ai/adr-index.md` or README section — same "reference, don't restate" pattern as every other row — see `.claude/rules.md`'s ADR-citation rule |
 
 This table itself has one canonical home: **here.** If a one-off task (a cleanup pass, a
 migration prompt) needs this table, it references this file — it does not keep its own copy.
@@ -93,7 +93,7 @@ Run through this before saving any documentation edit:
 - [ ] If constraint: is it stated once, here, without also being restated as a "fact" somewhere else that will drift from it?
 - [ ] Does this introduce a hard-coded count or list? → reword to avoid it, or verify it against the real source right now
 - [ ] Is this the shortest correct statement — no restating context the reader already has from earlier in the same file or from a file this one already references?
-- [ ] If this touches something `DECISIONS.md` already explains, does it reference the ADR number instead of restating the rationale?
+- [ ] If this touches something `DECISIONS.md` already explains, does it reference `docs/ai/adr-index.md` instead of restating the rationale or citing an `ADR-NNN` number?
 
 ## Where this gets invoked
 

@@ -1918,3 +1918,16 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   direct `deploy-and-run.sh` + `playwright.sh e2e --full --ux` runs (50/50 passed both times,
   including the specific test that had failed on stale data). Full detail:
   `completed/issues/improvement-153-dagu-local-ci-visualization.md`.
+
+✅ Done (2026-08-19): improvement-159 — full 9-step ADR system review, all steps executed for real,
+  not just analyzed. Classified all 229 ADRs across 16 `DECISIONS.md` files (KEEP/MERGE/SUPERSEDE/
+  DEMOTE/REMOVE/REWRITE), fixed 8 stale `Status:` fields, updated `.claude/rules.md`'s ADR-citation
+  rule to point at `docs/ai/adr-index.md` instead of raw `DECISIONS.md`/ADR-number citations and
+  swept 68 citations across 38 files to match, renamed `/decision` → `/record-decision` with a new
+  worthiness-gate granularity rule ("one ADR per decision, not per batch") and an update-discipline
+  rule ("supersede, don't append a correction layer"), added an optional lazy `**Verified:**` field
+  (+ index column) replacing a one-time code-consistency audit that failed mid-run. Migration
+  actually applied across all 13 non-empty `DECISIONS.md` files by 6 parallel agents: **229 → 172
+  active ADRs**. A post-migration cross-file integrity sweep found and fixed 6 dangling references
+  to deleted ADR numbers. Full detail: `completed/issues/improvement-159-adr-system-review-and-
+  refinement.md`.

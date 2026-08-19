@@ -25,7 +25,7 @@ bash scripts/deploy-and-run.sh --restart-infra   # restart DB + MinIO (volumes p
 bash scripts/deploy-and-run.sh --reset-only-db        # truncate app tables (reset-clean.sql) before starting the app
 bash scripts/deploy-and-run.sh --prune-all       # deliberate whole-machine deep clean: also prunes stopped
                                           # containers + unused volumes host-wide, not scoped to
-                                          # this app (see scripts/CLAUDE.md, scripts/ci/DECISIONS.md ADR-001)
+                                          # this app (see scripts/CLAUDE.md, docs/ai/adr-index.md)
 scripts\deploy-and-run.bat                       # Windows (calls run.sh via WSL)
 ```
 
@@ -253,7 +253,8 @@ scripts/
 
 Runs `scripts/build-and-test.sh --unit --integration` (installs the whole reactor once, then runs
 unit+integration tests in parallel against it) and `scripts/playwright.sh` in parallel with that
-(it never touches the Maven reactor). See `scripts/DECISIONS.md` ADR-004's annotation.
+(it never touches the Maven reactor). See `docs/ai/adr-index.md` for the unit/integration
+pairing's annotation.
 
 ```bash
 bash scripts/run-all-tests.sh

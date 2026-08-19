@@ -148,9 +148,9 @@ docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy
 - `/deploy-and-run` — rebuild the Docker image and start the app; reuses `/build-and-test`'s shared jar internally, no duplicate compile
 - `/playwright [scenario] [--ux]` — run Playwright tests
 - `/sonar` — run SonarQube analysis
-- `/decision <module> — <title>` — record architectural decision
+- `/record-decision <module> — <title>` — record architectural decision
 - `/sync-docs [ref]` — sync architecture docs with code (default: origin/main); **run manually** after significant changes (new module, new SPI, schema changes) — not triggered automatically
-- `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `scripts/DECISIONS.md` ADR-004
+- `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `docs/ai/adr-index.md`
 - `/ci [flags]` — run the isolated local CI runner (unit+integration+e2e+sonar by default, backgrounded); see `scripts/ci/README.md`/`DECISIONS.md`
 - `/feature <title>` — scaffold a new `backlog/issues/<prefix>-NNN-<slug>.md` from the standard template and rank it in `BACKLOG.md`'s priority table
 - `/autopilot <task>` — plan once, approve once, then implement/test/document a task end-to-end with no further check-ins until it's done; explicit per-run opt-out of the standing Approval Rule's per-step gating, not a permanent one
@@ -186,6 +186,8 @@ the home ADR's own `**Also affects:**` tag — never hand-edit these three files
 `docs/ai/adr-index.md` — see `docs/ai/README.md` for the full AI-navigation layer.
 
 **Rules:**
-- Record any new substantial architectural or technical decision there immediately — before the conversation ends.
+- Record any new substantial architectural or technical decision there immediately — before the
+  conversation ends — via `/record-decision`, never by hand-writing a `DECISIONS.md` entry
+  directly (its worthiness gate and format checks are the point).
 - When a decision contradicts or supersedes an existing entry, update or annotate the existing entry rather than only adding a new one.
 - Each `DECISIONS.md` also tracks open goals (work not yet done). When implementing something that realizes a stated goal, mark it done in the same PR.

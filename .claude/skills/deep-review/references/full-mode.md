@@ -32,8 +32,8 @@ module. With none, cover all of:
      SRP — a class that's grown multiple unrelated concerns), DRY violations
      that are *structural* (same sequence of operations repeated with different
      types), and KISS violations (abstraction that costs more than the problem
-     it solves — the `PaginationBar` exception, see `marketplace-app/DECISIONS.md`
-     ADR-054, shows this isn't automatic; over-abstraction is as much a finding
+     it solves — the `PaginationBar` exception, see `docs/ai/adr-index.md`,
+     shows this isn't automatic; over-abstraction is as much a finding
      as under-abstraction)
    - Explicit instruction to report, for every file it actually opened, one of:
      a finding with file+line evidence, or "checked, no issue" — an agent that

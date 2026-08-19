@@ -15,6 +15,14 @@ the relevant `CLAUDE.md` (`scripts/CLAUDE.md`, `playwright/CLAUDE.md`) for that 
 documented behavior/flags/constraints rather than acting on what was true earlier in the same
 session — those files get updated mid-session precisely because a run just revealed a gap.
 
+Same requirement extends to `docs/ai/context-loading.md` (what to read, by task type) and
+`docs/ai/flows.md` (which command/skill handles it) whenever the task touches `DECISIONS.md`,
+backlog, or a choice between multiple possible commands/skills — re-`Read` both at that same
+starting point, not from memory of what they said earlier in the session. Before dispatching any
+subagent to read or classify `DECISIONS.md` content, check `context-loading.md`'s own routing
+table first — it may already name a specific command/skill (e.g. `deep-review` full mode) that
+owns exactly this task shape instead of a hand-rolled agent dispatch.
+
 ---
 
 > ## ⛔ NEVER commit without explicit user request
@@ -40,11 +48,24 @@ session — those files get updated mid-session precisely because a run just rev
 
 > ## ⛔ Any `DECISIONS.md` edit regenerates the ADR index in the same operation
 > Whenever any `DECISIONS.md` file is created, edited, or has an ADR added/changed — by any
-> workflow, command, or skill, not only `/decision` — run
+> workflow, command, or skill, not only `/record-decision` — run
 > `bash docs/ai/scripts/generate-adr-index.sh` and include the resulting `docs/ai/adr-index.md` diff in
 > the same change before considering it complete. This applies even to direct edits made outside
 > any specific skill's own steps; the index going stale is not a lesser concern just because the
 > edit didn't go through the one command that happens to mention it.
+
+> ## ⛔ Stamp an ADR's `Verified:` date whenever you happen to confirm it against real code
+> Every `DECISIONS.md` entry may carry an optional `**Verified:** YYYY-MM-DD` line right after
+> `**Status:**` — today's date, the last time anyone actually checked that entry's claim still
+> matches the real code. Whenever a task (any task, not an ADR-focused one) happens to touch code
+> an existing KEEP/REWRITE-shaped ADR describes, and its claim still holds, stamp it before moving
+> on. This is opportunistic, not a dedicated audit — never go looking for ADRs to verify as a task
+> of its own; only stamp ones you've already confirmed as a side effect of other work. A blank
+> `Verified` field is not itself a problem, just "not independently re-confirmed since written."
+>
+> **Why:** a one-time exhaustive audit of every ADR against current code is expensive and goes
+> stale again the moment it finishes; a lazily-stamped date, accumulated for free across ordinary
+> work over time, gives the same staleness signal without the recurring cost.
 
 > ## ⛔ A new project-local command/skill file adds its own navigation row in the same operation
 > Whenever a new `.claude/commands/*.md` or `.claude/skills/*/SKILL.md` file is added to this repo,
@@ -94,20 +115,23 @@ session — those files get updated mid-session precisely because a run just rev
 > new index for this purpose.
 
 > ## ⛔ Comments, README, and other markdown files never cite a specific ADR number
-> A code comment, `README.md`, or any other markdown file may say "see `DECISIONS.md`" but must
-> never cite a specific `ADR-NNN` number. `DECISIONS.md` itself is the one place ADR numbers are
-> written — every ADR entry states which file(s)/module it governs directly in its own text, so a
-> reader finds the relevant entry by searching `DECISIONS.md` for the fact in question, not by
-> following a numbered pointer planted somewhere else.
+> A code comment, `README.md`, or any other markdown file may say "see `docs/ai/adr-index.md`" but
+> must never cite a specific `ADR-NNN` number directly. The index is searchable by module/status/
+> title, so a reader finds the relevant row by the fact in question, not by following a numbered
+> pointer planted somewhere else; once the index narrows the search to one or a few ADR ids,
+> `node docs/architecture/scripts/md-to-decisions-json.js --extract <module> <ADR-NNN>[,...]` pulls
+> the actual decision text without opening the whole `DECISIONS.md` file.
 >
 > **Why:** an ADR number planted in a comment/README is a forward-link like a ticket number — it
 > goes stale the moment ADRs get renumbered, split, or superseded, and it invites casually citing
 > a number "just in case" rather than actually stating the fact that matters. Traceability should
 > flow from the decision record outward (the ADR says what it governs), not from scattered
-> pointers inward.
+> pointers inward. Pointing at the generated index instead of `DECISIONS.md` directly also
+> decouples the reference from which of the 16 files physically holds the entry.
 >
-> **How to apply:** going forward only — existing `ADR-NNN` citations already in the repo are not
-> retroactively scrubbed by this rule; it governs new/edited content from here on.
+> **How to apply:** going forward only — existing `ADR-NNN` citations and `DECISIONS.md` pointers
+> already in the repo are not retroactively scrubbed by this rule; it governs new/edited content
+> from here on.
 
 > ## ⛔ Skills, commands, rules, and README files name a real repo file only when unavoidable
 > `SKILL.md`, `.claude/commands/*.md`, `.claude/rules.md`, and any `README.md` stay maximally
@@ -244,7 +268,7 @@ subdirectory split for something that doesn't need one.
 
 ## Issue Lifecycle
 
-Before filing a new ADR (`/decision`) or a new backlog issue (`/feature`), consult
+Before filing a new ADR (`/record-decision`) or a new backlog issue (`/feature`), consult
 `docs/ai/adr-index.md` (if present) for an already-decided overlapping ADR — mandatory, not
 best-effort. See `docs/ai/README.md` for what the file is and how it stays current.
 
@@ -359,7 +383,8 @@ A feature or fix is not complete until all of the following hold:
   (unit → integration → e2e → Sonar) in one pass when a single command is preferred over running
   each stage separately.
 - `DECISIONS.md` (the relevant module's) is updated if the change is architectural — a new
-  decision, or an annotation to an existing one it supersedes.
+  decision, or an annotation to an existing one it supersedes — via `/record-decision`, not a
+  hand-written entry.
 - The issue file is moved from `backlog/issues/` to `backlog/completed/issues/`, its `BACKLOG.md`
   row removed, and a `✅ Done` entry added to `BACKLOG-ARCHIVE.md` — see "Issue Lifecycle" above.
 
@@ -562,7 +587,7 @@ method, never inlined into `activate()`.
 ### History access — an icon button opening EntityActivityOverlay, not a tab
 `AbstractFormOverlayModeHandler` has no tab machinery at all (`buildTabbedContent()`,
 `buildContentWithActivity()`, `ActivityTabParams` were removed once all five domains migrated —
-see `marketplace-app/DECISIONS.md` ADR-067). `layout.setContent(...)` is called unconditionally;
+see `docs/ai/adr-index.md`). `layout.setContent(...)` is called unconditionally;
 history/restore is a header-action icon button (`.{domain}-history-button`) that opens the shared
 `EntityActivityOverlay` (`ui/views/components/audit/`) stacked on top via `BaseOverlay.openNested()`:
 
@@ -595,7 +620,7 @@ append. `OverlayLayout.setBreadcrumbLinks(List<Component>)` renders the chain wi
 only *between* links. `EntityActivityOverlay.openFor(...)` extends the calling overlay's own
 `buildBreadcrumbSteps()` (passed as `parentSteps`) with one more segment (`parentFormLabel`), so
 the nested history overlay's breadcrumb reflects the real navigation path taken, not a fixed
-2-segment pair. See `marketplace-app/DECISIONS.md` ADR-067 for the full history of this design.
+2-segment pair. See `docs/ai/adr-index.md` for the full history of this design.
 
 ---
 

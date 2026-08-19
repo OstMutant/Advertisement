@@ -99,7 +99,7 @@ defeat the "cached artifacts, not re-fetched" goal for no isolation benefit, so 
 ---
 
 ## ADR-002: Background by default, live progress via `docker cp`-polled `progress.txt`
-**Status:** Accepted
+**Status:** Superseded by ADR-009 — the `progress.txt`-polling mechanism no longer exists in code
 
 **Context:** The initial implementation blocked the caller until the whole run finished (10+
 minutes for a full `--all --sonar` run). The user wanted the opposite default: kick off the run and
@@ -174,7 +174,8 @@ blocked the caller.
 ---
 
 ## ADR-004: Report retention — keep the last N runs, prune the rest
-**Status:** Accepted
+**Status:** Superseded by ADR-009 — the `--keep-reports`/report-retention mechanism no longer
+exists in code
 
 **Context:** Each run creates a full `scripts/ci/reports/<timestamp>/` tree (Playwright HTML
 report with screenshots, surefire XML/txt, Sonar HTML) — left unmanaged, this grows unbounded
@@ -229,95 +230,6 @@ would need a second `--playwright-args`-style mechanism to also stop `deploy.sh 
 **Consequences:** Safe defaults for the common case (one CI run + normal dev work), with the two
 real limits (resource contention under load, no double e2e) called out explicitly in `README.md`
 rather than left for someone to discover the hard way.
-
-## ADR-006: `e2e`/`sonar` stages now write their own `run.log` — closes a real "failed with no
-retrievable reason" gap
-
-**Status:** Accepted
-
-**Context:** Confirmed directly (a real `bash scripts/ci.sh` run, not theoretical): when the `e2e`
-and `sonar` stages fail, `entrypoint.sh` only ever copied the stage's *final* artifact
-(`playwright/pw-report/.` → `$REPORT_DIR/playwright/`, `scripts/sonar/report/.` →
-`$REPORT_DIR/sonar/`) — never the stdout of `deploy-and-run.sh`/`playwright/run.sh`/`scripts/sonar.sh`
-while they ran. Once the ephemeral `ci-runner-<timestamp>` container is `docker rm -f`'d after the
-run (see ADR-002), that stdout is gone permanently — a failed `e2e`/`sonar` stage surfaces only
-`FAILED` in `progress.txt`, with zero way to find out *why* after the fact. This is unlike `unit`/
-`integration`, which already had real logs because the scripts they call
-(`unit-tests.sh`/`integration-tests.sh`) already `tee` their own output to their own
-`reports/run.log` internally — `deploy-and-run.sh` and `scripts/sonar/run.sh` also `tee` to a log file
-(`/tmp/deploy.log`, `/tmp/sonar.log`), but only inside `/tmp` on whichever container runs them,
-never copied into the shared report tree; `playwright/run.sh` doesn't self-log its own stdout at
-all (the `/tmp/pw-live.log` reference at its tail is a best-effort `docker cp` from the *pw-runner*
-container for a file nothing actually writes there — a dead reference, not a working log path).
-
-**Decision:** Wrapped each of the `e2e` and `sonar` stage blocks in `entrypoint.sh` in a `{ ... }
-2>&1 | tee "$REPORT_DIR/<stage>/run.log"` — the same manual-tee convention used everywhere else in
-this repo (`deploy-and-run.sh`, `sonar/run.sh`, interactive Monitor+tee invocations), just applied at the
-one place (`entrypoint.sh`) that previously had none. Exit code is captured via a temp
-`.exit_code` file written *inside* the piped block and read back after, not via `$?` directly after
-the pipe — `$?` after a pipe is `tee`'s own exit status (always 0), the exact "tee'd exit-code bug"
-`scripts/sonar/DECISIONS.md` ADR-001 already documents for a different script; this avoids
-reintroducing that same bug here.
-
-**Consequences:**
-- `scripts/ci/reports/<timestamp>/playwright/run.log` and `.../sonar/run.log` now exist after every
-  run, success or failure, and get synced to the host live by the same 5s `docker cp` poll loop
-  that already surfaces `unit-tests/run.log`/`integration-tests/run.log` — a failed `e2e`/`sonar`
-  stage is now debuggable from the report directory alone, no need to re-run anything or attach to
-  a container that's already been removed.
-- `run.log` at the top level of a report run (`scripts/ci/reports/<timestamp>/run.log`, the outer
-  `run.sh`'s own stdout) still does **not** contain this detail — it only ever held container
-  orchestration messages (build output, `docker run`/`docker wait` bookkeeping), not stage stdout,
-  for any stage. The per-stage `run.log` files (inside `unit-tests/`, `integration-tests/`,
-  `playwright/`, `sonar/`) are the only ones with real command output; `scripts/CLAUDE.md`'s
-  "Local CI Runner" section description of the outer `run.log` as "the full raw output" was already
-  imprecise before this change — corrected in the same pass.
-
-## ADR-007: `teardown_e2e_stack()` now also removes `CI_DB_VOLUME`/`CI_MINIO_VOLUME`
-
-**Status:** Accepted
-
-**Context:** ADR-006's new `playwright/run.log` capture surfaced the *actual* cause of a
-recurring `e2e` failure that had no visible reason before: every `adminEn signs up` /
-`findByFilter` call against `user_information` threw `BadSqlGrammarException` → `PSQLException:
-column u.deleted_at does not exist`. Confirmed directly, not guessed: `\d user_information`
-against the isolated CI Postgres showed no `deleted_at`/`deleted_by` columns at all, while the
-persistent dev Postgres (`advertisement-db`) had both. Root cause, traced via `git log -p` on
-`01-user-schema.xml`: commit `3063048d` (adding soft-delete to users) edited the
-**already-applied** changeset `01-user-schema` in place to add `deleted_at`/`deleted_by`, instead
-of adding a new changeset, and added `<validCheckSum>ANY</validCheckSum>` to silence the resulting
-checksum-mismatch error. Liquibase never re-runs a changeset it has already recorded as executed —
-`<validCheckSum>ANY</validCheckSum>` only suppresses the *warning* about the mismatch, it does not
-retroactively apply the new columns. `teardown_e2e_stack()` only ever removed the `ci-*`
-containers/network, never `CI_DB_VOLUME`/`CI_MINIO_VOLUME` — so the isolated e2e Postgres volume,
-first created by some CI run before commit `3063048d`, has been silently reused (never
-recreated) by every `e2e` run since, permanently stuck on the schema from before that commit.
-
-**Decision:** `teardown_e2e_stack()` now also runs `docker volume rm "$CI_DB_VOLUME"
-"$CI_MINIO_VOLUME"` after removing the containers/network, so every `e2e` stage starts from a
-genuinely empty Postgres/MinIO and Liquibase applies the current, complete `01-user-schema`
-changeset in one shot. Scoped to this project's non-prod call: the underlying Liquibase
-anti-pattern (editing an applied changeset instead of appending a new one) is not fixed here — any
-*real*, long-lived database (a developer's persistent local volume, or a future prod database)
-that ran `01-user-schema` before commit `3063048d` would still be permanently missing these
-columns, since Liquibase itself never revisits a recorded changeset. Left as-is because this
-project has no production deployment yet and the persistent dev stack already has the columns
-(added by some means before this was caught) — revisit with a proper forward-only, idempotent
-follow-up changeset if/when a real deployed database needs to be protected against this class of
-gap.
-
-**Consequences:**
-- `e2e` CI runs are no longer permanently stuck replaying a stale schema — the very next
-  `bash scripts/ci.sh --e2e` after this fix starts clean.
-- `CI_DB_VOLUME`/`CI_MINIO_VOLUME` no longer persist any data between CI runs at all (by design —
-  this isolated stack was always meant to be ephemeral per ADR-001; the volumes existing at all
-  was so Postgres/MinIO could restart cleanly *within* one run, e.g. across `deploy.sh`'s own
-  container-recreate step, not so state would survive *across* separate `ci.sh` invocations).
-- `01-user-schema.xml`'s `<validCheckSum>ANY</validCheckSum>` remains in place — it was never the
-  actual bug (it correctly lets Liquibase accept the edited changeset's new checksum on databases
-  that already ran the old version), and removing it would only reintroduce a checksum-mismatch
-  failure on those same already-migrated databases without fixing the missing-columns gap either
-  way.
 
 ---
 
@@ -520,7 +432,7 @@ steps only — never `build` (primes the cache `e2e` needs) or `sonar`/`e2e` the
   `scripts/build-and-test/run.sh`'s own usage comment all updated with the new flags in the same
   change.
 
-**Addendum, same day — `sandbox` param removed, `--sandbox` always applied to `integration`:** a
+**Addendum: `sandbox` param removed, `--sandbox` always applied to `integration`.** Same day — a
 Dagu-UI-triggered `integration` run failed because the "Start" dialog's `sandbox` checkbox defaults
 unchecked and nothing catches a forgotten one. Since `ci-runner` is itself a Docker-outside-of-Docker
 container regardless of the host it runs on, its `integration` step hits the same
@@ -530,13 +442,13 @@ this specific claude-dev sandbox — there is no real "don't need it" case for t
 unconditionally. `scripts/ci/run.sh`'s own `--sandbox` CLI flag and `SANDBOX` variable removed to
 match — nothing reads it anymore.
 
-**Addendum — `archunit_metrics` on by default.** With `--skip-vaadin`, this step's own measured
+**Addendum: `archunit_metrics` on by default.** With `--skip-vaadin`, this step's own measured
 cost (132s warm-cache) is small next to `e2e`'s (~17 min), so keeping it opt-in bought nothing —
 flipped `ci.yaml`'s `archunit_metrics` param default and `scripts/ci/run.sh`'s own
 `ARCHUNIT_METRICS` default to `true`; the CLI flag became the opt-out `--no-archunit-metrics`,
 matching the existing `--no-docs` shape rather than a new positive flag.
 
-**Addendum — `scripts/ci/watch-run.py`, a Monitor-backed replacement for manual API polling.**
+**Addendum: `scripts/ci/watch-run.py`, a Monitor-backed replacement for manual API polling.**
 `ci.sh` (backgrounded, the default) returns as soon as a run is triggered — there's no single
 streaming log file the way `deploy.sh`/`playwright.sh` have, so the Monitor+log-tail pattern used
 for those doesn't apply directly. This script polls Dagu's REST API instead and prints one line per
@@ -554,7 +466,7 @@ not assumed:
    visible, even though this script has no notion of any one step's own normal duration and so
    cannot itself distinguish a genuine hang from a slow-but-fine step.
 
-**Addendum — `keep_infra` renamed `keep_e2e_infra`, default flipped to `true`; new
+**Addendum: `keep_infra` renamed `keep_e2e_infra`, default flipped to `true`; new
 `reset_e2e_db` param.** `--keep-infra` didn't say what it kept at a glance (the whole CI runner? the
 persistent dev stack?) — renamed to `keep_e2e_infra`, scoping it to what it actually governs (the
 isolated e2e stack's containers/network/volumes). Default flipped `false` → `true`: leaving the

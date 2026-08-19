@@ -63,7 +63,7 @@ to guess where it ends from context (a blank line, the next line of code, or not
 #   --file           filtered console output + full log to /tmp/deploy.log
 #   --no-cache       force rebuild ignoring Docker layer cache
 #   --reset-only-db       truncate app tables (reset-clean.sql) before starting the app
-#   --prune-all      also prune stopped containers/volumes HOST-WIDE (see DECISIONS.md ADR-001)
+#   --prune-all      also prune stopped containers/volumes HOST-WIDE (see docs/ai/adr-index.md)
 # Uses: bash, docker buildx, docker compose.
 # Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), MINIO_CONTAINER
 #   (advertisement-minio), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
@@ -96,9 +96,9 @@ to guess where it ends from context (a blank line, the next line of code, or not
 A field's job isn't just "the mundane primary behavior" — if a script has a real, non-obvious
 operational side effect (auto-resets a server setting every run, self-heals a config drift,
 silently wipes something under a condition), that fact belongs in the relevant field's own text
-(usually `Outputs`, sometimes `Env`), with a pointer to say "see `DECISIONS.md`" for the full
-reasoning — not just buried there where a reader has to already know to look. The header is what
-someone sees first; `DECISIONS.md` is where they go if they want the *why*.
+(usually `Outputs`, sometimes `Env`), with a pointer to say "see `docs/ai/adr-index.md`" for the
+full reasoning — not just buried there where a reader has to already know to look. The header is
+what someone sees first; `docs/ai/adr-index.md` is where they go if they want the *why*.
 
 ## Explicit container/image names belong in the Description field
 
@@ -112,8 +112,8 @@ running instance directly, without first opening the script to find out what it'
 A header field (`Description`/`Usage`/`Env`/`Outputs`, etc.) never names a real file elsewhere in
 the repo as a pointer — the same discipline `.claude/rules.md`'s "name a real file only when
 unavoidable" rule already applies to `SKILL.md`/commands/`rules.md`/`README.md`. The one sanctioned
-exception, matching the repo-wide convention: a generic "see DECISIONS.md" (never a specific
-`ADR-NNN` number) — no other real file name belongs in a header field.
+exception, matching `.claude/rules.md`'s ADR-citation rule: a generic "see `docs/ai/adr-index.md`"
+(never a specific `ADR-NNN` number) — no other real file name belongs in a header field.
 
 ## `Env` field distinguishes "set automatically by a caller" from "set directly by you"
 
@@ -279,7 +279,7 @@ per the general "one line or none" rule.
 # Description: CI-runner image -- one container the user interacts with (scripts/ci.sh ->
 #   scripts/ci/run.sh), Docker-outside-of-Docker: the host's docker.sock is mounted into it at
 #   `docker run` time so it can create/tear down its own isolated ci-* sibling containers without
-#   touching the persistent dev stack. Full design rationale: scripts/ci/DECISIONS.md ADR-001.
+#   touching the persistent dev stack. Full design rationale: see docs/ai/adr-index.md.
 # Usage: docker build -f scripts/ci/Dockerfile -t ci-runner .
 # Uses: eclipse-temurin:25-jdk base image.
 # Env: DAGU_VERSION, DAGU_HOME, DAGU_PORT, DAGU_AUTH_MODE (all declared via ENV, not

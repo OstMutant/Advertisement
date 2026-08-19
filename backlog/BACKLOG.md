@@ -76,6 +76,8 @@ restructure this issue itself was sequenced after, and spun off `improvement-158
 pattern applied to `scripts/sonar/run.sh`), also shipped the same session.
 **improvement-153 (Dagu-backed local CI visualization, replacing `progress.txt` polling) shipped
 2026-08-18** — see `completed/BACKLOG-ARCHIVE.md`.
+**improvement-159 (full 9-step ADR system review, executed for real) shipped 2026-08-19** — see
+`completed/BACKLOG-ARCHIVE.md`; 229 → 172 active ADRs across all 13 non-empty `DECISIONS.md` files.
 improvement-118 stays blocked (needs a public URL this sandbox doesn't have).
 
 | Priority | Tier | Issues (in execution order) | One pass = |

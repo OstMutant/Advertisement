@@ -69,7 +69,7 @@ json_escape() {
 # already uses) -- NOT a separate <module>/DECISIONS.json loaded at runtime via <script src>. That
 # design was tried and reverted: it depends on browser-specific file:// security policy for
 # cross-directory script loading, an unacceptable dependency for a tool meant to just work when
-# double-clicked -- see docs/architecture/scripts/DECISIONS.md ADR-008. Parsing lives in md-to-decisions-json.js
+# double-clicked -- see docs/ai/adr-index.md. Parsing lives in md-to-decisions-json.js
 # (Node) -- an earlier awk version hit two real bugs on real content (label+list with no blank
 # line merging into one paragraph; multi-line list items losing their numbering) that
 # JSON.stringify()'s correct-by-construction escaping and normal regex/string methods avoid.
@@ -3595,8 +3595,8 @@ function renderAdrs() {
 
 // Always opens the popup -- title/status come from MODEL.allAdrs (always populated, passed in
 // directly from the calling row so there's no second lookup) -- the body is the full embedded
-// text only if that module's full ADR content was embedded (see docs/architecture/scripts/DECISIONS.md
-// ADR-008's FULL_DECISIONS_MODULES, gated behind --with-adr-details); otherwise a real link to the
+// text only if that module's full ADR content was embedded (see docs/ai/adr-index.md and
+// FULL_DECISIONS_MODULES above, gated behind --with-adr-details); otherwise a real link to the
 // source file plus a generic pointer to where that flag is documented, not a copy of the exact
 // command here (kept deliberately decoupled from one script's exact CLI shape). Takes the ADR id +
 // home module directly since the ADRs screen's list is flat across every module, not scoped to one

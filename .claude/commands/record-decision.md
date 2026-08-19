@@ -1,7 +1,7 @@
 Record a new architectural decision in the appropriate DECISIONS.md file.
 
-Usage: /decision <module> — <title>
-Example: /decision platform-commons — Split audit.api from audit.spi
+Usage: /record-decision <module> — <title>
+Example: /record-decision platform-commons — Split audit.api from audit.spi
 
 Available modules and their DECISIONS.md paths (if a module isn't listed, check whether it has a
 `DECISIONS.md` at all before assuming — this list has gone stale before):
@@ -44,6 +44,21 @@ If genuinely unsure, prefer *not* writing the ADR and note the decision briefly 
 message instead — the cost of a missing ADR is a future "why did we do this?" question; the cost
 of an unnecessary one is that this file stops being a reliable signal of what actually matters,
 for every reader after it, including future AI context loading it.
+
+**One ADR per decision, not per work session/batch.** If what you're about to write is a
+continuation of a decision already on file — the next batch of a multi-session rollout, the next
+slice of a feature shipped incrementally, or another round of iterating on the same mechanism in
+one sitting — extend or supersede that existing entry instead of adding a new sequential number.
+A repo-wide audit found this the single largest source of ADR clutter: near-duplicate entries
+recording the same decision's progress instead of its outcome.
+
+**When a decision changes, supersede — don't append a correction layer.** If what prompted this
+ADR is that an existing `Accepted` entry's decision no longer holds (reversed, replaced, or found
+wrong), mark that old entry's `Status:` as `Superseded by ADR-NNN` (a short, clean pointer — no
+restated rationale) and write this as a new, self-contained entry describing the current decision.
+Never edit the old entry in place by appending a dated `Correction`/`Amendment`/`Update` section —
+the same audit found this the second-largest source of clutter: entries that require reading
+through several layered corrections just to find out what's actually true today.
 
 Steps:
 1. Check the worthiness gate above first — if none of the three conditions hold, stop here; tell

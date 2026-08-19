@@ -49,16 +49,14 @@ not a reversal.
 ---
 
 ## ADR-003: deploy-and-run.sh startup detection
-**Status:** Accepted — **code has since reverted to the originally-rejected approach** (see
-correction below); documenting current reality rather than the original design
+**Status:** Accepted
 
-**Context:** Polling `docker logs` repeatedly wastes cycles and adds arbitrary sleep delays.
+**Context:** Polling `docker logs` repeatedly wastes cycles and adds arbitrary sleep delays if
+done naively (e.g. tight-loop with no sleep, or re-reading the whole log unnecessarily often).
 
-**Original decision (no longer what the code does):** wait for `"Started Application"` via a
-single streaming `docker logs -f | grep -qm1` call with an external `timeout`.
-
-**Correction (verified 2026-07-13):** current `scripts/deploy-and-run/run.sh` does not do
-this — it uses exactly the pattern this ADR originally rejected:
+**Decision:** `scripts/deploy-and-run/run.sh` waits for `"Started Application"` via a
+`while`/`sleep 2` polling loop against `docker logs` (non-streaming — re-reads the full log each
+iteration rather than following it with `-f`), with the timeout tracked via `$SECONDS`:
 ```bash
 end=$((SECONDS + 180))
 while true; do
@@ -67,96 +65,43 @@ while true; do
   sleep 2
 done
 ```
-A `while`/`sleep 2` polling loop, non-streaming `docker logs` (re-reads the full log each
-iteration rather than `-f` following it), timeout tracked via `$SECONDS` rather than the `timeout`
-command. `git log -p` on this file shows the loop was introduced in a later commit than this ADR,
-with no corresponding ADR update. In practice this has run reliably across many deploys this
-session with no observed flakiness — the "wastes cycles" concern in the original Context does not
-appear to have materialized as an actual problem at this polling interval (2s) and timeout (180s).
-Documenting current behavior as-is rather than reverting working deploy code to match a
-stale ADR; if the original streaming approach is preferred, that's a separate, deliberate change
-to make to `deploy-and-run/run.sh` itself, not a docs fix.
 
-**Consequences:** `deploy-and-run.sh`'s current startup-detection mechanism is the polling loop
-shown above, not the streaming `grep -qm1` originally decided here.
+**Consequences:** This has run reliably across many deploys with no observed flakiness at this
+polling interval (2s) and timeout (180s).
 
 ---
 
-## ADR-004: run-all-tests.sh — sequential Maven suites, parallel Playwright
+## ADR-004: run-all-tests.sh — real 3-way parallelism (unit, integration, Playwright)
 **Status:** Accepted
 
-**Context:** Running `unit-tests.sh`, `integration-tests.sh`, and `playwright.sh` one at a time
-during daily iteration is slow. Naive full 3-way parallelism was considered and rejected:
-`unit-tests.sh` (`./mvnw -pl query-lib,marketplace-app -am test`) and `integration-tests.sh`
-(conditional `./mvnw install -pl platform-commons,advertisement-/user-/taxon-spring-boot-starter
--am -DskipTests`) can both compile the *same* starter modules into their shared `target/`
-directories. Running them concurrently right after editing one of those starters risks a genuine
-Maven build race (one process reading/writing `target/classes` while the other recompiles it), not
-just a performance hit. `playwright.sh`, by contrast, never touches the Maven reactor — it only
-drives an already-built, already-running `marketplace-app` Docker container via `docker cp`/`docker
-exec`, so it has nothing to race with the Maven-based suites.
+**Context:** Running unit tests, integration tests, and Playwright one at a time during daily
+iteration is slow. Naive full 3-way parallelism has a real hazard: unit and integration tests both
+compile the same starter modules, so running them concurrently against shared, uncontained
+`target/`/`~/.m2` state risks a genuine Maven build race (one process reading/writing
+`target/classes` while the other recompiles it). Playwright, by contrast, never touches the Maven
+reactor — it only drives an already-built, already-running `marketplace-app` Docker container via
+`docker cp`/`docker exec`, so it has nothing to race with the Maven-based suites. Playwright also
+needs a fresh, known-clean database to avoid state-pollution false failures, and a freshly-deployed
+app to test against.
 
-**Decision:** `scripts/run-all-tests.sh` runs `unit-tests.sh` → `integration-tests.sh`
-sequentially in one stream, while `playwright.sh` starts in parallel with that pair from the very
-beginning (backgrounded, own log file) and is `wait`-ed on at the end. Each suite's own
-flags/scenario args are grouped behind `--unit "..."` / `--integration "..."` / `--playwright
-"..."` and forwarded unchanged — no new flag vocabulary, no duplication of each script's own
-argument parsing.
+**Decision:** `scripts/run-all-tests/run.sh` calls `scripts/build-and-test.sh --unit --integration`
+for the Maven-based suites — it installs the whole reactor into its own container-isolated `~/.m2`
+(a named Docker volume, never the host's real one) *before* either suite runs, so by the time tests
+start, neither one writes to shared state anymore, only reads it, eliminating the race. In
+parallel with that call, `run-all-tests/run.sh` runs `deploy-and-run.sh` (always clearing app data
+first — `--reset-only-db` by default, `--reset` when `--reset` is passed to `run-all-tests.sh`)
+sequentially, then `playwright.sh` once that succeeds. Each suite's own flags/scenario args are
+grouped behind `--unit "..."` / `--integration "..."` / `--playwright "..."` and forwarded
+unchanged — no new flag vocabulary, no duplication of each script's own argument parsing.
 
-Side effect worth noting (not a design requirement, just an observed consequence of the ordering):
-since `unit-tests.sh` already compiles the shared starter modules via its own `-am` reactor build
-moments earlier, `integration-tests.sh`'s subsequent staleness-check/install step (see
-`integration-tests/DECISIONS.md` ADR-007) typically finds a warm compile cache ("Nothing to
-compile") and completes faster than a cold invocation would — even though `unit-tests.sh` never
-installs anything to `~/.m2` itself (`test` goal, not `install`), so the install step still always
-actually runs, just faster.
-
-**Consequences:** True 3-way parallelism (including unit-tests and integration-tests running
-concurrently) was explicitly out of scope for this decision — it would require isolating one of
-the two Maven-based suites into a separate git worktree (or equivalent) so their `target/`
-directories never overlap. Not pursued because the sequential-plus-parallel-Playwright shape
-already captures most of the available time savings without new infrastructure. The individual
-scripts (`unit-tests.sh`, `integration-tests.sh`, `playwright.sh`) remain the default, single-suite
-entry points for day-to-day iteration — `run-all-tests.sh` is an additional, opt-in grouping, not a
-replacement.
-
-**Update (unit/integration pairing superseded):** the "isolate into a separate git worktree"
-blocker above no longer applies — `scripts/build-and-test.sh --unit --integration` installs the
-whole reactor into its own container-isolated `~/.m2` (a named Docker volume, never the host's
-real one) *before* either suite runs, so by the time tests start, neither one writes to shared
-state anymore, only reads it. `scripts/run-all-tests/run.sh` now calls `build-and-test.sh --unit
---integration` instead of `unit-tests.sh` → `integration-tests.sh` sequentially — real 3-way
-parallelism (unit ‖ integration ‖ Playwright), verified end to end (unit 50.2s, integration 56.5s,
-both concurrent, both PASSED).
-
-**Update (unit-tests.sh/integration-tests.sh retired):** the claim directly above — that
-`unit-tests.sh`/`integration-tests.sh` "remain the standalone, single-suite entry points... still
-run directly on the host" — no longer holds. Both scripts were deleted entirely once
-`build-and-test.sh` reached feature parity with them (module/test selection, host-copied reports,
-`--sandbox`); day-to-day single-suite iteration outside `run-all-tests.sh` now goes through
-`bash scripts/build-and-test.sh --unit --no-integration` / `--no-unit --integration` instead.
-
-**Update (Playwright no longer purely parallel from the start):** Playwright previously tested
-whatever `marketplace-app` container already happened to be running, with no freshness guarantee
-and no relation to the concurrent `build-and-test.sh` run. `scripts/run-all-tests/run.sh` now runs
-`deploy-and-run.sh` (always clearing app data first — `--reset-only-db` by default, `--reset` when
-`--reset` is passed to `run-all-tests.sh`) sequentially, then `playwright.sh` once that succeeds —
-this whole sequence still starts in parallel with the direct `build-and-test.sh --unit --integration`
-call, unchanged from the decision above. The two resulting `build-and-test.sh` invocations (this
-script's own, and the one `deploy-and-run.sh` triggers internally to reuse its shared jar) are safe
-to run concurrently — see `scripts/build-and-test/run.sh`'s own `BUILD_CONTAINER_NAME` env var,
-added specifically because the first real concurrent case (this one) hit a genuine Docker
-container-name collision the shared-volume `flock` alone doesn't prevent.
-
----
-
-## ADR-005 through ADR-008: moved to scripts/ci/DECISIONS.md
-
-The local CI runner's ADRs (one CI-runner container via Docker-outside-of-Docker, background
-execution with a live progress file, most-extensive-by-default stage selection, report retention)
-now live in `scripts/ci/DECISIONS.md` (its own ADR-001 through ADR-004) — `scripts/ci/` grew its
-own `DECISIONS.md`/`README.md` once the tool had enough surface area to warrant it, matching
-`scripts/sonar/`'s precedent of a nested tool directory with its own ADR file.
+**Consequences:** Verified end to end: real 3-way parallelism (unit ‖ integration ‖ Playwright),
+unit and integration both PASSED running concurrently with no build race. The two resulting
+`build-and-test.sh` invocations in this flow (`run-all-tests.sh`'s own call, and the one
+`deploy-and-run.sh` triggers internally to reuse its shared jar) are safe to run concurrently — see
+`scripts/build-and-test/run.sh`'s own `BUILD_CONTAINER_NAME` env var, which prevents a Docker
+container-name collision the shared-volume `flock` alone doesn't cover. Day-to-day single-suite
+iteration outside `run-all-tests.sh` goes through `bash scripts/build-and-test.sh --unit
+--no-integration` / `--no-unit --integration` directly.
 
 ---
 
@@ -223,145 +168,31 @@ host-facing occurrences (`S3_PUBLIC_URL`, the host port mappings themselves) wer
   a security hardening pass) and `deploy-and-run.sh`'s deliberate `8081` vs `8080` port distinction
   (untouched, must stay distinct).
 
-## ADR-010: `deploy-and-run.sh` auto-recovers from a Liquibase checksum mismatch (stale local dev DB)
-
-**Status:** Accepted
-
-**Context:** A change edited an already-applied Liquibase changeset in place
-(`01-advertisement-schema.xml`, removing
-the `advertisement`→`user_information` FK constraints — deliberate, since the DB has never been
-released, so preserving changelog history across a content edit was never a goal). Every local dev
-DB that had already run the old version of that changeset then fails Liquibase's own checksum
-validation on the next `deploy-and-run.sh` run — a `ValidationFailedException` that crashes the app
-container on startup. This is a predictable, recurring class of event for this project (any future
-in-place changeset edit on a still-unreleased table hits the same wall), not a one-off — worth
-teaching the script instead of re-explaining it and manually running `--reset` every time it recurs.
-
-**Decision:** `deploy-and-run.sh`'s Step 3 (`wait_for_app`) now distinguishes three outcomes instead of a
-flat "started or timed out": `0` = `Started Application` seen, `1` = the app container's logs
-contain the Liquibase checksum-mismatch signature (`changesets check sum`/`ValidationFailedException`),
-`2` = anything else (container exited for a different reason, or a genuine timeout). On `1`, the
-script automatically calls the same volume-wipe logic `--reset` already used (`reset_infra`,
-extracted from the `--reset` branch into a reusable function, alongside a new `start_infra`
-covering the rest of Step 1's container/wait/bucket setup), then retries starting the app exactly
-once. A second failure of any kind after the retry fails loudly (`exit 1` with the log tail), not
-silently — this only ever auto-recovers from the one specific, unambiguous signature, never masks
-a different underlying problem.
-
-**Two real bash pitfalls hit and fixed while wiring this up, worth recording since they're easy to
-reintroduce:**
-1. `if ! wait_for_app; then status=$?; ...` — `$?` inside that block is the exit status of the `if`
-   condition test itself (always `0`, since the negated test succeeded), **not** `wait_for_app`'s
-   real return value. Fixed with the standard idiom `wait_for_app && status=0 || status=$?`, which
-   captures the function's own exit code correctly.
-2. Even after fixing (1), a bare `wait_for_app` call (or a `set +e`-wrapped one) still triggered
-   this script's own `ERR` trap and exited immediately — the trap fires on any non-zero-returning
-   command that isn't inside a *tested* construct (`if`/`&&`/`||`/`!`), independent of whether
-   `set -e` itself is currently active. `set +e; wait_for_app; set -e` does not exempt the call;
-   only wrapping it in `&&`/`||` (as in the idiom above) does, since that's what the trap's own
-   exemption rule actually checks for.
-
-**Consequences:**
-- Verified end-to-end, not just by inspection: manually corrupted the `databasechangelog` row's
-  `md5sum` in the running dev DB to force the exact failure, ran `deploy-and-run.sh` unmodified, confirmed
-  the auto-recovery message, volume wipe, and successful retry all fired for real, then confirmed
-  the checksum was correctly re-applied afterward. Also verified the untouched happy path (normal
-  `deploy-and-run.sh`, no corruption) still passes straight through unaffected.
-- Scoped to local dev only, by construction — the auto-wipe is the same disposable dev DB/MinIO
-  volumes `--reset` already destroys today, never anything resembling a deployed database (this
-  project has none yet). A future real migration story for a released database is a separate,
-  unrelated problem this ADR does not attempt to solve.
-
-## ADR-011: `.env` parser strips a trailing `\r` — CRLF line endings silently broke `deploy-and-run.sh`
-
-**Status:** Accepted
-
-**Context:** ADR-009's `.env`-as-fallback parser (`while IFS='=' read -r _env_key _env_value; do
-... printf -v "ENV_$_env_key" '%s' "$_env_value"; done`, in both `deploy-and-run.sh` and
-`scripts/deploy-and-run/reset.sh`) reads the repo-root `.env` line by line. The repo-root `.env` had
-picked up Windows (CRLF, `\r\n`) line endings at some point (likely a Windows editor/git
-`autocrlf` interaction — not committed maliciously, just drifted). `read` strips the trailing
-`\n` but not a preceding `\r`, so every `ENV_*`-prefixed variable this loop produced silently
-carried a trailing carriage return — confirmed directly: `printf "%s" "$ENV_S3_PORT" | od -c`
-showed `9 0 0 0 \r`, not a clean `9000`.
-
-This surfaced as `deploy-and-run.sh` hanging indefinitely on "Waiting for MinIO..." — `MINIO_PORT`
-resolved to `"9000\r"`, so the health-check `curl` hit a malformed URL
-(`http://localhost:9000\r/minio/health/live`) and never succeeded, even though the MinIO
-container itself was healthy and answered instantly to a `curl` run outside the script (verified
-directly, `200 OK`). The `until curl ...; do sleep 1; done` loop then retried forever with no
-error surfaced — a silent hang, not a crash, so nothing in the script's own output pointed at the
-real cause.
-
-**Decision:** Two-part fix, not either alone:
-1. Normalized `.env` itself to LF line endings (`sed -i 's/\r$//'`) — removes the root cause for
-   every current consumer of this file.
-2. Made both parsers in `deploy-and-run.sh` and `scripts/deploy-and-run/reset.sh` defensively strip a trailing
-   `\r` from the parsed value regardless: `printf -v "ENV_$_env_key" '%s' "${_env_value%$'\r'}"`.
-   Belt-and-suspenders — (1) alone would silently break again if any future editor/tool
-   reintroduces CRLF into `.env`, since nothing enforces its line-ending style; (2) alone would
-   leave the `.env` file itself inconsistent with every other text file in the repo. Neither is a
-   substitute for the other.
-
-**Consequences:**
-- `integration-tests`' `SharedEnvConfig` (`java.util.Properties.load(InputStream)`) was not
-  affected — the JDK `Properties` format explicitly handles `\n`, `\r`, and `\r\n` line
-  terminators natively, confirmed by reading its actual parsing logic before ruling it out as a
-  second occurrence of this bug, not by assumption.
-- Verified end-to-end: killed the hung `deploy-and-run.sh` process, confirmed no `docker build` had even
-  started yet (the hang was before Step 2), applied both fixes, reran `deploy-and-run.sh` from scratch —
-  MinIO's wait now resolves immediately, the full build/start pipeline completes normally.
-- No new script flag or manual step introduced — this is a pure correctness fix to logic that
-  already existed (ADR-009), not a new mechanism.
-
 ---
 
-## ADR-012: `deploy-dev.sh` eliminated — its capability folded into `deploy.sh --reload`, backed by the shared `build-and-test` container
+## ADR-012: `deploy-dev.sh` eliminated
 
-**Status:** Partially reverted — see update note at the end of this entry.
+**Status:** Accepted
 
 **Context:** `deploy-dev.sh` ran its own `mvn clean package` for `marketplace-app` directly on
 whatever host it was invoked from, entirely separate from `scripts/build-and-test.sh`'s own Maven
 invocation for the library modules — two unrelated build steps sharing nothing. On a Windows/WSL
 machine without a working local Java install, this failed outright (`Error: JAVA_HOME is not
-defined correctly`) until `scripts/build-and-test.sh` was moved onto a shared, containerized build step
-(`scripts/build-and-test`, JDK 25 + Docker CLI, no local Java required) to work around the same
-Windows/WSL Java-path-translation gap. Once that container's build step also produced
+defined correctly`) until `scripts/build-and-test.sh` was moved onto a shared, containerized build
+step (`scripts/build-and-test`, JDK 25 + Docker CLI, no local Java required) to work around the
+same Windows/WSL Java-path-translation gap. Once that container's build step also produced
 `marketplace-app`'s own JAR (installing the whole reactor, not just the 7 library modules) and
 persisted it to a fixed path inside the shared `maven-cache` volume
 (`/root/.m2/artifacts/marketplace-app.jar`), `deploy-dev.sh`'s own separate `mvn package` step
 became pure duplication — the artifact it needed was already being produced and refreshed by the
 shared build step regardless.
 
-**Decision:** `deploy-dev.sh`/`deploy-dev.bat` deleted entirely. `deploy.sh` gained a `--reload`
-mode instead: skips infra bootstrap and the Docker image rebuild entirely, runs the shared
-`build-and-test` container's build step (same one `scripts/build-and-test.sh` uses), then hot-swaps the
-resulting `marketplace-app.jar` into the already-running `marketplace-app` container (`docker cp`
-+ `docker restart`) — no `mvn` invocation of its own. This reverses this same file's earlier
-recorded rejection of merging `deploy.sh`/`deploy-dev.sh` (see the annotated, struck-through entry
-in `backlog/completed/issues/` once `improvement-152` closes) — the original rejection reasoning
-("different-shaped flows, not parameter variations") no longer applies once `--reload` is a thin
-branch reusing a shared step, not a full flow duplicating `deploy.sh`'s own bootstrap logic.
+**Decision:** `deploy-dev.sh`/`deploy-dev.bat` deleted entirely. A fast JAR hot-swap deploy mode
+(`deploy.sh --reload`, hot-swapping a freshly built `marketplace-app.jar` into an already-running
+container via `docker cp` + `docker restart`) was tried as its replacement and later reverted —
+there is no fast hot-swap deploy mechanism in this repo today. `scripts/build-and-test.sh` only
+builds the reactor into the shared `maven-cache` volume; it does not deploy or restart anything.
+Restarting the app with a fresh build goes through the standard `deploy-and-run.sh` flow.
 
-**Consequences:**
-- `deploy.sh --reload` requires infra and `marketplace-app` already running, same precondition
-  `deploy-dev.sh` always had — it never learns how to create `marketplace-app` from scratch; a
-  missing container is a clear, immediate error telling the caller to run a plain `deploy.sh`
-  first, not an automatic fallback into a full deploy triggered from inside the reload path.
-- The `build-and-test` container's own build step always builds the whole reactor and always
-  refreshes `marketplace-app.jar` in the shared volume, regardless of which entry point
-  (`build-and-test.sh` or `deploy.sh --reload`) triggered it — Maven's own incremental compilation makes a
-  no-op rebuild cheap, so there is no separate "library modules only" vs "whole reactor" mode to
-  keep in sync between the two callers.
-- Concurrent invocations across the two entry points are serialized via `flock` against a lock
-  file living inside the same shared `maven-cache` volume — see `improvement-152` for the fuller
-  investigation (Takari Concurrent Local Repository considered and rejected in favor of this).
-
-**Update (reverted):** The `deploy.sh --reload` portion of this decision was reverted —
-`deploy.sh`/`deploy.bat` no longer carry a `--reload` mode, and the container-side hot-swap branch
-(`docker cp` + `docker restart` against a running `marketplace-app`) was removed from
-`scripts/build-and-test/build.sh` entirely. `deploy-dev.sh`/`deploy-dev.bat` remain deleted. There
-is currently no fast JAR hot-swap deploy mechanism in this repo — `scripts/build-and-test.sh` only
-builds the reactor into the shared `maven-cache` volume, it does not deploy or restart anything
-running. The "Consequences" bullets above describing `deploy.sh --reload` no longer reflect
-current behavior; kept here for historical context rather than rewritten in place.
+**Consequences:** Day-to-day iteration on `marketplace-app` code changes requires a full
+`deploy-and-run.sh` run to see them reflected in a running container — there is no shortcut path.

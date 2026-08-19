@@ -33,8 +33,8 @@ codebase's actor-reference-column convention, e.g. `advertisement.created_by`)
   `UserSettingsChangedHook` all live in `platform-commons`. Split into 4 narrow ports (not 1) —
   each consumer injects only the port(s) it actually calls; no runtime-toggle benefit (all 4 are
   always implemented by this one module), the split is purely for interface cohesion. See
-  `marketplace-app/DECISIONS.md` ADR-071 (the `UserDto`/consumer-repointing side) and
-  `platform-commons/DECISIONS.md` ADR-026 (the starter-module-level port-split rationale).
+  `docs/ai/adr-index.md` for both the `UserDto`/consumer-repointing side and the
+  starter-module-level port-split rationale.
 - `@EnableJdbcRepositories(basePackages = "org.ost.user.repository")` declared in `UserAutoConfiguration`.
 - First registered user is auto-promoted to `ADMIN` role — enforced in `UserService`.
 - `@PreAuthorize` must NOT be placed at class level on service beans — see marketplace-app/CLAUDE.md.
@@ -46,7 +46,7 @@ codebase's actor-reference-column convention, e.g. `advertisement.created_by`)
   `HttpServletRequest`) to stay transport-agnostic — marketplace-app extracts
   `request.getRemoteAddr()` and passes it down. Rate-limited via an in-memory Caffeine cache
   (5 failures / 15 min), counting only `DuplicateKeyException` failures — never successful
-  registrations (see `marketplace-app/DECISIONS.md` ADR-026).
+  registrations (see `docs/ai/adr-index.md`).
 - `User.version` (`@Version`) is used by `UserRepository.save()` (registration, via
   `UserCrudRepository`). The real profile-edit path (`UserService.save()` →
   `UserRepository.updateProfile()`) goes through a second, narrower entity —
@@ -62,7 +62,7 @@ codebase's actor-reference-column convention, e.g. `advertisement.created_by`)
   snapshot is client-side only (`UserFormOverlayModeHandler.loadRestored()` loads the snapshot's
   name/role into the edit form), and only takes effect once the moderator explicitly saves, going
   through the same `save()` → `updateProfile()` path as any other profile edit. See
-  `marketplace-app/DECISIONS.md` ADR-029.
+  `docs/ai/adr-index.md`.
 - `UserPreferencesRepository.saveSettings()` also enforces optimistic locking, but via a version
   embedded **inside** the `settings` JSONB column (`UserSettingsDto.version`) rather than a
   separate SQL column — since this repository already serializes/deserializes the whole DTO
@@ -71,6 +71,6 @@ codebase's actor-reference-column convention, e.g. `advertisement.created_by`)
   `(settings->>'version')::bigint = :expectedVersion`; 0 affected rows throws
   `OptimisticLockingFailureException`, same as `User.version`/`UserEditableFields` above.
   Deliberately does **not** reuse the row's shared `user_information.version` — that would couple
-  a settings save to an unrelated profile-name edit in another tab. See
-  `marketplace-app/DECISIONS.md` ADR-044 (superseded by ADR-070 — `settings`/`locale` now live in
-  their own `user_preferences` table, not on `user_information`).
+  a settings save to an unrelated profile-name edit in another tab. The original design and its
+  later supersession — `settings`/`locale` now live in their own `user_preferences` table, not on
+  `user_information` — are both recorded in `docs/ai/adr-index.md`.

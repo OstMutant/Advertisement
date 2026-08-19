@@ -46,7 +46,7 @@ taxon.spi      — TaxonPort
 
 **Consequences:** `core.i18n`, `ui`, `attachment.event`, `attachment.storage` packages removed —
 all i18n and UI contracts live in `marketplace-app`; storage lives in `attachment-spring-boot-starter`.
-`taxon.*` packages added 2026-06-26 when `taxon-spring-boot-starter` was introduced (ADR-005 update).
+`taxon.*` packages added 2026-06-26 when `taxon-spring-boot-starter` was introduced.
 
 ---
 
@@ -117,90 +117,31 @@ must be pure Java with no Spring context dependency.
 
 ---
 
-## ADR-005: UserPort + AdvertisementPort for domain module extraction
-**Status:** Accepted (completed 2026-06-15)
-
-**Also affects:** advertisement-spring-boot-starter, user-spring-boot-starter
-
-**Context:** Domain module extraction required marketplace-app to call user and advertisement
-starters without importing their internals.
-
-**Decision:** Two new `*Port` interfaces added to `platform-commons`:
-- `UserPort` (`user.spi`) — marketplace calls user-spring-boot-starter for all user operations.
-- `AdvertisementPort` (`advertisement.spi`) — marketplace calls advertisement-spring-boot-starter.
-
-`UserPort.findActorNames` is called by advertisement-starter (not marketplace) to enrich
-`AdvertisementInfoDto` with creator display names without a SQL JOIN on `user_information`.
-
-**Consequences:** Starters may call other starters' ports from platform-commons — this is the
-correct pattern. Direct starter-to-starter imports remain forbidden.
-
----
-
 ## ADR-006: ComponentFactory<T> — typed wrapper over ObjectProvider<T>
-**Status:** Accepted (mechanism changed since original write-up — see correction)
+**Status:** Accepted
 
 **Context:** Optional starter dependencies in marketplace-app need typed, ergonomic access
 without unchecked casts. Raw `ObjectProvider<T>` doesn't know about the `Configurable<T, P>`
 protocol.
 
-**Correction (verified 2026-07-13):** the original text described `ComponentFactory<T>` resolving
-its concrete type `T` by inspecting Spring's `InjectionPoint` at wiring time via a single generic
-`@Bean ComponentFactory<?> componentFactory(InjectionPoint ip, ...)` method. That design is not
-what exists in code — `grep -rn "InjectionPoint"` across the whole reactor returns zero hits.
-`ComponentFactory<T>` (`platform-commons/.../core/ComponentFactory.java`) is instead a plain
+**Decision:** `ComponentFactory<T>` (`platform-commons/.../core/ComponentFactory.java`) is a plain
 class taking a constructor-injected `ObjectProvider<T>`, with **one explicit `@Bean` method per
-concrete type**, hand-written in each consuming config class (`marketplace-app/config/
-ComponentFactoryConfig.java` has 17 such methods, one per optional port/component type — was "20+"
-in an earlier count, corrected 2026-07-27). `build(P
-params)` lives on the marketplace-app subclass `UiComponentFactory<T>`, not on the base
-`ComponentFactory<T>` itself — the base class only exposes `get()`, `getIfAvailable()`,
-`findIfAvailable()`, `ifAvailable(Consumer<T>)`.
+concrete type**, hand-written in each consuming config class — not resolved generically via
+reflection or `InjectionPoint`. The base class exposes `get()`, `getIfAvailable()`,
+`findIfAvailable()`, `ifAvailable(Consumer<T>)`; `build(P params)` lives only on the
+marketplace-app subclass `UiComponentFactory<T>`.
 
-**Decision:** `ComponentFactory<T>` wraps `ObjectProvider<T>` for typed, ergonomic access to
-optional starter-provided beans, declared per-type as an explicit `@Bean` (not resolved
-generically via reflection/`InjectionPoint`).
+**This `@Bean` must exist on every consuming config class that holds a mandatory field of that
+port type, not just the port's defining starter** — an easy gap to miss since nothing fails at
+compile time, only at runtime once the dependent starter is actually absent from the build.
 
 **Consequences:**
-- All optional starter components in marketplace-app use `ComponentFactory<T>` injection.
-- Direct `ObjectProvider<T>` fields are not used for this purpose.
-- Rejected: singleton factory with `<T> T get(Class<T> type)` — pushes type token to every call site,
-  requires unchecked cast, unsound at compile time.
-- Also effectively rejected in practice (though not originally planned that way): a single generic
-  `InjectionPoint`-resolved factory bean — replaced by one explicit `@Bean` per type, which is more
-  boilerplate but fully type-safe and requires no reflection.
-
-**Amendment (verified 2026-08-12 — one explicit `@Bean` per type must exist on every consuming
-config class, not just the port's own starter):** re-verifying optional-starter removability
-(a `provider-profile-spring-boot-starter` removal test) found `UserAutoConfiguration` missing a
-`ComponentFactory<ProviderProfilePort>` `@Bean` even though `UserService` holds a mandatory field
-of that type — `ProviderProfilePort`'s only fallback producer lived in its own starter and in
-`AdvertisementAutoConfiguration`, neither of which is present once `provider-profile-spring-boot-
-starter` is removed from the build, so the app failed to boot (`UnsatisfiedDependencyException`)
-instead of degrading gracefully. Fixed by adding the missing `@Bean` to `UserAutoConfiguration`,
-mirroring the existing `ComponentFactory<TaxonPort>` fallback already duplicated in
-`AdvertisementAutoConfiguration`/`ProviderProfileAutoConfiguration`. Lesson: this ADR's "one
-explicit `@Bean` per type" rule must be satisfied on **every** config class that holds a mandatory
-field of that port type, not just the port's defining starter — an easy gap to miss since nothing
-fails at compile time, only at runtime once the dependent starter is actually absent.
-
----
-
-## ADR-007: StorageService moved out of platform-commons into attachment-starter
-**Status:** Accepted
-
-**Context:** `StorageService` lived in `attachment.storage` (contracts) but had no cross-module
-consumer — only `attachment-spring-boot-starter` referenced it.
-
-**Decision:** `StorageService` moved to `attachment-spring-boot-starter`, at
-`org.ost.attachment.services` (verified 2026-07-13 — not `org.ost.attachment.storage` as
-originally written here; that package does not exist, the module's actual top-level packages are
-`config, entities, repository, services, spi, util`). `@ConditionalOnStorageEnabled` was dropped
-entirely rather than relocated — zero references anywhere in the current codebase. The
-`attachment.storage` package no longer exists in platform-commons, which remains accurate.
-
-**Consequences:** platform-commons is reserved for types crossed by ≥2 modules.
-Rejected: keeping SPI in contracts "in case" — speculative.
+- All optional starter components in marketplace-app use `ComponentFactory<T>` injection; direct
+  `ObjectProvider<T>` fields are not used for this purpose.
+- Rejected: singleton factory with `<T> T get(Class<T> type)` — pushes a type token to every call
+  site, requires an unchecked cast, unsound at compile time.
+- Rejected: a single generic `InjectionPoint`-resolved factory bean — one explicit `@Bean` per
+  type is more boilerplate but fully type-safe and requires no reflection.
 
 ---
 
@@ -245,21 +186,14 @@ add it preemptively.
 derived fields into the event payload and the domain to listen and translate.
 
 **Decision:** Dropped `AdvertisementDeletedEvent`, `AdvertisementRestoredEvent`,
-`AdvertisementMediaUpdatedEvent`. Cross-module attachment lifecycle now carried by SPIs:
-- **`AttachmentPort`** (domain → starter): `softDeleteAll(EntityRef, Long actorId)`,
-  `getMediaSummary(EntityRef)`, and restore via `restoreToUrls(EntityType, Long, String[])`/
-  `restoreToUrlsAndCapture(...)` (corrected 2026-07-13 — originally written as a single
-  `restoreToSnapshot` method, which does not exist on `AttachmentPort`; that name exists only on
-  the unrelated `UserPort`).
-- **`AttachmentMediaChangeHook`** (starter → domain): `onMediaChanged(EntityRef entity)` (corrected
-  2026-07-13 — signature was `(EntityType, Long)` when this ADR was written, superseded by a later
-  refactor introducing `EntityRef` to collapse `(EntityType, Long)` pairs across attachment SPIs;
-  the ADR was never updated for it). **Removed entirely, corrected 2026-07-27** — the interface no
-  longer exists anywhere in `attachment.spi`; it had zero implementations and was deleted rather
-  than kept as dead API surface (see `advertisement-spring-boot-starter/CLAUDE.md` and
-  `marketplace-app/DECISIONS.md` ADR-035). Any reference to this hook elsewhere in this file is
-  historical only.
-- **`AttachmentMediaSummaryDto`** (`attachment.dto`) — display-ready record from `getMediaSummary`.
+`AdvertisementMediaUpdatedEvent`. Cross-module attachment lifecycle is carried by SPIs instead:
+`AttachmentPort` (domain → starter) exposes `softDeleteAll(EntityRef, Long actorId)`,
+`getMediaSummary(EntityRef)`, and restore via `restoreToUrls(EntityType, Long, String[])`/
+`restoreToUrlsAndCapture(...)`; `AttachmentMediaSummaryDto` (`attachment.dto`) is the
+display-ready record `getMediaSummary` returns. `AttachmentMediaChangeHook` (the starter → domain
+direction this ADR originally also introduced) does not exist — it had zero implementations and
+was deleted entirely rather than kept as dead API surface (see
+`attachment-spring-boot-starter/CLAUDE.md`).
 
 **Consequences:** Rejected: keeping events alongside the SPI — splits the contract surface.
 The starter speaks SPI and only SPI.
@@ -347,63 +281,6 @@ but the correction was never propagated to this entry).
 
 ---
 
-## ADR-015: MediaSummary reclassified as DTO
-**Status:** Accepted
-
-**Context:** `MediaSummary` was a return-type record exposed by `AttachmentPort` but lived under
-`attachment.spi` — wrong package for a data carrier.
-
-**Decision:** Moved to `attachment.dto`, renamed `AttachmentMediaSummaryDto`.
-
-**Consequences:** `*.spi` is for interfaces and extension points; data records belong in `*.dto`.
-
----
-
-## ADR-016: Role and ownership checks exposed via UserPort
-**Status:** Accepted
-
-**Context:** `AccessEvaluator` in marketplace-app imported `org.ost.user.security.RoleChecker`
-and `OwnershipChecker` directly — internal user-starter classes, violating module boundaries.
-
-**Decision:** Added `isAdmin`, `isModerator`, `isOwner` methods to `UserPort` (platform-commons).
-`UserPortImpl` delegates to the existing internal `RoleChecker` / `OwnershipChecker` beans.
-`AccessEvaluator` now depends only on `UserPort` — a platform-commons contract.
-
-**Consequences:** `RoleChecker` and `OwnershipChecker` remain internal to user-starter.
-No new SPI interfaces or suffixes introduced — role/ownership checks are user-domain queries,
-fitting naturally on the existing `UserPort`.
-
----
-
-## ADR-017: Taxon SPI contracts added — TaxonPort and TaxonAuditHook
-**Status:** Accepted (done 2026-06-26); `TaxonAuditHook` half **removed** 2026-07-17 (see note below)
-
-**Context:** Introduction of `taxon-spring-boot-starter` required new cross-module contracts. UI and
-services in marketplace-app must reach taxon functionality without importing starter internals.
-
-**Decision:** Two new SPI interfaces added to `platform-commons`:
-- `TaxonPort` (`taxon.spi`) — marketplace → starter; CRUD, assignment management, batched entity-id queries
-- ~~`TaxonAuditHook` (`taxon.spi`) — starter → marketplace; fired when taxon assignments change~~
-
-New DTOs in `taxon.dto`: `TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto` (`CategoryChangeSnapshotDto`,
-listed here originally, was deleted in the advertisement-snapshot redesign — see ADR-001's package
-listing above).
-New enum in `taxon.model`: `TaxonType` — was a closed set of just `CATEGORY` when this ADR was
-written; `CITY` was added since (F-02).
-
-**Consequences:** `EntityType.TAXON` added to `core.model.EntityType` to allow taxon entities to be
-audited. `ActionType.RESTORED` added to `core.model.ActionType` to distinguish restore events from
-updates — used by `AuditPort.captureRestore()` and written to `audit_log.action_type`.
-
-**Note (2026-07-17):** `TaxonAuditHook` was removed entirely — it never gained an
-implementation, and both of its call sites already sit inside an advertisement save/delete that
-produces its own audit snapshot, making a separate assignment-event trail redundant. `TaxonPort`
-itself is unaffected and remains as originally decided (minus `assign()`/`unassign()`/
-`findByCode()`, also removed as zero-caller dead API surface in the same pass). See
-`marketplace-app/DECISIONS.md` ADR-019 and ADR-043 for the full resolution.
-
----
-
 ## ADR-018: ActionType.RESTORED — explicit enum value for soft-delete restore
 **Status:** Accepted (done 2026-06-26)
 
@@ -451,28 +328,6 @@ starter's repository to throw `OptimisticLockingFailureException`.
 
 ---
 
-## ADR-020: `AuditTimelineFilterDto.actorId` (`Long`) → `actorIds` (`Set<Long>`)
-
-**Status:** Accepted
-
-**Context:** The Timeline actor filter needed to match "any of N selected actors" in one query instead of one
-actor at a time. `actorId` was the only scalar field on this DTO; `entityTypes`/`actionTypes`
-already use the `Set<T>` shape this change brings `actorIds` in line with.
-
-**Decision:** Renamed and retyped the field. Every consumer updated in the same change: `AuditLogRepository`'s
-binding (`equalsTo` → `anyOf`, see `query-lib/DECISIONS.md` ADR-005), `TimelineFilterMeta.ACTOR`
-(`UserDto → Long` mapping became `Set<UserDto> → Set<Long>`), and `TimelineView.refresh()`'s
-non-privileged-viewer self-scoping (`.actorId(userId)` → `.actorIds(Set.of(userId))`) — the latter
-needed an explicit null guard (`Set.of(null)` throws `NullPointerException`, unlike a plain
-`Long`-typed builder setter accepting `null` silently), caught via a full Playwright run that
-failed application startup entirely until fixed.
-
-**Consequences:** No other module reads or writes this field outside `audit-spring-boot-starter`
-and `marketplace-app`'s timeline package — confirmed by a full-repo grep before making the change,
-so this is a clean rename with no compatibility shim needed.
-
----
-
 ## ADR-021: `AuditTimelineItemDto.expandedChanges()` — a narrow, documented exception to "`*.dto` has no behavior"
 
 **Status:** Accepted
@@ -509,54 +364,6 @@ derivations over the record's own fields, no external dependencies. `platform-co
 literally scoped to `*.dto`, since this ADR's own reasoning already treated it that way.
 
 ---
-
-## ADR-022: Dead SPI parameters and methods removed — `AuditPort`, `AuditActivityEnrichHook`, `AuditDomainHook`, `UserPort`, `AttachmentPort`
-
-**Status:** Accepted
-
-**Context:** A dead-code cleanup pass found several SPI methods/parameters with zero real consumers across every
-current implementation and call site — not "single implementation that might grow," but params
-threaded through and never read anywhere, or methods with no caller at all:
-
-- `AuditPort.captureUpdate(entityId, before, after, actorId)` — `before` was never read by
-  `DefaultAuditPort` (only `after` gets persisted; diffing happens at read time via
-  `AuditableSnapshot.diff()` against the previous log row, per `audit-spring-boot-starter/CLAUDE.md`).
-  Every caller (`AdvertisementSaveService`, `TaxonService`, `UserService` ×2, `UserSettingsService`)
-  was computing/fetching a "before" snapshot for this one unused argument.
-- `AuditActivityEnrichHook.merge(subjects, base)` / `.enrichActivity(entityRef, items)` — both
-  `subjects`/`entityRef` were dead-forwarded from `AuditReadService` (`List<EntityRef> noSubjects
-  = List.of()` — always empty) to the sole implementation (`ActivityEnrichHookImpl`), which
-  ignored them.
-- `AuditDomainHook.resolveDisplayName(entityType, snapshot)` — `entityType` unused in the sole
-  implementation (`AuditDomainHookImpl`); `AuditableSnapshot.displayName()` already resolves
-  per-type display logic polymorphically, making the extra parameter redundant.
-- `UserPort.restoreToSnapshot()` (+ `UserService.restoreToSnapshot()`/`applyUserRestore()`) — no UI
-  caller exists; both `AdvertisementFormOverlayModeHandler` and `UserFormOverlayModeHandler`'s
-  restore-from-activity flows fetch the snapshot directly via `AuditPort.getSnapshotContent()` and
-  populate the edit form locally, letting the user's own "Save" click persist it — neither goes
-  through this port method. `UserServiceRestoreTest.java` (its only caller, existing purely to
-  test it) was deleted alongside it.
-- `AttachmentPort.getMediaSummary(EntityRef)` (single-entity) — every real caller already uses the
-  bulk `getMediaSummaries(EntityType, Set<Long>)` (see ADR-035 in `marketplace-app/DECISIONS.md`).
-  `AttachmentRepository.loadMediaStats(EntityType, Long)`, the repository method it delegated to,
-  was kept — it has its own direct repository-level test coverage independent of this port method.
-
-**Decision:** Removed each dead parameter/method from the SPI interface, its implementation(s),
-and every call site (compiler-verified — no call site could silently keep passing a stale value).
-Not treated as "maybe a future entity type needs `subjects`" speculative API surface: each was
-already threaded through a real caller today and provably unused end-to-end, not merely
-single-implementation.
-
-**Consequences:**
-- `AdvertisementSaveService.save()`'s update branch still computes its own `before` snapshot
-  locally (needed for the `attachmentSnapshotId` fallback and the concurrent-delete guard added in
-  the same pass — see that file) — only the `AuditPort.captureUpdate` argument was dropped, not
-  the local computation.
-- `TaxonService.update()` no longer fetches `beforeTranslations`/`beforeSnapshot` at all (was
-  otherwise unused after the arg removal); `UserSettingsService.save()` no longer calls
-  `repository.load(userId)` for the same reason.
-- If a genuine future need for a "before" snapshot at audit-write time arises, re-add the
-  parameter then with a concrete consumer — do not restore it preemptively.
 
 ## ADR-023: `Class<T> targetClass` type-token added to `AuditPort.getSnapshotContent()` / `AuditDomainHook.castIfKnown()`
 
@@ -675,41 +482,30 @@ future task.
 
 ---
 
-## ADR-025: Batch G governance cleanup — DTO boundary, Hook→Port rename, UserIdMarker package
+## ADR-025: Batch G governance cleanup — DTO boundary, Hook→Port rename
 
 **Status:** Accepted
 
-**Context:** A repo-wide SOLID/DRY review surfaced three independent `platform-commons` governance
-findings, grouped together since all three touch this module's own naming/package rules.
+**Context:** A repo-wide SOLID/DRY review surfaced two independent `platform-commons` governance
+findings, grouped together since both touch this module's own naming/package rules.
 
 **Decision:**
-- **Item 20:** `SettingsSnapshotDto.from(UserSettingsDto settings)` was removed — it reached into a
-  sibling DTO's fields to construct itself, exceeding the `*.dto` package's "pure derivation over
-  its own fields" exception (ADR-002/ADR-021). Moved to
+- `SettingsSnapshotDto.from(UserSettingsDto settings)` was removed — it reached into a sibling
+  DTO's fields to construct itself, exceeding the `*.dto` package's "pure derivation over its own
+  fields" exception (ADR-002/ADR-021). Moved to
   `UserSettingsService.toSettingsSnapshot(UserSettingsDto)` in `user-spring-boot-starter`, as a
   genuine instance method — `UserService` holds `UserSettingsService` as a constructor-injected
   field and calls it like any other collaborator; safe because `UserSettingsService`'s own
   constructor deps (`UserSettingsRepository`, `ComponentFactory<UserSettingsChangedHook>`,
   `ComponentFactory<AuditPort>`) never reference `UserService`, so no circular dependency results.
-  Corrected from an initial `public static` cross-class-call draft, which this change's own
-  `/code-review` pass flagged as bypassing the codebase's constructor-injection convention.
-- **Item 21:** `AttachmentAuditHook` renamed to `AttachmentAuditPort` (and its implementation,
+- `AttachmentAuditHook` renamed to `AttachmentAuditPort` (and its implementation,
   `AttachmentAuditHookImpl` → `AttachmentAuditPortImpl`). Its call direction was always marketplace
   calling into the attachment starter (`AdvertisementAuditEnrichService` calls it), which per
   ADR-003's own table is the `*Port` semantic, not `*Hook` — the interface had carried the wrong
   suffix since it was introduced.
-- **Item 22:** `UserIdMarker` moved from `org.ost.platform.user.security` to
-  `org.ost.platform.user.spi` — `user.security` was never a documented package role (only
-  `api`/`spi`/`dto`, per ADR-002), and `UserIdMarker` is exactly a `*.spi` marker: implemented by
-  domain types, consumed across the module boundary (`UserPort`, `OwnershipChecker`,
-  `AccessEvaluator`). `UserIdMarker` itself was later removed entirely as dead code — zero real
-  implementors ever adopted the marker (see `marketplace-app/DECISIONS.md`'s zero-deps-except-
-  orchestrator entry).
 
-**Consequences:**
-- `user.security` package no longer exists in `platform-commons`; any future marker/contract that
-  isn't a `Port`/`Hook`/`Dto` still needs a governance call, not a new ad hoc package.
-- Pure renames/moves, no behavior change — same method signatures on `AttachmentAuditPort`.
+**Consequences:** Pure renames/moves, no behavior change — same method signatures on
+`AttachmentAuditPort`.
 
 ## ADR-026: One starter, multiple `*Port` interfaces — `UserPort` split into 4
 
@@ -773,8 +569,8 @@ standalone `provider_profile` table/module (this ADR).
 `ProviderProfileSnapshotDto` — `schemaVersion` per ADR-024 — `spi.ProviderProfilePort`), plus
 `EntityType.PROVIDER_PROFILE`. `ProviderProfilePort`'s shape mirrors `AdvertisementPort` closely
 (`getFiltered`/`count`/`findById`/`save`/`delete`/`findExistingIds`/`findOwnerIds`) — deliberate
-symmetry with the established starter pattern, not an accident (see `marketplace-app/DECISIONS.md`
-ADR-072 for the "isn't this just a copy?" discussion this raised during implementation). Backed by
+symmetry with the established starter pattern, not an accident (see `docs/ai/adr-index.md` for the
+"isn't this just a copy?" discussion this raised during implementation). Backed by
 a new `provider-profile-spring-boot-starter` module owning `ProviderProfile` entity/repository/
 service/port-impl/autoconfiguration — this batch is backend-only, no UI, no audit-write path yet
 (that's a later batch).
@@ -826,6 +622,8 @@ deferred-findings bucket.
 (preferences never merged into `provider_profile`, so the earlier "keep as historical tag or
 migrate" open question from the superseded single-table design is moot). The next batch must land
 before the unified "My Account" overlay batch, per the updated gate tracked in the backlog.
+Starters may call other starters' `*Port`s via `platform-commons` — this is the correct pattern
+for cross-domain SPI composition; direct starter-to-starter imports remain forbidden regardless.
 
 ---
 
@@ -853,113 +651,34 @@ composition-enriched fields (category/city/actor names, media summary) simply ar
 the caller explicitly enriches, matching the DTOs' pre-existing hybrid nature (domain-owned fields
 + composition-enriched fields in one flat class, unchanged by this ADR).
 
-## ADR-029: `UiLabelHook`/`SessionActorHook` — forwarder SPIs so `marketplace-orchestrator` can own `*Hook` implementations that need a UI-shell resource
+## ADR-029: `UiLabelHook`/`SessionActorHook` forwarder SPIs do not live in `platform-commons`
 
 **Status:** Accepted
 
-**Context:** Moving `AuditDomainHookImpl`, `AdvertisementActivityFieldsHookImpl`,
-`TaxonActivityFieldsHookImpl`, `UserActivityFieldsHookImpl`, `UserSettingsActivityFieldsHookImpl`,
-and `CurrentActorHookImpl` out of `marketplace-app/spi` and into `marketplace-orchestrator/services`
-(see `marketplace-orchestrator/DECISIONS.md` for the reasoning) hit a real compile-visibility
-problem: three of these classes called `I18nService.get(I18nKey ...)` for field-label translation,
-and one called `AuthContextService`/`SecurityContextHolder` for the current actor's ID — both types
-live in `marketplace-app`, and the dependency direction only ever runs
-`marketplace-app -> marketplace-orchestrator`, never the reverse, so `marketplace-orchestrator`
-code cannot import either type directly.
+**Context:** Moving `AuditDomainHookImpl`/`CurrentActorHookImpl` (and, later, `ActivityEnrichHookImpl`)
+out of `marketplace-app/spi` and into `marketplace-orchestrator` needed a way for those classes to
+reach two UI-shell resources — translations and the current actor's session id — without
+`marketplace-orchestrator` importing `marketplace-app` types directly (the dependency direction
+only ever runs `marketplace-app -> marketplace-orchestrator`, never the reverse). Moving the whole
+300-key `I18nKey` enum (or `AuthContextService`) into `platform-commons` was rejected: the
+overwhelming majority of those keys are `marketplace-app`-only Vaadin UI strings, unrelated to any
+Hook, and relocating them would contradict `marketplace-app/CLAUDE.md`'s "all UI i18n lives here"
+rule for a handful of keys.
 
-The obvious-looking fix — move the whole `I18nKey` enum (and `AuthContextService`) into
-`platform-commons` so both modules can see them — was rejected: `I18nKey` alone carries roughly
-300 UI-specific translation keys, the overwhelming majority used only by `marketplace-app`'s own
-Vaadin components and completely unrelated to any Hook. Relocating it would contradict
-`marketplace-app/CLAUDE.md`'s own stated rule ("Starters have no i18n infrastructure of their
-own — all UI i18n lives here") for a 6-key-out-of-300 need, and would ripple through the ~67 files
-that reference it today for no real benefit.
+**Decision:** `UiLabelHook`/`SessionActorHook` (and a later addition, `CurrentLocaleHook`) are
+forwarder SPIs — but they do **not** live in `platform-commons`, unlike every other `*Hook` in this
+project. Since `marketplace-app` already legally depends on `marketplace-orchestrator`, any type
+`marketplace-orchestrator` defines is already visible to `marketplace-app`; the
+*Hook-must-live-in-platform-commons rule exists specifically for starter optionality, which never
+applied to this pair — no starter calls either interface, and `marketplace-orchestrator` is a
+mandatory, never-optional dependency of `marketplace-app`. All three forwarder SPIs live in
+`org.ost.orchestrator.spi` instead, implemented by thin `*Impl` classes in `marketplace-app/spi`
+wrapping `I18nService`/`AuthContextService`/`LocaleProvider` — see
+`marketplace-orchestrator/DECISIONS.md` and `marketplace-orchestrator/CLAUDE.md`'s "Forwarder SPI
+pattern" for the full design and its evolution.
 
-**Decision:** Two narrow forwarder SPIs in `platform-commons/core/spi`:
-- `UiLabelHook.translate(String messageKey, Object... args)` — takes the raw message-bundle key
-  string (the same string `I18nKey.key()` already resolves to), not the `I18nKey` enum itself.
-  Implemented by `UiLabelHookImpl` in `marketplace-app/spi`, delegating to
-  `I18nService.get(String key, Object... args)` — already this interface's primary,
-  already-sanctioned method (`I18nService.get(I18nKey key, ...)` is a default method that wraps
-  it), so this is not a new bypass of the "never call raw `MessageSource`" rule.
-- `SessionActorHook.getCurrentActorId()` — same shape as the existing `CurrentActorHook` one layer
-  up, deliberately: it is a like-for-like duplicate, not a redesign, since the goal was purely to
-  get `CurrentActorHookImpl` physically out of `marketplace-app`, not to change its behavior.
-  Implemented by `SessionActorHookImpl` in `marketplace-app/spi`, delegating to
-  `AuthContextService`.
-
-Moved classes now depend on these two SPIs instead of `I18nService`/`AuthContextService` directly.
-Callers pass message-bundle key string literals as `private static final String` constants
-(mirroring the exact dot-path string `I18nKey.SOME_KEY.key()` already resolves to) instead of
-referencing the enum — a deliberate, narrow exception to this codebase's usual "typed constant,
-not a raw string" preference, scoped to exactly the 15 keys these 6 classes need, chosen over
-moving ~300 unrelated keys across a module boundary. `ActivityEnrichHookImpl` was evaluated and
-explicitly excluded from this move — its dependency (`AdvertisementAuditEnrichService`) does real
-HTML-diff formatting, not a single-value lookup, so a forwarder-SPI extraction doesn't fit the same
-mechanical pattern; it stays in `marketplace-app/spi`.
-
-**Consequences:** `platform-commons/CLAUDE.md`'s `*Hook` row in the SPI naming table now names
-`marketplace-orchestrator` as a second legitimate `*Hook` caller alongside "starter" — the
-direction/role table entry was updated rather than treated as an exception. The SPI Map diagram's
-evidence-gathering (`scripts/architecture/generate-architecture-model.sh`) now scans
-`marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi` in addition to
-`marketplace-app/src/main/java/org/ost/marketplace/spi` when looking for `*Hook`
-implementations, or these six would silently disappear from the live diagram after the move (the
-six landed in `org.ost.orchestrator.services` initially, then moved into their own sibling
-`org.ost.orchestrator.spi` package in the same session — see `marketplace-orchestrator/DECISIONS.md`
-ADR-004's refinement note).
-
-**Refinement (same session) — `UiLabelHook`/`SessionActorHook` moved out of `platform-commons`
-entirely, and the raw-string message keys got a typed home too.** Two follow-up problems raised
-after this ADR first landed: (1) the `private static final String` message-key constants this ADR
-accepted as a "deliberate, narrow exception" were pushed back on directly as real coupling — no
-compiler check keeps `I18nKey.java`'s literals and these constants in sync. (2) whether
-`UiLabelHook`/`SessionActorHook` needed to live in `platform-commons` at all was questioned: the
-*Hook-must-live-in-platform-commons rule exists specifically because starters are optional and
-marketplace must compile without one present — a reasoning that never applied to this pair, since
-no starter calls either interface (only `marketplace-orchestrator`'s own Hook implementations do),
-and `marketplace-orchestrator` is a mandatory, never-optional dependency of `marketplace-app`.
-
-Both problems share one root fix: `marketplace-app` already legally depends on
-`marketplace-orchestrator` (the normal, intended direction), so any type `marketplace-orchestrator`
-defines is visible to `marketplace-app` — nothing needs `platform-commons` for this pair at all.
-Landed: a new `AuditLabelKey` enum in `marketplace-orchestrator/src/main/java/org/ost/orchestrator/
-spi/AuditLabelKey.java` (one canonical entry per message key, matching `I18nKey`'s existing
-constant names) that `I18nKey.java` now references via `AuditLabelKey.X.key()` instead of
-duplicating the literal — a rename in `AuditLabelKey` is a compile error in `I18nKey.java`, closing
-the original coupling gap. `UiLabelHook`/`SessionActorHook` themselves moved from
-`platform-commons/core/spi` into `org.ost.orchestrator.spi`, now typed
-(`UiLabelHook.translate(AuditLabelKey key, ...)`, not `String messageKey`) — the only remaining
-untyped boundary is `UiLabelHookImpl`'s single `I18nService.get(key.key(), args)` call.
-`platform-commons` ends up with **zero new types** from the whole Point 4 line of work — both
-forwarder SPIs live in `marketplace-orchestrator` instead. See
-`marketplace-orchestrator/DECISIONS.md` ADR-004 for the mirrored refinement note, and
-`backlog/issues/improvement-149-architecture-map-module-deps-vs-bounded-contexts.md`'s
-implementation log for the full back-and-forth.
-
-**Second refinement (same session) — `AuditLabelKey` itself removed; no key enum at all.** The
-`AuditLabelKey` enum introduced by the refinement above baked a resource-bundle-path convention
-(`"changes.field.title"`) into `marketplace-orchestrator`, which has no real need to know how
-`marketplace-app` organizes its message bundles — flagged directly, and fixed by recognizing that
-each DTO's own `@FieldNameConstants`-generated `Fields.*` constant is already the compiler-checked
-identifier this problem needed; no parallel enum required. `UiLabelHook.translate()` now takes the
-raw `Fields.*` constant plus `EntityType` directly; the field-name-to-`I18nKey` mapping lives
-entirely in `marketplace-app`'s `UiLabelHookImpl`. See `marketplace-orchestrator/DECISIONS.md`
-ADR-004's third refinement note for the full record.
-
-**Third refinement (same session) — `AuditActivityFieldsHook` removed from `platform-commons`
-entirely; the whole per-domain Hook pattern for field labels is gone.** Asked directly whether the
-four per-domain `*ActivityFieldsHookImpl` classes were still earning their keep as separate
-plugin-style implementations, given `labelFor()` had just collapsed to an identical one-line
-delegation in every one of them. Checked before answering, not assumed: `expandFields()` had
-*always* been `item.expandedChanges()` in all four (never actually domain-specific), and
-`AuditActivityFieldsHook`'s only real caller anywhere in the repo was `marketplace-app`'s own
-`AuditTimelineRowRenderer` (confirmed by grep, not the audit-starter the interface's own Javadoc
-described). With zero remaining domain-specific behavior and zero external callers beyond the one
-class that could trivially own this logic directly, the interface, its four implementations, and
-`UiLabelHook`'s `translate(EntityType, String, ...)` method were all deleted — the field-name-to-
-label switch moved, unchanged in substance, into a private method on `AuditTimelineRowRenderer`
-itself. `UiLabelHook` is now a single-method `@FunctionalInterface` again
-(`translateActorDeletedSuffix(String)`), the one case that still has a genuine cross-module need
-(its real caller, `UserActorNameService`, serves the audit-starter, which has no i18n awareness of
-its own). See `marketplace-orchestrator/DECISIONS.md` ADR-004's fourth refinement note.
+**Consequences:** `platform-commons/CLAUDE.md`'s `*Hook` row names `marketplace-orchestrator` as a
+second legitimate `*Hook` caller alongside "starter," but this specific pair contributes **zero
+new types** to `platform-commons` itself. `ArchitectureRulesTest
+.marketplace_app_must_not_depend_on_platform_commons_spi_directly` carries a named allow-list
+entry for these forwarder SPIs living outside `platform-commons`.

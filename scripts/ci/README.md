@@ -9,7 +9,7 @@ module-coupling export), isolated from the normal dev stack and safe to run alon
 ## Requirements
 
 - Docker Engine with a reachable daemon (this tool mounts `/var/run/docker.sock` into its own
-  container — Docker-outside-of-Docker, not Docker-in-Docker; see `DECISIONS.md` ADR-001)
+  container — Docker-outside-of-Docker, not Docker-in-Docker; see `docs/ai/adr-index.md`)
 - Everything else (Maven, Node, Playwright browsers, Dagu itself) is already inside the built
   image or downloaded on first container start — nothing extra to install locally
 

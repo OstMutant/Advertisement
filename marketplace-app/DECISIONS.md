@@ -54,21 +54,6 @@ a constant unless shared across 3+ methods and genuinely non-trivial.
 
 ---
 
-## ADR-004: Dependency versions
-**Status:** Accepted (versions bumped since original acceptance, decision stands)
-
-**Context:** Spring Boot 4.1.0 is the latest stable patch; Vaadin 25.2.3 aligns with the
-Spring Boot 4.x BOM; AWS SDK bumped from 2.25.60 for security patches and API improvements.
-
-**Decision:** Spring Boot 4.1.0, Vaadin 25.2.3, AWS S3 SDK 2.48.4 (originally accepted at
-4.0.6/25.1.5/2.44.4 — bumped since via routine dependency updates, no re-litigation needed).
-
-**Consequences:** Rejected: Jackson 3 migration (`tools.jackson:jackson-databind:3.1.2`) —
-Maven artifacts for the `tools.jackson` groupId are unverified. Revisit when official release
-is confirmed.
-
----
-
 ## ADR-005: Modular storage — contract in attachment-starter, not marketplace
 **Status:** Accepted
 
@@ -163,33 +148,17 @@ confirmed broken at runtime via smoke tests.
 snapshot — inverting the UX expectation.
 
 **Decision:** Clicking a restore button restores the entity to the state captured in the clicked
-entry's snapshot (`getSnapshotContent`). `getPreviousSnapshotContent` was reserved for diff
-display only, and has since been removed entirely (see `audit-spring-boot-starter/DECISIONS.md`
-ADR-008's amendment) — diff display now works directly from snapshot pairs.
-
-**Consequences (corrected 2026-07-27 — the 2026-07-13 correction itself had drifted):** all
-restore flows call `AuditPort.getSnapshotContent(snapshotId, entityType)`. Current entry points:
-`AdvertisementFormOverlayModeHandler.handleRestoreFromActivity`,
+entry's snapshot, via `AuditPort.getSnapshotContent(snapshotId, entityType)`. Diff display works
+directly from snapshot pairs, with no separate "previous snapshot" lookup. Every restore entry
+point — `AdvertisementFormOverlayModeHandler.handleRestoreFromActivity`,
 `UserFormOverlayModeHandler`'s equivalent, `SettingsFormModeHandler.handleRestoreFromActivity`,
-`TaxonFormOverlayModeHandler`'s own restore flow, and `CityFormOverlayModeHandler`'s (both added
-after F-02, not present when this ADR was originally written). **No dedicated
-`*.restoreToSnapshot()` method exists anywhere in the codebase anymore** — the 2026-07-13
-correction's claim that `UserService.restoreToSnapshot` matched is itself now stale; every handler
-just maps the snapshot directly into its own `*EditDto` and calls `loadRestored(dto)`.
+`TaxonFormOverlayModeHandler`'s own restore flow, and `CityFormOverlayModeHandler`'s — maps the
+snapshot directly into its own `*EditDto` and calls `loadRestored(dto)`; the actual persistence
+happens only once the user explicitly saves the form.
 
----
-
-## ADR-011: OverlayFormBinder used directly — no AuditUiPort
-**Status:** Accepted
-
-**Context:** `AuditUiPort` was removed 2026-06-15 as unnecessary indirection — all Vaadin UI
-lives in marketplace-app, so there is no second consumer that would require the SPI.
-
-**Decision:** `OverlayFormBinder` (corrected 2026-07-13 — named `AuditSnapshotBinder` originally,
-which no longer exists anywhere in the codebase; `OverlayFormBinder` is the class performing this
-role today) used directly in marketplace-app UI components.
-
-**Consequences:** Do not re-introduce `AuditUiPort`.
+**Consequences:** There is no dedicated `*.restoreToSnapshot()` server-side method anywhere in the
+codebase — restoring is client-side form population only, going through each domain's normal
+`save()` path.
 
 ---
 
@@ -208,6 +177,9 @@ no `@Scope`). Each consuming module declares its own `@Bean @Scope("prototype")`
 Rejected: making `platform-commons` a starter — commons has no Vaadin dependency.
 Prerequisite for any component moved to commons: remove all marketplace-specific imports
 (`I18nKey`, `I18nParams`, `PaginationDefaults`) — pass as constructor parameters instead.
+`AuditUiPort` (an earlier SPI indirection layer between marketplace UI and the audit snapshot
+binder) was removed for the same reason — no second consumer ever existed — leaving
+`OverlayFormBinder` used directly by marketplace-app UI components; do not re-introduce it.
 
 ---
 
@@ -291,33 +263,6 @@ literals (field names are stable). `UserMapper` maps `UserDto → UserEditDto`.
 
 ---
 
-## ADR-017: Decoupling debt at the time of writing — all items since resolved
-**Status:** Resolved (was undated/open at write time; every item below closed by 2026-06-26 —
-verified 2026-07-13: `org.ost.attachment.*`/`org.ost.user.*` internal imports in marketplace-app
-both return zero grep hits. This ADR previously had no `Status:` line at all despite every listed
-item already being marked resolved inline — the one structural inconsistency found across this
-file's 33 ADRs.)
-
-**Architecture rule (2026-06-15):** marketplace-app UI is a monolith — decoupling is required
-only at the service ↔ UI boundary (starters vs marketplace-app). Within marketplace-app, UI
-components may reference each other freely. UI ports/hooks (`AuditUiPort`, `AttachmentGalleryPort`,
-`AuditActivityRowHook`) were removed as unnecessary indirection.
-
-### ✅ Resolved — attachment UI boundary violations (2026-06-26)
-
-`MediaContentTypeUtil` merged into `AttachmentMediaContentType` enum (platform-commons). All attachment UI components now import only from `platform-commons`. No `org.ost.attachment.*` imports remain in marketplace-app.
-
-### ✅ Resolved — marketplace-app → org.ost.user.* internals (2026-06-15)
-
-All 22 files now use `UserDto`/`UserPort` from platform-commons exclusively. See ADR-016.
-
-### ✅ Resolved — org.ost.marketplace.security.* uses User entity (2026-06-15)
-
-`OwnershipChecker`, `RoleChecker`, `AccessEvaluator` updated. `AuthContextService.getCurrentUser()`
-returns `Optional<UserDto>`. `AuthenticatedPrincipal` SPI is the boundary.
-
----
-
 ## ADR-018: Top-level Timeline tab
 **Status:** Accepted (done 2026-06-23)
 
@@ -374,9 +319,9 @@ Marketplace-app additions:
   own audit snapshot capturing the before/after category set
   (`AdvertisementSnapshotDto.categoryIds`). The actual, narrower bug was that the Timeline tab
   rendered raw taxon ids instead of resolved names in that diff (the Activity tab already resolved
-  them) — fixed in `AdvertisementEnrichService` (see below). `TaxonAuditHook` was removed entirely
-  rather than implemented, along with the unused `TaxonPort.assign()`/`unassign()`/`findByCode()`
-  methods (zero callers).
+  them) — fixed in `AdvertisementEnrichService`. `TaxonAuditHook` was removed entirely rather than
+  implemented, along with the unused `TaxonPort.assign()`/`unassign()`/`findByCode()` methods
+  (zero callers).
 
 `TaxonType` enum (in `platform-commons`) — was a closed set of just `CATEGORY` when this ADR was
 written; **`CITY` was added since (F-02, ADR-065)**, confirming the "release-level change" this
@@ -483,30 +428,19 @@ have no effect.
 
 **Decision:** A historical snapshot is considered "current state" when its full
 `AdvertisementSnapshotDto` record equals the current one via `Objects.equals` — covering `title`,
-`description`, `categoryIds`, and (since improvement's advertisement-snapshot-redesign,
-corrected here 2026-07-16) `attachmentSnapshotId`, a soft reference to the attachment gallery's
-current snapshot id. Media is no longer compared via a separate hook call — it's folded into the
-same single record-equality check as every other field, because `attachmentSnapshotId` lives
-directly on `AdvertisementSnapshotDto`. `AuditActivityRowRenderer` computes the badge with exactly
-one line: `Objects.equals(h.snapshotData(), cfg.currentSnapshot())`.
-
-If any of these differ, the "Restore" button is shown. If all are identical, the badge is shown.
+`description`, `categoryIds`, and `attachmentSnapshotId` (a soft reference to the attachment
+gallery's current snapshot id). Media is compared as part of the same single record-equality
+check as every other field, since `attachmentSnapshotId` lives directly on the record — no
+separate hook call. `AuditActivityRowRenderer` computes the badge with exactly one line:
+`Objects.equals(h.snapshotData(), cfg.currentSnapshot())`. If any field differs, the "Restore"
+button is shown; if all are identical, the badge is shown.
 
 `AdvertisementSnapshotDto` stores `categoryIds` as a `List<Long>` of numeric category ids, sorted
-at construction time (corrected 2026-07-13 — originally written as "a sorted, comma-joined string
-of category names"; verified directly in `AdvertisementSnapshotDto.java`: the field is
-`List<Long> categoryIds`, compared and diffed via `Objects.equals`/`FieldChange`, never a
-name-based string — the diff display formats ids to a comma-separated string only for the UI
-diff view, the stored/compared value itself is numeric ids). `Objects.equals` on the full record
-covers title + description + categoryIds + attachmentSnapshotId in one comparison (see the
-corrected Decision above — `AuditActivityEnrichHook` has no `matchesCurrent`/`mediaMatchCurrent`
-method; that mechanism was removed by advertisement-snapshot-redesign, not just renamed).
-
-Update (2026-07-03, snapshot-cleanup): `CategoryChangeSnapshotDto` and the
-`AuditableSnapshot.isVisible()` mechanism were removed entirely — after
-advertisement-snapshot-redesign no snapshot type ever returned `false`, making the visibility
-filter in `AuditActivityPanel` a no-op. Category change information rides in the main
-`AdvertisementSnapshotDto` diff; no row-hiding machinery exists anymore.
+at construction time, compared and diffed via `Objects.equals`/`FieldChange` — the diff display
+formats ids to a comma-separated string only for the UI, the stored/compared value itself is
+numeric ids. `CategoryChangeSnapshotDto` and the `AuditableSnapshot.isVisible()` mechanism do not
+exist — category-change information rides in the main `AdvertisementSnapshotDto` diff; there is no
+row-hiding machinery.
 
 ---
 
@@ -598,7 +532,7 @@ boundary.
 
 **Consequences:**
 - The Quill UI character counter and `advertisement.description` DB column limit were unblocked
-  by this ADR and have since been added (see ADR-031).
+  by this ADR and have since been added.
 - Any future field with the same "rich HTML but bounded visible text" shape should follow the
   same three-layer pattern rather than reaching for `@Size` directly on the HTML string.
 
@@ -828,81 +762,6 @@ retry — safer than a clever auto-merge for a first version of this feature.
 - e2e coverage: new test in `04-marketplace-advertisement-flow.spec.js` — two browser contexts
   (`userEn`, `moderatorEn`) open the same advertisement for edit before either saves; the first
   save succeeds, the second (stale) save shows the conflict notification instead of overwriting.
-
----
-
-## ADR-030: Field labels applied uniformly across every Activity/Timeline rendering path
-
-**Status:** Accepted
-
-**Context:** `AuditTimelineRowRenderer` has two private helpers that both render a list of
-`ChangeEntry` into a `Div`: `buildActivityChangesDiv()` (used only when an entity type has an
-`AuditActivityFieldsHook` but no `AuditActivityEnrichHook`) and `buildEntityChangesDiv()` (used
-by the enrich-hook branch of the cross-entity Timeline, and unconditionally by the overlay
-Activity-tab overload `buildActivityFieldsList(AuditActivityItemDto, EntityRef)`). Only the
-former applied `labelHook.labelFor(field)` to each `ChangeEntry.FieldChange`; the latter never
-did. Since `ADVERTISEMENT` has both hooks registered (`ActivityEnrichHookImpl` for media state,
-`AdvertisementActivityFieldsHookImpl` for labels), its enrich-hook branch always won and always
-skipped labeling — and every overlay's own Activity tab (Advertisement, User, Taxon,
-UserSettings alike) went through `buildEntityChangesDiv()` unconditionally, so it never applied
-labels either. The label mappings themselves (`AdvertisementActivityFieldsHookImpl`,
-`TaxonActivityFieldsHookImpl`, `UserSettingsActivityFieldsHookImpl`) were already complete —
-only the wiring was missing.
-
-**Decision:** `buildEntityChangesDiv()` now takes the resolved `AuditActivityFieldsHook` for the
-entity type as a parameter and applies it via a shared `applyLabel(entry, labelHook)` helper
-(extracted from the logic `buildActivityChangesDiv()` already had) before rendering each
-`FieldChange`. Both call sites — the Timeline enrich-hook branch and the overlay Activity-tab
-overload — now resolve `fieldsProviders.get(entityType)` and pass it through. `labelHook` is
-nullable-safe (falls back to the raw field key) since `AuditActivityFieldsHook.labelFor()` has a
-default no-op implementation, so this doesn't require every entity type to register one.
-
-**Consequences:**
-- No changes needed to any `*ActivityFieldsHookImpl` — their `labelFor()` mappings were already
-  correct; only `AuditTimelineRowRenderer` needed the wiring fix.
-- e2e coverage: `05-seed-filter-sort-pagination.spec.js` — `adminEn changes page sizes...` test
-  assertions updated from the old raw-field-name-tolerant regex (`/adsPageSize|Оголошень/i`) to
-  the actual humanized label (`/Ads per page|Оголошень/i`), which now proves the fix rather than
-  merely tolerating the old bug.
-
----
-
-## ADR-031: QuillEditor character counter measures visible text; DB column sized to the raw-HTML cap, not the visible-text cap
-
-**Status:** Accepted
-
-**Context:** `QuillEditor` had no visible character counter, unlike Vaadin's `TextArea`/`TextField`
-which show one automatically when `maxLength` is set. Separately,
-`advertisement.description` was still `TEXT` (unbounded) in the schema, with no DB-level cap
-matching the two limits already established in ADR-024: `DESCRIPTION_MAX_LENGTH = 2000`
-(visible text, Jsoup-measured) and `DESCRIPTION_RAW_MAX_LENGTH = 20_000` (raw HTML, Bean
-Validation `@Size`).
-
-**Decision:**
-1. `QuillEditor` gained a `setMaxLength(int)` method (sets a `maxlength` attribute, mirrored in
-   `quill-editor.js` via `observedAttributes`). The counter reads `quill.getText().length - 1`
-   (Quill's `getText()` always ends in `\n`) on every `text-change`, displaying `"N / max"` —
-   this measures the same thing the server does (visible text), not raw HTML size.
-   `AdvertisementFormOverlayModeHandler` wires it with
-   `descriptionField.setMaxLength(AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH)` (2000).
-2. `advertisement.description` changed from `TEXT` to `VARCHAR(20000)` — edited directly into
-   the existing `01-advertisement-schema.xml` changeset (DB not yet in production, same
-   rationale as prior direct-edit changes this cycle).
-
-**Why the DB column is 20000, not 2000:** the column stores raw HTML (with formatting tags),
-not visible text. A description at exactly the 2000-visible-character limit that uses bold,
-lists, or headers can easily produce well over 2000 raw characters — legitimate content that
-already passes both the UI counter and the server-side Jsoup check. Capping the column at 2000
-(matching only the visible-text limit) would reject that already-valid content at the DB layer
-for no reason connected to any actual limit anyone agreed to. `20000` reuses the raw-size
-ceiling already established and enforced in ADR-024 (`DESCRIPTION_RAW_MAX_LENGTH`) — not a new
-number, just the column matching a limit the application already enforces one layer up.
-
-**Consequences:**
-- No change to `DESCRIPTION_MAX_LENGTH` (2000) — the visible-text limit users actually see and
-  are validated against is unchanged.
-- Full e2e suite 48/48 green; counter visually confirmed via Playwright screenshot
-  (`adv-useren-create-form-filled`, showing "85 / 2000").
 
 ---
 
@@ -1175,26 +1034,15 @@ same real decoupling benefit.
 
 **Status:** Accepted
 
-**Context:** `AdvertisementService.resolveCategoryFilter()` calls `TaxonPort
-.findEntityIdsWithAnyTaxon()` to get the set of advertisement ids matching the selected
-categories — the bulk-lookup pattern ADR-034 already established, kept exactly as-is here (not
-revisited). The gap was one level down: `AdvertisementRepository.buildIdClause()` bound that
-`Set<Long>` directly to `WHERE a.id IN (:allowedIds)`. Spring's `NamedParameterJdbcTemplate`
-expands a `Collection`-typed bind value into one `?` placeholder per element for an `IN` clause —
-unbounded for a popular category's advertisement count, and the SQL text itself changes shape
-(different placeholder count) for every differently-sized result, defeating Postgres's query-plan
-cache on top of the parameter-count risk.
-
-Three fixes were considered:
-1. **Leave as-is** — rejected for a fresh review, but was the standing default for a while: no
-   evidence this app's real category sizes are anywhere near the risk zone (current seed/test data
-   is ~10 ads/category), and the project avoids designing for hypothetical future load. Revisit
-   trigger: a real category size approaching the thousands.
-2. **Defensively cap `allowedIds` size** — rejected: silently wrong results (arbitrarily dropping
-   matches) or an opaque failure, neither actually fixes the scaling problem, just delays it.
-3. **JOIN to `taxon_assignment` directly** — rejected: reverses ADR-034's own decision (no raw
-   cross-starter SQL joins) without a compelling reason to, since a much smaller fix closes the
-   actual problem without touching that boundary at all (see Decision below).
+**Context:** `AdvertisementService.resolveCategoryFilter()` calls
+`TaxonPort.findEntityIdsWithAnyTaxon()` to get the set of advertisement ids matching the selected
+categories — the bulk-lookup pattern ADR-034 already established. One level down,
+`AdvertisementRepository.buildIdClause()` bound that `Set<Long>` directly to
+`WHERE a.id IN (:allowedIds)`. Spring's `NamedParameterJdbcTemplate` expands a `Collection`-typed
+bind value into one `?` placeholder per element for an `IN` clause — unbounded for a popular
+category's advertisement count, and the SQL text itself changes shape (different placeholder
+count) for every differently-sized result, defeating Postgres's query-plan cache on top of the
+parameter-count risk.
 
 **Decision:** Bind a plain `Long[]` array instead of the `Set<Long>`, and compare with
 `= ANY(:allowedIds)` instead of `IN (:allowedIds)`:
@@ -1204,28 +1052,21 @@ return " AND a.id = ANY(:allowedIds)";
 ```
 Spring only expands `Collection`-typed values into multiple placeholders — a native array is
 passed through as a single bind parameter, and the PostgreSQL JDBC driver binds it natively as one
-`bigint[]` value. This is not a new pattern: `AdvertisementRepository.findExistingIds(Long[] ids)`
-already does exactly this (`WHERE id = ANY(:ids)`) a few lines below `buildIdClause()` — the fix
-is applying the class's own existing, already-proven convention consistently, not introducing a
-new one.
+`bigint[]` value. Not a new pattern: `AdvertisementRepository.findExistingIds(Long[] ids)` already
+does exactly this (`WHERE id = ANY(:ids)`) a few lines below `buildIdClause()` — the fix applies
+the class's own existing, already-proven convention consistently.
 
-**Why not `unnest()`:** `WHERE a.id IN (SELECT unnest(:allowedIds))` is a documented, equally valid
-alternative for the same underlying reason (a single array bind instead of N placeholders) — not
-chosen here only because `= ANY()` was already an established, tested pattern in this exact class,
-so it carries less risk than introducing new SQL syntax the codebase hasn't used before.
-
-**On Postgres coupling:** `= ANY()` is Postgres-specific syntax (not ANSI SQL), same as `unnest()`
-would have been. Not treated as a new category of risk — this codebase already commits to
-Postgres-specific features throughout (`JSONB` columns with `::jsonb` casts, `ROW_NUMBER() OVER
-(PARTITION BY ...)`, `(created_at, id) <=` tuple comparisons — see ADR-020 and the audit tiebreak
-fix applied to the same class of issue), and portability to another RDBMS has never been a stated
-goal.
-
-**On the array-size limit:** binding a native array removes the *parameter-count* limit entirely
-(always exactly one bind parameter, regardless of how many ids). A different limit still exists —
-PostgreSQL's per-value TOAST size cap (~1 GB) — but for a `bigint[]`, that allows tens of millions
-of elements before it would ever matter, several orders of magnitude past any realistic category
-size for this app.
+Rejected alternatives: leaving the `IN` clause as-is (no evidence this app's real category sizes
+approach the risk zone today, but not worth carrying the parameter-count risk forward);
+defensively capping `allowedIds` size (silently wrong results, doesn't fix the scaling problem);
+joining to `taxon_assignment` directly (reverses ADR-034's no-raw-cross-starter-SQL-joins
+decision for no compelling reason); `unnest()` (an equally valid single-array-bind alternative,
+not chosen only because `= ANY()` was already an established, tested pattern in this class).
+`= ANY()` is Postgres-specific syntax, consistent with this codebase's existing commitment to
+Postgres-specific features elsewhere (`JSONB` columns, `ROW_NUMBER() OVER (PARTITION BY ...)`,
+tuple comparisons) — portability to another RDBMS has never been a goal. Binding a native array
+also removes the parameter-count limit entirely; the remaining limit (PostgreSQL's per-value
+TOAST cap, ~1 GB) allows tens of millions of `bigint` elements before it would matter.
 
 **Consequences:**
 - `AdvertisementRepository.findByFilter()`/`countByFilter()` — the only two callers of
@@ -1234,183 +1075,6 @@ size for this app.
   .findByFilter_allowedIdsRestrictsToMatchingRows` /
   `.countByFilter_allowedIdsRestrictsCount` — the existing test class had zero coverage of the
   non-null `allowedIds` path before this (every prior test passed `null`).
-
----
-
-## ADR-037: Raw `new Button(...)` spots converted to `Ui*Button` wrappers — every consumer is itself a bean injecting its own factory, never a pre-built widget through a constructor
-
-**Status:** Accepted
-
-**Context:** `HeaderBar`, `PaginationBar`, the attachment lightbox/gallery family
-(`CardMediaLightbox`, `AttachmentLightbox`, `CardLightboxViewer`, `AttachmentThumbnail`,
-`AttachmentGallery`), `AuditActivityRowRenderer`'s restore button, and `UserPickerField`'s
-clear/open buttons all hand-built raw `Button`/`ButtonVariant` calls instead of reusing the
-existing `UiPrimaryButton`/`UiTertiaryButton`/`UiIconButton` wrappers — five of these spots applied
-**no theme variant at all** (a real visible UX bug in the header's 4 auth buttons, not just
-duplication).
-
-**Design question that came up mid-implementation:** how should a plain (non-Spring) helper class
-obtain a `Ui*Button` instance? Two designs were tried and rejected before landing on the final
-one:
-1. Pass a `UiComponentFactory<UiIconButton>` into a plain class's constructor — rejected: a
-   Spring factory has no business being injected into a class the container doesn't manage.
-2. Pass a pre-built `Ui*Button` widget into the constructor (asymmetric: some call sites via
-   constructor, others via a static `open()` factory method) — rejected: inconsistent construction
-   shape across sibling classes, and passing *views* into a constructor is backwards regardless —
-   constructors should receive **beans**, not pre-built widgets.
-
-A full-tree survey (every class anywhere that consumes a `Ui*Button`/`*ActionButton` type) found
-**zero exceptions** to one pattern: the consumer is always itself a real `@SpringComponent
-@Scope("prototype")` bean, and it injects its own `UiComponentFactory<T>` directly.
-
-**Decision:** Apply that same pattern everywhere raw buttons were converted. Where a plain class
-didn't already carry Spring wiring (`AttachmentLightbox`, `CardLightboxViewer`,
-`AttachmentThumbnail` — previously plain classes or partially so), it was promoted to a full
-`@SpringComponent @Scope("prototype")` bean specifically so it could inject
-`UiComponentFactory<UiIconButton>` itself, matching every other consumer in the codebase. Done in
-four phased batches (full e2e run after each, per the project's established discipline for
-wide-blast-radius UI refactors):
-1. **`HeaderBar`** — 4 auth buttons → `UiPrimaryButton`, all CSS classes (`header-*-button`)
-   preserved exactly — these are selected by nearly every Playwright spec's login-check.
-2. **`PaginationBar`** — 4 nav icon buttons → `UiIconButton`.
-3. **Attachment lightboxes/gallery** — `CardMediaLightbox`, `AttachmentLightbox`,
-   `CardLightboxViewer`, `AttachmentThumbnail` all promoted to beans as described above; new
-   `ATTACHMENT_LIGHTBOX_*_TOOLTIP` i18n keys added (these buttons previously had no tooltip at
-   all).
-4. **`AuditActivityRowRenderer`**'s restore button → `UiTertiaryButton` + `.addThemeVariants
-   (LUMO_SMALL)` layered on top (the established "wrapper + one extra variant" technique, same as
-   `ConfirmActionDialog`'s `LUMO_ERROR` layering); `UserPickerField`'s clear/open buttons →
-   `UiIconButton`, with two new tooltip keys (`USER_PICKER_CLEAR_TOOLTIP`/`_OPEN_TOOLTIP`) since
-   neither button had one before.
-
-**Deliberately excluded, each for a documented reason:**
-- `query/elements/action/QueryActionButton.java` — a legitimate sibling wrapper (its own
-  `Configurable` component, SVG icons, `ButtonVariant` passed as an explicit parameter) used only
-  by `QueryActionBlock`. Architecturally inconsistent with the `Ui*Button` family
-  (variant-as-parameter vs. variant-hardcoded-per-class) but that's a design-unification question,
-  not raw-`Button` duplication.
-- `services/NotificationService.java`'s close button — a plain `@Service`, not a Vaadin bean, with
-  a raw Lumo font glyph icon (not `VaadinIcon`); converting would mean a non-UI-scoped service
-  reaching into `UiComponentFactory` machinery and would visibly change the rendered icon, not a
-  pure refactor. Extracted to its own decision issue, tracked in the backlog.
-- `UserPickerField`'s inline search button (a `TextField` suffix component using
-  `LUMO_TERTIARY_INLINE`, a variant `UiIconButton` doesn't support) — forcing it through
-  `UiIconButton`'s hardcoded `LUMO_TERTIARY+LUMO_ICON` baseline risked a visual regression for zero
-  UX benefit. Extracted, along with an unrelated pagination-correctness bug found in the same file
-  while scoping this batch, to its own backlog issue.
-- `AttachmentUploadButton` — wraps Vaadin's `Upload` component, a materially different widget, not
-  a `Button` at all.
-
-**Regression found and fixed along the way:** adding a real tooltip to `UserPickerField`'s clear
-button (previously it had none) broke a shared Playwright helper,
-`e2e/_flows/filter.flow.js`'s `clearFilter()`/`applyFilter()` — both used
-`${blockSelector} vaadin-button[title*="Clear"/"Apply"]`, a selector scoped to the whole query
-block, not just the block's own Apply/Clear buttons. Once the picker's clear button also carried a
-"Clear"-containing title, the selector matched two elements (strict-mode violation) inside
-`TimelineQueryBlock` specifically (the only query block that embeds a `UserPickerField`). Fixed by
-scoping both helpers to `.query-action-block` — the CSS class `QueryActionBlock` already applies to
-itself around its own Apply/Clear buttons — rather than the wider block selector.
-
-**Consequences:**
-- All four batches verified independently with a full `deploy.sh` + `bash scripts/playwright.sh
-  e2e --full --ux` run — 48/48 green each time.
-- `marketplace-app/CLAUDE.md`'s "Configurable prototype beans" pattern now has three more
-  real-world instances of the "promote a plain class to a bean solely to inject a `UiComponentFactory`"
-  shape — if the leaf-widgets-to-plain-classes conversion (see ADR-052 below) is picked up later,
-  these three new beans (`AttachmentLightbox`/`CardLightboxViewer`/`AttachmentThumbnail`) become
-  new candidates for reverting back to plain classes once `UiIconButton` itself stops being a
-  Spring bean — flagged directly in that issue's own investigation notes, not lost.
-
----
-
-## ADR-038: Theme CSS colors tokenized into named custom properties — fixes the WCAG AA contrast failure and builds the prerequisite dark-mode needs
-
-**Status:** Accepted
-
-**Context:** `marketplace-app/src/main/frontend/themes/my-app/` (21 CSS files) used hardcoded hex
-color literals throughout — 49 unique values, ~180 occurrences, the same handful of colors
-copy-pasted into 9-15 different files each, zero `:root`/custom-property infrastructure. Two
-concrete problems, one about accessibility and one about dark mode:
-1. `.header-auth-row span` used `#94a3b8` (~2.5:1 contrast on white) — fails WCAG AA's 4.5:1
-   minimum for body text.
-2. Dark mode is structurally impossible without a token layer — Lumo ships a dark palette, but
-   only components already using `var(--lumo-*)`/custom-property tokens pick it up automatically;
-   swapping 180 hardcoded literals in place isn't a real option.
-
-Both issues' own text called out that they share the exact same prerequisite (hardcoded hex →
-named tokens) and recommended doing both in one pass over the theme files rather than two separate
-touches of the same CSS. The actual dark-mode toggle (`prefers-color-scheme` +
-switcher UI) is explicitly deferred to a later pass — this ADR covers only the token
-infrastructure + the accessibility fix riding on top of it.
-
-**Decision:** Every hex value was named as a semantic custom property in a new `:root` block in
-`styles.css` (`--app-*` prefix, to stay visually distinct from Lumo's own `--lumo-*` tokens), then
-every occurrence across all 21 files was replaced with `var(--app-*)`. Values map almost exactly
-onto Tailwind's default palette (`#94a3b8` = slate-400, `#3b82f6` = blue-500, etc.) — not a
-coincidence, the app's colors were already implicitly drawn from that palette; tokenizing just
-gives the existing (if undocumented) design system real names instead of inventing a new one.
-
-Token groups, by role (full list with inline comments: `styles.css` lines 41-118):
-- **Text** (`--app-text-primary/-secondary/-tertiary/-muted`) — 4-tier slate text hierarchy.
-- **Borders/surfaces** (`--app-border-*`, `--app-surface-*`) — dividers, card/page backgrounds.
-- **Primary accent** (`--app-accent-primary*`, 10 shades) — the blue family: links, focus
-  outlines, query-block chrome, active tab.
-- **Gallery accent** (`--app-accent-gallery*`, 6 shades) — indigo, `attachment-gallery.css` only.
-- **Violet accent** (`--app-accent-violet*`) — the `USER_SETTINGS` activity-type badge and one
-  card gradient partner.
-- **Status colors** — separate bg/text token pairs per badge kind: success (created action,
-  active user role), info (updated action, reuses `--app-accent-primary-bg`), the
-  `advertisement` entity-type pill, restored action, moderator role, danger (deleted action).
-
-**The WCAG fix, specifically:** `--app-text-muted` is defined as `#64748b` (the color that was
-*already* used, and already measured ~4.76:1 — passes AA with margin) and now serves **both** the
-former `#64748b` call sites and the former `#94a3b8` (failing) call sites — the two were
-functionally the same "de-emphasized text" role, just drifted to two different grays over time.
-Merging them into one compliant value is not a workaround; it's the actual fix — you cannot keep a
-visually-distinct "extra light" gray tier that also passes 4.5:1, `#94a3b8` was failing precisely
-*because* it was lighter than the compliant tier. This was the **only** value intentionally
-changed during tokenization — every other token preserves its exact prior hex value, so the rest
-of this refactor has zero visual delta by construction.
-
-**RGB-triplet companion tokens:** three colors (`--app-accent-primary`, `--app-status-warning-accent`,
-`--app-status-danger-outline`) also appeared as `rgba(r,g,b,alpha)` literals for shadow/highlight
-glows (`highlight.css`, query-block focus rings). Added `--app-accent-primary-rgb: 59, 130, 246`-style
-companions (raw comma-separated channels, since `var()` can't extract channels out of a hex
-custom property) so those `rgba()` calls became `rgba(var(--app-accent-primary-rgb), 0.07)` instead
-of a second, disconnected copy of the same color.
-
-**Deliberately left as literals (documented scope boundary, not an oversight):**
-- Pure black/white shadow and overlay alphas (`rgba(0,0,0,0.04)` box-shadows,
-  `rgba(0,0,0,0.92)` lightbox backdrop, `rgba(255,255,255,0.15)` lightbox control hover) — these
-  are an elevation/shadow system, not brand colors; tokenizing two dozen distinct one-off alpha
-  values (each hand-tuned for a specific shadow depth) would add indirection with no reuse value.
-  Revisit only if/when the dark-mode toggle actually ships and shadows need to invert.
-- `query-block.css:22`'s `rgba(239, 246, 255, 0.9)` — a near-white tint close to but not identical
-  to `--app-accent-primary-bg-hover`, single occurrence, not worth a dedicated token.
-
-**Consequences:**
-- `styles.css`'s `:root` block is now the single source of truth for every brand/status color in
-  the app — changing a color means editing one line, not grep-and-replace across up to 15 files.
-- Dark mode is now unblocked at the infrastructure level: a dark palette is a
-  second `:root` (or `[data-theme="dark"]`) block redefining the same custom-property names — no
-  further CSS file touches required for the color layer itself. The actual toggle is still
-  deferred, tracked in the backlog.
-- Verified via full `deploy.sh` + `bash scripts/playwright.sh e2e --full --ux` — a pure CSS-value
-  substitution carries no logic-level regression risk, but the file count (21) and occurrence
-  count (~180) made a full visual smoke pass worth doing rather than assuming.
-- Two remaining accessibility items (not part of the tokenization itself, done as a follow-up
-  in the same pass) — `UiIconButton.configure()` now sets `aria-label` alongside `title` (an
-  icon-only button's `title` attribute alone isn't a reliably announced accessible name across
-  screen readers), which fixes every icon-only button app-wide in one shared-component edit
-  (lightbox prev/next/close, pagination nav, attachment-thumbnail delete, `UserPickerField`
-  clear/open) rather than per-call-site; the category chip list
-  (`AdvertisementViewOverlayModeHandler`) got `role="list"`/`role="listitem"` +
-  `aria-label` for correct screen-reader grouping (no "city chips" exist in the codebase yet — that
-  feature is still on the private roadmap, nothing to fix there); a `.primary-button/.tertiary-button
-  /.icon-button:focus-visible` rule was added to `styles.css`, matching the pre-existing
-  `.advertisement-card:focus-visible` treatment, since no explicit focus style existed for the
-  `Ui*Button` family before. Full e2e suite re-verified 48/48 after these additions.
-- The dark-mode toggle itself remains deferred — only its own prerequisite shipped here.
 
 ---
 
@@ -1457,54 +1121,6 @@ match. Full rationale in `scripts/ci/DECISIONS.md` ADR-001.
   not just a code-review catch.
 - Verified via full `deploy.sh --no-cache` (all 5 starters + marketplace-app rebuild from empty
   cache, exercising every enforcer rule) + `bash scripts/playwright.sh e2e --full --ux`, 48/48.
-
----
-
-## ADR-040: `NotificationService`'s close button converted to `UiIconButton` despite being a plain `@Service`, not a Vaadin bean
-
-**Status:** Accepted
-
-**Context:** `NotificationService.createLayout()`'s close button was the one raw-`Button` spot
-the prior raw-button-conversion pass deliberately excluded from its mechanical conversion, because
-`NotificationService` is a plain `@Service` (not a `@SpringComponent` Vaadin bean like every other
-`Ui*Button` consumer) and its icon was a raw Lumo font glyph (`new Icon("lumo", "cross")`, not
-`VaadinIcon`) — a conversion would be a small visible icon change, not a pure refactor. Extracted
-to its own decision issue to decide explicitly rather than leave unresolved.
-
-**Decision:** Convert anyway, in favor of full consistency over the narrow exception. Neither
-concern held up as a real blocker on inspection:
-- No rule in this codebase (`.claude/rules.md`, `platform-commons/CLAUDE.md`) forbids a `@Service`
-  from depending on `UiComponentFactory<T>` — it simply hadn't been done before.
-  `NotificationService` already lives in the UI-layer package (`ui.views.services`), so a
-  singleton service reaching into `UiComponentFactory<UiIconButton>` (itself backed by
-  `ObjectProvider<UiIconButton>`, exactly the mechanism Spring provides for a singleton to obtain
-  fresh prototype-scoped instances) is architecturally unremarkable, not a scope violation.
-- The icon swap (Lumo glyph → `VaadinIcon.CLOSE_SMALL`) is visually negligible — an "X" in either
-  icon set — and now every icon-only button in the app renders through the same wrapper, with no
-  documented exception for a future ArchUnit rule to special-case.
-
-New `NOTIFICATION_CLOSE_TOOLTIP` i18n key added (the raw glyph never had a tooltip/aria-label
-before; `UiIconButton.configure()` now sets both `title` and `aria-label` per ADR-037's
-accessibility follow-up).
-
-**Follow-up fix (2026-07-16, found via direct visual screenshot inspection, not caught by any
-Playwright assertion):** `UiIconButton`'s default tertiary-theme icon color is Lumo's primary
-blue (`rgb(0, 95, 219)`) — correct on the white/neutral surfaces every other `UiIconButton`
-consumer renders on, but wrong here: `Notification`'s `LUMO_ERROR`/`LUMO_SUCCESS` variants render
-white text (`rgb(255, 255, 255)`, confirmed via computed-style inspection) on red/green
-backgrounds, so the close icon rendered as a mismatched blue glyph on a colored background.
-Added `.notification-close-btn { color: var(--app-surface-white); }` in a new
-`notification.css` (the `notification-*` CSS classes had no theme file at all before this —
-purely inline/inherited styling). Confirmed visually via direct screenshot before and after.
-
-**Consequences:**
-- Zero remaining raw `new Button(...)` spots from the original raw-button audit — every
-  identified spot is now either converted or explicitly, permanently out of scope
-  (`QueryActionButton`, `AttachmentUploadButton` — see ADR-037's own "Do NOT touch" list).
-- Verified via full `deploy.sh` + `bash scripts/playwright.sh e2e --full --ux`, 48/48 — the two
-  existing Playwright selectors touching the notification close button
-  (`e2e/_helpers.js`'s `closeNotification()`, `_flows/category.flow.js`) both use the generic
-  `vaadin-notification-card vaadin-button` pattern, unaffected by the icon/class change.
 
 ---
 
@@ -1615,68 +1231,6 @@ of 20 rather than 50's partial third page of 10).
 
 ---
 
-## ADR-043: Timeline tab resolves category names via a typed `prevSnapshotData` on `AuditTimelineItemDto`; `ChangeEntry.replaceIfField()` consolidates the one unavoidable type check
-
-**Status:** Accepted
-
-**Context:** The Timeline tab (global activity feed) rendered category changes as raw taxon ids
-(`Category: 3, 5 → 3, 5, 7`), while the per-advertisement Activity tab already resolved the same
-data to names (`Category: Electronics, Books → ...`) via `AdvertisementEnrichService
-.enrichActivityItems()`. Root cause: `AuditTimelineItemDto` (unlike `AuditActivityItemDto`) carried
-only the current snapshot, not the previous one — `AuditReadService.toTimelineItem()` computed the
-diff via `row.snapshot().diff(row.prevSnapshot())` but only passed `row.snapshot()` into the DTO,
-discarding `row.prevSnapshot()` even though `AuditLogProjection` already had it.
-
-**Decision:**
-- Added `T prevSnapshotData` to `AuditTimelineItemDto` (`platform-commons`) and populated it from
-  `AuditLogProjection.prevSnapshot()` (already available, previously unused) in
-  `AuditReadService.toTimelineItem()`. Only two constructor call sites existed for this record
-  (`toTimelineItem()` and `withChanges()`), both updated — no other consumer constructs it.
-- `AdvertisementEnrichService.mergeMediaChanges()` (Timeline) and `enrichActivityItems()` (Activity)
-  now share the same fully-typed `resolveCategories()` helper, reading `List<Long>` directly from
-  both DTOs' `categoryIds()` — no string parsing of the diff's own rendered values (an earlier,
-  rejected draft parsed `ChangeEntry.FieldChange`'s `from`/`to` strings via
-  `split(",\\s*")`; discarded once the DTO gained a typed previous snapshot, making that
-  unnecessary).
-- `AdvertisementEnrichService`'s `mergeMediaChanges`/`enrichActivityItems` dropped unused
-  parameters (`List<EntityRef> subjects`, `EntityRef entityRef`) that only existed to mirror
-  `AuditActivityEnrichHook`'s interface signature — they are plain internal service methods, not
-  the hook's own override (that's `ActivityEnrichHookImpl`, which still needs the full interface
-  signature and now simply doesn't forward the unused arguments).
-- `ChangeEntry.replaceIfField(String fieldName, UnaryOperator<String> fromFn, UnaryOperator<String>
-  toFn)` — a new default method on the `ChangeEntry` sealed interface — consolidates the one
-  instanceof-check on `FieldChange` that Java's type erasure makes genuinely unavoidable (some
-  identifying key — here, the existing field-name constant already used everywhere else in this
-  codebase for the same purpose — is required to know *which* generic `FieldChange` to transform).
-  Every consumer needing to conditionally rewrite one field's value calls this instead of writing
-  its own `instanceof`/`switch`; it is now the only such check in the entire codebase.
-  `AdvertisementEnrichService.resolveCategories()` uses it instead of a hand-rolled pattern match.
-
-**Rejected alternatives (considered and discarded during design):**
-- A new sealed `ChangeEntry` subtype (e.g. `CategoryFieldChange`) carrying typed `List<Long>`
-  values directly, matched via `instanceof CategoryFieldChange` instead of a field-name string.
-  Rejected: `ChangeEntry` has several **exhaustive** switches with no `default` branch across
-  `AuditChangeFormatter` and `AuditTimelineRowRenderer` (rendering code for every entity type, not
-  just advertisements) — adding a third permitted subtype would require a new case in each one,
-  a "sealed tax" repeating for every future field needing the same treatment. Also would have
-  required carrying the `T`-erased value out of the entry itself, reintroducing exactly the
-  unchecked cast this design avoids.
-- A generic `FieldChange<T>` carrying a `ValueFormatter<T>` alongside typed `from`/`to`. Same
-  rendering-code blast radius as above, plus every renderer would need to call `.fromDisplay()`/
-  `.toDisplay()` instead of pattern-matching `from`/`to` directly — a larger, orthogonal refactor
-  of code this fix didn't need to touch.
-
-**Consequences:**
-- `TaxonAuditHook` (SPI) removed entirely, along with `TaxonPort.assign()`/`unassign()`/
-  `findByCode()`, `TaxonService.findByCode()`, and `TaxonRepository.findByTypeAndCode()` — all
-  confirmed zero callers via direct trace, not assumption. See ADR-019's updated resolution note
-  and `taxon-spring-boot-starter/DECISIONS.md` ADR-004 (marked superseded).
-- `integration-tests/.../taxon/TaxonRepositoryTest`'s `findByTypeAndCode_*` tests removed along
-  with the repository method they covered (a deliberate soft-delete-filter regression test —
-  traded for keeping the method-removal clean per explicit direction, not an oversight).
-
----
-
 ## ADR-044: `UserSettingsRepository` optimistic-locking version lives inside the `settings` JSONB blob, not a new SQL column
 
 **Status:** Superseded by ADR-070 — `locale`/`settings` moved off `user_information` into their own
@@ -1747,56 +1301,6 @@ user's own concurrent tabs.
 
 ---
 
-## ADR-045: New `QueryLongField` (text-backed) replaces `NumberField` (`Double`-backed) for the user id range filter — neither Vaadin numeric field type actually fits a `Long`
-
-**Status:** Accepted
-
-**Context:** `UserFilterMeta.ID_MIN`/`ID_MAX` used Vaadin's `NumberField` (`Double`-backed) with
-`SupportUtil.toLong(Double)` (`value.longValue()`) converting to the `Long` the filter DTO actually
-needs. Entering a fractional value (e.g. `123.99`) was silently truncated to `123` with no
-validation error — a real, silent filter-correctness bug, since the truncated `Long` is what the
-UI's own conversion pipeline (`FilterProcessor.register()`'s value-change listener calls the
-setter, which runs `toLong()`, *before* any validation predicate ever runs against the DTO) writes
-into the DTO. The originating issue's own suggested fix — add a whole-number check to the DTO-level
-`idValid` predicate — turned out to be structurally impossible: that predicate only ever sees the
-already-truncated `Long` field on the DTO, by which point the fractional part is already gone.
-
-**Decision:** Neither of Vaadin's built-in numeric field types is actually the right fit for a
-`user_information.id` (`BIGSERIAL`, a true 64-bit `Long`) filter: `NumberField` is `Double`-backed
-(safe integer range ~53 bits, plus the truncation-on-convert problem above), and `IntegerField` is
-32-bit — narrower than the real column's range, an artificial UI-level ceiling below what the
-schema actually allows (confirmed every domain table in this project uses `BIGSERIAL`, not
-`SERIAL`, consistently — this isn't a `user`-specific choice to special-case around). Vaadin has no
-built-in `Long`-backed field. New `org.ost.marketplace.ui.query.elements.fields.QueryLongField`
-(mirrors `QueryNumberField`'s `Configurable` structure exactly, but extends `TextField` instead) —
-raw text parsed directly via `SupportUtil.toLongOrNull(String)` (`Long.parseLong`, catches
-`NumberFormatException` → `null`). Un-parseable input (fractional, non-numeric) is flagged via the
-component's own native `setInvalid`/`setErrorMessage` (Vaadin's `HasValidation`), independent of —
-and confirmed not conflicting with — `HighlighterUtil`'s separate dirty/changed CSS-class styling
-(`resetHighlightClasses()` only touches `CLEAN`/`DIRTY`/`CHANGED`/`INVALID` class names, never
-Vaadin's own `invalid` attribute). `SupportUtil.toLong(Double)` removed outright — confirmed zero
-other callers before deleting.
-
-**Rejected alternative — `IntegerField` swap.** Considered first (matches the originating issue's
-own "alternative considered"), but rejected once the actual `id` column type was checked: 32-bit
-would be a real, if narrow, regression against the 64-bit `BIGSERIAL` range the filter is
-supposed to express, for no benefit over the text-field approach.
-
-**Consequences:**
-- No `Double` anywhere in the id-filter pipeline anymore — component, setter, and DTO are all
-  `String`/`Long` end to end.
-- New `UiComponentFactory<QueryLongField>` bean (`MarketplaceUiConfiguration`) and `@Uses` (`MainView`),
-  mirroring `QueryNumberField`'s exact wiring — `QueryLongField` is currently only used by
-  `UserQueryBlock`'s two id fields, but is a generic, reusable component like its siblings.
-- New `I18nKey.USER_FILTER_ID_INVALID_NUMBER` ("Must be a whole number" / uk equivalent).
-- Covered by `SupportUtilTest` (8 cases: whole number, negative, whitespace-trimmed, fractional →
-  null, non-numeric → null, blank → null, null → null, beyond-`Long`-range → null) and a new
-  Playwright assertion in spec 05 (`05-seed-filter-sort-pagination.spec.js`): typing `1.5` into the
-  ID-min field sets the Vaadin `invalid` attribute, typing `1` clears it. Full suite verified 48/48
-  green.
-
----
-
 ## ADR-046: `AbstractFormOverlayModeHandler.buildContentWithActivity()` unifies the Edit/Activity tab choreography across Advertisement/Taxon/User form handlers; fixes `UserFormOverlayModeHandler`'s viewer/subject `userId` bug
 
 **Status:** Accepted
@@ -1864,10 +1368,10 @@ after the initial `advertisementPortFactory.get().save(dto, actorId)`, with cate
 (`taxonPortFactory...replaceAssignments()`) and audit capture both still running *after* it,
 inside the same transaction. Any failure in either of those (or the transaction's own commit)
 rolled the DB back while the S3 files stayed physically moved — an orphan invisible to every
-existing cleanup pass (see `attachment-spring-boot-starter/DECISIONS.md` ADR-011, which closes the
-gap on the other side by teaching `AttachmentCleanupService` to actually find these).
+existing cleanup pass (`attachment-spring-boot-starter`'s own `AttachmentCleanupService` closes the
+gap on the other side, with a DB-cross-checked orphan sweep that finds exactly these).
 
-**Decision:** Two changes, both defense-in-depth on top of ADR-011's sweep (which alone is
+**Decision:** Two changes, both defense-in-depth on top of that orphan sweep (which alone is
 sufficient to eventually clean up any orphan, but only on its next nightly run):
 1. Reordered `save()` so `replaceAssignments()` runs *before* `commitGallery.apply()` — the S3
    move is now the last mutation before this transaction's own commit, so it only has to survive
@@ -1901,93 +1405,6 @@ sufficient to eventually clean up any orphan, but only on its next nightly run):
 
 ---
 
-## ADR-048: `UserPickerField` rewritten from `CustomField<UserDto>` (single value) to `CustomField<Set<UserDto>>` (chip list) for the Timeline actor filter
-
-**Status:** Accepted
-
-**Context:** The Timeline actor filter needed to match "any of N selected actors" (see
-`platform-commons/DECISIONS.md` ADR-020, `query-lib/DECISIONS.md` ADR-005), which meant
-`UserPickerField` had to hold and display a *set* of picks, not one.
-
-**Decision:** `currentValue: Set<UserDto>` (`LinkedHashSet`, insertion order preserved for display
-stability). Picking a row in the dialog *adds* to the selection (`selectUser()`, replacing any
-existing entry with the same id) instead of replacing it outright, and the dialog still closes
-after each pick — repeat-open-pick to build up a selection, rather than a multi-select grid inside
-the dialog (would have meant rewriting the dialog's own grid interaction model; out of scope for
-what the issue asked). Each selected actor renders as a removable chip (`buildChip()` — name +
-small "X" button, `VaadinIcon.CLOSE_SMALL`, CSS `user-picker-chip`/`user-picker-chip-remove`); a
-separate clear-all button (same `CLOSE_SMALL` icon — the established codebase-wide convention for
-any close/remove action, see `AttachmentThumbnail`/`NotificationService`) sits between the chip
-list and the search-open button, in the same flat `HorizontalLayout(chipsContainer, clearButton,
-openButton)` the field already used for its single-value form — no new wrapper `Div` introduced
-around it. `.user-picker-layout` gets the same bordered-box treatment every native Vaadin input
-gets for free from Lumo (`forms.css`'s `vaadin-*-field::part(input-field)` overrides): `border:
-1.5px solid var(--app-border-default); border-radius: 8px; background-color:
-var(--app-surface-white);` plus a `:focus-within` state matching the same accent-color/box-shadow
-pattern — required because this field is a hand-built `CustomField` (Div + buttons), not a native
-input, so it never got Lumo's field-box styling automatically the way `QueryTextField`/
-`QueryComboField` do.
-
-**Consequences (bugs found and fixed across two Playwright verification passes on this issue, not
-left for a follow-up):**
-- An early version of this chip UI added the clear-all button with `VaadinIcon.CLOSE_CIRCLE` — an
-  icon used nowhere else in the codebase for a close/remove action (confirmed by grep) — plus a
-  `HorizontalLayout` left at Vaadin's default spacing (~1rem between all three children) with an
-  extra `margin-left: 6px` stacked on top, producing a highlighted rounded search-adjacent icon
-  the user's own words correctly called "де ти бачив круглий хрест" (nowhere else in this app) and
-  a much larger gap than any other icon-button pairing in the codebase. Fixed by switching to
-  `CLOSE_SMALL`, calling `layout.setSpacing(false)`, and replacing the stray margin with a single
-  `gap: 6px` on `.user-picker-layout`.
-- `removeActorChip()` (the Playwright flow helper added for this issue, `timeline.flow.js`) read
-  the post-removal chip count immediately after the click with no wait for the Vaadin server
-  round-trip that `removeUser()` → `setModelValue()` triggers — unlike `fillActorPicker()`'s
-  add-path, which already waits on the picker dialog closing (a reliable proxy, since
-  `selectUser()` and `dialog.close()` run in the same server round-trip). Fixed by calling the
-  existing `waitForVaadin()` helper (`filter.flow.js`, already used by `applyFilter()`/
-  `clearFilter()`) after the click, rather than inventing a new wait mechanism.
-- Unrelated to this field but found while re-verifying the same Playwright screenshots end to end:
-  `.advertisement-category-chip` (view overlay) and `.taxon-row-name` (Reference Data category
-  list) both had `white-space: nowrap` (the latter not even that — no overflow handling at all)
-  with no `max-width`/`text-overflow`, so a maximum-length (255-char) category name either broke
-  the flex row's wrapping or ballooned into a multi-line block that dwarfed its sibling pills.
-  Both fixed with the same `max-width` + `overflow: hidden` + `text-overflow: ellipsis` pattern.
-  Verified two ways: first via a disposable, non-committed Playwright script against the running
-  dev stack (not a new automated test); then, per explicit follow-up direction, permanently by
-  changing one of the 10 "Boundary-XX" seed categories in spec 03's boundary-category test to an
-  actual 255-char name (`MAX_CATEGORY_NAME`, same generation pattern as the file's existing
-  `MAX_TITLE_EN`/`MAX_NAME_100` constants) instead of adding a new test case — spec 04's existing
-  max-content assertions (category chips, card text line) now exercise this edge case on every
-  run.
-- A third review pass (prompted by "what about with the actor?") found `.user-picker-chip` itself
-  had the exact same missing-truncation bug — `white-space: nowrap` with no `max-width`, so a
-  maximum-length actor name would grow the chip unbounded. Fixed with `max-width: 200px` on the
-  chip plus a new `.user-picker-chip-name` class (`flex: 1; min-width: 0; overflow: hidden;
-  text-overflow: ellipsis`) on the name `Span` — `min-width: 0` is required because flex items
-  default to `min-width: auto` (sized to content), which would otherwise prevent the ellipsis from
-  ever engaging. Given permanent coverage the same way as the category fix: spec 05's timeline
-  actor-filter test now picks `maxEn` (`MAX_ACTOR_NAME`, same 100-char generation formula as spec
-  03's `MAX_NAME_100`) as its second actor instead of another short "Seed User N". This surfaced a
-  real flake in `fillActorPicker()` itself: `maxEn` and `maxUk` share the *identical* 100-char
-  name (both generated from the same formula), so the picker grid shows two rows with equal text;
-  the existing manual-scroll lookup could land on a scroll position where the target row was only
-  partially clipped by the grid's own `overflow` — Playwright's actionability check still reports
-  such an element as "visible" (non-zero area) even though the click misses, and the dialog never
-  closes. Fixed by adding an opt-in `useSearch` mode to `fillActorPicker(page, name, {useSearch})`
-  that types into the picker dialog's own (until now unused-by-tests) search field instead of
-  scrolling — the filtered result set is small enough to render fully without virtualization,
-  sidestepping the clipped-row race entirely. Left the original scroll-based path as the default,
-  unchanged, for the existing `'Seed User 60'` call, which deliberately exercises the grid's
-  second-data-provider-page lazy loading (see ADR-042) — switching that one to search would
-  have silently dropped that coverage.
-- Full Playwright e2e (`--full`, seeds spec 05) 48/48 green after all three passes; see
-  `attachment-spring-boot-starter/DECISIONS.md` ADR-013 for a fourth, unrelated bug
-  (`AttachmentSnapshotService` duplicate-key crash) the first of these passes also caught and
-  fixed. One transient `Client network socket disconnected before secure TLS connection was
-  established` failure (spec 04, right after a plain login with an empty ad list — no code from
-  any of these fixes anywhere near the failure point) did not reproduce on the immediately
-  following rerun — confirmed via screenshot before being discounted as infra flakiness, not
-  dismissed on assumption.
-
 ## ADR-049: `I18nKey` stays one consolidated enum — domain-split considered and rejected
 
 **Status:** Accepted (rejection of a proposed change)
@@ -2014,51 +1431,6 @@ size), or i18n infrastructure appearing in starters — currently explicitly exc
 have no i18n infrastructure of their own", `marketplace-app/CLAUDE.md`). If revisited, the
 sealed-interface design above is the starting point, with a startup-time uniqueness check over
 all member enums' keys as a hard requirement.
-
-## ADR-050: Advertisement delete-side audit capture moves into `AdvertisementSaveService`, matching save's existing orchestration
-
-**Status:** Accepted — `AdvertisementSaveService` itself later relocated to
-`marketplace-orchestrator` (see ADR-073); this decision's reasoning still applies to that class in
-its new location.
-
-**Also affects:** advertisement-spring-boot-starter
-
-**Context:** Audit-snapshot capture for advertisements was split: save-side lived in
-`AdvertisementSaveService` (`marketplace-app` at the time), delete-side lived inline in
-`AdvertisementService.delete()` (`advertisement-spring-boot-starter`), doing near-identical
-snapshot assembly (title/description + category ids via `TaxonPort` + attachment snapshot id via
-`AttachmentPort`) in two different modules. Every other domain (user, taxon) captures entirely
-inside its own starter; advertisement was the only split-brain case.
-
-**Decision:** Option A from the issue — move delete-side capture up into
-`AdvertisementSaveService`, reusing its existing `buildCurrentSnapshot()` (already built for
-save's "before" snapshot; a delete's snapshot is exactly the same shape). New
-`AdvertisementSaveService.delete(id, actorId, version)`:
-1. `buildCurrentSnapshot(id)` — reads the current state before anything is mutated.
-2. `advertisementPortFactory.get().delete(id, actorId, version)` — the starter's `delete()` now
-   does pure domain work only (soft-delete the row, clear taxon assignments, soft-delete
-   attachments) — no audit capture, no snapshot assembly.
-3. `auditPortFactory.ifAvailable(p -> p.captureDeletion(id, snapshot, actorId))` — only if step 1
-   found something to capture (mirrors the starter's old `findById(id).ifPresent(...)` guard).
-
-All three steps run inside one `tx.executeWithoutResult(...)` transaction (same `TransactionTemplate`
-`save()` already uses) — the starter's own `@Transactional delete()` joins it via default
-`REQUIRED` propagation, so this is still one atomic unit, not two.
-
-`AdvertisementCardView` (the only UI caller) now calls `AdvertisementSaveService.delete(...)`
-directly instead of going through `ComponentFactory<AdvertisementPort>.ifAvailable(...)` —
-`AdvertisementPort` is a mandatory dependency for this view already (there is no advertisement UI
-without it), so the unconditional `.get()` inside `AdvertisementSaveService` doesn't reduce
-robustness versus the previous `ifAvailable()` guard.
-
-**Consequences:**
-- `AdvertisementService` (starter) drops its `ComponentFactory<AuditPort>` dependency entirely —
-  it now has no audit awareness at all, same shape as no other domain's *lifecycle* orchestration
-  needing an unrelated cross-cutting concern once that concern moves to where it's coordinated.
-- The duplicated snapshot-assembly block is gone; `buildCurrentSnapshot()` is the one place this
-  logic lives for advertisements.
-- Existing `AdvertisementServiceHtmlSanitizationTest`'s direct `new AdvertisementService(...)`
-  constructor call updated (one fewer constructor arg).
 
 ## ADR-051: User deletion — soft-delete, cascade to the user's own ads, retention purge, actor-name annotation
 
@@ -2087,8 +1459,8 @@ advertisement/taxon.
   ads). Fix: new marketplace-app `UserDeleteService` cascades — soft-deletes the user's own ads
   first (each via `AdvertisementSaveService.delete()`, so each gets its own audit capture too),
   then soft-deletes the user. Lives in marketplace-app, not in `UserService` (the starter), because
-  `AdvertisementSaveService` (where advertisement audit capture now lives, per ADR-050) isn't
-  reachable from a starter.
+  `AdvertisementSaveService` (where advertisement audit capture lives) isn't reachable from a
+  starter.
 - **Retention purge job:** `UserService.cleanup(retentionDays)` + a `UserAutoConfiguration`
   `SchedulingConfigurer` bean, same `CleanupProperties`/cron shape as advertisement/attachment/
   audit. Deliberately **not** one bulk `DELETE` (unlike advertisement's `deleteOlderThan`) — loops
@@ -2113,237 +1485,76 @@ advertisement/taxon.
 
 ---
 
-## ADR-052: Leaf UI buttons converted from `@SpringComponent` prototype beans to plain classes (Batch 1)
+## ADR-052: Leaf UI components converted from `@SpringComponent` prototype beans to plain classes
 
 **Status:** Accepted
 
-**Context:** `UiPrimaryButton`, `UiTertiaryButton`, `UiIconButton`, `DeleteActionButton`, `EditActionButton`,
-`OverlayBreadcrumbBackButton` were all `@SpringComponent @Scope("prototype")` beans implementing
+**Context:** Many leaf UI components (`UiPrimaryButton`, `UiTertiaryButton`, `UiIconButton`,
+`DeleteActionButton`, `EditActionButton`, `OverlayBreadcrumbBackButton`, `UiTextField`,
+`UiTextArea`, `UiEmailField`, `UiPasswordField`, `UiComboBox<T>`, `UiLabeledField`,
+`EmptyStateView`, `DialogLayout`, `OverlayLayout`, `ConfirmActionDialog`, and the entire
+`ui/query/elements/*` tree — `SvgIcon`, `SortIcon`, `QueryActionButton`, `QueryActionBlock`,
+`QueryInlineRow`, `QueryTextField`, `QueryLongField`, `QueryDateTimeField`,
+`QueryMultiSelectComboField<T>`) were `@SpringComponent @Scope("prototype")` beans implementing
 `Configurable`/`Initialization`, even though their only real dependency was `I18nService`, used
-solely to resolve a label string at construction time — exactly the case
-`marketplace-app/CLAUDE.md`'s "When NOT to use Configurable" rule already called out. Every parent
-`ModeHandler`/`View` had to constructor-inject a `UiComponentFactory<T>` per widget just for this.
+solely to resolve a label/tooltip string at construction time — exactly the case
+`marketplace-app/CLAUDE.md`'s "When NOT to use Configurable" rule already calls out. Every parent
+`ModeHandler`/`View`/`QueryBlock` had to constructor-inject a `UiComponentFactory<T>` per widget
+just for this, and `MarketplaceUiConfiguration`/`ComponentFactoryConfig` carried a matching
+now-pointless `@Bean` for each one.
 
-**Decision:** Converted all six to plain classes with constructors taking already-resolved
-`String`/`Icon`/`Runnable` values; i18n resolution moved to the call site (`i18n.get(key)` before
-constructing). `BaseActionButton.applyConfig(BaseConfig)` (an interface used only by
+**Decision:** Converted every leaf component listed above to a plain class with a constructor
+taking already-resolved `String`/`Icon`/`Runnable` values; i18n resolution moved to the call site
+(`i18n.get(key)` before constructing). Removed every now-empty `UiComponentFactory<T>` `@Bean`
+declaration these types previously needed. Two components with a real dependency (`data-testid`
+computation, dynamic re-resolution) needed a small variant of the same pattern instead of a bare
+value constructor:
+- **Fields carrying `data-testid`** (`UiTextField`, `UiTextArea`, `UiEmailField`,
+  `UiPasswordField`, `UiComboBox<T>`, `UiLabeledField`) — the test id (`I18nKey.toTestId()`) is
+  computed at the call site and passed as an explicit `String testId` constructor parameter,
+  keeping every existing Playwright selector byte-identical.
+- **`SortIcon`** — the one real exception to the "resolve once, pass a `String`" template: it
+  re-resolves its tooltip *dynamically* every time the sort direction cycles
+  (NEUTRAL→ASC→DESC), not just once at construction, so a single pre-resolved `String` can't
+  represent it. `SortIcon(I18nService i18nService)` keeps `i18nService` as a plain field and
+  calls `.get()` internally whenever direction changes — a plain object holding a reference to
+  an already-existing singleton bean; nothing requires `SortIcon` itself to remain Spring-managed.
+
+`PaginationBar` was deliberately **kept a `@SpringComponent @Scope("prototype")` bean
+permanently, not converted**: it is read from a separately-invoked `refresh()` method in three
+different `View` classes (`AdvertisementsView`/`TimelineView`/`UserView`), and `TimelineViewTest`
+already mocks it as an injected collaborator through the constructor — converting it would force
+every consuming `View` to gain a new `I18nService` constructor parameter purely to build its own
+`PaginationBar` internally, and would require rewriting existing tests to swap a mock in via
+reflection post-construction, a materially bigger and riskier change than the "leaf without
+dependencies" case this decision otherwise covers.
+
+Handlers whose leaf-component fields were previously constructor-injected Spring beans, read
+again later from `activate()`/`buildBinder()` (e.g. `saveButton`/`discardButton` pairs,
+`titleField`, `nameField`/`roleComboBox`), keep them as plain mutable fields constructed once in
+`activate()`. `BaseActionButton.applyConfig(BaseConfig)` (used only by
 `DeleteActionButton`/`EditActionButton`) simplified to a plain
-`applyConfig(String tooltip, Runnable onClick, String cssClassName)` — the `BaseConfig` interface
-had no other consumer once its two implementers stopped needing an object shape at all. Handlers
-whose button fields were previously constructor-injected Spring beans (`SettingsFormModeHandler`,
-`AdvertisementFormOverlayModeHandler`, `TaxonFormOverlayModeHandler`, `UserFormOverlayModeHandler`
-— each holding a `saveButton`/`discardButton` pair read across `activate()` and a later
-`updateButtons()` call) keep them as plain mutable fields instead, constructed once in `activate()`.
-Removed the now-empty `UiComponentFactory<T>` `@Bean` declarations from `ComponentFactoryConfig`
-for all six types.
+`applyConfig(String tooltip, Runnable onClick, String cssClassName)`. `BaseDialog.buildLayout()`
+(the niladic lifecycle hook, previously `abstract`) became a no-op default method —
+`LoginDialog`/`SignUpDialog` still override and `@PostConstruct`-annotate it (they remain Spring
+beans, holding real dependencies like `AuthService`/`UserPort`), but `ConfirmActionDialog` calls
+`buildLayout(layout)` inline in its own constructor instead. Dead code found and removed along the
+way: `QueryComboField<T>` and `QueryNumberField` had zero real construction sites anywhere in the
+app.
 
 **Consequences:**
-- `UserFormOverlayModeHandler`'s constructor dropped from 13 to 10 parameters (the `cancelButtonFactory`,
-  `saveButton`, `discardButton` fields it previously took as Spring-injected beans).
-- Found and fixed an unrelated pre-existing bug while chasing a Playwright failure this batch
-  exposed: `LogoutDialog.handleLogout()` called `authService.logout()` (which invalidates the
-  HTTP session) *before* `vaadinLocaleProvider.refreshCurrentLocale(ui)` — a `@UIScope` bean read
-  immediately after, throwing `ScopeNotActiveException` and also silently falling back to the
-  default locale instead of the departing user's, since `authContextService.getCurrentUser()` was
-  already cleared. Reordered so the locale refresh runs first. Not a regression from this batch's
-  changes (neither `LogoutDialog` nor its dependencies were touched) — plain-class button
-  construction is faster than the Spring prototype-bean path it replaced, and the timing shift
-  apparently made this pre-existing race surface reliably where it previously didn't.
-- Remaining phases (fields, structural/no-dep components, `ConfirmActionDialog`) tracked as
-  Batch 2-4 in the same issue; not done in this PR.
-- Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
-  e2e --full --ux (49/49) — the last one needed the `LogoutDialog` fix above to go green.
-
----
-
-## ADR-053: Leaf UI fields converted from `@SpringComponent` prototype beans to plain classes (Batch 2)
-
-**Status:** Accepted
-
-**Context:** Batch 2 — same rationale as ADR-052 (Batch 1, buttons), applied to `UiTextField`, `UiTextArea`,
-`UiEmailField`, `UiPasswordField`, `UiComboBox<T>`, `UiLabeledField`.
-
-**Decision:** Converted all six to plain classes. Unlike the buttons in Batch 1, these fields carry
-a `data-testid` attribute derived from `I18nKey.toTestId()` inside the old `configure()` — 61
-Playwright selectors depend on this staying byte-identical, so each new constructor takes the
-already-computed test id as an explicit `String testId` parameter (e.g.
-`new UiTextField(label, placeholder, maxLength, required, testId)`), computed at the call site via
-`SOME_KEY.toTestId()`, same value as before. `UiLabeledField` never set a `data-testid` in the
-first place — confirmed by reading its old `configure()` before converting, not assumed.
-
-Handlers whose field instances were previously constructor-injected Spring beans, read again later
-from a separate `buildBinder()` method (`AdvertisementFormOverlayModeHandler.titleField`,
-`UserFormOverlayModeHandler.nameField`/`roleComboBox`), keep them as plain mutable fields
-constructed once in `activate()` — same shape as Batch 1's `saveButton`/`discardButton`.
-`TaxonFormOverlayModeHandler`'s four locale fields (`nameEnField`/`descriptionEnField`/
-`nameUkField`/`descriptionUkField`) went further, becoming local variables of `activate()` entirely
-— verified by tracing every read: all four are only ever accessed through the `localeFields` list
-(a `LocaleField` record wrapping each pair), which *is* still a class field read from
-`buildBinder()`/`copyLocaleFields()`/etc., so the raw field references themselves never need to
-outlive `activate()`.
-
-**Consequences:**
-- Removed the `uiTextFieldFactory`/`uiEmailFieldFactory`/`uiPasswordFieldFactory`/
-  `uiLabeledFieldFactory` `@Bean` declarations from `ComponentFactoryConfig` (`UiTextArea`/
-  `UiComboBox` never had one — their sole two consumers already used direct field injection, the
-  same pattern Batch 1 found for `saveButton`/`discardButton`).
-- Verified with unit-tests (72/72), integration-tests (127/127), and Playwright e2e --full --ux
-  (49/49) — no `data-testid`-dependent selector broke.
-- Remaining phases (structural/no-dep components, `ConfirmActionDialog`) tracked as Batch 3-4 in
-  the same issue; not done in this PR.
-
----
-
-## ADR-054: Structural leaf components (`EmptyStateView`, `DialogLayout`, `OverlayLayout`) converted to plain classes (Batch 3); `PaginationBar` deliberately kept a Spring bean
-
-**Status:** Accepted
-
-**Context:** Batch 3 — same rationale as ADR-052/ADR-053 (Batches 1-2), applied to the remaining structural
-components with zero real service dependencies: `EmptyStateView`, `DialogLayout`, `OverlayLayout`.
-`PaginationBar` was also a Batch 3 candidate on paper (constructor already reduced to just
-`I18nService` back in Batch 1) but was deliberately excluded after review: it is read from a
-separately-invoked `refresh()` method in three different `View` classes
-(`AdvertisementsView`/`TimelineView`/`UserView`), and `TimelineViewTest` already mocks it as an
-injected collaborator through the constructor. Converting it would force `TimelineView` to gain a
-new `I18nService` constructor parameter purely to build its own `PaginationBar` internally, and
-would require rewriting the existing test to swap a mock into the field via reflection post-
-construction — a materially bigger and riskier change than this batch's other three, and not the
-"leaf without dependencies" case the issue is about. Decision, made explicitly with the user: leave
-`PaginationBar` a `@SpringComponent @Scope("prototype")` bean permanently, not deferred further.
-
-**Decision:** Converted `EmptyStateView`, `DialogLayout`, `OverlayLayout` to plain classes,
-folding their old `init()`/`configure()` split into a single constructor:
-- `EmptyStateView(VaadinIcon icon, String title, String hint)` — `AdvertisementsView.buildEmptyState()`
-  now calls `new EmptyStateView(...)` directly instead of `emptyStateFactory.build(Parameters...)`.
-- `DialogLayout()` — no-arg constructor; its three consumers (`ConfirmActionDialog`, `LoginDialog`,
-  `SignUpDialog`) changed their `private final DialogLayout layout;` field to
-  `= new DialogLayout()`, which Lombok's `@RequiredArgsConstructor` on those three classes
-  automatically excludes from the generated constructor once it has an initializer.
-- `OverlayLayout()` — no-arg constructor; its sole factory-based consumer,
-  `EntityOverlaySupport.createLayout()`, now calls `new OverlayLayout()` directly instead of
-  `overlayLayoutFactory.get()`.
-
-Removed the now-empty `emptyStateViewFactory`/`overlayLayoutFactory` `@Bean` declarations from
-`ComponentFactoryConfig`. `ConfirmActionDialog`/`LoginDialog`/`SignUpDialog`/`EntityOverlaySupport`
-themselves remain Spring beans — only the leaf `DialogLayout`/`OverlayLayout` types they hold
-changed.
-
-**Consequences:**
-- No test constructs any of these three types directly or mocks them — verified by grep before
-  converting, so no test changes were needed this batch (unlike Batch 1/2's button/field fixups).
-- Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
-  e2e --full --ux (49/49).
-- Remaining phase (`ConfirmActionDialog` itself) tracked as Batch 4 in the same issue; not done in
-  this PR. `PaginationBar` is no longer tracked as a remaining phase — see decision above.
-
----
-
-## ADR-055: `ConfirmActionDialog` converted to a plain class (Batch 4, final) — closes the leaf-UI-components-to-plain-classes effort; unrelated Playwright flake fixed in `fillActorPicker`'s search path
-
-**Status:** Accepted
-
-**Context:** Batch 4, the last phase — `ConfirmActionDialog`'s only real dependency was `I18nService`, used
-solely to resolve `titleKey`/`confirmKey`/`cancelKey` (typed `I18nKey`) into display strings at
-`configure()` time; its `message` field was already a plain resolved `String` at every call site.
-
-**Decision:** Converted to a plain class:
-`ConfirmActionDialog(String title, String message, String confirmLabel, String cancelLabel, Runnable onConfirm)`,
-folding the old `@PostConstruct buildLayout()` + `configure(Parameters)` split into one constructor
-that calls `buildLayout(layout)` directly. `I18nKey → String` resolution moved to each of the four
-call sites (`AdvertisementCardView`/`TaxonManagementView`/`UserView`/`EntityOverlaySupport`), all of
-which already had `I18nService` on hand (either via `I18nParams.getValue()` or a direct `i18n`
-field) — same move Batch 1/2 made for buttons/fields. `BaseDialog.buildLayout()` (the niladic
-lifecycle hook, previously `abstract` and required by every subclass purely as an `@PostConstruct`
-target) changed to a no-op default method — `LoginDialog`/`SignUpDialog` still override and
-`@PostConstruct`-annotate it (they remain Spring beans, holding real dependencies like `AuthService`/
-`UserPort`), but `ConfirmActionDialog` no longer needs to implement it at all, since it calls
-`buildLayout(layout)` inline in its own constructor.
-
-Removed the now-empty `confirmActionDialogFactory` `@Bean` from `ComponentFactoryConfig`. No test
-constructs or mocks `ConfirmActionDialog` directly — verified by grep, no test changes needed.
-
-**Unrelated bug found and fixed along the way:** the first full Playwright verification run for
-this batch reproduced a pre-existing flake 3/3 times, including once against a freshly-reset
-database (`deploy.sh --reset`), ruling out stale-seed-data accumulation — confirmed the failure was
-unrelated to this batch's code by grepping `UserPickerField`'s imports (it builds its picker dialog
-from a raw `com.vaadin.flow.component.dialog.Dialog`, never `BaseDialog`/`DialogLayout`/
-`ConfirmActionDialog`). Root cause traced via the failure's stack trace and Playwright's
-`error-context.md` page snapshot to `fillActorPicker(page, MAX_ACTOR_NAME, { useSearch: true })` in
-`playwright/e2e/_flows/timeline.flow.js:143` — the `useSearch` branch (added in ADR-048 specifically
-to sidestep a virtualized-grid clipped-row race when two users, `maxEn`/`maxUk`, share an identical
-100-char boundary name) fills the picker dialog's search field and clicks its search button, but
-never waited for the resulting server-side filter round-trip before looking up the target cell —
-`cell.first().waitFor()` could grab a pre-filter row that then got detached mid-action once the
-async-filtered grid re-rendered, timing out `scrollIntoViewIfNeeded()`. Fixed by adding
-`await waitForVaadin(page);` (already imported from `filter.flow.js`, already used elsewhere in this
-same file for an analogous post-click server round-trip) right after the search button click.
-Verified fixed twice in a row: 49/49 full e2e passes, back to back.
-
-**Consequences:**
-- **The leaf-UI-components-to-plain-classes effort fully closed** — all four batches done.
-- Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
-  e2e --full --ux (49/49, confirmed twice consecutively after the `fillActorPicker` fix).
-
----
-
-## ADR-056: `ui/query/elements/*` leaf UI components converted from `@SpringComponent` prototype beans to plain classes — sibling refactor to ADR-052 through ADR-055, applied to the query/filter-bar tree
-
-**Status:** Accepted
-
-**Context:** A follow-up audit found the identical `@SpringComponent @Scope("prototype") +
-Configurable + Initialization` anti-pattern still present, untouched, in the entire
-`ui/query/elements/*` tree (the query-bar/filter-panel widget hierarchy), which the earlier
-leaf-UI-components effort never covered. 8 of the remaining 21 `@Bean` declarations in
-`MarketplaceUiConfiguration` existed solely for this family.
-
-**Decision:** Converted in 6 dependency-ordered batches, each independently compiled and verified:
-
-1. **Dead code removal:** `QueryComboField<T>` and `QueryNumberField` deleted outright — both had
-   zero real construction sites anywhere in the app (confirmed by grep, not assumed), the latter
-   kept alive only by its own now-removed `@Bean` and a defensive `@Uses(QueryNumberField.class)` /
-   `@Uses(NumberField.class)` in `MainView.java` (also removed).
-2. **`SvgIcon`:** zero dependencies, `new SvgIcon(String resourcePath)`.
-3. **`SortIcon`:** the one real exception to the "resolve once, pass a `String`" template used
-   everywhere else in this issue and in the earlier leaf-UI-components effort — it re-resolves its tooltip *dynamically*
-   every time the user cycles NEUTRAL→ASC→DESC (`switchIcon()`), not just once at construction, so a
-   single pre-resolved `String` can't represent it. Resolved the same way `PaginationBar` already
-   does for this exact shape: `SortIcon(I18nService i18nService)` keeps `i18nService` as a plain
-   field and calls `.get()` internally whenever direction changes — a plain object holding a
-   reference to an already-existing singleton bean, nothing here requires `SortIcon` itself to be
-   Spring-managed. This decision was discussed and confirmed with the user before implementation.
-   Cascaded into `QueryBlock.filterRow()`'s two `SortIcon`-building overloads (swapped
-   `UiComponentFactory<SortIcon> sortIconFactory` for a plain `I18nService i18nService` parameter).
-4. **`QueryActionButton` + `QueryActionBlock`:** `QueryActionButton` takes a pre-built `SvgIcon` +
-   resolved `String` tooltip + `ButtonVariant`. `QueryActionBlock` becomes
-   `new QueryActionBlock(I18nService i18nService)`, building its two buttons (and their `SvgIcon`s)
-   internally with the two fixed, always-known tooltip keys (`ACTIONS_APPLY_TOOLTIP`/
-   `ACTIONS_CLEAR_TOOLTIP`) — never parameterized per call site to begin with.
-5. **`QueryInlineRow`:** takes a resolved `String label` instead of `I18nKey labelKey`. Cascaded
-   into `QueryBlock.filterRow()`'s `I18nKey labelKey` parameter (→ `String label`, resolved by the
-   caller) across all three overloads, and into `TimelineQueryBlock`'s one call site that built a
-   `QueryInlineRow` directly (the actor-picker row), bypassing `filterRow()` entirely.
-6. **Remaining simple fields:** `QueryTextField`, `QueryLongField`, `QueryDateTimeField`,
-   `QueryMultiSelectComboField<T>` — all straightforward "resolve once, pass a `String`"
-   conversions, same shape as ADR-053 (Batch 2).
-
-`AdvertisementQueryBlock`/`TimelineQueryBlock`/`UserQueryBlock` (the three concrete `QueryBlock<T>`
-subclasses) lost every `UiComponentFactory<T>` field this family required — `TimelineQueryBlock`
-and `UserQueryBlock` gained a plain `I18nService i18nService` field in its place (`AdvertisementQueryBlock`
-already had one, for an unrelated manual categories combo). `QueryActionBlock`'s field on each
-subclass changed from constructor-injected to built once in `initLayout()`
-(`new QueryActionBlock(i18nService)`), since it's no longer a bean.
-
-**Consequences:**
-- No test constructs or mocks any of these nine converted types directly — verified by grep before
-  converting, so no test changes were needed.
-- Removed 8 now-empty `@Bean` declarations from `MarketplaceUiConfiguration`
-  (`queryTextFieldFactory`, `queryDateTimeFieldFactory`, `queryNumberFieldFactory`,
-  `queryLongFieldFactory`, `queryMultiSelectComboFieldFactory`, `queryInlineRowFactory`,
-  `sortIconFactory`, `svgIconFactory`); `userPickerFieldFactory` stays (`UserPickerField` was out of
-  scope for this issue — a `CustomField` with a real dialog/grid dependency, not a leaf widget).
-- Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
-  e2e --full --ux (49/49, first try, no `fillActorPicker` flake recurrence).
-- This refactor fully closed the tracked issue for it.
+- `MarketplaceUiConfiguration`/`ComponentFactoryConfig` no longer carry a `@Bean` for any of the
+  converted types; `userPickerFieldFactory` stays (`UserPickerField` is a `CustomField` with a
+  real dialog/grid dependency, not a leaf widget, and stayed out of scope).
+- If the attachment-lightbox family (`AttachmentLightbox`/`CardLightboxViewer`/
+  `AttachmentThumbnail`, promoted to full beans specifically to inject
+  `UiComponentFactory<UiIconButton>`) is ever revisited, they become candidates for the same
+  plain-class conversion once `UiIconButton` itself stopped being a Spring bean.
+- Verified after each conversion batch with unit-tests, integration-tests, and a full Playwright
+  `e2e --full --ux` run — every batch green, including two pre-existing bugs found and fixed along
+  the way and unrelated to the conversion itself: a `LogoutDialog` locale-refresh-after-session-
+  invalidation ordering bug, and a `fillActorPicker()` Playwright helper race missing a
+  post-search-click Vaadin round-trip wait.
 
 ---
 
@@ -2444,18 +1655,21 @@ types implement `Configurable`, contradicting `marketplace-app/CLAUDE.md`'s own 
   consumer needs its own dedicated `@Bean` method in `ComponentFactoryConfig`, following the same
   four-beans precedent, not a fifth raw-typed shared one.
 
-## ADR-059: F-01 deep links + Open Graph meta tags — step 1 (prototype gate)
+## ADR-059: F-01 deep links + Open Graph meta tags, Share button, sitemap.xml, and browser History sync
 
 **Status:** Accepted
 
-**Context:** The app was a pure single-route Vaadin SPA (`MainView` at `@Route("")`); opening an advertisement
-was entirely session-state-driven (`AdvertisementOverlay.openForView(AdvertisementInfoDto, ...)`,
-no URL involved). Product roadmap Phase 1 (`private/roadmap.md`, gitignored) needs a stable,
-shareable URL per advertisement that (a) opens the right overlay for a real browser user, and (b)
-renders a rich preview card when the same URL is posted into Facebook/Telegram/Viber (crawlers
-never execute the SPA's JS, so meta tags must be present in the server's raw HTML response).
+**Context:** The app was a pure single-route Vaadin SPA (`MainView` at `@Route("")`); opening an
+advertisement was entirely session-state-driven
+(`AdvertisementOverlay.openForView(AdvertisementInfoDto, ...)`, no URL involved). The F-01 feature
+needs a stable, shareable URL per advertisement that (a) opens the right overlay for a real
+browser user, (b) renders a rich preview card when the same URL is posted into
+Facebook/Telegram/Viber (crawlers never execute the SPA's JS, so meta tags must be present in the
+server's raw HTML response), (c) is reachable via a "Share" affordance and discoverable by search
+engines, and (d) keeps the browser's own URL bar / Back-Forward navigation in sync with the
+overlay's open/closed state.
 
-**Decision:** Two independent mechanisms, deliberately not coupled to each other:
+**Decision:**
 1. **Real-browser navigation:** `AdvertisementDeepLinkView` (`@Route("ads")`, implements
    `HasUrlParameter<Long>`) — a trivial, dependency-free view that, on `/ads/{id}`, stores a
    `PendingAdvertisementDeepLink(Long adId)` record in `VaadinSession` and calls
@@ -2469,182 +1683,94 @@ never execute the SPA's JS, so meta tags must be present in the server's raw HTM
    `VaadinServiceInitListener` (registers itself via `event.addIndexHtmlRequestListener(this)` —
    Spring-Vaadin auto-detects `VaadinServiceInitListener` beans, no manual wiring) and
    `IndexHtmlRequestListener` (the standard, Vaadin-documented way to inject server-side `<head>`
-   content per request path, since crawlers only ever read the initial HTML). Matches `^/ads/(\d+)$`
-   against `VaadinRequest.getPathInfo()`, looks up the ad via `ComponentFactory<AdvertisementPort>`
-   (Caffeine-cached 5 min, matching the existing `AuthService` rate-limiter's cache style), and
-   appends `og:title`/`og:description`/`og:url`/`og:type`/`twitter:card`/`og:image` (when present)
-   directly onto the Jsoup `Document` Vaadin already builds for the index page.
+   content per request path, since crawlers only ever read the initial HTML). Matches
+   `^/ads/(\d+)$` against `VaadinRequest.getPathInfo()`, looks up the ad via
+   `ComponentFactory<AdvertisementPort>` (Caffeine-cached 5 min, matching the existing
+   `AuthService` rate-limiter's cache style), and appends `og:title`/`og:description`/`og:url`/
+   `og:type`/`twitter:card`/`og:image` (when present) directly onto the Jsoup `Document` Vaadin
+   already builds for the index page. `twitter:card` uses `attr("name", ...)` via a dedicated
+   `addTwitterMeta()` helper, distinct from `addMeta()`'s `attr("property", ...)` used for `og:*`
+   tags — Twitter's crawler specifically requires the `name=` attribute, unlike Open Graph's
+   `property=`; Twitter's own spec falls back to `og:title`/`og:description`/`og:image` for
+   anything not `twitter:`-prefixed, so no other `twitter:*` tags are needed. `og:image` carries a
+   cache-busting `?v=<updatedAt-epoch-second>` suffix (`versionedImageUrl(ad)`, appends `&v=...`
+   if the URL already has a query string) — editing an ad's photo changes `updatedAt`, changes the
+   query string, and FB/Telegram's per-URL preview cache treats it as a new image, with no manual
+   cache-buster step needed after an edit. A `<script type="application/ld+json">` `Product` block
+   (`@context`, `@type`, `name`, `description`, `url`, `image`) is appended alongside the meta
+   tags, built via a local `private static final ObjectMapper JSON = new ObjectMapper()` (not a
+   Spring-managed bean — this project's named `auditObjectMapper`/`userSettingsObjectMapper` beans
+   would need an explicit `@Qualifier` per this project's "no `@Primary`" convention, unnecessary
+   overhead for this narrow, dependency-free use), serialized via `@SneakyThrows` over
+   `writeValueAsString(Map<String,Object>)` and written as a raw `org.jsoup.nodes.DataNode` (not
+   `.text(...)`, since Jsoup only skips HTML-entity-escaping for `<script>`/`<style>` content via
+   `DataNode` — plain `.text()` would corrupt the JSON by escaping its quotes).
 3. `HtmlExcerptUtil.plainText(String html)` (`ui/views/utils/`) extracted from
-   `AdvertisementCardView.createDescription()`'s inline Jsoup call — now the second real consumer
-   (the OG listener needs the exact same HTML→plain-text excerpt for `og:description`), so
-   extraction follows this project's "shared file only once two or more consumers need it" rule
-   rather than duplicating the Jsoup call.
-4. `app.public-base-url` (new config key, `application.yml`, defaults to
-   `http://localhost:8080`, overridable via `APP_PUBLIC_URL` env var in prod) — needed to build the
-   absolute `og:url`; no such app-level (as opposed to S3-storage-level) public URL existed before.
-
-**Explicitly out of scope for this step** (tracked as remaining work in the same backlog issue,
-not separate ones): the "Share" button on `AdvertisementCardView`, the
-`sitemap.xml` endpoint, `og:image` cache-busting versioning (`?v=<updatedAt>`) for FB/Telegram's
-per-URL preview cache. This step exists specifically to satisfy the feature spec's own "day-1
-binary prototype gate" — validate real preview rendering in an actual Facebook post/Telegram chat
-before building the rest.
-
-**Consequences:**
-- No `SecurityConfig` change was needed despite the original feature spec assuming one (a
-  deny-by-default hard gate) — verified directly that `/ads/**` is already covered by the existing
-  `anyRequest().permitAll()`, and neither the new Vaadin route nor the `IndexHtmlRequestListener`
-  introduces a new REST endpoint requiring its own `requestMatchers` entry (unlike a future
-  `sitemap.xml` servlet, which will be a genuine new endpoint and will need one, per the
-  `HealthController` precedent).
-- The app is no longer a pure single-route SPA at the Vaadin router level (`AdvertisementDeepLinkView`
-  is a second registered route), though it remains one functionally for every real user — the
-  deep-link route immediately forwards, never rendering its own content. A future `masters/:id`
-  route (product Phase 2) follows the same shape.
-- Verified end-to-end via a new Playwright test (`04-marketplace-advertisement-flow.spec.js`,
-  "userEn opens a deep link") asserting direct navigation to `/ads/:id` opens the correct overlay;
-  full e2e suite 50/50 on a clean re-run. The crawler-preview half (actual OG rendering in a real
-  Facebook/Telegram client) cannot be verified by an automated test — requires a public URL and a
-  manual check, tracked as a follow-up step for whoever deploys this.
-
-## ADR-060: F-01 "Share" button — native Web Share API with clipboard-copy fallback
-
-**Status:** Accepted
-
-**Context:** A "Share" affordance on both the advertisement card and its view overlay, reusing the `/ads/:id`
-deep link from ADR-059.
-
-**Decision:**
-- `AppLinkService` (`ui/views/services/`) — `advertisementUrl(Long id)`, the single place that
-  builds the `{app.public-base-url}/ads/{id}` shape, reused as-is from ADR-059's config property.
-- `ShareUtil.share(Component, String url, String title, Runnable onCopied)` (`ui/views/utils/`) —
-  the actual JS: tries `navigator.share({title, url})` first (mobile — native OS share sheet),
-  falls back to `navigator.clipboard.writeText(url)` on desktop, and calls `onCopied` (server-side)
-  only when the clipboard-copy path actually resolved, via Vaadin's `PendingJavaScriptResult.then()`
-  callback — no `@ClientCallable` needed, since `executeJs(...).then(...)` already round-trips a
-  resolved JS `Promise` value back to the server.
-- `ShareActionButton` (`ui/views/components/buttons/action/`) — new sibling to
-  `EditActionButton`/`DeleteActionButton`, same `BaseActionButton` shape, `VaadinIcon.SHARE`. Used
-  on `AdvertisementCardView`'s action row. The view overlay (`AdvertisementViewOverlayModeHandler`)
-  uses a plain `UiIconButton` instead (icon-only header action, matching its existing
-  edit/close buttons' shape) rather than `ShareActionButton` — same `ShareUtil.share()` call, just
-  a different button component to match its header's existing style.
-
-**Consequences:**
-- Both call sites share the exact same `ShareUtil`/`AppLinkService` pair — no duplicated
-  clipboard/share-sheet JS, no duplicated URL-building.
-- Verified via a new Playwright assertion (extends the ADR-059 deep-link test): stubs
-  `navigator.clipboard.writeText` before clicking (headless Chromium has no `navigator.share`, so
-  only the fallback path is exercisable in CI) and asserts the "Link copied" notification appears.
-  Full e2e suite 50/50.
-
-## ADR-061: F-01 `sitemap.xml` — paginated port scan, Caffeine-cached; `deploy-and-run.sh` now sets `APP_PUBLIC_URL`
-
-**Status:** Accepted
-
-**Context:** A `sitemap.xml` endpoint listing every active advertisement's `/ads/:id` deep link, for search
-engine indexing. Unlike ADR-059's `OgMetaRequestListener` (a listener decorating an existing
-Vaadin-served response), this is a genuine new REST endpoint.
-
-**Decision:**
-- `SitemapController` (`rest/`) — `@GetMapping("/sitemap.xml")`, `produces =
-  MediaType.APPLICATION_XML_VALUE`. Builds the standard sitemaps.org `<urlset>` XML by paging
-  through the existing `AdvertisementPort.getFiltered()` (empty filter, `Sort.by(Fields.id)` —
-  registered as a valid sort alias at the repository level even though not exposed in the UI's
-  `AdvertisementSortMeta`, giving a stable, gap-free pagination key) until an empty page is
-  returned — no new `AdvertisementPort` method needed. Result cached whole (Caffeine, 15 min,
-  single entry) since crawlers hit this in bursts and the full scan cost is the same regardless
-  of caller.
-- `SecurityConfig` — `requestMatchers("/sitemap.xml").permitAll()` added ahead of the catch-all,
-  per the `HealthController` precedent — this *is* a genuine new endpoint (unlike ADR-059's
-  listener, correctly reasoned to need no `SecurityConfig` change at all).
-- Reuses `AppLinkService.advertisementUrl(id)` from ADR-060 for each `<loc>`.
-
-**Bug found and fixed while verifying (unrelated to the endpoint's own logic):**
-`app.public-base-url` defaults to `http://localhost:8080` (`application.yml`), but `deploy-and-run.sh`
-publishes the app container's internal port 8080 to host port **8081** (`-p "$APP_PORT":8080`,
-`APP_PORT` defaulting to 8081 — see `scripts/CLAUDE.md`, "port 8081, 8080 reserved for local
-IntelliJ dev server"). Confirmed directly: a local `deploy-and-run.sh` run produced `<loc>` entries
-pointing at `localhost:8080`, unreachable from outside the container. Fixed by having `deploy-and-run.sh`
-pass `-e APP_PUBLIC_URL="http://localhost:$APP_PORT"` to the app container, mirroring the exact
-pattern already used for `S3_PUBLIC_URL` (`http://localhost:$MINIO_PORT/$S3_BUCKET`) — this also
-correctly follows `APP_PORT` when it's overridden (e.g. `scripts/ci/entrypoint.sh`'s isolated e2e
-stack passing `APP_PORT="$CI_APP_PORT"`), with no separate case needed.
-
-**Consequences:**
-- Any real deployment (Render, etc.) still needs its own `APP_PUBLIC_URL` env var pointing at the
-  actual public domain — `deploy-and-run.sh`'s fix only corrects the *local* dev/test case.
-- Verified via a new Playwright assertion (extends the same ADR-059/060 test): `GET /sitemap.xml`
-  returns valid XML containing the just-created test advertisement's `/ads/:id` link. Full e2e
-  suite 50/50.
-
-## ADR-062: F-01 remaining items — `twitter:card` fix, `og:image` cache-busting, JSON-LD, History API sync
-
-**Status:** Accepted
-
-**Context:** The last four open items from the deep-links/OG-tags work, closed together in one pass after manually crawler-simulating
-`GET /ads/:id` (`curl` — no browser JS, exactly what a real bot sees) surfaced a genuine bug in
-ADR-059's original listener: **`twitter:card` was emitted as `<meta property="twitter:card" ...>`
-instead of `<meta name="twitter:card" ...>`** — Twitter's crawler specifically looks for the
-`name=` attribute (unlike Open Graph's `property=`); the tag was silently invalid for Twitter
-Cards, while `og:*` tags (which do use `property=`) were unaffected. Found and fixed without
-needing the user's manual real-world check, by validating the server's raw HTML output directly —
-the one part of "does the crawler see this correctly" that doesn't actually require a public URL
-or a real Facebook/Telegram round-trip.
-
-**Decision:**
-1. **`twitter:card` fix** — `OgMetaRequestListener` now has a separate `addTwitterMeta()` helper
-   using `attr("name", ...)`, distinct from `addMeta()`'s `attr("property", ...)` used for `og:*`
-   tags. Twitter's own spec says it falls back to `og:title`/`og:description`/`og:image` for
-   anything not `twitter:`-prefixed, so no other `twitter:*` tags were needed.
-2. **`og:image` cache-busting** — `versionedImageUrl(ad)` appends `?v=<updatedAt-epoch-second>`
-   (or `&v=...` if the URL already has a query string) to `AdvertisementInfoDto.getMediaUrl()`.
-   Editing an ad's photo changes `updatedAt`, changes the query string, and FB/Telegram's
-   per-URL preview cache treats it as a new image — no manual "poke the Sharing Debugger" step
-   needed after an edit.
-3. **JSON-LD** — a `<script type="application/ld+json">` `Product` block (`@context`, `@type`,
-   `name`, `description`, `url`, `image`) alongside the `og:*`/`twitter:` meta tags, built via a
-   local `private static final ObjectMapper JSON = new ObjectMapper()` (not a Spring-managed bean
-   — this project's named `auditObjectMapper`/`userSettingsObjectMapper` beans would need an
-   explicit `@Qualifier` per this project's "no `@Primary`" convention, unnecessary overhead for
-   this narrow, dependency-free use). Serialized via `@SneakyThrows` over
-   `writeValueAsString(Map<String,Object>)` — a plain string map cannot actually throw
-   `JsonProcessingException`, so silently swallowing it or declaring a checked throws on an
-   `IndexHtmlRequestListener` callback would both be worse than letting a genuinely-impossible
-   failure surface as an unchecked one. Written as a raw `org.jsoup.nodes.DataNode` (not
-   `.text(...)`), since Jsoup only skips HTML-entity-escaping for `<script>`/`<style>` content via
-   `DataNode` — plain `.text()` would have corrupted the JSON by escaping its quotes.
-4. **History API sync** — `AdvertisementOverlay.openForView()` now calls
+   `AdvertisementCardView.createDescription()`'s inline Jsoup call — a second real consumer (the
+   OG listener needs the same HTML→plain-text excerpt for `og:description`), following this
+   project's "shared file only once two or more consumers need it" rule.
+4. `app.public-base-url` (config key, `application.yml`, defaults to `http://localhost:8080`,
+   overridable via `APP_PUBLIC_URL` env var in prod) — the absolute base every `/ads/{id}` URL is
+   built from. `deploy-and-run.sh` passes `-e APP_PUBLIC_URL="http://localhost:$APP_PORT"` to the
+   app container (mirroring the existing `S3_PUBLIC_URL` pattern), since the app container's
+   internal port 8080 is published to host port 8081 by default (`APP_PORT`, 8080 reserved for
+   local IntelliJ dev server) — the config's own `http://localhost:8080` default would otherwise
+   point at an unreachable port for local runs. Any real deployment (Render, etc.) still needs its
+   own `APP_PUBLIC_URL` pointing at the actual public domain.
+5. **Share button:** `AppLinkService.advertisementUrl(Long id)` (`ui/views/services/`) is the
+   single place that builds the `{app.public-base-url}/ads/{id}` shape. `ShareUtil.share(Component,
+   String url, String title, Runnable onCopied)` (`ui/views/utils/`) tries
+   `navigator.share({title, url})` first (mobile — native OS share sheet), falls back to
+   `navigator.clipboard.writeText(url)` on desktop, and calls `onCopied` (server-side) only once
+   the clipboard-copy path resolves, via Vaadin's `PendingJavaScriptResult.then()` callback — no
+   `@ClientCallable` needed. `ShareActionButton` (`ui/views/components/buttons/action/`), a
+   sibling to `EditActionButton`/`DeleteActionButton`, sits on `AdvertisementCardView`'s action
+   row; the view overlay (`AdvertisementViewOverlayModeHandler`) uses a plain `UiIconButton`
+   instead (icon-only header action, matching its existing edit/close buttons), calling the same
+   `ShareUtil.share()`.
+6. **`sitemap.xml`:** `SitemapController` (`rest/`) — `@GetMapping("/sitemap.xml")`, `produces =
+   MediaType.APPLICATION_XML_VALUE`. Builds the standard sitemaps.org `<urlset>` XML by paging
+   through the existing `AdvertisementPort.getFiltered()` (empty filter, `Sort.by(Fields.id)` —
+   registered as a valid sort alias at the repository level even though not exposed in the UI's
+   `AdvertisementSortMeta`, giving a stable, gap-free pagination key) until an empty page is
+   returned — no new `AdvertisementPort` method needed. Result cached whole (Caffeine, 15 min,
+   single entry). `SecurityConfig` gained `requestMatchers("/sitemap.xml").permitAll()` ahead of
+   the catch-all, per the `HealthController` precedent — this is a genuine new REST endpoint,
+   unlike `OgMetaRequestListener` (a listener decorating an existing Vaadin-served response, which
+   needed no `SecurityConfig` change — `/ads/**` is already covered by the existing
+   `anyRequest().permitAll()`).
+7. **History API sync:** `AdvertisementOverlay.openForView()` calls
    `UI.getCurrent().getPage().getHistory().pushState(null, "ads/" + id)`; `closeToList()` is
    overridden to `pushState(null, "")` before delegating to `BaseOverlay`'s real close logic (this
-   correctly intercepts every path that closes the overlay — the breadcrumb back button, in
-   `AbstractEntityOverlay.buildContent()`, is wired via `this::closeToList`, which resolves
-   virtually to the override). Browser Back/Forward is handled via
-   `History.setHistoryStateChangeHandler(...)`, registered once in `@PostConstruct` (safe for a
-   `@UIScope` bean — Spring only constructs it once a UI context is already active): if the new
-   location isn't under `ads/` and the overlay is currently open in VIEW mode, it closes without
-   re-pushing history (calls `super.closeToList()` directly — `super` inside a lambda correctly
-   resolves to the enclosing class's superclass, this is not an anonymous-class `this`).
+   correctly intercepts every path that closes the overlay, including the breadcrumb back button,
+   which is wired via `this::closeToList` and resolves virtually to the override). Browser
+   Back/Forward is handled via `History.setHistoryStateChangeHandler(...)`, registered once in
+   `@PostConstruct`: if the new location isn't under `ads/` and the overlay is currently open in
+   VIEW mode, it closes without re-pushing history (`super.closeToList()` directly).
 
 **Known limitation, deliberately not addressed:** Vaadin's `History` API is a single-handler slot
-(`setHistoryStateChangeHandler`, not an `addListener`-style multi-registration) — `AdvertisementOverlay`
-registering its own handler will silently overwrite any other overlay's handler on the same `UI`.
-Harmless today (no other domain has a deep-link route yet), but the *next* domain to add one
-(`masters/:id`, product Phase 2) cannot just copy this pattern — it needs a shared per-UI history
-dispatcher that all deep-linkable overlays register into, not each calling
-`setHistoryStateChangeHandler` independently.
+(`setHistoryStateChangeHandler`, not an `addListener`-style multi-registration) —
+`AdvertisementOverlay` registering its own handler will silently overwrite any other overlay's
+handler on the same `UI`. Harmless today (no other domain has a deep-link route yet), but the next
+domain to add one cannot just copy this pattern — it needs a shared per-UI history dispatcher that
+every deep-linkable overlay registers into, not each calling `setHistoryStateChangeHandler`
+independently.
 
 **Consequences:**
-- All four items verified in one Playwright test extension: a raw `page.request.get('/ads/:id')`
-  (no browser JS — the actual crawler-facing HTML) asserts `twitter:card` uses `name=` and a
-  `Product` JSON-LD block is present; a real card click + `page.goBack()` asserts the URL updates
-  to `/ads/:id` and back-navigation closes the overlay and returns to `/`. Full e2e suite 50/50.
-- `og:image` versioning was verified manually via `curl` too (`?v=<epoch>` present) since the
-  Playwright test's own throwaway ad has no attached media — not worth the added test complexity
-  of uploading media inside that same test just for this one assertion.
-- With this, every item from the original F-01 spec is done except the one that was never
-  automatable in the first place: sharing a real `/ads/:id` link into an actual Facebook post and
-  Telegram chat, which needs a public URL this sandbox doesn't have.
+- The app is no longer a pure single-route SPA at the Vaadin router level
+  (`AdvertisementDeepLinkView` is a second registered route), though it remains one functionally
+  for every real user — the deep-link route immediately forwards, never rendering its own content.
+  A future domain adding its own deep-link route follows the same shape.
+- Verified end-to-end via Playwright: direct navigation to `/ads/:id` opens the correct overlay; a
+  raw `page.request.get('/ads/:id')` (no browser JS — the actual crawler-facing HTML) asserts
+  `twitter:card` uses `name=` and a `Product` JSON-LD block is present; the Share button's
+  clipboard-copy fallback (headless Chromium has no `navigator.share`) shows a "Link copied"
+  notification; `GET /sitemap.xml` returns valid XML containing a just-created test
+  advertisement's link; a card click followed by `page.goBack()` asserts the URL updates to
+  `/ads/:id` and back-navigation closes the overlay and returns to `/`.
+- Sharing a real `/ads/:id` link into an actual Facebook post or Telegram chat is the one item
+  that was never automatable — it needs a public URL this sandbox doesn't have, and remains a
+  manual check for whoever deploys this.
 
 ## ADR-063: List stability after edit — splice-in-place instead of full refresh (Advertisement, User, Taxon)
 
@@ -2788,8 +1914,8 @@ job in a different starter with no cross-starter ordering guarantee.
   `BeanDefinitionOverrideException` the moment a test combines both, confirmed by hitting it
   directly during verification.
 - Local dev DBs that already had the old changeset applied fail Liquibase's checksum validation on
-  the next deploy — expected and handled by `deploy.sh`'s new auto-recovery (`scripts/DECISIONS.md`
-  ADR-010), not a regression in this change itself.
+  the next deploy — expected and handled by `deploy.sh`'s new auto-recovery (see
+  `docs/ai/adr-index.md`), not a regression in this change itself.
 - Verified: unit-tests 74/74 (cascades through the full reactor since `AdvertisementPort` is a
   `platform-commons` interface change), integration-tests 126/126 (full suite, not just the
   touched classes), Playwright `e2e --full --ux` 50/50 (twice, including a final check after the
@@ -3378,46 +2504,6 @@ now correct for `findById()` callers, matching `getFiltered()`. Any future split
 `*Service` (flagged for `AttachmentService`) now has this as a second
 concrete precedent alongside `AttachmentSnapshotService`.
 
-## ADR-069: `user-spring-boot-starter` doc fix + `User.toDto()` dedup + `@NonNull` sweep (Batch C)
-
-**Status:** Accepted
-
-**Context:** `user-spring-boot-starter/CLAUDE.md` documented a
-`UserService.applyUserRestore()` method that no longer exists (restore is client-side only, see the
-existing `restore()`-related note in that file); `UserService.toDto(User)` and
-`UserPrincipal.toUserDto()` independently rebuilt the same 8-field `UserDto` construction;
-`RoleChecker`/`OwnershipChecker` defensively null-checked `UserDto`/`Long`/`UserIdMarker`
-parameters that `UserPortImpl` already declares `@NonNull` one layer up, so null could never
-reach them.
-
-**Decision:**
-- `user-spring-boot-starter/CLAUDE.md` corrected to describe the actual restore flow:
-  `UserFormOverlayModeHandler.loadRestored()` loads the snapshot's name/role into the edit form
-  client-side; saving afterward goes through the normal `save()` → `updateProfile()` path, no
-  server-side restore-apply method exists.
-- `RoleChecker.isAdmin/isModerator` and `OwnershipChecker.isOwner` (both overloads) gained
-  `@NonNull` (lombok) on their public parameters, replacing the now-redundant `!= null` guards —
-  verified via the real call chain (`AccessEvaluator` → `UserPort` → `UserPortImpl`, already
-  `@NonNull` at that boundary) that no caller can reach these methods with a null argument.
-  `RoleChecker`'s private `hasRole()` helper kept its `@NonNull` off its `user` param (added, then
-  removed after a `/code-review` finding confirmed it's redundant on a private, internal-only
-  helper whose two callers already enforce it — matches this starter's own established convention,
-  e.g. `UserService.toSnapshot(User)`, a private helper with no `@NonNull`).
-- `UserService.toDto(User)`/`UserPrincipal.toUserDto()`'s duplicated field construction was
-  consolidated — **not** onto a `public static` `UserService.toDto()` as first drafted, but onto a
-  new `User.toDto()` instance method on the entity itself. The first draft was corrected during
-  this same change's `/code-review` pass: `UserService` already imports and constructs
-  `UserPrincipal` (`refreshSecurityContext()`), so a `UserPrincipal → UserService` import back
-  would have closed a real circular package dependency between `org.ost.user.services` and
-  `org.ost.user.security`. `User` (the entity both classes already depend on) has no such issue —
-  moving the conversion there breaks the cycle at the source instead of routing around it.
-
-**Consequence:** `RoleChecker`/`OwnershipChecker` now fail fast (clear Lombok-generated NPE) if a
-future caller ever bypasses the `UserPort` boundary with a genuinely null argument, instead of
-silently resolving to "not admin"/"not owner." `User.toDto()` is the one place that maps `User` →
-`UserDto`; any future third call site should call it directly rather than reintroducing a third
-inline construction.
-
 ## ADR-070: F-04 Batch A — `locale`/`settings` split out of `user_information` into `user_preferences`
 
 **Status:** Accepted
@@ -3553,65 +2639,6 @@ to `UserAuthorizationPort` — corrected.
 **Consequence:** `UserDto` is now a pure identity/auth view — no field on it exists for the benefit
 of exactly one consumer. Any future addition to `UserDto` should clear the same bar: is this read
 by more than the one place asking for it, or does it belong behind a narrower lookup instead.
-
-## ADR-072: `EntityType.PROVIDER_PROFILE` compiler-forced touches (F-04 Batch B)
-
-**Status:** Accepted
-
-**Also affects:** provider-profile-spring-boot-starter
-
-**Context:** Batch B (see `platform-commons/DECISIONS.md` ADR-027) added
-`EntityType.PROVIDER_PROFILE` and a new `provider-profile-spring-boot-starter` module, backend
-only — no UI ships in this batch. Adding a new `EntityType` enum value forces every exhaustive
-`switch` over it in marketplace-app to gain a case before the module compiles at all.
-
-**Decision:** Four compiler-forced (or plan-mandated) touches, all backend-adjacent, no UI:
-- `spi/AuditDomainHookImpl.findExisting()` — new `case PROVIDER_PROFILE ->
-  providerProfilePortFactory.findIfAvailable()...`, same shape as the `TAXON` case.
-- `services/i18n/I18nKey.forEntityType()` — new `ENTITY_TYPE_PROVIDER_PROFILE` case + EN/UK
-  strings (`entityType.providerProfile` = "Provider Profile" / "Профіль постачальника").
-- `styles.css`/`activity-feed.css` — new `--app-status-entity-provider-profile-bg/-text` badge
-  color pair (indigo, `#e0e7ff`/`#3730a3`) + `.activity-feed-type--provider_profile`, following the
-  `TAXON` precedent (teal) exactly.
-- `config/JacksonConfig.registerAuditSnapshotSubtypes()` — `ProviderProfileSnapshotDto.class`
-  added to the polymorphic `auditObjectMapper`'s subtype registry. Confirmed via a new
-  round-trip (de)serialization test (`ProviderProfileSnapshotDtoTest`, `integration-tests`) — none
-  of the 4 pre-existing `AuditableSnapshot` subtypes had one, so this closes that coverage gap
-  rather than assuming the registration is correct.
-
-**Confirmed unaffected — fully data-driven, no changes needed:** `TimelineQueryBlock`'s
-entity-type filter (built from `EntityType.values()` directly) and `AuditReadService`. A
-`/code-review` verifier confirmed the resulting "Provider Profile" option in the Timeline filter
-(rendering correctly via the new i18n key, since `forEntityType()` is already wired) returning zero
-rows until Batch C ships an audit-write path is a harmless, self-correcting, one-batch gap —
-not worth conditionally hiding.
-
-**Deliberately deferred to Batch C, not this batch:** `ProviderProfileActivityFieldsHookImpl`/
-`ProviderProfileActivityEnrichHookImpl` (the per-domain field-label triad every other domain has) —
-no audit rows of this `EntityType` exist yet in this batch (no `ProviderProfileSaveService`, no
-`AuditPort.record()` call), so there is nothing yet for a fields hook to label. Add it in the same
-batch that adds the write path, per the `AdvertisementActivityFieldsHookImpl` `cityTaxonId`-omission
-precedent (ADR-065) — every `Fields.*` case from day one once it's written, not incrementally.
-
-**"Isn't `ProviderProfileService` just a copy of `AdvertisementService`?"** — raised directly during
-this batch's planning. Yes, structurally: same repository/service/port-impl skeleton, same
-`SqlFilterBuilder`/`RowMapper`-as-static-final shape, same OWASP-sanitize-then-Jsoup-length-check
-pattern. Deliberate, not accidental — `CLAUDE.md`'s "Pattern-first: symmetry with existing code is
-a first-class goal" and the Module Import Rules' one-starter-per-domain independence (each starter
-must stay removable without another starter noticing) both push toward mirroring the established
-shape rather than extracting a shared base class across starters. What's *not* copied: the
-`about`/`ABOUT_MAX_LENGTH` field target, the `kind`-specific filter/save shape, the `SUPPORT`-
-privilege rule (unique to this domain), lazy row creation, and the real-`DELETE` semantics — see
-`platform-commons/DECISIONS.md` ADR-027 for the full divergence list. The genuine duplication this
-raised (`HTML_SANITIZER` policy construction, the Jsoup length-check pattern) was confirmed by
-`/code-review` as extractable to a `platform-commons` utility, but deferred to Batch B2 (see
-ADR-027) since fixing it touches `AdvertisementService`, outside this batch's own scope.
-
-**Consequence:** No behavior visible to any existing user changes in this batch — every touch here
-is either compiler-forced or additive (new enum case, new CSS, new i18n key, new subtype
-registration). The first user-visible surface for provider profiles is Batch C's `AccountOverlay`.
-
----
 
 ## ADR-073: `AdvertisementSaveService`/`UserDeleteService` move to `marketplace-orchestrator`; `AdvertisementAuditEnrichService` stays
 **Status:** Accepted — the "`AdvertisementAuditEnrichService` stays in `marketplace-app`" call below

@@ -2,32 +2,21 @@
 
 ---
 
-## ADR-001: Renamed from query-starter to query-lib
+## ADR-001: Renamed from query-starter to query-lib — plain Java library, no Spring autoconfiguration
 **Status:** Accepted
 
 **Context:** The `-starter` suffix implies Spring Boot autoconfiguration. This module provides
 none — it is a static SQL helper library used directly by repositories as `private static final`
-constants.
+constants. Repositories need dynamic filter/sort SQL without coupling to Spring context (to allow
+pure JUnit testing without an application context).
 
-**Decision:** Module renamed to `query-lib`.
-
-**Consequences:** Consumers import the artifact as a plain library dependency, not as a starter.
-No `META-INF/spring` registration, no `@AutoConfiguration`.
-
----
-
-## ADR-002: Plain Java library — no Spring autoconfiguration
-**Status:** Accepted
-
-**Context:** Repositories need dynamic filter/sort SQL without coupling to Spring context
-(to allow pure JUnit testing without an application context).
-
-**Decision:** `query-lib` provides only `SqlFilterBuilder`, `SqlBoundFilter`, `SqlCondition`,
-`SqlFilterBinding`, `SqlFilterMapping`, `SqlOperator`, `OrderByBuilder`, and `PaginationSqlBuilder`
-(added later — see ADR-003's amendment).
-No `@AutoConfiguration`, no Spring beans, no `META-INF/spring` registration.
+**Decision:** Module renamed to `query-lib`. It provides only `SqlFilterBuilder`, `SqlBoundFilter`,
+`SqlCondition`, `SqlFilterBinding`, `SqlFilterMapping`, `SqlOperator`, `OrderByBuilder`, and
+`PaginationSqlBuilder` (added later — see ADR-003's amendment). No `@AutoConfiguration`, no Spring
+beans, no `META-INF/spring` registration.
 
 **Consequences:**
+- Consumers import the artifact as a plain library dependency, not as a starter.
 - Unit-testable without Spring context.
 - Domain concerns cannot leak into the infrastructure layer through this library.
 

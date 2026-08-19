@@ -80,9 +80,9 @@ Playwright convention: extract to a shared file only once two or more consumers 
 helper, keep spec/test-specific logic local otherwise.
 
 - `org.ost.integrationtests.support.RepositoryTestSupport` — a `@TestConfiguration` bean bag: adds
-  `@RepositoryTestAutoConfig` (a composed `@ImportAutoConfiguration` allow-list — see `DECISIONS.md`
-  ADR-009 for why an explicit allow-list over `@EnableAutoConfiguration`, and its centralization
-  rationale) + `@EnableJdbcAuditing` (needed
+  `@RepositoryTestAutoConfig` (a composed `@ImportAutoConfiguration` allow-list — see
+  `docs/ai/adr-index.md` for why an explicit allow-list over `@EnableAutoConfiguration`, and its
+  centralization rationale) + `@EnableJdbcAuditing` (needed
   because `@SpringBootTest(classes = {...@AutoConfiguration classes...})` does not itself trigger
   Spring Boot's autoconfiguration cascade — `JdbcClient`, `DataSource`, etc. only appear once the
   relevant autoconfiguration classes are present among the loaded classes), the
@@ -103,8 +103,8 @@ helper, keep spec/test-specific logic local otherwise.
   the class, so without this, later tests see earlier tests' leftover rows — call it from
   `@BeforeEach` before creating fixture data. **Always use `cleanAll`, not the lower-level
   `cleanTables(jdbcClient, "table1", ...)` overload, in `*RepositoryTest` classes** — every
-  `*RepositoryTest` shares one physical singleton container for the whole `mvn test` run (ADR-002),
-  so a class that only cleans its own domain's tables can fail on a foreign-key violation left
+  `*RepositoryTest` shares one physical singleton container for the whole `mvn test` run (see
+  `docs/ai/adr-index.md`), so a class that only cleans its own domain's tables can fail on a foreign-key violation left
   behind by a *different* domain's test class that ran earlier (confirmed directly:
   `AdvertisementRepositoryTest`'s last test method leaves an `advertisement` row referencing
   `user_information`, which broke `UserRepositoryTest`'s narrower cleanup before `cleanAll`
@@ -171,4 +171,4 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
   the detection actually triggers a reinstall when a starter file changes, not just when nothing
   changed. `run.sh --no-check` bypasses the check entirely (test against whatever's in `~/.m2`
   right now, even if stale — for deliberately reproducing behavior against an older build, not for
-  normal iteration). See `DECISIONS.md` ADR-007.
+  normal iteration). See `docs/ai/adr-index.md`.

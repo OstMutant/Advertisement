@@ -13,7 +13,7 @@ substitute for the full e2e run before any deploy.
 ## Requirements
 
 - A reachable Docker daemon (Testcontainers starts a real ephemeral Postgres container per `mvn
-  test` reactor run — see ADR-002 in `DECISIONS.md`)
+  test` reactor run — the singleton-container pattern, see `docs/ai/adr-index.md`)
 - Nothing else needs to be running first — unlike Playwright, this does not need the app itself,
   MinIO, or the persistent dev Postgres container
 
@@ -60,8 +60,8 @@ they aren't otherwise built by a scoped `-pl integration-tests` alone.
 
 Run any `*Test` class directly via the gutter icon — no script needed. `SharedEnvConfig` resolves
 the repo-root `.env` correctly even when IntelliJ sets the module directory (not the reactor root)
-as the working directory (see ADR-003 in `DECISIONS.md`). On a normal developer machine, no env
-vars are required — the sandbox-only `--sandbox` workarounds (ADR-004) do not apply.
+as the working directory (see `docs/ai/adr-index.md`). On a normal developer machine, no env
+vars are required — the sandbox-only `--sandbox` workarounds (also documented there) do not apply.
 
 ## What `run.sh` does
 
@@ -86,7 +86,7 @@ vars are required — the sandbox-only `--sandbox` workarounds (ADR-004) do not 
 | `advertisement/AdvertisementServiceHtmlSanitizationTest` | Plain JUnit + Mockito, no Spring, no DB | `AdvertisementService`'s HTML sanitization policy (OWASP sanitizer + Jsoup visible-text-length cap), tested through the real public `save()` entry point, not the `private static sanitizeHtml()` directly |
 | `advertisement/AdvertisementServiceCategoryFilterTest` | Plain JUnit + Mockito, no Spring, no DB | `AdvertisementService.getFiltered()`/`count()` resolve a category-name filter to taxon ids before querying the repository, short-circuiting to empty/zero without a repository call when no taxon matches, and degrading to no restriction when the taxon starter is absent |
 | `taxon/TaxonRepositoryTest` | Testcontainers + `@SpringBootTest` | `TaxonRepository.findByIds()` — deliberately **includes** soft-deleted rows (not excludes; see `taxon-spring-boot-starter/CLAUDE.md` on why `DefaultTaxonPort.indexById()` needs deleted taxons visible) |
-| `taxon/TaxonPortTranslationFallbackTest` | Testcontainers + `@SpringBootTest` | `TaxonPort.findById()`'s translation-fallback chain (requested locale → configured default → first available → blank), tested through the public port, not the package-private `resolveTranslation()` — see `DECISIONS.md` ADR-008 |
+| `taxon/TaxonPortTranslationFallbackTest` | Testcontainers + `@SpringBootTest` | `TaxonPort.findById()`'s translation-fallback chain (requested locale → configured default → first available → blank), tested through the public port, not the package-private `resolveTranslation()` — see `docs/ai/adr-index.md` |
 | `taxon/TaxonServiceTest` | Testcontainers + `@SpringBootTest` | `TaxonService.update()` preserves `deletedBy` on an already soft-deleted taxon (Spring Data JDBC's full-row `UPDATE` was silently reverting it to `NULL`) |
 | `taxon/TaxonSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `TaxonSnapshotDto.diff()` — pure field-comparison logic, direct analogy with `AdvertisementSnapshotDtoTest` |
 | `taxon/TaxonAssignmentRepositoryTest` | Testcontainers + `@SpringBootTest` | `TaxonAssignmentRepository`'s many-to-many join table: idempotent `assign()` (`ON CONFLICT DO NOTHING`), `unassign()`/`deleteAllByEntity()` scoping, both directions of bulk lookup, both count variants |

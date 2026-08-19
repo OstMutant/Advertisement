@@ -36,7 +36,7 @@ async function waitForLightboxClosed(page) {
 // search rooted at `document`) picks whichever one happens to be first in document order, which
 // is not necessarily the currently open instance -- confirmed directly: this broke the "YouTube
 // -> image" lightbox test once CardLightboxViewer.update() stopped taking the same shortcut
-// (see improvement-082's CardLightboxViewer fix in marketplace-app/DECISIONS.md ADR-049).
+// (see docs/ai/adr-index.md for the CardLightboxViewer fix).
 
 async function getIframeSrc(page) {
   return page.evaluate((sel) => {

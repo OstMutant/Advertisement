@@ -3,7 +3,8 @@
 ---
 
 ## ADR-001: Extract a dedicated Application/BFF module instead of moving orchestration into marketplace-app
-**Status:** Accepted
+**Status:** Accepted — the "never depends on a starter jar" consequence is superseded by ADR-004;
+the module-extraction decision itself stands
 
 **Context:** Two domain starters (`advertisement-spring-boot-starter`,
 `provider-profile-spring-boot-starter`) each grew a service that reaches into 2-3 sibling domains'
@@ -143,145 +144,93 @@ to `backlog/issues/improvement-124-provider-profile.md`'s Batch 124-C, unrelated
 
 **Status:** Accepted
 
-**Context:** Two related findings surfaced while investigating why `System › Diagrams ›
-Module Dependencies` didn't visually converge with `Bounded Contexts` after ADR-003's true-BFF
-migration (`marketplace-app` repointed to call only `marketplace-orchestrator`, never a domain
-`*Port` directly): (1) `AuditDomainHookImpl`, `AdvertisementActivityFieldsHookImpl`,
-`TaxonActivityFieldsHookImpl`, `UserActivityFieldsHookImpl`, `UserSettingsActivityFieldsHookImpl`,
-and `CurrentActorHookImpl` still lived in `marketplace-app/spi`, so the *reverse*-direction
-`Audit -> UI`/`starter -> UI` edges never converged the way the forward-direction edges did; (2)
-`marketplace-app/pom.xml` still declared every starter's `<dependency>` directly, even though a
-repo-wide grep found zero `org.ost.<starter>.*` imports anywhere in `marketplace-app` source — the
-only reason those declarations existed was that *someone* has to put each starter's JAR on the
-final `@SpringBootApplication`'s runtime classpath so Spring finds its `@AutoConfiguration`.
+**Context:** `System › Diagrams › Module Dependencies` didn't visually converge with `Bounded
+Contexts` after ADR-003's true-BFF migration (`marketplace-app` repointed to call only
+`marketplace-orchestrator`, never a domain `*Port` directly), for two reasons: (1)
+`AuditDomainHookImpl` and `CurrentActorHookImpl` still lived in `marketplace-app/spi`, so the
+*reverse*-direction `Audit -> UI`/`starter -> UI` edges never converged the way the
+forward-direction edges did; (2) `marketplace-app/pom.xml` still declared every starter's
+`<dependency>` directly, even though a repo-wide grep found zero `org.ost.<starter>.*` imports
+anywhere in `marketplace-app` source — the only reason those declarations existed was that
+*someone* has to put each starter's JAR on the final `@SpringBootApplication`'s runtime classpath
+so Spring finds its `@AutoConfiguration`.
 
-**Decision, part 1 — Hook relocation:** `AuditDomainHookImpl` and the four `*ActivityFieldsHookImpl`
-classes needed only domain-port access (`EntityExistenceService`, already here) plus two small
-UI-shell dependencies (translation, current-actor-id) — solved via two new forwarder SPIs, see
-`platform-commons/DECISIONS.md` ADR-029. `CurrentActorHookImpl` needed only the new
-`SessionActorHook` forwarder. All six now live in `org.ost.orchestrator.services`, alongside this
-module's existing services. This **narrows, not reverses**, this module's original "no `*Hook`
-implementations here" rule (see ADR-001's now-superseded reasoning below) — the boundary that
-actually matters (no simultaneous multi-port composition fan-out) is unaffected; a `*Hook` that
-dispatches to one port per call based on `EntityType` was never the shape the ≤2-port rule targets.
-`ActivityEnrichHookImpl` stays in `marketplace-app/spi` — its dependency does real HTML-diff
-formatting, not a mechanical forwarder-shaped lookup.
+**Decision, part 1 — Hook relocation:** `AuditDomainHookImpl` and `CurrentActorHookImpl` needed
+only domain-port access (`EntityExistenceService`, already here) plus small UI-shell dependencies
+(translation, current-actor-id) — solved via forwarder SPIs `UiLabelHook`/`SessionActorHook`
+(see the "Forwarder SPI pattern" section in `marketplace-orchestrator/CLAUDE.md`). Both Hooks now
+live in `org.ost.orchestrator.spi`, a sibling package to the existing flat `services/` package —
+mirroring `marketplace-app`'s own `services`/`spi` separation, so SPI implementations aren't mixed
+in with plain composition services in one folder. This **narrows, not reverses**, this module's
+original "no `*Hook` implementations here" rule (see ADR-001) — the boundary that actually matters
+(no simultaneous multi-port composition fan-out) is unaffected; a `*Hook` that dispatches to one
+port per call based on `EntityType` was never the shape the ≤2-port rule targets.
+`UserActorNameService` (the actor-name-resolution collaborator `AuditDomainHookImpl` delegates to)
+stays in `services/`, since it doesn't itself implement an SPI interface. `ActivityEnrichHookImpl`
+moved here too, along with its collaborator — see ADR-005.
 
-**Superseded by ADR-005:** the call above was revisited — `AdvertisementAuditEnrichService`'s only
-two UI-shell touchpoints turned out to be single-value lookups (current locale, an `AdKind` label),
-not the HTML-diff formatting itself. Both moved here behind forwarder SPIs; see ADR-005.
+Both `UiLabelHook`/`SessionActorHook` and their message-key vocabulary live in
+`org.ost.orchestrator.spi` directly (not `platform-commons`): since `marketplace-app` already
+legally depends on `marketplace-orchestrator`, any type this module defines is visible to
+`marketplace-app` too, and neither forwarder SPI is ever called by a starter. `UiLabelHook` takes
+the raw, compiler-checked `Fields.*` DTO field-name constant (e.g.
+`TaxonSnapshotDto.Fields.nameEn`, already visible to both modules via `platform-commons`) plus its
+owning `EntityType` directly — `translate(EntityType entityType, String rawFieldKey, Object...
+args)` — rather than a separate key-mapping enum, since the field constant is already the
+compiler-checked identifier needed and a parallel enum would duplicate it while also baking an
+i18n resource-bundle-path convention into `marketplace-orchestrator`, which has no business
+knowing how `marketplace-app` organizes its message bundles.
+`ArchitectureRulesTest.hooks_live_only_in_platform_commons` carries a named allow-list for these
+two interfaces.
+
+`AuditActivityFieldsHook` — a fourth Hook interface that once existed for per-domain audit
+field-label mapping, with four per-domain `*ActivityFieldsHookImpl` implementations in this
+module — was removed entirely, `platform-commons` interface included: every implementation had
+converged to an identical one-line delegation with zero domain-specific logic left
+(`expandFields()` always just returned `item.expandedChanges()`), and its only real caller anywhere
+in the repo was already `marketplace-app`'s own `AuditTimelineRowRenderer`, not the audit-starter
+its own Javadoc claimed. The field-name-to-label switch statement, previously duplicated once per
+domain class, now lives in exactly one place — a private method on `AuditTimelineRowRenderer`
+itself. `AuditTimelineRowRenderer` no longer collects `List<AuditActivityFieldsHook>`/builds an
+`EntityType`-keyed map for this purpose; a `Set<EntityType> LABELED_ENTITY_TYPES` constant
+replicates the same fallback behavior the old Spring multi-bean lookup provided (falls back to
+`changeFormatter.buildChangesList()` for entity types with no label mapping) — a structural
+simplification, not an observable behavior change.
+`docs/architecture/scripts/generate-architecture-model.sh`'s Bounded Contexts relationship-building
+(`"$dom" -> "Audit" "audited via"` edges) now derives its evidence from
+`AuditTimelineRowRenderer.LABELED_ENTITY_TYPES` instead of `grep implements
+AuditActivityFieldsHook`.
 
 **Decision, part 2 — `pom.xml` dependency relocation, superseding ADR-001:** ADR-001's original
 "never depends on a starter jar directly" rule (enforced via a Maven Enforcer `bannedDependencies`
-rule) is **reversed**. All 6 starter `<dependency>` declarations moved from `marketplace-app/pom.xml`
-to `marketplace-orchestrator/pom.xml` (`compile` scope preserved for `audit`/`attachment`/`user`/
-`advertisement`, `runtime` scope preserved for `taxon`/`provider-profile` — Maven's scope
-propagation table means `marketplace-app --compile--> marketplace-orchestrator --compile-->
-<starter>` still resolves to `compile` transitively, and the `--runtime-->` chain still resolves to
-`runtime`, so the two optional starters' removability is unchanged). The Enforcer rule and its
-`enforce-no-starter-deps` execution block were deleted outright, not narrowed — ADR-001's
-reasoning ("orchestrator must depend only on platform-commons Port/DTO contracts") described a
-Maven-level restriction that no longer holds; the code-level restriction it was really protecting
-(never import a starter's concrete class) is enforced independently by
-`ArchitectureRulesTest.marketplace_must_not_import_starter_internals`, which checks real import
-statements regardless of what `pom.xml` declares, and continues to apply unchanged to this module.
+rule) is **reversed**. All 6 starter `<dependency>` declarations moved from
+`marketplace-app/pom.xml` to `marketplace-orchestrator/pom.xml` (`compile` scope preserved for
+`audit`/`attachment`/`user`/`advertisement`, `runtime` scope preserved for `taxon`/
+`provider-profile` — Maven's scope propagation table means `marketplace-app --compile-->
+marketplace-orchestrator --compile--> <starter>` still resolves to `compile` transitively, and the
+`--runtime-->` chain still resolves to `runtime`, so the two optional starters' removability is
+unchanged). The Enforcer rule and its `enforce-no-starter-deps` execution block were deleted
+outright, not narrowed — ADR-001's reasoning ("orchestrator must depend only on platform-commons
+Port/DTO contracts") described a Maven-level restriction that no longer holds; the code-level
+restriction it was really protecting (never import a starter's concrete class) is enforced
+independently by `ArchitectureRulesTest.marketplace_must_not_import_starter_internals`, which
+checks real import statements regardless of what `pom.xml` declares, and continues to apply
+unchanged to this module.
 
 **Consequences:** `marketplace-app/pom.xml` now depends only on `platform-commons` +
 `marketplace-orchestrator` (plus Vaadin/Spring/tooling deps unrelated to domain access) — `Module
-Dependencies` now shows the same shape `Bounded Contexts` already showed post-ADR-003, closing the
-original divergence this investigation started from. Verified for real, not assumed from the
-scope-propagation math alone: a full reactor `mvn clean package`, and a `deploy.sh` boot with
-`taxon-spring-boot-starter` temporarily removed from the root `pom.xml`, confirming the app still
-starts and taxon-dependent UI degrades gracefully — see
-`backlog/issues/improvement-149-architecture-map-module-deps-vs-bounded-contexts.md`'s Operational
-notes for the concrete run once that issue closes. This also closes
-`backlog/completed/issues/improvement-148-reverify-optional-module-removal-after-bff-migration.md`'s
-scope — the same removal proof, not duplicated as a second test.
-
-**Correction (verified 2026-08-12):** the taxon-removal proof above was real but incomplete — it
-did not cover `provider-profile-spring-boot-starter`. Repeating the same removal test for that
-starter found a real boot failure (`UserService`'s mandatory `ComponentFactory<ProviderProfilePort>`
-field had no fallback producer once that starter left the classpath), fixed by adding the missing
-`@Bean` to `UserAutoConfiguration` — see `platform-commons/DECISIONS.md` ADR-006's amendment. Both
-starters are now confirmed removable; "this also closes improvement-148's scope" above should be
-read as "closes the taxon half of it" — the provider-profile half needed an actual code fix, not
-just a re-run of the same proof.
-
-**Refinement (same session):** the six moved `*HookImpl` classes were first landed directly inside
-`org.ost.orchestrator.services` (the existing flat services package), then split out into their
-own sibling `org.ost.orchestrator.spi` package — mirroring `marketplace-app`'s own `services`/`spi`
-separation, on user request, so SPI implementations aren't mixed in with plain composition
-services in one folder. `UserActorNameService` (the actor-name-resolution collaborator
-`AuditDomainHookImpl` delegates to) stays in `services/`, since it doesn't itself implement an SPI
-interface.
-
-**Second refinement (same session) — `UiLabelHook`/`SessionActorHook` also moved here, out of
-`platform-commons`, plus a typed `AuditLabelKey` enum.** ADR-029's original placement (both
-forwarder SPIs in `platform-commons/core/spi`) was reconsidered after two direct questions: why the
-message-key constants these forwarders needed were raw, uncoupled `String` duplicates instead of a
-typed shared constant, and whether `UiLabelHook`/`SessionActorHook` needed `platform-commons`
-visibility at all given neither is ever called by a starter. Both resolved the same way: since
-`marketplace-app` already legally depends on `marketplace-orchestrator`, any type this module
-defines is visible to `marketplace-app` too — nothing needs `platform-commons` here. Landed:
-`org.ost.orchestrator.spi.AuditLabelKey` (one enum entry per message key, matching `I18nKey`'s
-existing constant names; `I18nKey.java` now references `AuditLabelKey.X.key()` instead of
-duplicating the literal) and `UiLabelHook`/`SessionActorHook` themselves relocated into
-`org.ost.orchestrator.spi` alongside it, `UiLabelHook.translate()` now typed on `AuditLabelKey`
-instead of a raw `String`. `ArchitectureRulesTest.hooks_live_only_in_platform_commons` gained a
-named allow-list for these two interfaces rather than silently breaking. See
-`platform-commons/DECISIONS.md` ADR-029's own refinement note for the mirrored record.
-
-**Third refinement (same session) — `AuditLabelKey` removed again; `UiLabelHook` takes the raw
-DTO field-name constant directly.** User pushed back a second time on the same coupling concern,
-this time correctly identifying that `AuditLabelKey`'s own `.key()` payload baked an i18n
-resource-bundle-path convention (`"changes.field.title"`) into `marketplace-orchestrator`, which
-has no business knowing how `marketplace-app` organizes its message bundles — and separately, that
-each `@FieldNameConstants`-generated `Fields.*` constant (e.g. `TaxonSnapshotDto.Fields.nameEn`,
-already visible to both modules via `platform-commons`) is already exactly the compiler-checked
-identifier needed, making a parallel enum redundant. `UiLabelHook` now has two purpose-built
-methods instead: `translate(EntityType entityType, String rawFieldKey, Object... args)` for field
-labels (the raw `Fields.*` constant plus its owning `EntityType` for disambiguation — no key
-enum), and `translateActorDeletedSuffix(String actorName)` for the one non-field-label case
-(narrower than a generic key lookup, since it's exactly one fixed message with exactly one
-argument shape). Every `*ActivityFieldsHookImpl`'s `labelFor()` collapsed to a one-line delegation
-(`uiLabelHook.translate(EntityType.X, rawFieldKey)`) — the entire field-name-to-label switch
-statement, previously duplicated once per domain class, now lives in exactly one place,
-`marketplace-app`'s `UiLabelHookImpl`, nested by `EntityType` then `rawFieldKey`. `AuditLabelKey`
-deleted; `I18nKey.java` reverted to its own plain string literals (no import from
-`marketplace-orchestrator` at all anymore, closing that direction of coupling too).
-
-**Fourth refinement (same session) — `AuditActivityFieldsHook` and its four implementations
-removed entirely; not just simplified.** Asked directly whether the four `*ActivityFieldsHookImpl`
-classes were even earning their keep once `labelFor()` collapsed to identical one-line delegation
-in all of them. Verified before acting: `expandFields()` had always returned
-`item.expandedChanges()` in every one of the four (never actually domain-specific, in this session
-or before it), and grepping the whole repo found exactly one real caller of
-`AuditActivityFieldsHook` anywhere — `marketplace-app`'s own `AuditTimelineRowRenderer` (not the
-audit-starter the interface's own Javadoc claimed). With zero domain-specific behavior left and a
-single caller already positioned to own the logic directly, deleted: the interface
-(`platform-commons`), all four implementations (this module), and `UiLabelHook.translate(EntityType,
-String, ...)`. `UiLabelHook` is a single-method `@FunctionalInterface` again
-(`translateActorDeletedSuffix`). The field-name-to-label switch moved unchanged into a private
-method on `AuditTimelineRowRenderer`; `AuditTimelineRowRenderer` no longer collects
-`List<AuditActivityFieldsHook>`/builds an `EntityType`-keyed map for this purpose — a
-`Set<EntityType> LABELED_ENTITY_TYPES` constant replicates the same fallback behavior the old
-Spring multi-bean lookup provided (falls back to `changeFormatter.buildChangesList()` for entity
-types with no label mapping), so this is a structural simplification, not an observable behavior
-change. See `platform-commons/DECISIONS.md` ADR-029's third refinement for the mirrored record.
-
-**Known consequence — fixed:** `docs/architecture/scripts/generate-architecture-model.sh`'s
-Bounded Contexts relationship-building (`"$dom" -> "Audit" "audited via"` edges) originally sourced
-its evidence entirely from `grep implements AuditActivityFieldsHook` — with that interface gone,
-this evidence-gathering method found nothing, so those edges silently disappeared from the diagram
-even though the underlying fact (Advertisement/Taxon/User/UserSettings genuinely are audited)
-hadn't changed. Fixed: the generator now derives this evidence from
-`AuditTimelineRowRenderer.LABELED_ENTITY_TYPES` instead.
-
-**Trigger to revisit:** None currently open — the further tightening this ADR anticipated
-(removing `platform-commons`/`query-lib` from `marketplace-app/pom.xml` entirely) was later scoped
-down: `query-lib` was removed, but a full `platform-commons` removal was deliberately dropped in
-favor of a narrower "zero direct `*Port`/`*Hook` (SPI) usage" goal — `platform-commons` DTOs are
-still genuinely used for UI binding and remain a direct dependency.
+Dependencies` now shows the same shape `Bounded Contexts` already showed post-ADR-003. Verified for
+real: a full reactor `mvn clean package`, and a `deploy.sh` boot with both `taxon-spring-boot-starter`
+and `provider-profile-spring-boot-starter` each temporarily removed from the root `pom.xml`,
+confirming the app still starts and the dependent UI degrades gracefully in both cases (the
+provider-profile case required an actual code fix — `UserService`'s mandatory
+`ComponentFactory<ProviderProfilePort>` field had no fallback producer once that starter left the
+classpath; fixed by adding the missing `@Bean` to `UserAutoConfiguration`, see
+`platform-commons/DECISIONS.md`). The further tightening this ADR originally anticipated (removing
+`platform-commons`/`query-lib` from `marketplace-app/pom.xml` entirely) was later scoped down:
+`query-lib` was removed, but a full `platform-commons` removal was deliberately dropped in favor of
+a narrower "zero direct `*Port`/`*Hook` (SPI) usage" goal — `platform-commons` DTOs are still
+genuinely used for UI binding and remain a direct dependency.
 
 ---
 
@@ -291,44 +240,38 @@ still genuinely used for UI binding and remain a direct dependency.
 **Context:** ADR-004 kept `ActivityEnrichHookImpl` in `marketplace-app/spi`, reasoning its
 collaborator (`AdvertisementAuditEnrichService`) did real HTML-diff formatting rather than a
 mechanical lookup, unlike `AuditDomainHookImpl`/`CurrentActorHookImpl`. Re-examining that service
-while scoping `improvement-150` found the claim didn't hold: its only two UI-shell dependencies —
-`LocaleProvider` (for `Locale`-aware taxon name resolution) and `I18nService` (for `AdKind` label
-text) — are each a single-value lookup, exactly the shape the forwarder-SPI pattern already covers
-elsewhere. The HTML-diff/change-merging logic itself never touches either dependency directly.
+found the claim didn't hold: every one of its UI-shell dependencies — `LocaleProvider`
+(`Locale`-aware taxon name resolution), `I18nService` (`AdKind` label text, soft-deleted-name
+strikethrough markup, the no-media placeholder text) — is a single-value lookup or a presentation
+decision, exactly the shape the forwarder-SPI pattern already covers elsewhere; the HTML-diff/
+change-merging logic itself never depends on any of them directly.
 
 **Decision:** One new forwarder SPI, `org.ost.orchestrator.spi.CurrentLocaleHook`
-(`getCurrentLocale(): Locale`), joins `UiLabelHook`/`SessionActorHook`. `UiLabelHook` itself gains
-a second method, `labelFor(AdKind): String` — a dedicated `AdKindLabelHook` was drafted first but
-folded back in immediately: both methods wrap the same `I18nService`, both are implemented by the
-same class, and no caller ever needs `labelFor` without also being able to reach
-`translateActorDeletedSuffix`, so a second single-method interface bought nothing but an extra
-file. `AdvertisementAuditEnrichService` moves to `org.ost.orchestrator.services`, its constructor
-now taking `CurrentLocaleHook`/`UiLabelHook` instead of `LocaleProvider`/`I18nService`.
+(`getCurrentLocale(): Locale`), joins `UiLabelHook`/`SessionActorHook`. `UiLabelHook` gains three
+more methods beyond `translateActorDeletedSuffix`: `labelFor(AdKind): String`,
+`markDeleted(String): String` (wraps a soft-deleted taxon's name in strikethrough markup), and
+`noMediaPlaceholder(): String` (backed by a real `I18nKey.AUDIT_CHANGES_NO_MEDIA` translation entry
+— `audit.changes.no.media`, `—` in both `messages_en.properties`/`messages_uk.properties` — rather
+than a bare literal, since it is user-facing text). A dedicated per-concern interface for each was
+considered and rejected: every method wraps the same `I18nService`, every method is implemented by
+the same class, and no caller ever needs one without also being able to reach the others, so
+splitting them would buy nothing but extra files. None of the three forwarder SPIs is
+`@FunctionalInterface` in practice — every implementor is a `@Component` class, never a lambda — so
+`UiLabelHook` carrying multiple methods costs nothing a single-method shape would have preserved.
+
+`AdvertisementAuditEnrichService` moves to `org.ost.orchestrator.services`, its constructor now
+taking `CurrentLocaleHook`/`UiLabelHook` instead of `LocaleProvider`/`I18nService`, and calling
+`uiLabelHook` for all four lookups above — it carries no string/markup literals of its own.
 `ActivityEnrichHookImpl` moves to `org.ost.orchestrator.spi` alongside
-`AuditDomainHookImpl`/`CurrentActorHookImpl`, unchanged otherwise. `marketplace-app` gains one
-thin `*Impl` class in its own `spi/` package — `CurrentLocaleHookImpl` (wraps `LocaleProvider`) —
+`AuditDomainHookImpl`/`CurrentActorHookImpl`, unchanged otherwise. `marketplace-app` gains one thin
+`*Impl` class in its own `spi/` package — `CurrentLocaleHookImpl` (wraps `LocaleProvider`) —
 matching `UiLabelHookImpl`/`SessionActorHookImpl`'s existing shape; `UiLabelHookImpl` itself gains
-the `labelFor` delegation.
+the four delegations.
 
-**Consequences:** `marketplace-app`'s `services/advertisement/` package is now empty and removed
-— `AdvertisementSaveService` (ADR-001) and `AdvertisementAuditEnrichService` (this ADR) were its
-only two members, and both now live in `marketplace-orchestrator`. `AuditActivityEnrichHook` now
-has zero implementations left in `marketplace-app` — every `*Hook` interface's real implementation
+**Consequences:** `marketplace-app`'s `services/advertisement/` package is now empty and removed —
+`AdvertisementSaveService` (ADR-001) and `AdvertisementAuditEnrichService` (this ADR) were its only
+two members, and both now live in `marketplace-orchestrator`. `AuditActivityEnrichHook` now has
+zero implementations left in `marketplace-app` — every `*Hook` interface's real implementation
 lives in this module, with only thin UI-shell forwarders remaining on the `marketplace-app` side.
-None of the three forwarder SPIs is `@FunctionalInterface` in practice usage — every implementor is
-a `@Component` class, never a lambda — so `UiLabelHook` carrying multiple methods costs nothing a
-single-method shape would have preserved. The moved unit test
-(`AdvertisementAuditEnrichServiceTest`) required no logic changes, only mock types swapped from
-`LocaleProvider`/`I18nService` to `CurrentLocaleHook`/`UiLabelHook`.
-
-**Follow-up correction (same batch):** the moved service still carried two more UI-shell decisions
-after the move — `nameOrStrikethrough()` built raw `<s>...</s>` HTML markup for a soft-deleted
-taxon's name, and a `NO_MEDIA_ENTRY` constant hardcoded the non-localized placeholder text `"—"`
-for "no attachment yet". Both are presentation decisions, not data composition, and both slipped
-through because the file moved verbatim from `marketplace-app` (where they were legitimate) without
-re-auditing its content for UI-shaped logic. Fixed the same way: `UiLabelHook` gained
-`markDeleted(String): String` and `noMediaPlaceholder(): String`; the latter is backed by a real
-`I18nKey.AUDIT_CHANGES_NO_MEDIA` translation entry (`audit.changes.no.media`, `—` in both
-`messages_en.properties`/`messages_uk.properties`) rather than a bare literal, since it is
-user-facing text. `AdvertisementAuditEnrichService` now calls both through `uiLabelHook` and
-carries no string/markup literals of its own.
+The moved unit test (`AdvertisementAuditEnrichServiceTest`) required no logic changes, only mock
+types swapped from `LocaleProvider`/`I18nService` to `CurrentLocaleHook`/`UiLabelHook`.

@@ -87,7 +87,7 @@ per individual add/remove operation inside the diff loop — not once per batch.
 (both routed through an advertisement save or delete) already sit inside a flow that produces its
 own audit snapshot covering the same net information. The per-change firing granularity this ADR
 designed for was never actually consumed by anything. Removed rather than implemented — see
-`marketplace-app/DECISIONS.md` ADR-019 and ADR-043, `platform-commons/DECISIONS.md` ADR-017's note.
+`docs/ai/adr-index.md` for the related audit-snapshot-coverage decisions.
 `TaxonAssignmentService.replaceAssignments()` still computes the same add/remove diff internally
 (needed for the `INSERT`/`DELETE` statements themselves) — only the per-item hook call was removed.
 

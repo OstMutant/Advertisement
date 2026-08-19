@@ -70,9 +70,9 @@ template:
 3. **High signal only.** Do not flag: pre-existing issues unrelated to what's in
    scope, style nitpicks a senior engineer would let go, anything a linter or
    ArchUnit test (`ArchitectureRulesTest`) would already catch, or a deliberate,
-   documented exception (e.g. `PaginationBar` staying a Spring bean per ADR-054 —
-   check `marketplace-app/DECISIONS.md` before flagging something that looks like
-   an inconsistency but is actually a recorded decision).
+   documented exception (e.g. `PaginationBar` staying a Spring bean per a recorded
+   decision — check `docs/ai/adr-index.md` before flagging something that looks
+   like an inconsistency but is actually a recorded decision).
 4. **Never write code changes in this skill.** Both modes are read-only and
    findings-only — they produce or update markdown in `backlog/`, never `.java`/
    `.xml`/etc. This is deliberate: a findings-only full-mode pass worked cleanly

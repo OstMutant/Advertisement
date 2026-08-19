@@ -16,8 +16,8 @@
 #   build-and-test.sh invocations this produces (this script's own, and the one deploy-and-run.sh
 #   triggers internally) are safe to run concurrently against the shared maven-cache volume --
 #   serialized by that script's own flock, and given distinct container names to avoid a Docker
-#   name collision (see scripts/build-and-test/run.sh's own Env doc). See DECISIONS.md ADR-004's
-#   annotation for the unit/integration pairing's own history.
+#   name collision (see scripts/build-and-test/run.sh's own Env doc). See docs/ai/adr-index.md
+#   for the unit/integration pairing's own history.
 # Usage: bash scripts/run-all-tests.sh [--unit-test <module-or-class>]
 #   [--integration-test <scenario-or-class>] [--sandbox] [--archunit-metrics] [--reset]
 #   [--playwright "<args>"]

@@ -41,8 +41,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * b.created_at <= f.created_at} with no {@code id} tiebreaker — two rows for the same entity
  * sharing an identical {@code created_at} (plausible: two audit writes in the same transaction/
  * millisecond, e.g. a user snapshot plus its default-settings snapshot) got the <em>same</em>
- * computed version number, which {@code marketplace-app/DECISIONS.md} ADR-022's "current state"
- * badge logic relies on to distinguish timeline entries. Fixed by comparing {@code (created_at,
+ * computed version number, which the "current state" badge logic (see {@code docs/ai/adr-index.md})
+ * relies on to distinguish timeline entries. Fixed by comparing {@code (created_at,
  * id)} tuples instead of {@code created_at} alone.
  *
  * <p>Rows are inserted directly via {@code jdbcClient}, not {@link
@@ -53,7 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>Own minimal {@code TestConfig} rather than {@code RepositoryTestSupport} — needs the real
  * {@link AuditAutoConfiguration} wired (not stubbed absent), same shape and same
  * {@link RepositoryTestAutoConfig} allow-list as {@code UserServiceRestoreTest} (see
- * {@code integration-tests/DECISIONS.md} ADR-009) — no {@code UserAutoConfiguration} needed here,
+ * {@code docs/ai/adr-index.md}) — no {@code UserAutoConfiguration} needed here,
  * {@code audit_log.actor_id} has no FK.</p>
  */
 @SpringBootTest(classes = {

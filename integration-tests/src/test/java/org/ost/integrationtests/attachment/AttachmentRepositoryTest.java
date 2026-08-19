@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * own real {@code attachmentPortFactory} bean when both are present (confirmed directly:
  * {@code BeanDefinitionOverrideException}), same shape {@code UserServiceRestoreTest}'s javadoc
  * already documents for {@code auditPortFactory}. Same {@link RepositoryTestAutoConfig} allow-list
- * as that class (see {@code integration-tests/DECISIONS.md} ADR-009).</p>
+ * as that class (see {@code docs/ai/adr-index.md}).</p>
  *
  * <p>{@link AttachmentAutoConfiguration} unconditionally constructs a real {@link S3Client} (no
  * {@code @ConditionalOnMissingBean} guard tied to {@link StorageService}) from {@code storage.s3.*}

@@ -101,13 +101,13 @@ Translation keys — single consolidated enum:
   next bullet). Any *new* non-Vaadin REST controller must add the same kind of explicit rule for
   its own path prefix, following this precedent.
 - `SecurityConfig` uses `anyRequest().permitAll()` at the URL layer — deny-by-default does not
-  apply to this app's single-route Vaadin SPA model (see `DECISIONS.md` ADR-025).
+  apply to this app's single-route Vaadin SPA model (see `docs/ai/adr-index.md`).
 - Login (`AuthService.login()`) and registration (`UserPort.register()` → `UserService.register()`)
   are rate-limited via an in-memory Caffeine cache (5 attempts / 15 min), counting only real
-  failures — never successes (see `DECISIONS.md` ADR-026).
+  failures — never successes (see `docs/ai/adr-index.md`).
 - `application-prod.yml` sets `server.forward-headers-strategy: framework` — required for
   `request.getRemoteAddr()` to resolve the real client IP behind Render's proxy, not Render's
-  own internal edge address (see `DECISIONS.md` ADR-027).
+  own internal edge address (see `docs/ai/adr-index.md`).
 
 ---
 

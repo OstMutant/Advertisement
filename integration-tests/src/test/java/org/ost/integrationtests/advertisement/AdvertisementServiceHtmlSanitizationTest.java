@@ -23,10 +23,10 @@ import static org.mockito.Mockito.when;
  * OWASP {@code Sanitizers.FORMATTING.and(LINKS).and(BLOCKS)} plus a Jsoup visible-text-length
  * check (two distinct limits: {@link AdvertisementSaveDto#DESCRIPTION_MAX_LENGTH} for the
  * sanitized visible text, {@link AdvertisementSaveDto#DESCRIPTION_RAW_MAX_LENGTH} for the raw
- * HTML payload — see {@code marketplace-app/DECISIONS.md} ADR-024/ADR-031). Both {@code
+ * HTML payload — see {@code docs/ai/adr-index.md} for the two-limit split rationale). Both {@code
  * sanitizeHtml()} and {@code buildEntity()} are {@code private static} — tested through the real
- * public {@link AdvertisementService#save} entry point instead, per {@code
- * integration-tests/DECISIONS.md} ADR-008.
+ * public {@link AdvertisementService#save} entry point instead, per the private-method-testing
+ * policy in {@code docs/ai/adr-index.md}.
  *
  * <p>No Spring context, no Testcontainers — {@link AdvertisementRepository} and every {@code
  * ComponentFactory} dependency are mocked directly (same shape as {@code UserServiceTest} in this

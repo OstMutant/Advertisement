@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * {@code UserEditableFields} entity (no {@code email}/{@code passwordHash} mapped properties) so
  * Spring Data JDBC's generated {@code UPDATE} cannot touch those fields even if a caller populates
  * the wrong DTO — see {@code user-spring-boot-starter/CLAUDE.md} and
- * {@code marketplace-app/DECISIONS.md} ADR-029. Unlike {@code Advertisement} (covered in
+ * {@code docs/ai/adr-index.md}. Unlike {@code Advertisement} (covered in
  * improvement-027 Batch 1), this optimistic-locking + entity-boundary behavior had zero test
  * coverage before this class.
  */
@@ -51,7 +51,7 @@ class UserRepositoryTest extends AbstractPostgresIntegrationTest {
     private JdbcClient jdbcClient;
 
     /** {@link TestDataCleaner#cleanAll}, not a hand-picked table subset — the singleton
-     *  Testcontainers Postgres instance (see DECISIONS.md ADR-002) is shared across every test
+     *  Testcontainers Postgres instance (see docs/ai/adr-index.md) is shared across every test
      *  class in one {@code mvn test} run, so a row left behind by another domain's test class
      *  (e.g. {@code AdvertisementRepositoryTest}'s last test method, FK to
      *  {@code user_information}) can break a narrower cleanup this class has no reason to know
