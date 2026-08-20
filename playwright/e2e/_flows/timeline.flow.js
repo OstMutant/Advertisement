@@ -1,24 +1,63 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Shared flow helpers for the Timeline tab -- opening the tab and its filter panel,
+ *   asserting activity-feed rows (single-row presence, multi-row counts with title/actor/changes
+ *   text checks, uniform entity-type/action across all visible rows), the actor-picker visibility
+ *   toggle, and filling the entity-type/action-type/actor-picker filter controls (including chip
+ *   removal and chip-count reads).
+ * Usage: None -- a library only, required by spec files (see Input).
+ * Uses: ./_helpers (screenshot, assertRightAligned), ./filter.flow (openQueryPanel, waitForVaadin).
+ * Env: None.
+ * Input: required by 02-marketplace-authentication-flow.spec.js, 03-marketplace-promotion-flow.spec.js,
+ *   04-marketplace-advertisement-flow.spec.js, 05-seed-filter-sort-pagination.spec.js.
+ * Outputs: exports openTimelineTab, openTimelineFilter, closeTimelineFilter, assertFeedHasRow,
+ *   assertTimelineHasRows, assertAllRowsHaveType, assertAllRowsHaveAction, assertActorPickerVisible,
+ *   fillEntityType, fillActionType, fillActorPicker, removeActorChip, actorChipCount, TIMELINE_BLOCK.
+ * Returns: N/A
+ * ──────────────────────────────────────────────────────────────────────────── */
 const { screenshot, assertRightAligned } = require('../_helpers');
 const { openQueryPanel, applyFilter, clearFilter, waitForVaadin } = require('./filter.flow');
 
 const TIMELINE_BLOCK = '.timeline-query-block';
 
+/**
+ * Opens the Timeline tab and waits for the activity feed to render its first row.
+ * Arguments: page.
+ * Outputs: none (waits only).
+ * Returns: Promise<void>.
+ */
 async function openTimelineTab(page) {
   await page.locator('vaadin-tab').filter({ hasText: /timeline|таймлайн/i }).click();
   await page.locator('.activity-feed').waitFor({ timeout: 8000 });
   await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
 }
 
+/**
+ * Opens the Timeline tab's own filter panel.
+ * Arguments: page.
+ * Outputs: none.
+ * Returns: Promise<void>.
+ */
 async function openTimelineFilter(page) {
   await openQueryPanel(page, TIMELINE_BLOCK);
 }
 
+/**
+ * Closes the Timeline filter panel by clicking the visible query-status-bar.
+ * Arguments: page.
+ * Outputs: none.
+ * Returns: Promise<void>.
+ */
 async function closeTimelineFilter(page) {
   await page.locator('.query-status-bar:visible').click();
   await page.locator(TIMELINE_BLOCK).waitFor({ state: 'hidden', timeout: 5000 });
 }
 
-// Asserts at least one feed row matches the given criteria
+/**
+ * Asserts at least one feed row matches the given criteria (action/entityType/editor text).
+ * Arguments: page, expect, { action, entityType, editor, screenshotName }.
+ * Outputs: optional screenshot if screenshotName is given.
+ * Returns: Promise<void>.
+ */
 async function assertFeedHasRow(page, expect, { action, entityType, editor, screenshotName } = {}) {
   const feed = page.locator('.activity-feed');
   await feed.waitFor({ timeout: 8000 });
@@ -30,7 +69,14 @@ async function assertFeedHasRow(page, expect, { action, entityType, editor, scre
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
-// Asserts at least minCount feed rows match the given criteria (titleText/allFieldsText check the row body).
+/**
+ * Asserts at least minCount feed rows match the given criteria (titleText/allFieldsText check the
+ * row body; actorText also verifies the editor-badge/timestamp layout is right-aligned).
+ * Arguments: page, expect, { action, entityType, minCount, titleText, allFieldsText, actorText,
+ *   changesText, screenshotName }.
+ * Outputs: optional screenshot if screenshotName is given.
+ * Returns: Promise<void>.
+ */
 async function assertTimelineHasRows(page, expect, { action, entityType, minCount = 1, titleText, allFieldsText, actorText, changesText, screenshotName } = {}) {
   const feed = page.locator('.activity-feed');
   await feed.waitFor({ timeout: 8000 });
@@ -72,7 +118,12 @@ async function assertTimelineHasRows(page, expect, { action, entityType, minCoun
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
-// Asserts all visible feed rows have the given entity type CSS class
+/**
+ * Asserts all visible feed rows have the given entity-type CSS class.
+ * Arguments: page, expect, entityType, screenshotName.
+ * Outputs: optional screenshot if screenshotName is given.
+ * Returns: Promise<void>.
+ */
 async function assertAllRowsHaveType(page, expect, entityType, screenshotName) {
   const rows = page.locator('.activity-feed .activity-feed-row');
   // Wait for the feed to show the filtered results — first row must already have the correct type
@@ -85,7 +136,12 @@ async function assertAllRowsHaveType(page, expect, entityType, screenshotName) {
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
-// Asserts all visible feed rows have the given action CSS class
+/**
+ * Asserts all visible feed rows have the given action CSS class.
+ * Arguments: page, expect, action, screenshotName.
+ * Outputs: optional screenshot if screenshotName is given.
+ * Returns: Promise<void>.
+ */
 async function assertAllRowsHaveAction(page, expect, action, screenshotName) {
   const rows = page.locator('.activity-feed .activity-feed-row');
   // Wait for filter to take effect — first row must have the correct action class
@@ -98,7 +154,13 @@ async function assertAllRowsHaveAction(page, expect, action, screenshotName) {
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
-// Requires filter panel to be open (call openTimelineFilter first)
+/**
+ * Asserts the actor-picker row's visibility in the filter panel. Requires the filter panel to
+ * already be open (call openTimelineFilter first).
+ * Arguments: page, expect, visible.
+ * Outputs: none.
+ * Returns: Promise<void>.
+ */
 async function assertActorPickerVisible(page, expect, visible) {
   const actorRow = page.locator(`${TIMELINE_BLOCK} .query-inline-row`)
     .filter({ has: page.locator('.query-inline-label-sort', { hasText: /actor|виконавець/i }) });
@@ -109,6 +171,12 @@ async function assertActorPickerVisible(page, expect, visible) {
   }
 }
 
+/**
+ * Selects one value from the Timeline filter's entity-type multi-select combo.
+ * Arguments: page, value.
+ * Outputs: none.
+ * Returns: Promise<void>.
+ */
 async function fillEntityType(page, value) {
   const combo = page.locator(`${TIMELINE_BLOCK} vaadin-multi-select-combo-box`).nth(0);
   await combo.locator('input').click();
@@ -121,6 +189,12 @@ async function fillEntityType(page, value) {
   await overlay.waitFor({ state: 'hidden', timeout: 5000 });
 }
 
+/**
+ * Selects one value from the Timeline filter's action-type multi-select combo.
+ * Arguments: page, value.
+ * Outputs: none.
+ * Returns: Promise<void>.
+ */
 async function fillActionType(page, value) {
   const combo = page.locator(`${TIMELINE_BLOCK} vaadin-multi-select-combo-box`).nth(1);
   await combo.locator('input').click();
@@ -132,6 +206,13 @@ async function fillActionType(page, value) {
   await overlay.waitFor({ state: 'hidden', timeout: 5000 });
 }
 
+/**
+ * Opens the actor picker dialog and selects the given user by name, either by scrolling the
+ * virtualized grid to find the row (default) or via the dialog's own server-side search field.
+ * Arguments: page, userName, { useSearch }.
+ * Outputs: none.
+ * Returns: Promise<void>.
+ */
 async function fillActorPicker(page, userName, { useSearch = false } = {}) {
   await page.locator('.user-picker-open').click();
   const dialog = page.locator('vaadin-dialog-overlay[opened]');
@@ -179,6 +260,12 @@ async function fillActorPicker(page, userName, { useSearch = false } = {}) {
   await dialog.waitFor({ state: 'hidden', timeout: 5000 });
 }
 
+/**
+ * Removes one selected-actor chip by user name and waits for the server round-trip to settle.
+ * Arguments: page, userName.
+ * Outputs: none.
+ * Returns: Promise<void>.
+ */
 async function removeActorChip(page, userName) {
   const chip = page.locator('.user-picker-chip').filter({ hasText: userName });
   await chip.locator('.user-picker-chip-remove').click();
@@ -188,6 +275,12 @@ async function removeActorChip(page, userName) {
   await waitForVaadin(page);
 }
 
+/**
+ * Returns the current count of selected-actor chips.
+ * Arguments: page.
+ * Outputs: none.
+ * Returns: Promise<number>.
+ */
 function actorChipCount(page) {
   return page.locator('.user-picker-chip').count();
 }

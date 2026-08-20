@@ -1,4 +1,14 @@
 @echo off
+REM ---------------------------------------------------------------------------
+REM Description: Windows entry point -- same real logic as scripts/architecture-doc.sh, run via
+REM   WSL instead of delegating to that file directly.
+REM Usage: same as scripts/architecture-doc.sh.
+REM Uses: WSL (wsl bash docs/architecture/scripts/*.sh).
+REM Env: same as scripts/architecture-doc.sh.
+REM Input: same as scripts/architecture-doc.sh.
+REM Outputs: same as scripts/architecture-doc.sh.
+REM Returns: same as scripts/architecture-doc.sh.
+REM ---------------------------------------------------------------------------
 set NO_CHECK=false
 set NO_SCREENSHOT=false
 for %%A in (%*) do (

@@ -1,4 +1,15 @@
 @echo off
+REM ---------------------------------------------------------------------------
+REM Description: Removes Maven target/ directories for every module, Vaadin-generated frontend
+REM   files, and Playwright artifacts (pw-report, screenshots).
+REM Usage: scripts\clean.bat
+REM Uses: cmd.exe (rmdir/del only, no external tools).
+REM Env: None.
+REM Input: repo source -- a fixed list of module target/ dirs and frontend-generated paths.
+REM Outputs: deletes each listed path if present, printing "Removed <path>" for each one actually
+REM   removed.
+REM Returns: 0 always.
+REM ---------------------------------------------------------------------------
 setlocal
 cd /d "%~dp0.."
 

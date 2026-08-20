@@ -1,14 +1,16 @@
 # syntax=docker/dockerfile:1
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: ci-runner image -- one persistent container the user interacts with (scripts/ci.sh
-#   -> scripts/ci/run.sh), running Dagu (a single-binary DAG engine with a built-in web UI)
-#   orchestrating this project's CI stages (scripts/ci/dagu/ci.yaml). Docker-outside-of-Docker:
+#   -> scripts/ci/run.sh), running Dagu, orchestrating this project's CI stages
+#   (scripts/ci/dagu/ci.yaml). Docker-outside-of-Docker:
 #   the host's docker.sock is mounted into it at `docker run` time so it can create/tear down its
 #   own isolated ci-* sibling containers (Postgres, MinIO, the built app, Playwright) without ever
 #   touching the persistent dev stack. Full design rationale: see DECISIONS.md.
 # Usage: docker build -f scripts/ci/Dockerfile -t ci-runner . (always via scripts/ci/run.sh, never
 #   invoked directly).
-# Uses: eclipse-temurin:25-jdk base image.
+# Uses: eclipse-temurin:25-jdk base image; apt-get installs docker.io (DooD docker CLI against the
+#   mounted docker.sock), curl (entrypoint's tool downloads), python3 (pipeline-metrics.py), nodejs
+#   (Vaadin frontend build), ca-certificates.
 # Env: ARG DAGU_VERSION (default 2.14.0, also re-exposed as ENV for the entrypoint script to read);
 #   ENV PATH (prepends /root/.ci-tools/bin), DAGU_HOME, DAGU_PORT, DAGU_AUTH_MODE (all fixed, not
 #   caller-overridable at build time).

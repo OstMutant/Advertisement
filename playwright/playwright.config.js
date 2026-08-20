@@ -1,3 +1,18 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Playwright test-runner config -- single worker, no parallelism (Vaadin + a shared
+ *   DB would race under concurrent tests), 60s per-test timeout, screenshot-on-failure, HTML
+ *   report. Copied alongside the spec files into pw-runner by run.sh, read from there, not from
+ *   this repo checkout directly.
+ * Usage: npx playwright test --config playwright.config.js (always via run.sh, never invoked
+ *   directly).
+ * Uses: @playwright/test.
+ * Env: APP_URL (default http://localhost:8081) -- forwarded explicitly by run.sh into the
+ *   pw-runner container's own env, not read from this repo checkout's shell.
+ * Input: None.
+ * Outputs: HTML report written to /tmp/pw-report inside the container; run.sh copies it out to
+ *   playwright/pw-report/.
+ * Returns: N/A -- this file has no exit code of its own, Playwright's own test run does.
+ * ──────────────────────────────────────────────────────────────────────────── */
 const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({

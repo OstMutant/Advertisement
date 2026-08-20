@@ -8,20 +8,11 @@ quality gate can block a local run without depending on an external service — 
 
 ## Flow
 
-Entry points:
-```bash
-bash scripts/sonar.sh [--no-gate]      # Linux/WSL
-scripts\sonar.bat [--no-gate]          # Windows
-```
-
-`sonar.sh`/`sonar.bat` are thin wrappers — the real logic lives in `run.sh`, which manages the
-SonarQube server container itself (recreating it on a stale image, wiping it if a version jump
-makes the embedded database unmigratable — see `DECISIONS.md`) before running the scanner:
+Entry point: `run.sh`.
 
 ```mermaid
 flowchart TD
-    A1[sonar.sh] --> B[run.sh]
-    A2[sonar.bat] --> B
+    B[run.sh]
     B --> F1[sonar-project.properties]
     F1 --> H{"module list drifted<br/>from pom.xml?"}
     H -->|yes| H1[auto-fix] --> C
@@ -36,8 +27,7 @@ flowchart TD
     G -->|no| Z["scanner runs -><br/>analysis uploaded + report generated"]
 ```
 
-Each file's own header (open the file, or this directory's Tooling & Pipelines card on
-`architecture-map.html`) has its own Description/Usage/Env/Input/Outputs/Returns — this file only
+Each file's own header has its own Description/Usage/Env/Input/Outputs/Returns — this file only
 shows how they chain together.
 
 ## Dependencies

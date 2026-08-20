@@ -1,13 +1,21 @@
 @echo off
-REM Run the application locally via Maven (no Docker image rebuild).
-REM Requires: DB and MinIO already running (start via scripts\infra\).
-REM
-REM Usage:
-REM   scripts\run-local.bat                                    -- dev profile, port 8080
-REM   scripts\run-local.bat --prod                             -- production Vaadin build, port 8080
-REM   scripts\run-local.bat --prod "C:\custom\jdk-25"          -- production, custom JAVA_HOME
-REM   scripts\run-local.bat "C:\custom\jdk-25"                 -- dev, custom JAVA_HOME
-REM Default JAVA_HOME: D:\Program Files\Java\jdk-25
+REM ---------------------------------------------------------------------------
+REM Description: Runs the application locally via Maven, no Docker image rebuild -- dev profile
+REM   (Vaadin dev mode) by default, or a production Vaadin build + prod profile with --prod.
+REM   Requires DB and MinIO already running separately.
+REM Usage: scripts\run-local.bat [--prod] [custom-JAVA_HOME-path]
+REM   --prod           production Vaadin build (mvnw clean package -DskipTests), prod Spring
+REM                     profile, port 8080 with hardcoded local DB/MinIO credentials
+REM   (no --prod)      dev profile, Vaadin dev mode, port 8080
+REM   <path>           override JAVA_HOME (default D:\Program Files\Java\jdk-25) for either mode
+REM Uses: cmd.exe, mvnw.cmd, java.
+REM Env: sets JAVA_HOME/PATH for the build itself; with --prod, also sets
+REM   SPRING_PROFILES_ACTIVE/DB_*/S3_* for the running app -- none read from the caller's shell.
+REM Input: repo source; marketplace-app\target\marketplace-app-*.jar (built by this same script
+REM   before running it).
+REM Outputs: running application on port 8080.
+REM Returns: 0 on success; non-zero if the Maven build fails.
+REM ---------------------------------------------------------------------------
 
 set ROOT=%~dp0..
 set PROD=0

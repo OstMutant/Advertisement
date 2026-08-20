@@ -5,5 +5,4 @@ other modules' files and cross-listed here via their own `**Also affects:**` tag
 Do not hand-edit this file — add `**Also affects:** provider-profile-spring-boot-starter` to the real ADR in its
 home file instead, then regenerate via `bash docs/architecture/scripts/generate-architecture-model.sh`.
 
-- [ADR-072 (marketplace-app)](../marketplace-app/DECISIONS.md) — `EntityType.PROVIDER_PROFILE` compiler-forced touches (F-04 Batch B)
-- [ADR-027 (platform-commons)](../platform-commons/DECISIONS.md) — `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter`
+- [ADR-027 (platform-commons)](../platform-commons/DECISIONS.md) — 

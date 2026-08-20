@@ -25,9 +25,9 @@
 #                    build -- HOST-WIDE, not scoped to this app, will remove any other stopped
 #                    container / unused volume on the machine. Opt-in only, never automatic -- see
 #                    docs/ai/adr-index.md for the incident that made this explicit.
-# Uses: bash, docker, docker compose, docker buildx (--from-scratch only),
-#   scripts/build-and-test.sh (unless --from-scratch), scripts/deploy-and-run/reset.sh
-#   (with --reset-only-db).
+# Uses: bash, docker, docker compose, docker buildx (--from-scratch only, via
+#   scripts/utils/ensure-docker-plugins.sh's ensure_buildx), scripts/build-and-test.sh (unless
+#   --from-scratch), scripts/deploy-and-run/reset.sh (with --reset-only-db).
 # Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), MINIO_CONTAINER
 #   (advertisement-minio), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
 #   (5432), MINIO_PORT (9000), MINIO_CONSOLE_PORT (9001), APP_PORT (8081), DB_VOLUME
@@ -243,7 +243,7 @@ fi
 if $FROM_SCRATCH; then
   echo ""
   echo "=== Step 2: Build image ==="
-  source "$ROOT/scripts/ensure-docker-plugins.sh"
+  source "$ROOT/scripts/utils/ensure-docker-plugins.sh"
   ensure_buildx
   docker rm -f "$APP_CONTAINER" 2>/dev/null || true
 

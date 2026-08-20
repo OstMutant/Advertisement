@@ -1,5 +1,24 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Flow helpers for the login/logout cycle -- opening the login form and filling
+ *   credentials, submitting login and asserting the post-login header/tabs match the user's role
+ *   and locale, canceling a logout confirmation, and completing a full logout.
+ * Usage: None -- a library only, required by spec files (see Input).
+ * Uses: ../_helpers (screenshot).
+ * Env: None.
+ * Input: required by 02-marketplace-authentication-flow.spec.js,
+ *   03-marketplace-promotion-flow.spec.js, 04-marketplace-advertisement-flow.spec.js,
+ *   06-marketplace-delete-flow.spec.js, 07-accessibility.spec.js, and _flows/signup.flow.js.
+ * Outputs: exports runFillLoginFormFlow, runSubmitLoginFlow, runCancelLogoutFlow, runLogoutFlow.
+ * Returns: N/A
+ * ──────────────────────────────────────────────────────────────────────────── */
 const { screenshot } = require('../_helpers');
 
+/**
+ * Opens the login form and fills in the given user's email and password.
+ * @param {import('@playwright/test').Page} page
+ * @param {{email: string, password: string}} user
+ * @returns {Promise<void>}
+ */
 async function runFillLoginFormFlow(page, user) {
   await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).first().click();
   await page.locator('[data-testid="login-email-label"]').waitFor({ timeout: 5000 });
@@ -13,6 +32,14 @@ const TAB_LABELS = {
   uk: { advertisements: 'Оголошення',     users: 'Користувачі' },
 };
 
+/**
+ * Submits the login form and asserts the post-login header/tabs match the user's role and locale.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {{role: string, locale: string}} user
+ * @param {string} [locale=user.locale] locale to resolve tab labels against.
+ * @returns {Promise<void>}
+ */
 async function runSubmitLoginFlow(page, expect, user, locale = user.locale) {
   await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).last().click();
   // login triggers a full page reload server-side, not an in-place push update
@@ -31,6 +58,12 @@ async function runSubmitLoginFlow(page, expect, user, locale = user.locale) {
   await screenshot(page, 'auth-submit-logged-in');
 }
 
+/**
+ * Opens the logout confirmation dialog and cancels it, asserting the user stays logged in.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @returns {Promise<void>}
+ */
 async function runCancelLogoutFlow(page, expect) {
   await page.locator('.header-logout-button').click();
   await page.locator('vaadin-confirm-dialog-overlay[opened]:not([opening])').waitFor({ state: 'attached', timeout: 8000 });
@@ -42,6 +75,12 @@ async function runCancelLogoutFlow(page, expect) {
   await screenshot(page, 'auth-logout-cancel-stays-logged-in');
 }
 
+/**
+ * Opens the logout confirmation dialog, confirms it, and asserts the user is logged out.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @returns {Promise<void>}
+ */
 async function runLogoutFlow(page, expect) {
   await page.locator('.header-logout-button').click();
   await page.locator('vaadin-confirm-dialog-overlay[opened]:not([opening])').waitFor({ state: 'attached', timeout: 8000 });

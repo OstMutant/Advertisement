@@ -11,11 +11,13 @@
 #   concurrently with another invocation of itself -- e.g. scripts/deploy-and-run/run.sh's own
 #   internal call, which must not collide with a caller-level direct build-and-test.sh invocation
 #   running at the same time (see scripts/DECISIONS.md).
-# Usage: bash scripts/build.sh [--reset-cache] [--rebuild-image] [--unit|--no-unit]
+# Usage: bash scripts/build-and-test/run.sh [--reset-cache] [--rebuild-image] [--unit|--no-unit]
 #   [--integration|--no-integration] [--unit-test <module-or-class>]
 #   [--integration-test <scenario-or-class>] [--sandbox] [--archunit-metrics] [--skip-vaadin]
 #   --reset-cache        wipe the shared maven-cache volume before building (re-downloads everything)
-#   --rebuild-image      force-rebuild the build-and-test image even if one already exists
+#   --rebuild-image      force-rebuild the build-and-test image even if one already exists -- the
+#                         image also auto-rebuilds without this flag whenever the Dockerfile's own
+#                         mtime is newer than the existing image's creation time
 #   --unit/--no-unit                 override build-and-test.properties' unit= default for this run
 #   --integration/--no-integration   override build-and-test.properties' integration= default for this run
 #   --unit-test <arg>                narrow RUN_UNIT to one module (query-lib/marketplace-app/
@@ -43,7 +45,10 @@
 #   flock below ever gets a chance to serialize anything). TESTCONTAINERS_RYUK_DISABLED /
 #   INTEGRATION_TESTS_POSTGRES_FIXED_PORT are passed through into the container if already set in
 #   the caller's own environment (sandbox-only Testcontainers workarounds, see scripts/CLAUDE.md)
-#   -- same effect as passing --sandbox.
+#   -- same effect as passing --sandbox. GITHUB_ACTIONS -- detected, never set by this script --
+#   if --sandbox or either sandbox env var above is present while GITHUB_ACTIONS is set, the script
+#   exits 1 immediately instead of running: those workarounds are sandbox-only and must never apply
+#   on a real CI runner.
 # Input: repo source; scripts/build-and-test/build-and-test.properties (unit=/integration= defaults).
 # Outputs: fresh jars for the whole reactor in the shared maven-cache Docker volume (never the
 #   host's own ~/.m2 -- see scripts/build-and-test/README.md); marketplace-app.jar refreshed at

@@ -1,3 +1,55 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Third spec in the e2e suite -- promotes moderatorUk/moderatorEn/adminUk to their
+ *   final roles, sets userUk/moderatorUk to Ukrainian locale, exercises a cross-actor user edit
+ *   (adminEn renames userEn, activity/restore/relogin verified), and fully covers Reference Data
+ *   category and city management: create, discard-in-create, discard-in-edit, edit with activity
+ *   diff (v1/v2 rows, all 4 locale fields shown even for a single-field change), restore from
+ *   activity, outer-breadcrumb navigation, and delete/restore with the deleted category rendered
+ *   struck-through in an advertisement's view overlay and activity diff. A trailing
+ *   `PW_FULL`-gated section signs up two 100-char-name boundary users and seeds 10 boundary
+ *   categories (one at the 255-char name maximum) for spec 04's category-selection boundary tests.
+ *   Per test -- role promotion:
+ *   - "adminEn promotes moderatorUk/moderatorEn to MODERATOR, adminUk to ADMIN -- activity shows
+ *     updated role, role badge in view and grid": login -> users tab -> edit user -> activity (v2
+ *     updated role + v1 created, unchanged items) -> VIEW (role badge) -> grid (role badge).
+ *   Per test -- UK locale setup:
+ *   - "userUk/moderatorUk -- first login in English, switches to Ukrainian locale": login (EN) ->
+ *     switch locale -> logout.
+ *   Per test -- cross-actor user edit:
+ *   - "adminEn edits userEn name -- activity diff, grid updated, restore reverts name": login ->
+ *     rename userEn -> grid (new name) -> activity (updated+editedName, restore btn) -> restore ->
+ *     activity (restore entry+originalName, >=2 rows) -> grid (originalName).
+ * Usage: run via the Playwright test runner -- bash /app/playwright/run.sh
+ *   03-marketplace-promotion-flow --ux, or as part of the full suite: bash /app/playwright/run.sh
+ *   e2e --ux. The trailing "Max-boundary users and categories" describe block only runs with
+ *   bash /app/playwright/run.sh e2e --full --ux (gated on process.env.PW_FULL).
+ * Uses: @playwright/test (test, expect) via ./_helpers.
+ * Env: PW_FULL -- when unset/falsy, the "Max-boundary users and categories" describe block is
+ *   skipped entirely (test.skip); when set, it runs the two 100-char-name signups and the
+ *   10-category seed.
+ * Input: ./_helpers (test, expect, screenshot, closeNotification, TEST_USERS),
+ *   ./_flows/auth.flow (runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow),
+ *   ./_flows/language-switch.flow (runSwitchToUkrainianLoggedInFlow),
+ *   ./_flows/user-management.flow (runNavigateToUsersTabFlow, runPromoteUserFlow,
+ *   runOpenUserEditViaListFlow, runOpenUserEditViaViewFlow, runFillUserRoleFlow,
+ *   runSaveUserEditFlow, clearUserFilter, closeUserOverlay, closeUserOverlayFromEdit,
+ *   runVerifyOuterLinkClosesToListFlow), ./_flows/timeline.flow (openTimelineTab, assertFeedHasRow,
+ *   assertTimelineHasRows), ./_flows/signup.flow (runSignUpFlow), ./_flows/seed.flow (loginBulk,
+ *   logoutBulk), ./_flows/delete.flow (runCreateSimpleAdvertisementFlow), ./_flows/advertisement.flow
+ *   (cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle,
+ *   closeOverlayToList), ./_flows/category.flow (selectCategoryInAdForm,
+ *   assertViewOverlayHasDeletedCategory, assertActivityDiffHasStruckThroughCategory),
+ *   ./_flows/entity-activity.flow (openEntityActivity, closeEntityActivity). Depends on spec 02
+ *   having already signed up all TEST_USERS accounts.
+ * Outputs: Playwright HTML report entries for each test. Leaves moderatorUk/moderatorEn/adminUk
+ *   promoted to their final roles, userUk/moderatorUk on Ukrainian locale, categories Electronics
+ *   (restored after a delete/restore cycle) and Vehicles plus cities Lviv and Kyiv in the
+ *   database, and one throwaway advertisement ("Electronics Strikethrough Test Ad") used only to
+ *   prove the struck-through-category rendering. With PW_FULL also leaves two boundary users
+ *   (maxEn/maxUk) and 10 boundary categories seeded for spec 04 to select from.
+ * Returns: Playwright's own pass/fail exit code convention -- 0 when every test in this file
+ *   passes, non-zero otherwise.
+ * ──────────────────────────────────────────────────────────────────────────── */
 const { test, expect, screenshot, closeNotification, TEST_USERS } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runSwitchToUkrainianLoggedInFlow } = require('./_flows/language-switch.flow');
@@ -480,8 +532,7 @@ test.describe('Promotion flow', () => {
         .filter({ has: page.locator('.taxon-row-name', { hasText: CAT1.nameEn }) })).toBeVisible({ timeout: 5000 });
       await screenshot(page, 'taxon-07-electronics-deleted');
 
-      // Advertisement view and activity diff must now render the deleted category struck through
-      // (improvement-008/101) instead of dropping it or showing a bare id.
+      // Advertisement view and activity diff must render the deleted category struck through, not dropped or shown as a bare id.
       await page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).click();
       const adOverlay = await openCardOverlay(page, cardByTitle(page, STRIKETHROUGH_AD_TITLE), 'taxon-07-strike-ad-view');
       await assertViewOverlayHasDeletedCategory(page, expect, adOverlay, CAT1.nameEn, 'taxon-07-strike-ad-view-chip-deleted');

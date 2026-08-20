@@ -1,8 +1,43 @@
+---
+name: infra-doc-standards
+description: Documentation standards for infrastructure/tooling files -- bash/batch scripts, docker-compose*.yml, .properties, YAML config, JavaScript, and Python files.
+allowed-tools: Read Edit Write Bash
+---
+
 # Infra Doc Standards
 
 Documentation standards for infrastructure/tooling files — bash/batch scripts, `docker-compose*.yml`,
 `.properties` — as distinct from `doc-standards` (which covers documentation about the Java/Vaadin
 application itself: `README.md`, `CLAUDE.md`, `DECISIONS.md`, `docs/architecture/*`, `docs/ai/*`).
+
+## ⛔ One fact, one canonical home — highest priority in this document
+
+Files are the highest-priority artifact. A file's own header must fully and precisely describe
+everything that file does — every flag, every conditional branch, every real side effect — lean
+and laconic but with no gap in coverage. Finish every file's header first; files are independent
+of each other, so this can happen in any order or in parallel. Do not open or reference the
+directory's `README.md` at all while doing this, not even to check for overlap.
+
+Only once every file in the directory has a complete header does `README.md` get written or
+touched. `README.md` may only ever contain information that is fundamentally about more than one
+file at once — the sequence/interaction between files, why a step is grouped or blocks another,
+what the whole chain produces end to end, a flow diagram of the real call chain, which
+script-groups/files actually source a shared one. What any single file does, on its own, is never
+README's job, at any level of brevity — not even a one-sentence gloss "for navigation." If a fact
+is already covered by a file's own header, it must never appear in `README.md` in any form — not
+restated, not reworded, not summarized. Before writing any README sentence, check: does an existing
+file header already say this, or could it be answered by reading one file alone? If yes, drop the
+sentence.
+
+A directory's `README.md` describes only that directory's own level: its own files and how they
+interact with each other. It never restates something a nested subdirectory's own `README.md`
+already covers (a subdirectory speaks for itself), and never restates the wider context a parent
+directory's own `README.md` provides.
+
+This is the single governing statement of the file-vs-README duplication rule in this document —
+every other section touching the same topic (finding placement, the `Flow` section's own scope,
+the root `scripts/README.md`'s entry-point descriptions) defers to this rule rather than restating
+it.
 
 ## Base standard
 
@@ -96,9 +131,10 @@ to guess where it ends from context (a blank line, the next line of code, or not
 A field's job isn't just "the mundane primary behavior" — if a script has a real, non-obvious
 operational side effect (auto-resets a server setting every run, self-heals a config drift,
 silently wipes something under a condition), that fact belongs in the relevant field's own text
-(usually `Outputs`, sometimes `Env`), with a pointer to say "see `docs/ai/adr-index.md`" for the
-full reasoning — not just buried there where a reader has to already know to look. The header is
-what someone sees first; `docs/ai/adr-index.md` is where they go if they want the *why*.
+(usually `Outputs`, sometimes `Env`) — not just buried in `DECISIONS.md`, where a reader has to
+already know to look. The header is what someone sees first; the adr-index pointer convention for
+the full reasoning is covered by "Header fields follow the same 'no real file as pointer'
+discipline" below.
 
 ## Explicit container/image names belong in the Description field
 
@@ -151,21 +187,18 @@ not a blow-by-blow of every flag's own conditional behavior (that's `Usage`'s jo
 what `Usage`/`Env` already say, and makes the one field meant to answer "what is this file, in
 short" hard to actually read at a glance.
 
+When a file's own real behavior is too complex to state precisely in one short paragraph,
+`Description` leads with a lean, one-sentence gist, then continues with the fuller detail in that
+same field — never split into a short version living in the file's header and a separate summary
+living in a README instead. A reader always gets the brief version from the same place as the full
+one: the file's own header.
+
 ## Where a real finding about a script or directory gets recorded
 
 A significant fact discovered while actually running or investigating a script (not obvious from
 reading the code alone — an environment quirk, a real risk, why something behaves the way it
 does) gets written into whichever file the finding is actually about, not left only in a chat
-transcript or a backlog issue:
-
-- **Concerns one script's own behavior** (its own side effect, a risk specific to running it, a
-  non-obvious fact about what it does) → that script's own header `Description` field (see
-  "Non-obvious operational side effects" above for the same rule applied to side effects
-  specifically).
-- **Concerns the sequence/interaction between two or more files in the directory** (what one file
-  does that affects another, environment facts that shape how the whole flow behaves) → the
-  directory's own `README.md`, in its `## Flow` section (or a new section, if the finding isn't
-  about sequence but about the directory's environment/tooling as a whole).
+transcript or a backlog issue — placement follows "One fact, one canonical home" above.
 
 A finding captured only in a backlog issue during investigation is a legitimate intermediate step
 (the issue is where it's confirmed and worded first) — but once confirmed, it belongs in the file
@@ -183,7 +216,7 @@ Google-style block, in addition to the file's own header:
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Idempotent check-and-install for Docker CLI plugins this sandbox doesn't ship by
 #   default (buildx, compose v2). Source this file, call the function you need.
-# Usage: source scripts/ensure-docker-plugins.sh; then call ensure_buildx / ensure_docker_compose.
+# Usage: source scripts/utils/ensure-docker-plugins.sh; then call ensure_buildx / ensure_docker_compose.
 # Uses: bash, curl.
 # Env: None.
 # Input: None.
@@ -205,14 +238,71 @@ ensure_buildx() {
 A purely internal/private function (never called from outside its own file) does not get one of
 these — a one-line comment is enough, per `.claude/rules.md`'s "one line or none" rule.
 
-## Windows (`.bat`) delegator files — `same as <file>` forwarding
+## File-type-specific header rules
+
+The base 7-field header shape (`Description`/`Usage`/`Uses`/`Env`/`Input`/`Outputs`/`Returns`)
+applies as-is to `.sh`/bash files, per everything above. Each file type below states only where
+and why it deviates from that base shape.
+
+### JavaScript files (`.js`)
+
+Grounded in JSDoc's `@fileoverview` convention from the
+[Google JavaScript Style Guide](https://google.github.io/styleguide/jsguide.html) — the same
+authority family as the Google Shell Style Guide this skill's bash convention is already grounded
+in, explicitly recommended whenever a file consists of more than a single class definition. A
+runnable/`require()`d JavaScript file is the same shape as a `.sh` file (real logic, not passive
+config) — same 7-field structured header, in a `/* ... */` block instead of `#`-prefixed lines (JS
+block comments span multiple lines natively, unlike YAML).
+
+```javascript
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: what this file does, one short paragraph.
+ * Usage: how it's invoked/required. "None" if it's a library only, never run directly.
+ * Uses: notable dependencies. "None" if none.
+ * Env: overridable environment variables, with defaults. "None" if it reads none.
+ * Input: what it reads (files, other modules' exports). "None" if none.
+ * Outputs: what it produces (side effects, exported values) -- no exit codes here.
+ * Returns: exit codes, if this file is a runnable entry point. "N/A" for a pure library module.
+ * ──────────────────────────────────────────────────────────────────────────── */
+```
+
+Per-function headers apply the same as `source`d bash library files (see "Per-function headers"
+above): a helper file `require()`d by 2+ other files gets its own header per exported function, not
+just the file-level block.
+
+### Python files (`.py`)
+
+Python's own [PEP 257](https://peps.python.org/pep-0257/) governs module/function/class
+docstrings (`"""triple-quoted"""`) — aimed at a different consumer (introspection, `help()`,
+generated API docs), not a script's own usage instructions. A `#`-prefixed header comment block
+at the top of the file, right after the shebang, is a separately documented, common convention
+for exactly the script-level purpose this skill's header serves — same shape as `.sh`, same
+7-field header.
+
+```python
+#!/usr/bin/env python3
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: what this file does, one short paragraph.
+# Usage: how it's invoked. "None" if it takes no arguments.
+# Uses: notable dependencies. "None" if none.
+# Env: overridable environment variables, with defaults. "None" if it reads none.
+# Input: what it reads. "None" if none.
+# Outputs: what it produces -- no exit codes here.
+# Returns: exit codes and what each one means.
+# ────────────────────────────────────────────────────────────────────────────
+```
+
+Per-function headers apply the same as `source`d bash library files (see "Per-function headers"
+above) for a Python module imported by other scripts rather than run directly.
+
+### Windows (`.bat`) delegator files — `same as <file>` forwarding
 
 Most `.bat` files in this repo are pure delegators to a sibling `.sh` (invoke it through WSL, add
 nothing of their own). For these, fields whose value is identical to the target `.sh`'s own header
 get a short `same as <file>` instead of restating the content — only fields with something genuinely
 `.bat`-specific (a narrower flag set, Windows-only usage tips) keep their own full text.
 
-### Example — `scripts/deploy-and-run.bat`
+#### Example — `scripts/deploy-and-run.bat`
 
 ```bat
 @echo off
@@ -234,7 +324,7 @@ REM Returns: same as scripts/deploy-and-run.sh (0 = success, non-zero = build/st
 REM ────────────────────────────────────────────────────────────────────────────
 ```
 
-### Trivial delegators (no unique content of their own)
+#### Trivial delegators (no unique content of their own)
 
 For a `.bat` that's just `@echo off` + one `wsl bash <sibling>.sh %*` line — every field is
 `same as <sibling>.sh` except `Description`/`Uses`:
@@ -250,7 +340,7 @@ REM Outputs: same as <sibling>.sh.
 REM Returns: same as <sibling>.sh.
 ```
 
-## Docker files (`Dockerfile`, `docker-compose*.yml`)
+### Docker files (`Dockerfile`, `docker-compose*.yml`)
 
 A Dockerfile isn't invoked directly with its own flags the way a script is — it's built via
 `docker build`, so two of the fields carry a different meaning. `Returns` is the one field whose
@@ -271,7 +361,7 @@ fact worth repeating on every Dockerfile's own header.
 whole file, and each `FROM ... AS <stage>` line gets a one-line comment stating that stage's role,
 per the general "one line or none" rule.
 
-### Example — `scripts/ci/Dockerfile`
+#### Example — `scripts/ci/Dockerfile`
 
 ```dockerfile
 # syntax=docker/dockerfile:1
@@ -291,7 +381,7 @@ per the general "one line or none" rule.
 FROM eclipse-temurin:25-jdk
 ```
 
-## `.properties` files
+### `.properties` files
 
 A `.properties` file is passive configuration, not something invoked — `Uses`/`Input`/`Outputs`/
 `Returns` are dropped entirely: their value never changes across any `.properties` file (`None`/
@@ -309,6 +399,30 @@ file's header carries.
 | `Input` | files/APIs it reads | this file *is* the input | Yes -- always `None`, field omitted |
 | `Outputs` | files written, side effects | static config, produces nothing on its own | Yes -- always `None`, field omitted |
 | `Returns` | exit codes | it's never executed | Yes -- always `N/A`, field omitted |
+
+### YAML files (excluding `docker-compose*.yml`, covered above)
+
+No formal field-structured standard exists for a passive YAML configuration file — but the general
+convention (standard practice in Kubernetes manifests and Ansible playbooks) is a top-of-file
+comment block stating purpose and context. YAML has no block-comment syntax — every header line
+needs its own `#`, the same mechanical shape as this skill's bash headers.
+
+Whether `Uses`/`Input`/`Outputs`/`Returns` apply depends on what the file actually is, not a fixed
+rule for every YAML file: a genuinely passive config file (read as data, never itself processed as
+a workflow) drops all four and follows the same three-field (`Description`/`Usage`/`Env`) shape and
+table as `.properties` above. A YAML file an engine actively processes as a workflow (produces real
+outputs, has its own success/failure outcome) keeps the full field set instead, following the
+script-header shape.
+
+#### Example — a passive profile config
+
+```yaml
+# Description: Dev-profile overrides -- localhost Postgres/MinIO, seed data enabled.
+# Usage: read automatically by the app on startup when the dev profile is active.
+# Env: None.
+spring:
+  ...
+```
 
 ## README — what the tool is, why we use it
 
@@ -419,13 +533,84 @@ letting one long line dictate the whole node's width — a diamond in particular
 node shape as its label gets longer, since the shape needs extra padding at its own corners to stay
 readable.
 
-## Applying this standard
+## The root `scripts/README.md` — a different shape from a script-group's own README
 
-When this skill is run against a directory or an individual infrastructure file, everything in
-scope is brought into full compliance with the standard described above — headers, `README.md`
+Every rule above (`README — what the tool is`, `README "Flow" section`) describes a single
+script-group's own `README.md` (e.g. a tool-wrapping directory's own file) — one directory, one
+real chain of files. The root `scripts/README.md` sits one level above all of them and has a
+different job: list every real entry point across the whole tree, not diagram any one chain.
+
+- **List every entry point**, whether it delegates into a subfolder of its own, a differently-named
+  directory elsewhere in the repo, an existing directory another entry point already owns, or is
+  genuinely self-contained with no delegation at all.
+- **Classify each entry point by reading its actual body**, never by naming convention or by
+  whether a same-named subfolder happens to exist — a real entry point can delegate into a
+  differently-named directory, which a naming-based check would silently miss.
+- **Description stays concise and abstract, never duplicating a file's own header `Description`
+  field** (see "One fact, one canonical home" above) — the architecture-map generator already
+  surfaces that field directly.
+- **If an entry point delegates**, state only where its real logic lives — no diagram at this
+  level; the diagram belongs to whichever level actually owns the branching logic.
+- **If an entry point is genuinely self-contained**, no diagram either — there's nothing to chain.
+- The same shape applies recursively wherever a directory nests further — never force a diagram
+  onto a level that doesn't own real branching.
+
+### Nested library/support folders — never a script-group, always get a minimal README
+
+A subdirectory whose own files are never entry points themselves — only `source`d/imported/called
+by other files, whether from just one script-group (e.g. `scripts/ci/dagu/`, workflow-definition
+content nested inside the `ci` group) or shared across several (e.g. `scripts/utils/`, sourced by
+`ci`/`deploy-and-run`/`sonar` alike) — is never itself a script-group in the sense the rest of this
+document uses, no matter how deep it nests. It still gets its own `README.md`, but a short one:
+context genuinely unique to this folder (e.g. the threshold rule for when something is extracted
+here at all) — never a list or table of the files themselves, which adds nothing beyond what's
+already visible from the directory listing itself (and already surfaced automatically by
+`docs/architecture/scripts/generate-architecture-model.sh`'s own file scan). Never a column or
+sentence describing what a file does or provides — that's the file's own header's job regardless of
+how brief the wording. "Who calls/sources this file" is a fact about the *caller*, not about the
+shared file — it belongs in each real caller's own `Uses`/`Input` field (e.g. every one of
+`scripts/utils/ensure-docker-plugins.sh`'s real callers states in its own header that it sources
+that file), never in the shared file's own header and never listed in this directory's README.
+Never a `## Flow` section, since there's no entry-point chain to diagram.
+
+## ⛔ Applying this standard — what "run the skill over a directory" means
+
+Running this skill against a directory means: go through every file in scope maximally precisely,
+updating or fully replacing that file's own header comment as needed so it stays accurate and
+complete — never just a light patch around the edges — then regenerate that directory's
+`README.md` from the now-finished file headers (a rewrite, not a piecemeal edit). File-then-README
+order and the no-duplication rule follow "One fact, one canonical home" above. Everything in scope
+is brought into full compliance with the standard described in this document — headers, `README.md`
 Flow section, everything — not a partial pass. There is no "is this file already compliant"
 tracking inside this skill itself; that's a per-run decision, made when the skill is actually
 invoked, not a state this document maintains.
+
+"In scope" means the invoked directory only — a run scoped to one directory (e.g. "run the skill
+over scripts/sonar/") fixes only files and README content inside that directory, never a stale
+reference, gap, or unrelated finding noticed in some other file while working, even one immediately
+adjacent (a parent's README, a sibling script-group). Report it instead of fixing it inline, the
+same way any other out-of-scope-but-valid finding gets surfaced per this project's standing review
+conventions — scope creep beyond the invoked directory is not "thoroughness," it's an unbounded
+task turning into a different, unapproved one.
+
+## After deleting a file, sweep the in-scope directory for remaining references to it
+
+Whenever a file is deleted as part of applying this skill to a directory, that same directory's
+own `README.md` and every other file's header still in scope get checked for a leftover reference
+to the deleted file (a Flow-diagram node, an entry-point mention, a `Uses`/`Input` pointer) before
+the pass is considered complete — a stale reference to a file that no longer exists is exactly the
+kind of drift this skill exists to prevent, and deleting the file itself is the one moment that
+reference is guaranteed to go stale.
+
+## ⛔ Aggregated cross-file facts get verified by search, never by memory of what was already read
+
+Any README content that aggregates a fact across many files (a reference table of containers,
+volumes, entry points, env vars -- anything collected "from everything in this directory/tree")
+must be verified complete by an actual search (grep or equivalent) across the real files at the
+moment of writing it -- never assembled from memory of files already read earlier in the same
+session. A file read once, then not re-checked, is exactly how a real container/volume/entry
+point gets silently dropped from an aggregate table. This applies regardless of how recently or
+how thoroughly those files were read.
 
 ## Independent review — verify docs actually cover the script's real capabilities
 

@@ -1,4 +1,18 @@
 @echo off
+REM ---------------------------------------------------------------------------
+REM Description: Collects every source file across the whole project (by extension --
+REM   .java/.css/.yml/.properties/.xml/.sql/.imports/.bat/.json/.js/.sh/.md/.html, plus fixed
+REM   root files and .claude/ rules/commands/skills) into a single all-code.txt, with a table of
+REM   contents and a per-extension summary -- useful for AI analysis.
+REM Usage: scripts\collect-code.bat
+REM Uses: cmd.exe (dir/findstr/type only, no external tools).
+REM Env: None.
+REM Input: repo source -- recursive scan excluding target/node_modules/.git/.idea/.claude/
+REM   generated/frontend/generated/etc (see the :FindFiles label's own exclusion list).
+REM Outputs: all-code.txt in the current directory; console summary (file counts per extension,
+REM   presence check for a fixed list of root files).
+REM Returns: 0 always.
+REM ---------------------------------------------------------------------------
 setlocal
 cd /d "%~dp0.."
 

@@ -1,3 +1,9 @@
+---
+name: doc-standards
+description: Checklist to consult before writing or editing any documentation file -- CLAUDE.md, README.md, docs/architecture/*.md, docs/ai/*.md, command/rule/skill files.
+allowed-tools: Read Edit Write
+---
+
 # Doc Standards
 
 A checklist to consult **before writing or editing any documentation file** — `CLAUDE.md`,

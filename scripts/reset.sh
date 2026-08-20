@@ -1,12 +1,13 @@
 #!/bin/bash
 # ── Header ──────────────────────────────────────────────────────────────────
-# Description: Thin entry point -- delegates to playwright/run.sh, where the real logic lives.
-# Usage: same as playwright/run.sh.
+# Description: Thin entry point -- delegates to scripts/deploy-and-run/reset.sh, where the real
+#   logic lives.
+# Usage: same as scripts/deploy-and-run/reset.sh.
 # Uses: bash.
-# Env: same as playwright/run.sh.
-# Input: same as playwright/run.sh.
-# Outputs: same as playwright/run.sh.
-# Returns: same as playwright/run.sh.
+# Env: same as scripts/deploy-and-run/reset.sh.
+# Input: same as scripts/deploy-and-run/reset.sh.
+# Outputs: same as scripts/deploy-and-run/reset.sh.
+# Returns: same as scripts/deploy-and-run/reset.sh.
 # ────────────────────────────────────────────────────────────────────────────
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-bash "$ROOT/playwright/run.sh" "$@"
+bash "$ROOT/scripts/deploy-and-run/reset.sh" "$@"

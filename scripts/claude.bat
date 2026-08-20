@@ -1,4 +1,22 @@
 @echo off
+REM ---------------------------------------------------------------------------
+REM Description: Starts a Docker container for the Claude Code dev environment -- mounts the
+REM   current directory, an isolated per-login auth config folder, the Maven cache, and the
+REM   Docker socket, then runs the claude-j25-dev image with --network host. Removes and recreates
+REM   the claude-dev container on every run.
+REM Usage: scripts\claude.bat your.email@gmail.com [--update] [claude args...]
+REM   your.email@gmail.com   required -- derives an isolated per-login auth config folder
+REM   --update                rebuild the claude-j25-dev image from Dockerfile.ai before starting
+REM   [claude args...]        forwarded to the claude-dev container's own entrypoint
+REM Uses: docker.
+REM Env: USERPROFILE (Windows) -- used to derive the isolated per-login config folder path, not
+REM   set by this script itself.
+REM Input: Dockerfile.ai (only with --update).
+REM Outputs: running claude-dev container; with --update, rebuilds the claude-j25-dev image;
+REM   creates %USERPROFILE%\.claude-config-<login> if missing.
+REM Returns: 0 on success; non-zero if no login argument was given, or --update's Docker build
+REM   fails.
+REM ---------------------------------------------------------------------------
 setlocal
 cd /d "%~dp0.."
 
@@ -10,7 +28,7 @@ if "%LOGIN%"=="" (
     exit /b 1
 )
 
-:: Parse remaining args — strip --update, pass everything else through
+:: Parse remaining args -- strip --update, pass everything else through
 set DO_UPDATE=0
 set EXTRA_ARGS=
 shift

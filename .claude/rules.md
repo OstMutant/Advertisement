@@ -184,6 +184,12 @@ Before doing anything, present the plan in two layers, in this order:
 
 Present both layers, then **STOP and wait for explicit confirmation** before executing.
 
+Approval must be obtained by literally asking a direct question and receiving a direct answer to
+it — never inferred from the tone, detail, or instructiveness of the user's messages. A message
+that confirms understanding, clarifies scope, or explains *why* something is wanted is not itself
+approval to execute, no matter how specific or directive it reads. If the plan was never followed
+by an actual question and an actual "yes" to that question, treat approval as not granted.
+
 Example format:
 > Plain-language: "The activity tab shows the wrong reviewer, so admins can't tell who actually
 > approved a change. Fixing it so the correct reviewer's name always shows."
@@ -195,8 +201,9 @@ Wait for explicit confirmation before making any change.
 
 Before presenting a plan for a multi-step change, first write the complete, current plan into the
 relevant `backlog/issues/<n>.md` file — never present a plan only in chat. Update the issue file
-again every time the plan changes (new finding, scope correction), then present a short summary
-from that file for approval — never re-paraphrase the whole issue back at length.
+again every time the plan changes (new finding, scope correction) or a plan item is actually
+implemented (mark that item done in place, with date), then present a short summary from that file
+for approval — never re-paraphrase the whole issue back at length.
 
 ## Module Import Rules
 
@@ -246,6 +253,17 @@ Dockerfile, `.properties`, fixtures, multiple scenarios) and gets its own subdir
 with no logic of its own. A script that stays self-contained, with no subdirectory of its own,
 carries its full logic directly in the top-level `scripts/<name>.sh` file — no artificial
 subdirectory split for something that doesn't need one.
+
+A script-group's own subdirectory may itself contain further nested subdirectories that group
+related supporting/config/library content logically — not a new entry point, e.g. `scripts/ci/dagu/`'s
+own workflow-definition folder, or `playwright/e2e/_flows/`'s shared helper files reused by
+multiple spec files. Nested content like this stays purely organizational: only the script-group's
+own top-level entry point (`scripts/<name>.sh`/`run.sh`, or `playwright/run.sh` for `playwright/`)
+is a real entry point — a nested subfolder never gets its own root-level thin delegator.
+
+A shared library sourced by multiple different script-groups, owned by none of them individually,
+gets its own dedicated folder (e.g. `scripts/utils/`) — distinct from a script-group's own
+subdirectory, which belongs to that one group alone.
 
 **Run all scripts backgrounded, watched by Monitor — never a bare `tail -f`:**
 1. Start the target command with `run_in_background: true`, output redirected to a real log file,

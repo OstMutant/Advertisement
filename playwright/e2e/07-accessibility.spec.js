@@ -1,3 +1,19 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Accessibility smoke check -- as adminEn, walks the Advertisements, Users,
+ *   Timeline and Reference Data tabs and asserts no icon-only button (vaadin-button or plain
+ *   button with no visible text) is missing an aria-label. Searches recursively through shadow
+ *   roots via a page.evaluate() DOM walk, since Vaadin components render their real buttons
+ *   inside shadow DOM.
+ * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 07-accessibility
+ *   --ux`, or as part of the full e2e suite (`bash /app/playwright/run.sh e2e --ux`).
+ * Uses: @playwright/test.
+ * Env: None.
+ * Input: ./_helpers (test, expect, screenshot, TEST_USERS), ./_flows/auth.flow.
+ * Outputs: Playwright HTML report entries (one per test), PNG screenshots attached to the report
+ *   when PW_SCREENSHOTS is set. No persistent data is created or modified in the app.
+ * Returns: exit code from the Playwright test runner -- 0 when every test in this file passes,
+ *   non-zero otherwise.
+ * ──────────────────────────────────────────────────────────────────────────── */
 const { test, expect, screenshot, TEST_USERS } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 

@@ -1,5 +1,29 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Flow helpers for the Category reference-data domain -- switching to the
+ *   Reference Data / Categories tab, creating a category through its overlay form, selecting a
+ *   category in the advertisement form's shadow-DOM combo box, and asserting category
+ *   names/chips (including deleted/struck-through state) appear on a card, view overlay, or
+ *   activity diff.
+ * Usage: None -- a library only, required by spec files (see Input).
+ * Uses: ../_helpers (screenshot).
+ * Env: None.
+ * Input: required by 03-marketplace-promotion-flow.spec.js (selectCategoryInAdForm,
+ *   assertViewOverlayHasDeletedCategory, assertActivityDiffHasStruckThroughCategory),
+ *   04-marketplace-advertisement-flow.spec.js (assertViewOverlayHasCategories),
+ *   05-seed-filter-sort-pagination.spec.js (runCreateCategoryFlow); also required internally by
+ *   advertisement.flow.js, city.flow.js, delete.flow.js, and seed.flow.js.
+ * Outputs: exports openReferenceDataTab, runCreateCategoryFlow, selectCategoryInAdForm,
+ *   assertCardHasCategories, assertViewOverlayHasCategories, assertViewOverlayHasDeletedCategory,
+ *   assertActivityDiffHasStruckThroughCategory.
+ * Returns: N/A
+ * ──────────────────────────────────────────────────────────────────────────── */
 const { screenshot } = require('../_helpers');
 
+/**
+ * Navigates to the Reference Data tab, then (re-)selects the Categories sub-tab.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<void>}
+ */
 async function openReferenceDataTab(page) {
   await page.locator('.main-tabs vaadin-tab').filter({ hasText: /Reference Data|Довідникові дані/i }).click();
   // Sub-tabs retain their last selection across visibility toggles — reselect Categories explicitly.
@@ -7,6 +31,19 @@ async function openReferenceDataTab(page) {
   await page.locator('.taxon-management-view').waitFor({ timeout: 5000 });
 }
 
+/**
+ * Creates a category with EN/UK name and description through the taxon overlay form, then
+ * verifies it appears in the category management list.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {object} params
+ * @param {string} params.nameEn
+ * @param {string} params.descriptionEn
+ * @param {string} params.nameUk
+ * @param {string} params.descriptionUk
+ * @param {string} [params.screenshotPrefix] when set, screenshots are taken before/after save.
+ * @returns {Promise<void>}
+ */
 async function runCreateCategoryFlow(page, expect, { nameEn, descriptionEn, nameUk, descriptionUk, screenshotPrefix }) {
   await openReferenceDataTab(page);
   await page.locator('.taxon-add-button').click();
@@ -45,6 +82,14 @@ async function waitForVaadinIdle(page) {
   }, { timeout: 8000 });
 }
 
+/**
+ * Selects a category in the advertisement form's multi-select combo box, piercing shadow DOM and
+ * scrolling the virtual list as needed to find the item by its exact label.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Locator} overlay the advertisement overlay.
+ * @param {string} categoryName exact category label to select.
+ * @returns {Promise<void>}
+ */
 async function selectCategoryInAdForm(page, overlay, categoryName) {
   const comboBox = overlay.locator('[data-testid="advertisement-overlay-field-categories"]');
   // Click input to open the dropdown — blurs title/description so Vaadin syncs their values
@@ -148,53 +193,15 @@ async function selectCategoryInAdForm(page, overlay, categoryName) {
   await waitForVaadinIdle(page);
 }
 
-async function deselectCategoryInAdForm(page, overlay, categoryName) {
-  const comboBox = overlay.locator('[data-testid="advertisement-overlay-field-categories"]');
-  await comboBox.locator('input').click();
-  await waitForVaadinIdle(page);
-  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'visible', timeout: 5000 });
-  const result = await page.evaluate((name) => {
-    function shadowFind(root, selector) {
-      const el = root.querySelector(selector);
-      if (el) return el;
-      for (const child of root.querySelectorAll('*')) {
-        if (child.shadowRoot) {
-          const found = shadowFind(child.shadowRoot, selector);
-          if (found) return found;
-        }
-      }
-      return null;
-    }
-    function findItem(root, label) {
-      if (!root) return null;
-      for (const tag of ['vaadin-multi-select-combo-box-item', 'vaadin-combo-box-item']) {
-        for (const el of root.querySelectorAll(tag)) {
-          if (el.label === label) return el;
-        }
-      }
-      for (const child of root.querySelectorAll('*')) {
-        if (child.shadowRoot) {
-          const found = findItem(child.shadowRoot, label);
-          if (found) return found;
-        }
-      }
-      return null;
-    }
-    const overlayEl = shadowFind(document, 'vaadin-multi-select-combo-box-overlay');
-    if (!overlayEl) return { found: false, debug: 'overlay not found' };
-    const item = findItem(overlayEl.shadowRoot, name) || findItem(overlayEl, name);
-    if (!item) return { found: false, debug: 'item not found' };
-    item.click();
-    return { found: true };
-  }, categoryName);
-
-  if (!result.found) throw new Error(`Category "${categoryName}" not found in overlay`);
-  await waitForVaadinIdle(page);
-  await page.keyboard.press('Escape');
-  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'hidden', timeout: 5000 });
-  await waitForVaadinIdle(page);
-}
-
+/**
+ * Asserts an advertisement card's categories line contains every expected category name.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {import('@playwright/test').Locator} card
+ * @param {string[]} categoryNames
+ * @param {string} [screenshotName] when set, takes a screenshot after the assertion passes.
+ * @returns {Promise<void>}
+ */
 async function assertCardHasCategories(page, expect, card, categoryNames, screenshotName) {
   const line = card.locator('.advertisement-categories');
   await expect(line).toBeVisible({ timeout: 5000 });
@@ -204,6 +211,15 @@ async function assertCardHasCategories(page, expect, card, categoryNames, screen
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
+/**
+ * Asserts the advertisement view overlay shows exactly the expected set of category chips.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {import('@playwright/test').Locator} overlay
+ * @param {string[]} categoryNames
+ * @param {string} [screenshotName] when set, takes a screenshot after the assertion passes.
+ * @returns {Promise<void>}
+ */
 async function assertViewOverlayHasCategories(page, expect, overlay, categoryNames, screenshotName) {
   const chips = overlay.locator('.advertisement-category-chip');
   await expect(chips).toHaveCount(categoryNames.length, { timeout: 5000 });
@@ -213,26 +229,16 @@ async function assertViewOverlayHasCategories(page, expect, overlay, categoryNam
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
-async function runDeleteCategoryFlow(page, expect, nameEn) {
-  await openReferenceDataTab(page);
-  const activeRow = page.locator('.taxon-row-wrapper')
-    .filter({ has: page.locator('.taxon-row-name', { hasText: nameEn }) })
-    .filter({ hasNot: page.locator('.taxon-deleted-badge:visible') });
-  await activeRow.locator('vaadin-button')
-    .filter({ has: page.locator('vaadin-icon[icon="vaadin:trash"]') })
-    .click();
-  await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
-  await page.evaluate(() => {
-    const dialog = document.querySelector('vaadin-dialog[opened]');
-    [...dialog.querySelectorAll('vaadin-button')]
-      .find(b => /^delete$|^видалити$/i.test(b.textContent?.trim()))
-      ?.click();
-  });
-  await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
-  await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
-  await page.locator('vaadin-notification-card vaadin-button').click();
-}
-
+/**
+ * Asserts the advertisement view overlay's category chip for a soft-deleted category is visible
+ * and carries the deleted (struck-through) styling class.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {import('@playwright/test').Locator} overlay
+ * @param {string} categoryName
+ * @param {string} [screenshotName] when set, takes a screenshot after the assertion passes.
+ * @returns {Promise<void>}
+ */
 async function assertViewOverlayHasDeletedCategory(page, expect, overlay, categoryName, screenshotName) {
   const chip = overlay.locator('.advertisement-category-chip', { hasText: categoryName });
   await expect(chip).toBeVisible({ timeout: 5000 });
@@ -240,6 +246,16 @@ async function assertViewOverlayHasDeletedCategory(page, expect, overlay, catego
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
+/**
+ * Asserts an activity diff's changes element shows the category name inside a struck-through
+ * (`<s>`) element.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {import('@playwright/test').Locator} changes the `.entity-activity-changes` locator.
+ * @param {string} categoryName
+ * @param {string} [screenshotName] when set, takes a screenshot after the assertion passes.
+ * @returns {Promise<void>}
+ */
 async function assertActivityDiffHasStruckThroughCategory(page, expect, changes, categoryName, screenshotName) {
   await expect(changes.locator('s', { hasText: categoryName })).toBeVisible({ timeout: 5000 });
   if (screenshotName) await screenshot(page, screenshotName);
@@ -249,10 +265,8 @@ module.exports = {
   openReferenceDataTab,
   runCreateCategoryFlow,
   selectCategoryInAdForm,
-  deselectCategoryInAdForm,
   assertCardHasCategories,
   assertViewOverlayHasCategories,
-  runDeleteCategoryFlow,
   assertViewOverlayHasDeletedCategory,
   assertActivityDiffHasStruckThroughCategory,
 };

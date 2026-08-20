@@ -9,25 +9,16 @@ run.
 
 ## Flow
 
-Two entry points, same underlying flow — an OS-specific pair converging into the same shared
-logic:
-
-```bash
-bash scripts/build-and-test.sh          # Linux/WSL
-scripts\build-and-test.bat              # Windows
-```
+Entry point: `run.sh`.
 
 ```mermaid
 flowchart TD
-    A1[build-and-test.sh] --> R[run.sh]
-    A2[build-and-test.bat] --> R
+    R[run.sh]
     R --> B{"reset-cache?"}
     B -->|yes| B1["rm maven-cache<br/>volume"] --> C
-    B -->|no| C{"image missing or<br/>--rebuild-image?"}
+    B -->|no| C{"image missing or<br/>--rebuild-image or<br/>Dockerfile newer?"}
     C -->|yes| C1[docker build] --> E
-    C -->|no| D{"Dockerfile newer<br/>than image?"}
-    D -->|yes| C1
-    D -->|no| E[tar-pipe source in]
+    C -->|no| E[tar-pipe source in]
     E --> F["build.sh<br/>(inside container)"]
     F --> G["mvn install<br/>whole reactor (via flock)"]
     G --> H["refresh marketplace-app.jar<br/>in shared volume"]
@@ -43,19 +34,12 @@ flowchart TD
     K --> Z[done]
 ```
 
-`I`+`I2` (unit tests, then the ArchUnit metrics export) run as one sequential group, backgrounded
-together against `J` (integration tests), not fully three-way parallel — once the reactor install
-finishes, both sides only *read* the shared `~/.m2`, but unit tests and the ArchUnit export both
-touch `marketplace-app`'s own `target/`, so they stay sequential against each other and only the
-group as a whole runs concurrently with integration tests (a disjoint `target/` dir).
-
-`RUN_UNIT`/`RUN_INTEGRATION` are both **on** by default (`build-and-test.properties`);
-`ARCHUNIT_METRICS` is **off** by default (CLI flag only, not in `.properties`) — the export takes
-several minutes even on a warm build, disproportionate to run on every call. `run.sh` sets these
-from flags/`.properties` defaults before invoking the container. The build step always builds the
-whole reactor and always refreshes `marketplace-app.jar` in the shared volume regardless —
-Maven's own incremental compilation makes a no-op rebuild cheap, so there's no separate
-"build-only" vs "full" mode to keep in sync.
+`run.sh` reads `build-and-test.properties`' own values as the baseline for whether unit/integration
+tests run, then a CLI flag overrides that baseline for one invocation only — see `run.sh`'s and
+`build-and-test.properties`' own headers for the actual defaults and flag names. The build step
+always builds the whole reactor and always refreshes `marketplace-app.jar` in the shared volume
+regardless of which tests run — Maven's own incremental compilation makes a no-op rebuild cheap, so
+there's no separate "build-only" vs "full" mode to keep in sync.
 
 ## Environment notes
 
@@ -68,12 +52,3 @@ lock is visible to every container instance that mounts it, not just one. `marke
 itself lives at a fixed path inside the same volume (`/root/.m2/artifacts/marketplace-app.jar`),
 outside Maven's own `.m2/repository` tree — the volume doubles as the shared artifact store, no
 second volume needed.
-
-`run.sh` runs under a fixed container name by default so a run in progress can be attached to
-directly, without first looking it up: `advertisement-build-only` (`docker exec -it
-advertisement-build-only bash`). Override via `BUILD_CONTAINER_NAME` when a caller needs to invoke
-this script concurrently with another invocation of itself — Docker container names must be
-unique, so two concurrent runs under the same name fail outright with a name conflict, independent
-of and before the shared-volume `flock` above ever gets a chance to serialize anything (e.g.
-`scripts/deploy-and-run/run.sh`'s own internal call uses `advertisement-build-only-deploy` for
-exactly this reason).

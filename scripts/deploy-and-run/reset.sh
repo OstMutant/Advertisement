@@ -9,7 +9,8 @@
 # Usage: bash scripts/deploy-and-run/reset.sh [--container <name>]
 #   --container <name>   DB container to exec into (default: $DB_CONTAINER env var, or the first
 #                         container publishing port 5432 if neither is set)
-# Uses: bash, docker, docker compose (only if no DB container exists at all).
+# Uses: bash, docker, docker compose (only if no DB container exists at all, via
+#   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose).
 # Env: DB_CONTAINER (no default -- see Usage above), DB_NAME (experiments), DB_USER
 #   (experiments_user) -- all may be exported directly by a caller, falling back to the repo-root
 #   .env, then a hardcoded default.
@@ -58,7 +59,7 @@ if [ -n "$CONTAINER" ] && docker container inspect "$CONTAINER" >/dev/null 2>&1;
   fi
 else
   echo "No DB container found — starting via docker compose..."
-  source "$ROOT/scripts/ensure-docker-plugins.sh"
+  source "$ROOT/scripts/utils/ensure-docker-plugins.sh"
   ensure_docker_compose
   docker compose --project-directory "$ROOT" -f "$ROOT/scripts/deploy-and-run/docker-compose.db.yml" up -d
   CONTAINER=$(docker ps --filter "publish=5432" --format "{{.Names}}" | head -1)

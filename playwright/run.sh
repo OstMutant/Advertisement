@@ -1,11 +1,33 @@
 #!/bin/bash
-# Usage:
-#   ./playwright/run.sh                        — run all e2e spec files
-#   ./playwright/run.sh e2e                    — run all e2e specs (clean DB, skips spec 05 seed)
-#   ./playwright/run.sh e2e --full             — run e2e specs including spec 05 seed
-#   ./playwright/run.sh 01-marketplace-empty-flow  — run a single spec file by name
-#   ./playwright/run.sh --ux                   — all tests with screenshots
-#   ./playwright/run.sh e2e --grep "my test"   — run only tests matching name
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: Runs Playwright tests inside the reused `pw-runner` Docker container -- ensures
+#   marketplace-app is running (starts it and waits if stopped), resets/reseeds the DB only when it
+#   actually has data (stops the app around the reset, restarts it after), syncs spec/flow/helper
+#   files and playwright.config.js into the container via `docker cp` (volume mounts don't work when
+#   the caller is itself a container), runs the tests, then copies the HTML report back out.
+#   Reuses `pw-runner` across calls -- the `playwright`/`@playwright/test` npm packages are only
+#   installed once (skipped on later runs if already present), and the pinned npm package version
+#   must match the container's own pre-baked Playwright browser version (both hardcoded here as
+#   PLAYWRIGHT_VERSION -- bump both together, never independently).
+# Usage: bash playwright/run.sh [scenario] [--ux] [--full] [--grep <pattern>]
+#   (no scenario)         run every *.spec.js file
+#   e2e                   run all e2e specs (skips spec 05's seed by default)
+#   e2e --full            run e2e specs including spec 05's seed
+#   <spec-name>           run a single spec file by name (with or without .spec.js)
+#   --ux                  also take screenshots (embedded in the HTML report)
+#   --grep <pattern>      forwarded to Playwright's own --grep, run only matching tests
+# Uses: bash, docker, curl, npx playwright (inside pw-runner), scripts/deploy-and-run/reset.sh (DB
+#   reset, only when the DB actually has data).
+# Env: APP_URL (default http://localhost:8081), APP_CONTAINER (marketplace-app), PW_CONTAINER
+#   (pw-runner), DB_PORT (5432), DB_USER (experiments_user), DB_NAME (experiments) -- all
+#   overridable, used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack.
+# Input: playwright/e2e/*.spec.js, playwright/e2e/_flows/*.js, playwright/e2e/_helpers.js,
+#   playwright/playwright.config.js.
+# Outputs: HTML report at playwright/pw-report/index.html. Restarts marketplace-app if the DB
+#   needed a reset.
+# Returns: 0 if the Playwright run passes; non-zero if the app container isn't found/doesn't start,
+#   the DB reset fails, or any test fails.
+# ────────────────────────────────────────────────────────────────────────────
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 UX=""

@@ -1,3 +1,30 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Delete-flow e2e coverage for both entity types the UI exposes a delete action for
+ *   -- an advertisement card's delete button (userEn creates then deletes its own ad, cancel
+ *   keeps the card, confirm removes it and shrinks the list) and the user grid's delete action
+ *   (adminEn deletes moderatorUk, cancel keeps the row, confirm removes it, and the deleted user
+ *   stays absent after clearing the grid filter). moderatorUk is used as the delete target
+ *   specifically because it owns no advertisements -- userUk/userEn cannot be deleted due to the
+ *   FK constraint from advertisement.created_by.
+ *   Per test:
+ *   - "userEn deletes advertisement -- cancel keeps card, confirm removes card and shrinks list":
+ *     create ad -> cancel delete -> card still visible -> confirm delete -> card gone -> list
+ *     shrinks.
+ *   - "adminEn deletes user -- cancel keeps row, confirm removes row and shrinks grid": cancel
+ *     delete -> row still visible -> confirm delete -> row gone -> filter clear -> absent in full
+ *     list.
+ * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 06-marketplace-
+ *   delete-flow --ux`, or as part of the full e2e suite (`bash /app/playwright/run.sh e2e --ux`).
+ * Uses: @playwright/test.
+ * Env: None.
+ * Input: ./_helpers (test, expect, screenshot, TEST_USERS), ./_flows/auth.flow,
+ *   ./_flows/user-management.flow, ./_flows/delete.flow.
+ * Outputs: Playwright HTML report entries (one per test/test.step), PNG screenshots attached to
+ *   the report when PW_SCREENSHOTS is set. Creates one advertisement and deletes it within the
+ *   same test; deletes the moderatorUk user row from the app database.
+ * Returns: exit code from the Playwright test runner -- 0 when every test in this file passes,
+ *   non-zero otherwise.
+ * ──────────────────────────────────────────────────────────────────────────── */
 const { test, expect, screenshot, TEST_USERS } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runNavigateToUsersTabFlow, runFilterUserByEmailFlow, clearUserFilter } = require('./_flows/user-management.flow');

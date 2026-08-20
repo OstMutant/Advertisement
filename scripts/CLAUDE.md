@@ -33,7 +33,7 @@ BuildKit is active.
 container exists yet) and `scripts/sonar/run.sh` (starting the SonarQube stack). Not present by
 default in this sandbox.
 
-**Both plugins are installed automatically, not manually — `scripts/ensure-docker-plugins.sh`.**
+**Both plugins are installed automatically, not manually — `scripts/utils/ensure-docker-plugins.sh`.**
 `deploy-and-run.sh` (`ensure_buildx`, before its build step), `scripts/deploy-and-run/reset.sh` and
 `scripts/sonar/run.sh` (`ensure_docker_compose`, before their respective `docker compose` calls)
 all source this shared script and call the relevant function; each function checks `docker buildx
@@ -42,7 +42,7 @@ on a normal developer machine where these already ship with Docker Desktop. Manu
 to pre-warm a fresh sandbox, or troubleshoot outside any script) is still possible by running the
 file directly — it installs both when not sourced:
 ```bash
-bash scripts/ensure-docker-plugins.sh
+bash scripts/utils/ensure-docker-plugins.sh
 ```
 Or individually, mirroring what each function does:
 ```bash

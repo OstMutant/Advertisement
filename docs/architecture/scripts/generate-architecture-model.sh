@@ -78,35 +78,46 @@ FULL_DECISIONS_MODULES=(attachment-spring-boot-starter audit-spring-boot-starter
 # ── Non-Maven tooling directories -- get a SCRIPT_GROUP node (same ADR-embedding/popup mechanism
 # as MODULE nodes) so their files/decisions are visible on the Tooling & Pipelines screen, not
 # invisible outside the interactive tool. "category" is the group heading each dir's card renders
-# under -- one heading per dir (AI Tooling / Build architecture page / Playwright / Sonar / CI /
-# Other Scripts), not a two-bucket ai/scripts split. Not every SCRIPT_GROUP dir has its own
-# DECISIONS.md -- docs/ai/scripts's own history moved to docs/architecture/scripts/DECISIONS.md wholesale
-# (see docs/architecture/scripts/DECISIONS.md ADR-021), so docs/ai/scripts now gets a files-only node, no
-# ADR/decisions section (decisions_json_for/adr_intent_for_module both degrade to empty for a
-# module with no DECISIONS.md, not a special case here).
+# under. Not every SCRIPT_GROUP dir has its own DECISIONS.md -- docs/ai/scripts's own history moved
+# to docs/architecture/scripts/DECISIONS.md wholesale (see docs/architecture/scripts/DECISIONS.md
+# ADR-021), so docs/ai/scripts now gets a files-only node, no ADR/decisions section
+# (decisions_json_for/adr_intent_for_module both degrade to empty for a module with no
+# DECISIONS.md, not a special case here). Only docs/ai/scripts and docs/architecture/scripts stay
+# single-level flat cards here -- scripts and playwright are each the root of their own
+# arbitrary-depth SCRIPT_GROUP tree instead (SCRIPT_TREE_ROOTS below), so they're deliberately not
+# listed in SCRIPT_GROUP_DIRS/SCRIPT_GROUP_CATEGORY.
 declare -A SCRIPT_GROUP_CATEGORY=(
   [docs/ai/scripts]="AI Tooling"
   [docs/architecture/scripts]="Build architecture page"
-  [scripts]="Other Scripts"
-  [scripts/ci]="CI"
-  [scripts/sonar]="Sonar"
-  [scripts/build-and-test]="Build and Test"
-  [scripts/deploy-and-run]="Deploy and Run"
-  [scripts/run-all-tests]="Run All Tests"
-  [playwright]="Playwright"
 )
-SCRIPT_GROUP_DIRS=(docs/ai/scripts docs/architecture/scripts scripts scripts/ci scripts/sonar scripts/build-and-test scripts/deploy-and-run scripts/run-all-tests playwright)
+SCRIPT_GROUP_DIRS=(docs/ai/scripts docs/architecture/scripts)
+
+# Top-level roots of the unified, arbitrary-depth "Scripts" drill-down tree (see
+# emit_script_tree_node() below) -- playwright/ is a physically separate top-level directory, not
+# nested under scripts/, but is treated as one child card of the root "Scripts" card on the
+# Tooling & Pipelines screen (docs/architecture/scripts/DECISIONS.md).
+SCRIPT_TREE_ROOTS=(scripts playwright)
+
+# Directories that never become their own card/tree node even though they sit inside a
+# SCRIPT_TREE_ROOTS subtree -- generated/report output, never source.
+SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report node_modules)
 
 # Explicit "what matters first" ordering per directory -- entry points and generators before the
 # CI gates that verify their output, dev-only tooling last. Falls back to alphabetical (find |
-# sort) for any directory not listed here.
+# sort) for any directory not listed here. Applies uniformly to SCRIPT_GROUP_DIRS's flat dirs and
+# to every level of the SCRIPT_TREE_ROOTS tree (looked up by the node's own directory path).
 declare -A SCRIPT_GROUP_FILE_ORDER=(
   [docs/ai/scripts]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh"
   [docs/architecture/scripts]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh"
+  [scripts]="architecture-doc.sh build-and-test.sh deploy-and-run.sh ci.sh run-all-tests.sh playwright.sh sonar.sh reset.sh run-local.bat architecture-doc.bat build-and-test.bat deploy-and-run.bat ci.bat run-all-tests.bat playwright.bat sonar.bat claude.bat clean.bat collect-code.bat"
   [scripts/sonar]="run.sh run.bat docker-compose.sonar.yml sonar-project.properties"
   [scripts/build-and-test]="run.sh build.sh build-and-test.properties Dockerfile"
   [scripts/deploy-and-run]="run.sh reset.sh Dockerfile docker-compose.db.yml docker-compose.minio.yml docker-compose.app.yml"
   [scripts/run-all-tests]="run.sh"
+  [scripts/ci]="run.sh Dockerfile docker-entrypoint.sh watch-run.py"
+  [scripts/ci/dagu]="ci.yaml pipeline-metrics.py"
+  [playwright/e2e]="_helpers.js 01-marketplace-empty-flow.spec.js 02-marketplace-authentication-flow.spec.js 03-marketplace-promotion-flow.spec.js 04-marketplace-advertisement-flow.spec.js 05-seed-filter-sort-pagination.spec.js 06-marketplace-delete-flow.spec.js 07-accessibility.spec.js"
+  [playwright/e2e/_flows]="auth.flow.js signup.flow.js advertisement.flow.js advertisement-filter.flow.js filter.flow.js category.flow.js city.flow.js attachment.flow.js audit.flow.js timeline.flow.js entity-activity.flow.js delete.flow.js user-management.flow.js settings.flow.js language-switch.flow.js seed.flow.js"
 )
 decisions_json_for() {
   local module="$1"
@@ -1093,6 +1104,22 @@ def extract(path):
             text.append(l[2:].lstrip())
         elif re.match(r'^REM(\s|$)', l, re.I):
             text.append(l[3:].lstrip())
+        elif l.startswith('/*'):
+            # JS-style block-comment open line, e.g. /* -- Header -- ... . Strip the leading /*
+            # only -- a trailing */ (a one-line block comment) is stripped the same way the
+            # continuation-line branch below strips it off the closing delimiter line.
+            rest = l[2:].lstrip()
+            if rest.rstrip().endswith('*/'):
+                rest = rest.rstrip()[:-2].rstrip()
+            text.append(rest)
+        elif re.match(r'^\s*\*\s?', l):
+            # JS-style block-comment continuation line, e.g. a Description: line or the closing
+            # dash-delimiter line ending in */ -- strip the leading * prefix, then a trailing */
+            # if this is that closing line.
+            rest = re.sub(r'^\s*\*\s?', '', l)
+            if rest.rstrip().endswith('*/'):
+                rest = rest.rstrip()[:-2].rstrip()
+            text.append(rest)
         else:
             break
     fields = {'Description': '', 'Usage': '', 'Uses': '', 'Env': '', 'Input': '', 'Outputs': '', 'Returns': ''}
@@ -1102,7 +1129,7 @@ def extract(path):
         if m:
             current = m.group(1)
             fields[current] = m.group(2)
-        elif current and (l.strip() == '' or re.match(r'^─+$', l.strip())):
+        elif current and (l.strip() == '' or re.match(r'^[─-]+$', l.strip())):
             break  # a blank line or the closing #-delimiter line ends the whole header block --
                    # don't keep scanning for a stray field-name match further down in unrelated
                    # prose (a real bug this once hit), and don't swallow the delimiter itself into
@@ -1128,6 +1155,74 @@ for f in files:
     })
 print(json.dumps(out))
 " "$REPO_ROOT" "$dir" "$files"
+}
+
+# Emits one SCRIPT_GROUP-shaped JSON object for directory "$1" (relative to REPO_ROOT), recursing
+# into every real child subdirectory (skipping SCRIPT_TREE_EXCLUDE_DIRS and hidden dirs) as a
+# "children" array of the same shape -- an arbitrary-depth drill-down tree, not a fixed number of
+# levels. "$2" is the display category the top-level root itself carries (nested children carry no
+# category -- only a top-level SCRIPT_GROUP node needs one, to be found by PIPELINE_GROUPS'
+# category filter; a nested node is only ever reached by walking a parent's "children" array, never
+# looked up by category). Classification of "is this a folder-card or a file" is purely "is it a
+# real subdirectory" -- never a naming convention or whether a same-named file also exists (a real
+# counterexample: architecture-doc.sh has no scripts/architecture-doc/ subfolder at all).
+emit_script_tree_node() {
+  local d="$1" category="${2:-}"
+  local desc=""
+  [ -f "$REPO_ROOT/$d/CLAUDE.md" ] && desc="$(head -1 "$REPO_ROOT/$d/CLAUDE.md" | sed 's/^#* *//')"
+
+  local files_list=""
+  if [ -n "${SCRIPT_GROUP_FILE_ORDER[$d]:-}" ]; then
+    local f
+    for f in ${SCRIPT_GROUP_FILE_ORDER[$d]}; do
+      [ -f "$REPO_ROOT/$d/$f" ] && files_list="$files_list$f"$'\n'
+    done
+  else
+    files_list="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' -o -name '*.bat' -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' -o -name 'Dockerfile' \) -printf '%f\n' 2>/dev/null | sort)"
+  fi
+  local files_json decisions_field readme_field headers_field evidence_file
+  files_json="$(json_str_array "$files_list")"
+  decisions_field="$(decisions_json_for "$d")"
+  readme_field="$(readme_json_for "$d")"
+  headers_field="$(script_headers_json "$d" "$files_list")"
+  evidence_file="$d/DECISIONS.md"
+  [ -f "$REPO_ROOT/$d/DECISIONS.md" ] || evidence_file="$d"
+
+  # Immediate child directories only (one level -- recursion handles deeper levels), real
+  # subdirectories, alphabetical, minus the excluded generated/report dirs and anything hidden.
+  local child_dirs=() child
+  while IFS= read -r child; do
+    [ -n "$child" ] && child_dirs+=("$child")
+  done < <(find "$REPO_ROOT/$d" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort)
+
+  local children_json="" first_child=true excluded
+  for child in "${child_dirs[@]}"; do
+    excluded=false
+    for ex in "${SCRIPT_TREE_EXCLUDE_DIRS[@]}"; do [ "$child" = "$ex" ] && excluded=true; done
+    [[ "$child" == .* ]] && excluded=true
+    $excluded && continue
+    $first_child || children_json="$children_json,"
+    first_child=false
+    children_json="$children_json$(emit_script_tree_node "$d/$child" "")"
+  done
+
+  echo "    {"
+  echo "      \"id\": \"$(json_escape "$d")\","
+  echo "      \"type\": \"SCRIPT_GROUP\","
+  if [ -n "$category" ]; then echo "      \"category\": \"$(json_escape "$category")\","; fi
+  echo "      \"provenance\": \"OBSERVED\","
+  echo "      \"lifecycle\": \"ACTIVE\","
+  echo "      \"disposition\": \"KEEP\","
+  echo "      \"confidence\": \"extracted\","
+  echo "      \"evidence\": [{\"file\": \"$(json_escape "$evidence_file")\", \"line\": 1}],"
+  echo "      \"description\": \"$(json_escape "$desc")\","
+  echo "      \"files\": $files_json,"
+  echo "      \"decisions\": $decisions_field,"
+  echo "      \"readme\": $readme_field,"
+  echo "      \"headers\": $headers_field,"
+  echo "      \"children\": [$children_json],"
+  echo "      \"edges\": {}"
+  echo "    }"
 }
 
 # ── Bounded Contexts: live from real source wherever a real signal exists, reusing the existing
@@ -1637,6 +1732,17 @@ ci_metrics_json="null"
     echo "    }"
   done
 
+  # SCRIPT_GROUP tree roots -- scripts/ and playwright/, each an arbitrary-depth drill-down rooted
+  # at that directory (docs/architecture/scripts/DECISIONS.md: the unified "Scripts" card). Each
+  # top-level root still emits as a normal top-level SCRIPT_GROUP node (category "Scripts", so
+  # PIPELINE_GROUPS' scripts-tree card can filter for it) -- only the *nested* levels additionally
+  # carry a "children" array of the same SCRIPT_GROUP shape, since a plain file listing at any
+  # depth already reuses files/headers/readme exactly like a flat SCRIPT_GROUP dir does.
+  for d in "${SCRIPT_TREE_ROOTS[@]}"; do
+    echo "    ,"
+    emit_script_tree_node "$d" "Scripts"
+  done
+
   # BACKLOG summary node -- title + short (truncated) description + real file link, per issue,
   # for both open and completed lists. Not the full issue body (that would bloat the model the
   # same way embedding full ADR prose would, for content this tool doesn't otherwise need) -- click
@@ -1708,7 +1814,7 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .screen-desc { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
   .domain-group { margin-bottom: 28px; }
   .domain-group h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 10px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
-  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 12px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px; cursor: pointer; transition: box-shadow .15s, transform .15s; }
   .card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.08); transform: translateY(-1px); }
   .card.card-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
@@ -1855,19 +1961,17 @@ const backlogNode = MODEL.nodes.find(n => n.type === "BACKLOG_SUMMARY");
 
 // ── Tooling & Pipelines' own card->detail groups -- one card per tool, same drill-down shape as
 // Diagrams' groupKey (list view with no view.groupId, detail view once one is picked). "category"
-// matches each SCRIPT_GROUP node's own category field (SCRIPT_GROUP_CATEGORY in the bash generator).
+// matches a top-level SCRIPT_GROUP node's own category field (SCRIPT_GROUP_CATEGORY for
+// ai-tooling/build-architecture-page; "Scripts" for scripts-tree's two top-level SCRIPT_GROUP
+// roots emitted by the bash generator's SCRIPT_TREE_ROOTS). scripts-tree opens a real
+// arbitrary-depth drill-down rooted at the "scripts"/"playwright" SCRIPT_GROUP nodes (view.path
+// walks n.children) instead of a flat category filter -- see renderScriptTree() below.
 const PIPELINE_GROUPS = {
   "ai-tooling": { icon: "🤖", label: "AI Tooling", category: "AI Tooling", desc: `${commandNodes.length} commands, ${skillNodes.length} skills, docs/ai/scripts` },
   "build-architecture-page": { icon: "🗺️", label: "Build architecture page", category: "Build architecture page", desc: "docs/architecture/scripts — this page's own generator" },
-  "playwright": { icon: "🎭", label: "Playwright", category: "Playwright", desc: "playwright/ — UI test runner" },
-  "sonar": { icon: "📊", label: "Sonar", category: "Sonar", desc: "scripts/sonar — static analysis" },
-  "ci": { icon: "⚙️", label: "CI", category: "CI", desc: "scripts/ci — local isolated CI runner" },
-  "build": { icon: "🔨", label: "Build and Test", category: "Build and Test", desc: "scripts/build-and-test — builds the reactor, optional unit/integration tests" },
-  "deploy-and-run": { icon: "🚀", label: "Deploy and Run", category: "Deploy and Run", desc: "scripts/deploy-and-run — reuses build-and-test's shared jar, deploys the full local stack" },
-  "run-all-tests": { icon: "🧪", label: "Run All Tests", category: "Run All Tests", desc: "scripts/run-all-tests — build-and-test + Playwright together, daily-iteration loop" },
-  "other-scripts": { icon: "📜", label: "Other Scripts", category: "Other Scripts", desc: "scripts/ — deploy & misc" }
+  "scripts-tree": { icon: "📜", label: "Scripts", category: "Scripts", desc: "Every developer script for building, deploying, testing, and running CI lives here: local deploy/infra setup, Docker/Maven builds, SonarQube analysis, and the isolated Dagu-based CI runner. Playwright's end-to-end test suite sits alongside as its own folder. Drill into any folder for its own README and per-file headers." }
 };
-const PIPELINE_GROUP_ORDER = ["ai-tooling", "build", "deploy-and-run", "run-all-tests", "build-architecture-page", "playwright", "sonar", "ci", "other-scripts"];
+const PIPELINE_GROUP_ORDER = ["ai-tooling", "build-architecture-page", "scripts-tree"];
 const totalDiagramCount = MODEL.diagramGroups.reduce((sum, g) => sum + g.diagrams.length, 0);
 let zoomLevel = 1;
 
@@ -1913,9 +2017,16 @@ function crumbLabelFor(v) {
 }
 
 function navigate(next) {
+  // Drilling deeper within the unified Scripts tree (path segments, same "pipelines"/groupId) is
+  // a path change, not a new navigation hop -- crumbStack must not grow on every folder-card
+  // click, or the breadcrumb repeats "Scripts" once per depth level. Scoped tightly to
+  // screen === "pipelines" with a real groupId (never matches the diagrams screen, which
+  // identifies its own views via groupKey/diagramIndex instead -- both undefined on unrelated
+  // diagram views would otherwise false-match here).
+  const samePlace = next.screen === "pipelines" && view.screen === "pipelines" && next.groupId && next.groupId === view.groupId;
   if (next.screen === "system") {
     crumbStack = [];
-  } else if (view.screen !== "system") {
+  } else if (view.screen !== "system" && !samePlace) {
     crumbStack.push(view);
   }
   view = next;
@@ -1931,8 +2042,16 @@ function navigateToCrumb(index) {
 }
 
 // Generic "one step back" -- same stack, so any button meaning "go back" (not "drill to a named
-// place") stays correct automatically instead of hand-coding where it should land.
+// place") stays correct automatically instead of hand-coding where it should land. A
+// tree-drilling view (the unified Scripts tree) one or more folders deep goes up exactly one
+// folder level first -- crumbStack itself never grew for those levels (see navigate()), so
+// falling straight through to the crumbStack-based jump below would skip past every intermediate
+// folder straight out of the whole tree in one click.
 function navigateBack() {
+  if (view.screen === "pipelines" && view.groupId && view.path && view.path.length) {
+    navigate({ screen: "pipelines", groupId: view.groupId, path: view.path.slice(0, -1) });
+    return;
+  }
   if (crumbStack.length === 0) { navigate({ screen: "system" }); return; }
   navigateToCrumb(crumbStack.length - 1);
 }
@@ -1953,7 +2072,24 @@ function renderBreadcrumb() {
     html += `<span class="sep">›</span><a onclick="navigateToCrumb(${i})">${esc(crumbLabelFor(v))}</a>`;
   });
   if (view.screen !== "system") {
-    html += `<span class="sep">›</span><span class="current">${esc(crumbLabelFor(view))}</span>`;
+    // A tree-drilling view (the unified Scripts tree) whose own path is non-empty is "inside" its
+    // own root, not at it -- crumbStack itself never grows for a path change within the same tree
+    // (see navigate()), so the breadcrumb must show the real depth itself: "Scripts" (always
+    // clickable back to path: []) plus one clickable segment per path entry, the last one plain
+    // (current, matching every other screen's own last-segment convention).
+    if (view.screen === "pipelines" && view.groupId && view.path && view.path.length) {
+      html += `<span class="sep">›</span><a onclick="navigate({screen:'pipelines',groupId:'${view.groupId}',path:[]})">${esc(crumbLabelFor(view))}</a>`;
+      view.path.forEach((seg, i) => {
+        const segPath = JSON.stringify(view.path.slice(0, i + 1));
+        if (i === view.path.length - 1) {
+          html += `<span class="sep">›</span><span class="current">${esc(seg)}</span>`;
+        } else {
+          html += `<span class="sep">›</span><a onclick='navigate({screen:"pipelines",groupId:"${view.groupId}",path:${segPath}})'>${esc(seg)}</a>`;
+        }
+      });
+    } else {
+      html += `<span class="sep">›</span><span class="current">${esc(crumbLabelFor(view))}</span>`;
+    }
   }
   bc.innerHTML = html;
 }
@@ -2474,7 +2610,7 @@ function sourceLink(relPath) {
   return `<a href="../../${esc(relPath)}" target="_blank"><code class="path">${esc(relPath)}</code></a>`;
 }
 
-function renderScriptGroupSection(n) {
+function renderScriptGroupSection(n, skipHeading) {
   // Only chip files that DON'T already get their own full block in the "Script headers" list
   // below -- a file with a real parsed header would otherwise appear twice on the same card (a
   // bare chip up here, the real thing right after), the exact kind of duplicate this generator's
@@ -2485,7 +2621,12 @@ function renderScriptGroupSection(n) {
   // Skip the whole heading+box when there's nothing left to put in it (every file already has its
   // own header block below, and there's no group-level description either) -- an empty box with
   // just a heading is exactly the kind of leftover-looking dead space a reader stops to ask about.
-  if (n.description || chipFiles.length) {
+  // skipHeading (true only for the unified Scripts drill-down's own nodes, see renderScriptTree())
+  // suppresses this block unconditionally -- the page title, the in-tree breadcrumb-less path, and
+  // the folder-card just clicked already say everything the heading/description/chip-row would
+  // duplicate; the flat SCRIPT_GROUP cards (docs/ai/scripts, docs/architecture/scripts) don't pass
+  // it, so their own heading/description/chip-row still renders exactly as before.
+  if (!skipHeading && (n.description || chipFiles.length)) {
     html += `<section class="block"><h3>${esc(n.id)}</h3>`;
     if (n.description) html += `<div class="screen-desc">${esc(n.description)}</div>`;
     if (chipFiles.length) {
@@ -2496,18 +2637,15 @@ function renderScriptGroupSection(n) {
   // Last Dagu-backed CI run's per-step status/duration (scripts/ci only) -- opt-in
   // (--with-ci-metrics), passively read from whatever scripts/ci/reports/pipeline-metrics.json
   // already contains; no live query against Dagu itself, same reasoning as Sonar/ArchUnit above.
-  if (n.id === "scripts/ci") {
+  // Renders nothing at all (not even the heading) until real data exists -- an empty placeholder
+  // box is dead-weight noise on a screen someone is browsing for real content.
+  if (n.id === "scripts/ci" && MODEL.ciPipelineMetrics) {
     const ci = MODEL.ciPipelineMetrics;
-    html += `<section class="block"><h3>Last CI run</h3>`;
-    if (!ci) {
-      html += `<div class="empty-hint">No data -- regenerate with <code>--with-ci-metrics</code> (requires <code>bash scripts/ci.sh</code> to have completed at least once).</div>`;
-    } else {
-      html += `<div class="empty-hint">Source: Dagu run <code>${esc(ci.dagRunId || "unknown")}</code>, finished ${esc(ci.generatedAt || "unknown")}.</div>
+    html += `<section class="block"><h3>Last CI run</h3>
+      <div class="empty-hint">Source: Dagu run <code>${esc(ci.dagRunId || "unknown")}</code>, finished ${esc(ci.generatedAt || "unknown")}.</div>
         <table class="simple"><thead><tr><th>Step</th><th>Status</th><th>Duration</th></tr></thead><tbody>` +
         (ci.steps || []).map(s => `<tr><td>${esc(s.name || "?")}</td><td>${esc(s.status || "?")}</td><td>${s.durationSeconds != null ? esc(s.durationSeconds.toFixed(0) + "s") : "-"}</td></tr>`).join("") +
-        `</tbody></table>`;
-    }
-    html += `</section>`;
+        `</tbody></table></section>`;
   }
   // Each file's own structured Description/Usage/Uses/Env/Input/Outputs/Returns header (see
   // .claude/skills/infra-doc-standards/SKILL.md) -- read live from the file itself, self-contained
@@ -2569,6 +2707,8 @@ function renderPipelines() {
   const g = PIPELINE_GROUPS[view.groupId];
   if (!g) { navigate({ screen: "pipelines" }); return; }
 
+  if (view.groupId === "scripts-tree") { renderScriptTree(g); return; }
+
   let html = backButtonHtml();
   html += `<h2 class="screen-title">${g.icon} ${esc(g.label)}</h2>`;
 
@@ -2599,6 +2739,87 @@ function renderPipelines() {
   // A README's own ```mermaid fenced block (rendered as <pre class="mermaid"> by mdBlockToHtml())
   // needs this same call every other Mermaid diagram on this tool already uses -- the fence's raw
   // text sits inert in the DOM as plain text until mermaid.run() finds and replaces it with SVG.
+  mermaid.run({ querySelector: ".mermaid" });
+}
+
+// Walks MODEL's top-level SCRIPT_GROUP nodes down through view.path. The root "scripts" node is
+// implicit -- never a path segment of its own, so the Scripts card's root view has no redundant
+// click-through -- so path[0] resolves against "playwright" (a real root id) first and falls back
+// to treating path[0] as "scripts"'s own child basename otherwise; each further segment is the
+// next child directory's own basename (e.g. ["ci","dagu"] resolves to scripts/ci/dagu). Returns
+// null if the path doesn't resolve (e.g. a stale bookmark after a rename).
+function scriptTreeNodeAt(pathSegs) {
+  if (!pathSegs.length) return null;
+  let node = scriptGroupNodes.find(n => n.id === pathSegs[0]);
+  if (!node) {
+    const scriptsRoot = scriptGroupNodes.find(n => n.id === "scripts");
+    node = scriptsRoot ? (scriptsRoot.children || []).find(c => c.id.split("/").pop() === pathSegs[0]) : null;
+  }
+  for (let i = 1; node && i < pathSegs.length; i++) {
+    node = (node.children || []).find(c => c.id.split("/").pop() === pathSegs[i]);
+  }
+  return node || null;
+}
+
+// The unified "Scripts" card's own arbitrary-depth drill-down -- folder-cards (one per
+// node.children, clickable to extend view.path one segment deeper) rendered first, then the flat
+// file list for the current level via the existing renderScriptGroupSection() (reused as-is, same
+// shape as any flat SCRIPT_GROUP dir). No view.path (or an empty one) shows the root "scripts"
+// SCRIPT_GROUP node's own children/files directly (no intermediate "scripts" card to click
+// through), with "playwright" -- a structurally separate SCRIPT_GROUP_TREE_ROOTS entry -- inserted
+// as one more sibling folder-card at that same level. Navigation back up is the page-level
+// breadcrumb (crumbStack, which records entry into "Scripts" as one hop) plus the "Back" button
+// already rendered above -- no separate in-card breadcrumb of its own.
+function renderScriptTree(g) {
+  const path = view.path || [];
+  let html = backButtonHtml();
+  // Depth suffix (matches the breadcrumb's own " › " join) so the title itself shows current
+  // depth at a glance, not just the breadcrumb above it.
+  const titleSuffix = path.length ? ` — ${path.join(" › ")}` : "";
+  html += `<h2 class="screen-title">${g.icon} ${esc(g.label)}${esc(titleSuffix)}</h2>`;
+  // Root-only -- the whole-tree description doesn't apply any more specifically once drilled into
+  // a subfolder, and repeating identical text at every depth is exactly the kind of duplication
+  // "One fact, one canonical home" already governs elsewhere on this page.
+  if (!path.length) html += `<div class="screen-desc">${esc(g.desc)}</div>`;
+
+  let node = null;
+  let children;
+  if (!path.length) {
+    // Root view: no separate "scripts" click-through -- show the "scripts" node's own children
+    // and files directly, with "playwright" inserted as one more sibling folder-card (even though
+    // it's a structurally separate SCRIPT_GROUP_TREE_ROOTS entry, not literally a "scripts" child).
+    node = scriptGroupNodes.find(n => n.id === "scripts");
+    const scriptsChildren = node ? (node.children || []).map(c => ({ label: c.id.split("/").pop(), path: [c.id.split("/").pop()] })) : [];
+    const playwrightCard = scriptGroupNodes.find(n => n.id === "playwright") ? [{ label: "playwright", path: ["playwright"] }] : [];
+    children = scriptsChildren.concat(playwrightCard);
+  } else {
+    node = scriptTreeNodeAt(path);
+    if (!node) { navigate({ screen: "pipelines", groupId: "scripts-tree", path: [] }); return; }
+    children = (node.children || []).map(c => ({ label: c.id.split("/").pop(), path: path.concat([c.id.split("/").pop()]) }));
+  }
+
+  // Folder-cards first: every child directory of the current level, clickable to extend the path
+  // one segment deeper. Cards are folders only -- a file never navigates, it only ever renders as
+  // a plain row inside renderScriptGroupSection() below.
+  if (children.length) {
+    html += `<div class="card-grid">`;
+    children.forEach(c => {
+      const p = JSON.stringify(c.path);
+      html += `<div class="card" onclick='navigate({screen:"pipelines",groupId:"scripts-tree",path:${p}})'>
+        <div class="card-title">📁 ${esc(c.label)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Flat file list for the current level, below the folder-cards -- same renderer every flat
+  // SCRIPT_GROUP dir already uses, so file headers/README/chip-list all just work unchanged, minus
+  // the redundant heading+description+chip-row block (skipHeading=true -- see
+  // renderScriptGroupSection()'s own comment for why). No node at the root (path-less) view -- the
+  // folder-cards above are the whole list there.
+  if (node) html += renderScriptGroupSection(node, true);
+
+  document.getElementById("content").innerHTML = html;
   mermaid.run({ querySelector: ".mermaid" });
 }
 

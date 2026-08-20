@@ -1,3 +1,45 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Seeds SEED_COUNT (60) users and 60 advertisements (spread across 5 categories, 3
+ *   cities and 3 listing types), then validates query-bar behavior at that scale: advertisement
+ *   and user filters (title/email/name exact and partial match, category, city, listing type,
+ *   role, ID range, invalid-fractional-ID handling, date-range boundaries), column sort (title,
+ *   created/updated at, email, ID, role) and pagination for both grids; settings page-size
+ *   changes with activity-diff verification, cross-session isolation, and restore-from-history
+ *   (breadcrumb chain correctness); and Timeline entity-type/action-type/multi-actor filters with
+ *   chip removal and pagination. Entirely skipped unless PW_FULL is set -- seeding takes ~2 min.
+ *   Per test:
+ *   - "seed 60 users -- parallel signup": parallel signup of 60 users.
+ *   - "adminEn seeds 60 advertisements -- five categories": create 60 ads across 5 categories.
+ *   - "advertisements -- title, date and category filters, column sort, pagination": apply
+ *     title/date/category filters -> sort columns -> verify page counts.
+ *   - "users -- email, role and date filters, column sort, pagination": apply email/role/date
+ *     filters -> sort columns -> verify page counts.
+ *   - "adminEn changes page sizes -- activity diff, ads and users grids reflect sizes, restore
+ *     defaults": change sizes (5/3) -> activity (both fields shown, diff, restore btn) -> ads
+ *     grid (1-5 of) -> users grid (1-3 of) -> restore -> activity (>=2 rows) -> ads grid (1-20 of)
+ *     -> users grid (1-20 of) -> change one size -> switch to activity tab -> save -> form
+ *     visible -> restore -> close.
+ *   - "adminEn verifies timeline -- ADVERTISEMENT and USER type filters, CREATED and UPDATED
+ *     action filters, actor filter, pagination": total > SEED_COUNT -> ADVERTISEMENT type filter
+ *     (all rows advertisement) -> USER type filter (all rows user) -> CREATED action filter (all
+ *     rows created) -> UPDATED action filter (all rows updated) -> actor filter by adminEn (count
+ *     < total) -> clear -> pagination page 2.
+ * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 05-seed-filter-sort-
+ *   pagination --full --ux`, or as part of the full e2e suite with the --full flag
+ *   (`bash /app/playwright/run.sh e2e --full --ux`); omitted from a plain `e2e --ux` run.
+ * Uses: @playwright/test.
+ * Env: PW_FULL -- when unset/falsy, this entire spec file's describe block is skipped. PW_SCREENSHOTS
+ *   -- read directly by this file's own screenshotThenClose helper to gate optional screenshots.
+ * Input: ./_helpers (test, expect, screenshot, closeOverlay, closeNotification, TEST_USERS),
+ *   ./_flows/seed.flow, ./_flows/filter.flow, ./_flows/settings.flow, ./_flows/timeline.flow,
+ *   ./_flows/category.flow, ./_flows/city.flow.
+ * Outputs: Playwright HTML report entries (one per test/test.step), PNG screenshots attached to
+ *   the report when PW_SCREENSHOTS is set. Seeds 60 users, 60 advertisements, 5 categories and 3
+ *   cities into the app database -- this seeded data is a precondition later specs (e.g. spec 06)
+ *   may run against when the suite is invoked with --full.
+ * Returns: exit code from the Playwright test runner -- 0 when every test in this file passes,
+ *   non-zero otherwise.
+ * ──────────────────────────────────────────────────────────────────────────── */
 const { test, expect, screenshot, closeOverlay, closeNotification, TEST_USERS } = require('./_helpers');
 
 async function openSettings(page) {
@@ -315,7 +357,7 @@ test.describe('Seed data and query validation', () => {
     await screenshot(page, 'user-filter-id-range');
     await clearFilter(page, USER_BLOCK);
 
-    // ── ID filter fractional input — flagged invalid, not silently truncated (improvement-061) ──
+    // ── ID filter fractional input — flagged invalid, not silently truncated ──
     const idMinInput = getRow(page, USER_BLOCK, 'ID').locator('.query-number input').first();
     const idMinField = getRow(page, USER_BLOCK, 'ID').locator('.query-number').first();
     await idMinInput.fill('1.5');
@@ -354,12 +396,7 @@ test.describe('Seed data and query validation', () => {
       setup: { reset: 'clearAll' },
       firstAsc: 'ADMIN', firstDesc: 'USER', prefix: 'user',
     });
-    // Seed users are created ~1.5-1.9s apart in a strictly serial loop, but the sandboxed
-    // container's system clock occasionally makes a small (~200ms) backward adjustment
-    // (confirmed via diagnostic logging — not an app bug, see improvement-020 investigation
-    // notes). That can swap created_at/updated_at order between immediately-adjacent seed
-    // users at either end of the batch, even though id order (real insertion order) never
-    // does. Tolerate a 1-position slop at both ends instead of asserting an exact name.
+    // Occasional sandbox clock backward-adjustment can swap created_at order between adjacent seed users; tolerate a 1-position slop at both ends instead of asserting an exact name.
     await verifySortColumn(page, {
       block: USER_BLOCK, sortCol: 'Created At', itemSelector: USER_ITEM,
       assertSelector: USER_ITEM,
@@ -542,9 +579,7 @@ test.describe('Seed data and query validation', () => {
     await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
     await assertAllRowsHaveAction(page, expect, 'updated', 'timeline-filter-action-updated');
 
-    // Filter by actor — result count must be less than unfiltered total. Target the last
-    // name-sorted "Seed User" (not adminEn, which sorts near the top and would never exercise
-    // the picker grid's second data-provider page — see improvement-056).
+    // Filter by actor — result count must be less than unfiltered total. Target the last name-sorted "Seed User" (not adminEn, which sorts near the top and would never exercise the picker grid's second data-provider page).
     await clearFilter(page, TIMELINE_BLOCK);
     await fillActorPicker(page, 'Seed User 60');
     await applyFilter(page, TIMELINE_BLOCK);

@@ -276,11 +276,9 @@ browser-driven end-to-end suite — with no extra setup beyond those two command
 
 ## Database Scripts
 
-All database scripts live in `scripts/deploy-and-run/`:
-
 | File | Purpose |
 |---|---|
-| `scripts/deploy-and-run/reset.sh` / `scripts/deploy-and-run/reset.bat` | Truncates all application data without restarting the app or touching MinIO volumes (~1s) — runs `reset-clean.sql` |
+| `scripts/reset.sh` / `scripts/reset.bat` | Truncates all application data without restarting the app or touching MinIO volumes (~1s) — delegates to `scripts/deploy-and-run/reset.sh`, runs `reset-clean.sql` |
 | `scripts/deploy-and-run/reset-clean.sql` | Truncates all tables (no seed data). Run automatically by `playwright/run.sh` before every test run. |
 
 ---

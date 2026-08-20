@@ -5,17 +5,21 @@
 #   scripts/build-and-test.sh (no local Java needed -- compiled classes come from the shared
 #   maven-cache volume, mounted directly into the scanner container), uploads the analysis, and
 #   generates a local HTML report.
-# Usage: bash scripts/sonar.sh [--no-gate]. --no-gate skips quality-gate blocking (always exits 0);
+# Usage: bash scripts/sonar/run.sh [--no-gate]. --no-gate skips quality-gate blocking (always exits 0);
 #   default blocks on a gate result of ERROR (exits non-zero).
-# Uses: bash, docker (SonarQube server + scanner containers), scripts/build-and-test.sh, python3
-#   (HTML report).
+# Uses: bash, docker (SonarQube server + scanner containers), scripts/build-and-test.sh,
+#   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose, python3 (HTML report).
 # Env: None.
 # Input: sonar-project.properties, each module's src/main/java (copied from the host), the shared
 #   maven-cache Docker volume's target-classes/<module> (mounted into the scanner container), the
 #   running SonarQube server's own API.
 # Outputs: analysis uploaded to http://localhost:9099/dashboard?id=advertisement (anonymous
 #   browsing enabled every run -- see DECISIONS.md); local report at
-#   scripts/sonar/report/report.html.
+#   scripts/sonar/report/report.html. Self-heals two things every run: the sonar token in
+#   sonar-project.properties (regenerated via local admin/admin credentials and written back if
+#   invalid/missing), and a stale-image DB_MIGRATION_NEEDED dead-end on the embedded database (not
+#   supported -- local scan history is wiped via `docker compose down -v` and the server restarts
+#   fresh on the new image) -- see DECISIONS.md.
 # Returns: 0 on success (or always, with --no-gate); non-zero if the quality gate result is ERROR.
 # ────────────────────────────────────────────────────────────────────────────
 set -e
@@ -93,7 +97,7 @@ else:
 PYEOF
 
 # ── Ensure docker compose plugin is available ────────────────────────────────
-source "$ROOT/scripts/ensure-docker-plugins.sh"
+source "$ROOT/scripts/utils/ensure-docker-plugins.sh"
 ensure_docker_compose
 
 # ── Ensure SonarQube server image is current, container exists and is running (see DECISIONS.md) ──
