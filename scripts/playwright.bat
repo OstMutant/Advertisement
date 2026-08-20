@@ -8,4 +8,5 @@ REM Input: same as playwright/run.sh.
 REM Outputs: same as playwright/run.sh.
 REM Returns: same as playwright/run.sh.
 REM ---------------------------------------------------------------------------
-wsl bash /app/playwright/run.sh %*
+for /f "delims=" %%i in ('wsl wslpath -u "%~dp0..\playwright\run.sh"') do set SCRIPT=%%i
+wsl bash "%SCRIPT%" %*

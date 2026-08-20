@@ -1,7 +1,9 @@
 # improvement-155: Repo-wide script documentation convention rollout — self-contained script header, README describes flow, architecture-map surfaces both live
 
-**Type:** improvement — design done, real application rolled out to `scripts/sonar/` and
-`scripts/build-and-test/` only so far; the rest is not started.
+**Type:** improvement — **done**. Design shipped, and the convention is now applied across every
+real script-group directory in the repo (`scripts/sonar/`, `scripts/build-and-test/`, `scripts/ci/`,
+`scripts/deploy-and-run/`, `scripts/utils/`, `playwright/` + nested folders, root `scripts/*.sh`/
+`*.bat`). `docs/ai/scripts/` split out to `improvement-161` (its own directory, own rollout).
 **Module:** every repo script (`scripts/**/*.sh`, `*.bat`, `docker-compose*.yml`, `*.properties`),
 `.claude/skills/infra-doc-standards/SKILL.md`, `docs/architecture/scripts/generate-architecture-model.sh`
 (`script_headers_json()`).
@@ -49,20 +51,33 @@ auto-validates `sonar-project.properties`'s module list against `pom.xml` before
    deliberately-omitted fields (e.g. `Returns` for Docker, 4 fields for `.properties`) rendering
    empty rather than absorbing a neighboring field's content.
 
-**Still open on these two:** remove the `scripts/sonar`-specific illustrative example content from
-`infra-doc-standards/SKILL.md` now that the real files carry the real headers (the skill's own copy
-is now a `doc-standards`-style "one fact, one canonical home" duplicate) — needs explicit
-confirmation before editing the skill again.
+**Done (2026-08-20):** `infra-doc-standards/SKILL.md`'s illustrative `README` example (opening
+paragraph pattern) kept the text but dropped its `scripts/sonar/README.md` file-name pointer, per
+`.claude/rules.md`'s "name a real file only when unavoidable" — the example content itself doesn't
+need to change, only the literal pointer to a real, driftable file.
 
-## Not yet started — the actual repo-wide rollout
+## Repo-wide rollout — done
 
-Roll the same convention onto every other script directory:
-- `docs/ai/scripts/` (moved from `scripts/ai/` this session — see `scripts/DECISIONS.md` ADR-002's
-  annotated exception)
-- `scripts/ci/`
-- root `scripts/*.sh`/`*.bat`
-- `playwright/` (see its own two-level design note below)
-- the new `scripts/deploy-and-run/` (in progress, same session)
+Rolled the convention onto every real script directory:
+- `docs/ai/scripts/` — **split out to `improvement-161`** (its own directory, own tracked rollout;
+  not this issue's concern going forward).
+- `scripts/ci/` — done (headers + README, including `scripts/ci/dagu/`'s nested shared-library
+  folder).
+- root `scripts/*.sh`/`*.bat` — **done this session**, verified via 3 successive
+  `infra-doc-standards` skill runs + independent fresh-agent reviews; real bugs found and fixed
+  along the way (stale `scripts/infra`/`scripts/database` paths in `collect-code.bat`; hardcoded
+  sandbox-only `/app/...` absolute paths in `playwright.bat`/`architecture-doc.bat`, both switched
+  to the same `wslpath -u "%~dp0..."` pattern every other `.bat` delegator already used).
+- `playwright/` — done, superseded the original two-level card design with the general-purpose
+  `SCRIPT_TREE_ROOTS`/`renderScriptTree()` arbitrary-depth drill-down (see the design section
+  below).
+- `scripts/deploy-and-run/` — done, alongside this session's `deploy.sh` → `scripts/deploy-and-run/`
+  restructure.
+- `scripts/utils/` — done, the shared-library-folder README shape applied when
+  `ensure-docker-plugins.sh` was relocated there.
+- `docs/architecture/` reorganization (`architecture-doc.sh`/`.bat` relocated one level above
+  `docs/architecture/scripts/`, `docs/architecture/data/` split) — a related, separately-scoped
+  structural cleanup tracked in full under `improvement-162`, not restated here.
 
 ### `playwright/` — two-level directory structure (2026-08-19/20, done — superseded by a broader mechanism)
 

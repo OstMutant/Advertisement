@@ -25,7 +25,7 @@ while IFS=: read -r file lineno match; do
     mismatch="${mismatch}- ${file#"$REPO_ROOT"/}:$lineno -- claims \"$match\", pom.xml currently has $REAL_COUNT modules\n"
   fi
 done < <(grep -rnoP '(?<!≥)[0-9]+ modules?\b' "${SEARCH_PATHS[@]}" 2>/dev/null \
-  | grep -v -e '^'"$REPO_ROOT"'/docs/architecture/architecture-model.json:' -e '^'"$REPO_ROOT"'/docs/architecture/architecture-map.html:' -e '/DECISIONS\.md:' \
+  | grep -v -e '^'"$REPO_ROOT"'/docs/architecture/data/architecture-model.json:' -e '^'"$REPO_ROOT"'/docs/architecture/architecture-map.html:' -e '/DECISIONS\.md:' \
   || true)
 
 if [ -n "$mismatch" ]; then

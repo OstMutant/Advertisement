@@ -1931,3 +1931,21 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   active ADRs**. A post-migration cross-file integrity sweep found and fixed 6 dangling references
   to deleted ADR numbers. Full detail: `completed/issues/improvement-159-adr-system-review-and-
   refinement.md`.
+
+✅ Done (2026-08-20): improvement-155 — repo-wide rollout of the `infra-doc-standards` convention
+  (structured 7-field headers, README `## Flow` sections) completed across every real script
+  directory: `scripts/sonar/`, `scripts/build-and-test/`, `scripts/ci/` (+ nested `dagu/`),
+  `scripts/deploy-and-run/`, `scripts/utils/`, `playwright/` (+ nested `e2e/`/`e2e/_flows/`), and
+  root `scripts/*.sh`/`*.bat` (20 files, verified via 3 successive skill runs + independent
+  fresh-agent reviews). Real bugs found and fixed along the way: stale `scripts/infra`/
+  `scripts/database` paths in `collect-code.bat`; hardcoded sandbox-only `/app/...` absolute paths
+  in `playwright.bat`/`architecture-doc.bat` (now `wslpath -u "%~dp0..."`, matching every other
+  `.bat` delegator); the skill's own `README` duplication rule was strengthened twice mid-rollout
+  (README is always a full rewrite, never a patch onto pre-existing content; a shared environmental
+  constraint across unrelated files belongs in each file's own header, not README) after the rule's
+  first version let a real "Container reference"/"Docker socket constraint" duplication violation
+  through two self-review passes in a row — only caught by a fresh, cold-context question.
+  `infra-doc-standards/SKILL.md`'s own illustrative `scripts/sonar/README.md` example lost its
+  file-name pointer (kept the text, per "name a real file only when unavoidable"). `docs/ai/scripts/`
+  split off to its own tracked issue, `improvement-161`, rather than folded in here. Full detail:
+  `completed/issues/improvement-155-infra-doc-standards-repo-wide-rollout.md`.

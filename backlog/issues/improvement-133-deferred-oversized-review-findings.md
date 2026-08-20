@@ -211,3 +211,20 @@ generically for every optional starter, so this isn't a direct rule violation ei
 gap, not a documented one. Needs a decision: guard the button behind `isAvailable()` (simplest), or
 make `TaxonCatalogService.create()`/`.update()` themselves degrade gracefully (larger, changes what
 "create with no taxon starter" means to callers) — not sized here.
+
+### 12. `scripts/sonar/run.sh` / `scripts/build-and-test/run.sh` headers don't explain their own docker-cp/tar workaround (found while running `infra-doc-standards` over `scripts/` root, 2026-08-20)
+
+`playwright/run.sh`'s own header already explains why it uses `docker cp` instead of a volume
+mount ("volume mounts don't work when the caller is itself a container") — but
+`scripts/sonar/run.sh`'s structured header says nothing about this (checked directly, no mention
+in `Input`/`Outputs`/`Uses`), and `scripts/build-and-test/run.sh`'s explanation exists only as a
+body comment further down the file, not in its structured header. Surfaced while applying
+`infra-doc-standards` to the root `scripts/` directory: the root `scripts/README.md` used to carry
+a "Docker socket constraint" section aggregating this fact across all three scripts, removed as a
+duplication violation once the skill's "one fact, one canonical home" rule was strengthened this
+same session to explicitly cover shared-constraint content — but removing it exposed that 2 of the
+3 referenced files never had this reason in their own header to begin with. Not fixed inline: both
+files live in different directories (`scripts/sonar/`, `scripts/build-and-test/`), outside this
+run's invoked-directory scope (`scripts/` root only). Fix is small and mechanical once picked up:
+add one sentence to each file's `Input`/`Outputs` field explaining the docker-cp/tar-pipe reason,
+matching `playwright/run.sh`'s existing pattern.

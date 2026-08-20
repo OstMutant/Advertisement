@@ -6,8 +6,8 @@
 #   --with-sonar/--with-archunit are passed).
 # Input: pom.xml, real Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
 #   docs/ai/adr-index.md, docs/ai/flows.md, .claude/commands, .claude/skills, backlog/.
-# Output: docs/architecture/architecture-model.json + docs/architecture/architecture-map.html +
-#   docs/architecture/arch-embed-index.md.
+# Output: docs/architecture/data/architecture-model.json + docs/architecture/architecture-map.html +
+#   docs/architecture/data/arch-embed-index.md.
 #
 # Generates architecture-model.json (Track A of the architecture control plane) from
 # already-structured, non-code sources only -- no ArchUnit, no bytecode analysis. Node types:
@@ -19,9 +19,9 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-OUTPUT="$REPO_ROOT/docs/architecture/architecture-model.json"
+OUTPUT="$REPO_ROOT/docs/architecture/data/architecture-model.json"
 HTML_OUTPUT="$REPO_ROOT/docs/architecture/architecture-map.html"
-ARCH_EMBED_INDEX="$REPO_ROOT/docs/architecture/arch-embed-index.md"
+ARCH_EMBED_INDEX="$REPO_ROOT/docs/architecture/data/arch-embed-index.md"
 ADR_INDEX="$REPO_ROOT/docs/ai/adr-index.md"
 FLOWS="$REPO_ROOT/docs/ai/flows.md"
 ROOT_CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
@@ -109,7 +109,7 @@ SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report node_modules)
 declare -A SCRIPT_GROUP_FILE_ORDER=(
   [docs/ai/scripts]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh"
   [docs/architecture/scripts]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh"
-  [scripts]="architecture-doc.sh build-and-test.sh deploy-and-run.sh ci.sh run-all-tests.sh playwright.sh sonar.sh reset.sh run-local.bat architecture-doc.bat build-and-test.bat deploy-and-run.bat ci.bat run-all-tests.bat playwright.bat sonar.bat claude.bat clean.bat collect-code.bat"
+  [scripts]="build-and-test.sh deploy-and-run.sh ci.sh run-all-tests.sh playwright.sh sonar.sh reset.sh run-local.bat build-and-test.bat deploy-and-run.bat ci.bat run-all-tests.bat playwright.bat sonar.bat claude.bat clean.bat collect-code.bat"
   [scripts/sonar]="run.sh run.bat docker-compose.sonar.yml sonar-project.properties"
   [scripts/build-and-test]="run.sh build.sh build-and-test.properties Dockerfile"
   [scripts/deploy-and-run]="run.sh reset.sh Dockerfile docker-compose.db.yml docker-compose.minio.yml docker-compose.app.yml"
@@ -1165,7 +1165,7 @@ print(json.dumps(out))
 # category filter; a nested node is only ever reached by walking a parent's "children" array, never
 # looked up by category). Classification of "is this a folder-card or a file" is purely "is it a
 # real subdirectory" -- never a naming convention or whether a same-named file also exists (a real
-# counterexample: architecture-doc.sh has no scripts/architecture-doc/ subfolder at all).
+# counterexample: architecture-doc.sh has no architecture-doc/ subfolder at all).
 emit_script_tree_node() {
   local d="$1" category="${2:-}"
   local desc=""
@@ -1484,12 +1484,12 @@ docker_files_json() {
   echo "[$out]"
 }
 
-# ── Runtime notes: hand-authored operational-topology prose (docs/architecture/runtime-notes.md)
+# ── Runtime notes: hand-authored operational-topology prose (docs/architecture/data/runtime-notes.md)
 # -- container/hostname/mounts/toolchain facts that don't belong in any generated per-module
 # section. Read raw via Node's JSON.stringify (not json_escape() above, which strips newlines --
 # unsuitable for multi-paragraph content, same reasoning already used for full ADR bodies) so the
 # original line breaks survive for the client-side mdBlockToHtml() renderer to work with.
-RUNTIME_NOTES_FILE="$REPO_ROOT/docs/architecture/runtime-notes.md"
+RUNTIME_NOTES_FILE="$REPO_ROOT/docs/architecture/data/runtime-notes.md"
 runtime_notes_json() {
   [ -f "$RUNTIME_NOTES_FILE" ] || { echo "null"; return; }
   node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$RUNTIME_NOTES_FILE"
@@ -2824,12 +2824,12 @@ function renderScriptTree(g) {
 }
 
 // ── Runtime group (Tooling & Pipelines): hand-authored operational-topology prose from
-// docs/architecture/runtime-notes.md, rendered through the same mdBlockToHtml() ADR bodies use --
+// docs/architecture/data/runtime-notes.md, rendered through the same mdBlockToHtml() ADR bodies use --
 // no new parser, the file is written in the same "**Label:**" bold-paragraph/bullet-list style.
 function renderRuntimeSection() {
-  if (!MODEL.runtimeNotes) return `<div class="empty-hint">No <code class="path">docs/architecture/runtime-notes.md</code> yet.</div>`;
+  if (!MODEL.runtimeNotes) return `<div class="empty-hint">No <code class="path">docs/architecture/data/runtime-notes.md</code> yet.</div>`;
   return `<section class="block">${mdBlockToHtml(MODEL.runtimeNotes)}</section>
-    <div class="empty-hint">Source: ${sourceLink("docs/architecture/runtime-notes.md")}</div>`;
+    <div class="empty-hint">Source: ${sourceLink("docs/architecture/data/runtime-notes.md")}</div>`;
 }
 
 // ── Backlog screen ───────────────────────────────────────────────────────────────────────────

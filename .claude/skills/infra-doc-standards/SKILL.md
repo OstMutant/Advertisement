@@ -34,6 +34,16 @@ interact with each other. It never restates something a nested subdirectory's ow
 already covers (a subdirectory speaks for itself), and never restates the wider context a parent
 directory's own `README.md` provides.
 
+A shared environmental constraint or gotcha that two or more otherwise-unrelated files
+independently hit (not a call chain, not a caller/callee relationship — just a coincidence that
+they need the same workaround) is not a "sequence/interaction between files" fact sanctioned for
+`README.md`. Each affected file explains its own reason in its own header, exactly as if the
+other files didn't exist. The test: if file A's header already explains its own reason and file
+B's doesn't yet, the fix is never "write the combined explanation in `README.md` instead" — it's
+"add the explanation to file B's own header, matching file A's existing pattern" (in scope) or
+"flag it as a finding" (out of scope). A `README.md` paragraph that survives only because some
+referenced file's header is still incomplete is itself evidence the paragraph doesn't belong.
+
 This is the single governing statement of the file-vs-README duplication rule in this document —
 every other section touching the same topic (finding placement, the `Flow` section's own scope,
 the root `scripts/README.md`'s entry-point descriptions) defers to this rule rather than restating
@@ -110,6 +120,10 @@ to guess where it ends from context (a blank line, the next line of code, or not
 # ────────────────────────────────────────────────────────────────────────────
 ```
 
+Why this example: `Usage` breaks into one flag per line here rather than staying a single sentence
+— chosen because the file takes 6 flags, past the "3+ flags" threshold where a single-sentence
+`Usage` line would force a reader to parse a wall of `[--flag]` brackets instead of scanning a list.
+
 ### `Outputs`/`Returns` stay two separate fields (per Google) — example, `check-architecture-model-freshness.sh`
 
 ```
@@ -118,6 +132,11 @@ to guess where it ends from context (a blank line, the next line of code, or not
 # Returns: 0 = up to date, 1 = stale.
 ```
 
+Why this example: chosen over merging both into one field because this script's two facts answer
+genuinely different reader questions — "what does it print" (`Outputs`) vs. "what does its exit
+code mean for my CI gate" (`Returns`) — collapsing them would force a reader hunting for the exit
+code to first parse past the unrelated ERROR-message description.
+
 ### Explicit "None" instead of omitting a field — example, `screenshot-architecture-map.sh`
 
 ```
@@ -125,6 +144,10 @@ to guess where it ends from context (a blank line, the next line of code, or not
 # Usage: None -- always run with no arguments.
 # Uses: bash, a headless Playwright browser...
 ```
+
+Why this example: `Usage` states `None` explicitly rather than being left out, chosen because an
+absent field reads as "not documented yet" while `None` reads as "checked, confirmed empty" — the
+distinction matters precisely because this skill's own rule elsewhere requires every field present.
 
 ## Non-obvious operational side effects belong in the header, not just `DECISIONS.md`
 
@@ -238,6 +261,11 @@ ensure_buildx() {
 A purely internal/private function (never called from outside its own file) does not get one of
 these — a one-line comment is enough, per `.claude/rules.md`'s "one line or none" rule.
 
+Why this example: `ensure_buildx` gets a per-function header while `ensure-docker-plugins.sh`'s own
+internal helpers don't, because this specific function is called from outside the file
+(`scripts/sonar/run.sh` and others `source` it and call it directly) — the per-function block exists
+for the caller who never opens this file, not as a blanket rule for every function in a library file.
+
 ## File-type-specific header rules
 
 The base 7-field header shape (`Description`/`Usage`/`Uses`/`Env`/`Input`/`Outputs`/`Returns`)
@@ -324,6 +352,11 @@ REM Returns: same as scripts/deploy-and-run.sh (0 = success, non-zero = build/st
 REM ────────────────────────────────────────────────────────────────────────────
 ```
 
+Why this example: `Usage`/`Outputs` keep full text here instead of `same as scripts/deploy-and-run.sh`
+because this `.bat` genuinely behaves differently at the invocation surface (Windows path syntax,
+WSL/Git-Bash-specific piping for filtered console output) — `Env`/`Returns` do collapse to `same as`
+because those facts are identical to the `.sh` sibling with nothing Windows-specific to add.
+
 #### Trivial delegators (no unique content of their own)
 
 For a `.bat` that's just `@echo off` + one `wsl bash <sibling>.sh %*` line — every field is
@@ -381,6 +414,14 @@ per the general "one line or none" rule.
 FROM eclipse-temurin:25-jdk
 ```
 
+Why this example: `Env` lists `DAGU_VERSION`/`DAGU_HOME`/`DAGU_PORT`/`DAGU_AUTH_MODE` as
+non-caller-overridable, chosen specifically because a Dockerfile's `ENV` instructions are baked
+into the image at build time — unlike a script's `Env` field (which usually distinguishes
+caller-set vs. user-exportable), a Dockerfile's `Env` field only ever has one kind of entry, so no
+such split applies here. `Returns` is omitted entirely, not just left "None" — chosen because build
+success/failure belongs to the `docker build` command itself, never a fact this file's own header
+could state (see the field-meaning table above).
+
 ### `.properties` files
 
 A `.properties` file is passive configuration, not something invoked — `Uses`/`Input`/`Outputs`/
@@ -424,6 +465,12 @@ spring:
   ...
 ```
 
+Why this example: only three fields appear (`Description`/`Usage`/`Env`) instead of the full
+7-field shape, chosen because this file is read passively at startup, never itself executed or
+processed as a workflow — the `Uses`/`Input`/`Outputs`/`Returns` fields would all be constant
+`None`/`N/A` boilerplate repeated on every such file (see the `.properties` table above for the
+same reasoning applied there first).
+
 ## README — what the tool is, why we use it
 
 Every script-group directory's `README.md` opens with a short paragraph (a few sentences) naming
@@ -431,7 +478,7 @@ the real external tool the directory wraps and, when relevant, why this project 
 the `## Flow` section, not folded into it (`Flow` covers the file-to-file sequence, not what the
 tool itself is or why it's in this project).
 
-Example — `scripts/sonar/README.md`:
+Example:
 
 > SonarQube is a static-analysis tool that scans the codebase for bugs, code smells, and security
 > vulnerabilities, enforcing a quality gate on every run. This project runs it locally in an
@@ -555,6 +602,18 @@ different job: list every real entry point across the whole tree, not diagram an
 - The same shape applies recursively wherever a directory nests further — never force a diagram
   onto a level that doesn't own real branching.
 
+When "run the skill over `scripts/`" is invoked, verification (reading a referenced file to
+cross-check what a root-level entry point claims about it) may reach into `scripts/`'s own
+nested subdirectories (`scripts/sonar/`, `scripts/ci/`, etc.) and into `playwright/` — a sibling
+top-level directory `scripts/playwright.sh` directly delegates into, tightly coupled enough to
+treat the same way as a nested subdirectory for this purpose. Any other directory an entry point
+references (e.g. `docs/architecture/scripts/`, `architecture-doc.sh`'s target) stays out of
+reach even for verification — take that entry point's own header claim at face value, don't open
+the target file to cross-check it; that directory's own accuracy is its own future skill run's
+job, not this one's. This is a read/verify allowance only — it does not extend *editing* rights;
+fixing a file inside `scripts/sonar/` still requires its own separate "run the skill over
+`scripts/sonar/`" invocation, per "In scope" below.
+
 ### Nested library/support folders — never a script-group, always get a minimal README
 
 A subdirectory whose own files are never entry points themselves — only `source`d/imported/called
@@ -585,13 +644,20 @@ Flow section, everything — not a partial pass. There is no "is this file alrea
 tracking inside this skill itself; that's a per-run decision, made when the skill is actually
 invoked, not a state this document maintains.
 
+This applies to every pre-existing line in `README.md`, not only newly-noticed gaps — pre-existing
+content earns no presumption of compliance just because it predates this run; every line, old or
+new, is re-derived from the finished file headers and re-tested against "One fact, one canonical
+home" before being kept.
+
 "In scope" means the invoked directory only — a run scoped to one directory (e.g. "run the skill
 over scripts/sonar/") fixes only files and README content inside that directory, never a stale
 reference, gap, or unrelated finding noticed in some other file while working, even one immediately
-adjacent (a parent's README, a sibling script-group). Report it instead of fixing it inline, the
-same way any other out-of-scope-but-valid finding gets surfaced per this project's standing review
-conventions — scope creep beyond the invoked directory is not "thoroughness," it's an unbounded
-task turning into a different, unapproved one.
+adjacent (a parent's README, a sibling script-group). Report it instead of fixing it inline —
+propose appending it to this project's standing deferred-findings bucket (see `.claude/rules.md`'s
+"Out-of-scope-but-valid findings" section for where and how) rather than only stating it in chat,
+so the finding survives past this conversation instead of being lost once the session ends. Scope
+creep beyond the invoked directory is not "thoroughness," it's an unbounded task turning into a
+different, unapproved one.
 
 ## After deleting a file, sweep the in-scope directory for remaining references to it
 
@@ -621,3 +687,8 @@ really does — every flag, every conditional branch, every real side effect. Ca
 gap a same-context self-review misses (a flag added to the code but never mentioned in the
 header's `Usage` field, a real fact left out of `Env`/`Outputs`) precisely because the reviewer
 starts cold, from the real files, not from what was already believed to be true while writing.
+
+Also verify placement, not just accuracy: for every fact in `README.md`, confirm it could not be
+answered by reading a single file's own header alone. A README sentence that duplicates a file
+header — even if factually correct — is itself a finding to report, per "One fact, one canonical
+home."

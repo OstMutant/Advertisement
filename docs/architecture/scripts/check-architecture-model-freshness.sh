@@ -2,7 +2,7 @@
 # Description: CI gate -- fails if the committed architecture-model.json/architecture-map.html
 #   are stale (out of sync with what the generator would produce from current repo state).
 # Uses: bash, calls generate-architecture-model.sh as a subprocess.
-# Input: the current committed docs/architecture/architecture-model.json + architecture-map.html,
+# Input: the current committed docs/architecture/data/architecture-model.json + architecture-map.html,
 #   plus everything generate-architecture-model.sh itself reads.
 # Output: exit 0 ("up to date") or exit 1 with an ERROR line naming which file is stale --
 #   no file is written, the committed files are always restored afterward.
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-JSON="$REPO_ROOT/docs/architecture/architecture-model.json"
+JSON="$REPO_ROOT/docs/architecture/data/architecture-model.json"
 HTML="$REPO_ROOT/docs/architecture/architecture-map.html"
 
 if [ ! -f "$JSON" ] || [ ! -f "$HTML" ]; then

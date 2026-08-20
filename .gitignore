@@ -32,7 +32,7 @@
 # Playwright artifacts
 /playwright/screenshots/
 /playwright/pw-report/
-/scripts/architecture/architecture-map-screenshots/
+/docs/architecture/scripts/architecture-map-screenshots/
 
 # Integration test artifacts
 /integration-tests/reports/

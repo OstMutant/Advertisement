@@ -5,7 +5,7 @@ REM   .java/.css/.yml/.properties/.xml/.sql/.imports/.bat/.json/.js/.sh/.md/.htm
 REM   root files and .claude/ rules/commands/skills) into a single all-code.txt, with a table of
 REM   contents and a per-extension summary -- useful for AI analysis.
 REM Usage: scripts\collect-code.bat
-REM Uses: cmd.exe (dir/findstr/type only, no external tools).
+REM Uses: cmd.exe (dir/findstr/type/find only, no external tools).
 REM Env: None.
 REM Input: repo source -- recursive scan excluding target/node_modules/.git/.idea/.claude/
 REM   generated/frontend/generated/etc (see the :FindFiles label's own exclusion list).
@@ -142,11 +142,11 @@ call :CheckRootFile "CLAUDE.md"
 call :CheckRootFile "Dockerfile"
 call :CheckRootFile "Dockerfile.ai"
 call :CheckRootFile ".env"
-call :CheckRootFile "scripts\infra\docker-compose.app.yml"
-call :CheckRootFile "scripts\infra\docker-compose.db.yml"
-call :CheckRootFile "scripts\infra\docker-compose.minio.yml"
+call :CheckRootFile "scripts\deploy-and-run\docker-compose.app.yml"
+call :CheckRootFile "scripts\deploy-and-run\docker-compose.db.yml"
+call :CheckRootFile "scripts\deploy-and-run\docker-compose.minio.yml"
 call :CheckRootFile "lombok.config"
-call :CheckRootFile "scripts\database\reset-clean.sql"
+call :CheckRootFile "scripts\deploy-and-run\reset-clean.sql"
 call :CheckRootFile ".claude\skills\doc-standards\SKILL.md"
 call :CheckRootFile ".claude\skills\deep-review\SKILL.md"
 
