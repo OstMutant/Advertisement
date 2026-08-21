@@ -78,6 +78,128 @@ self-documentation. Whether `docs/architecture/` should become its own tracked c
 whether `architecture-map.html`/the `data/` files belong alongside it) is a follow-up design
 question, out of scope for this mechanical move.
 
+## `scripts/claude.bat` — reuse-or-create the dev container (2026-08-20)
+
+Separate finding from the same session, tracked here per explicit user direction rather than a new
+issue. `scripts/claude.bat` always did `docker rm -f claude-dev` then `docker run` unconditionally
+on every invocation — destroying and recreating the dev container every time, contradicting this
+project's own "self-healing" convention (`scripts/README.md`: reuse a running container, only
+create when genuinely missing).
+
+**First attempt (2026-08-20, reverted the same session):** introduced a new `scripts/claude.sh` and
+rewrote `claude.bat` as a thin WSL delegator, matching the pattern every other root `.bat` uses.
+**This broke the script on a real machine** — confirmed directly (`wsl wslpath -u
+"...\claude.sh"` resolved to a `/mnt/wsl/docker-desktop-bind-mounts/...` path instead of a normal
+`/mnt/d/...` one, and `wsl bash` couldn't find the file there). Root cause: unlike every other root
+`.bat`, the original `claude.bat` never depended on WSL at all — it called `docker` directly from
+`cmd.exe` against Windows Docker Desktop's own CLI. Introducing a WSL hop added a whole new failure
+surface (WSL distro/path resolution) that the original design deliberately had zero dependency on.
+Reverted: `scripts/claude.sh` deleted, `scripts/README.md`'s Entry points row and
+`generate-architecture-model.sh`'s `SCRIPT_GROUP_FILE_ORDER["scripts"]` both reverted to their
+pre-this-issue state (`claude.bat` = self-contained, no delegation).
+
+**Fix — applied for real, self-contained, no WSL:**
+
+`scripts/claude.bat` stays a single file, still calling `docker` directly from `cmd.exe` exactly as
+it always did — only the reuse-vs-recreate branching is new:
+- Parses `LOGIN` (still required, first positional arg) and a new `--recreate` flag alongside the
+  existing `--update`; everything else forwards to the `claude` entrypoint unchanged.
+- `docker ps --filter "name=^claude-dev-test$" --filter "status=running" -q` (container temporarily
+  renamed `claude-dev-test` for testing, per explicit user request, so it doesn't collide with the
+  live session already running as `claude-dev` — rename back to `claude-dev` once confirmed
+  working end to end).
+- If running and `--recreate` was not passed: reuses it via `docker exec -it claude-dev-test claude
+  <extra-args>` (a new `claude` process inside the existing container, sharing its mounts) instead
+  of tearing it down.
+- If not running, or `--recreate` was passed: falls through to the original `docker rm -f` +
+  `docker run` sequence, unchanged (including the `//var/run/docker.sock` double-slash — that
+  escaping *is* needed here, since `docker run` still executes from `cmd.exe`/MSYS, not WSL).
+
+**Verification status:** node-fix and `architecture-doc.bat` path fixes were confirmed working on
+the user's real machine; this `claude.bat` self-contained rewrite has not yet been re-tested after
+reverting away from the broken WSL version.
+
+## `architecture-doc.sh`/`.bat` — real-machine failures and the containerization fix (2026-08-20)
+
+Verifying the relocation above on the user's actual Windows/WSL machine (not just this sandbox)
+surfaced a chain of real, unrelated environment problems, in the order found:
+
+1. **`node: command not found`** — `generate-architecture-model.sh` needs `node` unconditionally
+   (Liquibase-XML-to-JSON parsing, JSON-safe multi-line file reads); the user's WSL distro has no
+   `node` on the host at all. Confirmed directly (`wsl which node` / `wsl node --version` both
+   empty/not-found).
+2. **`wsl bash -l` login-shell attempt** — tried first, assuming a PATH-via-`.bashrc` issue;
+   irrelevant once (1) confirmed `node` isn't installed at all, not just unreachable via PATH.
+3. **Permission Denied writing `user-spring-boot-starter/DECISIONS.md`** (and, once the same check
+   ran for all three, `advertisement-spring-boot-starter`/`provider-profile-spring-boot-starter`
+   too) — `generate_pointer_decisions_md()` regenerates these 3 modules' pointer-only
+   `DECISIONS.md` every run; write access to (at least) these paths is denied on the user's
+   machine. `attrib` (file and folder level) showed no Windows read-only flag; a direct WSL
+   write-test (`touch` a throwaway file in the same directory) also failed — ruled out
+   file-specific causes, pointed at the directory itself or something environmental beyond simple
+   NTFS attributes (antivirus, a live lock, or similar — never fully identified). **Fix applied**:
+   `generate_pointer_decisions_md()` now catches a failed write, warns, and continues instead of
+   letting `set -e` abort the whole run over one low-stakes, fully-regenerable file — this
+   tolerance stays regardless of the containerization fix below, as defense in depth.
+4. **`/mnt/wsl/docker-desktop-bind-mounts/Ubuntu/<hash>/...` instead of normal `/mnt/d/...` paths**
+   — appeared first when testing the (later reverted) `claude.sh` WSL-delegator attempt on
+   `scripts/claude.bat`, then also started appearing in `architecture-doc.bat`'s own `wsl
+   wslpath -u`/`wsl bash <path>` calls. Confirmed via `wsl -l -v`: `Ubuntu` is correctly the
+   default distro (not a wrong-distro-selection issue) — the bind-mounts path is a real,
+   documented Docker-Desktop-WSL2 integration issue (microsoft/WSL#6464 and related docker/for-win
+   issues, confirmed via WebSearch, not assumed), triggered by Docker Desktop's own WSL2
+   integration once host-path bind mounts are in play; exact trigger never pinned down with
+   certainty. `wsl --cd <path>` (letting wsl.exe do the translation atomically, no separate
+   `wslpath` call) was tried and did **not** fully avoid it either — same symptom recurred.
+5. **A "hang" that was actually just a slow section** — with `--no-check`, a 45s/180s `timeout`
+   both killed the run before completion; `bash -x` tracing showed real forward progress (a
+   `grep -r`-heavy SPI/Port-implementer scan across `marketplace-orchestrator`'s source, not an
+   infinite loop) — just slower than expected, not stuck. Self-inflicted false alarm from
+   impatient `pkill` cycles during sandbox testing, not a real bug.
+
+**Real fix (containerization) — status: partially implemented, further changes need explicit
+approval before continuing:**
+
+Given (1)/(4) are both host-WSL-environment problems `architecture-doc.sh` cannot reliably control,
+and disposable-container tar-pipe-in/`docker cp`-out is an already-proven pattern in this exact repo
+(`scripts/build-and-test/run.sh`, for the identical class of Windows/WSL Permission Denied issue,
+see that file's own header comment) — `architecture-doc.sh` now runs the whole generation pipeline
+inside a Docker container instead of on the host, sidestepping (1) and (4) entirely (the real
+generation work never touches host WSL path resolution beyond the initial tar-pipe and final
+`docker cp`).
+
+Iterations tried this session, in order:
+- **Disposable container per run** (`docker run --rm`) — worked, but reinstalled `python3` via
+  `apt-get` on every single invocation (needed unconditionally by `script_headers_json()`, not
+  gated behind any flag despite an earlier, now-stale header claim that Python is opt-in) — slow
+  and, once, visibly flaky (apt mirror speed varied 2x+ between runs in this sandbox).
+- **Warm, reused container** (`docker run -d ... sleep infinity`, `docker exec` into it, install
+  `python3` only if missing) — same shape as `playwright/run.sh`'s `pw-runner` and this directory's
+  own `screenshot-architecture-map.sh`'s `arch-map-shot`. Verified twice in a row in this sandbox:
+  first run installs `python3` (slow), second run skips it entirely (fast), both exit 0.
+- **`claude-dev`-reuse hybrid** (if the Claude Code dev container from `scripts/claude.bat` is
+  already running, `docker exec` directly into *it* instead of a separate container, since it
+  already bundles `node`+`python3` and has a real, non-nested bind-mounted `/app` — no tar-pipe or
+  `docker cp` needed at all in that branch) — **implemented, then explicitly reverted at the
+  user's direction**: making a documentation-generation script depend on an unrelated AI-assistant
+  container being alive is the wrong permanent shape, even though it's a legitimate fast path
+  during interactive debugging. Not currently in the file.
+
+**Next step, approved in principle but not yet implemented (awaiting explicit go-ahead before
+touching any file):** replace the warm-reused-container's runtime `apt-get install python3` with a
+small dedicated `docs/architecture/scripts/Dockerfile` (`FROM node:22-bookworm-slim` + install
+`python3` at build time), built once and reused (same "only rebuild when the Dockerfile itself
+changed" staleness check `scripts/build-and-test/Dockerfile`'s own build step already does) —
+removes the `apt-get` step from every run entirely, not just deferred to "first run only."
+
+**Verification status:** the current on-disk `architecture-doc.sh` (warm-container-only, no
+`claude-dev` branch, no Dockerfile yet) was confirmed working end to end on the user's real machine
+once (`Wrote 41 nodes...`, all steps completed) — one run separately showed `tar` failing to *read*
+two host-side files (`architecture-map.html`, `architecture-model.json`, the very files about to be
+fully overwritten anyway) during the tar-pipe-in step; generation still completed successfully
+despite that, likely inconsequential since those files are wholly regenerated, not
+read-modify-written — not yet root-caused, noted here in case it recurs.
+
 ## Related
 
 - `improvement-155` — repo-wide `infra-doc-standards` rollout (its root-`scripts/` item, now done

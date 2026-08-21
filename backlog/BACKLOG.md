@@ -84,6 +84,7 @@ improvement-118 stays blocked (needs a public URL this sandbox doesn't have).
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
+| Top | 🟡 | 163 | improvement-163 (filed 2026-08-20) — Scripts tooling improvements tracking: open-ended log of concrete improvement ideas found while working on `scripts/` (Sonar, Playwright, CI, build-and-test, deploy-and-run, architecture-doc). First candidate: SonarQube MCP integration (`improvement-160` row D2-2), replacing `report.html`/`docker cp` with direct tool-call access |
 | Top | 🟡 | 161 | improvement-161 (filed 2026-08-20, split out of improvement-155's "Not yet started" list) — apply `infra-doc-standards` header/README convention to `docs/ai/scripts/`'s 4 scripts |
 | Top | 🔵 | 162 | improvement-162 (filed 2026-08-20, placeholder) — architecture-map refactor, scope to be confirmed (candidates: root `scripts/*.sh`/`*.bat` doc rollout, or a real refactor of `generate-architecture-model.sh` itself) |
 | Top | 🟡 | 160 | improvement-160 (filed 2026-08-19) — AI certification practical coverage: incrementally find real, reusable places in this project to apply the private "Claude Certified Architect" certification's 5 domains. Tracking file: `improvement-160-certification-coverage-map.md`. No implementation started — ideas being added first |

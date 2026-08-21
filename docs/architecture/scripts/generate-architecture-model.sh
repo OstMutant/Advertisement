@@ -26,6 +26,26 @@ ADR_INDEX="$REPO_ROOT/docs/ai/adr-index.md"
 FLOWS="$REPO_ROOT/docs/ai/flows.md"
 ROOT_CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
 
+# ── Node.js runner: host `node` if available, else a disposable node:22-alpine container --------
+# same "use it if the host has it, else containerize it" self-healing pattern this repo already
+# uses for Java/Playwright/SonarScanner (build-and-test/playwright/sonar all run their runtime
+# inside a container rather than requiring it on the host) -- a host with Docker Desktop + WSL but
+# no host-level node install is a real, confirmed case, not hypothetical.
+if command -v node >/dev/null 2>&1; then
+  NODE_MODE=host
+else
+  NODE_MODE=docker
+  NODE_IMAGE="node:22-alpine"
+  docker image inspect "$NODE_IMAGE" >/dev/null 2>&1 || docker pull -q "$NODE_IMAGE" >/dev/null
+fi
+run_node() {
+  if [ "$NODE_MODE" = host ]; then
+    node "$@"
+  else
+    docker run --rm -i -v "$REPO_ROOT:$REPO_ROOT" -w "$REPO_ROOT" "$NODE_IMAGE" node "$@"
+  fi
+}
+
 # Opt-in Sonar/ArchUnit/CI-metrics/ADR-details fetch -- all off by default so a plain run never
 # triggers a SonarQube rescan, depends on build-and-test.sh --archunit-metrics having run
 # recently, depends on a Dagu CI run having run recently, or bakes every module's full ADR text
@@ -108,7 +128,7 @@ SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report node_modules)
 # to every level of the SCRIPT_TREE_ROOTS tree (looked up by the node's own directory path).
 declare -A SCRIPT_GROUP_FILE_ORDER=(
   [docs/ai/scripts]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh"
-  [docs/architecture/scripts]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh"
+  [docs/architecture/scripts]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh Dockerfile"
   [scripts]="build-and-test.sh deploy-and-run.sh ci.sh run-all-tests.sh playwright.sh sonar.sh reset.sh run-local.bat build-and-test.bat deploy-and-run.bat ci.bat run-all-tests.bat playwright.bat sonar.bat claude.bat clean.bat collect-code.bat"
   [scripts/sonar]="run.sh run.bat docker-compose.sonar.yml sonar-project.properties"
   [scripts/build-and-test]="run.sh build.sh build-and-test.properties Dockerfile"
@@ -132,7 +152,7 @@ decisions_json_for() {
   local found=false
   for m in "${FULL_DECISIONS_MODULES[@]}"; do [ "$m" = "$module" ] && found=true; done
   $found || { echo "null"; return; }
-  node "$REPO_ROOT/docs/architecture/scripts/md-to-decisions-json.js" --stdout "$module"
+  run_node "$REPO_ROOT/docs/architecture/scripts/md-to-decisions-json.js" --stdout "$module"
 }
 
 # A SCRIPT_GROUP dir's own README.md (if it has one), read raw via Node's JSON.stringify -- same
@@ -142,7 +162,7 @@ decisions_json_for() {
 readme_json_for() {
   local dir="$1"
   [ -f "$REPO_ROOT/$dir/README.md" ] || { echo "null"; return; }
-  node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$REPO_ROOT/$dir/README.md"
+  run_node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$REPO_ROOT/$dir/README.md"
 }
 
 # ── Module list, in pom.xml reactor order ───────────────────────────────────────────────────
@@ -305,8 +325,8 @@ while IFS=$'\t' read -r tbl_module tbl_name; do
 done < <(
   files=()
   for f in "${DB_ERD_CHANGELOG_FILES[@]}"; do files+=("$REPO_ROOT/$f"); done
-  node "$REPO_ROOT/docs/architecture/scripts/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}" \
-    | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>JSON.parse(d).forEach(t=>console.log(t.module+"\t"+t.name)))'
+  run_node "$REPO_ROOT/docs/architecture/scripts/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}" \
+    | run_node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>JSON.parse(d).forEach(t=>console.log(t.module+"\t"+t.name)))'
 )
 
 # ── One-line module descriptions, reused from root CLAUDE.md's "Module Layout" ASCII tree ──────
@@ -398,9 +418,9 @@ for m in "${MODULES[@]}"; do
   fi
 done
 generate_pointer_decisions_md() {
-  local module="$1" items home id title
+  local module="$1" items home id title content
   items="$(adr_intent_for_module "$module")"
-  {
+  content="$(
     echo "# $module — Decisions (generated index)"
     echo
     echo "This module has no \`DECISIONS.md\` of its own — decisions about it are recorded in"
@@ -418,7 +438,15 @@ generate_pointer_decisions_md() {
         echo "- [$id](../$home/DECISIONS.md) — $title"
       done <<< "$items"
     fi
-  } > "$REPO_ROOT/$module/DECISIONS.md"
+  )"
+  # A write-permission failure here is an environment quirk (observed on a Windows/WSL checkout
+  # where one module directory silently rejects writes even from bash, with no NTFS attribute or
+  # ACL visibly explaining it) -- not worth hard-failing the entire model generation over one
+  # low-stakes, fully-regenerable pointer file. Warn and move on instead of letting `set -e` abort.
+  if ! printf '%s\n' "$content" > "$REPO_ROOT/$module/DECISIONS.md" 2>/dev/null; then
+    echo "WARNING: could not write $module/DECISIONS.md (write-permission issue in this" \
+         "environment) -- leaving the existing file as-is, skipping this module's pointer refresh." >&2
+  fi
 }
 for m in "${POINTER_DECISIONS_MODULES[@]}"; do generate_pointer_decisions_md "$m"; done
 
@@ -822,7 +850,7 @@ db_erd_json() {
   local f
   for f in "${DB_ERD_CHANGELOG_FILES[@]}"; do files+=("$REPO_ROOT/$f"); done
   local tables_json relationships_json
-  tables_json="$(node "$REPO_ROOT/docs/architecture/scripts/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}")"
+  tables_json="$(run_node "$REPO_ROOT/docs/architecture/scripts/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}")"
   relationships_json="$(db_erd_conceptual_relationships_json)"
   echo "{\"tables\": $tables_json, \"conceptualRelationships\": $relationships_json}"
 }
@@ -1492,7 +1520,7 @@ docker_files_json() {
 RUNTIME_NOTES_FILE="$REPO_ROOT/docs/architecture/data/runtime-notes.md"
 runtime_notes_json() {
   [ -f "$RUNTIME_NOTES_FILE" ] || { echo "null"; return; }
-  node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$RUNTIME_NOTES_FILE"
+  run_node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$RUNTIME_NOTES_FILE"
 }
 
 # ── Marked excerpts embedded directly inside a module's own CLAUDE.md (`<!-- #arch-embed:KEY -->
@@ -1532,7 +1560,7 @@ arch_embeds_json() {
     $first || out="$out,"
     first=false
     raw="$(arch_embed_raw "$file" "$key")"
-    out="$out\"$key\": $(printf '%s' "$raw" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))')"
+    out="$out\"$key\": $(printf '%s' "$raw" | run_node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))')"
   done
   echo "{$out}"
 }
@@ -1562,7 +1590,7 @@ arch_embed_index_md() {
       [ -z "$key" ] && continue
       line="$(grep -n -m1 "<!-- #arch-embed:${key} -->" "$file" | cut -d: -f1)"
       raw="$(arch_embed_raw "$rel" "$key")"
-      desc="$(printf '%s' "$raw" | node -e '
+      desc="$(printf '%s' "$raw" | run_node -e '
         let d="";process.stdin.on("data",c=>d+=c);
         process.stdin.on("end",()=>{
           const paras = d.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);

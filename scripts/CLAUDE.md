@@ -117,25 +117,32 @@ Two ways to run these, covering the same tests either way:
 ### Via `build-and-test.sh` (preferred — no local Java needed, unit + integration in parallel)
 
 ```bash
-bash scripts/build-and-test.sh --sandbox --unit --integration      # both, in parallel
+bash scripts/build-and-test.sh --unit --integration      # both, in parallel
 bash scripts/build-and-test.sh --unit --no-integration              # unit only
-bash scripts/build-and-test.sh --no-unit --integration --sandbox    # integration only
+bash scripts/build-and-test.sh --no-unit --integration    # integration only
 bash scripts/build-and-test.sh --unit-test AccessEvaluatorTest --no-integration  # one class
-bash scripts/build-and-test.sh --no-unit --integration-test AdvertisementRepositoryTest --sandbox
+bash scripts/build-and-test.sh --no-unit --integration-test AdvertisementRepositoryTest
 ```
 
 Builds the whole reactor into a container-isolated `~/.m2` first, then runs unit
 (`query-lib`/`marketplace-app`/`marketplace-orchestrator`) and integration (`integration-tests`
 module — Testcontainers-based repository tests, real Postgres) as parallel jobs inside that same
 container. See `scripts/build-and-test/README.md` for the full flow and
-`scripts/build-and-test/build.sh`'s own header for every flag. `--sandbox` applies
-`TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432` — **only needed in
-this claude-dev sandbox**, never on a normal developer machine (see below for why).
+`scripts/build-and-test/build.sh`'s own header for every flag. `TESTCONTAINERS_RYUK_DISABLED=true
+INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432` is applied **by default** everywhere except
+`GITHUB_ACTIONS` — confirmed needed on a real Docker Desktop/WSL2 developer machine too, not just
+an AI sandbox, whenever `--integration` is used: this script's own build container mounts the
+host's `docker.sock` so Testcontainers can run nested inside it, and that nesting is what triggers
+the port-reachability/Ryuk-connectivity issue, independent of which machine hosts it. Pass
+`--no-sandbox` to disable the workaround if your own setup doesn't need it.
 
-Reports: `scripts/build-and-test/reports/surefire/<module>/`.
+Reports: `scripts/build-and-test/reports/surefire/<module>/` (Surefire pass/fail per test class)
+and `scripts/build-and-test/reports/logs/` (the full raw console log for whichever phase ran —
+`unit-tests.log`/`integration-tests.log`/`archunit-metrics.log` — persists the real failure detail
+past this run's own terminal output/scrollback).
 
 **How to run it:** per `.claude/rules.md`'s "Scripts" section — background
-`bash scripts/build-and-test.sh --sandbox --unit --integration > /tmp/build-and-test.log 2>&1`,
+`bash scripts/build-and-test.sh --unit --integration > /tmp/build-and-test.log 2>&1`,
 then attach `Monitor` with the wait-then-tail wrapper against that log; stay quiet on routine
 progress, surface errors, a stall, or `PASSED|FAILED|BUILD SUCCESS|BUILD FAILURE`.
 
@@ -185,15 +192,20 @@ outer Docker socket — standard Docker-in-Docker isolation, no socket mount con
 `builder` stage. Testcontainers-based tests need a real reachable Docker daemon, which only exists
 when `mvn test` is run directly, never inside this build path.
 
-### Why this sandbox needs `INTEGRATION_TESTS_POSTGRES_FIXED_PORT` / `TESTCONTAINERS_RYUK_DISABLED`
+### Why `INTEGRATION_TESTS_POSTGRES_FIXED_PORT` / `TESTCONTAINERS_RYUK_DISABLED` are needed
 
-Confirmed: Testcontainers can create a container here, but the test JVM cannot reach a
+Confirmed: Testcontainers can create a container, but the test JVM cannot always reach a
 dynamically-assigned published port (only statically-published ones, e.g. `advertisement-db`'s
-`5432`, are reachable) — a Docker Desktop / socket-proxy quirk specific to this sandbox, not a
+`5432`, are reliably reachable) — a Docker Desktop/WSL2 nested-container networking quirk, not a
 code bug (same class of issue as the volume-mount limitation noted under Playwright below). Ryuk
-(the container reaper) also can't connect back to the test JVM here. Neither variable is needed on
-a normal developer machine — leave unset there; Testcontainers' default random-port assignment and
-Ryuk cleanup both just work outside this sandbox.
+(the container reaper) can likewise fail to connect back to the test JVM. Confirmed present both in
+this AI sandbox and on a real Docker Desktop/WSL2 developer machine when `build-and-test.sh`'s own
+build container mounts the host's `docker.sock` to run Testcontainers nested inside itself — the
+nesting itself is what triggers it, not which machine hosts the container. `build-and-test.sh`
+applies both variables by default for this reason (see above); pass `--no-sandbox` if a given
+setup doesn't hit this. `integration-tests/run.sh`'s own direct (non-nested) invocation stays
+opt-in via its own `--sandbox` flag — not yet confirmed needed outside this AI sandbox for that
+simpler, single-level case.
 
 ---
 

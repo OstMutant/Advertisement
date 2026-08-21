@@ -124,6 +124,26 @@ Why this example: `Usage` breaks into one flag per line here rather than staying
 — chosen because the file takes 6 flags, past the "3+ flags" threshold where a single-sentence
 `Usage` line would force a reader to parse a wall of `[--flag]` brackets instead of scanning a list.
 
+## `Usage`'s no-flags invocation must be stated explicitly when every flag is optional
+
+When every flag in a script's `Usage` is optional (no required positional argument), the field
+must open with one line stating what the bare invocation does, before the per-flag breakdown --
+never left only implied by `Description`. A reader scanning `Usage` for "what do I get if I just
+run this" should never have to cross-reference a separate field to find out.
+
+Example — `scripts/deploy-and-run.sh`:
+```
+# Usage: bash scripts/deploy-and-run.sh [--reset] [--restart-infra] [--file] [--no-cache] [--reset-only-db] [--with-tests] [--from-scratch] [--prune-all]
+#   (no flags)       reuse scripts/build-and-test.sh's shared jar -- no Docker image built, no
+#                    tests run -- start all services on port 8081
+#   --reset          wipe DB/MinIO volumes, then rebuild
+#   ...
+```
+
+Why this rule: matches the existing "3+ flags -> one flag per line" threshold's own reasoning --
+once a flag list is long enough to need one-per-line already, the plain invocation's own behavior
+is exactly the fact most likely to get lost in it without its own explicit line.
+
 ### `Outputs`/`Returns` stay two separate fields (per Google) — example, `check-architecture-model-freshness.sh`
 
 ```

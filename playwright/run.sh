@@ -23,11 +23,22 @@
 #   overridable, used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack.
 # Input: playwright/e2e/*.spec.js, playwright/e2e/_flows/*.js, playwright/e2e/_helpers.js,
 #   playwright/playwright.config.js.
-# Outputs: HTML report at playwright/pw-report/index.html. Restarts marketplace-app if the DB
-#   needed a reset.
+# Outputs: HTML report at playwright/pw-report/index.html; full raw console log (same content
+#   streamed live to stdout) at playwright/pw-report/run.log. Written inside pw-runner to two
+#   separate volume paths -- /reports/playwright/ (HTML report) and /reports/playwright-log/
+#   (run.log) -- kept apart because Playwright's own HTML reporter clears its outputFolder when it
+#   finalizes the report after the run, which would silently delete run.log if it shared that same
+#   folder (confirmed directly: run.log never survived when both used /reports/playwright/, even
+#   though the HTML report itself always did). Both live in the shared test-reports named Docker
+#   volume (never a WSL/Windows-drive path, so never subject to the docker-desktop-bind-mounts
+#   issue documented in docs/ai/adr-index.md) -- then copied out via `docker cp`; the same volume
+#   can also be inspected directly at any time, e.g. `docker exec pw-runner cat
+#   /reports/playwright-log/run.log`. Restarts marketplace-app if the DB needed a reset.
 # Returns: 0 if the Playwright run passes; non-zero if the app container isn't found/doesn't start,
 #   the DB reset fails, or any test fails.
 # ────────────────────────────────────────────────────────────────────────────
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 UX=""
@@ -109,7 +120,7 @@ if [ -n "$DB_CONTAINER" ]; then
   else
     echo "Database has data — stopping app, resetting, restarting..."
     docker stop "$APP_CONTAINER" >/dev/null
-    DB_NAME="$DB_NAME" DB_USER="$DB_USER" bash /app/scripts/deploy-and-run/reset.sh --container "$DB_CONTAINER"
+    DB_NAME="$DB_NAME" DB_USER="$DB_USER" bash "$ROOT/scripts/deploy-and-run/reset.sh" --container "$DB_CONTAINER"
     RESTART_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     docker start "$APP_CONTAINER" >/dev/null
     echo "Waiting for application to restart..."
@@ -132,35 +143,39 @@ else
 fi
 
 # ── Reuse pw-runner if already running, otherwise start it ───────────────────
+# test-reports is a shared named Docker volume (never a WSL/Windows-drive path, see
+# docs/ai/adr-index.md) -- mounted here so it's present the moment pw-runner is (re)created. Since
+# pw-runner is normally reused across calls (not recreated every run), an already-running
+# container from before this mount was added won't pick it up until it's next recreated (e.g. via
+# `docker rm -f pw-runner`).
 if ! docker inspect "$PW_CONTAINER" &>/dev/null; then
-  docker run -d --name "$PW_CONTAINER" --network host "$PLAYWRIGHT_IMAGE" sleep 86400
+  docker run -d --name "$PW_CONTAINER" --network host -v test-reports:/reports "$PLAYWRIGHT_IMAGE" sleep 86400
 else
   STATUS=$(docker inspect -f '{{.State.Status}}' "$PW_CONTAINER" 2>/dev/null)
   if [ "$STATUS" != "running" ]; then
     docker rm -f "$PW_CONTAINER"
-    docker run -d --name "$PW_CONTAINER" --network host "$PLAYWRIGHT_IMAGE" sleep 86400
+    docker run -d --name "$PW_CONTAINER" --network host -v test-reports:/reports "$PLAYWRIGHT_IMAGE" sleep 86400
   fi
 fi
 
 INSTALL_CMD="if [ ! -d /tmp/node_modules ]; then cd /tmp && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install playwright@${PLAYWRIGHT_VERSION} @playwright/test@${PLAYWRIGHT_VERSION} -q 2>&1 | grep -v '^npm notice'; fi"
 
-# ── Clean stale artifacts in container and host ───────────────────────────────
-docker exec "$PW_CONTAINER" bash -c "rm -rf /tmp/e2e /tmp/playwright.config.js /tmp/test-results /tmp/pw-report && rm -f /tmp/*.spec.js"
-rm -rf /app/playwright/pw-report
+# ── Clean stale artifacts in container and volume ─────────────────────────────
+docker exec "$PW_CONTAINER" bash -c "rm -rf /tmp/e2e /tmp/playwright.config.js /tmp/test-results /reports/playwright && rm -f /tmp/*.spec.js"
 
 # ── Sync spec files ───────────────────────────────────────────────────────────
 docker exec "$PW_CONTAINER" bash -c "mkdir -p /tmp/e2e"
-for f in /app/playwright/e2e/*.spec.js; do
+for f in "$ROOT"/playwright/e2e/*.spec.js; do
   [ -f "$f" ] && docker cp "$f" "$PW_CONTAINER":/tmp/e2e/ 2>/dev/null
 done
-if [ -d /app/playwright/e2e/_flows ]; then
+if [ -d "$ROOT/playwright/e2e/_flows" ]; then
   docker exec "$PW_CONTAINER" bash -c "mkdir -p /tmp/e2e/_flows"
-  for f in /app/playwright/e2e/_flows/*.js; do
+  for f in "$ROOT"/playwright/e2e/_flows/*.js; do
     [ -f "$f" ] && docker cp "$f" "$PW_CONTAINER":/tmp/e2e/_flows/ 2>/dev/null
   done
 fi
-[ -f /app/playwright/e2e/_helpers.js ] && docker cp /app/playwright/e2e/_helpers.js "$PW_CONTAINER":/tmp/e2e/
-docker cp /app/playwright/playwright.config.js "$PW_CONTAINER":/tmp/
+[ -f "$ROOT/playwright/e2e/_helpers.js" ] && docker cp "$ROOT/playwright/e2e/_helpers.js" "$PW_CONTAINER":/tmp/e2e/
+docker cp "$ROOT/playwright/playwright.config.js" "$PW_CONTAINER":/tmp/
 
 # ── Build run command ─────────────────────────────────────────────────────────
 # APP_URL must be forwarded explicitly -- playwright.config.js reads it from the pw-runner
@@ -169,36 +184,58 @@ PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright APP_URL=$APP_URL"
 [ -n "$UX" ]   && PW_ENV="$PW_ENV PW_SCREENSHOTS=1"
 [ -n "$FULL" ] && PW_ENV="$PW_ENV PW_FULL=1"
 
+# Full console output also persists to a log file, not just the terminal -- otherwise the only
+# record of a real failure's cause is whatever a Windows/PowerShell terminal's own scrollback
+# happens to still hold, easily lost on a long run. Written inside the container to
+# /reports/playwright-log/run.log -- deliberately NOT /reports/playwright/ (the HTML reporter's own
+# outputFolder) -- the HTML reporter clears its outputFolder when it finalizes the report after the
+# run, which silently deleted run.log every time it lived in that same folder (confirmed directly).
+# Both paths are under the shared test-reports named Docker volume, never a WSL/Windows-drive path,
+# so never subject to the docker-desktop-bind-mounts issue documented in docs/ai/adr-index.md --
+# then copied out to $RUN_LOG via `docker cp` after the run. `tee` still prints live to stdout
+# unchanged; the inner `exit ${PIPESTATUS[0]}` (escaped so it evaluates inside the container, not
+# this host shell) propagates the real playwright exit code through docker exec's own $?, since
+# there's no host-side pipe left to lose it in.
+# No mkdir -p here -- `docker cp` (below) creates the destination directory itself when it doesn't
+# exist, so a raw bash `mkdir -p` against this WSL/Windows-drive host path was pure redundancy that
+# cost every run a real filesystem write vulnerable to the docker-desktop-bind-mounts issue
+# documented in docs/ai/adr-index.md (confirmed directly to fail with "Permission denied" on a
+# real Docker Desktop/WSL2 machine). `docker cp` itself is daemon-mediated and not subject to it.
+RUN_LOG="$ROOT/playwright/pw-report/run.log"
+
 if [ -n "$SCENARIO" ]; then
   if [ "$SCENARIO" = "e2e" ]; then
     GREP_ARG=${GREP:+--grep "$GREP"}
-    docker exec "$PW_CONTAINER" bash -c "$INSTALL_CMD && cd /tmp && $PW_ENV npx playwright test $SCENARIO/ $GREP_ARG --config playwright.config.js"
+    docker exec "$PW_CONTAINER" bash -c "$INSTALL_CMD && mkdir -p /reports/playwright /reports/playwright-log && cd /tmp && ($PW_ENV npx playwright test $SCENARIO/ $GREP_ARG --config playwright.config.js 2>&1 | tee /reports/playwright-log/run.log; exit \${PIPESTATUS[0]})"
   else
     if [[ "$SCENARIO" == */* ]]; then
-      SPEC_FILE="/app/playwright/${SCENARIO%.spec}.spec.js"
+      SPEC_FILE="$ROOT/playwright/${SCENARIO%.spec}.spec.js"
     else
-      SPEC_FILE=$(find /app/playwright -name "${SCENARIO%.spec}.spec.js" -not -path "*/node_modules/*" | head -1)
+      SPEC_FILE=$(find "$ROOT/playwright" -name "${SCENARIO%.spec}.spec.js" -not -path "*/node_modules/*" | head -1)
     fi
     if [ ! -f "$SPEC_FILE" ]; then
       echo "Error: spec not found: $SCENARIO"
       echo "Available:"
-      find /app/playwright -name "*.spec.js" -not -path "*/node_modules/*" | sort | sed "s|/app/playwright/||"
+      find "$ROOT/playwright" -name "*.spec.js" -not -path "*/node_modules/*" | sort | sed "s|$ROOT/playwright/||"
       exit 1
     fi
-    SPEC_REL="${SPEC_FILE#/app/playwright/}"
+    SPEC_REL="${SPEC_FILE#$ROOT/playwright/}"
     GREP_ARG=${GREP:+--grep "$GREP"}
-    docker exec "$PW_CONTAINER" bash -c "$INSTALL_CMD && cd /tmp && $PW_ENV npx playwright test $SPEC_REL $GREP_ARG --config playwright.config.js"
+    docker exec "$PW_CONTAINER" bash -c "$INSTALL_CMD && mkdir -p /reports/playwright /reports/playwright-log && cd /tmp && ($PW_ENV npx playwright test $SPEC_REL $GREP_ARG --config playwright.config.js 2>&1 | tee /reports/playwright-log/run.log; exit \${PIPESTATUS[0]})"
   fi
 else
   GREP_ARG=${GREP:+--grep "$GREP"}
-  docker exec "$PW_CONTAINER" bash -c "$INSTALL_CMD && cd /tmp && $PW_ENV npx playwright test $GREP_ARG --config playwright.config.js"
+  docker exec "$PW_CONTAINER" bash -c "$INSTALL_CMD && mkdir -p /reports/playwright /reports/playwright-log && cd /tmp && ($PW_ENV npx playwright test $GREP_ARG --config playwright.config.js 2>&1 | tee /reports/playwright-log/run.log; exit \${PIPESTATUS[0]})"
 fi
 
 EXIT_CODE=$?
 
-# ── Copy HTML report back ─────────────────────────────────────────────────────
-mkdir -p /app/playwright/pw-report
-docker cp "$PW_CONTAINER":/tmp/pw-report/. /app/playwright/pw-report/ 2>/dev/null && \
-  echo "HTML report: /app/playwright/pw-report/index.html"
+# ── Copy HTML report + run log back from the shared test-reports volume ──────
+# Two separate docker cp calls -- the HTML report and run.log live in separate volume paths (see
+# header) precisely so the HTML reporter's own outputFolder-clearing can't delete run.log; both
+# still land together in the same host directory.
+docker cp "$PW_CONTAINER":/reports/playwright/. "$ROOT/playwright/pw-report/" 2>/dev/null && \
+  echo "HTML report: $ROOT/playwright/pw-report/index.html"
+docker cp "$PW_CONTAINER":/reports/playwright-log/. "$ROOT/playwright/pw-report/" 2>/dev/null
 
 exit $EXIT_CODE

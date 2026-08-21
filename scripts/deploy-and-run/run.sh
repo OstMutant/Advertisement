@@ -10,6 +10,8 @@
 #   wipe. See DECISIONS.md for the full reuse-jar rationale.
 # Usage: bash scripts/deploy-and-run.sh [--reset] [--restart-infra] [--file] [--no-cache]
 #   [--reset-only-db] [--with-tests] [--from-scratch] [--prune-all]
+#   (no flags)       reuse scripts/build-and-test.sh's shared jar -- no Docker image built, no
+#                    tests run, no data wipe -- start all services on port 8081
 #   --reset          wipe DB/MinIO volumes, then rebuild
 #   --restart-infra  restart infra containers only (no rebuild)
 #   --file           filtered console output + full log to /tmp/deploy.log

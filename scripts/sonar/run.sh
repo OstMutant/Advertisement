@@ -5,8 +5,11 @@
 #   scripts/build-and-test.sh (no local Java needed -- compiled classes come from the shared
 #   maven-cache volume, mounted directly into the scanner container), uploads the analysis, and
 #   generates a local HTML report.
-# Usage: bash scripts/sonar/run.sh [--no-gate]. --no-gate skips quality-gate blocking (always exits 0);
-#   default blocks on a gate result of ERROR (exits non-zero).
+# Usage: bash scripts/sonar/run.sh [--no-gate] [--pull-latest]. --no-gate skips quality-gate
+#   blocking (always exits 0); default blocks on a gate result of ERROR (exits non-zero).
+#   --pull-latest forces a Docker Hub pull check for both the SonarQube server and scanner images
+#   even if already present locally; default skips the pull once an image exists locally (checking
+#   Docker Hub on every run cost real time -- ~170s observed -- for no benefit on the common path).
 # Uses: bash, docker (SonarQube server + scanner containers), scripts/build-and-test.sh,
 #   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose, python3 (HTML report).
 # Env: None.
@@ -27,8 +30,10 @@ set -e
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
 NO_GATE=""
+PULL_LATEST=""
 for arg in "$@"; do
   [ "$arg" = "--no-gate" ] && NO_GATE=1
+  [ "$arg" = "--pull-latest" ] && PULL_LATEST=1
 done
 
 LOG=/tmp/sonar.log
@@ -101,8 +106,15 @@ source "$ROOT/scripts/utils/ensure-docker-plugins.sh"
 ensure_docker_compose
 
 # ── Ensure SonarQube server image is current, container exists and is running (see DECISIONS.md) ──
-echo "Checking SonarQube server image is up to date..."
-docker compose -f "$COMPOSE_FILE" pull -q
+# Pull is skipped by default once the image already exists locally -- checking Docker Hub for a
+# newer tag on every single run cost real time (~170s observed) for no benefit on the common path
+# where nothing changed. --pull-latest forces the check when a real update is actually wanted.
+if [ -n "$PULL_LATEST" ] || ! docker image inspect sonarqube:community >/dev/null 2>&1; then
+  echo "Pulling SonarQube server image..."
+  docker compose -f "$COMPOSE_FILE" pull -q
+else
+  echo "SonarQube server image already present locally -- skipping pull (use --pull-latest to force)."
+fi
 docker compose -f "$COMPOSE_FILE" up -d
 
 echo "Waiting for SonarQube to be ready..."
@@ -145,8 +157,14 @@ if ! curl -s -u "$CURRENT_TOKEN:" "$SONAR_URL/api/authentication/validate" | gre
 fi
 
 # ── Ensure scanner image is current, container exists and is running (see DECISIONS.md) ──
-echo "Checking scanner image is up to date..."
-docker pull -q sonarsource/sonar-scanner-cli:latest >/dev/null
+# Same pull-skip-by-default reasoning as the SonarQube server image above -- --pull-latest forces
+# the Docker Hub check, otherwise whatever's already local is used as-is.
+if [ -n "$PULL_LATEST" ] || ! docker image inspect sonarsource/sonar-scanner-cli:latest >/dev/null 2>&1; then
+  echo "Pulling scanner image..."
+  docker pull -q sonarsource/sonar-scanner-cli:latest >/dev/null
+else
+  echo "Scanner image already present locally -- skipping pull (use --pull-latest to force)."
+fi
 LATEST_IMAGE_ID=$(docker image inspect -f '{{.Id}}' sonarsource/sonar-scanner-cli:latest)
 CONTAINER_IMAGE_ID=$(docker inspect -f '{{.Image}}' "$SCANNER_CONTAINER" 2>/dev/null || true)
 CONTAINER_STATUS=$(docker inspect -f '{{.State.Status}}' "$SCANNER_CONTAINER" 2>/dev/null || true)

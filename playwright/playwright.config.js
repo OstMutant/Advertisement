@@ -9,8 +9,9 @@
  * Env: APP_URL (default http://localhost:8081) -- forwarded explicitly by run.sh into the
  *   pw-runner container's own env, not read from this repo checkout's shell.
  * Input: None.
- * Outputs: HTML report written to /tmp/pw-report inside the container; run.sh copies it out to
- *   playwright/pw-report/.
+ * Outputs: HTML report written to /reports/playwright inside the container -- the shared
+ *   test-reports named Docker volume mounted into pw-runner, never a WSL/Windows-drive path (see
+ *   docs/ai/adr-index.md); run.sh copies it out to playwright/pw-report/ via `docker cp`.
  * Returns: N/A -- this file has no exit code of its own, Playwright's own test run does.
  * ──────────────────────────────────────────────────────────────────────────── */
 const { defineConfig } = require('@playwright/test');
@@ -40,8 +41,10 @@ module.exports = defineConfig({
 
   reporter: [
     ['list'],
-    // HTML report written to /tmp/pw-report; run.sh docker-cp's it out afterward.
-    ['html', { outputFolder: '/tmp/pw-report', open: 'never' }],
+    // HTML report written to the shared test-reports volume, flat alongside run.sh's own
+    // run.log (both under /reports/playwright/) so one `docker cp .../reports/playwright/.` pulls
+    // both into playwright/pw-report/ on the host in one shot.
+    ['html', { outputFolder: '/reports/playwright', open: 'never' }],
   ],
 
   // webServer intentionally absent — app already running via docker-compose.
