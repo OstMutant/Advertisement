@@ -92,7 +92,9 @@ no `wait` needed) right at that point in the script.
    append that same message into the container's own volume before returning, so the failure
    reason is inspectable the same way even without terminal access. **Done.**
 4. Verify for real: trigger a run, then read each orchestrator.log via `docker exec` independent of
-   any terminal access, confirm it matches what was actually printed. **Pending.**
+   any terminal access, confirm it matches what was actually printed. **SKIP (2026-08-21)** — Test
+   3/Test 5 confirmed the file exists and is non-empty, but never compared its content against real
+   terminal output; skipped by direct instruction rather than run for real.
 
 ## Ongoing: separate logs from reports, and make both reliably regenerate
 
@@ -649,12 +651,13 @@ way).
   correctly watch their own `/tmp/*.log` files (no bug there -- they were already right). Not
   verified with a real run per instruction ("без запуску").
 
-- **TODO (verify later, noted 2026-08-21)** — not run for real yet, deliberately skipped this round
-  since manual local runs were already in progress at the time. Needs a real `/run-all-tests`,
-  `/build-and-test`, and `/playwright` invocation each, to confirm: (a) the new `rm -f` cleanup step
-  in each command doesn't error when the target report file doesn't exist yet (first-ever run), (b)
-  `/run-all-tests`'s consolidated Monitor watcher on `/tmp/run-all-tests.log` actually catches
-  PASSED/FAILED/BUILD SUCCESS/BUILD FAILURE live, not just at the end.
+- **SKIP (decided 2026-08-21)** — (a) `rm -f`/`rm -rf` on a missing target is `-f`'s own guaranteed
+  semantics (never errors on a nonexistent path) — no real risk here, not worth a dedicated
+  verification run. (b) whether `/run-all-tests`'s consolidated Monitor watcher on
+  `/tmp/run-all-tests.log` catches PASSED/FAILED/BUILD SUCCESS/BUILD FAILURE live (mid-run), not
+  just after the fact, was never actually confirmed — the 6 acceptance tests above only checked the
+  end-state files via `docker exec` post-run, not live Monitor behavior during the run. Skipped by
+  direct instruction rather than run for real.
 
 - **done (2026-08-21)** — briefly extended `scripts/ci/run.sh`'s `sync_artifacts()` to also pull
   the whole `scripts/logs/` tree from `ci-runner` onto the host, then reverted per direct
@@ -663,42 +666,11 @@ way).
   `pipeline-metrics.json` only); no `scripts\logs\ci` entry was ever added to `clean.bat` (never
   needed, since nothing new is written there). Syntax-checked (`bash -n`) after the revert.
 
-## Plan 3 (pending approval, 2026-08-21): architecture-map.html's script-header display is truncated and loses formatting
+## Plan 3 — spun out
 
-**Validated, two independent root causes**, both in
-`docs/architecture/scripts/generate-architecture-model.sh`'s `script_headers_json()` (~line 1104):
-
-1. **Truncation** (line 1123): `lines = fh.readlines()[:20]` reads only the file's first 20 lines
-   before parsing Description/Usage/Uses/Env/Input/Outputs/Returns out of them. Confirmed real:
-   `scripts/deploy-and-run/run.sh`'s own header spans 47 lines -- everything past line 20 (part of
-   `Env`, all of `Input`/`Outputs`/`Returns`) is never even read, regardless of what the field
-   -parsing logic below it does.
-2. **Formatting loss** (line 1166 + CSS): a continuation line is joined onto its field with a
-   single space (`fields[current] += ' ' + l.strip()`), collapsing the source file's real
-   multi-line/per-flag layout into one run-on sentence. Even if line breaks were preserved here,
-   `.header-entry-field` (~line 1897) has no `white-space: pre-wrap` -- a browser collapses
-   whitespace/newlines by default, so the HTML would still render as one line either way.
-
-**Fix for truncation:** not a delimiter-driven read (the closing `# ────...────` marker
-`infra-doc-standards/SKILL.md` defines is not present in every file's header, so parsing "read
-until that exact line" would silently break on any file without it). The *existing*
-field-terminating logic a few lines below (`elif current and (l.strip() == '' or
-re.match(r'^[─-]+$', l.strip())): break`) already stops correctly on either a blank line **or** a
-dash-delimiter line -- it already handles both "has the delimiter" and "just ends at a blank line"
-shapes. The actual bug is that `readlines()[:20]` never gives that logic a chance to see lines
-past 20 in the first place. Fix: raise the pre-read cap generously (e.g. `[:120]`, comfortably
-above the longest known real header today) -- a safety net against a pathological/malformed file
-looping forever, not a real limit any legitimate header should hit. The existing blank-line/
-delimiter stop condition keeps doing the real work of finding each header's actual end, for every
-file shape, with or without a closing delimiter.
-
-**Fix for formatting loss:**
-1. Line 1166: join continuation lines with `\n` instead of `' '`, preserving the source file's real
-   per-line layout in the extracted field value.
-2. `.header-entry-field` CSS (~line 1897): add `white-space: pre-wrap` so those preserved line
-   breaks actually render in the browser instead of collapsing back to one line.
-
-Not yet implemented -- pending approval.
+`architecture-map.html`'s script-header truncation/formatting bug (root cause found, fix designed)
+moved to its own issue: `improvement-164-architecture-map-script-header-truncation.md` — out of
+scope for this issue's own logs/reports focus.
 
 ## Log (continued)
 
@@ -761,9 +733,10 @@ Not yet implemented -- pending approval.
     scripts/run-all-tests/reports/*.log` step (that path is no longer written to by `run-all-tests.sh`
     at all); Claude's own direct `bash` invocation still relies on `/tmp/run-all-tests.log`'s `tee`
     for host-visible output, as it already did.
-  - **Known deferred gap**: `deploy-and-run.sh`'s own internal `build-and-test.sh` call's log
-    output is still embedded inside `playwright.log`, not split into its own file -- separating it
-    needs changes to `deploy-and-run.sh`'s own log capture, out of scope for this round.
+  - **SKIP (2026-08-21)**: `deploy-and-run.sh`'s own internal `build-and-test.sh` call's log output
+    is still embedded inside `playwright.log`, not split into its own file -- separating it needs
+    changes to `deploy-and-run.sh`'s own log capture. Skipped by direct instruction, out of scope
+    for this round.
   - Syntax-checked (`bash -n`, non-ASCII scan on both `.bat` files). Real end-to-end verification
     (a full `/run-all-tests`-equivalent run confirming `scripts\logs\run-all-tests\` actually gets
     populated) still pending.
