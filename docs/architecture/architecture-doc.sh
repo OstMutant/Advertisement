@@ -12,9 +12,14 @@
 #   "-v mount resolves empty when the caller is itself a container" nested-Docker problem, and
 #   avoids a real, confirmed Windows/WSL Permission Denied class of issue this same tar-pipe
 #   pattern already works around elsewhere in this repo -- see build-and-test/run.sh's own header
-#   comment on the identical symptom). Unless --no-screenshot, finishes by running
-#   screenshot-architecture-map.sh (this file's own sibling), which already uses its own separate,
-#   long-lived Playwright container -- unchanged.
+#   comment on the identical symptom). The upload step excludes the two generator output files
+#   (architecture-map.html, architecture-model.json) from the tar-pipe -- pure outputs, never read
+#   as input, and observed left mode 600 by a prior container run, which then made the *next*
+#   run's own upload fail with `tar: Permission denied` trying to read them; `docker cp`'d results
+#   get `chmod 644`'d on the host afterward for the same reason, regardless of what mode they had
+#   inside the container. Unless --no-screenshot, finishes by running screenshot-architecture-map.sh
+#   (this file's own sibling), which already uses its own separate, long-lived Playwright
+#   container -- unchanged.
 # Usage: bash docs/architecture/architecture-doc.sh [--no-check] [--no-screenshot] [--rebuild-image]
 #   (no flags)        regenerate the architecture model, verify it's reproducible (regenerate a
 #                      second time, diff against the first), then screenshot every screen of
@@ -34,10 +39,12 @@
 # Input: repo source (every Java module, Liquibase changelog, ADR, backlog file the generator
 #   scans).
 # Outputs: docs/architecture/data/architecture-model.json, docs/architecture/architecture-map.html
-#   (this file's own siblings), and any regenerated module DECISIONS.md pointer file; with the
-#   reproducibility check enabled, an ERROR naming which file differs between two consecutive
-#   regenerations, if any; with screenshots enabled, PNG files under the screenshot script's own
-#   output directory. The generation container itself never persists past this script's own exit.
+#   (this file's own siblings), and any regenerated module DECISIONS.md pointer file, all chmod'd
+#   644 on the host after copy-back; with the reproducibility check enabled, an ERROR naming which
+#   file differs between two consecutive regenerations, if any; with screenshots enabled, PNG files
+#   under the screenshot script's own output directory. Progress echoes to stdout bracket every
+#   phase (image build/reuse, container start, upload, generation, copy-back, cleanup,
+#   screenshots). The generation container itself never persists past this script's own exit.
 # Returns: 0 on success; non-zero if generation fails, the reproducibility check finds drift, or
 #   the screenshot step fails.
 # ────────────────────────────────────────────────────────────────────────────
@@ -55,6 +62,7 @@ for arg in "$@"; do
     --rebuild-image) REBUILD_IMAGE=true ;;
   esac
 done
+echo "Options: no-check=$NO_CHECK no-screenshot=$NO_SCREENSHOT rebuild-image=$REBUILD_IMAGE"
 
 GEN_CONTAINER="arch-doc-gen"
 GEN_IMAGE="arch-doc-tools"
@@ -82,6 +90,8 @@ else
   if [ "$DOCKERFILE_EPOCH" -gt "$IMAGE_CREATED_EPOCH" ]; then
     echo "Dockerfile changed since last build -- rebuilding $GEN_IMAGE image..."
     docker build -f "$DOCKERFILE" -t "$GEN_IMAGE" "$ROOT" >/dev/null
+  else
+    echo "$GEN_IMAGE image is up to date -- skipping rebuild."
   fi
 fi
 
@@ -91,30 +101,44 @@ if [ "$NO_CHECK" = false ]; then
 fi
 
 # ── Kill any leftover container from a prior run, start fresh, work, close ──────────────────────
+echo "Removing any leftover $GEN_CONTAINER container from a previous run..."
 docker rm -f "$GEN_CONTAINER" >/dev/null 2>&1 || true
+echo "Starting fresh $GEN_CONTAINER container..."
 docker run -d --name "$GEN_CONTAINER" "$GEN_IMAGE" sleep infinity >/dev/null
 docker exec "$GEN_CONTAINER" mkdir -p /repo
 
 set +e
+echo "Uploading repo source into $GEN_CONTAINER..."
 tar -czf - --exclude='*/target' --exclude='.git' \
   --exclude='marketplace-app/src/main/frontend/generated' \
+  --exclude='docs/architecture/architecture-map.html' \
+  --exclude='docs/architecture/data/architecture-model.json' \
   -C "$ROOT" . \
   | docker exec -i "$GEN_CONTAINER" bash -c "cd /repo && tar -xzf -"
+echo "Upload complete. Running generation pipeline: $GEN_CMD"
 docker exec "$GEN_CONTAINER" bash -c "cd /repo && $GEN_CMD"
 GEN_EXIT=$?
 set -e
+echo "Generation pipeline exited with code $GEN_EXIT."
 
+echo "Copying generated files back to host..."
 mkdir -p "$ROOT/docs/architecture/data"
 docker cp "$GEN_CONTAINER":/repo/docs/architecture/data/. "$ROOT/docs/architecture/data/" 2>/dev/null || true
+chmod 644 "$ROOT"/docs/architecture/data/* 2>/dev/null || true
 docker cp "$GEN_CONTAINER":/repo/docs/architecture/architecture-map.html "$ROOT/docs/architecture/architecture-map.html" 2>/dev/null || true
+chmod 644 "$ROOT/docs/architecture/architecture-map.html" 2>/dev/null || true
 for m in "${POINTER_MODULES[@]}"; do
   docker cp "$GEN_CONTAINER":/repo/"$m"/DECISIONS.md "$ROOT/$m/DECISIONS.md" 2>/dev/null || true
+  chmod 644 "$ROOT/$m/DECISIONS.md" 2>/dev/null || true
 done
+echo "Normalized permissions on copied output files."
 
+echo "Removing $GEN_CONTAINER container..."
 docker rm -f "$GEN_CONTAINER" >/dev/null 2>&1 || true
 
 [ "$GEN_EXIT" -eq 0 ] || exit "$GEN_EXIT"
 
 if [ "$NO_SCREENSHOT" = false ]; then
+  echo "Running screenshot pass (screenshot-architecture-map.sh)..."
   bash "$DIR/scripts/screenshot-architecture-map.sh"
 fi

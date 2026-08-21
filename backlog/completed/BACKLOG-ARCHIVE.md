@@ -1949,3 +1949,38 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   file-name pointer (kept the text, per "name a real file only when unavoidable"). `docs/ai/scripts/`
   split off to its own tracked issue, `improvement-161`, rather than folded in here. Full detail:
   `completed/issues/improvement-155-infra-doc-standards-repo-wide-rollout.md`.
+
+✅ Done (2026-08-21): improvement-163 — separated raw process logs (`scripts/logs/<script>/`) from
+  structured test reports (each script's own `reports/`/`pw-report/`) across build-and-test,
+  integration-tests, playwright, sonar, and run-all-tests; verified for real via 6 acceptance-
+  criteria test runs, all passing. Root-caused and fixed two real bugs found along the way: `docker
+  cp` failing when two nested destination directories are missing at once (fixed by creating
+  `scripts/logs/` once in `clean.bat`, not duplicated per entry point), and `sonar-scanner-cli`'s
+  non-root container user rejecting writes into its own reports volume (fixed with `--user root`).
+  Removed the flaky `wait_for_container_files_or_keep` timeout check entirely after it produced
+  false failures under real load; deleted `scripts/utils/wait-for-container-files.sh`. Added
+  `scripts/pull-logs.bat` to pull logs/reports from persistent containers without running a new
+  test. One item (`architecture-map.html`'s script-header truncation/formatting bug, diagnosed but
+  not implemented) split out to `improvement-164` rather than folded in here. Full detail:
+  `completed/issues/improvement-163-scripts-tooling-improvements.md`.
+
+✅ Done (2026-08-21): improvement-165 — investigated three third-party `.claude/`-layer linters
+  (agnix, AgentLint, AgentLinter) as candidates to mechanically validate `CLAUDE.md`/`SKILL.md`/
+  hooks/commands, none currently checked in this repo. Ran all three read-only against the real
+  repo; spot-checked the highest-severity findings in `CLAUDE.md`/`.claude/rules.md` specifically
+  against the real file content — every one checked (agnix's `<container>`/`<path>` "unclosed XML
+  tag", AgentLinter's "always call/never call" "contradiction") turned out to be a false positive
+  rooted in this project's own writing conventions (shell placeholders in inline code, contrastive
+  phrasing). Closed with no tool adopted — the underlying gap (no mechanical validation of the
+  `.claude/` layer) stays open for a future attempt. Full detail:
+  `completed/issues/improvement-165-investigate-agnix-claude-layer-linter.md`.
+
+✅ Done (2026-08-21): improvement-166 — `scripts/collect-code.bat` gains a `--claude-only` mode:
+  bundles just `.claude/` rules/commands/skills, every `CLAUDE.md` (root + per-module), and
+  `private/claude/memory/` into `claude-context.txt`, skipping the full project source scan. Two
+  real bugs found and fixed via actual Windows `cmd.exe` runs: `::`-style comments inside a new
+  parenthesized `if` block broke `cmd.exe`'s block parser (converted to `REM` and stripped of all
+  literal parentheses, since a stray paren in a comment can misparse the block the same way);
+  `CLAUDE.md` files were initially missing from the bundle since `--claude-only` skips the general
+  `*.md` scan that picks them up in full-project mode, fixed with an explicit `:FindFiles
+  "CLAUDE.md"` call. Full detail: `completed/issues/improvement-166-collect-code-claude-only-mode.md`.
