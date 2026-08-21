@@ -171,9 +171,15 @@ CONTAINER_STATUS=$(docker inspect -f '{{.State.Status}}' "$SCANNER_CONTAINER" 2>
 if [ "$CONTAINER_IMAGE_ID" != "$LATEST_IMAGE_ID" ] || [ "$CONTAINER_STATUS" != "running" ]; then
   [ -n "$CONTAINER_STATUS" ] && docker rm -f "$SCANNER_CONTAINER" >/dev/null
   docker run -d --name "$SCANNER_CONTAINER" --network host \
-    -v maven-cache:/root/.m2 \
+    -v maven-cache:/root/.m2 -v test-reports:/reports \
     sonarsource/sonar-scanner-cli:latest sleep 86400 >/dev/null
 fi
+# --user root: the sonar-scanner-cli image runs as a non-root user (scanner-cli, uid 1000) by
+# default, and the /reports volume mount is root-owned -- confirmed directly that a plain
+# `docker exec` (no --user) fails this mkdir with "Permission denied", a container-user-permissions
+# issue, unrelated to and distinct from the WSL bind-mounts issue documented elsewhere in this
+# repo. Same reasoning as this file's own pre-existing `--user root` for /tmp/sonar-src below.
+docker exec --user root "$SCANNER_CONTAINER" mkdir -p /reports/sonar >/dev/null 2>&1 || true
 
 # Prune any now-dangling image left by either freshness check above (same as deploy-and-run.sh, see DECISIONS.md).
 docker image prune -f >/dev/null
@@ -219,6 +225,13 @@ docker exec "$SCANNER_CONTAINER" sonar-scanner \
   $GATE_FLAG 2>&1 | tee "$LOG"
 EXIT_CODE=${PIPESTATUS[0]}
 set -e
+
+# Mirrored into SCANNER_CONTAINER's own test-reports volume too (synchronous, $LOG already has its
+# full final content by this point, no fifo/background complexity needed) -- same
+# logs-vs-reports split run-all-tests/build-and-test/playwright already use, and the same shared
+# volume mechanism, so it's inspectable via `docker exec sonar-scanner cat /reports/sonar/run.log`
+# independent of terminal access, and copyable to scripts/logs/sonar/ the same way.
+cat "$LOG" | docker exec --user root -i "$SCANNER_CONTAINER" sh -c "cat > /reports/sonar/run.log" 2>/dev/null || true
 
 # ── Generate HTML report (runs inside sonar-scanner container) ────────────────
 REPORT_DIR="$ROOT/scripts/sonar/report"
@@ -323,9 +336,19 @@ docker cp /tmp/sonar-gen-report.py "$SCANNER_CONTAINER":/tmp/sonar-gen-report.py
 docker exec -e SONAR_TOKEN="$SONAR_TOKEN" "$SCANNER_CONTAINER" python3 /tmp/sonar-gen-report.py
 docker cp "$SCANNER_CONTAINER":/tmp/sonar-report.html "$REPORT_FILE"
 
+# run.log (a process log, not a result) goes to its own separate host destination,
+# scripts/logs/sonar/, same logs-vs-reports split every other script in this repo now uses. Same
+# `docker cp CONTAINER:src HOST_DEST` (destination-argument) pattern build-and-test/playwright use
+# for their own logs -- creates the destination directory itself when missing, though only
+# intermittently reliable against a WSL docker-desktop-bind-mounts alias path (see
+# docs/ai/adr-index.md); not moved to a native `.bat` step here, same accepted-risk status as
+# those two.
+docker cp "$SCANNER_CONTAINER":/reports/sonar/. "$ROOT/scripts/logs/sonar/" 2>/dev/null || true
+
 echo ""
 echo "Analysis complete: $SONAR_URL/dashboard?id=advertisement"
 echo "Local report:      $REPORT_FILE"
+echo "Local log:         $ROOT/scripts/logs/sonar/run.log"
 
 if [ "$EXIT_CODE" -ne 0 ] && [ -z "$NO_GATE" ]; then
   echo ""

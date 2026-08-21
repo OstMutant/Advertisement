@@ -69,6 +69,12 @@ ROOT=/app
 # Docker container-name collision -- don't also collide writing into the same shared test-reports
 # volume at once.
 REPORTS_DIR="/reports/${BUILD_CONTAINER_NAME:-advertisement-build-only}"
+# Separate top-level container path (not nested under REPORTS_DIR) for raw process logs
+# (build-info.txt, logs/*.log) -- kept apart from REPORTS_DIR, which is real test *results* only
+# (surefire/, it-mirror/, architecture-metrics.json), so run.sh's own host copy-out can send each
+# to its own separate host destination (scripts\logs\build-and-test\ vs
+# scripts\build-and-test\reports\) with two plain docker cp calls, no exclusion logic needed.
+LOGS_DIR="/reports/logs/${BUILD_CONTAINER_NAME:-advertisement-build-only}"
 
 trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; exit $_rc' ERR
 
@@ -128,11 +134,12 @@ fi
 echo ""
 echo "=== Build done ==="
 
-# ── build-info.txt: written unconditionally so anyone looking at $REPORTS_DIR on the shared
+# ── build-info.txt: written unconditionally so anyone looking at $LOGS_DIR on the shared
 # volume (or after it lands on the host) can tell which invocation produced it, without having to
-# guess from context -- which container name, when, and with which flags. ────────────────────
-mkdir -p "$REPORTS_DIR"
-cat > "$REPORTS_DIR/build-info.txt" <<EOF
+# guess from context -- which container name, when, and with which flags. Lives in $LOGS_DIR, not
+# $REPORTS_DIR -- it's process metadata about the run itself, not a test result. ────────────────
+mkdir -p "$LOGS_DIR"
+cat > "$LOGS_DIR/build-info.txt" <<EOF
 BUILD_CONTAINER_NAME=${BUILD_CONTAINER_NAME:-advertisement-build-only}
 timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 RUN_UNIT=${RUN_UNIT:-false}
@@ -169,8 +176,8 @@ run_unit_tests() {
   ./mvnw -pl "$UNIT_MODULES" test $UNIT_TEST_FLAG > /tmp/unit-tests.log 2>&1
   UNIT_EXIT=$?
 
-  mkdir -p "$REPORTS_DIR/logs"
-  cp /tmp/unit-tests.log "$REPORTS_DIR/logs/unit-tests.log"
+  mkdir -p "$LOGS_DIR"
+  cp /tmp/unit-tests.log "$LOGS_DIR/unit-tests.log"
 
   mkdir -p "$REPORTS_DIR/surefire"
   for m in query-lib marketplace-app marketplace-orchestrator; do
@@ -209,21 +216,22 @@ run_integration_tests() {
   ./mvnw -pl integration-tests test -Dsurefire.excludedGroups= $INTEGRATION_TEST_FLAG > /tmp/integration-tests.log 2>&1
   INTEGRATION_EXIT=$?
 
-  mkdir -p "$REPORTS_DIR/logs"
-  cp /tmp/integration-tests.log "$REPORTS_DIR/logs/integration-tests.log"
+  mkdir -p "$LOGS_DIR"
+  cp /tmp/integration-tests.log "$LOGS_DIR/integration-tests.log"
 
   mkdir -p "$REPORTS_DIR/surefire/integration-tests"
   cp -r "$ROOT"/integration-tests/target/surefire-reports/* "$REPORTS_DIR/surefire/integration-tests/" 2>/dev/null || true
 
-  # Mirrors integration-tests/reports/ own shape (run.log + surefire/), copied out via a second,
-  # separate docker cp in run.sh (in addition to the one that copies $REPORTS_DIR/. as a whole into
-  # scripts/build-and-test/reports/) -- so integration-tests/reports/ stays fresh whenever
-  # integration tests run through this script too, not only via integration-tests/run.sh's own
-  # direct invocation. It also lands (harmlessly) as a nested it-mirror/ subfolder inside
+  # Mirrors integration-tests/reports/ own shape (surefire/ only -- no run.log copy here, that
+  # would just duplicate $LOGS_DIR/integration-tests.log under a second name; run.sh's own
+  # copy-out sends that one file to scripts/logs/integration-tests/run.log instead), copied out via
+  # a second, separate docker cp in run.sh (in addition to the one that copies $REPORTS_DIR/. as a
+  # whole into scripts/build-and-test/reports/) -- so integration-tests/reports/ stays fresh
+  # whenever integration tests run through this script too, not only via integration-tests/run.sh's
+  # own direct invocation. It also lands (harmlessly) as a nested it-mirror/ subfolder inside
   # scripts/build-and-test/reports/ via the first, whole-volume copy -- not worth avoiding, both
   # destinations reading it via `docker cp` are unaffected by that duplication.
   mkdir -p "$REPORTS_DIR/it-mirror/surefire"
-  cp /tmp/integration-tests.log "$REPORTS_DIR/it-mirror/run.log"
   cp -r "$ROOT"/integration-tests/target/surefire-reports/* "$REPORTS_DIR/it-mirror/surefire/" 2>/dev/null || true
 
   return $INTEGRATION_EXIT
@@ -250,8 +258,8 @@ run_archunit_metrics() {
   ./mvnw -pl marketplace-app test -Dtest=ArchitectureMetricsExport -Dsurefire.failIfNoSpecifiedTests=false > /tmp/archunit-metrics.log 2>&1
   ARCHUNIT_METRICS_EXIT=$?
 
-  mkdir -p "$REPORTS_DIR/logs"
-  cp /tmp/archunit-metrics.log "$REPORTS_DIR/logs/archunit-metrics.log"
+  mkdir -p "$LOGS_DIR"
+  cp /tmp/archunit-metrics.log "$LOGS_DIR/archunit-metrics.log"
 
   mkdir -p "$REPORTS_DIR"
   if [ -f "$ROOT/marketplace-app/target/architecture-metrics.json" ]; then

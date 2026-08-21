@@ -44,7 +44,7 @@
 /scripts/build-and-test/reports/
 
 # run-all-tests artifacts
-/scripts/run-all-tests/reports/
+/scripts/logs/
 
 # SonarQube
 /target/sonar

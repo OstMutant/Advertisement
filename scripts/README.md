@@ -24,6 +24,7 @@ it does, its flags, and its exact behavior; not restated here.
 | `sonar.sh` / `.bat` | `scripts/sonar/run.sh` |
 | `reset.sh` / `.bat` | `scripts/deploy-and-run/reset.sh` — a faster, narrower alternative to `deploy-and-run.sh --reset`: only truncates tables (~1s, containers/volumes stay intact) vs. `--reset`'s full container+volume wipe and rebuild (~7-10 min) |
 | `clean.bat` | self-contained (no delegation) |
+| `pull-logs.bat` | self-contained (no delegation) |
 | `collect-code.bat` | self-contained (no delegation) |
 | `claude.bat` | self-contained (no delegation) |
 | `run-all-tests.sh` / `.bat` | `scripts/run-all-tests/run.sh` — see `docs/ai/adr-index.md` for the unit/integration pairing's own history |

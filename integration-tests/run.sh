@@ -39,7 +39,9 @@
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPORT_DIR="$ROOT/integration-tests/reports"
-LOG_FILE="$REPORT_DIR/run.log"
+# Separate from $REPORT_DIR -- a process log (run.log), not a test result, same logs-vs-reports
+# split every other script in this repo now uses.
+LOG_FILE="$ROOT/scripts/logs/integration-tests/run.log"
 
 SCENARIO=""
 SANDBOX=""
@@ -127,6 +129,7 @@ else
 fi
 
 mkdir -p "$REPORT_DIR"
+mkdir -p "$(dirname "$LOG_FILE")"
 rm -f "$LOG_FILE"
 rm -rf "$REPORT_DIR/surefire"
 

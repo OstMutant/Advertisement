@@ -37,33 +37,34 @@
 #                               itself changed since the last run
 #   --playwright "<args>"      forwarded verbatim to playwright.sh
 # Uses: bash, docker (alpine image, for the persistent run-all-tests-reports container),
-#   scripts/build-and-test.sh, scripts/deploy-and-run.sh, scripts/playwright.sh,
-#   scripts/utils/wait-for-container-files.sh (sourced).
+#   scripts/build-and-test.sh, scripts/deploy-and-run.sh, scripts/playwright.sh.
 # Env: None directly -- flags forwarded to build-and-test.sh/deploy-and-run.sh/playwright.sh carry
 #   their own Env behavior, see those scripts' own headers.
 # Input: None beyond CLI flags.
-# Outputs: scripts/run-all-tests/reports/build-and-test.log + playwright.log (the latter now also
-#   carries deploy-and-run.sh's own output, since it runs immediately before playwright in the same
-#   backgrounded block). Both are written during the run into the shared test-reports named Docker
-#   volume (never a WSL/Windows-drive path, so never subject to the docker-desktop-bind-mounts
-#   issue documented in docs/ai/adr-index.md) via a persistent `run-all-tests-reports` container
-#   (removed and recreated fresh at the start of each run, never removed at the end -- same reused-
-#   container shape playwright/run.sh already uses for pw-runner), then copied out to their real
-#   destination here via `docker cp` once the whole run finishes; the same volume can also be
-#   inspected directly at any time, e.g. `docker exec run-all-tests-reports cat
-#   /reports/run-all-tests/playwright.log`. Surefire reports under
+# Outputs: build-and-test.log, playwright.log, and this script's own top-level progress/result
+#   messages (orchestrator.log) are all written during the run into the shared test-reports named
+#   Docker volume (never a WSL/Windows-drive path, so never subject to the docker-desktop-bind-
+#   mounts issue documented in docs/ai/adr-index.md) via a persistent `run-all-tests-reports`
+#   container (removed and recreated fresh at the start of each run -- same reused-container shape
+#   playwright/run.sh already uses for pw-runner). This script itself never copies that data to a
+#   host path or removes the container at the end anymore -- confirmed directly that `docker cp`'s
+#   own destination-path argument cannot reliably resolve a WSL docker-desktop-bind-mounts alias
+#   path. `run-all-tests.bat` performs the real host copy (into scripts/logs/run-all-tests/) and
+#   the container removal as a native cmd.exe step immediately after this script returns -- no WSL
+#   path translation involved there at all. A direct `bash scripts/run-all-tests.sh` invocation
+#   with no `.bat` wrapper (e.g. Claude Code's own usage) never gets a host copy this way --
+#   inspect the volume directly instead, e.g. `docker exec run-all-tests-reports cat
+#   /reports/run-all-tests/orchestrator.log`. Surefire reports under
 #   scripts/build-and-test/reports/surefire/, and with --archunit-metrics also
 #   scripts/build-and-test/reports/architecture-metrics.json (produced by build-and-test.sh itself,
 #   not duplicated here).
 # Returns: 0 if build-and-test.sh, deploy-and-run.sh, and playwright.sh all succeed, 1 if any fail.
 # ────────────────────────────────────────────────────────────────────────────
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-REPORT_DIR="$ROOT/scripts/run-all-tests/reports"
-# No mkdir -p here -- `docker cp` (below) creates the destination directory itself when it doesn't
-# exist, so a raw bash `mkdir -p` against this WSL/Windows-drive host path was pure redundancy that
-# cost every run a real filesystem write vulnerable to the docker-desktop-bind-mounts issue
-# documented in docs/ai/adr-index.md (confirmed directly to fail with "Permission denied" on a
-# real Docker Desktop/WSL2 machine). `docker cp` itself is daemon-mediated and not subject to it.
+# Display-only from here on -- this script itself never writes to a host path anymore (see the
+# no-host-copy note further down); run-all-tests.bat's own native copy step is what actually
+# populates this directory, after this script returns.
+REPORT_DIR="$ROOT/scripts/logs/run-all-tests"
 
 UNIT_TEST_ARG=""
 INTEGRATION_TEST_ARG=""
@@ -103,20 +104,30 @@ PW_EXIT_FILE="/tmp/run-all-tests-pw-exit.$$"
 # documented in docs/ai/adr-index.md) via one persistent, reused container (REPORTS_CONTAINER,
 # same reuse pattern as playwright/run.sh's own pw-runner) rather than a fresh throwaway container
 # per write/per flush -- simplest reliable shape: the container is always already running by the
-# time any docker exec/docker cp against it happens, so there's no container-startup-timing
-# question to reason about at every call site. Removed and recreated fresh here, at the start of
-# each run -- deliberately NOT removed at the end (see the flush step below), so a failed/crashed
-# run's data in the volume stays inspectable via `docker exec run-all-tests-reports ...` until the
-# next run explicitly clears it.
+# time any docker exec against it happens, so there's no container-startup-timing question to
+# reason about at every call site. Removed and recreated fresh here, at the start of each run;
+# no longer removed by this script at the end -- see the no-host-copy note further down for why
+# that moved to run-all-tests.bat's own native step.
 REPORTS_CONTAINER="run-all-tests-reports"
 docker rm -f "$REPORTS_CONTAINER" >/dev/null 2>&1 || true
 docker run -d --name "$REPORTS_CONTAINER" -v test-reports:/reports alpine sleep 86400 >/dev/null
-docker exec "$REPORTS_CONTAINER" sh -c "mkdir -p /reports/run-all-tests && rm -f /reports/run-all-tests/*.log"
+docker exec "$REPORTS_CONTAINER" sh -c "mkdir -p /reports/run-all-tests && rm -f /reports/run-all-tests/*.log /reports/run-all-tests/orchestrator.log"
+
+# This script's own top-level progress/result messages (unlike build-and-test.log/playwright.log,
+# which capture their sub-process's full output) otherwise go only to whichever terminal invoked
+# this script -- never persisted anywhere. A synchronous, foreground `docker exec -i ... cat >>`
+# per checkpoint (not a background pipe/fifo -- these messages are short and infrequent, no need
+# for that machinery) mirrors each one into the volume too, so it stays inspectable independent of
+# terminal access.
+log_orchestrator() {
+  echo "$1" | docker exec -i "$REPORTS_CONTAINER" sh -c "cat >> /reports/run-all-tests/orchestrator.log" 2>/dev/null || true
+}
 
 DEPLOY_FLAGS=(--reset-only-db)
 $RESET_FULL && DEPLOY_FLAGS=(--reset)
 
 echo "Starting deploy-and-run.sh ${DEPLOY_FLAGS[*]} + playwright in background (log: $PW_LOG)..."
+log_orchestrator "Starting deploy-and-run.sh ${DEPLOY_FLAGS[*]} + playwright in background (log: $PW_LOG)..."
 {
   bash "$ROOT/scripts/deploy-and-run.sh" "${DEPLOY_FLAGS[@]}"
   DEPLOY_EXIT=$?
@@ -132,6 +143,7 @@ echo "Starting deploy-and-run.sh ${DEPLOY_FLAGS[*]} + playwright in background (
 PW_PID=$!
 
 echo "Running build-and-test.sh --unit --integration..."
+log_orchestrator "Running build-and-test.sh --unit --integration..."
 # A named pipe (mkfifo) + an explicitly backgrounded writer with its own captured PID, not
 # `tee >(...)` process substitution -- confirmed directly that bash does not reliably wait for a
 # process substitution's own subprocess (a bare `wait` returned immediately, before a deliberately
@@ -148,34 +160,32 @@ wait $BUILD_LOG_WRITER_PID
 rm -f "$BUILD_LOG_FIFO"
 
 echo "Waiting for deploy-and-run + playwright to finish..."
+log_orchestrator "Waiting for deploy-and-run + playwright to finish..."
 wait $PW_PID
 PW_EXIT="$(cat "$PW_EXIT_FILE" 2>/dev/null || echo 1)"
 rm -f "$PW_EXIT_FILE"
 
-# Flush both logs from the volume to their real destination in the repo -- straight `docker cp`
-# from REPORTS_CONTAINER (already running the whole time, see above), same proven pattern
-# playwright/run.sh already uses against its own long-lived pw-runner.
-docker cp "$REPORTS_CONTAINER":/reports/run-all-tests/. "$REPORT_DIR/" 2>/dev/null \
-  || echo "WARNING: could not copy orchestration logs to $REPORT_DIR -- inspect directly: docker exec $REPORTS_CONTAINER cat /reports/run-all-tests/playwright.log"
+# No host copy and no container removal here anymore -- confirmed directly that `docker cp`'s own
+# destination-path argument cannot reliably resolve a WSL docker-desktop-bind-mounts alias path
+# (fails with "invalid output path: directory ... does not exist" even naming a directory that
+# unquestionably exists), while a native cmd.exe `docker cp` (no WSL path translation involved at
+# all) does not have this problem -- the same reason `clean.bat` exists as a native step instead of
+# a WSL one. run-all-tests.bat now performs the real host copy (and the container removal) as a
+# native step immediately after this script returns; this script's only remaining job is getting
+# everything correctly into REPORTS_CONTAINER's own volume and exiting with the right code. A
+# direct `bash scripts/run-all-tests.sh` invocation with no .bat wrapper (e.g. Claude Code's own
+# usage) never gets the host copy this way -- inspect the volume directly instead, e.g.
+# `docker exec run-all-tests-reports cat /reports/run-all-tests/playwright.log`.
 
-# Confirm both files actually landed on the host (the docker cp above already ran -- this checks
-# its real result as plain host paths, not container-internal ones) before removing
-# REPORTS_CONTAINER -- confirmed present -> removed right away instead of waiting for the next run;
-# still missing after the timeout -> left running with an ERROR message, still cleared at the start
-# of the next run either way (see REPORTS_CONTAINER setup above).
-source "$ROOT/scripts/utils/wait-for-container-files.sh"
-wait_for_container_files_or_keep "$REPORTS_CONTAINER" 20 \
-  "$REPORT_DIR/build-and-test.log" "$REPORT_DIR/playwright.log"
-
-echo ""
-echo "===== SUMMARY ====="
-echo "build-and-test log: $BUILD_LOG"
-echo "Surefire reports:   scripts/build-and-test/reports/surefire/"
-echo "deploy-and-run + playwright log: $PW_LOG (exit $PW_EXIT)"
-if [ "$BUILD_EXIT" -eq 0 ] && [ "$PW_EXIT" -eq 0 ]; then
-  echo "ALL PASSED"
-else
-  echo "SOME FAILED"
-fi
+RESULT_LINE="ALL PASSED"
+[ "$BUILD_EXIT" -eq 0 ] && [ "$PW_EXIT" -eq 0 ] || RESULT_LINE="SOME FAILED"
+SUMMARY="
+===== SUMMARY =====
+build-and-test log: $BUILD_LOG
+Surefire reports:   scripts/build-and-test/reports/surefire/
+deploy-and-run + playwright log: $PW_LOG (exit $PW_EXIT)
+$RESULT_LINE"
+echo "$SUMMARY"
+log_orchestrator "$SUMMARY"
 
 exit $(( BUILD_EXIT != 0 || PW_EXIT != 0 ))

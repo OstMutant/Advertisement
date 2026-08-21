@@ -45,7 +45,7 @@
 #                                     for --unit/--integration/--archunit-metrics runs, never for a
 #                                     plain cache-priming build or anything deploy-and-run.sh/e2e
 #                                     relies on (see build.sh's own header for why)
-# Uses: bash, docker, tar, grep, sed, scripts/utils/wait-for-container-files.sh (sourced).
+# Uses: bash, docker, tar, grep, sed.
 # Env: BUILD_CONTAINER_NAME (default advertisement-build-only) -- overridable so two invocations of
 #   this script can run concurrently without a Docker container-name collision (Docker container
 #   names must be unique; a fixed name means a second concurrent `docker run` with the same name
@@ -265,44 +265,37 @@ set -e
 # on top of the real test run's).
 if [ "$BUILD_CONTAINER_NAME" = "advertisement-build-only" ]; then
   HOST_REPORT_DEST="$REPORT_DIR"
+  HOST_LOGS_DEST="$ROOT/scripts/logs/build-and-test"
 else
   HOST_REPORT_DEST="$REPORT_DIR/$BUILD_CONTAINER_NAME"
+  HOST_LOGS_DEST="$ROOT/scripts/logs/build-and-test/$BUILD_CONTAINER_NAME"
 fi
-# No `mkdir -p "$HOST_REPORT_DEST"` here -- `docker cp` creates the destination directory (and any
-# missing intermediates) itself when it doesn't exist, so the raw bash `mkdir -p` was pure
-# redundancy that cost every caller a real filesystem write against a WSL/Windows-drive host path
-# -- confirmed directly to fail with "Permission denied" on a real Docker Desktop/WSL2 machine due
-# to the docker-desktop-bind-mounts issue (see docs/ai/adr-index.md), which crashed the whole build
-# under `set -e`. `docker cp` itself is daemon-mediated and not subject to that bug.
+# No `mkdir -p` here -- `docker cp` creates the destination directory (and any missing
+# intermediates) itself when it doesn't exist, so the raw bash `mkdir -p` was pure redundancy that
+# cost every caller a real filesystem write against a WSL/Windows-drive host path -- confirmed
+# directly to fail with "Permission denied" on a real Docker Desktop/WSL2 machine due to the
+# docker-desktop-bind-mounts issue (see docs/ai/adr-index.md), which crashed the whole build under
+# `set -e`. `docker cp` itself is daemon-mediated and not subject to that bug.
+# Two separate copies -- LOGS_DIR (build-info.txt, logs/*.log -- raw process narration) and
+# REPORTS_DIR (surefire/, it-mirror/, architecture-metrics.json -- actual test results) are
+# separate top-level paths inside the container specifically so each can go to its own separate
+# host destination here, without any exclusion logic.
+docker cp "$BUILD_CONTAINER_NAME":/reports/logs/"$BUILD_CONTAINER_NAME"/. "$HOST_LOGS_DEST/" 2>/dev/null || true
 docker cp "$BUILD_CONTAINER_NAME":/reports/"$BUILD_CONTAINER_NAME"/. "$HOST_REPORT_DEST/" 2>/dev/null || true
 # Only attempted when integration tests actually ran -- otherwise there's nothing in the
 # container's it-mirror to copy. Same reasoning as above -- no `mkdir -p` before this `docker cp`
-# either.
+# either. integration-tests/reports/ gets only the surefire/ result (it-mirror no longer contains a
+# run.log of its own -- see build.sh); its matching log is not duplicated under a third location --
+# it's already at $HOST_LOGS_DEST/integration-tests.log (copied above), no separate
+# integration-tests-specific logs folder needed for one file.
 if [ "$RUN_INTEGRATION" = "true" ]; then
   docker cp "$BUILD_CONTAINER_NAME":/reports/"$BUILD_CONTAINER_NAME"/it-mirror/. "$ROOT/integration-tests/reports/" 2>/dev/null || true
 fi
 
-# Confirm the container's own expected log files actually landed on the host (the docker cp calls
-# above already ran -- this checks their real result as plain host paths, not via `docker exec`,
-# which would fail outright here since this one-shot build container has already exited by this
-# point) before removing it -- instead of always removing (trusting an unverified copy) or always
-# keeping (paying the resource cost even on success). If the build/test step itself already failed,
-# or nothing was expected to produce a log file at all (e.g. deploy-and-run.sh's own default
-# --no-unit --no-integration build), there's nothing meaningful to poll for -- skip straight to the
-# applicable branch.
-source "$ROOT/scripts/utils/wait-for-container-files.sh"
-EXPECTED_LOG_FILES=()
-[ "$RUN_UNIT" = "true" ] && EXPECTED_LOG_FILES+=("$HOST_REPORT_DEST/logs/unit-tests.log")
-[ "$RUN_INTEGRATION" = "true" ] && EXPECTED_LOG_FILES+=("$HOST_REPORT_DEST/logs/integration-tests.log")
-[ "$ARCHUNIT_METRICS" = "true" ] && EXPECTED_LOG_FILES+=("$HOST_REPORT_DEST/logs/archunit-metrics.log")
-
-if [ "$BUILD_EXIT" -ne 0 ]; then
-  echo "ERROR: build/test step failed (exit $BUILD_EXIT) -- container '$BUILD_CONTAINER_NAME' left running for inspection." >&2
-elif [ "${#EXPECTED_LOG_FILES[@]}" -eq 0 ]; then
-  docker rm -f "$BUILD_CONTAINER_NAME" >/dev/null 2>&1 || true
-else
-  wait_for_container_files_or_keep "$BUILD_CONTAINER_NAME" 20 "${EXPECTED_LOG_FILES[@]}"
-fi
+# Always remove the container after the copies above -- no post-copy verification (removed per
+# direct instruction: a timing-sensitive check was producing false failures under load even when
+# the copy had genuinely succeeded, just slightly later than an arbitrary timeout allowed).
+docker rm -f "$BUILD_CONTAINER_NAME" >/dev/null 2>&1 || true
 
 # ── Keep the build environment clean: prune dangling images (never containers/volumes --
 # those are host-wide operations, opt-in only, see scripts/CLAUDE.md) ─────────

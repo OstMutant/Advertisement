@@ -23,17 +23,20 @@
 #   overridable, used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack.
 # Input: playwright/e2e/*.spec.js, playwright/e2e/_flows/*.js, playwright/e2e/_helpers.js,
 #   playwright/playwright.config.js.
-# Outputs: HTML report at playwright/pw-report/index.html; full raw console log (same content
-#   streamed live to stdout) at playwright/pw-report/run.log. Written inside pw-runner to two
-#   separate volume paths -- /reports/playwright/ (HTML report) and /reports/playwright-log/
-#   (run.log) -- kept apart because Playwright's own HTML reporter clears its outputFolder when it
-#   finalizes the report after the run, which would silently delete run.log if it shared that same
-#   folder (confirmed directly: run.log never survived when both used /reports/playwright/, even
-#   though the HTML report itself always did). Both live in the shared test-reports named Docker
-#   volume (never a WSL/Windows-drive path, so never subject to the docker-desktop-bind-mounts
-#   issue documented in docs/ai/adr-index.md) -- then copied out via `docker cp`; the same volume
-#   can also be inspected directly at any time, e.g. `docker exec pw-runner cat
-#   /reports/playwright-log/run.log`. Restarts marketplace-app if the DB needed a reset.
+# Outputs: HTML report (a result) at playwright/pw-report/index.html. Full raw console log (same
+#   content streamed live to stdout, a process log, not a result) at scripts/logs/playwright/run.log
+#   -- kept in a separate host destination from pw-report/, same logs-vs-reports split
+#   run-all-tests/build-and-test already use. Written inside pw-runner to two separate volume paths
+#   -- /reports/playwright/ (HTML report) and /reports/playwright-log/ (run.log, plus this script's
+#   own top-level progress messages in orchestrator.log alongside it) -- kept apart because
+#   Playwright's own HTML reporter clears its outputFolder when it finalizes the report after the
+#   run, which would silently delete run.log if it shared that same folder (confirmed directly:
+#   run.log never survived when both used /reports/playwright/, even though the HTML report itself
+#   always did). Both live in the shared test-reports named Docker volume (never a WSL/Windows-drive
+#   path, so never subject to the docker-desktop-bind-mounts issue documented in
+#   docs/ai/adr-index.md) -- then copied out via `docker cp`; the same volume can also be inspected
+#   directly at any time, e.g. `docker exec pw-runner cat /reports/playwright-log/orchestrator.log`.
+#   Restarts marketplace-app if the DB needed a reset.
 # Returns: 0 if the Playwright run passes; non-zero if the app container isn't found/doesn't start,
 #   the DB reset fails, or any test fails.
 # ────────────────────────────────────────────────────────────────────────────
@@ -70,6 +73,35 @@ DB_NAME="${DB_NAME:-experiments}"
 PLAYWRIGHT_VERSION="1.61.1"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
 
+# ── Reuse pw-runner if already running, otherwise start it ───────────────────
+# Moved ahead of the app-container/DB-reset checks below (rather than staying next to the spec-sync
+# step further down, which is where it conceptually belongs) so log_orchestrator has a container to
+# write into from the very start of this script's own progress messages, not just from the test
+# invocation onward. test-reports is a shared named Docker volume (never a WSL/Windows-drive path,
+# see docs/ai/adr-index.md) -- mounted here so it's present the moment pw-runner is (re)created.
+# Since pw-runner is normally reused across calls (not recreated every run), an already-running
+# container from before this mount was added won't pick it up until it's next recreated (e.g. via
+# `docker rm -f pw-runner`).
+if ! docker inspect "$PW_CONTAINER" &>/dev/null; then
+  docker run -d --name "$PW_CONTAINER" --network host -v test-reports:/reports "$PLAYWRIGHT_IMAGE" sleep 86400
+else
+  PW_STATUS=$(docker inspect -f '{{.State.Status}}' "$PW_CONTAINER" 2>/dev/null)
+  if [ "$PW_STATUS" != "running" ]; then
+    docker rm -f "$PW_CONTAINER"
+    docker run -d --name "$PW_CONTAINER" --network host -v test-reports:/reports "$PLAYWRIGHT_IMAGE" sleep 86400
+  fi
+fi
+docker exec "$PW_CONTAINER" sh -c "mkdir -p /reports/playwright-log" >/dev/null 2>&1 || true
+
+# This script's own top-level progress messages (app container startup, DB reset) otherwise go only
+# to whichever terminal invoked this script -- never persisted anywhere, unlike the actual test
+# output (already captured in run.log). A synchronous, foreground `docker exec -i ... cat >>` per
+# checkpoint (not a background pipe/fifo -- these messages are short and infrequent) mirrors each
+# one into the volume too, so it stays inspectable independent of terminal access.
+log_orchestrator() {
+  echo "$1" | docker exec -i "$PW_CONTAINER" sh -c "cat >> /reports/playwright-log/orchestrator.log" 2>/dev/null || true
+}
+
 if ! docker inspect "$APP_CONTAINER" &>/dev/null; then
   echo "ERROR: Container '$APP_CONTAINER' not found. Build and start it:"
   echo "  docker build -f Dockerfile -t marketplace-app ."
@@ -88,16 +120,19 @@ fi
 STATUS=$(docker inspect -f '{{.State.Status}}' "$APP_CONTAINER")
 if [ "$STATUS" != "running" ]; then
   echo "Starting $APP_CONTAINER..."
+  log_orchestrator "Starting $APP_CONTAINER..."
   docker start "$APP_CONTAINER"
   echo "Waiting for startup (tailing logs)..."
   end=$((SECONDS + 120))
   while true; do
     if docker logs "$APP_CONTAINER" 2>&1 | grep -q "Started Application"; then
       echo "App ready."
+      log_orchestrator "App ready."
       break
     fi
     if [ $SECONDS -ge $end ]; then
       echo "ERROR: startup timed out"
+      log_orchestrator "ERROR: startup timed out"
       docker logs --tail=40 "$APP_CONTAINER"
       exit 1
     fi
@@ -105,7 +140,7 @@ if [ "$STATUS" != "running" ]; then
   done
 else
   curl -s --max-time 5 "$APP_URL" >/dev/null 2>&1 \
-    || { echo "ERROR: $APP_CONTAINER running but not responding"; docker logs --tail=30 "$APP_CONTAINER"; exit 1; }
+    || { echo "ERROR: $APP_CONTAINER running but not responding"; log_orchestrator "ERROR: $APP_CONTAINER running but not responding"; docker logs --tail=30 "$APP_CONTAINER"; exit 1; }
 fi
 
 # ── Reset / seed database ─────────────────────────────────────────────────────
@@ -117,8 +152,10 @@ if [ -n "$DB_CONTAINER" ]; then
     -tAc "SELECT count(*) FROM user_information" 2>/dev/null | tr -d '[:space:]')
   if [ "$ROW_COUNT" = "0" ]; then
     echo "Database already clean — skipping reset."
+    log_orchestrator "Database already clean — skipping reset."
   else
     echo "Database has data — stopping app, resetting, restarting..."
+    log_orchestrator "Database has data — stopping app, resetting, restarting..."
     docker stop "$APP_CONTAINER" >/dev/null
     DB_NAME="$DB_NAME" DB_USER="$DB_USER" bash "$ROOT/scripts/deploy-and-run/reset.sh" --container "$DB_CONTAINER"
     RESTART_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -128,10 +165,12 @@ if [ -n "$DB_CONTAINER" ]; then
     while true; do
       if docker logs "$APP_CONTAINER" --since "$RESTART_AT" 2>&1 | grep -q "Started Application"; then
         echo "App ready."
+        log_orchestrator "App ready."
         break
       fi
       if [ $SECONDS -ge $end ]; then
         echo "ERROR: restart timed out"
+        log_orchestrator "ERROR: restart timed out"
         docker logs --tail=40 "$APP_CONTAINER"
         exit 1
       fi
@@ -140,22 +179,7 @@ if [ -n "$DB_CONTAINER" ]; then
   fi
 else
   echo "WARNING: No postgres container found on port $DB_PORT — test accounts may not exist."
-fi
-
-# ── Reuse pw-runner if already running, otherwise start it ───────────────────
-# test-reports is a shared named Docker volume (never a WSL/Windows-drive path, see
-# docs/ai/adr-index.md) -- mounted here so it's present the moment pw-runner is (re)created. Since
-# pw-runner is normally reused across calls (not recreated every run), an already-running
-# container from before this mount was added won't pick it up until it's next recreated (e.g. via
-# `docker rm -f pw-runner`).
-if ! docker inspect "$PW_CONTAINER" &>/dev/null; then
-  docker run -d --name "$PW_CONTAINER" --network host -v test-reports:/reports "$PLAYWRIGHT_IMAGE" sleep 86400
-else
-  STATUS=$(docker inspect -f '{{.State.Status}}' "$PW_CONTAINER" 2>/dev/null)
-  if [ "$STATUS" != "running" ]; then
-    docker rm -f "$PW_CONTAINER"
-    docker run -d --name "$PW_CONTAINER" --network host -v test-reports:/reports "$PLAYWRIGHT_IMAGE" sleep 86400
-  fi
+  log_orchestrator "WARNING: No postgres container found on port $DB_PORT — test accounts may not exist."
 fi
 
 INSTALL_CMD="if [ ! -d /tmp/node_modules ]; then cd /tmp && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install playwright@${PLAYWRIGHT_VERSION} @playwright/test@${PLAYWRIGHT_VERSION} -q 2>&1 | grep -v '^npm notice'; fi"
@@ -201,7 +225,7 @@ PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright APP_URL=$APP_URL"
 # cost every run a real filesystem write vulnerable to the docker-desktop-bind-mounts issue
 # documented in docs/ai/adr-index.md (confirmed directly to fail with "Permission denied" on a
 # real Docker Desktop/WSL2 machine). `docker cp` itself is daemon-mediated and not subject to it.
-RUN_LOG="$ROOT/playwright/pw-report/run.log"
+RUN_LOG="$ROOT/scripts/logs/playwright/run.log"
 
 if [ -n "$SCENARIO" ]; then
   if [ "$SCENARIO" = "e2e" ]; then
@@ -231,11 +255,14 @@ fi
 EXIT_CODE=$?
 
 # ── Copy HTML report + run log back from the shared test-reports volume ──────
-# Two separate docker cp calls -- the HTML report and run.log live in separate volume paths (see
-# header) precisely so the HTML reporter's own outputFolder-clearing can't delete run.log; both
-# still land together in the same host directory.
+# Two separate docker cp calls to two separate host destinations -- the HTML report (a result) goes
+# to playwright/pw-report/ as before; run.log (a process log) now goes to scripts/logs/playwright/
+# instead of also landing in pw-report/, so logs and reports stay separated on the host the same as
+# run-all-tests/build-and-test already are, not just inside the volume (they already lived in
+# separate volume paths -- see header -- specifically so the HTML reporter's own outputFolder-
+# clearing can't delete run.log; that volume-side split is unrelated to this host-side one).
 docker cp "$PW_CONTAINER":/reports/playwright/. "$ROOT/playwright/pw-report/" 2>/dev/null && \
   echo "HTML report: $ROOT/playwright/pw-report/index.html"
-docker cp "$PW_CONTAINER":/reports/playwright-log/. "$ROOT/playwright/pw-report/" 2>/dev/null
+docker cp "$PW_CONTAINER":/reports/playwright-log/. "$ROOT/scripts/logs/playwright/" 2>/dev/null
 
 exit $EXIT_CODE

@@ -164,7 +164,7 @@ bash integration-tests/run.sh --no-check TaxonRepositoryTest  # skip the stalene
 ```
 
 Streams full Maven/Testcontainers output live via `tee`. After the run:
-- `integration-tests/reports/run.log` — full streamed output
+- `scripts/logs/integration-tests/run.log` — full streamed output
 - `integration-tests/reports/surefire/` — one `.txt`/`.xml` pass/fail report per test class
   (copied from Maven's own `target/surefire-reports/`)
 

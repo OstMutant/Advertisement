@@ -64,6 +64,167 @@ it per script.
    broken scenario (e.g. temporarily renaming an expected file inside the container before the
    check) actually leaves it up with the ERROR line, before marking this plan item done.
 
+## Plan 2 (2026-08-21): orchestrator-level output not captured anywhere -- implemented, verification pending
+
+**Gap found:** `run-all-tests/run.sh`'s own top-level messages (the final flush section, `=====
+SUMMARY =====`, `ALL PASSED`/`SOME FAILED`) and `playwright/run.sh`'s own top-level messages (app
+container startup wait, DB reset progress) are printed only to whichever terminal invoked the
+script -- never captured into any file, volume-backed or otherwise. The actual test output
+(`build-and-test.log`, `playwright.log`, `run.log`) is already reliably captured; it's specifically
+the *wrapping* orchestration script's own progress/result messages that are invisible after the
+fact.
+
+**Approach:** these messages are short and infrequent (not a firehose), so a full stdout-redirection
+retrofit (`exec > >(tee ...)`) isn't needed and would reintroduce the same fifo/background-pipe
+fragility already fought hard this session. Instead, build each message as a plain string first,
+`echo` it to the terminal as today, then send the same text through one simple, synchronous
+`docker exec -i CONTAINER sh -c "cat >> LOGFILE"` call (piped input, foreground, no backgrounding,
+no `wait` needed) right at that point in the script.
+
+1. `scripts/run-all-tests/run.sh`: after building the `===== SUMMARY =====` block (and at the
+   "Starting.../Running.../Waiting for..." checkpoints), also append it to
+   `/reports/run-all-tests/orchestrator.log` inside `REPORTS_CONTAINER` via the synchronous
+   `docker exec -i` pattern above. **Done.**
+2. `playwright/run.sh`: same treatment for its own top-level echo statements (app container
+   startup, DB reset), appended to `/reports/playwright-log/orchestrator.log` inside `pw-runner`
+   (already guaranteed running throughout its own lifecycle). **Done.**
+3. `scripts/utils/wait-for-container-files.sh`: on the ERROR (container left running) path, also
+   append that same message into the container's own volume before returning, so the failure
+   reason is inspectable the same way even without terminal access. **Done.**
+4. Verify for real: trigger a run, then read each orchestrator.log via `docker exec` independent of
+   any terminal access, confirm it matches what was actually printed. **Pending.**
+
+## Ongoing: separate logs from reports, and make both reliably regenerate
+
+**Goal (standing, per direct instruction, 2026-08-21):** logs (`scripts\logs\<script-name>\`) and
+reports (each domain's existing `*\reports\`/`pw-report\`) stay separate, both reliably regenerated.
+
+**Current state (2026-08-21):**
+- `run-all-tests` -- done (see Plan 2 above): `scripts\logs\run-all-tests\`.
+- `build-and-test` -- done: `LOGS_DIR` (`/reports/logs/$BUILD_CONTAINER_NAME`, a new top-level
+  container path, separate from `REPORTS_DIR`) holds `build-info.txt`/`unit-tests.log`/
+  `integration-tests.log`/`archunit-metrics.log`; copied to `scripts\logs\build-and-test\`.
+  `REPORTS_DIR` now holds only `surefire/`, `it-mirror/` (surefire only, its own `run.log` dropped
+  as a redundant duplicate), `architecture-metrics.json`.
+- `integration-tests/reports/` -- done: `integration-tests/run.sh` (the separate, standalone entry
+  point that runs `mvn` directly, no container) now writes its own `run.log` to
+  `scripts\logs\integration-tests\` instead of into `integration-tests\reports\` -- that folder now
+  holds `surefire/` only, from both writers (this script and `build-and-test/run.sh`'s it-mirror
+  copy).
+- `playwright` -- done: `run.log` now copied to `scripts\logs\playwright\` instead of
+  `playwright\pw-report\`; the HTML report (`index.html`) stays in `pw-report\` alone.
+- `sonar` -- done: `sonar-scanner`'s persistent container now also mounts `test-reports`; its
+  `run.log` (already `tee`'d to `/tmp/sonar.log`) is mirrored into the container's own volume
+  (`/reports/sonar/run.log`, synchronous `cat >>`, no fifo needed since the full content is already
+  available by that point) and copied out to `scripts\logs\sonar\` at the end.
+- `ci` -- deliberately not touched: no copying of either logs or reports added for CI, per direct
+  instruction -- `scripts/ci/run.sh`'s `sync_artifacts()` stays exactly as it already was
+  (`architecture-metrics.json`/`pipeline-metrics.json` only). No corresponding `clean.bat` entry
+  either, since nothing new is written there to clean.
+- `clean.bat` -- updated for all of the above (excluding CI, see above).
+  `scripts\logs\build-and-test`/`scripts\logs\playwright`/
+  `scripts\logs\sonar` wiped as contents-only via `del`, not `rmdir` (unlike `run-all-tests`'s logs,
+  these are still populated by WSL-side `docker cp`, only intermittently reliable at auto-creating a
+  missing destination, not moved to a native `.bat` step). `scripts\logs\integration-tests` also
+  contents-only -- no `docker cp` fallback there at all (this script runs `mvn` directly on the
+  host), so recreating the directory would need the same raw `mkdir -p` already confirmed unsafe.
+- Syntax-checked (`bash -n` on all files, non-ASCII scan on `clean.bat`). Not yet verified with a
+  real run.
+
+**Expected output list -- final, every `reports\` and `scripts\logs\` destination across every
+script (2026-08-21):**
+
+`reports\` (test/analysis results):
+1. `scripts\build-and-test\reports\` (`build-and-test/run.sh` + `build.sh`, container):
+   `surefire\query-lib\`, `surefire\marketplace-app\`, `surefire\marketplace-orchestrator\`,
+   `surefire\integration-tests\`, `it-mirror\surefire\`, `architecture-metrics.json` (only with
+   `--archunit-metrics`).
+2. `integration-tests\reports\`: `surefire\` only, from two writers -- `build-and-test/run.sh`'s
+   it-mirror copy, and `integration-tests/run.sh`'s own standalone run.
+3. `playwright\pw-report\`: `index.html` + Playwright's own HTML reporter internal structure.
+4. `scripts\sonar\report\report.html` -- via `scripts/sonar/run.sh`.
+5. `scripts\ci\reports\pipeline-metrics.json` + `scripts\build-and-test\reports\architecture-metrics.json`
+   (duplicate) -- via `scripts/ci/run.sh`'s `sync_artifacts()`.
+
+`scripts\logs\` (raw process output):
+1. `scripts\logs\run-all-tests\`: `orchestrator.log`, `build-and-test.log`, `playwright.log`.
+2. `scripts\logs\build-and-test\`: `build-info.txt`, `unit-tests.log`, `integration-tests.log`,
+   `archunit-metrics.log`.
+3. `scripts\logs\integration-tests\`: `run.log`.
+4. `scripts\logs\playwright\`: `run.log`, `orchestrator.log`.
+5. `scripts\logs\sonar\`: `run.log`.
+
+CI deliberately does not copy any of the above (logs or reports) -- see the Log entry below.
+
+**Acceptance criteria for verification -- only the 4 directly runnable/checkable by Claude Code
+itself (2026-08-21). `run-all-tests.bat`'s native copy step and `scripts/ci/run.sh
+--sync-artifacts`'s host-side sync are excluded: both rely specifically on avoiding a WSL
+docker-desktop-bind-mounts alias-path bug that only reproduces in the user's own real WSL/Docker
+Desktop session -- Claude Code's own environment is a separate, unaffected mount, so running the
+same commands there would pass regardless of whether the real fix works on a real machine (a false
+test, not a real one). Real verification of those two needs the user's own machine.**
+
+**Test 1 -- build-and-test:**
+1. Run: `/build-and-test --unit --integration --sandbox`
+2. Check: the command's own cleanup step removes `scripts/build-and-test/reports` and
+   `scripts/logs/build-and-test` before starting
+3. Run the script
+4. Reports: `scripts/build-and-test/reports/surefire/{query-lib,marketplace-app,marketplace-orchestrator}/`,
+   `.../it-mirror/surefire/` exist with files
+5. Logs: `scripts/logs/build-and-test/{build-info.txt,unit-tests.log,integration-tests.log}` exist,
+   non-empty
+6. Side effect: `integration-tests/reports/surefire/` exists; `integration-tests/reports/run.log`
+   absent
+
+**Test 2 -- integration-tests/run.sh (no command exists for this one):**
+1. Run: `rm -rf integration-tests/reports scripts/logs/integration-tests && bash
+   integration-tests/run.sh smoke --sandbox`
+2. Check: both dirs actually removed by the explicit `rm -rf` before starting
+3. Run the script
+4. Reports: `integration-tests/reports/surefire/` exists
+5. Logs: `scripts/logs/integration-tests/run.log` exists, non-empty
+
+**Test 3 -- playwright:**
+1. Run: `/playwright smoke`
+2. Check: the command's own cleanup step removes `playwright/pw-report` and
+   `scripts/logs/playwright` before starting
+3. Run the script
+4. Reports: `playwright/pw-report/index.html` exists
+5. Logs: `scripts/logs/playwright/{run.log,orchestrator.log}` exist
+
+**Test 4 -- sonar:**
+1. Run: `/sonar`
+2. Check: the command's own cleanup step removes `scripts/sonar/report` and `scripts/logs/sonar`
+   before starting
+3. Run the script
+4. Reports: `scripts/sonar/report/report.html` exists
+5. Logs: `scripts/logs/sonar/run.log` exists, non-empty
+
+**Test 5 -- run-all-tests (WSL side only -- the volume write, not the host copy, which is
+`run-all-tests.bat`-only and excluded for the same reason as above):**
+1. Run: `docker rm -f run-all-tests-reports` (if present), then `/run-all-tests`
+2. Check: the script itself removes and recreates the container fresh at the start (`docker rm -f`
+   + `docker run -d`)
+3. Run the script
+4. Verify via `docker exec run-all-tests-reports cat /reports/run-all-tests/orchestrator.log` --
+   exists, non-empty
+5. Verify via `docker exec run-all-tests-reports cat /reports/run-all-tests/build-and-test.log` --
+   exists, non-empty
+6. Verify via `docker exec run-all-tests-reports cat /reports/run-all-tests/playwright.log` --
+   exists, non-empty
+
+**Test 6 -- ci (only what's checkable inside `ci-runner` itself -- `--sync-artifacts`'s host copy
+excluded for the same reason as Test 5/`run-all-tests.bat`):**
+1. Run: `bash scripts/ci.sh` (or a narrower stage subset for speed)
+2. Wait for the run to reach a terminal state (Dagu UI / `watch-run.py`)
+3. Verify via `docker exec ci-runner cat /app/scripts/ci/reports/pipeline-metrics.json` -- exists,
+   non-empty
+4. Verify via `docker exec ci-runner cat /app/scripts/build-and-test/reports/architecture-metrics.json`
+   -- exists, non-empty (only if the `archunit_metrics` stage ran)
+
+Status: All 6 tests executed, all pass (see Log entries below for details/fixes found along the
+way).
+
 ## Log
 
 - **done (2026-08-20)** — `scripts/build-and-test/run.sh`: replaced the tar step's whole-repo
@@ -442,3 +603,251 @@ it per script.
   sized, and both `run-all-tests-reports` and `advertisement-build-only` were confirmed gone
   (`docker ps -a` empty for both names) -- the success path removes the container as designed.
   Plan closed; all 4 items done.
+
+- **done (2026-08-21)** — Plan 2 (orchestrator-level logging) implemented: `log_orchestrator()`
+  helper added to `scripts/run-all-tests/run.sh` (writes `/reports/run-all-tests/orchestrator.log`
+  in `REPORTS_CONTAINER`) and `playwright/run.sh` (writes `/reports/playwright-log/orchestrator.log`
+  in `pw-runner`, which required moving the pw-runner ensure-block earlier in the script so it
+  exists before the app-startup/DB-reset messages that needed logging too). Each checkpoint's
+  `echo` is mirrored via a plain synchronous `docker exec -i ... cat >>` call, no fifo/background
+  complexity. `wait_for_container_files_or_keep`'s ERROR path also now mirrors its message into the
+  container's own filesystem via `docker cp` (not `docker exec`, since this must work against an
+  already-exited one-shot build container too) as `/wait-for-container-files-error.log`.
+  Syntax-checked on all four touched files.
+
+- **done (2026-08-21)** — a real run on the user's machine hit
+  `wait_for_container_files_or_keep`'s ERROR path for real: both expected files reported missing
+  after the 20s timeout, even though the volume-side data was confirmed present and a manual
+  `docker cp` of the exact same container/path immediately succeeded. `docker top` on the container
+  showed no active process beyond the `sleep 86400` keep-alive, meaning the write itself had long
+  since finished -- pointing at either the real run's own `docker cp` call not completing before
+  the 20s check window, or the run not reaching that code for far longer than normal (container
+  timestamps were unchanged across two separate inspections ~13+ minutes apart). WebSearch turned up
+  several confirmed, independent GitHub issues describing exactly this class of problem -- Docker
+  Desktop WSL2 commands (`docker pull`, `docker login`, and by the same mechanism plausibly `docker
+  cp`/`docker exec`) intermittently stalling for many seconds under load:
+  [docker/for-win#12995](https://github.com/docker/for-win/issues/12995),
+  [microsoft/WSL#10667](https://github.com/microsoft/WSL/issues/10667) ("environment will
+  completely hang for a number of seconds then continue working"),
+  [docker/for-win#14852](https://github.com/docker/for-win/issues/14852). `run-all-tests.sh` is
+  exactly this kind of high-load scenario (3+ concurrent heavy docker processes at peak). Fixed by
+  raising the timeout from 20s to 60s in both call sites
+  (`scripts/build-and-test/run.sh`/`scripts/run-all-tests/run.sh`) to absorb this documented class
+  of stall rather than treat it as a real failure. The stuck container from that run was manually
+  recovered (`docker cp` retried successfully, files landed on host) rather than lost.
+
+- **done (2026-08-21)** — updated `.claude/commands/run-all-tests.md`/`build-and-test.md`/
+  `playwright.md` per direct instruction: each now `rm -f`s its own stale report file(s) before
+  starting (a plain existing-file removal, the tested-safe category -- distinct from the
+  confirmed-unsafe `mkdir -p` on a new WSL/Windows-drive directory). Also fixed a real inconsistency
+  in `run-all-tests.md` specifically: its Monitor step was watching
+  `scripts/run-all-tests/reports/build-and-test.log`/`playwright.log` -- host paths that (per this
+  session's own container-cleanup work above) only receive real content at the very end of the run,
+  via `docker cp` -- while step 3 already `tee`s the whole script's own live output into
+  `/tmp/run-all-tests.log` the entire time. Consolidated both Monitor watchers into the one that was
+  already live-updating throughout, matching how `build-and-test.md`/`playwright.md` already
+  correctly watch their own `/tmp/*.log` files (no bug there -- they were already right). Not
+  verified with a real run per instruction ("без запуску").
+
+- **TODO (verify later, noted 2026-08-21)** — not run for real yet, deliberately skipped this round
+  since manual local runs were already in progress at the time. Needs a real `/run-all-tests`,
+  `/build-and-test`, and `/playwright` invocation each, to confirm: (a) the new `rm -f` cleanup step
+  in each command doesn't error when the target report file doesn't exist yet (first-ever run), (b)
+  `/run-all-tests`'s consolidated Monitor watcher on `/tmp/run-all-tests.log` actually catches
+  PASSED/FAILED/BUILD SUCCESS/BUILD FAILURE live, not just at the end.
+
+- **done (2026-08-21)** — briefly extended `scripts/ci/run.sh`'s `sync_artifacts()` to also pull
+  the whole `scripts/logs/` tree from `ci-runner` onto the host, then reverted per direct
+  instruction: CI does not get any new logs-or-reports copying added in this round.
+  `sync_artifacts()` is back to exactly its pre-existing behavior (`architecture-metrics.json`/
+  `pipeline-metrics.json` only); no `scripts\logs\ci` entry was ever added to `clean.bat` (never
+  needed, since nothing new is written there). Syntax-checked (`bash -n`) after the revert.
+
+## Plan 3 (pending approval, 2026-08-21): architecture-map.html's script-header display is truncated and loses formatting
+
+**Validated, two independent root causes**, both in
+`docs/architecture/scripts/generate-architecture-model.sh`'s `script_headers_json()` (~line 1104):
+
+1. **Truncation** (line 1123): `lines = fh.readlines()[:20]` reads only the file's first 20 lines
+   before parsing Description/Usage/Uses/Env/Input/Outputs/Returns out of them. Confirmed real:
+   `scripts/deploy-and-run/run.sh`'s own header spans 47 lines -- everything past line 20 (part of
+   `Env`, all of `Input`/`Outputs`/`Returns`) is never even read, regardless of what the field
+   -parsing logic below it does.
+2. **Formatting loss** (line 1166 + CSS): a continuation line is joined onto its field with a
+   single space (`fields[current] += ' ' + l.strip()`), collapsing the source file's real
+   multi-line/per-flag layout into one run-on sentence. Even if line breaks were preserved here,
+   `.header-entry-field` (~line 1897) has no `white-space: pre-wrap` -- a browser collapses
+   whitespace/newlines by default, so the HTML would still render as one line either way.
+
+**Fix for truncation:** not a delimiter-driven read (the closing `# ────...────` marker
+`infra-doc-standards/SKILL.md` defines is not present in every file's header, so parsing "read
+until that exact line" would silently break on any file without it). The *existing*
+field-terminating logic a few lines below (`elif current and (l.strip() == '' or
+re.match(r'^[─-]+$', l.strip())): break`) already stops correctly on either a blank line **or** a
+dash-delimiter line -- it already handles both "has the delimiter" and "just ends at a blank line"
+shapes. The actual bug is that `readlines()[:20]` never gives that logic a chance to see lines
+past 20 in the first place. Fix: raise the pre-read cap generously (e.g. `[:120]`, comfortably
+above the longest known real header today) -- a safety net against a pathological/malformed file
+looping forever, not a real limit any legitimate header should hit. The existing blank-line/
+delimiter stop condition keeps doing the real work of finding each header's actual end, for every
+file shape, with or without a closing delimiter.
+
+**Fix for formatting loss:**
+1. Line 1166: join continuation lines with `\n` instead of `' '`, preserving the source file's real
+   per-line layout in the extracted field value.
+2. `.header-entry-field` CSS (~line 1897): add `white-space: pre-wrap` so those preserved line
+   breaks actually render in the browser instead of collapsing back to one line.
+
+Not yet implemented -- pending approval.
+
+## Log (continued)
+
+- **done (2026-08-21)** — root-caused, with direct evidence, why `run-all-tests/run.sh`'s flush
+  `docker cp` kept failing even after the 60s timeout increase: `docker cp CONTAINER:src HOST_DEST`
+  cannot resolve a WSL docker-desktop-bind-mounts alias path **at all** as a destination argument --
+  confirmed directly (`invalid output path: directory ".../scripts/run-all-tests" does not exist`,
+  naming a directory that unquestionably exists -- it's the very directory `run-all-tests/run.sh`
+  itself lives in). The exact same `docker cp` call against the equivalent `/app/...` path (this
+  session's own dedicated 9p/drvfs mount of the same physical drive, confirmed via `mount`/
+  `/proc/mounts` -- a genuinely different mount instance than the user's own WSL2 terminal session,
+  not the same mount point) succeeded instantly. This overturns the earlier "`docker cp` proven
+  100% reliable against this bug" conclusion from earlier in this session -- that conclusion was
+  based on tests against `/app`-relative paths, never the literal alias-path string the user's own
+  running script actually resolves `$ROOT` to. Fixed in `scripts/run-all-tests/run.sh`: replaced the
+  `docker cp CONTAINER:src HOST_DEST` (destination-path argument, broken) with
+  `docker cp CONTAINER:src - | tar -xO > HOST_FILE` (source streamed via stdout, no destination-path
+  argument passed to `docker cp` at all -- the actual host write is a plain bash `>` redirect, same
+  operation category as the already-confirmed-safe `rm -f` on an existing path, not `mkdir` on a new
+  one). Scoped to the two known files (`build-and-test.log`, `playwright.log`) this call always
+  copies. **Not yet applied** to `build-and-test/run.sh`'s two whole-directory `docker cp` calls or
+  `playwright/run.sh`'s two whole-directory `docker cp` calls (HTML report + run.log) -- those copy
+  a variable/unknown set of files each, so the same single-file stream approach doesn't directly
+  generalize (a directory-tree `tar -x -C HOST_DEST` extraction would need to create subdirectories
+  that may not already exist, which is the exact `mkdir`-class operation already confirmed unsafe --
+  needs its own careful design, not assumed safe by extension). Not verified with a real run yet.
+
+- **done (2026-08-21)** — real evidence overturned the "docker cp destination-argument is broken
+  for this alias path" conclusion above: `scripts/build-and-test/reports/` was found fully
+  populated (build-info.txt, logs/, surefire/, it-mirror/, many nested files) from the user's own
+  real run, fresh timestamps, meaning `build-and-test/run.sh`'s own directory-copy `docker cp` calls
+  *did* succeed on their machine. `integration-tests/reports/` from that same run did not exist,
+  though. Conclusion revised: `docker cp`'s destination-argument handling on this alias path is
+  intermittent (matches the WebSearch-confirmed "WSL2 hangs for a number of seconds then continues"
+  pattern), not a deterministic hard failure -- `build-and-test/run.sh` was left unchanged rather
+  than rearchitected on this basis alone.
+
+- **done (2026-08-21)** — per direct design discussion, adopted a different overall approach for
+  `run-all-tests` specifically: native `cmd.exe` operations (`clean.bat`'s own `rmdir`/`del`) have
+  been reliable against this bug all session, while WSL-side `docker cp`/`mkdir` are the
+  unreliable half -- so move the *copy-to-host* step for run-all-tests's own orchestration logs out
+  of WSL entirely, into a native step in `run-all-tests.bat` itself, run after the WSL script
+  returns. Implemented:
+  - `scripts/run-all-tests/run.sh`: no longer attempts any host copy or container removal at all --
+    only writes to `REPORTS_CONTAINER`'s volume and exits with the right code. A direct
+    `bash scripts/run-all-tests.sh` invocation with no `.bat` wrapper (Claude Code's own usage)
+    never gets a host copy this way -- inspect the volume directly via `docker exec` instead.
+  - `scripts/run-all-tests.bat`: after `wsl bash run-all-tests\run.sh` returns, a native step
+    copies `orchestrator.log`/`build-and-test.log`/`playwright.log` from the
+    `run-all-tests-reports` container into the new `scripts\logs\run-all-tests\` folder via
+    `docker cp` (native cmd.exe, no WSL path translation involved), then removes the container.
+    Preserves and returns the original WSL exit code, not the copy step's own.
+  - New destination `scripts\logs\run-all-tests\` (separate from `scripts\*\reports\`, which stays
+    for actual test *results* -- surefire XML, HTML reports -- unchanged; this new folder is
+    specifically for raw process *logs*). `clean.bat` updated to wipe it wholesale (safe to `rmdir`
+    here specifically, since `run-all-tests.bat`'s own native `mkdir` recreates it -- unlike the
+    WSL-side redirect this replaced, which couldn't create a missing parent itself).
+  - `.gitignore`: `/scripts/run-all-tests/reports/` entry replaced with `/scripts/logs/`.
+  - `.claude/commands/run-all-tests.md`: removed the now-stale `rm -f
+    scripts/run-all-tests/reports/*.log` step (that path is no longer written to by `run-all-tests.sh`
+    at all); Claude's own direct `bash` invocation still relies on `/tmp/run-all-tests.log`'s `tee`
+    for host-visible output, as it already did.
+  - **Known deferred gap**: `deploy-and-run.sh`'s own internal `build-and-test.sh` call's log
+    output is still embedded inside `playwright.log`, not split into its own file -- separating it
+    needs changes to `deploy-and-run.sh`'s own log capture, out of scope for this round.
+  - Syntax-checked (`bash -n`, non-ASCII scan on both `.bat` files). Real end-to-end verification
+    (a full `/run-all-tests`-equivalent run confirming `scripts\logs\run-all-tests\` actually gets
+    populated) still pending.
+
+- **done (2026-08-21)** — new standalone `scripts/pull-logs.bat`: pulls whatever is currently
+  present in the persistent, reused containers (`run-all-tests-reports`, `pw-runner`,
+  `sonar-scanner`) onto the host via native `docker cp`, without running any tests -- for pulling
+  the latest state on demand, or recovering data after a run whose own copy step was skipped or
+  failed. Silently skips any container that isn't currently running. Does not cover
+  `build-and-test` (its container is normally auto-removed right after a successful run -- nothing
+  left to pull) or `integration-tests/run.sh` (runs `mvn` directly on the host, no container at
+  all). Added its own row to `scripts/README.md`'s entry-point table. Non-ASCII scan clean.
+
+- **done (2026-08-21)** — Test 1 (build-and-test) run for real: unit 53/53 and integration 165/165
+  both passed, but the `wait_for_container_files_or_keep` check failed --
+  `scripts/logs/build-and-test/{unit-tests.log,integration-tests.log}` never landed on host.
+  Root-caused: `scripts/logs/` (the shared parent directory) did not exist at all at that point, so
+  the `docker cp` destination needed to create *two* missing directory levels at once
+  (`scripts/logs/` and `scripts/logs/build-and-test/` together) -- confirmed directly that this
+  fails `docker cp`'s own auto-create, while a single missing level (reproduced manually with the
+  parent already `mkdir`'d) succeeds every time. The actual log data was never lost -- confirmed
+  present and correctly sized inside the container via `docker cp` even after the check's own
+  timeout. First attempted fix -- a committed `scripts/logs/.gitkeep` -- rejected per direct
+  instruction: the directory must be created dynamically, not rely on a static git-tracked
+  placeholder. Also rejected: repeating `mkdir` separately in every `.bat` entry point and every
+  Claude Code command (real duplication of the same fix). Final fix: one native
+  `if not exist "%ROOT%scripts\logs" mkdir "%ROOT%scripts\logs"` added to `clean.bat` itself, since
+  every `.bat` entry point already calls it before delegating to WSL -- covers all of them from one
+  place, no per-file repetition. For Claude Code's own direct `bash` invocations (which don't go
+  through `clean.bat`/WSL at all), `mkdir -p scripts/logs` was kept as part of each command's own
+  cleanup line (`build-and-test.md`/`playwright.md`/`sonar.md`) -- a distinct execution path from
+  the native one, not a duplicate of the same fix.
+
+- **done (2026-08-21)** — retried Test 1 with the parent-directory fix applied: the files
+  genuinely did land on host correctly (confirmed present, correctly sized), but
+  `wait_for_container_files_or_keep`'s 60s window still reported ERROR -- the copy simply finished
+  later than that under this session's heavy concurrent load, a false failure, not a real one.
+  Removed the whole verification mechanism per direct instruction, everywhere it was still wired
+  in: `scripts/build-and-test/run.sh` now always `docker rm -f`s the container right after its
+  `docker cp` calls, no post-copy check, no keep-on-failure branch. Deleted the now-fully-unused
+  `scripts/utils/wait-for-container-files.sh` (its only remaining caller was this file).
+  `scripts/run-all-tests/run.sh` never called it either way (already redesigned to the native
+  `.bat` copy step earlier). Syntax-checked (`bash -n`).
+
+- **done (2026-08-21)** — ran Tests 1-4 for real (per the acceptance criteria above), all now pass:
+  - **Test 1 (build-and-test): PASS.** Also caught a real test-hygiene gap along the way: the
+    cleanup step must also clear `integration-tests/reports/` (a side effect of
+    `build-and-test.sh`'s own it-mirror copy), not just `scripts/build-and-test/reports/` and
+    `scripts/logs/build-and-test/` -- an earlier attempt without this showed a stale `run.log` left
+    over from before the logs/reports split, not a new bug.
+  - **Test 2 (integration-tests/run.sh): PASS**, first try.
+  - **Test 3 (playwright): PASS.** `marketplace-app` had been removed entirely earlier in this
+    session -- `/deploy-and-run` was run first to recreate it (playwright.md's own step 1 updated
+    to run `/deploy-and-run` automatically on a missing/stopped app instead of just telling the
+    user). `smoke` is not a real spec name -- used `01-marketplace-empty-flow` instead.
+  - **Test 4 (sonar): failed twice, then passed.** First failure: `sonar-scanner` was a 24h-old
+    container from before this session's `-v test-reports:/reports` mount was added -- the
+    freshness check only recreates on image change, not on mount/flag changes (same known
+    limitation `playwright/run.sh` already documents for `pw-runner`) -- removed it manually to
+    force recreation. Second failure, a genuinely new root cause, unrelated to WSL entirely:
+    `sonar-scanner-cli`'s image runs as a non-root user (`scanner-cli`, uid 1000) by default, and
+    the `/reports` volume mount is root-owned -- a plain `docker exec mkdir /reports/sonar` (no
+    `--user root`) failed with a real container-permissions "Permission denied", confirmed directly.
+    Fixed by adding `--user root` to both the `mkdir` and the log-write `docker exec` calls in
+    `scripts/sonar/run.sh` -- mirrors a `--user root` precedent this same file already uses for
+    `/tmp/sonar-src`, which the new code should have followed from the start.
+  - **Test 5 (run-all-tests, WSL/volume side): PASS**, first try after fully cleaning every folder
+    the run and its sub-scripts touch (`scripts/build-and-test/reports`, `playwright/pw-report`,
+    `playwright/screenshots`, `integration-tests/reports`, `scripts/logs/{run-all-tests,
+    build-and-test,playwright,integration-tests}`) -- `orchestrator.log`/`build-and-test.log`/
+    `playwright.log` all present and correctly sized inside `run-all-tests-reports`'s own volume.
+  - **Test 6 (ci, inside `ci-runner`): PASS.** Full `bash scripts/ci.sh` pipeline (build, unit,
+    integration, e2e --full --ux, sonar, archunit_metrics, pipeline_metrics, docs) run for real.
+    `unit`/`integration`/`e2e`/`archunit_metrics`/`pipeline_metrics` all succeeded. `sonar`
+    reported "failed" -- expected, a genuine quality-gate finding (3 real issues), not a script bug
+    -- confirmed `scripts/logs/sonar/run.log` and `scripts/sonar/report/report.html` both still
+    generated correctly (the `--user root` fix from Test 4 holds under CI too). `docs` reported
+    "failed" -- also expected and unrelated: `architecture-model.json` is stale relative to this
+    session's own many `.claude/commands/`/backlog/new-file changes made *after* the last
+    regeneration, a real but separate, pre-existing condition, not something this round's fix
+    caused. Verified inside `ci-runner` via `docker exec`: `scripts/logs/build-and-test/` correctly
+    namespaced per `BUILD_CONTAINER_NAME` for every parallel stage
+    (`advertisement-build-only-{unit,integration,sonar,archunit,deploy}`), `scripts/logs/playwright/`
+    populated, `scripts/ci/reports/pipeline-metrics.json` present.
+
+All 6 tests pass. `improvement-163`'s "Ongoing" section goal (separate logs from reports, both
+reliably regenerating) is verified working end to end for every script this round touched.
