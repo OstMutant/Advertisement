@@ -120,7 +120,7 @@ SCRIPT_TREE_ROOTS=(scripts playwright)
 
 # Directories that never become their own card/tree node even though they sit inside a
 # SCRIPT_TREE_ROOTS subtree -- generated/report output, never source.
-SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report node_modules)
+SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report logs node_modules)
 
 # Explicit "what matters first" ordering per directory -- entry points and generators before the
 # CI gates that verify their output, dev-only tooling last. Falls back to alphabetical (find |
@@ -155,10 +155,10 @@ decisions_json_for() {
   run_node "$REPO_ROOT/docs/architecture/scripts/md-to-decisions-json.js" --stdout "$module"
 }
 
-# A SCRIPT_GROUP dir's own README.md (if it has one), read raw via Node's JSON.stringify -- same
-# reasoning as runtime_notes_json() below: json_escape() strips newlines, unsuitable for
-# multi-paragraph content. Always embedded (unlike decisions_json_for(), which is opt-in behind
-# --with-adr-details) -- a README is orders of magnitude smaller than a full ADR history.
+# A SCRIPT_GROUP dir's own README.md (if it has one), read raw via Node's JSON.stringify --
+# json_escape() strips newlines, unsuitable for multi-paragraph content. Always embedded (unlike
+# decisions_json_for(), which is opt-in behind --with-adr-details) -- a README is orders of
+# magnitude smaller than a full ADR history.
 readme_json_for() {
   local dir="$1"
   [ -f "$REPO_ROOT/$dir/README.md" ] || { echo "null"; return; }
@@ -1120,7 +1120,7 @@ files = [f for f in sys.argv[3].splitlines() if f]
 
 def extract(path):
     with open(path) as fh:
-        lines = fh.readlines()[:20]
+        lines = fh.readlines()
     text = []
     for l in lines:
         l = l.rstrip('\n')
@@ -1163,7 +1163,7 @@ def extract(path):
                    # prose (a real bug this once hit), and don't swallow the delimiter itself into
                    # the last field's value as a continuation line (another real bug this once hit)
         elif current:
-            fields[current] += ' ' + l.strip()
+            fields[current] += '\n' + l.strip()
     return fields
 
 out = []
@@ -1478,57 +1478,12 @@ bounded_contexts_json() {
   echo "{\"domains\": [$domains_json"$'\n'"  ], \"relationships\": [$rel_json"$'\n'"  ]}"
 }
 
-# ── Docker: real files, mechanically extracted facts only (build stages, compose service names)
-# -- no restated prose. The full deployment workflow explanation stays in scripts/CLAUDE.md's own
-# "Deployment" section, linked to, never copied.
-DOCKER_FILES=(
-  "Dockerfile|dockerfile|Main app image (multi-stage build)"
-  "Dockerfile.ai|dockerfile|Claude Code dev sandbox environment -- not part of the app build"
-  "scripts/build-and-test/Dockerfile|dockerfile|Local build-and-test container"
-  "scripts/ci/Dockerfile|dockerfile|Isolated CI runner image"
-  "scripts/deploy-and-run/docker-compose.app.yml|compose|App container (dev infra)"
-  "scripts/deploy-and-run/docker-compose.db.yml|compose|PostgreSQL (dev infra)"
-  "scripts/deploy-and-run/docker-compose.minio.yml|compose|MinIO S3-compatible storage (dev infra)"
-  "scripts/sonar/docker-compose.sonar.yml|compose|SonarQube server"
-)
-docker_files_json() {
-  local out="" first=true entry file kind label items_json
-  for entry in "${DOCKER_FILES[@]}"; do
-    IFS='|' read -r file kind label <<< "$entry"
-    [ -f "$REPO_ROOT/$file" ] || continue
-    if [ "$kind" = "dockerfile" ]; then
-      items_json="$(json_str_array "$(awk '/^FROM/{ $1=""; sub(/^ /,""); print }' "$REPO_ROOT/$file")")"
-    else
-      items_json="$(json_str_array "$(awk '
-        /^services:/ { insvc=1; next }
-        /^[a-zA-Z]/ { insvc=0 }
-        insvc && /^  [a-zA-Z0-9_-]+:[[:space:]]*$/ { s=$0; gsub(/^  /,"",s); gsub(/:.*/,"",s); print s }
-      ' "$REPO_ROOT/$file")")"
-    fi
-    $first || out="$out,"$'\n'
-    first=false
-    out="$out  {\"file\": \"$(json_escape "$file")\", \"kind\": \"$kind\", \"label\": \"$(json_escape "$label")\", \"items\": $items_json}"
-  done
-  echo "[$out]"
-}
-
-# ── Runtime notes: hand-authored operational-topology prose (docs/architecture/data/runtime-notes.md)
-# -- container/hostname/mounts/toolchain facts that don't belong in any generated per-module
-# section. Read raw via Node's JSON.stringify (not json_escape() above, which strips newlines --
-# unsuitable for multi-paragraph content, same reasoning already used for full ADR bodies) so the
-# original line breaks survive for the client-side mdBlockToHtml() renderer to work with.
-RUNTIME_NOTES_FILE="$REPO_ROOT/docs/architecture/data/runtime-notes.md"
-runtime_notes_json() {
-  [ -f "$RUNTIME_NOTES_FILE" ] || { echo "null"; return; }
-  run_node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$RUNTIME_NOTES_FILE"
-}
-
 # ── Marked excerpts embedded directly inside a module's own CLAUDE.md (`<!-- #arch-embed:KEY -->
 # ... <!-- /#arch-embed -->` convention) -- lets a paragraph live once, in the doc a human reader
 # already reads for that topic, and be pulled onto this generated page verbatim instead of a
-# hand-copied second version here that can drift out of sync with it. Same node JSON.stringify
-# read as runtime_notes_json() above (not json_escape(), which strips newlines and mishandles
-# CRLF -- platform-commons/CLAUDE.md uses CRLF line endings).
+# hand-copied second version here that can drift out of sync with it. Read raw via Node's
+# JSON.stringify (not json_escape(), which strips newlines and mishandles CRLF --
+# platform-commons/CLAUDE.md uses CRLF line endings).
 ARCH_EMBED_KEYS=(
   "platform-commons/CLAUDE.md:spi-glossary"
   "platform-commons/CLAUDE.md:port-glossary"
@@ -1621,8 +1576,6 @@ ci_metrics_json="null"
   echo "  \"diagramGroups\": ["
   echo "$diagram_groups_json"
   echo "  ],"
-  echo "  \"dockerFiles\": $(docker_files_json),"
-  echo "  \"runtimeNotes\": $(runtime_notes_json),"
   echo "  \"archEmbeds\": $(arch_embeds_json),"
   echo "  \"backlogPriorityOrder\": $(backlog_priority_order_json),"
   echo "  \"spiMap\": $(spi_map_json),"
@@ -1894,7 +1847,7 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .header-entry { padding: 14px 0; border-bottom: 1px solid #e5e8eb; }
   .header-entry:last-child { border-bottom: none; }
   .header-entry-file { font-family: monospace; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  .header-entry-field { font-size: 13px; line-height: 1.5; margin: 3px 0; }
+  .header-entry-field { font-size: 13px; line-height: 1.5; margin: 3px 0; white-space: pre-wrap; }
   .header-entry-field strong { color: var(--muted); font-weight: 600; }
   .table-chip { display: inline-block; background: #f1f3f5; color: var(--ink); font-size: 11px; padding: 3px 9px; border-radius: 6px; margin: 2px 4px 2px 0; font-family: monospace; }
   .diagram-wrap { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 20px; overflow: auto; max-height: 75vh; }
@@ -1920,8 +1873,6 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   h3 .section-link:hover { text-decoration: underline; }
   h3 a.module-link { color: var(--accent); cursor: pointer; text-decoration: none; }
   h3 a.module-link:hover { text-decoration: underline; }
-  .group-heading { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 24px 0 10px; }
-  .group-heading:first-of-type { margin-top: 0; }
   .table-chip-row { margin-bottom: 12px; }
   .table-chip-row a { display: inline-block; margin: 2px 6px 2px 0; }
   .table-chip-row code.path { background: #f1f3f5; padding: 3px 8px; border-radius: 6px; }
@@ -2703,9 +2654,7 @@ function renderScriptGroupSection(n, skipHeading) {
 }
 
 // Same list-then-drill-in shape as renderDiagrams() (no view.groupId -> card grid of tools;
-// view.groupId set -> that one tool's content only). Docker and Runtime stay plain inline
-// sections on the list view, not cards -- they're single, already-scoped sources, not a
-// multi-directory bucket that needed splitting the way the 6 script groups did.
+// view.groupId set -> that one tool's content only).
 function renderPipelines() {
   if (!view.groupId) {
     let html = backButtonHtml();
@@ -2721,12 +2670,6 @@ function renderPipelines() {
       </div>`;
     });
     html += `</div>`;
-
-    html += `<h3 class="group-heading">Docker</h3>`;
-    html += renderDockerSection();
-
-    html += `<h3 class="group-heading">Runtime</h3>`;
-    html += renderRuntimeSection();
 
     document.getElementById("content").innerHTML = html;
     return;
@@ -2849,15 +2792,6 @@ function renderScriptTree(g) {
 
   document.getElementById("content").innerHTML = html;
   mermaid.run({ querySelector: ".mermaid" });
-}
-
-// ── Runtime group (Tooling & Pipelines): hand-authored operational-topology prose from
-// docs/architecture/data/runtime-notes.md, rendered through the same mdBlockToHtml() ADR bodies use --
-// no new parser, the file is written in the same "**Label:**" bold-paragraph/bullet-list style.
-function renderRuntimeSection() {
-  if (!MODEL.runtimeNotes) return `<div class="empty-hint">No <code class="path">docs/architecture/data/runtime-notes.md</code> yet.</div>`;
-  return `<section class="block">${mdBlockToHtml(MODEL.runtimeNotes)}</section>
-    <div class="empty-hint">Source: ${sourceLink("docs/architecture/data/runtime-notes.md")}</div>`;
 }
 
 // ── Backlog screen ───────────────────────────────────────────────────────────────────────────
@@ -3893,30 +3827,6 @@ const GLOSSARY = [
     even if its owning file later moves or is renamed.</p>
   ` }
 ];
-
-// ── Docker group (Tooling & Pipelines): real files + mechanically-extracted facts (build stages /
-// compose service names) only -- the actual deployment workflow explanation stays in
-// scripts/CLAUDE.md's "Deployment" section, linked to below, never restated here.
-function renderDockerSection() {
-  let html = `<div class="screen-desc">What builds/runs in this repo, straight from the real files — see ${sourceLink("scripts/CLAUDE.md")} for the actual deploy workflow (deploy.sh flags, plain vs --reload, when to use which).</div>`;
-
-  const dockerfiles = MODEL.dockerFiles.filter(f => f.kind === "dockerfile");
-  const composeFiles = MODEL.dockerFiles.filter(f => f.kind === "compose");
-
-  html += `<section class="block"><h3>Dockerfiles (${dockerfiles.length})</h3><table class="simple"><thead><tr><th>File</th><th>Purpose</th><th>Build stages (FROM)</th></tr></thead><tbody>`;
-  dockerfiles.forEach(f => {
-    html += `<tr><td>${sourceLink(f.file)}</td><td>${esc(f.label)}</td><td>${f.items.map(s => `<code class="path">${esc(s)}</code>`).join("<br>")}</td></tr>`;
-  });
-  html += `</tbody></table></section>`;
-
-  html += `<section class="block"><h3>docker-compose stacks (${composeFiles.length})</h3><table class="simple"><thead><tr><th>File</th><th>Purpose</th><th>Services</th></tr></thead><tbody>`;
-  composeFiles.forEach(f => {
-    html += `<tr><td>${sourceLink(f.file)}</td><td>${esc(f.label)}</td><td>${f.items.map(s => `<code class="path">${esc(s)}</code>`).join(" ")}</td></tr>`;
-  });
-  html += `</tbody></table></section>`;
-
-  return html;
-}
 
 render();
 </script>

@@ -19,7 +19,8 @@ optimizing an ADR for brevity over completeness is the wrong trade) and `backlog
 in current-state documentation" rule (drop the `improvement-NNN` citation from each entry, keep
 the decision and its reasoning). Also out of scope: infrastructure/tooling files (bash/batch
 scripts, `docker-compose*.yml`, `.properties`) — a separate concern, covered by the sibling
-`infra-doc-standards` skill.
+`infra-doc-standards` skill (a file's own header) and `infra-readme-standards` skill (a
+script-group directory's own `README.md`/Flow diagram).
 
 ## Why this exists
 

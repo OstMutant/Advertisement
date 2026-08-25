@@ -1443,6 +1443,7 @@ all 3 accurately needs its own scoped pass (verify each full call chain from scr
 ## ADR-032: Every `SCRIPT_GROUP` script self-documents via a fixed 7-field header, plus a rendered `README.md` per directory — no hand-written prose describing what a script does anywhere in the tool
 
 **Status:** Accepted
+**Verified:** 2026-08-21
 
 **Context:** Nothing in the tool described what a script in `scripts/` actually does, what it
 needs, or what it produces except free-form comments a human might or might not keep current —
@@ -1452,9 +1453,13 @@ against real bash convention before finalizing (2026-08-14 web search): the
 [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html) requires a
 top-of-file header and, for functions, a structured `Description`/`Globals`/`Arguments`/`Outputs`/
 `Returns` block — the basis for the field set below. Full three-layer design (header / README /
-architecture-map) lives in its own dedicated `.claude/skills/infra-doc-standards/SKILL.md`
-(distinct from `doc-standards`, which covers Java-app documentation, not infra/script files) — this
-ADR covers only the generator-side mechanism.
+architecture-map) is split across two dedicated skills: `.claude/skills/infra-doc-standards/SKILL.md`
+(file-level and per-function header conventions) and `.claude/skills/infra-readme-standards/SKILL.md`
+(script-group `README.md`/Flow-diagram conventions) — split 2026-08-21 once the combined file grew
+to 714 lines/6-8x its sibling skills, and confirmed to auto-trigger on every script/tooling file
+edit regardless of whether the edit only touches a header. Both are distinct from `doc-standards`,
+which covers Java-app documentation, not infra/script files — this ADR covers only the
+generator-side mechanism.
 
 **Decision:**
 1. **Per-script header — 7 fixed-prefix comment lines** (`#` for `.sh`, `//` for `.js`, `REM` for

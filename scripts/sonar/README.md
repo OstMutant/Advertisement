@@ -23,8 +23,10 @@ flowchart TD
     E -->|yes| E1[wipe volumes] --> F2
     E -->|no| F2[sonar-project.properties]
     F2 --> G{"token<br/>invalid?"}
-    G -->|yes| G1[regenerate token] --> Z
-    G -->|no| Z["scanner runs -><br/>analysis uploaded + report generated"]
+    G -->|yes| G1[regenerate token] --> I
+    G -->|no| I{"scanner container<br/>stale or not running?"}
+    I -->|yes| I1[recreate scanner container] --> Z
+    I -->|no| Z["scanner runs -><br/>analysis uploaded + report generated"]
 ```
 
 Each file's own header has its own Description/Usage/Env/Input/Outputs/Returns — this file only

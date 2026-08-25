@@ -1,5 +1,5 @@
 @echo off
-REM ── Header ──────────────────────────────────────────────────────────────────
+REM --- Header ---------------------------------------------------------------
 REM Description: Starts (or reuses) a Docker container for the Claude Code dev environment --
 REM   mounts the current directory, an isolated per-login auth config folder, the Maven cache, and
 REM   the Docker socket, then runs the claude-j25-dev image with --network host. Self-contained,
@@ -20,7 +20,7 @@ REM Outputs: running claude-dev container (new or reused); with --update, rebuil
 REM   claude-j25-dev image; creates %USERPROFILE%\.claude-config-<login> if missing.
 REM Returns: 0 on success; non-zero if no login argument was given, or --update's Docker build
 REM   fails.
-REM ────────────────────────────────────────────────────────────────────────────
+REM ----------------------------------------------------------------------------
 setlocal
 cd /d "%~dp0.."
 
