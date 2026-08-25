@@ -30,7 +30,7 @@ Tables: `attachment`, `attachment_snapshot`
 
 - UI components (`AttachmentGallery`, `CardMediaLightbox`) live in `marketplace-app`.
 - `AttachmentPort`, `AttachmentAuditPort` live in `platform-commons` (`AttachmentMediaChangeHook`
-  does not exist; `AttachmentAuditPort`'s call direction — see `docs/ai/adr-index.md`).
+  does not exist; `AttachmentAuditPort`'s call direction — see `.claude/nav/adr-index.md`).
 - UI components in marketplace-app MUST degrade gracefully via `ObjectProvider.ifAvailable()` when this starter is absent.
 - `@EnableJdbcRepositories(basePackages = "org.ost.attachment.repository")` declared in `AttachmentAutoConfiguration`.
 - Storage (`StorageService` and its S3 implementation) lives in `org.ost.attachment.services` — not in marketplace-app.
@@ -40,7 +40,7 @@ Tables: `attachment`, `attachment_snapshot`
   (Postgres `ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at ASC, id ASC)`). Exists
   so consumers (e.g. `AdvertisementService.enrichWithMediaSummary()`) never cache media data on
   their own entity's row — one bulk query per list render instead of a stored, sync-triggered
-  column. See `docs/ai/adr-index.md`. There is no single-entity
+  column. See `.claude/nav/adr-index.md`. There is no single-entity
   `AttachmentPort.getMediaSummary(EntityRef)` port method — every real caller uses the bulk
   variant; `AttachmentRepository.loadMediaStats(EntityType, Long)`, the single-entity repository
   method the removed port method used to delegate to, is kept because it has its own direct

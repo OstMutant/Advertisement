@@ -87,7 +87,7 @@
 #   own direct invocation. All of the above lands on the host via `docker cp` from a third named
 #   volume, test-reports:/reports (wiped before every run, see the pre-run cleanup step below) --
 #   build.sh writes reports directly there, never a WSL/Windows-drive path, so it's never subject
-#   to the docker-desktop-bind-mounts issue documented in docs/ai/adr-index.md; the same volume can
+#   to the docker-desktop-bind-mounts issue documented in .claude/nav/adr-index.md; the same volume can
 #   also be inspected directly at any time without waiting for a full run + copy-out cycle, e.g.
 #   `docker run --rm -v test-reports:/reports alpine cat /reports/logs/unit-tests.log`. Prunes
 #   dangling Docker images after every run.
@@ -193,7 +193,7 @@ SANDBOX_ENV=()
 
 # No mkdir -p here -- the later `docker cp` (see below) creates its destination directory itself,
 # so a raw bash `mkdir -p` this early against a WSL/Windows-drive host path was pure redundancy,
-# vulnerable to the docker-desktop-bind-mounts issue documented in docs/ai/adr-index.md.
+# vulnerable to the docker-desktop-bind-mounts issue documented in .claude/nav/adr-index.md.
 
 # ── Pipe sources + build (+ optional unit/integration tests) ─────────────────
 # Tars only what this run actually needs inside the container: build.sh itself (the entry point
@@ -274,7 +274,7 @@ fi
 # intermediates) itself when it doesn't exist, so the raw bash `mkdir -p` was pure redundancy that
 # cost every caller a real filesystem write against a WSL/Windows-drive host path -- confirmed
 # directly to fail with "Permission denied" on a real Docker Desktop/WSL2 machine due to the
-# docker-desktop-bind-mounts issue (see docs/ai/adr-index.md), which crashed the whole build under
+# docker-desktop-bind-mounts issue (see .claude/nav/adr-index.md), which crashed the whole build under
 # `set -e`. `docker cp` itself is daemon-mediated and not subject to that bug.
 # Two separate copies -- LOGS_DIR (build-info.txt, logs/*.log -- raw process narration) and
 # REPORTS_DIR (surefire/, it-mirror/, architecture-metrics.json -- actual test results) are

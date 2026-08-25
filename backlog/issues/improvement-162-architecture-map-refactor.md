@@ -4,7 +4,7 @@
 **Module:** `docs/architecture/architecture-doc.sh`/`.bat` (moved from `scripts/`),
   `docs/architecture/*`, `docs/architecture/scripts/generate-architecture-model.sh`,
   `docs/architecture/scripts/check-architecture-model-freshness.sh`,
-  `docs/ai/scripts/check-hardcoded-counts.sh`, `.claude/commands/sync-docs.md`, `scripts/README.md`
+  `.claude/nav/scripts/check-hardcoded-counts.sh`, `.claude/commands/sync-docs.md`, `scripts/README.md`
 **Priority:** Top 🟡
 **When:** independent, no blockers
 
@@ -29,7 +29,7 @@ delegating into `docs/architecture/scripts/generate-architecture-model.sh` — a
 tree, structurally unrelated to `scripts/`'s own operational (build/deploy/test) family. Unlike
 `playwright.sh` (a genuine root-level entry point for an operational sibling directory),
 `docs/architecture/scripts/` is already its own separate, established documentation tree (its own
-`SCRIPT_GROUP_DIRS` card in the architecture-map generator, alongside `docs/ai/scripts/`) — so
+`SCRIPT_GROUP_DIRS` card in the architecture-map generator, alongside `.claude/nav/scripts/`) — so
 keeping its entry point artificially in `scripts/` doesn't fit the same pattern. Confirmed the real,
 documented invocation path (`.claude/commands/sync-docs.md`) already calls
 `bash docs/architecture/scripts/generate-architecture-model.sh` directly, bypassing
@@ -61,7 +61,7 @@ between "the deliverable" and "the data that produces it."
      added to `["docs/architecture/scripts"]` during an intermediate wrong-location attempt, then
      removed again once the correct one-level-up location was clarified)
    - `docs/architecture/scripts/check-architecture-model-freshness.sh` (8 occurrences)
-   - `docs/ai/scripts/check-hardcoded-counts.sh` (1 occurrence, an exclusion pattern)
+   - `.claude/nav/scripts/check-hardcoded-counts.sh` (1 occurrence, an exclusion pattern)
    - `.claude/commands/sync-docs.md` (3 mentions)
    - `scripts/README.md` (removed the `architecture-doc.sh` / `.bat` Entry points row entirely —
      no longer a `scripts/` entry point at all, at either location)
@@ -72,7 +72,7 @@ between "the deliverable" and "the data that produces it."
 
 **Known gap, not fixed here (flagged, needs a design decision):** `docs/architecture/` itself is
 not a `SCRIPT_GROUP_DIRS` entry in `generate-architecture-model.sh` (only
-`docs/architecture/scripts` and `docs/ai/scripts` are) — so `architecture-doc.sh`/`.bat`'s own
+`docs/architecture/scripts` and `.claude/nav/scripts` are) — so `architecture-doc.sh`/`.bat`'s own
 headers, now living at `docs/architecture/` directly, render nowhere in `architecture-map.html`'s
 self-documentation. Whether `docs/architecture/` should become its own tracked card (and if so,
 whether `architecture-map.html`/the `data/` files belong alongside it) is a follow-up design

@@ -341,7 +341,7 @@ docker cp "$SCANNER_CONTAINER":/tmp/sonar-report.html "$REPORT_FILE"
 # `docker cp CONTAINER:src HOST_DEST` (destination-argument) pattern build-and-test/playwright use
 # for their own logs -- creates the destination directory itself when missing, though only
 # intermittently reliable against a WSL docker-desktop-bind-mounts alias path (see
-# docs/ai/adr-index.md); not moved to a native `.bat` step here, same accepted-risk status as
+# .claude/nav/adr-index.md); not moved to a native `.bat` step here, same accepted-risk status as
 # those two.
 docker cp "$SCANNER_CONTAINER":/reports/sonar/. "$ROOT/scripts/logs/sonar/" 2>/dev/null || true
 

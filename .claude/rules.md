@@ -15,8 +15,8 @@ the relevant `CLAUDE.md` (`scripts/CLAUDE.md`, `playwright/CLAUDE.md`) for that 
 documented behavior/flags/constraints rather than acting on what was true earlier in the same
 session — those files get updated mid-session precisely because a run just revealed a gap.
 
-Same requirement extends to `docs/ai/context-loading.md` (what to read, by task type) and
-`docs/ai/flows.md` (which command/skill handles it) whenever the task touches `DECISIONS.md`,
+Same requirement extends to `.claude/nav/context-loading.md` (what to read, by task type) and
+`.claude/nav/flows.md` (which command/skill handles it) whenever the task touches `DECISIONS.md`,
 backlog, or a choice between multiple possible commands/skills — re-`Read` both at that same
 starting point, not from memory of what they said earlier in the session. Before dispatching any
 subagent to read or classify `DECISIONS.md` content, check `context-loading.md`'s own routing
@@ -24,6 +24,38 @@ table first — it may already name a specific command/skill (e.g. `deep-review`
 owns exactly this task shape instead of a hand-rolled agent dispatch.
 
 ---
+
+> ## ⛔ One fact, one canonical home — the single governing rule for all documentation
+> Every fact (a dependency, an SPI implementation, a class's existence, a count, an enumerated
+> list — any statement of what currently is true, as opposed to how to safely change it) is
+> written in exactly one file, its canonical home — its single source of truth — and only ever
+> referenced elsewhere, never restated or reworded. A constraint (a rule about how to change code
+> safely) is not a fact and may repeat local context even where it touches something documented
+> elsewhere.
+>
+> **Atomic unit first, then directory-level index.** When a fact is fully describable within one
+> concrete unit (a script file's own header, a Java class's or method's own Javadoc, a `pom.xml`'s
+> own comment), that unit is its canonical home — never a directory- or module-level `README.md`.
+> A directory's own `README.md`/index only ever covers facts that inherently span more than one
+> such unit (the sequence between files, why one blocks another, what the whole set produces
+> together). Finish every unit's own documentation first; only once every unit in scope is
+> complete does the directory-level README get written or touched, and only with content that
+> could not be answered by reading one unit alone.
+>
+> **When the atomic unit's own format genuinely has no comment syntax at all — the directory-level
+> index becomes that fact's canonical home instead, not an exception to this rule.** Every format
+> capable of carrying a comment always does (a script, a Java class, `pom.xml`, a Liquibase
+> changelog — no "self-explanatory, skip it" exemption for any of them). Only a format with no
+> comment syntax whatsoever (JSON) falls to this case — its directory README/index carries the
+> fact instead, never both: an empty heading next to a README that already says everything is
+> itself the duplication this rule exists to prevent.
+>
+> This is the one place both principles are declared — no skill or command restates either from
+> scratch; each references this rule by name and adds only its own domain-specific mechanics
+> (which fact types live where, what counts as "one unit" in that domain) on top. See
+> `.claude/skills/module-doc-standards/SKILL.md`/`.claude/skills/module-readme-standards/SKILL.md`
+> for Java/`pom.xml` files, and `infra-doc-standards`/`infra-readme-standards` for script/tooling
+> files.
 
 > ## ⛔ NEVER commit without explicit user request
 > `git commit` is **forbidden** unless the user says "зроби коміт", "commit", or equivalent.
@@ -59,7 +91,7 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 > ## ⛔ Any `DECISIONS.md` edit regenerates the ADR index in the same operation
 > Whenever any `DECISIONS.md` file is created, edited, or has an ADR added/changed — by any
 > workflow, command, or skill, not only `/record-decision` — run
-> `bash docs/ai/scripts/generate-adr-index.sh` and include the resulting `docs/ai/adr-index.md` diff in
+> `bash .claude/nav/scripts/generate-adr-index.sh` and include the resulting `.claude/nav/adr-index.md` diff in
 > the same change before considering it complete. This applies even to direct edits made outside
 > any specific skill's own steps; the index going stale is not a lesser concern just because the
 > edit didn't go through the one command that happens to mention it.
@@ -79,7 +111,7 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 
 > ## ⛔ A new project-local command/skill file adds its own navigation row in the same operation
 > Whenever a new `.claude/commands/*.md` or `.claude/skills/*/SKILL.md` file is added to this repo,
-> add its row to `docs/ai/flows.md`'s "Project commands & skills" table in the same change. An
+> add its row to `.claude/nav/flows.md`'s "Project commands & skills" table in the same change. An
 > undocumented operational mechanism is exactly the kind of adjacent quality gap the standing
 > "surface it unprompted" rule already covers — don't wait for a later audit to catch it.
 
@@ -91,9 +123,10 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 > or archived; that traceability belongs in the commit message, not the code. Write the one-line,
 > number-free version on the first pass; do not wait to be told to fix it. Violating this rule has
 > happened repeatedly. When the rationale being trimmed out is a real fact or design decision (not
-> just local code context), route it to its canonical home per
-> `.claude/skills/doc-standards/SKILL.md`'s ownership table — write that entry first if it doesn't
-> exist yet, then leave a one-line reference in the code — never just delete the explanation.
+> just local code context), route it to its canonical home — for Java/`pom.xml` comments, see
+> `.claude/skills/module-doc-standards/SKILL.md`'s "Where comment rationale that got trimmed
+> actually goes" table — write that entry first if it doesn't exist yet, then leave a one-line
+> reference in the code — never just delete the explanation.
 
 > ## ⛔ A comment above a method states what that method's own body does
 > A one-line comment above a method describes what that method actually does, verified by reading
@@ -103,7 +136,7 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 
 > ## ⛔ No issue/ticket numbers or dated "resolved" narrative in current-state documentation
 > The same "no ticket numbers" principle above extends to every file that describes the system's
-> *current* state — `CLAUDE.md`, `README.md`, `docs/architecture/*.md`, `docs/ai/*.md`, skill/
+> *current* state — `CLAUDE.md`, `README.md`, `docs/architecture/*.md`, `.claude/nav/*.md`, skill/
 > command `.md` files, and shell-script comments. None of these may cite an
 > `improvement-NNN`/`goal-NNN`/`feature-NNN` reference, and none may carry a dated
 > "resolved"/"as of \<date\>" narrative describing a past state that no longer holds. If a fact
@@ -125,11 +158,11 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 > new index for this purpose.
 
 > ## ⛔ Comments, README, and other markdown files never cite a specific ADR number
-> A code comment, `README.md`, or any other markdown file may say "see `docs/ai/adr-index.md`" but
+> A code comment, `README.md`, or any other markdown file may say "see `.claude/nav/adr-index.md`" but
 > must never cite a specific `ADR-NNN` number directly. The index is searchable by module/status/
 > title, so a reader finds the relevant row by the fact in question, not by following a numbered
 > pointer planted somewhere else; once the index narrows the search to one or a few ADR ids,
-> `node docs/architecture/scripts/md-to-decisions-json.js --extract <module> <ADR-NNN>[,...]` pulls
+> `node .claude/nav/scripts/md-to-decisions-json.js --extract <module> <ADR-NNN>[,...]` pulls
 > the actual decision text without opening the whole `DECISIONS.md` file.
 >
 > **Why:** an ADR number planted in a comment/README is a forward-link like a ticket number — it
@@ -199,6 +232,11 @@ it — never inferred from the tone, detail, or instructiveness of the user's me
 that confirms understanding, clarifies scope, or explains *why* something is wanted is not itself
 approval to execute, no matter how specific or directive it reads. If the plan was never followed
 by an actual question and an actual "yes" to that question, treat approval as not granted.
+
+A directive-sounding instruction ("do X", "make it like Y") is not itself a literal answer to a
+literal question that was already asked — if a plan ended in a specific question and the next
+message is a directive rather than a direct answer to that exact question, treat approval as still
+not granted; ask the specific question again if needed.
 
 Example format:
 > Plain-language: "The activity tab shows the wrong reviewer, so admins can't tell who actually
@@ -310,8 +348,8 @@ subdirectory, which belongs to that one group alone.
 ## Issue Lifecycle
 
 Before filing a new ADR (`/record-decision`) or a new backlog issue (`/feature`), consult
-`docs/ai/adr-index.md` (if present) for an already-decided overlapping ADR — mandatory, not
-best-effort. See `docs/ai/README.md` for what the file is and how it stays current.
+`.claude/nav/adr-index.md` (if present) for an already-decided overlapping ADR — mandatory, not
+best-effort. See `.claude/nav/README.md` for what the file is and how it stays current.
 
 When filing a **new** issue in `backlog/issues/`:
 - Always assign a `**Priority:**` line in the issue file itself — never leave it blank/TBD.
@@ -358,12 +396,12 @@ Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply 
 - token_cost_research: <tokens summed from Agent-tool research/investigation calls, or n/a>
 - token_cost_verification: <tokens summed from Agent-tool verification/testing calls, or n/a>
 - review_signal_ratio: <CONFIRMED/PLAUSIBLE findings that survived verification> / <total candidate findings raised across all finder angles>, or n/a if no /code-review ran this task
-- context_loading_task_type: <the matching docs/ai/context-loading.md row, or n/a>
+- context_loading_task_type: <the matching .claude/nav/context-loading.md row, or n/a>
 - context_loading_consulted: <yes/no/n/a>
 - context_loading_matched: <yes/no/n/a — did the actual read pattern match that row's guidance>
 - flows_situation: <short phrase describing the situation, or n/a>
 - flows_chosen: <the command/skill actually used, or n/a>
-- flows_matched: <yes/no/n/a — did it match docs/ai/flows.md's recommendation for that situation>
+- flows_matched: <yes/no/n/a — did it match .claude/nav/flows.md's recommendation for that situation>
 
 ### Agent calls
 - <purpose> | subagent_type=<X> | tokens=<N> | tool_uses=<N> | duration_s=<N> | mode=<foreground|background> | batch=<parallel-group-id or solo>
@@ -442,7 +480,10 @@ than continuing to dig silently. Establish root cause first if that's quick, the
 before proceeding further.
 
 ## Documentation Standards
-Before writing or editing any documentation file, consult `.claude/skills/doc-standards/SKILL.md`.
+Before writing or editing a Java source file's Javadoc/comments or a `pom.xml`'s dependency
+comments, consult `.claude/skills/module-doc-standards/SKILL.md`. Before writing or editing a Java
+module's own `README.md`, consult `.claude/skills/module-readme-standards/SKILL.md`. Root
+`CLAUDE.md` and `.claude/rules/*.md` are not yet covered by a dedicated skill.
 
 ## Investigation & Review Discipline
 
@@ -677,7 +718,7 @@ method, never inlined into `activate()`.
 ### History access — an icon button opening EntityActivityOverlay, not a tab
 `AbstractFormOverlayModeHandler` has no tab machinery at all (`buildTabbedContent()`,
 `buildContentWithActivity()`, `ActivityTabParams` were removed once all five domains migrated —
-see `docs/ai/adr-index.md`). `layout.setContent(...)` is called unconditionally;
+see `.claude/nav/adr-index.md`). `layout.setContent(...)` is called unconditionally;
 history/restore is a header-action icon button (`.{domain}-history-button`) that opens the shared
 `EntityActivityOverlay` (`ui/views/components/audit/`) stacked on top via `BaseOverlay.openNested()`:
 
@@ -710,7 +751,7 @@ append. `OverlayLayout.setBreadcrumbLinks(List<Component>)` renders the chain wi
 only *between* links. `EntityActivityOverlay.openFor(...)` extends the calling overlay's own
 `buildBreadcrumbSteps()` (passed as `parentSteps`) with one more segment (`parentFormLabel`), so
 the nested history overlay's breadcrumb reflects the real navigation path taken, not a fixed
-2-segment pair. See `docs/ai/adr-index.md` for the full history of this design.
+2-segment pair. See `.claude/nav/adr-index.md` for the full history of this design.
 
 ---
 

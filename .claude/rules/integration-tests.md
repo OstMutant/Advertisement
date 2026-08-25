@@ -85,7 +85,7 @@ helper, keep spec/test-specific logic local otherwise.
 
 - `org.ost.integrationtests.support.RepositoryTestSupport` — a `@TestConfiguration` bean bag: adds
   `@RepositoryTestAutoConfig` (a composed `@ImportAutoConfiguration` allow-list — see
-  `docs/ai/adr-index.md` for why an explicit allow-list over `@EnableAutoConfiguration`, and its
+  `.claude/nav/adr-index.md` for why an explicit allow-list over `@EnableAutoConfiguration`, and its
   centralization rationale) + `@EnableJdbcAuditing` (needed
   because `@SpringBootTest(classes = {...@AutoConfiguration classes...})` does not itself trigger
   Spring Boot's autoconfiguration cascade — `JdbcClient`, `DataSource`, etc. only appear once the
@@ -108,7 +108,7 @@ helper, keep spec/test-specific logic local otherwise.
   `@BeforeEach` before creating fixture data. **Always use `cleanAll`, not the lower-level
   `cleanTables(jdbcClient, "table1", ...)` overload, in `*RepositoryTest` classes** — every
   `*RepositoryTest` shares one physical singleton container for the whole `mvn test` run (see
-  `docs/ai/adr-index.md`), so a class that only cleans its own domain's tables can fail on a foreign-key violation left
+  `.claude/nav/adr-index.md`), so a class that only cleans its own domain's tables can fail on a foreign-key violation left
   behind by a *different* domain's test class that ran earlier (confirmed directly:
   `AdvertisementRepositoryTest`'s last test method leaves an `advertisement` row referencing
   `user_information`, which broke `UserRepositoryTest`'s narrower cleanup before `cleanAll`
@@ -175,4 +175,4 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
   the detection actually triggers a reinstall when a starter file changes, not just when nothing
   changed. `run.sh --no-check` bypasses the check entirely (test against whatever's in `~/.m2`
   right now, even if stale — for deliberately reproducing behavior against an older build, not for
-  normal iteration). See `docs/ai/adr-index.md`.
+  normal iteration). See `.claude/nav/adr-index.md`.

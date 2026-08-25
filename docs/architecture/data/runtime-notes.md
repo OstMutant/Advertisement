@@ -29,7 +29,7 @@ nested inside it): `marketplace-app`, `advertisement-db` (Postgres), `advertisem
 (S3-compatible storage), `sonarqube` + `sonar-scanner`, and short-lived tooling containers spun up
 per script run (the Playwright runner, the isolated CI runner).
 
-**Architecture map tooling** (`docs/architecture/scripts/`, plus `docs/ai/scripts/generate-adr-index.sh`) —
+**Architecture map tooling** (`docs/architecture/scripts/`, plus `.claude/nav/scripts/generate-adr-index.sh`) —
 the scripts that build and verify `architecture-map.html`:
 
 - `generate-architecture-model.sh` — regenerates `architecture-model.json` +
@@ -41,13 +41,13 @@ the scripts that build and verify `architecture-map.html`:
   copy, diffs against the committed files, restores them either way.
 - `md-to-decisions-json.js` (Node) — `--stdout <module>` (used internally by the generator);
   `--extract <module> <ADR-NNN>[,<ADR-NNN>...]` prints one/a few ADRs as raw markdown — use this
-  instead of `Read`-ing a whole `DECISIONS.md` once `docs/ai/adr-index.md` has already narrowed
+  instead of `Read`-ing a whole `DECISIONS.md` once `.claude/nav/adr-index.md` has already narrowed
   down which id(s) are needed.
 - `liquibase-schema-to-json.js` (Node) — parses Liquibase changelog XML for the Database ERD;
   invoked internally by the generator, not normally run standalone.
 - `screenshot-architecture-map.sh` — headless-Playwright screenshots of every screen, no args;
   needs Docker (spins its own `arch-map-shot` container) — same sandbox constraint as Playwright
   itself: use `docker cp`, never a `-v` volume mount.
-- `generate-adr-index.sh` / `check-adr-index-freshness.sh` (`docs/ai/scripts/`) — rebuild/verify
-  `docs/ai/adr-index.md`; rerun the generator after any `DECISIONS.md` edit (standing rule), no
+- `generate-adr-index.sh` / `check-adr-index-freshness.sh` (`.claude/nav/scripts/`) — rebuild/verify
+  `.claude/nav/adr-index.md`; rerun the generator after any `DECISIONS.md` edit (standing rule), no
   args either way.

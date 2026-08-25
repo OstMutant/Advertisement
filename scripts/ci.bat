@@ -3,7 +3,7 @@ REM ---------------------------------------------------------------------------
 REM Description: Windows entry point -- runs clean.bat --unit --integration --playwright --sonar
 REM   natively (cmd.exe, before WSL is involved -- reliably clears stale reports a WSL `rm` can hit
 REM   "Permission denied" on due to the Docker-Desktop-WSL2 bind-mounts quirk, see
-REM   docs/ai/adr-index.md; deliberately excludes --build, which wipes Maven target/ and Vaadin
+REM   .claude/nav/adr-index.md; deliberately excludes --build, which wipes Maven target/ and Vaadin
 REM   node_modules -- CI already runs in its own isolated ci-runner container with its own cache
 REM   volumes, so wiping the host's own build cache here would only slow down interleaved local
 REM   dev builds for no benefit), then delegates to scripts/ci/run.sh via WSL.

@@ -40,7 +40,7 @@ normalize() { sed -E 's/"analysisDate": ?"[^"]*"/"analysisDate": "NORMALIZED"/' 
 
 stale=0
 if ! diff -q <(normalize "$BACKUP_JSON") <(normalize "$JSON") > /dev/null 2>&1; then
-  echo "ERROR: architecture-model.json is stale (out of sync with pom.xml/DECISIONS.md/backlog/docs/ai/flows.md/.claude/commands/.claude/skills)."
+  echo "ERROR: architecture-model.json is stale (out of sync with pom.xml/DECISIONS.md/backlog/.claude/nav/flows.md/.claude/commands/.claude/skills)."
   stale=1
 fi
 if ! diff -q <(normalize "$BACKUP_HTML") <(normalize "$HTML") > /dev/null 2>&1; then

@@ -5,7 +5,7 @@ Usage: /feature <short description or title>
 Example: /feature UserPickerField pagination bug with CallbackDataProvider offset math
 
 Steps:
-0. Check `docs/ai/adr-index.md` (if present) for an already-decided ADR overlapping this request —
+0. Check `.claude/nav/adr-index.md` (if present) for an already-decided ADR overlapping this request —
    mandatory, before drafting. Do not file an issue that re-opens a settled decision without
    noting it.
 1. Determine the prefix (default `improvement` — the dominant convention; use `goal` only if the

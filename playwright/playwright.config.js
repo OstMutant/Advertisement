@@ -11,7 +11,7 @@
  * Input: None.
  * Outputs: HTML report written to /reports/playwright inside the container -- the shared
  *   test-reports named Docker volume mounted into pw-runner, never a WSL/Windows-drive path (see
- *   docs/ai/adr-index.md); run.sh copies it out to playwright/pw-report/ via `docker cp`.
+ *   .claude/nav/adr-index.md); run.sh copies it out to playwright/pw-report/ via `docker cp`.
  * Returns: N/A -- this file has no exit code of its own, Playwright's own test run does.
  * ──────────────────────────────────────────────────────────────────────────── */
 const { defineConfig } = require('@playwright/test');

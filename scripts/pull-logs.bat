@@ -5,7 +5,7 @@ REM   containers (run-all-tests-reports, pw-runner, sonar-scanner) onto the host
 REM   any tests -- useful right after a run whose own copy step was skipped or failed, or just to
 REM   inspect the latest state on demand. Native cmd.exe `docker cp` (no WSL path translation
 REM   involved) -- same reason run-all-tests.bat's own copy step is native instead of WSL-side, see
-REM   docs/ai/adr-index.md. Silently skips any container that isn't currently running (2>nul) --
+REM   .claude/nav/adr-index.md. Silently skips any container that isn't currently running (2>nul) --
 REM   not every container is expected to exist at any given moment. Does not cover build-and-test
 REM   (its container is normally removed automatically right after a successful run -- nothing left
 REM   to pull) or integration-tests/run.sh (runs mvn directly on the host, no container at all).

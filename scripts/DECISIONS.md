@@ -37,7 +37,7 @@ Each script resolves the project root via `cd /d "%~dp0.."` (bat) or `$(dirname 
 to be ergonomic elsewhere.
 
 **Update (exception carved out):** `scripts/architecture/` and `scripts/ai/` moved to
-`docs/architecture/scripts/` and `docs/ai/scripts/` respectively — a deliberate exception to this
+`docs/architecture/scripts/` and `.claude/nav/scripts/` respectively — a deliberate exception to this
 ADR's "all developer scripts live in `scripts/`" rule, chosen for navigation convenience: both
 directories exist purely to generate/verify the docs they now sit next to
 (`architecture-model.json`/`architecture-map.html`, `adr-index.md`), so keeping them beside their

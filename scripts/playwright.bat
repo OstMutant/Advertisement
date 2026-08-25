@@ -2,7 +2,7 @@
 REM ---------------------------------------------------------------------------
 REM Description: Windows entry point -- runs clean.bat --playwright natively (cmd.exe, before WSL
 REM   is involved -- reliably clears stale Playwright artifacts a WSL `rm` can hit "Permission
-REM   denied" on due to the Docker-Desktop-WSL2 bind-mounts quirk, see docs/ai/adr-index.md), then
+REM   denied" on due to the Docker-Desktop-WSL2 bind-mounts quirk, see .claude/nav/adr-index.md), then
 REM   delegates to playwright/run.sh via WSL.
 REM Usage: same as playwright/run.sh.
 REM Uses: cmd.exe (clean.bat --playwright), WSL (wsl bash playwright/run.sh).

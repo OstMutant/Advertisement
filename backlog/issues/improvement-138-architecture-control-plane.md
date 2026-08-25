@@ -240,7 +240,7 @@ The original framing (Port/Hook/Interface drill-down) undersells the ask. "Ст�
 |---|---|---|
 | Production code | module, package, class, interface, `*Port`/`*Hook`, method | the original ask — architecture proper |
 | **Tests** | test class, which contract/rule/class it exercises, layer (unit / Testcontainers / Playwright) | today `docs/test-coverage.md` already tracks Playwright specs manually — the model should generate this, and additionally answer *"which contracts have zero test evidence"* (a gap invisible in prose form) |
-| **Pipelines/scripts** | `.claude/commands/*.md`, `scripts/**`, CI stages | already inventoried in `docs/ai/flows.md` — fold it in as its own subgraph instead of a separate table |
+| **Pipelines/scripts** | `.claude/commands/*.md`, `scripts/**`, CI stages | already inventoried in `.claude/nav/flows.md` — fold it in as its own subgraph instead of a separate table |
 | **The doc system itself** | `CLAUDE.md`, `DECISIONS.md`, backlog items | so the model can flag *its own* drift — a `DECISIONS.md` claim with no matching code is `UNKNOWN`/`VIOLATION` just like a code-level one |
 
 **Scope guard, important:** this does not mean every Markdown file or paragraph becomes a node —
@@ -313,7 +313,7 @@ Unchanged in spirit from v1, restated as the base of the pyramid, extended to te
 | **L4 — Test evidence** | which tests cover the touched contract, at which layer | small | Task is a bug fix or behavior change — "what already proves this works" |
 | **L5 — Implementation** | actual method bodies, SQL, Vaadin code | large | Only once the above narrowed the target — the *last* thing read, not the first |
 
-This mirrors and formalizes what `docs/ai/context-loading.md` already does by hand today — the
+This mirrors and formalizes what `.claude/nav/context-loading.md` already does by hand today — the
 difference is that L0–L4 become **generated from the model**, so they can't silently drift the way
 a hand-maintained table can, and L4 (test evidence) is new: today nothing tells an agent "here's
 what already tests this" without it going and searching. **Gated by Finding 3 above** — this level
@@ -330,7 +330,7 @@ that filter now; note it here so a future session doesn't reach for a new level 
 whether module/package scoping already solves it.
 
 **Getting this actually used, not just built:** the model existing doesn't automatically mean an
-agent reaches for it first. The right lever is `docs/ai/context-loading.md` (already the
+agent reaches for it first. The right lever is `.claude/nav/context-loading.md` (already the
 established task-type → what-to-read routing table) gaining a rule like "for
 architecture/dependency/impact questions, consult L0-L3 before grepping the tree" — a *routing
 addition* to a mechanism that already exists, not a blanket ban on `grep`/`find` in
@@ -361,7 +361,7 @@ Built on the exact same model, as an interactive drill-down:
   same trigger that regenerates the AI layer (§9) — never hand-edited.
 - **Drill-down path:** System → Module → Domain/Package → Contract → Implementation → Method,
   *and now also* → Tests-that-cover-it, and a separate top-level "Tooling & Pipelines" branch
-  (commands/scripts/CI) sourced from `docs/ai/flows.md`'s existing table.
+  (commands/scripts/CI) sourced from `.claude/nav/flows.md`'s existing table.
 - **Visual encoding maps directly to the independent dimensions in §2 — not a FACT-vs-INTENT
   choice.** Since a node can be `OBSERVED` *and* `DECLARED`-backed *and* `ACTIVE` all at once
   (§2), the encoding uses separate visual channels instead of one mutually-exclusive color:
@@ -429,9 +429,9 @@ No new AST tooling. Confirmed approach from v1, extended for tests:
   configuration — confirmed, not assumed), matching test classes to the production
   classes/methods they reference (import + method-call analysis) — this produces the contract →
   test edges from §3.
-- **Pipelines/scripts:** parsed from existing structured sources — `docs/ai/flows.md`'s table and
+- **Pipelines/scripts:** parsed from existing structured sources — `.claude/nav/flows.md`'s table and
   `.claude/commands/*.md` frontmatter — not re-derived from scratch.
-- **Intent/History:** `docs/ai/adr-index.md` (already generated) + `backlog/issues/` frontmatter.
+- **Intent/History:** `.claude/nav/adr-index.md` (already generated) + `backlog/issues/` frontmatter.
 - **Output:** one `architecture-model.json` — this is the model's *current serialization*, not
   the model conceptually. If a future need justifies a different physical format (e.g. SQLite for
   ad-hoc queries once the graph gets large), that's a swap of the storage layer behind the same
@@ -516,7 +516,7 @@ the low-risk, high-value part ships without waiting on the one genuinely uncerta
 
 | Goal | Needs | Risk |
 |---|---|---|
-| Visual, top-to-bottom control of the system | modules, deps, lifecycle, legacy — all already exist as structured data (`pom.xml`, `DECISIONS.md`, `backlog/`, `docs/ai/flows.md`) | **Low** — no new extraction tooling |
+| Visual, top-to-bottom control of the system | modules, deps, lifecycle, legacy — all already exist as structured data (`pom.xml`, `DECISIONS.md`, `backlog/`, `.claude/nav/flows.md`) | **Low** — no new extraction tooling |
 | Legacy/gaps visible, not lost | same sources | **Low** |
 | Tests/pipelines included | pipelines: same sources. Tests: needs the ArchUnit exporter | **Low** (pipelines) / **higher** (tests) |
 | AI actually spends fewer tokens | needs L2+ contract/method detail + a measured hypothesis (B2 below) | **Genuinely unproven — additionally gated by Finding 3/4 above** |
@@ -546,7 +546,7 @@ what's mechanically parseable *without* bytecode analysis:
   from §13, now resolved by *not* blocking on it)
 - **lifecycle + disposition** — from `DECISIONS.md` `Status:` fields (§6) and
   `backlog/issues/` vs `backlog/completed/issues/`
-- **pipelines/scripts subgraph** — from `docs/ai/flows.md` and `.claude/commands/*.md`
+- **pipelines/scripts subgraph** — from `.claude/nav/flows.md` and `.claude/commands/*.md`
 
 Uses the FQN-style ID scheme from §7 where it applies (module `artifactId`, file paths for
 scripts) — same schema Track B extends later, nothing to redo.
@@ -625,7 +625,7 @@ automatic mechanism is active at all right now. Whether `install-hooks.sh` shoul
 repo-wide going forward is a separate, explicit decision for the user, not assumed here.
 
 **Q2 — Exporter as a JUnit-style test vs. a `scripts/ai/generate-*.sh` script?**
-**Answered by existing convention.** Every other `docs/ai/*` generator (`generate-adr-index.sh`)
+**Answered by existing convention.** Every other `.claude/nav/*` generator (`generate-adr-index.sh`)
 is a standalone script in `scripts/ai/`, not a JUnit test — even though `ArchitectureRulesTest`
 itself is a test. Follow the established pattern: `scripts/ai/generate-architecture-model.sh`
 should invoke the exporter (however it's implemented internally — could still be Maven-driven
@@ -646,7 +646,7 @@ needs.
 Built from the actual inventory (root `CLAUDE.md`, module `CLAUDE.md` files — **confirmed 13 total
 `CLAUDE.md` files in this repo today, root + 11 module + `scripts/CLAUDE.md`**, 12 `DECISIONS.md`
 files — **confirmed by direct count**, `docs/architecture/01-08-*.md` — **confirmed all 8 present
-plus their own `README.md`**, `docs/ai/*`, `backlog/` — **confirmed 33 open + 116 completed = 149
+plus their own `README.md`**, `.claude/nav/*`, `backlog/` — **confirmed 33 open + 116 completed = 149
 issue files, close to but not exactly "150+"**, `scripts/ai/*.sh`, `scripts/hooks/*`,
 `.claude/commands/*.md`, `.claude/rules.md`, `.claude/skills/deep-review/*`,
 `ArchitectureRulesTest.java`), not a generic template.
@@ -655,9 +655,9 @@ issue files, close to but not exactly "150+"**, `scripts/ai/*.sh`, `scripts/hook
 |---|---|---|---|
 | Root `CLAUDE.md` + module `CLAUDE.md` files | AI behavioral instructions, unconditionally `@`-imported | **KEEP as-is.** Not a data source for the model, not a generation target. | This is INTENT/instruction prose, not extractable structure — the model doesn't replace *how to behave*, only *what exists*. |
 | 12 `DECISIONS.md` files | ADR history, `Status:` lifecycle field | **KEEP as authoring surface, BECOME a data source.** No format change except the one already-planned `Status:` suffix convention (§6). | Already machine-parseable (proven by `adr-index.md`'s existence); the model reads it, never rewrites it. |
-| `docs/ai/adr-index.md` + `generate-adr-index.sh` | Generated ADR index | **KEEP, feed into the model as-is.** No duplication — the model's intent-links (§2) reference this index rather than re-parsing every `DECISIONS.md` independently, since the parser already exists and works. | Reuse over reimplementation. |
-| `docs/ai/context-loading.md` | Hand-authored task→doc routing table | **KEEP for now, revisit once Track B's B2 gate resolves (per Finding 3).** Once L0-L3 AI projections exist and B2 proves they save tokens, this table's job is largely superseded by "load the right level," but don't remove it until the replacement is proven in daily use — and not before `improvement-135` item 5's gate is satisfied one of the two documented ways. | Avoid deleting a working mechanism before its replacement is trusted, and avoid building the replacement before the gate that governs it is honored. |
-| `docs/ai/flows.md` + `check-flows-completeness.sh` | Situation→command/skill map, mechanically checked | **KEEP as-is; becomes the source for the "Tooling & Pipelines" subgraph (§3/§5).** Parsed, not rebuilt. | Already exactly the structured data that subgraph needs. |
+| `.claude/nav/adr-index.md` + `generate-adr-index.sh` | Generated ADR index | **KEEP, feed into the model as-is.** No duplication — the model's intent-links (§2) reference this index rather than re-parsing every `DECISIONS.md` independently, since the parser already exists and works. | Reuse over reimplementation. |
+| `.claude/nav/context-loading.md` | Hand-authored task→doc routing table | **KEEP for now, revisit once Track B's B2 gate resolves (per Finding 3).** Once L0-L3 AI projections exist and B2 proves they save tokens, this table's job is largely superseded by "load the right level," but don't remove it until the replacement is proven in daily use — and not before `improvement-135` item 5's gate is satisfied one of the two documented ways. | Avoid deleting a working mechanism before its replacement is trusted, and avoid building the replacement before the gate that governs it is honored. |
+| `.claude/nav/flows.md` + `check-flows-completeness.sh` | Situation→command/skill map, mechanically checked | **KEEP as-is; becomes the source for the "Tooling & Pipelines" subgraph (§3/§5).** Parsed, not rebuilt. | Already exactly the structured data that subgraph needs. |
 | `docs/architecture/01-module-dependencies.md` | Hand/AI-updated module dep narrative | **TRANSFORM (Track B, later): become a generated view from the model**, or a thin pointer to `architecture-map.html`. | Directly duplicates what the model computes mechanically from `pom.xml` — the highest-value replacement target. Note: `improvement-137` will already have deduped/corrected this file's stale counts before this transformation happens. |
 | `docs/architecture/02-spi-map.md` | SPI/Port-Hook narrative | **TRANSFORM (Track B, later): generated from L2 contract level.** | Same reasoning — mechanically derivable, currently hand/AI-maintained prose duplicating source. |
 | `docs/architecture/03-bounded-contexts.md` | Domain grouping narrative | **KEEP as authored input for now (per Q3 above), TRANSFORM later once model's own domain-grouping is validated against it.** | Domain boundaries are partly a judgment call, not purely mechanical — don't auto-generate this one until confident the extractor's grouping matches intent. |
@@ -701,7 +701,7 @@ Implemented as planned in §11 (A1-A3):
   `MODULE` nodes (from root `pom.xml`'s reactor + each module's own `pom.xml` — `DEPENDS_ON_COMPILE`/
   `DEPENDS_ON_RUNTIME`/`DEPENDS_ON_OPTIONAL` edges), domain grouping seeded from
   `docs/architecture/03-bounded-contexts.md` (`domain_confidence: manual`), `intent[]` ADR links
-  reused from `docs/ai/adr-index.md` (never reparses `DECISIONS.md`, per §14), 12 `COMMAND` + 2
+  reused from `.claude/nav/adr-index.md` (never reparses `DECISIONS.md`, per §14), 12 `COMMAND` + 2
   `SKILL` nodes from `.claude/commands`/`.claude/skills`, and one `BACKLOG_SUMMARY` node
   (open/completed issue counts). **Scoping decision, not silently narrowed:** per-ADR (171) and
   per-issue (149) graph nodes were **not** built — §11 A2 explicitly commits the graph to "tens of
@@ -888,7 +888,7 @@ or the other.
   initial "flag and don't chase" call on the e2e/sonar failures
 - context_loading_consulted: yes — read `scripts/ai/generate-adr-index.sh`,
   `check-adr-index-freshness.sh`, `check-flows-completeness.sh`, `.claude/commands/sync-docs.md`,
-  `docs/ai/flows.md`, `scripts/ci/entrypoint.sh`, `Dockerfile`, `scripts/sonar/run.sh`,
+  `.claude/nav/flows.md`, `scripts/ci/entrypoint.sh`, `Dockerfile`, `scripts/sonar/run.sh`,
   `scripts/sonar/sonar-project.properties` before writing new code, to match existing conventions
   and find real root causes rather than guessing
 - context_loading_matched: yes
@@ -955,7 +955,7 @@ colored graph with working node clicks into module detail (breadcrumb: `System �
 Module Dependencies — Dependency Graph`, then `System › <module>` on click, same flat-breadcrumb
 shape the old System map already had); SPI map / bounded contexts unchanged (still generic/non-
 colored, as decided — no equivalent node model exists for them yet). Zero JS errors during the
-full screenshot run. Recorded as `scripts/ai/DECISIONS.md` ADR-003. `docs/ai/adr-index.md`
+full screenshot run. Recorded as `scripts/ai/DECISIONS.md` ADR-003. `.claude/nav/adr-index.md`
 (181 entries) and `architecture-model.json`/`architecture-map.html` regenerated again after the
 ADR was added; `check-adr-index-freshness.sh`/`check-architecture-model-freshness.sh`/
 `check-flows-completeness.sh`/`check-hardcoded-counts.sh` all pass.
@@ -986,7 +986,7 @@ the stack instead of shrinking it under the new always-push `navigate()` semanti
 **Verified** via an extended `screenshot-architecture-map.sh` run: System → Diagrams → Module
 Dependencies → click node → module detail (breadcrumb: `System › Diagrams › Module Dependencies —
 Dependency Graph › platform-commons`) → click the "Module Dependencies — Dependency Graph"
-breadcrumb segment → lands back on the re-rendered graph, not a dead end. `docs/ai/adr-index.md`
+breadcrumb segment → lands back on the re-rendered graph, not a dead end. `.claude/nav/adr-index.md`
 (182 entries) and `architecture-model.json`/`architecture-map.html` regenerated again; all 4 CI
 freshness gates pass; zero JS errors across the full screenshot run.
 
@@ -1292,7 +1292,7 @@ keeping the link only for the core "pure delegation" rule itself. All three also
 a dedicated generator script for `01`/`02` — both were hand/Claude-updated markdown, triggered by
 `/sync-docs`'s mapping table, not a deterministic script. What *was* stale: that mapping table
 itself (`.claude/commands/sync-docs.md`), `doc-standards/SKILL.md`'s canonical ownership table,
-`docs/ai/context-loading.md`'s routing table, and `docs/architecture/README.md` (3 mentions) all
+`.claude/nav/context-loading.md`'s routing table, and `docs/architecture/README.md` (3 mentions) all
 still pointed at `02-spi-map.md` as if it were still the live target. All updated to point at
 `docs/architecture-map.html`'s SPI Map page instead, mirroring the exact pattern already applied to
 `01-module-dependencies.md` earlier in this issue.
@@ -1638,6 +1638,6 @@ without this file growing further.
   migration table (§14) reads shorter and drift-free before Track A starts.
 - `improvement-135` — item 5's governing rule directly gates Track B (Finding 3); item 3's
   `## Operational notes` mechanism is what B2 must extend, not duplicate (Finding 4).
-- `improvement-134` (completed) — the original `docs/ai/` layer this plan's AI layer (§4) builds
+- `improvement-134` (completed) — the original `.claude/nav/` layer this plan's AI layer (§4) builds
   on top of, not replaces, until B2 proves otherwise.
 - `ArchitectureRulesTest.java` — the extraction engine this plan's exporter sits next to.

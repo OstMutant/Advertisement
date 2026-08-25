@@ -3,7 +3,7 @@ REM ---------------------------------------------------------------------------
 REM Description: Windows entry point -- runs clean.bat --unit --integration --playwright natively
 REM   (cmd.exe, before WSL is involved -- reliably clears stale reports/logs a WSL `rm` can hit
 REM   "Permission denied" on due to the Docker-Desktop-WSL2 bind-mounts quirk, see
-REM   docs/ai/adr-index.md), delegates to scripts/run-all-tests/run.sh via WSL, then -- also
+REM   .claude/nav/adr-index.md), delegates to scripts/run-all-tests/run.sh via WSL, then -- also
 REM   natively, after WSL returns -- copies that run's logs out of the run-all-tests-reports
 REM   container into scripts\logs\run-all-tests\ and removes the container. This last step exists
 REM   because a native `docker cp`/`docker rm` (no WSL path translation involved) does not hit the

@@ -1,4 +1,16 @@
 # syntax=docker/dockerfile:1
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: Production build for marketplace-app -- multi-stage build (Maven reactor build,
+#   then a slim JRE runtime image); image name/tag is assigned by whichever command invokes the
+#   build (see scripts/deploy-and-run.sh).
+# Usage: docker build -f Dockerfile -t <tag> .
+# Uses: eclipse-temurin:25-jdk (builder stage), eclipse-temurin:25-jre (runtime stage), Maven (via
+#   mvnw), Vaadin production bundle build (via vaadin-maven-plugin during `mvnw package`).
+# Env: None -- build-time only; runtime env vars are supplied by whatever starts the resulting
+#   image (see scripts/deploy-and-run/docker-compose.app.yml).
+# Input: repo source (every module's pom.xml + src), mvnw, lombok.config, .mvn.
+# Outputs: a runnable marketplace-app image -- app.jar, exposes port 8080, entrypoint `java -jar app.jar`.
+# ────────────────────────────────────────────────────────────────────────────
 FROM eclipse-temurin:25-jdk AS builder
 WORKDIR /app
 

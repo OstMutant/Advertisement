@@ -31,7 +31,7 @@ async function openEntityActivity(page, openButtonSelector) {
 /**
  * Closes the nested history overlay. `via: 'parent'` (default) and `via: 'x'` both go back to the
  * immediate opener (the still-open form underneath, never actually closed -- see
- * docs/ai/adr-index.md). `via: 'outer'` clicks the first step in the breadcrumb
+ * .claude/nav/adr-index.md). `via: 'outer'` clicks the first step in the breadcrumb
  * chain -- always the domain's list link, regardless of how many steps precede the immediate
  * parent -- and exits all the way out. Idempotent -- a no-op if the overlay is already closed, so
  * callers don't need to track whether an earlier step already closed it.

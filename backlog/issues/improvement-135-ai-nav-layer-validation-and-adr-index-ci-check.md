@@ -1,8 +1,8 @@
 # improvement-135: Validate the AI-navigation layer (improvement-134) actually works, gate ADR-index drift in CI
 
-**Type:** process/AI-tooling meta — validation and hardening of the `docs/ai/` layer built in
+**Type:** process/AI-tooling meta — validation and hardening of the `.claude/nav/` layer built in
 improvement-134, not new navigation content.
-**Module:** cross-cutting — `docs/ai/`, `scripts/ai/`, `scripts/ci/`, `.claude/rules.md`.
+**Module:** cross-cutting — `.claude/nav/`, `scripts/ai/`, `scripts/ci/`, `.claude/rules.md`.
 **Priority:** 🟡 top — ranked ahead of the "Nice to have" batches, alongside/after improvement-124
 (user's explicit request). Item 1 addressed a drift that already existed in the repo, not a
 hypothetical — now closed.
@@ -11,12 +11,12 @@ design work on measurement methodology before they're actionable (see each item)
 
 ## Problem
 
-improvement-134 built `docs/ai/adr-index.md` (generated), `docs/ai/context-loading.md`, and
-`docs/ai/flows.md` on the premise that they reduce token cost and improve command/skill routing.
+improvement-134 built `.claude/nav/adr-index.md` (generated), `.claude/nav/context-loading.md`, and
+`.claude/nav/flows.md` on the premise that they reduce token cost and improve command/skill routing.
 That premise was never validated — the layer was accepted on the strength of its design rationale
 alone. Two concrete gaps surfaced during improvement-124's execution (2026-07-31):
 
-1. **`docs/ai/adr-index.md` is already stale.** `platform-commons/DECISIONS.md` ADR-026 and
+1. **`.claude/nav/adr-index.md` is already stale.** `platform-commons/DECISIONS.md` ADR-026 and
    `marketplace-app/DECISIONS.md` ADR-070/ADR-071 (all added earlier in this same session) are
    missing from the generated index. Root cause: regeneration is wired as a *manual* step inside
    the `/decision` skill's instructions (per `scripts/ai/DECISIONS.md` ADR-001) — it only fires
@@ -54,7 +54,7 @@ prompted this whole investigation) is corrected too.
   bare number, closing the same-number-different-file collision (confirmed live:
   `marketplace-app/DECISIONS.md` already had its own unrelated ADR-026 before this session added
   `platform-commons/DECISIONS.md`'s ADR-026).
-- `docs/ai/adr-index.md` regenerated — the live drift this issue was filed over (missing
+- `.claude/nav/adr-index.md` regenerated — the live drift this issue was filed over (missing
   ADR-070/071/026) is closed.
 - `scripts/ai/check-adr-index-freshness.sh` (new) — read-only: regenerates into the real file,
   diffs against a backup taken before regenerating, then unconditionally restores the backup on
@@ -73,7 +73,7 @@ real push/PR-triggered CI, the `scripts/ci.sh` backstop only fires when someone 
 `/ci` — it is not a guarantee on every commit. The rules.md rule is the primary defense; it is
 Claude's own discipline, re-read before every action, not an external enforcement mechanism.
 
-**Scope extended during item 1 (2026-07-31) — `docs/ai/flows.md` had the same class of gap.**
+**Scope extended during item 1 (2026-07-31) — `.claude/nav/flows.md` had the same class of gap.**
 Auditing `flows.md` for staleness (a natural next check, same session) found it was missing rows
 for `simplify`/`security-review`/`review`/`update-config`/`loop`/`schedule` — all pre-existing
 skills, silently uncovered. Root cause was structurally different from the ADR-index case though:
@@ -105,14 +105,14 @@ they're completed, aggregate them periodically:
 
 - **Recording:** `.claude/rules.md` "Final reports record real operational data in a fixed,
   mechanically-parseable block" — every completed issue gets an `## Operational notes` block with
-  fixed `key: value` lines (token cost by purpose; `docs/ai/context-loading.md` task-type/
-  consulted/matched; `docs/ai/flows.md` situation/chosen/matched). Mechanically parseable by
+  fixed `key: value` lines (token cost by purpose; `.claude/nav/context-loading.md` task-type/
+  consulted/matched; `.claude/nav/flows.md` situation/chosen/matched). Mechanically parseable by
   design, the same way `## ADR-NNN:`/`**Status:**` makes `DECISIONS.md` indexable — not free-form
   prose, so an aggregate pass doesn't have to re-interpret each entry.
 - **Aggregation trigger:** `/sync-docs --full-audit` Step A5 (new) — greps `backlog/completed/
   issues/` (+ in-progress `backlog/issues/`) for `## Operational notes` blocks accumulated since
   the last audit, parses the fixed keys directly, and reports: token cost trend by purpose,
-  `context_loading_matched` tally by task type, `flows_matched` tally. Feeds `docs/ai/`'s own
+  `context_loading_matched` tally by task type, `flows_matched` tally. Feeds `.claude/nav/`'s own
   governing rule (item 5) — real accumulated evidence, not a synthetic snapshot. If too little data
   has accumulated to say anything, that absence is itself reported, not silently skipped.
 
@@ -122,7 +122,7 @@ from `## Operational notes` blocks, reviewed at the next `/sync-docs --full-audi
 
 ### 2. Measure actual review-skill token cost — track it, don't act on a single number — ✅ DONE (measurement practice adopted; no default changed)
 
-**Reframed (2026-07-31) — narrower and more concrete than the original "docs/ai/* read-count
+**Reframed (2026-07-31) — narrower and more concrete than the original ".claude/nav/* read-count
 proxy" framing.** During this same session, the user raised a directly related, more consequential
 cost question first: the multi-agent review skills (`/code-review`'s 8-parallel-finder pattern
 especially) are visibly expensive, and there was no real accounting of it — only impression.
@@ -176,8 +176,8 @@ evidence).
 scoped to the "Built-in Claude Code skills" review-family cluster — `code-review`/`simplify`/
 `security-review`/`deep-review`/`review`/`fewer-permission-prompts` — the highest-confusion-risk
 area flagged during item 1's audit. Each sent to an isolated fresh subagent with **no context
-from this conversation and an explicit instruction not to read `docs/ai/flows.md` or anything
-under `docs/ai/`** — asked only "which command/skill would you reach for and why," no execution.
+from this conversation and an explicit instruction not to read `.claude/nav/flows.md` or anything
+under `.claude/nav/`** — asked only "which command/skill would you reach for and why," no execution.
 Result compared against `flows.md`'s own recommendation for that situation.
 
 **Result: 6/6 correct.** Including the two closest-confusable pairs: "clean up code, don't hunt for
@@ -196,7 +196,7 @@ project-specific framing*, not proven here to be about *correctness*. Bounded sc
 cluster) — not exhaustive coverage of all 24 rows across both tables; treat as a spot-check that
 found no problem in the area of highest suspected risk, not a full routing-accuracy certification.
 
-### 5. Governing principle for all of the above: do not add new `docs/ai/*` content until a real discovery gap appears
+### 5. Governing principle for all of the above: do not add new `.claude/nav/*` content until a real discovery gap appears
 
 No new navigation file, no new metadata field, no expansion of `adr-index.md`'s schema (e.g. the
 previously-rejected `Tags`/`Scope` field) until items 2-4 show the *existing* layer is pulling its
@@ -219,11 +219,11 @@ principle, applied to the AI-navigation layer itself — a stale or speculative 
 - `scripts/ai/DECISIONS.md` ADR-001 — the manual-regeneration-wired-into-`/decision` design this
   issue's item 1 hardens with a standing `.claude/rules.md` rule (primary) plus a `scripts/ci.sh`
   backstop (secondary, manually-triggered).
-- `docs/ai/README.md` — "Staying correct" section, updated to mention `check-adr-index-freshness.sh`
+- `.claude/nav/README.md` — "Staying correct" section, updated to mention `check-adr-index-freshness.sh`
   alongside `/sync-docs --full-audit`'s existing ADR classifier.
 - `improvement-137` — repo-wide documentation dedup + new `doc-standards` skill, filed 2026-08-04.
   Deliberately not merged into this issue (different shape of work — a closeable one-pass cleanup
-  vs. this issue's long-running evidence-accumulation item 3), but touches the same `docs/ai/*.md`
+  vs. this issue's long-running evidence-accumulation item 3), but touches the same `.claude/nav/*.md`
   files this issue owns; its Pass 2/4 edits there are corrective (stale counts, restated facts),
   not new content, so they don't conflict with item 5's governing rule above. See improvement-137's
   own "Relationship to improvement-135" section for the full reasoning.

@@ -25,6 +25,20 @@ here so it stops loading eagerly. Root `CLAUDE.md` keeps a one-line, always-load
 file; the full detail only loads once a file inside that module's own directory is actually
 touched.
 
+- [`advertisement-spring-boot-starter.md`](advertisement-spring-boot-starter.md) — `advertisement-spring-boot-starter/**`
+- [`attachment-spring-boot-starter.md`](attachment-spring-boot-starter.md) — `attachment-spring-boot-starter/**`
+- [`audit-spring-boot-starter.md`](audit-spring-boot-starter.md) — `audit-spring-boot-starter/**`
+- [`integration-tests.md`](integration-tests.md) — `integration-tests/**`
+- [`marketplace-app.md`](marketplace-app.md) — `marketplace-app/**`
+- [`marketplace-orchestrator.md`](marketplace-orchestrator.md) — `marketplace-orchestrator/**`
+- [`platform-commons.md`](platform-commons.md) — `platform-commons/**`
+- [`playwright.md`](playwright.md) — `playwright/**`
+- [`provider-profile-spring-boot-starter.md`](provider-profile-spring-boot-starter.md) — `provider-profile-spring-boot-starter/**`
+- [`query-lib.md`](query-lib.md) — `query-lib/**`
+- [`scripts.md`](scripts.md) — `scripts/**` (see "Important" below — the glob matches more broadly than just the top-level `scripts/` directory)
+- [`taxon-spring-boot-starter.md`](taxon-spring-boot-starter.md) — `taxon-spring-boot-starter/**`
+- [`user-spring-boot-starter.md`](user-spring-boot-starter.md) — `user-spring-boot-starter/**`
+
 ## Important — glob matching is not anchored to the repo root
 
 A `paths:` glob like `"scripts/**"` matches **any path containing that segment anywhere**, not

@@ -53,7 +53,7 @@ Tables: `provider_profile`
 - `ProviderProfileService.save()` enforces `kind == SUPPORT` requires an `actingUserIsPrivileged`
   boolean the caller (marketplace-app) computes and passes in — the one authorization-shaped rule
   this starter enforces server-side, a deliberate exception to the "authorization lives only in
-  marketplace-app" convention. See `docs/ai/adr-index.md`.
+  marketplace-app" convention. See `.claude/nav/adr-index.md`.
 - `findOwnerIds()` blocks user purge while a profile exists (mirrors `AdvertisementPort`'s
   `created_by` protection) — no `clearActorReferences()`, since there are no nullable
   actor-reference columns on this table to null.
@@ -63,7 +63,7 @@ Tables: `provider_profile`
   Deliberate: there is no orchestrator save path for this domain yet (planned for a future batch,
   alongside the actual `AuditPort.record()` audit-write call) — building one now, ahead of any real
   UI or audit wiring, would be new feature work, not the mechanical extraction the decision
-  recorded for `marketplace-orchestrator` scoped — see `docs/ai/adr-index.md` for that decision's
+  recorded for `marketplace-orchestrator` scoped — see `.claude/nav/adr-index.md` for that decision's
   "what does NOT move" table.
 - No `audit.spi` implementations of its own yet — audit-side wiring (the
   `ProviderProfileActivityFieldsHookImpl` triad other domains have) is deferred to a future batch,

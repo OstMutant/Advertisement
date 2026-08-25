@@ -9,11 +9,11 @@ allowed-tools: Read Edit Write Bash
 Conventions for a script-group directory's own `README.md` — what belongs in it, how its `## Flow`
 section diagrams the sequence between files, and how the root `scripts/README.md` differs from a
 single directory's own README. Sibling to `infra-doc-standards` (file-level and per-function header
-conventions for the files themselves) — that skill's "⛔ One fact, one canonical home" rule is the
-governing principle both header and README placement decisions defer to; this skill never restates
-it, only applies it. Distinct from `doc-standards` (which covers documentation about the
-Java/Vaadin application itself: `README.md`, `CLAUDE.md`, `DECISIONS.md`, `docs/architecture/*`,
-`docs/ai/*`).
+conventions for the files themselves) — that skill's "⛔ Files first, then README" rule (itself an
+application of `.claude/rules.md`'s "One fact, one canonical home" rule) is the governing principle
+both header and README placement decisions defer to; this skill never restates it, only applies it.
+Distinct from `module-readme-standards` (the same README convention, applied to a Java module's
+own `README.md` instead of a script-group directory's).
 
 ## README — what the tool is, why we use it
 
@@ -139,7 +139,7 @@ different job: list every real entry point across the whole tree, not diagram an
   whether a same-named subfolder happens to exist — a real entry point can delegate into a
   differently-named directory, which a naming-based check would silently miss.
 - **Description stays concise and abstract, never duplicating a file's own header `Description`
-  field** (see `infra-doc-standards`'s "One fact, one canonical home" rule) — the architecture-map
+  field** (see `infra-doc-standards`'s "Files first, then README" rule) — the architecture-map
   generator already surfaces that field directly.
 - **If an entry point delegates**, state only where its real logic lives — no diagram at this
   level; the diagram belongs to whichever level actually owns the branching logic.
@@ -177,13 +177,26 @@ shared file — it belongs in each real caller's own `Uses`/`Input` field (e.g. 
 that file), never in the shared file's own header and never listed in this directory's README.
 Never a `## Flow` section, since there's no entry-point chain to diagram.
 
+## `.claude/skills/` — top-level README only, never one inside each skill's own subdirectory
+
+A skill's own subdirectory (`.claude/skills/<name>/`) is not a script-group directory in the sense
+this document otherwise covers — its `SKILL.md` already is that unit's complete, self-contained
+description (the same role a script's own header serves per `infra-doc-standards`'s "Files first,
+then README" rule). Running this skill over `.claude/skills/` never creates or touches a
+`README.md` inside any individual skill's own subdirectory — that would only ever duplicate what
+`SKILL.md` already states. Only `.claude/skills/README.md` itself gets written: a single top-level
+index, one entry per skill, each reproducing that skill's own `SKILL.md` frontmatter
+`description:` verbatim, not a shortened gloss — a skill's description is exactly the text that
+decides when it gets invoked, so trimming it here would hide the one fact this index most needs to
+carry.
+
 ## ⛔ Applying this standard — what "run the skill over a directory" means
 
 Running this skill against a directory means: every file in scope already has a complete,
 accurate header (per `infra-doc-standards` — run that skill first if it hasn't been), then
 regenerate that directory's `README.md` from the now-finished file headers (a rewrite, not a
 piecemeal edit). File-then-README order and the no-duplication rule follow `infra-doc-standards`'s
-"One fact, one canonical home" rule. Everything in scope is brought into full compliance with the
+"Files first, then README" rule. Everything in scope is brought into full compliance with the
 standard described in this document — the `README.md` Flow section, everything — not a partial
 pass. There is no "is this file already compliant" tracking inside this skill itself; that's a
 per-run decision, made when the skill is actually invoked, not a state this document maintains.
@@ -191,7 +204,7 @@ per-run decision, made when the skill is actually invoked, not a state this docu
 This applies to every pre-existing line in `README.md`, not only newly-noticed gaps — pre-existing
 content earns no presumption of compliance just because it predates this run; every line, old or
 new, is re-derived from the finished file headers and re-tested against `infra-doc-standards`'s
-"One fact, one canonical home" rule before being kept.
+"Files first, then README" rule before being kept.
 
 "In scope" means the invoked directory only — a run scoped to one directory (e.g. "run the skill
 over scripts/sonar/") fixes only `README.md` content inside that directory, never a stale
@@ -234,4 +247,4 @@ writing.
 Also verify placement, not just accuracy: for every fact in `README.md`, confirm it could not be
 answered by reading a single file's own header alone. A README sentence that duplicates a file
 header — even if factually correct — is itself a finding to report, per `infra-doc-standards`'s
-"One fact, one canonical home" rule.
+"Files first, then README" rule.

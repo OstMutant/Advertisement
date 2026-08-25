@@ -52,7 +52,7 @@
 #   written to $REPORTS_DIR/, so anyone looking at the volume can tell which invocation produced
 #   what. $REPORTS_DIR (/reports/$BUILD_CONTAINER_NAME) lives on the shared test-reports named
 #   Docker volume (never a WSL/Windows-drive path, so never subject to the docker-desktop-bind-mounts
-#   issue documented in docs/ai/adr-index.md), reaching the host via run.sh's own `docker cp` from
+#   issue documented in .claude/nav/adr-index.md), reaching the host via run.sh's own `docker cp` from
 #   this container (while it's still running) after the build finishes. RUN_INTEGRATION=true also
 #   mirrors run.log + surefire/ into $REPORTS_DIR/it-mirror/, copied out by run.sh's own second,
 #   separate docker cp -- keeps integration-tests/reports/ fresh whenever integration tests run

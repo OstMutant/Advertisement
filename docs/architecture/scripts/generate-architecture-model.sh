@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # Description: Generates architecture-model.json and architecture-map.html -- the live, browsable
 #   architecture control plane -- from real repo state, no hand-maintained markdown.
-# Uses: bash, node (invokes liquibase-schema-to-json.js always, and md-to-decisions-json.js only
-#   when --with-adr-details is passed, as subprocesses), python3 (only when
-#   --with-sonar/--with-archunit are passed).
+# Uses: bash, node (invokes liquibase-schema-to-json.js always, and
+#   .claude/nav/scripts/md-to-decisions-json.js only when --with-adr-details is passed, as
+#   subprocesses), python3 (only when --with-sonar/--with-archunit are passed).
 # Input: pom.xml, real Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
-#   docs/ai/adr-index.md, docs/ai/flows.md, .claude/commands, .claude/skills, backlog/.
+#   .claude/nav/adr-index.md, .claude/nav/flows.md, .claude/commands, .claude/skills, backlog/.
 # Output: docs/architecture/data/architecture-model.json + docs/architecture/architecture-map.html +
 #   docs/architecture/data/arch-embed-index.md.
 #
 # Generates architecture-model.json (Track A of the architecture control plane) from
 # already-structured, non-code sources only -- no ArchUnit, no bytecode analysis. Node types:
 # MODULE (from pom.xml reactor + per-module pom.xml dependencies), COMMAND/SKILL (from
-# .claude/commands, .claude/skills, cross-checked against docs/ai/flows.md), and one BACKLOG
+# .claude/commands, .claude/skills, cross-checked against .claude/nav/flows.md), and one BACKLOG
 # summary node. Per-ADR/per-issue graph nodes are deliberately not built -- the issue/ADR count
 # would blow past a "tens of nodes, not thousands" budget -- ADRs are folded into each module's
 # own `intent[]` list instead, reusing adr-index.md rather than reparsing every DECISIONS.md.
@@ -22,8 +22,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 OUTPUT="$REPO_ROOT/docs/architecture/data/architecture-model.json"
 HTML_OUTPUT="$REPO_ROOT/docs/architecture/architecture-map.html"
 ARCH_EMBED_INDEX="$REPO_ROOT/docs/architecture/data/arch-embed-index.md"
-ADR_INDEX="$REPO_ROOT/docs/ai/adr-index.md"
-FLOWS="$REPO_ROOT/docs/ai/flows.md"
+ADR_INDEX="$REPO_ROOT/.claude/nav/adr-index.md"
+FLOWS="$REPO_ROOT/.claude/nav/flows.md"
 ROOT_CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
 
 # ── Node.js runner: host `node` if available, else a disposable node:22-alpine container --------
@@ -89,8 +89,8 @@ json_escape() {
 # already uses) -- NOT a separate <module>/DECISIONS.json loaded at runtime via <script src>. That
 # design was tried and reverted: it depends on browser-specific file:// security policy for
 # cross-directory script loading, an unacceptable dependency for a tool meant to just work when
-# double-clicked -- see docs/ai/adr-index.md. Parsing lives in md-to-decisions-json.js
-# (Node) -- an earlier awk version hit two real bugs on real content (label+list with no blank
+# double-clicked -- see .claude/nav/adr-index.md. Parsing lives in
+# .claude/nav/scripts/md-to-decisions-json.js (Node) -- an earlier awk version hit two real bugs on real content (label+list with no blank
 # line merging into one paragraph; multi-line list items losing their numbering) that
 # JSON.stringify()'s correct-by-construction escaping and normal regex/string methods avoid.
 FULL_DECISIONS_MODULES=(attachment-spring-boot-starter audit-spring-boot-starter integration-tests marketplace-app platform-commons query-lib taxon-spring-boot-starter scripts docs/architecture/scripts scripts/ci scripts/sonar playwright)
@@ -98,37 +98,54 @@ FULL_DECISIONS_MODULES=(attachment-spring-boot-starter audit-spring-boot-starter
 # ── Non-Maven tooling directories -- get a SCRIPT_GROUP node (same ADR-embedding/popup mechanism
 # as MODULE nodes) so their files/decisions are visible on the Tooling & Pipelines screen, not
 # invisible outside the interactive tool. "category" is the group heading each dir's card renders
-# under. Not every SCRIPT_GROUP dir has its own DECISIONS.md -- docs/ai/scripts's own history moved
+# under. Not every SCRIPT_GROUP dir has its own DECISIONS.md -- .claude/nav/scripts's own history moved
 # to docs/architecture/scripts/DECISIONS.md wholesale (see docs/architecture/scripts/DECISIONS.md
-# ADR-021), so docs/ai/scripts now gets a files-only node, no ADR/decisions section
+# ADR-021), so .claude/nav/scripts now gets a files-only node, no ADR/decisions section
 # (decisions_json_for/adr_intent_for_module both degrade to empty for a module with no
-# DECISIONS.md, not a special case here). Only docs/ai/scripts and docs/architecture/scripts stay
-# single-level flat cards here -- scripts and playwright are each the root of their own
-# arbitrary-depth SCRIPT_GROUP tree instead (SCRIPT_TREE_ROOTS below), so they're deliberately not
-# listed in SCRIPT_GROUP_DIRS/SCRIPT_GROUP_CATEGORY.
+# DECISIONS.md, not a special case here). docs/architecture/scripts stays a single-level flat card
+# here -- scripts, playwright, and .claude are each the root of their own arbitrary-depth
+# SCRIPT_GROUP tree instead (SCRIPT_TREE_ROOTS below, .claude/nav/scripts reached as one of its
+# nested children), so they're deliberately not listed in SCRIPT_GROUP_DIRS/SCRIPT_GROUP_CATEGORY.
 declare -A SCRIPT_GROUP_CATEGORY=(
-  [docs/ai/scripts]="AI Tooling"
+  [docs/architecture]="Build architecture page"
   [docs/architecture/scripts]="Build architecture page"
+  [docs/architecture/data]="Build architecture page"
 )
-SCRIPT_GROUP_DIRS=(docs/ai/scripts docs/architecture/scripts)
+SCRIPT_GROUP_DIRS=(docs/architecture docs/architecture/scripts docs/architecture/data)
 
-# Top-level roots of the unified, arbitrary-depth "Scripts" drill-down tree (see
-# emit_script_tree_node() below) -- playwright/ is a physically separate top-level directory, not
-# nested under scripts/, but is treated as one child card of the root "Scripts" card on the
-# Tooling & Pipelines screen (docs/architecture/scripts/DECISIONS.md).
-SCRIPT_TREE_ROOTS=(scripts playwright)
+# Top-level roots of the unified, arbitrary-depth drill-down tree (see emit_script_tree_node()
+# below) -- each root carries its own display category, so the same recursive mechanism feeds both
+# the "Scripts" card (scripts/, playwright/) and the "AI Tooling" card (.claude/) on the Tooling &
+# Pipelines screen. playwright/ is a physically separate top-level directory, not nested under
+# scripts/, but is treated as one child card of the root "Scripts" card
+# (docs/architecture/scripts/DECISIONS.md).
+declare -A SCRIPT_TREE_ROOT_CATEGORY=(
+  [scripts]="Scripts"
+  [playwright]="Scripts"
+  [.claude]="AI Tooling"
+)
+SCRIPT_TREE_ROOTS=(scripts playwright .claude)
 
 # Directories that never become their own card/tree node even though they sit inside a
 # SCRIPT_TREE_ROOTS subtree -- generated/report output, never source.
 SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report logs node_modules)
+
+# Directories whose real subdirectories are never recursed into, even though they exist on disk --
+# .claude/skills/<name>/ is never a folder-card of its own: each skill's own SKILL.md is already
+# that unit's complete, self-contained description (see .claude/skills/infra-readme-standards's
+# own ".claude/skills/" section), so drilling into one would show an empty card with no headers and
+# no README. The .claude/skills card itself still renders normally (its own top-level README.md).
+SCRIPT_TREE_LEAF_DIRS=(.claude/skills)
 
 # Explicit "what matters first" ordering per directory -- entry points and generators before the
 # CI gates that verify their output, dev-only tooling last. Falls back to alphabetical (find |
 # sort) for any directory not listed here. Applies uniformly to SCRIPT_GROUP_DIRS's flat dirs and
 # to every level of the SCRIPT_TREE_ROOTS tree (looked up by the node's own directory path).
 declare -A SCRIPT_GROUP_FILE_ORDER=(
-  [docs/ai/scripts]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh"
-  [docs/architecture/scripts]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh Dockerfile"
+  [.claude/nav/scripts]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh md-to-decisions-json.js"
+  [docs/architecture]="architecture-doc.sh architecture-doc.bat"
+  [docs/architecture/scripts]="generate-architecture-model.sh liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh Dockerfile"
+  [docs/architecture/data]="architecture-model.json arch-embed-index.md runtime-notes.md"
   [scripts]="build-and-test.sh deploy-and-run.sh ci.sh run-all-tests.sh playwright.sh sonar.sh reset.sh run-local.bat build-and-test.bat deploy-and-run.bat ci.bat run-all-tests.bat playwright.bat sonar.bat claude.bat clean.bat collect-code.bat"
   [scripts/sonar]="run.sh run.bat docker-compose.sonar.yml sonar-project.properties"
   [scripts/build-and-test]="run.sh build.sh build-and-test.properties Dockerfile"
@@ -143,7 +160,7 @@ decisions_json_for() {
   local module="$1"
   # Off by default (see --with-adr-details above) -- full ADR-body embedding accounts for
   # ~605KB/~72% of a with-flag architecture-model.json, baked in whether or not anyone opens the
-  # popup. MODEL.allAdrs (built by all_adrs_json() from docs/ai/adr-index.md) stays populated
+  # popup. MODEL.allAdrs (built by all_adrs_json() from .claude/nav/adr-index.md) stays populated
   # either way -- it never carried full body text to begin with. openAdrPopupForAdr() still opens
   # the popup (id/title/status always available from MODEL.allAdrs) when a module's "decisions"
   # field is null, showing a source-file link instead of the full body.
@@ -152,7 +169,7 @@ decisions_json_for() {
   local found=false
   for m in "${FULL_DECISIONS_MODULES[@]}"; do [ "$m" = "$module" ] && found=true; done
   $found || { echo "null"; return; }
-  run_node "$REPO_ROOT/docs/architecture/scripts/md-to-decisions-json.js" --stdout "$module"
+  run_node "$REPO_ROOT/.claude/nav/scripts/md-to-decisions-json.js" --stdout "$module"
 }
 
 # A SCRIPT_GROUP dir's own README.md (if it has one), read raw via Node's JSON.stringify --
@@ -163,6 +180,15 @@ readme_json_for() {
   local dir="$1"
   [ -f "$REPO_ROOT/$dir/README.md" ] || { echo "null"; return; }
   run_node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$REPO_ROOT/$dir/README.md"
+}
+
+# A root-level markdown file (README.md/INFRASTRUCTURE.md), read raw the same way readme_json_for()
+# reads a SCRIPT_GROUP dir's own README.md -- these two aren't SCRIPT_GROUP-scoped, so they need
+# their own path (repo root, not a dir/README.md join).
+root_md_json_for() {
+  local file="$1"
+  [ -f "$REPO_ROOT/$file" ] || { echo "null"; return; }
+  run_node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$REPO_ROOT/$file"
 }
 
 # ── Module list, in pom.xml reactor order ───────────────────────────────────────────────────
@@ -364,7 +390,7 @@ adr_intent_for_module() {
 }
 
 # Flat, deduplicated list of every ADR across every module's DECISIONS.md, for the System screen's
-# ADRs card/list -- reads docs/ai/adr-index.md (same file adr_intent_for_module reads above), but
+# ADRs card/list -- reads .claude/nav/adr-index.md (same file adr_intent_for_module reads above), but
 # keeps only each ADR's home-module row, skipping the extra "Also affects" cross-reference rows
 # that table carries (same id string repeated once per affected module) so an ADR is counted once.
 all_adrs_json() {
@@ -1206,7 +1232,10 @@ emit_script_tree_node() {
       [ -f "$REPO_ROOT/$d/$f" ] && files_list="$files_list$f"$'\n'
     done
   else
-    files_list="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' -o -name '*.bat' -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' -o -name 'Dockerfile' \) -printf '%f\n' 2>/dev/null | sort)"
+    # *.md included so a dir with only markdown content (e.g. .claude/commands) isn't an empty
+    # card -- README.md excluded since it renders separately as its own readme block below, never
+    # duplicated as a plain chip.
+    files_list="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' -o -name '*.bat' -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' -o -name '*.md' -o -name 'Dockerfile' \) -printf '%f\n' 2>/dev/null | grep -v '^README\.md$' | sort)"
   fi
   local files_json decisions_field readme_field headers_field evidence_file
   files_json="$(json_str_array "$files_list")"
@@ -1218,10 +1247,15 @@ emit_script_tree_node() {
 
   # Immediate child directories only (one level -- recursion handles deeper levels), real
   # subdirectories, alphabetical, minus the excluded generated/report dirs and anything hidden.
-  local child_dirs=() child
-  while IFS= read -r child; do
-    [ -n "$child" ] && child_dirs+=("$child")
-  done < <(find "$REPO_ROOT/$d" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort)
+  # Skipped entirely for a SCRIPT_TREE_LEAF_DIRS entry -- real subdirectories exist on disk but are
+  # deliberately never surfaced as folder-cards (see SCRIPT_TREE_LEAF_DIRS's own comment).
+  local child_dirs=() child is_leaf=false ld
+  for ld in "${SCRIPT_TREE_LEAF_DIRS[@]}"; do [ "$d" = "$ld" ] && is_leaf=true; done
+  if ! $is_leaf; then
+    while IFS= read -r child; do
+      [ -n "$child" ] && child_dirs+=("$child")
+    done < <(find "$REPO_ROOT/$d" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort)
+  fi
 
   local children_json="" first_child=true excluded
   for child in "${child_dirs[@]}"; do
@@ -1522,7 +1556,7 @@ arch_embeds_json() {
 
 # ── Arch-embed marker index: every #arch-embed:KEY marker across every CLAUDE.md in the repo,
 # with a one-line description derived from its own content -- discovery index for the convention
-# itself, same role docs/ai/adr-index.md plays for ADRs. Regenerated as part of this script's own
+# itself, same role .claude/nav/adr-index.md plays for ADRs. Regenerated as part of this script's own
 # run (not a separately-triggered script, unlike generate-adr-index.sh) so it can never go stale
 # relative to the markers that actually exist. Repo-wide scan, not scoped to platform-commons --
 # only one module uses the convention today, but nothing here assumes that stays true.
@@ -1571,7 +1605,7 @@ ci_metrics_json="null"
 {
   echo "{"
   echo "  \"generated_by\": \"docs/architecture/scripts/generate-architecture-model.sh\","
-  echo "  \"generated_note\": \"Track A, plus real SonarQube/ArchUnit metrics -- modules+deps from pom.xml, domain grouping/entities/services/contracts derived live from real Java source and the module list, tables live from the real Liquibase changelogs. Module Dependencies (01)/SPI Map (02)/Database ERD (04)/Bounded Contexts have no .md counterpart -- rendered live on this tool's own Diagrams page instead, lifecycle from DECISIONS.md/backlog, pipeline nodes from docs/ai/flows.md + .claude/commands + .claude/skills.\","
+  echo "  \"generated_note\": \"Track A, plus real SonarQube/ArchUnit metrics -- modules+deps from pom.xml, domain grouping/entities/services/contracts derived live from real Java source and the module list, tables live from the real Liquibase changelogs. Module Dependencies (01)/SPI Map (02)/Database ERD (04)/Bounded Contexts have no .md counterpart -- rendered live on this tool's own Diagrams page instead, lifecycle from DECISIONS.md/backlog, pipeline nodes from .claude/nav/flows.md + .claude/commands + .claude/skills.\","
   echo "  \"rootArtifactId\": \"$(json_escape "$ROOT_ARTIFACT_ID")\","
   echo "  \"rootVersion\": \"$(json_escape "$ROOT_VERSION")\","
   echo "  \"diagramGroups\": ["
@@ -1590,6 +1624,8 @@ ci_metrics_json="null"
   echo "  \"constructorInjection\": $(constructor_injection_json),"
   echo "  \"godPackages\": $(god_packages_json),"
   echo "  \"allAdrs\": $(all_adrs_json),"
+  echo "  \"rootReadme\": $(root_md_json_for "README.md"),"
+  echo "  \"rootInfrastructure\": $(root_md_json_for "INFRASTRUCTURE.md"),"
   echo "  \"nodes\": ["
 
   first=true
@@ -1676,7 +1712,7 @@ ci_metrics_json="null"
     echo "    }"
   done < <(find "$REPO_ROOT/.claude/skills" -name "SKILL.md" -print0 2>/dev/null | sort -z)
 
-  # SCRIPT_GROUP nodes -- non-Maven tooling directories, most (not all -- see docs/ai/scripts above)
+  # SCRIPT_GROUP nodes -- non-Maven tooling directories, most (not all -- see .claude/nav/scripts above)
   # with their own DECISIONS.md
   for d in "${SCRIPT_GROUP_DIRS[@]}"; do
     desc=""
@@ -1687,7 +1723,9 @@ ci_metrics_json="null"
         [ -f "$REPO_ROOT/$d/$f" ] && files_list="$files_list$f"$'\n'
       done
     else
-      files_list="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' -o -name '*.bat' -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' -o -name 'Dockerfile' \) -printf '%f\n' 2>/dev/null | sort)"
+      # *.md included so a dir with only markdown content isn't an empty card -- README.md
+      # excluded since it renders separately as its own readme block below, never duplicated.
+      files_list="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' -o -name '*.bat' -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' -o -name '*.md' -o -name 'Dockerfile' \) -printf '%f\n' 2>/dev/null | grep -v '^README\.md$' | sort)"
     fi
     files_json="$(json_str_array "$files_list")"
     decisions_field="$(decisions_json_for "$d")"
@@ -1714,15 +1752,16 @@ ci_metrics_json="null"
     echo "    }"
   done
 
-  # SCRIPT_GROUP tree roots -- scripts/ and playwright/, each an arbitrary-depth drill-down rooted
-  # at that directory (docs/architecture/scripts/DECISIONS.md: the unified "Scripts" card). Each
-  # top-level root still emits as a normal top-level SCRIPT_GROUP node (category "Scripts", so
-  # PIPELINE_GROUPS' scripts-tree card can filter for it) -- only the *nested* levels additionally
-  # carry a "children" array of the same SCRIPT_GROUP shape, since a plain file listing at any
-  # depth already reuses files/headers/readme exactly like a flat SCRIPT_GROUP dir does.
+  # SCRIPT_GROUP tree roots -- scripts/, playwright/, and .claude/, each an arbitrary-depth
+  # drill-down rooted at that directory (docs/architecture/scripts/DECISIONS.md: the unified
+  # "Scripts" card; .claude/ feeds the "AI Tooling" card the same way). Each top-level root still
+  # emits as a normal top-level SCRIPT_GROUP node (its own SCRIPT_TREE_ROOT_CATEGORY entry, so
+  # PIPELINE_GROUPS' tree cards can filter for it) -- only the *nested* levels additionally carry a
+  # "children" array of the same SCRIPT_GROUP shape, since a plain file listing at any depth already
+  # reuses files/headers/readme exactly like a flat SCRIPT_GROUP dir does.
   for d in "${SCRIPT_TREE_ROOTS[@]}"; do
     echo "    ,"
-    emit_script_tree_node "$d" "Scripts"
+    emit_script_tree_node "$d" "${SCRIPT_TREE_ROOT_CATEGORY[$d]}"
   done
 
   # BACKLOG summary node -- title + short (truncated) description + real file link, per issue,
@@ -1900,7 +1939,7 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
 <body>
 <header>
   <h1>Architecture Control Plane</h1>
-  <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, docs/ai/flows.md, .claude/commands, .claude/skills, root CLAUDE.md — regenerate via <code>bash docs/architecture/scripts/generate-architecture-model.sh</code>. Track A only: module-level granularity; Contract/Implementation/Method levels are placeholders until Track B's ArchUnit exporter lands.</div>
+  <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, .claude/nav/flows.md, .claude/commands, .claude/skills, root CLAUDE.md — regenerate via <code>bash docs/architecture/scripts/generate-architecture-model.sh</code>. Track A only: module-level granularity; Contract/Implementation/Method levels are placeholders until Track B's ArchUnit exporter lands.</div>
   <nav id="breadcrumb"></nav>
 </header>
 <main id="content"></main>
@@ -1942,16 +1981,22 @@ const backlogNode = MODEL.nodes.find(n => n.type === "BACKLOG_SUMMARY");
 // ── Tooling & Pipelines' own card->detail groups -- one card per tool, same drill-down shape as
 // Diagrams' groupKey (list view with no view.groupId, detail view once one is picked). "category"
 // matches a top-level SCRIPT_GROUP node's own category field (SCRIPT_GROUP_CATEGORY for
-// ai-tooling/build-architecture-page; "Scripts" for scripts-tree's two top-level SCRIPT_GROUP
-// roots emitted by the bash generator's SCRIPT_TREE_ROOTS). scripts-tree opens a real
-// arbitrary-depth drill-down rooted at the "scripts"/"playwright" SCRIPT_GROUP nodes (view.path
-// walks n.children) instead of a flat category filter -- see renderScriptTree() below.
+// build-architecture-page; each TREE_ROOTS entry's own SCRIPT_TREE_ROOT_CATEGORY for
+// ai-tooling/scripts-tree). ai-tooling and scripts-tree both open a real arbitrary-depth
+// drill-down (view.path walks n.children) instead of a flat category filter -- see TREE_ROOTS and
+// renderScriptTree() below.
 const PIPELINE_GROUPS = {
-  "ai-tooling": { icon: "🤖", label: "AI Tooling", category: "AI Tooling", desc: `${commandNodes.length} commands, ${skillNodes.length} skills, docs/ai/scripts` },
+  "ai-tooling": { icon: "🤖", label: "AI Tooling", category: "AI Tooling", desc: `${commandNodes.length} commands, ${skillNodes.length} skills, and the rest of .claude/ (nav, rules, script headers)` },
   "build-architecture-page": { icon: "🗺️", label: "Build architecture page", category: "Build architecture page", desc: "docs/architecture/scripts — this page's own generator" },
   "scripts-tree": { icon: "📜", label: "Scripts", category: "Scripts", desc: "Every developer script for building, deploying, testing, and running CI lives here: local deploy/infra setup, Docker/Maven builds, SonarQube analysis, and the isolated Dagu-based CI runner. Playwright's end-to-end test suite sits alongside as its own folder. Drill into any folder for its own README and per-file headers." }
 };
 const PIPELINE_GROUP_ORDER = ["ai-tooling", "build-architecture-page", "scripts-tree"];
+// Which top-level SCRIPT_GROUP tree root(s) each tree-shaped pipeline group drills into -- the
+// first root's own children render directly at the group's root view (no intermediate card to
+// click through); any further roots (only scripts-tree has one: "playwright") are inserted as one
+// more sibling folder-card at that same level, same shape scriptTreeNodeAt()/renderScriptTree()
+// already used to hardcode for "scripts"+"playwright" specifically.
+const TREE_ROOTS = { "scripts-tree": ["scripts", "playwright"], "ai-tooling": [".claude"] };
 const totalDiagramCount = MODEL.diagramGroups.reduce((sum, g) => sum + g.diagrams.length, 0);
 let zoomLevel = 1;
 
@@ -2104,7 +2149,13 @@ function renderSystem() {
     </div>
   </div>`;
 
+  // Root README.md, rendered inline at the bottom of this same page -- not a card/screen of its
+  // own, the same way renderScriptGroupSection() renders a SCRIPT_GROUP dir's own README directly
+  // in place rather than behind a click-through.
+  html += `<section class="block">${mdBlockToHtml(MODEL.rootReadme || "", "")}<div class="empty-hint">Source: ${sourceLink("README.md")}</div></section>`;
+
   document.getElementById("content").innerHTML = html;
+  mermaid.run({ querySelector: ".mermaid" });
 }
 
 // Domain-colored, click-to-navigate module dependency graph -- the one and only place this is
@@ -2216,15 +2267,26 @@ const MODULE_DEPENDENCY_KEY_OBSERVATIONS = [
   "**Test-Only Reactor Member:** integration-tests is the sole module allowed to depend on more than one domain starter at once — a real, compile-scope Maven dependency, not SPI-mediated. This is safe only because the module is never shipped, deployed, or depended upon by anything else (a leaf with zero inbound edges) — see integration-tests/CLAUDE.md for the full rationale and why this doesn't violate \"starters must not depend on each other.\""
 ];
 
-function mdInlineToHtml(s) {
-  return esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
+// baseDir: repo-relative directory the source markdown file itself lives in (e.g. ".claude/nav"
+// for .claude/nav/README.md, "" for a repo-root file) -- resolves a same-directory link target
+// (e.g. "adr-index.md") into a real, clickable sourceLink(). A link target already containing "/"
+// (e.g. "docs/architecture/bounded-contexts.md") is treated as already repo-root-relative and used
+// as-is, regardless of baseDir -- matches how these READMEs actually write cross-directory links.
+function mdInlineToHtml(s, baseDir) {
+  let html = esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  return html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, label, url) => {
+    if (/^https?:\/\//.test(url)) return `<a href="${url}" target="_blank">${label}</a>`;
+    if (url.startsWith("#")) return m;
+    const relPath = url.includes("/") ? url : (baseDir ? `${baseDir}/${url}` : url);
+    return `<a href="../../${esc(relPath)}" target="_blank">${label}</a>`;
+  });
 }
 
 // Paragraph/list/table/heading/fenced-code markdown -> HTML for ADR body text (Context/Decision/
 // Consequences, amendments, tables) and README.md content (headings, fenced "how to run" bash
 // blocks). Not a general markdown parser -- same "only what's needed" scope as
 // parseMermaidGraph(). Reuses mdInlineToHtml() for **bold**/`code` within each non-code block.
-function mdBlockToHtml(text) {
+function mdBlockToHtml(text, baseDir) {
   if (!text) return "";
   // Blocks break on a blank line OR on a line-type transition (e.g. "**Decision:**" directly
   // followed by "1. ..." with no blank line between -- a real pattern in these ADRs). A plain
@@ -2283,16 +2345,16 @@ function mdBlockToHtml(text) {
     // +3: a README's top-level "#" title would collide with the surrounding page's own <h2>/<h3>
     // screen chrome -- start one level down (## -> <h4>) same as this tool's other embedded-markdown
     // headings.
-    if (b.type === "h") { const lvl = Math.min(b.level + 3, 6); return `<h${lvl}>${mdInlineToHtml(b.text)}</h${lvl}>`; }
-    if (b.type === "ul") return "<ul>" + b.items.map(l => `<li>${mdInlineToHtml(l)}</li>`).join("") + "</ul>";
-    if (b.type === "ol") return "<ol>" + b.items.map(l => `<li>${mdInlineToHtml(l)}</li>`).join("") + "</ol>";
+    if (b.type === "h") { const lvl = Math.min(b.level + 3, 6); return `<h${lvl}>${mdInlineToHtml(b.text, baseDir)}</h${lvl}>`; }
+    if (b.type === "ul") return "<ul>" + b.items.map(l => `<li>${mdInlineToHtml(l, baseDir)}</li>`).join("") + "</ul>";
+    if (b.type === "ol") return "<ol>" + b.items.map(l => `<li>${mdInlineToHtml(l, baseDir)}</li>`).join("") + "</ol>";
     if (b.type === "table" && b.lines.length > 1 && /^\|[\s:|-]+\|$/.test(b.lines[1])) {
       const rows = b.lines.filter((_, i) => i !== 1).map(l => l.split("|").slice(1, -1).map(c => c.trim()));
       const [head, ...body] = rows;
-      return `<table class="simple"><thead><tr>${head.map(c => `<th>${mdInlineToHtml(c)}</th>`).join("")}</tr></thead><tbody>` +
-        body.map(r => `<tr>${r.map(c => `<td>${mdInlineToHtml(c)}</td>`).join("")}</tr>`).join("") + `</tbody></table>`;
+      return `<table class="simple"><thead><tr>${head.map(c => `<th>${mdInlineToHtml(c, baseDir)}</th>`).join("")}</tr></thead><tbody>` +
+        body.map(r => `<tr>${r.map(c => `<td>${mdInlineToHtml(c, baseDir)}</td>`).join("")}</tr>`).join("") + `</tbody></table>`;
     }
-    return `<p>${mdInlineToHtml(b.lines.join(" "))}</p>`;
+    return `<p>${mdInlineToHtml(b.lines.join(" "), baseDir)}</p>`;
   }).join("");
 }
 
@@ -2598,21 +2660,22 @@ function renderScriptGroupSection(n, skipHeading) {
   const headeredFiles = new Set((n.headers || []).map(h => h.file.split("/").pop()));
   const chipFiles = (n.files || []).filter(f => !headeredFiles.has(f));
   let html = "";
-  // Skip the whole heading+box when there's nothing left to put in it (every file already has its
-  // own header block below, and there's no group-level description either) -- an empty box with
-  // just a heading is exactly the kind of leftover-looking dead space a reader stops to ask about.
-  // skipHeading (true only for the unified Scripts drill-down's own nodes, see renderScriptTree())
-  // suppresses this block unconditionally -- the page title, the in-tree breadcrumb-less path, and
-  // the folder-card just clicked already say everything the heading/description/chip-row would
-  // duplicate; the flat SCRIPT_GROUP cards (docs/ai/scripts, docs/architecture/scripts) don't pass
-  // it, so their own heading/description/chip-row still renders exactly as before.
-  if (!skipHeading && (n.description || chipFiles.length)) {
+  // The chip-row is a last-resort file listing -- it only ever renders when nothing else on this
+  // card already covers those files. A node with its own README.md is assumed to already name and
+  // link its own files in context (the README IS the canonical place for that, per
+  // infra-readme-standards) -- showing a second, context-free chip-row above/beside it would
+  // duplicate the exact same links the README already gives real explanation around. Only a node
+  // with NO README at all (e.g. .claude/commands, whose *.md files carry no infra-doc-standards
+  // header either) falls back to the chip-row, so its files are still visible/clickable somewhere.
+  if (!skipHeading && (n.description || (!n.readme && chipFiles.length))) {
     html += `<section class="block"><h3>${esc(n.id)}</h3>`;
     if (n.description) html += `<div class="screen-desc">${esc(n.description)}</div>`;
-    if (chipFiles.length) {
+    if (!n.readme && chipFiles.length) {
       html += `<div class="table-chip-row">` + chipFiles.map(f => sourceLink(`${n.id}/${f}`)).join(" ") + `</div>`;
     }
     html += `</section>`;
+  } else if (skipHeading && !n.readme && chipFiles.length) {
+    html += `<div class="table-chip-row">` + chipFiles.map(f => sourceLink(`${n.id}/${f}`)).join(" ") + `</div>`;
   }
   // Last Dagu-backed CI run's per-step status/duration (scripts/ci only) -- opt-in
   // (--with-ci-metrics), passively read from whatever scripts/ci/reports/pipeline-metrics.json
@@ -2649,7 +2712,7 @@ function renderScriptGroupSection(n, skipHeading) {
   // The dir's own README.md (if any) -- the flow *between* files, not each file's own behavior
   // again (that's n.headers above) -- rendered as its own block right after.
   if (n.readme) {
-    html += `<section class="block">${mdBlockToHtml(n.readme)}<div class="empty-hint">Source: ${sourceLink(`${n.id}/README.md`)}</div></section>`;
+    html += `<section class="block">${mdBlockToHtml(n.readme, n.id)}<div class="empty-hint">Source: ${sourceLink(`${n.id}/README.md`)}</div></section>`;
   }
   return html;
 }
@@ -2660,7 +2723,7 @@ function renderPipelines() {
   if (!view.groupId) {
     let html = backButtonHtml();
     html += `<h2 class="screen-title">Tooling &amp; Pipelines</h2>
-      <div class="screen-desc">Slash commands, skills, and scripts available in this repo — sourced from .claude/commands, .claude/skills, and scripts/**, cross-checked against docs/ai/flows.md. Click a card to see its content.</div>`;
+      <div class="screen-desc">Slash commands, skills, and scripts available in this repo — sourced from .claude/commands, .claude/skills, and scripts/**, cross-checked against .claude/nav/flows.md. Click a card to see its content.</div>`;
 
     html += `<div class="card-grid">`;
     PIPELINE_GROUP_ORDER.forEach(id => {
@@ -2672,39 +2735,60 @@ function renderPipelines() {
     });
     html += `</div>`;
 
+    // Root INFRASTRUCTURE.md, rendered inline at the bottom of this same page -- not its own
+    // card/drill-down, the same way README.md renders inline at the bottom of the System page.
+    html += `<section class="block">${mdBlockToHtml(MODEL.rootInfrastructure || "", "")}<div class="empty-hint">Source: ${sourceLink("INFRASTRUCTURE.md")}</div></section>`;
+
     document.getElementById("content").innerHTML = html;
+    mermaid.run({ querySelector: ".mermaid" });
     return;
   }
 
   const g = PIPELINE_GROUPS[view.groupId];
   if (!g) { navigate({ screen: "pipelines" }); return; }
 
-  if (view.groupId === "scripts-tree") { renderScriptTree(g); return; }
+  // ai-tooling and scripts-tree are both tree-shaped (TREE_ROOTS), sharing one drill-down
+  // renderer -- see renderScriptTree()'s own header comment for why groupId is passed through.
+  if (view.groupId === "scripts-tree" || view.groupId === "ai-tooling") { renderScriptTree(g, view.groupId); return; }
 
   let html = backButtonHtml();
   html += `<h2 class="screen-title">${g.icon} ${esc(g.label)}</h2>`;
 
-  if (view.groupId === "ai-tooling") {
-    html += `<section class="block"><h3>Commands (${commandNodes.length})</h3><table class="simple"><thead><tr><th>Command</th><th>Description</th><th>Source</th></tr></thead><tbody>`;
-    commandNodes.forEach(n => {
-      html += `<tr><td>/${esc(displayName(n.id))}</td><td>${esc(n.description)}</td><td>${sourceLink(n.evidence[0].file)}</td></tr>`;
-    });
-    html += `</tbody></table></section>`;
+  // build-architecture-page has two real subdirectories worth their own folder-card (scripts/,
+  // data/) -- reuses view.path, the exact same mechanism renderScriptTree() already drives
+  // navigateBack()/renderBreadcrumb() with (both already groupId-agnostic), instead of inventing a
+  // second, parallel "current subview" field that those two functions wouldn't know about. The
+  // only PIPELINE_GROUPS entry reaching this point -- ai-tooling/scripts-tree both return early
+  // via the tree dispatch above, so no further groupId branch is needed here.
+  if (!view.path || !view.path.length) {
+    html += `<div class="card-grid">
+      <div class="card" onclick='navigate({screen:"pipelines",groupId:"build-architecture-page",path:["scripts"]})'>
+        <div class="card-title">📁 scripts</div>
+      </div>
+      <div class="card" onclick='navigate({screen:"pipelines",groupId:"build-architecture-page",path:["data"]})'>
+        <div class="card-title">📁 data</div>
+      </div>
+    </div>`;
+    // docs/architecture's own entry-point files (architecture-doc.sh/.bat) + its own README --
+    // a real SCRIPT_GROUP node (readme_json_for() already picks up its README.md the same way
+    // it does for every other SCRIPT_GROUP dir), not a separate one-off MODEL field -- one fact,
+    // one mechanism, same as scripts/data above. Cards always come first on this page.
+    const archNode = scriptGroupNodes.find(x => x.id === "docs/architecture");
+    if (archNode) html += renderScriptGroupSection(archNode, true);
 
-    html += `<section class="block"><h3>Skills (${skillNodes.length})</h3><table class="simple"><thead><tr><th>Skill</th><th>Description</th><th>Source</th></tr></thead><tbody>`;
-    skillNodes.forEach(n => {
-      html += `<tr><td>${esc(displayName(n.id))}</td><td>${esc(n.description)}</td><td>${sourceLink(n.evidence[0].file)}</td></tr>`;
-    });
-    html += `</tbody></table></section>`;
-  }
-
-  scriptGroupNodes.filter(n => n.category === g.category).forEach(n => { html += renderScriptGroupSection(n); });
-
-  // A fact about this page's own rendering tech stack -- not per-file, so it doesn't belong in any
-  // single file's own header (renderScriptGroupSection() above already shows every file's real
-  // Description/Usage/Uses/Input/Output, mechanically, no second copy of that table here).
-  if (view.groupId === "build-architecture-page") {
+    // A fact about this page's own rendering tech stack -- not per-file, so it doesn't belong in
+    // any single file's own header (renderScriptGroupSection() already shows every file's real
+    // Description/Usage/Uses/Input/Output, mechanically, no second copy of that table here).
     html += `<div class="empty-hint"><strong>Rendering:</strong> Cytoscape.js + cytoscape-dagre for the draggable graphs (Module Dependencies, SPI Map); Mermaid.js for the Database ERD and Sequence Diagrams.</div>`;
+  } else {
+    const targetId = view.path[0] === "scripts" ? "docs/architecture/scripts" : "docs/architecture/data";
+    const n = scriptGroupNodes.find(x => x.id === targetId);
+    // skipHeading=true -- same reasoning as renderScriptTree()'s own leaf-level call: the
+    // breadcrumb/page title/folder-card just clicked already say the id, and a dir with no
+    // parsed file headers (docs/architecture/data) would otherwise show an empty heading+chip-row
+    // directly above a README that already fully describes the same files -- two places for one
+    // fact, exactly what "one fact, one canonical home" exists to prevent.
+    if (n) html += renderScriptGroupSection(n, true);
   }
 
   document.getElementById("content").innerHTML = html;
@@ -2714,18 +2798,20 @@ function renderPipelines() {
   mermaid.run({ querySelector: ".mermaid" });
 }
 
-// Walks MODEL's top-level SCRIPT_GROUP nodes down through view.path. The root "scripts" node is
-// implicit -- never a path segment of its own, so the Scripts card's root view has no redundant
-// click-through -- so path[0] resolves against "playwright" (a real root id) first and falls back
-// to treating path[0] as "scripts"'s own child basename otherwise; each further segment is the
-// next child directory's own basename (e.g. ["ci","dagu"] resolves to scripts/ci/dagu). Returns
-// null if the path doesn't resolve (e.g. a stale bookmark after a rename).
-function scriptTreeNodeAt(pathSegs) {
+// Walks MODEL's top-level SCRIPT_GROUP nodes down through view.path, for the tree belonging to
+// "roots" (TREE_ROOTS[groupId] -- e.g. ["scripts","playwright"] or [".claude"]). The primary root
+// (roots[0]) is implicit -- never a path segment of its own, so that card's root view has no
+// redundant click-through -- so path[0] resolves against any further root id first (e.g.
+// "playwright") and falls back to treating path[0] as the primary root's own child basename
+// otherwise; each further segment is the next child directory's own basename (e.g.
+// ["ci","dagu"] resolves to scripts/ci/dagu). Returns null if the path doesn't resolve (e.g. a
+// stale bookmark after a rename).
+function scriptTreeNodeAt(pathSegs, roots) {
   if (!pathSegs.length) return null;
   let node = scriptGroupNodes.find(n => n.id === pathSegs[0]);
   if (!node) {
-    const scriptsRoot = scriptGroupNodes.find(n => n.id === "scripts");
-    node = scriptsRoot ? (scriptsRoot.children || []).find(c => c.id.split("/").pop() === pathSegs[0]) : null;
+    const primaryRoot = scriptGroupNodes.find(n => n.id === roots[0]);
+    node = primaryRoot ? (primaryRoot.children || []).find(c => c.id.split("/").pop() === pathSegs[0]) : null;
   }
   for (let i = 1; node && i < pathSegs.length; i++) {
     node = (node.children || []).find(c => c.id.split("/").pop() === pathSegs[i]);
@@ -2733,16 +2819,19 @@ function scriptTreeNodeAt(pathSegs) {
   return node || null;
 }
 
-// The unified "Scripts" card's own arbitrary-depth drill-down -- folder-cards (one per
+// A tree-shaped pipeline card's own arbitrary-depth drill-down -- folder-cards (one per
 // node.children, clickable to extend view.path one segment deeper) rendered first, then the flat
 // file list for the current level via the existing renderScriptGroupSection() (reused as-is, same
-// shape as any flat SCRIPT_GROUP dir). No view.path (or an empty one) shows the root "scripts"
-// SCRIPT_GROUP node's own children/files directly (no intermediate "scripts" card to click
-// through), with "playwright" -- a structurally separate SCRIPT_GROUP_TREE_ROOTS entry -- inserted
-// as one more sibling folder-card at that same level. Navigation back up is the page-level
-// breadcrumb (crumbStack, which records entry into "Scripts" as one hop) plus the "Back" button
-// already rendered above -- no separate in-card breadcrumb of its own.
-function renderScriptTree(g) {
+// shape as any flat SCRIPT_GROUP dir). No view.path (or an empty one) shows the primary root's own
+// children/files directly (no intermediate click-through card), with any further TREE_ROOTS
+// entries (only scripts-tree has one: "playwright") inserted as sibling folder-cards at that same
+// level. Navigation back up is the page-level breadcrumb (crumbStack, which records entry into
+// this card as one hop) plus the "Back" button already rendered above -- no separate in-card
+// breadcrumb of its own. groupId picks which TREE_ROOTS entry drives this render and which
+// navigate() calls the folder-cards below use, so scripts-tree and ai-tooling share this one
+// function instead of two near-duplicate copies.
+function renderScriptTree(g, groupId) {
+  const roots = TREE_ROOTS[groupId];
   const path = view.path || [];
   let html = backButtonHtml();
   // Depth suffix (matches the breadcrumb's own " › " join) so the title itself shows current
@@ -2757,16 +2846,19 @@ function renderScriptTree(g) {
   let node = null;
   let children;
   if (!path.length) {
-    // Root view: no separate "scripts" click-through -- show the "scripts" node's own children
-    // and files directly, with "playwright" inserted as one more sibling folder-card (even though
-    // it's a structurally separate SCRIPT_GROUP_TREE_ROOTS entry, not literally a "scripts" child).
-    node = scriptGroupNodes.find(n => n.id === "scripts");
-    const scriptsChildren = node ? (node.children || []).map(c => ({ label: c.id.split("/").pop(), path: [c.id.split("/").pop()] })) : [];
-    const playwrightCard = scriptGroupNodes.find(n => n.id === "playwright") ? [{ label: "playwright", path: ["playwright"] }] : [];
-    children = scriptsChildren.concat(playwrightCard);
+    // Root view: no separate primary-root click-through -- show the primary root's own children
+    // and files directly, with any further TREE_ROOTS entries inserted as sibling folder-cards
+    // (even though structurally separate top-level nodes, not literally the primary root's own
+    // children).
+    node = scriptGroupNodes.find(n => n.id === roots[0]);
+    const primaryChildren = node ? (node.children || []).map(c => ({ label: c.id.split("/").pop(), path: [c.id.split("/").pop()] })) : [];
+    const siblingCards = roots.slice(1)
+      .filter(r => scriptGroupNodes.find(n => n.id === r))
+      .map(r => ({ label: r, path: [r] }));
+    children = primaryChildren.concat(siblingCards);
   } else {
-    node = scriptTreeNodeAt(path);
-    if (!node) { navigate({ screen: "pipelines", groupId: "scripts-tree", path: [] }); return; }
+    node = scriptTreeNodeAt(path, roots);
+    if (!node) { navigate({ screen: "pipelines", groupId, path: [] }); return; }
     children = (node.children || []).map(c => ({ label: c.id.split("/").pop(), path: path.concat([c.id.split("/").pop()]) }));
   }
 
@@ -2777,7 +2869,7 @@ function renderScriptTree(g) {
     html += `<div class="card-grid">`;
     children.forEach(c => {
       const p = JSON.stringify(c.path);
-      html += `<div class="card" onclick='navigate({screen:"pipelines",groupId:"scripts-tree",path:${p}})'>
+      html += `<div class="card" onclick='navigate({screen:"pipelines",groupId:"${groupId}",path:${p}})'>
         <div class="card-title">📁 ${esc(c.label)}</div>
       </div>`;
     });
@@ -3723,7 +3815,7 @@ function render() {
 }
 
 // ── ADRs screen: flat, deduplicated list of every ADR across every module's DECISIONS.md, read
-// live from docs/ai/adr-index.md (MODEL.allAdrs) -- no separate hand-maintained summary.
+// live from .claude/nav/adr-index.md (MODEL.allAdrs) -- no separate hand-maintained summary.
 let adrStatusFilter = "All";
 function setAdrStatusFilter(f) { adrStatusFilter = f; renderAdrs(); }
 
@@ -3740,7 +3832,7 @@ function renderAdrs() {
 
   let html = backButtonHtml();
   html += `<h2 class="screen-title">ADRs</h2>
-    <div class="screen-desc">${adrs.length} architectural decisions across every module's own DECISIONS.md — see ${sourceLink("docs/ai/adr-index.md")} for the generated index this screen reads, and the Overview section at the bottom of this screen for what an ADR is and how it's used. Clicking an ADR opens its full text inline only when the model was generated with <code>--with-adr-details</code> (opt-in, off by default); otherwise it opens the real DECISIONS.md file directly.</div>`;
+    <div class="screen-desc">${adrs.length} architectural decisions across every module's own DECISIONS.md — see ${sourceLink(".claude/nav/adr-index.md")} for the generated index this screen reads, and the Overview section at the bottom of this screen for what an ADR is and how it's used. Clicking an ADR opens its full text inline only when the model was generated with <code>--with-adr-details</code> (opt-in, off by default); otherwise it opens the real DECISIONS.md file directly.</div>`;
   html += `<div class="card-grid">
     <div class="card ${adrStatusFilter === "All" ? "card-active" : ""}" onclick="setAdrStatusFilter('All')"><div class="card-title">${adrs.length}</div><div class="card-desc">All</div></div>`;
   html += Object.entries(counts).map(([status, count]) =>
@@ -3779,7 +3871,7 @@ function renderAdrs() {
 
 // Always opens the popup -- title/status come from MODEL.allAdrs (always populated, passed in
 // directly from the calling row so there's no second lookup) -- the body is the full embedded
-// text only if that module's full ADR content was embedded (see docs/ai/adr-index.md and
+// text only if that module's full ADR content was embedded (see .claude/nav/adr-index.md and
 // FULL_DECISIONS_MODULES above, gated behind --with-adr-details); otherwise a real link to the
 // source file plus a generic pointer to where that flag is documented, not a copy of the exact
 // command here (kept deliberately decoupled from one script's exact CLI shape). Takes the ADR id +
@@ -3792,7 +3884,7 @@ function openAdrPopupForAdr(id, module, title, status) {
   document.getElementById("adr-popup-title").textContent = `${id} — ${title}`;
   document.getElementById("adr-popup-status").textContent = status;
   if (found) {
-    document.getElementById("adr-popup-body").innerHTML = mdBlockToHtml(found.body);
+    document.getElementById("adr-popup-body").innerHTML = mdBlockToHtml(found.body, module);
   } else {
     document.getElementById("adr-popup-body").innerHTML =
       `<div class="empty-hint">Full text not included in this build. Read it directly: ${sourceLink(module + "/DECISIONS.md")}</div>
@@ -3817,7 +3909,7 @@ const GLOSSARY = [
     &lt;title&gt;</code>. Once written, an ADR is never edited to remove content or deleted — if a
     later decision reverses or replaces it, the old ADR gets <code>Status: Superseded</code> (or an
     amendment note) pointing at the new one, and a new ADR is added instead.
-    ${sourceLink("docs/ai/adr-index.md")} is a generated, searchable flat index of every ADR
+    ${sourceLink(".claude/nav/adr-index.md")} is a generated, searchable flat index of every ADR
     (id/module/status/title) — check it before filing a new one, to avoid re-deciding something
     already settled.</p>
     <p><strong>Boundaries — what an ADR is not:</strong> not a running changelog of "what

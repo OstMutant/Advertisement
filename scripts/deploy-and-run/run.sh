@@ -26,7 +26,7 @@
 #   --prune-all      ALSO run `docker container prune -f` and `docker volume prune -f` after the
 #                    build -- HOST-WIDE, not scoped to this app, will remove any other stopped
 #                    container / unused volume on the machine. Opt-in only, never automatic -- see
-#                    docs/ai/adr-index.md for the incident that made this explicit.
+#                    .claude/nav/adr-index.md for the incident that made this explicit.
 # Uses: bash, docker, docker compose, docker buildx (--from-scratch only, via
 #   scripts/utils/ensure-docker-plugins.sh's ensure_buildx), scripts/build-and-test.sh (unless
 #   --from-scratch), scripts/deploy-and-run/reset.sh (with --reset-only-db).
@@ -269,7 +269,7 @@ if $PRUNE_ALL; then
   echo ""
   echo "--prune-all: also removing every OTHER stopped container and unused volume on this" \
        "machine, not just this app's own (confirmed directly to affect an unrelated dev stack" \
-       "if it happened to be stopped at the time -- see docs/ai/adr-index.md)."
+       "if it happened to be stopped at the time -- see .claude/nav/adr-index.md)."
   docker container prune -f
   docker volume prune -f
 fi

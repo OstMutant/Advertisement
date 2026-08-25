@@ -9,7 +9,7 @@ Examples:
   /run-all-tests --reset
 
 Runs scripts/build-and-test.sh --unit --integration (installs the whole reactor once, then runs
-unit+integration tests in parallel against it -- see docs/ai/adr-index.md) in
+unit+integration tests in parallel against it -- see .claude/nav/adr-index.md) in
 parallel with a deploy-and-run.sh + playwright.sh sequence: deploy-and-run.sh always clears app
 data first (--reset-only-db by default -- fast, truncate-only; --reset when --reset is passed to
 this command -- full DB/MinIO volume wipe, only needed when the schema itself changed), then

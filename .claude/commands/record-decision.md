@@ -70,9 +70,9 @@ Steps:
    then `**Context:**` (what prompted this), `**Decision:**` (what was decided), and optionally
    `**Rejected alternatives:**` — this is the format every existing `DECISIONS.md` entry actually
    uses (also documented in `.claude/commands/sync-docs.md`'s "Documentation Rules") and the one
-   `docs/ai/scripts/generate-adr-index.sh` parses; a differently-shaped entry will not appear in
-   `docs/ai/adr-index.md`
+   `.claude/nav/scripts/generate-adr-index.sh` parses; a differently-shaped entry will not appear in
+   `.claude/nav/adr-index.md`
 5. Present the draft and wait for confirmation before writing
 6. Insert the new entry at the top of the file, after the `# ...` heading, before existing entries
-7. Regenerate `docs/ai/adr-index.md`: `bash docs/ai/scripts/generate-adr-index.sh` — mandatory, same
-   change, not a follow-up (see `docs/ai/README.md`)
+7. Regenerate `.claude/nav/adr-index.md`: `bash .claude/nav/scripts/generate-adr-index.sh` — mandatory, same
+   change, not a follow-up (see `.claude/nav/README.md`)

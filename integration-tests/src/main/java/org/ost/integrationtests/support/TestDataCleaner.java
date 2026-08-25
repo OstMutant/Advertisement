@@ -12,7 +12,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
  *
  * <p>All {@code *RepositoryTest} classes share one physical Testcontainers Postgres instance for
  * the whole {@code mvn test} reactor run (the singleton-container pattern — see
- * {@code docs/ai/adr-index.md}), not just within their own class. A class that only cleans its own domain's tables can
+ * {@code .claude/nav/adr-index.md}), not just within their own class. A class that only cleans its own domain's tables can
  * still fail on a foreign-key violation left behind by a <em>different</em> test class that ran
  * earlier in the same reactor run (confirmed directly: {@code AdvertisementRepositoryTest}'s last
  * test method leaves one {@code advertisement} row referencing {@code user_information}, which

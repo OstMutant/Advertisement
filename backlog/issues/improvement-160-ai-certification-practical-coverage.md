@@ -205,8 +205,8 @@ these ready-made definitions into this repo's own `.claude/agents/` is a faster 
 `verify-agent.md`/`security-boundary-reviewer.md` from scratch, as originally proposed under
 Domain 1.
 
-**`docs/ai/` and `docs/architecture/` already-covered pass** (user request: check whether this
-project's own architecture documentation matches the certification): mapped `docs/ai/README.md`'s
+**`.claude/nav/` and `docs/architecture/` already-covered pass** (user request: check whether this
+project's own architecture documentation matches the certification): mapped `.claude/nav/README.md`'s
 three files against Domain 5/3/4 concepts — `context-loading.md` and `adr-index.md` are real,
 working implementations of "route context by task type, don't load speculatively" and "generate an
 index instead of hand-duplicating source content"; the "Staying correct" section's
@@ -248,7 +248,7 @@ WebSearch, split answer:
   version-controlled source of truth, kept automatically in sync with code, to avoid
   "documentation rot". This project's approach isn't a novel invention here — it's following an
   established, named best practice.
-- **`docs/ai/`'s AI-navigation layer (context-loading.md/flows.md/adr-index.md) has no established
+- **`.claude/nav/`'s AI-navigation layer (context-loading.md/flows.md/adr-index.md) has no established
   standard yet.** Closest named candidate: `llms.txt` (proposed by Jeremy Howard, Sept 2024;
   adopted by Anthropic/Stripe/Vercel/Cloudflare among others) — but it solves a different problem
   (a public website's root-level summary file for external LLM crawlers, not an internal repo's
@@ -256,7 +256,7 @@ WebSearch, split answer:
   niche, verified as of Q1 2026: no major AI company (including Anthropic itself) has publicly
   committed to reading/acting on it in production, adoption stays ~10% even among tech-forward
   publishers, and a 300k-domain analysis found no measurable effect. Conclusion: this project's
-  `docs/ai/` layer is a genuinely bespoke solution to a problem space without a settled industry
+  `.claude/nav/` layer is a genuinely bespoke solution to a problem space without a settled industry
   standard yet — worth knowing explicitly, not assumed to be "reinventing something established".
 
 **Portfolio implication flagged (not yet actioned):** the user noted this project's second goal is

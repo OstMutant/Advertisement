@@ -1,7 +1,7 @@
-# improvement-161: docs/ai/scripts/ — infra-doc-standards rollout
+# improvement-161: .claude/nav/scripts/ — infra-doc-standards rollout
 
 **Type:** improvement
-**Module:** `docs/ai/scripts/` (`check-adr-index-freshness.sh`, `check-flows-completeness.sh`,
+**Module:** `.claude/nav/scripts/` (`check-adr-index-freshness.sh`, `check-flows-completeness.sh`,
   `check-hardcoded-counts.sh`, `generate-adr-index.sh`), `.claude/skills/infra-doc-standards/SKILL.md`
 **Priority:** Top 🟡
 **When:** independent, no blockers
@@ -12,7 +12,7 @@ its list).
 
 ## Problem
 
-None of the 4 scripts in `docs/ai/scripts/` carry the structured 7-field header
+None of the 4 scripts in `.claude/nav/scripts/` carry the structured 7-field header
 (`Description`/`Usage`/`Uses`/`Env`/`Input`/`Outputs`/`Returns`) `infra-doc-standards/SKILL.md`
 defines — confirmed by reading all 4 files directly, each has only a short prose comment block.
 There is also no `README.md` in that directory documenting the flow between these scripts (e.g.
@@ -21,7 +21,7 @@ There is also no `README.md` in that directory documenting the flow between thes
 ## Suggested fix
 
 Apply `infra-doc-standards/SKILL.md`'s convention: add the 7-field header to all 4 scripts, write
-a `docs/ai/scripts/README.md` with a `## Flow` section covering how the check scripts relate to
+a `.claude/nav/scripts/README.md` with a `## Flow` section covering how the check scripts relate to
 `generate-adr-index.sh` and to `scripts/ci.sh`'s `docs` stage. Details to be filled in when this
 issue is picked up.
 

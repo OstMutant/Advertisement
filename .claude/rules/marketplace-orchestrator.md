@@ -75,7 +75,7 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
 implementation had converged to a one-line delegation with zero domain-specific logic, and the
 interface's only real caller was already `marketplace-app`'s own `AuditTimelineRowRenderer`, so
 the whole per-domain Hook pattern collapsed into one field-name-to-label mapping directly in that
-class; see `docs/ai/adr-index.md`).
+class; see `.claude/nav/adr-index.md`).
 
 ### Forwarder SPI pattern
 
@@ -170,7 +170,7 @@ inventing a second wiring approach for one module).
   resolution, not a single-value lookup — but only the UI-shell-touching calls go through
   `CurrentLocaleHook`/`UiLabelHook`, so it splits the same way the narrower Hooks do: the pure-data
   majority (change-merging, field resolution) stays a `marketplace-orchestrator` service — reversing
-  an earlier call that this one couldn't follow the same pattern (see `docs/ai/adr-index.md` for
+  an earlier call that this one couldn't follow the same pattern (see `.claude/nav/adr-index.md` for
   both decisions). `AuditActivityFieldsHook` — the fourth original Hook
   interface, previously implemented by four per-domain classes here — was removed entirely: every
   implementation had converged to a one-line delegation with zero domain-specific logic left, and

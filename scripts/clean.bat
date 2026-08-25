@@ -4,7 +4,7 @@ REM Description: Removes build/test artifacts -- Maven target/ directories, Vaad
 REM   frontend files, and test-report directories (build-and-test/integration-tests/playwright/
 REM   sonar/ci). Native cmd.exe deletion (no WSL) -- reliably removes files a WSL `rm` can hit
 REM   "Permission denied" on due to the Docker-Desktop-WSL2 bind-mounts quirk (see
-REM   docs/ai/adr-index.md). Each category wipes its whole report folder wholesale, not individual
+REM   .claude/nav/adr-index.md). Each category wipes its whole report folder wholesale, not individual
 REM   files inside it -- scripts\build-and-test\reports holds unit/integration/archunit output
 REM   together, so --unit and --integration both wipe that same folder in full.
 REM Usage: scripts\clean.bat [--build] [--unit] [--integration] [--playwright] [--sonar]
@@ -118,7 +118,7 @@ if defined DO_BUILD (
 
 REM scripts\logs\build-and-test and scripts\logs\playwright are populated by build-and-test/run.sh
 REM and playwright/run.sh's own WSL-side `docker cp` (not a native .bat step like
-REM scripts\logs\run-all-tests gets -- see docs/ai/adr-index.md on why that copy is only
+REM scripts\logs\run-all-tests gets -- see .claude/nav/adr-index.md on why that copy is only
 REM intermittently reliable, not deterministically broken). Contents wiped (del, not rmdir) rather
 REM than recreating the directory via native mkdir -- consistent with the same caution
 REM scripts\logs\run-all-tests used before it moved to a native .bat step.

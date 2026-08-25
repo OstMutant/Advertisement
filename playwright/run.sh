@@ -34,7 +34,7 @@
 #   run.log never survived when both used /reports/playwright/, even though the HTML report itself
 #   always did). Both live in the shared test-reports named Docker volume (never a WSL/Windows-drive
 #   path, so never subject to the docker-desktop-bind-mounts issue documented in
-#   docs/ai/adr-index.md) -- then copied out via `docker cp`; the same volume can also be inspected
+#   .claude/nav/adr-index.md) -- then copied out via `docker cp`; the same volume can also be inspected
 #   directly at any time, e.g. `docker exec pw-runner cat /reports/playwright-log/orchestrator.log`.
 #   Restarts marketplace-app if the DB needed a reset.
 # Returns: 0 if the Playwright run passes; non-zero if the app container isn't found/doesn't start,
@@ -78,7 +78,7 @@ PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
 # step further down, which is where it conceptually belongs) so log_orchestrator has a container to
 # write into from the very start of this script's own progress messages, not just from the test
 # invocation onward. test-reports is a shared named Docker volume (never a WSL/Windows-drive path,
-# see docs/ai/adr-index.md) -- mounted here so it's present the moment pw-runner is (re)created.
+# see .claude/nav/adr-index.md) -- mounted here so it's present the moment pw-runner is (re)created.
 # Since pw-runner is normally reused across calls (not recreated every run), an already-running
 # container from before this mount was added won't pick it up until it's next recreated (e.g. via
 # `docker rm -f pw-runner`).
@@ -215,7 +215,7 @@ PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright APP_URL=$APP_URL"
 # outputFolder) -- the HTML reporter clears its outputFolder when it finalizes the report after the
 # run, which silently deleted run.log every time it lived in that same folder (confirmed directly).
 # Both paths are under the shared test-reports named Docker volume, never a WSL/Windows-drive path,
-# so never subject to the docker-desktop-bind-mounts issue documented in docs/ai/adr-index.md --
+# so never subject to the docker-desktop-bind-mounts issue documented in .claude/nav/adr-index.md --
 # then copied out to $RUN_LOG via `docker cp` after the run. `tee` still prints live to stdout
 # unchanged; the inner `exit ${PIPESTATUS[0]}` (escaped so it evaluates inside the container, not
 # this host shell) propagates the real playwright exit code through docker exec's own $?, since
@@ -223,7 +223,7 @@ PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright APP_URL=$APP_URL"
 # No mkdir -p here -- `docker cp` (below) creates the destination directory itself when it doesn't
 # exist, so a raw bash `mkdir -p` against this WSL/Windows-drive host path was pure redundancy that
 # cost every run a real filesystem write vulnerable to the docker-desktop-bind-mounts issue
-# documented in docs/ai/adr-index.md (confirmed directly to fail with "Permission denied" on a
+# documented in .claude/nav/adr-index.md (confirmed directly to fail with "Permission denied" on a
 # real Docker Desktop/WSL2 machine). `docker cp` itself is daemon-mediated and not subject to it.
 RUN_LOG="$ROOT/scripts/logs/playwright/run.log"
 

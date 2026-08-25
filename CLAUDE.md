@@ -156,7 +156,7 @@ docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy
 - `/sonar` — run SonarQube analysis
 - `/record-decision <module> — <title>` — record architectural decision
 - `/sync-docs [ref]` — sync architecture docs with code (default: origin/main); **run manually** after significant changes (new module, new SPI, schema changes) — not triggered automatically
-- `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `docs/ai/adr-index.md`
+- `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `.claude/nav/adr-index.md`
 - `/ci [flags]` — run the isolated local CI runner (unit+integration+e2e+sonar by default, backgrounded); see `scripts/ci/README.md`/`DECISIONS.md`
 - `/feature <title>` — scaffold a new `backlog/issues/<prefix>-NNN-<slug>.md` from the standard template and rank it in `BACKLOG.md`'s priority table
 - `/autopilot <task>` — plan once, approve once, then implement/test/document a task end-to-end with no further check-ins until it's done; explicit per-run opt-out of the standing Approval Rule's per-step gating, not a permanent one
@@ -190,7 +190,7 @@ instead. Each of these three modules has a generated, pointer-only `DECISIONS.md
 the home ADR's own `**Also affects:**` tag — never hand-edit these three files directly.
 
 → ADR discovery index (generated, one line per decision across every `DECISIONS.md`):
-`docs/ai/adr-index.md` — see `docs/ai/README.md` for the full AI-navigation layer.
+`.claude/nav/adr-index.md` — see `.claude/nav/README.md` for the full AI-navigation layer.
 
 **Rules:**
 - Record any new substantial architectural or technical decision there immediately — before the

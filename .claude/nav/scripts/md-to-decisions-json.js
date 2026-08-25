@@ -1,32 +1,32 @@
 #!/usr/bin/env node
-// Description: Parses a module's DECISIONS.md into structured ADR data -- either for embedding
-//   into architecture-model.json (the human-facing popup), or as an on-demand raw-markdown
-//   extract of just the specific ADR(s) a task needs (Claude's own token-cost consumer).
-// Uses: Node.js (no external dependencies -- plain string/regex parsing, no markdown library).
-// Input: a module's DECISIONS.md file (module name passed as CLI arg).
-// Output: `{title, adrs:[{id,title,status,body}], extra:[{heading,body}]}` -- printed to stdout
-//   (--stdout mode, consumed by generate-architecture-model.sh) or written to
-//   <module>/DECISIONS.json (batch mode); or raw markdown for one/a few ADR ids (--extract mode).
-//
-// Parses a module's DECISIONS.md into structured data -- {title, adrs:[{id,title,status,body}],
-// extra:[{heading,body}]} -- see docs/architecture/scripts/DECISIONS.md for the design history.
-// Replaces an earlier awk-based version that hit two real bugs on real content (label+list with
-// no blank line between merging into one paragraph; multi-line list items losing their numbering)
-// -- JSON.stringify() gives correct escaping by construction and normal string/regex methods
-// handle block parsing far more reliably than a hand-rolled awk state machine.
-//
-// Usage:
-//   node docs/architecture/scripts/md-to-decisions-json.js <module> [<module> ...]        -- writes <module>/DECISIONS.json
-//   node docs/architecture/scripts/md-to-decisions-json.js --stdout <module>              -- prints one module's
-//     parsed object as a single line of JSON to stdout, for embedding directly into
-//     architecture-model.json (no separate <module>/DECISIONS.json file, no runtime file:// load
-//     -- see docs/architecture/scripts/DECISIONS.md ADR-008 for why the separate-file/<script src> design was
-//     abandoned: it depends on browser-specific file:// security policy, an unacceptable
-//     dependency for a tool meant to just work when double-clicked).
-//   node docs/architecture/scripts/md-to-decisions-json.js --extract <module> <ADR-NNN>[,<ADR-NNN>...]
-//     -- prints the requested ADR(s) as raw markdown (heading + full body), separated by "---"
-//     when more than one -- for Claude to read just the ADR(s) a task needs instead of the whole
-//     DECISIONS.md file (see improvement-145, backlog/completed/issues/ once done).
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Parses a module's DECISIONS.md into structured ADR data -- either for embedding
+ *   into architecture-model.json (the human-facing popup), or as an on-demand raw-markdown
+ *   extract of just the specific ADR(s) a task needs (Claude's own token-cost consumer). Replaces
+ *   an earlier awk-based version that hit two real bugs on real content (label+list with no blank
+ *   line between merging into one paragraph; multi-line list items losing their numbering) --
+ *   JSON.stringify() gives correct escaping by construction and normal string/regex methods
+ *   handle block parsing far more reliably than a hand-rolled awk state machine. See
+ *   .claude/nav/adr-index.md.
+ * Usage:
+ *   node .claude/nav/scripts/md-to-decisions-json.js <module> [<module> ...]
+ *     -- writes <module>/DECISIONS.json
+ *   node .claude/nav/scripts/md-to-decisions-json.js --stdout <module>
+ *     -- prints one module's parsed object as a single line of JSON to stdout, for embedding
+ *        directly into architecture-model.json (no separate <module>/DECISIONS.json file, no
+ *        runtime file:// load)
+ *   node .claude/nav/scripts/md-to-decisions-json.js --extract <module> <ADR-NNN>[,<ADR-NNN>...]
+ *     -- prints the requested ADR(s) as raw markdown (heading + full body), separated by "---"
+ *        when more than one -- for Claude to read just the ADR(s) a task needs instead of the
+ *        whole DECISIONS.md file
+ * Uses: Node.js (no external dependencies -- plain string/regex parsing, no markdown library).
+ * Env: None.
+ * Input: a module's DECISIONS.md file (module name passed as CLI arg).
+ * Outputs: `{title, adrs:[{id,title,status,body}], extra:[{heading,body}]}` -- printed to stdout
+ *   (--stdout mode) or written to <module>/DECISIONS.json (batch mode); or raw markdown for
+ *   one/a few ADR ids (--extract mode).
+ * Returns: 0 = success, 1 = requested module/DECISIONS.md or ADR id(s) not found.
+ * ──────────────────────────────────────────────────────────────────────────── */
 
 const fs = require("fs");
 const path = require("path");
@@ -113,7 +113,7 @@ function printModule(module) {
 // On-demand raw-markdown extraction -- Claude's own token-cost consumer, distinct from --stdout's
 // JSON (embedded into architecture-model.json for the human popup, a different consumer with a
 // different cost profile, see improvement-145). Ids are matched against the real bare `ADR-NNN`
-// heading text, not the `ADR-NNN (module)` display form docs/ai/adr-index.md uses for
+// heading text, not the `ADR-NNN (module)` display form .claude/nav/adr-index.md uses for
 // cross-references -- the caller passes the ADR's real home module.
 function extractAdrs(module, idsArg) {
   const mdPath = path.join(repoRoot, module, "DECISIONS.md");

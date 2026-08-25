@@ -16,7 +16,7 @@
 #   build-and-test.sh invocations this produces (this script's own, and the one deploy-and-run.sh
 #   triggers internally) are safe to run concurrently against the shared maven-cache volume --
 #   serialized by that script's own flock, and given distinct container names to avoid a Docker
-#   name collision (see scripts/build-and-test/run.sh's own Env doc). See docs/ai/adr-index.md
+#   name collision (see scripts/build-and-test/run.sh's own Env doc). See .claude/nav/adr-index.md
 #   for the unit/integration pairing's own history.
 # Usage: bash scripts/run-all-tests.sh [--unit-test <module-or-class>]
 #   [--integration-test <scenario-or-class>] [--sandbox] [--archunit-metrics] [--reset]
@@ -44,7 +44,7 @@
 # Outputs: build-and-test.log, playwright.log, and this script's own top-level progress/result
 #   messages (orchestrator.log) are all written during the run into the shared test-reports named
 #   Docker volume (never a WSL/Windows-drive path, so never subject to the docker-desktop-bind-
-#   mounts issue documented in docs/ai/adr-index.md) via a persistent `run-all-tests-reports`
+#   mounts issue documented in .claude/nav/adr-index.md) via a persistent `run-all-tests-reports`
 #   container (removed and recreated fresh at the start of each run -- same reused-container shape
 #   playwright/run.sh already uses for pw-runner). This script itself never copies that data to a
 #   host path or removes the container at the end anymore -- confirmed directly that `docker cp`'s
@@ -101,7 +101,7 @@ PW_EXIT_FILE="/tmp/run-all-tests-pw-exit.$$"
 
 # Both orchestration-level logs are written into the shared test-reports named Docker volume
 # (never a WSL/Windows-drive path, so never subject to the docker-desktop-bind-mounts issue
-# documented in docs/ai/adr-index.md) via one persistent, reused container (REPORTS_CONTAINER,
+# documented in .claude/nav/adr-index.md) via one persistent, reused container (REPORTS_CONTAINER,
 # same reuse pattern as playwright/run.sh's own pw-runner) rather than a fresh throwaway container
 # per write/per flush -- simplest reliable shape: the container is always already running by the
 # time any docker exec against it happens, so there's no container-startup-timing question to

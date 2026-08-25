@@ -20,7 +20,7 @@ images are pruned automatically after the build (`docker image prune -f` only �
 definition to unreferenced images, so it can never touch another stack's resources).
 `docker container prune -f`/`docker volume prune -f` are opt-in only, via `--prune-all` — both act
 host-wide, not scoped to this app's own containers/volumes, so they will remove any other stopped
-container / unused volume on the machine too (see `docs/ai/adr-index.md` for the incident that
+container / unused volume on the machine too (see `.claude/nav/adr-index.md` for the incident that
 made this explicit instead of automatic).
 
 Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-only-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache (only meaningful with `--from-scratch`). Use `--prune-all` for a deliberate, whole-machine deep clean (see warning above).
@@ -66,7 +66,7 @@ Verify: `docker buildx version` / `docker compose version`.
 `${DB_PASSWORD}`/`${DB_PORT}`/`${S3_ACCESS_KEY}`/`${S3_SECRET_KEY}`/`${S3_BUCKET}`/`${S3_REGION}`/
 `${S3_PORT}` from the repo-root `.env` — the single source of truth for these values, also read as
 fallback defaults by `deploy-and-run.sh`/`scripts/deploy-and-run/reset.sh` and as `${VAR:default}` Spring
-placeholders by `application-dev.yml` (see `docs/ai/adr-index.md`). Compose's default project
+placeholders by `application-dev.yml` (see `.claude/nav/adr-index.md`). Compose's default project
 directory — where it looks for `.env` — is the directory containing the first `-f` file, **not**
 the invoking shell's working directory. Always pass `--project-directory .` (run from the repo
 root) or `--project-directory "$ROOT"` (absolute path), e.g.:
@@ -182,7 +182,7 @@ Maven overhead across those modules in this sandbox). No manual flag needed — 
 detection correctly triggers a reinstall when a starter file actually changes, not just when
 nothing changed. `--no-check` bypasses the detection entirely (test against whatever's in `~/.m2`
 right now) — only for deliberately reproducing behavior against an older build. See
-`integration-tests/CLAUDE.md` and `docs/ai/adr-index.md` for the full rule.
+`integration-tests/CLAUDE.md` and `.claude/nav/adr-index.md` for the full rule.
 
 Raw `mvn`, no reports folder: `mvn -pl integration-tests -am test` (or, in this sandbox only,
 prefixed with `TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`).
@@ -238,7 +238,7 @@ the stage sequence defined in `scripts/ci/dagu/ci.yaml` (`build` → `unit`/`int
 existing scripts (`build-and-test.sh`/`deploy-and-run.sh`+`playwright/run.sh`/`sonar.sh`) directly,
 no stage logic reimplemented. `unit`/`integration`/`archunit_metrics` pass `--skip-vaadin` to
 `build-and-test.sh` (skips the Vaadin frontend bundle none of them need — see
-`docs/ai/adr-index.md`). See `docs/ai/adr-index.md` for the DooD (Docker-outside-of-Docker)
+`.claude/nav/adr-index.md`). See `.claude/nav/adr-index.md` for the DooD (Docker-outside-of-Docker)
 design, the Dagu migration, and the pipeline-metrics/ArchUnit-export follow-up.
 
 ```bash
@@ -285,14 +285,14 @@ bash scripts/ci.sh --sync-artifacts                                      # pull 
 through a small `alpine/socat` proxy sidecar (`ci-runner-dagu-proxy`) rather than directly, since a
 `--network host` container's bound ports (needed so `ci-runner`'s own DAG steps reach sibling
 `ci-*` containers at plain `localhost:PORT`) aren't reachable from a real browser in this sandbox —
-see `docs/ai/adr-index.md`. There is no `scripts/ci/reports/` tree, `progress.txt`, or
+see `.claude/nav/adr-index.md`. There is no `scripts/ci/reports/` tree, `progress.txt`, or
 `--report-dir`/`--keep-reports` flag anymore — Dagu's UI and run history (backed by the
 `ci-dagu-home` named volume) replace all of that. Once the container is running, a DAG run can also
 be triggered directly from that UI ("Start" on the `ci` DAG opens a dialog with a field per
 `scripts/ci/dagu/ci.yaml` param) — `bash scripts/ci.sh` itself is only needed to build/start the
 container in the first place, or to trigger a run from a script/CI context. **Triggering from the
 UI never picks up source changes made since the last `bash scripts/ci.sh` rebuild** — the container
-has no live view of the working tree (see `docs/ai/adr-index.md` for why a bind mount
+has no live view of the working tree (see `.claude/nav/adr-index.md` for why a bind mount
 isn't used instead); re-run `bash scripts/ci.sh` after any code change before relying on the UI's
 "Start" button again. Maven dependencies are
 cached across runs via the `ci-m2-cache` named volume; buildx/compose/Dagu's own binaries are

@@ -1,19 +1,23 @@
 ---
 name: infra-doc-standards
-description: File-level and per-function header conventions for infrastructure/tooling files -- bash/batch scripts, docker-compose*.yml, .properties, YAML config, JavaScript, and Python files.
+description: File-level and per-function header conventions for infrastructure/tooling files -- bash/batch scripts, docker-compose*.yml, .properties (incl. .env, lombok.config), YAML config, .gitignore/.gitattributes, JavaScript, and Python files.
 allowed-tools: Read Edit Write Bash
 ---
 
 # Infra Doc Standards
 
 File-level and per-function header conventions for infrastructure/tooling files — bash/batch
-scripts, `docker-compose*.yml`, `.properties` — as distinct from `doc-standards` (which covers
-documentation about the Java/Vaadin application itself: `README.md`, `CLAUDE.md`, `DECISIONS.md`,
-`docs/architecture/*`, `docs/ai/*`) and from `infra-readme-standards` (a script-group directory's
-own `README.md` and Flow-diagram conventions, once every file in it already has a complete header
-per this skill).
+scripts, `docker-compose*.yml`, `.properties` — as distinct from `module-doc-standards` (the same
+kind of file-level convention, applied to Java source files' Javadoc and `pom.xml` comments
+instead) and from `infra-readme-standards` (a script-group directory's own `README.md` and
+Flow-diagram conventions, once every file in it already has a complete header per this skill).
 
-## ⛔ One fact, one canonical home — highest priority in this document
+## ⛔ Files first, then README — highest priority in this document
+
+Applies `.claude/rules.md`'s "One fact, one canonical home" rule's "Atomic unit first, then
+directory-level index" principle to this skill's own domain, where the atomic unit is the whole
+file. This section states this domain's specific ordering mechanics; it does not restate the
+general principle itself.
 
 Files are the highest-priority artifact. A file's own header must fully and precisely describe
 everything that file does — every flag, every conditional branch, every real side effect — lean
@@ -111,7 +115,7 @@ to guess where it ends from context (a blank line, the next line of code, or not
 #   --file           filtered console output + full log to /tmp/deploy.log
 #   --no-cache       force rebuild ignoring Docker layer cache
 #   --reset-only-db       truncate app tables (reset-clean.sql) before starting the app
-#   --prune-all      also prune stopped containers/volumes HOST-WIDE (see docs/ai/adr-index.md)
+#   --prune-all      also prune stopped containers/volumes HOST-WIDE (see .claude/nav/adr-index.md)
 # Uses: bash, docker buildx, docker compose.
 # Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), MINIO_CONTAINER
 #   (advertisement-minio), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
@@ -194,7 +198,7 @@ running instance directly, without first opening the script to find out what it'
 A header field (`Description`/`Usage`/`Env`/`Outputs`, etc.) never names a real file elsewhere in
 the repo as a pointer — the same discipline `.claude/rules.md`'s "name a real file only when
 unavoidable" rule already applies to `SKILL.md`/commands/`rules.md`/`README.md`. The one sanctioned
-exception, matching `.claude/rules.md`'s ADR-citation rule: a generic "see `docs/ai/adr-index.md`"
+exception, matching `.claude/rules.md`'s ADR-citation rule: a generic "see `.claude/nav/adr-index.md`"
 (never a specific `ADR-NNN` number) — no other real file name belongs in a header field.
 
 ## `Env` field distinguishes "set automatically by a caller" from "set directly by you"
@@ -244,7 +248,7 @@ one: the file's own header.
 A significant fact discovered while actually running or investigating a script (not obvious from
 reading the code alone — an environment quirk, a real risk, why something behaves the way it
 does) gets written into whichever file the finding is actually about, not left only in a chat
-transcript or a backlog issue — placement follows "One fact, one canonical home" above.
+transcript or a backlog issue — placement follows "Files first, then README" above.
 
 A finding captured only in a backlog issue during investigation is a legitimate intermediate step
 (the issue is where it's confirmed and worded first) — but once confirmed, it belongs in the file
@@ -425,7 +429,7 @@ per the general "one line or none" rule.
 # Description: CI-runner image -- one container the user interacts with (scripts/ci.sh ->
 #   scripts/ci/run.sh), Docker-outside-of-Docker: the host's docker.sock is mounted into it at
 #   `docker run` time so it can create/tear down its own isolated ci-* sibling containers without
-#   touching the persistent dev stack. Full design rationale: see docs/ai/adr-index.md.
+#   touching the persistent dev stack. Full design rationale: see .claude/nav/adr-index.md.
 # Usage: docker build -f scripts/ci/Dockerfile -t ci-runner .
 # Uses: eclipse-temurin:25-jdk base image.
 # Env: DAGU_VERSION, DAGU_HOME, DAGU_PORT, DAGU_AUTH_MODE (all declared via ENV, not
@@ -445,14 +449,16 @@ such split applies here. `Returns` is omitted entirely, not just left "None" —
 success/failure belongs to the `docker build` command itself, never a fact this file's own header
 could state (see the field-meaning table above).
 
-### `.properties` files
+### `.properties` files (and the same shape for `.env`/`lombok.config`)
 
 A `.properties` file is passive configuration, not something invoked — `Uses`/`Input`/`Outputs`/
 `Returns` are dropped entirely: their value never changes across any `.properties` file (`None`/
 `None`/`None`/`N/A` respectively, for the reasons in the table below) — a type-level constant
 stated once here, not a per-file fact worth repeating on every `.properties` file's own header.
 Only `Description`/`Usage`/`Env` actually vary per file, so those are the only three fields such a
-file's header carries.
+file's header carries. A root `.env` (`KEY=VALUE`, read via `${VAR}` substitution) and
+`lombok.config` (`key = value`, read by the Lombok annotation processor at compile time) are the
+same passive `KEY=VALUE` shape — same three-field table, not a separate section.
 
 | Field | Meaning for a script | Meaning for a `.properties` file | Always the same value? |
 |---|---|---|---|
@@ -463,6 +469,22 @@ file's header carries.
 | `Input` | files/APIs it reads | this file *is* the input | Yes -- always `None`, field omitted |
 | `Outputs` | files written, side effects | static config, produces nothing on its own | Yes -- always `None`, field omitted |
 | `Returns` | exit codes | it's never executed | Yes -- always `N/A`, field omitted |
+
+### Generated JSON data files
+
+JSON has no comment syntax -- it cannot carry a header at all. A JSON file's description lives
+in its directory's own README.md instead, always -- see docs/architecture/data/README.md for a
+real example.
+
+### `.gitignore` / `.gitattributes` files
+
+A different passive shape from `.properties` — not `KEY=VALUE`, a list of glob patterns (plus, for
+`.gitattributes`, a trailing attribute per pattern). Git reads either file automatically; neither
+is ever directly invoked. No file-level structured header — a pattern list gains nothing from a
+`Description`/`Usage`/`Env` block repeating "this is read automatically by git" on every one. What
+actually carries information is a one-line `#` comment above each logical group of patterns (e.g.
+`# IDE files`, `# per-module build output`) — the same "one line or none" comment discipline as
+everywhere else in this skill, applied per group rather than per individual pattern.
 
 ### YAML files (excluding `docker-compose*.yml`, covered above)
 

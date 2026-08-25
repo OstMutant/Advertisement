@@ -2017,3 +2017,20 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   (stale repo-wide prose references to the old `<module>/CLAUDE.md` paths) deferred to
   `improvement-133` entry 13 rather than fixed inline or dropped. Full detail:
   `completed/issues/improvement-168-ai-guidance-memory-vs-canonical-rules.md`.
+
+✅ Done (2026-08-25): improvement-170 — `doc-standards` vs `infra-doc-standards`/`infra-readme-standards`
+  scope resolution, across 9 items. `doc-standards` split into `module-doc-standards` +
+  `module-readme-standards`; new `app-readme-standards` skill (root `README.md`/`INFRASTRUCTURE.md`
+  split); `docs/ai/` → `.claude/nav/` (`git mv` + 74-file reference update). Item 2's original plan
+  (a new skill for `.claude/nav`/`docs/architecture/data`/commands-rules-skills) resolved
+  differently in the end: no new skill — `infra-readme-standards` extended with a `.claude/skills/`
+  section (top-level index only, never per-skill `README.md`), `infra-doc-standards` applied as-is
+  to `.claude/nav/scripts/*`. Final item: `architecture-map.html`'s "AI Tooling" card rebuilt as a
+  `.claude`-rooted tree (same mechanism as "Scripts"), hardcoded Commands/Skills tables removed,
+  README made the sole canonical file list (chip-row now last-resort only), and a real bug fixed —
+  `mdInlineToHtml()`/`mdBlockToHtml()` never supported markdown `[text](url)` link syntax, so every
+  README link across the tool was inert bracket text. Recorded as
+  `docs/architecture/scripts/DECISIONS.md` ADR-033 (supersedes ADR-010). `docs/architecture/data/*.md`
+  content-governance and the orphaned "Canonical ownership table" both remain open gaps, not picked
+  up by this resolution. Full detail:
+  `completed/issues/improvement-170-doc-skill-scope-resolution.md`.

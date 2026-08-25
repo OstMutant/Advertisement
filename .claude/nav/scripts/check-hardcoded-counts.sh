@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
-# Backstop behind the doc-standards skill's checklist -- fails if a doc's hard-coded module count no longer matches pom.xml.
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: Backstop behind the doc-standards skill's checklist -- fails if a doc's hard-coded
+#   module count no longer matches pom.xml's real module count. Excludes
+#   architecture-model.json, architecture-map.html, and DECISIONS.md files, since historical ADR
+#   prose can legitimately mention an unrelated past "N modules" count that has nothing to do with
+#   the reactor's current total.
+# Usage: bash .claude/nav/scripts/check-hardcoded-counts.sh
+# Uses: bash, grep, find.
+# Env: None.
+# Input: pom.xml (real module count), docs/, CLAUDE.md, README.md, and every second-level
+#   CLAUDE.md/README.md in the repo.
+# Outputs: an ERROR line per stale count found, naming the file/line/claimed value.
+# Returns: 0 = no stale counts, 1 = at least one mismatch found.
+# ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -31,7 +44,7 @@ done < <(grep -rnoP '(?<!≥)[0-9]+ modules?\b' "${SEARCH_PATHS[@]}" 2>/dev/null
 if [ -n "$mismatch" ]; then
   echo "ERROR: stale hard-coded module count(s) found (pom.xml currently has $REAL_COUNT modules):"
   printf '%b' "$mismatch"
-  echo "Fix the count, or reword to avoid a hard-coded number entirely (see .claude/skills/doc-standards/SKILL.md)."
+  echo "Fix the count, or reword to avoid a hard-coded number entirely (see .claude/skills/module-doc-standards/SKILL.md)."
   exit 1
 fi
 

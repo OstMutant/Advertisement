@@ -1,27 +1,19 @@
-# ==============================================================================
-# AI Developer (Claude Code) for Java 25 project
-# ==============================================================================
-#
-# HOW TO BUILD:
-# Open terminal in D:\Ost\dev\Advertisement\ and run:
-# docker build -f Dockerfile.ai -t claude-j25-dev .
-#
-# MULTIPLE ACCOUNTS WORKFLOW (BY LOGIN):
-# We use separate isolated config folders for auth (based on your email),
-# but share the local project directory so chat history and context are preserved.
-#
-# 1. Run Account 1:
-#    > claude.bat my.email.1@gmail.com
-#    (Login via browser on first run. Work until limits are reached).
-# 2. Press Ctrl+C to exit when limit is reached.
-# 3. Run Account 2:
-#    > claude.bat my.email.2@gmail.com
-#    (Login via browser with your second account. It will resume the exact same chat!).
-#
-# QUICK START PROMPT:
-# No longer needed manually! Claude automatically reads the `CLAUDE.md` file
-# in the project root to understand the Java 25 / Spring JDBC architecture.
-# ==============================================================================
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: AI developer container -- runs the Claude Code CLI itself, for working on this
+#   Java 25 project. Supports switching between multiple Claude accounts on the same mounted
+#   project directory (chat history/context preserved, only the auth config differs per account)
+#   -- see scripts/claude.bat.
+# Usage: docker build -f Dockerfile.ai -t claude-j25-dev . -- run from the repo root; built
+#   automatically by scripts/claude.bat, rarely invoked directly.
+# Uses: eclipse-temurin:25-jdk-jammy base image, apt (curl/git/maven/postgresql-client/docker.io),
+#   Node.js 20 + npm (@anthropic-ai/claude-code).
+# Env: None declared in this file -- account-specific auth config is mounted at `docker run` time
+#   by scripts/claude.bat, not read from a build-time ENV.
+# Input: None -- installs tools only, does not COPY repo source.
+# Outputs: an interactive container image with the `claude` CLI as its entrypoint, working
+#   directory /app (repo mounted here at `docker run` time).
+# Returns: N/A -- entrypoint is an interactive CLI, not a build/test command with its own exit code.
+# ────────────────────────────────────────────────────────────────────────────
 
 FROM eclipse-temurin:25-jdk-jammy
 

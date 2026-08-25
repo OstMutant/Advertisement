@@ -27,7 +27,7 @@ it does, its flags, and its exact behavior; not restated here.
 | `pull-logs.bat` | self-contained (no delegation) |
 | `collect-code.bat` | self-contained (no delegation) |
 | `claude.bat` | self-contained (no delegation) |
-| `run-all-tests.sh` / `.bat` | `scripts/run-all-tests/run.sh` — see `docs/ai/adr-index.md` for the unit/integration pairing's own history |
+| `run-all-tests.sh` / `.bat` | `scripts/run-all-tests/run.sh` — see `.claude/nav/adr-index.md` for the unit/integration pairing's own history |
 | `ci.sh` / `.bat` | `scripts/ci/run.sh` — see `scripts/ci/README.md` and `scripts/ci/DECISIONS.md` |
 
 ---

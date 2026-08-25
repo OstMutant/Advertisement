@@ -234,7 +234,7 @@ matching `playwright/run.sh`'s existing pattern.
 All 13 module `CLAUDE.md` files moved to `.claude/rules/<module>.md` — root `CLAUDE.md`'s own
 pointers were updated in the same change, but prose references scattered across current-state
 documentation still cite the old `<module>/CLAUDE.md` path: `README.md`, `.claude/commands/
-autopilot.md`/`ci.md`/`run-all-tests.md`, `docs/ai/flows.md`, `docs/ai/adr-index.md`,
+autopilot.md`/`ci.md`/`run-all-tests.md`, `.claude/nav/flows.md`, `.claude/nav/adr-index.md`,
 `docs/architecture/scripts/liquibase-schema-to-json.js`, `integration-tests/README.md`,
 `scripts/ci/watch-run.py`. Confirmed none of them are runtime-read (only
 `generate-architecture-model.sh` was, already fixed in the same change) — these are stale text
@@ -270,5 +270,41 @@ own "SPI decisions live where the interface lives" pattern elsewhere in these fi
 Context/Decision/Consequences there, and shrink the other entry to a one-line pointer (`**Status:**
 Accepted — see platform-commons/DECISIONS.md ADR-011 for the full decision` style, no restated
 body) — mirroring how `doc-standards`' "one fact, one canonical home" already treats every other
-kind of cross-file fact in this repo. Regenerate `docs/ai/adr-index.md` in the same change (per
+kind of cross-file fact in this repo. Regenerate `.claude/nav/adr-index.md` in the same change (per
 `.claude/rules.md`'s standing rule).
+
+### 15. Apply improvement-170's "always header" policy to real `pom.xml`/Liquibase/Java files, repo-wide (found during improvement-170, 2026-08-25)
+
+`module-doc-standards/SKILL.md` (per improvement-170's item 8) now requires every `pom.xml`, every
+Liquibase master changelog + change file, and every Java class to always carry a header/Javadoc —
+no "self-explanatory, skip it" exception for any of them. The rule was written into the skill but
+never applied to the real files: the 11 real `pom.xml` files, the real Liquibase master changelogs,
+and Java classes across the repo currently don't comply. One specific known violation, found during
+improvement-170's own research but not fixed: `attachment-spring-boot-starter/src/main/java/org/ost/attachment/services/AttachmentCleanupService.java`
+carries a 5-line Javadoc block citing an issue number ("improvement-049 item 4").
+
+Not fixed inline: this is a repo-wide sweep (11 `pom.xml` files + Liquibase changelogs + Java
+classes across every module), far bigger than improvement-170's own scope (which only designed the
+rule), and one sub-decision — the individual Liquibase change-file header shape — is still "not yet
+designed" per improvement-170 itself, so those specific files can't proceed until that's resolved.
+`pom.xml` and Liquibase master changelogs already have a defined shape and could start immediately
+once picked up. Needs its own sizing/sequencing decision (one pass covering everything vs. file-type
+by file-type vs. opportunistic-only) before being sized as real work.
+
+### 16. `docs/architecture/data/*.md` content-governance and the orphaned "Canonical ownership table" both remain undocumented (found during improvement-170, 2026-08-25)
+
+No skill currently governs what `docs/architecture/data/arch-embed-index.md`/`runtime-notes.md`'s
+own prose content should look like — item 2 of improvement-170 originally planned a new skill for
+this (`.claude/nav/*.md` + `docs/architecture/data/*.md` + commands/rules/skills operational
+tier), but the ambiguity ended up resolved differently (extending `infra-readme-standards`/
+`infra-doc-standards` instead), leaving this specific piece untouched.
+
+Separately, the old `doc-standards`' "Canonical ownership table" (module dependencies →
+`architecture-map.html`, SPI mapping → same, ADR rationale → `DECISIONS.md`, task routing →
+`context-loading.md`, situation routing → `flows.md`, backlog issue format, cross-cutting rules)
+had no home once `doc-standards` split into `module-doc-standards`/`module-readme-standards` —
+recoverable from `module-doc-standards/SKILL.md`'s pre-rewrite git history, not currently written
+anywhere.
+
+Neither blocks real work today; both need a deliberate design pass (new skill? extend an existing
+one? a separate table document?) before being picked up.
