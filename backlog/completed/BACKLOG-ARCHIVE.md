@@ -1984,3 +1984,15 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   `CLAUDE.md` files were initially missing from the bundle since `--claude-only` skips the general
   `*.md` scan that picks them up in full-project mode, fixed with an explicit `:FindFiles
   "CLAUDE.md"` call. Full detail: `completed/issues/improvement-166-collect-code-claude-only-mode.md`.
+
+✅ Done (2026-08-25): improvement-164 — fixed `architecture-map.html`'s script-header display
+  (dropped the 20-line read cap, joined continuation lines with `\n` instead of a space, added
+  `white-space: pre-wrap`). Also fixed `architecture-doc.sh`'s tar-pipe `Permission denied` on its
+  own prior output files (excluded from the upload tar, `chmod 644` after `docker cp`), added
+  per-phase progress logging, and excluded `scripts/logs/` from the Scripts tree. Removed the dead
+  Docker/Runtime sections from System › Tooling & Pipelines. Split the oversized
+  `infra-doc-standards` skill into `infra-doc-standards` (file/function headers) and a new
+  `infra-readme-standards` (README/Flow-diagram conventions), then ran both across `scripts/` end
+  to end, finding and fixing two real gaps (`claude.bat`'s Unicode header markers, `sonar/README.md`
+  + `docker-compose.sonar.yml`'s field/flow-step gaps). Full detail:
+  `completed/issues/improvement-164-architecture-map-script-header-truncation.md`.

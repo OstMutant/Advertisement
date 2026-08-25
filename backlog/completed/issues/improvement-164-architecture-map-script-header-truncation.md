@@ -172,7 +172,9 @@ instead of pointing at a removed function. `bash -n` syntax check passed. Regene
 `architecture-doc.sh` run (exit 0, node count unchanged at 41 since Docker/Runtime were never
 their own tree nodes) — confirmed zero remaining occurrences of `dockerFiles`/`runtimeNotes`/
 `group-heading` in both the regenerated `architecture-map.html` and `architecture-model.json`.
-Rendered page not yet visually re-checked by the user.
+Confirmed at code level 2026-08-25: `architecture-map.html`/`architecture-model.json` contain zero
+occurrences of `renderDockerSection`/`renderRuntimeSection`/`group-heading`/`dockerFiles`/
+`runtimeNotes`. User confirmed this is sufficient — no further visual re-check needed.
 
 ## Related follow-up — split infra-doc-standards into header-conventions and README-conventions skills
 
@@ -249,8 +251,10 @@ and fixed while implementing: `docs/architecture/scripts/DECISIONS.md` ADR-032 n
 single-skill path — updated to describe the split, `Verified: 2026-08-21` stamped (opportunistic,
 per `.claude/rules.md`), and `docs/ai/adr-index.md` regenerated in the same change. Grep-verified
 zero remaining stale references anywhere in `.claude/skills/`/`docs/ai/flows.md` to the old
-single-file structure. Not yet functionally re-tested (no way to invoke a skill and confirm its
-new auto-trigger description matches from within this session) or visually reviewed by the user.
+single-file structure. Functionally re-tested as part of the same change: both skills were run across `scripts/` end to
+end, finding and fixing two real gaps (`claude.bat`'s Unicode header markers, `sonar/README.md`+
+`docker-compose.sonar.yml`'s field gaps and missing scanner-container flow step) — see commit
+`cc746111`. User confirmed this is sufficient — no further visual review needed.
 
 ## Operational notes
 - token_cost_review: n/a
