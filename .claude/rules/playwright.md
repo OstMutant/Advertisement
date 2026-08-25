@@ -1,3 +1,7 @@
+---
+paths: ["playwright/**"]
+---
+
 ## UI Verification with Playwright
 
 After making UI changes, verify them by running the Playwright script inside Docker.
@@ -69,6 +73,8 @@ that orchestrator.
 - Overlays/dialogs have class `.advertisement-overlay` — scope selectors inside it to avoid hitting main page buttons
 - Playwright version must match image: `playwright@1.61.1` + `mcr.microsoft.com/playwright:v1.61.1-jammy`
 - `IFrame.setSrc()` / `.setProperty()` are silently ignored post-render — use `Page.executeJs()` + `setAttribute()` instead
+- Never use `page.waitForTimeout()` to wait for animations or dialog rendering — fixed timeouts are fragile and slow. Wait on the relevant Vaadin state attribute instead (e.g. `vaadin-confirm-dialog-overlay[opened]` with `state: 'attached'` for confirm dialogs; the equivalent attribute for other overlays).
+- When asserting timeline/activity rows, verify actual displayed content (actor name, entity title, diff text) — CSS class presence alone is not enough to confirm the *right* data rendered.
 
 ### Helper organization rules
 

@@ -1,3 +1,7 @@
+---
+paths: ["scripts/**"]
+---
+
 ## Deployment
 
 ### Prod deploy (local dev-loop, no image build by default)

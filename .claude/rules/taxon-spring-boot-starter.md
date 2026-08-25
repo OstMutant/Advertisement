@@ -1,3 +1,7 @@
+---
+paths: ["taxon-spring-boot-starter/**"]
+---
+
 ## taxon-spring-boot-starter
 
 Auto-configures the Taxonomy domain (categories, tags, classifiers). Active whenever the jar is on the classpath.

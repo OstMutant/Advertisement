@@ -1,3 +1,7 @@
+---
+paths: ["marketplace-orchestrator/**"]
+---
+
 ## marketplace-orchestrator
 
 Application/BFF composition layer between `marketplace-app` (the UI adapter) and the domain

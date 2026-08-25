@@ -1,3 +1,7 @@
+---
+paths: ["platform-commons/**"]
+---
+
 ## platform-commons: Governance
 
 ### What belongs here
@@ -85,6 +89,15 @@ All cross-module extension points live in `platform-commons/*.spi`. The suffix e
 
 **Why ports and hooks must live in `platform-commons` and not in the starter:**
 Starters are optional — marketplace compiles and runs without them on the classpath (all injections use `ObjectProvider`). If a port or hook interface lived inside a starter, removing that starter would break marketplace compilation even though the feature is optional. Keeping all interfaces in `platform-commons` ensures marketplace always has the type visible, regardless of which starters are present.
+
+**Concrete signs a starter has absorbed domain-specific logic it shouldn't carry:** a hardcoded
+field name belonging to another domain (e.g. `"title"`, `"email"`) inside the starter's own SQL or
+rendering code; a branch on a specific `EntityType` value inside starter logic instead of a generic
+`(EntityType, Long)`-shaped SPI call; a method named after another domain's concept (e.g.
+`buildAdvertisementFieldsList` inside `audit-spring-boot-starter`); SQL reading a domain-specific
+JSON field by name. Any of these belongs behind an SPI interface here in `platform-commons`,
+implemented in `marketplace-app`/`marketplace-orchestrator` — never hardcoded inside the starter
+itself.
 
 **Every `*.spi` interface must carry a Javadoc purpose paragraph directly above its declaration.**
 This is the single source of truth for what the interface is for — `docs/architecture/scripts/generate-architecture-model.sh`'s SPI Map reads it live (the Javadoc block immediately preceding `interface X`, first paragraph up to any `@`-tag) and shows it in the interactive diagram's detail popup. Do not also maintain a separate description of the same interface anywhere else (a generator-side lookup table, a wiki page, etc.) — if the purpose changes, edit the Javadoc, not a second copy.

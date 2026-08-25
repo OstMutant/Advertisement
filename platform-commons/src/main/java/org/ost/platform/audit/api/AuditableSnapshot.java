@@ -19,6 +19,7 @@ public interface AuditableSnapshot {
     List<ChangeEntry.FieldChange> allFields();
     int schemaVersion();
 
+    /** Returns every field from {@link #allFields()}, not only the ones present in {@code changes} — unchanged fields pass through unmarked. */
     default List<ChangeEntry> expandWithChanges(List<ChangeEntry> changes) {
         Map<String, ChangeEntry.FieldChange> index = new HashMap<>();
         changes.stream()

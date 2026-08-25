@@ -1,3 +1,7 @@
+---
+paths: ["integration-tests/**"]
+---
+
 ## integration-tests
 
 Sole home for every Testcontainers-based repository test and its supporting fixtures, across

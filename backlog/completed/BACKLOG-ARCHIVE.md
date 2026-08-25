@@ -1996,3 +1996,24 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   to end, finding and fixing two real gaps (`claude.bat`'s Unicode header markers, `sonar/README.md`
   + `docker-compose.sonar.yml`'s field/flow-step gaps). Full detail:
   `completed/issues/improvement-164-architecture-map-script-header-truncation.md`.
+
+✅ Done (2026-08-25): improvement-168 — AI guidance refactor across two independent sub-phases.
+  Phase 2.1 (memory): audited all 55 auto-memory files against `.claude/rules.md`/every
+  `CLAUDE.md`, classified each (duplicate/partial/unique/stale), then deleted 16 pure duplicates,
+  migrated 19 more into canonical files (9 as a new "Investigation & Review Discipline" section in
+  `.claude/rules.md`) before deleting the memory copy, rewrote 2 stale-but-keep entries, and
+  deleted 4 further entries confirmed stale/completed against real code (one Phase 1
+  misclassification — a top-level Timeline nav tab wrongly called "superseded" — caught and
+  corrected in the process). Memory: 55 → 16 files, `MEMORY.md` re-verified 1:1 against disk, zero
+  dangling `[[...]]` links. Phase 2.2 (CLAUDE.md): moved all 13 module `CLAUDE.md` files to
+  path-scoped `.claude/rules/*.md` (confirmed live, via a real probe test, that Claude Code's
+  `paths:` frontmatter mechanism works, that subagents inherit the eager-loaded set too, and that
+  a `paths:` glob is not anchored to the repo root — documented in a new `.claude/rules/README.md`
+  and `.claude/README.md`). Fixed `docs/architecture/scripts/generate-architecture-model.sh`'s 3
+  literal-path dependencies on the moved files in the same change, including two self-inflicted
+  bugs (a `SIGPIPE` from a `tail|head` replacement, a `cd`-drift `127`) — root-caused and fixed,
+  verified via a full regeneration + a node-by-node description diff showing zero regressions.
+  Recorded as `.claude/DECISIONS.md` ADR-001 (new file for this module). One out-of-scope finding
+  (stale repo-wide prose references to the old `<module>/CLAUDE.md` paths) deferred to
+  `improvement-133` entry 13 rather than fixed inline or dropped. Full detail:
+  `completed/issues/improvement-168-ai-guidance-memory-vs-canonical-rules.md`.

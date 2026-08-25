@@ -25,24 +25,34 @@ Steps:
    **Priority:** <low|medium|medium-high|high — see step 5, must not be left blank>
    **When:** <independent, no blockers — OR — blocked on [other-issue](path.md) — explain why>
 
-   ## Problem
+   ## Current state
 
-   <what's wrong, grounded in specifics already discussed — file/line references, verified
-     against actual source if this session has already read the relevant files>
+   <what exists today, stated neutrally as fact — no judgment yet. Grounded in specifics already
+     discussed: file/line references, verified against actual source if this session has already
+     read the relevant files>
 
-   ## Suggested fix
+   ## Why change
 
-   <concrete approach>
+   <what's wrong with the current state, or what need it fails to meet — the motivation>
+
+   ## Expected benefit
+
+   <the concrete, ideally measurable improvement to the system if this is done — not a restatement
+     of "why change", but what actually gets better and for whom/what>
+
+   ## Approach
+
+   <concrete way(s) to get there — more than one option with trade-offs where a real choice
+     exists, not just a single unexamined path>
 
    ## Related
 
    <cross-references to related issues/ADRs/CLAUDE.md sections already surfaced in conversation>
    ```
-   If the conversation so far doesn't have enough concrete detail for `Problem`/`Suggested fix`
-   (e.g. the user just said a short title with no discussion), read the relevant source first
-   (per this project's established pattern in every issue filed so far this session) rather than
-   writing a vague placeholder — verify claims against actual code before committing them to the
-   issue file.
+   If the conversation so far doesn't have enough concrete detail for these sections (e.g. the
+   user just said a short title with no discussion), read the relevant source first (per this
+   project's established pattern in every issue filed so far this session) rather than writing a
+   vague placeholder — verify claims against actual code before committing them to the issue file.
 4. Present the drafted file content and wait for confirmation before writing (per the Approval
    Rule in `.claude/rules.md`) — unless the user's `/feature` invocation already came after an
    explicit "so, roby"/"yes, do it" for this exact content in the current conversation, in which

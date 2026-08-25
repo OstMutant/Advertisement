@@ -1,3 +1,7 @@
+---
+paths: ["query-lib/**"]
+---
+
 ## query-lib API
 
 Plain Java SQL helper library. No Spring Boot autoconfiguration, no domain knowledge. See

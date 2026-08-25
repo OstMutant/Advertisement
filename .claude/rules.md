@@ -29,6 +29,12 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 > `git commit` is **forbidden** unless the user says "зроби коміт", "commit", or equivalent.
 > `git add` runs automatically after every file change — commit does NOT.
 > Violating this rule has happened multiple times. No exceptions.
+>
+> **Two-call rule for any hook-gated commit step:** a `PreToolUse:Bash` hook fires before the
+> command it's gating actually executes — chaining a hook-satisfying step and the gated command in
+> one call (`touch /tmp/marker && git commit`) fails, because the marker doesn't exist yet when the
+> hook checks. Always issue the hook-satisfying step and the gated command as two separate Bash
+> tool calls.
 
 > ## ⛔ Code quality is the highest-priority goal — surface adjacent quality issues unprompted
 > Code quality outranks minimizing diff size, staying strictly inside a written batch's literal
@@ -38,6 +44,10 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 > surface it and propose fixing it as part of the same review, before being asked a second time.
 > Look for this class of issue proactively on any change touching a DTO, entity, or interface —
 > don't wait to be asked.
+>
+> When a choice exists between a minimal/quick implementation and an architecturally clean one,
+> choose the clean one — never justify a shortcut with "it's just dev" or "good enough for now."
+> This is not a prototype.
 
 > ## ⛔ Rules in this file must state the abstract principle, not a case study
 > When adding or editing a rule, write the general principle a reader can apply to an unrelated
@@ -199,6 +209,16 @@ Example format:
 
 Wait for explicit confirmation before making any change.
 
+A broad, already-approved task does not exempt each distinct sub-change within it from its own
+concrete plan — scope-level approval is not a blanket pass to skip the technical-layer detail for
+each piece. State the exact file/method/behavior for each sub-change before asking to proceed with
+it, even inside an already-approved larger task.
+
+Confirming that a result is correct (a test passed, a fix looks right) is approval for that fact
+only — never for whichever follow-up action would normally happen next (closing out related
+bookkeeping, moving a file, updating an index). Being the obvious next step is not itself
+permission; ask separately.
+
 Before presenting a plan for a multi-step change, first write the complete, current plan into the
 relevant `backlog/issues/<n>.md` file — never present a plan only in chat. Update the issue file
 again every time the plan changes (new finding, scope correction) or a plan item is actually
@@ -282,7 +302,10 @@ subdirectory, which belongs to that one group alone.
    result, or when explicitly asked for the current status — answer with the real current state
    then, never with continued silence.
 4. Before running Playwright specifically, kill stale processes first:
-   `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`.
+   `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`. Always pass `--ux` —
+   never run a Playwright scenario without it.
+5. Once the Monitor's target process reaches its final result (pass/fail line, completion
+   marker), stop that Monitor task immediately rather than leaving it running past that point.
 
 ## Issue Lifecycle
 
@@ -413,8 +436,57 @@ Wait for the next explicit user message before doing anything.
 ## Error Reporting
 When running any script or command that fails, immediately read the error output and show the specific error lines in the chat. Never just report "it failed" without the actual error details.
 
+This extends beyond script failures — the moment any real problem is found during investigation or
+execution (a bug, an inconsistency, a failing assumption), report it to the user immediately rather
+than continuing to dig silently. Establish root cause first if that's quick, then stop and report
+before proceeding further.
+
 ## Documentation Standards
 Before writing or editing any documentation file, consult `.claude/skills/doc-standards/SKILL.md`.
+
+## Investigation & Review Discipline
+
+**Apply the full standard, not just the most obvious rule in it.** When a skill or standards
+document is invoked, every rule it states is in scope — not only the rule matching the most
+obvious interpretation of the task. Verifying that existing content is *accurate* is not the same
+as verifying it's *compliant with the standard*; a document with a structural/placement rule in
+addition to a correctness rule needs both checked, especially any rule the document itself marks
+highest-priority.
+
+**Never self-conclude a review finding when the process defines an independent verification
+step.** When a review process calls for a separate verifying step (e.g. a dedicated Agent call),
+gather only the factual evidence needed to brief that step well — do not reason toward, narrate,
+or state your own tentative verdict first, even as a step before launching the real verification.
+
+**Execute a direct action instruction as given — don't silently substitute your own alternative.**
+When told to run a specific tool/skill/script, perform that exact action. If you believe it's
+unnecessary or redundant, say so explicitly and ask before skipping it — never silently replace it
+with your own investigation and report that instead. This is distinct from answering a question or
+complaint, where verifying with real data before responding is correct.
+
+**Don't re-verify visually what a data source already answered completely.** When a rendered view
+is generated directly from a data source with no additional transformation, a question about what
+the view shows is fully answered by reading that data source directly — chasing a
+screenshot/visual re-verification afterward can't surface anything the data source didn't already
+say, and reads as stalling rather than thoroughness. Reach for the visual check only when the
+rendering itself (layout, clarity, whether something is visually confusing) is the actual question.
+
+**Don't chain an expensive regeneration step onto a pure bookkeeping edit.** Editing tracking
+data (reprioritizing a list, updating a status field) does not by itself warrant re-running a
+regeneration/verification step meant for actual code or generated-output changes. Run it when the
+edit changes what a generator reads or what a user is about to view through the tool — not
+reflexively after every edit to the same general area.
+
+**Ground a design complaint in real data before proposing a fix, and offer options.** When a
+complaint about design (coupling, clutter, an abstraction that "looks" unnecessary) triggers a
+proposal, measure the real data first (actual callers via grep, actual diff, actual counts) rather
+than proposing from assumption — then present multiple concrete options with trade-offs, not a
+single predetermined solution, and let the choice be made from there.
+
+**No workarounds — fix the root cause.** Never propose a workaround, hack, or band-aid that masks
+a symptom instead of addressing why it happens, even when the workaround looks reasonable on the
+surface. Before proposing any fix, confirm it addresses the actual cause, not just the visible
+symptom.
 
 ---
 

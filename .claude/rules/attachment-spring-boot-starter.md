@@ -1,3 +1,7 @@
+---
+paths: ["attachment-spring-boot-starter/**"]
+---
+
 ## attachment-spring-boot-starter
 
 Auto-configures the photo/attachment module with S3-compatible storage. Active whenever the jar is on the classpath.

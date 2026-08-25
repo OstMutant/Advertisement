@@ -1,3 +1,7 @@
+---
+paths: ["audit-spring-boot-starter/**"]
+---
+
 ## audit-spring-boot-starter
 
 Auto-configures the full audit subsystem. Active whenever the jar is on the classpath.

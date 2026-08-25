@@ -1,3 +1,7 @@
+---
+paths: ["provider-profile-spring-boot-starter/**"]
+---
+
 ## provider-profile-spring-boot-starter
 
 Auto-configures the Provider Profile domain. Active whenever the jar is on the classpath.

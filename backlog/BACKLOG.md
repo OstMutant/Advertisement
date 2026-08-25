@@ -80,12 +80,17 @@ pattern applied to `scripts/sonar/run.sh`), also shipped the same session.
 `completed/BACKLOG-ARCHIVE.md`; 229 → 172 active ADRs across all 13 non-empty `DECISIONS.md` files.
 **improvement-155 (repo-wide `infra-doc-standards` rollout) shipped 2026-08-20** — see
 `completed/BACKLOG-ARCHIVE.md`; `docs/ai/scripts/` split off to `improvement-161`.
+**improvement-168 (AI guidance refactor) shipped 2026-08-25** — see `completed/BACKLOG-ARCHIVE.md`;
+memory 55 → 16 files, all 13 module `CLAUDE.md` moved to path-scoped `.claude/rules/*.md`; one
+deferred finding split off to `improvement-133` entry 13.
 improvement-118 stays blocked (needs a public URL this sandbox doesn't have).
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
+| Top | 🔵 | 169 | improvement-169 (filed 2026-08-25) — Hybrid Agentic Review Factory: Semgrep/ArchUnit/Sonar-MCP mechanical layer + formalized `.claude/agents` review specialists. Investigated against real code; two of the mission's own proposed mechanical rules directly contradict this project's documented architecture (`@PreAuthorize`-on-Service, S3-inside-`@Transactional`); `diff-mode.md` already implements the 4-lens reasoning layer the mission converged on. Scope not yet decided — see issue file for the grounded analysis |
 | Top | 🟡 | 161 | improvement-161 (filed 2026-08-20, split out of improvement-155's "Not yet started" list) — apply `infra-doc-standards` header/README convention to `docs/ai/scripts/`'s 4 scripts |
 | Top | 🔵 | 162 | improvement-162 (filed 2026-08-20, placeholder) — architecture-map refactor, scope to be confirmed (candidates: root `scripts/*.sh`/`*.bat` doc rollout, or a real refactor of `generate-architecture-model.sh` itself) |
+| Top | 🔵 | 167 | improvement-167 (filed 2026-08-25) — DAG-aware agent-friendly script execution contract, piloted on `scripts/deploy-and-run.sh`. Investigated against real Dagu/script behavior; scope not yet decided (minimal `AGENTIC_ERROR_BLOCK`-on-failure vs. full run-identity/state-directory/event-stream mission vs. do nothing) — see issue file for the grounded analysis |
 | Top | 🟡 | 160 | improvement-160 (filed 2026-08-19) — AI certification practical coverage: incrementally find real, reusable places in this project to apply the private "Claude Certified Architect" certification's 5 domains. Tracking file: `improvement-160-certification-coverage-map.md`. No implementation started — ideas being added first |
 | Top | 🟡 | 156 | improvement-156 (filed 2026-08-17, split out of improvement-152 Part B) — ArchUnit Track B unblock decision gate. Technical prerequisite fixed and verified: `ArchitectureMetricsExport`'s module-coupling exporter (`--archunit-metrics`, real non-placeholder output). Actual unblock still gated on `improvement-138`'s two conditions (`improvement-135` item 5) — neither met. The larger method-level `spi_map_json()` replacement (real caller/implementor edges, closing improvement-157's data gap) remains fully undesigned |
 | Top | 🟡 | 157 | improvement-157 (filed 2026-08-17, split out of improvement-152 Part C) — SPI Interface Details table redesign: split Callers/Implemented By into two tables, group by Module → Class → Method instead of today's single class-level table. Design only, no code — depends on improvement-156 for real method-level caller/implementor data; open questions on DI-wiring-only-caller display and generic-interface type-argument display |

@@ -228,3 +228,47 @@ files live in different directories (`scripts/sonar/`, `scripts/build-and-test/`
 run's invoked-directory scope (`scripts/` root only). Fix is small and mechanical once picked up:
 add one sentence to each file's `Input`/`Outputs` field explaining the docker-cp/tar-pipe reason,
 matching `playwright/run.sh`'s existing pattern.
+
+### 13. Repo-wide prose references to old per-module `<module>/CLAUDE.md` paths went stale after path-scoped migration (found during improvement-168 Phase 2.2, 2026-08-25)
+
+All 13 module `CLAUDE.md` files moved to `.claude/rules/<module>.md` — root `CLAUDE.md`'s own
+pointers were updated in the same change, but prose references scattered across current-state
+documentation still cite the old `<module>/CLAUDE.md` path: `README.md`, `.claude/commands/
+autopilot.md`/`ci.md`/`run-all-tests.md`, `docs/ai/flows.md`, `docs/ai/adr-index.md`,
+`docs/architecture/scripts/liquibase-schema-to-json.js`, `integration-tests/README.md`,
+`scripts/ci/watch-run.py`. Confirmed none of them are runtime-read (only
+`generate-architecture-model.sh` was, already fixed in the same change) — these are stale text
+pointers, not broken functionality. `backlog/issues/`/`backlog/completed/issues/`/every
+`DECISIONS.md` also match the old path but are explicitly out of scope per `doc-standards`
+(append-only history / point-in-time records, not current-state documentation). Not fixed inline
+during improvement-168 since it wasn't part of that issue's approved plan (root `CLAUDE.md`'s
+own pointers + the generator script only). Mechanical fix once picked up: grep+replace
+`<module>/CLAUDE.md` → `.claude/rules/<module>.md` across the ~8 listed files.
+
+### 14. `ADR-010`/`ADR-011` near-verbatim duplicate across `audit-spring-boot-starter/DECISIONS.md` and `platform-commons/DECISIONS.md` (found during improvement-168 follow-up, 2026-08-25)
+
+Both entries — `audit-spring-boot-starter/DECISIONS.md` ADR-010 and `platform-commons/DECISIONS.md`
+ADR-011, both titled "Audit decoupled from attachment via AuditActivityEnrichHook" — describe the
+same decision with near-identical Context/Decision/Consequences text (the `Consequences` sentence
+"Audit starter must never import from `attachment.*` packages" appears verbatim in both). Each
+entry's own `Status:` line already cross-references the other, added after **this exact pair
+already drifted out of sync once** (2026-07-16 correction note, both entries: "the two entries had
+drifted to describe different, both-inaccurate mechanisms with no cross-reference between them") —
+the cross-reference was added as a partial fix at the time, but the full duplicated body text was
+never consolidated.
+
+Checked whether this is a systemic pattern before filing: scanned all 172 ADR titles across all 17
+`DECISIONS.md` files for exact duplicates — **this is the only match found.** Not a systemic
+problem worth a full audit (a full semantic near-duplicate sweep across 172 ADRs would be real,
+non-trivial effort for a demonstrated base rate of roughly 1-in-172); this single pair is worth
+fixing on its own since it already has a proven drift-risk track record, not because duplication
+across `DECISIONS.md` files turned out to be widespread.
+
+Fix once picked up: pick one canonical home (likely `platform-commons/DECISIONS.md`, since the SPI
+interface itself — `AuditActivityEnrichHook` — lives in `platform-commons`, matching this repo's
+own "SPI decisions live where the interface lives" pattern elsewhere in these files), keep the full
+Context/Decision/Consequences there, and shrink the other entry to a one-line pointer (`**Status:**
+Accepted — see platform-commons/DECISIONS.md ADR-011 for the full decision` style, no restated
+body) — mirroring how `doc-standards`' "one fact, one canonical home" already treats every other
+kind of cross-file fact in this repo. Regenerate `docs/ai/adr-index.md` in the same change (per
+`.claude/rules.md`'s standing rule).

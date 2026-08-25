@@ -1,3 +1,7 @@
+---
+paths: ["marketplace-app/**"]
+---
+
 ## marketplace-app: UI Layer
 
 The main Vaadin application. All UI code lives here — no UI in starters.

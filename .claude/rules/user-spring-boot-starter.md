@@ -1,3 +1,7 @@
+---
+paths: ["user-spring-boot-starter/**"]
+---
+
 ## user-spring-boot-starter
 
 Auto-configures the User domain including entity, service, security, and Spring Security integration. Active whenever the jar is on the classpath.

@@ -1,3 +1,7 @@
+---
+paths: ["advertisement-spring-boot-starter/**"]
+---
+
 ## advertisement-spring-boot-starter
 
 Auto-configures the Advertisement domain. Active whenever the jar is on the classpath.
