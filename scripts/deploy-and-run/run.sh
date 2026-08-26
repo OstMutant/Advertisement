@@ -29,7 +29,8 @@
 #                    .claude/nav/adr-index.md for the incident that made this explicit.
 # Uses: bash, docker, docker compose, docker buildx (--from-scratch only, via
 #   scripts/utils/ensure-docker-plugins.sh's ensure_buildx), scripts/build-and-test.sh (unless
-#   --from-scratch), scripts/deploy-and-run/reset.sh (with --reset-only-db).
+#   --from-scratch), scripts/deploy-and-run/reset.sh (with --reset-only-db),
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
 # Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), MINIO_CONTAINER
 #   (advertisement-minio), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
 #   (5432), MINIO_PORT (9000), MINIO_CONSOLE_PORT (9001), APP_PORT (8081), DB_VOLUME
@@ -43,13 +44,20 @@
 #   container unless --from-scratch).
 # Outputs: running marketplace-app container on APP_PORT -- a real, separately built and tagged
 #   "marketplace-app" image only with --from-scratch; the default path runs `java -jar` inside a
-#   plain eclipse-temurin:25-jre container with no image of its own.
+#   plain eclipse-temurin:25-jre container with no image of its own. Also prints a single-line
+#   AGENTIC_SUCCESS_BLOCK JSON marker on a clean finish, or an AGENTIC_ERROR_BLOCK JSON marker
+#   (errorCategory/isRetryable/currentStep/description/durationSeconds) on any failure path, for
+#   an AI agent reading raw script output to parse machine-readable status instead of scraping
+#   free text.
 # Returns: 0 on success, non-zero on build/startup failure.
 # ────────────────────────────────────────────────────────────────────────────
 set -e
+SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LOG=/tmp/deploy.log
+
+source "$ROOT/scripts/utils/agentic-output.sh"
 
 # Load shared credential/port defaults from the repo-root .env (also read natively by
 # scripts/deploy-and-run/docker-compose*.yml and integration-tests' Testcontainers) into ENV_*-prefixed
@@ -104,9 +112,9 @@ for arg in "$@"; do
 done
 
 if $FILE_MODE; then
-  trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "App logs:"; docker logs --tail=40 "$APP_CONTAINER" 2>/dev/null; echo "Full log: $LOG"; exit $_rc' ERR
+  trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "App logs:"; docker logs --tail=40 "$APP_CONTAINER" 2>/dev/null; echo "Full log: $LOG"; emit_agentic_error_block "transient" "true" "deploy" "Deploy script failed with exit code $_rc -- see log above (full log: $LOG)."; exit $_rc' ERR
 else
-  trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; docker logs --tail=20 "$APP_CONTAINER" 2>/dev/null; exit $_rc' ERR
+  trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; docker logs --tail=20 "$APP_CONTAINER" 2>/dev/null; emit_agentic_error_block "transient" "true" "deploy" "Deploy script failed with exit code $_rc -- see log above."; exit $_rc' ERR
 fi
 
 # ── Helper: pull image if not present locally ─────────────────────────────────
@@ -350,13 +358,16 @@ if [ $status -eq 1 ]; then
   if [ $status -ne 0 ]; then
     echo "=== FAILED: startup failed again after auto-reset ==="
     docker logs --tail=50 "$APP_CONTAINER"
+    emit_agentic_error_block "validation" "false" "start-application" "Liquibase checksum mismatch persisted after automatic DB/MinIO reset and retry -- requires manual investigation, not a transient failure."
     exit 1
   fi
 elif [ $status -ne 0 ]; then
   echo "=== FAILED: startup timed out ==="
   docker logs --tail=50 "$APP_CONTAINER"
+  emit_agentic_error_block "transient" "true" "start-application" "Application did not report 'Started Application' within the startup timeout."
   exit 1
 fi
 
 echo ""
 echo "=== Application is ready at http://localhost:$APP_PORT ==="
+emit_agentic_success_block "start-application"

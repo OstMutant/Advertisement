@@ -11,7 +11,8 @@
 #   even if already present locally; default skips the pull once an image exists locally (checking
 #   Docker Hub on every run cost real time -- ~170s observed -- for no benefit on the common path).
 # Uses: bash, docker (SonarQube server + scanner containers), scripts/build-and-test.sh,
-#   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose, python3 (HTML report).
+#   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose, python3 (HTML report),
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
 # Env: None.
 # Input: sonar-project.properties, each module's src/main/java (copied from the host), the shared
 #   maven-cache Docker volume's target-classes/<module> (mounted into the scanner container), the
@@ -24,8 +25,14 @@
 #   supported -- local scan history is wiped via `docker compose down -v` and the server restarts
 #   fresh on the new image) -- see DECISIONS.md.
 # Returns: 0 on success (or always, with --no-gate); non-zero if the quality gate result is ERROR.
+#   Also prints a single-line AGENTIC_SUCCESS_BLOCK JSON marker on a clean finish, or an
+#   AGENTIC_ERROR_BLOCK JSON marker (errorCategory/isRetryable/currentStep/description/
+#   durationSeconds) on any failure path (script error, token generation, quality gate), for an
+#   AI agent reading raw script output to parse machine-readable status instead of scraping free
+#   text.
 # ────────────────────────────────────────────────────────────────────────────
 set -e
+SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
@@ -37,7 +44,8 @@ for arg in "$@"; do
 done
 
 LOG=/tmp/sonar.log
-trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "Last output:"; tail -20 "$LOG" 2>/dev/null; echo "Full log: $LOG"; exit $_rc' ERR
+source "$ROOT/scripts/utils/agentic-output.sh"
+trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "Last output:"; tail -20 "$LOG" 2>/dev/null; echo "Full log: $LOG"; emit_agentic_error_block "transient" "true" "sonar-analysis" "Sonar script failed with exit code $_rc -- see log above (full log: $LOG)."; exit $_rc' ERR
 
 SONAR_URL="http://localhost:9099"
 COMPOSE_FILE="$ROOT/scripts/sonar/docker-compose.sonar.yml"
@@ -150,6 +158,7 @@ if ! curl -s -u "$CURRENT_TOKEN:" "$SONAR_URL/api/authentication/validate" | gre
     -d "name=claude-$(date +%s)" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
   if [ -z "$NEW_TOKEN" ]; then
     echo "ERROR: failed to generate SonarQube token. Check admin credentials."
+    emit_agentic_error_block "permission" "false" "token-generation" "Failed to generate a new SonarQube token via admin/admin credentials -- an authorisation problem, not a transient one."
     exit 1
   fi
   sed -i "s|^sonar.token=.*|sonar.token=$NEW_TOKEN|" "$PROPS_FILE"
@@ -353,10 +362,15 @@ echo "Local log:         $ROOT/scripts/logs/sonar/run.log"
 if [ "$EXIT_CODE" -ne 0 ] && [ -z "$NO_GATE" ]; then
   echo ""
   echo "=== QUALITY GATE FAILED (exit $EXIT_CODE) === (--no-gate to make this informational only)"
+  emit_agentic_error_block "business" "false" "quality-gate" "SonarQube quality gate failed (scanner exit code $EXIT_CODE) -- a policy/quality-rule violation, not retryable as-is."
 fi
 
 # --no-gate always exits 0 -- gate result is informational only, per its own documented contract.
 # GATE_FLAG (sonar.qualitygate.wait=true) still ran above regardless, so EXIT_CODE may be non-zero
 # here even under --no-gate; that's expected and deliberately not surfaced as a failure.
-[ -n "$NO_GATE" ] && exit 0
+if [ -n "$NO_GATE" ]; then
+  emit_agentic_success_block "sonar-analysis"
+  exit 0
+fi
+[ "$EXIT_CODE" -eq 0 ] && emit_agentic_success_block "sonar-analysis"
 exit $EXIT_CODE

@@ -37,7 +37,8 @@
 #                               itself changed since the last run
 #   --playwright "<args>"      forwarded verbatim to playwright.sh
 # Uses: bash, docker (alpine image, for the persistent run-all-tests-reports container),
-#   scripts/build-and-test.sh, scripts/deploy-and-run.sh, scripts/playwright.sh.
+#   scripts/build-and-test.sh, scripts/deploy-and-run.sh, scripts/playwright.sh,
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
 # Env: None directly -- flags forwarded to build-and-test.sh/deploy-and-run.sh/playwright.sh carry
 #   their own Env behavior, see those scripts' own headers.
 # Input: None beyond CLI flags.
@@ -59,8 +60,15 @@
 #   scripts/build-and-test/reports/architecture-metrics.json (produced by build-and-test.sh itself,
 #   not duplicated here).
 # Returns: 0 if build-and-test.sh, deploy-and-run.sh, and playwright.sh all succeed, 1 if any fail.
+#   Also prints a single-line AGENTIC_SUCCESS_BLOCK JSON marker on a clean finish, or an
+#   AGENTIC_ERROR_BLOCK JSON marker (errorCategory/isRetryable/currentStep/description/
+#   durationSeconds) once both the build-and-test.sh and deploy-and-run.sh+playwright.sh branches
+#   have finished -- this script deliberately lets both branches run to completion even if one
+#   fails, so there is no earlier per-command failure point to attach the marker to.
 # ────────────────────────────────────────────────────────────────────────────
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+SECONDS=0
+source "$ROOT/scripts/utils/agentic-output.sh"
 # Display-only from here on -- this script itself never writes to a host path anymore (see the
 # no-host-copy note further down); run-all-tests.bat's own native copy step is what actually
 # populates this directory, after this script returns.
@@ -188,4 +196,9 @@ $RESULT_LINE"
 echo "$SUMMARY"
 log_orchestrator "$SUMMARY"
 
+if [ "$BUILD_EXIT" -ne 0 ] || [ "$PW_EXIT" -ne 0 ]; then
+  emit_agentic_error_block "business" "false" "run-all-tests" "run-all-tests.sh finished with a failure (build-and-test exit $BUILD_EXIT, deploy+playwright exit $PW_EXIT) -- see $BUILD_LOG / $PW_LOG, not retryable as-is."
+else
+  emit_agentic_success_block "run-all-tests"
+fi
 exit $(( BUILD_EXIT != 0 || PW_EXIT != 0 ))

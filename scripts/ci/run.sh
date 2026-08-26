@@ -42,7 +42,8 @@
 #                                        host, without triggering a new run (automatic after
 #                                        --foreground; needed manually after a background run, or
 #                                        after triggering a run directly from Dagu's own web UI)
-# Uses: bash, docker, curl.
+# Uses: bash, docker, curl, scripts/utils/agentic-output.sh
+#   (emit_agentic_success_block/emit_agentic_error_block).
 # Env: None read directly -- every flag above is translated into either a container-start env var
 #   (FORCE_TOOLS_REFRESH, passed via `docker run -e`) or a Dagu param (passed via
 #   `dagu start ... -- key=value`).
@@ -57,10 +58,17 @@
 #   scripts/ci/reports/pipeline-metrics.json on the host.
 # Returns: 0 on success; non-zero on an unrecognized flag, image-build failure, Dagu-startup
 #   failure, or (--foreground only) a failed DAG run -- a backgrounded run always returns 0 once
-#   triggered, regardless of how the DAG run itself later finishes.
+#   triggered, regardless of how the DAG run itself later finishes. Also prints a single-line
+#   AGENTIC_SUCCESS_BLOCK JSON marker on a clean finish (including a successfully-triggered
+#   background run), or an AGENTIC_ERROR_BLOCK JSON marker
+#   (errorCategory/isRetryable/currentStep/description/durationSeconds) on any failure path, for
+#   an AI agent reading raw script output to parse machine-readable status instead of scraping
+#   free text.
 # ────────────────────────────────────────────────────────────────────────────
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+SECONDS=0
+source "$ROOT/scripts/utils/agentic-output.sh"
 IMAGE=ci-runner
 CONTAINER=ci-runner
 DAGU_PORT=18080
@@ -122,6 +130,7 @@ for arg in "$@"; do
     *)
       echo "Unknown flag: $arg"
       echo "See usage at the top of scripts/ci/run.sh"
+      emit_agentic_error_block "validation" "true" "arg-parsing" "Unknown flag: $arg -- fix the invocation and retry."
       exit 1
       ;;
   esac
@@ -131,6 +140,7 @@ if [ -n "$SYNC_ARTIFACTS_ONLY" ]; then
   sync_artifacts
   echo "Synced architecture-metrics.json/pipeline-metrics.json from $CONTAINER onto the host" \
        "(whatever was present -- no-op for either file the container hasn't produced yet)."
+  emit_agentic_success_block "sync-artifacts"
   exit 0
 fi
 
@@ -151,6 +161,7 @@ if [ -z "$NO_REBUILD" ]; then
   BUILD_RC=$?
   if [ "$BUILD_RC" -ne 0 ]; then
     echo "===== FAILED (ci-runner image build, exit $BUILD_RC) ====="
+    emit_agentic_error_block "transient" "true" "build-image" "ci-runner image build failed with exit code $BUILD_RC."
     exit $BUILD_RC
   fi
 
@@ -183,6 +194,7 @@ if [ -z "$NO_REBUILD" ]; then
   done
   if [ -z "$UP" ]; then
     echo "===== FAILED (Dagu web UI never came up on :$DAGU_PORT -- check: docker logs $CONTAINER) ====="
+    emit_agentic_error_block "transient" "true" "start-ci-runner" "Dagu web UI never came up on :$DAGU_PORT within the startup wait -- check: docker logs $CONTAINER."
     exit 1
   fi
 
@@ -233,8 +245,10 @@ if [ -n "$FOREGROUND" ]; then
   echo ""
   if [ "$EXIT_CODE" -eq 0 ]; then
     echo "===== PASSED ====="
+    emit_agentic_success_block "ci-run"
   else
     echo "===== FAILED (exit $EXIT_CODE) ====="
+    emit_agentic_error_block "business" "false" "ci-run" "CI DAG run failed (exit $EXIT_CODE) -- one or more stages did not pass, not retryable as-is."
   fi
   echo "Full history: http://localhost:$UI_PROXY_PORT"
   exit $EXIT_CODE
@@ -245,4 +259,5 @@ else
   echo "Watch live status/logs: http://localhost:$UI_PROXY_PORT"
   echo "Once it finishes, run 'bash scripts/ci/run.sh --sync-artifacts' to pull" \
        "architecture-metrics.json/pipeline-metrics.json onto the host."
+  emit_agentic_success_block "trigger-background-run"
 fi

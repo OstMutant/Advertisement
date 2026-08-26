@@ -17,7 +17,8 @@
 #   --ux                  also take screenshots (embedded in the HTML report)
 #   --grep <pattern>      forwarded to Playwright's own --grep, run only matching tests
 # Uses: bash, docker, curl, npx playwright (inside pw-runner), scripts/deploy-and-run/reset.sh (DB
-#   reset, only when the DB actually has data).
+#   reset, only when the DB actually has data), scripts/utils/agentic-output.sh
+#   (emit_agentic_success_block/emit_agentic_error_block).
 # Env: APP_URL (default http://localhost:8081), APP_CONTAINER (marketplace-app), PW_CONTAINER
 #   (pw-runner), DB_PORT (5432), DB_USER (experiments_user), DB_NAME (experiments) -- all
 #   overridable, used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack.
@@ -38,10 +39,16 @@
 #   directly at any time, e.g. `docker exec pw-runner cat /reports/playwright-log/orchestrator.log`.
 #   Restarts marketplace-app if the DB needed a reset.
 # Returns: 0 if the Playwright run passes; non-zero if the app container isn't found/doesn't start,
-#   the DB reset fails, or any test fails.
+#   the DB reset fails, or any test fails. Also prints a single-line AGENTIC_SUCCESS_BLOCK JSON
+#   marker on a clean finish, or an AGENTIC_ERROR_BLOCK JSON marker
+#   (errorCategory/isRetryable/currentStep/description/durationSeconds) on any failure path, for
+#   an AI agent reading raw script output to parse machine-readable status instead of scraping
+#   free text.
 # ────────────────────────────────────────────────────────────────────────────
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SECONDS=0
+source "$ROOT/scripts/utils/agentic-output.sh"
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 UX=""
@@ -114,6 +121,7 @@ if ! docker inspect "$APP_CONTAINER" &>/dev/null; then
   echo "    -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 \\"
   echo "    -e S3_REGION=us-east-1 \\"
   echo "    -e S3_PUBLIC_URL=http://localhost:9000/advertisement marketplace-app"
+  emit_agentic_error_block "validation" "false" "check-app-container" "Container '$APP_CONTAINER' not found -- build and start it first, per the commands printed above."
   exit 1
 fi
 
@@ -134,13 +142,14 @@ if [ "$STATUS" != "running" ]; then
       echo "ERROR: startup timed out"
       log_orchestrator "ERROR: startup timed out"
       docker logs --tail=40 "$APP_CONTAINER"
+      emit_agentic_error_block "transient" "true" "start-app" "$APP_CONTAINER did not report 'Started Application' within the startup timeout."
       exit 1
     fi
     sleep 2
   done
 else
   curl -s --max-time 5 "$APP_URL" >/dev/null 2>&1 \
-    || { echo "ERROR: $APP_CONTAINER running but not responding"; log_orchestrator "ERROR: $APP_CONTAINER running but not responding"; docker logs --tail=30 "$APP_CONTAINER"; exit 1; }
+    || { echo "ERROR: $APP_CONTAINER running but not responding"; log_orchestrator "ERROR: $APP_CONTAINER running but not responding"; docker logs --tail=30 "$APP_CONTAINER"; emit_agentic_error_block "transient" "true" "check-app-container" "$APP_CONTAINER is running but not responding on $APP_URL."; exit 1; }
 fi
 
 # ── Reset / seed database ─────────────────────────────────────────────────────
@@ -172,6 +181,7 @@ if [ -n "$DB_CONTAINER" ]; then
         echo "ERROR: restart timed out"
         log_orchestrator "ERROR: restart timed out"
         docker logs --tail=40 "$APP_CONTAINER"
+        emit_agentic_error_block "transient" "true" "restart-app" "$APP_CONTAINER did not report 'Started Application' within the restart timeout after the DB reset."
         exit 1
       fi
       sleep 2
@@ -241,6 +251,7 @@ if [ -n "$SCENARIO" ]; then
       echo "Error: spec not found: $SCENARIO"
       echo "Available:"
       find "$ROOT/playwright" -name "*.spec.js" -not -path "*/node_modules/*" | sort | sed "s|$ROOT/playwright/||"
+      emit_agentic_error_block "validation" "false" "arg-parsing" "Spec not found: $SCENARIO -- fix the scenario name and retry."
       exit 1
     fi
     SPEC_REL="${SPEC_FILE#$ROOT/playwright/}"
@@ -265,4 +276,9 @@ docker cp "$PW_CONTAINER":/reports/playwright/. "$ROOT/playwright/pw-report/" 2>
   echo "HTML report: $ROOT/playwright/pw-report/index.html"
 docker cp "$PW_CONTAINER":/reports/playwright-log/. "$ROOT/scripts/logs/playwright/" 2>/dev/null
 
+if [ "$EXIT_CODE" -ne 0 ]; then
+  emit_agentic_error_block "business" "false" "playwright-run" "Playwright run failed (exit $EXIT_CODE) -- one or more tests did not pass, not retryable as-is."
+else
+  emit_agentic_success_block "playwright-run"
+fi
 exit $EXIT_CODE

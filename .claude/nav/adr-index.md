@@ -177,6 +177,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-008 (scripts/ci) | scripts/ci | Accepted |  | `unit`/`integration` stages merged into one `build_and_test` stage |
 | ADR-009 (scripts/ci) | scripts/ci | Accepted |  | `progress.txt` polling replaced by a persistent Dagu server; three problems only found by running it for real |
 | ADR-010 (scripts/ci) | scripts/ci | Accepted |  | CI pipeline metrics + ArchUnit export as DAG steps; three more real bugs; a genuine build-speed fix along the way |
+| ADR-013 (scripts) | scripts | Accepted |  | Agentic JSON output envelope (AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK) for script results |
 | ADR-001 (scripts) | scripts | Accepted |  | All operations via project scripts — no raw commands |
 | ADR-002 (scripts) | scripts | Accepted, with one carved-out exception — see the update note below. |  | scripts/ folder for all developer scripts |
 | ADR-003 (scripts) | scripts | Accepted |  | deploy-and-run.sh startup detection |

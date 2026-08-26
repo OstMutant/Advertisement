@@ -2089,3 +2089,22 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   every live run's own backlog cross-check correctly excluded its candidates (either real issues
   already tracked, or a deliberately-injected test fixture the orchestrator recognized from this
   issue's own text). Full detail: `completed/issues/improvement-171-formalize-deep-review-agents.md`.
+
+✅ Done (2026-08-26): improvement-167 — DAG-aware agent-friendly script execution contract,
+  narrowed after investigation to a minimal shared-utility candidate (full mission scope rejected
+  as overbuilt for the project's real scale — no concurrent self-invocation, no state files
+  written today). New `scripts/utils/agentic-output.sh` (`emit_agentic_success_block`/
+  `emit_agentic_error_block`) emits a single-line JSON marker (`AGENTIC_SUCCESS_BLOCK`/
+  `AGENTIC_ERROR_BLOCK`, `errorCategory`/`isRetryable`/`currentStep`/`description`/
+  `durationSeconds`) on every real exit path of all 7 top-level `scripts/*.sh` entry points
+  (`deploy-and-run/run.sh`, `deploy-and-run/reset.sh`, `sonar/run.sh`, `build-and-test/run.sh`,
+  `run-all-tests/run.sh`, `ci/run.sh`, `playwright/run.sh`) — mechanism (trap-based vs. inline)
+  matched to each script's own real control-flow shape rather than forced uniformly, since a
+  uniform `trap ERR` would have broken `run-all-tests.sh`'s intentional dual-branch-to-completion
+  design. Error-category taxonomy (`transient`/`validation`/`business`/`permission`) verified
+  directly against the real private certification document, correcting the originating issue's own
+  invented `environment` category. Recorded as `scripts/DECISIONS.md` ADR-013. Verified live:
+  `deploy-and-run.sh` end to end (success path) and `build-and-test.sh --unit --integration
+  --sandbox` (163 tests, 0 failures) both printed the expected `AGENTIC_SUCCESS_BLOCK`. No error
+  path exercised live in any of the 7 scripts — verified by syntax check + review only. Full
+  detail: `completed/issues/improvement-167-dag-aware-agent-friendly-script-execution-contract.md`.

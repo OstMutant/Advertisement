@@ -45,7 +45,8 @@
 #                                     for --unit/--integration/--archunit-metrics runs, never for a
 #                                     plain cache-priming build or anything deploy-and-run.sh/e2e
 #                                     relies on (see build.sh's own header for why)
-# Uses: bash, docker, tar, grep, sed.
+# Uses: bash, docker, tar, grep, sed, scripts/utils/agentic-output.sh
+#   (emit_agentic_success_block/emit_agentic_error_block).
 # Env: BUILD_CONTAINER_NAME (default advertisement-build-only) -- overridable so two invocations of
 #   this script can run concurrently without a Docker container-name collision (Docker container
 #   names must be unique; a fixed name means a second concurrent `docker run` with the same name
@@ -91,11 +92,17 @@
 #   also be inspected directly at any time without waiting for a full run + copy-out cycle, e.g.
 #   `docker run --rm -v test-reports:/reports alpine cat /reports/logs/unit-tests.log`. Prunes
 #   dangling Docker images after every run.
-# Returns: 0 on success, non-zero on install/test/precondition failure.
+# Returns: 0 on success, non-zero on install/test/precondition failure. Also prints a single-line
+#   AGENTIC_SUCCESS_BLOCK JSON marker on a clean finish, or an AGENTIC_ERROR_BLOCK JSON marker
+#   (errorCategory/isRetryable/currentStep/description/durationSeconds) on any failure path, for
+#   an AI agent reading raw script output to parse machine-readable status instead of scraping
+#   free text.
 # ────────────────────────────────────────────────────────────────────────────
 set -e
+SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+source "$ROOT/scripts/utils/agentic-output.sh"
 BUILD_IMAGE="advertisement-build-env"
 BUILD_CONTAINER_NAME="${BUILD_CONTAINER_NAME:-advertisement-build-only}"
 DOCKERFILE="$ROOT/scripts/build-and-test/Dockerfile"
@@ -143,6 +150,8 @@ for arg in "$@"; do
   esac
 done
 
+trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; emit_agentic_error_block "transient" "true" "build-and-test" "build-and-test.sh failed with exit code $_rc -- see log above."; exit $_rc' ERR
+
 if $SANDBOX; then
   TESTCONTAINERS_RYUK_DISABLED=true
   INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432
@@ -182,6 +191,7 @@ if [ "$RUN_INTEGRATION" = "true" ]; then
   if ! docker info >/dev/null 2>&1; then
     echo "ERROR: Docker daemon not reachable. RUN_INTEGRATION requires a running Docker daemon" \
          "(Testcontainers starts a real Postgres container). Start Docker Desktop / dockerd and retry."
+    emit_agentic_error_block "validation" "false" "precondition-check" "Docker daemon not reachable -- RUN_INTEGRATION requires a running Docker daemon. Not retryable until the daemon is started."
     exit 1
   fi
 fi
@@ -301,4 +311,8 @@ docker rm -f "$BUILD_CONTAINER_NAME" >/dev/null 2>&1 || true
 # those are host-wide operations, opt-in only, see scripts/CLAUDE.md) ─────────
 docker image prune -f >/dev/null
 
-[ "$BUILD_EXIT" -eq 0 ] || exit $BUILD_EXIT
+if [ "$BUILD_EXIT" -ne 0 ]; then
+  emit_agentic_error_block "business" "false" "build-and-test" "Build/test run failed with exit code $BUILD_EXIT (unit/integration test or build failure inside the container) -- see Surefire reports / logs, not retryable as-is."
+  exit $BUILD_EXIT
+fi
+emit_agentic_success_block "build-and-test"
