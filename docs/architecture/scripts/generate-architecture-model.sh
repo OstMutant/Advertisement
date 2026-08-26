@@ -128,8 +128,11 @@ declare -A SCRIPT_TREE_ROOT_CATEGORY=(
 SCRIPT_TREE_ROOTS=(scripts playwright .claude)
 
 # Directories that never become their own card/tree node even though they sit inside a
-# SCRIPT_TREE_ROOTS subtree -- generated/report output, never source.
-SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report logs node_modules)
+# SCRIPT_TREE_ROOTS subtree -- generated/report output, never source. "wiki" is Dagu's own
+# runtime-created documentation folder (see `dagu config`'s "Wiki directory"), written directly
+# into whatever directory Dagu was started with `--dags` pointed at -- not part of the real source
+# tree, confirmed by its absence outside a running ci-runner container.
+SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report logs node_modules wiki)
 
 # Directories whose real subdirectories are never recursed into, even though they exist on disk --
 # .claude/skills/<name>/ is never a folder-card of its own: each skill's own SKILL.md is already
@@ -1124,7 +1127,7 @@ constructor_injection_json() {
     $first_i || items_json="$items_json,"$'\n'
     first_i=false
     items_json="$items_json    {\"class\": \"$(json_escape "$class_name")\", \"module\": \"$(json_escape "$mod")\", \"fieldCount\": $field_count, \"file\": \"$(json_escape "${f#"$REPO_ROOT"/}")\"}"
-  done < <(grep -rl '@RequiredArgsConstructor' "$REPO_ROOT" --include='*.java' 2>/dev/null | grep -v '/target/' | grep '/src/main/java/')
+  done < <(grep -rl '@RequiredArgsConstructor' "$REPO_ROOT" --include='*.java' 2>/dev/null | grep -v '/target/' | grep '/src/main/java/' | sort)
 
   echo "[$items_json"$'\n'"  ]"
 }
@@ -1418,7 +1421,7 @@ bounded_contexts_json() {
     for pf in "$REPO_ROOT/platform-commons/src/main/java"/org/ost/platform/*/spi/*Port.java; do
       [ -f "$pf" ] || continue
       p_iface="$(basename "$pf" .java)"
-      p_evidence="$(grep -rlP "ComponentFactory<\s*${p_iface}\s*>|\b${p_iface}\s+\w+\s*;" "$REPO_ROOT/$bc_orch_mod/src/main/java" --include='*.java' 2>/dev/null | head -1)" || true
+      p_evidence="$(grep -rlP "ComponentFactory<\s*${p_iface}\s*>|\b${p_iface}\s+\w+\s*;" "$REPO_ROOT/$bc_orch_mod/src/main/java" --include='*.java' 2>/dev/null | sort | head -1)" || true
       [ -z "$p_evidence" ] && continue
       for d in "${BC_DOMAIN_ORDER_STARTERS[@]}"; do
         grep -qlP "implements\s+.*\b${p_iface}\b" -r --include='*.java' "$REPO_ROOT/${BC_DOMAIN_MODULE[$d]}/src/main/java" 2>/dev/null || continue
@@ -1502,7 +1505,7 @@ bounded_contexts_json() {
     hook_iface="$(basename "$hif" .java)"
     impl_file="$(grep -rlP "implements\s+.*\b${hook_iface}\b" \
         "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/spi" \
-        "$REPO_ROOT/marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi" --include='*.java' 2>/dev/null | head -1)"
+        "$REPO_ROOT/marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi" --include='*.java' 2>/dev/null | sort | head -1)"
     [ -z "$impl_file" ] && continue
     impl_domain="UI"
     case "$impl_file" in "$REPO_ROOT/marketplace-orchestrator/"*) impl_domain="Orchestrator" ;; esac
@@ -1523,7 +1526,7 @@ bounded_contexts_json() {
     done < <(grep -rlP "List<\s*${hook_iface}\s*>|\b${hook_iface}\s+\w+\s*;|ComponentFactory<\s*${hook_iface}\s*>" \
         "$REPO_ROOT"/*-spring-boot-starter/src/main/java "$REPO_ROOT/marketplace-orchestrator/src/main/java" --include='*.java' 2>/dev/null | sort -u)
   done < <(find "$REPO_ROOT/platform-commons/src/main/java" "$REPO_ROOT/marketplace-orchestrator/src/main/java" \
-      -path '*/spi/*Hook.java' 2>/dev/null)
+      -path '*/spi/*Hook.java' 2>/dev/null | sort)
 
   local rel_json="" first_r=true i rel_payload_value
   for i in "${!rel_key[@]}"; do

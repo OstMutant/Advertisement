@@ -538,6 +538,19 @@ a symptom instead of addressing why it happens, even when the workaround looks r
 surface. Before proposing any fix, confirm it addresses the actual cause, not just the visible
 symptom.
 
+**A confirmed SonarQube false positive gets marked in both places, never just one.** Before
+treating any SonarQube finding as a false positive, verify it directly against the actual flagged
+line and the rule's own real definition (pulled from the server, not assumed) — never take the
+rule's name at face value. Once genuinely confirmed:
+1. Mark the issue false positive in SonarQube itself, so it stops failing the quality gate.
+2. Add `@SuppressWarnings("<rule-key>")` at the flagged code, so the suppression survives even if
+   the local SonarQube instance's own data is ever wiped (its embedded DB is already known to
+   reset on certain image upgrades — an issue marked false-positive only in SonarQube's own state
+   resurfaces as new on the next scan once that state is gone). No inline comment alongside it —
+   the rule key in the annotation is already self-documenting and searchable on its own.
+Never suppress a finding in code without also confirming it's genuinely false first — a suppression
+is only legitimate when the finding truly doesn't apply, never a shortcut to silence a real one.
+
 ---
 
 ## Overlay Pattern

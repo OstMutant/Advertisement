@@ -155,7 +155,7 @@ public class TaxonManagementView extends Div {
                         taxonCatalogService.softDelete(taxon.getId(), access.getCurrentUserId(), taxon.getVersion());
                         notificationService.success(TAXON_VIEW_NOTIFICATION_DELETED);
                         refresh();
-                    } catch (Exception e) {
+                    } catch (@SuppressWarnings("java:S7467") Exception e) {
                         log.error("Error deleting taxon id={}", taxon.getId(), e);
                         notificationService.error(TAXON_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
                     }

@@ -16,7 +16,8 @@
 #   --e2e                    -- run the e2e stage
 #   --sonar                  -- run the sonar stage
 #   --all                    -- unit + integration + e2e (no sonar)
-#   --no-docs                -- skip the doc-freshness stage
+#   --no-docs                -- skip the docs stage (regenerates architecture-model.json/
+#                                architecture-map.html inside the container -- see ci.yaml)
 #   --playwright-args <arg>  -- override the e2e stage's Playwright args (default
 #                                "e2e --full --ux")
 #   --reset-e2e-db           -- deploy e2e's stack with a full --reset (DB/MinIO volume wipe, full
@@ -38,7 +39,8 @@
 #                                      cheap compared to e2e, feeds
 #                                      generate-architecture-model.sh --with-archunit)
 #   --sync-artifacts                 -- pull whatever architecture-metrics.json/
-#                                        pipeline-metrics.json the container has produced onto the
+#                                        pipeline-metrics.json/architecture-model.json/
+#                                        architecture-map.html the container has produced onto the
 #                                        host, without triggering a new run (automatic after
 #                                        --foreground; needed manually after a background run, or
 #                                        after triggering a run directly from Dagu's own web UI)
@@ -54,11 +56,15 @@
 #   UI, reachable at http://localhost:8082 through the ci-runner-dagu-proxy sidecar (ci-runner
 #   itself runs --network host, whose bound ports aren't reachable from a real browser in this
 #   sandbox -- see DECISIONS.md). With --foreground or --sync-artifacts, also refreshes
-#   scripts/build-and-test/reports/architecture-metrics.json and
-#   scripts/ci/reports/pipeline-metrics.json on the host.
+#   scripts/build-and-test/reports/architecture-metrics.json,
+#   scripts/ci/reports/pipeline-metrics.json, and (whenever the docs stage ran and regenerated
+#   them) docs/architecture/data/architecture-model.json and docs/architecture/architecture-map.html
+#   on the host.
 # Returns: 0 on success; non-zero on an unrecognized flag, image-build failure, Dagu-startup
-#   failure, or (--foreground only) a failed DAG run -- a backgrounded run always returns 0 once
-#   triggered, regardless of how the DAG run itself later finishes. Also prints a single-line
+#   failure, a failed docker cp of architecture-model.json/architecture-map.html onto the host
+#   (--foreground/--sync-artifacts only), or (--foreground only) a failed DAG run -- a backgrounded
+#   run always returns 0 once triggered, regardless of how the DAG run itself later finishes. Also
+#   prints a single-line
 #   AGENTIC_SUCCESS_BLOCK JSON marker on a clean finish (including a successfully-triggered
 #   background run), or an AGENTIC_ERROR_BLOCK JSON marker
 #   (errorCategory/isRetryable/currentStep/description/durationSeconds) on any failure path, for
@@ -92,15 +98,25 @@ ANY_STAGE_FLAG=""
 
 # `docker cp`'s "local" side always resolves in the caller's own filesystem -- run from here (the
 # real host), not from inside a DAG step (confirmed directly: a step-side `docker cp` landed the
-# file inside ci-runner's own filesystem, not the host's, even with docker.sock mounted). Copies
-# whatever's present regardless of exit code, so a failed/partial run still surfaces whatever
-# archunit_metrics/pipeline_metrics managed to produce before failing.
+# file inside ci-runner's own filesystem, not the host's, even with docker.sock mounted).
+# architecture-metrics.json/pipeline-metrics.json are copied best-effort (errors suppressed) since
+# a failed/partial run still surfaces whatever archunit_metrics/pipeline_metrics managed to produce
+# before failing. architecture-model.json/architecture-map.html are different: the docs DAG step
+# now regenerates them in place (see ci.yaml), so a copy failure here means the host's committed
+# copies were NOT actually refreshed -- returns non-zero in that case so callers can tell.
 sync_artifacts() {
   mkdir -p "$ROOT/scripts/build-and-test/reports" "$ROOT/scripts/ci/reports"
   docker cp "$CONTAINER:/app/scripts/build-and-test/reports/architecture-metrics.json" \
     "$ROOT/scripts/build-and-test/reports/architecture-metrics.json" 2>/dev/null
   docker cp "$CONTAINER:/app/scripts/ci/reports/pipeline-metrics.json" \
     "$ROOT/scripts/ci/reports/pipeline-metrics.json" 2>/dev/null
+
+  local docs_synced=0
+  docker cp "$CONTAINER:/app/docs/architecture/data/architecture-model.json" \
+    "$ROOT/docs/architecture/data/architecture-model.json" || docs_synced=1
+  docker cp "$CONTAINER:/app/docs/architecture/architecture-map.html" \
+    "$ROOT/docs/architecture/architecture-map.html" || docs_synced=1
+  return $docs_synced
 }
 
 NEXT=""
@@ -137,11 +153,17 @@ for arg in "$@"; do
 done
 
 if [ -n "$SYNC_ARTIFACTS_ONLY" ]; then
-  sync_artifacts
-  echo "Synced architecture-metrics.json/pipeline-metrics.json from $CONTAINER onto the host" \
-       "(whatever was present -- no-op for either file the container hasn't produced yet)."
-  emit_agentic_success_block "sync-artifacts"
-  exit 0
+  if sync_artifacts; then
+    echo "Synced architecture-metrics.json/pipeline-metrics.json/architecture-model.json/" \
+         "architecture-map.html from $CONTAINER onto the host."
+    emit_agentic_success_block "sync-artifacts"
+    exit 0
+  else
+    echo "Synced architecture-metrics.json/pipeline-metrics.json, but failed to copy" \
+         "architecture-model.json/architecture-map.html from $CONTAINER onto the host."
+    emit_agentic_error_block "transient" "true" "sync-artifacts" "docker cp of architecture-model.json/architecture-map.html failed -- is $CONTAINER running?"
+    exit 1
+  fi
 fi
 
 # No explicit stage flag at all -> default to the most extensive run (mirrors
@@ -241,7 +263,11 @@ DAG_FILE=scripts/ci/dagu/ci.yaml
 if [ -n "$FOREGROUND" ]; then
   docker exec "$CONTAINER" dagu start "$DAG_FILE" -- "${DAGU_PARAMS[@]}"
   EXIT_CODE=$?
-  sync_artifacts
+  if ! sync_artifacts && [ "$EXIT_CODE" -eq 0 ]; then
+    echo "docker cp of architecture-model.json/architecture-map.html failed -- the docs stage" \
+         "regenerated them inside $CONTAINER, but the host's committed copies were not refreshed."
+    EXIT_CODE=1
+  fi
   echo ""
   if [ "$EXIT_CODE" -eq 0 ]; then
     echo "===== PASSED ====="

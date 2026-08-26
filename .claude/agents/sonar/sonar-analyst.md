@@ -1,6 +1,6 @@
 ---
 name: sonar-analyst
-description: Queries the local SonarQube server's quality-gate status, issues, and metrics via its MCP server and reports back a structured summary for the calling context to act on -- replaces parsing the HTML report or the dashboard URL by hand. Does not replace scripts/sonar.sh's own Monitor-based live progress tracking during a scan -- this agent only reads already-uploaded, post-scan server state.
+description: Queries the local SonarQube server's quality-gate status, issues, and metrics via its MCP server and reports back a structured summary for the calling context to act on -- replaces parsing the HTML report or the dashboard URL by hand. Starts the SonarQube server itself if it isn't already running. Does not replace scripts/sonar.sh's own Monitor-based live progress tracking during a scan -- this agent only reads already-uploaded, post-scan server state.
 tools: Read
 mcpServers:
   - sonarqube:

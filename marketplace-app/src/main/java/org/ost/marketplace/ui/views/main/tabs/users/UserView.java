@@ -176,7 +176,7 @@ public class UserView extends VerticalLayout {
                         userDeleteService.delete(user.id(), access.getCurrentUserId());
                         notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
                         refresh();
-                    } catch (Exception e) {
+                    } catch (@SuppressWarnings("java:S7467") Exception e) {
                         log.error("Error deleting user id={}", user.id(), e);
                         notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
                     }

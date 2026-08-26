@@ -150,10 +150,53 @@ already-researched value left unimplemented.
         (and correctly explained, not fabricated) 0.0% coverage reading. The whole chain — agent →
         wrapper script → Docker-based MCP server → real SonarQube data — is confirmed working end
         to end, not just configured.
-4. **Dagu MCP server (D2-3):** add Dagu's built-in `/mcp` endpoint (via the `localhost:8082`
-   proxy) — given the SonarQube redesign above, this should follow the same agent-scoped pattern
-   (its own `.claude/agents/<name>/` inline `mcpServers` entry) rather than a session-wide
-   `.mcp.json`, which no longer exists.
+4. **Dagu MCP server (D2-3) — implemented (2026-08-26), not yet verified live:** simpler than
+   SonarQube — no wrapper script needed at all. Verified directly (`docs.dagu.sh/mcp/`): Dagu's
+   MCP server is a plain Streamable HTTP endpoint (`http://localhost:18080/mcp`) on Dagu's own
+   already-running web server, not a separate process — nothing for Claude Code to launch, so an
+   HTTP-type `mcpServers` entry (`type: http`, just a `url`) is enough. No auth token either:
+   `ci-runner` runs with `DAGU_AUTH_MODE=none` (`scripts/ci/Dockerfile`). Also corrected the
+   original D2-3 idea's own assumption of needing the `localhost:8082` proxy — that proxy exists
+   only so a real browser outside any Docker network can reach the Dagu UI; `ci-runner` and
+   `claude-dev` both run `--network host`, so `18080` is directly reachable container-to-container
+   without it. Exposes exactly 3 tools (`dagu_read`/`dagu_change`/`dagu_execute`, confirmed via
+   the real docs) — already within the 4-5-tools-per-agent range, no `SONARQUBE_TOOLSETS`-style
+   scoping needed. New `.claude/agents/dagu/dagu-analyst.md` is read-only by default (`dagu_read`
+   only; `dagu_change`/`dagu_execute` require an explicit ask). Registered in `.claude/agents/README.md`
+   and `.claude/nav/flows.md`'s subagents table.
+   - **Verified live (2026-08-26) — a real, unfixable-by-us timing limitation found:** after a
+     restart, the agent was recognized but had no `ci-runner` to query (never started this
+     session). Gave it `tools: Read, Bash` plus body instructions to check `docker ps` and
+     self-start via `bash scripts/ci.sh` if needed — confirmed the self-start itself works
+     (`ci-runner` came up correctly, triggering a real DAG run as `scripts/ci.sh`'s own documented
+     side effect). But confirmed directly: MCP server connections are established before an
+     agent's own instructions run, so starting `ci-runner` mid-dispatch does not make the `dagu`
+     MCP tools available *within that same dispatch* — a Claude Code characteristic, not something
+     fixable from an agent definition. `dagu-analyst.md` now falls back to Dagu's own REST API
+     directly (the same `/api/v1/dag-runs/<name>/<run-id>` endpoint `scripts/ci/dagu/pipeline-metrics.py`
+     already uses) when this happens, rather than failing outright — confirmed working: the test
+     dispatch returned real, non-fabricated run data (run `034DuHP1R8tv77rsOIAv8k`, status RUNNING,
+     `build` step in progress) via this fallback. The real `dagu_read`/`dagu_change`/`dagu_execute`
+     MCP tools themselves remain unverified live (would need `ci-runner` already running *before* a
+     dispatch, untested so far this session) — the REST fallback path is what's actually confirmed
+     working end to end.
+   - **Dagu version bump tried (2.14.0 → 2.15.3), confirmed NOT the cause (2026-08-26):** on the
+     lead that Dagu itself reported an available upgrade, bumped `ARG DAGU_VERSION` in
+     `scripts/ci/Dockerfile`, rebuilt via `bash scripts/ci.sh --refresh-tools` (forces the cached
+     `ci-tools-cache` volume to re-download the new binary), confirmed `ci-runner` came up on
+     2.15.3 and had already been running for several minutes before the next `dagu-analyst`
+     dispatch — the exact precondition the previous test lacked. Dispatched fresh: `dagu_read`/
+     `dagu_change`/`dagu_execute` were still absent from the agent's toolset (only `Read`/`Bash`
+     available), same as on 2.14.0. Confirms the connection failure is unrelated to the Dagu server
+     version — a genuine Claude-Code-client-side limitation with inline HTTP-type `mcpServers` in
+     agent frontmatter, not something fixable from this repo's side. REST-API fallback remains the
+     documented, working path; no further version-bump attempts planned.
+   - **`/ci --metrics` added (2026-08-26), same shape as `/sonar --metrics`:** persists a
+     post-run `dagu-analyst` report to `scripts/ci/reports/dagu-metrics.md`. Also fixed a
+     pre-existing, unrelated staleness found while editing the same file: `/ci`'s own steps still
+     described the retired `progress.txt`-polling mechanism (`improvement-153` replaced it with
+     Dagu's UI + `scripts/ci/watch-run.py` months ago) — rewritten to match the real current
+     mechanism.
 5. **New commands, if warranted — `/review` added (2026-08-26):** a thin wrapper over the
    `deep-review-orchestrator` agent (`Agent({subagent_type: "deep-review-orchestrator", prompt:
    "$ARGUMENTS"})`) — pure convenience, no new capability, per the user's own "would be cooler"
@@ -241,6 +284,13 @@ already-researched value left unimplemented.
    dropped.
 
 Each step independently shippable — no requirement to do all in one pass.
+
+## Post-close live verification (2026-08-26)
+
+Live end-to-end test of `/sonar --metrics` in progress (real scan via `scripts/sonar.sh`, then the
+always-on bug check + `--metrics`' persisted `scripts/sonar/report/metrics.md`, per `/sonar`'s own
+steps 6-7). `/ci --metrics` planned as the next live test once this one finishes, to verify the
+same pattern against `dagu-analyst`.
 
 ## Related
 

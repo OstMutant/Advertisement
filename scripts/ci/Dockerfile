@@ -11,7 +11,7 @@
 # Uses: eclipse-temurin:25-jdk base image; apt-get installs docker.io (DooD docker CLI against the
 #   mounted docker.sock), curl (entrypoint's tool downloads), python3 (pipeline-metrics.py), nodejs
 #   (Vaadin frontend build), ca-certificates.
-# Env: ARG DAGU_VERSION (default 2.14.0, also re-exposed as ENV for the entrypoint script to read);
+# Env: ARG DAGU_VERSION (default 2.15.3, also re-exposed as ENV for the entrypoint script to read);
 #   ENV PATH (prepends /root/.ci-tools/bin), DAGU_HOME, DAGU_PORT, DAGU_AUTH_MODE (all fixed, not
 #   caller-overridable at build time).
 # Input: repo source (mvnw, pom.xml, the full tree via COPY . .).
@@ -32,7 +32,7 @@ WORKDIR /app
 # of how often this image gets rebuilt (a build-time RUN step here would re-download all ~190MB
 # every time any earlier layer's cache is invalidated, e.g. by any source-file change reaching the
 # COPY below). See docker-entrypoint.sh for the download-if-missing logic.
-ARG DAGU_VERSION=2.14.0
+ARG DAGU_VERSION=2.15.3
 ENV DAGU_VERSION=$DAGU_VERSION
 ENV PATH="/root/.ci-tools/bin:${PATH}"
 
