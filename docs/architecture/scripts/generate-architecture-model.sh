@@ -5,15 +5,16 @@
 #   .claude/nav/scripts/md-to-decisions-json.js only when --with-adr-details is passed, as
 #   subprocesses), python3 (only when --with-sonar/--with-archunit are passed).
 # Input: pom.xml, real Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
-#   .claude/nav/adr-index.md, .claude/nav/flows.md, .claude/commands, .claude/skills, backlog/.
+#   .claude/nav/adr-index.md, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents,
+#   backlog/.
 # Output: docs/architecture/data/architecture-model.json + docs/architecture/architecture-map.html +
 #   docs/architecture/data/arch-embed-index.md.
 #
 # Generates architecture-model.json (Track A of the architecture control plane) from
 # already-structured, non-code sources only -- no ArchUnit, no bytecode analysis. Node types:
 # MODULE (from pom.xml reactor + per-module pom.xml dependencies), COMMAND/SKILL (from
-# .claude/commands, .claude/skills, cross-checked against .claude/nav/flows.md), and one BACKLOG
-# summary node. Per-ADR/per-issue graph nodes are deliberately not built -- the issue/ADR count
+# .claude/commands, .claude/skills, cross-checked against .claude/nav/flows.md), AGENT (from
+# .claude/agents), and one BACKLOG summary node. Per-ADR/per-issue graph nodes are deliberately not built -- the issue/ADR count
 # would blow past a "tens of nodes, not thousands" budget -- ADRs are folded into each module's
 # own `intent[]` list instead, reusing adr-index.md rather than reparsing every DECISIONS.md.
 set -euo pipefail
@@ -535,6 +536,29 @@ command_first_line() {
     [ -n "$desc" ] && { echo "$desc" | sed 's/^ *//'; return; }
   fi
   head -1 "$file" 2>/dev/null | sed 's/^#* *//'
+}
+
+# Emits one COMMAND/SKILL/AGENT-shaped JSON node -- the identical field sequence all three of
+# .claude/commands/*.md, .claude/skills/*/SKILL.md, and .claude/agents/*.md map their own single
+# source file onto (id/type/provenance/lifecycle/disposition/confidence/evidence/description/
+# edges never differ between them, only how "$1"/"$2"/"$3" get computed per source, which stays in
+# each loop below since the name-derivation and find-glob genuinely differ per type). "$1" full
+# node id (e.g. "command:sync-docs"), "$2" node type ("COMMAND"/"SKILL"/"AGENT"), "$3" repo-relative
+# source file path, "$4" already-extracted one-line description.
+emit_pipeline_md_node() {
+  local id="$1" type="$2" rel="$3" desc="$4"
+  echo "    ,"
+  echo "    {"
+  echo "      \"id\": \"$(json_escape "$id")\","
+  echo "      \"type\": \"$type\","
+  echo "      \"provenance\": \"OBSERVED\","
+  echo "      \"lifecycle\": \"ACTIVE\","
+  echo "      \"disposition\": \"KEEP\","
+  echo "      \"confidence\": \"extracted\","
+  echo "      \"evidence\": [{\"file\": \"$(json_escape "$rel")\", \"line\": 1}],"
+  echo "      \"description\": \"$(json_escape "$desc")\","
+  echo "      \"edges\": {}"
+  echo "    }"
 }
 
 # Builds a JSON string array from newline-separated input; empty input -> "[]", never [""].
@@ -1605,7 +1629,7 @@ ci_metrics_json="null"
 {
   echo "{"
   echo "  \"generated_by\": \"docs/architecture/scripts/generate-architecture-model.sh\","
-  echo "  \"generated_note\": \"Track A, plus real SonarQube/ArchUnit metrics -- modules+deps from pom.xml, domain grouping/entities/services/contracts derived live from real Java source and the module list, tables live from the real Liquibase changelogs. Module Dependencies (01)/SPI Map (02)/Database ERD (04)/Bounded Contexts have no .md counterpart -- rendered live on this tool's own Diagrams page instead, lifecycle from DECISIONS.md/backlog, pipeline nodes from .claude/nav/flows.md + .claude/commands + .claude/skills.\","
+  echo "  \"generated_note\": \"Track A, plus real SonarQube/ArchUnit metrics -- modules+deps from pom.xml, domain grouping/entities/services/contracts derived live from real Java source and the module list, tables live from the real Liquibase changelogs. Module Dependencies (01)/SPI Map (02)/Database ERD (04)/Bounded Contexts have no .md counterpart -- rendered live on this tool's own Diagrams page instead, lifecycle from DECISIONS.md/backlog, pipeline nodes from .claude/nav/flows.md + .claude/commands + .claude/skills + .claude/agents.\","
   echo "  \"rootArtifactId\": \"$(json_escape "$ROOT_ARTIFACT_ID")\","
   echo "  \"rootVersion\": \"$(json_escape "$ROOT_VERSION")\","
   echo "  \"diagramGroups\": ["
@@ -1678,39 +1702,23 @@ ci_metrics_json="null"
   while IFS= read -r -d '' file; do
     name="$(basename "$file" .md)"
     rel="${file#"$REPO_ROOT"/}"
-    desc="$(command_first_line "$file")"
-    echo "    ,"
-    echo "    {"
-    echo "      \"id\": \"command:$name\","
-    echo "      \"type\": \"COMMAND\","
-    echo "      \"provenance\": \"OBSERVED\","
-    echo "      \"lifecycle\": \"ACTIVE\","
-    echo "      \"disposition\": \"KEEP\","
-    echo "      \"confidence\": \"extracted\","
-    echo "      \"evidence\": [{\"file\": \"$(json_escape "$rel")\", \"line\": 1}],"
-    echo "      \"description\": \"$(json_escape "$desc")\","
-    echo "      \"edges\": {}"
-    echo "    }"
+    emit_pipeline_md_node "command:$name" "COMMAND" "$rel" "$(command_first_line "$file")"
   done < <(find "$REPO_ROOT/.claude/commands" -name "*.md" -print0 | sort -z)
 
   # SKILL nodes
   while IFS= read -r -d '' file; do
     name="$(basename "$(dirname "$file")")"
     rel="${file#"$REPO_ROOT"/}"
-    desc="$(command_first_line "$file")"
-    echo "    ,"
-    echo "    {"
-    echo "      \"id\": \"skill:$name\","
-    echo "      \"type\": \"SKILL\","
-    echo "      \"provenance\": \"OBSERVED\","
-    echo "      \"lifecycle\": \"ACTIVE\","
-    echo "      \"disposition\": \"KEEP\","
-    echo "      \"confidence\": \"extracted\","
-    echo "      \"evidence\": [{\"file\": \"$(json_escape "$rel")\", \"line\": 1}],"
-    echo "      \"description\": \"$(json_escape "$desc")\","
-    echo "      \"edges\": {}"
-    echo "    }"
+    emit_pipeline_md_node "skill:$name" "SKILL" "$rel" "$(command_first_line "$file")"
   done < <(find "$REPO_ROOT/.claude/skills" -name "SKILL.md" -print0 2>/dev/null | sort -z)
+
+  # AGENT nodes
+  while IFS= read -r -d '' file; do
+    name="$(basename "$file" .md)"
+    [ "$name" = "README" ] && continue
+    rel="${file#"$REPO_ROOT"/}"
+    emit_pipeline_md_node "agent:$name" "AGENT" "$rel" "$(command_first_line "$file")"
+  done < <(find "$REPO_ROOT/.claude/agents" -maxdepth 1 -name "*.md" -print0 2>/dev/null | sort -z)
 
   # SCRIPT_GROUP nodes -- non-Maven tooling directories, most (not all -- see .claude/nav/scripts above)
   # with their own DECISIONS.md
@@ -1939,7 +1947,7 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
 <body>
 <header>
   <h1>Architecture Control Plane</h1>
-  <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, .claude/nav/flows.md, .claude/commands, .claude/skills, root CLAUDE.md — regenerate via <code>bash docs/architecture/scripts/generate-architecture-model.sh</code>. Track A only: module-level granularity; Contract/Implementation/Method levels are placeholders until Track B's ArchUnit exporter lands.</div>
+  <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents, root CLAUDE.md — regenerate via <code>bash docs/architecture/scripts/generate-architecture-model.sh</code>. Track A only: module-level granularity; Contract/Implementation/Method levels are placeholders until Track B's ArchUnit exporter lands.</div>
   <nav id="breadcrumb"></nav>
 </header>
 <main id="content"></main>
@@ -1975,6 +1983,7 @@ MODEL.nodes.forEach(n => byId[n.id] = n);
 const moduleNodes = MODEL.nodes.filter(n => n.type === "MODULE");
 const commandNodes = MODEL.nodes.filter(n => n.type === "COMMAND");
 const skillNodes = MODEL.nodes.filter(n => n.type === "SKILL");
+const agentNodes = MODEL.nodes.filter(n => n.type === "AGENT");
 const scriptGroupNodes = MODEL.nodes.filter(n => n.type === "SCRIPT_GROUP");
 const backlogNode = MODEL.nodes.find(n => n.type === "BACKLOG_SUMMARY");
 
@@ -1986,7 +1995,7 @@ const backlogNode = MODEL.nodes.find(n => n.type === "BACKLOG_SUMMARY");
 // drill-down (view.path walks n.children) instead of a flat category filter -- see TREE_ROOTS and
 // renderScriptTree() below.
 const PIPELINE_GROUPS = {
-  "ai-tooling": { icon: "🤖", label: "AI Tooling", category: "AI Tooling", desc: `${commandNodes.length} commands, ${skillNodes.length} skills, and the rest of .claude/ (nav, rules, script headers)` },
+  "ai-tooling": { icon: "🤖", label: "AI Tooling", category: "AI Tooling", desc: `${commandNodes.length} commands, ${skillNodes.length} skills, ${agentNodes.length} agents, and the rest of .claude/ (nav, rules, script headers)` },
   "build-architecture-page": { icon: "🗺️", label: "Build architecture page", category: "Build architecture page", desc: "docs/architecture/scripts — this page's own generator" },
   "scripts-tree": { icon: "📜", label: "Scripts", category: "Scripts", desc: "Every developer script for building, deploying, testing, and running CI lives here: local deploy/infra setup, Docker/Maven builds, SonarQube analysis, and the isolated Dagu-based CI runner. Playwright's end-to-end test suite sits alongside as its own folder. Drill into any folder for its own README and per-file headers." }
 };
@@ -2129,7 +2138,7 @@ function renderSystem() {
   html += `<div class="card-grid">
     <div class="card special-card" onclick="navigate({screen:'pipelines'})">
       <div class="card-title">🛠 Tooling &amp; Pipelines</div>
-      <div class="card-desc">${commandNodes.length} commands, ${skillNodes.length} skills, ${scriptGroupNodes.length} script groups</div>
+      <div class="card-desc">${commandNodes.length} commands, ${skillNodes.length} skills, ${agentNodes.length} agents, ${scriptGroupNodes.length} script groups</div>
     </div>
     <div class="card special-card" onclick="navigate({screen:'backlog'})">
       <div class="card-title">📋 Backlog</div>
@@ -2723,7 +2732,7 @@ function renderPipelines() {
   if (!view.groupId) {
     let html = backButtonHtml();
     html += `<h2 class="screen-title">Tooling &amp; Pipelines</h2>
-      <div class="screen-desc">Slash commands, skills, and scripts available in this repo — sourced from .claude/commands, .claude/skills, and scripts/**, cross-checked against .claude/nav/flows.md. Click a card to see its content.</div>`;
+      <div class="screen-desc">Slash commands, skills, custom subagents, and scripts available in this repo — sourced from .claude/commands, .claude/skills, .claude/agents, and scripts/**, cross-checked against .claude/nav/flows.md. Click a card to see its content.</div>`;
 
     html += `<div class="card-grid">`;
     PIPELINE_GROUP_ORDER.forEach(id => {

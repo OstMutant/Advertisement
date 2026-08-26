@@ -29,3 +29,20 @@ issue is picked up.
 
 - `improvement-155` — the issue this was split from; design/mechanism for the whole convention.
 - `.claude/skills/infra-doc-standards/SKILL.md`
+- `improvement-170` — landed the actual work as a byproduct of its own item 1/9 (the `docs/ai` →
+  `.claude/nav` rename and AI Tooling tree rebuild): all 4 scripts now carry the 7-field header and
+  `.claude/nav/scripts/README.md` exists with a `## Flow` section and mermaid diagram. Verified
+  directly against the current files before closing this issue — no separate implementation pass
+  was needed here.
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a
+- context_loading_task_type: n/a
+- context_loading_consulted: n/a
+- context_loading_matched: n/a
+- flows_situation: n/a
+- flows_chosen: n/a
+- flows_matched: n/a

@@ -20,12 +20,17 @@ groups with different freshness guarantees — see "Staying correct" at the bott
 | Static analysis / quality gate | `/sonar` | Wraps `scripts/sonar.sh`; blocking by default (`--no-gate` for informational-only). |
 | New complete UI domain (View/Overlay/ModeHandlers/QueryBlock/FilterMeta/SortMeta) | `new-domain` skill | Scaffolds the full established pattern set in one pass — see `marketplace-app/CLAUDE.md` "Reference Implementations" for what it mirrors. |
 | Extract/read screenshots from the last Playwright `--ux` run | `screenshots` skill | Reads them out of the HTML report's embedded base64 zip — there is no standalone `screenshots/` directory. |
-| Need an independently evidence-verified findings list, no code changes at all | `.claude/skills/deep-review` — diff mode (default, last commit or a ref) or `full [module]` (periodic whole-repo SOLID/DRY/KISS sweep) | Never writes code, every finding independently re-verified against the real file before being reported — use when the goal is a trustworthy findings list to hand off or decide on, not an immediate fix. Full mode already spawns one subagent per module with that module's own `CLAUDE.md`/`DECISIONS.md` as context — do not pre-load that yourself. |
 | About to write or edit a Java source file's Javadoc/comments, a `pom.xml`'s dependency comments, or a Liquibase changelog's `remarks=` | `module-doc-standards` skill | Applies `.claude/rules.md`'s existing comment rules to Javadoc specifically (incl. the mechanically-required `*.spi` interface convention), plus `pom.xml`/Liquibase mechanics and comment-rationale-routing; also defines what a compliance sweep over a module means. |
 | About to write or edit a Java module's own `README.md` | `module-readme-standards` skill | Sibling to `module-doc-standards` — facts that don't fit inside any single file's own Javadoc, formalizes the existing `What it provides`/`Key classes`/`Dependencies` shape. |
 | About to write or edit a script/tooling file's own header (bash/batch, `docker-compose*.yml`, `.properties`) | `infra-doc-standards` skill | Distinct from `module-doc-standards` — covers infrastructure/tooling files, not Java source. |
 | About to write or regenerate a script-group directory's own `README.md`/Flow diagram | `infra-readme-standards` skill | Sibling to `infra-doc-standards` (split 2026-08-21 once the combined file hit 714 lines/6-8x its sibling skills) — covers README/Mermaid/ISO-5807 conventions only, once every file in the directory already has a complete header. |
 | About to write or edit root `CLAUDE.md` or a `.claude/rules/*.md` module file | *(not yet covered by a dedicated skill)* | No skill currently owns this file type's own conventions |
+
+## Project custom subagents (files in this repo — `.claude/agents/*.md`)
+
+| Situation | Mechanism | Why this one, not another |
+|---|---|---|
+| Need an independently evidence-verified SOLID/DRY findings list, no code changes at all | `deep-review-orchestrator` agent — scope to current uncommitted changes, one commit, one module, or the whole repo (`all`) | Never writes code, every finding independently re-verified against the real file before being reported via `ReportFindings`. Self-contained — does not depend on any skill. `all` scope already spawns one subagent per module with that module's own `CLAUDE.md`/`DECISIONS.md` as context — do not pre-load that yourself. Invoke directly via the `Agent` tool (`subagent_type: "deep-review-orchestrator"`), not a slash command. |
 
 ## Built-in Claude Code skills (not files in this repo — global/plugin, can drift silently, see "Staying correct")
 
@@ -33,7 +38,7 @@ groups with different freshness guarantees — see "Staying correct" at the bott
 |---|---|---|
 | Need the current diff reviewed for correctness/reuse/efficiency, findings applied directly | `/code-review [--fix] [--comment]` | Can write code (`--fix` applies its own findings; `--comment` posts inline on a PR) — the right tool when the goal is "fix it now," not just "tell me what's wrong." Hunts for bugs *and* quality; compare `simplify` below. |
 | Quality-only cleanup of already-changed code (reuse, simplification, efficiency) — no bug hunting | `simplify` skill | Narrower than `/code-review`: does not look for correctness bugs, only applies quality fixes. Use `/code-review` when bugs are in scope too. |
-| Security review of pending changes on the current branch | `security-review` skill | Distinct focus from `/code-review`/`deep-review` — security-specific, not general correctness/quality. |
+| Security review of pending changes on the current branch | `security-review` skill | Distinct focus from `/code-review`/the `deep-review-orchestrator` agent — security-specific, not general correctness/quality. |
 | Review an existing GitHub PR (not your own local working diff) | `review` skill | For someone else's PR, or your own already-pushed one — `/code-review` is for the local uncommitted/recent diff. |
 | Verify a change actually works in the running app | `verify` skill (confirm a fix/PR works) or `run` skill (launch and drive the app) | Type checks and test suites verify code correctness, not feature correctness — use these when the goal is seeing the real behavior, not just green tests. |
 | Change Claude Code's own settings (permissions, env vars, hooks) for this project | `update-config` skill | Edits `settings.json`/`settings.local.json` directly — do not hand-edit these files outside the skill. |
@@ -50,6 +55,10 @@ the two are complementary, not overlapping.
 `.claude/skills/*/SKILL.md` file in this repo should have a corresponding row here. When adding a
 new command/skill file, add its row in the same change (per `.claude/rules.md`'s "surface adjacent
 quality issues unprompted" rule — an undocumented flow is exactly that class of issue).
+
+**Project custom subagents table** — same discipline, for `.claude/agents/*.md` files: not yet
+covered by `check-flows-completeness.sh` (that script only scans commands/skills today), so treat
+this one as judgment-checked until the script is extended to cover it too.
 
 **Built-in Claude Code skills table** — cannot be mechanically checked from inside this repo: these
 skills aren't files here, they're part of the Claude Code installation itself, and the only way to

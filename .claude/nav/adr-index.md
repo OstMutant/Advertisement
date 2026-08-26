@@ -44,6 +44,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-022 (audit-spring-boot-starter) | audit-spring-boot-starter | Superseded (2026-07-03, snapshot-cleanup — `isRestorable()` and `CategoryChangeSnapshotDto` were removed; every row is restorable now, so plain `items.size()` is correct again and `restorableCount` no longer exists in code) |  | restorableCount replaces items.size() for restore button visibility |
 | ADR-023 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted (done 2026-06-23) |  | Top-level Timeline tab replaces inline timeline tabs |
 | ADR-024 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted (done 2026-06-26) |  | captureRestore() — dedicated method for restore audit events |
+| ADR-002 (.claude) | .claude | Accepted |  | Formalize `/deep-review`'s reasoning layer as real, isolated `.claude/agents/*.md` subagents |
 | ADR-001 (.claude) | .claude | Accepted |  | Split module-specific AI guidance into path-scoped `.claude/rules/*.md`; deduplicate memory against canonical rules |
 | ADR-033 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | "AI Tooling" generalized into a `.claude`-rooted tree, same mechanism as "Scripts"; README becomes the sole canonical file list, chip-row is last-resort only |
 | ADR-001 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | Generated ADR index over `DECISIONS.md`, mechanical fields only, no per-entry authoring |

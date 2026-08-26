@@ -90,3 +90,29 @@ has not been chosen. Candidates identified so far, narrowest to broadest:
   `backlog/issues/improvement-168-ai-guidance-memory-vs-canonical-rules.md` — same pattern of a
   large speculative-infrastructure mission investigated against real project state before
   committing to a scope, filed the same session.
+- `backlog/issues/improvement-160-certification-coverage-map.md` rows D1-2/D3-1 — independently
+  tracked the same idea (named, reusable `.claude/agents/*.md` subagents; a nesting orchestrator
+  Agent call) from the certification-coverage angle before this issue's own decision below.
+
+## Decision (2026-08-25)
+
+Scope chosen: **candidate 1, narrowest** — formalize `diff-mode.md`'s already-proven 4-lens
+parallel-agent + per-candidate verification pattern as real, named `.claude/agents/*.md` files,
+plus one orchestrating Agent call, no Semgrep/Sonar-MCP/ArchUnit expansion. Candidates 2/3 not
+taken.
+
+Actual implementation (which 4 agent files, their `tools:`/`model:` scoping, the orchestrator
+shape) is separate follow-up work, not done as part of this issue — tracked as a new issue split
+from this decision.
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a
+- context_loading_task_type: n/a
+- context_loading_consulted: n/a
+- context_loading_matched: n/a
+- flows_situation: n/a
+- flows_chosen: n/a
+- flows_matched: n/a

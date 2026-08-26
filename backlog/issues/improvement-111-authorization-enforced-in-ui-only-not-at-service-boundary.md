@@ -69,3 +69,13 @@ cost but must land its guard before the first endpoint, not after.
   state.
 - `marketplace-app/CLAUDE.md` — "Services intentionally have no `@PreAuthorize`" — this issue
   revisits that decision at the boundary, not by re-adding class-level annotations.
+- `backlog/issues/improvement-171-formalize-deep-review-agents.md` — while scoping that
+  issue's review agents, a `security-boundary-reviewer` LLM lens was drafted (later deleted, kept
+  only `solid-dry-reviewer`) whose entire job was catching exactly this gap per-diff. Discussion
+  concluded Option 2 above is largely mechanizable: an `ArchitectureRulesTest` rule requiring every
+  method in a `*Controller` class under `rest/` to carry `@PreAuthorize` (or be explicitly
+  allowlisted, matching `HealthController`'s existing precedent) would catch the most common new
+  non-UI caller shape (a new REST endpoint) automatically, cheaper and more reliably than an LLM
+  review pass — leaving only non-REST callers (a `@Scheduled` job, an event listener) as the
+  residual gap an ArchUnit rule can't close. Worth folding into whichever option is picked when
+  this issue's trigger fires.

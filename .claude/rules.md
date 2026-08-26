@@ -1,6 +1,6 @@
 ## ⛔ RE-READ ALL RULES BEFORE EVERY ACTION
 Before executing any tool call — re-read this entire file. No exceptions. This explicitly includes
-the start of every `/command` or Skill invocation (`/autopilot`, `/deep-review`, `/feature`, etc.)
+the start of every `/command` or Skill invocation (`/autopilot`, `/code-review`, `/feature`, etc.)
 — re-`Read` this file fresh at that point, not just once at the top of a long session.
 
 Not rules.md alone: re-`Read` the root `/app/CLAUDE.md` plus every module `CLAUDE.md` the task
@@ -20,8 +20,8 @@ Same requirement extends to `.claude/nav/context-loading.md` (what to read, by t
 backlog, or a choice between multiple possible commands/skills — re-`Read` both at that same
 starting point, not from memory of what they said earlier in the session. Before dispatching any
 subagent to read or classify `DECISIONS.md` content, check `context-loading.md`'s own routing
-table first — it may already name a specific command/skill (e.g. `deep-review` full mode) that
-owns exactly this task shape instead of a hand-rolled agent dispatch.
+table first — it may already name a specific command/skill/agent (e.g. the `deep-review-orchestrator`
+agent's full-repo scope) that owns exactly this task shape instead of a fresh, undocumented dispatch.
 
 ---
 
@@ -365,7 +365,7 @@ When an issue in `backlog/issues/` is resolved (fix is implemented and committed
   `backlog/BACKLOG.md`'s "Maintenance rules"
 
 ### Out-of-scope-but-valid findings — propose adding to the standing deferred-findings bucket, never drop silently
-When a `/code-review`/`/deep-review` (or any other review) finding is real and worth fixing but
+When a `/code-review` (or any other review) finding is real and worth fixing but
 its solution is too large to fit in the current batch/PR (a new abstraction, an architectural
 change, a cross-module refactor), do not silently skip it and do not fix it inline outside the
 approved scope either. At the end of the review, propose appending it as a new entry to this

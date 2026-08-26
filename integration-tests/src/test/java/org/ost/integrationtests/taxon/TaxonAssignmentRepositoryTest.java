@@ -22,11 +22,11 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Covers improvement-027 Batch 3: {@link TaxonAssignmentRepository}'s dynamic SQL — the
- * many-to-many (entity_type, entity_id) &lt;-&gt; taxon_id join table backing category assignment.
- * Not exhaustive; the highest-risk paths: idempotent {@code assign()} (`ON CONFLICT DO NOTHING`),
+ * Covers {@link TaxonAssignmentRepository}'s dynamic SQL — the many-to-many
+ * (entity_type, entity_id) &lt;-&gt; taxon_id join table backing category assignment. Not
+ * exhaustive; the highest-risk paths: idempotent {@code assign()} (`ON CONFLICT DO NOTHING`),
  * both directions of bulk lookup ({@code findAllByEntities}, {@code findEntityIdsByTaxonIds}), and
- * the two count variants.
+ * {@code countByTaxonIds}.
  */
 @SpringBootTest(classes = {
         TaxonAutoConfiguration.class,
@@ -87,18 +87,6 @@ class TaxonAssignmentRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void deleteAllByEntity_removesEveryAssignmentForThatEntity() {
-        Long electronics = saveTaxon("electronics");
-        Long vehicles = saveTaxon("vehicles");
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, electronics, 42L);
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, vehicles, 42L);
-
-        assignmentRepository.deleteAllByEntity(EntityType.ADVERTISEMENT.name(), 1L);
-
-        assertThat(assignmentRepository.findAllByEntity(EntityType.ADVERTISEMENT.name(), 1L)).isEmpty();
-    }
-
-    @Test
     void findAllByEntities_returnsAssignmentsAcrossMultipleEntities() {
         Long electronics = saveTaxon("electronics");
         assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, electronics, 42L);
@@ -120,18 +108,6 @@ class TaxonAssignmentRepositoryTest extends AbstractPostgresIntegrationTest {
         Set<Long> entityIds = assignmentRepository.findEntityIdsByTaxonIds(EntityType.ADVERTISEMENT.name(), Set.of(electronics));
 
         assertThat(entityIds).containsExactlyInAnyOrder(1L, 3L);
-    }
-
-    @Test
-    void countByTaxonId_countsOnlyThatTaxonsAssignments() {
-        Long electronics = saveTaxon("electronics");
-        Long vehicles = saveTaxon("vehicles");
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, electronics, 42L);
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 2L, electronics, 42L);
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 3L, vehicles, 42L);
-
-        assertThat(assignmentRepository.countByTaxonId(electronics)).isEqualTo(2L);
-        assertThat(assignmentRepository.countByTaxonId(vehicles)).isEqualTo(1L);
     }
 
     @Test

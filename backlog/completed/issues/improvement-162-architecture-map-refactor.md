@@ -205,3 +205,37 @@ read-modify-written — not yet root-caused, noted here in case it recurs.
 - `improvement-155` — repo-wide `infra-doc-standards` rollout (its root-`scripts/` item, now done
   via this session's skill runs).
 - `docs/architecture/scripts/DECISIONS.md` — generator mechanism ADRs.
+
+## Closing verification (2026-08-25)
+
+Re-checked every open item against current disk state before closing:
+- `docs/architecture/architecture-doc.sh`/`.bat` live at `docs/architecture/`, one level above
+  `docs/architecture/scripts/`; `scripts/architecture-doc.*` no longer exists.
+- `docs/architecture/data/` holds all 4 relocated files (`arch-embed-index.md`,
+  `architecture-model.json`, `README.md`, `runtime-notes.md`).
+- The "known gap" (`docs/architecture` not tracked as its own `SCRIPT_GROUP_DIRS` entry) is
+  resolved — `generate-architecture-model.sh`'s `SCRIPT_GROUP_DIRS` now lists `docs/architecture`,
+  `docs/architecture/scripts`, and `docs/architecture/data`.
+- The approved-in-principle-but-unimplemented next step (a dedicated
+  `docs/architecture/scripts/Dockerfile` replacing runtime `apt-get install python3`) is
+  implemented and in use — `architecture-doc.sh`'s own header now describes building from that
+  Dockerfile once, reused across runs, no runtime `apt-get`.
+- `scripts/claude.bat` has the reuse-vs-recreate logic (`--recreate` flag, `docker exec -it
+  claude-dev`), and the temporary `claude-dev-test` test name is gone — no remaining references
+  anywhere in the repo, confirmed renamed back to `claude-dev`.
+
+All of this landed across `improvement-163`/`improvement-164`/`improvement-166` in the days after
+this issue was filed, rather than under this issue's own number — closing as done, no further
+implementation needed.
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a
+- context_loading_task_type: n/a
+- context_loading_consulted: n/a
+- context_loading_matched: n/a
+- flows_situation: n/a
+- flows_chosen: n/a
+- flows_matched: n/a

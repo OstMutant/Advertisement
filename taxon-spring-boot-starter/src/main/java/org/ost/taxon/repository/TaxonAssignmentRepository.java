@@ -60,17 +60,6 @@ public class TaxonAssignmentRepository {
                   .update();
     }
 
-    public void deleteAllByEntity(@NonNull String entityType, @NonNull Long entityId) {
-        jdbcClient.sql("""
-                        DELETE FROM taxon_assignment
-                        WHERE entity_type = :entityType AND entity_id = :entityId
-                        """)
-                  .paramSource(new MapSqlParameterSource()
-                          .addValue("entityType", entityType)
-                          .addValue("entityId",   entityId))
-                  .update();
-    }
-
     public List<TaxonAssignment> findAllByEntity(@NonNull String entityType, @NonNull Long entityId) {
         return jdbcClient.sql("""
                         SELECT entity_type, entity_id, taxon_id, assigned_at, assigned_by
@@ -109,13 +98,6 @@ public class TaxonAssignmentRepository {
                                  .addValue("taxonIds",   taxonIds.toArray(new Long[0])))
                          .query(Long.class)
                          .list());
-    }
-
-    public long countByTaxonId(@NonNull Long taxonId) {
-        return jdbcClient.sql("SELECT COUNT(*) FROM taxon_assignment WHERE taxon_id = :taxonId")
-                         .paramSource(new MapSqlParameterSource("taxonId", taxonId))
-                         .query(Long.class)
-                         .single();
     }
 
     public Map<Long, Long> countByTaxonIds(@NonNull Set<Long> taxonIds) {

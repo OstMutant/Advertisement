@@ -2034,3 +2034,58 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   content-governance and the orphaned "Canonical ownership table" both remain open gaps, not picked
   up by this resolution. Full detail:
   `completed/issues/improvement-170-doc-skill-scope-resolution.md`.
+
+✅ Done (2026-08-25): improvement-161 — `.claude/nav/scripts/` `infra-doc-standards` rollout. Landed
+  as a byproduct of `improvement-170`'s item 1/9 work rather than its own implementation pass: all
+  4 scripts (`check-adr-index-freshness.sh`, `check-flows-completeness.sh`,
+  `check-hardcoded-counts.sh`, `generate-adr-index.sh`) now carry the 7-field header, and
+  `.claude/nav/scripts/README.md` exists with a `## Flow` section and mermaid diagram covering the
+  `check-adr-index-freshness.sh` → `generate-adr-index.sh` relationship and the `docs` CI stage.
+  Verified directly against current files, then closed. Full detail:
+  `completed/issues/improvement-161-ai-docs-scripts-infra-doc-standards-rollout.md`.
+
+✅ Done (2026-08-25): improvement-169 — Hybrid Agentic Review Factory investigation, closed with a
+  decision: scope chosen is the narrowest candidate — formalize `diff-mode.md`'s already-working
+  4-lens parallel-agent + per-candidate verification pattern as real, named `.claude/agents/*.md`
+  files plus one orchestrating Agent call, no Semgrep/Sonar-MCP/ArchUnit mechanical-layer
+  expansion (two of the mission's proposed rules had directly contradicted this project's own
+  documented architecture). Actual implementation split off as a new issue. Full detail:
+  `completed/issues/improvement-169-hybrid-agentic-review-factory.md`.
+
+✅ Done (2026-08-25): improvement-162 — `docs/architecture/` reorganization: `architecture-doc.sh`/
+  `.bat` relocated from `scripts/` to `docs/architecture/` (one level above
+  `docs/architecture/scripts/`); `docs/architecture/data/` split off holding `arch-embed-index.md`,
+  `architecture-model.json`, `README.md`, `runtime-notes.md`; every real reference to the 4 moved
+  files updated. Landed across `improvement-163`/`164`/`166` rather than under this issue's own
+  number — closing verification confirmed every open item resolved on disk, including the
+  previously-flagged gap (`docs/architecture` now a tracked `SCRIPT_GROUP_DIRS` entry) and the
+  approved-in-principle Dockerfile step (`docs/architecture/scripts/Dockerfile`, no more runtime
+  `apt-get install python3`), plus `scripts/claude.bat`'s reuse-vs-`--recreate` container logic
+  with the temporary `claude-dev-test` test name reverted back to `claude-dev`. Full detail:
+  `completed/issues/improvement-162-architecture-map-refactor.md`.
+
+✅ Done (2026-08-26): improvement-171 — formalized `/deep-review`'s reasoning layer as real
+  `.claude/agents/*.md` subagents, per `improvement-169`'s decided narrow scope. Final shape:
+  `deep-review-orchestrator` (self-contained coordinator, 4 scope modes, no `Write` tool — prepares
+  backlog-issue content and the `ReportFindings` JSON payload for the dispatcher to act on after
+  human approval, never writes/reports itself) dispatching two lenses in parallel —
+  `solid-reviewer` (SRP/ISP/DIP/LSP) and `dry-kiss-yagni-reviewer` (DRY/KISS/YAGNI merged into one
+  lens on purpose, since DRY and YAGNI pull in opposite directions). `security-boundary-reviewer`/
+  `data-integrity-reviewer` were drafted then dropped — their concerns folded into
+  `improvement-111` (an ArchUnit rule candidate) and `improvement-172` (fault-injection integration
+  tests) instead, both cheaper/more reliable than an LLM lens for already-identified risk classes.
+  Verified against `AICertification.txt` point by point (hub-and-spoke, structured
+  content/metadata-separated JSON, independent fresh-instance verification, multi-pass
+  attention-dilution guard, confidence-based routing, parallel spawning, structured handoff
+  protocol) — one real gap (human-review handoff missing `failure_scenario`) found and fixed during
+  the final check. `.claude/skills/deep-review/` deleted entirely after a live run showed the
+  orchestrator silently falling back to its stale logic despite explicit instructions not to depend
+  on it. `docs/architecture/scripts/generate-architecture-model.sh` gained a new AGENT node type
+  (own "Agents" card under System › Tooling & Pipelines › AI Tooling) plus a shared
+  `emit_pipeline_md_node()` helper deduplicating what had become a 3-way-copied COMMAND/SKILL/AGENT
+  JSON-emission block — a real finding the orchestrator itself surfaced during a live test run on
+  its own diff. Recorded as `.claude/DECISIONS.md` ADR-002. One known, accepted verification gap
+  left open: the `ReportFindings` non-empty-payload path was never directly exercised end to end —
+  every live run's own backlog cross-check correctly excluded its candidates (either real issues
+  already tracked, or a deliberately-injected test fixture the orchestrator recognized from this
+  issue's own text). Full detail: `completed/issues/improvement-171-formalize-deep-review-agents.md`.
