@@ -482,8 +482,17 @@ before proceeding further.
 ## Documentation Standards
 Before writing or editing a Java source file's Javadoc/comments or a `pom.xml`'s dependency
 comments, consult `.claude/skills/module-doc-standards/SKILL.md`. Before writing or editing a Java
-module's own `README.md`, consult `.claude/skills/module-readme-standards/SKILL.md`. Root
-`CLAUDE.md` and `.claude/rules/*.md` are not yet covered by a dedicated skill.
+module's own `README.md`, consult `.claude/skills/module-readme-standards/SKILL.md`. Before
+writing or editing root `README.md` or root `INFRASTRUCTURE.md`, consult
+`.claude/skills/app-readme-standards/SKILL.md`. Root `CLAUDE.md` and `.claude/rules/*.md` are not
+yet covered by a dedicated skill.
+
+Whenever a markdown file governed by any of this repo's doc/README-standards skills (the ones
+listed above, plus `infra-doc-standards`/`infra-readme-standards`) references a real file in the
+repo, that reference is a markdown link to the file (`` [`path`](path) ``), never plain
+`` `backtick` `` text — every rendering surface these documents pass through (GitHub, this repo's
+own `architecture-map.html`) turns a real link into something a reader can click, at no extra cost
+over inert backtick text.
 
 ## Investigation & Review Discipline
 

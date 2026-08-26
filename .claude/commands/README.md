@@ -22,6 +22,8 @@ self-contained entry point, described below and linked to its real file.
 - [`/playwright`](playwright.md) — Run Playwright UI tests for the marketplace app.
 - [`/record-decision`](record-decision.md) — Record a new architectural decision in the
   appropriate `DECISIONS.md` file.
+- [`/review`](review.md) — Run a full code review via the `deep-review-orchestrator` agent --
+  evidence-verified SOLID/DRY/KISS/YAGNI findings, never writes code itself.
 - [`/run-all-tests`](run-all-tests.md) — Run all three test suites for daily iteration:
   unit-tests, integration-tests, and Playwright.
 - [`/screenshots`](screenshots.md) — Find and read named screenshots from the last Playwright test

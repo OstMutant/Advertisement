@@ -12,7 +12,8 @@
 #   Docker Hub on every run cost real time -- ~170s observed -- for no benefit on the common path).
 # Uses: bash, docker (SonarQube server + scanner containers), scripts/build-and-test.sh,
 #   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose, python3 (HTML report),
-#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block),
+#   scripts/utils/ensure-sonar-token.sh's ensure_sonar_token.
 # Env: None.
 # Input: sonar-project.properties, each module's src/main/java (copied from the host), the shared
 #   maven-cache Docker volume's target-classes/<module> (mounted into the scanner container), the
@@ -123,46 +124,12 @@ if [ -n "$PULL_LATEST" ] || ! docker image inspect sonarqube:community >/dev/nul
 else
   echo "SonarQube server image already present locally -- skipping pull (use --pull-latest to force)."
 fi
-docker compose -f "$COMPOSE_FILE" up -d
-
-echo "Waiting for SonarQube to be ready..."
-# A stale-image version jump can dead-end in DB_MIGRATION_NEEDED (embedded-DB, NOT_SUPPORTED) -- see DECISIONS.md.
-MIGRATION_TRIGGERED=""
-while true; do
-  STATUS=$(curl -s "$SONAR_URL/api/system/status" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
-  [ "$STATUS" = "UP" ] && break
-  if [ "$STATUS" = "DB_MIGRATION_NEEDED" ] && [ -z "$MIGRATION_TRIGGERED" ]; then
-    MIGRATION_TRIGGERED=1
-    echo "SonarQube schema needs migrating after the image update — triggering..."
-    MIGRATE_RESULT=$(curl -s -X POST "$SONAR_URL/api/system/migrate_db")
-    if echo "$MIGRATE_RESULT" | grep -q '"state":"NOT_SUPPORTED"'; then
-      echo "Migration not supported on the embedded database — wiping local scan history and starting fresh on the new image..."
-      docker compose -f "$COMPOSE_FILE" down -v
-      docker compose -f "$COMPOSE_FILE" up -d
-    fi
-  fi
-  sleep 5
-done
-echo "SonarQube ready."
-
-# ── Allow anonymous dashboard browsing -- resets to default (auth required) on every wipe/create ──
-curl -s -u admin:admin -X POST "$SONAR_URL/api/settings/set" \
-  -d "key=sonar.forceAuthentication&value=false" >/dev/null
-
-# ── Ensure sonar token is valid; regenerate via admin/admin if not ───────────
-# Strip a trailing \r (CRLF checkout) or it silently corrupts the Basic Auth header -- see DECISIONS.md.
-CURRENT_TOKEN=$(grep "^sonar.token=" "$PROPS_FILE" | cut -d= -f2 | tr -d '\r')
-if ! curl -s -u "$CURRENT_TOKEN:" "$SONAR_URL/api/authentication/validate" | grep -q '"valid":true'; then
-  echo "Sonar token invalid or missing — generating new token..."
-  NEW_TOKEN=$(curl -s -u admin:admin -X POST "$SONAR_URL/api/user_tokens/generate" \
-    -d "name=claude-$(date +%s)" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
-  if [ -z "$NEW_TOKEN" ]; then
-    echo "ERROR: failed to generate SonarQube token. Check admin credentials."
-    emit_agentic_error_block "permission" "false" "token-generation" "Failed to generate a new SonarQube token via admin/admin credentials -- an authorisation problem, not a transient one."
-    exit 1
-  fi
-  sed -i "s|^sonar.token=.*|sonar.token=$NEW_TOKEN|" "$PROPS_FILE"
-  echo "New token saved to sonar-project.properties."
+# ── Ensure server is up and the stored token is valid (shared with the sonar-analyst agent's
+# MCP-launch wrapper -- see scripts/utils/ensure-sonar-token.sh's own header) ──────────────────
+source "$ROOT/scripts/utils/ensure-sonar-token.sh"
+if ! ensure_sonar_token "$COMPOSE_FILE" "$PROPS_FILE" "$SONAR_URL"; then
+  emit_agentic_error_block "permission" "false" "token-generation" "Failed to generate a new SonarQube token via admin/admin credentials -- an authorisation problem, not a transient one."
+  exit 1
 fi
 
 # ── Ensure scanner image is current, container exists and is running (see DECISIONS.md) ──

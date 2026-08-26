@@ -16,19 +16,19 @@ it does, its flags, and its exact behavior; not restated here.
 
 | Entry point | Real logic lives in |
 |---|---|
-| `deploy-and-run.sh` / `.bat` | `scripts/deploy-and-run/run.sh` |
-| `run-local.bat` | self-contained (no delegation) |
-| `playwright.sh` / `.bat` | `playwright/run.sh` |
-| `build-and-test.sh` / `.bat` | `scripts/build-and-test/run.sh` — see `scripts/build-and-test/README.md` for the full flow |
-| `integration-tests/run.sh` | self-contained — a direct alternative to `build-and-test.sh`, needs a local Java install |
-| `sonar.sh` / `.bat` | `scripts/sonar/run.sh` |
-| `reset.sh` / `.bat` | `scripts/deploy-and-run/reset.sh` — a faster, narrower alternative to `deploy-and-run.sh --reset`: only truncates tables (~1s, containers/volumes stay intact) vs. `--reset`'s full container+volume wipe and rebuild (~7-10 min) |
-| `clean.bat` | self-contained (no delegation) |
-| `pull-logs.bat` | self-contained (no delegation) |
-| `collect-code.bat` | self-contained (no delegation) |
-| `claude.bat` | self-contained (no delegation) |
-| `run-all-tests.sh` / `.bat` | `scripts/run-all-tests/run.sh` — see `.claude/nav/adr-index.md` for the unit/integration pairing's own history |
-| `ci.sh` / `.bat` | `scripts/ci/run.sh` — see `scripts/ci/README.md` and `scripts/ci/DECISIONS.md` |
+| [`deploy-and-run.sh`](deploy-and-run.sh) / [`.bat`](deploy-and-run.bat) | [`scripts/deploy-and-run/run.sh`](deploy-and-run/run.sh) |
+| [`run-local.bat`](run-local.bat) | self-contained (no delegation) |
+| [`playwright.sh`](playwright.sh) / [`.bat`](playwright.bat) | [`playwright/run.sh`](../playwright/run.sh) |
+| [`build-and-test.sh`](build-and-test.sh) / [`.bat`](build-and-test.bat) | [`scripts/build-and-test/run.sh`](build-and-test/run.sh) — see [`scripts/build-and-test/README.md`](build-and-test/README.md) for the full flow |
+| [`integration-tests/run.sh`](../integration-tests/run.sh) | self-contained — a direct alternative to `build-and-test.sh`, needs a local Java install |
+| [`sonar.sh`](sonar.sh) / [`.bat`](sonar.bat) | [`scripts/sonar/run.sh`](sonar/run.sh) |
+| [`reset.sh`](reset.sh) / [`.bat`](reset.bat) | [`scripts/deploy-and-run/reset.sh`](deploy-and-run/reset.sh) — a faster, narrower alternative to `deploy-and-run.sh --reset`: only truncates tables (~1s, containers/volumes stay intact) vs. `--reset`'s full container+volume wipe and rebuild (~7-10 min) |
+| [`clean.bat`](clean.bat) | self-contained (no delegation) |
+| [`pull-logs.bat`](pull-logs.bat) | self-contained (no delegation) |
+| [`collect-code.bat`](collect-code.bat) | self-contained (no delegation) |
+| [`claude.bat`](claude.bat) | self-contained (no delegation) |
+| [`run-all-tests.sh`](run-all-tests.sh) / [`.bat`](run-all-tests.bat) | [`scripts/run-all-tests/run.sh`](run-all-tests/run.sh) — see `.claude/nav/adr-index.md` for the unit/integration pairing's own history |
+| [`ci.sh`](ci.sh) / [`.bat`](ci.bat) | [`scripts/ci/run.sh`](ci/run.sh) — see [`scripts/ci/README.md`](ci/README.md) and [`scripts/ci/DECISIONS.md`](ci/DECISIONS.md) |
 
 ---
 

@@ -9,14 +9,15 @@ module-coupling export), isolated from the normal dev stack and safe to run alon
 ## Requirements
 
 - Docker Engine with a reachable daemon (this tool mounts `/var/run/docker.sock` into its own
-  container — Docker-outside-of-Docker, not Docker-in-Docker; see `.claude/nav/adr-index.md`)
+  container — Docker-outside-of-Docker, not Docker-in-Docker; see
+  [`.claude/nav/adr-index.md`](../../.claude/nav/adr-index.md))
 - Everything else (Maven, Node, Playwright browsers, Dagu itself) is already inside the built
   image or downloaded on first container start — nothing extra to install locally
 
 ## Flow
 
-Entry point: `run.sh`. Once `ci-runner` is running, a DAG run can also be triggered directly from
-Dagu's own web UI, bypassing `run.sh` entirely for that one step.
+Entry point: [`run.sh`](run.sh). Once `ci-runner` is running, a DAG run can also be triggered
+directly from Dagu's own web UI, bypassing `run.sh` entirely for that one step.
 
 ```mermaid
 flowchart TD
@@ -51,8 +52,8 @@ flowchart LR
 
 **The UI path never picks up source changes made since the last rebuild** — `ci-runner` has no live
 view of the host filesystem (a bind mount doesn't work when the caller invoking `docker run` is
-itself running inside a container, confirmed directly — see `DECISIONS.md`). Re-run `run.sh`
-after any code change before relying on the UI's "Start" button again.
+itself running inside a container, confirmed directly — see [`DECISIONS.md`](DECISIONS.md)).
+Re-run `run.sh` after any code change before relying on the UI's "Start" button again.
 
 ## Running
 
@@ -62,17 +63,19 @@ bash scripts/ci/run.sh --unit         # one stage only
 bash scripts/ci/run.sh --all --sonar  # everything, spelled out explicitly
 ```
 
-Every flag and its exact behavior is documented in `run.sh`'s own header — not restated here.
+Every flag and its exact behavior is documented in [`run.sh`](run.sh)'s own header — not restated
+here.
 
 ## Live status, logs, and run history
 
-`http://localhost:8082` — Dagu's own web UI; see `scripts/ci/run.sh`'s own header for how it's
+`http://localhost:8082` — Dagu's own web UI; see [`run.sh`](run.sh)'s own header for how it's
 exposed and which metrics files sync onto the host. Run history is backed by the `ci-dagu-home`
 named volume.
 
-For a scripted/automated watch instead of the browser, `python3 -u scripts/ci/watch-run.py` polls the
-same API for whichever `ci` run is newest, prints one line per step-status change, and exits once
-the run reaches a terminal state — see its own header for the exact output/exit-code contract.
+For a scripted/automated watch instead of the browser, `python3 -u` [`watch-run.py`](watch-run.py)
+polls the same API for whichever `ci` run is newest, prints one line per step-status change, and
+exits once the run reaches a terminal state — see its own header for the exact output/exit-code
+contract.
 
 ## Isolation
 
@@ -102,11 +105,11 @@ Yes — genuinely, not just "probably fine":
 alongside a full dev stack (app + db + minio + `pw-runner`) *and* SonarQube simultaneously caused
 genuine Playwright timeout flakiness on this project's own constrained sandbox — confirmed
 directly, not theoretical. On a normal, less constrained dev machine this is much less likely to
-bite, but it's a real resource limit, not a design flaw to "fix" — see `DECISIONS.md` for the full
-writeup.
+bite, but it's a real resource limit, not a design flaw to "fix" — see
+[`DECISIONS.md`](DECISIONS.md) for the full writeup.
 
 **Two `--e2e` runs at once will collide with each other** — the isolated stack's container/network
 names (`ci-advertisement-db`, etc.) are fixed, not unique per run. Sequential CI runs, or one CI
 run alongside normal dev work, are both fine; two concurrent e2e stages are not.
 
-See `DECISIONS.md` for the full design rationale.
+See [`DECISIONS.md`](DECISIONS.md) for the full design rationale.

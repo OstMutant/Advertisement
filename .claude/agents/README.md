@@ -2,27 +2,13 @@
 
 Custom Claude Code subagent definitions — real, persisted `.claude/agents/*.md` files (YAML
 frontmatter + markdown body as the subagent's own system prompt), each dispatched via the `Agent`
-tool. Unlike a skill, a subagent runs isolated from whichever conversation dispatches it — see
-`deep-review-orchestrator.md`'s own opening note for what that buys this project specifically.
+tool. Claude Code scans this directory recursively — a subagent's identity comes from its own
+`name` frontmatter field, not its file path, so grouping into subfolders below is purely
+organizational.
 
-## Flow
+## Entry points
 
-Real entry point: `deep-review-orchestrator`, dispatched directly —
-
-```
-Agent({description: "<short task description>", subagent_type: "deep-review-orchestrator", prompt: "<scope>"})
-```
-
-`<scope>` — see `deep-review-orchestrator.md` step 1 for the full set of accepted values. The
-orchestrator dispatches the two reviewer lenses below in a single, parallel response, then
-dispatches its own per-candidate verification subagents (ad hoc `general-purpose` dispatches, not
-named files in this directory, so not pictured below) before returning its result. `dry-kiss-yagni-reviewer`
-and `solid-reviewer` also name each other in their own "not X, see Y" opening line, but neither
-one dispatches or reads the other — that cross-reference is documentation only, not an execution
-path, so it stays out of the diagram below.
-
-```mermaid
-flowchart LR
-    O[deep-review-orchestrator] --> D[dry-kiss-yagni-reviewer]
-    O --> S[solid-reviewer]
-```
+| Entry point | Real logic lives in |
+|---|---|
+| [`review/deep-review-orchestrator`](review/deep-review-orchestrator.md) | self-contained — see [`review/README.md`](review/README.md) for the full dispatch flow |
+| [`sonar/sonar-analyst`](sonar/sonar-analyst.md) | self-contained — see [`sonar/README.md`](sonar/README.md) for the full dispatch flow |

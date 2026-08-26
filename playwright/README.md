@@ -1,12 +1,14 @@
 # Playwright UI Tests
 
-Automated E2E tests using `@playwright/test` (headless Chromium). See `playwright.config.js`'s own
-header for the run-mode configuration and `e2e/README.md` for the test suite's own structure.
+Automated E2E tests using `@playwright/test` (headless Chromium). See
+[`playwright.config.js`](playwright.config.js)'s own header for the run-mode configuration and
+[`e2e/README.md`](e2e/README.md) for the test suite's own structure.
 
 ## Requirements
 
 - Docker Desktop (Windows) or Docker Engine (Linux/WSL2)
-- App image already built and `marketplace-app` container created (`bash scripts/deploy-and-run.sh` once)
+- App image already built and `marketplace-app` container created
+  (`bash` [`scripts/deploy-and-run.sh`](../scripts/deploy-and-run.sh) once)
 - DB + MinIO containers running (started automatically by `deploy-and-run.sh`)
 
 The `marketplace-app` container is started automatically if stopped. The database is reset
@@ -28,14 +30,14 @@ After run:
 - HTML report (with screenshots on failure): `/app/playwright/pw-report/index.html`
 - Attached screenshots (`--ux` only) are embedded in the HTML report — use the `/screenshots` skill to extract named ones
 
-See `run.sh`'s own header for what it does automatically (app readiness, DB reset, `pw-runner`
-container reuse).
+See [`run.sh`](run.sh)'s own header for what it does automatically (app readiness, DB reset,
+`pw-runner` container reuse).
 
 ## Test accounts
 
 Tests do not rely on pre-seeded accounts — spec `02-marketplace-authentication-flow` signs up all
-accounts used by later specs via the normal sign-up flow (see `e2e/_helpers.js`'s own header for
-the account list). The first account to sign up is auto-promoted to `ADMIN` by the app itself; the
+accounts used by later specs via the normal sign-up flow (see
+[`e2e/_helpers.js`](e2e/_helpers.js)'s own header for the account list). The first account to sign up is auto-promoted to `ADMIN` by the app itself; the
 other two moderator/admin accounts start as `USER` in spec 02 and are promoted to their final role
 in spec 03.
 
@@ -45,8 +47,9 @@ in spec 03.
 
 All scenarios live in `/app/playwright/e2e/01`–`07-*.spec.js`, run in order against a single
 shared browser page per spec file (`test.describe.configure({ mode: 'serial' })`). Shared
-helpers live in `e2e/_helpers.js` and `e2e/_flows/*.flow.js`. Each spec file's own header states
-what it covers — see `e2e/README.md` for the suite's test-naming convention.
+helpers live in [`e2e/_helpers.js`](e2e/_helpers.js) and `e2e/_flows/*.flow.js`. Each spec file's
+own header states what it covers — see [`e2e/README.md`](e2e/README.md) for the suite's
+test-naming convention.
 
 ## Adding a new scenario
 

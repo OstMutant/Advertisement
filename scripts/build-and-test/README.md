@@ -9,7 +9,7 @@ run.
 
 ## Flow
 
-Entry point: `run.sh`.
+Entry point: [`run.sh`](run.sh).
 
 ```mermaid
 flowchart TD
@@ -34,9 +34,9 @@ flowchart TD
     K --> Z[done]
 ```
 
-`run.sh` reads `build-and-test.properties`' own values as the baseline for whether unit/integration
-tests run, then a CLI flag overrides that baseline for one invocation only — see `run.sh`'s and
-`build-and-test.properties`' own headers for the actual defaults and flag names. The build step
+[`run.sh`](run.sh) reads [`build-and-test.properties`](build-and-test.properties)' own values as
+the baseline for whether unit/integration tests run, then a CLI flag overrides that baseline for
+one invocation only — see their own headers for the actual defaults and flag names. The build step
 always builds the whole reactor and always refreshes `marketplace-app.jar` in the shared volume
 regardless of which tests run — Maven's own incremental compilation makes a no-op rebuild cheap, so
 there's no separate "build-only" vs "full" mode to keep in sync.
