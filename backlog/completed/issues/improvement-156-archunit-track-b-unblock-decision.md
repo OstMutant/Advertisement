@@ -1,13 +1,13 @@
 # improvement-156: ArchUnit Track B unblock — decision gate, plus a real `spi_map_json()` replacement design
 
-**Type:** investigation + decision material — split out of `improvement-152` once that issue's Part
-A/D/E work was ready to close. The underlying technical prerequisite (a working ArchUnit exporter)
-is done; the actual unblock is a decision gate, not a technical task.
+**Type:** implementation — split out of `improvement-152` once that issue's Part A/D/E work was
+ready to close. The underlying technical prerequisite (a working ArchUnit exporter) is done;
+**unblocked (2026-08-26)** — see "Reclassified" note below.
 **Module:** `marketplace-app/src/test/java/org/ost/marketplace/architecture/
 ArchitectureMetricsExport.java`, `docs/architecture/scripts/generate-architecture-model.sh`
 (`spi_map_json()`).
-**Priority:** Top — explicit placement, ranked directly after `improvement-155`.
-**When:** blocked on a decision — see "The real blocker" below. Not started.
+**Priority:** Top — raised to the top rank (2026-08-26).
+**When:** unblocked, ready to implement.
 
 ## Why this is being looked at
 
@@ -96,21 +96,85 @@ actually starts (not blockers, just corrections to the original plan):
 - Finding 4: any token-cost/AI-context measurement Track B adds must extend `improvement-135`'s
   existing `## Operational notes` block, not introduce a differently-named block.
 
-## Not yet done
+**Reclassified (2026-08-26) — this issue's actual scope is Track A, not Track B; the gate above
+does not apply.** Re-reading `improvement-138`'s own text: Track B's item-5 gate exists
+specifically to test one hypothesis — B2, "prove the AI-token hypothesis before going further" —
+whether a new L0-L5 projection layer that **Claude reads instead of source** measurably saves AI
+context tokens. `improvement-138` itself already states "**Track A is not gated by this** — it
+produces a human-facing visual explorer from already-[available data]." This issue's actual
+deliverable (real, ArchUnit-bytecode-derived method-level caller/implementor edges, replacing
+`spi_map_json()`'s regex extraction) feeds exactly one place: the existing, human-facing "SPI Map"
+screen in `architecture-map.html` — the same screen Track A already ships and the same kind of
+work as the already-unblocked `--archunit-metrics` module-coupling exporter. It introduces no new
+AI-consumption layer, no L0-L5 projection, and is not testing the AI-token hypothesis at all —
+Finding 3's original "this is exactly Track B" framing conflated "uses ArchUnit" with "is Track B,"
+when Track B is actually defined by its AI-token-hypothesis purpose, not by which library produces
+the data. This issue therefore never needed either of Track B's two unblock conditions in the
+first place — it is unblocked now, same as Track A. `improvement-138`'s own Finding 3 record is
+corrected accordingly (see that file).
 
-- No decision made on which of the two unblock conditions applies, or whether to wait longer.
-- No design work started on what an ArchUnit-based `spi_map_json()` replacement would actually look
-  like (query shape, caching/staleness relative to `bash scripts/build-and-test.sh`, how it'd feed
-  the SPI Interface Details table redesign from `improvement-151`'s "Ideas" section, and from
-  `improvement-152` Part C).
+## Implemented (2026-08-27)
+
+`ArchitectureMetricsExport.java` gained a `spiEdges()` method: for every `org.ost.platform.*.spi`
+interface, real implementors via `JavaClass.getAllRawInterfaces().contains(iface)` (bytecode
+assignability, not a text `implements` match), and real callers via
+`JavaMethod.getCallsOfSelf()` per interface method (bytecode call-site data, with the specific
+method names called) — written into the same `target/architecture-metrics.json` under a new
+`spiEdges` key, alongside the existing module-coupling numbers. Also added the missing
+`marketplace-orchestrator` → `org.ost.orchestrator` entry to `MODULE_PACKAGES` (was absent
+entirely, even though orchestrator is the primary real caller of nearly every SPI interface).
+
+`generate-architecture-model.sh`'s `spi_map_json()` now reads this real data (via an inline
+`python3 -c` call, same pattern already used for `--with-sonar`'s JSON consumption — no new
+dependency) instead of the old `grep`-regex tree-walk, per interface, with a per-interface
+fallback to the old regex path if `spiEdges` has no entry for it (e.g. `--archunit-metrics` was
+never run this session) — never a silent full-file fallback that could hide a real per-interface
+gap.
+
+**Verified fixed, both at the data level and in the actually-rendered table (headless Chromium,
+not just JSON inspection):**
+- The documented false positive — `AuditAutoConfiguration` showing up as an `AuditPort` caller
+  purely from a `@Bean`-wiring import — is gone.
+- A previously undocumented false *negative* found in the process: `AuditActivityEnrichHook`'s
+  real callers are `AuditReadService` **and** `AuditQueryService`; the old regex only ever found
+  the first one (blind to whichever field-declaration shape `AuditQueryService`'s injection used).
+  Both now show correctly.
+
+**Not part of this issue's closure — tracked separately in `improvement-157`:** while verifying
+this, also built a two-table (Calls / Implemented By) SPI Interface Details redesign with
+rowspan-grouped Interface/Purpose cells, clickable module links, and click-a-diagram-edge-to-jump-
+to-its-row linking — all verified live via headless Chromium. This diverges from `improvement-157`'s
+originally specified Module → Class → Method grouping and per-method display (no Method column was
+added, even though `spiEdges`' `callers[].methods` now has the data for it) — left as an open
+design question for that issue, not resolved here.
 
 ## Related
 
 - `improvement-152` — the issue this was split out of; Part C (SPI Interface Details table
   redesign) still lives there and depends on this issue's eventual `spi_map_json()` replacement for
   real method-level data.
-- `improvement-138` — Track B's own issue, Finding 3 (the blocking rule) and Findings 1/4 (fixes to
-  apply once unblocked).
-- `improvement-135` — item 5 (the governing rule blocking Track B), item 3 (the evidence Track B is
-  waiting on).
+- `improvement-138` — Track B's own issue, Finding 3 (the blocking rule, corrected 2026-08-26) and
+  Findings 1/4 (fixes to apply once unblocked — not yet applicable, this issue's own work never
+  touched a test-scanning `@AnalyzeClasses` config or an AI-context-token measurement).
+- `improvement-135` — item 5 (the governing rule that turned out not to apply here).
 - `improvement-151` — where the original SPI Map findings motivating this issue came from.
+- `improvement-157` — the SPI Interface Details table redesign this issue's real data now feeds;
+  the actually-shipped table shape diverges from that issue's Module → Class → Method spec (see
+  "Implemented" above) — still open there.
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a
+- context_loading_task_type: n/a
+- context_loading_consulted: no
+- context_loading_matched: n/a
+- flows_situation: n/a
+- flows_chosen: n/a
+- flows_matched: n/a
+
+### Script/command runs
+- bash scripts/build-and-test.sh --no-unit --no-integration --archunit-metrics --skip-vaadin | duration_s=~60 | mode=background | result=pass
+- bash docs/architecture/scripts/generate-architecture-model.sh --with-archunit (x6, iterative verification across the exporter + spi_map_json() + UI changes) | duration_s=~90 each | mode=background | result=pass
+- headless Chromium verification via `docker exec ci-pw-runner node ...` (x5, ad-hoc Playwright scripts, not a scripts/*.sh entry point) | mode=foreground | result=pass

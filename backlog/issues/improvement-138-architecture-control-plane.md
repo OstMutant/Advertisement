@@ -101,6 +101,17 @@ Track A is **not** gated by this — it produces a human-facing visual explorer 
 structured sources, not a new AI-context-loading projection, so it falls outside item 5's scope as
 written. Track A may proceed independently once `improvement-137` lands.
 
+**Correction (2026-08-26) — `improvement-156` was misclassified as Track B.** This finding's own
+"Track B" framing conflated "uses ArchUnit bytecode analysis" with "is Track B" — but Track B is
+actually defined by its purpose (B2's AI-token hypothesis: does a new L0-L5 layer **Claude reads
+instead of source** measurably save context tokens), not by which library produces the data.
+`improvement-156`'s real-method-level SPI caller/implementor extraction feeds only the existing,
+human-facing SPI Map screen in `architecture-map.html` — the same Track A surface the module-
+coupling `--archunit-metrics` exporter (also ArchUnit-based) already feeds unblocked. It introduces
+no new AI-consumption projection and is not testing the AI-token hypothesis. Reclassified as
+Track A-shaped work — `improvement-156` no longer needs either of this Finding's two unblock
+conditions; see that issue's own "Reclassified" note for the full reasoning.
+
 ### Finding 4 — B2's `## AI Context Metrics` block duplicates `improvement-135`'s already-shipped `## Operational notes` block
 
 B2 references *"the `## AI Context Metrics` block appended to `advertisement-spring-boot-starter`

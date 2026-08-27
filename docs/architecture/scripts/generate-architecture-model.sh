@@ -797,60 +797,115 @@ spi_map_json() {
     first_node=false
     nodes="$nodes    {\"id\": \"$(json_escape "$iface")\", \"label\": \"$(json_escape "$iface")\", \"parent\": \"platform-commons\", \"file\": \"$(json_escape "${iface_file#"$REPO_ROOT"/}")\"}"
 
-    # One tree-walk finds every candidate file (implementor OR caller OR both), then two cheap
-    # single-file greps classify each candidate -- avoids walking the same directory set twice per
-    # interface (a real, measured ~2x slowdown when this was two separate `grep -rl` tree-walks).
+    # Real, bytecode-derived edges (ArchitectureMetricsExport.java's spiEdges -- improvement-156)
+    # when available; falls back to the old grep-regex tree-walk otherwise (e.g. --archunit-metrics
+    # was never run this session). Checked per-interface, not once for the whole file, so a genuine
+    # zero-callers interface (valid data) is never confused with "no archunit data at all" (real
+    # fallback trigger) -- distinguished by python3's exit code, not by empty output alone.
     local impls_json="" first_impl=true
     local callers_json="" first_caller=true
     local candidate_file impl module caller module_c
-    local IMPL_PATTERN="implements\s+.*\b${iface}\b"
-    # For *Port this is marketplace-app/marketplace-orchestrator/a starter calling another
-    # starter's port; for *Hook this is whichever module actually injects it -- checked
-    # per-interface via CALLER_PATTERN below, never assumed from the *Hook suffix's usual "starter
-    # calls back" direction alone. Both injection shapes appear in real code (a single mandatory
-    # field, or a List<Iface> collection for hooks with several registered beans), so both are
-    # matched.
-    local CALLER_PATTERN="ComponentFactory<\s*${iface}\s*>|List<\s*${iface}\s*>|\b${iface}\s+\w+\s*;"
-    while IFS= read -r candidate_file; do
-      [ -z "$candidate_file" ] && continue
-      if grep -qP "$IMPL_PATTERN" "$candidate_file" 2>/dev/null; then
-        impl="$(basename "$candidate_file" .java)"
-        module="${candidate_file#"$REPO_ROOT"/}"
-        module="${module%%/*}"
-        if [ -z "${group_seen[$module]:-}" ]; then
-          group_seen[$module]=1
-          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module")\", \"label\": \"$(json_escape "$module")\", \"isGroup\": true}"
+    local archunit_file="" edge_rows="" archunit_ok=1
+    [ -f "$ARCHUNIT_METRICS_FILE" ] && archunit_file="$ARCHUNIT_METRICS_FILE"
+    [ -z "$archunit_file" ] && [ -f "$ARCHUNIT_METRICS_FILE_FALLBACK" ] && archunit_file="$ARCHUNIT_METRICS_FILE_FALLBACK"
+    if [ -n "$archunit_file" ]; then
+      edge_rows="$(python3 -c "
+import json, sys
+data = json.load(open(sys.argv[1]))
+edges = data.get('spiEdges', {}).get(sys.argv[2])
+if edges is None:
+    sys.exit(1)
+for impl in edges.get('implementations', []):
+    print('\t'.join(['impl', impl['class'], impl['module'], impl['file']]))
+for caller in edges.get('callers', []):
+    print('\t'.join(['caller', caller['class'], caller['module'], caller['file']]))
+" "$archunit_file" "$iface" 2>/dev/null)"
+      archunit_ok=$?
+    fi
+    if [ -n "$archunit_file" ] && [ "$archunit_ok" -eq 0 ]; then
+      while IFS=$'\t' read -r row_kind class_name mod file_path; do
+        [ -z "$row_kind" ] && continue
+        if [ "$row_kind" = "impl" ]; then
+          impl="$class_name"; module="$mod"
+          if [ -z "${group_seen[$module]:-}" ]; then
+            group_seen[$module]=1
+            nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module")\", \"label\": \"$(json_escape "$module")\", \"isGroup\": true}"
+          fi
+          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$impl")\", \"label\": \"$(json_escape "$impl")\", \"parent\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "$file_path")\"}"
+          $first_edge || edges="$edges,"$'\n'
+          first_edge=false
+          edges="$edges    {\"source\": \"$(json_escape "$iface")\", \"target\": \"$(json_escape "$impl")\", \"label\": \"implemented by\"}"
+          $first_impl || impls_json="$impls_json, "
+          first_impl=false
+          impls_json="$impls_json{\"class\": \"$(json_escape "$impl")\", \"module\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "$file_path")\"}"
+        elif [ "$row_kind" = "caller" ]; then
+          caller="$class_name"; module_c="$mod"
+          if [ -z "${group_seen[$module_c]:-}" ]; then
+            group_seen[$module_c]=1
+            nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module_c")\", \"label\": \"$(json_escape "$module_c")\", \"isGroup\": true}"
+          fi
+          if [ -z "${caller_node_seen[$caller]:-}" ]; then
+            caller_node_seen[$caller]=1
+            nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "call_$caller")\", \"label\": \"$(json_escape "$caller")\", \"parent\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "$file_path")\"}"
+          fi
+          $first_edge || edges="$edges,"$'\n'
+          first_edge=false
+          edges="$edges    {\"source\": \"$(json_escape "call_$caller")\", \"target\": \"$(json_escape "$iface")\", \"label\": \"calls\"}"
+          $first_caller || callers_json="$callers_json, "
+          first_caller=false
+          callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "$file_path")\"}"
         fi
-        nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$impl")\", \"label\": \"$(json_escape "$impl")\", \"parent\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
-        $first_edge || edges="$edges,"$'\n'
-        first_edge=false
-        edges="$edges    {\"source\": \"$(json_escape "$iface")\", \"target\": \"$(json_escape "$impl")\", \"label\": \"implemented by\"}"
-        $first_impl || impls_json="$impls_json, "
-        first_impl=false
-        impls_json="$impls_json{\"class\": \"$(json_escape "$impl")\", \"module\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
-      fi
-      if grep -qP "$CALLER_PATTERN" "$candidate_file" 2>/dev/null; then
-        caller="$(basename "$candidate_file" .java)"
-        module_c="${candidate_file#"$REPO_ROOT"/}"
-        module_c="${module_c%%/*}"
-        if [ -z "${group_seen[$module_c]:-}" ]; then
-          group_seen[$module_c]=1
-          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module_c")\", \"label\": \"$(json_escape "$module_c")\", \"isGroup\": true}"
+      done <<< "$edge_rows"
+    else
+      local IMPL_PATTERN="implements\s+.*\b${iface}\b"
+      # For *Port this is marketplace-app/marketplace-orchestrator/a starter calling another
+      # starter's port; for *Hook this is whichever module actually injects it -- checked
+      # per-interface via CALLER_PATTERN below, never assumed from the *Hook suffix's usual "starter
+      # calls back" direction alone. Both injection shapes appear in real code (a single mandatory
+      # field, or a List<Iface> collection for hooks with several registered beans), so both are
+      # matched.
+      local CALLER_PATTERN="ComponentFactory<\s*${iface}\s*>|List<\s*${iface}\s*>|\b${iface}\s+\w+\s*;"
+      while IFS= read -r candidate_file; do
+        [ -z "$candidate_file" ] && continue
+        if grep -qP "$IMPL_PATTERN" "$candidate_file" 2>/dev/null; then
+          impl="$(basename "$candidate_file" .java)"
+          module="${candidate_file#"$REPO_ROOT"/}"
+          module="${module%%/*}"
+          if [ -z "${group_seen[$module]:-}" ]; then
+            group_seen[$module]=1
+            nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module")\", \"label\": \"$(json_escape "$module")\", \"isGroup\": true}"
+          fi
+          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$impl")\", \"label\": \"$(json_escape "$impl")\", \"parent\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
+          $first_edge || edges="$edges,"$'\n'
+          first_edge=false
+          edges="$edges    {\"source\": \"$(json_escape "$iface")\", \"target\": \"$(json_escape "$impl")\", \"label\": \"implemented by\"}"
+          $first_impl || impls_json="$impls_json, "
+          first_impl=false
+          impls_json="$impls_json{\"class\": \"$(json_escape "$impl")\", \"module\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
         fi
-        if [ -z "${caller_node_seen[$caller]:-}" ]; then
-          caller_node_seen[$caller]=1
-          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "call_$caller")\", \"label\": \"$(json_escape "$caller")\", \"parent\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
+        if grep -qP "$CALLER_PATTERN" "$candidate_file" 2>/dev/null; then
+          caller="$(basename "$candidate_file" .java)"
+          module_c="${candidate_file#"$REPO_ROOT"/}"
+          module_c="${module_c%%/*}"
+          if [ -z "${group_seen[$module_c]:-}" ]; then
+            group_seen[$module_c]=1
+            nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module_c")\", \"label\": \"$(json_escape "$module_c")\", \"isGroup\": true}"
+          fi
+          if [ -z "${caller_node_seen[$caller]:-}" ]; then
+            caller_node_seen[$caller]=1
+            nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "call_$caller")\", \"label\": \"$(json_escape "$caller")\", \"parent\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
+          fi
+          $first_edge || edges="$edges,"$'\n'
+          first_edge=false
+          edges="$edges    {\"source\": \"$(json_escape "call_$caller")\", \"target\": \"$(json_escape "$iface")\", \"label\": \"calls\"}"
+          $first_caller || callers_json="$callers_json, "
+          first_caller=false
+          callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
         fi
-        $first_edge || edges="$edges,"$'\n'
-        first_edge=false
-        edges="$edges    {\"source\": \"$(json_escape "call_$caller")\", \"target\": \"$(json_escape "$iface")\", \"label\": \"calls\"}"
-        $first_caller || callers_json="$callers_json, "
-        first_caller=false
-        callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
-      fi
-    done < <(grep -rlP "${IMPL_PATTERN}|${CALLER_PATTERN}" \
-        "$REPO_ROOT"/*-spring-boot-starter/src/main/java "$REPO_ROOT"/marketplace-app/src/main/java \
-        "$REPO_ROOT"/marketplace-orchestrator/src/main/java 2>/dev/null | sort -u)
+      done < <(grep -rlP "${IMPL_PATTERN}|${CALLER_PATTERN}" \
+          "$REPO_ROOT"/*-spring-boot-starter/src/main/java "$REPO_ROOT"/marketplace-app/src/main/java \
+          "$REPO_ROOT"/marketplace-orchestrator/src/main/java 2>/dev/null | sort -u)
+    fi
 
     $first_detail || details="$details,"$'\n'
     first_detail=false
@@ -1873,6 +1928,9 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .dep-list a:hover { text-decoration: underline; }
   .dep-tag { font-size: 10px; color: var(--muted); background: var(--bg); padding: 2px 7px; border-radius: 8px; }
   .empty-hint { font-size: 12px; color: var(--muted); font-style: italic; }
+  .row-flash { animation: row-flash-anim 1.5s ease-out; }
+  @keyframes row-flash-anim { 0% { background-color: #fefcbf; } 100% { background-color: transparent; } }
+  table.simple.spi-table td { text-align: left; vertical-align: middle; }
   .placeholder-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed var(--line); opacity: 0.6; }
   .placeholder-row:last-child { border-bottom: none; }
   .placeholder-row .name { font-size: 13px; font-weight: 600; }
@@ -1922,8 +1980,8 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .adr-item .adr-status { color: var(--muted); font-size: 11px; margin-left: 6px; }
   h3 .section-link { font-size: 12px; font-weight: 500; color: var(--accent); text-decoration: none; margin-left: 8px; cursor: pointer; }
   h3 .section-link:hover { text-decoration: underline; }
-  h3 a.module-link { color: var(--accent); cursor: pointer; text-decoration: none; }
-  h3 a.module-link:hover { text-decoration: underline; }
+  a.module-link { color: var(--accent); cursor: pointer; text-decoration: none; }
+  a.module-link:hover { text-decoration: underline; }
   .table-chip-row { margin-bottom: 12px; }
   .table-chip-row a { display: inline-block; margin: 2px 6px 2px 0; }
   .table-chip-row code.path { background: #f1f3f5; padding: 3px 8px; border-radius: 6px; }
@@ -3084,6 +3142,20 @@ function renderCytoscapeFromGraph(nodes, edges, rankDir) {
   // open, so nothing happens on click there, same as before.
   diagramCy.on("tap", "node[file]", e => window.open("../../" + e.target.data("file"), "_blank"));
   diagramCy.nodes("[file]").style("cursor", "pointer");
+  // SPI Map's "calls"/"implemented by" edges have a matching table row below (spiRowId()) --
+  // jump to it on click. Any other diagram's edges (Module Dependencies, Bounded Contexts) just
+  // find no matching id and no-op, so this is safe to wire in generically here.
+  diagramCy.on("tap", "edge", e => {
+    const d = e.target.data();
+    const rowId = d.label === "calls" ? spiRowId("call", d.target, d.source.replace(/^call_/, ""))
+      : d.label === "implemented by" ? spiRowId("impl", d.source, d.target) : null;
+    const row = rowId && document.getElementById(rowId);
+    if (!row) return;
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    row.classList.remove("row-flash");
+    void row.offsetWidth;
+    row.classList.add("row-flash");
+  });
 }
 
 function renderCytoscapeDiagram(source, rankDir) {
@@ -3121,24 +3193,55 @@ function spiFileLink(file, label) {
   return `<a href="../../${esc(file)}" target="_blank">${esc(label)}</a>`;
 }
 
-// One table per subsystem (package prefix shown once per heading, same as the retired .md did) --
-// not one flat table -- plus each subsystem's own editorial note (SPI_SUBSYSTEM_NOTE) when present.
-// With the SPI Map diagram now split per subsystem, a specific subsystem restricts this to just
-// its own table, matching whichever diagram tab is on screen; omitted only by the (now unused)
-// caller with no subsystem context.
-// Plain-English meaning of each "Direction" (kind) value -- same tooltip treatment Bounded
-// Contexts' Label column already got, since "Port (marketplace -> starter)"/"Hook (starter ->
-// marketplace)" name the *direction* but not *why* a reader should care which one a given
-// interface is. Matched by prefix since spi_kind_for() appends the concrete module pair
-// (e.g. "Hook (marketplace-orchestrator -> marketplace-app)" for UiLabelHook/SessionActorHook).
-const SPI_KIND_MEANING = {
-  "Port": "Forward direction: marketplace/orchestrator calls a method the starter implements -- a normal, top-down API call.",
-  "Hook": "Reverse direction: the caller (a starter, or marketplace-orchestrator for the two forwarder Hooks) calls back into a layer above it for something only that layer can provide -- domain data, translations, session state.",
-  "type contract": "A plain shared type, not a call-direction interface -- e.g. a marker/principal type multiple modules reference but nothing \"calls\" through."
-};
-function spiKindMeaning(kind) {
-  const key = Object.keys(SPI_KIND_MEANING).find(k => kind.startsWith(k));
-  return key ? SPI_KIND_MEANING[key] : "";
+// One pair of tables per subsystem (package prefix shown once per heading, same as the retired
+// .md did) -- plus each subsystem's own editorial note (SPI_SUBSYSTEM_NOTE) when present. With
+// the SPI Map diagram now split per subsystem, a specific subsystem restricts this to just its
+// own tables, matching whichever diagram tab is on screen; omitted only by the (now unused)
+// caller with no subsystem context. Split into two tables (Calls / Implemented By), one row per
+// real edge rather than one row per interface with all edges stacked in a cell -- each row's
+// `id` matches the diagram edge it represents, so clicking that edge (renderCytoscapeFromGraph's
+// edge-tap handler) can scroll straight to it (improvement-157).
+function spiRowId(kind, interfaceName, className) {
+  return `spi-${kind}-${esc(interfaceName)}__${esc(className)}`;
+}
+
+// Same "real link, not plain text" treatment Code Quality's module column already uses --
+// reused here since these tables repeat the same Interface/Purpose text once per caller/
+// implementation otherwise (grouped away below via rowspan instead).
+function moduleLink(moduleId) {
+  return `<a class="module-link" onclick="navigate({screen:'module', id:'${esc(moduleId)}'})">${esc(moduleId)}</a>`;
+}
+
+function renderSpiCallsRows(rows) {
+  return rows.map(d => {
+    const span = d.callers && d.callers.length ? d.callers.length : 1;
+    const ifaceCell = `<td rowspan="${span}">${spiFileLink(d.file, d.interface)}</td>`;
+    const purposeCell = `<td rowspan="${span}">${esc(d.purpose)}</td>`;
+    if (!d.callers || !d.callers.length) {
+      return `<tr><td><span class="empty-hint">no caller found</span></td>${ifaceCell}${purposeCell}</tr>`;
+    }
+    return d.callers.map((c, i) => {
+      const callerCell = `<td>${spiFileLink(c.file, c.class)} (${moduleLink(c.module)})</td>`;
+      const row = i === 0 ? `${callerCell}${ifaceCell}${purposeCell}` : callerCell;
+      return `<tr id="${spiRowId("call", d.interface, c.class)}">${row}</tr>`;
+    }).join("");
+  }).join("");
+}
+
+function renderSpiImplementedByRows(rows) {
+  return rows.map(d => {
+    const span = d.implementations.length || 1;
+    const ifaceCell = `<td rowspan="${span}">${spiFileLink(d.file, d.interface)}</td>`;
+    const purposeCell = `<td rowspan="${span}">${esc(d.purpose)}</td>`;
+    if (!d.implementations.length) {
+      return `<tr>${ifaceCell}<td><span class="empty-hint">no implementation found</span></td>${purposeCell}</tr>`;
+    }
+    return d.implementations.map((impl, i) => {
+      const implCell = `<td>${spiFileLink(impl.file, impl.class)} (${moduleLink(impl.module)})</td>`;
+      const row = i === 0 ? `${ifaceCell}${implCell}${purposeCell}` : implCell;
+      return `<tr id="${spiRowId("impl", d.interface, impl.class)}">${row}</tr>`;
+    }).join("");
+  }).join("");
 }
 
 function renderSpiSubsystemTables(subsystem) {
@@ -3147,35 +3250,35 @@ function renderSpiSubsystemTables(subsystem) {
     const rows = MODEL.spiMap.details.filter(d => d.subsystem === s);
     if (!rows.length) return "";
     const note = MODEL.spiMap.subsystemNotes[s];
-    const trs = rows.map(d => {
-      const callers = d.callers && d.callers.length
-        ? d.callers.map(i => `${spiFileLink(i.file, i.class)} <span class="scope-label">${esc(i.module)}</span>`).join("<br>")
-        : `<span class="empty-hint">no caller found</span>`;
-      const impls = d.implementations.length
-        ? d.implementations.map(i => `${spiFileLink(i.file, i.class)} <span class="scope-label">${esc(i.module)}</span>`).join("<br>")
-        : `<span class="empty-hint">no implementation found</span>`;
-      return `<tr><td>${callers}</td><td>${spiFileLink(d.file, d.interface)}</td><td class="scope-label" title="${esc(spiKindMeaning(d.kind))}" style="cursor:help">${esc(d.kind)}</td><td>${impls}</td><td>${esc(d.purpose)}</td></tr>`;
-    }).join("");
+    const callCount = rows.reduce((n, d) => n + (d.callers ? d.callers.length : 0), 0);
+    const implCount = rows.reduce((n, d) => n + d.implementations.length, 0);
     return `
       <div class="domain-group">
         <h3>${esc(MODEL.spiMap.subsystemLabels[s])} <code class="path">${esc(rows[0].package)}</code></h3>
-        <table class="simple"><thead><tr>
-          <th title="Real caller classes -- who actually injects/calls this interface, from ComponentFactory&lt;X&gt;/List&lt;X&gt;/field grep, not who's allowed to" style="cursor:help">Caller(s)</th>
+        <h4>Calls (${callCount})</h4>
+        <table class="simple spi-table"><thead><tr>
+          <th title="Real caller class -- who actually calls the interface's method, from bytecode analysis, not who's merely allowed to" style="cursor:help">Caller</th>
           <th>Interface</th>
-          <th title="Which way the call goes -- hover a row's value for what it means" style="cursor:help">Direction</th>
-          <th title="Real classes that implement this interface" style="cursor:help">Implementation(s)</th>
           <th>Purpose</th>
-        </tr></thead><tbody>${trs}</tbody></table>
+        </tr></thead><tbody>${renderSpiCallsRows(rows)}</tbody></table>
+        <h4>Implemented By (${implCount})</h4>
+        <table class="simple spi-table"><thead><tr>
+          <th>Interface</th>
+          <th title="Real class that implements this interface" style="cursor:help">Implementation</th>
+          <th>Purpose</th>
+        </tr></thead><tbody>${renderSpiImplementedByRows(rows)}</tbody></table>
         ${note ? `<div class="empty-hint" style="margin-top:8px">${mdInlineToHtml(note)}</div>` : ""}
       </div>`;
   }).join("");
 }
 
 function renderSpiMapExtrasHtml(subsystem) {
-  const detailCount = subsystem ? MODEL.spiMap.details.filter(d => d.subsystem === subsystem).length : MODEL.spiMap.details.length;
+  const rows = MODEL.spiMap.details.filter(d => !subsystem || d.subsystem === subsystem);
+  const callCount = rows.reduce((n, d) => n + (d.callers ? d.callers.length : 0), 0);
+  const implCount = rows.reduce((n, d) => n + d.implementations.length, 0);
   return `
     <section class="block"><h3>Legend</h3>
-      <div class="empty-hint">Click a node to open its real <code class="path">.java</code> file. Drag a node to reposition it, drag empty canvas space to pan.</div>
+      <div class="empty-hint">Click a node to open its real <code class="path">.java</code> file. Click an edge to jump to its row below. Drag a node to reposition it, drag empty canvas space to pan.</div>
       <table class="simple"><tbody>
         <tr><td class="scope-label" style="width:150px">Dashed gray box</td><td>A module boundary (<code class="path">platform-commons</code>, a starter, <code class="path">marketplace-app</code>, or <code class="path">marketplace-orchestrator</code>)</td></tr>
         <tr><td class="scope-label">Blue rounded box</td><td>A Java interface, an implementation class, or a real caller class</td></tr>
@@ -3183,7 +3286,7 @@ function renderSpiMapExtrasHtml(subsystem) {
         <tr><td class="scope-label">──implemented by──▶</td><td>Arrow points from the interface to its implementation class</td></tr>
       </tbody></table>
     </section>
-    <section class="block"><h3>SPI Interface Details (${detailCount})</h3>${renderSpiSubsystemTables(subsystem)}</section>`;
+    <section class="block"><h3>SPI Interface Details (${callCount} calls, ${implCount} implementations)</h3>${renderSpiSubsystemTables(subsystem)}</section>`;
 }
 
 // Parses one "**Heading:** location sentence. Example: example sentence." paragraph from the

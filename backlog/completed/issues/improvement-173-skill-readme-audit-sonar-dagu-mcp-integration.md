@@ -287,10 +287,48 @@ Each step independently shippable — no requirement to do all in one pass.
 
 ## Post-close live verification (2026-08-26)
 
-Live end-to-end test of `/sonar --metrics` in progress (real scan via `scripts/sonar.sh`, then the
-always-on bug check + `--metrics`' persisted `scripts/sonar/report/metrics.md`, per `/sonar`'s own
-steps 6-7). `/ci --metrics` planned as the next live test once this one finishes, to verify the
-same pattern against `dagu-analyst`.
+`/sonar --metrics` verified live end to end: real scan, `sonar-analyst` bug check (found 3 real
+`java:S7467` false positives, rigorously re-verified against the live server across 4 independent
+layers, then marked false-positive in SonarQube itself + suppressed with
+`@SuppressWarnings("java:S7467")` in code per the new two-part rule added to `.claude/rules.md`),
+and `--metrics`' persisted `scripts/sonar/report/metrics.md`.
+
+`/ci --metrics` also verified live end to end: `dagu-analyst` dispatched for a full run report,
+MCP tools still unavailable (consistent with the already-documented limitation, confirmed again
+after the Dagu 2.15.3 bump), REST fallback returned real run data, persisted to
+`scripts/ci/reports/dagu-metrics.md`. That test surfaced a real, unrelated bug: the CI `docs`
+stage was a read-only staleness check that only ever complained, never fixed anything, and the
+underlying `generate-architecture-model.sh` had two real container-vs-host drift bugs (`.dockerignore`
+dropping root `README.md`/`INFRASTRUCTURE.md`/`CLAUDE.md`; Dagu's own runtime `wiki/` folder being
+picked up as a fake script-group node) plus four unsorted `grep -rl`/`find` pipelines making its
+own output non-deterministic between runs. All four fixed and verified: the `docs` stage now
+regenerates in place and syncs back to the host (`scripts/ci/run.sh`'s `sync_artifacts()`, which
+now fails `--foreground`/`--sync-artifacts` on a copy error instead of ignoring it), two independent
+regenerations now produce byte-identical JSON, and the real freshness gate
+(`check-architecture-model-freshness.sh`) passes clean against the CI-produced files. Committed as
+`a42c6294`.
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: 82207 (two dagu-analyst dispatches, see below)
+- review_signal_ratio: n/a
+- context_loading_task_type: n/a
+- context_loading_consulted: no
+- context_loading_matched: n/a
+- flows_situation: n/a
+- flows_chosen: n/a
+- flows_matched: n/a
+
+### Agent calls
+- dagu-analyst MCP connectivity check post-2.15.3-bump | subagent_type=dagu-analyst | tokens=40985 | tool_uses=3 | duration_s=28 | mode=background | batch=solo
+- dagu-analyst full CI run report (/ci --metrics test) | subagent_type=dagu-analyst | tokens=41222 | tool_uses=6 | duration_s=38 | mode=background | batch=solo
+
+### Script/command runs
+- scripts/ci.sh --unit --no-archunit-metrics (rebuild + trigger, x3 across this session's fix/verify cycle) | duration_s=~165-188 each (trigger only) | mode=background | result=pass
+- scripts/ci/run.sh --sync-artifacts (x3) | duration_s=~1 each | mode=foreground | result=pass (2nd/3rd), fail-by-design not exercised
+- docs/architecture/scripts/check-architecture-model-freshness.sh (x3) | duration_s=~60-90 each | mode=background | result=fail, fail, pass (final, post-fix)
+- docs/architecture/scripts/generate-architecture-model.sh (direct diagnostic runs, x4) | duration_s=~60-90 each | mode=background | result=pass (used for diffing, not gate-checking)
 
 ## Related
 

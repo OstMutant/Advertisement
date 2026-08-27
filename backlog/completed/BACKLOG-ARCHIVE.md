@@ -2108,3 +2108,44 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   --sandbox` (163 tests, 0 failures) both printed the expected `AGENTIC_SUCCESS_BLOCK`. No error
   path exercised live in any of the 7 scripts — verified by syntax check + review only. Full
   detail: `completed/issues/improvement-167-dag-aware-agent-friendly-script-execution-contract.md`.
+
+✅ Done (2026-08-26): improvement-173 — infra housekeeping: `.claude/skills/README.md`/
+  `.claude/commands/README.md` audited (no drift found); `improvement-160`'s D3-3/D3-8/D5-7 rows
+  re-verified (citations corrected for renamed/deleted files); SonarQube MCP integration built as
+  an agent-scoped `sonar-analyst` subagent (wrapper script keeps its token fresh on every
+  dispatch, since the session-wide-`.mcp.json` idea couldn't survive SonarQube's token volatility)
+  and verified live end to end, including a real `/sonar --metrics` scan that found and closed 3
+  genuine `java:S7467` false positives (new two-part SonarQube-false-positive rule added to
+  `.claude/rules.md`); Dagu MCP integration built as `dagu-analyst` (no wrapper needed, plain HTTP
+  endpoint) but its `dagu_read`/`dagu_change`/`dagu_execute` tools never connect — confirmed a
+  genuine Claude-Code-client-side limitation with inline HTTP `mcpServers` in agent frontmatter,
+  independent of Dagu's own version (tried the 2.14.0 → 2.15.3 bump specifically to rule this out);
+  documented REST-API fallback works reliably instead. `/review` and `/sonar --metrics`/`/ci
+  --metrics` commands added; `INFRASTRUCTURE.md` restructured top-down per a new
+  `app-readme-standards/SKILL.md` procedure. The `/ci --metrics` live test surfaced and led to
+  fixing a real, unrelated bug: the CI `docs` stage only ever flagged staleness, never fixed it,
+  and the underlying generator had two real container-vs-host drift bugs (`.dockerignore` dropping
+  root `README.md`/`INFRASTRUCTURE.md`/`CLAUDE.md`; Dagu's own runtime `wiki/` folder mistaken for
+  a real script-group) plus four unsorted `grep -rl`/`find` pipelines making its own output
+  non-deterministic — all fixed and verified (two independent regenerations now byte-identical,
+  real freshness gate passes clean). Full detail:
+  `completed/issues/improvement-173-skill-readme-audit-sonar-dagu-mcp-integration.md`.
+
+✅ Done (2026-08-27): improvement-156 — real ArchUnit-based `spi_map_json()` replacement.
+  Reclassified first: the original "Track B, gated by `improvement-135` item 5" framing conflated
+  "uses ArchUnit" with "is Track B" — Track B is actually defined by its AI-token-hypothesis
+  purpose (a new layer Claude reads instead of source), and this issue's deliverable feeds only
+  the existing human-facing SPI Map screen, so the gate never applied; `improvement-138`'s Finding
+  3 corrected accordingly. `ArchitectureMetricsExport.java` gained a `spiEdges()` method: real
+  bytecode-derived implementor/caller edges per `platform-commons` `*.spi` interface
+  (`getAllRawInterfaces()`/`getCallsOfSelf()`, method-level, not text regex), plus the previously-
+  missing `marketplace-orchestrator` module mapping. `spi_map_json()` now consumes this data
+  (falling back to the old regex per-interface when absent) instead of its own text scan. Verified
+  fixed, both in the JSON and in the actually-rendered table via headless Chromium: the documented
+  `AuditAutoConfiguration` false positive is gone, and a previously-undocumented false negative
+  (`AuditActivityEnrichHook` was missing a real second caller) is fixed too. A two-table SPI
+  Interface Details redesign (Calls / Implemented By, rowspan-grouped, clickable module links,
+  click-edge-to-row linking) was also built and verified live while testing this — tracked
+  separately under `improvement-157`, since its shape diverges from that issue's original spec
+  (grouped by Interface, no Method column, vs. the planned Module → Class → Method). Full detail:
+  `completed/issues/improvement-156-archunit-track-b-unblock-decision.md`.
