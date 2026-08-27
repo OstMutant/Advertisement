@@ -313,20 +313,67 @@ declare -A BC_LABEL_CATEGORY=(
   ["can have"]="derived"
 )
 
+# Live from the real Javadoc immediately above the class/interface/record/enum declaration --
+# single source of truth lives next to the code, not duplicated in this generator. Walks backward
+# from that declaration line past blank/annotation lines (handles @FunctionalInterface) to find a
+# preceding "*/", then further back to the matching "/**"; strips "*"/"{@code}"/"{@link}" markup.
+# Every *.spi interface is expected to carry one -- see platform-commons/CLAUDE.md. Also reused for
+# entity/service/contract classes on the Module screen (improvement-160-adjacent work) -- not every
+# one of those is guaranteed a Javadoc comment, so an empty result there is expected, not an error.
+# Defined here (ahead of the Entities/Key Services/Contract block below, which calls it at
+# top-level script scope, not deferred inside a later-called function) -- bash has no function
+# hoisting, so a definition after its first call site fails with "command not found" (confirmed
+# directly).
+javadoc_purpose_for() {
+  local file="$1"
+  awk '
+    /^[[:space:]]*(public[[:space:]]+)?(final[[:space:]]+)?(abstract[[:space:]]+)?(static[[:space:]]+)?(class|interface|record|enum)[[:space:]]+/ && !found { target=NR; found=1 }
+    { lines[NR] = $0 }
+    END {
+      if (!found) { exit }
+      i = target - 1
+      while (i > 0 && (lines[i] ~ /^[[:space:]]*$/ || lines[i] ~ /^[[:space:]]*@/)) i--
+      if (lines[i] !~ /\*\/[[:space:]]*$/) exit
+      end = i
+      while (i > 0 && lines[i] !~ /^[[:space:]]*\/\*\*/) i--
+      start = i
+      if (lines[start] !~ /^[[:space:]]*\/\*\*/) exit
+      out = ""
+      for (j = start; j <= end; j++) {
+        line = lines[j]
+        gsub(/^[[:space:]]*\/\*\*[[:space:]]*/, "", line)
+        gsub(/[[:space:]]*\*\/[[:space:]]*$/, "", line)
+        gsub(/^[[:space:]]*\*[[:space:]]?/, "", line)
+        if (line != "") {
+          out = (out == "" ? line : out " " line)
+        }
+      }
+      gsub(/\{@code /, "", out); gsub(/\{@link /, "", out); gsub(/\}/, "", out)
+      print out
+    }
+  ' "$file"
+}
+
 # ── Domain grouping + Entities/Key Services/Contract lists per module -- live, same real signals
 # bounded_contexts_json() uses further down (real @Table classes, real *Service classes, real SPI
-# interface `implements` relationships), just keyed by module instead of by domain and reduced to
-# bare names (no file link -- the Module screen shows these as plain labels, not a linked list).
+# interface `implements` relationships), just keyed by module instead of by domain. Each line is
+# "name<TAB>file<TAB>description" (json_named_file_array()'s 3-column shape) -- file/description
+# feed the Module screen's real file links + Javadoc one-liners (improvement-160-adjacent work).
 declare -A MODULE_DOMAIN MODULE_KEYSERVICES MODULE_CONTRACT MODULE_ENTITY
 for bc_d in "${BC_DOMAIN_ORDER[@]}"; do
   bc_m="${BC_DOMAIN_MODULE[$bc_d]}"
   MODULE_DOMAIN["$bc_m"]="${BC_DOMAIN_LABEL[$bc_d]}"
   [ "$bc_d" = "Shared" ] || [ "$bc_d" = "UI" ] && continue
-  MODULE_ENTITY["$bc_m"]="$( (grep -rl '^@Table\|@Table(' "$REPO_ROOT/$bc_m/src/main/java" --include='*.java' 2>/dev/null || true) | sort | xargs -r -n1 basename | sed 's/\.java$//')"$'\n'
-  MODULE_KEYSERVICES["$bc_m"]="$(find "$REPO_ROOT/$bc_m/src/main/java" -name '*Service.java' 2>/dev/null | sort | xargs -r -n1 basename | sed 's/\.java$//')"$'\n'
+  MODULE_ENTITY["$bc_m"]="$( (grep -rl '^@Table\|@Table(' "$REPO_ROOT/$bc_m/src/main/java" --include='*.java' 2>/dev/null || true) | sort | while read -r ef; do
+    printf '%s\t%s\t%s\n' "$(basename "$ef" .java)" "${ef#"$REPO_ROOT"/}" "$(javadoc_purpose_for "$ef")"
+  done)"$'\n'
+  MODULE_KEYSERVICES["$bc_m"]="$(find "$REPO_ROOT/$bc_m/src/main/java" -name '*Service.java' 2>/dev/null | sort | while read -r sf; do
+    printf '%s\t%s\t%s\n' "$(basename "$sf" .java)" "${sf#"$REPO_ROOT"/}" "$(javadoc_purpose_for "$sf")"
+  done)"$'\n'
   MODULE_CONTRACT["$bc_m"]="$( (find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
     iface="$(basename "$ifile" .java)"
-    grep -qlP "implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$bc_m/src/main/java" 2>/dev/null && echo "$iface"
+    grep -qlP "implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$bc_m/src/main/java" 2>/dev/null \
+      && printf '%s\t%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}" "$(javadoc_purpose_for "$ifile")"
     true
   done) || true)"$'\n'
 done
@@ -336,7 +383,8 @@ done
 if [ -n "$bc_orch_mod" ]; then
   MODULE_CONTRACT["$bc_orch_mod"]="$( (find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
     iface="$(basename "$ifile" .java)"
-    grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;" -r --include='*.java' "$REPO_ROOT/$bc_orch_mod/src/main/java" 2>/dev/null && echo "$iface"
+    grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;" -r --include='*.java' "$REPO_ROOT/$bc_orch_mod/src/main/java" 2>/dev/null \
+      && printf '%s\t%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}" "$(javadoc_purpose_for "$ifile")"
     true
   done) || true)"$'\n'
 fi
@@ -576,19 +624,20 @@ json_str_array() {
   echo "[$out]"
 }
 
-# Builds a JSON array of {"name","file"} from newline-separated "name<TAB>file" pairs -- for lists
-# that need to render as real links (client-side sourceLink()), not just plain labels.
+# Builds a JSON array of {"name","file","description"} from newline-separated
+# "name<TAB>file<TAB>description" pairs -- for lists that need to render as real links (client-side
+# fileLink()), not just plain labels. "file"/"description" are both optional per row (omitted from
+# the object when empty) -- existing 2-column "name<TAB>file" callers are unaffected.
 json_named_file_array() {
-  local items="$1" out="" first=true name file
-  while IFS=$'\t' read -r name file; do
+  local items="$1" out="" first=true name file description
+  while IFS=$'\t' read -r name file description; do
     [ -z "$name" ] && continue
     $first || out="$out, "
     first=false
-    if [ -n "$file" ]; then
-      out="$out{\"name\": \"$(json_escape "$name")\", \"file\": \"$(json_escape "$file")\"}"
-    else
-      out="$out{\"name\": \"$(json_escape "$name")\"}"
-    fi
+    out="$out{\"name\": \"$(json_escape "$name")\""
+    [ -n "$file" ] && out="$out, \"file\": \"$(json_escape "$file")\""
+    [ -n "$description" ] && out="$out, \"description\": \"$(json_escape "$description")\""
+    out="$out}"
   done <<< "$items"
   echo "[$out]"
 }
@@ -743,41 +792,6 @@ spi_kind_for() {
   esac
 }
 
-# Live from the real Javadoc immediately above the interface declaration -- single source of
-# truth lives next to the code, not duplicated in this generator. Walks backward from the
-# "interface X" line past blank/annotation lines (handles @FunctionalInterface) to find a
-# preceding "*/", then further back to the matching "/**"; strips "*"/"{@code}"/"{@link}" markup.
-# Every *.spi interface is expected to carry one -- see platform-commons/CLAUDE.md.
-spi_javadoc_purpose_for() {
-  local file="$1"
-  awk '
-    /^[[:space:]]*(public[[:space:]]+)?interface[[:space:]]+/ && !found { target=NR; found=1 }
-    { lines[NR] = $0 }
-    END {
-      if (!found) { exit }
-      i = target - 1
-      while (i > 0 && (lines[i] ~ /^[[:space:]]*$/ || lines[i] ~ /^[[:space:]]*@/)) i--
-      if (lines[i] !~ /\*\/[[:space:]]*$/) exit
-      end = i
-      while (i > 0 && lines[i] !~ /^[[:space:]]*\/\*\*/) i--
-      start = i
-      if (lines[start] !~ /^[[:space:]]*\/\*\*/) exit
-      out = ""
-      for (j = start; j <= end; j++) {
-        line = lines[j]
-        gsub(/^[[:space:]]*\/\*\*[[:space:]]*/, "", line)
-        gsub(/[[:space:]]*\*\/[[:space:]]*$/, "", line)
-        gsub(/^[[:space:]]*\*[[:space:]]?/, "", line)
-        if (line != "") {
-          out = (out == "" ? line : out " " line)
-        }
-      }
-      gsub(/\{@code /, "", out); gsub(/\{@link /, "", out); gsub(/\}/, "", out)
-      print out
-    }
-  ' "$file"
-}
-
 spi_map_json() {
   local nodes="" edges="" details="" first_node=true first_edge=true first_detail=true
   local -A group_seen=() caller_node_seen=()
@@ -925,7 +939,7 @@ for caller in edges.get('callers', []):
 
     $first_detail || details="$details,"$'\n'
     first_detail=false
-    details="$details    {\"interface\": \"$(json_escape "$iface")\", \"file\": \"$(json_escape "${iface_file#"$REPO_ROOT"/}")\", \"package\": \"$(json_escape "$pkg")\", \"subsystem\": \"$(json_escape "$subsystem")\", \"kind\": \"$(json_escape "$kind")\", \"purpose\": \"$(json_escape "$(spi_javadoc_purpose_for "$iface_file")")\", \"methodCount\": ${method_count:-null}, \"usedCount\": ${used_count:-null}, \"allMethods\": ${all_methods_json:-null}, \"implementations\": [$impls_json], \"callers\": [$callers_json]}"
+    details="$details    {\"interface\": \"$(json_escape "$iface")\", \"file\": \"$(json_escape "${iface_file#"$REPO_ROOT"/}")\", \"package\": \"$(json_escape "$pkg")\", \"subsystem\": \"$(json_escape "$subsystem")\", \"kind\": \"$(json_escape "$kind")\", \"purpose\": \"$(json_escape "$(javadoc_purpose_for "$iface_file")")\", \"methodCount\": ${method_count:-null}, \"usedCount\": ${used_count:-null}, \"allMethods\": ${all_methods_json:-null}, \"implementations\": [$impls_json], \"callers\": [$callers_json]}"
   done
   local labels_json="" notes_json="" first_s=true
   for s in "${SPI_SUBSYSTEM_ORDER[@]}"; do
@@ -1759,9 +1773,9 @@ ci_metrics_json="null"
     echo "      \"evidence\": [{\"file\": \"$m/pom.xml\", \"line\": 1}],"
     echo "      \"intent\": $intent_json,"
     echo "      \"decisions\": $decisions_field,"
-    echo "      \"entities\": $(json_str_array "${MODULE_ENTITY[$m]:-}"),"
-    echo "      \"keyServices\": $(json_str_array "${MODULE_KEYSERVICES[$m]:-}"),"
-    echo "      \"contracts\": $(json_str_array "${MODULE_CONTRACT[$m]:-}"),"
+    echo "      \"entities\": $(json_named_file_array "${MODULE_ENTITY[$m]:-}"),"
+    echo "      \"keyServices\": $(json_named_file_array "${MODULE_KEYSERVICES[$m]:-}"),"
+    echo "      \"contracts\": $(json_named_file_array "${MODULE_CONTRACT[$m]:-}"),"
     echo "      \"tables\": $(json_str_array "${MODULE_TABLES[$m]:-}"),"
     deps="$(module_deps "$m")"
     compile_list=$(echo "$deps" | awk -F'|' '$2=="compile" && $3=="false" {print $1}')
@@ -1946,7 +1960,7 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .empty-hint { font-size: 12px; color: var(--muted); font-style: italic; }
   .row-flash { animation: row-flash-anim 1.5s ease-out; }
   @keyframes row-flash-anim { 0% { background-color: #fefcbf; } 100% { background-color: transparent; } }
-  table.simple.spi-table td { text-align: left; vertical-align: middle; }
+  table.simple.rowspan-table td { text-align: left; vertical-align: middle; }
   .spi-calls { margin-top: 4px; font-size: 11px; color: var(--muted); line-height: 1.7; }
   .spi-calls code { background: none; padding: 0; font-size: 11px; }
   .spi-methodcount { margin-top: 4px; font-size: 11px; color: var(--muted); font-weight: 600; }
@@ -2121,7 +2135,12 @@ function crumbLabelFor(v) {
   }
   if (v.screen === "backlog") return "Backlog";
   if (v.screen === "adrs") return "ADRs";
-  if (v.screen === "codequality") return "Code Quality";
+  if (v.screen === "codequality") {
+    if (v.section === "sonar") return "Code Quality — SonarQube";
+    if (v.section === "archunit") return "Code Quality — ArchUnit";
+    if (v.section === "findings") return "Code Quality — Findings";
+    return "Code Quality";
+  }
   if (v.screen === "diagrams") {
     if (v.groupKey && v.diagramIndex !== undefined) {
       const g = MODEL.diagramGroups.find(x => x.key === v.groupKey);
@@ -2253,12 +2272,19 @@ function renderSystem() {
 // built (previously duplicated: a rich version on the old System page, a generic Mermaid-text
 // re-parse under Diagrams). Renders into #diagram-cy and assigns to the shared `diagramCy`
 // variable so Diagrams' existing zoom toolbar (zoomDiagram()/#zoom-label) works unmodified.
-function renderModuleDependencyGraph() {
-  const els = moduleNodes.map(n => ({
+// Shared node/edge-building + Cytoscape style for both Module Dependencies diagrams (Production
+// Modules, Integration Tests) -- same visual language, different node subset. Auto-sized nodes
+// ("width"/"height": "label") instead of a fixed box -- a fixed 92x34 box clipped longer labels
+// like "marketplace-orchestrator" (confirmed directly: rendered bounding box taller than the box
+// itself). Edges are only included when both ends are in this diagram's own node subset, so the
+// Integration Tests diagram doesn't reach out to production-only modules it has no edge to anyway.
+function moduleDependencyElements(nodes) {
+  const ids = new Set(nodes.map(n => n.id));
+  const els = nodes.map(n => ({
     data: { id: n.id, label: n.id.replace(/-spring-boot-starter$/, ""), domain: n.domain },
     style: { "background-color": domainColor(n.domain) }
   }));
-  moduleNodes.forEach(n => {
+  nodes.forEach(n => {
     // Layout edges point dependency -> dependent (reverse of the real semantic direction) so
     // dagre's left-to-right ranking puts foundational/most-depended-on modules on the left and
     // consumers on the right -- dagre ranks by source-before-target, and "X depends on Y" should
@@ -2266,18 +2292,23 @@ function renderModuleDependencyGraph() {
     // The arrowhead is drawn on the *visual* source/target below, independent of layout ranking.
     ["DEPENDS_ON_COMPILE","DEPENDS_ON_RUNTIME"].forEach(et => {
       (n.edges[et] || []).forEach(target => {
+        if (!ids.has(target)) return;
         els.push({ data: { id: n.id+"->"+target+et, source: target, target: n.id, dashed: et==="DEPENDS_ON_RUNTIME" } });
       });
     });
   });
+  return els;
+}
+
+function renderOneModuleDependencyGraph(containerId, zoomLabelId, nodes, assignCy) {
   const hasDagre = typeof cytoscapeDagre !== "undefined";
-  diagramCy = cytoscape({
-    container: document.getElementById("diagram-cy"),
-    elements: els,
+  const cy = cytoscape({
+    container: document.getElementById(containerId),
+    elements: moduleDependencyElements(nodes),
     style: [
       { selector: "node", style: {
           "label": "data(label)", "font-size": 10, "color": "#fff", "text-valign": "center", "text-halign": "center",
-          "width": 92, "height": 34, "shape": "round-rectangle", "text-wrap": "wrap", "text-max-width": 84
+          "width": "label", "height": "label", "padding": "10px", "shape": "round-rectangle", "text-wrap": "wrap", "text-max-width": 90
         } },
       { selector: "edge", style: {
           "width": 1.5, "line-color": "#cbd5e0", "target-arrow-color": "#cbd5e0",
@@ -2290,11 +2321,27 @@ function renderModuleDependencyGraph() {
       ? { name: "dagre", rankDir: "LR", nodeSep: 18, rankSep: 70, edgeSep: 12, padding: 20 }
       : { name: "breadthfirst", directed: true, padding: 20, spacingFactor: 1.1 }
   });
-  diagramCy.on("tap", "node", e => navigate({ screen: "module", id: e.target.id() }));
-  diagramCy.on("zoom", () => {
-    const label = document.getElementById("zoom-label");
-    if (label) label.textContent = Math.round(diagramCy.zoom() * 100) + "%";
+  cy.on("tap", "node", e => navigate({ screen: "module", id: e.target.id() }));
+  cy.on("zoom", () => {
+    const label = document.getElementById(zoomLabelId);
+    if (label) label.textContent = Math.round(cy.zoom() * 100) + "%";
   });
+  assignCy(cy);
+}
+
+function renderModuleDependencyGraph() {
+  const testNode = moduleNodes.find(n => n.id === "integration-tests");
+  const testIds = new Set(["integration-tests", ...((testNode && testNode.edges.DEPENDS_ON_COMPILE) || [])]);
+  const mainNodes = moduleNodes.filter(n => n.id !== "integration-tests");
+  const testNodes = moduleNodes.filter(n => testIds.has(n.id));
+  renderOneModuleDependencyGraph("diagram-cy", "zoom-label", mainNodes, cy => { diagramCy = cy; });
+  renderOneModuleDependencyGraph("diagram-cy-2", "zoom-label-2", testNodes, cy => { diagramCy2 = cy; });
+}
+
+function zoomDiagram2(delta) {
+  if (!diagramCy2) return;
+  if (delta === 0) { diagramCy2.fit(undefined, 20); return; }
+  diagramCy2.zoom({ level: diagramCy2.zoom() + delta, renderedPosition: { x: diagramCy2.width()/2, y: diagramCy2.height()/2 } });
 }
 
 // Scope-grouped dependency list for one module -- built from the same edges the graph/module
@@ -2459,8 +2506,8 @@ function renderModuleDependencyExtrasHtml() {
   // Domain colors are assigned by first-appearance order (domainOrder/domainColor() above), not a
   // fixed mapping -- a static legend would go stale the moment a new domain is added. Built live
   // from the exact same function the graph itself uses to color each node, so it can't drift.
-  const domainLegendRows = domainOrder.map(d =>
-    `<tr><td><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${domainColor(d)};margin-right:6px;vertical-align:middle"></span>${esc(d)}</td></tr>`
+  const domainLegendItems = domainOrder.map(d =>
+    `<span style="display:inline-flex;align-items:center;margin-right:16px;white-space:nowrap"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${domainColor(d)};margin-right:6px"></span>${esc(d)}</span>`
   ).join("");
   return `
     <section class="block"><h3>Overview</h3>
@@ -2473,19 +2520,15 @@ function renderModuleDependencyExtrasHtml() {
         <tr><td class="scope-label">┄┄▶ (dashed line)</td><td>Runtime-scope dependency</td></tr>
       </tbody></table>
       <div class="empty-hint" style="margin-top:8px">Node color = domain (same color used consistently across this diagram):</div>
-      <table class="simple"><tbody>${domainLegendRows}</tbody></table>
+      <div style="display:flex;flex-wrap:wrap;margin-top:6px">${domainLegendItems}</div>
     </section>
     <section class="block"><h3>Dependency Table</h3>
       <table class="simple"><thead><tr><th>Module</th><th>Depends on</th></tr></thead><tbody>${rows}</tbody></table>
     </section>
-    ${renderArchitectureChecksHtml()}
     <section class="block"><h3>Key Observations</h3><ol class="info-list">${observations}</ol></section>
     <section class="block"><h3>Module Versions</h3>
       <div class="empty-hint">All modules are siblings with the same version: <code>${esc(MODEL.rootVersion)}</code>. Parent POM artifact: <code>${esc(MODEL.rootArtifactId)}</code>.</div>
-    </section>
-    ${renderLargestJavaFilesHtml()}
-    ${renderConstructorInjectionHtml()}
-    ${renderGodPackagesHtml()}`;
+    </section>`;
 }
 
 // Real grep-based checks (cyclic-import safety net beyond the module-level DAG already shown
@@ -2500,27 +2543,45 @@ function renderArchitectureChecksHtml() {
   </section>`;
 }
 
+// Merges consecutive rows sharing the same key into one rowspan-ed cell -- only merges runs
+// already adjacent in the data's own natural order, never reorders rows to create bigger runs (a
+// real gap between two same-value rows stays two separate cells, on purpose). Returns one number
+// per row: 0 means "this row's cell for that column is omitted, an earlier row's rowspan covers
+// it"; N (> 0) means "this row starts a run of N, render its own rowspan=N cell here."
+function consecutiveRowspan(rows, keyFn) {
+  return rows.map((row, i) => {
+    if (i > 0 && keyFn(rows[i - 1]) === keyFn(row)) return 0;
+    let span = 1;
+    while (i + span < rows.length && keyFn(rows[i + span]) === keyFn(row)) span++;
+    return span;
+  });
+}
+
 function renderLargestJavaFilesHtml() {
   const files = MODEL.largestJavaFiles || [];
   if (!files.length) return "";
-  const rows = files.map(f =>
-    `<tr><td>${esc(f.file)}</td><td>${f.lines}</td><td>${moduleBadgeHtml(f.module) || esc(f.module)}</td></tr>`
-  ).join("");
+  const spans = consecutiveRowspan(files, f => f.module);
+  const rows = files.map((f, idx) => {
+    const moduleCell = spans[idx] > 0 ? `<td rowspan="${spans[idx]}">${moduleLink(f.module)}</td>` : "";
+    return `<tr><td>${fileLink(f.path, f.file)}</td><td>${f.lines}</td>${moduleCell}</tr>`;
+  }).join("");
   return `<section class="block"><h3>Largest Java Files</h3>
     <div class="empty-hint">Top 10 by line count, across the whole repo -- recomputed every generation.</div>
-    <table class="simple"><thead><tr><th>File</th><th>Lines</th><th>Module</th></tr></thead><tbody>${rows}</tbody></table>
+    <table class="simple rowspan-table"><thead><tr><th>File</th><th>Lines</th><th>Module</th></tr></thead><tbody>${rows}</tbody></table>
   </section>`;
 }
 
 function renderConstructorInjectionHtml() {
   const items = MODEL.constructorInjection || [];
   if (!items.length) return "";
-  const rows = items.map(i =>
-    `<tr><td>${esc(i.class)}</td><td>${moduleBadgeHtml(i.module) || esc(i.module)}</td><td>${i.fieldCount}</td></tr>`
-  ).join("");
+  const spans = consecutiveRowspan(items, i => i.module);
+  const rows = items.map((i, idx) => {
+    const moduleCell = spans[idx] > 0 ? `<td rowspan="${spans[idx]}">${moduleLink(i.module)}</td>` : "";
+    return `<tr><td>${fileLink(i.file, i.class)}</td>${moduleCell}<td>${i.fieldCount}</td></tr>`;
+  }).join("");
   return `<section class="block"><h3>Constructor Injection (${items.length})</h3>
     <div class="empty-hint">Every class with <code class="path">@RequiredArgsConstructor</code> and 4+ injected fields.</div>
-    <table class="simple"><thead><tr><th>Class</th><th>Module</th><th>Field count</th></tr></thead><tbody>${rows}</tbody></table>
+    <table class="simple rowspan-table"><thead><tr><th>Class</th><th>Module</th><th>Field count</th></tr></thead><tbody>${rows}</tbody></table>
   </section>`;
 }
 
@@ -2587,9 +2648,10 @@ function exportModuleMarkdown(id) {
   if (!n) return;
   let md = `# ${n.id}\n\n${n.description || ""}\n\n`;
   if (n.tables && n.tables.length) md += `## Tables owned\n\n${n.tables.map(t => `- ${t}`).join("\n")}\n\n`;
-  if (n.entities && n.entities.length) md += `## Entities\n\n${n.entities.map(e => `- ${e}`).join("\n")}\n\n`;
-  if (n.keyServices && n.keyServices.length) md += `## Key services\n\n${n.keyServices.map(s => `- ${s}`).join("\n")}\n\n`;
-  if (n.contracts && n.contracts.length) md += `## Contracts (Port/Hook)\n\n${n.contracts.map(c => `- ${c}`).join("\n")}\n\n`;
+  const namedFileMdLine = it => `- ${it.name}${it.description ? ` — ${it.description}` : ""}`;
+  if (n.entities && n.entities.length) md += `## Entities\n\n${n.entities.map(namedFileMdLine).join("\n")}\n\n`;
+  if (n.keyServices && n.keyServices.length) md += `## Key services\n\n${n.keyServices.map(namedFileMdLine).join("\n")}\n\n`;
+  if (n.contracts && n.contracts.length) md += `## Contracts (Port/Hook)\n\n${n.contracts.map(namedFileMdLine).join("\n")}\n\n`;
   md += `## Depends on (compile)\n\n${(n.edges.DEPENDS_ON_COMPILE||[]).map(d=>`- ${d}`).join("\n") || "None."}\n\n`;
   if ((n.edges.DEPENDS_ON_RUNTIME||[]).length) md += `## Depends on (runtime)\n\n${n.edges.DEPENDS_ON_RUNTIME.map(d=>`- ${d}`).join("\n")}\n\n`;
   if ((n.edges.DEPENDS_ON_OPTIONAL||[]).length) md += `## Depends on (optional)\n\n${n.edges.DEPENDS_ON_OPTIONAL.map(d=>`- ${d}`).join("\n")}\n\n`;
@@ -2627,7 +2689,7 @@ function coloredMetric(value, decimals, green, yellow) {
   return `<span class="${metricClass(value, green, yellow)}">${esc(value.toFixed(decimals))}</span>`;
 }
 
-const CODE_QUALITY_GLOSSARY = [
+const SONAR_GLOSSARY = [
   { field: "Java files", desc: "Number of .java files under this module's src/main/java. The denominator for the two per-file ratios below — on its own it's just a size indicator, not a quality signal." },
   { field: "Lines of code", desc: "Non-comment lines of code (NCLOC), as counted by SonarQube. A raw size measure, not a complexity measure — a large module can still be simple if it's mostly straightforward, repetitive code (e.g. DTOs, generated mappers)." },
   { field: "Complexity", desc: "Cyclomatic complexity — the number of independent execution paths through the code, counted from branching statements (if/for/while/case/&&/||). Higher means more paths a test suite has to cover to reach full branch coverage, and more ways the code can behave differently at runtime. This is the module's raw total, not yet normalized by size — a big module naturally has a bigger raw total even if each individual method is simple." },
@@ -2636,6 +2698,8 @@ const CODE_QUALITY_GLOSSARY = [
   { field: "Cognitive/file", desc: "Cognitive complexity divided by Java file count. A high value is a stronger signal than high raw Complexity/file that a file is genuinely hard to read (not just branch-heavy) — worth a closer look even before it hits a hard SonarQube rule threshold. Colored: green < 10, yellow 10-25, red > 25." },
   { field: "Code smells", desc: "Count of maintainability issues SonarQube's rule engine actually flagged in this module (naming, dead code, duplicated logic, overly long methods, etc.) — a concrete, itemized list (visible in the SonarQube dashboard itself), not a derived estimate like the complexity numbers above." },
   { field: "Code smells/1k LOC", desc: "Code smells normalized per 1000 lines of code, so a small module with 2 smells isn't unfairly compared against a large module with 20 — what matters is smell density, not raw count. Colored: green < 5, yellow 5-15, red > 15." },
+];
+const ARCHUNIT_GLOSSARY = [
   { field: "Efferent coupling (Ce)", desc: "How many classes outside this module the classes inside it depend on — this module's \"outgoing\" dependencies. High Ce means this module is exposed to a lot of external change: if any of those other classes change their API, this module is one of the things that might break." },
   { field: "Afferent coupling (Ca)", desc: "How many classes outside this module depend on classes inside it — this module's \"incoming\" dependencies, i.e. its real-world blast radius. High Ca means many other parts of the codebase would be affected if this module's public API changed, so changes here need extra care." },
   { field: "Instability (I)", desc: "I = Ce/(Ce+Ca), from Robert Martin's stability metrics — 0 means maximally stable (only depended upon, never depends on anything itself — safe to keep unchanged, risky to modify), 1 means maximally unstable (only depends on others, nothing depends on it — safe to change freely, since nothing breaks downstream)." },
@@ -2644,52 +2708,109 @@ const CODE_QUALITY_GLOSSARY = [
 ];
 
 function renderCodeQuality() {
-  const sonar = MODEL.sonarMetrics;
-  const arch = MODEL.archUnitMetrics;
+  if (!view.section) {
+    let html = backButtonHtml();
+    html += `<h2 class="screen-title">Code Quality</h2>
+      <div class="screen-desc">Real SonarQube + ArchUnit metrics, plus repo-wide structural findings -- pick where to start.</div>`;
+    html += `<div class="card-grid">
+      <div class="card" onclick="navigate({screen:'codequality',section:'sonar'})">
+        <div class="card-title">SonarQube</div>
+        <div class="card-desc">Complexity, cognitive complexity, code smells -- per module</div>
+      </div>
+      <div class="card" onclick="navigate({screen:'codequality',section:'archunit'})">
+        <div class="card-title">ArchUnit</div>
+        <div class="card-desc">Efferent/afferent coupling, instability, abstractness -- per module</div>
+      </div>
+      <div class="card" onclick="navigate({screen:'codequality',section:'findings'})">
+        <div class="card-title">🔍 Findings</div>
+        <div class="card-desc">Architecture checks, largest files/packages, constructor-injection complexity</div>
+      </div>
+    </div>`;
+    document.getElementById("content").innerHTML = html;
+    return;
+  }
+
   let html = backButtonHtml();
-  html += `<h2 class="screen-title">Code Quality</h2>
-    <div class="screen-desc">Real SonarQube + ArchUnit metrics per module, one table per source. Both opt-in (<code>--with-sonar</code>/<code>--with-archunit</code> on <code>generate-architecture-model.sh</code>), off by default -- regenerate with those flags to populate this screen. Raw counts are shown plain; derived ratios are colored (see Overview at the bottom for thresholds).</div>`;
 
-  html += `<section class="block"><h3>SonarQube</h3>`;
-  if (!sonar) {
-    html += `<div class="empty-hint">No data -- regenerate with <code>--with-sonar</code> (requires a reachable SonarQube server).</div>`;
-  } else {
-    html += `<div class="empty-hint">Source: SonarQube (analysis: ${esc(sonar.analysisDate || "unknown")}).</div>
-      <table class="simple"><thead><tr><th>Module</th><th>Java files</th><th>Lines of code</th><th>Complexity</th><th>Complexity/file</th><th>Cognitive complexity</th><th>Cognitive/file</th><th>Code smells</th><th>Code smells/1k LOC</th></tr></thead><tbody>`;
-    moduleNodes.forEach(n => {
-      const m = sonar.modules && sonar.modules[n.id];
-      if (!m) return;
-      const perFile = m.javaFileCount > 0 ? m.complexity / m.javaFileCount : 0;
-      const cogPerFile = m.javaFileCount > 0 ? m.cognitiveComplexity / m.javaFileCount : 0;
-      const smellsPer1k = m.ncloc > 0 ? m.codeSmells / (m.ncloc / 1000) : 0;
-      html += `<tr><td><a class="module-link" onclick="navigate({screen:'module', id:'${esc(n.id)}'})">${esc(n.id)}</a></td><td>${m.javaFileCount}</td><td>${m.ncloc}</td><td>${m.complexity}</td><td>${coloredMetric(perFile, 1, 10, 20)}</td><td>${m.cognitiveComplexity}</td><td>${coloredMetric(cogPerFile, 1, 10, 25)}</td><td>${m.codeSmells}</td><td>${coloredMetric(smellsPer1k, 1, 5, 15)}</td></tr>`;
-    });
-    html += `</tbody></table>`;
+  if (view.section === "sonar") {
+    const sonar = MODEL.sonarMetrics;
+    html += `<h2 class="screen-title">Code Quality — SonarQube</h2>
+      <div class="screen-desc">Real SonarQube metrics per module. Opt-in (<code>--with-sonar</code> on <code>generate-architecture-model.sh</code>), off by default. Raw counts are shown plain; derived ratios are colored (see Overview below for thresholds).</div>`;
+    html += `<section class="block"><h3>SonarQube</h3>`;
+    if (!sonar) {
+      html += `<div class="empty-hint">No data -- regenerate with <code>--with-sonar</code> (requires a reachable SonarQube server).</div>`;
+    } else {
+      html += `<div class="empty-hint">Source: SonarQube (analysis: ${esc(sonar.analysisDate || "unknown")}).</div>
+        <table class="simple"><thead><tr><th>Module</th><th>Java files</th><th>Lines of code</th><th>Complexity</th><th>Complexity/file</th><th>Cognitive complexity</th><th>Cognitive/file</th><th>Code smells</th><th>Code smells/1k LOC</th></tr></thead><tbody>`;
+      moduleNodes.forEach(n => {
+        const m = sonar.modules && sonar.modules[n.id];
+        if (!m) return;
+        const perFile = m.javaFileCount > 0 ? m.complexity / m.javaFileCount : 0;
+        const cogPerFile = m.javaFileCount > 0 ? m.cognitiveComplexity / m.javaFileCount : 0;
+        const smellsPer1k = m.ncloc > 0 ? m.codeSmells / (m.ncloc / 1000) : 0;
+        html += `<tr><td><a class="module-link" onclick="navigate({screen:'module', id:'${esc(n.id)}'})">${esc(n.id)}</a></td><td>${m.javaFileCount}</td><td>${m.ncloc}</td><td>${m.complexity}</td><td>${coloredMetric(perFile, 1, 10, 20)}</td><td>${m.cognitiveComplexity}</td><td>${coloredMetric(cogPerFile, 1, 10, 25)}</td><td>${m.codeSmells}</td><td>${coloredMetric(smellsPer1k, 1, 5, 15)}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+    }
+    html += `</section>`;
+    html += `<section class="block"><h3>Overview</h3>
+      <table class="simple"><thead><tr><th>Field</th><th>What it means</th></tr></thead><tbody>` +
+      SONAR_GLOSSARY.map(g => `<tr><td class="scope-label">${esc(g.field)}</td><td>${esc(g.desc)}</td></tr>`).join("") +
+      `</tbody></table></section>`;
+  } else if (view.section === "archunit") {
+    const arch = MODEL.archUnitMetrics;
+    html += `<h2 class="screen-title">Code Quality — ArchUnit</h2>
+      <div class="screen-desc">Real ArchUnit metrics per module. Opt-in (<code>--with-archunit</code> on <code>generate-architecture-model.sh</code>), off by default. Raw counts are shown plain; derived ratios are colored (see Overview below for thresholds).</div>`;
+    html += `<section class="block"><h3>ArchUnit</h3>`;
+    if (!arch) {
+      html += `<div class="empty-hint">No data -- regenerate with <code>--with-archunit</code> (requires <code>bash scripts/build-and-test.sh --archunit-metrics</code> to have run at least once).</div>`;
+    } else {
+      html += `<div class="empty-hint">Source: ArchUnit (from the last <code>bash scripts/build-and-test.sh --archunit-metrics</code> run).</div>
+        <table class="simple"><thead><tr><th>Module</th><th>Efferent coupling</th><th>Afferent coupling</th><th>Instability</th><th>Abstractness</th><th>Distance from Main Sequence</th></tr></thead><tbody>`;
+      moduleNodes.forEach(n => {
+        const m = arch.modules && arch.modules[n.id];
+        if (!m) return;
+        const distance = Math.abs(m.abstractness + m.instability - 1);
+        html += `<tr><td><a class="module-link" onclick="navigate({screen:'module', id:'${esc(n.id)}'})">${esc(n.id)}</a></td><td>${m.efferentCoupling}</td><td>${m.afferentCoupling}</td><td>${esc(m.instability.toFixed(2))}</td><td>${esc(m.abstractness.toFixed(2))}</td><td>${coloredMetric(distance, 2, 0.3, 0.6)}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+    }
+    html += `</section>`;
+    html += `<section class="block"><h3>Overview</h3>
+      <table class="simple"><thead><tr><th>Field</th><th>What it means</th></tr></thead><tbody>` +
+      ARCHUNIT_GLOSSARY.map(g => `<tr><td class="scope-label">${esc(g.field)}</td><td>${esc(g.desc)}</td></tr>`).join("") +
+      `</tbody></table></section>`;
+  } else if (view.section === "findings") {
+    html += `<h2 class="screen-title">Code Quality — Findings</h2>
+      <div class="screen-desc">Repo-wide structural findings, recomputed every generation.</div>`;
+    html += renderArchitectureChecksHtml();
+    html += renderLargestJavaFilesHtml();
+    html += renderConstructorInjectionHtml();
+    html += renderGodPackagesHtml();
   }
-  html += `</section>`;
-
-  html += `<section class="block"><h3>ArchUnit</h3>`;
-  if (!arch) {
-    html += `<div class="empty-hint">No data -- regenerate with <code>--with-archunit</code> (requires <code>bash scripts/build-and-test.sh --archunit-metrics</code> to have run at least once).</div>`;
-  } else {
-    html += `<div class="empty-hint">Source: ArchUnit (from the last <code>bash scripts/build-and-test.sh --archunit-metrics</code> run).</div>
-      <table class="simple"><thead><tr><th>Module</th><th>Efferent coupling</th><th>Afferent coupling</th><th>Instability</th><th>Abstractness</th><th>Distance from Main Sequence</th></tr></thead><tbody>`;
-    moduleNodes.forEach(n => {
-      const m = arch.modules && arch.modules[n.id];
-      if (!m) return;
-      const distance = Math.abs(m.abstractness + m.instability - 1);
-      html += `<tr><td><a class="module-link" onclick="navigate({screen:'module', id:'${esc(n.id)}'})">${esc(n.id)}</a></td><td>${m.efferentCoupling}</td><td>${m.afferentCoupling}</td><td>${esc(m.instability.toFixed(2))}</td><td>${esc(m.abstractness.toFixed(2))}</td><td>${coloredMetric(distance, 2, 0.3, 0.6)}</td></tr>`;
-    });
-    html += `</tbody></table>`;
-  }
-  html += `</section>`;
-
-  html += `<section class="block"><h3>Overview</h3>
-    <table class="simple"><thead><tr><th>Field</th><th>What it means</th></tr></thead><tbody>` +
-    CODE_QUALITY_GLOSSARY.map(g => `<tr><td class="scope-label">${esc(g.field)}</td><td>${esc(g.desc)}</td></tr>`).join("") +
-    `</tbody></table></section>`;
 
   document.getElementById("content").innerHTML = html;
+}
+
+// Entities/Key services/Contracts on the Module screen: {name, file?, description?} objects
+// (json_named_file_array()) -- real file link when a path was found, a real Javadoc one-liner
+// underneath when the class actually carries one (many don't, e.g. a plain @Table entity with no
+// class comment -- silently omitted rather than a misleading placeholder).
+function renderNamedFileListHtml(items) {
+  return `<ul class="info-list">` + items.map(it => {
+    const label = it.file ? fileLink(it.file, it.name) : `<code>${esc(it.name)}</code>`;
+    const desc = it.description ? `<div class="scope-label" style="margin-top:2px">${esc(it.description)}</div>` : "";
+    return `<li>${label}${desc}</li>`;
+  }).join("") + `</ul>`;
+}
+
+// Jumps to a table's real schema on the Database ERD screen -- reuses the same "db-table-<name>"
+// anchor wireDbErdEntityClicks() already sets when a reader clicks the ERD diagram itself, so a
+// module's own "Tables owned" chip and the diagram converge on the exact same real schema section.
+function navigateToTable(tableName) {
+  navigate({ screen: "diagrams", groupKey: "04-database-erd", diagramIndex: 0 });
+  const el = document.getElementById("db-table-" + tableName);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderModule() {
@@ -2707,16 +2828,16 @@ function renderModule() {
     <div class="screen-desc">${esc(n.description || "no one-line description available")}</div>`;
 
   if (n.tables && n.tables.length) {
-    html += `<section class="block"><h3>Tables owned</h3>` + n.tables.map(t => `<span class="table-chip">${esc(t)}</span>`).join("") + `</section>`;
+    html += `<section class="block"><h3>Tables owned</h3>` + n.tables.map(t => `<span class="table-chip" style="cursor:pointer" onclick="navigateToTable('${esc(t)}')">${esc(t)}</span>`).join("") + `</section>`;
   }
   if (n.entities && n.entities.length) {
-    html += `<section class="block"><h3>Entities</h3><ul class="info-list">` + n.entities.map(e => `<li>${e.replace(/`([^`]+)`/g, (m,c)=>`<code>${esc(c)}</code>`)}</li>`).join("") + `</ul></section>`;
+    html += `<section class="block"><h3>Entities</h3>${renderNamedFileListHtml(n.entities)}</section>`;
   }
   if (n.keyServices && n.keyServices.length) {
-    html += `<section class="block"><h3>Key services</h3><ul class="info-list">` + n.keyServices.map(s => `<li>${s.replace(/`([^`]+)`/g, (m,c)=>`<code>${esc(c)}</code>`)}</li>`).join("") + `</ul></section>`;
+    html += `<section class="block"><h3>Key services</h3>${renderNamedFileListHtml(n.keyServices)}</section>`;
   }
   if (n.contracts && n.contracts.length) {
-    html += `<section class="block"><h3>Contracts (Port/Hook)</h3><ul class="info-list">` + n.contracts.map(c => `<li>${c.replace(/`([^`]+)`/g, (m,g)=>`<code>${esc(g)}</code>`)}</li>`).join("") + `</ul></section>`;
+    html += `<section class="block"><h3>Contracts (Port/Hook)</h3>${renderNamedFileListHtml(n.contracts)}</section>`;
   }
 
   html += `<section class="block"><h3>Depends on (compile)</h3>${renderDepList(n.edges.DEPENDS_ON_COMPILE, "compile", "No compile-time module dependencies.")}</section>`;
@@ -3106,6 +3227,7 @@ function parseMermaidGraph(source) {
 }
 
 let diagramCy = null;
+let diagramCy2 = null; // Module Dependencies' second, own diagram (Integration Tests) -- see renderModuleDependencyGraph()
 
 // Shared by every compound-node (group/parent) Cytoscape render -- Module Dependencies has its
 // own simpler flat renderer (renderModuleDependencyGraph()); this one is for graphs with subgroups
@@ -3210,7 +3332,7 @@ function renderSpiMapGraph(subsystem) {
 
 // Real link, readable class name as the visible text -- same "open the actual source, short
 // label" pattern exportModuleMarkdown() already uses for ADRs, not a raw path dump.
-function spiFileLink(file, label) {
+function fileLink(file, label) {
   return `<a href="../../${esc(file)}" target="_blank">${esc(label)}</a>`;
 }
 
@@ -3258,13 +3380,13 @@ function renderSpiCalls(calls) {
 function renderSpiCallsRows(rows) {
   return rows.map(d => {
     const span = d.callers && d.callers.length ? d.callers.length : 1;
-    const ifaceCell = `<td rowspan="${span}">${spiFileLink(d.file, d.interface)}${spiMethodCountLine(d)}</td>`;
+    const ifaceCell = `<td rowspan="${span}">${fileLink(d.file, d.interface)}${spiMethodCountLine(d)}</td>`;
     const purposeCell = `<td rowspan="${span}">${esc(d.purpose)}</td>`;
     if (!d.callers || !d.callers.length) {
       return `<tr><td><span class="empty-hint">no caller found</span></td>${ifaceCell}${purposeCell}</tr>`;
     }
     return d.callers.map((c, i) => {
-      const callerCell = `<td>${spiFileLink(c.file, c.class)} (${moduleLink(c.module)})${renderSpiCalls(c.calls)}</td>`;
+      const callerCell = `<td>${fileLink(c.file, c.class)} (${moduleLink(c.module)})${renderSpiCalls(c.calls)}</td>`;
       const row = i === 0 ? `${callerCell}${ifaceCell}${purposeCell}` : callerCell;
       return `<tr id="${spiRowId("call", d.interface, c.class)}">${row}</tr>`;
     }).join("");
@@ -3274,13 +3396,13 @@ function renderSpiCallsRows(rows) {
 function renderSpiImplementedByRows(rows) {
   return rows.map(d => {
     const span = d.implementations.length || 1;
-    const ifaceCell = `<td rowspan="${span}">${spiFileLink(d.file, d.interface)}${spiMethodCountLine(d)}</td>`;
+    const ifaceCell = `<td rowspan="${span}">${fileLink(d.file, d.interface)}${spiMethodCountLine(d)}</td>`;
     const purposeCell = `<td rowspan="${span}">${esc(d.purpose)}</td>`;
     if (!d.implementations.length) {
       return `<tr>${ifaceCell}<td><span class="empty-hint">no implementation found</span></td>${purposeCell}</tr>`;
     }
     return d.implementations.map((impl, i) => {
-      const implCell = `<td>${spiFileLink(impl.file, impl.class)} (${moduleLink(impl.module)})</td>`;
+      const implCell = `<td>${fileLink(impl.file, impl.class)} (${moduleLink(impl.module)})</td>`;
       const row = i === 0 ? `${ifaceCell}${implCell}${purposeCell}` : implCell;
       return `<tr id="${spiRowId("impl", d.interface, impl.class)}">${row}</tr>`;
     }).join("");
@@ -3299,13 +3421,13 @@ function renderSpiSubsystemTables(subsystem) {
       <div class="domain-group">
         <h3>${esc(MODEL.spiMap.subsystemLabels[s])} <code class="path">${esc(rows[0].package)}</code></h3>
         <h4>Calls (${callCount})</h4>
-        <table class="simple spi-table"><thead><tr>
+        <table class="simple rowspan-table"><thead><tr>
           <th title="Real caller class -- who actually calls the interface's method, from bytecode analysis, not who's merely allowed to" style="cursor:help">Caller</th>
           <th>Interface</th>
           <th>Purpose</th>
         </tr></thead><tbody>${renderSpiCallsRows(rows)}</tbody></table>
         <h4>Implemented By (${implCount})</h4>
-        <table class="simple spi-table"><thead><tr>
+        <table class="simple rowspan-table"><thead><tr>
           <th>Interface</th>
           <th title="Real class that implements this interface" style="cursor:help">Implementation</th>
           <th>Purpose</th>
@@ -3619,7 +3741,7 @@ function bcRelRowId(from, to, label) {
 }
 
 // Readable name as the link text, real file underneath -- same "short label, real link" pattern
-// spiFileLink() already uses for SPI Map. Items with no file (Shared's plain count summaries)
+// fileLink() already uses for SPI Map. Items with no file (Shared's plain count summaries)
 // render as plain text, not a broken link.
 function bcItemLink(item) {
   return item.file ? `<a href="../../${esc(item.file)}" target="_blank">${esc(item.name)}</a>` : esc(item.name);
@@ -3894,6 +4016,7 @@ function renderDiagrams() {
   const d = g.diagrams[view.diagramIndex];
   zoomLevel = 1;
   diagramCy = null;
+  diagramCy2 = null;
   // Page-level nav (back/export) — belongs to "which screen am I on," sits above the title (same
   // placement as the Module screen's own back/export row). Zoom controls belong to the diagram
   // itself, not the page, so they render separately, right above the diagram box (see
@@ -3916,9 +4039,20 @@ function renderDiagrams() {
     </div>`;
 
   if (g.key === "01-module-dependencies") {
-    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered from the same module data the whole model is built from (domain-colored, click a node to open its module page) — drag a node to reposition it, drag empty canvas space to pan the view.</div>
+    const zoomControlsHtml2 = `<div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+      <span class="zoom-controls">
+        <button onclick="zoomDiagram2(-0.15)">−</button>
+        <span id="zoom-label-2">100%</span>
+        <button onclick="zoomDiagram2(0.15)">+</button>
+        <button onclick="zoomDiagram2(0)">reset</button>
+      </span>
+    </div>`;
+    html += `<div class="diagram-note">${esc(g.label)} — Production Modules. Rendered from the same module data the whole model is built from (domain-colored, click a node to open its module page) — drag a node to reposition it, drag empty canvas space to pan the view. Excludes <code class="path">integration-tests</code> (test-only, never shipped) -- see the second diagram below.</div>
       ${zoomControlsHtml}
-      <div class="diagram-wrap" id="diagram-cy-wrap" style="padding:0"><div id="diagram-cy" style="width:100%;height:70vh"></div></div>
+      <div class="diagram-wrap" id="diagram-cy-wrap" style="padding:0"><div id="diagram-cy" style="width:100%;height:45vh"></div></div>
+      <div class="diagram-note" style="margin-top:16px">${esc(g.label)} — Integration Tests. <code class="path">integration-tests</code> (Testcontainers repository tests, never shipped) and every starter it depends on to test them.</div>
+      ${zoomControlsHtml2}
+      <div class="diagram-wrap" id="diagram-cy-2-wrap" style="padding:0"><div id="diagram-cy-2" style="width:100%;height:45vh"></div></div>
       ${renderModuleDependencyExtrasHtml()}`;
     document.getElementById("content").innerHTML = html;
     renderModuleDependencyGraph();

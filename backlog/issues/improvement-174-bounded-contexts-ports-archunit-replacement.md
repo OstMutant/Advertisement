@@ -2,7 +2,9 @@
 
 **Type:** improvement — found while reviewing `System › Diagrams › Bounded Contexts` and
 `System › Diagrams › Module Dependencies` after closing `improvement-156`/`157`.
-**Module:** `docs/architecture/scripts/generate-architecture-model.sh` (`bounded_contexts_json()`).
+**Module:** `docs/architecture/scripts/generate-architecture-model.sh` (`bounded_contexts_json()`,
+and `MODULE_CONTRACT` population feeding the Module screen's own "Contracts" section -- see the
+third occurrence noted below).
 **Priority:** Top — direct continuation of `improvement-156`/`157`'s fix, same root cause, same
 real data already available.
 **When:** unblocked, ready to implement — `improvement-156`'s `spiEdges` (real, bytecode-derived
@@ -31,6 +33,15 @@ two other live diagrams (`01-module-dependencies`, `bounded-contexts`) for the s
     false positives (DI-wiring-only references, not real usage).
   - Every other starter (default branch): `implements\s+.*\b${iface}\b` — same `IMPL_PATTERN` shape
     again.
+
+**Third occurrence found (2026-08-27), while adding real file links/Javadoc descriptions to the
+Module screen's Entities/Key services/Contracts sections:** `MODULE_CONTRACT` (feeds the Module
+screen's own "Contracts (Port/Hook)" section — a third, independent consumer, not
+`bounded_contexts_json()`'s `ports_json` and not `spi_map_json()`) uses the exact same
+`implements\s+.*\biface\b`/`ComponentFactory<X>` regex shape, in the same two spots (per-starter
+default case, Orchestrator's `ComponentFactory<X>` override). Not fixed as part of that work
+(out of scope there — only file links/descriptions were added, the underlying class list itself
+was left as-is) — noted here since it's the same root cause this issue already tracks.
 
 ## Not yet done
 
