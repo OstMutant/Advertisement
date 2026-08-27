@@ -43,19 +43,127 @@ default case, Orchestrator's `ComponentFactory<X>` override). Not fixed as part 
 (out of scope there — only file links/descriptions were added, the underlying class list itself
 was left as-is) — noted here since it's the same root cause this issue already tracks.
 
-## Not yet done
+## Plan — agreed 2026-08-27, not yet implemented
 
-- Confirm whether any of these three spots produce a real, currently-visible false positive/negative
-  on the live Bounded Contexts screen (analogous to the `AuditAutoConfiguration`/
-  `AuditActivityEnrichHook` cases `improvement-156` found) — not yet checked against real data.
-- Replace all three `ports_json` computations with data read from `spiEdges` (same
-  `ARCHUNIT_METRICS_FILE`/`_FALLBACK` + python3-extraction pattern `spi_map_json()` now uses),
-  falling back to the current regex when ArchUnit data isn't available — same shape as `improvement-156`'s
-  fix, applied to a second consumer of the same underlying fact (which module owns/calls which SPI
-  interface).
-- Bounded Contexts' `ports_json` only needs interface-level (which domain owns which port), not
-  method-level, granularity — confirm whether `spiEdges`'s per-caller `calls[]`/`implementations[]`
-  lists are sufficient as-is or need a lighter per-domain rollup.
+One shared bash helper, `spi_owns_iface(module, interface)`: reads the same `spiEdges` data
+(`ARCHUNIT_METRICS_FILE`/`_FALLBACK`, same lookup `spi_map_json()` already uses) and checks whether
+`module` appears in that interface's real `implementations[].module` or `callers[].module` list.
+Returns a 3-way signal via exit code: `0` = real data confirms ownership, `1` = real data confirms
+no ownership, `2` = no ArchUnit data available at all (caller falls back to its own existing regex
+unchanged — never silently loses coverage when `--archunit-metrics` hasn't been run this session).
+
+Applied at all four now-known occurrences of the same regex shape:
+1. `bounded_contexts_json()` — UI domain's `ports_json`.
+2. `bounded_contexts_json()` — Orchestrator domain's `ports_json`.
+3. `bounded_contexts_json()` — every other starter (default branch) `ports_json`.
+4. `MODULE_CONTRACT` population (Module screen's own "Contracts" section, both its default and
+   Orchestrator-override branches).
+
+Each site keeps iterating the same `find .../spi/*.java` file list it already does (still needed
+for the interface's own file path) — only the *membership check* (currently a `grep -qlP` line)
+gets replaced by `spi_owns_iface`, falling back to that exact same `grep` line when the exit code
+is `2`.
+
+**Known ordering fix needed first** (same class of bug hit earlier this session with
+`javadoc_purpose_for`): `ARCHUNIT_METRICS_FILE`/`ARCHUNIT_METRICS_FILE_FALLBACK` are currently
+declared at line ~1109, but `MODULE_CONTRACT` (occurrence 4) is populated at top-level script scope
+around line ~316 — calling `spi_owns_iface` there before those variables are assigned would
+silently always take the "no data" (`2`) path. Both variable declarations and the new
+`spi_owns_iface` function itself must move above line ~316 before this can work correctly.
+
+**Unrelated small visual fix found on the same screen, bundled into this issue rather than filed
+separately (small, same screen, same review pass):** Bounded Contexts' "Domain Contents" section
+links (entities/services/tables/ports, `bcItemLink()`) are visually indistinguishable from plain
+text — only the cursor changes on hover, no color/underline. Root cause: they render inside a
+`<div class="adr-item">`, and `.adr-item a { color: var(--ink); ... }` (shared with the unrelated
+ADR-history list, which deliberately wants ink-colored links) makes them the same color as
+surrounding body text. Fix: add `class="module-link"` to `bcItemLink()`'s own `<a>` tag (reuses the
+existing accent-colored link style already used everywhere else, without touching the shared
+`.adr-item` rule other callers rely on). Also: the domain's own module name next to its label
+(`${esc(d.module)}`, e.g. `attachment-spring-boot-starter`) is plain text today — make it
+`moduleLink(d.module)` instead, same as everywhere else on this page.
+
+**General principle stated for future diagram work (2026-08-27), not a separate action item here:**
+the four live diagrams (Module Dependencies, SPI Map, Bounded Contexts, Database ERD) should share
+one consistent visual language for links/module references wherever their content shape allows it
+(the `module-link`/accent-color treatment this fix applies), rather than each diagram's styling
+drifting independently based on whichever container class it happened to render inside. The
+ADR-history list's own `.adr-item` ink-colored style is a deliberate, separate exception — not
+something this consistency goal argues for changing.
+
+**Relationships table redesign (2026-08-27), same shape as `improvement-157`'s SPI Map split:**
+`BC_LABEL_CATEGORY` shows 3 of the 4 category tabs (orchestration/hooks/exceptions) have exactly
+one `label` value in their whole Relationships table — the Label column there just repeats the
+same text on every row. The 4th tab (derived) mixes two distinct labels ("audited via", "can have")
+in one table. Fix: group `relationships` by `label`, render one `<table>` per label (heading
+`<h4>Label (N)</h4>`, the existing per-label hover-meaning moved onto that heading), Label column
+removed from the table itself (Relationship | Payload | Evidence only) since it's now redundant
+with the heading. `exportBoundedContextsMarkdown()` stays untouched — it deliberately keeps a flat
+one-document-with-Category-column export, a different, already-justified shape.
+
+**Payload column rowspan (2026-08-27):** `BC_LABEL_PAYLOAD[label]` is one fixed generic text per
+label for every label except "calls back via Hook implementations" (which has real per-edge
+payload granularity, `rel_payload`) — so within each of the new per-label tables above, Payload is
+identical across every row for 3 of the 4 labels. Reuses the existing generic `consecutiveRowspan()`
+helper (already built for Code Quality's Findings tables) to group consecutive same-payload rows
+into one rowspan cell, plus the existing `rowspan-table` CSS class for vertical centering — no new
+helper or CSS needed, purely applying what already exists.
+
+## Implemented and verified (2026-08-27)
+
+- `spi_owns_iface(module, interface)` added to `generate-architecture-model.sh` (ahead of the
+  `MODULE_ENTITY`/`MODULE_KEYSERVICES`/`MODULE_CONTRACT` population block, alongside the
+  `ARCHUNIT_METRICS_FILE`/`_FALLBACK` variables it reads) — 3-way exit-code lookup against
+  `spiEdges`, applied at all 4 occurrences (`bounded_contexts_json()`'s UI/Orchestrator/default
+  branches, plus `MODULE_CONTRACT`'s default + Orchestrator-override branches), each still falling
+  back to its original regex only when the exit code is `2` (no ArchUnit data this session).
+- **Real false negative found and fixed during verification, beyond the original plan's scope:**
+  UI domain's `ports_json` dropped from 3 to 0 real ports after the initial rewrite — its original
+  regex scanned `marketplace-app/.../spi/*.java` directly (interface-agnostic `implements .*Hook`),
+  while the other 3 occurrences scan `platform-commons/.../spi/*.java` for candidate interface
+  names. UI's 3 real Hook interfaces (`CurrentLocaleHook`, `SessionActorHook`, `UiLabelHook`) are
+  declared in `marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi/`, not
+  `platform-commons` — a directory the other occurrences never had reason to scan. Fixed by:
+  1. Generalizing `ArchitectureMetricsExport.spiEdges()`'s own package filter from
+     `isPlatformSpiPackage` (hardcoded to `org.ost.platform.*.spi`) to `isSpiPackage`
+     (`packageName.endsWith(".spi")`, any module) — a dynamic mechanism: any future module's own
+     `*.spi` package with a real interface is picked up automatically, no hardcoded package list to
+     maintain. Confirmed safe: every other `.spi` package outside `platform-commons` currently
+     holds only `*Impl` classes (filtered out by the existing `iface.isInterface()` check), never a
+     second interface declaration — verified by listing every `.spi` package repo-wide.
+  2. UI's `ports_json` now iterates the union of `platform-commons/.../spi/*.java` and
+     `marketplace-orchestrator/.../spi/*.java` as candidates, `spi_owns_iface` first, regex
+     fallback scoped to `marketplace-app/.../spi` only on `exit=2`.
+  This surfaced a second, larger real false negative on top of the one just described: UI's port
+  list actually grew from 3 to **5** once real ArchUnit data was available —
+  `CurrentUserHook` (implemented by `AuthContextService`, `services/auth/`) and
+  `SettingsChangeHook` (implemented by `SettingsPaginationService`,
+  `ui/views/services/pagination/`) are real Hook implementations that live outside the dedicated
+  `spi/` wrapper package entirely (per `marketplace-app/CLAUDE.md`'s own documented exception for
+  these two forwarders) — the old directory-scoped regex could never have found them regardless of
+  which directory it scanned. Confirmed via `ArchitectureMetricsExport`'s real bytecode data, not
+  assumed.
+- `bcItemLink()` now emits `class="module-link"` on its `<a>` tag; `renderBoundedContextsExtrasHtml`'s
+  domain header now uses `moduleLink(d.module)` instead of plain text. Verified via computed style
+  in headless Chromium: links inside `.adr-item` now render in the accent color
+  (`rgb(43, 108, 176)`), previously indistinguishable from body text.
+- Relationships table redesigned: grouped by `label`, one `<table class="rowspan-table">` per label
+  with an `<h4 title="...">Label (N)</h4>` heading carrying the hover-meaning (previously a
+  per-cell `title` attribute); Label column removed from the table body. Verified per category tab:
+  `orchestration`/`hooks`/`exceptions` each render exactly 1 grouped table (single label), `derived`
+  renders 2 (`audited via (3)`, `can have (1)`) — matching the real label distribution.
+- Payload column rowspan applied via the existing `consecutiveRowspan()` helper — verified a
+  `rowspan="7"` cell renders with `vertical-align: middle` (the `table.simple.rowspan-table`
+  selector specificity fix from `improvement-157` already covers this).
+- `exportBoundedContextsMarkdown()` confirmed untouched, as planned (different, already-justified
+  flat shape).
+
+All of the above verified by regenerating `architecture-map.html` (`--with-archunit`, after a real
+`bash scripts/build-and-test.sh --archunit-metrics` rebuild to pick up the broadened `isSpiPackage`)
+and inspecting real DOM/data in headless Chromium — not simulated. SPI Map's own interface set
+(15 platform-commons interfaces) confirmed unchanged by the `isSpiPackage` broadening, since its
+own per-subsystem walk only ever looked at `platform-commons/.../{subsystem}/spi/*.java` to begin
+with.
 
 ## Related
 

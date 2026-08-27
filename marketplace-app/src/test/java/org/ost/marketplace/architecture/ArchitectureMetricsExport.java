@@ -82,7 +82,7 @@ class ArchitectureMetricsExport {
     private static Map<String, Object> spiEdges(JavaClasses classes) {
         Map<String, Object> out = new LinkedHashMap<>();
         for (JavaClass iface : classes) {
-            if (!iface.isInterface() || !isPlatformSpiPackage(iface.getPackageName())) continue;
+            if (!iface.isInterface() || !isSpiPackage(iface.getPackageName())) continue;
 
             List<Map<String, Object>> implementations = new ArrayList<>();
             for (JavaClass candidate : classes) {
@@ -132,8 +132,8 @@ class ArchitectureMetricsExport {
         return out;
     }
 
-    private static boolean isPlatformSpiPackage(String packageName) {
-        return packageName.startsWith("org.ost.platform.") && packageName.endsWith(".spi");
+    private static boolean isSpiPackage(String packageName) {
+        return packageName.endsWith(".spi");
     }
 
     private static Map<String, Object> classInfo(JavaClass javaClass, List<Map<String, String>> calls) {

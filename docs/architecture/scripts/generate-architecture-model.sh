@@ -313,6 +313,46 @@ declare -A BC_LABEL_CATEGORY=(
   ["can have"]="derived"
 )
 
+# ── ArchUnit: real Efferent/Afferent Coupling, Instability, Abstractness per module, computed by
+# ArchitectureMetricsExport (marketplace-app/src/test/java/org/ost/marketplace/architecture).
+# Its class name doesn't match Surefire's default *Test/Test*/*Tests/*TestCase include patterns,
+# so it never runs as part of a normal `mvn test` -- must be explicitly forced
+# (-Dtest=ArchitectureMetricsExport), and needs the full reactor already installed (it scans every
+# module's classes on one combined classpath). Two possible sources, checked in order: a direct
+# host-side forced run writes straight to marketplace-app/target/; `bash scripts/build-and-test.sh
+# --archunit-metrics` runs it inside a throwaway container instead and moves the result to
+# scripts/build-and-test/reports/architecture-metrics.json. Read here if present; null if neither
+# has run yet -- optional data, no auto-trigger (several minutes even on a warm build, a much
+# bigger cost than SonarQube's own staleness check, so this stays passively "as fresh as the last
+# run" instead). Declared here (ahead of the Entities/Key Services/Contract block below, which
+# needs it at top-level script scope, not deferred inside a later-called function) -- same ordering
+# constraint javadoc_purpose_for() already hit earlier this session.
+ARCHUNIT_METRICS_FILE="$REPO_ROOT/marketplace-app/target/architecture-metrics.json"
+ARCHUNIT_METRICS_FILE_FALLBACK="$REPO_ROOT/scripts/build-and-test/reports/architecture-metrics.json"
+
+# Whether $1 (a module id) really owns (implements or calls) $2 (an SPI interface simple name),
+# per the real bytecode-derived spiEdges data (improvement-156) -- replaces this generator's own
+# older implements-regex guessing (improvement-174: found producing the same class of false
+# positive/negative spi_map_json() already had before its own ArchUnit-based fix). Exit code is a
+# 3-way signal, not a boolean: 0 = real data confirms ownership, 1 = real data confirms no
+# ownership, 2 = no ArchUnit data available at all this session -- callers fall back to their own
+# existing regex only on 2, never silently lose coverage when --archunit-metrics hasn't run.
+spi_owns_iface() {
+  local mod="$1" iface="$2" archunit_file=""
+  [ -f "$ARCHUNIT_METRICS_FILE" ] && archunit_file="$ARCHUNIT_METRICS_FILE"
+  [ -z "$archunit_file" ] && [ -f "$ARCHUNIT_METRICS_FILE_FALLBACK" ] && archunit_file="$ARCHUNIT_METRICS_FILE_FALLBACK"
+  [ -z "$archunit_file" ] && return 2
+  python3 -c "
+import json, sys
+data = json.load(open(sys.argv[1]))
+edges = data.get('spiEdges', {}).get(sys.argv[3])
+if edges is None:
+    sys.exit(2)
+owns = any(m['module'] == sys.argv[2] for m in edges.get('implementations', [])) or any(c['module'] == sys.argv[2] for c in edges.get('callers', []))
+sys.exit(0 if owns else 1)
+" "$archunit_file" "$mod" "$iface"
+}
+
 # Live from the real Javadoc immediately above the class/interface/record/enum declaration --
 # single source of truth lives next to the code, not duplicated in this generator. Walks backward
 # from that declaration line past blank/annotation lines (handles @FunctionalInterface) to find a
@@ -372,8 +412,12 @@ for bc_d in "${BC_DOMAIN_ORDER[@]}"; do
   done)"$'\n'
   MODULE_CONTRACT["$bc_m"]="$( (find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
     iface="$(basename "$ifile" .java)"
-    grep -qlP "implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$bc_m/src/main/java" 2>/dev/null \
-      && printf '%s\t%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}" "$(javadoc_purpose_for "$ifile")"
+    owns=2
+    spi_owns_iface "$bc_m" "$iface" && owns=0 || owns=$?
+    if [ "$owns" = 2 ]; then
+      grep -qlP "implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$bc_m/src/main/java" 2>/dev/null && owns=0
+    fi
+    [ "$owns" = 0 ] && printf '%s\t%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}" "$(javadoc_purpose_for "$ifile")"
     true
   done) || true)"$'\n'
 done
@@ -383,8 +427,12 @@ done
 if [ -n "$bc_orch_mod" ]; then
   MODULE_CONTRACT["$bc_orch_mod"]="$( (find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
     iface="$(basename "$ifile" .java)"
-    grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;" -r --include='*.java' "$REPO_ROOT/$bc_orch_mod/src/main/java" 2>/dev/null \
-      && printf '%s\t%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}" "$(javadoc_purpose_for "$ifile")"
+    owns=2
+    spi_owns_iface "$bc_orch_mod" "$iface" && owns=0 || owns=$?
+    if [ "$owns" = 2 ]; then
+      grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;" -r --include='*.java' "$REPO_ROOT/$bc_orch_mod/src/main/java" 2>/dev/null && owns=0
+    fi
+    [ "$owns" = 0 ] && printf '%s\t%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}" "$(javadoc_purpose_for "$ifile")"
     true
   done) || true)"$'\n'
 fi
@@ -1094,21 +1142,6 @@ print(json.dumps(out))
 " "$analysis_date" "$project_json" "$tree_json" "$(IFS=,; echo "${MODULES[*]}")" "$file_counts"
 }
 
-# ── ArchUnit: real Efferent/Afferent Coupling, Instability, Abstractness per module, computed by
-# ArchitectureMetricsExport (marketplace-app/src/test/java/org/ost/marketplace/architecture).
-# Its class name doesn't match Surefire's default *Test/Test*/*Tests/*TestCase include patterns,
-# so it never runs as part of a normal `mvn test` -- must be explicitly forced
-# (-Dtest=ArchitectureMetricsExport), and needs the full reactor already installed (it scans every
-# module's classes on one combined classpath). Two possible sources, checked in order: a direct
-# host-side forced run writes straight to marketplace-app/target/; `bash scripts/build-and-test.sh
-# --archunit-metrics` runs it inside a throwaway container instead and moves the result to
-# scripts/build-and-test/reports/architecture-metrics.json. Read here if present; null if neither
-# has run yet -- optional data, no auto-trigger (several minutes even on a warm build, a much
-# bigger cost than SonarQube's own staleness check, so this stays passively "as fresh as the last
-# run" instead).
-ARCHUNIT_METRICS_FILE="$REPO_ROOT/marketplace-app/target/architecture-metrics.json"
-ARCHUNIT_METRICS_FILE_FALLBACK="$REPO_ROOT/scripts/build-and-test/reports/architecture-metrics.json"
-
 archunit_metrics_json() {
   if [ -f "$ARCHUNIT_METRICS_FILE" ]; then
     cat "$ARCHUNIT_METRICS_FILE"
@@ -1420,8 +1453,14 @@ bounded_contexts_json() {
       ports_json="$(json_named_file_array "$(printf '%s\t\n' "${spi_count} SPI interfaces (Ports & Hooks)" "${dto_count} cross-domain DTOs" "${model_count} core model classes")")"
     elif [ "$d" = "UI" ]; then
       entities_json="[]"; services_json="[]"; tables_json="[]"
-      ports_json="$(json_named_file_array "$(grep -rl 'implements .*Hook' "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/spi" --include='*.java' 2>/dev/null | sort | while read -r f; do
-        printf '%s\t%s\n' "$(basename "$f" .java)" "${f#"$REPO_ROOT"/}"
+      ports_json="$(json_named_file_array "$( { find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java'; find "$REPO_ROOT/marketplace-orchestrator/src/main/java" -path '*/spi/*.java'; } | sort | while read -r ifile; do
+        iface="$(basename "$ifile" .java)"
+        owns=2
+        spi_owns_iface "$mod" "$iface" && owns=0 || owns=$?
+        if [ "$owns" = 2 ]; then
+          grep -qlP "implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/spi" 2>/dev/null && owns=0
+        fi
+        [ "$owns" = 0 ] && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
       done)")"
     elif [ "$d" = "Orchestrator" ]; then
       entities_json="[]"; tables_json="[]"
@@ -1437,7 +1476,12 @@ bounded_contexts_json() {
       # depends on/fulfills" ports list.
       ports_json="$(json_named_file_array "$(find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
         iface="$(basename "$ifile" .java)"
-        grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;|implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$mod/src/main/java" 2>/dev/null && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
+        owns=2
+        spi_owns_iface "$mod" "$iface" && owns=0 || owns=$?
+        if [ "$owns" = 2 ]; then
+          grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;|implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$mod/src/main/java" 2>/dev/null && owns=0
+        fi
+        [ "$owns" = 0 ] && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
       done)")"
     else
       entities_json="$(json_named_file_array "$(grep -rl '^@Table\|@Table(' "$REPO_ROOT/$mod/src/main/java" --include='*.java' 2>/dev/null | sort | while read -r f; do
@@ -1452,7 +1496,12 @@ bounded_contexts_json() {
       done)")"
       ports_json="$(json_named_file_array "$(find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
         iface="$(basename "$ifile" .java)"
-        grep -qlP "implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$mod/src/main/java" 2>/dev/null && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
+        owns=2
+        spi_owns_iface "$mod" "$iface" && owns=0 || owns=$?
+        if [ "$owns" = 2 ]; then
+          grep -qlP "implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$mod/src/main/java" 2>/dev/null && owns=0
+        fi
+        [ "$owns" = 0 ] && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
       done)")"
     fi
     $first_d || domains_json="$domains_json,"$'\n'
@@ -3744,7 +3793,7 @@ function bcRelRowId(from, to, label) {
 // fileLink() already uses for SPI Map. Items with no file (Shared's plain count summaries)
 // render as plain text, not a broken link.
 function bcItemLink(item) {
-  return item.file ? `<a href="../../${esc(item.file)}" target="_blank">${esc(item.name)}</a>` : esc(item.name);
+  return item.file ? `<a class="module-link" href="../../${esc(item.file)}" target="_blank">${esc(item.name)}</a>` : esc(item.name);
 }
 
 // Plain-English meaning of each relationship label -- shown as a tooltip on the Label cell, since
@@ -3795,14 +3844,28 @@ function renderBoundedContextsExtrasHtml(activeCategory) {
       category("Entities", d.entities), category("Services", d.services),
       category("Tables", d.tables), category("Ports", d.ports)
     ].filter(Boolean).join("");
-    return `<div class="adr-item"><strong>${esc(d.label)}</strong> <span class="scope-label">${esc(d.module)}</span>
+    return `<div class="adr-item"><strong>${esc(d.label)}</strong> <span class="scope-label">${moduleLink(d.module)}</span>
       ${body || `<div class="empty-hint">(no directly-owned entities/services/tables)</div>`}
     </div>`;
   }).join("");
-  const relRows = relationships.map(r => {
-    const rowId = bcRelRowId(r.from, r.to, r.label);
-    const meaning = BC_LABEL_MEANING[r.label] || "";
-    return `<tr id="${rowId}"><td>${esc(r.from)} → ${esc(r.to)}</td><td title="${esc(meaning)}" style="cursor:help">${esc(r.label)}</td><td>${esc(r.payload)}</td><td>${linkifyEvidence(r.evidence)}</td></tr>`;
+  // Grouped by label, one table per label -- same shape as SPI Map's Interface-grouped split
+  // (improvement-157). Most labels have exactly one meaning for this whole category's tab, so a
+  // repeated Label column added nothing; the heading carries the label + its hover-meaning instead.
+  const byLabel = new Map();
+  relationships.forEach(r => {
+    if (!byLabel.has(r.label)) byLabel.set(r.label, []);
+    byLabel.get(r.label).push(r);
+  });
+  const relTables = [...byLabel.entries()].map(([label, rows]) => {
+    const meaning = BC_LABEL_MEANING[label] || "";
+    const spans = consecutiveRowspan(rows, r => r.payload);
+    const body = rows.map((r, idx) => {
+      const rowId = bcRelRowId(r.from, r.to, r.label);
+      const payloadCell = spans[idx] > 0 ? `<td rowspan="${spans[idx]}">${esc(r.payload)}</td>` : "";
+      return `<tr id="${rowId}"><td>${esc(r.from)} → ${esc(r.to)}</td>${payloadCell}<td>${linkifyEvidence(r.evidence)}</td></tr>`;
+    }).join("");
+    return `<h4 title="${esc(meaning)}" style="cursor:help">${esc(label)} (${rows.length})</h4>
+      <table class="simple rowspan-table"><thead><tr><th>Relationship</th><th>What crosses (payload type)</th><th>Evidence</th></tr></thead><tbody>${body}</tbody></table>`;
   }).join("");
   return `
     <section class="block"><h3>Overview</h3>
@@ -3817,8 +3880,8 @@ function renderBoundedContextsExtrasHtml(activeCategory) {
     </section>
     <section class="block"><h3>Domain Contents (${domains.length})</h3>${domainRows}</section>
     <section class="block"><h3>Relationships (${relationships.length}) — all "extracted" (real code signal, not hand-typed)</h3>
-      <div class="empty-hint">Hover a Label cell for what it means. Evidence links open the real file where the relationship was found.</div>
-      <table class="simple"><thead><tr><th>Relationship</th><th>Label</th><th>What crosses (payload type)</th><th>Evidence</th></tr></thead><tbody>${relRows}</tbody></table>
+      <div class="empty-hint">Hover a heading for what that label means. Evidence links open the real file where the relationship was found.</div>
+      ${relTables}
     </section>`;
 }
 
