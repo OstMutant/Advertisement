@@ -815,17 +815,33 @@ data = json.load(open(sys.argv[1]))
 edges = data.get('spiEdges', {}).get(sys.argv[2])
 if edges is None:
     sys.exit(1)
+used = set()
+for caller in edges.get('callers', []):
+    for c in caller.get('calls', []):
+        used.add(c['to'])
+print('methodCount\t' + str(edges.get('methodCount', 0)))
+print('usedCount\t' + str(len(used)))
+print('allMethods\t' + json.dumps([{'name': n, 'used': n in used} for n in edges.get('allMethods', [])]))
 for impl in edges.get('implementations', []):
     print('\t'.join(['impl', impl['class'], impl['module'], impl['file']]))
 for caller in edges.get('callers', []):
-    print('\t'.join(['caller', caller['class'], caller['module'], caller['file']]))
+    print('\t'.join(['caller', caller['class'], caller['module'], caller['file'], json.dumps(caller.get('calls', []))]))
 " "$archunit_file" "$iface" 2>/dev/null)"
       archunit_ok=$?
     fi
+    local method_count="" used_count="" all_methods_json=""
     if [ -n "$archunit_file" ] && [ "$archunit_ok" -eq 0 ]; then
-      while IFS=$'\t' read -r row_kind class_name mod file_path; do
+      while IFS=$'\t' read -r row_kind class_name mod file_path calls_json; do
         [ -z "$row_kind" ] && continue
-        if [ "$row_kind" = "impl" ]; then
+        if [ "$row_kind" = "methodCount" ]; then
+          method_count="$class_name"
+        elif [ "$row_kind" = "usedCount" ]; then
+          used_count="$class_name"
+        elif [ "$row_kind" = "allMethods" ]; then
+          # class_name holds the already-built JSON array ({"name":..,"used":bool}[]) --
+          # python3 built it directly, nothing left to merge or re-parse here.
+          all_methods_json="$class_name"
+        elif [ "$row_kind" = "impl" ]; then
           impl="$class_name"; module="$mod"
           if [ -z "${group_seen[$module]:-}" ]; then
             group_seen[$module]=1
@@ -853,7 +869,7 @@ for caller in edges.get('callers', []):
           edges="$edges    {\"source\": \"$(json_escape "call_$caller")\", \"target\": \"$(json_escape "$iface")\", \"label\": \"calls\"}"
           $first_caller || callers_json="$callers_json, "
           first_caller=false
-          callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "$file_path")\"}"
+          callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "$file_path")\", \"calls\": ${calls_json:-[]}}"
         fi
       done <<< "$edge_rows"
     else
@@ -909,7 +925,7 @@ for caller in edges.get('callers', []):
 
     $first_detail || details="$details,"$'\n'
     first_detail=false
-    details="$details    {\"interface\": \"$(json_escape "$iface")\", \"file\": \"$(json_escape "${iface_file#"$REPO_ROOT"/}")\", \"package\": \"$(json_escape "$pkg")\", \"subsystem\": \"$(json_escape "$subsystem")\", \"kind\": \"$(json_escape "$kind")\", \"purpose\": \"$(json_escape "$(spi_javadoc_purpose_for "$iface_file")")\", \"implementations\": [$impls_json], \"callers\": [$callers_json]}"
+    details="$details    {\"interface\": \"$(json_escape "$iface")\", \"file\": \"$(json_escape "${iface_file#"$REPO_ROOT"/}")\", \"package\": \"$(json_escape "$pkg")\", \"subsystem\": \"$(json_escape "$subsystem")\", \"kind\": \"$(json_escape "$kind")\", \"purpose\": \"$(json_escape "$(spi_javadoc_purpose_for "$iface_file")")\", \"methodCount\": ${method_count:-null}, \"usedCount\": ${used_count:-null}, \"allMethods\": ${all_methods_json:-null}, \"implementations\": [$impls_json], \"callers\": [$callers_json]}"
   done
   local labels_json="" notes_json="" first_s=true
   for s in "${SPI_SUBSYSTEM_ORDER[@]}"; do
@@ -1931,6 +1947,11 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .row-flash { animation: row-flash-anim 1.5s ease-out; }
   @keyframes row-flash-anim { 0% { background-color: #fefcbf; } 100% { background-color: transparent; } }
   table.simple.spi-table td { text-align: left; vertical-align: middle; }
+  .spi-calls { margin-top: 4px; font-size: 11px; color: var(--muted); line-height: 1.7; }
+  .spi-calls code { background: none; padding: 0; font-size: 11px; }
+  .spi-methodcount { margin-top: 4px; font-size: 11px; color: var(--muted); font-weight: 600; }
+  .spi-method-list { margin-top: 2px; font-size: 11px; line-height: 1.6; }
+  .spi-method-unused { color: var(--muted); font-style: italic; }
   .placeholder-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed var(--line); opacity: 0.6; }
   .placeholder-row:last-child { border-bottom: none; }
   .placeholder-row .name { font-size: 13px; font-weight: 600; }
@@ -3212,16 +3233,38 @@ function moduleLink(moduleId) {
   return `<a class="module-link" onclick="navigate({screen:'module', id:'${esc(moduleId)}'})">${esc(moduleId)}</a>`;
 }
 
+// "(N/M methods used)" plus the full method list, unused ones dimmed and marked -- a real
+// dead-code-in-the-contract signal, not just a count. N = distinct interface methods actually
+// called by any real caller (ArchitectureMetricsExport.java's spiEdges), M = total methods
+// declared on the interface. Everything null when no ArchUnit data was available for this
+// interface (old regex fallback path) -- rendered as nothing rather than a misleading "0/0".
+function spiMethodCountLine(d) {
+  if (d.methodCount == null || d.usedCount == null) return "";
+  const list = (d.allMethods || []).map(m => m.used
+    ? `<div>${esc(m.name)}</div>`
+    : `<div class="spi-method-unused">${esc(m.name)} (unused)</div>`
+  ).join("");
+  return `<div class="spi-methodcount">(${d.usedCount}/${d.methodCount} methods used)</div><div class="spi-method-list">${list}</div>`;
+}
+
+// Real (callerMethod, interfaceMethod) call-site pairs, one per line -- undefined/empty for the
+// old regex fallback path (no method-level data at all) or a caller found via DI wiring only with
+// no actual method call (doesn't happen with real ArchUnit data, but stays defensive).
+function renderSpiCalls(calls) {
+  if (!calls || !calls.length) return "";
+  return `<div class="spi-calls">${calls.map(c => `<code>${esc(c.from)}() &rarr; #${esc(c.to)}()</code>`).join("<br>")}</div>`;
+}
+
 function renderSpiCallsRows(rows) {
   return rows.map(d => {
     const span = d.callers && d.callers.length ? d.callers.length : 1;
-    const ifaceCell = `<td rowspan="${span}">${spiFileLink(d.file, d.interface)}</td>`;
+    const ifaceCell = `<td rowspan="${span}">${spiFileLink(d.file, d.interface)}${spiMethodCountLine(d)}</td>`;
     const purposeCell = `<td rowspan="${span}">${esc(d.purpose)}</td>`;
     if (!d.callers || !d.callers.length) {
       return `<tr><td><span class="empty-hint">no caller found</span></td>${ifaceCell}${purposeCell}</tr>`;
     }
     return d.callers.map((c, i) => {
-      const callerCell = `<td>${spiFileLink(c.file, c.class)} (${moduleLink(c.module)})</td>`;
+      const callerCell = `<td>${spiFileLink(c.file, c.class)} (${moduleLink(c.module)})${renderSpiCalls(c.calls)}</td>`;
       const row = i === 0 ? `${callerCell}${ifaceCell}${purposeCell}` : callerCell;
       return `<tr id="${spiRowId("call", d.interface, c.class)}">${row}</tr>`;
     }).join("");
@@ -3231,7 +3274,7 @@ function renderSpiCallsRows(rows) {
 function renderSpiImplementedByRows(rows) {
   return rows.map(d => {
     const span = d.implementations.length || 1;
-    const ifaceCell = `<td rowspan="${span}">${spiFileLink(d.file, d.interface)}</td>`;
+    const ifaceCell = `<td rowspan="${span}">${spiFileLink(d.file, d.interface)}${spiMethodCountLine(d)}</td>`;
     const purposeCell = `<td rowspan="${span}">${esc(d.purpose)}</td>`;
     if (!d.implementations.length) {
       return `<tr>${ifaceCell}<td><span class="empty-hint">no implementation found</span></td>${purposeCell}</tr>`;

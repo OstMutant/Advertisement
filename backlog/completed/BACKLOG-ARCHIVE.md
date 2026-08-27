@@ -2149,3 +2149,16 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   separately under `improvement-157`, since its shape diverges from that issue's original spec
   (grouped by Interface, no Method column, vs. the planned Module → Class → Method). Full detail:
   `completed/issues/improvement-156-archunit-track-b-unblock-decision.md`.
+
+✅ Done (2026-08-27): improvement-157 — SPI Interface Details table redesign, built on
+  `improvement-156`'s real method-level data. Shipped shape diverges from the original plan: two
+  tables (Calls / Implemented By) grouped by Interface (not Module → Class → Method), each Caller
+  cell showing real `callerMethod() → #interfaceMethod()` call-site pairs (bytecode-derived, not
+  regex), and each Interface cell listing every one of its own methods with unused ones dimmed and
+  marked `(unused)` — a real dead-code-in-contract finding, not hypothetical:
+  `AuditDomainHook` is 1/3 used (`findExisting`/`resolveNames` never called by anything). A
+  separate Interface | full-signature table was considered and rejected (the dead-code list already
+  covers its value; a stripped-down signature list gives less than the existing one-click file
+  link). Closed with two documented open questions, not blocking: generic-interface type-argument
+  display, and whether to eventually regroup by Module → Class → Method. Full detail:
+  `completed/issues/improvement-157-spi-interface-details-table-redesign.md`.

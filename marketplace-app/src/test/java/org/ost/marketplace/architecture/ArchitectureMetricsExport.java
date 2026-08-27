@@ -75,8 +75,10 @@ class ArchitectureMetricsExport {
     // Real, bytecode-derived method-level caller/implementor edges for every platform-commons
     // *.spi interface -- an implementor is any class assignable to the interface (getAllRawInterfaces(),
     // not a text "implements" match); a caller is any class whose method actually calls one of the
-    // interface's methods (getCallsOfSelf(), not a field-declaration text match), with the specific
-    // method names called -- distinguishes a real call from a DI-wiring-only field/import reference.
+    // interface's methods (getCallsOfSelf(), not a field-declaration text match), with each real
+    // (callerMethod, interfaceMethod) call-site pair -- distinguishes a real call from a
+    // DI-wiring-only field/import reference, and from generate-architecture-model.sh (improvement-157)
+    // shows exactly which of the caller's own methods triggers which interface method.
     private static Map<String, Object> spiEdges(JavaClasses classes) {
         Map<String, Object> out = new LinkedHashMap<>();
         for (JavaClass iface : classes) {
@@ -89,23 +91,42 @@ class ArchitectureMetricsExport {
                 }
             }
 
-            Map<String, TreeSet<String>> methodsByCaller = new LinkedHashMap<>();
+            // Pair key "callerMethod\u0001interfaceMethod" in a TreeSet -- dedups repeat call sites
+            // (the same caller method calling the same interface method twice) and sorts
+            // deterministically, independent of ArchUnit's own iteration order (see improvement-173's
+            // determinism fixes for why that matters here).
+            Map<String, TreeSet<String>> pairsByCaller = new LinkedHashMap<>();
             Map<String, JavaClass> callerClassByName = new LinkedHashMap<>();
             for (JavaMethod method : iface.getMethods()) {
                 for (JavaMethodCall call : method.getCallsOfSelf()) {
                     JavaClass callerOwner = call.getOrigin().getOwner();
-                    methodsByCaller.computeIfAbsent(callerOwner.getFullName(), k -> new TreeSet<>()).add(method.getName());
-                    callerClassByName.putIfAbsent(callerOwner.getFullName(), callerOwner);
+                    String ownerName = callerOwner.getFullName();
+                    pairsByCaller.computeIfAbsent(ownerName, k -> new TreeSet<>())
+                            .add(call.getOrigin().getName() + "\u0001" + method.getName());
+                    callerClassByName.putIfAbsent(ownerName, callerOwner);
                 }
             }
             List<Map<String, Object>> callers = new ArrayList<>();
             for (Map.Entry<String, JavaClass> entry : callerClassByName.entrySet()) {
-                callers.add(classInfo(entry.getValue(), methodsByCaller.get(entry.getKey())));
+                List<Map<String, String>> calls = new ArrayList<>();
+                for (String pairKey : pairsByCaller.get(entry.getKey())) {
+                    String[] parts = pairKey.split("\u0001", 2);
+                    calls.add(Map.of("from", parts[0], "to", parts[1]));
+                }
+                callers.add(classInfo(entry.getValue(), calls));
             }
+
+            List<String> allMethods = iface.getMethods().stream()
+                    .map(JavaMethod::getName)
+                    .distinct()
+                    .sorted()
+                    .toList();
 
             Map<String, Object> ifaceOut = new LinkedHashMap<>();
             ifaceOut.put("implementations", implementations);
             ifaceOut.put("callers", callers);
+            ifaceOut.put("methodCount", iface.getMethods().size());
+            ifaceOut.put("allMethods", allMethods);
             out.put(iface.getSimpleName(), ifaceOut);
         }
         return out;
@@ -115,12 +136,12 @@ class ArchitectureMetricsExport {
         return packageName.startsWith("org.ost.platform.") && packageName.endsWith(".spi");
     }
 
-    private static Map<String, Object> classInfo(JavaClass javaClass, TreeSet<String> calledMethods) {
+    private static Map<String, Object> classInfo(JavaClass javaClass, List<Map<String, String>> calls) {
         Map<String, Object> info = new LinkedHashMap<>();
         info.put("class", javaClass.getSimpleName());
         info.put("module", moduleFor(javaClass));
         info.put("file", sourceFileFor(javaClass));
-        if (calledMethods != null) info.put("methods", new ArrayList<>(calledMethods));
+        if (calls != null) info.put("calls", calls);
         return info;
     }
 
