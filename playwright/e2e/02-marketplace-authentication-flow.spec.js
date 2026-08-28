@@ -1,3 +1,47 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Second spec in the e2e suite -- signs up all six TEST_USERS accounts (adminEn first,
+ *   auto-promoted to ADMIN by the app; the rest start as USER), verifying settings/timeline/user
+ *   audit activity are created on signup, then exercises the login/logout flow: cancel-logout keeps
+ *   the session, logout works, locale choice persists across logout and re-login, a wrong password
+ *   is rejected without logging in, and 5 wrong-password attempts trigger the login rate limiter
+ *   (6th attempt blocked before credential check, correct password also blocked during lockout).
+ *   Per test -- account creation:
+ *   - "adminEn signs up -- first user auto-promoted to ADMIN, settings open, timeline and user
+ *     audit created": signup -> settings open -> activity (v1 created with defaults) -> timeline
+ *     (actor picker visible) -> users tab -> user audit (v1 created).
+ *   - "userEn/userUk/moderatorUk/moderatorEn/adminUk signs up -- USER role assigned, settings
+ *     open, activity created": signup (switching locale first for the UK-locale accounts) ->
+ *     settings -> activity (v1 created).
+ *   Per test -- authentication:
+ *   - "userEn logs in -- cancel logout keeps session, confirm logout works": login -> cancel
+ *     logout dialog -> confirm logout.
+ *   - "userEn -- locale persists across logout and re-login": login -> switch to UK -> logout ->
+ *     login -> UK locale active -> switch to EN -> logout -> login -> EN locale active.
+ *   - "wrong password -- login rejected, user stays logged out": fill wrong password -> submit ->
+ *     header settings button not visible.
+ * Usage: run via the Playwright test runner -- bash /app/playwright/run.sh
+ *   02-marketplace-authentication-flow --ux, or as part of the full suite: bash
+ *   /app/playwright/run.sh e2e --ux (depends on spec 01 having run first in the same browser page
+ *   sequence, though it does not depend on any state spec 01 leaves behind).
+ * Uses: @playwright/test (test, expect) via ./_helpers.
+ * Env: None.
+ * Input: ./_helpers (test, expect, screenshot, TEST_USERS, closeNotification),
+ *   ./_flows/auth.flow (runFillLoginFormFlow, runSubmitLoginFlow, runCancelLogoutFlow,
+ *   runLogoutFlow), ./_flows/signup.flow (runSignUpFlow), ./_flows/language-switch.flow
+ *   (runSwitchToUkrainianFlow, runSwitchToEnglishFlow, runSwitchToUkrainianLoggedInFlow,
+ *   runSwitchToEnglishLoggedInFlow), ./_flows/user-management.flow (runNavigateToUsersTabFlow),
+ *   ./_flows/audit.flow (runVerifySettingsAfterSignupFlow, runVerifyUserAuditActivityFlow),
+ *   ./_flows/timeline.flow (openTimelineTab, openTimelineFilter, closeTimelineFilter,
+ *   assertFeedHasRow, assertActorPickerVisible -- exercised only for adminEn, since the Timeline
+ *   tab is ADMIN/MODERATOR only).
+ * Outputs: Playwright HTML report entries for each test. Registers all six TEST_USERS accounts
+ *   (userEn, userUk, moderatorEn, moderatorUk, adminEn, adminUk) plus a throwaway
+ *   "Rate Limit User" account -- every later spec (03 onward) logs in as one of these TEST_USERS
+ *   and assumes they already exist. moderatorEn/moderatorUk/adminUk are left at USER role here;
+ *   spec 03 promotes them to their final role.
+ * Returns: Playwright's own pass/fail exit code convention -- 0 when every test in this file
+ *   passes, non-zero otherwise.
+ * ──────────────────────────────────────────────────────────────────────────── */
 const { test, expect, screenshot, TEST_USERS, closeNotification } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runCancelLogoutFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runSignUpFlow } = require('./_flows/signup.flow');

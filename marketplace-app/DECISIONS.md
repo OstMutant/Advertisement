@@ -1915,7 +1915,7 @@ job in a different starter with no cross-starter ordering guarantee.
   directly during verification.
 - Local dev DBs that already had the old changeset applied fail Liquibase's checksum validation on
   the next deploy — expected and handled by `deploy.sh`'s new auto-recovery (see
-  `docs/ai/adr-index.md`), not a regression in this change itself.
+  `.claude/nav/adr-index.md`), not a regression in this change itself.
 - Verified: unit-tests 74/74 (cascades through the full reactor since `AdvertisementPort` is a
   `platform-commons` interface change), integration-tests 126/126 (full suite, not just the
   touched classes), Playwright `e2e --full --ux` 50/50 (twice, including a final check after the

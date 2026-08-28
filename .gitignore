@@ -1,3 +1,4 @@
+# IDE files and local-only Claude settings
 /.idea/*
 !/.idea/runConfigurations/
 /.claude/settings.local.json
@@ -32,7 +33,7 @@
 # Playwright artifacts
 /playwright/screenshots/
 /playwright/pw-report/
-/scripts/architecture/architecture-map-screenshots/
+/docs/architecture/scripts/architecture-map-screenshots/
 
 # Integration test artifacts
 /integration-tests/reports/
@@ -44,14 +45,14 @@
 /scripts/build-and-test/reports/
 
 # run-all-tests artifacts
-/scripts/run-all-tests/reports/
+/scripts/logs/
 
 # SonarQube
 /target/sonar
 /scripts/sonar/report
 /.claude/worktrees
 
-# scripts/ci consolidated report output (improvement-059)
+# scripts/ci consolidated report output
 /scripts/ci/reports/
 /user-spring-boot-starter/target
 /advertisement-spring-boot-starter/target
@@ -62,3 +63,6 @@
 
 # local-only strategy docs (also in .git/info/exclude — belt and suspenders)
 /private/
+
+# .claude/nav usage counters (hook-generated, personal instrumentation)
+/.claude/nav/.*-read-count

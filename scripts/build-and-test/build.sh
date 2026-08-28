@@ -27,23 +27,54 @@
 #       cache-priming build, or anything deploy-and-run.sh/e2e relies on) -- marketplace-app's own
 #       jar/target-classes refresh into the shared volume is skipped whenever this is true, so a
 #       partial build never overwrites what a real one produced.
+#     BUILD_CONTAINER_NAME (default advertisement-build-only) -- namespaces this run's own reports
+#       under /reports/$BUILD_CONTAINER_NAME/, so two concurrent invocations (e.g. run-all-tests.sh's
+#       own direct call and deploy-and-run.sh's internal one, which already uses a distinct
+#       BUILD_CONTAINER_NAME to avoid a Docker container-name collision) never collide writing into
+#       the same shared test-reports volume at once.
 #   May be exported directly in the calling shell if needed:
 #     TESTCONTAINERS_RYUK_DISABLED / INTEGRATION_TESTS_POSTGRES_FIXED_PORT -- sandbox-only
 #       Testcontainers workarounds, passed through only if already set.
-# Input: tar-piped repo source at /app; the shared maven-cache Docker volume at /root/.m2.
+# Input: tar-piped repo source at /app; the shared maven-cache Docker volume at /root/.m2; the
+#   shared test-reports Docker volume at /reports (RUN_UNIT/RUN_INTEGRATION/ARCHUNIT_METRICS=true
+#   only -- see Outputs).
 # Outputs: fresh jars for every module in the shared /root/.m2 (library modules installed;
 #   marketplace-app's own JAR copied to /root/.m2/artifacts/marketplace-app.jar); each module's own
 #   target/classes also refreshed under /root/.m2/target-classes/<module>/, for scripts/sonar/run.sh
 #   to mount and read directly instead of compiling locally. RUN_UNIT/
 #   RUN_INTEGRATION=true -- PASSED/FAILED summary on stdout, failing test files listed; Surefire
-#   reports copied to /tmp/reports/surefire/<module>/. ARCHUNIT_METRICS=true -- architecture-
-#   metrics.json moved to /tmp/reports/architecture-metrics.json. Everything under /tmp/reports
-#   reaches the host via run.sh's own `docker cp` after this container exits.
+#   reports copied to $REPORTS_DIR/surefire/<module>/; the full raw console log for whichever phase
+#   actually ran (only that phase's own log file exists) also copied to $REPORTS_DIR/logs/
+#   (unit-tests.log/integration-tests.log/archunit-metrics.log) -- never lost to terminal
+#   scrollback, unlike the stdout copy alone. ARCHUNIT_METRICS=true -- architecture-
+#   metrics.json moved to $REPORTS_DIR/architecture-metrics.json. A build-info.txt (BUILD_CONTAINER_NAME,
+#   timestamp, which of RUN_UNIT/RUN_INTEGRATION/ARCHUNIT_METRICS/SKIP_VAADIN were set) is always
+#   written to $REPORTS_DIR/, so anyone looking at the volume can tell which invocation produced
+#   what. $REPORTS_DIR (/reports/$BUILD_CONTAINER_NAME) lives on the shared test-reports named
+#   Docker volume (never a WSL/Windows-drive path, so never subject to the docker-desktop-bind-mounts
+#   issue documented in .claude/nav/adr-index.md), reaching the host via run.sh's own `docker cp` from
+#   this container (while it's still running) after the build finishes. RUN_INTEGRATION=true also
+#   mirrors run.log + surefire/ into $REPORTS_DIR/it-mirror/, copied out by run.sh's own second,
+#   separate docker cp -- keeps integration-tests/reports/ fresh whenever integration tests run
+#   through this script, not only via integration-tests/run.sh's own direct invocation.
 # Returns: 0 on success, non-zero on build/test failure.
 # ────────────────────────────────────────────────────────────────────────────
 set -e
 
 ROOT=/app
+
+# Namespaced by BUILD_CONTAINER_NAME (set by run.sh, defaults to advertisement-build-only) so two
+# concurrent invocations of this script -- e.g. run-all-tests.sh's own direct call and
+# deploy-and-run.sh's internal one, which already uses a distinct BUILD_CONTAINER_NAME to avoid a
+# Docker container-name collision -- don't also collide writing into the same shared test-reports
+# volume at once.
+REPORTS_DIR="/reports/${BUILD_CONTAINER_NAME:-advertisement-build-only}"
+# Separate top-level container path (not nested under REPORTS_DIR) for raw process logs
+# (build-info.txt, logs/*.log) -- kept apart from REPORTS_DIR, which is real test *results* only
+# (surefire/, it-mirror/, architecture-metrics.json), so run.sh's own host copy-out can send each
+# to its own separate host destination (scripts\logs\build-and-test\ vs
+# scripts\build-and-test\reports\) with two plain docker cp calls, no exclusion logic needed.
+LOGS_DIR="/reports/logs/${BUILD_CONTAINER_NAME:-advertisement-build-only}"
 
 trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; exit $_rc' ERR
 
@@ -103,6 +134,31 @@ fi
 echo ""
 echo "=== Build done ==="
 
+# ── build-info.txt: written unconditionally so anyone looking at $LOGS_DIR on the shared
+# volume (or after it lands on the host) can tell which invocation produced it, without having to
+# guess from context -- which container name, when, and with which flags. Lives in $LOGS_DIR, not
+# $REPORTS_DIR -- it's process metadata about the run itself, not a test result. ────────────────
+mkdir -p "$LOGS_DIR"
+cat > "$LOGS_DIR/build-info.txt" <<EOF
+BUILD_CONTAINER_NAME=${BUILD_CONTAINER_NAME:-advertisement-build-only}
+timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+RUN_UNIT=${RUN_UNIT:-false}
+RUN_INTEGRATION=${RUN_INTEGRATION:-false}
+ARCHUNIT_METRICS=${ARCHUNIT_METRICS:-false}
+SKIP_VAADIN=${SKIP_VAADIN:-false}
+UNIT_TEST_ARG=${UNIT_TEST_ARG:-}
+INTEGRATION_TEST_ARG=${INTEGRATION_TEST_ARG:-}
+EOF
+
+# ── From here on, test failures are captured via $? and summarized, never allowed to abort the
+# script outright -- the top-level ERR trap above exists only to catch a genuinely unexpected
+# failure during the mandatory reactor build above. Left active past this point, it fires on the
+# very first non-zero-returning top-level command in the test-running section below (confirmed
+# directly: `wait $INTEGRATION_PID` returning a failed job's real exit status was enough) and exits
+# immediately -- before print_unit_summary/print_integration_summary ever run, so a real test
+# failure's actual cause (which test, what error) never gets printed anywhere, console or file. ──
+trap - ERR
+
 # ── Unit tests: plain JUnit, no Docker needed ─────────────────────────────────
 # No flock here (unlike the install step above) -- once ~/.m2 is installed, both this and the
 # integration-test block below only *read* it, never write, so they're safe to run concurrently
@@ -120,11 +176,14 @@ run_unit_tests() {
   ./mvnw -pl "$UNIT_MODULES" test $UNIT_TEST_FLAG > /tmp/unit-tests.log 2>&1
   UNIT_EXIT=$?
 
-  mkdir -p /tmp/reports/surefire
+  mkdir -p "$LOGS_DIR"
+  cp /tmp/unit-tests.log "$LOGS_DIR/unit-tests.log"
+
+  mkdir -p "$REPORTS_DIR/surefire"
   for m in query-lib marketplace-app marketplace-orchestrator; do
     if [ -d "$ROOT/$m/target/surefire-reports" ]; then
-      mkdir -p "/tmp/reports/surefire/$m"
-      cp -r "$ROOT/$m"/target/surefire-reports/* "/tmp/reports/surefire/$m/" 2>/dev/null || true
+      mkdir -p "$REPORTS_DIR/surefire/$m"
+      cp -r "$ROOT/$m"/target/surefire-reports/* "$REPORTS_DIR/surefire/$m/" 2>/dev/null || true
     fi
   done
   return $UNIT_EXIT
@@ -138,7 +197,7 @@ print_unit_summary() {
   else
     echo "===== UNIT TESTS FAILED (exit $UNIT_EXIT) ====="
     echo "Failing tests, if any:"
-    grep -rl "FAILED\|ERROR" /tmp/reports/surefire/*/*.txt 2>/dev/null | sed 's|.*/||'
+    grep -rl "FAILED\|ERROR" "$REPORTS_DIR"/surefire/*/*.txt 2>/dev/null | sed 's|.*/||'
   fi
 }
 
@@ -157,8 +216,24 @@ run_integration_tests() {
   ./mvnw -pl integration-tests test -Dsurefire.excludedGroups= $INTEGRATION_TEST_FLAG > /tmp/integration-tests.log 2>&1
   INTEGRATION_EXIT=$?
 
-  mkdir -p /tmp/reports/surefire/integration-tests
-  cp -r "$ROOT"/integration-tests/target/surefire-reports/* /tmp/reports/surefire/integration-tests/ 2>/dev/null || true
+  mkdir -p "$LOGS_DIR"
+  cp /tmp/integration-tests.log "$LOGS_DIR/integration-tests.log"
+
+  mkdir -p "$REPORTS_DIR/surefire/integration-tests"
+  cp -r "$ROOT"/integration-tests/target/surefire-reports/* "$REPORTS_DIR/surefire/integration-tests/" 2>/dev/null || true
+
+  # Mirrors integration-tests/reports/ own shape (surefire/ only -- no run.log copy here, that
+  # would just duplicate $LOGS_DIR/integration-tests.log under a second name; run.sh's own
+  # copy-out sends that one file to scripts/logs/integration-tests/run.log instead), copied out via
+  # a second, separate docker cp in run.sh (in addition to the one that copies $REPORTS_DIR/. as a
+  # whole into scripts/build-and-test/reports/) -- so integration-tests/reports/ stays fresh
+  # whenever integration tests run through this script too, not only via integration-tests/run.sh's
+  # own direct invocation. It also lands (harmlessly) as a nested it-mirror/ subfolder inside
+  # scripts/build-and-test/reports/ via the first, whole-volume copy -- not worth avoiding, both
+  # destinations reading it via `docker cp` are unaffected by that duplication.
+  mkdir -p "$REPORTS_DIR/it-mirror/surefire"
+  cp -r "$ROOT"/integration-tests/target/surefire-reports/* "$REPORTS_DIR/it-mirror/surefire/" 2>/dev/null || true
+
   return $INTEGRATION_EXIT
 }
 
@@ -170,7 +245,7 @@ print_integration_summary() {
   else
     echo "===== INTEGRATION TESTS FAILED (exit $INTEGRATION_EXIT) ====="
     echo "Failing tests, if any:"
-    grep -l "FAILED\|ERROR" /tmp/reports/surefire/integration-tests/*.txt 2>/dev/null | sed 's|.*/||'
+    grep -l "FAILED\|ERROR" "$REPORTS_DIR"/surefire/integration-tests/*.txt 2>/dev/null | sed 's|.*/||'
   fi
 }
 
@@ -183,9 +258,12 @@ run_archunit_metrics() {
   ./mvnw -pl marketplace-app test -Dtest=ArchitectureMetricsExport -Dsurefire.failIfNoSpecifiedTests=false > /tmp/archunit-metrics.log 2>&1
   ARCHUNIT_METRICS_EXIT=$?
 
-  mkdir -p /tmp/reports
+  mkdir -p "$LOGS_DIR"
+  cp /tmp/archunit-metrics.log "$LOGS_DIR/archunit-metrics.log"
+
+  mkdir -p "$REPORTS_DIR"
   if [ -f "$ROOT/marketplace-app/target/architecture-metrics.json" ]; then
-    mv "$ROOT/marketplace-app/target/architecture-metrics.json" /tmp/reports/architecture-metrics.json
+    mv "$ROOT/marketplace-app/target/architecture-metrics.json" "$REPORTS_DIR/architecture-metrics.json"
   fi
   return $ARCHUNIT_METRICS_EXIT
 }

@@ -155,7 +155,7 @@ public class CityManagementView extends Div {
                         taxonCatalogService.softDelete(city.getId(), access.getCurrentUserId(), city.getVersion());
                         notificationService.success(CITY_VIEW_NOTIFICATION_DELETED);
                         refresh();
-                    } catch (Exception e) {
+                    } catch (@SuppressWarnings("java:S7467") Exception e) {
                         log.error("Error deleting city id={}", city.getId(), e);
                         notificationService.error(CITY_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
                     }

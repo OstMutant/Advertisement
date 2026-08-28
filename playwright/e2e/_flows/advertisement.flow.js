@@ -1,3 +1,25 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: The main advertisement CRUD/lifecycle flow library -- card and overlay lookups,
+ *   ad-kind selection and its badge/border-color assertions, gallery/lightbox helpers, rich-text
+ *   (Quill) formatting helpers, and the four top-level flows this suite runs against an
+ *   advertisement: create (with discard, media upload, category/city/ad-kind, history check),
+ *   edit (discard, text/media/category/city/ad-kind edits with activity-diff assertions, rich-text
+ *   formatting), restore from a past version, and a cross-user media replace scenario.
+ * Usage: None -- a library only, required by spec files (see Input).
+ * Uses: Node's fs module; ../_helpers (test, screenshot, downloadPng, closeNotification,
+ *   assertCardHasText, assertOverlayHasText, assertComputedColor, assertRightAligned);
+ *   ./attachment.flow, ./category.flow, ./city.flow, ./entity-activity.flow.
+ * Env: None.
+ * Input: required by 03-marketplace-promotion-flow.spec.js (cardByTitle, openCardOverlay,
+ *   switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList) and
+ *   04-marketplace-advertisement-flow.spec.js (all remaining exports); selectAdKind is also
+ *   required internally by seed.flow.js.
+ * Outputs: exports MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow,
+ *   runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow,
+ *   cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle,
+ *   closeOverlayToList, deleteAllGalleryItems, selectAdKind.
+ * Returns: N/A
+ * ──────────────────────────────────────────────────────────────────────────── */
 const fs = require('fs');
 const { test, screenshot, downloadPng, closeNotification, assertCardHasText, assertOverlayHasText, assertComputedColor, assertRightAligned } = require('../_helpers');
 const { clickLightboxThumb, getVideoSrc, waitForVideoWrapperVisible } = require('./attachment.flow');
@@ -7,6 +29,13 @@ const { closeEntityActivity } = require('./entity-activity.flow');
 
 const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
+/**
+ * Selects an ad-kind radio button in the advertisement form by its label text.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Locator} overlay the advertisement overlay.
+ * @param {string} labelText the radio button's visible label (e.g. 'Offer', 'Пропозиція').
+ * @returns {Promise<void>}
+ */
 async function selectAdKind(page, overlay, labelText) {
   const group = overlay.locator('[data-testid="advertisement-overlay-field-ad-kind"]');
   await group.locator('vaadin-radio-button', { hasText: labelText }).click();
@@ -66,11 +95,24 @@ const MINIMAL_WEBM = Buffer.from([
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Locates the advertisement card whose title exactly matches the given text.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} title exact advertisement title.
+ * @returns {import('@playwright/test').Locator}
+ */
 function cardByTitle(page, title) {
   return page.locator('.advertisement-card')
     .filter({ has: page.locator('.advertisement-title', { hasText: new RegExp(`^${title}$`) }) });
 }
 
+/**
+ * Clicks a card to open its advertisement view overlay and waits for it to appear.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Locator} card
+ * @param {string} screenshotPrefix
+ * @returns {Promise<import('@playwright/test').Locator>} the opened `.advertisement-overlay` locator.
+ */
 async function openCardOverlay(page, card, screenshotPrefix) {
   await card.first().waitFor({ timeout: 5000 });
   await card.first().click();
@@ -80,12 +122,28 @@ async function openCardOverlay(page, card, screenshotPrefix) {
   return overlay;
 }
 
+/**
+ * Clicks the Edit button on an open view overlay and waits for the edit form to render.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Locator} overlay
+ * @param {string} [screenshotPrefix] when set, takes a screenshot after the form opens.
+ * @returns {Promise<void>}
+ */
 async function switchToEditMode(page, overlay, screenshotPrefix) {
   await overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
   await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 5000 });
   if (screenshotPrefix) await screenshot(page, `${screenshotPrefix}-edit-opened`);
 }
 
+/**
+ * Clicks Save on the edit form and waits until the discard-changes button becomes disabled
+ * (server round-trip settled), then dismisses the resulting notification.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {import('@playwright/test').Locator} overlay
+ * @param {string} screenshotPrefix
+ * @returns {Promise<void>}
+ */
 async function saveAndWaitForIdle(page, expect, overlay, screenshotPrefix) {
   await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
   await expect(
@@ -95,10 +153,12 @@ async function saveAndWaitForIdle(page, expect, overlay, screenshotPrefix) {
   await screenshot(page, `${screenshotPrefix}-saved`);
 }
 
-// History is a nested overlay now, not a tab inside the advertisement overlay -- opening it
-// doesn't require the caller's `overlay` locator, just the page it belongs to. Defensively closes
-// any already-open history overlay first (idempotent no-op if none), so callers don't need to
-// track whether a previous step left one open -- covers the advertisement overlay's own buttons.
+/**
+ * Opens the advertisement's history overlay (a nested overlay, not a tab), closing any
+ * already-open history overlay first so callers don't need to track prior state.
+ * @param {import('@playwright/test').Locator} overlay the advertisement overlay (used only for its page).
+ * @returns {Promise<import('@playwright/test').Locator>} the `.entity-activity-list` locator.
+ */
 async function openActivityTab(overlay) {
   const page = overlay.page();
   await closeEntityActivity(page);
@@ -120,6 +180,12 @@ async function closeEditAndVerifyView(page, expect, overlay, expectedTitle, expe
   await screenshot(page, screenshotName);
 }
 
+/**
+ * Closes any open history overlay, then clicks the breadcrumb back button to return to the list.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Locator} overlay
+ * @returns {Promise<void>}
+ */
 async function closeOverlayToList(page, overlay) {
   await closeEntityActivity(page);
   await overlay.locator('.overlay__breadcrumb-back').first().click();
@@ -139,6 +205,13 @@ async function verifyCardInList(page, expect, card, description, mediaCount, scr
   await screenshot(page, screenshotName);
 }
 
+/**
+ * Deletes every item in the attachment gallery, one at a time, asserting the count decreases
+ * after each deletion.
+ * @param {import('@playwright/test').Expect} expect
+ * @param {import('@playwright/test').Locator} overlay
+ * @returns {Promise<void>}
+ */
 async function deleteAllGalleryItems(expect, overlay) {
   const count = await overlay.locator('.attachment-gallery__item').count();
   for (let i = 0; i < count; i++) {
@@ -191,6 +264,13 @@ const RICH_TAGS = ['<strong>', '<em>', '<u>', '<s>', '<blockquote>', '<ol>', '<u
 // First word set by typeAllFormats Delta — used to assert view/card text after a rich-text edit
 const RICH_TEXT_FIRST_WORD = 'bold';
 
+/**
+ * Asserts an HTML string contains every tag in RICH_TAGS.
+ * @param {import('@playwright/test').Expect} expect
+ * @param {string} html
+ * @param {string} context label used in the failure message (e.g. 'activity diff').
+ * @returns {void}
+ */
 function assertAllRichTags(expect, html, context) {
   for (const tag of RICH_TAGS) {
     expect(html, `${context} should contain ${tag}`).toContain(tag);
@@ -238,6 +318,24 @@ async function typeAllFormats(page, overlay) {
 
 // ── flows ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Creates an advertisement end-to-end: verifies create-form discard clears the form, fills
+ * title/description/categories/city/ad-kind, adds YouTube/image/WebM media, saves, then verifies
+ * the resulting card (description, media count, categories, city, ad-kind badge), the lightbox
+ * navigation across all three media items, and a single "created" history entry with no restore
+ * button.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {object} params
+ * @param {string} params.title
+ * @param {string} params.description
+ * @param {string} params.screenshotPrefix
+ * @param {string[]} [params.categories] category names to select in the form.
+ * @param {string} [params.city] city name to select in the form.
+ * @param {string} [params.adKind] ad-kind label to select; defaults to the locale's default label.
+ * @param {string} [params.locale='en'] locale used to resolve the default ad-kind label.
+ * @returns {Promise<void>}
+ */
 async function runCreateAdvertisementFlow(page, expect, { title, description, screenshotPrefix, categories = [], city = null, adKind = null, locale = 'en' }) {
   const defaultAdKindLabel = DEFAULT_AD_KIND_LABEL[locale];
   const imagePath = `/tmp/${screenshotPrefix}-image.png`;
@@ -317,6 +415,36 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   });
 }
 
+/**
+ * Edits an existing advertisement through a sequence of test.step()s: opens the card and switches
+ * to edit mode, verifies discard restores original state (both after deleting media and after
+ * adding media), saves a full edit (media deleted, title/description changed) and asserts the
+ * activity diff, saves a text-only edit (optionally with every Quill rich-text format) and asserts
+ * the diff again, optionally a format-only edit, optional category-add/remove/city/ad-kind edits
+ * each with their own activity-diff assertion, then verifies the view overlay and the card both
+ * reflect the final saved state.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {object} params
+ * @param {string} params.originalTitle
+ * @param {string} params.originalDescription
+ * @param {string} params.newTitle
+ * @param {string} params.newDescription
+ * @param {number} [params.startingVersion=1] version the advertisement is at before this flow runs.
+ * @param {number} [params.startingVisibleRows] history rows visible before this flow runs, if
+ *   different from startingVersion (e.g. after a restore collapsed some rows).
+ * @param {boolean} [params.checkCurrentBadge=false] also assert exactly one current-state badge.
+ * @param {string} [params.categoryToAdd] category to select as an extra edit step, if any.
+ * @param {string} [params.categoryToRemove] category to deselect as an extra edit step, if any.
+ * @param {string} [params.cityToSet] city to select as an extra edit step, if any.
+ * @param {string} [params.adKindToSet] ad-kind to select as an extra edit step, if any.
+ * @param {boolean} [params.richText=false] type every Quill format into the description and
+ *   verify the tags survive the diff/view/card round-trip.
+ * @param {boolean} [params.verifyOuterLinkClosesToList=false] also verify the nested history
+ *   overlay's outer breadcrumb link closes straight to the list, even after View→Edit.
+ * @param {string} params.screenshotPrefix
+ * @returns {Promise<void>}
+ */
 async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, startingVisibleRows = null, checkCurrentBadge = false, categoryToAdd = null, categoryToRemove = null, cityToSet = null, adKindToSet = null, richText = false, verifyOuterLinkClosesToList = false, screenshotPrefix }) {
   const editVersion       = startingVersion + 1;
   const textEditVersion   = startingVersion + 2;
@@ -561,6 +689,24 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   });
 }
 
+/**
+ * Restores an advertisement to its v1 state from the history overlay, saves the restored form,
+ * and verifies the resulting activity diff, view overlay, card, and lightbox all reflect the
+ * restored content.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {object} params
+ * @param {string} params.currentTitle title before the restore.
+ * @param {string} params.restoredTitle title the v1 snapshot carries.
+ * @param {string} params.restoredDescription description the v1 snapshot carries.
+ * @param {number} [params.rowsBeforeRestore=3] history rows visible before restoring.
+ * @param {number} [params.targetRestoredVersion] expected version number after saving the
+ *   restored form, if different from rowsBeforeRestore + 1.
+ * @param {number} [params.restoreCountAfterRestore] expected restore-button count after restoring,
+ *   if different from (rowsBeforeRestore + 1) - 1.
+ * @param {string} params.screenshotPrefix
+ * @returns {Promise<void>}
+ */
 async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restoredTitle, restoredDescription, rowsBeforeRestore = 3, targetRestoredVersion = null, restoreCountAfterRestore = null, screenshotPrefix }) {
   const overlay = await openCardOverlay(page, cardByTitle(page, currentTitle), screenshotPrefix);
 
@@ -613,6 +759,19 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
   await openLightboxAndNavigate(page, restoredCard, screenshotPrefix);
 }
 
+/**
+ * Simulates a second user editing an existing advertisement's media: adds an image (asserting the
+ * resulting activity version), then replaces it with another image (asserting the next version),
+ * and finally asserts exactly one current-state badge remains in the history. Cleans up its two
+ * downloaded temp image files afterward regardless of outcome.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {object} params
+ * @param {string} params.adTitle
+ * @param {number} params.startingVersion version the advertisement is at before this flow runs.
+ * @param {string} params.screenshotPrefix
+ * @returns {Promise<void>}
+ */
 async function runCrossUserMediaReplaceFlow(page, expect, { adTitle, startingVersion, screenshotPrefix }) {
   const addVersion     = startingVersion + 1;
   const replaceVersion = startingVersion + 2;

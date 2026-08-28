@@ -1,5 +1,6 @@
 package org.ost.marketplace.architecture;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaMethod;
@@ -11,7 +12,9 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import org.springframework.context.MessageSource;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
@@ -19,6 +22,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
@@ -276,4 +280,20 @@ class ArchitectureRulesTest {
     @ArchTest
     static final ArchRule packages_are_free_of_cycles =
             slices().matching("org.ost.(*)..").should().beFreeOfCycles();
+
+    @ArchTest
+    static final ArchRule no_jpa_or_hibernate_dependencies =
+            noClasses().should().dependOnClassesThat().resideInAnyPackage(
+                            "jakarta.persistence..", "org.hibernate..")
+                    .because("this project uses pure SQL via JdbcClient/NamedParameterJdbcTemplate — "
+                            + "no JPA, no Hibernate, see root CLAUDE.md \"Core Stack\"");
+
+    @ArchTest
+    static final ArchRule no_primary_object_mapper_beans =
+            methods().that().areAnnotatedWith(Bean.class)
+                    .and().haveRawReturnType(ObjectMapper.class)
+                    .should().notBeAnnotatedWith(Primary.class)
+                    .because("when multiple ObjectMapper beans coexist, every injection site must use "
+                            + "an explicit @Qualifier — never @Primary to resolve the ambiguity "
+                            + "implicitly, see root CLAUDE.md \"No @Primary on ObjectMapper beans\"");
 }

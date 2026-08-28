@@ -31,10 +31,10 @@ Use this mapping table:
 
 | Changed file pattern | Documentation targets |
 |----------------------|-----------------------|
-| `**/*.java` (main or test), `**/pom.xml`, `**/db/changelog/**`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `docs/ai/flows.md` | `docs/architecture/architecture-model.json` + `docs/architecture/architecture-map.html` — every diagram (Module Dependencies, SPI Map, Database ERD, Bounded Contexts) and every module page's Code Metrics/Architecture Checks/Largest Files sections render live from real source; there is no separate `.md` to hand-edit for any of them. Regenerate via `bash docs/architecture/scripts/generate-architecture-model.sh`. A schema change still needs its new/changed `<column>`/`<createTable>` to carry a real `remarks=` attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that edit happens in the changelog, not in the generated doc. **Run this last, after Step 4's other file updates** — the generator reads every `DECISIONS.md` as input, so it must run after those are updated, not before, or it regenerates from stale input. |
+| `**/*.java` (main or test), `**/pom.xml`, `**/db/changelog/**`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `.claude/nav/flows.md` | `docs/architecture/data/architecture-model.json` + `docs/architecture/architecture-map.html` — every diagram (Module Dependencies, SPI Map, Database ERD, Bounded Contexts) and every module page's Code Metrics/Architecture Checks/Largest Files sections render live from real source; there is no separate `.md` to hand-edit for any of them. Regenerate via `bash docs/architecture/scripts/generate-architecture-model.sh`. A schema change still needs its new/changed `<column>`/`<createTable>` to carry a real `remarks=` attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that edit happens in the changelog, not in the generated doc. **Run this last, after Step 4's other file updates** — the generator reads every `DECISIONS.md` as input, so it must run after those are updated, not before, or it regenerates from stale input. |
 | Any `*.java` or `**/pom.xml` | `CLAUDE.md` (per changed module), `DECISIONS.md` (per changed module) |
 | Any `*.java` or `**/pom.xml` | `backlog/issues/` — create/close/update tracked issues |
-| Any `**/DECISIONS.md` | `docs/ai/adr-index.md` — regenerate via `bash docs/ai/scripts/generate-adr-index.sh` |
+| Any `**/DECISIONS.md` | `.claude/nav/adr-index.md` — regenerate via `bash .claude/nav/scripts/generate-adr-index.sh` |
 
 Print which targets are affected before proceeding.
 
@@ -54,7 +54,7 @@ happens in the changelog, not in a generated doc.
 
 ## Step 4 — Update affected files
 
-There is no `docs/architecture/` markdown content left to hand-edit — `docs/architecture/README.md`
+There is no `docs/architecture/` markdown content left to hand-edit — `docs/architecture/data/README.md`
 is a pointer to the live tool, and every diagram/module-page section renders directly from source
 (see Step 3). Start straight from the other targets below.
 
@@ -82,9 +82,9 @@ is a pointer to the live tool, and every diagram/module-page section renders dir
 
 **Last action of this step, always, if anything above touched a file the generator reads**
 (any `DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`,
-`docs/ai/flows.md`, or `**/pom.xml`): run `bash docs/architecture/scripts/generate-architecture-model.sh` — one
+`.claude/nav/flows.md`, or `**/pom.xml`): run `bash docs/architecture/scripts/generate-architecture-model.sh` — one
 trigger, run once, after every other file this step touches, so
-`docs/architecture/architecture-model.json`/`docs/architecture/architecture-map.html` never
+`docs/architecture/data/architecture-model.json`/`docs/architecture/architecture-map.html` never
 regenerate from stale input.
 
 ---
@@ -111,15 +111,15 @@ commit's diff.
 
 ### Step A0 — Regenerate the ADR index
 
-Run `bash docs/ai/scripts/generate-adr-index.sh` and check whether it changed `docs/ai/adr-index.md`
-(`git diff --stat docs/ai/adr-index.md`) — if so, a `DECISIONS.md` entry was added/changed since
+Run `bash .claude/nav/scripts/generate-adr-index.sh` and check whether it changed `.claude/nav/adr-index.md`
+(`git diff --stat .claude/nav/adr-index.md`) — if so, a `DECISIONS.md` entry was added/changed since
 the index was last regenerated. Include this in the Step A5 report regardless of outcome.
 
 ### Step A1 — Enumerate targets
 
 `find . -maxdepth 3 -iname "DECISIONS.md" -o -maxdepth 3 -iname "README.md" -o -maxdepth 3 -iname
 "CLAUDE.md"` (excluding `target/`/`node_modules/`) — `maxdepth 3`, not `2`: nested tool
-directories (`scripts/ci/`, `scripts/sonar/`, `docs/ai/scripts/`) each carry their own `DECISIONS.md`/
+directories (`scripts/ci/`, `scripts/sonar/`, `.claude/nav/scripts/`) each carry their own `DECISIONS.md`/
 `README.md` one level deeper than top-level modules; `maxdepth 2` silently skips all three
 (confirmed directly). Note which modules have no README.md, no
 DECISIONS.md, or no CLAUDE.md — that alone is not necessarily a problem (e.g. a pure-contracts
@@ -192,7 +192,7 @@ full-audit and aggregate mechanically (parse the `key: value` lines directly, th
   issues — sum and average, `n/a` entries excluded from the average, not treated as zero.
 - `context_loading_matched` yes/no/n/a tally, grouped by `context_loading_task_type`.
 - `flows_matched` yes/no/n/a tally.
-Feed the result into `docs/ai/`'s own governing rule — no new navigation content until this data
+Feed the result into `.claude/nav/`'s own governing rule — no new navigation content until this data
 shows the existing layer earns its cost: this is real evidence for or against expanding/trimming
 the navigation layer, not a synthetic exercise. If too
 few blocks have accumulated since the last audit to say anything meaningful, report that plainly —

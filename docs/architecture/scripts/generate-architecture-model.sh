@@ -1,30 +1,51 @@
 #!/usr/bin/env bash
 # Description: Generates architecture-model.json and architecture-map.html -- the live, browsable
 #   architecture control plane -- from real repo state, no hand-maintained markdown.
-# Uses: bash, node (invokes liquibase-schema-to-json.js always, and md-to-decisions-json.js only
-#   when --with-adr-details is passed, as subprocesses), python3 (only when
-#   --with-sonar/--with-archunit are passed).
+# Uses: bash, node (invokes liquibase-schema-to-json.js always, and
+#   .claude/nav/scripts/md-to-decisions-json.js only when --with-adr-details is passed, as
+#   subprocesses), python3 (only when --with-sonar/--with-archunit are passed).
 # Input: pom.xml, real Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
-#   docs/ai/adr-index.md, docs/ai/flows.md, .claude/commands, .claude/skills, backlog/.
-# Output: docs/architecture/architecture-model.json + docs/architecture/architecture-map.html +
-#   docs/architecture/arch-embed-index.md.
+#   .claude/nav/adr-index.md, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents,
+#   backlog/.
+# Output: docs/architecture/data/architecture-model.json + docs/architecture/architecture-map.html +
+#   docs/architecture/data/arch-embed-index.md.
 #
 # Generates architecture-model.json (Track A of the architecture control plane) from
 # already-structured, non-code sources only -- no ArchUnit, no bytecode analysis. Node types:
 # MODULE (from pom.xml reactor + per-module pom.xml dependencies), COMMAND/SKILL (from
-# .claude/commands, .claude/skills, cross-checked against docs/ai/flows.md), and one BACKLOG
-# summary node. Per-ADR/per-issue graph nodes are deliberately not built -- the issue/ADR count
+# .claude/commands, .claude/skills, cross-checked against .claude/nav/flows.md), AGENT (from
+# .claude/agents), and one BACKLOG summary node. Per-ADR/per-issue graph nodes are deliberately not built -- the issue/ADR count
 # would blow past a "tens of nodes, not thousands" budget -- ADRs are folded into each module's
 # own `intent[]` list instead, reusing adr-index.md rather than reparsing every DECISIONS.md.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-OUTPUT="$REPO_ROOT/docs/architecture/architecture-model.json"
+OUTPUT="$REPO_ROOT/docs/architecture/data/architecture-model.json"
 HTML_OUTPUT="$REPO_ROOT/docs/architecture/architecture-map.html"
-ARCH_EMBED_INDEX="$REPO_ROOT/docs/architecture/arch-embed-index.md"
-ADR_INDEX="$REPO_ROOT/docs/ai/adr-index.md"
-FLOWS="$REPO_ROOT/docs/ai/flows.md"
+ARCH_EMBED_INDEX="$REPO_ROOT/docs/architecture/data/arch-embed-index.md"
+ADR_INDEX="$REPO_ROOT/.claude/nav/adr-index.md"
+FLOWS="$REPO_ROOT/.claude/nav/flows.md"
 ROOT_CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
+
+# ── Node.js runner: host `node` if available, else a disposable node:22-alpine container --------
+# same "use it if the host has it, else containerize it" self-healing pattern this repo already
+# uses for Java/Playwright/SonarScanner (build-and-test/playwright/sonar all run their runtime
+# inside a container rather than requiring it on the host) -- a host with Docker Desktop + WSL but
+# no host-level node install is a real, confirmed case, not hypothetical.
+if command -v node >/dev/null 2>&1; then
+  NODE_MODE=host
+else
+  NODE_MODE=docker
+  NODE_IMAGE="node:22-alpine"
+  docker image inspect "$NODE_IMAGE" >/dev/null 2>&1 || docker pull -q "$NODE_IMAGE" >/dev/null
+fi
+run_node() {
+  if [ "$NODE_MODE" = host ]; then
+    node "$@"
+  else
+    docker run --rm -i -v "$REPO_ROOT:$REPO_ROOT" -w "$REPO_ROOT" "$NODE_IMAGE" node "$@"
+  fi
+}
 
 # Opt-in Sonar/ArchUnit/CI-metrics/ADR-details fetch -- all off by default so a plain run never
 # triggers a SonarQube rescan, depends on build-and-test.sh --archunit-metrics having run
@@ -69,8 +90,8 @@ json_escape() {
 # already uses) -- NOT a separate <module>/DECISIONS.json loaded at runtime via <script src>. That
 # design was tried and reverted: it depends on browser-specific file:// security policy for
 # cross-directory script loading, an unacceptable dependency for a tool meant to just work when
-# double-clicked -- see docs/ai/adr-index.md. Parsing lives in md-to-decisions-json.js
-# (Node) -- an earlier awk version hit two real bugs on real content (label+list with no blank
+# double-clicked -- see .claude/nav/adr-index.md. Parsing lives in
+# .claude/nav/scripts/md-to-decisions-json.js (Node) -- an earlier awk version hit two real bugs on real content (label+list with no blank
 # line merging into one paragraph; multi-line list items losing their numbering) that
 # JSON.stringify()'s correct-by-construction escaping and normal regex/string methods avoid.
 FULL_DECISIONS_MODULES=(attachment-spring-boot-starter audit-spring-boot-starter integration-tests marketplace-app platform-commons query-lib taxon-spring-boot-starter scripts docs/architecture/scripts scripts/ci scripts/sonar playwright)
@@ -78,41 +99,72 @@ FULL_DECISIONS_MODULES=(attachment-spring-boot-starter audit-spring-boot-starter
 # ── Non-Maven tooling directories -- get a SCRIPT_GROUP node (same ADR-embedding/popup mechanism
 # as MODULE nodes) so their files/decisions are visible on the Tooling & Pipelines screen, not
 # invisible outside the interactive tool. "category" is the group heading each dir's card renders
-# under -- one heading per dir (AI Tooling / Build architecture page / Playwright / Sonar / CI /
-# Other Scripts), not a two-bucket ai/scripts split. Not every SCRIPT_GROUP dir has its own
-# DECISIONS.md -- docs/ai/scripts's own history moved to docs/architecture/scripts/DECISIONS.md wholesale
-# (see docs/architecture/scripts/DECISIONS.md ADR-021), so docs/ai/scripts now gets a files-only node, no
-# ADR/decisions section (decisions_json_for/adr_intent_for_module both degrade to empty for a
-# module with no DECISIONS.md, not a special case here).
+# under. Not every SCRIPT_GROUP dir has its own DECISIONS.md -- .claude/nav/scripts's own history moved
+# to docs/architecture/scripts/DECISIONS.md wholesale (see docs/architecture/scripts/DECISIONS.md
+# ADR-021), so .claude/nav/scripts now gets a files-only node, no ADR/decisions section
+# (decisions_json_for/adr_intent_for_module both degrade to empty for a module with no
+# DECISIONS.md, not a special case here). docs/architecture/scripts stays a single-level flat card
+# here -- scripts, playwright, and .claude are each the root of their own arbitrary-depth
+# SCRIPT_GROUP tree instead (SCRIPT_TREE_ROOTS below, .claude/nav/scripts reached as one of its
+# nested children), so they're deliberately not listed in SCRIPT_GROUP_DIRS/SCRIPT_GROUP_CATEGORY.
 declare -A SCRIPT_GROUP_CATEGORY=(
-  [docs/ai/scripts]="AI Tooling"
+  [docs/architecture]="Build architecture page"
   [docs/architecture/scripts]="Build architecture page"
-  [scripts]="Other Scripts"
-  [scripts/ci]="CI"
-  [scripts/sonar]="Sonar"
-  [scripts/build-and-test]="Build and Test"
-  [scripts/deploy-and-run]="Deploy and Run"
-  [scripts/run-all-tests]="Run All Tests"
-  [playwright]="Playwright"
+  [docs/architecture/data]="Build architecture page"
 )
-SCRIPT_GROUP_DIRS=(docs/ai/scripts docs/architecture/scripts scripts scripts/ci scripts/sonar scripts/build-and-test scripts/deploy-and-run scripts/run-all-tests playwright)
+SCRIPT_GROUP_DIRS=(docs/architecture docs/architecture/scripts docs/architecture/data)
+
+# Top-level roots of the unified, arbitrary-depth drill-down tree (see emit_script_tree_node()
+# below) -- each root carries its own display category, so the same recursive mechanism feeds both
+# the "Scripts" card (scripts/, playwright/) and the "AI Tooling" card (.claude/) on the Tooling &
+# Pipelines screen. playwright/ is a physically separate top-level directory, not nested under
+# scripts/, but is treated as one child card of the root "Scripts" card
+# (docs/architecture/scripts/DECISIONS.md).
+declare -A SCRIPT_TREE_ROOT_CATEGORY=(
+  [scripts]="Scripts"
+  [playwright]="Scripts"
+  [.claude]="AI Tooling"
+)
+SCRIPT_TREE_ROOTS=(scripts playwright .claude)
+
+# Directories that never become their own card/tree node even though they sit inside a
+# SCRIPT_TREE_ROOTS subtree -- generated/report output, never source. "wiki" is Dagu's own
+# runtime-created documentation folder (see `dagu config`'s "Wiki directory"), written directly
+# into whatever directory Dagu was started with `--dags` pointed at -- not part of the real source
+# tree, confirmed by its absence outside a running ci-runner container.
+SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report logs node_modules wiki)
+
+# Directories whose real subdirectories are never recursed into, even though they exist on disk --
+# .claude/skills/<name>/ is never a folder-card of its own: each skill's own SKILL.md is already
+# that unit's complete, self-contained description (see .claude/skills/infra-readme-standards's
+# own ".claude/skills/" section), so drilling into one would show an empty card with no headers and
+# no README. The .claude/skills card itself still renders normally (its own top-level README.md).
+SCRIPT_TREE_LEAF_DIRS=(.claude/skills)
 
 # Explicit "what matters first" ordering per directory -- entry points and generators before the
 # CI gates that verify their output, dev-only tooling last. Falls back to alphabetical (find |
-# sort) for any directory not listed here.
+# sort) for any directory not listed here. Applies uniformly to SCRIPT_GROUP_DIRS's flat dirs and
+# to every level of the SCRIPT_TREE_ROOTS tree (looked up by the node's own directory path).
 declare -A SCRIPT_GROUP_FILE_ORDER=(
-  [docs/ai/scripts]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh"
-  [docs/architecture/scripts]="generate-architecture-model.sh md-to-decisions-json.js liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh"
+  [.claude/nav/scripts]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh md-to-decisions-json.js"
+  [docs/architecture]="architecture-doc.sh architecture-doc.bat"
+  [docs/architecture/scripts]="generate-architecture-model.sh liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh Dockerfile"
+  [docs/architecture/data]="architecture-model.json arch-embed-index.md runtime-notes.md"
+  [scripts]="build-and-test.sh deploy-and-run.sh ci.sh run-all-tests.sh playwright.sh sonar.sh reset.sh run-local.bat build-and-test.bat deploy-and-run.bat ci.bat run-all-tests.bat playwright.bat sonar.bat claude.bat clean.bat collect-code.bat"
   [scripts/sonar]="run.sh run.bat docker-compose.sonar.yml sonar-project.properties"
   [scripts/build-and-test]="run.sh build.sh build-and-test.properties Dockerfile"
   [scripts/deploy-and-run]="run.sh reset.sh Dockerfile docker-compose.db.yml docker-compose.minio.yml docker-compose.app.yml"
   [scripts/run-all-tests]="run.sh"
+  [scripts/ci]="run.sh Dockerfile docker-entrypoint.sh watch-run.py"
+  [scripts/ci/dagu]="ci.yaml pipeline-metrics.py"
+  [playwright/e2e]="_helpers.js 01-marketplace-empty-flow.spec.js 02-marketplace-authentication-flow.spec.js 03-marketplace-promotion-flow.spec.js 04-marketplace-advertisement-flow.spec.js 05-seed-filter-sort-pagination.spec.js 06-marketplace-delete-flow.spec.js 07-accessibility.spec.js"
+  [playwright/e2e/_flows]="auth.flow.js signup.flow.js advertisement.flow.js advertisement-filter.flow.js filter.flow.js category.flow.js city.flow.js attachment.flow.js audit.flow.js timeline.flow.js entity-activity.flow.js delete.flow.js user-management.flow.js settings.flow.js language-switch.flow.js seed.flow.js"
 )
 decisions_json_for() {
   local module="$1"
   # Off by default (see --with-adr-details above) -- full ADR-body embedding accounts for
   # ~605KB/~72% of a with-flag architecture-model.json, baked in whether or not anyone opens the
-  # popup. MODEL.allAdrs (built by all_adrs_json() from docs/ai/adr-index.md) stays populated
+  # popup. MODEL.allAdrs (built by all_adrs_json() from .claude/nav/adr-index.md) stays populated
   # either way -- it never carried full body text to begin with. openAdrPopupForAdr() still opens
   # the popup (id/title/status always available from MODEL.allAdrs) when a module's "decisions"
   # field is null, showing a source-file link instead of the full body.
@@ -121,17 +173,26 @@ decisions_json_for() {
   local found=false
   for m in "${FULL_DECISIONS_MODULES[@]}"; do [ "$m" = "$module" ] && found=true; done
   $found || { echo "null"; return; }
-  node "$REPO_ROOT/docs/architecture/scripts/md-to-decisions-json.js" --stdout "$module"
+  run_node "$REPO_ROOT/.claude/nav/scripts/md-to-decisions-json.js" --stdout "$module"
 }
 
-# A SCRIPT_GROUP dir's own README.md (if it has one), read raw via Node's JSON.stringify -- same
-# reasoning as runtime_notes_json() below: json_escape() strips newlines, unsuitable for
-# multi-paragraph content. Always embedded (unlike decisions_json_for(), which is opt-in behind
-# --with-adr-details) -- a README is orders of magnitude smaller than a full ADR history.
+# A SCRIPT_GROUP dir's own README.md (if it has one), read raw via Node's JSON.stringify --
+# json_escape() strips newlines, unsuitable for multi-paragraph content. Always embedded (unlike
+# decisions_json_for(), which is opt-in behind --with-adr-details) -- a README is orders of
+# magnitude smaller than a full ADR history.
 readme_json_for() {
   local dir="$1"
   [ -f "$REPO_ROOT/$dir/README.md" ] || { echo "null"; return; }
-  node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$REPO_ROOT/$dir/README.md"
+  run_node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$REPO_ROOT/$dir/README.md"
+}
+
+# A root-level markdown file (README.md/INFRASTRUCTURE.md), read raw the same way readme_json_for()
+# reads a SCRIPT_GROUP dir's own README.md -- these two aren't SCRIPT_GROUP-scoped, so they need
+# their own path (repo root, not a dir/README.md join).
+root_md_json_for() {
+  local file="$1"
+  [ -f "$REPO_ROOT/$file" ] || { echo "null"; return; }
+  run_node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$REPO_ROOT/$file"
 }
 
 # ── Module list, in pom.xml reactor order ───────────────────────────────────────────────────
@@ -252,20 +313,111 @@ declare -A BC_LABEL_CATEGORY=(
   ["can have"]="derived"
 )
 
+# ── ArchUnit: real Efferent/Afferent Coupling, Instability, Abstractness per module, computed by
+# ArchitectureMetricsExport (marketplace-app/src/test/java/org/ost/marketplace/architecture).
+# Its class name doesn't match Surefire's default *Test/Test*/*Tests/*TestCase include patterns,
+# so it never runs as part of a normal `mvn test` -- must be explicitly forced
+# (-Dtest=ArchitectureMetricsExport), and needs the full reactor already installed (it scans every
+# module's classes on one combined classpath). Two possible sources, checked in order: a direct
+# host-side forced run writes straight to marketplace-app/target/; `bash scripts/build-and-test.sh
+# --archunit-metrics` runs it inside a throwaway container instead and moves the result to
+# scripts/build-and-test/reports/architecture-metrics.json. Read here if present; null if neither
+# has run yet -- optional data, no auto-trigger (several minutes even on a warm build, a much
+# bigger cost than SonarQube's own staleness check, so this stays passively "as fresh as the last
+# run" instead). Declared here (ahead of the Entities/Key Services/Contract block below, which
+# needs it at top-level script scope, not deferred inside a later-called function) -- same ordering
+# constraint javadoc_purpose_for() already hit earlier this session.
+ARCHUNIT_METRICS_FILE="$REPO_ROOT/marketplace-app/target/architecture-metrics.json"
+ARCHUNIT_METRICS_FILE_FALLBACK="$REPO_ROOT/scripts/build-and-test/reports/architecture-metrics.json"
+
+# Whether $1 (a module id) really owns (implements or calls) $2 (an SPI interface simple name),
+# per the real bytecode-derived spiEdges data (improvement-156) -- replaces this generator's own
+# older implements-regex guessing (improvement-174: found producing the same class of false
+# positive/negative spi_map_json() already had before its own ArchUnit-based fix). Exit code is a
+# 3-way signal, not a boolean: 0 = real data confirms ownership, 1 = real data confirms no
+# ownership, 2 = no ArchUnit data available at all this session -- callers fall back to their own
+# existing regex only on 2, never silently lose coverage when --archunit-metrics hasn't run.
+spi_owns_iface() {
+  local mod="$1" iface="$2" archunit_file=""
+  [ -f "$ARCHUNIT_METRICS_FILE" ] && archunit_file="$ARCHUNIT_METRICS_FILE"
+  [ -z "$archunit_file" ] && [ -f "$ARCHUNIT_METRICS_FILE_FALLBACK" ] && archunit_file="$ARCHUNIT_METRICS_FILE_FALLBACK"
+  [ -z "$archunit_file" ] && return 2
+  python3 -c "
+import json, sys
+data = json.load(open(sys.argv[1]))
+edges = data.get('spiEdges', {}).get(sys.argv[3])
+if edges is None:
+    sys.exit(2)
+owns = any(m['module'] == sys.argv[2] for m in edges.get('implementations', [])) or any(c['module'] == sys.argv[2] for c in edges.get('callers', []))
+sys.exit(0 if owns else 1)
+" "$archunit_file" "$mod" "$iface"
+}
+
+# Live from the real Javadoc immediately above the class/interface/record/enum declaration --
+# single source of truth lives next to the code, not duplicated in this generator. Walks backward
+# from that declaration line past blank/annotation lines (handles @FunctionalInterface) to find a
+# preceding "*/", then further back to the matching "/**"; strips "*"/"{@code}"/"{@link}" markup.
+# Every *.spi interface is expected to carry one -- see platform-commons/CLAUDE.md. Also reused for
+# entity/service/contract classes on the Module screen (improvement-160-adjacent work) -- not every
+# one of those is guaranteed a Javadoc comment, so an empty result there is expected, not an error.
+# Defined here (ahead of the Entities/Key Services/Contract block below, which calls it at
+# top-level script scope, not deferred inside a later-called function) -- bash has no function
+# hoisting, so a definition after its first call site fails with "command not found" (confirmed
+# directly).
+javadoc_purpose_for() {
+  local file="$1"
+  awk '
+    /^[[:space:]]*(public[[:space:]]+)?(final[[:space:]]+)?(abstract[[:space:]]+)?(static[[:space:]]+)?(class|interface|record|enum)[[:space:]]+/ && !found { target=NR; found=1 }
+    { lines[NR] = $0 }
+    END {
+      if (!found) { exit }
+      i = target - 1
+      while (i > 0 && (lines[i] ~ /^[[:space:]]*$/ || lines[i] ~ /^[[:space:]]*@/)) i--
+      if (lines[i] !~ /\*\/[[:space:]]*$/) exit
+      end = i
+      while (i > 0 && lines[i] !~ /^[[:space:]]*\/\*\*/) i--
+      start = i
+      if (lines[start] !~ /^[[:space:]]*\/\*\*/) exit
+      out = ""
+      for (j = start; j <= end; j++) {
+        line = lines[j]
+        gsub(/^[[:space:]]*\/\*\*[[:space:]]*/, "", line)
+        gsub(/[[:space:]]*\*\/[[:space:]]*$/, "", line)
+        gsub(/^[[:space:]]*\*[[:space:]]?/, "", line)
+        if (line != "") {
+          out = (out == "" ? line : out " " line)
+        }
+      }
+      gsub(/\{@code /, "", out); gsub(/\{@link /, "", out); gsub(/\}/, "", out)
+      print out
+    }
+  ' "$file"
+}
+
 # ── Domain grouping + Entities/Key Services/Contract lists per module -- live, same real signals
 # bounded_contexts_json() uses further down (real @Table classes, real *Service classes, real SPI
-# interface `implements` relationships), just keyed by module instead of by domain and reduced to
-# bare names (no file link -- the Module screen shows these as plain labels, not a linked list).
+# interface `implements` relationships), just keyed by module instead of by domain. Each line is
+# "name<TAB>file<TAB>description" (json_named_file_array()'s 3-column shape) -- file/description
+# feed the Module screen's real file links + Javadoc one-liners (improvement-160-adjacent work).
 declare -A MODULE_DOMAIN MODULE_KEYSERVICES MODULE_CONTRACT MODULE_ENTITY
 for bc_d in "${BC_DOMAIN_ORDER[@]}"; do
   bc_m="${BC_DOMAIN_MODULE[$bc_d]}"
   MODULE_DOMAIN["$bc_m"]="${BC_DOMAIN_LABEL[$bc_d]}"
   [ "$bc_d" = "Shared" ] || [ "$bc_d" = "UI" ] && continue
-  MODULE_ENTITY["$bc_m"]="$( (grep -rl '^@Table\|@Table(' "$REPO_ROOT/$bc_m/src/main/java" --include='*.java' 2>/dev/null || true) | sort | xargs -r -n1 basename | sed 's/\.java$//')"$'\n'
-  MODULE_KEYSERVICES["$bc_m"]="$(find "$REPO_ROOT/$bc_m/src/main/java" -name '*Service.java' 2>/dev/null | sort | xargs -r -n1 basename | sed 's/\.java$//')"$'\n'
+  MODULE_ENTITY["$bc_m"]="$( (grep -rl '^@Table\|@Table(' "$REPO_ROOT/$bc_m/src/main/java" --include='*.java' 2>/dev/null || true) | sort | while read -r ef; do
+    printf '%s\t%s\t%s\n' "$(basename "$ef" .java)" "${ef#"$REPO_ROOT"/}" "$(javadoc_purpose_for "$ef")"
+  done)"$'\n'
+  MODULE_KEYSERVICES["$bc_m"]="$(find "$REPO_ROOT/$bc_m/src/main/java" -name '*Service.java' 2>/dev/null | sort | while read -r sf; do
+    printf '%s\t%s\t%s\n' "$(basename "$sf" .java)" "${sf#"$REPO_ROOT"/}" "$(javadoc_purpose_for "$sf")"
+  done)"$'\n'
   MODULE_CONTRACT["$bc_m"]="$( (find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
     iface="$(basename "$ifile" .java)"
-    grep -qlP "implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$bc_m/src/main/java" 2>/dev/null && echo "$iface"
+    owns=2
+    spi_owns_iface "$bc_m" "$iface" && owns=0 || owns=$?
+    if [ "$owns" = 2 ]; then
+      grep -qlP "implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$bc_m/src/main/java" 2>/dev/null && owns=0
+    fi
+    [ "$owns" = 0 ] && printf '%s\t%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}" "$(javadoc_purpose_for "$ifile")"
     true
   done) || true)"$'\n'
 done
@@ -275,7 +427,12 @@ done
 if [ -n "$bc_orch_mod" ]; then
   MODULE_CONTRACT["$bc_orch_mod"]="$( (find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
     iface="$(basename "$ifile" .java)"
-    grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;" -r --include='*.java' "$REPO_ROOT/$bc_orch_mod/src/main/java" 2>/dev/null && echo "$iface"
+    owns=2
+    spi_owns_iface "$bc_orch_mod" "$iface" && owns=0 || owns=$?
+    if [ "$owns" = 2 ]; then
+      grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;" -r --include='*.java' "$REPO_ROOT/$bc_orch_mod/src/main/java" 2>/dev/null && owns=0
+    fi
+    [ "$owns" = 0 ] && printf '%s\t%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}" "$(javadoc_purpose_for "$ifile")"
     true
   done) || true)"$'\n'
 fi
@@ -294,8 +451,8 @@ while IFS=$'\t' read -r tbl_module tbl_name; do
 done < <(
   files=()
   for f in "${DB_ERD_CHANGELOG_FILES[@]}"; do files+=("$REPO_ROOT/$f"); done
-  node "$REPO_ROOT/docs/architecture/scripts/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}" \
-    | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>JSON.parse(d).forEach(t=>console.log(t.module+"\t"+t.name)))'
+  run_node "$REPO_ROOT/docs/architecture/scripts/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}" \
+    | run_node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>JSON.parse(d).forEach(t=>console.log(t.module+"\t"+t.name)))'
 )
 
 # ── One-line module descriptions, reused from root CLAUDE.md's "Module Layout" ASCII tree ──────
@@ -333,7 +490,7 @@ adr_intent_for_module() {
 }
 
 # Flat, deduplicated list of every ADR across every module's DECISIONS.md, for the System screen's
-# ADRs card/list -- reads docs/ai/adr-index.md (same file adr_intent_for_module reads above), but
+# ADRs card/list -- reads .claude/nav/adr-index.md (same file adr_intent_for_module reads above), but
 # keeps only each ADR's home-module row, skipping the extra "Also affects" cross-reference rows
 # that table carries (same id string repeated once per affected module) so an ADR is counted once.
 all_adrs_json() {
@@ -387,9 +544,9 @@ for m in "${MODULES[@]}"; do
   fi
 done
 generate_pointer_decisions_md() {
-  local module="$1" items home id title
+  local module="$1" items home id title content
   items="$(adr_intent_for_module "$module")"
-  {
+  content="$(
     echo "# $module — Decisions (generated index)"
     echo
     echo "This module has no \`DECISIONS.md\` of its own — decisions about it are recorded in"
@@ -407,7 +564,15 @@ generate_pointer_decisions_md() {
         echo "- [$id](../$home/DECISIONS.md) — $title"
       done <<< "$items"
     fi
-  } > "$REPO_ROOT/$module/DECISIONS.md"
+  )"
+  # A write-permission failure here is an environment quirk (observed on a Windows/WSL checkout
+  # where one module directory silently rejects writes even from bash, with no NTFS attribute or
+  # ACL visibly explaining it) -- not worth hard-failing the entire model generation over one
+  # low-stakes, fully-regenerable pointer file. Warn and move on instead of letting `set -e` abort.
+  if ! printf '%s\n' "$content" > "$REPO_ROOT/$module/DECISIONS.md" 2>/dev/null; then
+    echo "WARNING: could not write $module/DECISIONS.md (write-permission issue in this" \
+         "environment) -- leaving the existing file as-is, skipping this module's pointer refresh." >&2
+  fi
 }
 for m in "${POINTER_DECISIONS_MODULES[@]}"; do generate_pointer_decisions_md "$m"; done
 
@@ -472,6 +637,29 @@ command_first_line() {
   head -1 "$file" 2>/dev/null | sed 's/^#* *//'
 }
 
+# Emits one COMMAND/SKILL/AGENT-shaped JSON node -- the identical field sequence all three of
+# .claude/commands/*.md, .claude/skills/*/SKILL.md, and .claude/agents/*.md map their own single
+# source file onto (id/type/provenance/lifecycle/disposition/confidence/evidence/description/
+# edges never differ between them, only how "$1"/"$2"/"$3" get computed per source, which stays in
+# each loop below since the name-derivation and find-glob genuinely differ per type). "$1" full
+# node id (e.g. "command:sync-docs"), "$2" node type ("COMMAND"/"SKILL"/"AGENT"), "$3" repo-relative
+# source file path, "$4" already-extracted one-line description.
+emit_pipeline_md_node() {
+  local id="$1" type="$2" rel="$3" desc="$4"
+  echo "    ,"
+  echo "    {"
+  echo "      \"id\": \"$(json_escape "$id")\","
+  echo "      \"type\": \"$type\","
+  echo "      \"provenance\": \"OBSERVED\","
+  echo "      \"lifecycle\": \"ACTIVE\","
+  echo "      \"disposition\": \"KEEP\","
+  echo "      \"confidence\": \"extracted\","
+  echo "      \"evidence\": [{\"file\": \"$(json_escape "$rel")\", \"line\": 1}],"
+  echo "      \"description\": \"$(json_escape "$desc")\","
+  echo "      \"edges\": {}"
+  echo "    }"
+}
+
 # Builds a JSON string array from newline-separated input; empty input -> "[]", never [""].
 json_str_array() {
   local items="$1" out="" first=true
@@ -484,19 +672,20 @@ json_str_array() {
   echo "[$out]"
 }
 
-# Builds a JSON array of {"name","file"} from newline-separated "name<TAB>file" pairs -- for lists
-# that need to render as real links (client-side sourceLink()), not just plain labels.
+# Builds a JSON array of {"name","file","description"} from newline-separated
+# "name<TAB>file<TAB>description" pairs -- for lists that need to render as real links (client-side
+# fileLink()), not just plain labels. "file"/"description" are both optional per row (omitted from
+# the object when empty) -- existing 2-column "name<TAB>file" callers are unaffected.
 json_named_file_array() {
-  local items="$1" out="" first=true name file
-  while IFS=$'\t' read -r name file; do
+  local items="$1" out="" first=true name file description
+  while IFS=$'\t' read -r name file description; do
     [ -z "$name" ] && continue
     $first || out="$out, "
     first=false
-    if [ -n "$file" ]; then
-      out="$out{\"name\": \"$(json_escape "$name")\", \"file\": \"$(json_escape "$file")\"}"
-    else
-      out="$out{\"name\": \"$(json_escape "$name")\"}"
-    fi
+    out="$out{\"name\": \"$(json_escape "$name")\""
+    [ -n "$file" ] && out="$out, \"file\": \"$(json_escape "$file")\""
+    [ -n "$description" ] && out="$out, \"description\": \"$(json_escape "$description")\""
+    out="$out}"
   done <<< "$items"
   echo "[$out]"
 }
@@ -651,41 +840,6 @@ spi_kind_for() {
   esac
 }
 
-# Live from the real Javadoc immediately above the interface declaration -- single source of
-# truth lives next to the code, not duplicated in this generator. Walks backward from the
-# "interface X" line past blank/annotation lines (handles @FunctionalInterface) to find a
-# preceding "*/", then further back to the matching "/**"; strips "*"/"{@code}"/"{@link}" markup.
-# Every *.spi interface is expected to carry one -- see platform-commons/CLAUDE.md.
-spi_javadoc_purpose_for() {
-  local file="$1"
-  awk '
-    /^[[:space:]]*(public[[:space:]]+)?interface[[:space:]]+/ && !found { target=NR; found=1 }
-    { lines[NR] = $0 }
-    END {
-      if (!found) { exit }
-      i = target - 1
-      while (i > 0 && (lines[i] ~ /^[[:space:]]*$/ || lines[i] ~ /^[[:space:]]*@/)) i--
-      if (lines[i] !~ /\*\/[[:space:]]*$/) exit
-      end = i
-      while (i > 0 && lines[i] !~ /^[[:space:]]*\/\*\*/) i--
-      start = i
-      if (lines[start] !~ /^[[:space:]]*\/\*\*/) exit
-      out = ""
-      for (j = start; j <= end; j++) {
-        line = lines[j]
-        gsub(/^[[:space:]]*\/\*\*[[:space:]]*/, "", line)
-        gsub(/[[:space:]]*\*\/[[:space:]]*$/, "", line)
-        gsub(/^[[:space:]]*\*[[:space:]]?/, "", line)
-        if (line != "") {
-          out = (out == "" ? line : out " " line)
-        }
-      }
-      gsub(/\{@code /, "", out); gsub(/\{@link /, "", out); gsub(/\}/, "", out)
-      print out
-    }
-  ' "$file"
-}
-
 spi_map_json() {
   local nodes="" edges="" details="" first_node=true first_edge=true first_detail=true
   local -A group_seen=() caller_node_seen=()
@@ -705,64 +859,135 @@ spi_map_json() {
     first_node=false
     nodes="$nodes    {\"id\": \"$(json_escape "$iface")\", \"label\": \"$(json_escape "$iface")\", \"parent\": \"platform-commons\", \"file\": \"$(json_escape "${iface_file#"$REPO_ROOT"/}")\"}"
 
-    # One tree-walk finds every candidate file (implementor OR caller OR both), then two cheap
-    # single-file greps classify each candidate -- avoids walking the same directory set twice per
-    # interface (a real, measured ~2x slowdown when this was two separate `grep -rl` tree-walks).
+    # Real, bytecode-derived edges (ArchitectureMetricsExport.java's spiEdges -- improvement-156)
+    # when available; falls back to the old grep-regex tree-walk otherwise (e.g. --archunit-metrics
+    # was never run this session). Checked per-interface, not once for the whole file, so a genuine
+    # zero-callers interface (valid data) is never confused with "no archunit data at all" (real
+    # fallback trigger) -- distinguished by python3's exit code, not by empty output alone.
     local impls_json="" first_impl=true
     local callers_json="" first_caller=true
     local candidate_file impl module caller module_c
-    local IMPL_PATTERN="implements\s+.*\b${iface}\b"
-    # For *Port this is marketplace-app/marketplace-orchestrator/a starter calling another
-    # starter's port; for *Hook this is whichever module actually injects it -- checked
-    # per-interface via CALLER_PATTERN below, never assumed from the *Hook suffix's usual "starter
-    # calls back" direction alone. Both injection shapes appear in real code (a single mandatory
-    # field, or a List<Iface> collection for hooks with several registered beans), so both are
-    # matched.
-    local CALLER_PATTERN="ComponentFactory<\s*${iface}\s*>|List<\s*${iface}\s*>|\b${iface}\s+\w+\s*;"
-    while IFS= read -r candidate_file; do
-      [ -z "$candidate_file" ] && continue
-      if grep -qP "$IMPL_PATTERN" "$candidate_file" 2>/dev/null; then
-        impl="$(basename "$candidate_file" .java)"
-        module="${candidate_file#"$REPO_ROOT"/}"
-        module="${module%%/*}"
-        if [ -z "${group_seen[$module]:-}" ]; then
-          group_seen[$module]=1
-          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module")\", \"label\": \"$(json_escape "$module")\", \"isGroup\": true}"
+    local archunit_file="" edge_rows="" archunit_ok=1
+    [ -f "$ARCHUNIT_METRICS_FILE" ] && archunit_file="$ARCHUNIT_METRICS_FILE"
+    [ -z "$archunit_file" ] && [ -f "$ARCHUNIT_METRICS_FILE_FALLBACK" ] && archunit_file="$ARCHUNIT_METRICS_FILE_FALLBACK"
+    if [ -n "$archunit_file" ]; then
+      edge_rows="$(python3 -c "
+import json, sys
+data = json.load(open(sys.argv[1]))
+edges = data.get('spiEdges', {}).get(sys.argv[2])
+if edges is None:
+    sys.exit(1)
+used = set()
+for caller in edges.get('callers', []):
+    for c in caller.get('calls', []):
+        used.add(c['to'])
+print('methodCount\t' + str(edges.get('methodCount', 0)))
+print('usedCount\t' + str(len(used)))
+print('allMethods\t' + json.dumps([{'name': n, 'used': n in used} for n in edges.get('allMethods', [])]))
+for impl in edges.get('implementations', []):
+    print('\t'.join(['impl', impl['class'], impl['module'], impl['file']]))
+for caller in edges.get('callers', []):
+    print('\t'.join(['caller', caller['class'], caller['module'], caller['file'], json.dumps(caller.get('calls', []))]))
+" "$archunit_file" "$iface" 2>/dev/null)"
+      archunit_ok=$?
+    fi
+    local method_count="" used_count="" all_methods_json=""
+    if [ -n "$archunit_file" ] && [ "$archunit_ok" -eq 0 ]; then
+      while IFS=$'\t' read -r row_kind class_name mod file_path calls_json; do
+        [ -z "$row_kind" ] && continue
+        if [ "$row_kind" = "methodCount" ]; then
+          method_count="$class_name"
+        elif [ "$row_kind" = "usedCount" ]; then
+          used_count="$class_name"
+        elif [ "$row_kind" = "allMethods" ]; then
+          # class_name holds the already-built JSON array ({"name":..,"used":bool}[]) --
+          # python3 built it directly, nothing left to merge or re-parse here.
+          all_methods_json="$class_name"
+        elif [ "$row_kind" = "impl" ]; then
+          impl="$class_name"; module="$mod"
+          if [ -z "${group_seen[$module]:-}" ]; then
+            group_seen[$module]=1
+            nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module")\", \"label\": \"$(json_escape "$module")\", \"isGroup\": true}"
+          fi
+          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$impl")\", \"label\": \"$(json_escape "$impl")\", \"parent\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "$file_path")\"}"
+          $first_edge || edges="$edges,"$'\n'
+          first_edge=false
+          edges="$edges    {\"source\": \"$(json_escape "$iface")\", \"target\": \"$(json_escape "$impl")\", \"label\": \"implemented by\"}"
+          $first_impl || impls_json="$impls_json, "
+          first_impl=false
+          impls_json="$impls_json{\"class\": \"$(json_escape "$impl")\", \"module\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "$file_path")\"}"
+        elif [ "$row_kind" = "caller" ]; then
+          caller="$class_name"; module_c="$mod"
+          if [ -z "${group_seen[$module_c]:-}" ]; then
+            group_seen[$module_c]=1
+            nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module_c")\", \"label\": \"$(json_escape "$module_c")\", \"isGroup\": true}"
+          fi
+          if [ -z "${caller_node_seen[$caller]:-}" ]; then
+            caller_node_seen[$caller]=1
+            nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "call_$caller")\", \"label\": \"$(json_escape "$caller")\", \"parent\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "$file_path")\"}"
+          fi
+          $first_edge || edges="$edges,"$'\n'
+          first_edge=false
+          edges="$edges    {\"source\": \"$(json_escape "call_$caller")\", \"target\": \"$(json_escape "$iface")\", \"label\": \"calls\"}"
+          $first_caller || callers_json="$callers_json, "
+          first_caller=false
+          callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "$file_path")\", \"calls\": ${calls_json:-[]}}"
         fi
-        nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$impl")\", \"label\": \"$(json_escape "$impl")\", \"parent\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
-        $first_edge || edges="$edges,"$'\n'
-        first_edge=false
-        edges="$edges    {\"source\": \"$(json_escape "$iface")\", \"target\": \"$(json_escape "$impl")\", \"label\": \"implemented by\"}"
-        $first_impl || impls_json="$impls_json, "
-        first_impl=false
-        impls_json="$impls_json{\"class\": \"$(json_escape "$impl")\", \"module\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
-      fi
-      if grep -qP "$CALLER_PATTERN" "$candidate_file" 2>/dev/null; then
-        caller="$(basename "$candidate_file" .java)"
-        module_c="${candidate_file#"$REPO_ROOT"/}"
-        module_c="${module_c%%/*}"
-        if [ -z "${group_seen[$module_c]:-}" ]; then
-          group_seen[$module_c]=1
-          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module_c")\", \"label\": \"$(json_escape "$module_c")\", \"isGroup\": true}"
+      done <<< "$edge_rows"
+    else
+      local IMPL_PATTERN="implements\s+.*\b${iface}\b"
+      # For *Port this is marketplace-app/marketplace-orchestrator/a starter calling another
+      # starter's port; for *Hook this is whichever module actually injects it -- checked
+      # per-interface via CALLER_PATTERN below, never assumed from the *Hook suffix's usual "starter
+      # calls back" direction alone. Both injection shapes appear in real code (a single mandatory
+      # field, or a List<Iface> collection for hooks with several registered beans), so both are
+      # matched.
+      local CALLER_PATTERN="ComponentFactory<\s*${iface}\s*>|List<\s*${iface}\s*>|\b${iface}\s+\w+\s*;"
+      while IFS= read -r candidate_file; do
+        [ -z "$candidate_file" ] && continue
+        if grep -qP "$IMPL_PATTERN" "$candidate_file" 2>/dev/null; then
+          impl="$(basename "$candidate_file" .java)"
+          module="${candidate_file#"$REPO_ROOT"/}"
+          module="${module%%/*}"
+          if [ -z "${group_seen[$module]:-}" ]; then
+            group_seen[$module]=1
+            nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module")\", \"label\": \"$(json_escape "$module")\", \"isGroup\": true}"
+          fi
+          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$impl")\", \"label\": \"$(json_escape "$impl")\", \"parent\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
+          $first_edge || edges="$edges,"$'\n'
+          first_edge=false
+          edges="$edges    {\"source\": \"$(json_escape "$iface")\", \"target\": \"$(json_escape "$impl")\", \"label\": \"implemented by\"}"
+          $first_impl || impls_json="$impls_json, "
+          first_impl=false
+          impls_json="$impls_json{\"class\": \"$(json_escape "$impl")\", \"module\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
         fi
-        if [ -z "${caller_node_seen[$caller]:-}" ]; then
-          caller_node_seen[$caller]=1
-          nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "call_$caller")\", \"label\": \"$(json_escape "$caller")\", \"parent\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
+        if grep -qP "$CALLER_PATTERN" "$candidate_file" 2>/dev/null; then
+          caller="$(basename "$candidate_file" .java)"
+          module_c="${candidate_file#"$REPO_ROOT"/}"
+          module_c="${module_c%%/*}"
+          if [ -z "${group_seen[$module_c]:-}" ]; then
+            group_seen[$module_c]=1
+            nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "$module_c")\", \"label\": \"$(json_escape "$module_c")\", \"isGroup\": true}"
+          fi
+          if [ -z "${caller_node_seen[$caller]:-}" ]; then
+            caller_node_seen[$caller]=1
+            nodes="$nodes,"$'\n'"    {\"id\": \"$(json_escape "call_$caller")\", \"label\": \"$(json_escape "$caller")\", \"parent\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
+          fi
+          $first_edge || edges="$edges,"$'\n'
+          first_edge=false
+          edges="$edges    {\"source\": \"$(json_escape "call_$caller")\", \"target\": \"$(json_escape "$iface")\", \"label\": \"calls\"}"
+          $first_caller || callers_json="$callers_json, "
+          first_caller=false
+          callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
         fi
-        $first_edge || edges="$edges,"$'\n'
-        first_edge=false
-        edges="$edges    {\"source\": \"$(json_escape "call_$caller")\", \"target\": \"$(json_escape "$iface")\", \"label\": \"calls\"}"
-        $first_caller || callers_json="$callers_json, "
-        first_caller=false
-        callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
-      fi
-    done < <(grep -rlP "${IMPL_PATTERN}|${CALLER_PATTERN}" \
-        "$REPO_ROOT"/*-spring-boot-starter/src/main/java "$REPO_ROOT"/marketplace-app/src/main/java \
-        "$REPO_ROOT"/marketplace-orchestrator/src/main/java 2>/dev/null | sort -u)
+      done < <(grep -rlP "${IMPL_PATTERN}|${CALLER_PATTERN}" \
+          "$REPO_ROOT"/*-spring-boot-starter/src/main/java "$REPO_ROOT"/marketplace-app/src/main/java \
+          "$REPO_ROOT"/marketplace-orchestrator/src/main/java 2>/dev/null | sort -u)
+    fi
 
     $first_detail || details="$details,"$'\n'
     first_detail=false
-    details="$details    {\"interface\": \"$(json_escape "$iface")\", \"file\": \"$(json_escape "${iface_file#"$REPO_ROOT"/}")\", \"package\": \"$(json_escape "$pkg")\", \"subsystem\": \"$(json_escape "$subsystem")\", \"kind\": \"$(json_escape "$kind")\", \"purpose\": \"$(json_escape "$(spi_javadoc_purpose_for "$iface_file")")\", \"implementations\": [$impls_json], \"callers\": [$callers_json]}"
+    details="$details    {\"interface\": \"$(json_escape "$iface")\", \"file\": \"$(json_escape "${iface_file#"$REPO_ROOT"/}")\", \"package\": \"$(json_escape "$pkg")\", \"subsystem\": \"$(json_escape "$subsystem")\", \"kind\": \"$(json_escape "$kind")\", \"purpose\": \"$(json_escape "$(javadoc_purpose_for "$iface_file")")\", \"methodCount\": ${method_count:-null}, \"usedCount\": ${used_count:-null}, \"allMethods\": ${all_methods_json:-null}, \"implementations\": [$impls_json], \"callers\": [$callers_json]}"
   done
   local labels_json="" notes_json="" first_s=true
   for s in "${SPI_SUBSYSTEM_ORDER[@]}"; do
@@ -811,7 +1036,7 @@ db_erd_json() {
   local f
   for f in "${DB_ERD_CHANGELOG_FILES[@]}"; do files+=("$REPO_ROOT/$f"); done
   local tables_json relationships_json
-  tables_json="$(node "$REPO_ROOT/docs/architecture/scripts/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}")"
+  tables_json="$(run_node "$REPO_ROOT/docs/architecture/scripts/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}")"
   relationships_json="$(db_erd_conceptual_relationships_json)"
   echo "{\"tables\": $tables_json, \"conceptualRelationships\": $relationships_json}"
 }
@@ -917,21 +1142,6 @@ print(json.dumps(out))
 " "$analysis_date" "$project_json" "$tree_json" "$(IFS=,; echo "${MODULES[*]}")" "$file_counts"
 }
 
-# ── ArchUnit: real Efferent/Afferent Coupling, Instability, Abstractness per module, computed by
-# ArchitectureMetricsExport (marketplace-app/src/test/java/org/ost/marketplace/architecture).
-# Its class name doesn't match Surefire's default *Test/Test*/*Tests/*TestCase include patterns,
-# so it never runs as part of a normal `mvn test` -- must be explicitly forced
-# (-Dtest=ArchitectureMetricsExport), and needs the full reactor already installed (it scans every
-# module's classes on one combined classpath). Two possible sources, checked in order: a direct
-# host-side forced run writes straight to marketplace-app/target/; `bash scripts/build-and-test.sh
-# --archunit-metrics` runs it inside a throwaway container instead and moves the result to
-# scripts/build-and-test/reports/architecture-metrics.json. Read here if present; null if neither
-# has run yet -- optional data, no auto-trigger (several minutes even on a warm build, a much
-# bigger cost than SonarQube's own staleness check, so this stays passively "as fresh as the last
-# run" instead).
-ARCHUNIT_METRICS_FILE="$REPO_ROOT/marketplace-app/target/architecture-metrics.json"
-ARCHUNIT_METRICS_FILE_FALLBACK="$REPO_ROOT/scripts/build-and-test/reports/architecture-metrics.json"
-
 archunit_metrics_json() {
   if [ -f "$ARCHUNIT_METRICS_FILE" ]; then
     cat "$ARCHUNIT_METRICS_FILE"
@@ -1035,7 +1245,7 @@ constructor_injection_json() {
     $first_i || items_json="$items_json,"$'\n'
     first_i=false
     items_json="$items_json    {\"class\": \"$(json_escape "$class_name")\", \"module\": \"$(json_escape "$mod")\", \"fieldCount\": $field_count, \"file\": \"$(json_escape "${f#"$REPO_ROOT"/}")\"}"
-  done < <(grep -rl '@RequiredArgsConstructor' "$REPO_ROOT" --include='*.java' 2>/dev/null | grep -v '/target/' | grep '/src/main/java/')
+  done < <(grep -rl '@RequiredArgsConstructor' "$REPO_ROOT" --include='*.java' 2>/dev/null | grep -v '/target/' | grep '/src/main/java/' | sort)
 
   echo "[$items_json"$'\n'"  ]"
 }
@@ -1081,7 +1291,7 @@ files = [f for f in sys.argv[3].splitlines() if f]
 
 def extract(path):
     with open(path) as fh:
-        lines = fh.readlines()[:20]
+        lines = fh.readlines()
     text = []
     for l in lines:
         l = l.rstrip('\n')
@@ -1093,6 +1303,22 @@ def extract(path):
             text.append(l[2:].lstrip())
         elif re.match(r'^REM(\s|$)', l, re.I):
             text.append(l[3:].lstrip())
+        elif l.startswith('/*'):
+            # JS-style block-comment open line, e.g. /* -- Header -- ... . Strip the leading /*
+            # only -- a trailing */ (a one-line block comment) is stripped the same way the
+            # continuation-line branch below strips it off the closing delimiter line.
+            rest = l[2:].lstrip()
+            if rest.rstrip().endswith('*/'):
+                rest = rest.rstrip()[:-2].rstrip()
+            text.append(rest)
+        elif re.match(r'^\s*\*\s?', l):
+            # JS-style block-comment continuation line, e.g. a Description: line or the closing
+            # dash-delimiter line ending in */ -- strip the leading * prefix, then a trailing */
+            # if this is that closing line.
+            rest = re.sub(r'^\s*\*\s?', '', l)
+            if rest.rstrip().endswith('*/'):
+                rest = rest.rstrip()[:-2].rstrip()
+            text.append(rest)
         else:
             break
     fields = {'Description': '', 'Usage': '', 'Uses': '', 'Env': '', 'Input': '', 'Outputs': '', 'Returns': ''}
@@ -1102,13 +1328,13 @@ def extract(path):
         if m:
             current = m.group(1)
             fields[current] = m.group(2)
-        elif current and (l.strip() == '' or re.match(r'^─+$', l.strip())):
+        elif current and (l.strip() == '' or re.match(r'^[─-]+$', l.strip())):
             break  # a blank line or the closing #-delimiter line ends the whole header block --
                    # don't keep scanning for a stray field-name match further down in unrelated
                    # prose (a real bug this once hit), and don't swallow the delimiter itself into
                    # the last field's value as a continuation line (another real bug this once hit)
         elif current:
-            fields[current] += ' ' + l.strip()
+            fields[current] += '\n' + l.strip()
     return fields
 
 out = []
@@ -1128,6 +1354,82 @@ for f in files:
     })
 print(json.dumps(out))
 " "$REPO_ROOT" "$dir" "$files"
+}
+
+# Emits one SCRIPT_GROUP-shaped JSON object for directory "$1" (relative to REPO_ROOT), recursing
+# into every real child subdirectory (skipping SCRIPT_TREE_EXCLUDE_DIRS and hidden dirs) as a
+# "children" array of the same shape -- an arbitrary-depth drill-down tree, not a fixed number of
+# levels. "$2" is the display category the top-level root itself carries (nested children carry no
+# category -- only a top-level SCRIPT_GROUP node needs one, to be found by PIPELINE_GROUPS'
+# category filter; a nested node is only ever reached by walking a parent's "children" array, never
+# looked up by category). Classification of "is this a folder-card or a file" is purely "is it a
+# real subdirectory" -- never a naming convention or whether a same-named file also exists (a real
+# counterexample: architecture-doc.sh has no architecture-doc/ subfolder at all).
+emit_script_tree_node() {
+  local d="$1" category="${2:-}"
+  local desc=""
+  [ -f "$REPO_ROOT/.claude/rules/$d.md" ] && desc="$(sed -n '5{s/^#* *//;p}' "$REPO_ROOT/.claude/rules/$d.md")"
+
+  local files_list=""
+  if [ -n "${SCRIPT_GROUP_FILE_ORDER[$d]:-}" ]; then
+    local f
+    for f in ${SCRIPT_GROUP_FILE_ORDER[$d]}; do
+      [ -f "$REPO_ROOT/$d/$f" ] && files_list="$files_list$f"$'\n'
+    done
+  else
+    # *.md included so a dir with only markdown content (e.g. .claude/commands) isn't an empty
+    # card -- README.md excluded since it renders separately as its own readme block below, never
+    # duplicated as a plain chip.
+    files_list="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' -o -name '*.bat' -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' -o -name '*.md' -o -name 'Dockerfile' \) -printf '%f\n' 2>/dev/null | grep -v '^README\.md$' | sort)"
+  fi
+  local files_json decisions_field readme_field headers_field evidence_file
+  files_json="$(json_str_array "$files_list")"
+  decisions_field="$(decisions_json_for "$d")"
+  readme_field="$(readme_json_for "$d")"
+  headers_field="$(script_headers_json "$d" "$files_list")"
+  evidence_file="$d/DECISIONS.md"
+  [ -f "$REPO_ROOT/$d/DECISIONS.md" ] || evidence_file="$d"
+
+  # Immediate child directories only (one level -- recursion handles deeper levels), real
+  # subdirectories, alphabetical, minus the excluded generated/report dirs and anything hidden.
+  # Skipped entirely for a SCRIPT_TREE_LEAF_DIRS entry -- real subdirectories exist on disk but are
+  # deliberately never surfaced as folder-cards (see SCRIPT_TREE_LEAF_DIRS's own comment).
+  local child_dirs=() child is_leaf=false ld
+  for ld in "${SCRIPT_TREE_LEAF_DIRS[@]}"; do [ "$d" = "$ld" ] && is_leaf=true; done
+  if ! $is_leaf; then
+    while IFS= read -r child; do
+      [ -n "$child" ] && child_dirs+=("$child")
+    done < <(find "$REPO_ROOT/$d" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort)
+  fi
+
+  local children_json="" first_child=true excluded
+  for child in "${child_dirs[@]}"; do
+    excluded=false
+    for ex in "${SCRIPT_TREE_EXCLUDE_DIRS[@]}"; do [ "$child" = "$ex" ] && excluded=true; done
+    [[ "$child" == .* ]] && excluded=true
+    $excluded && continue
+    $first_child || children_json="$children_json,"
+    first_child=false
+    children_json="$children_json$(emit_script_tree_node "$d/$child" "")"
+  done
+
+  echo "    {"
+  echo "      \"id\": \"$(json_escape "$d")\","
+  echo "      \"type\": \"SCRIPT_GROUP\","
+  if [ -n "$category" ]; then echo "      \"category\": \"$(json_escape "$category")\","; fi
+  echo "      \"provenance\": \"OBSERVED\","
+  echo "      \"lifecycle\": \"ACTIVE\","
+  echo "      \"disposition\": \"KEEP\","
+  echo "      \"confidence\": \"extracted\","
+  echo "      \"evidence\": [{\"file\": \"$(json_escape "$evidence_file")\", \"line\": 1}],"
+  echo "      \"description\": \"$(json_escape "$desc")\","
+  echo "      \"files\": $files_json,"
+  echo "      \"decisions\": $decisions_field,"
+  echo "      \"readme\": $readme_field,"
+  echo "      \"headers\": $headers_field,"
+  echo "      \"children\": [$children_json],"
+  echo "      \"edges\": {}"
+  echo "    }"
 }
 
 # ── Bounded Contexts: live from real source wherever a real signal exists, reusing the existing
@@ -1151,8 +1453,14 @@ bounded_contexts_json() {
       ports_json="$(json_named_file_array "$(printf '%s\t\n' "${spi_count} SPI interfaces (Ports & Hooks)" "${dto_count} cross-domain DTOs" "${model_count} core model classes")")"
     elif [ "$d" = "UI" ]; then
       entities_json="[]"; services_json="[]"; tables_json="[]"
-      ports_json="$(json_named_file_array "$(grep -rl 'implements .*Hook' "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/spi" --include='*.java' 2>/dev/null | sort | while read -r f; do
-        printf '%s\t%s\n' "$(basename "$f" .java)" "${f#"$REPO_ROOT"/}"
+      ports_json="$(json_named_file_array "$( { find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java'; find "$REPO_ROOT/marketplace-orchestrator/src/main/java" -path '*/spi/*.java'; } | sort | while read -r ifile; do
+        iface="$(basename "$ifile" .java)"
+        owns=2
+        spi_owns_iface "$mod" "$iface" && owns=0 || owns=$?
+        if [ "$owns" = 2 ]; then
+          grep -qlP "implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/spi" 2>/dev/null && owns=0
+        fi
+        [ "$owns" = 0 ] && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
       done)")"
     elif [ "$d" = "Orchestrator" ]; then
       entities_json="[]"; tables_json="[]"
@@ -1168,7 +1476,12 @@ bounded_contexts_json() {
       # depends on/fulfills" ports list.
       ports_json="$(json_named_file_array "$(find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
         iface="$(basename "$ifile" .java)"
-        grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;|implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$mod/src/main/java" 2>/dev/null && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
+        owns=2
+        spi_owns_iface "$mod" "$iface" && owns=0 || owns=$?
+        if [ "$owns" = 2 ]; then
+          grep -qlP "ComponentFactory<\s*${iface}\s*>|\b${iface}\s+\w+\s*;|implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$mod/src/main/java" 2>/dev/null && owns=0
+        fi
+        [ "$owns" = 0 ] && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
       done)")"
     else
       entities_json="$(json_named_file_array "$(grep -rl '^@Table\|@Table(' "$REPO_ROOT/$mod/src/main/java" --include='*.java' 2>/dev/null | sort | while read -r f; do
@@ -1183,7 +1496,12 @@ bounded_contexts_json() {
       done)")"
       ports_json="$(json_named_file_array "$(find "$REPO_ROOT/platform-commons/src/main/java" -path '*/spi/*.java' | sort | while read -r ifile; do
         iface="$(basename "$ifile" .java)"
-        grep -qlP "implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$mod/src/main/java" 2>/dev/null && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
+        owns=2
+        spi_owns_iface "$mod" "$iface" && owns=0 || owns=$?
+        if [ "$owns" = 2 ]; then
+          grep -qlP "implements\s+.*\b${iface}\b" -r --include='*.java' "$REPO_ROOT/$mod/src/main/java" 2>/dev/null && owns=0
+        fi
+        [ "$owns" = 0 ] && printf '%s\t%s\n' "$iface" "${ifile#"$REPO_ROOT"/}"
       done)")"
     fi
     $first_d || domains_json="$domains_json,"$'\n'
@@ -1237,7 +1555,7 @@ bounded_contexts_json() {
     for pf in "$REPO_ROOT/platform-commons/src/main/java"/org/ost/platform/*/spi/*Port.java; do
       [ -f "$pf" ] || continue
       p_iface="$(basename "$pf" .java)"
-      p_evidence="$(grep -rlP "ComponentFactory<\s*${p_iface}\s*>|\b${p_iface}\s+\w+\s*;" "$REPO_ROOT/$bc_orch_mod/src/main/java" --include='*.java' 2>/dev/null | head -1)" || true
+      p_evidence="$(grep -rlP "ComponentFactory<\s*${p_iface}\s*>|\b${p_iface}\s+\w+\s*;" "$REPO_ROOT/$bc_orch_mod/src/main/java" --include='*.java' 2>/dev/null | sort | head -1)" || true
       [ -z "$p_evidence" ] && continue
       for d in "${BC_DOMAIN_ORDER_STARTERS[@]}"; do
         grep -qlP "implements\s+.*\b${p_iface}\b" -r --include='*.java' "$REPO_ROOT/${BC_DOMAIN_MODULE[$d]}/src/main/java" 2>/dev/null || continue
@@ -1321,7 +1639,7 @@ bounded_contexts_json() {
     hook_iface="$(basename "$hif" .java)"
     impl_file="$(grep -rlP "implements\s+.*\b${hook_iface}\b" \
         "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/spi" \
-        "$REPO_ROOT/marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi" --include='*.java' 2>/dev/null | head -1)"
+        "$REPO_ROOT/marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi" --include='*.java' 2>/dev/null | sort | head -1)"
     [ -z "$impl_file" ] && continue
     impl_domain="UI"
     case "$impl_file" in "$REPO_ROOT/marketplace-orchestrator/"*) impl_domain="Orchestrator" ;; esac
@@ -1342,7 +1660,7 @@ bounded_contexts_json() {
     done < <(grep -rlP "List<\s*${hook_iface}\s*>|\b${hook_iface}\s+\w+\s*;|ComponentFactory<\s*${hook_iface}\s*>" \
         "$REPO_ROOT"/*-spring-boot-starter/src/main/java "$REPO_ROOT/marketplace-orchestrator/src/main/java" --include='*.java' 2>/dev/null | sort -u)
   done < <(find "$REPO_ROOT/platform-commons/src/main/java" "$REPO_ROOT/marketplace-orchestrator/src/main/java" \
-      -path '*/spi/*Hook.java' 2>/dev/null)
+      -path '*/spi/*Hook.java' 2>/dev/null | sort)
 
   local rel_json="" first_r=true i rel_payload_value
   for i in "${!rel_key[@]}"; do
@@ -1355,63 +1673,18 @@ bounded_contexts_json() {
   echo "{\"domains\": [$domains_json"$'\n'"  ], \"relationships\": [$rel_json"$'\n'"  ]}"
 }
 
-# ── Docker: real files, mechanically extracted facts only (build stages, compose service names)
-# -- no restated prose. The full deployment workflow explanation stays in scripts/CLAUDE.md's own
-# "Deployment" section, linked to, never copied.
-DOCKER_FILES=(
-  "Dockerfile|dockerfile|Main app image (multi-stage build)"
-  "Dockerfile.ai|dockerfile|Claude Code dev sandbox environment -- not part of the app build"
-  "scripts/build-and-test/Dockerfile|dockerfile|Local build-and-test container"
-  "scripts/ci/Dockerfile|dockerfile|Isolated CI runner image"
-  "scripts/deploy-and-run/docker-compose.app.yml|compose|App container (dev infra)"
-  "scripts/deploy-and-run/docker-compose.db.yml|compose|PostgreSQL (dev infra)"
-  "scripts/deploy-and-run/docker-compose.minio.yml|compose|MinIO S3-compatible storage (dev infra)"
-  "scripts/sonar/docker-compose.sonar.yml|compose|SonarQube server"
-)
-docker_files_json() {
-  local out="" first=true entry file kind label items_json
-  for entry in "${DOCKER_FILES[@]}"; do
-    IFS='|' read -r file kind label <<< "$entry"
-    [ -f "$REPO_ROOT/$file" ] || continue
-    if [ "$kind" = "dockerfile" ]; then
-      items_json="$(json_str_array "$(awk '/^FROM/{ $1=""; sub(/^ /,""); print }' "$REPO_ROOT/$file")")"
-    else
-      items_json="$(json_str_array "$(awk '
-        /^services:/ { insvc=1; next }
-        /^[a-zA-Z]/ { insvc=0 }
-        insvc && /^  [a-zA-Z0-9_-]+:[[:space:]]*$/ { s=$0; gsub(/^  /,"",s); gsub(/:.*/,"",s); print s }
-      ' "$REPO_ROOT/$file")")"
-    fi
-    $first || out="$out,"$'\n'
-    first=false
-    out="$out  {\"file\": \"$(json_escape "$file")\", \"kind\": \"$kind\", \"label\": \"$(json_escape "$label")\", \"items\": $items_json}"
-  done
-  echo "[$out]"
-}
-
-# ── Runtime notes: hand-authored operational-topology prose (docs/architecture/runtime-notes.md)
-# -- container/hostname/mounts/toolchain facts that don't belong in any generated per-module
-# section. Read raw via Node's JSON.stringify (not json_escape() above, which strips newlines --
-# unsuitable for multi-paragraph content, same reasoning already used for full ADR bodies) so the
-# original line breaks survive for the client-side mdBlockToHtml() renderer to work with.
-RUNTIME_NOTES_FILE="$REPO_ROOT/docs/architecture/runtime-notes.md"
-runtime_notes_json() {
-  [ -f "$RUNTIME_NOTES_FILE" ] || { echo "null"; return; }
-  node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$RUNTIME_NOTES_FILE"
-}
-
-# ── Marked excerpts embedded directly inside a module's own CLAUDE.md (`<!-- #arch-embed:KEY -->
-# ... <!-- /#arch-embed -->` convention) -- lets a paragraph live once, in the doc a human reader
-# already reads for that topic, and be pulled onto this generated page verbatim instead of a
-# hand-copied second version here that can drift out of sync with it. Same node JSON.stringify
-# read as runtime_notes_json() above (not json_escape(), which strips newlines and mishandles
-# CRLF -- platform-commons/CLAUDE.md uses CRLF line endings).
+# ── Marked excerpts embedded directly inside a module's own path-scoped rules file
+# (`.claude/rules/<module>.md`, `<!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->` convention) --
+# lets a paragraph live once, in the doc a human reader already reads for that topic, and be pulled
+# onto this generated page verbatim instead of a hand-copied second version here that can drift out
+# of sync with it. Read raw via Node's JSON.stringify (not json_escape(), which strips newlines and
+# mishandles CRLF).
 ARCH_EMBED_KEYS=(
-  "platform-commons/CLAUDE.md:spi-glossary"
-  "platform-commons/CLAUDE.md:port-glossary"
-  "platform-commons/CLAUDE.md:hook-glossary"
-  "platform-commons/CLAUDE.md:why-port-hook-glossary"
-  "platform-commons/CLAUDE.md:spi-implementation-rules"
+  ".claude/rules/platform-commons.md:spi-glossary"
+  ".claude/rules/platform-commons.md:port-glossary"
+  ".claude/rules/platform-commons.md:hook-glossary"
+  ".claude/rules/platform-commons.md:why-port-hook-glossary"
+  ".claude/rules/platform-commons.md:spi-implementation-rules"
 )
 arch_embed_raw() {
   local file="$1" key="$2"
@@ -1437,14 +1710,14 @@ arch_embeds_json() {
     $first || out="$out,"
     first=false
     raw="$(arch_embed_raw "$file" "$key")"
-    out="$out\"$key\": $(printf '%s' "$raw" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))')"
+    out="$out\"$key\": $(printf '%s' "$raw" | run_node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))')"
   done
   echo "{$out}"
 }
 
 # ── Arch-embed marker index: every #arch-embed:KEY marker across every CLAUDE.md in the repo,
 # with a one-line description derived from its own content -- discovery index for the convention
-# itself, same role docs/ai/adr-index.md plays for ADRs. Regenerated as part of this script's own
+# itself, same role .claude/nav/adr-index.md plays for ADRs. Regenerated as part of this script's own
 # run (not a separately-triggered script, unlike generate-adr-index.sh) so it can never go stale
 # relative to the markers that actually exist. Repo-wide scan, not scoped to platform-commons --
 # only one module uses the convention today, but nothing here assumes that stays true.
@@ -1452,8 +1725,9 @@ arch_embed_index_md() {
   echo "# Arch-embed marker index (generated)"
   echo
   echo "Generated by \`docs/architecture/scripts/generate-architecture-model.sh\` from every"
-  echo "\`<!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->\` marker found in any \`CLAUDE.md\` in"
-  echo "this repo -- do not hand-edit, rerun the generator after any marker changes instead."
+  echo "\`<!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->\` marker found in any \`CLAUDE.md\` or"
+  echo "\`.claude/rules/*.md\` file in this repo -- do not hand-edit, rerun the generator after any"
+  echo "marker changes instead."
   echo "Description is derived from the marker's own leading \`**bold**\` phrase(s), not"
   echo "hand-authored -- a marker wrapping more than one bold-led paragraph (e.g."
   echo "\`spi-implementation-rules\`) gets all of them joined with \`; \`."
@@ -1467,7 +1741,7 @@ arch_embed_index_md() {
       [ -z "$key" ] && continue
       line="$(grep -n -m1 "<!-- #arch-embed:${key} -->" "$file" | cut -d: -f1)"
       raw="$(arch_embed_raw "$rel" "$key")"
-      desc="$(printf '%s' "$raw" | node -e '
+      desc="$(printf '%s' "$raw" | run_node -e '
         let d="";process.stdin.on("data",c=>d+=c);
         process.stdin.on("end",()=>{
           const paras = d.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
@@ -1477,7 +1751,7 @@ arch_embed_index_md() {
         })')"
       echo "| \`$key\` | \`$rel:$line\` | $desc |"
     done < <(grep -oP '(?<=<!-- #arch-embed:)[a-z0-9-]+(?= -->)' "$file" | sort -u)
-  done < <(find "$REPO_ROOT" -name "CLAUDE.md" -not -path "*/node_modules/*" -not -path "*/target/*" -not -path "*/.git/*" | sort)
+  done < <(find "$REPO_ROOT" \( -name "CLAUDE.md" -o -path "$REPO_ROOT/.claude/rules/*.md" \) -not -path "*/node_modules/*" -not -path "*/target/*" -not -path "*/.git/*" | sort)
 }
 
 [ -n "$WITH_SONAR" ] && ensure_sonar_fresh
@@ -1492,14 +1766,12 @@ ci_metrics_json="null"
 {
   echo "{"
   echo "  \"generated_by\": \"docs/architecture/scripts/generate-architecture-model.sh\","
-  echo "  \"generated_note\": \"Track A, plus real SonarQube/ArchUnit metrics -- modules+deps from pom.xml, domain grouping/entities/services/contracts derived live from real Java source and the module list, tables live from the real Liquibase changelogs. Module Dependencies (01)/SPI Map (02)/Database ERD (04)/Bounded Contexts have no .md counterpart -- rendered live on this tool's own Diagrams page instead, lifecycle from DECISIONS.md/backlog, pipeline nodes from docs/ai/flows.md + .claude/commands + .claude/skills.\","
+  echo "  \"generated_note\": \"Track A, plus real SonarQube/ArchUnit metrics -- modules+deps from pom.xml, domain grouping/entities/services/contracts derived live from real Java source and the module list, tables live from the real Liquibase changelogs. Module Dependencies (01)/SPI Map (02)/Database ERD (04)/Bounded Contexts have no .md counterpart -- rendered live on this tool's own Diagrams page instead, lifecycle from DECISIONS.md/backlog, pipeline nodes from .claude/nav/flows.md + .claude/commands + .claude/skills + .claude/agents.\","
   echo "  \"rootArtifactId\": \"$(json_escape "$ROOT_ARTIFACT_ID")\","
   echo "  \"rootVersion\": \"$(json_escape "$ROOT_VERSION")\","
   echo "  \"diagramGroups\": ["
   echo "$diagram_groups_json"
   echo "  ],"
-  echo "  \"dockerFiles\": $(docker_files_json),"
-  echo "  \"runtimeNotes\": $(runtime_notes_json),"
   echo "  \"archEmbeds\": $(arch_embeds_json),"
   echo "  \"backlogPriorityOrder\": $(backlog_priority_order_json),"
   echo "  \"spiMap\": $(spi_map_json),"
@@ -1513,6 +1785,8 @@ ci_metrics_json="null"
   echo "  \"constructorInjection\": $(constructor_injection_json),"
   echo "  \"godPackages\": $(god_packages_json),"
   echo "  \"allAdrs\": $(all_adrs_json),"
+  echo "  \"rootReadme\": $(root_md_json_for "README.md"),"
+  echo "  \"rootInfrastructure\": $(root_md_json_for "INFRASTRUCTURE.md"),"
   echo "  \"nodes\": ["
 
   first=true
@@ -1548,9 +1822,9 @@ ci_metrics_json="null"
     echo "      \"evidence\": [{\"file\": \"$m/pom.xml\", \"line\": 1}],"
     echo "      \"intent\": $intent_json,"
     echo "      \"decisions\": $decisions_field,"
-    echo "      \"entities\": $(json_str_array "${MODULE_ENTITY[$m]:-}"),"
-    echo "      \"keyServices\": $(json_str_array "${MODULE_KEYSERVICES[$m]:-}"),"
-    echo "      \"contracts\": $(json_str_array "${MODULE_CONTRACT[$m]:-}"),"
+    echo "      \"entities\": $(json_named_file_array "${MODULE_ENTITY[$m]:-}"),"
+    echo "      \"keyServices\": $(json_named_file_array "${MODULE_KEYSERVICES[$m]:-}"),"
+    echo "      \"contracts\": $(json_named_file_array "${MODULE_CONTRACT[$m]:-}"),"
     echo "      \"tables\": $(json_str_array "${MODULE_TABLES[$m]:-}"),"
     deps="$(module_deps "$m")"
     compile_list=$(echo "$deps" | awk -F'|' '$2=="compile" && $3=="false" {print $1}')
@@ -1565,52 +1839,38 @@ ci_metrics_json="null"
   while IFS= read -r -d '' file; do
     name="$(basename "$file" .md)"
     rel="${file#"$REPO_ROOT"/}"
-    desc="$(command_first_line "$file")"
-    echo "    ,"
-    echo "    {"
-    echo "      \"id\": \"command:$name\","
-    echo "      \"type\": \"COMMAND\","
-    echo "      \"provenance\": \"OBSERVED\","
-    echo "      \"lifecycle\": \"ACTIVE\","
-    echo "      \"disposition\": \"KEEP\","
-    echo "      \"confidence\": \"extracted\","
-    echo "      \"evidence\": [{\"file\": \"$(json_escape "$rel")\", \"line\": 1}],"
-    echo "      \"description\": \"$(json_escape "$desc")\","
-    echo "      \"edges\": {}"
-    echo "    }"
+    emit_pipeline_md_node "command:$name" "COMMAND" "$rel" "$(command_first_line "$file")"
   done < <(find "$REPO_ROOT/.claude/commands" -name "*.md" -print0 | sort -z)
 
   # SKILL nodes
   while IFS= read -r -d '' file; do
     name="$(basename "$(dirname "$file")")"
     rel="${file#"$REPO_ROOT"/}"
-    desc="$(command_first_line "$file")"
-    echo "    ,"
-    echo "    {"
-    echo "      \"id\": \"skill:$name\","
-    echo "      \"type\": \"SKILL\","
-    echo "      \"provenance\": \"OBSERVED\","
-    echo "      \"lifecycle\": \"ACTIVE\","
-    echo "      \"disposition\": \"KEEP\","
-    echo "      \"confidence\": \"extracted\","
-    echo "      \"evidence\": [{\"file\": \"$(json_escape "$rel")\", \"line\": 1}],"
-    echo "      \"description\": \"$(json_escape "$desc")\","
-    echo "      \"edges\": {}"
-    echo "    }"
+    emit_pipeline_md_node "skill:$name" "SKILL" "$rel" "$(command_first_line "$file")"
   done < <(find "$REPO_ROOT/.claude/skills" -name "SKILL.md" -print0 2>/dev/null | sort -z)
 
-  # SCRIPT_GROUP nodes -- non-Maven tooling directories, most (not all -- see docs/ai/scripts above)
+  # AGENT nodes
+  while IFS= read -r -d '' file; do
+    name="$(basename "$file" .md)"
+    [ "$name" = "README" ] && continue
+    rel="${file#"$REPO_ROOT"/}"
+    emit_pipeline_md_node "agent:$name" "AGENT" "$rel" "$(command_first_line "$file")"
+  done < <(find "$REPO_ROOT/.claude/agents" -maxdepth 1 -name "*.md" -print0 2>/dev/null | sort -z)
+
+  # SCRIPT_GROUP nodes -- non-Maven tooling directories, most (not all -- see .claude/nav/scripts above)
   # with their own DECISIONS.md
   for d in "${SCRIPT_GROUP_DIRS[@]}"; do
     desc=""
-    [ -f "$REPO_ROOT/$d/CLAUDE.md" ] && desc="$(head -1 "$REPO_ROOT/$d/CLAUDE.md" | sed 's/^#* *//')"
+    [ -f "$REPO_ROOT/.claude/rules/$d.md" ] && desc="$(sed -n '5{s/^#* *//;p}' "$REPO_ROOT/.claude/rules/$d.md")"
     if [ -n "${SCRIPT_GROUP_FILE_ORDER[$d]:-}" ]; then
       files_list=""
       for f in ${SCRIPT_GROUP_FILE_ORDER[$d]}; do
         [ -f "$REPO_ROOT/$d/$f" ] && files_list="$files_list$f"$'\n'
       done
     else
-      files_list="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' -o -name '*.bat' -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' -o -name 'Dockerfile' \) -printf '%f\n' 2>/dev/null | sort)"
+      # *.md included so a dir with only markdown content isn't an empty card -- README.md
+      # excluded since it renders separately as its own readme block below, never duplicated.
+      files_list="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' -o -name '*.bat' -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' -o -name '*.md' -o -name 'Dockerfile' \) -printf '%f\n' 2>/dev/null | grep -v '^README\.md$' | sort)"
     fi
     files_json="$(json_str_array "$files_list")"
     decisions_field="$(decisions_json_for "$d")"
@@ -1635,6 +1895,18 @@ ci_metrics_json="null"
     echo "      \"headers\": $headers_field,"
     echo "      \"edges\": {}"
     echo "    }"
+  done
+
+  # SCRIPT_GROUP tree roots -- scripts/, playwright/, and .claude/, each an arbitrary-depth
+  # drill-down rooted at that directory (docs/architecture/scripts/DECISIONS.md: the unified
+  # "Scripts" card; .claude/ feeds the "AI Tooling" card the same way). Each top-level root still
+  # emits as a normal top-level SCRIPT_GROUP node (its own SCRIPT_TREE_ROOT_CATEGORY entry, so
+  # PIPELINE_GROUPS' tree cards can filter for it) -- only the *nested* levels additionally carry a
+  # "children" array of the same SCRIPT_GROUP shape, since a plain file listing at any depth already
+  # reuses files/headers/readme exactly like a flat SCRIPT_GROUP dir does.
+  for d in "${SCRIPT_TREE_ROOTS[@]}"; do
+    echo "    ,"
+    emit_script_tree_node "$d" "${SCRIPT_TREE_ROOT_CATEGORY[$d]}"
   done
 
   # BACKLOG summary node -- title + short (truncated) description + real file link, per issue,
@@ -1708,7 +1980,7 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .screen-desc { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
   .domain-group { margin-bottom: 28px; }
   .domain-group h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 10px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
-  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 12px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px; cursor: pointer; transition: box-shadow .15s, transform .15s; }
   .card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.08); transform: translateY(-1px); }
   .card.card-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
@@ -1735,6 +2007,14 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .dep-list a:hover { text-decoration: underline; }
   .dep-tag { font-size: 10px; color: var(--muted); background: var(--bg); padding: 2px 7px; border-radius: 8px; }
   .empty-hint { font-size: 12px; color: var(--muted); font-style: italic; }
+  .row-flash { animation: row-flash-anim 1.5s ease-out; }
+  @keyframes row-flash-anim { 0% { background-color: #fefcbf; } 100% { background-color: transparent; } }
+  table.simple.rowspan-table td { text-align: left; vertical-align: middle; }
+  .spi-calls { margin-top: 4px; font-size: 11px; color: var(--muted); line-height: 1.7; }
+  .spi-calls code { background: none; padding: 0; font-size: 11px; }
+  .spi-methodcount { margin-top: 4px; font-size: 11px; color: var(--muted); font-weight: 600; }
+  .spi-method-list { margin-top: 2px; font-size: 11px; line-height: 1.6; }
+  .spi-method-unused { color: var(--muted); font-style: italic; }
   .placeholder-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed var(--line); opacity: 0.6; }
   .placeholder-row:last-child { border-bottom: none; }
   .placeholder-row .name { font-size: 13px; font-weight: 600; }
@@ -1760,7 +2040,7 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .header-entry { padding: 14px 0; border-bottom: 1px solid #e5e8eb; }
   .header-entry:last-child { border-bottom: none; }
   .header-entry-file { font-family: monospace; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  .header-entry-field { font-size: 13px; line-height: 1.5; margin: 3px 0; }
+  .header-entry-field { font-size: 13px; line-height: 1.5; margin: 3px 0; white-space: pre-wrap; }
   .header-entry-field strong { color: var(--muted); font-weight: 600; }
   .table-chip { display: inline-block; background: #f1f3f5; color: var(--ink); font-size: 11px; padding: 3px 9px; border-radius: 6px; margin: 2px 4px 2px 0; font-family: monospace; }
   .diagram-wrap { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 20px; overflow: auto; max-height: 75vh; }
@@ -1784,10 +2064,8 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .adr-item .adr-status { color: var(--muted); font-size: 11px; margin-left: 6px; }
   h3 .section-link { font-size: 12px; font-weight: 500; color: var(--accent); text-decoration: none; margin-left: 8px; cursor: pointer; }
   h3 .section-link:hover { text-decoration: underline; }
-  h3 a.module-link { color: var(--accent); cursor: pointer; text-decoration: none; }
-  h3 a.module-link:hover { text-decoration: underline; }
-  .group-heading { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 24px 0 10px; }
-  .group-heading:first-of-type { margin-top: 0; }
+  a.module-link { color: var(--accent); cursor: pointer; text-decoration: none; }
+  a.module-link:hover { text-decoration: underline; }
   .table-chip-row { margin-bottom: 12px; }
   .table-chip-row a { display: inline-block; margin: 2px 6px 2px 0; }
   .table-chip-row code.path { background: #f1f3f5; padding: 3px 8px; border-radius: 6px; }
@@ -1814,7 +2092,7 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
 <body>
 <header>
   <h1>Architecture Control Plane</h1>
-  <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, docs/ai/flows.md, .claude/commands, .claude/skills, root CLAUDE.md — regenerate via <code>bash docs/architecture/scripts/generate-architecture-model.sh</code>. Track A only: module-level granularity; Contract/Implementation/Method levels are placeholders until Track B's ArchUnit exporter lands.</div>
+  <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents, root CLAUDE.md — regenerate via <code>bash docs/architecture/scripts/generate-architecture-model.sh</code>. Track A only: module-level granularity; Contract/Implementation/Method levels are placeholders until Track B's ArchUnit exporter lands.</div>
   <nav id="breadcrumb"></nav>
 </header>
 <main id="content"></main>
@@ -1850,24 +2128,29 @@ MODEL.nodes.forEach(n => byId[n.id] = n);
 const moduleNodes = MODEL.nodes.filter(n => n.type === "MODULE");
 const commandNodes = MODEL.nodes.filter(n => n.type === "COMMAND");
 const skillNodes = MODEL.nodes.filter(n => n.type === "SKILL");
+const agentNodes = MODEL.nodes.filter(n => n.type === "AGENT");
 const scriptGroupNodes = MODEL.nodes.filter(n => n.type === "SCRIPT_GROUP");
 const backlogNode = MODEL.nodes.find(n => n.type === "BACKLOG_SUMMARY");
 
 // ── Tooling & Pipelines' own card->detail groups -- one card per tool, same drill-down shape as
 // Diagrams' groupKey (list view with no view.groupId, detail view once one is picked). "category"
-// matches each SCRIPT_GROUP node's own category field (SCRIPT_GROUP_CATEGORY in the bash generator).
+// matches a top-level SCRIPT_GROUP node's own category field (SCRIPT_GROUP_CATEGORY for
+// build-architecture-page; each TREE_ROOTS entry's own SCRIPT_TREE_ROOT_CATEGORY for
+// ai-tooling/scripts-tree). ai-tooling and scripts-tree both open a real arbitrary-depth
+// drill-down (view.path walks n.children) instead of a flat category filter -- see TREE_ROOTS and
+// renderScriptTree() below.
 const PIPELINE_GROUPS = {
-  "ai-tooling": { icon: "🤖", label: "AI Tooling", category: "AI Tooling", desc: `${commandNodes.length} commands, ${skillNodes.length} skills, docs/ai/scripts` },
+  "ai-tooling": { icon: "🤖", label: "AI Tooling", category: "AI Tooling", desc: `${commandNodes.length} commands, ${skillNodes.length} skills, ${agentNodes.length} agents, and the rest of .claude/ (nav, rules, script headers)` },
   "build-architecture-page": { icon: "🗺️", label: "Build architecture page", category: "Build architecture page", desc: "docs/architecture/scripts — this page's own generator" },
-  "playwright": { icon: "🎭", label: "Playwright", category: "Playwright", desc: "playwright/ — UI test runner" },
-  "sonar": { icon: "📊", label: "Sonar", category: "Sonar", desc: "scripts/sonar — static analysis" },
-  "ci": { icon: "⚙️", label: "CI", category: "CI", desc: "scripts/ci — local isolated CI runner" },
-  "build": { icon: "🔨", label: "Build and Test", category: "Build and Test", desc: "scripts/build-and-test — builds the reactor, optional unit/integration tests" },
-  "deploy-and-run": { icon: "🚀", label: "Deploy and Run", category: "Deploy and Run", desc: "scripts/deploy-and-run — reuses build-and-test's shared jar, deploys the full local stack" },
-  "run-all-tests": { icon: "🧪", label: "Run All Tests", category: "Run All Tests", desc: "scripts/run-all-tests — build-and-test + Playwright together, daily-iteration loop" },
-  "other-scripts": { icon: "📜", label: "Other Scripts", category: "Other Scripts", desc: "scripts/ — deploy & misc" }
+  "scripts-tree": { icon: "📜", label: "Scripts", category: "Scripts", desc: "Every developer script for building, deploying, testing, and running CI lives here: local deploy/infra setup, Docker/Maven builds, SonarQube analysis, and the isolated Dagu-based CI runner. Playwright's end-to-end test suite sits alongside as its own folder. Drill into any folder for its own README and per-file headers." }
 };
-const PIPELINE_GROUP_ORDER = ["ai-tooling", "build", "deploy-and-run", "run-all-tests", "build-architecture-page", "playwright", "sonar", "ci", "other-scripts"];
+const PIPELINE_GROUP_ORDER = ["ai-tooling", "build-architecture-page", "scripts-tree"];
+// Which top-level SCRIPT_GROUP tree root(s) each tree-shaped pipeline group drills into -- the
+// first root's own children render directly at the group's root view (no intermediate card to
+// click through); any further roots (only scripts-tree has one: "playwright") are inserted as one
+// more sibling folder-card at that same level, same shape scriptTreeNodeAt()/renderScriptTree()
+// already used to hardcode for "scripts"+"playwright" specifically.
+const TREE_ROOTS = { "scripts-tree": ["scripts", "playwright"], "ai-tooling": [".claude"] };
 const totalDiagramCount = MODEL.diagramGroups.reduce((sum, g) => sum + g.diagrams.length, 0);
 let zoomLevel = 1;
 
@@ -1901,7 +2184,12 @@ function crumbLabelFor(v) {
   }
   if (v.screen === "backlog") return "Backlog";
   if (v.screen === "adrs") return "ADRs";
-  if (v.screen === "codequality") return "Code Quality";
+  if (v.screen === "codequality") {
+    if (v.section === "sonar") return "Code Quality — SonarQube";
+    if (v.section === "archunit") return "Code Quality — ArchUnit";
+    if (v.section === "findings") return "Code Quality — Findings";
+    return "Code Quality";
+  }
   if (v.screen === "diagrams") {
     if (v.groupKey && v.diagramIndex !== undefined) {
       const g = MODEL.diagramGroups.find(x => x.key === v.groupKey);
@@ -1913,9 +2201,16 @@ function crumbLabelFor(v) {
 }
 
 function navigate(next) {
+  // Drilling deeper within the unified Scripts tree (path segments, same "pipelines"/groupId) is
+  // a path change, not a new navigation hop -- crumbStack must not grow on every folder-card
+  // click, or the breadcrumb repeats "Scripts" once per depth level. Scoped tightly to
+  // screen === "pipelines" with a real groupId (never matches the diagrams screen, which
+  // identifies its own views via groupKey/diagramIndex instead -- both undefined on unrelated
+  // diagram views would otherwise false-match here).
+  const samePlace = next.screen === "pipelines" && view.screen === "pipelines" && next.groupId && next.groupId === view.groupId;
   if (next.screen === "system") {
     crumbStack = [];
-  } else if (view.screen !== "system") {
+  } else if (view.screen !== "system" && !samePlace) {
     crumbStack.push(view);
   }
   view = next;
@@ -1931,8 +2226,16 @@ function navigateToCrumb(index) {
 }
 
 // Generic "one step back" -- same stack, so any button meaning "go back" (not "drill to a named
-// place") stays correct automatically instead of hand-coding where it should land.
+// place") stays correct automatically instead of hand-coding where it should land. A
+// tree-drilling view (the unified Scripts tree) one or more folders deep goes up exactly one
+// folder level first -- crumbStack itself never grew for those levels (see navigate()), so
+// falling straight through to the crumbStack-based jump below would skip past every intermediate
+// folder straight out of the whole tree in one click.
 function navigateBack() {
+  if (view.screen === "pipelines" && view.groupId && view.path && view.path.length) {
+    navigate({ screen: "pipelines", groupId: view.groupId, path: view.path.slice(0, -1) });
+    return;
+  }
   if (crumbStack.length === 0) { navigate({ screen: "system" }); return; }
   navigateToCrumb(crumbStack.length - 1);
 }
@@ -1953,7 +2256,24 @@ function renderBreadcrumb() {
     html += `<span class="sep">›</span><a onclick="navigateToCrumb(${i})">${esc(crumbLabelFor(v))}</a>`;
   });
   if (view.screen !== "system") {
-    html += `<span class="sep">›</span><span class="current">${esc(crumbLabelFor(view))}</span>`;
+    // A tree-drilling view (the unified Scripts tree) whose own path is non-empty is "inside" its
+    // own root, not at it -- crumbStack itself never grows for a path change within the same tree
+    // (see navigate()), so the breadcrumb must show the real depth itself: "Scripts" (always
+    // clickable back to path: []) plus one clickable segment per path entry, the last one plain
+    // (current, matching every other screen's own last-segment convention).
+    if (view.screen === "pipelines" && view.groupId && view.path && view.path.length) {
+      html += `<span class="sep">›</span><a onclick="navigate({screen:'pipelines',groupId:'${view.groupId}',path:[]})">${esc(crumbLabelFor(view))}</a>`;
+      view.path.forEach((seg, i) => {
+        const segPath = JSON.stringify(view.path.slice(0, i + 1));
+        if (i === view.path.length - 1) {
+          html += `<span class="sep">›</span><span class="current">${esc(seg)}</span>`;
+        } else {
+          html += `<span class="sep">›</span><a onclick='navigate({screen:"pipelines",groupId:"${view.groupId}",path:${segPath}})'>${esc(seg)}</a>`;
+        }
+      });
+    } else {
+      html += `<span class="sep">›</span><span class="current">${esc(crumbLabelFor(view))}</span>`;
+    }
   }
   bc.innerHTML = html;
 }
@@ -1968,7 +2288,7 @@ function renderSystem() {
   html += `<div class="card-grid">
     <div class="card special-card" onclick="navigate({screen:'pipelines'})">
       <div class="card-title">🛠 Tooling &amp; Pipelines</div>
-      <div class="card-desc">${commandNodes.length} commands, ${skillNodes.length} skills, ${scriptGroupNodes.length} script groups</div>
+      <div class="card-desc">${commandNodes.length} commands, ${skillNodes.length} skills, ${agentNodes.length} agents, ${scriptGroupNodes.length} script groups</div>
     </div>
     <div class="card special-card" onclick="navigate({screen:'backlog'})">
       <div class="card-title">📋 Backlog</div>
@@ -1988,19 +2308,32 @@ function renderSystem() {
     </div>
   </div>`;
 
+  // Root README.md, rendered inline at the bottom of this same page -- not a card/screen of its
+  // own, the same way renderScriptGroupSection() renders a SCRIPT_GROUP dir's own README directly
+  // in place rather than behind a click-through.
+  html += `<section class="block">${mdBlockToHtml(MODEL.rootReadme || "", "")}<div class="empty-hint">Source: ${sourceLink("README.md")}</div></section>`;
+
   document.getElementById("content").innerHTML = html;
+  mermaid.run({ querySelector: ".mermaid" });
 }
 
 // Domain-colored, click-to-navigate module dependency graph -- the one and only place this is
 // built (previously duplicated: a rich version on the old System page, a generic Mermaid-text
 // re-parse under Diagrams). Renders into #diagram-cy and assigns to the shared `diagramCy`
 // variable so Diagrams' existing zoom toolbar (zoomDiagram()/#zoom-label) works unmodified.
-function renderModuleDependencyGraph() {
-  const els = moduleNodes.map(n => ({
+// Shared node/edge-building + Cytoscape style for both Module Dependencies diagrams (Production
+// Modules, Integration Tests) -- same visual language, different node subset. Auto-sized nodes
+// ("width"/"height": "label") instead of a fixed box -- a fixed 92x34 box clipped longer labels
+// like "marketplace-orchestrator" (confirmed directly: rendered bounding box taller than the box
+// itself). Edges are only included when both ends are in this diagram's own node subset, so the
+// Integration Tests diagram doesn't reach out to production-only modules it has no edge to anyway.
+function moduleDependencyElements(nodes) {
+  const ids = new Set(nodes.map(n => n.id));
+  const els = nodes.map(n => ({
     data: { id: n.id, label: n.id.replace(/-spring-boot-starter$/, ""), domain: n.domain },
     style: { "background-color": domainColor(n.domain) }
   }));
-  moduleNodes.forEach(n => {
+  nodes.forEach(n => {
     // Layout edges point dependency -> dependent (reverse of the real semantic direction) so
     // dagre's left-to-right ranking puts foundational/most-depended-on modules on the left and
     // consumers on the right -- dagre ranks by source-before-target, and "X depends on Y" should
@@ -2008,18 +2341,23 @@ function renderModuleDependencyGraph() {
     // The arrowhead is drawn on the *visual* source/target below, independent of layout ranking.
     ["DEPENDS_ON_COMPILE","DEPENDS_ON_RUNTIME"].forEach(et => {
       (n.edges[et] || []).forEach(target => {
+        if (!ids.has(target)) return;
         els.push({ data: { id: n.id+"->"+target+et, source: target, target: n.id, dashed: et==="DEPENDS_ON_RUNTIME" } });
       });
     });
   });
+  return els;
+}
+
+function renderOneModuleDependencyGraph(containerId, zoomLabelId, nodes, assignCy) {
   const hasDagre = typeof cytoscapeDagre !== "undefined";
-  diagramCy = cytoscape({
-    container: document.getElementById("diagram-cy"),
-    elements: els,
+  const cy = cytoscape({
+    container: document.getElementById(containerId),
+    elements: moduleDependencyElements(nodes),
     style: [
       { selector: "node", style: {
           "label": "data(label)", "font-size": 10, "color": "#fff", "text-valign": "center", "text-halign": "center",
-          "width": 92, "height": 34, "shape": "round-rectangle", "text-wrap": "wrap", "text-max-width": 84
+          "width": "label", "height": "label", "padding": "10px", "shape": "round-rectangle", "text-wrap": "wrap", "text-max-width": 90
         } },
       { selector: "edge", style: {
           "width": 1.5, "line-color": "#cbd5e0", "target-arrow-color": "#cbd5e0",
@@ -2032,11 +2370,27 @@ function renderModuleDependencyGraph() {
       ? { name: "dagre", rankDir: "LR", nodeSep: 18, rankSep: 70, edgeSep: 12, padding: 20 }
       : { name: "breadthfirst", directed: true, padding: 20, spacingFactor: 1.1 }
   });
-  diagramCy.on("tap", "node", e => navigate({ screen: "module", id: e.target.id() }));
-  diagramCy.on("zoom", () => {
-    const label = document.getElementById("zoom-label");
-    if (label) label.textContent = Math.round(diagramCy.zoom() * 100) + "%";
+  cy.on("tap", "node", e => navigate({ screen: "module", id: e.target.id() }));
+  cy.on("zoom", () => {
+    const label = document.getElementById(zoomLabelId);
+    if (label) label.textContent = Math.round(cy.zoom() * 100) + "%";
   });
+  assignCy(cy);
+}
+
+function renderModuleDependencyGraph() {
+  const testNode = moduleNodes.find(n => n.id === "integration-tests");
+  const testIds = new Set(["integration-tests", ...((testNode && testNode.edges.DEPENDS_ON_COMPILE) || [])]);
+  const mainNodes = moduleNodes.filter(n => n.id !== "integration-tests");
+  const testNodes = moduleNodes.filter(n => testIds.has(n.id));
+  renderOneModuleDependencyGraph("diagram-cy", "zoom-label", mainNodes, cy => { diagramCy = cy; });
+  renderOneModuleDependencyGraph("diagram-cy-2", "zoom-label-2", testNodes, cy => { diagramCy2 = cy; });
+}
+
+function zoomDiagram2(delta) {
+  if (!diagramCy2) return;
+  if (delta === 0) { diagramCy2.fit(undefined, 20); return; }
+  diagramCy2.zoom({ level: diagramCy2.zoom() + delta, renderedPosition: { x: diagramCy2.width()/2, y: diagramCy2.height()/2 } });
 }
 
 // Scope-grouped dependency list for one module -- built from the same edges the graph/module
@@ -2100,15 +2454,26 @@ const MODULE_DEPENDENCY_KEY_OBSERVATIONS = [
   "**Test-Only Reactor Member:** integration-tests is the sole module allowed to depend on more than one domain starter at once — a real, compile-scope Maven dependency, not SPI-mediated. This is safe only because the module is never shipped, deployed, or depended upon by anything else (a leaf with zero inbound edges) — see integration-tests/CLAUDE.md for the full rationale and why this doesn't violate \"starters must not depend on each other.\""
 ];
 
-function mdInlineToHtml(s) {
-  return esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
+// baseDir: repo-relative directory the source markdown file itself lives in (e.g. ".claude/nav"
+// for .claude/nav/README.md, "" for a repo-root file) -- resolves a same-directory link target
+// (e.g. "adr-index.md") into a real, clickable sourceLink(). A link target already containing "/"
+// (e.g. "docs/architecture/bounded-contexts.md") is treated as already repo-root-relative and used
+// as-is, regardless of baseDir -- matches how these READMEs actually write cross-directory links.
+function mdInlineToHtml(s, baseDir) {
+  let html = esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  return html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, label, url) => {
+    if (/^https?:\/\//.test(url)) return `<a href="${url}" target="_blank">${label}</a>`;
+    if (url.startsWith("#")) return m;
+    const relPath = url.includes("/") ? url : (baseDir ? `${baseDir}/${url}` : url);
+    return `<a href="../../${esc(relPath)}" target="_blank">${label}</a>`;
+  });
 }
 
 // Paragraph/list/table/heading/fenced-code markdown -> HTML for ADR body text (Context/Decision/
 // Consequences, amendments, tables) and README.md content (headings, fenced "how to run" bash
 // blocks). Not a general markdown parser -- same "only what's needed" scope as
 // parseMermaidGraph(). Reuses mdInlineToHtml() for **bold**/`code` within each non-code block.
-function mdBlockToHtml(text) {
+function mdBlockToHtml(text, baseDir) {
   if (!text) return "";
   // Blocks break on a blank line OR on a line-type transition (e.g. "**Decision:**" directly
   // followed by "1. ..." with no blank line between -- a real pattern in these ADRs). A plain
@@ -2167,16 +2532,16 @@ function mdBlockToHtml(text) {
     // +3: a README's top-level "#" title would collide with the surrounding page's own <h2>/<h3>
     // screen chrome -- start one level down (## -> <h4>) same as this tool's other embedded-markdown
     // headings.
-    if (b.type === "h") { const lvl = Math.min(b.level + 3, 6); return `<h${lvl}>${mdInlineToHtml(b.text)}</h${lvl}>`; }
-    if (b.type === "ul") return "<ul>" + b.items.map(l => `<li>${mdInlineToHtml(l)}</li>`).join("") + "</ul>";
-    if (b.type === "ol") return "<ol>" + b.items.map(l => `<li>${mdInlineToHtml(l)}</li>`).join("") + "</ol>";
+    if (b.type === "h") { const lvl = Math.min(b.level + 3, 6); return `<h${lvl}>${mdInlineToHtml(b.text, baseDir)}</h${lvl}>`; }
+    if (b.type === "ul") return "<ul>" + b.items.map(l => `<li>${mdInlineToHtml(l, baseDir)}</li>`).join("") + "</ul>";
+    if (b.type === "ol") return "<ol>" + b.items.map(l => `<li>${mdInlineToHtml(l, baseDir)}</li>`).join("") + "</ol>";
     if (b.type === "table" && b.lines.length > 1 && /^\|[\s:|-]+\|$/.test(b.lines[1])) {
       const rows = b.lines.filter((_, i) => i !== 1).map(l => l.split("|").slice(1, -1).map(c => c.trim()));
       const [head, ...body] = rows;
-      return `<table class="simple"><thead><tr>${head.map(c => `<th>${mdInlineToHtml(c)}</th>`).join("")}</tr></thead><tbody>` +
-        body.map(r => `<tr>${r.map(c => `<td>${mdInlineToHtml(c)}</td>`).join("")}</tr>`).join("") + `</tbody></table>`;
+      return `<table class="simple"><thead><tr>${head.map(c => `<th>${mdInlineToHtml(c, baseDir)}</th>`).join("")}</tr></thead><tbody>` +
+        body.map(r => `<tr>${r.map(c => `<td>${mdInlineToHtml(c, baseDir)}</td>`).join("")}</tr>`).join("") + `</tbody></table>`;
     }
-    return `<p>${mdInlineToHtml(b.lines.join(" "))}</p>`;
+    return `<p>${mdInlineToHtml(b.lines.join(" "), baseDir)}</p>`;
   }).join("");
 }
 
@@ -2190,8 +2555,8 @@ function renderModuleDependencyExtrasHtml() {
   // Domain colors are assigned by first-appearance order (domainOrder/domainColor() above), not a
   // fixed mapping -- a static legend would go stale the moment a new domain is added. Built live
   // from the exact same function the graph itself uses to color each node, so it can't drift.
-  const domainLegendRows = domainOrder.map(d =>
-    `<tr><td><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${domainColor(d)};margin-right:6px;vertical-align:middle"></span>${esc(d)}</td></tr>`
+  const domainLegendItems = domainOrder.map(d =>
+    `<span style="display:inline-flex;align-items:center;margin-right:16px;white-space:nowrap"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${domainColor(d)};margin-right:6px"></span>${esc(d)}</span>`
   ).join("");
   return `
     <section class="block"><h3>Overview</h3>
@@ -2204,19 +2569,15 @@ function renderModuleDependencyExtrasHtml() {
         <tr><td class="scope-label">┄┄▶ (dashed line)</td><td>Runtime-scope dependency</td></tr>
       </tbody></table>
       <div class="empty-hint" style="margin-top:8px">Node color = domain (same color used consistently across this diagram):</div>
-      <table class="simple"><tbody>${domainLegendRows}</tbody></table>
+      <div style="display:flex;flex-wrap:wrap;margin-top:6px">${domainLegendItems}</div>
     </section>
     <section class="block"><h3>Dependency Table</h3>
       <table class="simple"><thead><tr><th>Module</th><th>Depends on</th></tr></thead><tbody>${rows}</tbody></table>
     </section>
-    ${renderArchitectureChecksHtml()}
     <section class="block"><h3>Key Observations</h3><ol class="info-list">${observations}</ol></section>
     <section class="block"><h3>Module Versions</h3>
       <div class="empty-hint">All modules are siblings with the same version: <code>${esc(MODEL.rootVersion)}</code>. Parent POM artifact: <code>${esc(MODEL.rootArtifactId)}</code>.</div>
-    </section>
-    ${renderLargestJavaFilesHtml()}
-    ${renderConstructorInjectionHtml()}
-    ${renderGodPackagesHtml()}`;
+    </section>`;
 }
 
 // Real grep-based checks (cyclic-import safety net beyond the module-level DAG already shown
@@ -2231,27 +2592,45 @@ function renderArchitectureChecksHtml() {
   </section>`;
 }
 
+// Merges consecutive rows sharing the same key into one rowspan-ed cell -- only merges runs
+// already adjacent in the data's own natural order, never reorders rows to create bigger runs (a
+// real gap between two same-value rows stays two separate cells, on purpose). Returns one number
+// per row: 0 means "this row's cell for that column is omitted, an earlier row's rowspan covers
+// it"; N (> 0) means "this row starts a run of N, render its own rowspan=N cell here."
+function consecutiveRowspan(rows, keyFn) {
+  return rows.map((row, i) => {
+    if (i > 0 && keyFn(rows[i - 1]) === keyFn(row)) return 0;
+    let span = 1;
+    while (i + span < rows.length && keyFn(rows[i + span]) === keyFn(row)) span++;
+    return span;
+  });
+}
+
 function renderLargestJavaFilesHtml() {
   const files = MODEL.largestJavaFiles || [];
   if (!files.length) return "";
-  const rows = files.map(f =>
-    `<tr><td>${esc(f.file)}</td><td>${f.lines}</td><td>${moduleBadgeHtml(f.module) || esc(f.module)}</td></tr>`
-  ).join("");
+  const spans = consecutiveRowspan(files, f => f.module);
+  const rows = files.map((f, idx) => {
+    const moduleCell = spans[idx] > 0 ? `<td rowspan="${spans[idx]}">${moduleLink(f.module)}</td>` : "";
+    return `<tr><td>${fileLink(f.path, f.file)}</td><td>${f.lines}</td>${moduleCell}</tr>`;
+  }).join("");
   return `<section class="block"><h3>Largest Java Files</h3>
     <div class="empty-hint">Top 10 by line count, across the whole repo -- recomputed every generation.</div>
-    <table class="simple"><thead><tr><th>File</th><th>Lines</th><th>Module</th></tr></thead><tbody>${rows}</tbody></table>
+    <table class="simple rowspan-table"><thead><tr><th>File</th><th>Lines</th><th>Module</th></tr></thead><tbody>${rows}</tbody></table>
   </section>`;
 }
 
 function renderConstructorInjectionHtml() {
   const items = MODEL.constructorInjection || [];
   if (!items.length) return "";
-  const rows = items.map(i =>
-    `<tr><td>${esc(i.class)}</td><td>${moduleBadgeHtml(i.module) || esc(i.module)}</td><td>${i.fieldCount}</td></tr>`
-  ).join("");
+  const spans = consecutiveRowspan(items, i => i.module);
+  const rows = items.map((i, idx) => {
+    const moduleCell = spans[idx] > 0 ? `<td rowspan="${spans[idx]}">${moduleLink(i.module)}</td>` : "";
+    return `<tr><td>${fileLink(i.file, i.class)}</td>${moduleCell}<td>${i.fieldCount}</td></tr>`;
+  }).join("");
   return `<section class="block"><h3>Constructor Injection (${items.length})</h3>
     <div class="empty-hint">Every class with <code class="path">@RequiredArgsConstructor</code> and 4+ injected fields.</div>
-    <table class="simple"><thead><tr><th>Class</th><th>Module</th><th>Field count</th></tr></thead><tbody>${rows}</tbody></table>
+    <table class="simple rowspan-table"><thead><tr><th>Class</th><th>Module</th><th>Field count</th></tr></thead><tbody>${rows}</tbody></table>
   </section>`;
 }
 
@@ -2318,9 +2697,10 @@ function exportModuleMarkdown(id) {
   if (!n) return;
   let md = `# ${n.id}\n\n${n.description || ""}\n\n`;
   if (n.tables && n.tables.length) md += `## Tables owned\n\n${n.tables.map(t => `- ${t}`).join("\n")}\n\n`;
-  if (n.entities && n.entities.length) md += `## Entities\n\n${n.entities.map(e => `- ${e}`).join("\n")}\n\n`;
-  if (n.keyServices && n.keyServices.length) md += `## Key services\n\n${n.keyServices.map(s => `- ${s}`).join("\n")}\n\n`;
-  if (n.contracts && n.contracts.length) md += `## Contracts (Port/Hook)\n\n${n.contracts.map(c => `- ${c}`).join("\n")}\n\n`;
+  const namedFileMdLine = it => `- ${it.name}${it.description ? ` — ${it.description}` : ""}`;
+  if (n.entities && n.entities.length) md += `## Entities\n\n${n.entities.map(namedFileMdLine).join("\n")}\n\n`;
+  if (n.keyServices && n.keyServices.length) md += `## Key services\n\n${n.keyServices.map(namedFileMdLine).join("\n")}\n\n`;
+  if (n.contracts && n.contracts.length) md += `## Contracts (Port/Hook)\n\n${n.contracts.map(namedFileMdLine).join("\n")}\n\n`;
   md += `## Depends on (compile)\n\n${(n.edges.DEPENDS_ON_COMPILE||[]).map(d=>`- ${d}`).join("\n") || "None."}\n\n`;
   if ((n.edges.DEPENDS_ON_RUNTIME||[]).length) md += `## Depends on (runtime)\n\n${n.edges.DEPENDS_ON_RUNTIME.map(d=>`- ${d}`).join("\n")}\n\n`;
   if ((n.edges.DEPENDS_ON_OPTIONAL||[]).length) md += `## Depends on (optional)\n\n${n.edges.DEPENDS_ON_OPTIONAL.map(d=>`- ${d}`).join("\n")}\n\n`;
@@ -2358,7 +2738,7 @@ function coloredMetric(value, decimals, green, yellow) {
   return `<span class="${metricClass(value, green, yellow)}">${esc(value.toFixed(decimals))}</span>`;
 }
 
-const CODE_QUALITY_GLOSSARY = [
+const SONAR_GLOSSARY = [
   { field: "Java files", desc: "Number of .java files under this module's src/main/java. The denominator for the two per-file ratios below — on its own it's just a size indicator, not a quality signal." },
   { field: "Lines of code", desc: "Non-comment lines of code (NCLOC), as counted by SonarQube. A raw size measure, not a complexity measure — a large module can still be simple if it's mostly straightforward, repetitive code (e.g. DTOs, generated mappers)." },
   { field: "Complexity", desc: "Cyclomatic complexity — the number of independent execution paths through the code, counted from branching statements (if/for/while/case/&&/||). Higher means more paths a test suite has to cover to reach full branch coverage, and more ways the code can behave differently at runtime. This is the module's raw total, not yet normalized by size — a big module naturally has a bigger raw total even if each individual method is simple." },
@@ -2367,6 +2747,8 @@ const CODE_QUALITY_GLOSSARY = [
   { field: "Cognitive/file", desc: "Cognitive complexity divided by Java file count. A high value is a stronger signal than high raw Complexity/file that a file is genuinely hard to read (not just branch-heavy) — worth a closer look even before it hits a hard SonarQube rule threshold. Colored: green < 10, yellow 10-25, red > 25." },
   { field: "Code smells", desc: "Count of maintainability issues SonarQube's rule engine actually flagged in this module (naming, dead code, duplicated logic, overly long methods, etc.) — a concrete, itemized list (visible in the SonarQube dashboard itself), not a derived estimate like the complexity numbers above." },
   { field: "Code smells/1k LOC", desc: "Code smells normalized per 1000 lines of code, so a small module with 2 smells isn't unfairly compared against a large module with 20 — what matters is smell density, not raw count. Colored: green < 5, yellow 5-15, red > 15." },
+];
+const ARCHUNIT_GLOSSARY = [
   { field: "Efferent coupling (Ce)", desc: "How many classes outside this module the classes inside it depend on — this module's \"outgoing\" dependencies. High Ce means this module is exposed to a lot of external change: if any of those other classes change their API, this module is one of the things that might break." },
   { field: "Afferent coupling (Ca)", desc: "How many classes outside this module depend on classes inside it — this module's \"incoming\" dependencies, i.e. its real-world blast radius. High Ca means many other parts of the codebase would be affected if this module's public API changed, so changes here need extra care." },
   { field: "Instability (I)", desc: "I = Ce/(Ce+Ca), from Robert Martin's stability metrics — 0 means maximally stable (only depended upon, never depends on anything itself — safe to keep unchanged, risky to modify), 1 means maximally unstable (only depends on others, nothing depends on it — safe to change freely, since nothing breaks downstream)." },
@@ -2375,52 +2757,109 @@ const CODE_QUALITY_GLOSSARY = [
 ];
 
 function renderCodeQuality() {
-  const sonar = MODEL.sonarMetrics;
-  const arch = MODEL.archUnitMetrics;
+  if (!view.section) {
+    let html = backButtonHtml();
+    html += `<h2 class="screen-title">Code Quality</h2>
+      <div class="screen-desc">Real SonarQube + ArchUnit metrics, plus repo-wide structural findings -- pick where to start.</div>`;
+    html += `<div class="card-grid">
+      <div class="card" onclick="navigate({screen:'codequality',section:'sonar'})">
+        <div class="card-title">SonarQube</div>
+        <div class="card-desc">Complexity, cognitive complexity, code smells -- per module</div>
+      </div>
+      <div class="card" onclick="navigate({screen:'codequality',section:'archunit'})">
+        <div class="card-title">ArchUnit</div>
+        <div class="card-desc">Efferent/afferent coupling, instability, abstractness -- per module</div>
+      </div>
+      <div class="card" onclick="navigate({screen:'codequality',section:'findings'})">
+        <div class="card-title">🔍 Findings</div>
+        <div class="card-desc">Architecture checks, largest files/packages, constructor-injection complexity</div>
+      </div>
+    </div>`;
+    document.getElementById("content").innerHTML = html;
+    return;
+  }
+
   let html = backButtonHtml();
-  html += `<h2 class="screen-title">Code Quality</h2>
-    <div class="screen-desc">Real SonarQube + ArchUnit metrics per module, one table per source. Both opt-in (<code>--with-sonar</code>/<code>--with-archunit</code> on <code>generate-architecture-model.sh</code>), off by default -- regenerate with those flags to populate this screen. Raw counts are shown plain; derived ratios are colored (see Overview at the bottom for thresholds).</div>`;
 
-  html += `<section class="block"><h3>SonarQube</h3>`;
-  if (!sonar) {
-    html += `<div class="empty-hint">No data -- regenerate with <code>--with-sonar</code> (requires a reachable SonarQube server).</div>`;
-  } else {
-    html += `<div class="empty-hint">Source: SonarQube (analysis: ${esc(sonar.analysisDate || "unknown")}).</div>
-      <table class="simple"><thead><tr><th>Module</th><th>Java files</th><th>Lines of code</th><th>Complexity</th><th>Complexity/file</th><th>Cognitive complexity</th><th>Cognitive/file</th><th>Code smells</th><th>Code smells/1k LOC</th></tr></thead><tbody>`;
-    moduleNodes.forEach(n => {
-      const m = sonar.modules && sonar.modules[n.id];
-      if (!m) return;
-      const perFile = m.javaFileCount > 0 ? m.complexity / m.javaFileCount : 0;
-      const cogPerFile = m.javaFileCount > 0 ? m.cognitiveComplexity / m.javaFileCount : 0;
-      const smellsPer1k = m.ncloc > 0 ? m.codeSmells / (m.ncloc / 1000) : 0;
-      html += `<tr><td><a class="module-link" onclick="navigate({screen:'module', id:'${esc(n.id)}'})">${esc(n.id)}</a></td><td>${m.javaFileCount}</td><td>${m.ncloc}</td><td>${m.complexity}</td><td>${coloredMetric(perFile, 1, 10, 20)}</td><td>${m.cognitiveComplexity}</td><td>${coloredMetric(cogPerFile, 1, 10, 25)}</td><td>${m.codeSmells}</td><td>${coloredMetric(smellsPer1k, 1, 5, 15)}</td></tr>`;
-    });
-    html += `</tbody></table>`;
+  if (view.section === "sonar") {
+    const sonar = MODEL.sonarMetrics;
+    html += `<h2 class="screen-title">Code Quality — SonarQube</h2>
+      <div class="screen-desc">Real SonarQube metrics per module. Opt-in (<code>--with-sonar</code> on <code>generate-architecture-model.sh</code>), off by default. Raw counts are shown plain; derived ratios are colored (see Overview below for thresholds).</div>`;
+    html += `<section class="block"><h3>SonarQube</h3>`;
+    if (!sonar) {
+      html += `<div class="empty-hint">No data -- regenerate with <code>--with-sonar</code> (requires a reachable SonarQube server).</div>`;
+    } else {
+      html += `<div class="empty-hint">Source: SonarQube (analysis: ${esc(sonar.analysisDate || "unknown")}).</div>
+        <table class="simple"><thead><tr><th>Module</th><th>Java files</th><th>Lines of code</th><th>Complexity</th><th>Complexity/file</th><th>Cognitive complexity</th><th>Cognitive/file</th><th>Code smells</th><th>Code smells/1k LOC</th></tr></thead><tbody>`;
+      moduleNodes.forEach(n => {
+        const m = sonar.modules && sonar.modules[n.id];
+        if (!m) return;
+        const perFile = m.javaFileCount > 0 ? m.complexity / m.javaFileCount : 0;
+        const cogPerFile = m.javaFileCount > 0 ? m.cognitiveComplexity / m.javaFileCount : 0;
+        const smellsPer1k = m.ncloc > 0 ? m.codeSmells / (m.ncloc / 1000) : 0;
+        html += `<tr><td><a class="module-link" onclick="navigate({screen:'module', id:'${esc(n.id)}'})">${esc(n.id)}</a></td><td>${m.javaFileCount}</td><td>${m.ncloc}</td><td>${m.complexity}</td><td>${coloredMetric(perFile, 1, 10, 20)}</td><td>${m.cognitiveComplexity}</td><td>${coloredMetric(cogPerFile, 1, 10, 25)}</td><td>${m.codeSmells}</td><td>${coloredMetric(smellsPer1k, 1, 5, 15)}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+    }
+    html += `</section>`;
+    html += `<section class="block"><h3>Overview</h3>
+      <table class="simple"><thead><tr><th>Field</th><th>What it means</th></tr></thead><tbody>` +
+      SONAR_GLOSSARY.map(g => `<tr><td class="scope-label">${esc(g.field)}</td><td>${esc(g.desc)}</td></tr>`).join("") +
+      `</tbody></table></section>`;
+  } else if (view.section === "archunit") {
+    const arch = MODEL.archUnitMetrics;
+    html += `<h2 class="screen-title">Code Quality — ArchUnit</h2>
+      <div class="screen-desc">Real ArchUnit metrics per module. Opt-in (<code>--with-archunit</code> on <code>generate-architecture-model.sh</code>), off by default. Raw counts are shown plain; derived ratios are colored (see Overview below for thresholds).</div>`;
+    html += `<section class="block"><h3>ArchUnit</h3>`;
+    if (!arch) {
+      html += `<div class="empty-hint">No data -- regenerate with <code>--with-archunit</code> (requires <code>bash scripts/build-and-test.sh --archunit-metrics</code> to have run at least once).</div>`;
+    } else {
+      html += `<div class="empty-hint">Source: ArchUnit (from the last <code>bash scripts/build-and-test.sh --archunit-metrics</code> run).</div>
+        <table class="simple"><thead><tr><th>Module</th><th>Efferent coupling</th><th>Afferent coupling</th><th>Instability</th><th>Abstractness</th><th>Distance from Main Sequence</th></tr></thead><tbody>`;
+      moduleNodes.forEach(n => {
+        const m = arch.modules && arch.modules[n.id];
+        if (!m) return;
+        const distance = Math.abs(m.abstractness + m.instability - 1);
+        html += `<tr><td><a class="module-link" onclick="navigate({screen:'module', id:'${esc(n.id)}'})">${esc(n.id)}</a></td><td>${m.efferentCoupling}</td><td>${m.afferentCoupling}</td><td>${esc(m.instability.toFixed(2))}</td><td>${esc(m.abstractness.toFixed(2))}</td><td>${coloredMetric(distance, 2, 0.3, 0.6)}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+    }
+    html += `</section>`;
+    html += `<section class="block"><h3>Overview</h3>
+      <table class="simple"><thead><tr><th>Field</th><th>What it means</th></tr></thead><tbody>` +
+      ARCHUNIT_GLOSSARY.map(g => `<tr><td class="scope-label">${esc(g.field)}</td><td>${esc(g.desc)}</td></tr>`).join("") +
+      `</tbody></table></section>`;
+  } else if (view.section === "findings") {
+    html += `<h2 class="screen-title">Code Quality — Findings</h2>
+      <div class="screen-desc">Repo-wide structural findings, recomputed every generation.</div>`;
+    html += renderArchitectureChecksHtml();
+    html += renderLargestJavaFilesHtml();
+    html += renderConstructorInjectionHtml();
+    html += renderGodPackagesHtml();
   }
-  html += `</section>`;
-
-  html += `<section class="block"><h3>ArchUnit</h3>`;
-  if (!arch) {
-    html += `<div class="empty-hint">No data -- regenerate with <code>--with-archunit</code> (requires <code>bash scripts/build-and-test.sh --archunit-metrics</code> to have run at least once).</div>`;
-  } else {
-    html += `<div class="empty-hint">Source: ArchUnit (from the last <code>bash scripts/build-and-test.sh --archunit-metrics</code> run).</div>
-      <table class="simple"><thead><tr><th>Module</th><th>Efferent coupling</th><th>Afferent coupling</th><th>Instability</th><th>Abstractness</th><th>Distance from Main Sequence</th></tr></thead><tbody>`;
-    moduleNodes.forEach(n => {
-      const m = arch.modules && arch.modules[n.id];
-      if (!m) return;
-      const distance = Math.abs(m.abstractness + m.instability - 1);
-      html += `<tr><td><a class="module-link" onclick="navigate({screen:'module', id:'${esc(n.id)}'})">${esc(n.id)}</a></td><td>${m.efferentCoupling}</td><td>${m.afferentCoupling}</td><td>${esc(m.instability.toFixed(2))}</td><td>${esc(m.abstractness.toFixed(2))}</td><td>${coloredMetric(distance, 2, 0.3, 0.6)}</td></tr>`;
-    });
-    html += `</tbody></table>`;
-  }
-  html += `</section>`;
-
-  html += `<section class="block"><h3>Overview</h3>
-    <table class="simple"><thead><tr><th>Field</th><th>What it means</th></tr></thead><tbody>` +
-    CODE_QUALITY_GLOSSARY.map(g => `<tr><td class="scope-label">${esc(g.field)}</td><td>${esc(g.desc)}</td></tr>`).join("") +
-    `</tbody></table></section>`;
 
   document.getElementById("content").innerHTML = html;
+}
+
+// Entities/Key services/Contracts on the Module screen: {name, file?, description?} objects
+// (json_named_file_array()) -- real file link when a path was found, a real Javadoc one-liner
+// underneath when the class actually carries one (many don't, e.g. a plain @Table entity with no
+// class comment -- silently omitted rather than a misleading placeholder).
+function renderNamedFileListHtml(items) {
+  return `<ul class="info-list">` + items.map(it => {
+    const label = it.file ? fileLink(it.file, it.name) : `<code>${esc(it.name)}</code>`;
+    const desc = it.description ? `<div class="scope-label" style="margin-top:2px">${esc(it.description)}</div>` : "";
+    return `<li>${label}${desc}</li>`;
+  }).join("") + `</ul>`;
+}
+
+// Jumps to a table's real schema on the Database ERD screen -- reuses the same "db-table-<name>"
+// anchor wireDbErdEntityClicks() already sets when a reader clicks the ERD diagram itself, so a
+// module's own "Tables owned" chip and the diagram converge on the exact same real schema section.
+function navigateToTable(tableName) {
+  navigate({ screen: "diagrams", groupKey: "04-database-erd", diagramIndex: 0 });
+  const el = document.getElementById("db-table-" + tableName);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderModule() {
@@ -2438,16 +2877,16 @@ function renderModule() {
     <div class="screen-desc">${esc(n.description || "no one-line description available")}</div>`;
 
   if (n.tables && n.tables.length) {
-    html += `<section class="block"><h3>Tables owned</h3>` + n.tables.map(t => `<span class="table-chip">${esc(t)}</span>`).join("") + `</section>`;
+    html += `<section class="block"><h3>Tables owned</h3>` + n.tables.map(t => `<span class="table-chip" style="cursor:pointer" onclick="navigateToTable('${esc(t)}')">${esc(t)}</span>`).join("") + `</section>`;
   }
   if (n.entities && n.entities.length) {
-    html += `<section class="block"><h3>Entities</h3><ul class="info-list">` + n.entities.map(e => `<li>${e.replace(/`([^`]+)`/g, (m,c)=>`<code>${esc(c)}</code>`)}</li>`).join("") + `</ul></section>`;
+    html += `<section class="block"><h3>Entities</h3>${renderNamedFileListHtml(n.entities)}</section>`;
   }
   if (n.keyServices && n.keyServices.length) {
-    html += `<section class="block"><h3>Key services</h3><ul class="info-list">` + n.keyServices.map(s => `<li>${s.replace(/`([^`]+)`/g, (m,c)=>`<code>${esc(c)}</code>`)}</li>`).join("") + `</ul></section>`;
+    html += `<section class="block"><h3>Key services</h3>${renderNamedFileListHtml(n.keyServices)}</section>`;
   }
   if (n.contracts && n.contracts.length) {
-    html += `<section class="block"><h3>Contracts (Port/Hook)</h3><ul class="info-list">` + n.contracts.map(c => `<li>${c.replace(/`([^`]+)`/g, (m,g)=>`<code>${esc(g)}</code>`)}</li>`).join("") + `</ul></section>`;
+    html += `<section class="block"><h3>Contracts (Port/Hook)</h3>${renderNamedFileListHtml(n.contracts)}</section>`;
   }
 
   html += `<section class="block"><h3>Depends on (compile)</h3>${renderDepList(n.edges.DEPENDS_ON_COMPILE, "compile", "No compile-time module dependencies.")}</section>`;
@@ -2474,7 +2913,7 @@ function sourceLink(relPath) {
   return `<a href="../../${esc(relPath)}" target="_blank"><code class="path">${esc(relPath)}</code></a>`;
 }
 
-function renderScriptGroupSection(n) {
+function renderScriptGroupSection(n, skipHeading) {
   // Only chip files that DON'T already get their own full block in the "Script headers" list
   // below -- a file with a real parsed header would otherwise appear twice on the same card (a
   // bare chip up here, the real thing right after), the exact kind of duplicate this generator's
@@ -2482,32 +2921,35 @@ function renderScriptGroupSection(n) {
   const headeredFiles = new Set((n.headers || []).map(h => h.file.split("/").pop()));
   const chipFiles = (n.files || []).filter(f => !headeredFiles.has(f));
   let html = "";
-  // Skip the whole heading+box when there's nothing left to put in it (every file already has its
-  // own header block below, and there's no group-level description either) -- an empty box with
-  // just a heading is exactly the kind of leftover-looking dead space a reader stops to ask about.
-  if (n.description || chipFiles.length) {
+  // The chip-row is a last-resort file listing -- it only ever renders when nothing else on this
+  // card already covers those files. A node with its own README.md is assumed to already name and
+  // link its own files in context (the README IS the canonical place for that, per
+  // infra-readme-standards) -- showing a second, context-free chip-row above/beside it would
+  // duplicate the exact same links the README already gives real explanation around. Only a node
+  // with NO README at all (e.g. .claude/commands, whose *.md files carry no infra-doc-standards
+  // header either) falls back to the chip-row, so its files are still visible/clickable somewhere.
+  if (!skipHeading && (n.description || (!n.readme && chipFiles.length))) {
     html += `<section class="block"><h3>${esc(n.id)}</h3>`;
     if (n.description) html += `<div class="screen-desc">${esc(n.description)}</div>`;
-    if (chipFiles.length) {
+    if (!n.readme && chipFiles.length) {
       html += `<div class="table-chip-row">` + chipFiles.map(f => sourceLink(`${n.id}/${f}`)).join(" ") + `</div>`;
     }
     html += `</section>`;
+  } else if (skipHeading && !n.readme && chipFiles.length) {
+    html += `<div class="table-chip-row">` + chipFiles.map(f => sourceLink(`${n.id}/${f}`)).join(" ") + `</div>`;
   }
   // Last Dagu-backed CI run's per-step status/duration (scripts/ci only) -- opt-in
   // (--with-ci-metrics), passively read from whatever scripts/ci/reports/pipeline-metrics.json
   // already contains; no live query against Dagu itself, same reasoning as Sonar/ArchUnit above.
-  if (n.id === "scripts/ci") {
+  // Renders nothing at all (not even the heading) until real data exists -- an empty placeholder
+  // box is dead-weight noise on a screen someone is browsing for real content.
+  if (n.id === "scripts/ci" && MODEL.ciPipelineMetrics) {
     const ci = MODEL.ciPipelineMetrics;
-    html += `<section class="block"><h3>Last CI run</h3>`;
-    if (!ci) {
-      html += `<div class="empty-hint">No data -- regenerate with <code>--with-ci-metrics</code> (requires <code>bash scripts/ci.sh</code> to have completed at least once).</div>`;
-    } else {
-      html += `<div class="empty-hint">Source: Dagu run <code>${esc(ci.dagRunId || "unknown")}</code>, finished ${esc(ci.generatedAt || "unknown")}.</div>
+    html += `<section class="block"><h3>Last CI run</h3>
+      <div class="empty-hint">Source: Dagu run <code>${esc(ci.dagRunId || "unknown")}</code>, finished ${esc(ci.generatedAt || "unknown")}.</div>
         <table class="simple"><thead><tr><th>Step</th><th>Status</th><th>Duration</th></tr></thead><tbody>` +
         (ci.steps || []).map(s => `<tr><td>${esc(s.name || "?")}</td><td>${esc(s.status || "?")}</td><td>${s.durationSeconds != null ? esc(s.durationSeconds.toFixed(0) + "s") : "-"}</td></tr>`).join("") +
-        `</tbody></table>`;
-    }
-    html += `</section>`;
+        `</tbody></table></section>`;
   }
   // Each file's own structured Description/Usage/Uses/Env/Input/Outputs/Returns header (see
   // .claude/skills/infra-doc-standards/SKILL.md) -- read live from the file itself, self-contained
@@ -2531,20 +2973,18 @@ function renderScriptGroupSection(n) {
   // The dir's own README.md (if any) -- the flow *between* files, not each file's own behavior
   // again (that's n.headers above) -- rendered as its own block right after.
   if (n.readme) {
-    html += `<section class="block">${mdBlockToHtml(n.readme)}<div class="empty-hint">Source: ${sourceLink(`${n.id}/README.md`)}</div></section>`;
+    html += `<section class="block">${mdBlockToHtml(n.readme, n.id)}<div class="empty-hint">Source: ${sourceLink(`${n.id}/README.md`)}</div></section>`;
   }
   return html;
 }
 
 // Same list-then-drill-in shape as renderDiagrams() (no view.groupId -> card grid of tools;
-// view.groupId set -> that one tool's content only). Docker and Runtime stay plain inline
-// sections on the list view, not cards -- they're single, already-scoped sources, not a
-// multi-directory bucket that needed splitting the way the 6 script groups did.
+// view.groupId set -> that one tool's content only).
 function renderPipelines() {
   if (!view.groupId) {
     let html = backButtonHtml();
     html += `<h2 class="screen-title">Tooling &amp; Pipelines</h2>
-      <div class="screen-desc">Slash commands, skills, and scripts available in this repo — sourced from .claude/commands, .claude/skills, and scripts/**, cross-checked against docs/ai/flows.md. Click a card to see its content.</div>`;
+      <div class="screen-desc">Slash commands, skills, custom subagents, and scripts available in this repo — sourced from .claude/commands, .claude/skills, .claude/agents, and scripts/**, cross-checked against .claude/nav/flows.md. Click a card to see its content.</div>`;
 
     html += `<div class="card-grid">`;
     PIPELINE_GROUP_ORDER.forEach(id => {
@@ -2556,43 +2996,60 @@ function renderPipelines() {
     });
     html += `</div>`;
 
-    html += `<h3 class="group-heading">Docker</h3>`;
-    html += renderDockerSection();
-
-    html += `<h3 class="group-heading">Runtime</h3>`;
-    html += renderRuntimeSection();
+    // Root INFRASTRUCTURE.md, rendered inline at the bottom of this same page -- not its own
+    // card/drill-down, the same way README.md renders inline at the bottom of the System page.
+    html += `<section class="block">${mdBlockToHtml(MODEL.rootInfrastructure || "", "")}<div class="empty-hint">Source: ${sourceLink("INFRASTRUCTURE.md")}</div></section>`;
 
     document.getElementById("content").innerHTML = html;
+    mermaid.run({ querySelector: ".mermaid" });
     return;
   }
 
   const g = PIPELINE_GROUPS[view.groupId];
   if (!g) { navigate({ screen: "pipelines" }); return; }
 
+  // ai-tooling and scripts-tree are both tree-shaped (TREE_ROOTS), sharing one drill-down
+  // renderer -- see renderScriptTree()'s own header comment for why groupId is passed through.
+  if (view.groupId === "scripts-tree" || view.groupId === "ai-tooling") { renderScriptTree(g, view.groupId); return; }
+
   let html = backButtonHtml();
   html += `<h2 class="screen-title">${g.icon} ${esc(g.label)}</h2>`;
 
-  if (view.groupId === "ai-tooling") {
-    html += `<section class="block"><h3>Commands (${commandNodes.length})</h3><table class="simple"><thead><tr><th>Command</th><th>Description</th><th>Source</th></tr></thead><tbody>`;
-    commandNodes.forEach(n => {
-      html += `<tr><td>/${esc(displayName(n.id))}</td><td>${esc(n.description)}</td><td>${sourceLink(n.evidence[0].file)}</td></tr>`;
-    });
-    html += `</tbody></table></section>`;
+  // build-architecture-page has two real subdirectories worth their own folder-card (scripts/,
+  // data/) -- reuses view.path, the exact same mechanism renderScriptTree() already drives
+  // navigateBack()/renderBreadcrumb() with (both already groupId-agnostic), instead of inventing a
+  // second, parallel "current subview" field that those two functions wouldn't know about. The
+  // only PIPELINE_GROUPS entry reaching this point -- ai-tooling/scripts-tree both return early
+  // via the tree dispatch above, so no further groupId branch is needed here.
+  if (!view.path || !view.path.length) {
+    html += `<div class="card-grid">
+      <div class="card" onclick='navigate({screen:"pipelines",groupId:"build-architecture-page",path:["scripts"]})'>
+        <div class="card-title">📁 scripts</div>
+      </div>
+      <div class="card" onclick='navigate({screen:"pipelines",groupId:"build-architecture-page",path:["data"]})'>
+        <div class="card-title">📁 data</div>
+      </div>
+    </div>`;
+    // docs/architecture's own entry-point files (architecture-doc.sh/.bat) + its own README --
+    // a real SCRIPT_GROUP node (readme_json_for() already picks up its README.md the same way
+    // it does for every other SCRIPT_GROUP dir), not a separate one-off MODEL field -- one fact,
+    // one mechanism, same as scripts/data above. Cards always come first on this page.
+    const archNode = scriptGroupNodes.find(x => x.id === "docs/architecture");
+    if (archNode) html += renderScriptGroupSection(archNode, true);
 
-    html += `<section class="block"><h3>Skills (${skillNodes.length})</h3><table class="simple"><thead><tr><th>Skill</th><th>Description</th><th>Source</th></tr></thead><tbody>`;
-    skillNodes.forEach(n => {
-      html += `<tr><td>${esc(displayName(n.id))}</td><td>${esc(n.description)}</td><td>${sourceLink(n.evidence[0].file)}</td></tr>`;
-    });
-    html += `</tbody></table></section>`;
-  }
-
-  scriptGroupNodes.filter(n => n.category === g.category).forEach(n => { html += renderScriptGroupSection(n); });
-
-  // A fact about this page's own rendering tech stack -- not per-file, so it doesn't belong in any
-  // single file's own header (renderScriptGroupSection() above already shows every file's real
-  // Description/Usage/Uses/Input/Output, mechanically, no second copy of that table here).
-  if (view.groupId === "build-architecture-page") {
+    // A fact about this page's own rendering tech stack -- not per-file, so it doesn't belong in
+    // any single file's own header (renderScriptGroupSection() already shows every file's real
+    // Description/Usage/Uses/Input/Output, mechanically, no second copy of that table here).
     html += `<div class="empty-hint"><strong>Rendering:</strong> Cytoscape.js + cytoscape-dagre for the draggable graphs (Module Dependencies, SPI Map); Mermaid.js for the Database ERD and Sequence Diagrams.</div>`;
+  } else {
+    const targetId = view.path[0] === "scripts" ? "docs/architecture/scripts" : "docs/architecture/data";
+    const n = scriptGroupNodes.find(x => x.id === targetId);
+    // skipHeading=true -- same reasoning as renderScriptTree()'s own leaf-level call: the
+    // breadcrumb/page title/folder-card just clicked already say the id, and a dir with no
+    // parsed file headers (docs/architecture/data) would otherwise show an empty heading+chip-row
+    // directly above a README that already fully describes the same files -- two places for one
+    // fact, exactly what "one fact, one canonical home" exists to prevent.
+    if (n) html += renderScriptGroupSection(n, true);
   }
 
   document.getElementById("content").innerHTML = html;
@@ -2602,13 +3059,93 @@ function renderPipelines() {
   mermaid.run({ querySelector: ".mermaid" });
 }
 
-// ── Runtime group (Tooling & Pipelines): hand-authored operational-topology prose from
-// docs/architecture/runtime-notes.md, rendered through the same mdBlockToHtml() ADR bodies use --
-// no new parser, the file is written in the same "**Label:**" bold-paragraph/bullet-list style.
-function renderRuntimeSection() {
-  if (!MODEL.runtimeNotes) return `<div class="empty-hint">No <code class="path">docs/architecture/runtime-notes.md</code> yet.</div>`;
-  return `<section class="block">${mdBlockToHtml(MODEL.runtimeNotes)}</section>
-    <div class="empty-hint">Source: ${sourceLink("docs/architecture/runtime-notes.md")}</div>`;
+// Walks MODEL's top-level SCRIPT_GROUP nodes down through view.path, for the tree belonging to
+// "roots" (TREE_ROOTS[groupId] -- e.g. ["scripts","playwright"] or [".claude"]). The primary root
+// (roots[0]) is implicit -- never a path segment of its own, so that card's root view has no
+// redundant click-through -- so path[0] resolves against any further root id first (e.g.
+// "playwright") and falls back to treating path[0] as the primary root's own child basename
+// otherwise; each further segment is the next child directory's own basename (e.g.
+// ["ci","dagu"] resolves to scripts/ci/dagu). Returns null if the path doesn't resolve (e.g. a
+// stale bookmark after a rename).
+function scriptTreeNodeAt(pathSegs, roots) {
+  if (!pathSegs.length) return null;
+  let node = scriptGroupNodes.find(n => n.id === pathSegs[0]);
+  if (!node) {
+    const primaryRoot = scriptGroupNodes.find(n => n.id === roots[0]);
+    node = primaryRoot ? (primaryRoot.children || []).find(c => c.id.split("/").pop() === pathSegs[0]) : null;
+  }
+  for (let i = 1; node && i < pathSegs.length; i++) {
+    node = (node.children || []).find(c => c.id.split("/").pop() === pathSegs[i]);
+  }
+  return node || null;
+}
+
+// A tree-shaped pipeline card's own arbitrary-depth drill-down -- folder-cards (one per
+// node.children, clickable to extend view.path one segment deeper) rendered first, then the flat
+// file list for the current level via the existing renderScriptGroupSection() (reused as-is, same
+// shape as any flat SCRIPT_GROUP dir). No view.path (or an empty one) shows the primary root's own
+// children/files directly (no intermediate click-through card), with any further TREE_ROOTS
+// entries (only scripts-tree has one: "playwright") inserted as sibling folder-cards at that same
+// level. Navigation back up is the page-level breadcrumb (crumbStack, which records entry into
+// this card as one hop) plus the "Back" button already rendered above -- no separate in-card
+// breadcrumb of its own. groupId picks which TREE_ROOTS entry drives this render and which
+// navigate() calls the folder-cards below use, so scripts-tree and ai-tooling share this one
+// function instead of two near-duplicate copies.
+function renderScriptTree(g, groupId) {
+  const roots = TREE_ROOTS[groupId];
+  const path = view.path || [];
+  let html = backButtonHtml();
+  // Depth suffix (matches the breadcrumb's own " › " join) so the title itself shows current
+  // depth at a glance, not just the breadcrumb above it.
+  const titleSuffix = path.length ? ` — ${path.join(" › ")}` : "";
+  html += `<h2 class="screen-title">${g.icon} ${esc(g.label)}${esc(titleSuffix)}</h2>`;
+  // Root-only -- the whole-tree description doesn't apply any more specifically once drilled into
+  // a subfolder, and repeating identical text at every depth is exactly the kind of duplication
+  // "One fact, one canonical home" already governs elsewhere on this page.
+  if (!path.length) html += `<div class="screen-desc">${esc(g.desc)}</div>`;
+
+  let node = null;
+  let children;
+  if (!path.length) {
+    // Root view: no separate primary-root click-through -- show the primary root's own children
+    // and files directly, with any further TREE_ROOTS entries inserted as sibling folder-cards
+    // (even though structurally separate top-level nodes, not literally the primary root's own
+    // children).
+    node = scriptGroupNodes.find(n => n.id === roots[0]);
+    const primaryChildren = node ? (node.children || []).map(c => ({ label: c.id.split("/").pop(), path: [c.id.split("/").pop()] })) : [];
+    const siblingCards = roots.slice(1)
+      .filter(r => scriptGroupNodes.find(n => n.id === r))
+      .map(r => ({ label: r, path: [r] }));
+    children = primaryChildren.concat(siblingCards);
+  } else {
+    node = scriptTreeNodeAt(path, roots);
+    if (!node) { navigate({ screen: "pipelines", groupId, path: [] }); return; }
+    children = (node.children || []).map(c => ({ label: c.id.split("/").pop(), path: path.concat([c.id.split("/").pop()]) }));
+  }
+
+  // Folder-cards first: every child directory of the current level, clickable to extend the path
+  // one segment deeper. Cards are folders only -- a file never navigates, it only ever renders as
+  // a plain row inside renderScriptGroupSection() below.
+  if (children.length) {
+    html += `<div class="card-grid">`;
+    children.forEach(c => {
+      const p = JSON.stringify(c.path);
+      html += `<div class="card" onclick='navigate({screen:"pipelines",groupId:"${groupId}",path:${p}})'>
+        <div class="card-title">📁 ${esc(c.label)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Flat file list for the current level, below the folder-cards -- same renderer every flat
+  // SCRIPT_GROUP dir already uses, so file headers/README/chip-list all just work unchanged, minus
+  // the redundant heading+description+chip-row block (skipHeading=true -- see
+  // renderScriptGroupSection()'s own comment for why). No node at the root (path-less) view -- the
+  // folder-cards above are the whole list there.
+  if (node) html += renderScriptGroupSection(node, true);
+
+  document.getElementById("content").innerHTML = html;
+  mermaid.run({ querySelector: ".mermaid" });
 }
 
 // ── Backlog screen ───────────────────────────────────────────────────────────────────────────
@@ -2739,6 +3276,7 @@ function parseMermaidGraph(source) {
 }
 
 let diagramCy = null;
+let diagramCy2 = null; // Module Dependencies' second, own diagram (Integration Tests) -- see renderModuleDependencyGraph()
 
 // Shared by every compound-node (group/parent) Cytoscape render -- Module Dependencies has its
 // own simpler flat renderer (renderModuleDependencyGraph()); this one is for graphs with subgroups
@@ -2796,6 +3334,20 @@ function renderCytoscapeFromGraph(nodes, edges, rankDir) {
   // open, so nothing happens on click there, same as before.
   diagramCy.on("tap", "node[file]", e => window.open("../../" + e.target.data("file"), "_blank"));
   diagramCy.nodes("[file]").style("cursor", "pointer");
+  // SPI Map's "calls"/"implemented by" edges have a matching table row below (spiRowId()) --
+  // jump to it on click. Any other diagram's edges (Module Dependencies, Bounded Contexts) just
+  // find no matching id and no-op, so this is safe to wire in generically here.
+  diagramCy.on("tap", "edge", e => {
+    const d = e.target.data();
+    const rowId = d.label === "calls" ? spiRowId("call", d.target, d.source.replace(/^call_/, ""))
+      : d.label === "implemented by" ? spiRowId("impl", d.source, d.target) : null;
+    const row = rowId && document.getElementById(rowId);
+    if (!row) return;
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    row.classList.remove("row-flash");
+    void row.offsetWidth;
+    row.classList.add("row-flash");
+  });
 }
 
 function renderCytoscapeDiagram(source, rankDir) {
@@ -2829,28 +3381,81 @@ function renderSpiMapGraph(subsystem) {
 
 // Real link, readable class name as the visible text -- same "open the actual source, short
 // label" pattern exportModuleMarkdown() already uses for ADRs, not a raw path dump.
-function spiFileLink(file, label) {
+function fileLink(file, label) {
   return `<a href="../../${esc(file)}" target="_blank">${esc(label)}</a>`;
 }
 
-// One table per subsystem (package prefix shown once per heading, same as the retired .md did) --
-// not one flat table -- plus each subsystem's own editorial note (SPI_SUBSYSTEM_NOTE) when present.
-// With the SPI Map diagram now split per subsystem, a specific subsystem restricts this to just
-// its own table, matching whichever diagram tab is on screen; omitted only by the (now unused)
-// caller with no subsystem context.
-// Plain-English meaning of each "Direction" (kind) value -- same tooltip treatment Bounded
-// Contexts' Label column already got, since "Port (marketplace -> starter)"/"Hook (starter ->
-// marketplace)" name the *direction* but not *why* a reader should care which one a given
-// interface is. Matched by prefix since spi_kind_for() appends the concrete module pair
-// (e.g. "Hook (marketplace-orchestrator -> marketplace-app)" for UiLabelHook/SessionActorHook).
-const SPI_KIND_MEANING = {
-  "Port": "Forward direction: marketplace/orchestrator calls a method the starter implements -- a normal, top-down API call.",
-  "Hook": "Reverse direction: the caller (a starter, or marketplace-orchestrator for the two forwarder Hooks) calls back into a layer above it for something only that layer can provide -- domain data, translations, session state.",
-  "type contract": "A plain shared type, not a call-direction interface -- e.g. a marker/principal type multiple modules reference but nothing \"calls\" through."
-};
-function spiKindMeaning(kind) {
-  const key = Object.keys(SPI_KIND_MEANING).find(k => kind.startsWith(k));
-  return key ? SPI_KIND_MEANING[key] : "";
+// One pair of tables per subsystem (package prefix shown once per heading, same as the retired
+// .md did) -- plus each subsystem's own editorial note (SPI_SUBSYSTEM_NOTE) when present. With
+// the SPI Map diagram now split per subsystem, a specific subsystem restricts this to just its
+// own tables, matching whichever diagram tab is on screen; omitted only by the (now unused)
+// caller with no subsystem context. Split into two tables (Calls / Implemented By), one row per
+// real edge rather than one row per interface with all edges stacked in a cell -- each row's
+// `id` matches the diagram edge it represents, so clicking that edge (renderCytoscapeFromGraph's
+// edge-tap handler) can scroll straight to it (improvement-157).
+function spiRowId(kind, interfaceName, className) {
+  return `spi-${kind}-${esc(interfaceName)}__${esc(className)}`;
+}
+
+// Same "real link, not plain text" treatment Code Quality's module column already uses --
+// reused here since these tables repeat the same Interface/Purpose text once per caller/
+// implementation otherwise (grouped away below via rowspan instead).
+function moduleLink(moduleId) {
+  return `<a class="module-link" onclick="navigate({screen:'module', id:'${esc(moduleId)}'})">${esc(moduleId)}</a>`;
+}
+
+// "(N/M methods used)" plus the full method list, unused ones dimmed and marked -- a real
+// dead-code-in-the-contract signal, not just a count. N = distinct interface methods actually
+// called by any real caller (ArchitectureMetricsExport.java's spiEdges), M = total methods
+// declared on the interface. Everything null when no ArchUnit data was available for this
+// interface (old regex fallback path) -- rendered as nothing rather than a misleading "0/0".
+function spiMethodCountLine(d) {
+  if (d.methodCount == null || d.usedCount == null) return "";
+  const list = (d.allMethods || []).map(m => m.used
+    ? `<div>${esc(m.name)}</div>`
+    : `<div class="spi-method-unused">${esc(m.name)} (unused)</div>`
+  ).join("");
+  return `<div class="spi-methodcount">(${d.usedCount}/${d.methodCount} methods used)</div><div class="spi-method-list">${list}</div>`;
+}
+
+// Real (callerMethod, interfaceMethod) call-site pairs, one per line -- undefined/empty for the
+// old regex fallback path (no method-level data at all) or a caller found via DI wiring only with
+// no actual method call (doesn't happen with real ArchUnit data, but stays defensive).
+function renderSpiCalls(calls) {
+  if (!calls || !calls.length) return "";
+  return `<div class="spi-calls">${calls.map(c => `<code>${esc(c.from)}() &rarr; #${esc(c.to)}()</code>`).join("<br>")}</div>`;
+}
+
+function renderSpiCallsRows(rows) {
+  return rows.map(d => {
+    const span = d.callers && d.callers.length ? d.callers.length : 1;
+    const ifaceCell = `<td rowspan="${span}">${fileLink(d.file, d.interface)}${spiMethodCountLine(d)}</td>`;
+    const purposeCell = `<td rowspan="${span}">${esc(d.purpose)}</td>`;
+    if (!d.callers || !d.callers.length) {
+      return `<tr><td><span class="empty-hint">no caller found</span></td>${ifaceCell}${purposeCell}</tr>`;
+    }
+    return d.callers.map((c, i) => {
+      const callerCell = `<td>${fileLink(c.file, c.class)} (${moduleLink(c.module)})${renderSpiCalls(c.calls)}</td>`;
+      const row = i === 0 ? `${callerCell}${ifaceCell}${purposeCell}` : callerCell;
+      return `<tr id="${spiRowId("call", d.interface, c.class)}">${row}</tr>`;
+    }).join("");
+  }).join("");
+}
+
+function renderSpiImplementedByRows(rows) {
+  return rows.map(d => {
+    const span = d.implementations.length || 1;
+    const ifaceCell = `<td rowspan="${span}">${fileLink(d.file, d.interface)}${spiMethodCountLine(d)}</td>`;
+    const purposeCell = `<td rowspan="${span}">${esc(d.purpose)}</td>`;
+    if (!d.implementations.length) {
+      return `<tr>${ifaceCell}<td><span class="empty-hint">no implementation found</span></td>${purposeCell}</tr>`;
+    }
+    return d.implementations.map((impl, i) => {
+      const implCell = `<td>${fileLink(impl.file, impl.class)} (${moduleLink(impl.module)})</td>`;
+      const row = i === 0 ? `${ifaceCell}${implCell}${purposeCell}` : implCell;
+      return `<tr id="${spiRowId("impl", d.interface, impl.class)}">${row}</tr>`;
+    }).join("");
+  }).join("");
 }
 
 function renderSpiSubsystemTables(subsystem) {
@@ -2859,35 +3464,35 @@ function renderSpiSubsystemTables(subsystem) {
     const rows = MODEL.spiMap.details.filter(d => d.subsystem === s);
     if (!rows.length) return "";
     const note = MODEL.spiMap.subsystemNotes[s];
-    const trs = rows.map(d => {
-      const callers = d.callers && d.callers.length
-        ? d.callers.map(i => `${spiFileLink(i.file, i.class)} <span class="scope-label">${esc(i.module)}</span>`).join("<br>")
-        : `<span class="empty-hint">no caller found</span>`;
-      const impls = d.implementations.length
-        ? d.implementations.map(i => `${spiFileLink(i.file, i.class)} <span class="scope-label">${esc(i.module)}</span>`).join("<br>")
-        : `<span class="empty-hint">no implementation found</span>`;
-      return `<tr><td>${callers}</td><td>${spiFileLink(d.file, d.interface)}</td><td class="scope-label" title="${esc(spiKindMeaning(d.kind))}" style="cursor:help">${esc(d.kind)}</td><td>${impls}</td><td>${esc(d.purpose)}</td></tr>`;
-    }).join("");
+    const callCount = rows.reduce((n, d) => n + (d.callers ? d.callers.length : 0), 0);
+    const implCount = rows.reduce((n, d) => n + d.implementations.length, 0);
     return `
       <div class="domain-group">
         <h3>${esc(MODEL.spiMap.subsystemLabels[s])} <code class="path">${esc(rows[0].package)}</code></h3>
-        <table class="simple"><thead><tr>
-          <th title="Real caller classes -- who actually injects/calls this interface, from ComponentFactory&lt;X&gt;/List&lt;X&gt;/field grep, not who's allowed to" style="cursor:help">Caller(s)</th>
+        <h4>Calls (${callCount})</h4>
+        <table class="simple rowspan-table"><thead><tr>
+          <th title="Real caller class -- who actually calls the interface's method, from bytecode analysis, not who's merely allowed to" style="cursor:help">Caller</th>
           <th>Interface</th>
-          <th title="Which way the call goes -- hover a row's value for what it means" style="cursor:help">Direction</th>
-          <th title="Real classes that implement this interface" style="cursor:help">Implementation(s)</th>
           <th>Purpose</th>
-        </tr></thead><tbody>${trs}</tbody></table>
+        </tr></thead><tbody>${renderSpiCallsRows(rows)}</tbody></table>
+        <h4>Implemented By (${implCount})</h4>
+        <table class="simple rowspan-table"><thead><tr>
+          <th>Interface</th>
+          <th title="Real class that implements this interface" style="cursor:help">Implementation</th>
+          <th>Purpose</th>
+        </tr></thead><tbody>${renderSpiImplementedByRows(rows)}</tbody></table>
         ${note ? `<div class="empty-hint" style="margin-top:8px">${mdInlineToHtml(note)}</div>` : ""}
       </div>`;
   }).join("");
 }
 
 function renderSpiMapExtrasHtml(subsystem) {
-  const detailCount = subsystem ? MODEL.spiMap.details.filter(d => d.subsystem === subsystem).length : MODEL.spiMap.details.length;
+  const rows = MODEL.spiMap.details.filter(d => !subsystem || d.subsystem === subsystem);
+  const callCount = rows.reduce((n, d) => n + (d.callers ? d.callers.length : 0), 0);
+  const implCount = rows.reduce((n, d) => n + d.implementations.length, 0);
   return `
     <section class="block"><h3>Legend</h3>
-      <div class="empty-hint">Click a node to open its real <code class="path">.java</code> file. Drag a node to reposition it, drag empty canvas space to pan.</div>
+      <div class="empty-hint">Click a node to open its real <code class="path">.java</code> file. Click an edge to jump to its row below. Drag a node to reposition it, drag empty canvas space to pan.</div>
       <table class="simple"><tbody>
         <tr><td class="scope-label" style="width:150px">Dashed gray box</td><td>A module boundary (<code class="path">platform-commons</code>, a starter, <code class="path">marketplace-app</code>, or <code class="path">marketplace-orchestrator</code>)</td></tr>
         <tr><td class="scope-label">Blue rounded box</td><td>A Java interface, an implementation class, or a real caller class</td></tr>
@@ -2895,7 +3500,7 @@ function renderSpiMapExtrasHtml(subsystem) {
         <tr><td class="scope-label">──implemented by──▶</td><td>Arrow points from the interface to its implementation class</td></tr>
       </tbody></table>
     </section>
-    <section class="block"><h3>SPI Interface Details (${detailCount})</h3>${renderSpiSubsystemTables(subsystem)}</section>`;
+    <section class="block"><h3>SPI Interface Details (${callCount} calls, ${implCount} implementations)</h3>${renderSpiSubsystemTables(subsystem)}</section>`;
 }
 
 // Parses one "**Heading:** location sentence. Example: example sentence." paragraph from the
@@ -3185,10 +3790,10 @@ function bcRelRowId(from, to, label) {
 }
 
 // Readable name as the link text, real file underneath -- same "short label, real link" pattern
-// spiFileLink() already uses for SPI Map. Items with no file (Shared's plain count summaries)
+// fileLink() already uses for SPI Map. Items with no file (Shared's plain count summaries)
 // render as plain text, not a broken link.
 function bcItemLink(item) {
-  return item.file ? `<a href="../../${esc(item.file)}" target="_blank">${esc(item.name)}</a>` : esc(item.name);
+  return item.file ? `<a class="module-link" href="../../${esc(item.file)}" target="_blank">${esc(item.name)}</a>` : esc(item.name);
 }
 
 // Plain-English meaning of each relationship label -- shown as a tooltip on the Label cell, since
@@ -3239,14 +3844,28 @@ function renderBoundedContextsExtrasHtml(activeCategory) {
       category("Entities", d.entities), category("Services", d.services),
       category("Tables", d.tables), category("Ports", d.ports)
     ].filter(Boolean).join("");
-    return `<div class="adr-item"><strong>${esc(d.label)}</strong> <span class="scope-label">${esc(d.module)}</span>
+    return `<div class="adr-item"><strong>${esc(d.label)}</strong> <span class="scope-label">${moduleLink(d.module)}</span>
       ${body || `<div class="empty-hint">(no directly-owned entities/services/tables)</div>`}
     </div>`;
   }).join("");
-  const relRows = relationships.map(r => {
-    const rowId = bcRelRowId(r.from, r.to, r.label);
-    const meaning = BC_LABEL_MEANING[r.label] || "";
-    return `<tr id="${rowId}"><td>${esc(r.from)} → ${esc(r.to)}</td><td title="${esc(meaning)}" style="cursor:help">${esc(r.label)}</td><td>${esc(r.payload)}</td><td>${linkifyEvidence(r.evidence)}</td></tr>`;
+  // Grouped by label, one table per label -- same shape as SPI Map's Interface-grouped split
+  // (improvement-157). Most labels have exactly one meaning for this whole category's tab, so a
+  // repeated Label column added nothing; the heading carries the label + its hover-meaning instead.
+  const byLabel = new Map();
+  relationships.forEach(r => {
+    if (!byLabel.has(r.label)) byLabel.set(r.label, []);
+    byLabel.get(r.label).push(r);
+  });
+  const relTables = [...byLabel.entries()].map(([label, rows]) => {
+    const meaning = BC_LABEL_MEANING[label] || "";
+    const spans = consecutiveRowspan(rows, r => r.payload);
+    const body = rows.map((r, idx) => {
+      const rowId = bcRelRowId(r.from, r.to, r.label);
+      const payloadCell = spans[idx] > 0 ? `<td rowspan="${spans[idx]}">${esc(r.payload)}</td>` : "";
+      return `<tr id="${rowId}"><td>${esc(r.from)} → ${esc(r.to)}</td>${payloadCell}<td>${linkifyEvidence(r.evidence)}</td></tr>`;
+    }).join("");
+    return `<h4 title="${esc(meaning)}" style="cursor:help">${esc(label)} (${rows.length})</h4>
+      <table class="simple rowspan-table"><thead><tr><th>Relationship</th><th>What crosses (payload type)</th><th>Evidence</th></tr></thead><tbody>${body}</tbody></table>`;
   }).join("");
   return `
     <section class="block"><h3>Overview</h3>
@@ -3261,8 +3880,8 @@ function renderBoundedContextsExtrasHtml(activeCategory) {
     </section>
     <section class="block"><h3>Domain Contents (${domains.length})</h3>${domainRows}</section>
     <section class="block"><h3>Relationships (${relationships.length}) — all "extracted" (real code signal, not hand-typed)</h3>
-      <div class="empty-hint">Hover a Label cell for what it means. Evidence links open the real file where the relationship was found.</div>
-      <table class="simple"><thead><tr><th>Relationship</th><th>Label</th><th>What crosses (payload type)</th><th>Evidence</th></tr></thead><tbody>${relRows}</tbody></table>
+      <div class="empty-hint">Hover a heading for what that label means. Evidence links open the real file where the relationship was found.</div>
+      ${relTables}
     </section>`;
 }
 
@@ -3460,6 +4079,7 @@ function renderDiagrams() {
   const d = g.diagrams[view.diagramIndex];
   zoomLevel = 1;
   diagramCy = null;
+  diagramCy2 = null;
   // Page-level nav (back/export) — belongs to "which screen am I on," sits above the title (same
   // placement as the Module screen's own back/export row). Zoom controls belong to the diagram
   // itself, not the page, so they render separately, right above the diagram box (see
@@ -3482,9 +4102,20 @@ function renderDiagrams() {
     </div>`;
 
   if (g.key === "01-module-dependencies") {
-    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered from the same module data the whole model is built from (domain-colored, click a node to open its module page) — drag a node to reposition it, drag empty canvas space to pan the view.</div>
+    const zoomControlsHtml2 = `<div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+      <span class="zoom-controls">
+        <button onclick="zoomDiagram2(-0.15)">−</button>
+        <span id="zoom-label-2">100%</span>
+        <button onclick="zoomDiagram2(0.15)">+</button>
+        <button onclick="zoomDiagram2(0)">reset</button>
+      </span>
+    </div>`;
+    html += `<div class="diagram-note">${esc(g.label)} — Production Modules. Rendered from the same module data the whole model is built from (domain-colored, click a node to open its module page) — drag a node to reposition it, drag empty canvas space to pan the view. Excludes <code class="path">integration-tests</code> (test-only, never shipped) -- see the second diagram below.</div>
       ${zoomControlsHtml}
-      <div class="diagram-wrap" id="diagram-cy-wrap" style="padding:0"><div id="diagram-cy" style="width:100%;height:70vh"></div></div>
+      <div class="diagram-wrap" id="diagram-cy-wrap" style="padding:0"><div id="diagram-cy" style="width:100%;height:45vh"></div></div>
+      <div class="diagram-note" style="margin-top:16px">${esc(g.label)} — Integration Tests. <code class="path">integration-tests</code> (Testcontainers repository tests, never shipped) and every starter it depends on to test them.</div>
+      ${zoomControlsHtml2}
+      <div class="diagram-wrap" id="diagram-cy-2-wrap" style="padding:0"><div id="diagram-cy-2" style="width:100%;height:45vh"></div></div>
       ${renderModuleDependencyExtrasHtml()}`;
     document.getElementById("content").innerHTML = html;
     renderModuleDependencyGraph();
@@ -3539,7 +4170,7 @@ function render() {
 }
 
 // ── ADRs screen: flat, deduplicated list of every ADR across every module's DECISIONS.md, read
-// live from docs/ai/adr-index.md (MODEL.allAdrs) -- no separate hand-maintained summary.
+// live from .claude/nav/adr-index.md (MODEL.allAdrs) -- no separate hand-maintained summary.
 let adrStatusFilter = "All";
 function setAdrStatusFilter(f) { adrStatusFilter = f; renderAdrs(); }
 
@@ -3556,7 +4187,7 @@ function renderAdrs() {
 
   let html = backButtonHtml();
   html += `<h2 class="screen-title">ADRs</h2>
-    <div class="screen-desc">${adrs.length} architectural decisions across every module's own DECISIONS.md — see ${sourceLink("docs/ai/adr-index.md")} for the generated index this screen reads, and the Overview section at the bottom of this screen for what an ADR is and how it's used. Clicking an ADR opens its full text inline only when the model was generated with <code>--with-adr-details</code> (opt-in, off by default); otherwise it opens the real DECISIONS.md file directly.</div>`;
+    <div class="screen-desc">${adrs.length} architectural decisions across every module's own DECISIONS.md — see ${sourceLink(".claude/nav/adr-index.md")} for the generated index this screen reads, and the Overview section at the bottom of this screen for what an ADR is and how it's used. Clicking an ADR opens its full text inline only when the model was generated with <code>--with-adr-details</code> (opt-in, off by default); otherwise it opens the real DECISIONS.md file directly.</div>`;
   html += `<div class="card-grid">
     <div class="card ${adrStatusFilter === "All" ? "card-active" : ""}" onclick="setAdrStatusFilter('All')"><div class="card-title">${adrs.length}</div><div class="card-desc">All</div></div>`;
   html += Object.entries(counts).map(([status, count]) =>
@@ -3595,7 +4226,7 @@ function renderAdrs() {
 
 // Always opens the popup -- title/status come from MODEL.allAdrs (always populated, passed in
 // directly from the calling row so there's no second lookup) -- the body is the full embedded
-// text only if that module's full ADR content was embedded (see docs/ai/adr-index.md and
+// text only if that module's full ADR content was embedded (see .claude/nav/adr-index.md and
 // FULL_DECISIONS_MODULES above, gated behind --with-adr-details); otherwise a real link to the
 // source file plus a generic pointer to where that flag is documented, not a copy of the exact
 // command here (kept deliberately decoupled from one script's exact CLI shape). Takes the ADR id +
@@ -3608,7 +4239,7 @@ function openAdrPopupForAdr(id, module, title, status) {
   document.getElementById("adr-popup-title").textContent = `${id} — ${title}`;
   document.getElementById("adr-popup-status").textContent = status;
   if (found) {
-    document.getElementById("adr-popup-body").innerHTML = mdBlockToHtml(found.body);
+    document.getElementById("adr-popup-body").innerHTML = mdBlockToHtml(found.body, module);
   } else {
     document.getElementById("adr-popup-body").innerHTML =
       `<div class="empty-hint">Full text not included in this build. Read it directly: ${sourceLink(module + "/DECISIONS.md")}</div>
@@ -3633,7 +4264,7 @@ const GLOSSARY = [
     &lt;title&gt;</code>. Once written, an ADR is never edited to remove content or deleted — if a
     later decision reverses or replaces it, the old ADR gets <code>Status: Superseded</code> (or an
     amendment note) pointing at the new one, and a new ADR is added instead.
-    ${sourceLink("docs/ai/adr-index.md")} is a generated, searchable flat index of every ADR
+    ${sourceLink(".claude/nav/adr-index.md")} is a generated, searchable flat index of every ADR
     (id/module/status/title) — check it before filing a new one, to avoid re-deciding something
     already settled.</p>
     <p><strong>Boundaries — what an ADR is not:</strong> not a running changelog of "what
@@ -3644,30 +4275,6 @@ const GLOSSARY = [
     even if its owning file later moves or is renamed.</p>
   ` }
 ];
-
-// ── Docker group (Tooling & Pipelines): real files + mechanically-extracted facts (build stages /
-// compose service names) only -- the actual deployment workflow explanation stays in
-// scripts/CLAUDE.md's "Deployment" section, linked to below, never restated here.
-function renderDockerSection() {
-  let html = `<div class="screen-desc">What builds/runs in this repo, straight from the real files — see ${sourceLink("scripts/CLAUDE.md")} for the actual deploy workflow (deploy.sh flags, plain vs --reload, when to use which).</div>`;
-
-  const dockerfiles = MODEL.dockerFiles.filter(f => f.kind === "dockerfile");
-  const composeFiles = MODEL.dockerFiles.filter(f => f.kind === "compose");
-
-  html += `<section class="block"><h3>Dockerfiles (${dockerfiles.length})</h3><table class="simple"><thead><tr><th>File</th><th>Purpose</th><th>Build stages (FROM)</th></tr></thead><tbody>`;
-  dockerfiles.forEach(f => {
-    html += `<tr><td>${sourceLink(f.file)}</td><td>${esc(f.label)}</td><td>${f.items.map(s => `<code class="path">${esc(s)}</code>`).join("<br>")}</td></tr>`;
-  });
-  html += `</tbody></table></section>`;
-
-  html += `<section class="block"><h3>docker-compose stacks (${composeFiles.length})</h3><table class="simple"><thead><tr><th>File</th><th>Purpose</th><th>Services</th></tr></thead><tbody>`;
-  composeFiles.forEach(f => {
-    html += `<tr><td>${sourceLink(f.file)}</td><td>${esc(f.label)}</td><td>${f.items.map(s => `<code class="path">${esc(s)}</code>`).join(" ")}</td></tr>`;
-  });
-  html += `</tbody></table></section>`;
-
-  return html;
-}
 
 render();
 </script>

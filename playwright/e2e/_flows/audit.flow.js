@@ -1,3 +1,17 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Flow helpers for verifying audit/activity behavior -- opening/closing the Settings
+ *   overlay, asserting an entity-activity list's rows match expected action/version/actor/changes,
+ *   verifying the Settings audit trail right after signup, and verifying a given user's own audit
+ *   activity from the Users tab.
+ * Usage: None -- a library only, required by spec files (see Input).
+ * Uses: ../_helpers (screenshot), ./user-management.flow, ./settings.flow, ./entity-activity.flow.
+ * Env: None.
+ * Input: required by 02-marketplace-authentication-flow.spec.js
+ *   (runVerifySettingsAfterSignupFlow, runVerifyUserAuditActivityFlow).
+ * Outputs: exports runOpenSettingsFlow, runCloseSettingsFlow, runVerifyEntityActivityFlow,
+ *   runVerifySettingsAfterSignupFlow, runVerifyUserAuditActivityFlow.
+ * Returns: N/A
+ * ──────────────────────────────────────────────────────────────────────────── */
 const { screenshot } = require('../_helpers');
 const { runOpenUserEditViaListFlow, runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter } = require('./user-management.flow');
 const { openHistory, closeHistory } = require('./settings.flow');
@@ -42,6 +56,16 @@ async function runVerifyEntityActivityFlow(page, expect, scope, { screenshotName
 }
 
 
+/**
+ * Verifies the Settings overlay's default values right after signup, then opens its nested
+ * history overlay and asserts the single "created" activity row reflects those same values.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {object} params
+ * @param {string} params.screenshotName base name for the screenshots taken along the flow.
+ * @param {boolean} [params.privileged=false] whether the actor sees moderator/admin-only settings.
+ * @returns {Promise<void>}
+ */
 async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, privileged = false }) {
   await runOpenSettingsFlow(page);
 
@@ -72,7 +96,17 @@ async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, 
   await runCloseSettingsFlow(page);
 }
 
-// Caller must navigate to Users tab before calling this
+/**
+ * Opens a given user's edit form and its history overlay, verifies the expected activity rows,
+ * then closes the overlay and clears the user filter. Caller must navigate to the Users tab first.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {string} email the target user's email, used to locate them in the Users list.
+ * @param {object} params
+ * @param {string} params.screenshotName base name for the screenshot taken after verification.
+ * @param {Array<object>} params.rows expected activity rows, see runVerifyEntityActivityFlow.
+ * @returns {Promise<void>}
+ */
 async function runVerifyUserAuditActivityFlow(page, expect, email, { screenshotName, rows }) {
   await runOpenUserEditViaListFlow(page, email);
   await openEntityActivity(page, '.user-history-button');

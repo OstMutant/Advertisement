@@ -1,6 +1,6 @@
 ## ⛔ RE-READ ALL RULES BEFORE EVERY ACTION
 Before executing any tool call — re-read this entire file. No exceptions. This explicitly includes
-the start of every `/command` or Skill invocation (`/autopilot`, `/deep-review`, `/feature`, etc.)
+the start of every `/command` or Skill invocation (`/autopilot`, `/code-review`, `/feature`, etc.)
 — re-`Read` this file fresh at that point, not just once at the top of a long session.
 
 Not rules.md alone: re-`Read` the root `/app/CLAUDE.md` plus every module `CLAUDE.md` the task
@@ -15,20 +15,58 @@ the relevant `CLAUDE.md` (`scripts/CLAUDE.md`, `playwright/CLAUDE.md`) for that 
 documented behavior/flags/constraints rather than acting on what was true earlier in the same
 session — those files get updated mid-session precisely because a run just revealed a gap.
 
-Same requirement extends to `docs/ai/context-loading.md` (what to read, by task type) and
-`docs/ai/flows.md` (which command/skill handles it) whenever the task touches `DECISIONS.md`,
+Same requirement extends to `.claude/nav/context-loading.md` (what to read, by task type) and
+`.claude/nav/flows.md` (which command/skill handles it) whenever the task touches `DECISIONS.md`,
 backlog, or a choice between multiple possible commands/skills — re-`Read` both at that same
 starting point, not from memory of what they said earlier in the session. Before dispatching any
 subagent to read or classify `DECISIONS.md` content, check `context-loading.md`'s own routing
-table first — it may already name a specific command/skill (e.g. `deep-review` full mode) that
-owns exactly this task shape instead of a hand-rolled agent dispatch.
+table first — it may already name a specific command/skill/agent (e.g. the `deep-review-orchestrator`
+agent's full-repo scope) that owns exactly this task shape instead of a fresh, undocumented dispatch.
 
 ---
+
+> ## ⛔ One fact, one canonical home — the single governing rule for all documentation
+> Every fact (a dependency, an SPI implementation, a class's existence, a count, an enumerated
+> list — any statement of what currently is true, as opposed to how to safely change it) is
+> written in exactly one file, its canonical home — its single source of truth — and only ever
+> referenced elsewhere, never restated or reworded. A constraint (a rule about how to change code
+> safely) is not a fact and may repeat local context even where it touches something documented
+> elsewhere.
+>
+> **Atomic unit first, then directory-level index.** When a fact is fully describable within one
+> concrete unit (a script file's own header, a Java class's or method's own Javadoc, a `pom.xml`'s
+> own comment), that unit is its canonical home — never a directory- or module-level `README.md`.
+> A directory's own `README.md`/index only ever covers facts that inherently span more than one
+> such unit (the sequence between files, why one blocks another, what the whole set produces
+> together). Finish every unit's own documentation first; only once every unit in scope is
+> complete does the directory-level README get written or touched, and only with content that
+> could not be answered by reading one unit alone.
+>
+> **When the atomic unit's own format genuinely has no comment syntax at all — the directory-level
+> index becomes that fact's canonical home instead, not an exception to this rule.** Every format
+> capable of carrying a comment always does (a script, a Java class, `pom.xml`, a Liquibase
+> changelog — no "self-explanatory, skip it" exemption for any of them). Only a format with no
+> comment syntax whatsoever (JSON) falls to this case — its directory README/index carries the
+> fact instead, never both: an empty heading next to a README that already says everything is
+> itself the duplication this rule exists to prevent.
+>
+> This is the one place both principles are declared — no skill or command restates either from
+> scratch; each references this rule by name and adds only its own domain-specific mechanics
+> (which fact types live where, what counts as "one unit" in that domain) on top. See
+> `.claude/skills/module-doc-standards/SKILL.md`/`.claude/skills/module-readme-standards/SKILL.md`
+> for Java/`pom.xml` files, and `infra-doc-standards`/`infra-readme-standards` for script/tooling
+> files.
 
 > ## ⛔ NEVER commit without explicit user request
 > `git commit` is **forbidden** unless the user says "зроби коміт", "commit", or equivalent.
 > `git add` runs automatically after every file change — commit does NOT.
 > Violating this rule has happened multiple times. No exceptions.
+>
+> **Two-call rule for any hook-gated commit step:** a `PreToolUse:Bash` hook fires before the
+> command it's gating actually executes — chaining a hook-satisfying step and the gated command in
+> one call (`touch /tmp/marker && git commit`) fails, because the marker doesn't exist yet when the
+> hook checks. Always issue the hook-satisfying step and the gated command as two separate Bash
+> tool calls.
 
 > ## ⛔ Code quality is the highest-priority goal — surface adjacent quality issues unprompted
 > Code quality outranks minimizing diff size, staying strictly inside a written batch's literal
@@ -38,6 +76,10 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 > surface it and propose fixing it as part of the same review, before being asked a second time.
 > Look for this class of issue proactively on any change touching a DTO, entity, or interface —
 > don't wait to be asked.
+>
+> When a choice exists between a minimal/quick implementation and an architecturally clean one,
+> choose the clean one — never justify a shortcut with "it's just dev" or "good enough for now."
+> This is not a prototype.
 
 > ## ⛔ Rules in this file must state the abstract principle, not a case study
 > When adding or editing a rule, write the general principle a reader can apply to an unrelated
@@ -49,7 +91,7 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 > ## ⛔ Any `DECISIONS.md` edit regenerates the ADR index in the same operation
 > Whenever any `DECISIONS.md` file is created, edited, or has an ADR added/changed — by any
 > workflow, command, or skill, not only `/record-decision` — run
-> `bash docs/ai/scripts/generate-adr-index.sh` and include the resulting `docs/ai/adr-index.md` diff in
+> `bash .claude/nav/scripts/generate-adr-index.sh` and include the resulting `.claude/nav/adr-index.md` diff in
 > the same change before considering it complete. This applies even to direct edits made outside
 > any specific skill's own steps; the index going stale is not a lesser concern just because the
 > edit didn't go through the one command that happens to mention it.
@@ -69,7 +111,7 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 
 > ## ⛔ A new project-local command/skill file adds its own navigation row in the same operation
 > Whenever a new `.claude/commands/*.md` or `.claude/skills/*/SKILL.md` file is added to this repo,
-> add its row to `docs/ai/flows.md`'s "Project commands & skills" table in the same change. An
+> add its row to `.claude/nav/flows.md`'s "Project commands & skills" table in the same change. An
 > undocumented operational mechanism is exactly the kind of adjacent quality gap the standing
 > "surface it unprompted" rule already covers — don't wait for a later audit to catch it.
 
@@ -81,9 +123,10 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 > or archived; that traceability belongs in the commit message, not the code. Write the one-line,
 > number-free version on the first pass; do not wait to be told to fix it. Violating this rule has
 > happened repeatedly. When the rationale being trimmed out is a real fact or design decision (not
-> just local code context), route it to its canonical home per
-> `.claude/skills/doc-standards/SKILL.md`'s ownership table — write that entry first if it doesn't
-> exist yet, then leave a one-line reference in the code — never just delete the explanation.
+> just local code context), route it to its canonical home — for Java/`pom.xml` comments, see
+> `.claude/skills/module-doc-standards/SKILL.md`'s "Where comment rationale that got trimmed
+> actually goes" table — write that entry first if it doesn't exist yet, then leave a one-line
+> reference in the code — never just delete the explanation.
 
 > ## ⛔ A comment above a method states what that method's own body does
 > A one-line comment above a method describes what that method actually does, verified by reading
@@ -93,7 +136,7 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 
 > ## ⛔ No issue/ticket numbers or dated "resolved" narrative in current-state documentation
 > The same "no ticket numbers" principle above extends to every file that describes the system's
-> *current* state — `CLAUDE.md`, `README.md`, `docs/architecture/*.md`, `docs/ai/*.md`, skill/
+> *current* state — `CLAUDE.md`, `README.md`, `docs/architecture/*.md`, `.claude/nav/*.md`, skill/
 > command `.md` files, and shell-script comments. None of these may cite an
 > `improvement-NNN`/`goal-NNN`/`feature-NNN` reference, and none may carry a dated
 > "resolved"/"as of \<date\>" narrative describing a past state that no longer holds. If a fact
@@ -115,11 +158,11 @@ owns exactly this task shape instead of a hand-rolled agent dispatch.
 > new index for this purpose.
 
 > ## ⛔ Comments, README, and other markdown files never cite a specific ADR number
-> A code comment, `README.md`, or any other markdown file may say "see `docs/ai/adr-index.md`" but
+> A code comment, `README.md`, or any other markdown file may say "see `.claude/nav/adr-index.md`" but
 > must never cite a specific `ADR-NNN` number directly. The index is searchable by module/status/
 > title, so a reader finds the relevant row by the fact in question, not by following a numbered
 > pointer planted somewhere else; once the index narrows the search to one or a few ADR ids,
-> `node docs/architecture/scripts/md-to-decisions-json.js --extract <module> <ADR-NNN>[,...]` pulls
+> `node .claude/nav/scripts/md-to-decisions-json.js --extract <module> <ADR-NNN>[,...]` pulls
 > the actual decision text without opening the whole `DECISIONS.md` file.
 >
 > **Why:** an ADR number planted in a comment/README is a forward-link like a ticket number — it
@@ -184,6 +227,17 @@ Before doing anything, present the plan in two layers, in this order:
 
 Present both layers, then **STOP and wait for explicit confirmation** before executing.
 
+Approval must be obtained by literally asking a direct question and receiving a direct answer to
+it — never inferred from the tone, detail, or instructiveness of the user's messages. A message
+that confirms understanding, clarifies scope, or explains *why* something is wanted is not itself
+approval to execute, no matter how specific or directive it reads. If the plan was never followed
+by an actual question and an actual "yes" to that question, treat approval as not granted.
+
+A directive-sounding instruction ("do X", "make it like Y") is not itself a literal answer to a
+literal question that was already asked — if a plan ended in a specific question and the next
+message is a directive rather than a direct answer to that exact question, treat approval as still
+not granted; ask the specific question again if needed.
+
 Example format:
 > Plain-language: "The activity tab shows the wrong reviewer, so admins can't tell who actually
 > approved a change. Fixing it so the correct reviewer's name always shows."
@@ -193,10 +247,21 @@ Example format:
 
 Wait for explicit confirmation before making any change.
 
+A broad, already-approved task does not exempt each distinct sub-change within it from its own
+concrete plan — scope-level approval is not a blanket pass to skip the technical-layer detail for
+each piece. State the exact file/method/behavior for each sub-change before asking to proceed with
+it, even inside an already-approved larger task.
+
+Confirming that a result is correct (a test passed, a fix looks right) is approval for that fact
+only — never for whichever follow-up action would normally happen next (closing out related
+bookkeeping, moving a file, updating an index). Being the obvious next step is not itself
+permission; ask separately.
+
 Before presenting a plan for a multi-step change, first write the complete, current plan into the
 relevant `backlog/issues/<n>.md` file — never present a plan only in chat. Update the issue file
-again every time the plan changes (new finding, scope correction), then present a short summary
-from that file for approval — never re-paraphrase the whole issue back at length.
+again every time the plan changes (new finding, scope correction) or a plan item is actually
+implemented (mark that item done in place, with date), then present a short summary from that file
+for approval — never re-paraphrase the whole issue back at length.
 
 ## Module Import Rules
 
@@ -247,6 +312,17 @@ with no logic of its own. A script that stays self-contained, with no subdirecto
 carries its full logic directly in the top-level `scripts/<name>.sh` file — no artificial
 subdirectory split for something that doesn't need one.
 
+A script-group's own subdirectory may itself contain further nested subdirectories that group
+related supporting/config/library content logically — not a new entry point, e.g. `scripts/ci/dagu/`'s
+own workflow-definition folder, or `playwright/e2e/_flows/`'s shared helper files reused by
+multiple spec files. Nested content like this stays purely organizational: only the script-group's
+own top-level entry point (`scripts/<name>.sh`/`run.sh`, or `playwright/run.sh` for `playwright/`)
+is a real entry point — a nested subfolder never gets its own root-level thin delegator.
+
+A shared library sourced by multiple different script-groups, owned by none of them individually,
+gets its own dedicated folder (e.g. `scripts/utils/`) — distinct from a script-group's own
+subdirectory, which belongs to that one group alone.
+
 **Run all scripts backgrounded, watched by Monitor — never a bare `tail -f`:**
 1. Start the target command with `run_in_background: true`, output redirected to a real log file,
    as one Bash call — never nest a second `&` inside that same call to background it a second way;
@@ -264,13 +340,16 @@ subdirectory split for something that doesn't need one.
    result, or when explicitly asked for the current status — answer with the real current state
    then, never with continued silence.
 4. Before running Playwright specifically, kill stale processes first:
-   `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`.
+   `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`. Always pass `--ux` —
+   never run a Playwright scenario without it.
+5. Once the Monitor's target process reaches its final result (pass/fail line, completion
+   marker), stop that Monitor task immediately rather than leaving it running past that point.
 
 ## Issue Lifecycle
 
 Before filing a new ADR (`/record-decision`) or a new backlog issue (`/feature`), consult
-`docs/ai/adr-index.md` (if present) for an already-decided overlapping ADR — mandatory, not
-best-effort. See `docs/ai/README.md` for what the file is and how it stays current.
+`.claude/nav/adr-index.md` (if present) for an already-decided overlapping ADR — mandatory, not
+best-effort. See `.claude/nav/README.md` for what the file is and how it stays current.
 
 When filing a **new** issue in `backlog/issues/`:
 - Always assign a `**Priority:**` line in the issue file itself — never leave it blank/TBD.
@@ -286,7 +365,7 @@ When an issue in `backlog/issues/` is resolved (fix is implemented and committed
   `backlog/BACKLOG.md`'s "Maintenance rules"
 
 ### Out-of-scope-but-valid findings — propose adding to the standing deferred-findings bucket, never drop silently
-When a `/code-review`/`/deep-review` (or any other review) finding is real and worth fixing but
+When a `/code-review` (or any other review) finding is real and worth fixing but
 its solution is too large to fit in the current batch/PR (a new abstraction, an architectural
 change, a cross-module refactor), do not silently skip it and do not fix it inline outside the
 approved scope either. At the end of the review, propose appending it as a new entry to this
@@ -317,12 +396,12 @@ Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply 
 - token_cost_research: <tokens summed from Agent-tool research/investigation calls, or n/a>
 - token_cost_verification: <tokens summed from Agent-tool verification/testing calls, or n/a>
 - review_signal_ratio: <CONFIRMED/PLAUSIBLE findings that survived verification> / <total candidate findings raised across all finder angles>, or n/a if no /code-review ran this task
-- context_loading_task_type: <the matching docs/ai/context-loading.md row, or n/a>
+- context_loading_task_type: <the matching .claude/nav/context-loading.md row, or n/a>
 - context_loading_consulted: <yes/no/n/a>
 - context_loading_matched: <yes/no/n/a — did the actual read pattern match that row's guidance>
 - flows_situation: <short phrase describing the situation, or n/a>
 - flows_chosen: <the command/skill actually used, or n/a>
-- flows_matched: <yes/no/n/a — did it match docs/ai/flows.md's recommendation for that situation>
+- flows_matched: <yes/no/n/a — did it match .claude/nav/flows.md's recommendation for that situation>
 
 ### Agent calls
 - <purpose> | subagent_type=<X> | tokens=<N> | tool_uses=<N> | duration_s=<N> | mode=<foreground|background> | batch=<parallel-group-id or solo>
@@ -395,8 +474,82 @@ Wait for the next explicit user message before doing anything.
 ## Error Reporting
 When running any script or command that fails, immediately read the error output and show the specific error lines in the chat. Never just report "it failed" without the actual error details.
 
+This extends beyond script failures — the moment any real problem is found during investigation or
+execution (a bug, an inconsistency, a failing assumption), report it to the user immediately rather
+than continuing to dig silently. Establish root cause first if that's quick, then stop and report
+before proceeding further.
+
 ## Documentation Standards
-Before writing or editing any documentation file, consult `.claude/skills/doc-standards/SKILL.md`.
+Before writing or editing a Java source file's Javadoc/comments or a `pom.xml`'s dependency
+comments, consult `.claude/skills/module-doc-standards/SKILL.md`. Before writing or editing a Java
+module's own `README.md`, consult `.claude/skills/module-readme-standards/SKILL.md`. Before
+writing or editing root `README.md` or root `INFRASTRUCTURE.md`, consult
+`.claude/skills/app-readme-standards/SKILL.md`. Root `CLAUDE.md` and `.claude/rules/*.md` are not
+yet covered by a dedicated skill.
+
+Whenever a markdown file governed by any of this repo's doc/README-standards skills (the ones
+listed above, plus `infra-doc-standards`/`infra-readme-standards`) references a real file in the
+repo, that reference is a markdown link to the file (`` [`path`](path) ``), never plain
+`` `backtick` `` text — every rendering surface these documents pass through (GitHub, this repo's
+own `architecture-map.html`) turns a real link into something a reader can click, at no extra cost
+over inert backtick text.
+
+## Investigation & Review Discipline
+
+**Apply the full standard, not just the most obvious rule in it.** When a skill or standards
+document is invoked, every rule it states is in scope — not only the rule matching the most
+obvious interpretation of the task. Verifying that existing content is *accurate* is not the same
+as verifying it's *compliant with the standard*; a document with a structural/placement rule in
+addition to a correctness rule needs both checked, especially any rule the document itself marks
+highest-priority.
+
+**Never self-conclude a review finding when the process defines an independent verification
+step.** When a review process calls for a separate verifying step (e.g. a dedicated Agent call),
+gather only the factual evidence needed to brief that step well — do not reason toward, narrate,
+or state your own tentative verdict first, even as a step before launching the real verification.
+
+**Execute a direct action instruction as given — don't silently substitute your own alternative.**
+When told to run a specific tool/skill/script, perform that exact action. If you believe it's
+unnecessary or redundant, say so explicitly and ask before skipping it — never silently replace it
+with your own investigation and report that instead. This is distinct from answering a question or
+complaint, where verifying with real data before responding is correct.
+
+**Don't re-verify visually what a data source already answered completely.** When a rendered view
+is generated directly from a data source with no additional transformation, a question about what
+the view shows is fully answered by reading that data source directly — chasing a
+screenshot/visual re-verification afterward can't surface anything the data source didn't already
+say, and reads as stalling rather than thoroughness. Reach for the visual check only when the
+rendering itself (layout, clarity, whether something is visually confusing) is the actual question.
+
+**Don't chain an expensive regeneration step onto a pure bookkeeping edit.** Editing tracking
+data (reprioritizing a list, updating a status field) does not by itself warrant re-running a
+regeneration/verification step meant for actual code or generated-output changes. Run it when the
+edit changes what a generator reads or what a user is about to view through the tool — not
+reflexively after every edit to the same general area.
+
+**Ground a design complaint in real data before proposing a fix, and offer options.** When a
+complaint about design (coupling, clutter, an abstraction that "looks" unnecessary) triggers a
+proposal, measure the real data first (actual callers via grep, actual diff, actual counts) rather
+than proposing from assumption — then present multiple concrete options with trade-offs, not a
+single predetermined solution, and let the choice be made from there.
+
+**No workarounds — fix the root cause.** Never propose a workaround, hack, or band-aid that masks
+a symptom instead of addressing why it happens, even when the workaround looks reasonable on the
+surface. Before proposing any fix, confirm it addresses the actual cause, not just the visible
+symptom.
+
+**A confirmed SonarQube false positive gets marked in both places, never just one.** Before
+treating any SonarQube finding as a false positive, verify it directly against the actual flagged
+line and the rule's own real definition (pulled from the server, not assumed) — never take the
+rule's name at face value. Once genuinely confirmed:
+1. Mark the issue false positive in SonarQube itself, so it stops failing the quality gate.
+2. Add `@SuppressWarnings("<rule-key>")` at the flagged code, so the suppression survives even if
+   the local SonarQube instance's own data is ever wiped (its embedded DB is already known to
+   reset on certain image upgrades — an issue marked false-positive only in SonarQube's own state
+   resurfaces as new on the next scan once that state is gone). No inline comment alongside it —
+   the rule key in the annotation is already self-documenting and searchable on its own.
+Never suppress a finding in code without also confirming it's genuinely false first — a suppression
+is only legitimate when the finding truly doesn't apply, never a shortcut to silence a real one.
 
 ---
 
@@ -587,7 +740,7 @@ method, never inlined into `activate()`.
 ### History access — an icon button opening EntityActivityOverlay, not a tab
 `AbstractFormOverlayModeHandler` has no tab machinery at all (`buildTabbedContent()`,
 `buildContentWithActivity()`, `ActivityTabParams` were removed once all five domains migrated —
-see `docs/ai/adr-index.md`). `layout.setContent(...)` is called unconditionally;
+see `.claude/nav/adr-index.md`). `layout.setContent(...)` is called unconditionally;
 history/restore is a header-action icon button (`.{domain}-history-button`) that opens the shared
 `EntityActivityOverlay` (`ui/views/components/audit/`) stacked on top via `BaseOverlay.openNested()`:
 
@@ -620,7 +773,7 @@ append. `OverlayLayout.setBreadcrumbLinks(List<Component>)` renders the chain wi
 only *between* links. `EntityActivityOverlay.openFor(...)` extends the calling overlay's own
 `buildBreadcrumbSteps()` (passed as `parentSteps`) with one more segment (`parentFormLabel`), so
 the nested history overlay's breadcrumb reflects the real navigation path taken, not a fixed
-2-segment pair. See `docs/ai/adr-index.md` for the full history of this design.
+2-segment pair. See `.claude/nav/adr-index.md` for the full history of this design.
 
 ---
 

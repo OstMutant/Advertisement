@@ -1,10 +1,11 @@
-# Architecture Documentation
+# docs/architecture/
 
-Complete architecture documentation for the Marketplace modular monolith (Java 25 / Spring Boot 4.1.0 / Vaadin 25.2.3).
-
-Every diagram and data table lives in `docs/architecture/architecture-map.html` — an interactive, generated
-tool, not a set of hand-maintained markdown files. This directory holds no `.md` content files;
-this `README.md` is the only file here.
+`docs/architecture/architecture-map.html` is the live, generated architecture control plane for
+this repo — every diagram and data table lives there, rendered from real repo state, not
+hand-maintained markdown. This directory holds the tool's two entry-point scripts
+(`architecture-doc.sh`/`.bat`) and the generated `architecture-map.html` itself; the generation
+logic lives in `docs/architecture/scripts/` (its own `README.md`), the generated/hand-written data
+files it reads and writes in `docs/architecture/data/` (its own `README.md`).
 
 ## What's in `architecture-map.html`
 
@@ -27,7 +28,8 @@ this `README.md` is the only file here.
 ## How to use it
 
 1. Open `docs/architecture/architecture-map.html` in a browser.
-2. **System** screen — entry points to Diagrams, Tooling & Pipelines, Backlog, and Docker.
+2. **System** screen — entry points to Tooling & Pipelines, Backlog, Diagrams, ADRs, and Code
+   Quality, plus the project README inline at the bottom.
 3. **Diagrams → Module Dependencies** — start here for module structure and the live coupling
    checks.
 4. **Diagrams → SPI Map** — all Ports/Hooks and their implementations.
@@ -46,3 +48,39 @@ this `README.md` is the only file here.
 - A running SonarQube server (`localhost:9099`) for code-quality metrics, and the last
   `bash scripts/build-and-test.sh --archunit-metrics` run's `ArchitectureMetricsExport` output for
   coupling metrics — both optional; the tool degrades gracefully when either is unavailable.
+
+## Flow
+
+Entry points: `architecture-doc.sh` (Linux/WSL) and `architecture-doc.bat` (Windows, delegates to
+`architecture-doc.sh` via WSL).
+
+```bash
+bash docs/architecture/architecture-doc.sh                    # regenerate, verify reproducibility, screenshot
+bash docs/architecture/architecture-doc.sh --no-check          # skip the reproducibility re-check
+bash docs/architecture/architecture-doc.sh --no-screenshot     # skip screenshotting
+bash docs/architecture/architecture-doc.sh --rebuild-image     # force-rebuild the generation image
+```
+
+Both flags default to running the full pipeline; the two decision diamonds below are what each
+flag skips. `generate-architecture-model.sh` genuinely runs twice when the reproducibility check
+is enabled (the check's own job is diffing a second run against the first), not once.
+
+```mermaid
+flowchart TD
+    A1[architecture-doc.sh] --> B{arch-doc-tools image current?}
+    A2[architecture-doc.bat] --> A1
+    B -->|no| C[build/rebuild image]
+    B -->|yes| D[start container, upload repo source]
+    C --> D
+    D --> E["generate-architecture-model.sh<br/>writes architecture-model.json + architecture-map.html"]
+    E --> F{--no-check?}
+    F -->|no| G["check-architecture-model-freshness.sh<br/>backs up output, re-runs generate-architecture-model.sh<br/>a second time, diffs, restores"]
+    F -->|yes| H[copy results back to host, chmod 644]
+    G --> H
+    H --> I{--no-screenshot?}
+    I -->|no| J["screenshot-architecture-map.sh<br/>own separate Playwright container"]
+    I -->|yes| K[done]
+    J --> K
+```
+
+See `docs/architecture/scripts/README.md` for the generation scripts' own file-to-file detail.

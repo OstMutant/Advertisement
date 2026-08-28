@@ -2,6 +2,64 @@
 
 ---
 
+## ADR-013: Agentic JSON output envelope (AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK) for script results
+**Status:** Accepted
+
+**Context:** An AI agent reading a script's raw output only had free-text signals (`=== FAILED
+===`, an exit code) to work from — no structured way to tell a failure's category or whether
+retrying is worth it without a human reading the log. A large mission-style prompt proposed a full
+DAG-aware execution contract (run-identity hierarchy, concurrency-safe state directories, event
+streams, dependency gates) — checked against the real project state and found overbuilt for
+today's actual scale (linear scripts, no concurrent self-invocation, no state files written today;
+full analysis in the originating issue). The real private certification document independently
+describes the same minimal shape actually needed: a structured response with
+`errorCategory`/`isRetryable`/`description` (`transient`/`validation`/`business`/`permission`
+taxonomy), used in the same shape on both success and failure.
+
+**Decision:** A new shared library, `scripts/utils/agentic-output.sh` (same shared-library pattern
+as the existing `scripts/utils/ensure-docker-plugins.sh`), provides two functions —
+`emit_agentic_success_block(current_step)` and `emit_agentic_error_block(category, is_retryable,
+current_step, description)`. Both print one JSON line (`AGENTIC_SUCCESS_BLOCK: {...}` /
+`AGENTIC_ERROR_BLOCK: {...}`), including a `durationSeconds` field read from bash's own `$SECONDS`
+(each caller sets `SECONDS=0` as its first executable line). Category is restricted to the four
+real certification categories — no invented fifth (`environment`), which does not appear in the
+source material.
+
+Wired into all 7 top-level `scripts/*.sh` entry points' own `run.sh`/`reset.sh` —
+`deploy-and-run/run.sh`, `deploy-and-run/reset.sh`, `sonar/run.sh`, `build-and-test/run.sh`,
+`run-all-tests/run.sh`, `ci/run.sh`, `playwright/run.sh` — at every real exit path, not only the
+generic `trap ERR` catch-all, since bash's `ERR` trap does not fire on an explicit `exit N`
+(verified directly). The wiring mechanism was matched to each script's own real control-flow shape
+rather than forced uniformly:
+- Scripts already `set -e`-shaped (`deploy-and-run/run.sh`, `deploy-and-run/reset.sh`,
+  `sonar/run.sh`, `build-and-test/run.sh`) got a `trap ERR`-based emit plus explicit emits at each
+  additional explicit-exit branch.
+- Scripts with no `set -e`, a single linear command, and one captured `$?`/final `exit`
+  (`ci/run.sh`, `playwright/run.sh`) got emit calls placed directly at each existing exit point, no
+  trap added.
+- `run-all-tests.sh` deliberately runs its build-and-test and deploy+playwright branches to
+  completion independently even if one fails, then combines both exit codes — adding
+  `set -e`/`trap ERR` there would break that intentional behavior, so one emit call was added only
+  at its own already-existing combined-result point.
+
+**Rejected alternatives:**
+- Full mission scope (run-identity hierarchy, concurrency-safe state directories, event streams,
+  programmatic dependency gates) — real cost, no demonstrated need today.
+- A uniform `trap ERR` wired identically into every script regardless of its control-flow shape —
+  rejected because it would silently break `run-all-tests.sh`'s intentional dual-branch behavior.
+- An invented `environment` error category — rejected once checked directly against the real
+  certification source, which uses `permission`, not `environment`, as the fourth category.
+
+**Consequences:** Every script invocation now ends with one machine-parseable JSON line
+(`AGENTIC_SUCCESS_BLOCK`/`AGENTIC_ERROR_BLOCK`, including `durationSeconds`) an AI agent can parse
+instead of scraping free text — `durationSeconds` specifically feeds `.claude/rules.md`'s
+mandatory `## Operational notes` script-run block. No error path has been exercised live in any of
+the 7 scripts yet — only a syntax check plus one live success-path run of `deploy-and-run.sh`. A
+future script added under `scripts/` should follow the same pattern rather than reinventing
+free-text-only failure reporting.
+
+---
+
 ## ADR-001: All operations via project scripts — no raw commands
 **Status:** Accepted
 
@@ -37,7 +95,7 @@ Each script resolves the project root via `cd /d "%~dp0.."` (bat) or `$(dirname 
 to be ergonomic elsewhere.
 
 **Update (exception carved out):** `scripts/architecture/` and `scripts/ai/` moved to
-`docs/architecture/scripts/` and `docs/ai/scripts/` respectively — a deliberate exception to this
+`docs/architecture/scripts/` and `.claude/nav/scripts/` respectively — a deliberate exception to this
 ADR's "all developer scripts live in `scripts/`" rule, chosen for navigation convenience: both
 directories exist purely to generate/verify the docs they now sit next to
 (`architecture-model.json`/`architecture-map.html`, `adr-index.md`), so keeping them beside their

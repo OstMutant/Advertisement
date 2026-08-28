@@ -569,7 +569,7 @@ standalone `provider_profile` table/module (this ADR).
 `ProviderProfileSnapshotDto` — `schemaVersion` per ADR-024 — `spi.ProviderProfilePort`), plus
 `EntityType.PROVIDER_PROFILE`. `ProviderProfilePort`'s shape mirrors `AdvertisementPort` closely
 (`getFiltered`/`count`/`findById`/`save`/`delete`/`findExistingIds`/`findOwnerIds`) — deliberate
-symmetry with the established starter pattern, not an accident (see `docs/ai/adr-index.md` for the
+symmetry with the established starter pattern, not an accident (see `.claude/nav/adr-index.md` for the
 "isn't this just a copy?" discussion this raised during implementation). Backed by
 a new `provider-profile-spring-boot-starter` module owning `ProviderProfile` entity/repository/
 service/port-impl/autoconfiguration — this batch is backend-only, no UI, no audit-write path yet

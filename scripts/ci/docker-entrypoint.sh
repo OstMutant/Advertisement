@@ -6,7 +6,7 @@
 #   container start against volume-backed storage that survives image rebuilds) before handing off
 #   to Dagu's own server (dagu start-all).
 # Usage: None -- set as the image's ENTRYPOINT (scripts/ci/Dockerfile), never invoked directly.
-# Uses: bash, curl, dagu, scripts/ensure-docker-plugins.sh (source'd for ensure_buildx/
+# Uses: bash, curl, dagu, scripts/utils/ensure-docker-plugins.sh (source'd for ensure_buildx/
 #   ensure_docker_compose).
 # Env:
 #   Set automatically by scripts/ci/run.sh (via `docker run -e`), never exported directly by a user:
@@ -34,7 +34,7 @@ fi
 
 ln -sfn "$CI_TOOLS/cli-plugins" ~/.docker/cli-plugins
 
-source /app/scripts/ensure-docker-plugins.sh
+source /app/scripts/utils/ensure-docker-plugins.sh
 ensure_buildx
 ensure_docker_compose
 

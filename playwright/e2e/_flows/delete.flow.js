@@ -1,6 +1,22 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Flow helpers for the advertisement delete confirm dialog (cancel/confirm) and a
+ *   shared "create a simple advertisement" flow used to set up an ad for later delete/edit tests.
+ * Usage: None -- a library only, required by spec files (see Input).
+ * Uses: ../_helpers (screenshot), ./category.flow (selectCategoryInAdForm).
+ * Env: None.
+ * Input: required by 03-marketplace-promotion-flow.spec.js, 04-marketplace-advertisement-flow.spec.js,
+ *   06-marketplace-delete-flow.spec.js.
+ * Outputs: exports cancelDeleteDialog, confirmDeleteDialog, runCreateSimpleAdvertisementFlow.
+ * Returns: N/A
+ * ──────────────────────────────────────────────────────────────────────────── */
 const { screenshot } = require('../_helpers');
 const { selectCategoryInAdForm } = require('./category.flow');
 
+/**
+ * Opens the delete confirm dialog's Cancel button and waits for the dialog to close.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<void>}
+ */
 async function cancelDeleteDialog(page) {
   await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
   await screenshot(page, 'delete-dialog-cancel-open');
@@ -13,6 +29,11 @@ async function cancelDeleteDialog(page) {
   await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
 }
 
+/**
+ * Opens the delete confirm dialog's Delete button and waits for the dialog to close.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<void>}
+ */
 async function confirmDeleteDialog(page) {
   await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
   await screenshot(page, 'delete-dialog-confirm-open');
@@ -25,6 +46,16 @@ async function confirmDeleteDialog(page) {
   await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
 }
 
+/**
+ * Creates a new advertisement via the "add" button, filling title/description/categories and saving.
+ * @param {import('@playwright/test').Page} page
+ * @param {Object} params
+ * @param {string} params.title
+ * @param {string} params.description
+ * @param {string} params.screenshotPrefix prefix used for the form-filled/saved screenshots.
+ * @param {string[]} [params.categories] category names to select in the form, in order.
+ * @returns {Promise<void>}
+ */
 async function runCreateSimpleAdvertisementFlow(page, { title, description, screenshotPrefix, categories = [] }) {
   await page.locator('.add-advertisement-button').click();
   const overlay = page.locator('.advertisement-overlay');

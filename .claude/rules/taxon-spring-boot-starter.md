@@ -1,0 +1,65 @@
+---
+paths: ["taxon-spring-boot-starter/**"]
+---
+
+## taxon-spring-boot-starter
+
+Auto-configures the Taxonomy domain (categories, tags, classifiers). Active whenever the jar is on the classpath.
+
+Java package root: `org.ost.taxon`
+
+---
+
+## What it owns
+
+- `Taxon` entity + `TaxonCrudRepository` + `TaxonRepository` — soft-deletable taxonomy entries
+- `TaxonTranslation` entity + `TaxonTranslationRepository` — locale-keyed translations per taxon
+- `TaxonAssignment` entity + `TaxonAssignmentRepository` — many-to-many: (entity_type, entity_id) → taxon_id
+- `TaxonService` — CRUD taxon entries, soft-delete/restore, translation management
+- `TaxonAssignmentService` — assign/unassign taxons to entities, batched lookup, usage counts
+- `DefaultTaxonPort` — implements `TaxonPort`; coordinates TaxonService + TaxonAssignmentService
+- `TaxonFilter` — value object for repository filter conditions (active / all / deleted)
+- `TaxonTranslationData` — internal record for passing translation data to services
+- `TaxonProperties` — configuration properties (defaultLocale)
+
+**Autoconfiguration entry point:** `TaxonAutoConfiguration`
+
+---
+
+## Schema
+
+Liquibase changelog: `db/taxon-changelog/master.xml`  
+Tables: `taxon`, `taxon_translation`, `taxon_assignment`
+
+- `taxon` — core entry: type (VARCHAR), optional stable code, deleted_at/deleted_by for soft-delete, `version` (optimistic locking via `@Version`, see `.claude/nav/adr-index.md`)
+- `taxon_translation` — PK: (taxon_id, locale), stores name + description per locale
+- `taxon_assignment` — PK: (entity_type, entity_id, taxon_id), records which entities carry which taxons
+
+Partial unique index: `uidx_taxon_type_code ON taxon (type, code) WHERE code IS NOT NULL` — only enforced for named entries.
+
+---
+
+## Key constraints
+
+- UI (`TaxonManagementView`, `TaxonOverlay`) lives in `marketplace-app`.
+- `TaxonPort` lives in `platform-commons` (`org.ost.platform.taxon.spi`).
+- `TaxonType` enum lives in `platform-commons` (`org.ost.platform.taxon.model`). Adding a new type is a release-level change requiring UI, audit translations, and seed entries.
+- `@EnableJdbcRepositories(basePackages = "org.ost.taxon.repository")` declared in `TaxonAutoConfiguration`.
+- `DefaultTaxonPort` is a coordination layer, not pure delegation — it resolves translations, filters active records, and builds DTOs. Business logic stays in `TaxonService` and `TaxonAssignmentService`.
+- **`TaxonAuditHook` does not exist** — both of `TaxonAssignmentService.replaceAssignments()`'s
+  call sites (invoked only from an advertisement save or delete) already sit inside a flow that
+  produces its own audit snapshot. There is no standalone `TaxonAssignmentService.assign()`/
+  `unassign()` wrapper (distinct from the repository-level methods of the same name still used
+  internally by `replaceAssignments()`), and no `TaxonPort.findByCode()`. Category-name display in
+  audit diffs is handled by `AdvertisementAuditEnrichService` (`marketplace-app`) resolving raw
+  taxon ids via `TaxonPort.findByIds()` at read time — see `.claude/nav/adr-index.md`.
+- `Taxon.version` (`@Version`) enforces optimistic locking on `save()` and `softDelete()`.
+  `TaxonService.update()` must always forward the caller-supplied `version` when rebuilding the
+  entity via `Builder` — never re-derive it from the `existing` row fetched in the same method,
+  or the check silently stops detecting conflicts. See `.claude/nav/adr-index.md`.
+- `TaxonRepository.findByIds()` returns soft-deleted rows too (no `deleted_at` filter) — its only
+  caller, `DefaultTaxonPort.indexById()`, needs deleted taxons visible so `getForEntity()` can
+  surface them (struck-through via `TaxonDto.deleted` in the advertisement view overlay) and the
+  port-level `findByIds()` can resolve their real name for audit-diff rendering instead of a bare
+  id. Any *new* caller of `findByIds()`/`indexById()` must pass its own `activeOnly` filtering
+  intent explicitly — see `.claude/nav/adr-index.md`.

@@ -211,3 +211,100 @@ generically for every optional starter, so this isn't a direct rule violation ei
 gap, not a documented one. Needs a decision: guard the button behind `isAvailable()` (simplest), or
 make `TaxonCatalogService.create()`/`.update()` themselves degrade gracefully (larger, changes what
 "create with no taxon starter" means to callers) — not sized here.
+
+### 12. `scripts/sonar/run.sh` / `scripts/build-and-test/run.sh` headers don't explain their own docker-cp/tar workaround (found while running `infra-doc-standards` over `scripts/` root, 2026-08-20)
+
+`playwright/run.sh`'s own header already explains why it uses `docker cp` instead of a volume
+mount ("volume mounts don't work when the caller is itself a container") — but
+`scripts/sonar/run.sh`'s structured header says nothing about this (checked directly, no mention
+in `Input`/`Outputs`/`Uses`), and `scripts/build-and-test/run.sh`'s explanation exists only as a
+body comment further down the file, not in its structured header. Surfaced while applying
+`infra-doc-standards` to the root `scripts/` directory: the root `scripts/README.md` used to carry
+a "Docker socket constraint" section aggregating this fact across all three scripts, removed as a
+duplication violation once the skill's "one fact, one canonical home" rule was strengthened this
+same session to explicitly cover shared-constraint content — but removing it exposed that 2 of the
+3 referenced files never had this reason in their own header to begin with. Not fixed inline: both
+files live in different directories (`scripts/sonar/`, `scripts/build-and-test/`), outside this
+run's invoked-directory scope (`scripts/` root only). Fix is small and mechanical once picked up:
+add one sentence to each file's `Input`/`Outputs` field explaining the docker-cp/tar-pipe reason,
+matching `playwright/run.sh`'s existing pattern.
+
+### 13. Repo-wide prose references to old per-module `<module>/CLAUDE.md` paths went stale after path-scoped migration (found during improvement-168 Phase 2.2, 2026-08-25)
+
+All 13 module `CLAUDE.md` files moved to `.claude/rules/<module>.md` — root `CLAUDE.md`'s own
+pointers were updated in the same change, but prose references scattered across current-state
+documentation still cite the old `<module>/CLAUDE.md` path: `README.md`, `.claude/commands/
+autopilot.md`/`ci.md`/`run-all-tests.md`, `.claude/nav/flows.md`, `.claude/nav/adr-index.md`,
+`docs/architecture/scripts/liquibase-schema-to-json.js`, `integration-tests/README.md`,
+`scripts/ci/watch-run.py`. Confirmed none of them are runtime-read (only
+`generate-architecture-model.sh` was, already fixed in the same change) — these are stale text
+pointers, not broken functionality. `backlog/issues/`/`backlog/completed/issues/`/every
+`DECISIONS.md` also match the old path but are explicitly out of scope per `doc-standards`
+(append-only history / point-in-time records, not current-state documentation). Not fixed inline
+during improvement-168 since it wasn't part of that issue's approved plan (root `CLAUDE.md`'s
+own pointers + the generator script only). Mechanical fix once picked up: grep+replace
+`<module>/CLAUDE.md` → `.claude/rules/<module>.md` across the ~8 listed files.
+
+### 14. `ADR-010`/`ADR-011` near-verbatim duplicate across `audit-spring-boot-starter/DECISIONS.md` and `platform-commons/DECISIONS.md` (found during improvement-168 follow-up, 2026-08-25)
+
+Both entries — `audit-spring-boot-starter/DECISIONS.md` ADR-010 and `platform-commons/DECISIONS.md`
+ADR-011, both titled "Audit decoupled from attachment via AuditActivityEnrichHook" — describe the
+same decision with near-identical Context/Decision/Consequences text (the `Consequences` sentence
+"Audit starter must never import from `attachment.*` packages" appears verbatim in both). Each
+entry's own `Status:` line already cross-references the other, added after **this exact pair
+already drifted out of sync once** (2026-07-16 correction note, both entries: "the two entries had
+drifted to describe different, both-inaccurate mechanisms with no cross-reference between them") —
+the cross-reference was added as a partial fix at the time, but the full duplicated body text was
+never consolidated.
+
+Checked whether this is a systemic pattern before filing: scanned all 172 ADR titles across all 17
+`DECISIONS.md` files for exact duplicates — **this is the only match found.** Not a systemic
+problem worth a full audit (a full semantic near-duplicate sweep across 172 ADRs would be real,
+non-trivial effort for a demonstrated base rate of roughly 1-in-172); this single pair is worth
+fixing on its own since it already has a proven drift-risk track record, not because duplication
+across `DECISIONS.md` files turned out to be widespread.
+
+Fix once picked up: pick one canonical home (likely `platform-commons/DECISIONS.md`, since the SPI
+interface itself — `AuditActivityEnrichHook` — lives in `platform-commons`, matching this repo's
+own "SPI decisions live where the interface lives" pattern elsewhere in these files), keep the full
+Context/Decision/Consequences there, and shrink the other entry to a one-line pointer (`**Status:**
+Accepted — see platform-commons/DECISIONS.md ADR-011 for the full decision` style, no restated
+body) — mirroring how `doc-standards`' "one fact, one canonical home" already treats every other
+kind of cross-file fact in this repo. Regenerate `.claude/nav/adr-index.md` in the same change (per
+`.claude/rules.md`'s standing rule).
+
+### 15. Apply improvement-170's "always header" policy to real `pom.xml`/Liquibase/Java files, repo-wide (found during improvement-170, 2026-08-25)
+
+`module-doc-standards/SKILL.md` (per improvement-170's item 8) now requires every `pom.xml`, every
+Liquibase master changelog + change file, and every Java class to always carry a header/Javadoc —
+no "self-explanatory, skip it" exception for any of them. The rule was written into the skill but
+never applied to the real files: the 11 real `pom.xml` files, the real Liquibase master changelogs,
+and Java classes across the repo currently don't comply. One specific known violation, found during
+improvement-170's own research but not fixed: `attachment-spring-boot-starter/src/main/java/org/ost/attachment/services/AttachmentCleanupService.java`
+carries a 5-line Javadoc block citing an issue number ("improvement-049 item 4").
+
+Not fixed inline: this is a repo-wide sweep (11 `pom.xml` files + Liquibase changelogs + Java
+classes across every module), far bigger than improvement-170's own scope (which only designed the
+rule), and one sub-decision — the individual Liquibase change-file header shape — is still "not yet
+designed" per improvement-170 itself, so those specific files can't proceed until that's resolved.
+`pom.xml` and Liquibase master changelogs already have a defined shape and could start immediately
+once picked up. Needs its own sizing/sequencing decision (one pass covering everything vs. file-type
+by file-type vs. opportunistic-only) before being sized as real work.
+
+### 16. `docs/architecture/data/*.md` content-governance and the orphaned "Canonical ownership table" both remain undocumented (found during improvement-170, 2026-08-25)
+
+No skill currently governs what `docs/architecture/data/arch-embed-index.md`/`runtime-notes.md`'s
+own prose content should look like — item 2 of improvement-170 originally planned a new skill for
+this (`.claude/nav/*.md` + `docs/architecture/data/*.md` + commands/rules/skills operational
+tier), but the ambiguity ended up resolved differently (extending `infra-readme-standards`/
+`infra-doc-standards` instead), leaving this specific piece untouched.
+
+Separately, the old `doc-standards`' "Canonical ownership table" (module dependencies →
+`architecture-map.html`, SPI mapping → same, ADR rationale → `DECISIONS.md`, task routing →
+`context-loading.md`, situation routing → `flows.md`, backlog issue format, cross-cutting rules)
+had no home once `doc-standards` split into `module-doc-standards`/`module-readme-standards` —
+recoverable from `module-doc-standards/SKILL.md`'s pre-rewrite git history, not currently written
+anywhere.
+
+Neither blocks real work today; both need a deliberate design pass (new skill? extend an existing
+one? a separate table document?) before being picked up.

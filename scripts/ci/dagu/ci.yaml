@@ -154,10 +154,14 @@ steps:
   - id: docs
     depends: [pipeline_metrics]
     run: |
-      bash docs/ai/scripts/check-adr-index-freshness.sh
-      bash docs/ai/scripts/check-flows-completeness.sh
-      bash docs/ai/scripts/check-hardcoded-counts.sh
-      bash docs/architecture/scripts/check-architecture-model-freshness.sh
+      bash .claude/nav/scripts/check-adr-index-freshness.sh
+      bash .claude/nav/scripts/check-flows-completeness.sh
+      bash .claude/nav/scripts/check-hardcoded-counts.sh
+      SONAR_FLAG=""
+      [ "${params.sonar}" = "true" ] && SONAR_FLAG="--with-sonar"
+      ARCHUNIT_FLAG=""
+      [ "${params.archunit_metrics}" = "true" ] && ARCHUNIT_FLAG="--with-archunit"
+      bash docs/architecture/scripts/generate-architecture-model.sh $SONAR_FLAG $ARCHUNIT_FLAG
     continue_on:
       failure: true
     preconditions:

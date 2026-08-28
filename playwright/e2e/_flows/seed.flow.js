@@ -1,8 +1,31 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Bulk data-seeding flow helpers -- sign up (single and parallel-pooled), login,
+ *   logout, and advertisement creation, used to populate a large number of test users/ads for
+ *   pagination and filter/sort scenarios.
+ * Usage: None -- a library only, required by spec files (see Input).
+ * Uses: ./category.flow (selectCategoryInAdForm), ./city.flow (selectCityInAdForm),
+ *   ./advertisement.flow (selectAdKind).
+ * Env: None.
+ * Input: required by 03-marketplace-promotion-flow.spec.js, 04-marketplace-advertisement-flow.spec.js,
+ *   05-seed-filter-sort-pagination.spec.js.
+ * Outputs: exports signUpBulk, signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk.
+ * Returns: N/A
+ * ──────────────────────────────────────────────────────────────────────────── */
 const { closeNotification } = require('../_helpers');
 const { selectCategoryInAdForm } = require('./category.flow');
 const { selectCityInAdForm } = require('./city.flow');
 const { selectAdKind } = require('./advertisement.flow');
 
+/**
+ * Signs up one user via the header sign-up dialog, tolerating an "already exists" retry case by
+ * dismissing the error notification and force-closing the dialog via JS instead of failing.
+ * @param {import('@playwright/test').Page} page
+ * @param {Object} user
+ * @param {string} user.name
+ * @param {string} user.email
+ * @param {string} user.password
+ * @returns {Promise<void>}
+ */
 async function signUpBulk(page, { name, email, password }) {
   await page.locator('vaadin-button').filter({ hasText: /sign up/i }).first().click();
   // Wait for Vaadin to set [opened] on the dialog overlay — the element is attached but hidden
@@ -30,6 +53,14 @@ async function signUpBulk(page, { name, email, password }) {
   }
 }
 
+/**
+ * Logs in one user via the header login form and waits for the settings button to confirm success.
+ * @param {import('@playwright/test').Page} page
+ * @param {Object} credentials
+ * @param {string} credentials.email
+ * @param {string} credentials.password
+ * @returns {Promise<void>}
+ */
 async function loginBulk(page, { email, password }) {
   await page.locator('vaadin-button').filter({ hasText: /log in/i }).first().click();
   await page.locator('[data-testid="login-email-label"]').waitFor({ timeout: 5000 });
@@ -39,6 +70,11 @@ async function loginBulk(page, { email, password }) {
   await page.locator('.header-settings-button').waitFor({ timeout: 15000 });
 }
 
+/**
+ * Logs out the current user via the header logout button and confirm dialog.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<void>}
+ */
 async function logoutBulk(page) {
   await page.locator('.header-logout-button').click();
   await page.locator('vaadin-confirm-dialog-overlay[opened]:not([opening])').waitFor({ state: 'attached', timeout: 5000 });
@@ -46,6 +82,18 @@ async function logoutBulk(page) {
   await page.locator('vaadin-button').filter({ hasText: /log in/i }).first().waitFor({ timeout: 5000 });
 }
 
+/**
+ * Creates one advertisement via the "add" button, filling title/description and optional
+ * category/city/ad-kind, then saves.
+ * @param {import('@playwright/test').Page} page
+ * @param {Object} params
+ * @param {string} params.title
+ * @param {string} params.description
+ * @param {string|null} [params.category]
+ * @param {string|null} [params.city]
+ * @param {string|null} [params.adKind]
+ * @returns {Promise<void>}
+ */
 async function createAdvertisementBulk(page, { title, description, category = null, city = null, adKind = null }) {
   // Wait for button to be stable — Vaadin may reconnect after heavy prior load, temporarily detaching DOM
   await page.locator('.add-advertisement-button').waitFor({ state: 'visible', timeout: 20000 });
@@ -61,6 +109,15 @@ async function createAdvertisementBulk(page, { title, description, category = nu
   await overlay.waitFor({ state: 'hidden', timeout: 10000 });
 }
 
+/**
+ * Signs up many users concurrently, splitting them into `poolSize` browser contexts (staggered
+ * startup to avoid hammering the Vaadin server simultaneously), then retries any that failed in
+ * the parallel phase serially in one final context for stability.
+ * @param {import('@playwright/test').Browser} browser
+ * @param {Array<{name: string, email: string, password: string}>} users
+ * @param {number} [poolSize=3] number of concurrent browser contexts.
+ * @returns {Promise<void>}
+ */
 async function signUpBulkParallel(browser, users, poolSize = 3) {
   const groups = Array.from({ length: poolSize }, () => []);
   users.forEach((user, i) => groups[i % poolSize].push(user));

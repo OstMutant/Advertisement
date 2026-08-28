@@ -1,3 +1,47 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Core advertisement lifecycle e2e coverage -- create (with YouTube/image/video
+ *   gallery, lightbox playback), edit (discard, activity diff, rich-text formatting, category/
+ *   city/listing-type changes, cross-user media replace), restore from a snapshot, optimistic-
+ *   locking conflict between two concurrent edit sessions, long-description truncation/expand,
+ *   and deep-link navigation (/ads/:id, share button, sitemap.xml, crawler meta tags/JSON-LD,
+ *   locale-aware category rendering). A second, separately gated 'Max-content advertisement
+ *   boundary' describe block (only runs when PW_FULL is set) exercises 255-char titles,
+ *   2000-char descriptions, 10 seeded categories and a 10-item media gallery.
+ *   Per test:
+ *   - "userEn/userUk creates advertisement -- YouTube, image and video, lightbox plays video,
+ *     single activity row": login -> create (title+desc+YouTube+image+WebM) -> activity (v1, no
+ *     restore btn) -> lightbox (play icon, video src).
+ *   - "userEn edits advertisement -- discard, two saves with activity diff, admin timeline
+ *     check": login -> discard: delete all media -> gallery restored -> discard: add YouTube ->
+ *     gallery restored -> save v2 (delete all media, new title+desc) -> activity (diff:
+ *     title+desc+media) -> save v3 (text-only) -> activity (media field shows "--") -> grid ->
+ *     admin timeline -> >=2 updated rows.
+ *   - "userUk edits advertisement -- ...": same flow -> admin timeline -> >=4 updated rows.
+ *   - "userEn/userUk restores advertisement -- activity diff shows restored media and text, view
+ *     and card updated": login -> activity (3 rows) -> restore v1 -> form (title+desc+3 media) ->
+ *     save v4 -> activity (restore diff) -> VIEW -> grid (restored title+desc+3 media).
+ *   - "moderatorEn edits EN / adminEn edits UK advertisement -- discard, two saves with activity
+ *     diff, add and replace media, timeline check": login as moderator/admin -> edit (discard
+ *     checks + save) -> activity (editor badge) -> media add+replace -> timeline -> >=4 updated
+ *     rows, titleText, actorText.
+ *   - "userEn verifies lightbox -- YouTube to image blanks iframe, WebM to image stops video":
+ *     YouTube->image: iframe src blanked; WebM->image: video stops.
+ * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 04-marketplace-
+ *   advertisement-flow --ux`, or as part of the full e2e suite (`bash /app/playwright/run.sh e2e
+ *   --ux`). The boundary describe block additionally needs `--full` (sets PW_FULL) to run.
+ * Uses: @playwright/test, Node's fs module (temp PNG cleanup for uploaded avatar images).
+ * Env: PW_FULL -- when unset/falsy, the 'Max-content advertisement boundary' describe block is
+ *   skipped entirely.
+ * Input: ./_helpers (test, expect, screenshot, waitForOverlayClosed, closeOverlay,
+ *   closeNotification, TEST_USERS, YT_URL, avatar, downloadPng), ./_flows/auth.flow,
+ *   ./_flows/advertisement.flow, ./_flows/delete.flow, ./_flows/entity-activity.flow,
+ *   ./_flows/timeline.flow, ./_flows/attachment.flow, ./_flows/seed.flow, ./_flows/category.flow.
+ * Outputs: Playwright HTML report entries (one per test/test.step), PNG screenshots attached to
+ *   the report when PW_SCREENSHOTS is set. Creates advertisements, categories, cities and
+ *   activity/timeline entries used only within this file's own serial test sequence.
+ * Returns: exit code from the Playwright test runner -- 0 when every test in this file passes,
+ *   non-zero otherwise.
+ * ──────────────────────────────────────────────────────────────────────────── */
 const fs = require('fs');
 const { test, expect, screenshot, waitForOverlayClosed, closeOverlay, closeNotification, TEST_USERS, YT_URL, avatar, downloadPng } = require('./_helpers');
 

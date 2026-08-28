@@ -64,6 +64,21 @@ hadn't been exercised end-to-end against real new code since that leak period st
 - Confirm the quality gate can pass end-to-end (not just via `--no-gate`) for a change that
   genuinely has good test coverage.
 
+## Adjacent idea noted here (2026-08-28, not planned/implemented, unrelated to this issue's own coverage-wiring scope)
+
+Surfaced while discussing what other real code-quality metrics SonarQube/ArchUnit/Dagu can still
+provide, alongside this issue's own coverage gap: `generate-architecture-model.sh`'s
+`coupling_checks_json()` (Code Quality screen's "Architecture Checks") re-runs 3 hand-written grep
+patterns every generation ("No Vaadin imports in starters", "No direct starter-to-starter internal
+imports", "No UI to Repository direct imports") instead of a real bytecode check.
+`ArchitectureMetricsExport.java` (`marketplace-app/src/test/java/org/ost/marketplace/architecture/`)
+already loads the full `JavaClasses` graph for its module-coupling metrics — ArchUnit's own
+`SlicesRuleDefinition.slices()...beFreeOfCycles()` (true cycle detection) and
+`noClasses().that()...should().dependOnClassesThat()...` (real layering/import rules) could replace
+these 3 greps with real, already-available bytecode checks in the same JVM run, no extra cost. Not
+sized or planned in detail — noted here only because it came up in the same conversation as this
+issue's own metric gap, not because it shares a root cause with JaCoCo/coverage wiring.
+
 ## Related
 
 - [improvement-113](../completed/issues/improvement-113-query-elements-leaf-components-plain-classes.md) —

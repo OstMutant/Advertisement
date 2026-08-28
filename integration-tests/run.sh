@@ -29,7 +29,7 @@
 # Streams full Maven/Testcontainers output live. Requires a reachable Docker daemon — see
 # integration-tests/CLAUDE.md.
 #
-# Automatic staleness check (default, no flag needed — see docs/ai/adr-index.md):
+# Automatic staleness check (default, no flag needed — see .claude/nav/adr-index.md):
 # integration-tests depends on platform-commons/advertisement-/user-/taxon-/audit-spring-boot-starter
 # as real compiled JARs from ~/.m2, not source. Before testing, this script compares each of those
 # modules' newest .java file against its installed JAR's mtime; if any source is newer (or the JAR
@@ -39,7 +39,9 @@
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPORT_DIR="$ROOT/integration-tests/reports"
-LOG_FILE="$REPORT_DIR/run.log"
+# Separate from $REPORT_DIR -- a process log (run.log), not a test result, same logs-vs-reports
+# split every other script in this repo now uses.
+LOG_FILE="$ROOT/scripts/logs/integration-tests/run.log"
 
 SCENARIO=""
 SANDBOX=""
@@ -127,6 +129,7 @@ else
 fi
 
 mkdir -p "$REPORT_DIR"
+mkdir -p "$(dirname "$LOG_FILE")"
 rm -f "$LOG_FILE"
 rm -rf "$REPORT_DIR/surefire"
 

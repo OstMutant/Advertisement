@@ -88,9 +88,11 @@ async function goSystem(page) {
   await goSystem(page);
   await page.locator('.special-card:has-text("Diagrams")').click();
   await page.waitForTimeout(300);
-  // SPI map -- still the generic Mermaid-text-parsed graph (unchanged), densest one, worth
-  // checking zoom on it.
-  await page.locator('.domain-group .card', { hasText: 'SPI Dependency Graph' }).click();
+  // SPI map -- split one tab per subsystem (see MODEL.diagramGroups["02-spi-map"].diagrams), the
+  // group heading itself ("SPI Map") renders in an <h3>, not inside any .card -- click one real
+  // per-subsystem card instead. Advertisement is one of the densest subsystems, worth checking
+  // zoom on it.
+  await page.locator('.domain-group .card', { hasText: 'Advertisement Subsystem' }).click();
   await page.waitForTimeout(1200); // mermaid render settle
   await shot(page, '05-diagram-spi');
   await page.locator('.zoom-controls button', { hasText: '+' }).click();

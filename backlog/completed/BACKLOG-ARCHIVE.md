@@ -1931,3 +1931,290 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   active ADRs**. A post-migration cross-file integrity sweep found and fixed 6 dangling references
   to deleted ADR numbers. Full detail: `completed/issues/improvement-159-adr-system-review-and-
   refinement.md`.
+
+✅ Done (2026-08-20): improvement-155 — repo-wide rollout of the `infra-doc-standards` convention
+  (structured 7-field headers, README `## Flow` sections) completed across every real script
+  directory: `scripts/sonar/`, `scripts/build-and-test/`, `scripts/ci/` (+ nested `dagu/`),
+  `scripts/deploy-and-run/`, `scripts/utils/`, `playwright/` (+ nested `e2e/`/`e2e/_flows/`), and
+  root `scripts/*.sh`/`*.bat` (20 files, verified via 3 successive skill runs + independent
+  fresh-agent reviews). Real bugs found and fixed along the way: stale `scripts/infra`/
+  `scripts/database` paths in `collect-code.bat`; hardcoded sandbox-only `/app/...` absolute paths
+  in `playwright.bat`/`architecture-doc.bat` (now `wslpath -u "%~dp0..."`, matching every other
+  `.bat` delegator); the skill's own `README` duplication rule was strengthened twice mid-rollout
+  (README is always a full rewrite, never a patch onto pre-existing content; a shared environmental
+  constraint across unrelated files belongs in each file's own header, not README) after the rule's
+  first version let a real "Container reference"/"Docker socket constraint" duplication violation
+  through two self-review passes in a row — only caught by a fresh, cold-context question.
+  `infra-doc-standards/SKILL.md`'s own illustrative `scripts/sonar/README.md` example lost its
+  file-name pointer (kept the text, per "name a real file only when unavoidable"). `docs/ai/scripts/`
+  split off to its own tracked issue, `improvement-161`, rather than folded in here. Full detail:
+  `completed/issues/improvement-155-infra-doc-standards-repo-wide-rollout.md`.
+
+✅ Done (2026-08-21): improvement-163 — separated raw process logs (`scripts/logs/<script>/`) from
+  structured test reports (each script's own `reports/`/`pw-report/`) across build-and-test,
+  integration-tests, playwright, sonar, and run-all-tests; verified for real via 6 acceptance-
+  criteria test runs, all passing. Root-caused and fixed two real bugs found along the way: `docker
+  cp` failing when two nested destination directories are missing at once (fixed by creating
+  `scripts/logs/` once in `clean.bat`, not duplicated per entry point), and `sonar-scanner-cli`'s
+  non-root container user rejecting writes into its own reports volume (fixed with `--user root`).
+  Removed the flaky `wait_for_container_files_or_keep` timeout check entirely after it produced
+  false failures under real load; deleted `scripts/utils/wait-for-container-files.sh`. Added
+  `scripts/pull-logs.bat` to pull logs/reports from persistent containers without running a new
+  test. One item (`architecture-map.html`'s script-header truncation/formatting bug, diagnosed but
+  not implemented) split out to `improvement-164` rather than folded in here. Full detail:
+  `completed/issues/improvement-163-scripts-tooling-improvements.md`.
+
+✅ Done (2026-08-21): improvement-165 — investigated three third-party `.claude/`-layer linters
+  (agnix, AgentLint, AgentLinter) as candidates to mechanically validate `CLAUDE.md`/`SKILL.md`/
+  hooks/commands, none currently checked in this repo. Ran all three read-only against the real
+  repo; spot-checked the highest-severity findings in `CLAUDE.md`/`.claude/rules.md` specifically
+  against the real file content — every one checked (agnix's `<container>`/`<path>` "unclosed XML
+  tag", AgentLinter's "always call/never call" "contradiction") turned out to be a false positive
+  rooted in this project's own writing conventions (shell placeholders in inline code, contrastive
+  phrasing). Closed with no tool adopted — the underlying gap (no mechanical validation of the
+  `.claude/` layer) stays open for a future attempt. Full detail:
+  `completed/issues/improvement-165-investigate-agnix-claude-layer-linter.md`.
+
+✅ Done (2026-08-21): improvement-166 — `scripts/collect-code.bat` gains a `--claude-only` mode:
+  bundles just `.claude/` rules/commands/skills, every `CLAUDE.md` (root + per-module), and
+  `private/claude/memory/` into `claude-context.txt`, skipping the full project source scan. Two
+  real bugs found and fixed via actual Windows `cmd.exe` runs: `::`-style comments inside a new
+  parenthesized `if` block broke `cmd.exe`'s block parser (converted to `REM` and stripped of all
+  literal parentheses, since a stray paren in a comment can misparse the block the same way);
+  `CLAUDE.md` files were initially missing from the bundle since `--claude-only` skips the general
+  `*.md` scan that picks them up in full-project mode, fixed with an explicit `:FindFiles
+  "CLAUDE.md"` call. Full detail: `completed/issues/improvement-166-collect-code-claude-only-mode.md`.
+
+✅ Done (2026-08-25): improvement-164 — fixed `architecture-map.html`'s script-header display
+  (dropped the 20-line read cap, joined continuation lines with `\n` instead of a space, added
+  `white-space: pre-wrap`). Also fixed `architecture-doc.sh`'s tar-pipe `Permission denied` on its
+  own prior output files (excluded from the upload tar, `chmod 644` after `docker cp`), added
+  per-phase progress logging, and excluded `scripts/logs/` from the Scripts tree. Removed the dead
+  Docker/Runtime sections from System › Tooling & Pipelines. Split the oversized
+  `infra-doc-standards` skill into `infra-doc-standards` (file/function headers) and a new
+  `infra-readme-standards` (README/Flow-diagram conventions), then ran both across `scripts/` end
+  to end, finding and fixing two real gaps (`claude.bat`'s Unicode header markers, `sonar/README.md`
+  + `docker-compose.sonar.yml`'s field/flow-step gaps). Full detail:
+  `completed/issues/improvement-164-architecture-map-script-header-truncation.md`.
+
+✅ Done (2026-08-25): improvement-168 — AI guidance refactor across two independent sub-phases.
+  Phase 2.1 (memory): audited all 55 auto-memory files against `.claude/rules.md`/every
+  `CLAUDE.md`, classified each (duplicate/partial/unique/stale), then deleted 16 pure duplicates,
+  migrated 19 more into canonical files (9 as a new "Investigation & Review Discipline" section in
+  `.claude/rules.md`) before deleting the memory copy, rewrote 2 stale-but-keep entries, and
+  deleted 4 further entries confirmed stale/completed against real code (one Phase 1
+  misclassification — a top-level Timeline nav tab wrongly called "superseded" — caught and
+  corrected in the process). Memory: 55 → 16 files, `MEMORY.md` re-verified 1:1 against disk, zero
+  dangling `[[...]]` links. Phase 2.2 (CLAUDE.md): moved all 13 module `CLAUDE.md` files to
+  path-scoped `.claude/rules/*.md` (confirmed live, via a real probe test, that Claude Code's
+  `paths:` frontmatter mechanism works, that subagents inherit the eager-loaded set too, and that
+  a `paths:` glob is not anchored to the repo root — documented in a new `.claude/rules/README.md`
+  and `.claude/README.md`). Fixed `docs/architecture/scripts/generate-architecture-model.sh`'s 3
+  literal-path dependencies on the moved files in the same change, including two self-inflicted
+  bugs (a `SIGPIPE` from a `tail|head` replacement, a `cd`-drift `127`) — root-caused and fixed,
+  verified via a full regeneration + a node-by-node description diff showing zero regressions.
+  Recorded as `.claude/DECISIONS.md` ADR-001 (new file for this module). One out-of-scope finding
+  (stale repo-wide prose references to the old `<module>/CLAUDE.md` paths) deferred to
+  `improvement-133` entry 13 rather than fixed inline or dropped. Full detail:
+  `completed/issues/improvement-168-ai-guidance-memory-vs-canonical-rules.md`.
+
+✅ Done (2026-08-25): improvement-170 — `doc-standards` vs `infra-doc-standards`/`infra-readme-standards`
+  scope resolution, across 9 items. `doc-standards` split into `module-doc-standards` +
+  `module-readme-standards`; new `app-readme-standards` skill (root `README.md`/`INFRASTRUCTURE.md`
+  split); `docs/ai/` → `.claude/nav/` (`git mv` + 74-file reference update). Item 2's original plan
+  (a new skill for `.claude/nav`/`docs/architecture/data`/commands-rules-skills) resolved
+  differently in the end: no new skill — `infra-readme-standards` extended with a `.claude/skills/`
+  section (top-level index only, never per-skill `README.md`), `infra-doc-standards` applied as-is
+  to `.claude/nav/scripts/*`. Final item: `architecture-map.html`'s "AI Tooling" card rebuilt as a
+  `.claude`-rooted tree (same mechanism as "Scripts"), hardcoded Commands/Skills tables removed,
+  README made the sole canonical file list (chip-row now last-resort only), and a real bug fixed —
+  `mdInlineToHtml()`/`mdBlockToHtml()` never supported markdown `[text](url)` link syntax, so every
+  README link across the tool was inert bracket text. Recorded as
+  `docs/architecture/scripts/DECISIONS.md` ADR-033 (supersedes ADR-010). `docs/architecture/data/*.md`
+  content-governance and the orphaned "Canonical ownership table" both remain open gaps, not picked
+  up by this resolution. Full detail:
+  `completed/issues/improvement-170-doc-skill-scope-resolution.md`.
+
+✅ Done (2026-08-25): improvement-161 — `.claude/nav/scripts/` `infra-doc-standards` rollout. Landed
+  as a byproduct of `improvement-170`'s item 1/9 work rather than its own implementation pass: all
+  4 scripts (`check-adr-index-freshness.sh`, `check-flows-completeness.sh`,
+  `check-hardcoded-counts.sh`, `generate-adr-index.sh`) now carry the 7-field header, and
+  `.claude/nav/scripts/README.md` exists with a `## Flow` section and mermaid diagram covering the
+  `check-adr-index-freshness.sh` → `generate-adr-index.sh` relationship and the `docs` CI stage.
+  Verified directly against current files, then closed. Full detail:
+  `completed/issues/improvement-161-ai-docs-scripts-infra-doc-standards-rollout.md`.
+
+✅ Done (2026-08-25): improvement-169 — Hybrid Agentic Review Factory investigation, closed with a
+  decision: scope chosen is the narrowest candidate — formalize `diff-mode.md`'s already-working
+  4-lens parallel-agent + per-candidate verification pattern as real, named `.claude/agents/*.md`
+  files plus one orchestrating Agent call, no Semgrep/Sonar-MCP/ArchUnit mechanical-layer
+  expansion (two of the mission's proposed rules had directly contradicted this project's own
+  documented architecture). Actual implementation split off as a new issue. Full detail:
+  `completed/issues/improvement-169-hybrid-agentic-review-factory.md`.
+
+✅ Done (2026-08-25): improvement-162 — `docs/architecture/` reorganization: `architecture-doc.sh`/
+  `.bat` relocated from `scripts/` to `docs/architecture/` (one level above
+  `docs/architecture/scripts/`); `docs/architecture/data/` split off holding `arch-embed-index.md`,
+  `architecture-model.json`, `README.md`, `runtime-notes.md`; every real reference to the 4 moved
+  files updated. Landed across `improvement-163`/`164`/`166` rather than under this issue's own
+  number — closing verification confirmed every open item resolved on disk, including the
+  previously-flagged gap (`docs/architecture` now a tracked `SCRIPT_GROUP_DIRS` entry) and the
+  approved-in-principle Dockerfile step (`docs/architecture/scripts/Dockerfile`, no more runtime
+  `apt-get install python3`), plus `scripts/claude.bat`'s reuse-vs-`--recreate` container logic
+  with the temporary `claude-dev-test` test name reverted back to `claude-dev`. Full detail:
+  `completed/issues/improvement-162-architecture-map-refactor.md`.
+
+✅ Done (2026-08-26): improvement-171 — formalized `/deep-review`'s reasoning layer as real
+  `.claude/agents/*.md` subagents, per `improvement-169`'s decided narrow scope. Final shape:
+  `deep-review-orchestrator` (self-contained coordinator, 4 scope modes, no `Write` tool — prepares
+  backlog-issue content and the `ReportFindings` JSON payload for the dispatcher to act on after
+  human approval, never writes/reports itself) dispatching two lenses in parallel —
+  `solid-reviewer` (SRP/ISP/DIP/LSP) and `dry-kiss-yagni-reviewer` (DRY/KISS/YAGNI merged into one
+  lens on purpose, since DRY and YAGNI pull in opposite directions). `security-boundary-reviewer`/
+  `data-integrity-reviewer` were drafted then dropped — their concerns folded into
+  `improvement-111` (an ArchUnit rule candidate) and `improvement-172` (fault-injection integration
+  tests) instead, both cheaper/more reliable than an LLM lens for already-identified risk classes.
+  Verified against `AICertification.txt` point by point (hub-and-spoke, structured
+  content/metadata-separated JSON, independent fresh-instance verification, multi-pass
+  attention-dilution guard, confidence-based routing, parallel spawning, structured handoff
+  protocol) — one real gap (human-review handoff missing `failure_scenario`) found and fixed during
+  the final check. `.claude/skills/deep-review/` deleted entirely after a live run showed the
+  orchestrator silently falling back to its stale logic despite explicit instructions not to depend
+  on it. `docs/architecture/scripts/generate-architecture-model.sh` gained a new AGENT node type
+  (own "Agents" card under System › Tooling & Pipelines › AI Tooling) plus a shared
+  `emit_pipeline_md_node()` helper deduplicating what had become a 3-way-copied COMMAND/SKILL/AGENT
+  JSON-emission block — a real finding the orchestrator itself surfaced during a live test run on
+  its own diff. Recorded as `.claude/DECISIONS.md` ADR-002. One known, accepted verification gap
+  left open: the `ReportFindings` non-empty-payload path was never directly exercised end to end —
+  every live run's own backlog cross-check correctly excluded its candidates (either real issues
+  already tracked, or a deliberately-injected test fixture the orchestrator recognized from this
+  issue's own text). Full detail: `completed/issues/improvement-171-formalize-deep-review-agents.md`.
+
+✅ Done (2026-08-26): improvement-167 — DAG-aware agent-friendly script execution contract,
+  narrowed after investigation to a minimal shared-utility candidate (full mission scope rejected
+  as overbuilt for the project's real scale — no concurrent self-invocation, no state files
+  written today). New `scripts/utils/agentic-output.sh` (`emit_agentic_success_block`/
+  `emit_agentic_error_block`) emits a single-line JSON marker (`AGENTIC_SUCCESS_BLOCK`/
+  `AGENTIC_ERROR_BLOCK`, `errorCategory`/`isRetryable`/`currentStep`/`description`/
+  `durationSeconds`) on every real exit path of all 7 top-level `scripts/*.sh` entry points
+  (`deploy-and-run/run.sh`, `deploy-and-run/reset.sh`, `sonar/run.sh`, `build-and-test/run.sh`,
+  `run-all-tests/run.sh`, `ci/run.sh`, `playwright/run.sh`) — mechanism (trap-based vs. inline)
+  matched to each script's own real control-flow shape rather than forced uniformly, since a
+  uniform `trap ERR` would have broken `run-all-tests.sh`'s intentional dual-branch-to-completion
+  design. Error-category taxonomy (`transient`/`validation`/`business`/`permission`) verified
+  directly against the real private certification document, correcting the originating issue's own
+  invented `environment` category. Recorded as `scripts/DECISIONS.md` ADR-013. Verified live:
+  `deploy-and-run.sh` end to end (success path) and `build-and-test.sh --unit --integration
+  --sandbox` (163 tests, 0 failures) both printed the expected `AGENTIC_SUCCESS_BLOCK`. No error
+  path exercised live in any of the 7 scripts — verified by syntax check + review only. Full
+  detail: `completed/issues/improvement-167-dag-aware-agent-friendly-script-execution-contract.md`.
+
+✅ Done (2026-08-26): improvement-173 — infra housekeeping: `.claude/skills/README.md`/
+  `.claude/commands/README.md` audited (no drift found); `improvement-160`'s D3-3/D3-8/D5-7 rows
+  re-verified (citations corrected for renamed/deleted files); SonarQube MCP integration built as
+  an agent-scoped `sonar-analyst` subagent (wrapper script keeps its token fresh on every
+  dispatch, since the session-wide-`.mcp.json` idea couldn't survive SonarQube's token volatility)
+  and verified live end to end, including a real `/sonar --metrics` scan that found and closed 3
+  genuine `java:S7467` false positives (new two-part SonarQube-false-positive rule added to
+  `.claude/rules.md`); Dagu MCP integration built as `dagu-analyst` (no wrapper needed, plain HTTP
+  endpoint) but its `dagu_read`/`dagu_change`/`dagu_execute` tools never connect — confirmed a
+  genuine Claude-Code-client-side limitation with inline HTTP `mcpServers` in agent frontmatter,
+  independent of Dagu's own version (tried the 2.14.0 → 2.15.3 bump specifically to rule this out);
+  documented REST-API fallback works reliably instead. `/review` and `/sonar --metrics`/`/ci
+  --metrics` commands added; `INFRASTRUCTURE.md` restructured top-down per a new
+  `app-readme-standards/SKILL.md` procedure. The `/ci --metrics` live test surfaced and led to
+  fixing a real, unrelated bug: the CI `docs` stage only ever flagged staleness, never fixed it,
+  and the underlying generator had two real container-vs-host drift bugs (`.dockerignore` dropping
+  root `README.md`/`INFRASTRUCTURE.md`/`CLAUDE.md`; Dagu's own runtime `wiki/` folder mistaken for
+  a real script-group) plus four unsorted `grep -rl`/`find` pipelines making its own output
+  non-deterministic — all fixed and verified (two independent regenerations now byte-identical,
+  real freshness gate passes clean). Full detail:
+  `completed/issues/improvement-173-skill-readme-audit-sonar-dagu-mcp-integration.md`.
+
+✅ Done (2026-08-27): improvement-156 — real ArchUnit-based `spi_map_json()` replacement.
+  Reclassified first: the original "Track B, gated by `improvement-135` item 5" framing conflated
+  "uses ArchUnit" with "is Track B" — Track B is actually defined by its AI-token-hypothesis
+  purpose (a new layer Claude reads instead of source), and this issue's deliverable feeds only
+  the existing human-facing SPI Map screen, so the gate never applied; `improvement-138`'s Finding
+  3 corrected accordingly. `ArchitectureMetricsExport.java` gained a `spiEdges()` method: real
+  bytecode-derived implementor/caller edges per `platform-commons` `*.spi` interface
+  (`getAllRawInterfaces()`/`getCallsOfSelf()`, method-level, not text regex), plus the previously-
+  missing `marketplace-orchestrator` module mapping. `spi_map_json()` now consumes this data
+  (falling back to the old regex per-interface when absent) instead of its own text scan. Verified
+  fixed, both in the JSON and in the actually-rendered table via headless Chromium: the documented
+  `AuditAutoConfiguration` false positive is gone, and a previously-undocumented false negative
+  (`AuditActivityEnrichHook` was missing a real second caller) is fixed too. A two-table SPI
+  Interface Details redesign (Calls / Implemented By, rowspan-grouped, clickable module links,
+  click-edge-to-row linking) was also built and verified live while testing this — tracked
+  separately under `improvement-157`, since its shape diverges from that issue's original spec
+  (grouped by Interface, no Method column, vs. the planned Module → Class → Method). Full detail:
+  `completed/issues/improvement-156-archunit-track-b-unblock-decision.md`.
+
+✅ Done (2026-08-27): improvement-157 — SPI Interface Details table redesign, built on
+  `improvement-156`'s real method-level data. Shipped shape diverges from the original plan: two
+  tables (Calls / Implemented By) grouped by Interface (not Module → Class → Method), each Caller
+  cell showing real `callerMethod() → #interfaceMethod()` call-site pairs (bytecode-derived, not
+  regex), and each Interface cell listing every one of its own methods with unused ones dimmed and
+  marked `(unused)` — a real dead-code-in-contract finding, not hypothetical:
+  `AuditDomainHook` is 1/3 used (`findExisting`/`resolveNames` never called by anything). A
+  separate Interface | full-signature table was considered and rejected (the dead-code list already
+  covers its value; a stripped-down signature list gives less than the existing one-click file
+  link). Closed with two documented open questions, not blocking: generic-interface type-argument
+  display, and whether to eventually regroup by Module → Class → Method. Full detail:
+  `completed/issues/improvement-157-spi-interface-details-table-redesign.md`.
+
+✅ Done (2026-08-28): improvement-174 — replaced Bounded Contexts' `ports_json`
+  (`bounded_contexts_json()`, all 3 domain branches) and the Module screen's `MODULE_CONTRACT`
+  regex-based SPI ownership checks with a shared `spi_owns_iface()` helper reading `improvement-156`'s
+  real `spiEdges` data, falling back to the original regex only when no ArchUnit data is available.
+  Surfaced and fixed two real false negatives beyond the original plan while verifying: UI domain's
+  port list first dropped from 3 to 0 (its real Hook interfaces live in
+  `marketplace-orchestrator/.../spi/`, not `platform-commons`), then grew to 5 once
+  `ArchitectureMetricsExport`'s `isPlatformSpiPackage` was generalized to `isSpiPackage`
+  (any module's own `*.spi` package, not hardcoded to `platform-commons`) — 2 more real Hook
+  implementations (`CurrentUserHook`, `SettingsChangeHook`) live outside the `spi/` wrapper package
+  entirely and were never reachable by any directory-scoped regex. Also: `module-link` accent
+  styling applied to Bounded Contexts' Domain Contents links (previously indistinguishable from
+  plain text inside `.adr-item`), Relationships table redesigned grouped-by-label with a
+  rowspan-merged Payload column (same shape as `improvement-157`'s SPI Map split). Separately fixed
+  `scripts/ci/dagu/ci.yaml`'s `docs` step, which never passed `--with-sonar`/`--with-archunit` to
+  the generator regardless of whether the same run's `sonar`/`archunit_metrics` steps actually
+  produced data — now conditional on `${params.sonar}`/`${params.archunit_metrics}`, verified via a
+  real full `bash scripts/ci.sh --all --sonar` run landing real (non-null) SonarQube/ArchUnit data
+  in the committed `architecture-map.html`. Two adjacent ideas noted but not implemented: real
+  ArchUnit cycle-detection for `coupling_checks_json()` (recorded in `improvement-114`), and making
+  the generator's own passive data-reads unconditional by default (would touch ADR-021). Full
+  detail: `completed/issues/improvement-174-bounded-contexts-ports-archunit-replacement.md`.
+
+✅ Done (2026-08-28): improvement-138 Track A — Architecture Control Plane's visual-control track
+  (generated `architecture-model.json`/`architecture-map.html`, live Module Dependencies/SPI
+  Map/Database ERD/Bounded Contexts pages replacing their hand-maintained markdown, `/sync-docs`
+  wiring + freshness CI gate). Split out of the still-open `improvement-138` issue at the user's
+  request (done vs. not-done separation) — full execution history moved to
+  `completed/issues/improvement-138-architecture-control-plane-track-a.md`. Track B (ArchUnit
+  contract/test model + AI-token hypothesis) remains not started, gated on the governing rule
+  absorbed from `improvement-135` item 5 (see below), and stays tracked under the still-open
+  `improvement-138`.
+
+✅ Done (2026-08-28): improvement-135 closed — items 1 (ADR-index/`flows.md` freshness gates), 2
+  (review-skill token-cost measurement practice adopted), and 4 (6/6 workflow-routing spot-check)
+  were done. Items 3 (does `context-loading.md` empirically reduce reads — mechanism built,
+  empirical answer pending real accumulated `## Operational notes` data) and 5 (governing rule: no
+  new `.claude/nav/*`-shaped content until items 2-4 show the existing layer earns its cost) were
+  the only still-open parts — moved verbatim into `improvement-138`'s "Absorbed from
+  `improvement-135`" section, since they're the same open hypothesis as that issue's own Track
+  B/B2 question (does a generated nav layer save tokens), just applied to the existing
+  hand-authored layer instead of a new one. Nothing still-open remained in `improvement-135`
+  itself, so the issue closed. Full detail:
+  `completed/issues/improvement-135-ai-nav-layer-validation-and-adr-index-ci-check.md`.
+
+✅ Done (2026-08-28): improvement-160 closed at explicit user request — not because the work
+  finished. AI certification practical-coverage investigation (5 domains: Orchestration, Tool
+  Design/MCP, Claude Code Config, Prompt Engineering, Context Management/Reliability) against this
+  repo. Real shipped mechanisms found along the way: SonarQube/Dagu MCP servers
+  (`improvement-173`), `argument-hint`/`allowed-tools` skill frontmatter, YAML/JavaScript doc-header
+  coverage (`improvement-155`). Every remaining coverage-map row stays at `idea` status — none
+  implemented. Archived as the record of what was investigated; reopen from the coverage map
+  instead of re-researching if any `idea` row gets picked up later. Full detail:
+  `completed/issues/improvement-160-ai-certification-practical-coverage.md` and
+  `completed/issues/improvement-160-certification-coverage-map.md`.

@@ -2,7 +2,7 @@
 # Description: CI gate -- fails if the committed architecture-model.json/architecture-map.html
 #   are stale (out of sync with what the generator would produce from current repo state).
 # Uses: bash, calls generate-architecture-model.sh as a subprocess.
-# Input: the current committed docs/architecture/architecture-model.json + architecture-map.html,
+# Input: the current committed docs/architecture/data/architecture-model.json + architecture-map.html,
 #   plus everything generate-architecture-model.sh itself reads.
 # Output: exit 0 ("up to date") or exit 1 with an ERROR line naming which file is stale --
 #   no file is written, the committed files are always restored afterward.
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-JSON="$REPO_ROOT/docs/architecture/architecture-model.json"
+JSON="$REPO_ROOT/docs/architecture/data/architecture-model.json"
 HTML="$REPO_ROOT/docs/architecture/architecture-map.html"
 
 if [ ! -f "$JSON" ] || [ ! -f "$HTML" ]; then
@@ -40,7 +40,7 @@ normalize() { sed -E 's/"analysisDate": ?"[^"]*"/"analysisDate": "NORMALIZED"/' 
 
 stale=0
 if ! diff -q <(normalize "$BACKUP_JSON") <(normalize "$JSON") > /dev/null 2>&1; then
-  echo "ERROR: architecture-model.json is stale (out of sync with pom.xml/DECISIONS.md/backlog/docs/ai/flows.md/.claude/commands/.claude/skills)."
+  echo "ERROR: architecture-model.json is stale (out of sync with pom.xml/DECISIONS.md/backlog/.claude/nav/flows.md/.claude/commands/.claude/skills)."
   stale=1
 fi
 if ! diff -q <(normalize "$BACKUP_HTML") <(normalize "$HTML") > /dev/null 2>&1; then

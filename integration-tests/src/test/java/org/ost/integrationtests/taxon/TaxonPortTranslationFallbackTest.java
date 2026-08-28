@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@link TaxonPort#findById} contract that calls it. Tested through that public contract instead
  * of reaching into the package-private method directly, so this exercises real behavior (real SQL,
  * real service wiring) rather than an implementation detail in isolation — see the
- * private-method-testing policy in {@code docs/ai/adr-index.md}.
+ * private-method-testing policy in {@code .claude/nav/adr-index.md}.
  *
  * <p>Fixture setup goes through {@link TaxonRepository}/{@link TaxonTranslationRepository}
  * directly, not {@code TaxonPort.create()} — {@code TaxonService.create()}'s own validation

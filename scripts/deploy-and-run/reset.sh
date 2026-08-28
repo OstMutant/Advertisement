@@ -9,20 +9,28 @@
 # Usage: bash scripts/deploy-and-run/reset.sh [--container <name>]
 #   --container <name>   DB container to exec into (default: $DB_CONTAINER env var, or the first
 #                         container publishing port 5432 if neither is set)
-# Uses: bash, docker, docker compose (only if no DB container exists at all).
+# Uses: bash, docker, docker compose (only if no DB container exists at all, via
+#   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose),
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
 # Env: DB_CONTAINER (no default -- see Usage above), DB_NAME (experiments), DB_USER
 #   (experiments_user) -- all may be exported directly by a caller, falling back to the repo-root
 #   .env, then a hardcoded default.
 # Input: repo source, .env (DB_NAME/DB_USER fallback defaults), scripts/deploy-and-run/reset-clean.sql.
 # Outputs: all application tables truncated (RESTART IDENTITY CASCADE) in the target DB container.
+#   Also prints a single-line AGENTIC_SUCCESS_BLOCK JSON marker on a clean finish, or an
+#   AGENTIC_ERROR_BLOCK JSON marker (errorCategory/isRetryable/currentStep/description/
+#   durationSeconds) on failure, for an AI agent reading raw script output to parse
+#   machine-readable status instead of scraping free text.
 # Returns: 0 on success, non-zero on error (container never became ready, psql failure).
 # ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
-
-trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc): database reset error ==="; exit $_rc' ERR
+SECONDS=0
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+source "$ROOT/scripts/utils/agentic-output.sh"
+
+trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc): database reset error ==="; emit_agentic_error_block "transient" "true" "reset" "Database reset failed with exit code $_rc -- DB container may not have become ready, or psql failed."; exit $_rc' ERR
 
 # Load shared credential defaults from the repo-root .env into ENV_*-prefixed vars -- not
 # exported/sourced directly, so an already-exported override is never clobbered (same pattern as
@@ -58,7 +66,7 @@ if [ -n "$CONTAINER" ] && docker container inspect "$CONTAINER" >/dev/null 2>&1;
   fi
 else
   echo "No DB container found — starting via docker compose..."
-  source "$ROOT/scripts/ensure-docker-plugins.sh"
+  source "$ROOT/scripts/utils/ensure-docker-plugins.sh"
   ensure_docker_compose
   docker compose --project-directory "$ROOT" -f "$ROOT/scripts/deploy-and-run/docker-compose.db.yml" up -d
   CONTAINER=$(docker ps --filter "publish=5432" --format "{{.Names}}" | head -1)
@@ -69,3 +77,4 @@ docker cp "$SCRIPT_DIR/reset-clean.sql" "$CONTAINER:/tmp/reset-clean.sql"
 docker exec "$CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -f /tmp/reset-clean.sql -q
 
 echo "Database reset complete — all data truncated."
+emit_agentic_success_block "reset"

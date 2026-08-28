@@ -2,8 +2,8 @@
 
 **Type:** improvement — tracked continuation of `improvement-138`'s Architecture Control Plane work; keeps `improvement-138` itself from growing further after the Bounded Contexts mechanization pass.
 **Module:** `scripts/ai/generate-architecture-model.sh`, `docs/architecture-map.html`
-**Priority:** 🟡 medium-high (the content below is not yet recoverable from the live tool — `bounded-contexts.md` has already been deleted, git history is the only remaining source)
-**When:** independent, no blockers — pick up any time after improvement-136 per user-requested backlog ordering
+**Priority:** low (deprioritized to the bottom of the backlog 2026-08-28 per explicit user request)
+**When:** independent, no blockers — opportunistic pickup, no trigger
 
 ## Status
 

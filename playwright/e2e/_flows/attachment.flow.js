@@ -1,4 +1,19 @@
-// Shadow DOM helpers for card lightbox and attachment lightbox interactions.
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Shadow-DOM-piercing helpers for the card lightbox (vaadin-dialog.card-lightbox) --
+ *   waiting for it to open/close, reading the current iframe/video src, clicking a thumbnail by
+ *   index, and checking whether the video/image element is currently visible. Every lookup is
+ *   rooted at the currently *opened* dialog instance, not `document`, since closed lightboxes stay
+ *   in the DOM (hidden, not removed).
+ * Usage: None -- a library only, required by spec files (see Input).
+ * Uses: None (plain page.evaluate/waitForFunction DOM traversal).
+ * Env: None.
+ * Input: required directly by 04-marketplace-advertisement-flow.spec.js, and by
+ *   advertisement.flow.js (clickLightboxThumb, getVideoSrc, waitForVideoWrapperVisible), which is
+ *   itself required by that same spec file.
+ * Outputs: exports waitForLightboxOpen, waitForLightboxClosed, getIframeSrc, clickLightboxThumb,
+ *   getVideoSrc, isVideoWrapperVisible, waitForVideoWrapperVisible, waitForMainImageVisible.
+ * Returns: N/A
+ * ──────────────────────────────────────────────────────────────────────────── */
 
 function shadowFindAll(root, selector) {
   const els = [...root.querySelectorAll(selector)];
@@ -15,6 +30,11 @@ function shadowFind(root, selector) {
   return null;
 }
 
+/**
+ * Waits until the card lightbox dialog is opened.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<void>}
+ */
 async function waitForLightboxOpen(page) {
   await page.waitForFunction(
     () => !!document.querySelector('vaadin-dialog.card-lightbox[opened]'),
@@ -22,6 +42,11 @@ async function waitForLightboxOpen(page) {
   );
 }
 
+/**
+ * Waits until the card lightbox dialog is closed. Never throws if the wait times out.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<void>}
+ */
 async function waitForLightboxClosed(page) {
   await page.waitForFunction(
     () => !document.querySelector('vaadin-dialog.card-lightbox[opened]'),
@@ -36,8 +61,13 @@ async function waitForLightboxClosed(page) {
 // search rooted at `document`) picks whichever one happens to be first in document order, which
 // is not necessarily the currently open instance -- confirmed directly: this broke the "YouTube
 // -> image" lightbox test once CardLightboxViewer.update() stopped taking the same shortcut
-// (see docs/ai/adr-index.md for the CardLightboxViewer fix).
+// (see .claude/nav/adr-index.md for the CardLightboxViewer fix).
 
+/**
+ * Reads the `src` of the currently-open lightbox's iframe (e.g. an embedded YouTube video).
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<string|undefined>} the iframe src, or undefined if not found.
+ */
 async function getIframeSrc(page) {
   return page.evaluate((sel) => {
     function search(root) {
@@ -52,6 +82,12 @@ async function getIframeSrc(page) {
   }, '.card-lightbox__iframe');
 }
 
+/**
+ * Clicks the thumbnail at the given index in the currently-open lightbox's thumbnail strip.
+ * @param {import('@playwright/test').Page} page
+ * @param {number} index
+ * @returns {Promise<void>}
+ */
 async function clickLightboxThumb(page, index) {
   await page.evaluate((idx) => {
     function findAll(root, sel) {
@@ -66,6 +102,11 @@ async function clickLightboxThumb(page, index) {
   }, index);
 }
 
+/**
+ * Reads the `src` of the currently-open lightbox's main video element.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<string|undefined>} the video src, or undefined if not found.
+ */
 async function getVideoSrc(page) {
   return page.evaluate(() => {
     function search(root) {
@@ -80,6 +121,11 @@ async function getVideoSrc(page) {
   });
 }
 
+/**
+ * Checks whether the currently-open lightbox's main video wrapper is currently visible.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<boolean|undefined>} true/false if the wrapper is found, undefined otherwise.
+ */
 async function isVideoWrapperVisible(page) {
   return page.evaluate(() => {
     function search(root) {
@@ -94,6 +140,11 @@ async function isVideoWrapperVisible(page) {
   });
 }
 
+/**
+ * Waits until the currently-open lightbox's main video wrapper becomes visible.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<void>}
+ */
 async function waitForVideoWrapperVisible(page) {
   await page.waitForFunction(() => {
     function search(root) {
@@ -108,6 +159,11 @@ async function waitForVideoWrapperVisible(page) {
   }, { timeout: 8000 });
 }
 
+/**
+ * Waits until the currently-open lightbox's main image element becomes visible.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<void>}
+ */
 async function waitForMainImageVisible(page) {
   await page.waitForFunction(() => {
     function search(root) {

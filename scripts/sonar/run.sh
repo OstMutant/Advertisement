@@ -5,30 +5,48 @@
 #   scripts/build-and-test.sh (no local Java needed -- compiled classes come from the shared
 #   maven-cache volume, mounted directly into the scanner container), uploads the analysis, and
 #   generates a local HTML report.
-# Usage: bash scripts/sonar.sh [--no-gate]. --no-gate skips quality-gate blocking (always exits 0);
-#   default blocks on a gate result of ERROR (exits non-zero).
-# Uses: bash, docker (SonarQube server + scanner containers), scripts/build-and-test.sh, python3
-#   (HTML report).
+# Usage: bash scripts/sonar/run.sh [--no-gate] [--pull-latest]. --no-gate skips quality-gate
+#   blocking (always exits 0); default blocks on a gate result of ERROR (exits non-zero).
+#   --pull-latest forces a Docker Hub pull check for both the SonarQube server and scanner images
+#   even if already present locally; default skips the pull once an image exists locally (checking
+#   Docker Hub on every run cost real time -- ~170s observed -- for no benefit on the common path).
+# Uses: bash, docker (SonarQube server + scanner containers), scripts/build-and-test.sh,
+#   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose, python3 (HTML report),
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block),
+#   scripts/utils/ensure-sonar-token.sh's ensure_sonar_token.
 # Env: None.
 # Input: sonar-project.properties, each module's src/main/java (copied from the host), the shared
 #   maven-cache Docker volume's target-classes/<module> (mounted into the scanner container), the
 #   running SonarQube server's own API.
 # Outputs: analysis uploaded to http://localhost:9099/dashboard?id=advertisement (anonymous
 #   browsing enabled every run -- see DECISIONS.md); local report at
-#   scripts/sonar/report/report.html.
+#   scripts/sonar/report/report.html. Self-heals two things every run: the sonar token in
+#   sonar-project.properties (regenerated via local admin/admin credentials and written back if
+#   invalid/missing), and a stale-image DB_MIGRATION_NEEDED dead-end on the embedded database (not
+#   supported -- local scan history is wiped via `docker compose down -v` and the server restarts
+#   fresh on the new image) -- see DECISIONS.md.
 # Returns: 0 on success (or always, with --no-gate); non-zero if the quality gate result is ERROR.
+#   Also prints a single-line AGENTIC_SUCCESS_BLOCK JSON marker on a clean finish, or an
+#   AGENTIC_ERROR_BLOCK JSON marker (errorCategory/isRetryable/currentStep/description/
+#   durationSeconds) on any failure path (script error, token generation, quality gate), for an
+#   AI agent reading raw script output to parse machine-readable status instead of scraping free
+#   text.
 # ────────────────────────────────────────────────────────────────────────────
 set -e
+SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
 NO_GATE=""
+PULL_LATEST=""
 for arg in "$@"; do
   [ "$arg" = "--no-gate" ] && NO_GATE=1
+  [ "$arg" = "--pull-latest" ] && PULL_LATEST=1
 done
 
 LOG=/tmp/sonar.log
-trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "Last output:"; tail -20 "$LOG" 2>/dev/null; echo "Full log: $LOG"; exit $_rc' ERR
+source "$ROOT/scripts/utils/agentic-output.sh"
+trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "Last output:"; tail -20 "$LOG" 2>/dev/null; echo "Full log: $LOG"; emit_agentic_error_block "transient" "true" "sonar-analysis" "Sonar script failed with exit code $_rc -- see log above (full log: $LOG)."; exit $_rc' ERR
 
 SONAR_URL="http://localhost:9099"
 COMPOSE_FILE="$ROOT/scripts/sonar/docker-compose.sonar.yml"
@@ -93,65 +111,51 @@ else:
 PYEOF
 
 # ── Ensure docker compose plugin is available ────────────────────────────────
-source "$ROOT/scripts/ensure-docker-plugins.sh"
+source "$ROOT/scripts/utils/ensure-docker-plugins.sh"
 ensure_docker_compose
 
 # ── Ensure SonarQube server image is current, container exists and is running (see DECISIONS.md) ──
-echo "Checking SonarQube server image is up to date..."
-docker compose -f "$COMPOSE_FILE" pull -q
-docker compose -f "$COMPOSE_FILE" up -d
-
-echo "Waiting for SonarQube to be ready..."
-# A stale-image version jump can dead-end in DB_MIGRATION_NEEDED (embedded-DB, NOT_SUPPORTED) -- see DECISIONS.md.
-MIGRATION_TRIGGERED=""
-while true; do
-  STATUS=$(curl -s "$SONAR_URL/api/system/status" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
-  [ "$STATUS" = "UP" ] && break
-  if [ "$STATUS" = "DB_MIGRATION_NEEDED" ] && [ -z "$MIGRATION_TRIGGERED" ]; then
-    MIGRATION_TRIGGERED=1
-    echo "SonarQube schema needs migrating after the image update — triggering..."
-    MIGRATE_RESULT=$(curl -s -X POST "$SONAR_URL/api/system/migrate_db")
-    if echo "$MIGRATE_RESULT" | grep -q '"state":"NOT_SUPPORTED"'; then
-      echo "Migration not supported on the embedded database — wiping local scan history and starting fresh on the new image..."
-      docker compose -f "$COMPOSE_FILE" down -v
-      docker compose -f "$COMPOSE_FILE" up -d
-    fi
-  fi
-  sleep 5
-done
-echo "SonarQube ready."
-
-# ── Allow anonymous dashboard browsing -- resets to default (auth required) on every wipe/create ──
-curl -s -u admin:admin -X POST "$SONAR_URL/api/settings/set" \
-  -d "key=sonar.forceAuthentication&value=false" >/dev/null
-
-# ── Ensure sonar token is valid; regenerate via admin/admin if not ───────────
-# Strip a trailing \r (CRLF checkout) or it silently corrupts the Basic Auth header -- see DECISIONS.md.
-CURRENT_TOKEN=$(grep "^sonar.token=" "$PROPS_FILE" | cut -d= -f2 | tr -d '\r')
-if ! curl -s -u "$CURRENT_TOKEN:" "$SONAR_URL/api/authentication/validate" | grep -q '"valid":true'; then
-  echo "Sonar token invalid or missing — generating new token..."
-  NEW_TOKEN=$(curl -s -u admin:admin -X POST "$SONAR_URL/api/user_tokens/generate" \
-    -d "name=claude-$(date +%s)" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
-  if [ -z "$NEW_TOKEN" ]; then
-    echo "ERROR: failed to generate SonarQube token. Check admin credentials."
-    exit 1
-  fi
-  sed -i "s|^sonar.token=.*|sonar.token=$NEW_TOKEN|" "$PROPS_FILE"
-  echo "New token saved to sonar-project.properties."
+# Pull is skipped by default once the image already exists locally -- checking Docker Hub for a
+# newer tag on every single run cost real time (~170s observed) for no benefit on the common path
+# where nothing changed. --pull-latest forces the check when a real update is actually wanted.
+if [ -n "$PULL_LATEST" ] || ! docker image inspect sonarqube:community >/dev/null 2>&1; then
+  echo "Pulling SonarQube server image..."
+  docker compose -f "$COMPOSE_FILE" pull -q
+else
+  echo "SonarQube server image already present locally -- skipping pull (use --pull-latest to force)."
+fi
+# ── Ensure server is up and the stored token is valid (shared with the sonar-analyst agent's
+# MCP-launch wrapper -- see scripts/utils/ensure-sonar-token.sh's own header) ──────────────────
+source "$ROOT/scripts/utils/ensure-sonar-token.sh"
+if ! ensure_sonar_token "$COMPOSE_FILE" "$PROPS_FILE" "$SONAR_URL"; then
+  emit_agentic_error_block "permission" "false" "token-generation" "Failed to generate a new SonarQube token via admin/admin credentials -- an authorisation problem, not a transient one."
+  exit 1
 fi
 
 # ── Ensure scanner image is current, container exists and is running (see DECISIONS.md) ──
-echo "Checking scanner image is up to date..."
-docker pull -q sonarsource/sonar-scanner-cli:latest >/dev/null
+# Same pull-skip-by-default reasoning as the SonarQube server image above -- --pull-latest forces
+# the Docker Hub check, otherwise whatever's already local is used as-is.
+if [ -n "$PULL_LATEST" ] || ! docker image inspect sonarsource/sonar-scanner-cli:latest >/dev/null 2>&1; then
+  echo "Pulling scanner image..."
+  docker pull -q sonarsource/sonar-scanner-cli:latest >/dev/null
+else
+  echo "Scanner image already present locally -- skipping pull (use --pull-latest to force)."
+fi
 LATEST_IMAGE_ID=$(docker image inspect -f '{{.Id}}' sonarsource/sonar-scanner-cli:latest)
 CONTAINER_IMAGE_ID=$(docker inspect -f '{{.Image}}' "$SCANNER_CONTAINER" 2>/dev/null || true)
 CONTAINER_STATUS=$(docker inspect -f '{{.State.Status}}' "$SCANNER_CONTAINER" 2>/dev/null || true)
 if [ "$CONTAINER_IMAGE_ID" != "$LATEST_IMAGE_ID" ] || [ "$CONTAINER_STATUS" != "running" ]; then
   [ -n "$CONTAINER_STATUS" ] && docker rm -f "$SCANNER_CONTAINER" >/dev/null
   docker run -d --name "$SCANNER_CONTAINER" --network host \
-    -v maven-cache:/root/.m2 \
+    -v maven-cache:/root/.m2 -v test-reports:/reports \
     sonarsource/sonar-scanner-cli:latest sleep 86400 >/dev/null
 fi
+# --user root: the sonar-scanner-cli image runs as a non-root user (scanner-cli, uid 1000) by
+# default, and the /reports volume mount is root-owned -- confirmed directly that a plain
+# `docker exec` (no --user) fails this mkdir with "Permission denied", a container-user-permissions
+# issue, unrelated to and distinct from the WSL bind-mounts issue documented elsewhere in this
+# repo. Same reasoning as this file's own pre-existing `--user root` for /tmp/sonar-src below.
+docker exec --user root "$SCANNER_CONTAINER" mkdir -p /reports/sonar >/dev/null 2>&1 || true
 
 # Prune any now-dangling image left by either freshness check above (same as deploy-and-run.sh, see DECISIONS.md).
 docker image prune -f >/dev/null
@@ -197,6 +201,13 @@ docker exec "$SCANNER_CONTAINER" sonar-scanner \
   $GATE_FLAG 2>&1 | tee "$LOG"
 EXIT_CODE=${PIPESTATUS[0]}
 set -e
+
+# Mirrored into SCANNER_CONTAINER's own test-reports volume too (synchronous, $LOG already has its
+# full final content by this point, no fifo/background complexity needed) -- same
+# logs-vs-reports split run-all-tests/build-and-test/playwright already use, and the same shared
+# volume mechanism, so it's inspectable via `docker exec sonar-scanner cat /reports/sonar/run.log`
+# independent of terminal access, and copyable to scripts/logs/sonar/ the same way.
+cat "$LOG" | docker exec --user root -i "$SCANNER_CONTAINER" sh -c "cat > /reports/sonar/run.log" 2>/dev/null || true
 
 # ── Generate HTML report (runs inside sonar-scanner container) ────────────────
 REPORT_DIR="$ROOT/scripts/sonar/report"
@@ -301,17 +312,32 @@ docker cp /tmp/sonar-gen-report.py "$SCANNER_CONTAINER":/tmp/sonar-gen-report.py
 docker exec -e SONAR_TOKEN="$SONAR_TOKEN" "$SCANNER_CONTAINER" python3 /tmp/sonar-gen-report.py
 docker cp "$SCANNER_CONTAINER":/tmp/sonar-report.html "$REPORT_FILE"
 
+# run.log (a process log, not a result) goes to its own separate host destination,
+# scripts/logs/sonar/, same logs-vs-reports split every other script in this repo now uses. Same
+# `docker cp CONTAINER:src HOST_DEST` (destination-argument) pattern build-and-test/playwright use
+# for their own logs -- creates the destination directory itself when missing, though only
+# intermittently reliable against a WSL docker-desktop-bind-mounts alias path (see
+# .claude/nav/adr-index.md); not moved to a native `.bat` step here, same accepted-risk status as
+# those two.
+docker cp "$SCANNER_CONTAINER":/reports/sonar/. "$ROOT/scripts/logs/sonar/" 2>/dev/null || true
+
 echo ""
 echo "Analysis complete: $SONAR_URL/dashboard?id=advertisement"
 echo "Local report:      $REPORT_FILE"
+echo "Local log:         $ROOT/scripts/logs/sonar/run.log"
 
 if [ "$EXIT_CODE" -ne 0 ] && [ -z "$NO_GATE" ]; then
   echo ""
   echo "=== QUALITY GATE FAILED (exit $EXIT_CODE) === (--no-gate to make this informational only)"
+  emit_agentic_error_block "business" "false" "quality-gate" "SonarQube quality gate failed (scanner exit code $EXIT_CODE) -- a policy/quality-rule violation, not retryable as-is."
 fi
 
 # --no-gate always exits 0 -- gate result is informational only, per its own documented contract.
 # GATE_FLAG (sonar.qualitygate.wait=true) still ran above regardless, so EXIT_CODE may be non-zero
 # here even under --no-gate; that's expected and deliberately not surfaced as a failure.
-[ -n "$NO_GATE" ] && exit 0
+if [ -n "$NO_GATE" ]; then
+  emit_agentic_success_block "sonar-analysis"
+  exit 0
+fi
+[ "$EXIT_CODE" -eq 0 ] && emit_agentic_success_block "sonar-analysis"
 exit $EXIT_CODE
