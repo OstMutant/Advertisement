@@ -2162,3 +2162,26 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   link). Closed with two documented open questions, not blocking: generic-interface type-argument
   display, and whether to eventually regroup by Module → Class → Method. Full detail:
   `completed/issues/improvement-157-spi-interface-details-table-redesign.md`.
+
+✅ Done (2026-08-28): improvement-174 — replaced Bounded Contexts' `ports_json`
+  (`bounded_contexts_json()`, all 3 domain branches) and the Module screen's `MODULE_CONTRACT`
+  regex-based SPI ownership checks with a shared `spi_owns_iface()` helper reading `improvement-156`'s
+  real `spiEdges` data, falling back to the original regex only when no ArchUnit data is available.
+  Surfaced and fixed two real false negatives beyond the original plan while verifying: UI domain's
+  port list first dropped from 3 to 0 (its real Hook interfaces live in
+  `marketplace-orchestrator/.../spi/`, not `platform-commons`), then grew to 5 once
+  `ArchitectureMetricsExport`'s `isPlatformSpiPackage` was generalized to `isSpiPackage`
+  (any module's own `*.spi` package, not hardcoded to `platform-commons`) — 2 more real Hook
+  implementations (`CurrentUserHook`, `SettingsChangeHook`) live outside the `spi/` wrapper package
+  entirely and were never reachable by any directory-scoped regex. Also: `module-link` accent
+  styling applied to Bounded Contexts' Domain Contents links (previously indistinguishable from
+  plain text inside `.adr-item`), Relationships table redesigned grouped-by-label with a
+  rowspan-merged Payload column (same shape as `improvement-157`'s SPI Map split). Separately fixed
+  `scripts/ci/dagu/ci.yaml`'s `docs` step, which never passed `--with-sonar`/`--with-archunit` to
+  the generator regardless of whether the same run's `sonar`/`archunit_metrics` steps actually
+  produced data — now conditional on `${params.sonar}`/`${params.archunit_metrics}`, verified via a
+  real full `bash scripts/ci.sh --all --sonar` run landing real (non-null) SonarQube/ArchUnit data
+  in the committed `architecture-map.html`. Two adjacent ideas noted but not implemented: real
+  ArchUnit cycle-detection for `coupling_checks_json()` (recorded in `improvement-114`), and making
+  the generator's own passive data-reads unconditional by default (would touch ADR-021). Full
+  detail: `completed/issues/improvement-174-bounded-contexts-ports-archunit-replacement.md`.

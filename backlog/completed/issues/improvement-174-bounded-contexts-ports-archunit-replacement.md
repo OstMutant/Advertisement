@@ -165,7 +165,7 @@ and inspecting real DOM/data in headless Chromium — not simulated. SPI Map's o
 own per-subsystem walk only ever looked at `platform-commons/.../{subsystem}/spi/*.java` to begin
 with.
 
-## Follow-up idea (2026-08-28, not planned in detail/implemented yet) — CI's `docs` step never passes `--with-sonar`/`--with-archunit`, so Code Quality's SonarQube/ArchUnit tables stay empty after a normal CI run
+## Implemented and verified (2026-08-28) — CI's `docs` step never passed `--with-sonar`/`--with-archunit`, so Code Quality's SonarQube/ArchUnit tables stayed empty after a normal CI run
 
 Found while explaining how the Code Quality screen's SonarQube table gets populated:
 `scripts/ci/dagu/ci.yaml`'s `docs` step calls
@@ -178,9 +178,8 @@ failure), and `docs` still ran and succeeded, producing an `architecture-map.htm
 produce real data, because the `docs` step's own command line never reads `params.sonar`/
 `params.archunit_metrics` to decide whether to add `--with-sonar`/`--with-archunit`.
 
-**Proposed fix (not yet implemented):** `docs` step passes flags conditionally, based on the same
-run's own params. Only touches `scripts/ci/dagu/ci.yaml`, nothing in
-`generate-architecture-model.sh` itself:
+**Fix implemented:** `docs` step now passes flags conditionally, based on the same run's own
+params. Only touched `scripts/ci/dagu/ci.yaml`, nothing in `generate-architecture-model.sh` itself:
 
 ```yaml
   - id: docs
@@ -195,6 +194,14 @@ run's own params. Only touches `scripts/ci/dagu/ci.yaml`, nothing in
       [ "${params.archunit_metrics}" = "true" ] && ARCHUNIT_FLAG="--with-archunit"
       bash docs/architecture/scripts/generate-architecture-model.sh $SONAR_FLAG $ARCHUNIT_FLAG
 ```
+
+Verified end-to-end via a real full `bash scripts/ci.sh --all --sonar` run (unit/integration/e2e/
+sonar/archunit_metrics/pipeline_metrics/docs all succeeded), then `bash scripts/ci/run.sh
+--sync-artifacts` to pull the container's output onto the host, then inspecting the real
+`MODEL.sonarMetrics`/`MODEL.archUnitMetrics` in headless Chromium: `sonarMetrics` went from `null`
+to real data (11 modules, real analysis date), `archUnitMetrics` went from `null` to real data (10
+modules, `spiEdges` present) — confirmed as a genuine `null`→data diff in the committed
+`architecture-map.html`, not a simulated result.
 
 ## Related
 
