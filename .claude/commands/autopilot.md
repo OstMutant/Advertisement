@@ -14,16 +14,21 @@ per-step check-ins for this run, not for the project in general — the standing
 
 Steps:
 
-1. **Plan, once.** If $ARGUMENTS references a plan already fully hashed out earlier in this
-   conversation (or a backlog issue file with a complete `## Suggested fix`), restate it
-   concisely — plain-language layer first, technical layer second, per the Approval Rule — instead
-   of re-deriving it. If no such plan exists yet, research the codebase first (read the relevant
-   files, find the pattern to mirror, check for prior art) and draft one. Either way, end the
-   message with something to the effect of: "Approve this and I'll implement, test, and document
-   it end-to-end without checking in again until it's done." Send a `PushNotification` at this
-   point too — the plan is ready and the user may have stepped away while it was being drafted.
-   **Then stop and wait.** This is the one and only gate — do not skip it even if the plan feels
-   obvious.
+1. **Plan, once — via real Plan Mode, not a hand-rolled chat gate.** Call `EnterPlanMode` first
+   (its own tool description already covers when this is warranted — a multi-step `/autopilot` task
+   always qualifies, so call it unconditionally here rather than re-judging that per invocation).
+   If $ARGUMENTS references a plan already fully hashed out earlier in this conversation (or a
+   backlog issue file with a complete `## Suggested fix`), synthesize it into the plan below
+   instead of re-deriving it from scratch; otherwise research the codebase first (read the relevant
+   files, find the pattern to mirror, check for prior art). Either way, write the plan into the
+   plan file Plan Mode's own system message names — plain-language layer first, technical layer
+   second, same structure the Approval Rule always uses — then call `ExitPlanMode` (it reads the
+   plan from that file itself; it does not take the plan text as a parameter, and it already
+   requests the user's approval on its own — do not also ask "does this look OK?" in chat
+   afterward, that would just duplicate what the tool call itself does). Send a `PushNotification`
+   once `ExitPlanMode` has been called — the plan is ready and the user may have stepped away while
+   it was being drafted. **This is the one and only gate** — do not skip it even if the plan feels
+   obvious, and do not substitute a chat message for it.
 
 2. **On approval, go dark on routine questions.** For the rest of this run:
    - `.claude/rules.md` itself says "re-read before every action" — a rule that's easy to drift
@@ -51,11 +56,11 @@ Steps:
      preference) — but keep moving once flagged; don't stall waiting for a reply unless the
      discovery actually blocks progress.
    - `git commit` remains off-limits without the user's explicit "зроби коміт"/"commit" — this is
-     a separately hard-enforced rule in `.claude/rules.md` that `/autopilot` does not and cannot
-     override (this repo has no actual git commit hook enforcing it — the enforcement is Claude's
-     own compliance with that rule, every session, not a mechanism outside Claude's control). Land
-     the run in a "ready to commit" state and say so in the final report; do not commit
-     automatically.
+     a separately hard-enforced rule in `.claude/rules.md`, backed by a real `PreToolUse:Bash` hook
+     in `.claude/settings.json` that blocks any `git commit` invocation lacking a fresh
+     `/tmp/commit-approved` marker (see `.claude/rules.md`'s "Two-call rule for any hook-gated
+     commit step"). `/autopilot` does not and cannot override it. Land the run in a "ready to
+     commit" state and say so in the final report; do not commit automatically.
    - **Every long-running script call in an autopilot run uses `run_in_background: true` by
      default** — this overrides `scripts/CLAUDE.md`'s normal "run synchronously so the user sees
      streaming output" guidance, which exists for interactive sessions where someone is watching;
@@ -73,32 +78,41 @@ Steps:
      notification rather than polling.
 
 3. **Self-review before spending a full test cycle on it.** Once the implementation is written
-   (before running unit/integration/Playwright), run `/code-review --fix` against the diff so far
-   and let it apply its findings directly. This catches obvious correctness/reuse/efficiency bugs
-   cheaply, before burning a full test cycle on code that would need to change anyway — running
-   the whole suite first and then discovering a review finding forces a second full run for
-   nothing. Only proceed to step 4 once `/code-review --fix` has run and its fixes (if any) are
-   applied. This applies to **any** code-review run during an autopilot session — not just this
-   scheduled step — including one the user asks for ad hoc mid-run or after a commit already
-   landed: default to applying findings directly, do not stop to ask whether to apply a finding
-   that is itself low-risk (a rename, a dedup extraction, a straightforward null-guard). Only stop
-   and ask when a finding's fix would itself be destructive/hard-to-reverse per the standing
-   "Executing actions with care" bar — the same exception step 2 already carves out.
-   **Always run `/code-review`'s full documented process end to end, exactly as that skill
-   specifies it — no partial runs, no skipped phases, regardless of diff size:**
-   1. Phase 1: all 8 finder angles, each launched as its own Agent-tool call, in one message so
-      they run in parallel — never fewer, never a direct self-read of the diff substituted instead.
-   2. Phase 2: every surviving candidate gets its own 1-vote verifier Agent-tool call (CONFIRMED /
-      PLAUSIBLE / REFUTED) — do not eyeball the 8 finder reports yourself and decide by reading
-      them; that is not verification, it's a second self-read wearing a different hat.
-   3. Collect every CONFIRMED/PLAUSIBLE finding across all 8 angles into one list, dedup near-
-      duplicates, then fix every one that survives (or explicitly note the skip and why) — do not
-      stop after acting on only the findings that happened to look most interesting while reading
-      notifications as they streamed in.
-   "The diff looks small enough to skip a step" is exactly the judgment call this process exists to
-   remove — it was violated three times in a row in one session before being caught and corrected.
-   Do not repeat it, and do not repeat a partial version of it either (running the 8 finders but
-   skipping per-candidate verification is the same violation in a different shape).
+   (before running unit/integration/Playwright), dispatch this project's own `/review` command
+   (the `deep-review-orchestrator` agent) against the diff so far, then apply its findings
+   directly. This catches obvious SOLID/DRY/KISS/YAGNI bugs cheaply, before burning a full test
+   cycle on code that would need to change anyway — running the whole suite first and then
+   discovering a review finding forces a second full run for nothing. Only proceed to step 4 once
+   `/review` has run and its findings (if any) are applied. This applies to **any** review run
+   during an autopilot session — not just this scheduled step — including one the user asks for ad
+   hoc mid-run or after a commit already landed: default to applying findings directly, do not stop
+   to ask whether to apply a finding that is itself low-risk (a rename, a dedup extraction, a
+   straightforward null-guard). Only stop and ask when a finding's fix would itself be
+   destructive/hard-to-reverse per the standing "Executing actions with care" bar — the same
+   exception step 2 already carves out.
+   **`/review`'s `deep-review-orchestrator` never writes anything itself** (no `Write` tool, by
+   design) — it independently dispatches and verifies two finder lenses (`dry-kiss-yagni-reviewer`
+   + `solid-reviewer`), confirms every surviving candidate with its own fresh verifier subagent, and
+   returns a `ReportFindings` JSON payload plus prepared-but-unwritten issue-file content for
+   anything genuinely new. `/autopilot` — not `/review` — is what applies findings and writes
+   files here:
+   1. `Agent({description: "Code review", subagent_type: "deep-review-orchestrator", prompt:
+      "<diff scope, or empty for uncommitted changes>"})`.
+   2. Read its final result in full — do not re-derive or second-guess what it already verified;
+      that is not this step's job (per `.claude/commands/review.md`'s own step 2).
+   3. Call `ReportFindings` with the JSON payload it returns, then apply every auto-report-bucket
+      finding directly (per this step's own default-to-applying rule above).
+   4. Any prepared-but-unwritten `backlog/issues/*.md` content: present it and, only after
+      explicit approval, write it via `Write` — never automatically, per the standing Approval
+      Rule (same rule `deep-review-orchestrator` itself is built to respect by having no `Write`
+      tool at all).
+   5. Carry every "needs human review" (medium/low-confidence) finding into step 6's final report —
+      do not silently drop it just because it wasn't auto-applied.
+   "The diff looks small enough to skip this step" is exactly the judgment call this process exists
+   to remove — it was violated three times in a row in one session before being caught and
+   corrected (against an earlier review mechanism, but the same discipline applies here). Do not
+   repeat it, and do not repeat a partial version of it either (dispatching `/review` but skipping
+   the apply step is the same violation in a different shape).
 
 4. **Verify like it's going into the final report, not like a checkbox.** Run every test layer
    the change actually touches — unit tests always; integration tests when a repository/schema/
@@ -110,13 +124,13 @@ Steps:
    If a test fails, root-cause and fix it in the same run rather than reporting a partial result and
    stopping — that's still "implementation," not a new decision point.
 
-4. **Document as you go, not as an afterthought.** Update the relevant module's `DECISIONS.md`
+5. **Document as you go, not as an afterthought.** Update the relevant module's `DECISIONS.md`
    with a new ADR before the run ends if the change is architectural — same bar as
    `.claude/rules.md`'s "Definition of Done." If the task closes a backlog issue, move it to
    `backlog/completed/issues/`, drop its `BACKLOG.md` row, and add the one-line archive entry —
    same operation, not a follow-up.
 
-5. **One final report, comprehensive but human — no file-by-file diff table.** When the whole
+6. **One final report, comprehensive but human — no file-by-file diff table.** When the whole
    chain above is done (or genuinely blocked on something outside the plan), report once: what was
    implemented in plain terms (not an enumerated per-file diff description — the user reads the
    actual diff themselves, see `.claude/rules.md` "Final reports"), what was verified and its
@@ -124,10 +138,11 @@ Steps:
    scripts ran in the background over the course of the run (command + what it was for — the
    compile/test/deploy/Playwright calls step 2 backgrounded by default), which Agent-tool calls ran
    (how many, which subagent type, foreground or `run_in_background`, and whether they ran in
-   parallel in one message or sequentially — e.g. `/code-review`'s 8 finder-angle agents, launched
-   together, one message) and what each batch of agents was for — **and explicitly what step 3's
-   `/code-review` run found and what happened to each finding** (fixed / skipped with why / "no
-   findings survived verification"), not just that it ran, what got documented, and
+   parallel in one message or sequentially — e.g. step 3's `deep-review-orchestrator` dispatch and
+   its own internal finder/verifier subagents) and what each batch of agents was for — **and
+   explicitly what step 3's `/review` run found and what happened to each finding** (fixed /
+   skipped with why / routed to "needs human review" / "no findings survived verification"), not
+   just that it ran, what got documented, and
    the concrete git status (what's staged, ready for "зроби коміт"). This
    report replaces every intermediate status update this run would otherwise have produced — don't
    also send a running commentary while steps 2-4 are in progress; the user asked specifically not

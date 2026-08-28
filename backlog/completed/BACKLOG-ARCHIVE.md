@@ -2218,3 +2218,24 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   instead of re-researching if any `idea` row gets picked up later. Full detail:
   `completed/issues/improvement-160-ai-certification-practical-coverage.md` and
   `completed/issues/improvement-160-certification-coverage-map.md`.
+
+✅ Done (2026-08-28): improvement-176 closed — `/autopilot` review, 5 findings against real repo
+  state and the private certification document, all resolved. Fixed directly in
+  `.claude/commands/autopilot.md`: duplicate step "4." numbering (renumbered 1-6); a stale/false
+  claim that no git-commit hook exists (corrected to describe the real `PreToolUse:Bash` hook +
+  `/tmp/commit-approved` marker, already documented in `.claude/rules.md`'s "Two-call rule"); step
+  1 rewritten to use real `EnterPlanMode`/`ExitPlanMode` instead of a hand-rolled chat gate (real
+  tool mechanics verified directly first — no plan-text parameter, `ExitPlanMode` already requests
+  approval on its own); step 3 rewritten to dispatch this project's own `/review`→
+  `deep-review-orchestrator` instead of a stale "8 finder angles" reference to the deleted
+  `deep-review` skill (`improvement-171`). Decided against, user's explicit call: hook-enforcing
+  destructive git commands (force-push/`reset --hard`/etc.) — no clean approval release-valve like
+  the commit hook's marker file, would block `/autopilot` from ever completing a run that
+  genuinely needs one; stays prompt-enforced, done only in genuine extreme necessity. A follow-up
+  full-document certification audit (same session) found one confirmed existing match (parallel
+  Agent/Task spawning, already correct) and one candidate finding (whether `.claude/rules.md`'s
+  `@import` content survives `/compact` the same way root `CLAUDE.md` does) that the user decided
+  to treat as an accepted precaution rather than open a new issue for. The project-wide Approval
+  Rule → Plan Mode question (originally this issue's finding 4 before scope was narrowed) continues
+  in `improvement-177`. Full detail:
+  `completed/issues/improvement-176-autopilot-review-certification-findings.md`.
