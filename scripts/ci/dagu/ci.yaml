@@ -157,7 +157,11 @@ steps:
       bash .claude/nav/scripts/check-adr-index-freshness.sh
       bash .claude/nav/scripts/check-flows-completeness.sh
       bash .claude/nav/scripts/check-hardcoded-counts.sh
-      bash docs/architecture/scripts/generate-architecture-model.sh
+      SONAR_FLAG=""
+      [ "${params.sonar}" = "true" ] && SONAR_FLAG="--with-sonar"
+      ARCHUNIT_FLAG=""
+      [ "${params.archunit_metrics}" = "true" ] && ARCHUNIT_FLAG="--with-archunit"
+      bash docs/architecture/scripts/generate-architecture-model.sh $SONAR_FLAG $ARCHUNIT_FLAG
     continue_on:
       failure: true
     preconditions:

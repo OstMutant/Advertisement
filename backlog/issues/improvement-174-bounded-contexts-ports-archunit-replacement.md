@@ -165,6 +165,37 @@ and inspecting real DOM/data in headless Chromium — not simulated. SPI Map's o
 own per-subsystem walk only ever looked at `platform-commons/.../{subsystem}/spi/*.java` to begin
 with.
 
+## Follow-up idea (2026-08-28, not planned in detail/implemented yet) — CI's `docs` step never passes `--with-sonar`/`--with-archunit`, so Code Quality's SonarQube/ArchUnit tables stay empty after a normal CI run
+
+Found while explaining how the Code Quality screen's SonarQube table gets populated:
+`scripts/ci/dagu/ci.yaml`'s `docs` step calls
+`bash docs/architecture/scripts/generate-architecture-model.sh` with no flags at all, regardless of
+whether the same DAG run's `sonar`/`archunit_metrics` steps actually ran. Confirmed against a real
+run via the `dagu-analyst` agent (run `034E1qKNmEdR2trRRE4XMs`, 2026-08-26): triggered with
+`sonar=false`, `archunit_metrics=false` — both steps show `skipped` (precondition failed, not a
+failure), and `docs` still ran and succeeded, producing an `architecture-map.html` with `null`
+`sonarMetrics`/`archUnitMetrics` even on runs where those params are `true` and the steps did
+produce real data, because the `docs` step's own command line never reads `params.sonar`/
+`params.archunit_metrics` to decide whether to add `--with-sonar`/`--with-archunit`.
+
+**Proposed fix (not yet implemented):** `docs` step passes flags conditionally, based on the same
+run's own params. Only touches `scripts/ci/dagu/ci.yaml`, nothing in
+`generate-architecture-model.sh` itself:
+
+```yaml
+  - id: docs
+    depends: [pipeline_metrics]
+    run: |
+      bash .claude/nav/scripts/check-adr-index-freshness.sh
+      bash .claude/nav/scripts/check-flows-completeness.sh
+      bash .claude/nav/scripts/check-hardcoded-counts.sh
+      SONAR_FLAG=""
+      [ "${params.sonar}" = "true" ] && SONAR_FLAG="--with-sonar"
+      ARCHUNIT_FLAG=""
+      [ "${params.archunit_metrics}" = "true" ] && ARCHUNIT_FLAG="--with-archunit"
+      bash docs/architecture/scripts/generate-architecture-model.sh $SONAR_FLAG $ARCHUNIT_FLAG
+```
+
 ## Related
 
 - `improvement-156` — the ArchUnit-based `spiEdges` data source this issue reuses, and the
