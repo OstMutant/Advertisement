@@ -2185,3 +2185,36 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   ArchUnit cycle-detection for `coupling_checks_json()` (recorded in `improvement-114`), and making
   the generator's own passive data-reads unconditional by default (would touch ADR-021). Full
   detail: `completed/issues/improvement-174-bounded-contexts-ports-archunit-replacement.md`.
+
+✅ Done (2026-08-28): improvement-138 Track A — Architecture Control Plane's visual-control track
+  (generated `architecture-model.json`/`architecture-map.html`, live Module Dependencies/SPI
+  Map/Database ERD/Bounded Contexts pages replacing their hand-maintained markdown, `/sync-docs`
+  wiring + freshness CI gate). Split out of the still-open `improvement-138` issue at the user's
+  request (done vs. not-done separation) — full execution history moved to
+  `completed/issues/improvement-138-architecture-control-plane-track-a.md`. Track B (ArchUnit
+  contract/test model + AI-token hypothesis) remains not started, gated on the governing rule
+  absorbed from `improvement-135` item 5 (see below), and stays tracked under the still-open
+  `improvement-138`.
+
+✅ Done (2026-08-28): improvement-135 closed — items 1 (ADR-index/`flows.md` freshness gates), 2
+  (review-skill token-cost measurement practice adopted), and 4 (6/6 workflow-routing spot-check)
+  were done. Items 3 (does `context-loading.md` empirically reduce reads — mechanism built,
+  empirical answer pending real accumulated `## Operational notes` data) and 5 (governing rule: no
+  new `.claude/nav/*`-shaped content until items 2-4 show the existing layer earns its cost) were
+  the only still-open parts — moved verbatim into `improvement-138`'s "Absorbed from
+  `improvement-135`" section, since they're the same open hypothesis as that issue's own Track
+  B/B2 question (does a generated nav layer save tokens), just applied to the existing
+  hand-authored layer instead of a new one. Nothing still-open remained in `improvement-135`
+  itself, so the issue closed. Full detail:
+  `completed/issues/improvement-135-ai-nav-layer-validation-and-adr-index-ci-check.md`.
+
+✅ Done (2026-08-28): improvement-160 closed at explicit user request — not because the work
+  finished. AI certification practical-coverage investigation (5 domains: Orchestration, Tool
+  Design/MCP, Claude Code Config, Prompt Engineering, Context Management/Reliability) against this
+  repo. Real shipped mechanisms found along the way: SonarQube/Dagu MCP servers
+  (`improvement-173`), `argument-hint`/`allowed-tools` skill frontmatter, YAML/JavaScript doc-header
+  coverage (`improvement-155`). Every remaining coverage-map row stays at `idea` status — none
+  implemented. Archived as the record of what was investigated; reopen from the coverage map
+  instead of re-researching if any `idea` row gets picked up later. Full detail:
+  `completed/issues/improvement-160-ai-certification-practical-coverage.md` and
+  `completed/issues/improvement-160-certification-coverage-map.md`.

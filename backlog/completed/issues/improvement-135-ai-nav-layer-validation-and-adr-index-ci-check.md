@@ -161,14 +161,14 @@ yet, needs evidence):
   plainly in the report every time, default or deviated, so the choice is never silent even when
   it was reasonable.
 
-### 3. Validate `context-loading.md` empirically — does it actually reduce reads — ✅ mechanism done, empirical answer pending real data
+### 3, 5. Moved to `improvement-138`
 
-**Superseded the original plan** (a synthetic 3-5-task with/without experiment) — see the
-consolidated "2, 3, 4" section above. The recording mechanism is live as of this issue; the actual
-empirical answer requires real `## Operational notes` data to accumulate across genuinely completed
-tasks first, then gets reviewed at the next `/sync-docs --full-audit` (Step A5). Not answerable in
-one sitting by design — that was the original plan's flaw (a synthetic snapshot, not evolving
-evidence).
+Item 3 (validate `context-loading.md` empirically) and item 5 (the governing rule gating new
+`.claude/nav/*`-shaped content) were the only still-open parts of this issue — moved verbatim to
+[`improvement-138`](../../issues/improvement-138-architecture-control-plane.md)'s "Absorbed from
+`improvement-135`" section on 2026-08-28, since they're the same open hypothesis as that issue's
+own Track B/B2 (does a generated nav layer actually save tokens), just applied to the existing
+hand-authored layer instead of a new one. See that file for the live text and current status.
 
 ### 4. Measure workflow routing accuracy — task → correct command/skill — ✅ DONE (bounded)
 
@@ -196,15 +196,6 @@ project-specific framing*, not proven here to be about *correctness*. Bounded sc
 cluster) — not exhaustive coverage of all 24 rows across both tables; treat as a spot-check that
 found no problem in the area of highest suspected risk, not a full routing-accuracy certification.
 
-### 5. Governing principle for all of the above: do not add new `.claude/nav/*` content until a real discovery gap appears
-
-No new navigation file, no new metadata field, no expansion of `adr-index.md`'s schema (e.g. the
-previously-rejected `Tags`/`Scope` field) until items 2-4 show the *existing* layer is pulling its
-weight, or a specific, evidenced discovery failure demonstrates a gap the current layer can't
-cover. This mirrors `CLAUDE.md`'s own "don't design for hypothetical future requirements"
-principle, applied to the AI-navigation layer itself — a stale or speculative doc actively misleads
-(as item 1 already demonstrates), which is worse than no doc at all.
-
 ## Out of scope
 
 - Rebuilding or redesigning `adr-index.md`'s content model beyond the module-qualification fix in
@@ -223,17 +214,13 @@ principle, applied to the AI-navigation layer itself — a stale or speculative 
   alongside `/sync-docs --full-audit`'s existing ADR classifier.
 - `improvement-137` — repo-wide documentation dedup + new `doc-standards` skill, filed 2026-08-04.
   Deliberately not merged into this issue (different shape of work — a closeable one-pass cleanup
-  vs. this issue's long-running evidence-accumulation item 3), but touches the same `.claude/nav/*.md`
-  files this issue owns; its Pass 2/4 edits there are corrective (stale counts, restated facts),
-  not new content, so they don't conflict with item 5's governing rule above. See improvement-137's
-  own "Relationship to improvement-135" section for the full reasoning.
-- `improvement-138` — "Architecture Control Plane" (generated model + AI/human dual-layer
-  projection), filed 2026-08-04. Its Track B (a new L0-L5 AI-navigation layer) directly triggers
-  this issue's item 5 governing rule and does not start until it's resolved — either item 3's real
-  accumulated data shows a gap, or the user explicitly decides Track B is itself the
-  evidenced-gap exception (improvement-138's "Finding 3"). Its B2 measurement step must extend
-  this issue's `## Operational notes` block rather than introduce a separate one
-  (improvement-138's "Finding 4"). Track A is not gated by this issue.
+  vs. this issue's long-running evidence-accumulation item 3), but touched the same
+  `.claude/nav/*.md` files this issue owned; its Pass 2/4 edits there were corrective (stale
+  counts, restated facts), not new content, so they didn't conflict with item 5's governing rule.
+- `improvement-138` — "Architecture Control Plane". This issue's items 3 and 5 were moved there
+  verbatim on 2026-08-28 (see this file's item 3/5 section above) — that file is now the live
+  continuation of the "does a nav layer actually save tokens" question, for both the existing
+  hand-authored layer and Track B's new generated one.
 
 ## Operational notes
 
@@ -247,5 +234,6 @@ principle, applied to the AI-navigation layer itself — a stale or speculative 
 - flows_chosen: n/a
 - flows_matched: n/a
 
-**Status: item 1, 2, 4 done; item 3's mechanism built but its empirical answer is pending real
-accumulated data — issue stays open, not moved to `completed/issues/`.**
+**Status: items 1, 2, 4 done. Items 3 and 5 moved to `improvement-138` on 2026-08-28 (see the
+"Related" section above) — nothing still-open remains in this issue. Closed, moved to
+`completed/issues/`.**

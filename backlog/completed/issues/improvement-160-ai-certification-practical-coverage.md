@@ -385,3 +385,11 @@ Status at end of this session: **still gathering ideas, nothing implemented yet.
 `improvement-160-certification-coverage-map.md` are `idea`/`already covered` status. Next step is
 the user's call — either continue surveying more of the certification content, or pick specific
 ideas to move to `approved` and implement.
+
+## Closed (2026-08-28), explicit user request
+
+Closed as-is at the user's explicit request, not because the work is finished — none of the
+`idea`-status rows in the coverage map have been implemented. The investigation itself (this file)
+and the coverage map are archived together in `completed/issues/` as the record of what was found;
+if any `idea` row gets picked up for real implementation later, reopen from there rather than
+starting the research over.
