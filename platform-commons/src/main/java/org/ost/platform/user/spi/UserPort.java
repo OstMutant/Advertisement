@@ -12,7 +12,6 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Port: marketplace → user-starter.
  * Query side: find/filter users, resolve profile data by id/email, batched name/existence lookups.
  * Implementation lives in user-spring-boot-starter.
  */

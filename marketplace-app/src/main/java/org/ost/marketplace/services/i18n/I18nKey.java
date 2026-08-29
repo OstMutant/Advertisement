@@ -5,6 +5,8 @@ import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
 
+/** Single consolidated enum of every translation key across the app, rather than per-feature
+ *  enums, so {@link I18nService#get} has one type to accept. */
 @RequiredArgsConstructor
 public enum I18nKey {
     // === Header ===

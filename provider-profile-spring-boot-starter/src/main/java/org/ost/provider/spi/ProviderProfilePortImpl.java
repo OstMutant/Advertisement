@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+/** Pure delegation to {@link ProviderProfileService} -- no business logic of its own, per this
+ *  project's {@code *PortImpl} convention. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

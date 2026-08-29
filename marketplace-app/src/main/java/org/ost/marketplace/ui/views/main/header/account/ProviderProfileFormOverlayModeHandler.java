@@ -54,12 +54,8 @@ import java.util.stream.Collectors;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
-/**
- * {@code AccountOverlay}'s Provider Profile section, Edit mode -- reached only via
- * {@link ProviderProfileViewModeHandler}'s Edit/Create button, itself only visible when
- * {@link AccessEvaluator#canEditUserAccount} is true, so this handler can assume edit rights
- * unconditionally (see {@code improvement-178}).
- */
+/** {@code AccountOverlay}'s Provider Profile section, Edit mode -- re-checks
+ *  {@code canEditUserAccount} itself, same defensive shape as Name/Settings. */
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
@@ -106,6 +102,7 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
     @Override
     public void activate(OverlayLayout layout) {
         currentProfile = providerProfileSaveService.findByActorId(params.getTargetUserId()).orElse(null);
+        boolean canEdit = access.canEditUserAccount(params.getTargetUserId());
         boolean canSetSupport = access.isPrivileged();
 
         kindField = new RadioButtonGroup<>();
@@ -131,6 +128,11 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
         cityComboBox.setItems(availableCities);
         cityComboBox.setClearButtonVisible(true);
 
+        kindField.setReadOnly(!canEdit);
+        aboutField.setReadOnly(!canEdit);
+        categoryComboBox.setReadOnly(!canEdit);
+        cityComboBox.setReadOnly(!canEdit);
+
         ProviderProfileEditDto dto = currentProfile != null
                 ? mapper.toProviderProfileEdit(currentProfile)
                 : ProviderProfileEditDto.builder().kind(ProviderKind.MASTER).build();
@@ -152,6 +154,8 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
         saveButton = new UiPrimaryButton(getValue(PROVIDER_PROFILE_OVERLAY_BUTTON_SAVE));
         discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));
         UiIconButton closeBtn = new UiIconButton(getValue(PROVIDER_PROFILE_OVERLAY_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
+        saveButton.setVisible(canEdit);
+        discardButton.setVisible(canEdit);
 
         wireSaveGuard(saveButton, params.getOnSave());
         discardButton.addClickListener(_ -> discardChanges());

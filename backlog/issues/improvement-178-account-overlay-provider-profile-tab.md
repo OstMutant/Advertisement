@@ -273,10 +273,80 @@ for, matching this project's "clean DB immediately before a verification run" ru
   routing the provider-profile cascade through `ProviderProfileSaveService` too, and removing the
   now-unused direct `ComponentFactory<ProviderProfilePort>` field. `UserDeleteServiceTest` updated
   to mock `ProviderProfileSaveService` instead of the raw port.
-- **Still open, not yet fixed:** `.claude/rules/provider-profile-spring-boot-starter.md` still
-  documents category assignments as written directly by the starter's own service via
-  `TaxonPort.replaceAssignments()` — that responsibility moved to `ProviderProfileSaveService` as
-  part of this issue. `ProviderProfileFormOverlayModeHandler` also has no defensive
+- **Fixed (2026-08-29):** `ProviderProfileFormOverlayModeHandler` had no defensive
   `canEditUserAccount()` re-check of its own (unlike its Name/Settings siblings) — currently safe
-  since no direct-entry path bypasses `ProviderProfileViewModeHandler`'s gate, but worth hardening
-  if such a path is ever added.
+  since no direct-entry path bypasses `ProviderProfileViewModeHandler`'s gate, but hardened to
+  match the same defense-in-depth shape anyway. `activate()` now computes `canEdit` and gates
+  `kindField`/`aboutField`/`categoryComboBox`/`cityComboBox` readonly state plus `saveButton`/
+  `discardButton` visibility, mirroring `AccountNameFormModeHandler`/`SettingsFormModeHandler`
+  exactly. Verified all four Vaadin field types (`RadioButtonGroup`, `QuillEditor`, `ComboBox`,
+  `MultiSelectComboBox`) inherit `setReadOnly(boolean)` from `HasValueAndElement` via
+  `AbstractField`/`AbstractSinglePropertyField`/`ComboBoxBase`, checked directly against the real
+  Vaadin 25.1.5 bytecode (`javap`), not assumed.
+
+## Documentation sync (2026-08-29, `/sync-docs`)
+
+Ran `/sync-docs` against this branch's diff, then a follow-up manual audit of the `/sync-docs`
+command itself (`.claude/commands/sync-docs.md`) — three separate rounds, each triggered by the
+user asking to re-check for remaining gaps.
+
+**Stale docs fixed as a result of this issue's own changes:**
+- `.claude/rules/provider-profile-spring-boot-starter.md` — 4 stale claims fixed: the "What it
+  owns" enrichment/write description, the now-false "backend-only, no UI yet" line, the
+  category-assignment-ownership paragraph (still described the starter's own service writing
+  assignments directly, when that moved to `ProviderProfileSaveService` as part of this issue —
+  this closes the "still open" item from the section above), and the "no `audit.spi`
+  implementations yet" claim (`ProviderProfileSaveService.captureAudit()` now does this).
+- `.claude/rules/user-spring-boot-starter.md` — `UserFormOverlayModeHandler.loadRestored()` →
+  `AccountNameFormModeHandler.loadRestored()` (class renamed as part of this issue's own
+  `AccountOverlay` unification).
+- `.claude/rules/marketplace-orchestrator.md` — `ProviderProfileSaveService` (new this issue) was
+  entirely undocumented in "What it owns"; added.
+- `.claude/rules.md` — "Reference Implementations" table's `FormModeHandler` row still named the
+  deleted `UserFormOverlayModeHandler`; updated to `AccountNameFormModeHandler`.
+- `platform-commons/DECISIONS.md` `ADR-027` — annotated in place (not a dated correction layer,
+  since this issue's work is exactly the "later batch" ADR-027 itself announced) to reflect that
+  category-assignment write ownership and audit capture landed; new `ADR-030` records the
+  `targetUserId`/`actingUserId` split and the ownership-bug fix (see the "provider profile created
+  for the wrong owner" item above).
+- `marketplace-app/DECISIONS.md` — new `ADR-074` records the `SettingsOverlay`/`UserOverlay` →
+  `AccountOverlay` unification and Provider Profile's View/Edit split, cross-referencing `ADR-067`
+  (which only anticipated this batch, never decided its structure).
+- `.claude/nav/adr-index.md` regenerated; `docs/architecture/data/architecture-model.json` +
+  `docs/architecture/architecture-map.html` + `docs/architecture/data/arch-embed-index.md`
+  regenerated last, after all the above.
+
+**Gaps found in `/sync-docs` itself (not specific to this issue — general tooling staleness),
+fixed in `.claude/commands/sync-docs.md`:**
+- Every "CLAUDE.md (per module)" reference throughout the file (Step 2's mapping table, Step 4,
+  the entire Full Audit Mode section) named a file class that no longer exists anywhere in the
+  repo — per-module `CLAUDE.md` files were migrated into `.claude/rules/<module>.md` before this
+  session; the command was never updated to match. Renamed throughout, keeping root `CLAUDE.md`
+  (still real) distinct from the per-module files.
+- `generate-architecture-model.sh` always writes a third artifact, `arch-embed-index.md`, never
+  mentioned anywhere in the command.
+- Step 4 instructed updating a root `README.md` block between `<!-- arch:start -->`/
+  `<!-- arch:end -->` markers that don't exist anywhere in the repo.
+- "Documentation Rules" cited `record-decision.md` step 3 for the ADR format; the format is
+  actually defined in step 4 (step 3 is reading existing entries/finding the highest ADR number).
+- None of the five doc/README-standards skills (`app-readme-standards`, `module-readme-standards`,
+  `infra-readme-standards`, plus root `INFRASTRUCTURE.md` — which the command never mentioned at
+  all despite it being a real file `app-readme-standards` governs) were referenced anywhere the
+  command touches or audits a README — added pointers to the correct skill by file location
+  (root / Java module / script-group directory).
+- The `<!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->` mechanism (content inside
+  `.claude/rules/platform-commons.md`'s SPI/Port/Hook glossary sections is embedded live into
+  `architecture-map.html`'s SPI Map screen; the generator also reads every `.claude/rules/<module>.md`'s
+  5th line for its one-line description) was undocumented — `.claude/rules/*.md`/root `CLAUDE.md`
+  were missing from both Step 2's regen-trigger patterns and Step 4's "Last action of this step"
+  list, and Step 3 didn't mention the live-embed relationship at all. Added throughout.
+- `generate-architecture-model.sh`'s own header comment (`# Input:`) had the same omission —
+  fixed to list root `CLAUDE.md`/`.claude/rules/*.md` as real inputs.
+
+**Follow-up scoped re-check (same day)**, limited to this issue's own diff only (excluding the
+`/sync-docs` tooling fixes above and unrelated files from the same commit):
+`integration-tests/README.md`'s `ProviderProfileServiceTest` row didn't mention the new
+`save_actorIdTakenFromTargetUser_whenCreatingNewProfile` test case (the regression test for the
+ownership-bug fix); fixed. `marketplace-app/README.md`, `user-spring-boot-starter/README.md`, and
+`playwright/README.md` checked clean — no stale references to the removed `UserOverlay`/
+`SettingsOverlay` classes or old `ProviderProfilePort.save()` signature.

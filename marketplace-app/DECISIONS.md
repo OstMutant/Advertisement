@@ -2673,3 +2673,39 @@ return raw (unenriched) data; the calling UI code enriches explicitly via the or
 alongside its existing `AdvertisementPort` one — found while designing `UserDeleteService`'s target
 shape, not previously wired despite `provider-profile-spring-boot-starter/CLAUDE.md` documenting
 the intent.
+
+---
+
+## ADR-074: `SettingsOverlay`/`UserOverlay` unified into `AccountOverlay`; Provider Profile gains a View/Edit split
+
+**Status:** Accepted
+
+**Context:** ADR-067 anticipated this batch as "the future Account overlay" while designing the
+stacked-history-overlay mechanism it now reuses. Separately, once Name/Settings/Provider Profile
+sections were planned to live side by side in one overlay, an inconsistency became visible: only
+Settings had its own Activity/history entry point, and only the Name section had a View/Edit mode
+split — Settings and the then-new Provider Profile section opened directly into an editable form
+with no read-only view first.
+
+**Decision:** `SettingsOverlay` and `UserOverlay` are replaced by one `AccountOverlay`, opened from
+both the header (self-service) and the Users grid (admin/moderator editing another user), with
+three tabs: Name, Settings, Provider Profile. Provider Profile gains the same View/Edit split
+Advertisement/Taxon/City already have (`ProviderProfileViewModeHandler`/
+`ProviderProfileFormOverlayModeHandler`), so all three tabs — and every other domain overlay in the
+app — now follow the same View-first, Edit-on-request shape. History/restore for each tab reuses
+ADR-067's shared `EntityActivityOverlay` stacked-overlay mechanism, opened via a
+`.{domain}-history-button` icon button rather than a tab.
+
+Both `AccountNameFormModeHandler`/`SettingsFormModeHandler` gained a defensive
+`AccessEvaluator.canEditUserAccount()` re-check inside `activate()` — the Users grid's Edit action
+reaches a form handler directly, bypassing the View mode's own Edit-button gate (which only blocks
+navigating *into* Edit, not the form's own field/button state once already there), and Settings has
+no View mode to gate at all.
+
+**Consequences:** the old `UserFormOverlayModeHandler`/`UserViewOverlayModeHandler` classes are
+gone, replaced by `AccountNameFormModeHandler`/`AccountNameViewModeHandler`. Landed in the same
+session as ADR-030 (`platform-commons/DECISIONS.md`), which moved provider-profile write ownership
+to `marketplace-orchestrator` and fixed the `targetUserId`/`actingUserId` conflation this batch's
+admin-edits-another-user path surfaced during manual testing. Playwright gained
+`04-provider-profile-flow.spec.js` (create/edit provider profile, moderator read-only view, admin
+editing another user's profile end-to-end); spec files 04-07 renumbered to 05-08 to make room.

@@ -33,6 +33,7 @@ import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+/** The Users tab -- grid of accounts, visible only to {@code MODERATOR}/{@code ADMIN}. */
 @Slf4j
 @SpringComponent
 @UIScope

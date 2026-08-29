@@ -37,6 +37,13 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   of a direct `LocaleProvider`/`I18nService` dependency.
 - `ProviderProfileDisplayEnrichmentService` — the ProviderProfile equivalent of the Advertisement
   enrichment service (category/city/actor only — no attachments).
+- `ProviderProfileSaveService` — the ProviderProfile equivalent of `AdvertisementSaveService`:
+  write + category assignment (via `TaxonAssignmentWriteService`) + audit capture, one
+  `TransactionTemplate`-bounded unit. `save(dto, targetUserId, actorId, actorIsPrivileged)` takes
+  two distinct identity parameters — `targetUserId` (whose profile this is, forwarded to
+  `ProviderProfilePort.save()` as the row owner) and `actorId` (who performed the save, audit-only)
+  — since an admin/moderator editing another user's profile makes the two diverge. No attachment
+  gallery step (unlike Advertisement) — provider profiles carry no media.
 - `UserDeleteService` — cascades a user's own dependent data (advertisements, provider profile)
   before deleting the account itself.
 - `AdvertisementReadService` — wraps `ComponentFactory<AdvertisementPort>`'s query methods

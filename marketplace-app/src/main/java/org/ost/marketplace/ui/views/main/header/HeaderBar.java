@@ -21,6 +21,7 @@ import org.ost.marketplace.ui.views.main.header.account.AccountOverlay;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+/** The app's top header bar -- locale switch, login/logout, {@link AccountOverlay} entry point. */
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor

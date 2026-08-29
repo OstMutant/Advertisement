@@ -35,6 +35,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_REFERENCE_DATA;
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_TIMELINE;
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_USERS;
 
+/** The app's single root route ({@code @Route("")}), assembling the top-level tab layout. */
 @Route("")
 @RequiredArgsConstructor
 @Uses(Notification.class)

@@ -27,6 +27,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/** Central registry of {@code UiComponentFactory<T>} beans, one {@code @Bean} per
+ *  {@code Configurable} prototype UI type. */
 @Configuration
 public class ComponentFactoryConfig {
 

@@ -23,6 +23,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/** Plain Mockito unit test for {@link UserDeleteService}'s cascade-delete order. */
 @ExtendWith(MockitoExtension.class)
 class UserDeleteServiceTest {
 

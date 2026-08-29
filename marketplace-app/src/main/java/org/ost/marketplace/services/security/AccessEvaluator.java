@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+/** Delegates every authorization/ownership check to {@link AuthorizationService} rather than
+ *  holding a direct {@code UserAuthorizationPort}, so a future non-Vaadin caller can reuse it. */
 @Component
 @RequiredArgsConstructor
 public class AccessEvaluator {

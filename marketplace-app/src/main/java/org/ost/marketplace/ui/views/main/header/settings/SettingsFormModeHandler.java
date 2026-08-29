@@ -40,6 +40,8 @@ import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+/** {@code AccountOverlay}'s Settings tab -- has no View mode, so re-checks
+ *  {@code canEditUserAccount} itself. */
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor

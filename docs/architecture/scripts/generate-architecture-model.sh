@@ -6,7 +6,9 @@
 #   subprocesses), python3 (only when --with-sonar/--with-archunit are passed).
 # Input: pom.xml, real Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
 #   .claude/nav/adr-index.md, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents,
-#   backlog/.
+#   backlog/, root CLAUDE.md, .claude/rules/*.md (each file's own 5th line for its one-line module
+#   description, plus any <!-- #arch-embed:KEY --> ... <!-- /#arch-embed --> marked section,
+#   embedded live into the generated HTML).
 # Output: docs/architecture/data/architecture-model.json + docs/architecture/architecture-map.html +
 #   docs/architecture/data/arch-embed-index.md.
 #
@@ -819,14 +821,20 @@ diagram_groups_json="  {\"key\": \"bounded-contexts\", \"label\": \"Bounded Cont
 
 # ── SPI Map: mechanically extracted from real Java source, same "live from real source, not a
 # separately-maintained .md" pattern as Module Dependencies (01) -- every *.spi interface under
-# platform-commons + every real `implements` of it across the starters/marketplace-app, via grep
-# (text-pattern matching, not full semantic/bytecode analysis -- same bar as module_deps()).
-# "Purpose" one-liners are the one genuinely-editorial part with no mechanical source, carried over
-# from the retired docs/architecture/02-spi-map.md as a static lookup, same exception Module
-# Dependencies' Key Observations already established.
-# Subsystem-level editorial notes carried over verbatim -- explain a non-obvious absence (Attachment
-# has no starter->marketplace media-change callback) or a design rationale (User's 4-port split) that
-# the mechanical per-interface extraction has no way to produce on its own.
+# platform-commons, plus every real caller/implementor of it across the starters/marketplace-app.
+# Caller/implementor edges: real bytecode-derived data from ArchitectureMetricsExport.java's
+# spiEdges when available, falling back to grep (text-pattern matching, not full semantic/bytecode
+# analysis -- same bar as module_deps()) otherwise -- see javadoc_purpose_for()'s neighboring
+# archunit_file handling above.
+# "Purpose" one-liners ARE mechanically extracted too, just from a different real source than the
+# edges: javadoc_purpose_for() reads each interface's own Javadoc block live, every run -- not a
+# static lookup, and not something ArchUnit could supply even in principle (bytecode carries no
+# Javadoc text). This makes every *.spi interface's own Javadoc a mechanically-required input, per
+# module-doc-standards/SKILL.md's "SPI interface Javadoc" section.
+# Subsystem-level editorial notes (SPI_SUBSYSTEM_NOTE below) remain the one genuinely-editorial,
+# no-mechanical-source part of this diagram -- explain a non-obvious absence (Attachment has no
+# starter->marketplace media-change callback) or a design rationale (User's 4-port split) that no
+# per-interface extraction, mechanical or not, has any way to produce on its own.
 declare -A SPI_SUBSYSTEM_NOTE=(
   [attachment]="AttachmentMediaChangeHook does not exist -- there is no starter->marketplace media-change callback. Media summaries are computed at read time via AttachmentPort.getMediaSummaries() instead (see marketplace-app/DECISIONS.md ADR-035)."
   [user]="Split into 4 narrow ports (see platform-commons/DECISIONS.md ADR-026 for the rationale -- interface cohesion, not runtime-toggle behavior; all 4 are always implemented by user-spring-boot-starter)."

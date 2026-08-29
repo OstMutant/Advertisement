@@ -131,6 +131,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-071 (marketplace-app) | marketplace-app | Accepted |  | `UserDto.locale` removed, `UserProfileUpdate` renamed, `UserPort` split (Batch A2) |
 | ADR-071 (marketplace-app) | user-spring-boot-starter | Accepted |  | `UserDto.locale` removed, `UserProfileUpdate` renamed, `UserPort` split (Batch A2) |
 | ADR-073 (marketplace-app) | marketplace-app | Accepted — the "`AdvertisementAuditEnrichService` stays in `marketplace-app`" call below was itself reversed shortly after, see `marketplace-orchestrator/DECISIONS.md` ADR-005: its two real UI-shell touchpoints (current locale, an `AdKind` label) turned out to be single-value lookups rather than the HTML-diff formatting itself, so both moved behind the `CurrentLocaleHook`/ `UiLabelHook` forwarder-SPI pair and `AdvertisementAuditEnrichService` now lives in `marketplace-orchestrator` too, not `marketplace-app`. |  | `AdvertisementSaveService`/`UserDeleteService` move to `marketplace-orchestrator`; `AdvertisementAuditEnrichService` stays |
+| ADR-074 (marketplace-app) | marketplace-app | Accepted |  | `SettingsOverlay`/`UserOverlay` unified into `AccountOverlay`; Provider Profile gains a View/Edit split |
 | ADR-001 (marketplace-orchestrator) | marketplace-orchestrator | Accepted — the "never depends on a starter jar" consequence is superseded by ADR-004; the module-extraction decision itself stands |  | Extract a dedicated Application/BFF module instead of moving orchestration into marketplace-app |
 | ADR-002 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `AdvertisementSaveService`'s cascade-cleanup-on-delete folds into the same transaction, not a separate step |
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
@@ -160,6 +161,10 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-027 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter` |
 | ADR-028 (platform-commons) | platform-commons | Accepted |  | `AdvertisementPort`/`ProviderProfilePort` drop `Locale` from `getFiltered`/`findById`/`findByActorId` |
 | ADR-029 (platform-commons) | platform-commons | Accepted |  | `UiLabelHook`/`SessionActorHook` forwarder SPIs do not live in `platform-commons` |
+| ADR-030 (platform-commons) | platform-commons | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
+| ADR-030 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
+| ADR-030 (platform-commons) | marketplace-orchestrator | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
+| ADR-030 (platform-commons) | marketplace-app | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
 | ADR-001 (playwright) | playwright | Accepted |  | data-testid convention for form field selectors |
 | ADR-002 (playwright) | playwright | Accepted |  | No waitForTimeout — wait on Vaadin state attributes |
 | ADR-003 (playwright) | playwright | Accepted |  | --ux flag controls screenshots |

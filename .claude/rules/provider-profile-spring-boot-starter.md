@@ -14,12 +14,11 @@ Java package root: `org.ost.provider`
 
 - `ProviderProfile` entity + `ProviderProfileRepository` — CRUD and filter/sort queries
 - `ProviderProfileService` — create/update, delete, sanitizes `about` via OWASP HTML Sanitizer,
-  enforces the `kind == SUPPORT` requires-privileged-actor rule, wires category assignments
-  directly via `TaxonPort.replaceAssignments()`, resolves query-time category filters via
-  `TaxonPort.findEntityIdsWithAnyTaxon()`. Does not enrich display fields — `getFiltered()`/
-  `findById()`/`findByActorId()` return raw (unenriched) `ProviderProfileDto`s; category/city/actor
-  display enrichment happens afterward via `marketplace-orchestrator`'s
-  `ProviderProfileDisplayEnrichmentService`.
+  enforces the `kind == SUPPORT` requires-privileged-actor rule, resolves query-time category
+  filters via `TaxonPort.findEntityIdsWithAnyTaxon()`. Does not write category assignments (see
+  Key constraints) and does not enrich display fields — `getFiltered()`/`findById()`/
+  `findByActorId()` return raw (unenriched) `ProviderProfileDto`s; category/city/actor display
+  enrichment happens afterward via `marketplace-orchestrator`'s `ProviderProfileDisplayEnrichmentService`.
 - `ProviderProfilePortImpl` — implements `ProviderProfilePort`; thin delegation to
   `ProviderProfileService`
 
@@ -36,7 +35,6 @@ Tables: `provider_profile`
 
 ## Key constraints
 
-- This module ships backend-only — no UI surfaces it yet.
 - `ProviderProfilePort` lives in `platform-commons`.
 - `@EnableJdbcRepositories(basePackages = "org.ost.provider.repository")` declared in
   `ProviderProfileAutoConfiguration`.
@@ -50,21 +48,18 @@ Tables: `provider_profile`
   `categoryIds` (many-to-many) goes through `TaxonPort`.
 - `delete()` is a **real `DELETE`**, not a soft-delete — no `deleted_at`/`deleted_by` columns, no
   "restore" concept for provider status.
-- `ProviderProfileService.save()` enforces `kind == SUPPORT` requires an `actingUserIsPrivileged`
-  boolean the caller (marketplace-app) computes and passes in — the one authorization-shaped rule
+- `ProviderProfileService.save(dto, targetUserId, actingUserId, actingUserIsPrivileged)` takes two
+  distinct identity parameters: `targetUserId` is whose profile this is (the row's `actor_id` on
+  create), `actingUserId` is who is performing the save (audit purposes only) — they differ
+  whenever an admin/moderator edits another user's profile via the account overlay's Users-grid
+  entry path. `actingUserIsPrivileged` gates `kind == SUPPORT` — the one authorization-shaped rule
   this starter enforces server-side, a deliberate exception to the "authorization lives only in
   marketplace-app" convention. See `.claude/nav/adr-index.md`.
 - `findOwnerIds()` blocks user purge while a profile exists (mirrors `AdvertisementPort`'s
   `created_by` protection) — no `clearActorReferences()`, since there are no nullable
   actor-reference columns on this table to null.
-- This starter's own service — not `marketplace-orchestrator` — writes category assignments
-  directly via `TaxonPort.replaceAssignments()`, unlike the Advertisement domain, whose save path
-  (`marketplace-orchestrator`'s `AdvertisementSaveService`) makes that same write instead.
-  Deliberate: there is no orchestrator save path for this domain yet (planned for a future batch,
-  alongside the actual `AuditPort.record()` audit-write call) — building one now, ahead of any real
-  UI or audit wiring, would be new feature work, not the mechanical extraction the decision
-  recorded for `marketplace-orchestrator` scoped — see `.claude/nav/adr-index.md` for that decision's
-  "what does NOT move" table.
-- No `audit.spi` implementations of its own yet — audit-side wiring (the
-  `ProviderProfileActivityFieldsHookImpl` triad other domains have) is deferred to a future batch,
-  since no code writes `PROVIDER_PROFILE` audit rows yet.
+- `marketplace-orchestrator`'s `ProviderProfileSaveService` — not this starter's own service —
+  writes category assignments via `TaxonAssignmentWriteService` and captures audit via `AuditPort`,
+  mirroring the Advertisement domain's own `AdvertisementSaveService` save path exactly. This
+  starter's `ProviderProfileService` only resolves query-time category filters (read-only) via
+  `TaxonPort`.

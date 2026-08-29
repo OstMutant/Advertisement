@@ -10,7 +10,6 @@ import org.ost.platform.core.model.EntityType;
 import java.util.List;
 
 /**
- * Hook: audit-starter → marketplace.
  * Marketplace implements this per entity type to enrich audit data with attachment-domain
  * information and to provide media-state lookups for the audit renderer.
  * Implement one bean per entity type that has attachment support.

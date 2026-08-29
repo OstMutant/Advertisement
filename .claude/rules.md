@@ -789,7 +789,7 @@ When adding a new domain, use these as reference:
 - View: `AdvertisementsView` (init structure) + `UserView` (refresh guard)
 - Overlay: `AdvertisementOverlay` (OverlaySession, afterSave, mode switching)
 - ViewModeHandler: `AdvertisementViewOverlayModeHandler` (AbstractViewOverlayModeHandler)
-- FormModeHandler: `UserFormOverlayModeHandler` (buildBinder separate)
+- FormModeHandler: `AccountNameFormModeHandler` (buildBinder separate)
 - QueryBlock: `AdvertisementQueryBlock` and `UserQueryBlock` (identical structure)
 - FilterMeta: `AdvertisementFilterMeta` (Fields.* constants)
 - SortMeta: `AdvertisementSortMeta` (Fields.* constants)

@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+/** CRUD + sanitization for {@code provider_profile} -- does not write category assignments. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
