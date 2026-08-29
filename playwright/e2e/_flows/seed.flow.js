@@ -6,8 +6,8 @@
  * Uses: ./category.flow (selectCategoryInAdForm), ./city.flow (selectCityInAdForm),
  *   ./advertisement.flow (selectAdKind).
  * Env: None.
- * Input: required by 03-marketplace-promotion-flow.spec.js, 04-marketplace-advertisement-flow.spec.js,
- *   05-seed-filter-sort-pagination.spec.js.
+ * Input: required by 03-marketplace-promotion-flow.spec.js, 05-marketplace-advertisement-flow.spec.js,
+ *   06-seed-filter-sort-pagination.spec.js.
  * Outputs: exports signUpBulk, signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */

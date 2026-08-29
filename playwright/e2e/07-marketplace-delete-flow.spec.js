@@ -13,7 +13,7 @@
  *   - "adminEn deletes user -- cancel keeps row, confirm removes row and shrinks grid": cancel
  *     delete -> row still visible -> confirm delete -> row gone -> filter clear -> absent in full
  *     list.
- * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 06-marketplace-
+ * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 07-marketplace-
  *   delete-flow --ux`, or as part of the full e2e suite (`bash /app/playwright/run.sh e2e --ux`).
  * Uses: @playwright/test.
  * Env: None.

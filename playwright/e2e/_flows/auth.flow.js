@@ -6,8 +6,9 @@
  * Uses: ../_helpers (screenshot).
  * Env: None.
  * Input: required by 02-marketplace-authentication-flow.spec.js,
- *   03-marketplace-promotion-flow.spec.js, 04-marketplace-advertisement-flow.spec.js,
- *   06-marketplace-delete-flow.spec.js, 07-accessibility.spec.js, and _flows/signup.flow.js.
+ *   03-marketplace-promotion-flow.spec.js, 04-provider-profile-flow.spec.js,
+ *   05-marketplace-advertisement-flow.spec.js, 07-marketplace-delete-flow.spec.js,
+ *   08-accessibility.spec.js, and _flows/signup.flow.js.
  * Outputs: exports runFillLoginFormFlow, runSubmitLoginFlow, runCancelLogoutFlow, runLogoutFlow.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */

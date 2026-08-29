@@ -26,9 +26,11 @@ public interface ProviderProfilePort {
 
     Optional<ProviderProfileDto> findByActorId(@NonNull Long actorId);
 
-    /** {@code actingUserIsPrivileged} gates {@code kind == SUPPORT}; throws
-     *  {@link IllegalStateException} otherwise. */
-    Long save(@NonNull ProviderProfileSaveDto dto, @NonNull Long actingUserId, boolean actingUserIsPrivileged);
+    /** {@code targetUserId} is whose profile this is (the row's {@code actor_id} on create);
+     *  {@code actingUserId} is who is performing the save, for audit purposes only -- the two
+     *  differ when an admin/moderator edits another user's profile. {@code actingUserIsPrivileged}
+     *  gates {@code kind == SUPPORT}; throws {@link IllegalStateException} otherwise. */
+    Long save(@NonNull ProviderProfileSaveDto dto, @NonNull Long targetUserId, @NonNull Long actingUserId, boolean actingUserIsPrivileged);
 
     /** {@code version} must be the value the caller last read; a stale value throws
      *  OptimisticLockingFailureException. */

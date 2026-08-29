@@ -5,7 +5,7 @@
  * Uses: @playwright/test (expect), ./entity-activity.flow (openEntityActivity, closeEntityActivity,
  *   restoreFromEntityActivity).
  * Env: None.
- * Input: required directly by 05-seed-filter-sort-pagination.spec.js, and indirectly by every
+ * Input: required directly by 06-seed-filter-sort-pagination.spec.js, and indirectly by every
  *   other spec that goes through ./audit.flow, which requires this file internally.
  * Outputs: exports changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes.
  * Returns: N/A

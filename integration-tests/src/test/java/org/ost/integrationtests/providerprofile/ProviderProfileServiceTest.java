@@ -41,7 +41,7 @@ class ProviderProfileServiceTest {
         ProviderProfileService service = newService();
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.SUPPORT, "About", null, null, null);
 
-        assertThatThrownBy(() -> service.save(dto, 1L, false))
+        assertThatThrownBy(() -> service.save(dto, 1L, 1L, false))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("SUPPORT");
     }
@@ -53,7 +53,7 @@ class ProviderProfileServiceTest {
                 .thenReturn(ProviderProfile.builder().id(1L).build());
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.SUPPORT, "About", null, null, null);
 
-        Long id = service.save(dto, 1L, true);
+        Long id = service.save(dto, 1L, 1L, true);
 
         assertThat(id).isEqualTo(1L);
     }
@@ -65,7 +65,7 @@ class ProviderProfileServiceTest {
                 .thenReturn(ProviderProfile.builder().id(1L).build());
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", null, null, null);
 
-        Long id = service.save(dto, 1L, false);
+        Long id = service.save(dto, 1L, 1L, false);
 
         assertThat(id).isEqualTo(1L);
     }
@@ -78,7 +78,7 @@ class ProviderProfileServiceTest {
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(
                 null, ProviderKind.MASTER, "<script>alert(1)</script><b>Bold</b>", null, null, null);
 
-        service.save(dto, 1L, false);
+        service.save(dto, 1L, 1L, false);
 
         assertThat(captor.getValue().getAbout())
                 .doesNotContain("<script>")
@@ -91,7 +91,7 @@ class ProviderProfileServiceTest {
         String tooLong = "a".repeat(ProviderProfileSaveDto.ABOUT_MAX_LENGTH + 1);
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, tooLong, null, null, null);
 
-        assertThatThrownBy(() -> service.save(dto, 1L, false))
+        assertThatThrownBy(() -> service.save(dto, 1L, 1L, false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("exceeds maximum length");
     }
@@ -104,19 +104,19 @@ class ProviderProfileServiceTest {
         String exactlyMax = "a".repeat(ProviderProfileSaveDto.ABOUT_MAX_LENGTH);
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, exactlyMax, null, null, null);
 
-        service.save(dto, 1L, false);
+        service.save(dto, 1L, 1L, false);
 
         assertThat(captor.getValue().getAbout()).hasSize(ProviderProfileSaveDto.ABOUT_MAX_LENGTH);
     }
 
     @Test
-    void save_actorIdTakenFromActingUser_whenCreatingNewProfile() {
+    void save_actorIdTakenFromTargetUser_whenCreatingNewProfile() {
         ProviderProfileService service = newService();
         ArgumentCaptor<ProviderProfile> captor = ArgumentCaptor.forClass(ProviderProfile.class);
         when(repository.save(captor.capture())).thenReturn(ProviderProfile.builder().id(1L).build());
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", null, null, null);
 
-        service.save(dto, 42L, false);
+        service.save(dto, 42L, 99L, false);
 
         assertThat(captor.getValue().getActorId()).isEqualTo(42L);
     }

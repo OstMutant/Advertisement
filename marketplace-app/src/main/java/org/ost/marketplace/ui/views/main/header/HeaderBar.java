@@ -17,7 +17,7 @@ import org.ost.marketplace.ui.views.main.header.dialogs.LoginDialog;
 import org.ost.marketplace.ui.views.main.header.dialogs.LogoutDialog;
 import org.ost.marketplace.ui.views.main.header.dialogs.SignUpDialog;
 import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
-import org.ost.marketplace.ui.views.main.header.settings.SettingsOverlay;
+import org.ost.marketplace.ui.views.main.header.account.AccountOverlay;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -30,7 +30,7 @@ public class HeaderBar extends HorizontalLayout {
     private final LoginDialog             loginDialog;
     private final LogoutDialog            logoutDialog;
     private final SignUpDialog            signUpDialog;
-    private final SettingsOverlay         settingsOverlay;
+    private final AccountOverlay          accountOverlay;
     private final EntityActivityOverlay   entityActivityOverlay;
     private final transient I18nService          i18n;
     private final transient AuthContextService   authContextService;
@@ -38,7 +38,7 @@ public class HeaderBar extends HorizontalLayout {
     @PostConstruct
     protected void init() {
         addClassName("header-bar");
-        add(settingsOverlay);
+        add(accountOverlay);
         add(entityActivityOverlay);
         add(buildLogo());
         add(initAuthBlock());
@@ -75,7 +75,7 @@ public class HeaderBar extends HorizontalLayout {
         authContextService.getCurrentUser().ifPresentOrElse(
                 currentUser -> {
                     userInfo.setText(i18n.get(HEADER_SIGNED_IN, currentUser.email()));
-                    authRow.add(userInfo, createSettingsButton(), createLogoutButton());
+                    authRow.add(userInfo, createSettingsButton(currentUser.id()), createLogoutButton());
                 },
                 () -> {
                     userInfo.setText(i18n.get(HEADER_NOT_SIGNED_IN));
@@ -85,9 +85,9 @@ public class HeaderBar extends HorizontalLayout {
         return authRow;
     }
 
-    private UiPrimaryButton createSettingsButton() {
+    private UiPrimaryButton createSettingsButton(Long userId) {
         UiPrimaryButton button = new UiPrimaryButton(i18n.get(HEADER_SETTINGS), VaadinIcon.COG.create());
-        button.addClickListener(_ -> settingsOverlay.openSettings());
+        button.addClickListener(_ -> accountOverlay.openForSettings(userId));
         button.addClassName("header-settings-button");
         return button;
     }

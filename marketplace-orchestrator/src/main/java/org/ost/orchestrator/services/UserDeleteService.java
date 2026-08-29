@@ -5,22 +5,21 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.ost.platform.user.spi.UserAccountPort;
 import org.springframework.stereotype.Service;
 
 /**
  * Application-level use case: cascade-delete a user's own dependent data (advertisements, provider
- * profile) before deleting the account itself. 2 direct domain ports (Advertisement +
- * ProviderProfile) plus the mandatory {@link UserAccountPort} dependency.
+ * profile) before deleting the account itself. 1 direct domain port (Advertisement) plus the
+ * {@link ProviderProfileSaveService} collaborator and the mandatory {@link UserAccountPort} dependency.
  */
 @Service
 @RequiredArgsConstructor
 public class UserDeleteService {
 
     private final ComponentFactory<AdvertisementPort>   advertisementPortFactory;
-    private final ComponentFactory<ProviderProfilePort> providerProfilePortFactory;
     private final AdvertisementSaveService              advertisementSaveService;
+    private final ProviderProfileSaveService             providerProfileSaveService;
     private final UserAccountPort                       accountPort;
 
     // cascades to the user's own ads and provider profile first -- avoids an FK block on later retention purge
@@ -30,8 +29,10 @@ public class UserDeleteService {
                 advertisementSaveService.delete(ad.getId(), actingUserId, ad.getVersion());
             }
         });
-        providerProfilePortFactory.ifAvailable(port -> port.findByActorId(userId)
-                .ifPresent(profile -> port.delete(profile.getId(), profile.getVersion())));
+        if (providerProfileSaveService.isAvailable()) {
+            providerProfileSaveService.findByActorId(userId)
+                    .ifPresent(profile -> providerProfileSaveService.delete(profile.getId(), actingUserId, profile.getVersion()));
+        }
         accountPort.delete(userId, actingUserId);
     }
 }

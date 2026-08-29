@@ -4,8 +4,8 @@
  * Usage: None -- a library only, required by spec files (see Input).
  * Uses: ../_helpers (screenshot), ./category.flow (selectCategoryInAdForm).
  * Env: None.
- * Input: required by 03-marketplace-promotion-flow.spec.js, 04-marketplace-advertisement-flow.spec.js,
- *   06-marketplace-delete-flow.spec.js.
+ * Input: required by 03-marketplace-promotion-flow.spec.js, 05-marketplace-advertisement-flow.spec.js,
+ *   07-marketplace-delete-flow.spec.js.
  * Outputs: exports cancelDeleteDialog, confirmDeleteDialog, runCreateSimpleAdvertisementFlow.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */

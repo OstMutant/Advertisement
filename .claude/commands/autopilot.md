@@ -14,21 +14,17 @@ per-step check-ins for this run, not for the project in general — the standing
 
 Steps:
 
-1. **Plan, once — via real Plan Mode, not a hand-rolled chat gate.** Call `EnterPlanMode` first
-   (its own tool description already covers when this is warranted — a multi-step `/autopilot` task
-   always qualifies, so call it unconditionally here rather than re-judging that per invocation).
-   If $ARGUMENTS references a plan already fully hashed out earlier in this conversation (or a
-   backlog issue file with a complete `## Suggested fix`), synthesize it into the plan below
-   instead of re-deriving it from scratch; otherwise research the codebase first (read the relevant
-   files, find the pattern to mirror, check for prior art). Either way, write the plan into the
-   plan file Plan Mode's own system message names — plain-language layer first, technical layer
-   second, same structure the Approval Rule always uses — then call `ExitPlanMode` (it reads the
-   plan from that file itself; it does not take the plan text as a parameter, and it already
-   requests the user's approval on its own — do not also ask "does this look OK?" in chat
-   afterward, that would just duplicate what the tool call itself does). Send a `PushNotification`
-   once `ExitPlanMode` has been called — the plan is ready and the user may have stepped away while
-   it was being drafted. **This is the one and only gate** — do not skip it even if the plan feels
-   obvious, and do not substitute a chat message for it.
+1. **Plan, once.** If $ARGUMENTS references a plan already fully hashed out earlier in this
+   conversation (or a backlog issue file with a complete `## Suggested fix`/`## Approach`),
+   synthesize it into the plan instead of re-deriving it from scratch; otherwise research the
+   codebase first (read the relevant files, find the pattern to mirror, check for prior art).
+   Either way, write the complete plan into the relevant `backlog/issues/<n>.md` file per the
+   Approval Rule (plain-language layer first, technical layer second), then present a short
+   summary from that file in chat, ending with a literal question. Send a `PushNotification` at
+   this point too — the plan is ready and the user may have stepped away while it was being
+   drafted. **Then stop and wait for an explicit answer to that exact question.** This is the one
+   and only gate — do not skip it even if the plan feels obvious, and do not infer approval from a
+   directive-sounding reply that isn't a literal answer to the question asked.
 
 2. **On approval, go dark on routine questions.** For the rest of this run:
    - `.claude/rules.md` itself says "re-read before every action" — a rule that's easy to drift

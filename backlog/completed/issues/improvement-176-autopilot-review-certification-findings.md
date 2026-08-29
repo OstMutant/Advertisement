@@ -78,7 +78,15 @@ stop-and-ask (already how `autopilot.md` step 2 reads today — no wording chang
 hard technical block. The certification's own prompt-vs-hook gap stands as a documented finding,
 correctly identified, but not acted on here — a real, considered trade-off, not an oversight.
 
-### 4. Re-surfaced known gap — Plan Mode vs. the hand-rolled Approval Rule, now concretely observed in `autopilot.md` step 1 — ✅ FIXED (2026-08-28)
+### 4. Re-surfaced known gap — Plan Mode vs. the hand-rolled Approval Rule, now concretely observed in `autopilot.md` step 1 — ✅ FIXED, then REVERTED (2026-08-28)
+
+**Reverted, same day, explicit user request.** The `EnterPlanMode`/`ExitPlanMode` migration
+described below was implemented, then undone: `ExitPlanMode`'s plan file is harness-assigned (no
+way to point it at a chosen path), which fought this project's own standing rule that a plan lives
+in its tracked `backlog/issues/<n>.md` file. `autopilot.md` step 1 is back to the issue-file +
+chat-question gate. `improvement-177` (which was unblocked on the assumption this fix was a stable,
+working precedent to generalize from) needs re-checking — its own "precondition met" framing no
+longer holds.
 
 Already logged (status `idea`, unimplemented) in the now-closed `improvement-160`'s coverage map,
 row `D3-6`: *"this repo's hand-written 'Approval Rule' in `.claude/rules.md` reimplements in prose

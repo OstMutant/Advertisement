@@ -44,6 +44,28 @@ public class AccessEvaluator {
         return canOperate(u -> authorizationService.isOwner(u, ownerUserId));
     }
 
+    /** Self, admin, or moderator may open the account (view its Name/Settings/Provider Profile tabs). */
+    public boolean canViewUserAccount(Long targetUserId) {
+        return canOperate(targetUserId);
+    }
+
+    /** Only self or admin may edit any account tab -- a moderator viewing another user's account
+     *  gets read-only across all tabs, never partial edit rights. */
+    public boolean canEditUserAccount(Long targetUserId) {
+        return currentUser()
+                .map(u -> authorizationService.isAdmin(u) || authorizationService.isOwner(u, targetUserId))
+                .orElse(false);
+    }
+
+    /** Role is a more privileged sub-permission than the rest of the Name tab: only an admin
+     *  editing someone *else's* account may change it -- never their own role (even an admin's),
+     *  and never a moderator's at all. */
+    public boolean canEditRole(Long targetUserId) {
+        return currentUser()
+                .map(u -> authorizationService.isAdmin(u) && !authorizationService.isOwner(u, targetUserId))
+                .orElse(false);
+    }
+
     private boolean canOperate(Predicate<UserDto> isOwner) {
         return currentUser()
                 .map(u -> authorizationService.isAdmin(u) || authorizationService.isModerator(u) || isOwner.test(u))

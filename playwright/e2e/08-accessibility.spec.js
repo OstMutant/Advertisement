@@ -4,7 +4,7 @@
  *   button with no visible text) is missing an aria-label. Searches recursively through shadow
  *   roots via a page.evaluate() DOM walk, since Vaadin components render their real buttons
  *   inside shadow DOM.
- * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 07-accessibility
+ * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 08-accessibility
  *   --ux`, or as part of the full e2e suite (`bash /app/playwright/run.sh e2e --ux`).
  * Uses: @playwright/test.
  * Env: None.

@@ -7,7 +7,7 @@ plan; needs design decisions before work starts).
 `overlay/AdvertisementOverlay.java`), `marketplace-app/src/main/frontend/themes/my-app/`
 (`advertisement-card.css`, `advertisements-view.css`, `styles.css` design tokens),
 `platform-commons/src/main/java/org/ost/platform/advertisement/dto/AdvertisementInfoDto.java`,
-`playwright/e2e/04-marketplace-advertisement-flow.spec.js` +
+`playwright/e2e/05-marketplace-advertisement-flow.spec.js` +
 `playwright/e2e/_flows/advertisement.flow.js`.
 **Priority:** 🔵 (larger tech-debt/UI-polish tier — no live bug, real effort, needs a design
 decision before implementation; see "Priority rationale" below for why this isn't 🟡).
@@ -223,7 +223,7 @@ Both are pure UI‑layer, no port/hook boundary crossed — safe to restyle/repo
 
 ### 16. Existing Playwright coverage that a redesign would need to preserve or update
 
-`playwright/e2e/04-marketplace-advertisement-flow.spec.js` +
+`playwright/e2e/05-marketplace-advertisement-flow.spec.js` +
 `playwright/e2e/_flows/advertisement.flow.js` assert directly against these CSS selectors/
 structure, all of which a redesign must either keep stable or update deliberately (not
 accidentally break):
@@ -336,7 +336,7 @@ questions" below for what still needs a decision from the user before implementa
    the new feed shell.
 5. **Empty state modernization**: restyle shared `EmptyStateView` classes (check other consumers
    first).
-6. **Playwright**: update `04-marketplace-advertisement-flow.spec.js`/`_flows/advertisement.flow.js`
+6. **Playwright**: update `05-marketplace-advertisement-flow.spec.js`/`_flows/advertisement.flow.js`
    selectors/assertions for whatever structural changes phase 2-3 introduce (badge classes, card
    root structure, `data-ad-id` placement) — per item #16, the ad-kind badge color assertions and
    `data-ad-id` swap logic are the two highest-risk breakage points to verify explicitly, not just
@@ -383,5 +383,5 @@ questions" below for what still needs a decision from the user before implementa
 - `marketplace-app/DECISIONS.md` ADR-038 (design-token naming/rationale), ADR-060 (Share button /
   Web Share API), ADR-066 (AdKind semantic coloring, referenced from
   `advertisement-spring-boot-starter/CLAUDE.md`), ADR-065 (city facet reuse via `TaxonType.CITY`).
-- `playwright/e2e/04-marketplace-advertisement-flow.spec.js`,
+- `playwright/e2e/05-marketplace-advertisement-flow.spec.js`,
   `playwright/e2e/_flows/advertisement.flow.js` — existing coverage to preserve/update.

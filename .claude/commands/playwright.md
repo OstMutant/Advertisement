@@ -1,7 +1,7 @@
 Run Playwright UI tests for the marketplace app.
 
 Usage: /playwright [scenario] [--full]
-Examples: /playwright   /playwright smoke   /playwright 05-seed-filter-sort-pagination --full
+Examples: /playwright   /playwright smoke   /playwright 06-seed-filter-sort-pagination --full
 
 Flags:
 - --full  — include spec 05 seed data (skipped by default, takes ~2 min extra)

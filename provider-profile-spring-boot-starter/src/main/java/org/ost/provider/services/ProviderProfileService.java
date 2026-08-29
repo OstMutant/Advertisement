@@ -71,16 +71,14 @@ public class ProviderProfileService {
     // ── CRUD ─────────────────────────────────────────────────────────────────
 
     @Transactional
-    public Long save(@NonNull @Valid ProviderProfileSaveDto dto, @NonNull Long actingUserId, boolean actingUserIsPrivileged) {
+    public Long save(@NonNull @Valid ProviderProfileSaveDto dto, @NonNull Long targetUserId, @NonNull Long actingUserId, boolean actingUserIsPrivileged) {
         if (dto.kind() == ProviderKind.SUPPORT && !actingUserIsPrivileged) {
             throw new IllegalStateException("Only a privileged actor may set kind=SUPPORT");
         }
-        log.info("ProviderProfile save: id={}, actorId={}, isNew={}", dto.id(), actingUserId, dto.id() == null);
+        log.info("ProviderProfile save: id={}, targetUserId={}, actingUserId={}, isNew={}", dto.id(), targetUserId, actingUserId, dto.id() == null);
         Optional<ProviderProfile> before = dto.id() == null ? Optional.empty() : repository.findById(dto.id());
-        ProviderProfile entity = buildEntity(dto, actingUserId, before.orElse(null));
-        Long id = repository.save(entity).getId();
-        taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.PROVIDER_PROFILE, id, dto.categoryIds() != null ? dto.categoryIds() : Set.of()));
-        return id;
+        ProviderProfile entity = buildEntity(dto, targetUserId, before.orElse(null));
+        return repository.save(entity).getId();
     }
 
     public Optional<ProviderProfileDto> findById(@NonNull Long id) {
@@ -102,17 +100,15 @@ public class ProviderProfileService {
     @Transactional
     public void delete(@NonNull Long id, Long version) {
         log.info("ProviderProfile delete: id={}", id);
-        repository.findById(id).ifPresent(_ -> taxonPortFactory.ifAvailable(
-                p -> p.replaceAssignments(EntityType.PROVIDER_PROFILE, id, Set.of())));
         repository.delete(id, version);
     }
 
     // ── HTML sanitization ────────────────────────────────────────────────────
 
-    private static ProviderProfile buildEntity(@NonNull ProviderProfileSaveDto dto, Long actingUserId, ProviderProfile before) {
+    private static ProviderProfile buildEntity(@NonNull ProviderProfileSaveDto dto, Long targetUserId, ProviderProfile before) {
         return ProviderProfile.builder()
                 .id(dto.id())
-                .actorId(before != null ? before.getActorId() : actingUserId)
+                .actorId(before != null ? before.getActorId() : targetUserId)
                 .kind(dto.kind())
                 .about(sanitizeHtml(dto.about()))
                 .cityTaxonId(dto.cityTaxonId())

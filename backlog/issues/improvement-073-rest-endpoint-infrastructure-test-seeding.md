@@ -2,7 +2,7 @@
 
 **Type:** improvement — new infrastructure capability, prerequisite for improvement-035 and any
 future REST-dependent work. Filed 2026-07-16 after deciding a browser-driven Playwright spec
-(05-seed-filter-sort-pagination) needs a faster, audit-trail-correct seeding path than either raw
+(06-seed-filter-sort-pagination) needs a faster, audit-trail-correct seeding path than either raw
 SQL (breaks the spec's own timeline assertions — see improvement-035's correction) or full UI
 automation (slow — the actual thing being optimized away).
 **Module:** `marketplace-app` (new `web/` or `api/` package for REST controllers, `SecurityConfig`).

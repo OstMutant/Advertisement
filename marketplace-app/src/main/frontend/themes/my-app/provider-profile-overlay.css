@@ -1,0 +1,57 @@
+/* ── Provider Profile view card ─────────────────────────────────────────── */
+
+.provider-profile-kind-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 2px 9px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.provider-profile-kind-badge--master {
+  background: var(--app-status-entity-provider-profile-bg);
+  color: var(--app-status-entity-provider-profile-text);
+}
+
+.provider-profile-kind-badge--shop {
+  background: var(--app-status-success-badge-bg);
+  color: var(--app-status-success-badge-text);
+}
+
+.provider-profile-kind-badge--support {
+  background: var(--app-accent-violet-bg);
+  color: var(--app-accent-violet);
+}
+
+.provider-profile-categories-chips,
+.provider-profile-city-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.provider-profile-category-chip,
+.provider-profile-city-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 240px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: var(--app-surface-muted);
+  color: var(--app-text-tertiary);
+  border: 1px solid var(--app-border-default);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.provider-profile-view-empty-text {
+  color: var(--app-text-muted);
+  font-size: 0.9rem;
+}

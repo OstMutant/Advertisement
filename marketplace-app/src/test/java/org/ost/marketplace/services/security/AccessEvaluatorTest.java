@@ -163,4 +163,137 @@ class AccessEvaluatorTest {
         assertThat(accessEvaluator.canNotEdit(TARGET_OWNER_ID)).isTrue();
         assertThat(accessEvaluator.canNotDelete(TARGET_OWNER_ID)).isTrue();
     }
+
+    // --- canViewUserAccount(Long targetUserId) ---
+
+    @Test
+    void canViewUserAccount_admin_true_viewingOther() {
+        loggedInAs(ADMIN_USER);
+        when(authorizationService.isAdmin(ADMIN_USER)).thenReturn(true);
+
+        assertThat(accessEvaluator.canViewUserAccount(TARGET_OWNER_ID)).isTrue();
+    }
+
+    @Test
+    void canViewUserAccount_moderator_true_viewingOther() {
+        loggedInAs(MODERATOR_USER);
+        when(authorizationService.isAdmin(MODERATOR_USER)).thenReturn(false);
+        when(authorizationService.isModerator(MODERATOR_USER)).thenReturn(true);
+
+        assertThat(accessEvaluator.canViewUserAccount(TARGET_OWNER_ID)).isTrue();
+    }
+
+    @Test
+    void canViewUserAccount_plainUser_true_viewingSelf() {
+        loggedInAs(PLAIN_USER);
+        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
+        when(authorizationService.isModerator(PLAIN_USER)).thenReturn(false);
+        when(authorizationService.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(true);
+
+        assertThat(accessEvaluator.canViewUserAccount(TARGET_OWNER_ID)).isTrue();
+    }
+
+    @Test
+    void canViewUserAccount_plainUser_false_viewingOther() {
+        loggedInAs(PLAIN_USER);
+        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
+        when(authorizationService.isModerator(PLAIN_USER)).thenReturn(false);
+        when(authorizationService.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(false);
+
+        assertThat(accessEvaluator.canViewUserAccount(TARGET_OWNER_ID)).isFalse();
+    }
+
+    @Test
+    void canViewUserAccount_loggedOut_returnsFalse() {
+        loggedOut();
+
+        assertThat(accessEvaluator.canViewUserAccount(TARGET_OWNER_ID)).isFalse();
+    }
+
+    // --- canEditUserAccount(Long targetUserId) -- moderator is read-only, unlike canOperate() ---
+
+    @Test
+    void canEditUserAccount_admin_true_editingOther() {
+        loggedInAs(ADMIN_USER);
+        when(authorizationService.isAdmin(ADMIN_USER)).thenReturn(true);
+
+        assertThat(accessEvaluator.canEditUserAccount(TARGET_OWNER_ID)).isTrue();
+    }
+
+    @Test
+    void canEditUserAccount_moderator_false_editingOther() {
+        loggedInAs(MODERATOR_USER);
+        when(authorizationService.isAdmin(MODERATOR_USER)).thenReturn(false);
+        when(authorizationService.isOwner(MODERATOR_USER, TARGET_OWNER_ID)).thenReturn(false);
+
+        assertThat(accessEvaluator.canEditUserAccount(TARGET_OWNER_ID)).isFalse();
+    }
+
+    @Test
+    void canEditUserAccount_plainUser_true_editingSelf() {
+        loggedInAs(PLAIN_USER);
+        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
+        when(authorizationService.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(true);
+
+        assertThat(accessEvaluator.canEditUserAccount(TARGET_OWNER_ID)).isTrue();
+    }
+
+    @Test
+    void canEditUserAccount_plainUser_false_editingOther() {
+        loggedInAs(PLAIN_USER);
+        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
+        when(authorizationService.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(false);
+
+        assertThat(accessEvaluator.canEditUserAccount(TARGET_OWNER_ID)).isFalse();
+    }
+
+    @Test
+    void canEditUserAccount_loggedOut_returnsFalse() {
+        loggedOut();
+
+        assertThat(accessEvaluator.canEditUserAccount(TARGET_OWNER_ID)).isFalse();
+    }
+
+    // --- canEditRole(Long targetUserId) ---
+
+    @Test
+    void canEditRole_admin_true_editingOther() {
+        loggedInAs(ADMIN_USER);
+        when(authorizationService.isAdmin(ADMIN_USER)).thenReturn(true);
+        when(authorizationService.isOwner(ADMIN_USER, TARGET_OWNER_ID)).thenReturn(false);
+
+        assertThat(accessEvaluator.canEditRole(TARGET_OWNER_ID)).isTrue();
+    }
+
+    @Test
+    void canEditRole_admin_false_editingSelf() {
+        loggedInAs(ADMIN_USER);
+        when(authorizationService.isAdmin(ADMIN_USER)).thenReturn(true);
+        when(authorizationService.isOwner(ADMIN_USER, ADMIN_USER.id())).thenReturn(true);
+
+        assertThat(accessEvaluator.canEditRole(ADMIN_USER.id())).isFalse();
+    }
+
+    @Test
+    void canEditRole_moderator_false_editingOther() {
+        loggedInAs(MODERATOR_USER);
+        when(authorizationService.isAdmin(MODERATOR_USER)).thenReturn(false);
+
+        assertThat(accessEvaluator.canEditRole(TARGET_OWNER_ID)).isFalse();
+    }
+
+    @Test
+    void canEditRole_plainUser_false_editingSelf() {
+        loggedInAs(PLAIN_USER);
+        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
+
+        assertThat(accessEvaluator.canEditRole(PLAIN_USER.id())).isFalse();
+    }
+
+    @Test
+    void canEditRole_loggedOut_returnsFalse() {
+        loggedOut();
+
+        assertThat(accessEvaluator.canEditRole(TARGET_OWNER_ID)).isFalse();
+    }
 }

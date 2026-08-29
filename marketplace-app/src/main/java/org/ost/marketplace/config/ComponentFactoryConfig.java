@@ -2,10 +2,15 @@ package org.ost.marketplace.config;
 
 import org.ost.marketplace.ui.dto.AdvertisementEditDto;
 import org.ost.marketplace.ui.dto.CityEditDto;
+import org.ost.marketplace.ui.dto.ProviderProfileEditDto;
 import org.ost.marketplace.ui.dto.SettingsEditDto;
 import org.ost.marketplace.ui.dto.TaxonEditDto;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
+import org.ost.marketplace.ui.views.main.header.account.AccountNameFormModeHandler;
+import org.ost.marketplace.ui.views.main.header.account.AccountNameViewModeHandler;
+import org.ost.marketplace.ui.views.main.header.account.ProviderProfileFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.main.header.account.ProviderProfileViewModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementCardView;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
@@ -16,8 +21,6 @@ import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityFo
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.TaxonFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.TaxonViewOverlayModeHandler;
-import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserFormOverlayModeHandler;
-import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -58,6 +61,12 @@ public class ComponentFactoryConfig {
     }
 
     @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<OverlayFormBinder<ProviderProfileEditDto>> providerProfileFormBinderFactory(
+            ObjectProvider<OverlayFormBinder<ProviderProfileEditDto>> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
     public UiComponentFactory<AdvertisementCardView> advertisementCardViewFactory(ObjectProvider<AdvertisementCardView> p) {
         return new UiComponentFactory<>(p);
     }
@@ -78,12 +87,22 @@ public class ComponentFactoryConfig {
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<UserViewOverlayModeHandler> userViewOverlayModeHandlerFactory(ObjectProvider<UserViewOverlayModeHandler> p) {
+    public UiComponentFactory<AccountNameFormModeHandler> accountNameFormModeHandlerFactory(ObjectProvider<AccountNameFormModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<UserFormOverlayModeHandler> userFormOverlayModeHandlerFactory(ObjectProvider<UserFormOverlayModeHandler> p) {
+    public UiComponentFactory<AccountNameViewModeHandler> accountNameViewModeHandlerFactory(ObjectProvider<AccountNameViewModeHandler> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<ProviderProfileFormOverlayModeHandler> providerProfileFormOverlayModeHandlerFactory(ObjectProvider<ProviderProfileFormOverlayModeHandler> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<ProviderProfileViewModeHandler> providerProfileViewModeHandlerFactory(ObjectProvider<ProviderProfileViewModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 

@@ -10,6 +10,7 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.timepicker.TimePicker;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.PostConstruct;
@@ -43,6 +44,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_USERS;
 @Uses(TimePicker.class)
 @Uses(QueryDateTimeField.class)
 @Uses(QueryLongField.class)
+@Uses(IntegerField.class)
 public class MainView extends VerticalLayout {
 
     private final transient HeaderBar headerBar;

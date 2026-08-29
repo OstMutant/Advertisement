@@ -23,6 +23,12 @@ subagent to read or classify `DECISIONS.md` content, check `context-loading.md`'
 table first — it may already name a specific command/skill/agent (e.g. the `deep-review-orchestrator`
 agent's full-repo scope) that owns exactly this task shape instead of a fresh, undocumented dispatch.
 
+A direct `scripts/*.sh` invocation via Bash is itself, mechanically, always one of these
+choice points — check `flows.md`'s mechanism table for that situation before running the script,
+every single time, not only when a choice consciously feels ambiguous. Running the script directly
+still feels like the obvious default action in the moment, which is exactly why the check must be
+unconditional rather than triggered by first noticing a choice exists.
+
 ---
 
 > ## ⛔ One fact, one canonical home — the single governing rule for all documentation

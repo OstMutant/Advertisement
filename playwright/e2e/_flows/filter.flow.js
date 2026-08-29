@@ -7,7 +7,7 @@
  * Usage: None -- a library only, required by spec files (see Input).
  * Uses: @playwright/test (expect), ../_helpers (screenshot).
  * Env: None.
- * Input: required directly by 05-seed-filter-sort-pagination.spec.js, and indirectly by every
+ * Input: required directly by 06-seed-filter-sort-pagination.spec.js, and indirectly by every
  *   other spec that goes through ./timeline.flow, which requires this file internally.
  * Outputs: exports openQueryPanel, applyFilter, clearFilter, waitForVaadin,
  *   clickSort, resetDefaultSorts, fillText, fillNumber, fillRole, fillCategory, fillCity,

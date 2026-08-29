@@ -22,7 +22,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.QueryStatusBar;
-import org.ost.marketplace.ui.views.main.tabs.users.overlay.UserOverlay;
+import org.ost.marketplace.ui.views.main.header.account.AccountOverlay;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
 import org.ost.marketplace.ui.core.UiComponentFactory;
@@ -46,7 +46,7 @@ public class UserView extends VerticalLayout {
     private final transient NotificationService                    notificationService;
     private final QueryStatusBar<UserFilterDto>                    queryStatusBar;
     private final transient UiComponentFactory<UserGridConfigurator> gridConfiguratorFactory;
-    private final UserOverlay                                      overlay;
+    private final AccountOverlay                                   overlay;
     private final PaginationBar                                    paginationBar;
     private final transient SettingsPaginationBinding              settingsPaginationBinding;
 
@@ -75,7 +75,7 @@ public class UserView extends VerticalLayout {
         contentWrapper.setSpacing(false);
         contentWrapper.setWidthFull();
 
-        add(contentWrapper, overlay);
+        add(contentWrapper);
 
         paginationBar.setPageChangeListener(_ -> refresh());
         queryStatusBar.getQueryBlock().addEventListener(() -> {
@@ -85,8 +85,8 @@ public class UserView extends VerticalLayout {
         gridConfiguratorFactory.build(
                 UserGridConfigurator.Parameters.builder()
                         .grid(grid)
-                        .onView(u -> overlay.openForView(u, this::updateRowInPlace, this::checkForChanges))
-                        .onEdit(u -> overlay.openForEdit(u, this::updateRowInPlace, this::checkForChanges))
+                        .onView(u -> overlay.openFor(u.id(), this::updateRowInPlace, this::checkForChanges))
+                        .onEdit(u -> overlay.openForEdit(u.id(), this::updateRowInPlace, this::checkForChanges))
                         .onDelete(this::confirmAndDelete)
                         .build()
         );
@@ -143,6 +143,16 @@ public class UserView extends VerticalLayout {
         return button;
     }
 
+    private void updateRowInPlace(UserDto fresh) {
+        for (int i = 0; i < currentItems.size(); i++) {
+            if (currentItems.get(i).id().equals(fresh.id())) {
+                currentItems.set(i, fresh);
+                grid.setItems(currentItems);
+                return;
+            }
+        }
+    }
+
     private void checkForChanges() {
         UserFilterDto filter = queryStatusBar.getQueryBlock().getFilterProcessor().getOriginalFilter();
         int currentTotal;
@@ -152,16 +162,6 @@ public class UserView extends VerticalLayout {
             return;
         }
         refreshButton.setVisible(currentTotal != lastKnownTotal);
-    }
-
-    private void updateRowInPlace(UserDto fresh) {
-        for (int i = 0; i < currentItems.size(); i++) {
-            if (currentItems.get(i).id().equals(fresh.id())) {
-                currentItems.set(i, fresh);
-                grid.setItems(currentItems);
-                return;
-            }
-        }
     }
 
     private void confirmAndDelete(UserDto user) {

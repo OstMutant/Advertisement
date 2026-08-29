@@ -24,7 +24,7 @@
  *     (all rows advertisement) -> USER type filter (all rows user) -> CREATED action filter (all
  *     rows created) -> UPDATED action filter (all rows updated) -> actor filter by adminEn (count
  *     < total) -> clear -> pagination page 2.
- * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 05-seed-filter-sort-
+ * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 06-seed-filter-sort-
  *   pagination --full --ux`, or as part of the full e2e suite with the --full flag
  *   (`bash /app/playwright/run.sh e2e --full --ux`); omitted from a plain `e2e --ux` run.
  * Uses: @playwright/test.
@@ -35,7 +35,7 @@
  *   ./_flows/category.flow, ./_flows/city.flow.
  * Outputs: Playwright HTML report entries (one per test/test.step), PNG screenshots attached to
  *   the report when PW_SCREENSHOTS is set. Seeds 60 users, 60 advertisements, 5 categories and 3
- *   cities into the app database -- this seeded data is a precondition later specs (e.g. spec 06)
+ *   cities into the app database -- this seeded data is a precondition later specs (e.g. spec 07)
  *   may run against when the suite is invoked with --full.
  * Returns: exit code from the Playwright test runner -- 0 when every test in this file passes,
  *   non-zero otherwise.
@@ -487,8 +487,8 @@ test.describe('Seed data and query validation', () => {
     // ── restore defaults via activity, verify restore entry recorded ──────────
     await openSettings(page);
     // single-link breadcrumb case (Settings itself) -- same regression risk, one separator only
-    await expect(page.locator('.settings-overlay .overlay__breadcrumb-sep')).toHaveCount(1);
-    await expect(page.locator('.settings-overlay .overlay__breadcrumb')).not.toContainText('››');
+    await expect(page.locator('.account-overlay .overlay__breadcrumb-sep')).toHaveCount(1);
+    await expect(page.locator('.account-overlay .overlay__breadcrumb')).not.toContainText('››');
     await openHistory(page);
     await restoreLatestFromActivity(page);
     await expect(page.locator('.entity-activity-overlay.overlay--visible')).toBeHidden();

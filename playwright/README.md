@@ -18,8 +18,8 @@ automatically before each run — see "Database reset" below.
 
 ```bash
 bash /app/playwright/run.sh                                 # all e2e tests
-bash /app/playwright/run.sh e2e                              # e2e suite (01–07), skips spec 05 seed
-bash /app/playwright/run.sh e2e --full                       # e2e suite including spec 05 seed (~2 min extra)
+bash /app/playwright/run.sh e2e                              # e2e suite (01–08), skips spec 06 seed
+bash /app/playwright/run.sh e2e --full                       # e2e suite including spec 06 seed (~2 min extra)
 bash /app/playwright/run.sh --ux                              # all tests with screenshots
 bash /app/playwright/run.sh e2e --full --ux                   # full e2e suite with screenshots
 bash /app/playwright/run.sh 01-marketplace-empty-flow --ux    # single spec file, with screenshots
@@ -45,7 +45,7 @@ in spec 03.
 
 ## Scenarios (`e2e/`)
 
-All scenarios live in `/app/playwright/e2e/01`–`07-*.spec.js`, run in order against a single
+All scenarios live in `/app/playwright/e2e/01`–`08-*.spec.js`, run in order against a single
 shared browser page per spec file (`test.describe.configure({ mode: 'serial' })`). Shared
 helpers live in [`e2e/_helpers.js`](e2e/_helpers.js) and `e2e/_flows/*.flow.js`. Each spec file's
 own header states what it covers — see [`e2e/README.md`](e2e/README.md) for the suite's

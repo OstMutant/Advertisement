@@ -26,7 +26,7 @@
  *     rows, titleText, actorText.
  *   - "userEn verifies lightbox -- YouTube to image blanks iframe, WebM to image stops video":
  *     YouTube->image: iframe src blanked; WebM->image: video stops.
- * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 04-marketplace-
+ * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 05-marketplace-
  *   advertisement-flow --ux`, or as part of the full e2e suite (`bash /app/playwright/run.sh e2e
  *   --ux`). The boundary describe block additionally needs `--full` (sets PW_FULL) to run.
  * Uses: @playwright/test, Node's fs module (temp PNG cleanup for uploaded avatar images).

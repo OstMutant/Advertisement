@@ -2,10 +2,26 @@
 
 **Type:** improvement — architectural/process, carved out of `improvement-176` finding 4
 **Module:** `.claude/rules.md` (the "Approval Rule" section)
-**Priority:** medium — a real, considered idea, not urgent
-**When:** independent, no blockers — `improvement-176` finding 4 (the `autopilot.md`-scoped Plan
-Mode migration) has landed and shipped (closed 2026-08-28), giving this issue a real, working
-narrow instance to generalize from
+**Priority:** low — real doubt now attached, see "Reverted precondition" below; not urgent
+**When:** independent, no hard blocker, but its own working precondition no longer holds — see
+below before picking this up
+
+## Reverted precondition (2026-08-28)
+
+`improvement-176` finding 4's `autopilot.md`-scoped `EnterPlanMode`/`ExitPlanMode` migration —
+the "real, working narrow instance" this issue was meant to generalize from — was implemented,
+then **reverted the same day**, by explicit user request: `ExitPlanMode`'s plan file is
+harness-assigned, with no way to point it at a chosen path, which directly conflicts with this
+project's own standing rule that a plan lives in its tracked `backlog/issues/<n>.md` file, not a
+side file. `autopilot.md` step 1 is back to the issue-file + chat-question gate.
+
+**This is not just a lost example — the same conflict applies to this issue's own goal.** If the
+project-wide Approval Rule moved to `EnterPlanMode`/`ExitPlanMode`, every plan for every task would
+land in a harness-assigned file instead of the relevant `backlog/issues/<n>.md` file — exactly the
+mismatch that got the narrower version reverted. This issue does not proceed until that conflict
+itself has a real answer (e.g. confirming whether the plan can still be duplicated into the issue
+file post-approval in a way that's actually acceptable, since that was tried at the `autopilot.md`
+scope and rejected) — not assumed away a second time.
 
 ## Current state
 
@@ -52,24 +68,56 @@ instead of one command's scope:
 
 ## Approach
 
-1. ✅ Precondition met — `improvement-176`'s `autopilot.md`-scoped Plan Mode migration has landed
-   (closed 2026-08-28). Its real, verified `EnterPlanMode`/`ExitPlanMode` mechanics (no plan-text
-   parameter — the plan is written to a file the harness names; `ExitPlanMode` already requests
-   approval on its own) are recorded there and apply here directly, not just as an example to
-   generalize from.
+1. ❌ Precondition REVERTED — see "Reverted precondition" above. `improvement-176`'s
+   `autopilot.md`-scoped Plan Mode migration was implemented then undone the same day; its
+   `EnterPlanMode`/`ExitPlanMode` mechanics remain real and verified (no plan-text parameter, the
+   plan is written to a harness-named file, `ExitPlanMode` already requests approval on its own),
+   but that harness-named-file behavior is exactly what conflicted with this project's
+   plan-lives-in-the-issue-file rule and got the narrower version reverted. Do not treat this step
+   as satisfied.
 2. Verify directly (not assumed) that the Approval Rule's specific requirements — the two-layer
    plain-language/technical structure, ending with a literal question, per-sub-change granularity
    ("scope-level approval is not a blanket pass"), the distinction between "confirms understanding"
    vs. "confirms approval" — can all still be expressed through `ExitPlanMode`'s own plan payload
    and the surrounding conversation. If any of these genuinely can't be preserved, that's a real
    finding to report, not something to silently drop.
-3. Decide whether Plan Mode fully *replaces* the Approval Rule's text in `.claude/rules.md`, or
-   *reinforces* it (Plan Mode as the mechanical backstop, the prose rule staying as the detailed
-   behavioral spec Plan Mode's own UI doesn't carry) — a real design choice, not a foregone
-   conclusion either way.
-4. Rewrite `.claude/rules.md`'s "Approval Rule" section accordingly, and check every other
+3. ✅ DECIDED (2026-08-28), user-approved. The "replace vs. reinforce" framing was a false binary —
+   the current Approval Rule text actually does two separate jobs that Plan Mode doesn't equally
+   affect:
+   - **The gate mechanism** ("present a plan, then stop and wait for explicit approval") — Plan
+     Mode **replaces** this outright. Right now nothing mechanically stops an edit from happening
+     before approval, only Claude's own discipline; `EnterPlanMode`/`ExitPlanMode` makes it a real,
+     harness-enforced block. This also resolves the "ambiguous yes" failure mode by construction —
+     approval becomes a distinct structured action (approving the plan file via `ExitPlanMode`),
+     not an interpretation of whether a chat reply "sounds like" a yes.
+   - **The plan's content spec** (two-layer plain-language/technical structure, ending with a
+     literal question, per-sub-change granularity) — Plan Mode **doesn't replace this**, because it
+     never dictated plan content in the first place; it only gates on when the plan is complete.
+     This content spec **stays** in `.claude/rules.md`, but reframed as "what to write into the
+     Plan Mode plan file," not as its own separate enforcement mechanism.
+   - **Open sub-question, explicitly not resolved by this decision:** whether every sub-change
+     within an already-approved larger task needs its own `EnterPlanMode`/`ExitPlanMode` round, or
+     one approval covers the whole task with sub-changes as implementation detail. Left for the
+     implementation step to work out concretely (per-sub-change re-entry is likely impractical for
+     a long task; document whatever the actual answer turns out to be, don't assume).
+4. Rewrite `.claude/rules.md`'s "Approval Rule" section per the decision above: replace the
+   "present plan... then stop and wait" gate language with instructions to use
+   `EnterPlanMode`/`ExitPlanMode`; keep the content-spec requirements (two-layer structure, literal
+   question, sub-change granularity) reframed as what goes into the plan file. Check every other
    `.claude/commands/*.md`/`.claude/skills/*` file that currently references or assumes the
-   prose-only version's specific mechanics.
+   prose-only version's specific mechanics, and update each one found.
+5. ✅ DECIDED (2026-08-28), user-approved. `EnterPlanMode`'s plan file is harness-assigned — Claude
+   cannot point it at a chosen path like `backlog/issues/<n>.md` directly. So the rule becomes:
+   after `ExitPlanMode` is approved, **duplicate that same plan text into the relevant
+   `backlog/issues/<n>.md` file** (when the task is tracked by one) — satisfies both the real,
+   harness-enforced approval gate (Plan Mode) and this project's existing rule that every
+   multi-step plan lives in its issue file, not only in chat or a transient harness file. Add this
+   sequencing explicitly to the rewritten Approval Rule text in step 4 above.
+
+**Implemented (2026-08-28):** `.claude/commands/autopilot.md` step 1 now includes this sequencing
+directly — after `ExitPlanMode` is approved, duplicate the plan text into the relevant
+`backlog/issues/<n>.md` file when `/autopilot` was invoked for a tracked issue. The equivalent
+rewrite of `.claude/rules.md`'s project-wide "Approval Rule" (step 4 above) is not yet done.
 
 ## Testing strategy
 

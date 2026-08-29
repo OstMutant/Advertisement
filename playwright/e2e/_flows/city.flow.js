@@ -6,7 +6,7 @@
  * Uses: ../_helpers (screenshot, assertCardHasText, assertOverlayHasText), ./category.flow
  *   (openReferenceDataTab, shared with the Categories sub-tab since both live under Reference Data).
  * Env: None.
- * Input: required by 05-seed-filter-sort-pagination.spec.js (runCreateCityFlow); also required
+ * Input: required by 06-seed-filter-sort-pagination.spec.js (runCreateCityFlow); also required
  *   internally by advertisement.flow.js and seed.flow.js (selectCityInAdForm).
  * Outputs: exports openCitiesSubTab, runCreateCityFlow, selectCityInAdForm, assertCardHasCity,
  *   assertViewOverlayHasCity.

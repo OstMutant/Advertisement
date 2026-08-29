@@ -620,53 +620,13 @@ too) was carved out into its own standalone issue,
 explicit user request, ranked independently at the top of the backlog. **Gate → 124-C:**
 `improvement-175`'s own gate (unit + integration tests green for both starters) must pass first.
 
-### Batch 124-C — `AccountOverlay`, 3 independent tabs + audit, permission model
-- **Correction (2026-07-31, must be re-verified when this batch starts):** `buildTabbedContent()`/
-  `buildContentWithActivity()`/`ActivityTabParams` were removed entirely per
-  `marketplace-app/DECISIONS.md` ADR-067 — every domain now uses a single content area + a
-  `.{domain}-history-button` icon button that opens the shared `EntityActivityOverlay` as a nested
-  overlay (`.claude/rules.md` "History access"), not a 2-tab Content+Activity pair. The line below
-  ("Generalize `buildTabbedContent()` to N tabs") is stale — it predates ADR-067's removal of that
-  method. The 3 Name/Settings/Provider-Profile sections still need *some* navigation mechanism (a
-  plain `Tabs` component switching between 3 content `Div`s, unrelated to the old
-  Activity-pairing machinery), and each section gets its own history icon button opening
-  `EntityActivityOverlay` for its own `EntityRef` — re-derive this section's technical plan from
-  the current `AbstractFormOverlayModeHandler` shape before writing any code.
-- ~~Generalize `AbstractFormOverlayModeHandler.buildTabbedContent()` to N tabs via a new overload
-  (existing 2-tab callers unchanged).~~
-- `AccountOverlay` (replaces `SettingsOverlay`), `openFor(Long targetUserId)`; Name tab (closes the
-  "plain USER can't self-edit name" gap), Settings tab (reads/writes via Batch 124-A's table),
-  Provider Profile tab (`ProviderProfileSaveService` audit-write orchestration, mirrors
-  `AdvertisementSaveService`; `ProviderProfileActivityFieldsHookImpl` with every `Fields.*` case
-  from day one, per ADR-065). **`ProviderProfileSaveService` lives in `marketplace-orchestrator`
-  (package `org.ost.orchestrator.services`), not `marketplace-app`** — see
-  `improvement-136`'s extraction. Build it with `AdvertisementSaveService`'s exact shape: 2 direct
-  ports (`ProviderProfilePort` + `AuditPort`) + the already-existing `orchestrator.services
-  .TaxonAssignmentWriteService` collaborator for the category-assignment write (currently still
-  called directly from `ProviderProfileService.save()`/`.delete()` in the starter — move that call
-  out to this new service, mirroring how `AdvertisementService.delete()`'s own cascade moved out).
-  **Decision to make once this lands (moved here from `improvement-147`, which tracked it before
-  this batch had a concrete plan):** `TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/
-  `AttachmentSoftDeleteService` (`org.ost.orchestrator.services`, flattened per `improvement-147`)
-  each have exactly one caller today, `AdvertisementSaveService` — built during `improvement-136` as
-  shared/reusable on the assumption this batch would become a second consumer. Once
-  `ProviderProfileSaveService` is built, check directly (grep, not memory) whether it actually ended
-  up calling `TaxonAssignmentWriteService` for its own category-assignment write. If yes and the
-  shared shape holds up as-is — keep it, done, no further action. If no — either it never landed, or
-  it needed a different shape — fold `TaxonAssignmentWriteService` back into
-  `AdvertisementSaveService` as a private method rather than leaving a "shared" class with one
-  permanent caller. `AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService` have no
-  ProviderProfile equivalent (providers don't have attachments) — decide those two separately, on
-  their own merits (real future reuse vs. fold back), regardless of how the Taxon one resolves.
-- New `AccessEvaluator.canEditUserAccount()`/`canViewUserAccount()`; field-level readonly for
-  `MODERATOR` viewing another user.
-- `HeaderBar` button repoint; Users grid row-click repoint; delete `UserOverlay`/
-  `UserFormOverlayModeHandler`/its test once repointed.
-- **Gate → 124-D:** unit tests (`AccessEvaluatorTest` new cases × 3 roles × {self, other}) +
-  integration tests green; Playwright — update spec 03's existing `adminEn edits userEn name` test
-  in place (repoint + extend, per the issue's Testing Strategy step 1), run via
-  `bash scripts/playwright.sh e2e --ux`. Must be fully green — Batch 124-D builds the public
-  surface on top of profiles only creatable through this overlay.
+### Batch 124-C — moved to `improvement-178`
+
+`AccountOverlay` (Name/Settings/Provider Profile tabs), `ProviderProfileSaveService`, and the
+permission-model work were carved out into their own standalone issue,
+[`improvement-178`](improvement-178-account-overlay-provider-profile-tab.md), on 2026-08-28 per
+explicit user request. **Gate → 124-D:** `improvement-178`'s own gate (unit + integration +
+Playwright spec 03 green) must pass first.
 
 ### Batch 124-D — Providers catalog, OG/sitemap, deep link (public-facing)
 - `ProvidersView`/`ProviderProfileCardView`/query-layer trio — lists every `provider_profile` row

@@ -44,8 +44,8 @@ public class ProviderProfilePortImpl implements ProviderProfilePort {
 
     @Override
     @Transactional
-    public Long save(@NonNull ProviderProfileSaveDto dto, @NonNull Long actingUserId, boolean actingUserIsPrivileged) {
-        return service.save(dto, actingUserId, actingUserIsPrivileged);
+    public Long save(@NonNull ProviderProfileSaveDto dto, @NonNull Long targetUserId, @NonNull Long actingUserId, boolean actingUserIsPrivileged) {
+        return service.save(dto, targetUserId, actingUserId, actingUserIsPrivileged);
     }
 
     @Override

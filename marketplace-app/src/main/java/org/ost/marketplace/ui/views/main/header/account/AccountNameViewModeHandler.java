@@ -1,5 +1,6 @@
-package org.ost.marketplace.ui.views.main.tabs.users.overlay.modes;
+package org.ost.marketplace.ui.views.main.header.account;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
@@ -10,6 +11,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.marketplace.services.i18n.I18nKey;
+import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.services.i18n.I18nService;
@@ -24,36 +26,43 @@ import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+/**
+ * {@code AccountOverlay}'s Name section, View mode -- the default entry point (mirrors the
+ * deleted {@code UserViewOverlayModeHandler}'s card layout). The Edit button is visible only for
+ * self/admin ({@link AccessEvaluator#canEditUserAccount}); a moderator viewing another user's
+ * account sees this card with no way to reach Edit mode at all (see {@code improvement-178}).
+ */
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
-        implements Configurable<UserViewOverlayModeHandler, UserViewOverlayModeHandler.Parameters>,
-                   I18nParams {
+public class AccountNameViewModeHandler extends AbstractViewOverlayModeHandler
+        implements Configurable<AccountNameViewModeHandler, AccountNameViewModeHandler.Parameters>, I18nParams {
 
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull UserDto  user;
+        @NonNull Long targetUserId;
         @NonNull Runnable onEdit;
         @NonNull Runnable onClose;
+        @NonNull Component tabBar;
     }
 
-    private final AccessEvaluator                                   access;
+    private final UserProfileService userProfileService;
+    private final AccessEvaluator    access;
     @Getter
-    private final I18nService                                       i18nService;
+    private final I18nService        i18nService;
 
     private Parameters params;
 
     @Override
-    public UserViewOverlayModeHandler configure(Parameters p) {
+    public AccountNameViewModeHandler configure(Parameters p) {
         this.params = p;
         return this;
     }
 
     @Override
     protected Div buildPrimaryContent() {
-        UserDto user = params.getUser();
+        UserDto user = userProfileService.findById(params.getTargetUserId()).orElseThrow();
 
         Div metaRow = new Div(
                 field(USER_DIALOG_FIELD_ID_LABEL,      String.valueOf(user.id())),
@@ -69,7 +78,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         card.addClassName("user-view-card");
         card.addClassName("user-view-card--" + user.role().name().toLowerCase());
 
-        return card;
+        return new Div(params.getTabBar(), card);
     }
 
     private Div buildProfileRow(UserDto user) {
@@ -103,7 +112,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         UiIconButton closeButton = new UiIconButton(getValue(MAIN_TAB_USERS), VaadinIcon.CLOSE.create());
         editButton.addClickListener(_  -> params.getOnEdit().run());
         closeButton.addClickListener(_ -> params.getOnClose().run());
-        editButton.setVisible(access.canOperate(params.getUser().id()));
+        editButton.setVisible(access.canEditUserAccount(params.getTargetUserId()));
         return new Div(editButton, closeButton);
     }
 
