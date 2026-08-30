@@ -2239,3 +2239,18 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   Rule → Plan Mode question (originally this issue's finding 4 before scope was narrowed) continues
   in `improvement-177`. Full detail:
   `completed/issues/improvement-176-autopilot-review-certification-findings.md`.
+
+✅ Done (2026-08-30): improvement-178 closed — unified `SettingsOverlay`/`UserOverlay` into one
+  `AccountOverlay` (Name/Settings/Provider Profile tabs), new `ProviderProfileSaveService` in
+  `marketplace-orchestrator` mirroring `AdvertisementSaveService`, new
+  `AccessEvaluator.canEditUserAccount()`/`canViewUserAccount()`. Five real bugs found and fixed
+  during manual testing/review: categories not enriched on re-edit; moderator permission bypass on
+  Name/Settings; provider profile created under the wrong owner (`targetUserId`/`actingUserId`
+  split — `platform-commons/DECISIONS.md` ADR-030); missing Provider Profile view CSS;
+  `UserDeleteService` bypassing the audit-capturing delete path. `ProviderProfileFormOverlayModeHandler`
+  hardened with the same defensive `canEditUserAccount()` re-check its Name/Settings siblings
+  already had. `marketplace-app/DECISIONS.md` ADR-074 records the overlay unification. Playwright
+  `04-provider-profile-flow.spec.js` added (4 tests); specs 04-07 renumbered to 05-08. `/ci` full
+  run green except `sonar` — a pre-existing, separately-tracked `new_coverage=0%` gap
+  (`improvement-114`, unrelated to this issue's own code, which has 0 new violations). Full detail:
+  `completed/issues/improvement-178-account-overlay-provider-profile-tab.md`.

@@ -175,9 +175,9 @@ for module in query-lib platform-commons audit-spring-boot-starter attachment-sp
     docker exec "$SCANNER_CONTAINER" mkdir -p "/tmp/sonar-src/$module/src/main/java"
     docker cp "$ROOT/$module/src/main/java/." "$SCANNER_CONTAINER:/tmp/sonar-src/$module/src/main/java/"
   fi
-  if docker exec "$SCANNER_CONTAINER" test -d "/root/.m2/target-classes/$module"; then
-    docker exec "$SCANNER_CONTAINER" mkdir -p "/tmp/sonar-src/$module/target/classes"
-    docker exec "$SCANNER_CONTAINER" bash -c "cp -r /root/.m2/target-classes/$module/. /tmp/sonar-src/$module/target/classes/"
+  if docker exec --user root "$SCANNER_CONTAINER" test -d "/root/.m2/target-classes/$module"; then
+    docker exec --user root "$SCANNER_CONTAINER" mkdir -p "/tmp/sonar-src/$module/target/classes"
+    docker exec --user root "$SCANNER_CONTAINER" bash -c "cp -r /root/.m2/target-classes/$module/. /tmp/sonar-src/$module/target/classes/"
   fi
 done
 

@@ -79,6 +79,34 @@ these 3 greps with real, already-available bytecode checks in the same JVM run, 
 sized or planned in detail — noted here only because it came up in the same conversation as this
 issue's own metric gap, not because it shares a root cause with JaCoCo/coverage wiring.
 
+## Confirmed still open, real evidence from a `/ci` DAG run (2026-08-29)
+
+Same root cause, observed again end-to-end via `bash scripts/ci.sh`'s `sonar` stage (not a local
+`bash scripts/sonar.sh` run): quality gate failed on `new_coverage` (`0.0%`, threshold `80%`) while
+`new_duplicated_lines_density` and `new_violations` both passed clean. Real scanner log lines:
+
+```
+No report imported, no coverage information will be imported by JaCoCo XML Report Importer
+Invalid value for 'sonar.java.binaries', no files nor directories matching 'query-lib/target/classes'
+```
+
+The second line turned out to be a genuinely separate bug, root-caused and fixed the same day
+(2026-08-29): `scripts/sonar/run.sh`'s copy loop (`for module in query-lib platform-commons ...`)
+runs `docker exec "$SCANNER_CONTAINER" test -d "/root/.m2/target-classes/$module"` as the
+container's *default* exec user (`scanner-cli`, uid 1000) — but `/root` inside `sonar-scanner`
+is `dr-xr-x---` (750, owner+group only), so that check silently returns false for **every**
+module regardless of whether the data exists, and the whole binaries-copy step gets skipped
+across the board (not `query-lib`-specific; it just happens to be first in
+`sonar.java.binaries`'s list, so it's the first one Sonar's own error names). Confirmed live
+against the real running `sonar-scanner` container: `query-lib`'s compiled classes genuinely
+existed there (`--user root` could see them), the non-root check just couldn't reach `/root` at
+all to find out. Fixed by adding `--user root` to the three `docker exec` calls in that loop,
+matching the same flag this script already uses elsewhere (`rm -rf /tmp/sonar-src`) — re-verified
+live post-fix (`docker exec --user root sonar-scanner test -d
+/root/.m2/target-classes/query-lib` now returns true). This fix is independent of and doesn't
+replace this issue's own JaCoCo-wiring gap above — both still need to land before `new_coverage`
+reports a real, non-zero number.
+
 ## Related
 
 - [improvement-113](../completed/issues/improvement-113-query-elements-leaf-components-plain-classes.md) —
