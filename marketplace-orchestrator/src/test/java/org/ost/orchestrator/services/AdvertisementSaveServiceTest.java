@@ -15,6 +15,7 @@ import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -25,6 +26,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 /**
@@ -121,20 +123,15 @@ class AdvertisementSaveServiceTest {
     }
 
     @Test
-    void save_existingAdvertisementConcurrentlyDeleted_savesButSkipsAuditCaptureInsteadOfThrowing() {
+    void save_existingAdvertisementConcurrentlyDeleted_throwsOptimisticLockingFailure() {
         Long adId = 42L;
         AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "New Title", "New Desc", AdKind.OFFER, Set.of(), null, 5L);
-        AdvertisementInfoDto afterInfo = AdvertisementInfoDto.builder().id(adId).title("New Title").description("New Desc").build();
 
-        when(advertisementPort.findById(adId)).thenReturn(Optional.empty(), Optional.of(afterInfo));
-        when(advertisementPort.save(dto)).thenReturn(adId);
-        stubAvailable(auditPortFactory, auditPort);
+        when(advertisementPort.findById(adId)).thenReturn(Optional.empty());
 
-        Long id = service.save(dto, ACTOR_ID, ref -> null);
-
-        assertThat(id).isEqualTo(adId);
-        verify(auditPort, never()).captureUpdate(any(), any(), any());
-        verify(auditPort, never()).captureCreation(any(), any(), any());
+        assertThatThrownBy(() -> service.save(dto, ACTOR_ID, ref -> null))
+                .isInstanceOf(OptimisticLockingFailureException.class);
+        verify(advertisementPort, never()).save(any());
     }
 
     @Test

@@ -614,7 +614,9 @@ duplication with `AdvertisementService`, and the shared "stale id during concurr
 case both `AdvertisementService.save()` and `ProviderProfileService.save()` have — were kept out of
 this batch (they require touching `advertisement-spring-boot-starter`, outside Batch B's own
 scope) and filed as a follow-up batch, at the user's explicit direction, rather than the generic
-deferred-findings bucket.
+deferred-findings bucket. **Both resolved:** the sanitizer duplication moved into a new shared
+`html-sanitizer-lib` module (see ADR-001 there); the stale-id-during-concurrent-delete race is now
+a hard `OptimisticLockingFailureException` guard in `marketplace-orchestrator` (see ADR-006 there).
 
 **Consequence:** `EntityType.USER_SETTINGS` keeps being used unchanged for the Settings tab
 (preferences never merged into `provider_profile`, so the earlier "keep as historical tag or

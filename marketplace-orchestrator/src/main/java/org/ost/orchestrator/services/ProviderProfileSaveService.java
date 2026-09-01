@@ -11,6 +11,7 @@ import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
 import org.ost.platform.providerprofile.spi.ProviderProfilePort;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -40,6 +41,10 @@ public class ProviderProfileSaveService {
         return tx.execute(status -> {
             boolean isNew = dto.id() == null;
             ProviderProfileSnapshotDto before = isNew ? null : buildCurrentSnapshot(dto.id());
+            if (!isNew && before == null) {
+                throw new OptimisticLockingFailureException(
+                        "Provider profile " + dto.id() + " was deleted before this edit could be saved");
+            }
 
             Long savedId = providerProfilePortFactory.get().save(dto, targetUserId, actorId, actorIsPrivileged);
 
@@ -51,21 +56,18 @@ public class ProviderProfileSaveService {
             ProviderProfileSnapshotDto after = new ProviderProfileSnapshotDto(
                     saved.getKind(), saved.getAbout(), sortedList(saved.getCategoryIds()), saved.getCityTaxonId());
 
-            captureAudit(isNew, savedId, before, after, actorId);
+            captureAudit(isNew, savedId, after, actorId);
             log.info("ProviderProfile save transaction complete: id={}, isNew={}, categories={}",
                     savedId, isNew, catIds.size());
             return savedId;
         });
     }
 
-    private void captureAudit(boolean isNew, Long savedId, ProviderProfileSnapshotDto before,
-                              ProviderProfileSnapshotDto after, Long actorId) {
+    private void captureAudit(boolean isNew, Long savedId, ProviderProfileSnapshotDto after, Long actorId) {
         if (isNew) {
             auditPortFactory.ifAvailable(p -> p.captureCreation(savedId, after, actorId));
-        } else if (before != null) {
-            auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, after, actorId));
         } else {
-            log.warn("ProviderProfile {} updated but no 'before' snapshot was available (concurrent delete?) - skipping audit capture", savedId);
+            auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, after, actorId));
         }
     }
 

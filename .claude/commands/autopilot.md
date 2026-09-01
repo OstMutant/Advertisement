@@ -35,10 +35,11 @@ Steps:
      (one line or none, ever) — every code comment written during this run gets checked against it
      before moving on, not just left for step 3's `/code-review` pass to catch.
    - Resolve implementation questions yourself: grep/read the codebase for the existing pattern,
-     mirror it, note the decision in the final report rather than asking mid-flight. This is the
-     entire point of `/autopilot` — per the user's own framing, "questions that come up along the
-     way, resolve them yourself, having studied the problem in detail and looked at similar things
-     in the code."
+     mirror it, and record the decision in the issue file — same mechanism as step 4's autonomous-
+     decision handling — then carry it into step 6's final report; never just a final-report-only
+     mention with no trace in the issue file. This is the entire point of `/autopilot` — per the
+     user's own framing, "questions that come up along the way, resolve them yourself, having
+     studied the problem in detail and looked at similar things in the code."
    - Do NOT stop to ask about routine follow-up steps that were implicitly part of the approved
      plan: running tests, redeploying, rerunning Playwright after a fix, writing the ADR, moving
      the issue to `completed/`. Chain them straight through.
@@ -65,13 +66,21 @@ Steps:
      `scripts/CLAUDE.md` specifies, so a real failure is still caught immediately rather than only
      discovered when the task-completion notification arrives.
    - Never sit idle waiting on a backgrounded step. The moment something is backgrounded, start
-     the next independent unit of work in the same turn (write the Playwright test, the ADR, a
-     docs update, read files for the next step) — always through this project's existing scripts
-     (`./mvnw`, `scripts/build-and-test.sh`, `scripts/deploy-and-run.sh`, `scripts/playwright.sh`, etc.), never
+     the next independent unit of work in the same turn (write the Playwright test, a docs update,
+     read files for the next step) — always through this project's existing scripts (`./mvnw`,
+     `scripts/build-and-test.sh`, `scripts/deploy-and-run.sh`, `scripts/playwright.sh`, etc.), never
      raw substitutes. Only wait/block when every remaining unit of work in the plan has a real
      dependency on the thing currently running (e.g. deploying before compile is confirmed clean,
      or running Playwright before deploy finishes) — in that case say so briefly and wait for the
      notification rather than polling.
+   - **Exception — `DECISIONS.md`/ADR work is never "independent" of an already-triggered
+     `scripts/ci.sh` run.** `scripts/ci.sh` rebuilds its container via `docker build`/`COPY . .` at
+     the moment it's triggered and has no live view of the host working tree afterward — any
+     `DECISIONS.md`/`adr-index.md` edit made on the host while that run is still executing in the
+     background is invisible to that same run's own `docs` stage, which then fails auditing its own
+     stale build-time snapshot. Complete every `DECISIONS.md` edit and
+     `bash .claude/nav/scripts/generate-adr-index.sh` **before** triggering `scripts/ci.sh`, never
+     in parallel with a run already in flight.
 
 3. **Self-review before spending a full test cycle on it.** Once the implementation is written
    (before running unit/integration/Playwright), dispatch this project's own `/review` command
@@ -110,21 +119,36 @@ Steps:
    repeat it, and do not repeat a partial version of it either (dispatching `/review` but skipping
    the apply step is the same violation in a different shape).
 
-4. **Verify like it's going into the final report, not like a checkbox.** Run every test layer
-   the change actually touches — unit tests always; integration tests when a repository/schema/
-   port contract changed; a full Playwright `e2e --full --ux` pass when anything UI-visible
-   changed — using this project's normal Monitor+tee patterns (see `scripts/CLAUDE.md`). Before
-   that Playwright run, always `bash scripts/deploy-and-run.sh --reset` first — never reuse whatever DB
-   state happens to be sitting around from an earlier run this session (see `playwright/CLAUDE.md`);
-   this is unconditional, not something to reach for reactively after a failure looks suspicious.
-   If a test fails, root-cause and fix it in the same run rather than reporting a partial result and
-   stopping — that's still "implementation," not a new decision point.
+4. **Verify like it's going into the final report, not like a checkbox.** When the change is small
+   enough that a single test layer (e.g. just unit) gives a fast, sufficient answer, run that layer
+   directly via its own script. Otherwise — any change touching a repository/schema/port contract,
+   or UI-visible behavior — verify in two passes, using this project's normal Monitor+tee patterns
+   (see `scripts/CLAUDE.md`):
+   - **4a. Sonar first.** `bash scripts/ci.sh --sonar` (Sonar-only stage, fast). If it surfaces a
+     real finding (a new bug/critical-or-blocker-severity issue introduced by this run's own
+     changes), fix it in the same run before moving on — a finding already tracked by its own
+     separate, pre-existing issue (unrelated to this run's changes) stays out of scope.
+   - **4b. Sync docs.** `Skill("sync-docs")` (default ref `origin/main`) against this run's own
+     changes — new module, schema, SPI, or structural changes made during implementation need the
+     architecture docs/ADR-index current before the full run's own `docs` stage (see 4c) rebuilds
+     the architecture map from them.
+   - **4c. Document architectural decisions.** Update the relevant module's `DECISIONS.md` with a
+     new ADR if the change is architectural — same bar as `.claude/rules.md`'s "Definition of
+     Done." Must happen here, before 4d — `scripts/ci.sh` snapshots the source at trigger time
+     (see step 2's own exception above), so `DECISIONS.md`/`adr-index.md` must be final before
+     triggering it, not edited afterward while it's already running.
+   - **4d. Then the full run.** `bash scripts/ci.sh` (no flags — unit → integration → e2e → Sonar →
+     archunit → docs in one DAG run, see `scripts/ci/README.md`). Before any Playwright run outside
+     `/ci`, always `bash scripts/deploy-and-run.sh --reset` first — never reuse whatever DB state
+     happens to be sitting around from an earlier run this session (see `playwright/CLAUDE.md`);
+     this is unconditional, not something to reach for reactively after a failure looks suspicious.
+     If a test fails, root-cause and fix it in the same run rather than reporting a partial result
+     and stopping — that's still "implementation," not a new decision point.
+   Any autonomous decision made while fixing a finding or failure in any of 4a/4b/4d gets recorded
+   in the issue file, not just the final report.
 
-5. **Document as you go, not as an afterthought.** Update the relevant module's `DECISIONS.md`
-   with a new ADR before the run ends if the change is architectural — same bar as
-   `.claude/rules.md`'s "Definition of Done." If the task closes a backlog issue, move it to
-   `backlog/completed/issues/`, drop its `BACKLOG.md` row, and add the one-line archive entry —
-   same operation, not a follow-up.
+5. **Issue lifecycle.** If the task closes a backlog issue, move it to `backlog/completed/issues/`,
+   drop its `BACKLOG.md` row, and add the one-line archive entry.
 
 6. **One final report, comprehensive but human — no file-by-file diff table.** When the whole
    chain above is done (or genuinely blocked on something outside the plan), report once: what was

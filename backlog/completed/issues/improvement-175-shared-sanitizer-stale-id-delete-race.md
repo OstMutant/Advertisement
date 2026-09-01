@@ -143,3 +143,130 @@ a port mock returning `Optional.empty()` from `findById`, assert
   issue 2026-08-28 per explicit user request, so it can rank independently at the top of the
   backlog instead of waiting behind Batch B2's position in that issue's own sequence. Gates that
   issue's Batch 124-C.
+
+## Implementation plan (2026-08-31, autopilot run)
+
+Concrete file-level edits for both findings, synthesized from the `## Approach` section above
+against the real current code.
+
+**1. New module `html-sanitizer-lib`** (root `pom.xml` gains `<module>html-sanitizer-lib</module>`
+right after `query-lib`, plus a `dependencyManagement` entry for it, same shape as `query-lib`'s
+own entry):
+- `html-sanitizer-lib/pom.xml` — plain library, no Spring Boot autoconfiguration: depends on
+  `owasp-java-html-sanitizer` (`20260313.1`), `jsoup` (`${jsoup.version}`), `lombok` (optional),
+  `spring-boot-starter-test` (test scope). No `platform-commons` dependency — no domain DTOs
+  needed.
+- `html-sanitizer-lib/src/main/java/org/ost/sanitizer/HtmlSanitizer.java` — one class,
+  `public static String sanitize(String html, int maxVisibleTextLength)`: runs the same
+  `Sanitizers.FORMATTING.and(LINKS).and(BLOCKS)` + `<pre>`-allowing policy both services currently
+  build, then the same Jsoup visible-text-length check, throwing `IllegalArgumentException` on
+  overflow — behavior-identical to today's two private copies, just parameterized by max length.
+- `html-sanitizer-lib/src/test/java/org/ost/sanitizer/HtmlSanitizerTest.java` — direct unit tests
+  of `sanitize()` (strip disallowed tags, keep formatting, exceeds/at-max length, tags don't count
+  toward visible length).
+- `html-sanitizer-lib/README.md` — `query-lib`-shaped (purpose paragraph + package structure), per
+  `module-readme-standards`.
+- `AdvertisementService.java`: delete `HTML_SANITIZER`/`sanitizeHtml()`/`validateDescriptionLength()`
+  and the now-unused `Jsoup`/`HtmlPolicyBuilder`/`PolicyFactory`/`Sanitizers` imports; `buildEntity()`
+  calls `HtmlSanitizer.sanitize(dto.description(), AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH)`
+  directly. `advertisement-spring-boot-starter/pom.xml` gains a `html-sanitizer-lib` dependency and
+  drops its own direct `owasp-java-html-sanitizer`/`jsoup` dependencies (no longer referenced
+  directly once sanitization moves out).
+- `ProviderProfileService.java`: same shape — delete `HTML_SANITIZER`/`sanitizeHtml()`/
+  `validateAboutLength()` + now-unused imports; `buildEntity()` calls
+  `HtmlSanitizer.sanitize(dto.about(), ProviderProfileSaveDto.ABOUT_MAX_LENGTH)`.
+  `provider-profile-spring-boot-starter/pom.xml` same dependency swap.
+- Existing `AdvertisementServiceHtmlSanitizationTest`/`ProviderProfileServiceTest` (in
+  `integration-tests`) stay unchanged — they test through the public `save()` entry point, not the
+  removed private methods, so they keep passing unchanged as a regression check that the delegation
+  preserves behavior.
+
+**2. Stale-id-during-concurrent-delete guard**, in `marketplace-orchestrator`:
+- `AdvertisementSaveService.save()`: right after `AdvertisementSnapshotDto before = isNew ? null :
+  buildCurrentSnapshot(dto.id());`, add
+  `if (!isNew && before == null) { throw new OptimisticLockingFailureException("Advertisement " + dto.id() + " was deleted before this edit could be saved"); }`
+  — new import `org.springframework.dao.OptimisticLockingFailureException`. Since this guard makes
+  `!isNew && before == null` unreachable inside `captureAudit()`, its dead third branch
+  (`log.warn(...concurrent delete?...)`) is removed too — `captureAudit()` becomes a plain
+  `isNew ? captureCreation : captureUpdate` dispatch.
+- `ProviderProfileSaveService.save()`: identical guard, message `"Provider profile " + dto.id() +
+  " was deleted before this edit could be saved"`; same `captureAudit()` simplification.
+- `AdvertisementSaveServiceTest.save_existingAdvertisementConcurrentlyDeleted_savesButSkipsAuditCaptureInsteadOfThrowing`
+  and `ProviderProfileSaveServiceTest.save_existingProfileConcurrentlyDeleted_savesButSkipsAuditCaptureInsteadOfThrowing`
+  currently assert the *old* behavior (save proceeds, audit silently skipped) — both are rewritten
+  (not just added-to) to assert the new behavior: `assertThatThrownBy(...).isInstanceOf(OptimisticLockingFailureException.class)`,
+  plus `verify(advertisementPort/providerProfilePort, never()).save(any())`.
+
+**3. Verification:** `bash scripts/build-and-test.sh --unit --integration --sandbox` (per Definition
+of Done). Full Playwright run not required — this fix has no UI-visible behavior change (the
+`OptimisticLockingFailureException` → `saveConfig().conflict()` UI path already exists and is
+already covered for the version-conflict case; this just makes a second code path reach the same
+existing handler).
+
+**4. Documentation:** `/record-decision` — annotate `platform-commons/DECISIONS.md`'s ADR-027
+(which already named both findings as deferred) noting both are now resolved, plus a new ADR (in
+`platform-commons/DECISIONS.md` or a new `html-sanitizer-lib/DECISIONS.md`, decided at record-time)
+for the new module and its narrow admission criterion. Regenerate `.claude/nav/adr-index.md` and
+the architecture model in the same operation per the standing rules.
+
+**5. Issue lifecycle:** move this file to `backlog/completed/issues/`, drop its `BACKLOG.md` row,
+add a `BACKLOG-ARCHIVE.md` entry — once verification is green.
+
+## Autonomous decisions during implementation (autopilot run)
+
+- Step 4a/4c's Sonar stage failed its Quality Gate both times, exclusively on `new_coverage=0.0%`
+  (threshold 80%) — confirmed via `sonar-analyst` (twice, including after the full unit+integration
+  run) that this is **0 new bugs/vulnerabilities/code smells** on every file this issue touches.
+  Root cause: an already-tracked, pre-existing infra gap
+  (`backlog/issues/improvement-114-sonar-jacoco-coverage-not-wired.md` — JaCoCo never wired into
+  the Sonar scan step at all, unrelated to this issue's code). Per autopilot's own rule ("a finding
+  already tracked by its own separate, pre-existing issue... stays out of scope"), this is not
+  fixed here — treating Sonar as passed-in-substance for this issue's purposes.
+- Step 4a (`bash scripts/ci.sh --sonar`) ran and its Quality Gate failed on `New Coverage = 0.0%`
+  (threshold 80%) — confirmed via `sonar-analyst` this is **0 real bugs/vulnerabilities/code
+  smells**, purely a coverage-data-absence artifact: `scripts/sonar.sh` runs
+  `build-and-test.sh --no-unit --no-integration` (compile only, never executes tests), so a
+  sonar-only pass has no fresh JaCoCo report to read. This is a structural property of the
+  4a→4b→4c ordering just added to `autopilot.md`'s step 4, not a defect in this issue's own code —
+  proceeding to 4b/4c per the "root-cause and fix in the same run, don't stop" rule; 4c's full run
+  (including unit+integration) will produce real coverage data for an accurate gate re-check.
+  Flagged to the user as a design gap in `autopilot.md` step 4 worth revisiting separately — not
+  blocking this issue's completion.
+- `deep-review-orchestrator` (step 3 self-review) found zero DRY/KISS/YAGNI/SOLID findings from its
+  two finder lenses, but surfaced two stale-doc findings during its own cross-check pass: (1)
+  `.claude/rules/advertisement-spring-boot-starter.md` still named the now-deleted
+  `AdvertisementService.sanitizeHtml()`; (2) `ProviderProfileSaveServiceTest`'s class Javadoc still
+  described the old "skips audit capture instead of throwing" behavior this issue's own guard
+  changed. The agent proposed filing both as a new standalone backlog issue
+  (`improvement-179-doc-drift-...`). Decided to fix both directly in this run instead — they are a
+  few lines of prose each, directly caused by this same diff, and fixing them now is simpler than
+  creating and later resolving a separate issue for something this small.
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: 0 / 0 (deep-review-orchestrator's two finder lenses returned 0 SOLID/DRY/KISS/YAGNI candidates; the 2 stale-doc issues it surfaced were cross-check findings outside that ratio's scope)
+- context_loading_task_type: n/a
+- context_loading_consulted: n/a
+- context_loading_matched: n/a
+- flows_situation: backlog issue with a fully-hashed-out implementation plan, ready to build end-to-end
+- flows_chosen: /autopilot
+- flows_matched: yes
+
+### Agent calls
+- Self-review of implementation diff | subagent_type=deep-review-orchestrator | tokens=n/a | tool_uses=n/a | duration_s=n/a | mode=foreground | batch=solo
+- Sonar Quality Gate diagnosis (4a, sonar-only run) | subagent_type=sonar-analyst | tokens=n/a | tool_uses=n/a | duration_s=n/a | mode=foreground | batch=solo
+- Sonar Quality Gate diagnosis (4d, full run) | subagent_type=sonar-analyst | tokens=n/a | tool_uses=n/a | duration_s=n/a | mode=foreground | batch=solo
+
+### Script/command runs
+- bash scripts/ci.sh --sonar (step 4a) | duration_s=n/a | mode=background | result=fail (Quality Gate: new_coverage=0.0%, 0 real findings)
+- bash scripts/ci.sh --sonar (re-trigger after docs-stage fix) | duration_s=n/a | mode=background | result=pass
+- bash scripts/ci.sh (step 4d, full run: unit/integration/e2e/sonar/archunit/docs) | duration_s=n/a | mode=background | result=fail (sonar stage only, same pre-existing coverage gap; all other stages pass)
+- bash .claude/nav/scripts/generate-adr-index.sh | duration_s=n/a | mode=foreground | result=pass
+- bash docs/architecture/scripts/generate-architecture-model.sh | duration_s=n/a | mode=foreground | result=pass
+- bash scripts/ci/run.sh --sync-artifacts | duration_s=n/a | mode=foreground | result=pass
+
+### Review angle yield
+- dry-kiss-yagni-reviewer | survived=0 | total_candidates=0 | tokens=n/a
+- solid-reviewer | survived=0 | total_candidates=0 | tokens=n/a

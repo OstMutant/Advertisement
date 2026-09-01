@@ -13,6 +13,7 @@ import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -50,6 +51,10 @@ public class AdvertisementSaveService {
         return tx.execute(status -> {
             boolean isNew = dto.id() == null;
             AdvertisementSnapshotDto before = isNew ? null : buildCurrentSnapshot(dto.id());
+            if (!isNew && before == null) {
+                throw new OptimisticLockingFailureException(
+                        "Advertisement " + dto.id() + " was deleted before this edit could be saved");
+            }
 
             Long savedId = advertisementPortFactory.get().save(dto);
 
@@ -68,7 +73,7 @@ public class AdvertisementSaveService {
             AdvertisementSnapshotDto after = new AdvertisementSnapshotDto(
                     saved.getTitle(), saved.getDescription(), saved.getAdKind(), sortedCatIds, cityId, attachmentSnapshotId);
 
-            captureAudit(isNew, savedId, before, after, actorId);
+            captureAudit(isNew, savedId, after, actorId);
             log.info("Advertisement save transaction complete: id={}, isNew={}, categories={}",
                     savedId, isNew, catIds.size());
             return savedId;
@@ -87,13 +92,11 @@ public class AdvertisementSaveService {
         return before != null ? before.attachmentSnapshotId() : null;
     }
 
-    private void captureAudit(boolean isNew, Long savedId, AdvertisementSnapshotDto before, AdvertisementSnapshotDto after, Long actorId) {
+    private void captureAudit(boolean isNew, Long savedId, AdvertisementSnapshotDto after, Long actorId) {
         if (isNew) {
             auditPortFactory.ifAvailable(p -> p.captureCreation(savedId, after, actorId));
-        } else if (before != null) {
-            auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, after, actorId));
         } else {
-            log.warn("Advertisement {} updated but no 'before' snapshot was available (concurrent delete?) - skipping audit capture", savedId);
+            auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, after, actorId));
         }
     }
 

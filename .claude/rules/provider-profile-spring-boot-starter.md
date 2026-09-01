@@ -13,8 +13,9 @@ Java package root: `org.ost.provider`
 ## What it owns
 
 - `ProviderProfile` entity + `ProviderProfileRepository` — CRUD and filter/sort queries
-- `ProviderProfileService` — create/update, delete, sanitizes `about` via OWASP HTML Sanitizer,
-  enforces the `kind == SUPPORT` requires-privileged-actor rule, resolves query-time category
+- `ProviderProfileService` — create/update, delete, sanitizes `about` via the shared
+  `html-sanitizer-lib` module's `HtmlSanitizer.sanitize()`, enforces the `kind == SUPPORT`
+  requires-privileged-actor rule, resolves query-time category
   filters via `TaxonPort.findEntityIdsWithAnyTaxon()`. Does not write category assignments (see
   Key constraints) and does not enrich display fields — `getFiltered()`/`findById()`/
   `findByActorId()` return raw (unenriched) `ProviderProfileDto`s; category/city/actor display

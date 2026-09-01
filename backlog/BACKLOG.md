@@ -93,7 +93,6 @@ improvement-118 stays blocked (needs a public URL this sandbox doesn't have).
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| Top | 🟡 | 175 | improvement-175 (filed 2026-08-28, carved out of `improvement-124` Batch 124-B2 per explicit user request) — **unblocked (2026-08-29), `improvement-178` closed.** Both findings re-evaluated against the real, built `ProviderProfileSaveService`/`AdvertisementSaveService`: finding 1 gets a new dedicated `html-sanitizer-lib` module (not `platform-commons`); finding 2's `OptimisticLockingFailureException` guard moves into both orchestrator `SaveService`s (they already compute the needed `before` snapshot, just log-and-continue today instead of aborting). Ready to implement |
 | Top | 🟡 | 138 | improvement-138 — "Architecture Control Plane". **Track A completed 2026-08-04**, its full execution history archived to `completed/issues/improvement-138-architecture-control-plane-track-a.md` on 2026-08-28. This issue's live scope is now **Track B** (ArchUnit contract/test model + AI-token-savings hypothesis, not started) plus **`improvement-135`'s absorbed items 3/5** (does the existing hand-authored `.claude/nav/` layer earn its cost — mechanism built, empirical answer pending real accumulated data; governing rule — no new `.claude/nav/*`-shaped content, including Track B, until that data shows a gap). `improvement-135` had nothing else still-open and is now closed (see `completed/BACKLOG-ARCHIVE.md`) |
 | Top | 🟡 | 124 | **improvement-124 Batch 124-B completed 2026-08-01** — new `provider-profile-spring-boot-starter` module (`EntityType.PROVIDER_PROFILE`, `ProviderKind` MASTER/SHOP/SUPPORT), backend only; see `platform-commons/DECISIONS.md` ADR-027 / `marketplace-app/DECISIONS.md` ADR-072. **improvement-136 (`marketplace-orchestrator` extraction) shipped 2026-08-07**, unblocking the rest of this line — see `completed/BACKLOG-ARCHIVE.md`. **Batch 124-B2 moved to `improvement-175`, Batch 124-C moved to `improvement-178` (both 2026-08-28); `improvement-178` closed 2026-08-30** (see `completed/BACKLOG-ARCHIVE.md`), unblocking Batch 124-D. Remaining here: Batch 124-D (public Providers catalog) |
 | Nice to have | — | 073 → 035, 096, 129, 036, 039, 065, 114, 063, 028, 130, 131, 133, 172, 142, 177 | everything else — no internal priority order, pick up opportunistically |
@@ -101,12 +100,6 @@ improvement-118 stays blocked (needs a public URL this sandbox doesn't have).
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
-
-### Top priority — improvement-175
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-175](issues/improvement-175-shared-sanitizer-stale-id-delete-race.md) | New (carved out of `improvement-124` Batch 124-B2, filed 2026-08-28 per explicit user request) | **Unblocked (2026-08-29) — `improvement-178` closed 2026-08-30.** Finding 1 (duplicated HTML-sanitizer/length-validation logic): new dedicated `html-sanitizer-lib` module (plain Java library, mirrors `query-lib`'s shape) — not `platform-commons` (dependency-bloat rejection still holds), sidesteps it entirely; narrow admission criterion agreed (≥2 real starter consumers + external-dependency reason, checked against every other starter, no other candidate found). Finding 2 (stale-id-during-concurrent-delete race): guard moves into `AdvertisementSaveService`/`ProviderProfileSaveService` (not each starter's `buildEntity()`) — both already compute the needed `before` snapshot and already detect the race, they just log a warning and continue instead of throwing `OptimisticLockingFailureException`. Full plan in the issue file, ready to implement |
 
 ### Top priority — improvement-138
 

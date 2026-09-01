@@ -2254,3 +2254,19 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   run green except `sonar` — a pre-existing, separately-tracked `new_coverage=0%` gap
   (`improvement-114`, unrelated to this issue's own code, which has 0 new violations). Full detail:
   `completed/issues/improvement-178-account-overlay-provider-profile-tab.md`.
+
+✅ Done (2026-08-31): improvement-175 closed — new `html-sanitizer-lib` module (plain Java library,
+  mirrors `query-lib`'s shape) replaces the duplicated `HTML_SANITIZER`/`sanitizeHtml()` logic in
+  `AdvertisementService`/`ProviderProfileService` with one shared `HtmlSanitizer.sanitize()`;
+  `AdvertisementSaveService`/`ProviderProfileSaveService` in `marketplace-orchestrator` now throw
+  `OptimisticLockingFailureException` instead of silently proceeding when a `save()` target row was
+  deleted concurrently (`before == null` for a non-new `dto`) — reaches
+  `AbstractEntityOverlay.handleSave()`'s existing conflict-handling UI path for free.
+  `platform-commons/DECISIONS.md` ADR-027 annotated resolved; new `html-sanitizer-lib/DECISIONS.md`
+  ADR-001 and `marketplace-orchestrator/DECISIONS.md` ADR-006 record the two decisions. `deep-review-orchestrator`
+  self-review found 0 SOLID/DRY/KISS/YAGNI findings; surfaced 2 stale-doc references (a rules-file
+  bullet naming a deleted method, a test class Javadoc describing the old behavior) fixed directly
+  in the same run. `/ci` full run green (unit/integration/e2e/archunit/docs) except `sonar` — the
+  same pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`, unrelated, 0 new
+  violations confirmed twice via `sonar-analyst`). Full detail:
+  `completed/issues/improvement-175-shared-sanitizer-stale-id-delete-race.md`.

@@ -20,6 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 advertisement-parent (root pom)
 ├── query-lib                         — SQL filter/sort helper library (SqlFilterBuilder, OrderByBuilder)
+├── html-sanitizer-lib                 — shared HTML sanitizer + visible-text-length validator library
 ├── platform-commons                  — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter         — audit subsystem: write + read side (auto-configured starter)
 ├── attachment-spring-boot-starter    — photo/attachment module + S3 storage (auto-configured starter)
@@ -33,6 +34,8 @@ advertisement-parent (root pom)
 ```
 
 **query-lib** is a plain Java SQL helper library (no Spring Boot autoconfiguration). Provides `SqlFilterBuilder`, `OrderByBuilder` (`org.ost.query.filter/sort`) used directly by repositories as `private static final` constants.
+
+**html-sanitizer-lib** is a plain Java library (no Spring Boot autoconfiguration). Provides `HtmlSanitizer` (`org.ost.sanitizer`), used directly by `advertisement-spring-boot-starter` and `provider-profile-spring-boot-starter` to sanitize rich-text input and enforce a visible-text-length cap.
 
 **integration-tests** is the sole home for Testcontainers-based repository tests and their fixtures (`AbstractPostgresIntegrationTest` — shared singleton Testcontainers Postgres instance). Domain starters never carry test code for this purpose themselves — it depends on whichever starters it needs to test (`advertisement-spring-boot-starter`, `user-spring-boot-starter`, `platform-commons`, ...), which is safe only because this module is never shipped or deployed (see `.claude/rules/integration-tests.md` for the full rationale). Requires a reachable Docker daemon; never runs inside `deploy.sh`'s Docker build stage (see `.claude/rules/scripts.md`).
 
@@ -174,6 +177,7 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/attachment-spring-boot-starter/DECISIONS.md`
 - `/app/platform-commons/DECISIONS.md`
 - `/app/query-lib/DECISIONS.md`
+- `/app/html-sanitizer-lib/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
 - `/app/scripts/DECISIONS.md`
 - `/app/scripts/ci/DECISIONS.md`

@@ -16,6 +16,7 @@ import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
 import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.providerprofile.spi.ProviderProfilePort;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -26,13 +27,13 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 /**
  * {@link ProviderProfileSaveService#save} orchestrates the create/update transaction: it decides
- * {@code captureCreation} vs {@code captureUpdate} and skips audit capture instead of throwing
- * when the profile was concurrently deleted mid-edit (same {@code before == null} shape
- * {@link AdvertisementSaveServiceTest} covers for advertisements).
+ * {@code captureCreation} vs {@code captureUpdate} and throws {@link OptimisticLockingFailureException}
+ * when the profile was concurrently deleted mid-edit ({@code before == null} for a non-new dto).
  */
 @ExtendWith(MockitoExtension.class)
 class ProviderProfileSaveServiceTest {
@@ -126,20 +127,15 @@ class ProviderProfileSaveServiceTest {
     }
 
     @Test
-    void save_existingProfileConcurrentlyDeleted_savesButSkipsAuditCaptureInsteadOfThrowing() {
+    void save_existingProfileConcurrentlyDeleted_throwsOptimisticLockingFailure() {
         Long profileId = 42L;
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(profileId, ProviderKind.SHOP, "New about", Set.of(), null, 1L);
-        ProviderProfileDto after = ProviderProfileDto.builder().id(profileId).kind(ProviderKind.SHOP).about("New about").build();
 
-        when(providerProfilePort.findById(profileId)).thenReturn(Optional.empty(), Optional.of(after));
-        when(providerProfilePort.save(dto, ACTOR_ID, ACTOR_ID, false)).thenReturn(profileId);
-        stubAvailable(auditPortFactory, auditPort);
+        when(providerProfilePort.findById(profileId)).thenReturn(Optional.empty());
 
-        Long id = service.save(dto, ACTOR_ID, ACTOR_ID, false);
-
-        assertThat(id).isEqualTo(profileId);
-        verify(auditPort, never()).captureUpdate(any(), any(), any());
-        verify(auditPort, never()).captureCreation(any(), any(), any());
+        assertThatThrownBy(() -> service.save(dto, ACTOR_ID, ACTOR_ID, false))
+                .isInstanceOf(OptimisticLockingFailureException.class);
+        verify(providerProfilePort, never()).save(any(), any(), any(), anyBoolean());
     }
 
     @Test

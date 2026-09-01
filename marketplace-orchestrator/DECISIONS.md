@@ -2,6 +2,35 @@
 
 ---
 
+## ADR-006: Stale-id-during-concurrent-delete guard in `AdvertisementSaveService`/`ProviderProfileSaveService`
+
+**Status:** Accepted
+
+**Context:** Both `SaveService`s already read a `before` snapshot ahead of calling the port's
+`save()`, purely to build the audit diff. When an edit's target row was deleted between read and
+write, `before` came back `null` for a non-new `dto` — previously this only logged a warning
+("...updated but no 'before' snapshot was available (concurrent delete?) - skipping audit
+capture") and proceeded to call `save()` anyway, which hit a pre-existing bug in both starters'
+`buildEntity()`: a stale, non-null `id` combined with a `null` `before` silently produces
+insert-shaped defaults, and Spring Data JDBC then attempts an update-path against a non-existent
+row instead of a clear error.
+
+**Decision:** Right after computing `before` in each `SaveService.save()`, before calling the
+port's own `save()`: `if (!isNew && before == null) throw new OptimisticLockingFailureException(...)`.
+This exception type was already the proven, correct shape — both `AdvertisementRepository`/
+`ProviderProfileRepository` already throw it for version conflicts, and `marketplace-app`'s
+`AbstractEntityOverlay.handleSave()` already has a dedicated catch block showing
+`saveConfig().conflict()`, so this reaches correct UI handling for free. The guard makes
+`captureAudit()`'s old `before == null` branch unreachable, so it collapses to a plain
+`isNew ? captureCreation : captureUpdate` dispatch — the dead `log.warn(...)` branch is removed.
+
+**Rejected alternative:** a guard inside each starter's own `buildEntity()` (the originally-planned
+location) — moved one layer up once `AdvertisementSaveService`/`ProviderProfileSaveService` were
+confirmed to already compute the exact state needed, making the fix smaller and requiring no
+`buildEntity()` change in either starter.
+
+---
+
 ## ADR-001: Extract a dedicated Application/BFF module instead of moving orchestration into marketplace-app
 **Status:** Accepted — the "never depends on a starter jar" consequence is superseded by ADR-004;
 the module-extraction decision itself stands
