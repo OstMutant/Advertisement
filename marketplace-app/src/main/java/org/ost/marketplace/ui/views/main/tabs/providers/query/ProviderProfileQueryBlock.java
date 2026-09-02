@@ -11,6 +11,7 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.elements.action.QueryActionBlock;
+import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.marketplace.ui.query.filter.FilterProcessor;
 import org.ost.marketplace.ui.query.sort.SortProcessor;
 import org.ost.orchestrator.services.TaxonCatalogService;
@@ -25,7 +26,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
-/** Query bar for the Providers catalog -- kind/category/city filter rows only, mirroring {@link ProviderProfileFilterDto}'s narrower field set (no title/date-range rows). */
+/** Query bar for the Providers catalog -- kind/created/updated/category/city filter rows, mirroring {@link ProviderProfileFilterDto}'s field set. */
 @SuppressWarnings("java:S2065") // Vaadin Component is Serializable; transient excludes non-serializable Spring proxies
 public class ProviderProfileQueryBlock extends QueryBlock<ProviderProfileFilterDto> {
 
@@ -56,8 +57,29 @@ public class ProviderProfileQueryBlock extends QueryBlock<ProviderProfileFilterD
         kindField.setItems(ProviderKind.values());
         kindField.setItemLabelGenerator(k -> i18nService.get(forProviderKind(k)));
         kindField.getElement().setAttribute(DATA_TESTID, "provider-profile-filter-kind");
-        filterRow(i18nService, i18nService.get(PROVIDERS_FILTER_KIND), kindField,
-                ProviderProfileSortMeta.UPDATED_AT, ProviderProfileFilterMeta.KINDS);
+        filterRow(i18nService.get(PROVIDERS_FILTER_KIND), kindField, ProviderProfileFilterMeta.KINDS);
+
+        // Created date row
+        QueryDateTimeField createdStart = new QueryDateTimeField(
+                i18nService.get(PROVIDERS_FILTER_DATE_CREATED_START),
+                i18nService.get(PROVIDERS_FILTER_TIME_CREATED_START), false);
+        QueryDateTimeField createdEnd = new QueryDateTimeField(
+                i18nService.get(PROVIDERS_FILTER_DATE_CREATED_END),
+                i18nService.get(PROVIDERS_FILTER_TIME_CREATED_END), true);
+        filterRow(i18nService, i18nService.get(PROVIDERS_SORT_CREATED_AT), createdStart, createdEnd,
+                ProviderProfileSortMeta.CREATED_AT,
+                ProviderProfileFilterMeta.CREATED_AT_START, ProviderProfileFilterMeta.CREATED_AT_END);
+
+        // Updated date row
+        QueryDateTimeField updatedStart = new QueryDateTimeField(
+                i18nService.get(PROVIDERS_FILTER_DATE_UPDATED_START),
+                i18nService.get(PROVIDERS_FILTER_TIME_UPDATED_START), false);
+        QueryDateTimeField updatedEnd = new QueryDateTimeField(
+                i18nService.get(PROVIDERS_FILTER_DATE_UPDATED_END),
+                i18nService.get(PROVIDERS_FILTER_TIME_UPDATED_END), true);
+        filterRow(i18nService, i18nService.get(PROVIDERS_SORT_UPDATED_AT), updatedStart, updatedEnd,
+                ProviderProfileSortMeta.UPDATED_AT,
+                ProviderProfileFilterMeta.UPDATED_AT_START, ProviderProfileFilterMeta.UPDATED_AT_END);
 
         // Categories row
         MultiSelectComboBox<TaxonDto> categoriesField = new MultiSelectComboBox<>();

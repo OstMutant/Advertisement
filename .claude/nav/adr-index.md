@@ -137,6 +137,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-075 (marketplace-app) | provider-profile-spring-boot-starter | Accepted |  | Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay |
 | ADR-075 (marketplace-app) | marketplace-orchestrator | Accepted |  | Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay |
 | ADR-076 (marketplace-app) | marketplace-app | Accepted |  | `OverlayNavigationRegistry` fans out browser History to every deep-linkable overlay; `SitemapController` thins to a `marketplace-orchestrator` `SitemapService` |
+| ADR-077 (marketplace-app) | marketplace-app | Accepted |  | Provider Profile catalog gains real date-range filters, mirroring Advertisement's exact mechanism |
 | ADR-006 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | Stale-id-during-concurrent-delete guard in `AdvertisementSaveService`/`ProviderProfileSaveService` |
 | ADR-001 (marketplace-orchestrator) | marketplace-orchestrator | Accepted — the "never depends on a starter jar" consequence is superseded by ADR-004; the module-extraction decision itself stands |  | Extract a dedicated Application/BFF module instead of moving orchestration into marketplace-app |
 | ADR-002 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `AdvertisementSaveService`'s cascade-cleanup-on-delete folds into the same transaction, not a separate step |

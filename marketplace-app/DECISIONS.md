@@ -2832,3 +2832,41 @@ expired. Any future domain adding its own deep-linkable overlay registers into
 domain needing sitemap entries adds its own page-walk method to `SitemapService` and an
 `invalidate()` call from its own save service, following this same shape.
 
+---
+
+## ADR-077: Provider Profile catalog gains real date-range filters, mirroring Advertisement's exact mechanism
+
+**Status:** Accepted
+
+**Context:** `ProviderProfileQueryBlock` attached its only sort control (`updatedAt`) to the Kind
+filter row's own `filterRow(...)` call — a field the Kind row has no relationship to.
+`ProviderProfileSortMeta.CREATED_AT` was defined but completely unreferenced. The real root cause
+was not UI placement: `ProviderProfileFilterDto` had no date-range filter fields at all, unlike
+`AdvertisementFilterDto`, which offers `createdAtStart/End`/`updatedAtStart/End` range filters
+paired with sort. The sort icon was bolted onto an unrelated row as a workaround for a missing
+filter capability, rather than the gap being closed. Separately, `provider-profile-card.css` had
+the card's Share button (`.provider-profile-share`) sharing the same `opacity: 0` hover/focus-reveal
+rule as Delete, diverging from Advertisement's own Share button, which is always visible — an
+unintentional divergence from mirroring the Edit/Delete hover-reveal pattern, not a deliberate
+choice.
+
+**Decision:** `ProviderProfileFilterDto` gains `createdAtStart`/`createdAtEnd`/`updatedAtStart`/
+`updatedAtEnd` fields plus the same `@ValidRange` annotations `AdvertisementFilterDto` carries,
+field-for-field. `ProviderProfileRepository` gains 4 matching `SqlBoundFilter` date-range entries;
+`ProviderProfileFilterMeta` gains 4 matching `FilterFieldMeta` constants. `ProviderProfileQueryBlock`
+reverts the Kind row to the plain 3-arg `filterRow(...)` and adds Created/Updated rows using the
+*existing* 4-arg `filterRow(...)` overload — the same one `AdvertisementQueryBlock` already uses —
+with no new shared-infrastructure method. `provider-profile-card.css` drops `.provider-profile-share`
+from the opacity/hover/focus-reveal selectors, leaving only `.provider-profile-delete` gated.
+
+**Rejected alternatives:** A novel `QueryBlock<T>.sortOnlyRow()` method for a row with no filter
+field was considered and rejected — it would have fixed the Kind-row attachment but left Providers
+and Advertisement with two different sort/filter mechanisms, trading one asymmetry for another. The
+chosen approach makes the two domains genuinely symmetric instead: same filter capability, same UI
+mechanism, reusing existing infrastructure rather than inventing a new one-off shape for a single
+domain.
+
+**Consequences:** Providers become filterable/sortable by when they joined or were last active, the
+same capability Advertisement already offered. Any future domain needing date-range filter/sort
+follows this exact field-for-field pattern rather than a per-domain variant.
+

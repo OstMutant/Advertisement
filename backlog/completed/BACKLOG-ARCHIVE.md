@@ -2310,3 +2310,20 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   `AccountOverlay`, `ProviderProfileSaveService`) moved to and shipped via `improvement-178`;
   Batch D (this entry) moved to and shipped via `improvement-179`. Full detail:
   `completed/issues/improvement-124-provider-profile.md`.
+
+✅ Done (2026-09-02): improvement-180 closed — Providers catalog gains real `createdAt`/`updatedAt`
+  date-range filters, mirroring `AdvertisementFilterDto`/`AdvertisementRepository`/
+  `AdvertisementFilterMeta`/`AdvertisementQueryBlock`'s existing pattern field-for-field
+  (`ProviderProfileFilterDto` 4 new fields + `@ValidRange`, 4 new `SqlBoundFilter` entries, 4 new
+  `FilterFieldMeta` constants, two new query-block rows reusing the existing 4-arg `filterRow(...)`
+  overload — no new shared-infrastructure method). The Kind row's sort icon (previously glued to an
+  unrelated `updatedAt` sort with no filter pairing) is now a plain filter row again. Also fixed:
+  `provider-profile-card.css`'s Share button no longer hides on hover/blur, matching Advertisement's
+  own always-visible Share button. See `marketplace-app/DECISIONS.md` ADR-077 (explicitly rejects an
+  earlier-considered "sort-only row" alternative in favor of real symmetry with Advertisement).
+  `deep-review-orchestrator` found zero findings. Full suite green: unit 69/69, integration 163/163
+  (including `ProviderProfileRepositoryTest` 13/13 covering the new date-range SQL), Playwright
+  `e2e --ux` 45/45 passed (13 skipped, expected). Sonar's only failing gate condition is the
+  pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`, unrelated to this
+  issue's own code) — no new issues. Full detail:
+  `completed/issues/improvement-180-providers-sort-icon-placement.md`.

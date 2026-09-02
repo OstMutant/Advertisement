@@ -85,16 +85,13 @@
   flex-shrink: 0;
 }
 
-.provider-profile-delete,
-.provider-profile-share {
+.provider-profile-delete {
   opacity: 0;
   transition: opacity 0.15s;
 }
 
 .provider-profile-card:hover .provider-profile-delete,
-.provider-profile-card:hover .provider-profile-share,
-.provider-profile-card:focus-visible .provider-profile-delete,
-.provider-profile-card:focus-visible .provider-profile-share {
+.provider-profile-card:focus-visible .provider-profile-delete {
   opacity: 1;
 }
 
