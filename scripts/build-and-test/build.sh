@@ -111,7 +111,7 @@ flock "$MVN_LOCK" -c "./mvnw install $MVN_INSTALL_FLAGS"
 # (sonar, deploy-and-run.sh/e2e) that need the real thing, not a partial one. ──────────
 TARGET_CLASSES_DIR=/root/.m2/target-classes
 mkdir -p "$TARGET_CLASSES_DIR"
-for module in query-lib platform-commons audit-spring-boot-starter attachment-spring-boot-starter \
+for module in query-lib html-sanitizer-lib platform-commons audit-spring-boot-starter attachment-spring-boot-starter \
               user-spring-boot-starter advertisement-spring-boot-starter taxon-spring-boot-starter \
               provider-profile-spring-boot-starter marketplace-orchestrator marketplace-app; do
   if [ "$module" = "marketplace-app" ] && [ "$SKIP_VAADIN" = "true" ]; then

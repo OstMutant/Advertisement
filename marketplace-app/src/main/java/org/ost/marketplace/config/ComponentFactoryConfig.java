@@ -12,6 +12,8 @@ import org.ost.marketplace.ui.views.main.header.account.AccountNameViewModeHandl
 import org.ost.marketplace.ui.views.main.header.account.ProviderProfileFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.header.account.ProviderProfileViewModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementCardView;
+import org.ost.marketplace.ui.views.main.tabs.providers.ProviderProfileCardView;
+import org.ost.marketplace.ui.views.main.tabs.providers.overlay.ProviderProfileCatalogViewModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
@@ -105,6 +107,16 @@ public class ComponentFactoryConfig {
 
     @Bean @ConditionalOnMissingBean
     public UiComponentFactory<ProviderProfileViewModeHandler> providerProfileViewModeHandlerFactory(ObjectProvider<ProviderProfileViewModeHandler> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<ProviderProfileCardView> providerProfileCardViewFactory(ObjectProvider<ProviderProfileCardView> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<ProviderProfileCatalogViewModeHandler> providerProfileCatalogViewModeHandlerFactory(ObjectProvider<ProviderProfileCatalogViewModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 

@@ -48,13 +48,14 @@ class ProviderProfileSaveServiceTest {
     @Mock private TaxonAssignmentWriteService taxonAssignmentWriteService;
     @Mock private ProviderProfileDisplayEnrichmentService displayEnrichmentService;
     @Mock private CurrentLocaleHook currentLocaleHook;
+    @Mock private SitemapService sitemapService;
 
     private ProviderProfileSaveService service;
 
     @BeforeEach
     void setUp() {
         service = new ProviderProfileSaveService(tx, providerProfilePortFactory, auditPortFactory,
-                taxonAssignmentWriteService, displayEnrichmentService, currentLocaleHook);
+                taxonAssignmentWriteService, displayEnrichmentService, currentLocaleHook, sitemapService);
         lenient().when(tx.execute(this.<Long>callback())).thenAnswer(inv -> {
             TransactionCallback<Long> callback = inv.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));

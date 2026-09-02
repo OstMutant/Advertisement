@@ -2270,3 +2270,43 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   same pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`, unrelated, 0 new
   violations confirmed twice via `sonar-analyst`). Full detail:
   `completed/issues/improvement-175-shared-sanitizer-stale-id-delete-race.md`.
+
+✅ Done (2026-09-02): improvement-179 closed — public Providers catalog (`ProvidersView`/
+  `ProviderProfileCardView`/`ProviderProfileDeepLinkView`/`overlay/ProviderProfileCatalogOverlay`+
+  `ProviderProfileCatalogViewModeHandler`/query-layer trio), `OgMetaRequestListener`/`AppLinkService`
+  extended to provider profiles, a Delete button wired into `ProviderProfileViewModeHandler`, new
+  Playwright coverage added to `04-provider-profile-flow.spec.js` (category filter + sort-icon
+  coverage, `SUPPORT`-disabled-not-removed assertions). This closes `improvement-124`'s last open
+  batch (124-D) — see that issue's own archive entry below. Five real bugs found and fixed during
+  verification: (1) `OverlayNavigationRegistry` resolves ADR-059's own documented single-handler
+  `History` conflict between `AdvertisementOverlay` and the new catalog overlay —
+  `marketplace-app/DECISIONS.md` ADR-076; (2) deep-link tab-selection — `MainView`'s
+  `pendingDeepLinkCheckers` map now actually selects the Providers tab when a provider deep link
+  opens directly, `ProvidersView`/`AdvertisementsView.openPendingDeepLinkIfAny()` both return
+  `boolean`; (3) sitemap cache staleness across specs — `SitemapController` thinned to a new
+  `marketplace-orchestrator` `SitemapService` with `invalidate()` called from both save services
+  (also ADR-076); (4) `ProviderProfileFormOverlayModeHandler`'s `setReadOnly()` calls were running
+  before `buildBinder()` established the Binder's clean baseline, causing a spurious "unsaved
+  changes" dialog for a privileged actor viewing another user's already-saved profile — reordered
+  after `buildBinder()`; (5) a non-privileged actor's own already-`SUPPORT` profile hit the same
+  false-dirty/required-validation failure, since `kindField`'s item list excluded `SUPPORT`
+  entirely — fixed via `RadioButtonGroup.setItemEnabledProvider` (kept in the list, disabled, not
+  hidden, when it's the actor's real current value). A separate, unrelated infra bug found during
+  Sonar re-verification: `scripts/sonar/run.sh`/`scripts/build-and-test/build.sh` both hardcoded a
+  module-copy list missing `html-sanitizer-lib` (added when that module was extracted), so the
+  scanner referenced a source folder that was never actually copied in — fixed in both scripts.
+  Playwright `e2e --ux` green (45 passed, 13 skipped, 0 failed). Sonar's 3 real findings (S7467
+  unnamed-pattern catch, S8491 dangling duplicate Javadoc, S1192 duplicated string literal) fixed,
+  confirmed `new_violations: 0` via the SonarQube API; the quality gate still shows `ERROR` solely
+  on the pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`, unrelated to
+  this issue's own code). Full detail: `completed/issues/improvement-179-provider-profile-catalog.md`.
+
+✅ Done (2026-09-02): improvement-124 closed — F-04's last open batch (124-D, public Providers
+  catalog) shipped via `improvement-179` (see that entry above); nothing left in this issue itself.
+  Full history: Batch A (`user_preferences` split) and A2 (`UserDto`/`UserPort` cleanup) shipped
+  2026-07-31; Batch B (`provider-profile-spring-boot-starter` module, backend only) shipped
+  2026-08-01 (`platform-commons/DECISIONS.md` ADR-027); Batch B2 (shared HTML sanitizer,
+  concurrent-delete race fix) moved to and shipped via `improvement-175`; Batch C (unified
+  `AccountOverlay`, `ProviderProfileSaveService`) moved to and shipped via `improvement-178`;
+  Batch D (this entry) moved to and shipped via `improvement-179`. Full detail:
+  `completed/issues/improvement-124-provider-profile.md`.

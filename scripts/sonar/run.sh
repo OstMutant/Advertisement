@@ -170,7 +170,7 @@ echo "Copying source files..."
 docker exec --user root "$SCANNER_CONTAINER" rm -rf /tmp/sonar-src
 docker exec "$SCANNER_CONTAINER" mkdir -p /tmp/sonar-src
 
-for module in query-lib platform-commons audit-spring-boot-starter attachment-spring-boot-starter user-spring-boot-starter advertisement-spring-boot-starter taxon-spring-boot-starter provider-profile-spring-boot-starter marketplace-orchestrator marketplace-app; do
+for module in query-lib html-sanitizer-lib platform-commons audit-spring-boot-starter attachment-spring-boot-starter user-spring-boot-starter advertisement-spring-boot-starter taxon-spring-boot-starter provider-profile-spring-boot-starter marketplace-orchestrator marketplace-app; do
   if [ -d "$ROOT/$module/src/main/java" ]; then
     docker exec "$SCANNER_CONTAINER" mkdir -p "/tmp/sonar-src/$module/src/main/java"
     docker cp "$ROOT/$module/src/main/java/." "$SCANNER_CONTAINER:/tmp/sonar-src/$module/src/main/java/"

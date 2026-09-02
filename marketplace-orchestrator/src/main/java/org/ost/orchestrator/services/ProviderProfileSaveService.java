@@ -36,9 +36,10 @@ public class ProviderProfileSaveService {
     private final TaxonAssignmentWriteService              taxonAssignmentWriteService;
     private final ProviderProfileDisplayEnrichmentService  displayEnrichmentService;
     private final CurrentLocaleHook                        currentLocaleHook;
+    private final SitemapService                           sitemapService;
 
     public Long save(@NonNull ProviderProfileSaveDto dto, @NonNull Long targetUserId, @NonNull Long actorId, boolean actorIsPrivileged) {
-        return tx.execute(status -> {
+        Long savedId = tx.execute(status -> {
             boolean isNew = dto.id() == null;
             ProviderProfileSnapshotDto before = isNew ? null : buildCurrentSnapshot(dto.id());
             if (!isNew && before == null) {
@@ -46,21 +47,23 @@ public class ProviderProfileSaveService {
                         "Provider profile " + dto.id() + " was deleted before this edit could be saved");
             }
 
-            Long savedId = providerProfilePortFactory.get().save(dto, targetUserId, actorId, actorIsPrivileged);
+            Long id = providerProfilePortFactory.get().save(dto, targetUserId, actorId, actorIsPrivileged);
 
             Set<Long> catIds = dto.categoryIds() != null ? dto.categoryIds() : Set.of();
-            taxonAssignmentWriteService.replace(EntityType.PROVIDER_PROFILE, savedId, catIds);
+            taxonAssignmentWriteService.replace(EntityType.PROVIDER_PROFILE, id, catIds);
 
             ProviderProfileDto saved = displayEnrichmentService.enrichWithCategoryAndCity(
-                    providerProfilePortFactory.get().findById(savedId).orElseThrow(), currentLocaleHook.getCurrentLocale());
+                    providerProfilePortFactory.get().findById(id).orElseThrow(), currentLocaleHook.getCurrentLocale());
             ProviderProfileSnapshotDto after = new ProviderProfileSnapshotDto(
                     saved.getKind(), saved.getAbout(), sortedList(saved.getCategoryIds()), saved.getCityTaxonId());
 
-            captureAudit(isNew, savedId, after, actorId);
+            captureAudit(isNew, id, after, actorId);
             log.info("ProviderProfile save transaction complete: id={}, isNew={}, categories={}",
-                    savedId, isNew, catIds.size());
-            return savedId;
+                    id, isNew, catIds.size());
+            return id;
         });
+        sitemapService.invalidate();
+        return savedId;
     }
 
     private void captureAudit(boolean isNew, Long savedId, ProviderProfileSnapshotDto after, Long actorId) {
@@ -96,6 +99,7 @@ public class ProviderProfileSaveService {
                 auditPortFactory.ifAvailable(p -> p.captureDeletion(id, snapshot, actorId));
             }
         });
+        sitemapService.invalidate();
     }
 
     private ProviderProfileSnapshotDto buildCurrentSnapshot(@NonNull Long entityId) {

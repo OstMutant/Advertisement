@@ -1744,17 +1744,16 @@ overlay's open/closed state.
    overridden to `pushState(null, "")` before delegating to `BaseOverlay`'s real close logic (this
    correctly intercepts every path that closes the overlay, including the breadcrumb back button,
    which is wired via `this::closeToList` and resolves virtually to the override). Browser
-   Back/Forward is handled via `History.setHistoryStateChangeHandler(...)`, registered once in
-   `@PostConstruct`: if the new location isn't under `ads/` and the overlay is currently open in
-   VIEW mode, it closes without re-pushing history (`super.closeToList()` directly).
+   Back/Forward is handled via a handler registered through the shared `OverlayNavigationRegistry`
+   (see ADR-076): if the new location isn't under `ads/` and the overlay is currently open in VIEW
+   mode, it closes without re-pushing history (`super.closeToList()` directly).
 
-**Known limitation, deliberately not addressed:** Vaadin's `History` API is a single-handler slot
+**Known limitation, resolved by ADR-076:** Vaadin's `History` API is a single-handler slot
 (`setHistoryStateChangeHandler`, not an `addListener`-style multi-registration) —
-`AdvertisementOverlay` registering its own handler will silently overwrite any other overlay's
-handler on the same `UI`. Harmless today (no other domain has a deep-link route yet), but the next
-domain to add one cannot just copy this pattern — it needs a shared per-UI history dispatcher that
-every deep-linkable overlay registers into, not each calling `setHistoryStateChangeHandler`
-independently.
+`AdvertisementOverlay` registering its own handler directly would silently overwrite any other
+overlay's handler on the same `UI`. Left unaddressed here since no other domain had a deep-link
+route yet; once a second one did, ADR-076 introduced the shared per-UI history dispatcher this note
+predicted would be needed.
 
 **Consequences:**
 - The app is no longer a pure single-route SPA at the Vaadin router level
@@ -2709,3 +2708,127 @@ to `marketplace-orchestrator` and fixed the `targetUserId`/`actingUserId` confla
 admin-edits-another-user path surfaced during manual testing. Playwright gained
 `04-provider-profile-flow.spec.js` (create/edit provider profile, moderator read-only view, admin
 editing another user's profile end-to-end); spec files 04-07 renumbered to 05-08 to make room.
+
+---
+
+## ADR-075: Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay
+
+**Status:** Accepted
+
+**Also affects:** provider-profile-spring-boot-starter, marketplace-orchestrator
+
+**Context:** `provider-profile-spring-boot-starter`/`ProviderProfilePort` (ADR-027) and the
+self-service `AccountOverlay` Provider Profile tab (ADR-074) already let an actor create/edit their
+own provider profile, but nothing surfaced a profile outside its owner's own account — no public
+listing, no shareable link with a rich preview, no search-engine visibility. ADR-059 already
+established the public-catalog/OG-meta/sitemap/deep-link pattern for the Advertisement domain; this
+batch is that same pattern applied to Provider Profile, not a new design.
+
+**Decision:**
+- New `ui/views/main/tabs/providers/` package mirrors the Advertisement domain's own public-facing
+  structure field-for-field: `ProvidersView` (catalog listing, mirrors `AdvertisementsView` minus
+  the add-button/keyboard-shortcut/refresh-polling machinery, since creation only ever happens via
+  `AccountOverlay`), `ProviderProfileCardView` (catalog card, text-only — kind badge, `about`
+  excerpt, city/category info lines — no photo, since `ProviderProfileDto` carries no media field
+  and portfolio support is out of scope), `query/ProviderProfileFilterMeta`/`SortMeta`/
+  `QueryBlock`/`QueryConfig` (mirrors the Advertisement query-layer trio, using the already-existing
+  `ProviderProfileFilterDto`'s `kinds`/`categoryIds`/`cityTaxonId` fields — no new filter fields
+  added, no title/date-range rows since that DTO has none of those).
+- `ProviderProfileCatalogOverlay` extends `BaseOverlay` directly, **not**
+  `AbstractEntityOverlay<H>` — a deliberate deviation from `AdvertisementOverlay`'s shape. This
+  catalog overlay is view-only and never enters an edit mode: editing a provider profile already
+  has its own dedicated, self-service path (`AccountOverlay`'s Provider Profile tab). Forcing it
+  through `AbstractEntityOverlay`'s form-handler-typed generic bound would mean carrying unused
+  `saveConfig()`/`proceed()`/`afterDiscard()` overrides and a phantom form-handler type for a mode
+  that structurally cannot exist here. Consequently `ProviderProfileCatalogViewModeHandler` has no
+  Edit button and no history button — history/restore has only ever been a form/edit-mode concern
+  in this codebase (see `.claude/rules.md`'s Form Handler Pattern), and a view-only overlay
+  correctly has nothing to attach it to.
+- New `ProviderProfileReadService` (`marketplace-orchestrator`) mirrors `AdvertisementReadService`
+  — wraps `ComponentFactory<ProviderProfilePort>`'s `getFiltered`/`count`/`findById`/`isAvailable`,
+  since the existing `ProviderProfileSaveService` only exposed the write/single-lookup methods a
+  self-service form needs, not the paginated listing a public catalog needs.
+- `OgMetaRequestListener` gains a `PROVIDER_PATH = Pattern.compile("^/providers/(\\d+)$")`
+  alongside `AD_PATH`, injects `ProviderProfileReadService`, and reuses the existing
+  `og:title`/`og:description`/`og:url`/JSON-LD shape. `og:type` is `"profile"` (not `"product"`,
+  which stays Advertisement-only) and the JSON-LD `@type` is `"ProfilePage"` — a provider profile
+  represents a person/business entity page, not a purchasable listing; `"profile"` is the closest
+  standard Open Graph type for that shape. Injection is skipped entirely when no profile is found
+  for the id (same early-return shape as the advertisement path).
+- The sitemap builder gains a parallel `allProviderProfiles()` page-walk (same
+  `Stream.iterate`+`takeWhile`+`flatMap` shape as `allAdvertisements()`) appended to the same
+  `/sitemap.xml` response, and `AppLinkService` gains `providerProfileUrl(Long id)` mirroring
+  `advertisementUrl()` (see ADR-076 for where the sitemap builder itself ended up living).
+- `ProviderProfileDeepLinkView` (`@Route("providers")`) mirrors `AdvertisementDeepLinkView`'s
+  session-attribute pending-deep-link pattern, but takes `HasUrlParameter<String>` rather than
+  `<Long>` — the optional slug in `/providers/42-ivan-plytochnyk` needs the leading numeric id
+  parsed out of the path segment manually (`AdvertisementDeepLinkView` has no slug support at all
+  today, so there was no existing `Long`-based precedent to copy for this part).
+- Delete button added in two places, both calling the existing `ProviderProfileSaveService.delete()`
+  (already wired end-to-end, only missing a UI trigger): `ProviderProfileCatalogViewModeHandler`
+  (public catalog) and `ProviderProfileViewModeHandler` (`AccountOverlay`'s own tab) — both visible
+  only under `AccessEvaluator.canEditUserAccount()`. The shared confirm-dialog-plus-delete-call
+  logic is factored into one `ProviderProfileDeleteUtil.confirmAndDelete()` static helper
+  (`ui/views/utils`-style, reused by both call sites) rather than duplicated, found and fixed during
+  this batch's own `/review` pass.
+- `MainView`'s new Providers tab is gated on `providerProfileReadService.isAvailable()`, matching
+  the existing Reference Data tab's `taxonCatalogService.isAvailable()` gate for the same kind of
+  optional-starter (`provider-profile-spring-boot-starter` is `<scope>runtime</scope>`) —
+  found and fixed during this batch's own `/review` pass; the tab would otherwise render
+  permanently empty instead of disappearing if the starter is ever excluded from the classpath.
+
+**Consequences:** Playwright's `04-provider-profile-flow.spec.js` gained public-catalog coverage
+(anonymous browsing/filtering by kind/category/city, deep-link navigation + sitemap.xml + crawler
+meta tags, delete-from-catalog, `SUPPORT`-kind disabled-not-removed for a non-privileged actor
+already holding that kind) alongside its existing `AccountOverlay` tab coverage — no new spec file,
+per this repo's "extend before adding a new one" Playwright convention. `improvement-124`'s last
+open batch (public Providers catalog) is now closed. The `SitemapController`/browser-History
+mechanics this ADR describes were both revised shortly after by ADR-076 — see that entry for the
+current shape.
+
+---
+
+## ADR-076: `OverlayNavigationRegistry` fans out browser History to every deep-linkable overlay; `SitemapController` thins to a `marketplace-orchestrator` `SitemapService`
+
+**Status:** Accepted
+
+**Context:** Verifying `improvement-179`'s Providers catalog against real running code (not just
+the plan) surfaced two real bugs, both directly caused by the pattern ADR-059/ADR-075 established
+for Advertisement being copied as-is for a second domain:
+1. ADR-059's own "Known limitation, deliberately not addressed" already predicted this: Vaadin's
+   `History.setHistoryStateChangeHandler(...)` is a single-handler slot, not an `addListener`-style
+   multi-registration. `AdvertisementOverlay` and the new `ProviderProfileCatalogOverlay` were each
+   calling it directly in their own `@PostConstruct`, so whichever overlay's bean initialized last
+   silently owned the only working browser-back/forward handler — the other domain's deep link
+   would open the overlay via `pushState` but back/forward navigation would go straight past it.
+2. `SitemapController`'s single-entry, 15-minute Caffeine cache lived in `marketplace-app` and had
+   no invalidation hook. A newly-added Playwright test for the provider-profile deep link
+   (`04-provider-profile-flow.spec.js`, running before the advertisement spec) pre-warmed that
+   cache with stale data, which the pre-existing advertisement sitemap test then observed as a
+   silent regression — passing or failing depending on run order, not on the code under test.
+
+**Decision:**
+- New `ui/views/services/OverlayNavigationRegistry` (`@SpringComponent @UIScope`) registers itself
+  as the *only* caller of `setHistoryStateChangeHandler` (once, in its own `@PostConstruct`) and
+  fans every incoming `HistoryStateChangeEvent` out to a `List<History.HistoryStateChangeHandler>`
+  built via `register(...)`. `AdvertisementOverlay` and `ProviderProfileCatalogOverlay` both now
+  call `navigationRegistry.register(...)` instead of touching `UI.getCurrent().getPage().getHistory()`
+  directly — this is the shared per-UI history dispatcher ADR-059 said the next domain would need,
+  now built rather than deferred again for a third domain.
+- `SitemapController` (`marketplace-app`, `rest/`) is now a thin adapter over a new
+  `marketplace-orchestrator` service, `SitemapService` — the cache, the `buildSitemap()` page-walk
+  over both `AdvertisementReadService`/`ProviderProfileReadService`, and a new `invalidate()` method
+  all moved there. `AdvertisementSaveService`/`ProviderProfileSaveService` (already living in the
+  same module) call `sitemapService.invalidate()` after every save/delete — a same-module direct
+  call, no cross-module event needed, since both save services and the sitemap builder were already
+  colocated in `marketplace-orchestrator`. This both fixes the stale-cache/test-order bug and moves
+  the sitemap-building logic to the module that already owns cross-domain read composition, rather
+  than leaving it as a `marketplace-app` REST controller doing orchestration work directly.
+
+**Consequences:** No behavior change for a real user — the sitemap still updates within at most one
+save's `invalidate()` call, just deterministically now instead of only after the 15-minute TTL
+expired. Any future domain adding its own deep-linkable overlay registers into
+`OverlayNavigationRegistry` instead of calling `setHistoryStateChangeHandler` directly; any future
+domain needing sitemap entries adds its own page-walk method to `SitemapService` and an
+`invalidate()` call from its own save service, following this same shape.
+

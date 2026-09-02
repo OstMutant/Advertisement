@@ -15,7 +15,9 @@ import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
+import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.rules.I18nParams;
+import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.springframework.context.annotation.Scope;
@@ -41,12 +43,14 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
     public static class Parameters {
         @NonNull Long targetUserId;
         @NonNull Runnable onEdit;
+        @NonNull Runnable onDeleted;
         @NonNull Runnable onClose;
         @NonNull Component tabBar;
     }
 
     private final ProviderProfileSaveService providerProfileSaveService;
     private final AccessEvaluator            access;
+    private final NotificationService        notificationService;
     @Getter
     private final I18nService                i18nService;
 
@@ -114,12 +118,43 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
 
     @Override
     protected Div buildHeaderActions() {
+        boolean canEdit = access.canEditUserAccount(params.getTargetUserId());
+
         UiPrimaryButton editButton = new UiPrimaryButton(getValue(profile == null
                 ? PROVIDER_PROFILE_VIEW_BUTTON_CREATE : PROVIDER_PROFILE_VIEW_BUTTON_EDIT));
+        editButton.addClickListener(_ -> params.getOnEdit().run());
+        editButton.setVisible(canEdit);
+
         UiIconButton closeButton = new UiIconButton(getValue(HEADER_HOME), VaadinIcon.CLOSE.create());
-        editButton.addClickListener(_  -> params.getOnEdit().run());
         closeButton.addClickListener(_ -> params.getOnClose().run());
-        editButton.setVisible(access.canEditUserAccount(params.getTargetUserId()));
-        return new Div(editButton, closeButton);
+
+        Div actions = new Div(editButton);
+        if (profile != null) {
+            UiIconButton deleteButton = new UiIconButton(getValue(PROVIDER_PROFILE_VIEW_BUTTON_DELETE), VaadinIcon.TRASH.create());
+            deleteButton.addClassName("provider-profile-delete-button");
+            deleteButton.addClickListener(_ -> confirmAndDelete(profile));
+            deleteButton.setVisible(canEdit);
+            actions.add(deleteButton);
+        }
+        actions.add(closeButton);
+        return actions;
+    }
+
+    private void confirmAndDelete(ProviderProfileDto profile) {
+        new ConfirmActionDialog(
+                getValue(PROVIDER_PROFILE_VIEW_CONFIRM_DELETE_TITLE),
+                getValue(PROVIDER_PROFILE_VIEW_CONFIRM_DELETE_TEXT),
+                getValue(PROVIDER_PROFILE_VIEW_CONFIRM_DELETE_BUTTON),
+                getValue(PROVIDER_PROFILE_VIEW_CONFIRM_CANCEL_BUTTON),
+                () -> {
+                    try {
+                        providerProfileSaveService.delete(profile.getId(), access.getCurrentUserId(), profile.getVersion());
+                        notificationService.success(PROVIDER_PROFILE_VIEW_NOTIFICATION_DELETED);
+                        params.getOnDeleted().run();
+                    } catch (Exception _) {
+                        notificationService.error(PROVIDER_PROFILE_VIEW_NOTIFICATION_DELETE_ERROR);
+                    }
+                }
+        ).open();
     }
 }

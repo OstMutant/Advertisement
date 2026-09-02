@@ -48,6 +48,15 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   before deleting the account itself.
 - `AdvertisementReadService` — wraps `ComponentFactory<AdvertisementPort>`'s query methods
   (`findById`/`getFiltered`/`count`) so marketplace-app never holds a direct `AdvertisementPort`.
+- `ProviderProfileReadService` — the `ProviderProfilePort` equivalent of `AdvertisementReadService`,
+  wrapping `ComponentFactory<ProviderProfilePort>`'s `getFiltered`/`count`/`findById`/`isAvailable`
+  for the public Providers catalog listing, distinct from `ProviderProfileSaveService`'s
+  write/single-lookup methods.
+- `SitemapService` — builds and caches `/sitemap.xml`'s XML body (advertisements + provider
+  profiles, one Caffeine cache entry, 15-minute TTL). `AdvertisementSaveService`/
+  `ProviderProfileSaveService` call `invalidate()` after every save/delete, since both already live
+  in this same module — a same-module direct call, no cross-module event needed.
+  `marketplace-app`'s `SitemapController` (`rest/`) is a thin adapter over `getSitemap()`.
 - `TaxonCatalogService` — wraps `ComponentFactory<TaxonPort>`'s catalog-management methods
   (`getAllByType`/`listAllByType`/`getUsageCounts`/`create`/`update`/`findById`/`getTranslations`)
   — distinct from `TaxonLookupService`, which stays narrowly scoped to entity-assignment lookups.

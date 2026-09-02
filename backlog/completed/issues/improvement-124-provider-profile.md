@@ -748,3 +748,15 @@ entry (completed as ADR-071 in the same pass), and a stale `UserSettingsService`
   real `version` column).
 - `.claude/rules.md` "Form Handler Pattern" — `buildTabbedContent()` "do not duplicate" rule,
   directly relevant to the Part 2 generalization.
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a — no /code-review ran this task
+- context_loading_task_type: parent-issue closure, all work delivered via child batches (A/A2/B/B2/C/D)
+- context_loading_consulted: yes
+- context_loading_matched: yes
+- flows_situation: closing a parent issue once its last carved-out batch (improvement-179) shipped
+- flows_chosen: Issue Lifecycle rules in .claude/rules.md (move to completed/issues/, remove BACKLOG.md rows, add BACKLOG-ARCHIVE.md entry)
+- flows_matched: yes

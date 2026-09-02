@@ -5,11 +5,12 @@ today). Found via edge-case review (2026-07-19).
 **Module:** `advertisement-spring-boot-starter` (`AdvertisementService`, `AdvertisementPortImpl`),
 `user-spring-boot-starter` (`UserService`), `taxon-spring-boot-starter` (`TaxonService`);
 authorization currently lives in `marketplace-app` (`services/security/AccessEvaluator`)
-**Priority:** 🔵 medium — no open hole in the current UI-only architecture, but mandatory to resolve
-before the first non-UI mutation caller (REST/seeding/OG-bot) exists
-**When:** Deferred — trigger: before any non-UI endpoint that mutates domain state ships (hard
-gate, same shape as the completed improvement-020 security baseline); needs a design decision
-first
+**Priority:** 🟡 high — the trigger has fired: `improvement-073` (now expanded to include a real
+external/public REST API, not just dev-gated test seeding) is being picked up, so this hard gate
+must land first or alongside it.
+**When:** Active — `improvement-073`'s external API scope is exactly the trigger this issue was
+waiting for; a design decision (option 1 vs. option 2 below) is needed before or as part of that
+work.
 
 ## Problem
 

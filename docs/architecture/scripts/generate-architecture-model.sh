@@ -133,8 +133,9 @@ SCRIPT_TREE_ROOTS=(scripts playwright .claude)
 # SCRIPT_TREE_ROOTS subtree -- generated/report output, never source. "wiki" is Dagu's own
 # runtime-created documentation folder (see `dagu config`'s "Wiki directory"), written directly
 # into whatever directory Dagu was started with `--dags` pointed at -- not part of the real source
-# tree, confirmed by its absence outside a running ci-runner container.
-SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report logs node_modules wiki)
+# tree, confirmed by its absence outside a running ci-runner container. "worktrees" holds active
+# git worktree checkouts -- full copies of the repo tree, not source of their own.
+SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report logs node_modules wiki worktrees)
 
 # Directories whose real subdirectories are never recursed into, even though they exist on disk --
 # .claude/skills/<name>/ is never a folder-card of its own: each skill's own SKILL.md is already
@@ -1078,7 +1079,7 @@ ensure_sonar_fresh() {
   fi
   stamp_file="$(mktemp)"
   touch -d "$analysis_date" "$stamp_file" 2>/dev/null
-  newest_java="$(find "$REPO_ROOT" -name '*.java' -not -path '*/target/*' -newer "$stamp_file" 2>/dev/null | head -1)"
+  newest_java="$(find "$REPO_ROOT" -name '*.java' -not -path '*/target/*' -not -path '*/.claude/worktrees/*' -newer "$stamp_file" 2>/dev/null | head -1)"
   rm -f "$stamp_file"
   if [ -n "$newest_java" ]; then
     echo "SonarQube data stale ($newest_java changed since last scan) -- rescanning via bash scripts/sonar.sh --no-gate..." >&2
@@ -1234,7 +1235,7 @@ largest_java_files_json() {
     $first_i || items_json="$items_json,"$'\n'
     first_i=false
     items_json="$items_json    {\"file\": \"$(json_escape "$(basename "$file")")\", \"path\": \"$(json_escape "$file")\", \"lines\": $lines, \"module\": \"$(json_escape "$mod")\"}"
-  done < <(find "$REPO_ROOT" -path '*/src/main/java/*' -name '*.java' -not -path '*/target/*' -exec wc -l {} \; 2>/dev/null | sort -rn | head -10)
+  done < <(find "$REPO_ROOT" -path '*/src/main/java/*' -name '*.java' -not -path '*/target/*' -not -path '*/.claude/worktrees/*' -exec wc -l {} \; 2>/dev/null | sort -rn | head -10)
   echo "[$items_json"$'\n'"  ]"
 }
 
@@ -1253,7 +1254,7 @@ constructor_injection_json() {
     $first_i || items_json="$items_json,"$'\n'
     first_i=false
     items_json="$items_json    {\"class\": \"$(json_escape "$class_name")\", \"module\": \"$(json_escape "$mod")\", \"fieldCount\": $field_count, \"file\": \"$(json_escape "${f#"$REPO_ROOT"/}")\"}"
-  done < <(grep -rl '@RequiredArgsConstructor' "$REPO_ROOT" --include='*.java' 2>/dev/null | grep -v '/target/' | grep '/src/main/java/' | sort)
+  done < <(grep -rl '@RequiredArgsConstructor' "$REPO_ROOT" --include='*.java' 2>/dev/null | grep -v '/target/' | grep -v '/.claude/worktrees/' | grep '/src/main/java/' | sort)
 
   echo "[$items_json"$'\n'"  ]"
 }
@@ -1275,7 +1276,7 @@ god_packages_json() {
     $first_i || items_json="$items_json,"$'\n'
     first_i=false
     items_json="$items_json    {\"package\": \"$(json_escape "${pkg#"$REPO_ROOT"/}")\", \"fileCount\": $count}"
-  done < <(find "$REPO_ROOT" -path '*/src/main/java/*' -not -path '*/target/*' -type d 2>/dev/null | sort)
+  done < <(find "$REPO_ROOT" -path '*/src/main/java/*' -not -path '*/target/*' -not -path '*/.claude/worktrees/*' -type d 2>/dev/null | sort)
 
   echo "[$items_json"$'\n'"  ]"
 }
@@ -1759,7 +1760,7 @@ arch_embed_index_md() {
         })')"
       echo "| \`$key\` | \`$rel:$line\` | $desc |"
     done < <(grep -oP '(?<=<!-- #arch-embed:)[a-z0-9-]+(?= -->)' "$file" | sort -u)
-  done < <(find "$REPO_ROOT" \( -name "CLAUDE.md" -o -path "$REPO_ROOT/.claude/rules/*.md" \) -not -path "*/node_modules/*" -not -path "*/target/*" -not -path "*/.git/*" | sort)
+  done < <(find "$REPO_ROOT" \( -name "CLAUDE.md" -o -path "$REPO_ROOT/.claude/rules/*.md" \) -not -path "*/node_modules/*" -not -path "*/target/*" -not -path "*/.git/*" -not -path "*/.claude/worktrees/*" | sort)
 }
 
 [ -n "$WITH_SONAR" ] && ensure_sonar_fresh

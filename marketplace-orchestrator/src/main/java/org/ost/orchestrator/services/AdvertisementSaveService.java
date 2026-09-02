@@ -44,11 +44,12 @@ public class AdvertisementSaveService {
     private final TaxonAssignmentWriteService            taxonAssignmentWriteService;
     private final AttachmentSnapshotReaderService        attachmentSnapshotReaderService;
     private final AttachmentSoftDeleteService            attachmentSoftDeleteService;
+    private final SitemapService                        sitemapService;
 
     @SuppressWarnings("java:S4276")
     public Long save(@NonNull AdvertisementSaveDto dto, @NonNull Long actorId,
                      @NonNull Function<EntityRef, Long> commitGallery) {
-        return tx.execute(status -> {
+        Long savedId = tx.execute(status -> {
             boolean isNew = dto.id() == null;
             AdvertisementSnapshotDto before = isNew ? null : buildCurrentSnapshot(dto.id());
             if (!isNew && before == null) {
@@ -56,28 +57,30 @@ public class AdvertisementSaveService {
                         "Advertisement " + dto.id() + " was deleted before this edit could be saved");
             }
 
-            Long savedId = advertisementPortFactory.get().save(dto);
+            Long id = advertisementPortFactory.get().save(dto);
 
             Set<Long> catIds = dto.categoryIds() != null ? dto.categoryIds() : Set.of();
             Long cityId = dto.cityTaxonId();
-            taxonAssignmentWriteService.replace(EntityType.ADVERTISEMENT, savedId, unionAssignmentIds(catIds, cityId));
+            taxonAssignmentWriteService.replace(EntityType.ADVERTISEMENT, id, unionAssignmentIds(catIds, cityId));
 
             // Last mutation before commit -- shrinks the window for a post-move rollback to orphan S3 files.
-            EntityRef entityRef = new EntityRef(EntityType.ADVERTISEMENT, savedId);
+            EntityRef entityRef = new EntityRef(EntityType.ADVERTISEMENT, id);
             Long gallerySnapshotId = commitGallery.apply(entityRef);
             Long attachmentSnapshotId = resolveAttachmentSnapshotId(gallerySnapshotId, before);
             registerOrphanWarningOnRollback(entityRef, gallerySnapshotId);
 
-            AdvertisementInfoDto saved = advertisementPortFactory.get().findById(savedId).orElseThrow();
+            AdvertisementInfoDto saved = advertisementPortFactory.get().findById(id).orElseThrow();
             List<Long> sortedCatIds = catIds.stream().sorted().toList();
             AdvertisementSnapshotDto after = new AdvertisementSnapshotDto(
                     saved.getTitle(), saved.getDescription(), saved.getAdKind(), sortedCatIds, cityId, attachmentSnapshotId);
 
-            captureAudit(isNew, savedId, after, actorId);
+            captureAudit(isNew, id, after, actorId);
             log.info("Advertisement save transaction complete: id={}, isNew={}, categories={}",
-                    savedId, isNew, catIds.size());
-            return savedId;
+                    id, isNew, catIds.size());
+            return id;
         });
+        sitemapService.invalidate();
+        return savedId;
     }
 
     // replaceAssignments() diff-replaces ALL taxon types at once -- ids must be unioned into one call.
@@ -116,6 +119,7 @@ public class AdvertisementSaveService {
                 auditPortFactory.ifAvailable(p -> p.captureDeletion(id, snapshot, actorId));
             }
         });
+        sitemapService.invalidate();
     }
 
     // isSynchronizationActive() guard is required -- registerSynchronization() throws outside a real transaction.

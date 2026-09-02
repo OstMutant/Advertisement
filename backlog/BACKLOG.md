@@ -60,9 +60,10 @@ verbatim — `improvement-135` had nothing still-open left and is now closed, se
 `completed/issues/improvement-135-ai-nav-layer-validation-and-adr-index-ci-check.md`.
 `improvement-138` now tracks only Track B plus the absorbed nav-layer-validation question.
 
-**Still active:** improvement-124 (F-04, sole top priority again) — `provider_profile` +
-`user_preferences` + unified "My Account" overlay, one combined piece of work (see
-`platform-commons/DECISIONS.md` ADR-027); Batch B shipped, B2/C/D remain. improvement-136
+**improvement-124 (F-04) shipped in full, 2026-09-02** — `provider_profile` + `user_preferences` +
+unified "My Account" overlay, one combined piece of work (see `platform-commons/DECISIONS.md`
+ADR-027); Batches A/A2/B/B2/C/D all shipped, the last (D, public Providers catalog) via
+`improvement-179` — see `completed/BACKLOG-ARCHIVE.md` for both entries. improvement-136
 (`marketplace-orchestrator` extraction) shipped 2026-08-07 — see `completed/BACKLOG-ARCHIVE.md`.
 **improvement-147 (package flatten + Bounded Contexts node + true-BFF migration) shipped
 2026-08-08** — see `completed/BACKLOG-ARCHIVE.md`; its original single-caller-collaborator
@@ -94,9 +95,8 @@ improvement-118 stays blocked (needs a public URL this sandbox doesn't have).
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
 | Top | 🟡 | 138 | improvement-138 — "Architecture Control Plane". **Track A completed 2026-08-04**, its full execution history archived to `completed/issues/improvement-138-architecture-control-plane-track-a.md` on 2026-08-28. This issue's live scope is now **Track B** (ArchUnit contract/test model + AI-token-savings hypothesis, not started) plus **`improvement-135`'s absorbed items 3/5** (does the existing hand-authored `.claude/nav/` layer earn its cost — mechanism built, empirical answer pending real accumulated data; governing rule — no new `.claude/nav/*`-shaped content, including Track B, until that data shows a gap). `improvement-135` had nothing else still-open and is now closed (see `completed/BACKLOG-ARCHIVE.md`) |
-| Top | 🟡 | 124 | **improvement-124 Batch 124-B completed 2026-08-01** — new `provider-profile-spring-boot-starter` module (`EntityType.PROVIDER_PROFILE`, `ProviderKind` MASTER/SHOP/SUPPORT), backend only; see `platform-commons/DECISIONS.md` ADR-027 / `marketplace-app/DECISIONS.md` ADR-072. **improvement-136 (`marketplace-orchestrator` extraction) shipped 2026-08-07**, unblocking the rest of this line — see `completed/BACKLOG-ARCHIVE.md`. **Batch 124-B2 moved to `improvement-175`, Batch 124-C moved to `improvement-178` (both 2026-08-28); `improvement-178` closed 2026-08-30** (see `completed/BACKLOG-ARCHIVE.md`), unblocking Batch 124-D. Remaining here: Batch 124-D (public Providers catalog) |
-| Nice to have | — | 073 → 035, 096, 129, 036, 039, 065, 114, 063, 028, 130, 131, 133, 172, 142, 177 | everything else — no internal priority order, pick up opportunistically |
-| (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
+| Top | 🟡 | 111 → 073 | improvement-111 (authorization at the service boundary) must land first or alongside `improvement-073`'s now-widened scope (dev-gated test seeding + a real external/public REST API) — trigger fired 2026-09-01 per explicit user request, both promoted from Deferred/Nice-to-have |
+| Nice to have | — | 035, 096, 129, 036, 039, 065, 114, 063, 028, 130, 131, 133, 172, 142, 177 | everything else — no internal priority order, pick up opportunistically |
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
@@ -107,17 +107,17 @@ Details, links, and per-batch rationale below.
 |---|---|---|
 | [improvement-138](issues/improvement-138-architecture-control-plane.md) | New (user-supplied task, 2026-08-04, "FINAL VISION v2" — supersedes an unseen `architecture-observability-vision.md` v1) | A generated, evidence-linked model of the repo (code, tests, pipelines, docs) read through two projections: a token-minimal AI layer (L0-L5) and a Cytoscape.js human visual explorer. **Track A** (visual control from already-structured sources) shipped, execution history archived to `completed/issues/improvement-138-architecture-control-plane-track-a.md`. This issue's live scope is now **Track B** (ArchUnit-based contract/test-coverage model + the AI-token-savings hypothesis, gated by its own B2 "stop" measurement) plus **`improvement-135`'s absorbed items 3/5** (moved in 2026-08-28, since it's the same "does a nav layer save tokens" question, just for the existing hand-authored `.claude/nav/` layer instead of Track B's new generated one) — `improvement-135` had nothing else still-open and is now closed. See the issue file's "Absorbed from `improvement-135`" section for the live governing rule and pending measurement. |
 
-### Top priority — improvement-124
+### Top priority — improvement-111 → improvement-073
 
 | Issue | Origin | What |
 |---|---|---|
-| [improvement-124](issues/improvement-124-provider-profile.md) | New (product roadmap Phase 2, item #1; supersedes [improvement-123](issues/improvement-123-f04-master-profile.md)) | F-04 — per the issue's 2026-07-31 "module/table split reconsidered" update, three tables not one: `user_information` (unchanged), `user_preferences` (Batch A, shipped), and a standalone `provider_profile` table (new `provider-profile-spring-boot-starter` module, `EntityType.PROVIDER_PROFILE`, `ProviderKind` `MASTER`/`SHOP`/`SUPPORT` — `NOT NULL`, row created lazily on first "become a provider" save, not eagerly at registration). Batch B (backend only) shipped 2026-08-01 — see `platform-commons/DECISIONS.md` ADR-027. Remaining: Batch B2 (small cross-domain cleanup), then unified "My Account" overlay — Name/Settings/Provider Profile tabs in one place, reused for both self-service and admin/moderator viewing another user, narrower moderator (view-only) permissions — and the public Providers catalog (OG meta + sitemap for `/providers/:id`). `ProviderProfileSnapshotDto` already follows improvement-002's `schemaVersion` record-component pattern (see `platform-commons/DECISIONS.md` ADR-024) |
+| [improvement-111](issues/improvement-111-authorization-enforced-in-ui-only-not-at-service-boundary.md) | Found via edge-case review (2026-07-19); promoted from Deferred 2026-09-01 | Authorization currently lives only in the UI (`AccessEvaluator` gates button visibility) — the service/port boundary trusts `actingUserId` with no ownership/role check. Latent, not exploitable while Vaadin UI is the only caller. Must land before `improvement-073`'s external API ships (that API's first mutation call would otherwise have zero authorization at the port). Needs a design decision first (service-boundary check vs. an ArchUnit-enforced convention rule) — see the issue file's "Suggested fix" |
+| [improvement-073](issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) → [improvement-035](issues/improvement-035-sql-seeding-for-playwright-spec-05.md) | New / Migrated; scope widened 2026-09-01 per explicit user request | REST API infrastructure, two audiences in one issue: (1) dev-gated Playwright seeding endpoints (035 unblocks on this half, then service-layer-seeds spec 05 — full e2e 11 min → ~7-8 min), and (2) a real external/public API for external consumers, prod-reachable, blocked on `improvement-111` landing first. `private/features/F-07-phone-verification.md`'s planned Telegram Bot webhook is a known future consumer of this same infrastructure |
 
 ### Nice to have — no internal priority order
 
 | Issue | Origin | What |
 |---|---|---|
-| [improvement-073](issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) → [improvement-035](issues/improvement-035-sql-seeding-for-playwright-spec-05.md) | New / Migrated | Playwright seeding infrastructure (sequenced pair — 035 unblocks on 073), then service-layer-seed spec 05 via those endpoints — full e2e 11 min → ~7-8 min |
 | [improvement-096](issues/improvement-096-responsive-mobile-adaptation-pass.md) | New (UX review) | Responsive/mobile adaptation — 2 `@media` queries across 26 theme CSS files; its own 4-phase program (mobile Playwright viewport first), schedule before public launch |
 | [improvement-129](issues/improvement-129-marketplace-feed-modernization.md) | New (user-supplied AI spec, verified against code) | Modernize `AdvertisementsView`/`AdvertisementCardView` into a LinkedIn/Facebook-Marketplace-style content feed — options-oriented proposal, not a locked plan; confirmed card is already NOT `vaadin-grid` (visual refresh, not structural rebuild) and all 5 named CSS tokens already exist; `ActorProfile`/avatar/"contact" from the original spec confirmed not to exist yet (descope or sequence after improvement-124); several open design questions listed in the issue need a decision before implementation |
 | [improvement-036](issues/improvement-036-actuator-structured-logging.md) | Migrated | Actuator + structured JSON logging |
@@ -196,7 +196,6 @@ Plus: Testcontainers test layer is a hard gate before any payment code.
 | [goal-001](issues/goal-001-activity-field-visibility-by-role.md) | user feedback |
 | [improvement-052](issues/improvement-052-first-admin-registration-toctou-race.md) | project nearing production readiness — `UserService.register()` first-admin TOCTOU race, accepted risk for now (narrow window, only the instant of a fresh instance's very first registration); extracted from improvement-050 item 1 |
 | [improvement-100](issues/improvement-100-forgot-password-flow-missing.md) | project nearing public launch (same gate as improvement-052) — no password-recovery flow exists; requires an email-infrastructure decision first; natural companion to 052 in a pre-launch hardening pass (improvement-088, formerly grouped here, shipped 2026-07-20) |
-| [improvement-111](issues/improvement-111-authorization-enforced-in-ui-only-not-at-service-boundary.md) | before the first non-UI mutation endpoint (F-01/improvement-073 seeding/any API) — authorization is UI-only today; the service/port boundary trusts `actingUserId`. Hard gate, same shape as the completed improvement-020 baseline; not exploitable in the current Vaadin-only architecture |
 | [improvement-109](issues/improvement-109-reference-data-view-no-pagination.md) | category dictionary growing past a couple screens' worth, or a dedicated UI-consistency pass; batch with a reference-data touch |
 | [improvement-112](issues/improvement-112-enrichment-failure-blanks-entire-list.md) | batch with any advertisement-service resilience touch; cheap and standalone |
 | [improvement-053](issues/improvement-053-advertisement-listing-expiry-archive-strategy.md) | real `advertisement` row count/growth approaching a scale where list-query latency is measurably affected, or a product decision on what "listing expiry" means to sellers/buyers — advertisement archive/expiry storage strategy (status column vs. separate archive table vs. Postgres partitioning), design discussion only, no agreed fix; extracted from improvement-050 item 2 discussion |
@@ -205,7 +204,8 @@ Plus: Testcontainers test layer is a hard gate before any payment code.
 
 Former Deferred residents now scheduled: improvement-008/010/014 → Batch F, improvement-095 →
 Batch H (see "Execution batches" above). improvement-094 was briefly in Batch D, shipped
-2026-07-20.
+2026-07-20. improvement-111 → Top priority (2026-09-01) — its trigger (`improvement-073`'s
+external API scope) fired, see "Top priority — improvement-111 → improvement-073" above.
 
 improvement-109/112 moved here from the "Standalone" table above (2026-07-19 index-consistency
 fix) — both issue files already said `**When:** Deferred`, but had been mis-ranked as actionable

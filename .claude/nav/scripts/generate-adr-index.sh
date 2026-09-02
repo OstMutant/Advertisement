@@ -112,7 +112,7 @@ while IFS= read -r -d '' file; do
   if [ "$rows_after" -eq "$rows_before" ]; then
     gaps="$gaps- \`$rel\` — no \`## ADR-NNN:\` heading found (non-standard format); not indexed\n"
   fi
-done < <(find "$REPO_ROOT" -name "DECISIONS.md" -not -path "*/target/*" -print0 | sort -z)
+done < <(find "$REPO_ROOT" -name "DECISIONS.md" -not -path "*/target/*" -not -path "*/.claude/worktrees/*" -print0 | sort -z)
 
 if [ -n "$gaps" ]; then
   {

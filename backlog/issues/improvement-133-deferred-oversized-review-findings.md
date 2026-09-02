@@ -308,3 +308,23 @@ anywhere.
 
 Neither blocks real work today; both need a deliberate design pass (new skill? extend an existing
 one? a separate table document?) before being picked up.
+
+### 17. `ProviderKind.SUPPORT` + mandatory `kind` field — possible simplification (found during improvement-179, 2026-09-02)
+
+While debugging a Playwright failure where a non-privileged actor viewing their own already-`SUPPORT`
+provider profile hit a false "unsaved changes" dialog (root cause: `kindField`'s item list excludes
+`SUPPORT` for non-privileged actors, so `binder.readBean()` can't represent the actor's actual
+current value), the user raised whether `SUPPORT` should exist at all — remove the enum value
+entirely (and the `actingUserIsPrivileged`/`canSetSupport` privilege-gating it exists for, plus its
+dedicated tests), and make `kind` nullable again instead of `NOT NULL`.
+
+Not done now: this reverses a deliberate, already-shipped decision from `improvement-124` Batch B
+("`kind NOT NULL` ... no `kind IS NULL` placeholder rows"), made specifically to remove the need for
+a `kind IS NOT NULL` filter in three places — the Providers catalog repository query,
+`OgMetaRequestListener`'s provider path, and `SitemapController`. Reintroducing a nullable `kind`
+means reintroducing that filter in all three. Also loses the "official marketplace support contact"
+business concept `SUPPORT` exists for (an admin/moderator-only anti-impersonation restriction, not
+an arbitrary one — see `improvement-124`'s Part 1 item 4). Needs a real product decision, not a bug
+fix — the narrow fix actually shipped for the immediate bug was `RadioButtonGroup.setItemEnabledProvider`
+(keep `SUPPORT` in the item list — disabled, not hidden — when it's already the actor's current
+value, so the field stays representable without granting the actor a way to freshly select it).

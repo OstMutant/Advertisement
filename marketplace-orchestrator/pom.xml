@@ -68,6 +68,12 @@
             <artifactId>lombok</artifactId>
         </dependency>
 
+        <!-- In-memory cache for SitemapService's 15-minute sitemap.xml snapshot -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>

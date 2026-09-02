@@ -104,11 +104,15 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
         currentProfile = providerProfileSaveService.findByActorId(params.getTargetUserId()).orElse(null);
         boolean canEdit = access.canEditUserAccount(params.getTargetUserId());
         boolean canSetSupport = access.isPrivileged();
+        boolean alreadySupport = currentProfile != null && currentProfile.getKind() == ProviderKind.SUPPORT;
 
         kindField = new RadioButtonGroup<>();
         kindField.setLabel(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_KIND));
-        kindField.setItems(canSetSupport ? Arrays.asList(ProviderKind.values())
+        kindField.setItems(canSetSupport || alreadySupport ? Arrays.asList(ProviderKind.values())
                 : Arrays.stream(ProviderKind.values()).filter(k -> k != ProviderKind.SUPPORT).toList());
+        if (!canSetSupport) {
+            kindField.setItemEnabledProvider(k -> k != ProviderKind.SUPPORT);
+        }
 
         aboutField = new QuillEditor();
         aboutField.setLabel(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_ABOUT));
@@ -128,15 +132,15 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
         cityComboBox.setItems(availableCities);
         cityComboBox.setClearButtonVisible(true);
 
-        kindField.setReadOnly(!canEdit);
-        aboutField.setReadOnly(!canEdit);
-        categoryComboBox.setReadOnly(!canEdit);
-        cityComboBox.setReadOnly(!canEdit);
-
         ProviderProfileEditDto dto = currentProfile != null
                 ? mapper.toProviderProfileEdit(currentProfile)
                 : ProviderProfileEditDto.builder().kind(ProviderKind.MASTER).build();
         buildBinder(dto, availableCategories, availableCities);
+
+        kindField.setReadOnly(!canEdit);
+        aboutField.setReadOnly(!canEdit);
+        categoryComboBox.setReadOnly(!canEdit);
+        cityComboBox.setReadOnly(!canEdit);
 
         kindField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         aboutField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));

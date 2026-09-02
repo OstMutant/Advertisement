@@ -202,6 +202,7 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
                         ProviderProfileViewModeHandler.Parameters.builder()
                                 .targetUserId(session.targetUserId())
                                 .onEdit(this::switchToProviderProfileEdit)
+                                .onDeleted(this::switchTo)
                                 .onClose(this::closeToList)
                                 .tabBar(tabs)
                                 .build());

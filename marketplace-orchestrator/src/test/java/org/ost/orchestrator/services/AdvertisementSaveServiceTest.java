@@ -49,13 +49,15 @@ class AdvertisementSaveServiceTest {
     @Mock private TaxonAssignmentWriteService taxonAssignmentWriteService;
     @Mock private AttachmentSnapshotReaderService attachmentSnapshotReaderService;
     @Mock private AttachmentSoftDeleteService attachmentSoftDeleteService;
+    @Mock private SitemapService sitemapService;
 
     private AdvertisementSaveService service;
 
     @BeforeEach
     void setUp() {
         service = new AdvertisementSaveService(tx, advertisementPortFactory, auditPortFactory,
-                taxonLookupService, taxonAssignmentWriteService, attachmentSnapshotReaderService, attachmentSoftDeleteService);
+                taxonLookupService, taxonAssignmentWriteService, attachmentSnapshotReaderService, attachmentSoftDeleteService,
+                sitemapService);
         lenient().when(tx.execute(this.<Long>callback())).thenAnswer(inv -> {
             TransactionCallback<Long> callback = inv.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));

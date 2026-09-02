@@ -1,17 +1,38 @@
-# improvement-073: Add test-only, dev-gated REST endpoints for Playwright seeding (not the first REST controller — see correction)
+# improvement-073: Add REST API infrastructure — dev-gated Playwright seeding endpoints + a real external/public API (not the first REST controller — see correction)
 
 **Type:** improvement — new infrastructure capability, prerequisite for improvement-035 and any
 future REST-dependent work. Filed 2026-07-16 after deciding a browser-driven Playwright spec
 (06-seed-filter-sort-pagination) needs a faster, audit-trail-correct seeding path than either raw
 SQL (breaks the spec's own timeline assertions — see improvement-035's correction) or full UI
-automation (slow — the actual thing being optimized away).
+automation (slow — the actual thing being optimized away). Scope widened (2026-09-01, explicit
+user request) to also cover a genuinely public-facing, prod-reachable REST API for external
+consumers — a different audience and security posture than the dev-gated seeding endpoints, but
+sharing the same base routing/controller infrastructure, so tracked in one issue rather than two.
 **Module:** `marketplace-app` (new `web/` or `api/` package for REST controllers, `SecurityConfig`).
-**Priority:** 🔵 low — deliberately sequenced *after* everything achievable on the existing codebase
-without new infrastructure; genuinely new surface area (this app's first *profile-gated,
-business-logic-invoking* REST endpoint — `HealthController` is neither) and shouldn't be rushed
-ahead of cheaper, already-scoped fixes.
-**When:** blocked by nothing technically, but intentionally deprioritized — see Priority. Do this
-before improvement-035 (which depends on it), not before the rest of the currently-open backlog.
+**Priority:** 🟡 high — no longer a "nice to have": real external API is a stated product goal, and
+`improvement-111` (authorization at the service boundary) is a hard gate that must land before or
+alongside the external-facing portion of this work.
+**When:** Test-seeding portion (dev-gated, non-prod-reachable) can proceed independently — do this
+before improvement-035 (which depends on it). The external/public API portion is blocked on
+`improvement-111` landing first or in the same batch — do not ship a prod-reachable mutation
+endpoint before the service-boundary authorization gap is closed.
+
+## External API scope (added 2026-09-01)
+
+Distinct from the test-seeding endpoints below in every way that matters for security:
+
+- **Audience:** real external consumers (not Playwright test code), reachable in `prod`.
+- **Security posture:** the opposite of the seeding endpoints' `@Profile("!prod")` gate — this must
+  work correctly *in* `prod`, which is exactly why `improvement-111`'s service-boundary
+  authorization gap cannot stay open once this ships. `HealthController`'s `permitAll()` precedent
+  does not apply here; this needs real per-request authentication/authorization, not a public rule.
+- **Known future consumer, from the private roadmap:** `private/features/F-07-phone-verification.md`
+  already plans a Telegram Bot API webhook (`@RestController`) and external SMS-provider REST calls
+  — this issue's infrastructure (routing conventions, `SecurityConfig` patterns, controller
+  package structure) is what that future feature will build on, so shape it generically rather than
+  narrowly for one caller.
+- **Exact endpoint shape/business scope:** not yet decided — a separate design pass, once this
+  issue's infrastructure and `improvement-111`'s authorization fix are both in place.
 
 ## Correction (2026-07-16): this app already has one REST controller — `HealthController`
 
