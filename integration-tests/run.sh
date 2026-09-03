@@ -90,6 +90,8 @@ ENV_PREFIX=()
 if [ -n "$SANDBOX" ]; then
   ENV_PREFIX+=("TESTCONTAINERS_RYUK_DISABLED=true" "INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432")
   echo "Applying sandbox Docker workarounds (--sandbox): Ryuk disabled, fixed Postgres port 25432."
+  # Ryuk is disabled above, so remove any Testcontainers container leaked by a prior crashed run.
+  docker ps -aq --filter "label=org.testcontainers=true" | xargs -r docker rm -f
 fi
 
 cd "$ROOT"

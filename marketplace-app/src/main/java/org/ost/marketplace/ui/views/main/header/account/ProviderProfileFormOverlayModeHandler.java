@@ -197,7 +197,7 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
             Long id = providerProfileSaveService.save(
                     new ProviderProfileSaveDto(dto.getId(), dto.getKind(), dto.getAbout(),
                             dto.getCategoryIds(), dto.getCityTaxonId(), dto.getVersion()),
-                    params.getTargetUserId(), access.getCurrentUserId(), access.isPrivileged());
+                    params.getTargetUserId(), access.getCurrentUserId());
             providerProfileSaveService.findById(id).ifPresent(saved -> {
                 currentProfile = saved;
                 dto.setId(saved.getId());

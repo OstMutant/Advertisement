@@ -21,9 +21,9 @@ import java.util.Set;
 
 /**
  * Application-level use case: save/delete a provider profile in one transaction, including its
- * category assignment and audit capture. 2 direct domain ports (ProviderProfile + Audit) plus the
- * shared {@link TaxonAssignmentWriteService} collaborator -- see
- * marketplace-orchestrator/CLAUDE.md's "≤2 domain *Port types per class" constraint.
+ * category assignment, audit capture, and owner-or-privileged authorization. 2 direct domain
+ * ports (ProviderProfile + Audit) plus the shared {@link TaxonAssignmentWriteService} collaborator
+ * -- see marketplace-orchestrator/CLAUDE.md's "≤2 domain *Port types per class" constraint.
  */
 @Slf4j
 @Service
@@ -37,8 +37,9 @@ public class ProviderProfileSaveService {
     private final ProviderProfileDisplayEnrichmentService  displayEnrichmentService;
     private final CurrentLocaleHook                        currentLocaleHook;
     private final SitemapService                           sitemapService;
+    private final AuthorizationService                     authorizationService;
 
-    public Long save(@NonNull ProviderProfileSaveDto dto, @NonNull Long targetUserId, @NonNull Long actorId, boolean actorIsPrivileged) {
+    public Long save(@NonNull ProviderProfileSaveDto dto, @NonNull Long targetUserId, @NonNull Long actorId) {
         Long savedId = tx.execute(status -> {
             boolean isNew = dto.id() == null;
             ProviderProfileSnapshotDto before = isNew ? null : buildCurrentSnapshot(dto.id());
@@ -46,8 +47,10 @@ public class ProviderProfileSaveService {
                 throw new OptimisticLockingFailureException(
                         "Provider profile " + dto.id() + " was deleted before this edit could be saved");
             }
+            authorizationService.requireCanOperate(actorId, targetUserId);
+            boolean privileged = authorizationService.isPrivileged(actorId);
 
-            Long id = providerProfilePortFactory.get().save(dto, targetUserId, actorId, actorIsPrivileged);
+            Long id = providerProfilePortFactory.get().save(dto, targetUserId, actorId, privileged);
 
             Set<Long> catIds = dto.categoryIds() != null ? dto.categoryIds() : Set.of();
             taxonAssignmentWriteService.replace(EntityType.PROVIDER_PROFILE, id, catIds);
@@ -90,8 +93,10 @@ public class ProviderProfileSaveService {
 
     public void delete(@NonNull Long id, @NonNull Long actorId, Long version) {
         tx.executeWithoutResult(status -> {
-            ProviderProfileSnapshotDto snapshot = buildCurrentSnapshot(id);
+            ProviderProfileDto existing = fetchEnriched(id);
+            ProviderProfileSnapshotDto snapshot = existing == null ? null : toSnapshot(existing);
             if (snapshot != null) {
+                authorizationService.requireCanOperate(actorId, existing.getActorId());
                 taxonAssignmentWriteService.clear(EntityType.PROVIDER_PROFILE, id);
             }
             providerProfilePortFactory.get().delete(id, version);
@@ -103,10 +108,17 @@ public class ProviderProfileSaveService {
     }
 
     private ProviderProfileSnapshotDto buildCurrentSnapshot(@NonNull Long entityId) {
-        ProviderProfileDto p = providerProfilePortFactory.get().findById(entityId)
+        ProviderProfileDto p = fetchEnriched(entityId);
+        return p == null ? null : toSnapshot(p);
+    }
+
+    private ProviderProfileDto fetchEnriched(@NonNull Long entityId) {
+        return providerProfilePortFactory.get().findById(entityId)
                 .map(dto -> displayEnrichmentService.enrichWithCategoryAndCity(dto, currentLocaleHook.getCurrentLocale()))
                 .orElse(null);
-        if (p == null) return null;
+    }
+
+    private ProviderProfileSnapshotDto toSnapshot(@NonNull ProviderProfileDto p) {
         return new ProviderProfileSnapshotDto(p.getKind(), p.getAbout(), sortedList(p.getCategoryIds()), p.getCityTaxonId());
     }
 

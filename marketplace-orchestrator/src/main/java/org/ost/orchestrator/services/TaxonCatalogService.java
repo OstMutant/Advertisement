@@ -15,15 +15,16 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Shared {@link TaxonPort} catalog-management lookups and writes (category/city admin), reused by
- * every marketplace-app adapter. Distinct from {@link TaxonLookupService}, which stays narrowly
- * scoped to entity-assignment lookups.
+ * Shared {@link TaxonPort} catalog-management lookups and privileged-only writes (category/city
+ * admin), reused by every marketplace-app adapter. Distinct from {@link TaxonLookupService}, which
+ * stays narrowly scoped to entity-assignment lookups.
  */
 @Service
 @RequiredArgsConstructor
 public class TaxonCatalogService {
 
     private final ComponentFactory<TaxonPort> taxonPortFactory;
+    private final AuthorizationService        authorizationService;
 
     public List<TaxonDto> getAllByType(@NonNull TaxonType type, @NonNull Locale locale) {
         return taxonPortFactory.findIfAvailable()
@@ -44,18 +45,22 @@ public class TaxonCatalogService {
     }
 
     public Long create(@NonNull TaxonType type, @NonNull Map<Locale, TaxonTranslationDto> translations, Long actorId) {
+        authorizationService.requireIsPrivileged(actorId);
         return taxonPortFactory.get().create(type, translations, actorId);
     }
 
     public void update(@NonNull Long id, @NonNull Map<Locale, TaxonTranslationDto> translations, Long actorId, Long version) {
+        authorizationService.requireIsPrivileged(actorId);
         taxonPortFactory.get().update(id, translations, actorId, version);
     }
 
     public void softDelete(@NonNull Long id, Long actorId, Long version) {
+        authorizationService.requireIsPrivileged(actorId);
         taxonPortFactory.ifAvailable(p -> p.softDelete(id, actorId, version));
     }
 
     public void restore(@NonNull Long id, Long actorId) {
+        authorizationService.requireIsPrivileged(actorId);
         taxonPortFactory.ifAvailable(p -> p.restore(id, actorId));
     }
 

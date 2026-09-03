@@ -75,12 +75,18 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   per-`EntityType` existence-check routing (`findExisting`).
 - `UserActorNameService` — actor-name-resolution collaborator `AuditDomainHookImpl` (in `spi/`,
   below) delegates to; stays in `services/` since it doesn't itself implement an SPI interface.
-- `AuthorizationService` — pure delegation over a direct, mandatory `UserAuthorizationPort` field
-  (same shape as `UserDeleteService`'s `UserAccountPort`), exposing `isAdmin`/`isModerator`/
-  `isOwner`. `marketplace-app`'s `AccessEvaluator` depends on this instead of holding
-  `UserAuthorizationPort` directly — see the "Forwarder SPI pattern" section below for why this
-  isn't itself a forwarder SPI (it wraps a genuine `platform-commons` `*Port`, not a UI-shell
-  resource).
+- `AuthorizationService` — role/ownership rule composition (`canOperate`/`canEditAccount`/
+  `canEditRole`/`isPrivileged`, both `UserDto`-taking and id-taking overloads, plus throwing
+  `require*` variants raising `AccessDeniedException`) over a direct, mandatory
+  `UserAuthorizationPort` field (same shape as `UserDeleteService`'s `UserAccountPort`) and the
+  `ActorLookupService` collaborator (id-taking overloads resolve the actor, then delegate to the
+  `UserDto`-taking ones — the single source of truth for each rule). Reused both by
+  `marketplace-app`'s `AccessEvaluator` and by this module's own save/delete services for
+  service-boundary authorization — see the "Forwarder SPI pattern" section below for why
+  `AccessEvaluator`'s dependency on it isn't itself a forwarder SPI (it wraps a genuine
+  `platform-commons` `*Port`, not a UI-shell resource).
+- `AccessDeniedException` — thrown by `AuthorizationService`'s `require*` methods when the acting
+  user is neither the resource's owner nor privileged.
 - `CurrentUserService` — thin wrapper over the `CurrentUserHook` forwarder SPI (see below),
   exposing `getCurrentUser()`/`getCurrentUserLocale()` to any orchestrator-side or future-adapter
   caller without assuming how identity is resolved.

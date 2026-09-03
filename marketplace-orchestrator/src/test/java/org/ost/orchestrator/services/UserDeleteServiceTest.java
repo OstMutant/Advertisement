@@ -16,7 +16,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -35,12 +37,13 @@ class UserDeleteServiceTest {
     @Mock private AdvertisementSaveService advertisementSaveService;
     @Mock private ProviderProfileSaveService providerProfileSaveService;
     @Mock private UserAccountPort accountPort;
+    @Mock private AuthorizationService authorizationService;
 
     private UserDeleteService service;
 
     @BeforeEach
     void setUp() {
-        service = new UserDeleteService(advertisementPortFactory, advertisementSaveService, providerProfileSaveService, accountPort);
+        service = new UserDeleteService(advertisementPortFactory, advertisementSaveService, providerProfileSaveService, accountPort, authorizationService);
     }
 
     private void stubAdvertisementPortAvailable() {
@@ -116,5 +119,15 @@ class UserDeleteServiceTest {
 
         verify(providerProfileSaveService, never()).findByActorId(any());
         verify(accountPort).delete(USER_ID, ACTOR_ID);
+    }
+
+    @Test
+    void delete_deniedByAuthorization_throwsAndNeverCascadesOrDeletes() {
+        doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanEditAccount(ACTOR_ID, USER_ID);
+
+        assertThatThrownBy(() -> service.delete(USER_ID, ACTOR_ID))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(advertisementPortFactory, never()).ifAvailable(any());
+        verify(accountPort, never()).delete(any(), any());
     }
 }

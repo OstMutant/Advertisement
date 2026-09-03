@@ -206,6 +206,11 @@ print_unit_summary() {
 # "testcontainers" exclusion -- without it, every real @Tag("testcontainers") repository test is
 # silently skipped, same override integration-tests/run.sh already applies.
 run_integration_tests() {
+  # Ryuk is disabled here, so remove any Testcontainers container leaked by a prior crashed run.
+  if [ -n "$TESTCONTAINERS_RYUK_DISABLED" ]; then
+    docker ps -aq --filter "label=org.testcontainers=true" | xargs -r docker rm -f
+  fi
+
   INTEGRATION_TEST_FLAG=""
   if [ "$INTEGRATION_TEST_ARG" = "smoke" ]; then
     INTEGRATION_TEST_FLAG="-Dtest=PostgresContainerSmokeTest -Dsurefire.failIfNoSpecifiedTests=false"

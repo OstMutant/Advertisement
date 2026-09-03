@@ -2327,3 +2327,30 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`, unrelated to this
   issue's own code) — no new issues. Full detail:
   `completed/issues/improvement-180-providers-sort-icon-placement.md`.
+
+✅ Done (2026-09-03): improvement-111 closed — service-boundary authorization (previously UI-only
+  via `AccessEvaluator`) moved to `marketplace-orchestrator`'s new `AuthorizationService`
+  (`canOperate`/`canEditAccount`/`canEditRole`/`isPrivileged`, throwing `require*` variants raising
+  a new `AccessDeniedException`), wired into `AdvertisementSaveService`/`ProviderProfileSaveService`/
+  `UserProfileService`/`UserDeleteService`/`TaxonCatalogService` — grep-verified this module is
+  already the sole real caller of every mutating domain Port, so no `platform-commons` SPI or
+  starter code changed. `AccessEvaluator` now delegates rule composition to the same
+  `AuthorizationService` instead of re-implementing it (dedup found during a follow-up architecture
+  review). Also closed a role-escalation gap found along the way: `UserProfileService.save()` is
+  the one write path for both name and role, but only the UI disabled the role field for
+  unauthorized editors — now enforced server-side too. `/code-review --fix` applied 4 confirmed
+  cleanups (missing logs on `AccessDeniedException` catches, a duplicated catch block extracted to
+  `NotificationService.accessDenied()`, redundant double-fetches in 4 save/delete methods); several
+  other candidates (a suspected role-check bypass, a suspected read-skew race, N redundant
+  re-authorization lookups in cascade delete) were investigated and refuted with evidence. Sonar's
+  quality gate failure is the same pre-existing `new_coverage=0%` gap as `improvement-114`, not a
+  new issue (0 real BUG/CRITICAL findings). Along the way, fixed a real CI-breaking bug found by
+  running the full `/ci` pipeline: `TESTCONTAINERS_RYUK_DISABLED` disables Testcontainers' own
+  auto-cleanup with nothing replacing it, so a crashed run leaks its Postgres container forever on
+  the sandbox's fixed port, failing every later `integration` run — `integration-tests/run.sh` and
+  `scripts/build-and-test/build.sh` now remove any leaked `org.testcontainers`-labeled container
+  before starting, verified end-to-end via a clean rerun. Also fixed `.gitignore` missing
+  `html-sanitizer-lib/target/` (the one starter module absent from the per-module ignore list,
+  found because `git add -A` almost staged its build artifacts). See
+  `marketplace-orchestrator/DECISIONS.md` ADR-007. Full detail:
+  `completed/issues/improvement-111-authorization-enforced-in-ui-only-not-at-service-boundary.md`.

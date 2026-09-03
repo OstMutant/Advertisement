@@ -50,6 +50,7 @@ class AdvertisementSaveServiceTest {
     @Mock private AttachmentSnapshotReaderService attachmentSnapshotReaderService;
     @Mock private AttachmentSoftDeleteService attachmentSoftDeleteService;
     @Mock private SitemapService sitemapService;
+    @Mock private AuthorizationService authorizationService;
 
     private AdvertisementSaveService service;
 
@@ -57,7 +58,7 @@ class AdvertisementSaveServiceTest {
     void setUp() {
         service = new AdvertisementSaveService(tx, advertisementPortFactory, auditPortFactory,
                 taxonLookupService, taxonAssignmentWriteService, attachmentSnapshotReaderService, attachmentSoftDeleteService,
-                sitemapService);
+                sitemapService, authorizationService);
         lenient().when(tx.execute(this.<Long>callback())).thenAnswer(inv -> {
             TransactionCallback<Long> callback = inv.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));
@@ -122,6 +123,32 @@ class AdvertisementSaveServiceTest {
         verify(auditPort).captureUpdate(eq(adId), afterCaptor.capture(), eq(ACTOR_ID));
         verify(auditPort, never()).captureCreation(any(), any(), any());
         assertThat(((AdvertisementSnapshotDto) afterCaptor.getValue()).title()).isEqualTo("New Title");
+    }
+
+    @Test
+    void save_existingAdvertisement_deniedByAuthorization_throwsAndNeverSaves() {
+        Long adId = 42L;
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "New Title", "New Desc", AdKind.OFFER, Set.of(), null, 5L);
+        AdvertisementInfoDto info = AdvertisementInfoDto.builder().id(adId).createdBy(99L).title("Old").description("Old").build();
+        when(advertisementPort.findById(adId)).thenReturn(Optional.of(info));
+        doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanOperate(ACTOR_ID, 99L);
+
+        assertThatThrownBy(() -> service.save(dto, ACTOR_ID, ref -> null))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(advertisementPort, never()).save(any());
+    }
+
+    @Test
+    void save_newAdvertisement_neverChecksAuthorization() {
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", "Desc", AdKind.OFFER, Set.of(), null, null);
+        when(advertisementPort.save(dto)).thenReturn(100L);
+        when(advertisementPort.findById(100L)).thenReturn(Optional.of(
+                AdvertisementInfoDto.builder().id(100L).title("Title").description("Desc").build()));
+        stubAvailable(auditPortFactory, auditPort);
+
+        service.save(dto, ACTOR_ID, ref -> null);
+
+        verify(authorizationService, never()).requireCanOperate(any(), any());
     }
 
     @Test
@@ -199,6 +226,19 @@ class AdvertisementSaveServiceTest {
         ArgumentCaptor<AuditableSnapshot> snapshotCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
         verify(auditPort).captureDeletion(eq(adId), snapshotCaptor.capture(), eq(ACTOR_ID));
         assertThat(((AdvertisementSnapshotDto) snapshotCaptor.getValue()).title()).isEqualTo("Deleted Title");
+    }
+
+    @Test
+    void delete_deniedByAuthorization_throwsAndNeverDeletes() {
+        Long adId = 42L;
+        when(advertisementPort.findById(adId)).thenReturn(Optional.of(
+                AdvertisementInfoDto.builder().id(adId).createdBy(99L).title("T").description("D").build()));
+        doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanOperate(ACTOR_ID, 99L);
+
+        assertThatThrownBy(() -> service.delete(adId, ACTOR_ID, 5L))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(advertisementPort, never()).delete(any(), any(), any());
+        verify(taxonAssignmentWriteService, never()).clear(any(), any());
     }
 
     @Test

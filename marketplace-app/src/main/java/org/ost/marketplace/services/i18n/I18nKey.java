@@ -10,6 +10,9 @@ import org.ost.platform.providerprofile.model.ProviderKind;
  *  enums, so {@link I18nService#get} has one type to accept. */
 @RequiredArgsConstructor
 public enum I18nKey {
+    // === Common ===
+    COMMON_NOTIFICATION_ACCESS_DENIED("common.notification.access.denied"),
+
     // === Header ===
     HEADER_SIGNED_IN("header.signedIn"),
     HEADER_NOT_SIGNED_IN("header.notSignedIn"),

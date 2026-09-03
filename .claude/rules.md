@@ -349,7 +349,11 @@ subdirectory, which belongs to that one group alone.
    `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`. Always pass `--ux` —
    never run a Playwright scenario without it.
 5. Once the Monitor's target process reaches its final result (pass/fail line, completion
-   marker), stop that Monitor task immediately rather than leaving it running past that point.
+   marker) — or once its notification has already delivered the answer being waited for, even
+   before that marker — call `TaskStop` on that Monitor task immediately. A `tail -f`-based
+   Monitor never exits on its own; left running, it keeps emitting notifications until it hits its
+   own `timeout_ms`, creating stale-looking events for a result already reported. Do this for
+   every Monitor call site, not just the one whose result happened to matter most.
 
 ## Issue Lifecycle
 

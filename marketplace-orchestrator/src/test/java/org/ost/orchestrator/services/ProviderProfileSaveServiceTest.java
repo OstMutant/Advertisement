@@ -49,13 +49,14 @@ class ProviderProfileSaveServiceTest {
     @Mock private ProviderProfileDisplayEnrichmentService displayEnrichmentService;
     @Mock private CurrentLocaleHook currentLocaleHook;
     @Mock private SitemapService sitemapService;
+    @Mock private AuthorizationService authorizationService;
 
     private ProviderProfileSaveService service;
 
     @BeforeEach
     void setUp() {
         service = new ProviderProfileSaveService(tx, providerProfilePortFactory, auditPortFactory,
-                taxonAssignmentWriteService, displayEnrichmentService, currentLocaleHook, sitemapService);
+                taxonAssignmentWriteService, displayEnrichmentService, currentLocaleHook, sitemapService, authorizationService);
         lenient().when(tx.execute(this.<Long>callback())).thenAnswer(inv -> {
             TransactionCallback<Long> callback = inv.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));
@@ -94,7 +95,7 @@ class ProviderProfileSaveServiceTest {
                         .categoryIds(Set.of(1L, 2L)).cityTaxonId(5L).build()));
         stubAvailable(auditPortFactory, auditPort);
 
-        Long id = service.save(dto, ACTOR_ID, ACTOR_ID, false);
+        Long id = service.save(dto, ACTOR_ID, ACTOR_ID);
 
         assertThat(id).isEqualTo(100L);
         ArgumentCaptor<AuditableSnapshot> afterCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
@@ -118,7 +119,7 @@ class ProviderProfileSaveServiceTest {
         when(providerProfilePort.save(dto, ACTOR_ID, ACTOR_ID, false)).thenReturn(profileId);
         stubAvailable(auditPortFactory, auditPort);
 
-        Long id = service.save(dto, ACTOR_ID, ACTOR_ID, false);
+        Long id = service.save(dto, ACTOR_ID, ACTOR_ID);
 
         assertThat(id).isEqualTo(profileId);
         ArgumentCaptor<AuditableSnapshot> afterCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
@@ -134,7 +135,7 @@ class ProviderProfileSaveServiceTest {
 
         when(providerProfilePort.findById(profileId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.save(dto, ACTOR_ID, ACTOR_ID, false))
+        assertThatThrownBy(() -> service.save(dto, ACTOR_ID, ACTOR_ID))
                 .isInstanceOf(OptimisticLockingFailureException.class);
         verify(providerProfilePort, never()).save(any(), any(), any(), anyBoolean());
     }
@@ -147,7 +148,7 @@ class ProviderProfileSaveServiceTest {
                 ProviderProfileDto.builder().id(1L).kind(ProviderKind.MASTER).about("About").build()));
         // auditPortFactory left unstubbed -- ObjectProvider-absent shape.
 
-        Long id = service.save(dto, ACTOR_ID, ACTOR_ID, false);
+        Long id = service.save(dto, ACTOR_ID, ACTOR_ID);
 
         assertThat(id).isEqualTo(1L);
     }
@@ -155,14 +156,26 @@ class ProviderProfileSaveServiceTest {
     @Test
     void save_supportKindByPrivilegedActor_passesPrivilegedFlagThrough() {
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.SUPPORT, "About", null, null, null);
+        when(authorizationService.isPrivileged(ACTOR_ID)).thenReturn(true);
         when(providerProfilePort.save(dto, ACTOR_ID, ACTOR_ID, true)).thenReturn(1L);
         when(providerProfilePort.findById(1L)).thenReturn(Optional.of(
                 ProviderProfileDto.builder().id(1L).kind(ProviderKind.SUPPORT).about("About").build()));
         stubAvailable(auditPortFactory, auditPort);
 
-        service.save(dto, ACTOR_ID, ACTOR_ID, true);
+        service.save(dto, ACTOR_ID, ACTOR_ID);
 
         verify(providerProfilePort).save(dto, ACTOR_ID, ACTOR_ID, true);
+    }
+
+    @Test
+    void save_deniedByAuthorization_throwsAndNeverSaves() {
+        Long targetUserId = 77L;
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", null, null, null);
+        doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanOperate(ACTOR_ID, targetUserId);
+
+        assertThatThrownBy(() -> service.save(dto, targetUserId, ACTOR_ID))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(providerProfilePort, never()).save(any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -189,6 +202,19 @@ class ProviderProfileSaveServiceTest {
         ArgumentCaptor<AuditableSnapshot> snapshotCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
         verify(auditPort).captureDeletion(eq(profileId), snapshotCaptor.capture(), eq(ACTOR_ID));
         assertThat(((ProviderProfileSnapshotDto) snapshotCaptor.getValue()).about()).isEqualTo("Deleted about");
+    }
+
+    @Test
+    void delete_deniedByAuthorization_throwsAndNeverDeletes() {
+        Long profileId = 42L;
+        when(providerProfilePort.findById(profileId)).thenReturn(Optional.of(
+                ProviderProfileDto.builder().id(profileId).actorId(99L).kind(ProviderKind.MASTER).about("About").build()));
+        doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanOperate(ACTOR_ID, 99L);
+
+        assertThatThrownBy(() -> service.delete(profileId, ACTOR_ID, 5L))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(providerProfilePort, never()).delete(any(), any());
+        verify(taxonAssignmentWriteService, never()).clear(any(), any());
     }
 
     @Test

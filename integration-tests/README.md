@@ -66,7 +66,9 @@ vars are required — the sandbox-only `--sandbox` workarounds (also documented 
 ## What `run.sh` does
 
 1. Applies `--sandbox` workarounds if passed (`TESTCONTAINERS_RYUK_DISABLED=true`,
-   `INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`) — omit on a normal developer machine.
+   `INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`) — omit on a normal developer machine. Since Ryuk
+   is disabled, also removes any Testcontainers container leaked by a prior crashed `--sandbox` run
+   (`docker ps -aq --filter "label=org.testcontainers=true" | xargs -r docker rm -f`).
 2. Runs `./mvnw -pl integration-tests -am test`, optionally scoped to one test class via
    `-Dtest=<ClassName> -Dsurefire.failIfNoSpecifiedTests=false`.
 3. Streams full Maven/Testcontainers output live.

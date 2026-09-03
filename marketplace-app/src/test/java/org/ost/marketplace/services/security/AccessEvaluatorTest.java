@@ -19,6 +19,9 @@ import static org.mockito.Mockito.when;
  * {@link AccessEvaluator} instead of {@code @PreAuthorize} (intentionally absent, see
  * {@code marketplace-app/CLAUDE.md} "Security"). No Spring context needed:
  * {@link AuthorizationService} and {@link CurrentUserService} are mocked directly.
+ * {@link AccessEvaluator} resolves the current session {@link UserDto} then delegates the actual
+ * rule composition to {@link AuthorizationService}'s {@code UserDto}-taking overloads — so every
+ * stub here targets those overloads directly, not the lower-level isAdmin/isModerator/isOwner.
  */
 @ExtendWith(MockitoExtension.class)
 class AccessEvaluatorTest {
@@ -72,7 +75,7 @@ class AccessEvaluatorTest {
     @Test
     void isPrivileged_true_forAdmin() {
         loggedInAs(ADMIN_USER);
-        when(authorizationService.isAdmin(ADMIN_USER)).thenReturn(true);
+        when(authorizationService.canOperate(ADMIN_USER, null)).thenReturn(true);
 
         assertThat(accessEvaluator.isPrivileged()).isTrue();
         assertThat(accessEvaluator.canView()).isTrue();
@@ -81,8 +84,7 @@ class AccessEvaluatorTest {
     @Test
     void isPrivileged_true_forModerator() {
         loggedInAs(MODERATOR_USER);
-        when(authorizationService.isAdmin(MODERATOR_USER)).thenReturn(false);
-        when(authorizationService.isModerator(MODERATOR_USER)).thenReturn(true);
+        when(authorizationService.canOperate(MODERATOR_USER, null)).thenReturn(true);
 
         assertThat(accessEvaluator.isPrivileged()).isTrue();
         assertThat(accessEvaluator.canView()).isTrue();
@@ -91,8 +93,7 @@ class AccessEvaluatorTest {
     @Test
     void isPrivileged_false_forPlainUser() {
         loggedInAs(PLAIN_USER);
-        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(authorizationService.isModerator(PLAIN_USER)).thenReturn(false);
+        when(authorizationService.canOperate(PLAIN_USER, null)).thenReturn(false);
 
         assertThat(accessEvaluator.isPrivileged()).isFalse();
         assertThat(accessEvaluator.canView()).isFalse();
@@ -124,7 +125,7 @@ class AccessEvaluatorTest {
     @Test
     void canOperate_longOverload_admin_returnsTrue_regardlessOfOwnership() {
         loggedInAs(ADMIN_USER);
-        when(authorizationService.isAdmin(ADMIN_USER)).thenReturn(true);
+        when(authorizationService.canOperate(ADMIN_USER, TARGET_OWNER_ID)).thenReturn(true);
 
         assertThat(accessEvaluator.canOperate(TARGET_OWNER_ID)).isTrue();
         assertThat(accessEvaluator.canNotEdit(TARGET_OWNER_ID)).isFalse();
@@ -134,9 +135,7 @@ class AccessEvaluatorTest {
     @Test
     void canOperate_longOverload_owner_returnsTrue_whenNotPrivileged() {
         loggedInAs(PLAIN_USER);
-        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(authorizationService.isModerator(PLAIN_USER)).thenReturn(false);
-        when(authorizationService.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(true);
+        when(authorizationService.canOperate(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(true);
 
         assertThat(accessEvaluator.canOperate(TARGET_OWNER_ID)).isTrue();
         assertThat(accessEvaluator.canNotEdit(TARGET_OWNER_ID)).isFalse();
@@ -146,9 +145,7 @@ class AccessEvaluatorTest {
     @Test
     void canOperate_longOverload_nonOwnerNonPrivileged_returnsFalse() {
         loggedInAs(PLAIN_USER);
-        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(authorizationService.isModerator(PLAIN_USER)).thenReturn(false);
-        when(authorizationService.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(false);
+        when(authorizationService.canOperate(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(false);
 
         assertThat(accessEvaluator.canOperate(TARGET_OWNER_ID)).isFalse();
         assertThat(accessEvaluator.canNotEdit(TARGET_OWNER_ID)).isTrue();
@@ -169,7 +166,7 @@ class AccessEvaluatorTest {
     @Test
     void canViewUserAccount_admin_true_viewingOther() {
         loggedInAs(ADMIN_USER);
-        when(authorizationService.isAdmin(ADMIN_USER)).thenReturn(true);
+        when(authorizationService.canOperate(ADMIN_USER, TARGET_OWNER_ID)).thenReturn(true);
 
         assertThat(accessEvaluator.canViewUserAccount(TARGET_OWNER_ID)).isTrue();
     }
@@ -177,8 +174,7 @@ class AccessEvaluatorTest {
     @Test
     void canViewUserAccount_moderator_true_viewingOther() {
         loggedInAs(MODERATOR_USER);
-        when(authorizationService.isAdmin(MODERATOR_USER)).thenReturn(false);
-        when(authorizationService.isModerator(MODERATOR_USER)).thenReturn(true);
+        when(authorizationService.canOperate(MODERATOR_USER, TARGET_OWNER_ID)).thenReturn(true);
 
         assertThat(accessEvaluator.canViewUserAccount(TARGET_OWNER_ID)).isTrue();
     }
@@ -186,9 +182,7 @@ class AccessEvaluatorTest {
     @Test
     void canViewUserAccount_plainUser_true_viewingSelf() {
         loggedInAs(PLAIN_USER);
-        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(authorizationService.isModerator(PLAIN_USER)).thenReturn(false);
-        when(authorizationService.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(true);
+        when(authorizationService.canOperate(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(true);
 
         assertThat(accessEvaluator.canViewUserAccount(TARGET_OWNER_ID)).isTrue();
     }
@@ -196,9 +190,7 @@ class AccessEvaluatorTest {
     @Test
     void canViewUserAccount_plainUser_false_viewingOther() {
         loggedInAs(PLAIN_USER);
-        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(authorizationService.isModerator(PLAIN_USER)).thenReturn(false);
-        when(authorizationService.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(false);
+        when(authorizationService.canOperate(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(false);
 
         assertThat(accessEvaluator.canViewUserAccount(TARGET_OWNER_ID)).isFalse();
     }
@@ -215,7 +207,7 @@ class AccessEvaluatorTest {
     @Test
     void canEditUserAccount_admin_true_editingOther() {
         loggedInAs(ADMIN_USER);
-        when(authorizationService.isAdmin(ADMIN_USER)).thenReturn(true);
+        when(authorizationService.canEditAccount(ADMIN_USER, TARGET_OWNER_ID)).thenReturn(true);
 
         assertThat(accessEvaluator.canEditUserAccount(TARGET_OWNER_ID)).isTrue();
     }
@@ -223,8 +215,7 @@ class AccessEvaluatorTest {
     @Test
     void canEditUserAccount_moderator_false_editingOther() {
         loggedInAs(MODERATOR_USER);
-        when(authorizationService.isAdmin(MODERATOR_USER)).thenReturn(false);
-        when(authorizationService.isOwner(MODERATOR_USER, TARGET_OWNER_ID)).thenReturn(false);
+        when(authorizationService.canEditAccount(MODERATOR_USER, TARGET_OWNER_ID)).thenReturn(false);
 
         assertThat(accessEvaluator.canEditUserAccount(TARGET_OWNER_ID)).isFalse();
     }
@@ -232,8 +223,7 @@ class AccessEvaluatorTest {
     @Test
     void canEditUserAccount_plainUser_true_editingSelf() {
         loggedInAs(PLAIN_USER);
-        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(authorizationService.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(true);
+        when(authorizationService.canEditAccount(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(true);
 
         assertThat(accessEvaluator.canEditUserAccount(TARGET_OWNER_ID)).isTrue();
     }
@@ -241,8 +231,7 @@ class AccessEvaluatorTest {
     @Test
     void canEditUserAccount_plainUser_false_editingOther() {
         loggedInAs(PLAIN_USER);
-        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
-        when(authorizationService.isOwner(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(false);
+        when(authorizationService.canEditAccount(PLAIN_USER, TARGET_OWNER_ID)).thenReturn(false);
 
         assertThat(accessEvaluator.canEditUserAccount(TARGET_OWNER_ID)).isFalse();
     }
@@ -259,8 +248,7 @@ class AccessEvaluatorTest {
     @Test
     void canEditRole_admin_true_editingOther() {
         loggedInAs(ADMIN_USER);
-        when(authorizationService.isAdmin(ADMIN_USER)).thenReturn(true);
-        when(authorizationService.isOwner(ADMIN_USER, TARGET_OWNER_ID)).thenReturn(false);
+        when(authorizationService.canEditRole(ADMIN_USER, TARGET_OWNER_ID)).thenReturn(true);
 
         assertThat(accessEvaluator.canEditRole(TARGET_OWNER_ID)).isTrue();
     }
@@ -268,8 +256,7 @@ class AccessEvaluatorTest {
     @Test
     void canEditRole_admin_false_editingSelf() {
         loggedInAs(ADMIN_USER);
-        when(authorizationService.isAdmin(ADMIN_USER)).thenReturn(true);
-        when(authorizationService.isOwner(ADMIN_USER, ADMIN_USER.id())).thenReturn(true);
+        when(authorizationService.canEditRole(ADMIN_USER, ADMIN_USER.id())).thenReturn(false);
 
         assertThat(accessEvaluator.canEditRole(ADMIN_USER.id())).isFalse();
     }
@@ -277,7 +264,7 @@ class AccessEvaluatorTest {
     @Test
     void canEditRole_moderator_false_editingOther() {
         loggedInAs(MODERATOR_USER);
-        when(authorizationService.isAdmin(MODERATOR_USER)).thenReturn(false);
+        when(authorizationService.canEditRole(MODERATOR_USER, TARGET_OWNER_ID)).thenReturn(false);
 
         assertThat(accessEvaluator.canEditRole(TARGET_OWNER_ID)).isFalse();
     }
@@ -285,7 +272,7 @@ class AccessEvaluatorTest {
     @Test
     void canEditRole_plainUser_false_editingSelf() {
         loggedInAs(PLAIN_USER);
-        when(authorizationService.isAdmin(PLAIN_USER)).thenReturn(false);
+        when(authorizationService.canEditRole(PLAIN_USER, PLAIN_USER.id())).thenReturn(false);
 
         assertThat(accessEvaluator.canEditRole(PLAIN_USER.id())).isFalse();
     }

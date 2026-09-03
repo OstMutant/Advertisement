@@ -14,6 +14,7 @@ import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.marketplace.services.security.AccessEvaluator;
+import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.UserDeleteService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.marketplace.services.i18n.I18nService;
@@ -177,6 +178,9 @@ public class UserView extends VerticalLayout {
                         userDeleteService.delete(user.id(), access.getCurrentUserId());
                         notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
                         refresh();
+                    } catch (AccessDeniedException e) {
+                        log.warn("Access denied deleting user id={}: {}", user.id(), e.getMessage());
+                        notificationService.accessDenied();
                     } catch (@SuppressWarnings("java:S7467") Exception e) {
                         log.error("Error deleting user id={}", user.id(), e);
                         notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());

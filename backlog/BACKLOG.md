@@ -92,10 +92,14 @@ memory 55 → 16 files, all 13 module `CLAUDE.md` moved to path-scoped `.claude/
 deferred finding split off to `improvement-133` entry 13.
 improvement-118 stays blocked (needs a public URL this sandbox doesn't have).
 
+**improvement-111 shipped 2026-09-03** — service-boundary authorization moved to
+`marketplace-orchestrator` (not per-starter, not UI-only); see `marketplace-orchestrator/DECISIONS.md`
+ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG-ARCHIVE.md`.
+
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
 | Top | 🟡 | 138 | improvement-138 — "Architecture Control Plane". **Track A completed 2026-08-04**, its full execution history archived to `completed/issues/improvement-138-architecture-control-plane-track-a.md` on 2026-08-28. This issue's live scope is now **Track B** (ArchUnit contract/test model + AI-token-savings hypothesis, not started) plus **`improvement-135`'s absorbed items 3/5** (does the existing hand-authored `.claude/nav/` layer earn its cost — mechanism built, empirical answer pending real accumulated data; governing rule — no new `.claude/nav/*`-shaped content, including Track B, until that data shows a gap). `improvement-135` had nothing else still-open and is now closed (see `completed/BACKLOG-ARCHIVE.md`) |
-| Top | 🟡 | 111 → 073 | improvement-111 (authorization at the service boundary) must land first or alongside `improvement-073`'s now-widened scope (dev-gated test seeding + a real external/public REST API) — trigger fired 2026-09-01 per explicit user request, both promoted from Deferred/Nice-to-have |
+| Top | 🟡 | 073 | improvement-073 — REST API infrastructure; unblocked now that `improvement-111` (authorization at the service boundary) shipped 2026-09-03 |
 | Nice to have | — | 035, 096, 129, 036, 039, 065, 114, 063, 028, 130, 131, 133, 172, 142, 177 | everything else — no internal priority order, pick up opportunistically |
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
@@ -107,12 +111,11 @@ Details, links, and per-batch rationale below.
 |---|---|---|
 | [improvement-138](issues/improvement-138-architecture-control-plane.md) | New (user-supplied task, 2026-08-04, "FINAL VISION v2" — supersedes an unseen `architecture-observability-vision.md` v1) | A generated, evidence-linked model of the repo (code, tests, pipelines, docs) read through two projections: a token-minimal AI layer (L0-L5) and a Cytoscape.js human visual explorer. **Track A** (visual control from already-structured sources) shipped, execution history archived to `completed/issues/improvement-138-architecture-control-plane-track-a.md`. This issue's live scope is now **Track B** (ArchUnit-based contract/test-coverage model + the AI-token-savings hypothesis, gated by its own B2 "stop" measurement) plus **`improvement-135`'s absorbed items 3/5** (moved in 2026-08-28, since it's the same "does a nav layer save tokens" question, just for the existing hand-authored `.claude/nav/` layer instead of Track B's new generated one) — `improvement-135` had nothing else still-open and is now closed. See the issue file's "Absorbed from `improvement-135`" section for the live governing rule and pending measurement. |
 
-### Top priority — improvement-111 → improvement-073
+### Top priority — improvement-073
 
 | Issue | Origin | What |
 |---|---|---|
-| [improvement-111](issues/improvement-111-authorization-enforced-in-ui-only-not-at-service-boundary.md) | Found via edge-case review (2026-07-19); promoted from Deferred 2026-09-01 | Authorization currently lives only in the UI (`AccessEvaluator` gates button visibility) — the service/port boundary trusts `actingUserId` with no ownership/role check. Latent, not exploitable while Vaadin UI is the only caller. Must land before `improvement-073`'s external API ships (that API's first mutation call would otherwise have zero authorization at the port). Needs a design decision first (service-boundary check vs. an ArchUnit-enforced convention rule) — see the issue file's "Suggested fix" |
-| [improvement-073](issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) → [improvement-035](issues/improvement-035-sql-seeding-for-playwright-spec-05.md) | New / Migrated; scope widened 2026-09-01 per explicit user request | REST API infrastructure, two audiences in one issue: (1) dev-gated Playwright seeding endpoints (035 unblocks on this half, then service-layer-seeds spec 05 — full e2e 11 min → ~7-8 min), and (2) a real external/public API for external consumers, prod-reachable, blocked on `improvement-111` landing first. `private/features/F-07-phone-verification.md`'s planned Telegram Bot webhook is a known future consumer of this same infrastructure |
+| [improvement-073](issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) → [improvement-035](issues/improvement-035-sql-seeding-for-playwright-spec-05.md) | New / Migrated; scope widened 2026-09-01 per explicit user request | REST API infrastructure, two audiences in one issue: (1) dev-gated Playwright seeding endpoints (035 unblocks on this half, then service-layer-seeds spec 05 — full e2e 11 min → ~7-8 min), and (2) a real external/public API for external consumers, prod-reachable. `private/features/F-07-phone-verification.md`'s planned Telegram Bot webhook is a known future consumer of this same infrastructure |
 
 ### Nice to have — no internal priority order
 
@@ -205,7 +208,7 @@ Plus: Testcontainers test layer is a hard gate before any payment code.
 Former Deferred residents now scheduled: improvement-008/010/014 → Batch F, improvement-095 →
 Batch H (see "Execution batches" above). improvement-094 was briefly in Batch D, shipped
 2026-07-20. improvement-111 → Top priority (2026-09-01) — its trigger (`improvement-073`'s
-external API scope) fired, see "Top priority — improvement-111 → improvement-073" above.
+external API scope) fired; shipped 2026-09-03, see `completed/BACKLOG-ARCHIVE.md`.
 
 improvement-109/112 moved here from the "Standalone" table above (2026-07-19 index-consistency
 fix) — both issue files already said `**When:** Deferred`, but had been mis-ranked as actionable
