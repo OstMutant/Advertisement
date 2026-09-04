@@ -1,14 +1,15 @@
 /* ── Header ──────────────────────────────────────────────────────────────────
- * Description: Bulk data-seeding flow helpers -- sign up (single and parallel-pooled), login,
- *   logout, and advertisement creation, used to populate a large number of test users/ads for
- *   pagination and filter/sort scenarios.
+ * Description: Bulk data-seeding flow helpers -- UI-based (sign up, login, logout, advertisement
+ *   creation) and REST-based (via the external API, no browser needed) -- used to populate a
+ *   large number of test users/ads/taxons for pagination and filter/sort scenarios.
  * Usage: None -- a library only, required by spec files (see Input).
  * Uses: ./category.flow (selectCategoryInAdForm), ./city.flow (selectCityInAdForm),
  *   ./advertisement.flow (selectAdKind).
  * Env: None.
  * Input: required by 03-marketplace-promotion-flow.spec.js, 05-marketplace-advertisement-flow.spec.js,
  *   06-seed-filter-sort-pagination.spec.js.
- * Outputs: exports signUpBulk, signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk.
+ * Outputs: exports signUpBulk, signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk,
+ *   issueApiKeyViaApi, postViaApi, seedUsersViaApi, seedTaxonsViaApi, seedAdvertisementsViaApi.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
 const { closeNotification } = require('../_helpers');
@@ -163,4 +164,101 @@ async function signUpBulkParallel(browser, users, poolSize = 3) {
   }
 }
 
-module.exports = { signUpBulk, signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk };
+/**
+ * Issues an API key for the given account via HTTP Basic (POST /api/api-keys), returning the raw
+ * key -- domain-agnostic, reusable by any future REST-based seeding helper.
+ * @param {import('@playwright/test').APIRequestContext} request
+ * @param {Object} credentials
+ * @param {string} credentials.email
+ * @param {string} credentials.password
+ * @returns {Promise<string>} the raw API key
+ */
+async function issueApiKeyViaApi(request, { email, password }) {
+  const auth = Buffer.from(`${email}:${password}`).toString('base64');
+  const response = await request.post('/api/api-keys', { headers: { Authorization: `Basic ${auth}` } });
+  if (!response.ok()) throw new Error(`issueApiKeyViaApi failed: ${response.status()} ${await response.text()}`);
+  const { rawKey } = await response.json();
+  return rawKey;
+}
+
+/**
+ * Generic authenticated POST building block -- every domain-specific REST seeder builds on this
+ * instead of repeating the Authorization header and response-check boilerplate.
+ * @param {import('@playwright/test').APIRequestContext} request
+ * @param {string|null} apiKey pass null for a public endpoint.
+ * @param {string} path
+ * @param {Object} data
+ * @returns {Promise<Object>} the parsed JSON response body
+ */
+async function postViaApi(request, apiKey, path, data) {
+  const response = await request.post(path, {
+    headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+    data,
+  });
+  if (!response.ok()) throw new Error(`POST ${path} failed: ${response.status()} ${await response.text()}`);
+  return response.json();
+}
+
+/**
+ * Registers many users sequentially via POST /api/users (public, no key needed) -- sequential
+ * (not parallel) so each user's created_at strictly increases in input order, matching the old
+ * serial UI-based seeding's ordering guarantee that filter/sort tests rely on.
+ * @param {import('@playwright/test').APIRequestContext} request
+ * @param {Array<{name: string, email: string, password: string}>} users
+ * @returns {Promise<void>}
+ */
+async function seedUsersViaApi(request, users) {
+  for (const u of users) {
+    await postViaApi(request, null, '/api/users', u);
+  }
+}
+
+/**
+ * Creates many taxons (categories or cities) via POST /api/taxons, sequentially -- returns their
+ * ids in the same order as the input array.
+ * @param {import('@playwright/test').APIRequestContext} request
+ * @param {string} apiKey a privileged (admin/moderator) account's key.
+ * @param {'CATEGORY'|'CITY'} type
+ * @param {Array<{nameEn: string, descriptionEn: string, nameUk: string, descriptionUk: string}>} taxons
+ * @returns {Promise<number[]>} taxon ids, one per input entry.
+ */
+async function seedTaxonsViaApi(request, apiKey, type, taxons) {
+  const ids = [];
+  for (const t of taxons) {
+    const body = await postViaApi(request, apiKey, '/api/taxons', {
+      type,
+      translations: [
+        { locale: 'en', name: t.nameEn, description: t.descriptionEn },
+        { locale: 'uk', name: t.nameUk, description: t.descriptionUk },
+      ],
+    });
+    ids.push(body.id);
+  }
+  return ids;
+}
+
+/**
+ * Creates many advertisements sequentially via POST /api/advertisements -- sequential (not
+ * parallel) so each ad's created_at strictly increases in input order, matching the old
+ * serial UI-based seeding's ordering guarantee that filter/sort tests rely on.
+ * @param {import('@playwright/test').APIRequestContext} request
+ * @param {string} apiKey
+ * @param {Array<{title: string, description: string, adKind: string, categoryId: number, cityTaxonId: number}>} ads
+ * @returns {Promise<void>}
+ */
+async function seedAdvertisementsViaApi(request, apiKey, ads) {
+  for (const ad of ads) {
+    await postViaApi(request, apiKey, '/api/advertisements', {
+      title: ad.title,
+      description: ad.description,
+      adKind: ad.adKind,
+      categoryIds: [ad.categoryId],
+      cityTaxonId: ad.cityTaxonId,
+    });
+  }
+}
+
+module.exports = {
+  signUpBulk, signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk,
+  issueApiKeyViaApi, postViaApi, seedUsersViaApi, seedTaxonsViaApi, seedAdvertisementsViaApi,
+};

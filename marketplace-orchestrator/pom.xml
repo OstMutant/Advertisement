@@ -51,6 +51,11 @@
             <artifactId>provider-profile-spring-boot-starter</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>apikey-spring-boot-starter</artifactId>
+            <scope>runtime</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

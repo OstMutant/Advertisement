@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
+import org.ost.platform.apikey.spi.ApiKeyPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.user.spi.UserAccountPort;
@@ -34,6 +35,8 @@ class UserDeleteServiceTest {
 
     @Mock private ComponentFactory<AdvertisementPort> advertisementPortFactory;
     @Mock private AdvertisementPort advertisementPort;
+    @Mock private ComponentFactory<ApiKeyPort> apiKeyPortFactory;
+    @Mock private ApiKeyPort apiKeyPort;
     @Mock private AdvertisementSaveService advertisementSaveService;
     @Mock private ProviderProfileSaveService providerProfileSaveService;
     @Mock private UserAccountPort accountPort;
@@ -43,7 +46,7 @@ class UserDeleteServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new UserDeleteService(advertisementPortFactory, advertisementSaveService, providerProfileSaveService, accountPort, authorizationService);
+        service = new UserDeleteService(advertisementPortFactory, apiKeyPortFactory, advertisementSaveService, providerProfileSaveService, accountPort, authorizationService);
     }
 
     private void stubAdvertisementPortAvailable() {
@@ -52,6 +55,14 @@ class UserDeleteServiceTest {
             consumer.accept(advertisementPort);
             return null;
         }).when(advertisementPortFactory).ifAvailable(any());
+    }
+
+    private void stubApiKeyPortAvailable() {
+        lenient().doAnswer(inv -> {
+            Consumer<ApiKeyPort> consumer = inv.getArgument(0);
+            consumer.accept(apiKeyPort);
+            return null;
+        }).when(apiKeyPortFactory).ifAvailable(any());
     }
 
     @Test
@@ -122,12 +133,32 @@ class UserDeleteServiceTest {
     }
 
     @Test
+    void delete_userWithApiKeys_deletesKeysThroughPortBeforeTheUser() {
+        stubApiKeyPortAvailable();
+
+        service.delete(USER_ID, ACTOR_ID);
+
+        InOrder order = inOrder(apiKeyPort, accountPort);
+        order.verify(apiKeyPort).deleteAllForActor(USER_ID);
+        order.verify(accountPort).delete(USER_ID, ACTOR_ID);
+    }
+
+    @Test
+    void delete_apiKeyStarterAbsent_stillDeletesTheUser() {
+        // apiKeyPortFactory.ifAvailable(...) left unstubbed -- ObjectProvider-absent shape.
+        service.delete(USER_ID, ACTOR_ID);
+
+        verify(accountPort).delete(USER_ID, ACTOR_ID);
+    }
+
+    @Test
     void delete_deniedByAuthorization_throwsAndNeverCascadesOrDeletes() {
         doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanEditAccount(ACTOR_ID, USER_ID);
 
         assertThatThrownBy(() -> service.delete(USER_ID, ACTOR_ID))
                 .isInstanceOf(AccessDeniedException.class);
         verify(advertisementPortFactory, never()).ifAvailable(any());
+        verify(apiKeyPortFactory, never()).ifAvailable(any());
         verify(accountPort, never()).delete(any(), any());
     }
 }

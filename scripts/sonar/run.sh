@@ -170,7 +170,21 @@ echo "Copying source files..."
 docker exec --user root "$SCANNER_CONTAINER" rm -rf /tmp/sonar-src
 docker exec "$SCANNER_CONTAINER" mkdir -p /tmp/sonar-src
 
-for module in query-lib html-sanitizer-lib platform-commons audit-spring-boot-starter attachment-spring-boot-starter user-spring-boot-starter advertisement-spring-boot-starter taxon-spring-boot-starter provider-profile-spring-boot-starter marketplace-orchestrator marketplace-app; do
+# Same pom.xml-derived module list as the sonar-project.properties validator above -- this loop
+# used to carry its own separately hardcoded list, which silently drifted out of sync with the
+# self-healing properties file whenever a module was added (confirmed directly: apikey-spring-boot-starter/
+# marketplace-rest-api were correctly added to sonar.sources but never copied into the scanner
+# container, so the scan failed with "folder does not exist").
+MODULES_LIST=$(python3 -c "
+import re
+with open('$ROOT/pom.xml') as f:
+    pom = f.read()
+modules_block = re.search(r'<modules>(.*?)</modules>', pom, re.S).group(1)
+real_modules = re.findall(r'<module>([^<]+)</module>', modules_block)
+print(' '.join(m for m in real_modules if m != 'integration-tests'))
+")
+
+for module in $MODULES_LIST; do
   if [ -d "$ROOT/$module/src/main/java" ]; then
     docker exec "$SCANNER_CONTAINER" mkdir -p "/tmp/sonar-src/$module/src/main/java"
     docker cp "$ROOT/$module/src/main/java/." "$SCANNER_CONTAINER:/tmp/sonar-src/$module/src/main/java/"

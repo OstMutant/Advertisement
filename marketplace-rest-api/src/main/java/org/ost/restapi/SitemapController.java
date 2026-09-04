@@ -1,4 +1,4 @@
-package org.ost.marketplace.rest;
+package org.ost.restapi;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.SitemapService;

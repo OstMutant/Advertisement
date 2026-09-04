@@ -28,8 +28,10 @@ advertisement-parent (root pom)
 ├── advertisement-spring-boot-starter — Advertisement domain: entity, service, AdvertisementPortImpl (auto-configured starter)
 ├── taxon-spring-boot-starter         — Taxonomy domain: taxon/category/tag management, TaxonPort (auto-configured starter)
 ├── provider-profile-spring-boot-starter — Provider profile domain: MASTER/SHOP/SUPPORT catalog entries, ProviderProfilePort (auto-configured starter)
+├── apikey-spring-boot-starter         — API-key credential domain: entity, hasher, ApiKeyPortImpl (auto-configured starter)
 ├── integration-tests                 — Testcontainers repository tests + fixtures for every starter (test-only, never shipped)
 ├── marketplace-orchestrator           — application/BFF layer: cross-domain use-case orchestration between marketplace-app and the domain starters
+├── marketplace-rest-api               — external REST API adapter: non-Vaadin HTTP delivery channel over marketplace-orchestrator, sibling to marketplace-app
 └── marketplace-app                   — main Vaadin application (all UI)
 ```
 
@@ -44,6 +46,7 @@ advertisement-parent (root pom)
 - `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`, `AuditTimelineFilterDto`), `audit.spi` (`AuditPort`, `AuditDomainHook`, `AuditActivityEnrichHook` — note `AuditActivityFieldsHook` does not exist: field-name-to-label mapping lives entirely in `marketplace-app`'s `AuditTimelineRowRenderer`, not a per-domain Hook)
 - `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentAuditPort`) — note `AttachmentMediaChangeHook` does not exist — `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
 - `user.*` — `user.spi` (`UserPort`/`UserAccountPort`/`UserAuthorizationPort`/`UserPreferencesPort` — one logical split, see `.claude/rules/platform-commons.md`; plus `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
+- `apikey.*` — `apikey.spi` (`ApiKeyPort`), `apikey.dto` (`ApiKeySummaryDto`)
 - `advertisement.*` — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto` (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`, `AdvertisementSnapshotDto`), `advertisement.model` (`AdKind`)
 - `taxon.*` — `taxon.spi` (`TaxonPort`), `taxon.dto` (`TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`), `taxon.model` (`TaxonType`)
 - `providerprofile.*` — `providerprofile.spi` (`ProviderProfilePort`), `providerprofile.dto` (`ProviderProfileDto`, `ProviderProfileSaveDto`, `ProviderProfileFilterDto`, `ProviderProfileSnapshotDto`), `providerprofile.model` (`ProviderKind`)
@@ -62,7 +65,11 @@ advertisement-parent (root pom)
 
 → Provider profile domain (owned classes): `.claude/rules/provider-profile-spring-boot-starter.md`
 
+→ API-key credential domain (owned classes): `.claude/rules/apikey-spring-boot-starter.md`
+
 → Application/BFF orchestration layer (cross-domain use cases, owned classes): `.claude/rules/marketplace-orchestrator.md`
+
+→ External REST API adapter (owned classes): `.claude/rules/marketplace-rest-api.md`
 
 ---
 
@@ -188,8 +195,9 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/marketplace-orchestrator/DECISIONS.md`
 - `/app/.claude/DECISIONS.md`
 
-Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`, and
-`provider-profile-spring-boot-starter` have no hand-authored `DECISIONS.md` of their own — their
+Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`,
+`provider-profile-spring-boot-starter`, `apikey-spring-boot-starter`, and `marketplace-rest-api`
+have no hand-authored `DECISIONS.md` of their own — their
 key decisions are recorded in `marketplace-app/DECISIONS.md` and `platform-commons/DECISIONS.md`
 instead. Each of these three modules has a generated, pointer-only `DECISIONS.md`
 (`bash docs/architecture/scripts/generate-architecture-model.sh`) listing whichever ADRs cross-reference it via

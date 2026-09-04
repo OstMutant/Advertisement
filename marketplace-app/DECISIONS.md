@@ -2,6 +2,92 @@
 
 ---
 
+## ADR-079: Build-enforced ArchUnit rule blocks direct `TaxonPort.replaceAssignments()` calls from starters; the diagram category it superseded is removed
+
+**Status:** Accepted
+
+**Also affects:** docs/architecture/scripts
+
+**Context:** The Bounded Contexts diagram's "Cross-Starter Exceptions" tab existed to document a
+specific, real historical bug class: a starter (`provider-profile`/`advertisement`) calling
+`TaxonPort.replaceAssignments()` directly instead of routing the write through
+`marketplace-orchestrator`'s `TaxonAssignmentWriteService`. Both known instances of this bug were
+already fixed by the time this ADR was written — the tab's own regex-based regression guard
+(`generate-architecture-model.sh`) had found nothing for a while — but nothing actually *prevented*
+the bug from being reintroduced: `starters_must_not_import_sibling_starters`
+(`ArchitectureRulesTest`) only blocks a starter importing another starter's own package; it does
+not catch a starter injecting `ComponentFactory<TaxonPort>` (a `platform-commons` type, always
+importable) and calling a write method on it directly. The diagram category was therefore a
+documentation-time detector, not a build gate — a reintroduced bypass would only surface at the
+next architecture-doc regeneration, not at PR time.
+
+**Decision:**
+1. New `@ArchTest` in `ArchitectureRulesTest.java`:
+   `starters_must_route_taxon_assignment_writes_through_orchestrator` — fails the build if any class
+   outside `org.ost.orchestrator..`/`org.ost.marketplace..`/`org.ost.restapi..`/`org.ost.taxon..`
+   calls `TaxonPort.replaceAssignments()` directly (scanned via `getMethodCallsFromSelf()` +
+   `getTarget().getOwner().isAssignableTo(TaxonPort.class)`, same custom-`ArchCondition` style as
+   the existing `starters_must_not_import_sibling_starters` rule).
+2. The "Cross-Starter Exceptions" diagram category (`docs/architecture/scripts/generate-architecture-model.sh`:
+   `BC_CATEGORY_ORDER`/`BC_CATEGORY_LABEL`/`BC_CATEGORY_DESC`/`BC_LABEL_CATEGORY`'s `exceptions`
+   entries, the `"category assignment via"` label and its regex-based extraction loop) is removed
+   outright, along with its client-side JS mirrors (`BC_LABEL_MEANING`/`BC_CATEGORY_LABEL_JS`). It
+   was the one category whose entire membership (a single label) is now guaranteed empty by a
+   failing build rather than merely "currently empty" — permanently-empty documentation for
+   something a build gate already guarantees is not worth the tab.
+
+**Rejected alternative — keep the diagram category alongside the new rule:** rejected because the
+two mechanisms had identical scope (both keyed on the same one method,
+`TaxonPort.replaceAssignments()`) — keeping the diagram category bought no additional detection
+coverage over the ArchUnit rule, only a strictly weaker, slower one (documentation-regeneration-time
+instead of build-time).
+
+**Consequences:**
+- Verified directly: `ArchitectureRulesTest` passes (20/20, was 19/19 before this rule) against the
+  current, already-clean codebase — the new rule is a regression guard, not a fix for a live
+  violation.
+- A future genuinely new class of starter-to-starter Port-write bypass (a different Port, a
+  different method) is not automatically caught by this rule — it is scoped to the one concrete,
+  historically-observed case, matching this file's own established precedent of narrowly-scoped
+  custom `ArchCondition` rules rather than one generic "any write bypass" rule.
+
+---
+
+## ADR-078: External REST API authentication — long-lived bearer API-key, not OAuth2
+
+**Status:** Accepted
+
+**Context:** Building an external, Postman/Swagger-testable REST API (`marketplace-rest-api`) needed
+a real authentication mechanism beyond the existing Vaadin session login. The API serves
+programmatic/script access to a user's own account (external integrations, Playwright test
+seeding) — not third-party apps acting on behalf of a user. Considered reshaping the
+credential-issuance endpoint into a genuine OAuth2 client-credentials flow, since that is what
+Postman natively auto-refreshes without a custom script, and OpenAPI models declaratively via
+`securitySchemes: oauth2`.
+
+**Decision:** Kept the simpler, already-implemented pattern: a per-user, long-lived, revocable
+bearer API key (`POST /api/api-keys` issues it behind HTTP Basic auth; `Authorization: Bearer
+<key>` authenticates every other call, resolved via `ApiKeyAuthenticationFilter` →
+`ApiKeyManagementService`). This is the same pattern Stripe, GitHub, OpenAI, and Anthropic's own
+API use for exactly this use case (a user scripting against their own account) — a legitimate,
+standard pattern in its own right, not a simplified OAuth2. Key hashing is SHA-256 of a 32-byte
+`SecureRandom` value, not bcrypt/`PasswordEncoder` — bcrypt's deliberate slowness defends a
+low-entropy human password against offline brute-force; it buys nothing for an already-random
+256-bit token and would add real latency to every authenticated request.
+
+**Rejected alternatives:**
+- **OAuth2 client-credentials flow** — the natural fit for Postman/Swagger's native no-script
+  auto-auth, but solves a different problem: delegated third-party authorization, multiple
+  registered clients, short-lived token rotation. None apply here (no third-party apps, one
+  "client" = the account owner). Doing it properly would need a refresh-token mechanism, a
+  client-registration concept, and scopes — solving problems this app doesn't have, purely so
+  Postman's UI doesn't need a 5-line pre-request script. Rejected as disproportionate complexity
+  (YAGNI) for the actual requirement.
+- **bcrypt/`PasswordEncoder` for key hashing** — no benefit for an already-high-entropy random
+  token; only adds latency.
+
+---
+
 ## ADR-001: All Vaadin UI consolidated in marketplace-app
 **Status:** Accepted
 

@@ -129,7 +129,7 @@ bash scripts/build-and-test.sh --no-unit --integration-test AdvertisementReposit
 ```
 
 Builds the whole reactor into a container-isolated `~/.m2` first, then runs unit
-(`query-lib`/`marketplace-app`/`marketplace-orchestrator`) and integration (`integration-tests`
+(`query-lib`/`marketplace-app`/`marketplace-orchestrator`/`marketplace-rest-api`) and integration (`integration-tests`
 module — Testcontainers-based repository tests, real Postgres) as parallel jobs inside that same
 container. See `scripts/build-and-test/README.md` for the full flow and
 `scripts/build-and-test/build.sh`'s own header for every flag. `TESTCONTAINERS_RYUK_DISABLED=true

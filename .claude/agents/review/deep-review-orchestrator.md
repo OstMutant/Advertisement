@@ -42,22 +42,22 @@ state "full sweep of `<module>`" for a file-set scope).
 
 ## 3. Find candidates
 
-Dispatch `dry-kiss-yagni-reviewer` and `solid-reviewer` via the `Agent` tool, both in a single response (they
-are independent tasks over the same scope — see the "Parallel Spawning" discipline in step 4
-below, same reasoning applies here), each with the diff or file set plus your step-2 summary.
-(These two lenses are wired in today — other lenses, e.g. security-boundary or data-integrity, are
-a future addition: write them as new `.claude/agents/*.md` files and dispatch them here the same
-way, once needed.)
+Dispatch `dry-kiss-yagni-reviewer`, `solid-reviewer`, and `precedent-reviewer` via the `Agent`
+tool, all three in a single response (they are independent tasks over the same scope — see the
+"Parallel Spawning" discipline in step 4 below, same reasoning applies here), each with the diff or
+file set plus your step-2 summary. (These three lenses are wired in today — other lenses, e.g.
+security-boundary or data-integrity, are a future addition: write them as new `.claude/agents/*.md`
+files and dispatch them here the same way, once needed.)
 
-Instruction to include verbatim, to both:
+Instruction to include verbatim, to all three:
 
 > Flag only significant issues; ignore nitpicks and likely false positives. Do not flag issues you
 > cannot validate without looking at context outside the given scope. If you are not certain an
 > issue is real, do not flag it — false positives erode trust and waste review time.
 
 Each returns its candidates as structured JSON (`{"findings": [...]}`, content separated from
-metadata — see each one's own file). Parse both directly; do not re-derive from prose. Merge both
-`findings` arrays before step 4 — `found_by` on each candidate already distinguishes which lens
+metadata — see each one's own file). Parse all three directly; do not re-derive from prose. Merge
+all three `findings` arrays before step 4 — `found_by` on each candidate already distinguishes which lens
 raised it, so nothing is lost by merging.
 
 ## 4. Validate every candidate
@@ -126,8 +126,8 @@ payload it expects and include it verbatim, in a fenced ```json block, in your s
 ranked most severe first, `[]` if the auto-report bucket is empty. `verdict: "CONFIRMED"` for all
 of them (already verified in step 4, survived step 5). `category`: for a `dry-kiss-yagni-reviewer`
 finding, its own `principle` field (`"dry"`/`"kiss"`/`"yagni"`); for a `solid-reviewer` finding,
-`"solid"`. Map each finding's other fields: `claim → summary`,
-`failure_scenario → failure_scenario`.
+`"solid"`; for a `precedent-reviewer` finding, `"precedent"`. Map each finding's other fields:
+`claim → summary`, `failure_scenario → failure_scenario`.
 `ReportFindings`'s own schema
 only takes one `file`/`line` per finding — `locations[0]` fills those two fields; if `locations`
 has more than one entry, append the rest to `failure_scenario` as "also see `<file>:<line>`, ..."
@@ -150,22 +150,22 @@ Also compile `.claude/rules.md`'s standard `## Operational notes` block for each
 append once it's actually written — from data you already have, not invented: each of your own
 step 3/4/5 `Agent` dispatches returned real `subagent_tokens`/`tool_uses`/`duration_ms` in its
 completion result. Fill:
-- `token_cost_review`: summed tokens from step 3's two finder dispatches
-  (`dry-kiss-yagni-reviewer` + `solid-reviewer`).
+- `token_cost_review`: summed tokens from step 3's three finder dispatches
+  (`dry-kiss-yagni-reviewer` + `solid-reviewer` + `precedent-reviewer`).
 - `token_cost_verification`: summed tokens from step 4's verifiers + step 5's integration pass (if
   it ran).
-- `review_signal_ratio`: (survivors after step 5) / (total candidates step 3 raised, both lenses
-  combined).
+- `review_signal_ratio`: (survivors after step 5) / (total candidates step 3 raised, all three
+  lenses combined).
 - `context_loading_*`/`flows_*` fields: `n/a` — this is a direct agent dispatch, not a
   command/skill routing decision.
-- `### Agent calls`: one line per `Agent` dispatch you made (both step-3 finders, every verifier,
-  integration pass if run) — `purpose | subagent_type=general-purpose | tokens=N | tool_uses=N |
-  duration_s=N | mode=background | batch=<parallel-group-id or solo>`.
-- `### Review angle yield`: **two** lines, one per `Agent` dispatch (not per principle — all three
-  of `dry-kiss-yagni-reviewer`'s principles share that one dispatch's token cost, so splitting them
-  into 3 lines would triple-count it) — `dry-kiss-yagni | survived=N | total_candidates=N |
-  tokens=N` and `solid | survived=N | total_candidates=N | tokens=N`, counted by each candidate's
-  `found_by`.
+- `### Agent calls`: one line per `Agent` dispatch you made (all three step-3 finders, every
+  verifier, integration pass if run) — `purpose | subagent_type=general-purpose | tokens=N |
+  tool_uses=N | duration_s=N | mode=background | batch=<parallel-group-id or solo>`.
+- `### Review angle yield`: **three** lines, one per `Agent` dispatch (not per principle — all
+  three of `dry-kiss-yagni-reviewer`'s principles share that one dispatch's token cost, so
+  splitting them into 3 lines would triple-count it) — `dry-kiss-yagni | survived=N |
+  total_candidates=N | tokens=N`, `solid | survived=N | total_candidates=N | tokens=N`, and
+  `precedent | survived=N | total_candidates=N | tokens=N`, counted by each candidate's `found_by`.
 - Omit `### Script/command runs` entirely (you made none).
 
 ## 10. Return your final result

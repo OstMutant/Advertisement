@@ -99,11 +99,11 @@ Translation keys — single consolidated enum:
 
 - Method-level `@PreAuthorize` is fine for REST controller endpoints.
 - Services (`AdvertisementService`, `ActivityService`, etc.) intentionally have no `@PreAuthorize`.
-- `rest/HealthController` (`GET /health`) is this app's one existing non-Vaadin REST controller —
-  intentionally public (load balancer probe), with its own explicit
-  `requestMatchers("/health").permitAll()` rule in `SecurityConfig`, ahead of the catch-all (see
-  next bullet). Any *new* non-Vaadin REST controller must add the same kind of explicit rule for
-  its own path prefix, following this precedent.
+- Non-Vaadin REST controllers live in the sibling `marketplace-rest-api` module, not here — see
+  `.claude/rules/marketplace-rest-api.md`. `GET /health` and `GET /sitemap.xml` (both routed from
+  that module) still need their own explicit `permitAll()` rule in *this* module's own
+  `SecurityConfig`, ahead of the catch-all (see next bullet), since Spring Security's URL-based
+  rules are independent of which module physically contains the controller class.
 - `SecurityConfig` uses `anyRequest().permitAll()` at the URL layer — deny-by-default does not
   apply to this app's single-route Vaadin SPA model (see `.claude/nav/adr-index.md`).
 - Login (`AuthService.login()`) and registration (`UserPort.register()` → `UserService.register()`)
@@ -133,7 +133,6 @@ Translation keys — single consolidated enum:
 - `services/i18n/` — `I18nKey` enum, `I18nService`, `I18nServiceImpl`, `LocaleProvider`, `InstantFormatter`
 - `services/security/` — `AccessEvaluator` (role/ownership checks live in `user-spring-boot-starter` — see this module's own `README.md` "Responsibilities" section)
 - `spi/` — thin, dedicated forwarders over a UI-shell resource, implementing the `UiLabelHook`/`SessionActorHook`/`CurrentLocaleHook` SPIs that `marketplace-orchestrator`'s own `AuditDomainHookImpl`/`CurrentActorHookImpl`/`ActivityEnrichHookImpl` call through — see `marketplace-orchestrator/CLAUDE.md`'s "Forwarder SPI pattern" for the full table. `UiLabelHookImpl` wraps `I18nService` (`translateActorDeletedSuffix`, `labelFor(AdKind)`, `markDeleted(String)` — wraps a name in strikethrough markup, `noMediaPlaceholder()` — one interface, since all four wrap the same resource or produce presentation output); `SessionActorHookImpl` wraps `AuthContextService`; `CurrentLocaleHookImpl` wraps `LocaleProvider`. Two more forwarder SPIs are implemented directly by an existing class in its own natural package instead of a dedicated `spi/` wrapper, since each already owns the wrapped resource: `SettingsPaginationService` (`ui/views/services/pagination/`) implements `SettingsChangeHook`; `AuthContextService` (`services/auth/`) implements `CurrentUserHook` against `SecurityContextHolder`. `AuditActivityEnrichHook`'s only real implementation, `ActivityEnrichHookImpl`, now lives in `marketplace-orchestrator` (not here) — see that module's `CLAUDE.md`.
-- `rest/` — non-Vaadin REST controllers (`HealthController` only today)
 - `ui/core/` — `Configurable<T,P>`, `Initialization<T>`, `UiComponentFactory<T>`, `PaginationDefaults`
 - `ui/dto/` — `Identifiable` and other shared UI DTOs
 - `ui/mappers/` — UI-form ↔ DTO mappers (`AdvertisementMapper`, `UserMapper`, `*FilterMapper`)

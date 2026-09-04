@@ -42,9 +42,11 @@ const TAB_LABELS = {
  * @returns {Promise<void>}
  */
 async function runSubmitLoginFlow(page, expect, user, locale = user.locale) {
-  await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).last().click();
-  // login triggers a full page reload server-side, not an in-place push update
-  await page.waitForLoadState('networkidle').catch(() => {});
+  // Pair the wait with the click -- login triggers a full page reload, and waiting after the fact races it.
+  await Promise.all([
+    page.waitForLoadState('load'),
+    page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).last().click(),
+  ]);
   await expect(page.locator('.header-settings-button')).toBeVisible({ timeout: 15000 });
 
   const labels = TAB_LABELS[locale];

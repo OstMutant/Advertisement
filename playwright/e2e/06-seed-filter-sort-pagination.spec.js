@@ -8,8 +8,9 @@
  *   (breadcrumb chain correctness); and Timeline entity-type/action-type/multi-actor filters with
  *   chip removal and pagination. Entirely skipped unless PW_FULL is set -- seeding takes ~2 min.
  *   Per test:
- *   - "seed 60 users -- parallel signup": parallel signup of 60 users.
- *   - "adminEn seeds 60 advertisements -- five categories": create 60 ads across 5 categories.
+ *   - "seed 60 users -- via REST API": parallel POST /api/users, no browser needed.
+ *   - "adminEn seeds 60 advertisements -- via REST API": issue an API key, POST /api/taxons for
+ *     5 categories + 3 cities, then POST /api/advertisements for 60 ads.
  *   - "advertisements -- title, date and category filters, column sort, pagination": apply
  *     title/date/category filters -> sort columns -> verify page counts.
  *   - "users -- email, role and date filters, column sort, pagination": apply email/role/date
@@ -31,8 +32,7 @@
  * Env: PW_FULL -- when unset/falsy, this entire spec file's describe block is skipped. PW_SCREENSHOTS
  *   -- read directly by this file's own screenshotThenClose helper to gate optional screenshots.
  * Input: ./_helpers (test, expect, screenshot, closeOverlay, closeNotification, TEST_USERS),
- *   ./_flows/seed.flow, ./_flows/filter.flow, ./_flows/settings.flow, ./_flows/timeline.flow,
- *   ./_flows/category.flow, ./_flows/city.flow.
+ *   ./_flows/seed.flow, ./_flows/filter.flow, ./_flows/settings.flow, ./_flows/timeline.flow.
  * Outputs: Playwright HTML report entries (one per test/test.step), PNG screenshots attached to
  *   the report when PW_SCREENSHOTS is set. Seeds 60 users, 60 advertisements, 5 categories and 3
  *   cities into the app database -- this seeded data is a precondition later specs (e.g. spec 07)
@@ -59,7 +59,7 @@ async function screenshotThenClose(page, name) {
   }
   await closeNotification(page);
 }
-const { signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk } = require('./_flows/seed.flow');
+const { loginBulk, logoutBulk, issueApiKeyViaApi, seedUsersViaApi, seedTaxonsViaApi, seedAdvertisementsViaApi } = require('./_flows/seed.flow');
 const {
   openQueryPanel, clearFilter, applyFilter,
   resetDefaultSorts,
@@ -70,8 +70,6 @@ const {
 const { changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes } = require('./_flows/settings.flow');
 const { openTimelineTab, openTimelineFilter, assertActorPickerVisible, assertAllRowsHaveType, assertAllRowsHaveAction, fillEntityType, fillActionType, fillActorPicker, removeActorChip, actorChipCount, TIMELINE_BLOCK } = require('./_flows/timeline.flow');
 const { goToNextPage } = require('./_flows/filter.flow');
-const { runCreateCategoryFlow } = require('./_flows/category.flow');
-const { runCreateCityFlow } = require('./_flows/city.flow');
 
 test.describe.configure({ mode: 'serial' });
 
@@ -178,37 +176,32 @@ test.describe('Seed data and query validation', () => {
     await page.close();
   });
 
-  // ── Test 1: seed users ────────────────────────────────────────────────────
+  // ── Test 1: seed users — via REST API ─────────────────────────────────────
 
-  test(`seed ${SEED_COUNT} users — parallel signup`, async ({ browser }) => {
-    test.setTimeout(5 * 60 * 1000);
+  test(`seed ${SEED_COUNT} users — via REST API`, async ({ request }) => {
+    test.setTimeout(60 * 1000);
     const users = Array.from({ length: SEED_COUNT }, (_, i) => seedUser(i + 1));
-    await signUpBulkParallel(browser, users, 1);
+    await seedUsersViaApi(request, users);
   });
 
-  // ── Test 2: seed advertisements ───────────────────────────────────────────
+  // ── Test 2: seed advertisements — via REST API ────────────────────────────
 
-  test(`adminEn seeds ${SEED_COUNT} advertisements — five categories, three cities, three listing types`, async () => {
-    test.setTimeout(5 * 60 * 1000);
-    await loginBulk(page, TEST_USERS.adminEn);
-    for (const cat of SEED_CATEGORIES) await runCreateCategoryFlow(page, expect, cat);
-    for (const city of SEED_CITIES) await runCreateCityFlow(page, expect, city);
-    await page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first().click();
-    await page.locator('.add-advertisement-button').waitFor({ timeout: 8000 });
-    for (let i = 1; i <= SEED_COUNT; i++) {
-      await createAdvertisementBulk(page, {
+  test(`adminEn seeds ${SEED_COUNT} advertisements — five categories, three cities, three listing types, via REST API`, async ({ request }) => {
+    test.setTimeout(60 * 1000);
+    const apiKey = await issueApiKeyViaApi(request, TEST_USERS.adminEn);
+    const categoryIds = await seedTaxonsViaApi(request, apiKey, 'CATEGORY', SEED_CATEGORIES);
+    const cityIds = await seedTaxonsViaApi(request, apiKey, 'CITY', SEED_CITIES);
+    const AD_KIND_ENUM = ['OFFER', 'REQUEST', 'PRODUCT'];
+    const ads = Array.from({ length: SEED_COUNT }, (_, idx) => {
+      const i = idx + 1;
+      return {
         ...seedAd(i),
-        category: CATEGORIES[(i - 1) % CATEGORIES.length],
-        city: CITIES[(i - 1) % CITIES.length],
-        adKind: AD_KINDS[(i - 1) % AD_KINDS.length],
-      });
-    }
-    // Force a full page reload to clear 60 stale advertisement overlay DOM elements before logout.
-    // Without this, SPA-style logout/login preserves the stale DOM, which causes Vaadin to
-    // re-activate a stale overlay when the category filter combo fires a server sync event.
-    await page.reload();
-    await page.locator('.header-logout-button').waitFor({ timeout: 15000 });
-    await logoutBulk(page);
+        adKind: AD_KIND_ENUM[(i - 1) % AD_KIND_ENUM.length],
+        categoryId: categoryIds[(i - 1) % categoryIds.length],
+        cityTaxonId: cityIds[(i - 1) % cityIds.length],
+      };
+    });
+    await seedAdvertisementsViaApi(request, apiKey, ads);
   });
 
   // ── Test 3: advertisement filters, sort, pagination ───────────────────────

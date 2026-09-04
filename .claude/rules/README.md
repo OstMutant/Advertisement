@@ -26,12 +26,14 @@ file; the full detail only loads once a file inside that module's own directory 
 touched.
 
 - [`advertisement-spring-boot-starter.md`](advertisement-spring-boot-starter.md) — `advertisement-spring-boot-starter/**`
+- [`apikey-spring-boot-starter.md`](apikey-spring-boot-starter.md) — `apikey-spring-boot-starter/**`
 - [`attachment-spring-boot-starter.md`](attachment-spring-boot-starter.md) — `attachment-spring-boot-starter/**`
 - [`audit-spring-boot-starter.md`](audit-spring-boot-starter.md) — `audit-spring-boot-starter/**`
 - [`html-sanitizer-lib.md`](html-sanitizer-lib.md) — `html-sanitizer-lib/**`
 - [`integration-tests.md`](integration-tests.md) — `integration-tests/**`
 - [`marketplace-app.md`](marketplace-app.md) — `marketplace-app/**`
 - [`marketplace-orchestrator.md`](marketplace-orchestrator.md) — `marketplace-orchestrator/**`
+- [`marketplace-rest-api.md`](marketplace-rest-api.md) — `marketplace-rest-api/**`
 - [`platform-commons.md`](platform-commons.md) — `platform-commons/**`
 - [`playwright.md`](playwright.md) — `playwright/**`
 - [`provider-profile-spring-boot-starter.md`](provider-profile-spring-boot-starter.md) — `provider-profile-spring-boot-starter/**`

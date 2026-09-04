@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="01-apikey-schema" author="ostap">
+        <validCheckSum>ANY</validCheckSum>
+
+        <!-- ── api_key ─────────────────────────────────────────────────── -->
+        <createTable tableName="api_key"
+                      remarks="Bearer tokens for the external REST API. No FK -- matches this codebase's actor-reference-column convention; the owning actor's key rows are deleted at the application layer (ApiKeyPort.deleteAllForActor), not via DB cascade.">
+            <column name="id" type="BIGSERIAL" remarks="Auto-increment">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="actor_id" type="BIGINT" remarks="Owning actor. References user_information(id), no FK">
+                <constraints nullable="false"/>
+            </column>
+            <column name="key_hash" type="VARCHAR(255)" remarks="SHA-256 hash of the raw key; the raw key itself is never stored">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="key_prefix" type="VARCHAR(16)" remarks="First characters of the raw key in the clear, for a human-readable list without re-showing the secret">
+                <constraints nullable="false"/>
+            </column>
+            <column name="label" type="VARCHAR(100)" remarks="Optional caller-supplied name for the key"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Key issuance timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_used_at" type="TIMESTAMP WITH TIME ZONE" remarks="Best-effort last successful authentication timestamp"/>
+            <column name="revoked_at" type="TIMESTAMP WITH TIME ZONE" remarks="NULL means active; set once the owner revokes the key"/>
+        </createTable>
+
+        <createIndex indexName="idx_api_key_actor_id" tableName="api_key">
+            <column name="actor_id"/>
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

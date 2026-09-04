@@ -2354,3 +2354,36 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   found because `git add -A` almost staged its build artifacts). See
   `marketplace-orchestrator/DECISIONS.md` ADR-007. Full detail:
   `completed/issues/improvement-111-authorization-enforced-in-ui-only-not-at-service-boundary.md`.
+
+✅ Done (2026-09-04): improvement-073 closed — REST API infrastructure for two audiences: dev-gated
+  Playwright seeding (spec 06 now seeds users/advertisements via real API calls instead of browser
+  automation) and a genuinely public, prod-reachable external API (users, advertisements, provider
+  profiles, taxons, API-key management), with bearer-API-key auth (`marketplace-app/DECISIONS.md`
+  ADR-078) and live Swagger/OpenAPI docs (`springdoc-openapi`, dual `bearerKey`/`basicAuth`
+  `@SecurityScheme`s). Landed as two new Maven modules — `apikey-spring-boot-starter` (credential
+  domain, `api_key` table keyed by `actor_id` with no FK, matching this codebase's established
+  actor-reference convention) and `marketplace-rest-api` (the non-Vaadin HTTP adapter, sibling to
+  `marketplace-app`, both sitting over `marketplace-orchestrator`). Along the way: fixed 3 real
+  Playwright bugs (bearer-token principal resolution, parallel-seeding sort-order, a login
+  click/`waitForLoadState` race); found and fixed a genuine architecture violation (the API-key
+  table originally coupled to `user-spring-boot-starter` via a hard FK and "user" vocabulary,
+  violating this codebase's own actor/no-FK precedent) and the SPI-placement gap it exposed
+  (`ApiKeyPort` had been left under `user.spi` instead of its own `apikey.spi`); added a new
+  `precedent-reviewer` review lens so `/code-review`/`/deep-review` check new code against
+  `.claude/rules.md`/`DECISIONS.md` precedent, not just SOLID/DRY/KISS/YAGNI; closed 3 more
+  hardcoded-module-list gaps in `generate-architecture-model.sh` (`DB_ERD_CHANGELOG_FILES`,
+  `FULL_DECISIONS_MODULES`, stale Module-Dependencies-diagram prose) found while regenerating docs
+  for the new modules; replaced the Database ERD's hand-curated no-FK-relationship list with a
+  `remarks=`-marker convention the generator derives mechanically (`docs/architecture/scripts/DECISIONS.md`
+  ADR-034), closing 6 real relationship gaps the old hand-curated list had silently accumulated;
+  added a build-enforced ArchUnit rule blocking a starter from writing taxon assignments directly
+  instead of through the orchestrator, replacing a diagram category that could only ever report the
+  same violation after the fact (`marketplace-app/DECISIONS.md` ADR-079); and fixed a second real
+  generator bug found the same way — `marketplace-rest-api` and `marketplace-orchestrator` both
+  claimed the same bounded-context classification, silently overwriting which module's source the
+  "Service Calls (BFF)" diagram tab actually scanned (16 real edges were rendering as ~0). Verified
+  end-to-end: unit 233/233, integration 183/183 (incl. `ArchitectureRulesTest` 20/20), clean
+  `--reset` deploy, Playwright 61/61 (8.7m). A Postman collection with automatic bearer-token
+  injection (linked/sync-imported from the now-live `/v3/api-docs` spec) was scoped but left for
+  manual setup outside the repo. Full detail:
+  `completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md`.

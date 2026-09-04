@@ -78,7 +78,9 @@ if defined DO_BUILD (
         advertisement-spring-boot-starter\target
         taxon-spring-boot-starter\target
         provider-profile-spring-boot-starter\target
+        apikey-spring-boot-starter\target
         marketplace-orchestrator\target
+        marketplace-rest-api\target
         integration-tests\target
     ) do (
         if exist "%ROOT%%%d" (
