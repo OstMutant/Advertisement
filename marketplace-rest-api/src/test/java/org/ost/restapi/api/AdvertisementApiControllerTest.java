@@ -11,6 +11,10 @@ import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.model.AdKind;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.Optional;
@@ -50,14 +54,52 @@ class AdvertisementApiControllerTest {
         assertThat(result).isEqualTo(saved);
     }
 
+    private static UriComponentsBuilder baseUri() {
+        return UriComponentsBuilder.fromUriString("http://localhost/api/advertisements");
+    }
+
     @Test
-    void list_delegatesToReadService() {
+    void list_delegatesToReadServiceAndSetsTotalCountHeader() {
         AdvertisementInfoDto info = AdvertisementInfoDto.builder().id(1L).build();
-        when(readService.getFiltered(eq(AdvertisementFilterDto.empty()), eq(0), eq(20), any())).thenReturn(List.of(info));
+        AdvertisementFilterDto filter = AdvertisementFilterDto.empty();
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.unsorted()))).thenReturn(List.of(info));
+        when(readService.count(eq(filter))).thenReturn(1);
 
-        List<AdvertisementInfoDto> result = controller.list(0, 20);
+        ResponseEntity<List<AdvertisementInfoDto>> result = controller.list(filter, 0, 20, null, baseUri());
 
-        assertThat(result).containsExactly(info);
+        assertThat(result.getBody()).containsExactly(info);
+        assertThat(result.getHeaders().getFirst("X-Total-Count")).isEqualTo("1");
+        assertThat(result.getHeaders().get(HttpHeaders.LINK)).isNull();
+    }
+
+    @Test
+    void list_withSortParam_parsesIntoSort() {
+        AdvertisementFilterDto filter = AdvertisementFilterDto.empty();
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt")))).thenReturn(List.of());
+        when(readService.count(eq(filter))).thenReturn(0);
+
+        controller.list(filter, 0, 20, "createdAt,desc", baseUri());
+
+        verify(readService).getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt")));
+    }
+
+    @Test
+    void list_unknownSortField_throws() {
+        AdvertisementFilterDto filter = AdvertisementFilterDto.empty();
+
+        assertThatThrownBy(() -> controller.list(filter, 0, 20, "secretField", baseUri()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void list_notLastPage_setsLinkHeaderWithNext() {
+        AdvertisementFilterDto filter = AdvertisementFilterDto.empty();
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), any())).thenReturn(List.of());
+        when(readService.count(eq(filter))).thenReturn(45);
+
+        ResponseEntity<List<AdvertisementInfoDto>> result = controller.list(filter, 0, 20, null, baseUri());
+
+        assertThat(result.getHeaders().getFirst(HttpHeaders.LINK)).contains("rel=\"next\"");
     }
 
     @Test

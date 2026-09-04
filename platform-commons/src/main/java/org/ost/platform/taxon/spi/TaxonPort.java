@@ -3,8 +3,10 @@ package org.ost.platform.taxon.spi;
 import lombok.NonNull;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.dto.TaxonFilterDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Locale;
@@ -36,6 +38,13 @@ public interface TaxonPort {
 
     /** All active entries of a given taxon type, localised. */
     List<TaxonDto> getAllByType(@NonNull TaxonType type, @NonNull Locale locale);
+
+    /** One page of active entries of a given taxon type, filtered, sorted, and localised. */
+    List<TaxonDto> getPageByType(@NonNull TaxonType type, @NonNull Locale locale, @NonNull TaxonFilterDto filter,
+                                 int page, int size, @NonNull Sort sort);
+
+    /** Count of active entries of a given taxon type matching the filter. */
+    int count(@NonNull TaxonType type, @NonNull TaxonFilterDto filter);
 
     /** Resolves a specific entry by id (even if soft-deleted — used by audit rendering). */
     Optional<TaxonDto> findById(@NonNull Long taxonId, @NonNull Locale locale);

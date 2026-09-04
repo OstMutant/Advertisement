@@ -58,8 +58,9 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   in this same module — a same-module direct call, no cross-module event needed.
   `marketplace-app`'s `SitemapController` (`rest/`) is a thin adapter over `getSitemap()`.
 - `TaxonCatalogService` — wraps `ComponentFactory<TaxonPort>`'s catalog-management methods
-  (`getAllByType`/`listAllByType`/`getUsageCounts`/`create`/`update`/`findById`/`getTranslations`)
-  — distinct from `TaxonLookupService`, which stays narrowly scoped to entity-assignment lookups.
+  (`getAllByType`/`listAllByType`/`getUsageCounts`/`getPage`/`count`/`create`/`update`/`findById`/
+  `getTranslations`) — distinct from `TaxonLookupService`, which stays narrowly scoped to
+  entity-assignment lookups.
 - `AttachmentMediaService` — wraps `ComponentFactory<AttachmentPort>` +
   `ComponentFactory<AttachmentAuditPort>` for the full gallery lifecycle (upload/commit/delete/
   restore) plus audit-diff media state; reuses `AttachmentSnapshotReaderService` internally instead

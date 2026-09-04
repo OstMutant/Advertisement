@@ -29,6 +29,13 @@ Java package root: `org.ost.restapi`
   response records, `ErrorResponse`/`ValidationErrorResponse` — kept in their own package rather
   than nested, since the advice maps exceptions from every controller in this module, not owned by
   any single one.
+- `org.ost.restapi.api.paging` — shared list-endpoint plumbing, reused by
+  `AdvertisementApiController`/`ProviderProfileApiController`/`TaxonApiController`'s `list()`
+  methods: `SortQueryParser` (parses `?sort=field,dir` against a per-controller allow-list built
+  from that domain's own response DTO's `Fields.*` constants — an unknown field throws
+  `IllegalArgumentException`, mapped to 400 by `ApiExceptionHandler`), `PageLinkHeaderBuilder`
+  (builds the RFC 8288 `Link` header), `PagedResponseBuilder` (assembles the final
+  `ResponseEntity` — body plus `X-Total-Count` and, when applicable, `Link`).
 - `org.ost.restapi.config` — `ApiSecurityConfig` (the `/api/**` `SecurityFilterChain`, `@Order(1)`,
   coexisting with `marketplace-app`'s own Vaadin security chain via Spring Security's ordered
   multi-chain matching), `ApiKeyAuthenticationFilter` (resolves `Authorization: Bearer <key>` into

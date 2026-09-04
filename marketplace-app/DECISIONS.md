@@ -2,6 +2,102 @@
 
 ---
 
+## ADR-080: External REST API list endpoints — filter/sort bind onto the existing domain DTOs, pagination uses RFC 8288 `Link` + `X-Total-Count` headers, never an envelope or Spring HATEOAS
+
+**Status:** Accepted
+
+**Also affects:** marketplace-rest-api, taxon-spring-boot-starter
+
+**Context:** `GET /api/advertisements`/`GET /api/provider-profiles`/`GET /api/taxons` (shipped as part
+of the REST API infrastructure work) hardcoded an empty filter and unsorted results — no filter or
+sort query parameter was exposed at all, despite the exact same capability already working in the
+Vaadin UI and the orchestrator service layer underneath (`AdvertisementReadService.getFiltered`/
+`.count`, same for `ProviderProfileReadService`). `TaxonPort` had no pagination/count capability at
+any layer at all (`getAllByType`/`listAllByType` always returned the full unpaginated list) — the
+repository (`TaxonRepository.findAllByType`) already had filter (`TaxonFilter`, matched by name)
+and sort infrastructure (`SqlFilterBuilder`/`OrderByBuilder`), just no `LIMIT`/`OFFSET` or count.
+
+Three real design questions needed resolving, each grounded in this codebase's own existing
+precedent and industry practice (researched directly, not assumed):
+1. **Where does filter/sort/pagination logic belong?** `query-lib/DECISIONS.md` ADR-003 explicitly
+   freezes that library's SQL-DSL scope, rejecting "generic pagination abstractions" beyond the
+   already-narrow `PaginationSqlBuilder.pageLimit`. `marketplace-orchestrator` must stay
+   transport-agnostic (root `CLAUDE.md`'s 3-layer principle) — it already exposes `getFiltered`/
+   `count`, but HTTP-specific concerns (query-param parsing, response headers) don't belong there
+   either. `marketplace-rest-api` cannot import the UI's `AdvertisementFilterMeta`/
+   `AdvertisementSortMeta` (wrong dependency direction — `marketplace-app` depends on
+   `marketplace-rest-api`, not the reverse), so both sides independently reference the same
+   `*Dto.Fields.*` constants instead of one sharing the other's class.
+2. **How should filter validation stay in sync with the UI's own validation?** Already solved by
+   construction: `AdvertisementFilterDto`/`ProviderProfileFilterDto` are the same DTOs the UI's own
+   Binder validates (`@Size`, `@ValidRange` — real Jakarta Bean Validation constraints in
+   `platform-commons`, not duplicated logic). Binding REST query parameters directly onto these DTOs
+   via `@ModelAttribute @Valid` makes the identical constraints apply to REST for free, through the
+   already-existing `ApiExceptionHandler`'s `MethodArgumentNotValidException` → 400 mapping.
+3. **How should pagination expose "next page" navigation?** Compared three real options: a
+   hand-rolled `PageResponse<T>` envelope (breaks the existing plain-array response shape), Spring
+   HATEOAS (`PagedModel`/`PagedResourcesAssembler` — a new dependency, more framework machinery than
+   this project's own "explicit over implicit" principle favors), and an RFC 8288 `Link` response
+   header (`rel="next"/"prev"/"first"/"last"`) plus `X-Total-Count` — the convention GitHub's and
+   GitLab's own REST APIs already use. Chose the `Link`-header approach: no new dependency, no
+   breaking change to the existing array response body, genuinely navigable pagination.
+
+**Decision:**
+1. Each list endpoint binds `GET` query parameters directly onto its existing `<Domain>FilterDto`
+   via `@ModelAttribute @Valid` — no parallel REST-only filter DTO, except for `TaxonFilterDto`
+   (new, `platform-commons`), needed because `TaxonPort` never had a filter DTO of its own at any
+   layer before this (only an internal `TaxonFilter` inside `taxon-spring-boot-starter`, unreachable
+   across the module boundary) — `TaxonFilterDto` mirrors that internal type's own one real field
+   (`name`); its internal-only `showDeleted` field is not exposed, staying an admin-only concern
+   already handled by the separate `listAllByType(includeDeleted)` method.
+2. A `?sort=field,dir` query parameter, parsed by a new shared `SortQueryParser`
+   (`marketplace-rest-api`, `org.ost.restapi.api.paging`) and validated against an explicit
+   allow-list per controller, built from that domain's own response DTO's `@FieldNameConstants`
+   `Fields.*` constants (`AdvertisementInfoDto`, `ProviderProfileDto`, `TaxonDto` — the latter
+   gained `@FieldNameConstants` for this) — an unknown field is a 400
+   (`ApiExceptionHandler` gained an `IllegalArgumentException` → 400 mapping for this). Taxon's own
+   allow-list is deliberately narrower (`id` only) than what the repository's `SORT_ALIASES` map
+   technically supports (`id`/`createdAt`/`updatedAt`) — `TaxonDto` itself carries no
+   `createdAt`/`updatedAt` field, so exposing them as sort keys would let a caller sort by a field
+   it can never see in the response body.
+3. Pagination: a new shared `PageLinkHeaderBuilder`/`PagedResponseBuilder` pair
+   (`marketplace-rest-api`, same package) builds the RFC 8288 `Link` header and sets
+   `X-Total-Count`, reused identically by all three list endpoints. Response bodies stay plain
+   `List<T>`, unchanged shape.
+4. `TaxonPort` gained `getPageByType(type, locale, filter, page, size, sort)` + `count(type,
+   filter)`, mirroring `AdvertisementPort`/`ProviderProfilePort`'s already-established
+   `(FilterDto, page, size, Sort)`/`count(FilterDto)` shape exactly — not a new pattern, a third
+   application of an already-twice-proven one. `TaxonRepository.findAllByType`/
+   `TaxonService.listByType`'s `Sort` parameter became `Pageable` (carries `Sort` via
+   `Pageable.getSort()`, plus page/size for `PaginationSqlBuilder.pageLimit`); the three pre-existing
+   unpaginated callers (`getAllByType`, `listAllByType`, `getUsageCounts`) now pass
+   `Pageable.unpaged(sort)`/`Pageable.unpaged()` — no behavior change for them.
+
+**Rejected alternative — `PageResponse<T>` envelope:** rejected because it would have changed every
+list endpoint's response body shape (a breaking change for the array-shaped responses already
+shipped), for a benefit the header-based approach already delivers.
+
+**Rejected alternative — Spring HATEOAS:** rejected as more framework machinery than this specific
+need justifies — a hand-built RFC 8288 header string is a handful of lines
+(`PageLinkHeaderBuilder`), not a new library dependency, matching root `CLAUDE.md`'s "explicit over
+implicit" principle.
+
+**Consequences:**
+- A future new REST list endpoint follows this same three-part shape: bind query params onto the
+  existing domain `FilterDto`, validate sort against that domain's own response-DTO `Fields.*`,
+  delegate response assembly to `PagedResponseBuilder`.
+- Verified directly: unit 255/255 (`marketplace-rest-api` 49, up from 27 — new `SortQueryParser`/
+  `PageLinkHeaderBuilder`/`PagedResponseBuilder` unit tests plus extended controller tests),
+  integration 186/186 (3 new `TaxonRepository` pagination/count tests against real Postgres),
+  `ArchitectureRulesTest` 20/20 unaffected.
+- A `/review` pass (`deep-review-orchestrator`) found and fixed one real DRY violation during this
+  same implementation: the three controllers' `list()` methods duplicated the same 7-statement
+  response-assembly sequence verbatim — extracted into `PagedResponseBuilder` before this ADR was
+  written, so the shape described above already reflects the deduplicated version, not the
+  as-first-written one.
+
+---
+
 ## ADR-079: Build-enforced ArchUnit rule blocks direct `TaxonPort.replaceAssignments()` calls from starters; the diagram category it superseded is removed
 
 **Status:** Accepted

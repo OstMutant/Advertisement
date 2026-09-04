@@ -2387,3 +2387,29 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   injection (linked/sync-imported from the now-live `/v3/api-docs` spec) was scoped but left for
   manual setup outside the repo. Full detail:
   `completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md`.
+
+✅ Done (2026-09-04): improvement-182 closed — REST API list endpoints
+(`/api/advertisements`/`provider-profiles`/`taxons`) gained real filter/sort/pagination, closing the
+gap where they hardcoded empty filters and unsorted results despite the same capability already
+working in the Vaadin UI. Filters bind query params straight onto the existing domain `FilterDto`s
+(`@ModelAttribute @Valid`, same validation as create/update, for free); sort (`?sort=field,dir`) is
+validated against each domain's own response-DTO `Fields.*` constants via a new shared
+`SortQueryParser`; pagination uses an RFC 8288 `Link` header + `X-Total-Count` (a new
+`PageLinkHeaderBuilder`/`PagedResponseBuilder` pair) instead of a breaking envelope or a new Spring
+HATEOAS dependency — recorded as `marketplace-app/DECISIONS.md` ADR-080. `TaxonPort` had no
+pagination/count capability at any layer before this (unlike Advertisement/ProviderProfile) — added
+`getPageByType`/`.count`, threading `Pageable` down through `TaxonRepository`/`TaxonService`, plus a
+new `TaxonFilterDto` (`platform-commons`). A `/review` pass found and fixed one real DRY violation
+(the three controllers' response-assembly sequence, extracted into `PagedResponseBuilder`) and, via
+the full `bash scripts/ci.sh` run this issue's `/autopilot` execution triggered, caught a real
+pre-existing CRITICAL Sonar finding unrelated to this issue's own diff (`java:S1192`, a
+duplicated `"actorId"` literal in `apikey-spring-boot-starter`'s `ApiKeyRepository`, from the
+earlier `improvement-073` commit) — fixed in the same pass. Also surfaced and fixed a real
+self-inflicted process bug: editing `DECISIONS.md`/`adr-index.md` while a triggered `ci.sh` run's
+own `docker build` was already in flight raced its `COPY . .` snapshot, failing that run's `docs`
+stage — exactly the failure mode `.claude/commands/autopilot.md`'s own step-2 exception describes.
+Verified: unit 255/255, integration 186/186 (3 new `TaxonRepository` pagination/count tests, real
+Postgres), full `ci.sh` — build/unit/integration/e2e/archunit/docs all green; `sonar`'s quality gate
+failed only on the pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`), zero
+new real issues (confirmed via direct SonarQube REST API query). Full detail:
+`completed/issues/improvement-182-rest-api-filter-sort-pagination-parity-with-ui.md`.

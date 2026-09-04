@@ -8,11 +8,15 @@ import org.ost.orchestrator.services.ProviderProfileSaveService;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
+import org.ost.restapi.api.paging.PagedResponseBuilder;
+import org.ost.restapi.api.paging.SortQueryParser;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -21,9 +25,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 /**
  * Full CRUD over {@link ProviderProfileSaveService}/{@link ProviderProfileReadService} — v1 is
@@ -33,6 +39,12 @@ import java.util.NoSuchElementException;
 @RequestMapping("/api/provider-profiles")
 @RequiredArgsConstructor
 public class ProviderProfileApiController {
+
+    // Mirrors ProviderProfileSortMeta's UI-sortable set -- marketplace-rest-api can't import that
+    // class (wrong dependency direction, see .claude/rules/marketplace-rest-api.md), so both sides
+    // independently reference the same ProviderProfileDto.Fields.* constants instead.
+    private static final Set<String> SORTABLE_FIELDS = Set.of(
+            ProviderProfileDto.Fields.createdAt, ProviderProfileDto.Fields.updatedAt);
 
     private final ProviderProfileSaveService saveService;
     private final ProviderProfileReadService readService;
@@ -46,8 +58,13 @@ public class ProviderProfileApiController {
     }
 
     @GetMapping
-    public List<ProviderProfileDto> list(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        return readService.getFiltered(ProviderProfileFilterDto.empty(), page, size, Sort.unsorted());
+    public ResponseEntity<List<ProviderProfileDto>> list(@ModelAttribute @Valid ProviderProfileFilterDto filter,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String sort, UriComponentsBuilder uriBuilder) {
+        Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
+        List<ProviderProfileDto> items = readService.getFiltered(filter, page, size, sortObj);
+        int total = readService.count(filter);
+        return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
     }
 
     @GetMapping("/{id}")

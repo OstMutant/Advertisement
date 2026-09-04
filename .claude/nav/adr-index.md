@@ -77,6 +77,9 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-007 (integration-tests) | integration-tests | Accepted |  | `run.sh` auto-detects starter staleness instead of a manual skip-`-am` flag |
 | ADR-008 (integration-tests) | integration-tests | Accepted |  | Test package-private/private internal logic through its public entry point, never through a same-package trick or a widened production visibility |
 | ADR-010 (integration-tests) | integration-tests | Accepted |  | `@Tag("testcontainers")` on the shared base class + Surefire `excludedGroups`; `SharedEnvConfig` gains a testable overload |
+| ADR-080 (marketplace-app) | marketplace-app | Accepted |  | External REST API list endpoints — filter/sort bind onto the existing domain DTOs, pagination uses RFC 8288 `Link` + `X-Total-Count` headers, never an envelope or Spring HATEOAS |
+| ADR-080 (marketplace-app) | marketplace-rest-api | Accepted |  | External REST API list endpoints — filter/sort bind onto the existing domain DTOs, pagination uses RFC 8288 `Link` + `X-Total-Count` headers, never an envelope or Spring HATEOAS |
+| ADR-080 (marketplace-app) | taxon-spring-boot-starter | Accepted |  | External REST API list endpoints — filter/sort bind onto the existing domain DTOs, pagination uses RFC 8288 `Link` + `X-Total-Count` headers, never an envelope or Spring HATEOAS |
 | ADR-079 (marketplace-app) | marketplace-app | Accepted |  | Build-enforced ArchUnit rule blocks direct `TaxonPort.replaceAssignments()` calls from starters; the diagram category it superseded is removed |
 | ADR-079 (marketplace-app) | docs/architecture/scripts | Accepted |  | Build-enforced ArchUnit rule blocks direct `TaxonPort.replaceAssignments()` calls from starters; the diagram category it superseded is removed |
 | ADR-078 (marketplace-app) | marketplace-app | Accepted |  | External REST API authentication — long-lived bearer API-key, not OAuth2 |

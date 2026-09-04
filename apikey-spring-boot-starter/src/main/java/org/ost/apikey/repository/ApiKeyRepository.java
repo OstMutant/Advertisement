@@ -22,6 +22,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ApiKeyRepository {
 
+    private static final String PARAM_ACTOR_ID = "actorId";
+
     private static final RowMapper<ApiKey> ROW_MAPPER = (rs, _) -> {
         Timestamp createdAt = rs.getTimestamp("created_at");
         Timestamp lastUsedAt = rs.getTimestamp("last_used_at");
@@ -58,7 +60,7 @@ public class ApiKeyRepository {
                         SELECT id, actor_id, key_hash, key_prefix, label, created_at, last_used_at, revoked_at
                         FROM api_key WHERE actor_id = :actorId ORDER BY created_at DESC
                         """)
-                .paramSource(new MapSqlParameterSource("actorId", actorId))
+                .paramSource(new MapSqlParameterSource(PARAM_ACTOR_ID, actorId))
                 .query(ROW_MAPPER)
                 .list();
     }
@@ -66,14 +68,14 @@ public class ApiKeyRepository {
     public void revoke(@NonNull Long actorId, @NonNull Long keyId) {
         jdbcClient.sql("UPDATE api_key SET revoked_at = NOW() WHERE id = :id AND actor_id = :actorId AND revoked_at IS NULL")
                   .paramSource(new MapSqlParameterSource()
-                          .addValue("id",      keyId)
-                          .addValue("actorId", actorId))
+                          .addValue("id", keyId)
+                          .addValue(PARAM_ACTOR_ID, actorId))
                   .update();
     }
 
     public void deleteAllForActor(@NonNull Long actorId) {
         jdbcClient.sql("DELETE FROM api_key WHERE actor_id = :actorId")
-                  .paramSource(new MapSqlParameterSource("actorId", actorId))
+                  .paramSource(new MapSqlParameterSource(PARAM_ACTOR_ID, actorId))
                   .update();
     }
 

@@ -4,9 +4,11 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.dto.TaxonFilterDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.platform.taxon.spi.TaxonPort;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -42,6 +44,17 @@ public class TaxonCatalogService {
         return taxonPortFactory.findIfAvailable()
                 .map(p -> p.getUsageCounts(type))
                 .orElse(Map.of());
+    }
+
+    public List<TaxonDto> getPage(@NonNull TaxonType type, @NonNull Locale locale, @NonNull TaxonFilterDto filter,
+                                  int page, int size, @NonNull Sort sort) {
+        return taxonPortFactory.findIfAvailable()
+                .map(p -> p.getPageByType(type, locale, filter, page, size, sort))
+                .orElse(List.of());
+    }
+
+    public int count(@NonNull TaxonType type, @NonNull TaxonFilterDto filter) {
+        return taxonPortFactory.findIfAvailable().map(p -> p.count(type, filter)).orElse(0);
     }
 
     public Long create(@NonNull TaxonType type, @NonNull Map<Locale, TaxonTranslationDto> translations, Long actorId) {

@@ -13,7 +13,7 @@ import org.ost.taxon.entities.TaxonTranslation;
 import org.ost.taxon.repository.TaxonFilter;
 import org.ost.taxon.repository.TaxonRepository;
 import org.ost.taxon.repository.TaxonTranslationRepository;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -104,8 +104,12 @@ public class TaxonService {
         }
     }
 
-    public List<Taxon> listByType(@NonNull TaxonType type, @NonNull TaxonFilter filter, @NonNull Sort sort) {
-        return taxonRepository.findAllByType(type, filter, sort);
+    public List<Taxon> listByType(@NonNull TaxonType type, @NonNull TaxonFilter filter, @NonNull Pageable pageable) {
+        return taxonRepository.findAllByType(type, filter, pageable);
+    }
+
+    public int countByType(@NonNull TaxonType type, @NonNull TaxonFilter filter) {
+        return taxonRepository.countByType(type, filter);
     }
 
     public Optional<Taxon> findById(@NonNull Long id) {

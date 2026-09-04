@@ -1,15 +1,22 @@
 package org.ost.restapi.api;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.dto.TaxonFilterDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
+import org.ost.restapi.api.paging.PagedResponseBuilder;
+import org.ost.restapi.api.paging.SortQueryParser;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -18,11 +25,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -36,6 +45,11 @@ public class TaxonApiController {
 
     private static final Locale DEFAULT_LOCALE = Locale.ENGLISH;
 
+    // Only TaxonDto's own id field -- createdAt/updatedAt exist on the underlying repository row
+    // but not on TaxonDto itself, so exposing them as sort keys would let a caller sort by a field
+    // it can never see in the response body.
+    private static final Set<String> SORTABLE_FIELDS = Set.of(TaxonDto.Fields.id);
+
     private final TaxonCatalogService taxonCatalogService;
 
     @PostMapping
@@ -47,8 +61,14 @@ public class TaxonApiController {
     }
 
     @GetMapping
-    public List<TaxonDto> list(@RequestParam TaxonType type, @RequestParam(defaultValue = "en") String locale) {
-        return taxonCatalogService.getAllByType(type, Locale.forLanguageTag(locale));
+    public ResponseEntity<List<TaxonDto>> list(@RequestParam TaxonType type, @RequestParam(defaultValue = "en") String locale,
+            @ModelAttribute @Valid TaxonFilterDto filter, @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size, @RequestParam(required = false) String sort,
+            UriComponentsBuilder uriBuilder) {
+        Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
+        List<TaxonDto> items = taxonCatalogService.getPage(type, Locale.forLanguageTag(locale), filter, page, size, sortObj);
+        int total = taxonCatalogService.count(type, filter);
+        return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
     }
 
     @GetMapping("/{id}")

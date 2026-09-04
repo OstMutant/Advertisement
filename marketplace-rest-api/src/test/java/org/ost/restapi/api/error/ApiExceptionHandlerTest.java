@@ -51,4 +51,11 @@ class ApiExceptionHandlerTest {
 
         assertThat(response.message()).isNotBlank();
     }
+
+    @Test
+    void handleIllegalArgument_returnsMessage() {
+        ErrorResponse response = handler.handleIllegalArgument(new IllegalArgumentException("Unknown sort field: x"));
+
+        assertThat(response.message()).isEqualTo("Unknown sort field: x");
+    }
 }

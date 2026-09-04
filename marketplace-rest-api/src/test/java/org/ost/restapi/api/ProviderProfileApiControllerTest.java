@@ -11,12 +11,17 @@ import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
 import org.ost.platform.providerprofile.model.ProviderKind;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -49,12 +54,40 @@ class ProviderProfileApiControllerTest {
         assertThat(result).isEqualTo(saved);
     }
 
-    @Test
-    void list_delegatesToReadService() {
-        ProviderProfileDto info = ProviderProfileDto.builder().id(1L).build();
-        when(readService.getFiltered(eq(ProviderProfileFilterDto.empty()), eq(0), eq(20), any())).thenReturn(List.of(info));
+    private static UriComponentsBuilder baseUri() {
+        return UriComponentsBuilder.fromUriString("http://localhost/api/provider-profiles");
+    }
 
-        assertThat(controller.list(0, 20)).containsExactly(info);
+    @Test
+    void list_delegatesToReadServiceAndSetsTotalCountHeader() {
+        ProviderProfileDto info = ProviderProfileDto.builder().id(1L).build();
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.unsorted()))).thenReturn(List.of(info));
+        when(readService.count(eq(filter))).thenReturn(1);
+
+        ResponseEntity<List<ProviderProfileDto>> result = controller.list(filter, 0, 20, null, baseUri());
+
+        assertThat(result.getBody()).containsExactly(info);
+        assertThat(result.getHeaders().getFirst("X-Total-Count")).isEqualTo("1");
+    }
+
+    @Test
+    void list_withSortParam_parsesIntoSort() {
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt")))).thenReturn(List.of());
+        when(readService.count(eq(filter))).thenReturn(0);
+
+        controller.list(filter, 0, 20, "createdAt,desc", baseUri());
+
+        verify(readService).getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt")));
+    }
+
+    @Test
+    void list_unknownSortField_throws() {
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
+
+        assertThatThrownBy(() -> controller.list(filter, 0, 20, "secretField", baseUri()))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

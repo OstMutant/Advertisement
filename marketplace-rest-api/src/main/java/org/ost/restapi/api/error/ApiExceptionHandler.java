@@ -43,4 +43,10 @@ public class ApiExceptionHandler {
     public ErrorResponse handleNotFound(NoSuchElementException ex) {
         return new ErrorResponse("Resource not found.");
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleIllegalArgument(IllegalArgumentException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
 }

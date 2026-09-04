@@ -7,10 +7,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.dto.TaxonFilterDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.restapi.api.TaxonApiController.TaxonCreateRequest;
 import org.ost.restapi.api.TaxonApiController.TaxonTranslationRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.Locale;
@@ -52,12 +57,42 @@ class TaxonApiControllerTest {
         assertThat(result).isEqualTo(created);
     }
 
-    @Test
-    void list_delegatesToService() {
-        TaxonDto taxon = TaxonDto.builder().id(1L).type(TaxonType.CITY).name("Kyiv").description("").build();
-        when(taxonCatalogService.getAllByType(TaxonType.CITY, Locale.forLanguageTag("uk"))).thenReturn(List.of(taxon));
+    private static UriComponentsBuilder baseUri() {
+        return UriComponentsBuilder.fromUriString("http://localhost/api/taxons");
+    }
 
-        assertThat(controller.list(TaxonType.CITY, "uk")).containsExactly(taxon);
+    @Test
+    void list_delegatesToServiceAndSetsTotalCountHeader() {
+        TaxonDto taxon = TaxonDto.builder().id(1L).type(TaxonType.CITY).name("Kyiv").description("").build();
+        TaxonFilterDto filter = TaxonFilterDto.empty();
+        when(taxonCatalogService.getPage(eq(TaxonType.CITY), eq(Locale.forLanguageTag("uk")), eq(filter), eq(0), eq(20), eq(Sort.unsorted())))
+                .thenReturn(List.of(taxon));
+        when(taxonCatalogService.count(eq(TaxonType.CITY), eq(filter))).thenReturn(1);
+
+        ResponseEntity<List<TaxonDto>> result = controller.list(TaxonType.CITY, "uk", filter, 0, 20, null, baseUri());
+
+        assertThat(result.getBody()).containsExactly(taxon);
+        assertThat(result.getHeaders().getFirst("X-Total-Count")).isEqualTo("1");
+    }
+
+    @Test
+    void list_withSortParam_parsesIntoSort() {
+        TaxonFilterDto filter = TaxonFilterDto.empty();
+        when(taxonCatalogService.getPage(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH), eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "id"))))
+                .thenReturn(List.of());
+        when(taxonCatalogService.count(eq(TaxonType.CATEGORY), eq(filter))).thenReturn(0);
+
+        controller.list(TaxonType.CATEGORY, "en", filter, 0, 20, "id,desc", baseUri());
+
+        verify(taxonCatalogService).getPage(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH), eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "id")));
+    }
+
+    @Test
+    void list_unknownSortField_throws() {
+        TaxonFilterDto filter = TaxonFilterDto.empty();
+
+        assertThatThrownBy(() -> controller.list(TaxonType.CATEGORY, "en", filter, 0, 20, "secretField", baseUri()))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
