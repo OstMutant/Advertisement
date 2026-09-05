@@ -50,7 +50,13 @@ public class ProviderProfileSaveService {
             authorizationService.requireCanOperate(actorId, targetUserId);
             boolean privileged = authorizationService.isPrivileged(actorId);
 
-            Long id = providerProfilePortFactory.get().save(dto, targetUserId, actorId, privileged);
+            Long id;
+            try {
+                id = providerProfilePortFactory.get().save(dto, targetUserId, actorId, privileged);
+            } catch (IllegalStateException ex) {
+                // Starter's invariant check reads as authorization to any caller -- translate to 403 here.
+                throw new AccessDeniedException(ex.getMessage());
+            }
 
             Set<Long> catIds = dto.categoryIds() != null ? dto.categoryIds() : Set.of();
             taxonAssignmentWriteService.replace(EntityType.PROVIDER_PROFILE, id, catIds);

@@ -114,21 +114,35 @@ don't.
 consistently to both tabs — or confirm cities genuinely have no hierarchy and document why no
 indent applies there.
 
-## 6. Do REST `version`/id fields need to be caller-supplied?
+## 6. REST `version`/id fields must be server-managed, not caller-writable
 
-**Current state (verified):** `AdvertisementSaveDto` carries a `Long version` field the caller can
-set on `POST`/`PUT` bodies (also `Long id`, present on the record but redundant with the `PUT
-.../{id}` path variable). `TaxonApiController.TaxonUpdateRequest` follows the same shape. Not
-unique to advertisements — `ProviderProfileApiController`'s save DTO follows the same pattern.
+**Found (real bug, confirmed via code, not just design smell):** `AdvertisementApiController.create()`/
+`ProviderProfileApiController.create()` passed the raw client-supplied `AdvertisementSaveDto`/
+`ProviderProfileSaveDto` straight into `AdvertisementSaveService.save()`/`ProviderProfileSaveService.save()`,
+which decide create-vs-update purely via `dto.id() == null`. A `POST` (semantically "create") body
+that happened to include a non-null `id` silently became an `UPDATE` of that existing row instead
+(blocked only by ownership/authorization, not by "this is a create" semantics) — a real REST
+contract violation, not just a documentation gap.
 
-**Ask:** clarify why a client must supply `version` on create (an optimistic-locking version can't
-be known before the row exists) and IDs in general — should these be entirely server-managed
-instead of accepted from the request body?
-
-**Approach:** audit every Save/Update DTO across the three REST-exposed domains for fields that
-should never be client-writable on create (`id`, `version`); tighten DTOs/validation so the server
-derives them; document in Swagger (ties to item 7) exactly which fields are caller-supplied vs.
-system-managed.
+**Approach (decided 2026-09-05, not yet implemented) — full If-Match/ETag redesign (chosen over a
+Swagger-only annotation fix), applied consistently across all three REST-exposed domains:**
+- `AdvertisementApiController`/`ProviderProfileApiController` gain dedicated nested request records
+  (`AdvertisementCreateRequest`/`AdvertisementUpdateRequest`, `ProviderProfileCreateRequest`/
+  `ProviderProfileUpdateRequest`) with **no `id` or `version` field at all** — mirroring the pattern
+  `TaxonApiController.TaxonCreateRequest`/`TaxonUpdateRequest` already established; the controller
+  builds the actual `AdvertisementSaveDto`/`ProviderProfileSaveDto` passed to the orchestrator
+  service itself (`id` from the path variable on update, `null` on create; `version` from the
+  `If-Match` header, `null` on create).
+- `TaxonApiController.TaxonUpdateRequest` loses its own `version` field for the same reason.
+- Every `GET .../{id}` response gains an `ETag` header carrying the resource's current version.
+- Every `PUT`/`DELETE` reads the expected version from an `If-Match` request header instead of a
+  body field (`PUT`) or `?version=` query param (`DELETE`) — same nullable-version semantics as
+  before (an absent `If-Match` behaves exactly like the previously-absent body/query value did),
+  just relocated to where HTTP already has a standard mechanism for this exact concern.
+- `platform-commons`'s `AdvertisementSaveDto`/`ProviderProfileSaveDto` themselves are unchanged
+  (still carry `id`/`version` fields) — the Vaadin UI's own form-save path uses these same DTOs
+  directly with no HTTP layer involved, so those fields stay needed there; only the REST-facing
+  request shape changed.
 
 ## 7. Swagger: per-operation descriptions + examples, including cross-endpoint value sources
 
@@ -253,7 +267,30 @@ contract tests above already cover in isolation:
    with a non-admin user's key → real 403 from the real role check.
 6. **Pagination/sort against real data volume:** create enough advertisements that page/size/sort
    behavior can only be meaningfully verified against a real result set (something a mocked service
-   returning a canned list can't actually prove).
+   returning a canned list can't actually prove). **Expanded scope (2026-09-05, in progress):** the
+   original version of this scenario only covered page/size/sort-by-title with 25 ads — user
+   flagged this as insufficient, asked for the full spectrum of filter+sort+pagination requests,
+   across all 4 REST-exposed domains, not just Advertisement:
+   - `AdvertisementPaginationScenarioTest` (expand existing) — filter individually by `title`,
+     `adKind`, `createdAtStart`/`createdAtEnd`, `updatedAtStart`/`updatedAtEnd`, `categoryIds`,
+     `cityTaxonId`, plus at least one combined-filter case; sort by each of `title`/`createdAt`/
+     `updatedAt`, both `asc`/`desc`; pagination edge cases (first/middle/last partial/beyond-last
+     page).
+   - `ProviderProfilePaginationScenarioTest` (new) — filter by `kinds`, date ranges, `categoryIds`,
+     `cityTaxonId`; sort by `createdAt`/`updatedAt` (the only two sortable fields); same pagination
+     edge cases.
+   - `UserPaginationScenarioTest` (new) — filter by `name`, `email`, `roles`, date ranges,
+     `startId`/`endId`; sort by `id`/`name`/`email`/`role`/`createdAt`/`updatedAt`; same pagination
+     edge cases; requires an ADMIN-role actor (the first-registered user in a clean DB).
+   - Taxon dropped from this scope: `TaxonManagementView`/`CityManagementView` call
+     `listAllByType(...)` directly with no `TaxonFilterDto`, no sort, no page/size at all —
+     `TaxonApiController.list()`'s filter/sort/pagination has no UI-side behavior to verify parity
+     against, unlike the other three domains.
+
+   Sort-mechanism design question raised alongside this (fold `sortField`/`sortDirection` into the
+   Filter DTO itself vs. keep the separate `?sort=field,dir` query param): **resolved — keep the
+   current separate `?sort=field,dir` mechanism unchanged**, no DTO/controller change needed for
+   this part.
 7. **Duplicate-email registration, real unique constraint:** register the same email twice via
    `POST /api/users` — asserts the real `DuplicateKeyException`-driven behavior end-to-end (ties to
    the same gap flagged above, confirms the fix once made, against the real unique index).
@@ -320,6 +357,76 @@ outside `/sync-docs`). Work this in fixed phases, each presented for approval be
   invoked but a rule was missed, or the file was edited outside `/sync-docs` entirely.
 - **Phase 3 — fix:** address identified gaps module-by-module, each step presented for approval
   before executing.
+
+## 12. `TaxonPort.getPageByType`/`DefaultTaxonPort` naming no longer matches Taxon's REST contract
+
+**Current state (2026-09-05):** `GET /api/taxons` no longer takes `page`/`size` at all — confirmed
+neither `TaxonManagementView`/`CityManagementView` (no `PaginationBar`, `listAllByType` loads
+everything) nor any other UI has ever paged Taxon, unlike Advertisement/ProviderProfile/User (all
+three use `PaginationBar`). `TaxonCatalogService.getAll(type, locale, filter, sort)` is now the
+only method `TaxonApiController` calls for listing — it always returns the full matching set.
+Internally, `getAll()` still calls `TaxonPort.getPageByType(type, locale, filter, 0,
+Integer.MAX_VALUE, sort)` unchanged, reusing the existing paginated repository/port plumbing
+(`DefaultTaxonPort` → `TaxonService.listByType` → `TaxonRepository.findAllByType`, all still take an
+explicit `Pageable`) rather than touching those lower layers.
+
+**Ask:** sort out whether `getPageByType` used this way (real page/size machinery, called with an
+effectively-unbounded size) is acceptable as an implementation-reuse detail, or whether the naming
+is misleading now that no real caller ever passes a bounded page — either rename it to something
+accurate, or split into a dedicated unpaged method, or otherwise resolve the mismatch between the
+method's name and its only remaining real use.
+
+## 13. City becomes list-based, assignment-backed (`taxon_assignment`), symmetric across Advertisement and ProviderProfile
+
+**Current state (2026-09-05):** `provider_profile.city_taxon_id` is a plain nullable scalar column
+(not a `taxon_assignment` row), a deliberate ADR decision (`platform-commons/DECISIONS.md`) on the
+grounds that "a provider has exactly one city." `advertisement`'s city, by contrast, already goes
+through `taxon_assignment` (same mechanism as categories) — `AdvertisementDisplayEnrichmentService`
+takes the first `TaxonType.CITY` entry found in the assigned-taxon list. Both shapes represent the
+same real-world fact (exactly one city per row today) via two different mechanisms — found while
+fixing a real NPE bug (`ProviderProfileDisplayEnrichmentService.enrichWithCategoriesAndCity`
+crashed on a null-key map lookup for any profile with no city — the null-key lookup only exists
+*because* city needed its own separate batch-resolution path distinct from the assignment-based
+category lookup Advertisement already reuses for its own city).
+
+**Decision:** unify on the assignment-based model for both domains, and expose city as a **list**
+(`cityTaxonIds`/`cityNames`, mirroring `categoryIds`/`categoryNames`) rather than a single
+scalar everywhere it's read or written — even though exactly one city is written in practice today
+— so that scaling to more than one city later needs no schema/DTO shape change, only a UI/validation
+change. Since the app has no production data yet, drop `provider_profile.city_taxon_id` by editing
+the original `01-provider-profile-schema.xml` changeset directly (no new migration changeset).
+
+**Scope (26 main-source files across 6 modules):**
+- **Schema:** `provider-profile-spring-boot-starter/src/main/resources/db/provider-profile-changelog/changes/01-provider-profile-schema.xml`
+  — remove the `city_taxon_id` column entirely.
+- **provider-profile-spring-boot-starter:** `ProviderProfile` entity (drop field), `ProviderProfileRepository`
+  (drop city from SQL/row-mapper/filter, query-time city filter becomes an id-set resolved via
+  `TaxonPort` the same way `resolveCategoryFilter` already does for categories), `ProviderProfileService`
+  (drop city from `buildEntity`; city assignment writing moves to `marketplace-orchestrator`'s
+  `ProviderProfileSaveService`, matching how category assignment writing already lives there, not
+  in this starter).
+- **platform-commons:** `ProviderProfileDto`/`ProviderProfileSaveDto`/`ProviderProfileFilterDto`/
+  `ProviderProfileSnapshotDto` and, symmetrically, `AdvertisementInfoDto`/`AdvertisementSaveDto`/
+  `AdvertisementFilterDto`/`AdvertisementSnapshotDto` — `Long cityTaxonId`/`String cityName` →
+  `Set<Long> cityTaxonIds`/`List<String> cityNames` in every one of the 8 DTOs.
+- **marketplace-orchestrator:** `ProviderProfileDisplayEnrichmentService` rewritten to the same
+  assignment-scan pattern `AdvertisementDisplayEnrichmentService` already uses (collecting every
+  `TaxonType.CITY` entry into a list instead of a single null-prone lookup — this also removes the
+  NPE's root cause entirely, no separate null-guard needed); `ProviderProfileSaveService` writes
+  city via `TaxonAssignmentWriteService`, same call already used for categories;
+  `AdvertisementDisplayEnrichmentService`/`AdvertisementSaveService`/`AdvertisementAuditEnrichService`
+  updated from "first city found" to "every city found."
+- **marketplace-rest-api:** `AdvertisementApiController`/`ProviderProfileApiController` — query
+  param `cityTaxonId` → `cityTaxonIds`.
+- **marketplace-app:** `AdvertisementEditDto`/`ProviderProfileEditDto` (city field becomes a set),
+  both `*FormOverlayModeHandler`s (city `ComboBox` → `MultiSelectComboBox`, mirroring the existing
+  category field), both `*CardView`s (city rendered as a chip list, mirroring categories),
+  both `*FilterMeta`s (query-bar city filter becomes multi-select), `ProviderProfileViewModeHandler`,
+  `AuditTimelineRowRenderer` (city audit-diff label/rendering for a list instead of a scalar).
+
+**Not yet started** — large enough in scope (26 files, 6 modules) to warrant its own focused
+implementation pass with tests (unit + integration + Playwright) rather than folding into an
+unrelated bug-fix; pick up as its own scheduled unit of work.
 
 ## Related
 

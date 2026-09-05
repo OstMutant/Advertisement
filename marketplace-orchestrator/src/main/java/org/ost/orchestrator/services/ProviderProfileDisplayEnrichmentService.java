@@ -36,7 +36,8 @@ public class ProviderProfileDisplayEnrichmentService {
         Map<Long, List<TaxonDto>> categoryMap = taxonLookupService.getForEntities(EntityType.PROVIDER_PROFILE, ids, locale);
         Map<Long, TaxonDto> cityMap = findCities(profiles, locale);
         return profiles.stream()
-                .map(p -> applyCategoryAndCityData(p, categoryMap.getOrDefault(p.getId(), List.of()), cityMap.get(p.getCityTaxonId())))
+                .map(p -> applyCategoryAndCityData(p, categoryMap.getOrDefault(p.getId(), List.of()),
+                        p.getCityTaxonId() != null ? cityMap.get(p.getCityTaxonId()) : null))
                 .toList();
     }
 

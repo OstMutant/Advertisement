@@ -105,9 +105,8 @@ class TaxonApiControllerTest {
     void list_delegatesToServiceAndSetsTotalCountHeader() throws Exception {
         TaxonDto taxon = TaxonDto.builder().id(1L).type(TaxonType.CITY).name("Kyiv").description("").build();
         TaxonFilterDto filter = TaxonFilterDto.empty();
-        when(taxonCatalogService.getPage(eq(TaxonType.CITY), eq(Locale.forLanguageTag("uk")), eq(filter), eq(0), eq(20), eq(Sort.unsorted())))
+        when(taxonCatalogService.getAll(eq(TaxonType.CITY), eq(Locale.forLanguageTag("uk")), eq(filter), eq(Sort.unsorted())))
                 .thenReturn(List.of(taxon));
-        when(taxonCatalogService.count(eq(TaxonType.CITY), eq(filter))).thenReturn(1);
 
         mockMvc.perform(get("/api/taxons").param("type", "CITY").param("locale", "uk"))
                 .andExpect(status().isOk())
@@ -117,19 +116,35 @@ class TaxonApiControllerTest {
     @Test
     void list_withSortParam_parsesIntoSort() throws Exception {
         TaxonFilterDto filter = TaxonFilterDto.empty();
-        when(taxonCatalogService.getPage(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH), eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "id"))))
+        when(taxonCatalogService.getAll(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH), eq(filter), eq(Sort.by(Sort.Direction.DESC, "id"))))
                 .thenReturn(List.of());
-        when(taxonCatalogService.count(eq(TaxonType.CATEGORY), eq(filter))).thenReturn(0);
 
         mockMvc.perform(get("/api/taxons").param("type", "CATEGORY").param("sort", "id,desc")).andExpect(status().isOk());
 
-        verify(taxonCatalogService).getPage(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH), eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "id")));
+        verify(taxonCatalogService).getAll(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH), eq(filter), eq(Sort.by(Sort.Direction.DESC, "id")));
     }
 
     @Test
     void list_unknownSortField_returns400() throws Exception {
         mockMvc.perform(get("/api/taxons").param("type", "CATEGORY").param("sort", "secretField"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void list_omittedType_mergesCategoriesAndCities() throws Exception {
+        TaxonFilterDto filter = TaxonFilterDto.empty();
+        TaxonDto category = TaxonDto.builder().id(1L).type(TaxonType.CATEGORY).name("Plumbing").description("").build();
+        TaxonDto city = TaxonDto.builder().id(2L).type(TaxonType.CITY).name("Kyiv").description("").build();
+        when(taxonCatalogService.getAll(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH), eq(filter), eq(Sort.unsorted())))
+                .thenReturn(List.of(category));
+        when(taxonCatalogService.getAll(eq(TaxonType.CITY), eq(Locale.ENGLISH), eq(filter), eq(Sort.unsorted())))
+                .thenReturn(List.of(city));
+
+        mockMvc.perform(get("/api/taxons"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "2"))
+                .andExpect(jsonPath("$[0].name").value("Plumbing"))
+                .andExpect(jsonPath("$[1].name").value("Kyiv"));
     }
 
     // ── getById ──────────────────────────────────────────────────────────

@@ -12,7 +12,6 @@ import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.dto.TaxonFilterDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
-import org.ost.restapi.api.paging.PagedResponseBuilder;
 import org.ost.restapi.api.paging.SortQueryParser;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -29,8 +28,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -68,18 +67,22 @@ public class TaxonApiController {
         return taxonCatalogService.findById(id, DEFAULT_LOCALE).orElseThrow();
     }
 
-    @Operation(summary = "List categories/cities", description = "cityTaxonId/categoryIds used elsewhere (e.g. POST /api/advertisements, POST /api/provider-profiles) come from this endpoint's own \"id\" field, filtered by type=CATEGORY or type=CITY.")
+    @Operation(summary = "List categories/cities", description = "cityTaxonId/categoryIds used elsewhere (e.g. POST /api/advertisements, POST /api/provider-profiles) come from this endpoint's own \"id\" field. type=CATEGORY or type=CITY narrows to one; omitted returns both. Reference data only -- always returns the full matching set, no pagination.")
     @GetMapping
     public ResponseEntity<List<TaxonDto>> list(
-            @Parameter(description = "CATEGORY or CITY") @RequestParam TaxonType type,
+            @Parameter(description = "CATEGORY or CITY; omit to list both") @RequestParam(required = false) TaxonType type,
             @RequestParam(defaultValue = "en") String locale,
-            @ModelAttribute @Valid TaxonFilterDto filter, @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size, @RequestParam(required = false) String sort,
-            UriComponentsBuilder uriBuilder) {
+            @ModelAttribute @Valid TaxonFilterDto filter, @RequestParam(required = false) String sort) {
         Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
-        List<TaxonDto> items = taxonCatalogService.getPage(type, Locale.forLanguageTag(locale), filter, page, size, sortObj);
-        int total = taxonCatalogService.count(type, filter);
-        return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
+        Locale resolvedLocale = Locale.forLanguageTag(locale);
+        List<TaxonDto> items;
+        if (type != null) {
+            items = taxonCatalogService.getAll(type, resolvedLocale, filter, sortObj);
+        } else {
+            items = new ArrayList<>(taxonCatalogService.getAll(TaxonType.CATEGORY, resolvedLocale, filter, sortObj));
+            items.addAll(taxonCatalogService.getAll(TaxonType.CITY, resolvedLocale, filter, sortObj));
+        }
+        return ResponseEntity.ok().header("X-Total-Count", String.valueOf(items.size())).body(items);
     }
 
     @Operation(summary = "Get one category/city by id", description = "Falls back to the English translation if the requested locale has none.")

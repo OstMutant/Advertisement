@@ -53,6 +53,13 @@ public class TaxonCatalogService {
                 .orElse(List.of());
     }
 
+    /** Reference data only -- no page/size, always the full matching set for the given type. */
+    public List<TaxonDto> getAll(@NonNull TaxonType type, @NonNull Locale locale, @NonNull TaxonFilterDto filter, @NonNull Sort sort) {
+        return taxonPortFactory.findIfAvailable()
+                .map(p -> p.getPageByType(type, locale, filter, 0, Integer.MAX_VALUE, sort))
+                .orElse(List.of());
+    }
+
     public int count(@NonNull TaxonType type, @NonNull TaxonFilterDto filter) {
         return taxonPortFactory.findIfAvailable().map(p -> p.count(type, filter)).orElse(0);
     }
