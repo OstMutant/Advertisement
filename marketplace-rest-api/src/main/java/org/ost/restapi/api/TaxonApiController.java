@@ -1,5 +1,9 @@
 package org.ost.restapi.api;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +56,10 @@ public class TaxonApiController {
 
     private final TaxonCatalogService taxonCatalogService;
 
+    @Operation(summary = "Create a category or city",
+            description = "translations must include every supported locale (en + uk today) with a non-blank name and description each -- an incomplete set is rejected with 400.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Category with both required locales", value = """
+            {"type":"CATEGORY","translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"},{"locale":"uk","name":"Сантехніка","description":"Сантехнічні послуги"}]}""")))
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
@@ -60,8 +68,11 @@ public class TaxonApiController {
         return taxonCatalogService.findById(id, DEFAULT_LOCALE).orElseThrow();
     }
 
+    @Operation(summary = "List categories/cities", description = "cityTaxonId/categoryIds used elsewhere (e.g. POST /api/advertisements, POST /api/provider-profiles) come from this endpoint's own \"id\" field, filtered by type=CATEGORY or type=CITY.")
     @GetMapping
-    public ResponseEntity<List<TaxonDto>> list(@RequestParam TaxonType type, @RequestParam(defaultValue = "en") String locale,
+    public ResponseEntity<List<TaxonDto>> list(
+            @Parameter(description = "CATEGORY or CITY") @RequestParam TaxonType type,
+            @RequestParam(defaultValue = "en") String locale,
             @ModelAttribute @Valid TaxonFilterDto filter, @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size, @RequestParam(required = false) String sort,
             UriComponentsBuilder uriBuilder) {
@@ -71,11 +82,15 @@ public class TaxonApiController {
         return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
     }
 
+    @Operation(summary = "Get one category/city by id", description = "Falls back to the English translation if the requested locale has none.")
     @GetMapping("/{id}")
     public TaxonDto getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
         return taxonCatalogService.findById(id, Locale.forLanguageTag(locale)).orElseThrow(NoSuchElementException::new);
     }
 
+    @Operation(summary = "Update a category or city's translations", description = "Same all-supported-locales-required rule as create; admin/moderator only.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Both required locales, version from the last GET", value = """
+            {"translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"},{"locale":"uk","name":"Сантехніка","description":"Сантехнічні послуги"}],"version":0}""")))
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public TaxonDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestBody TaxonUpdateRequest request) {
@@ -83,6 +98,7 @@ public class TaxonApiController {
         return taxonCatalogService.findById(id, DEFAULT_LOCALE).orElseThrow();
     }
 
+    @Operation(summary = "Soft-delete a category or city", description = "version comes from the last GET/create/update response for this id; admin/moderator only.")
     @DeleteMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public void softDelete(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestParam(required = false) Long version) {

@@ -2,6 +2,48 @@
 
 ---
 
+## ADR-009: Widen integration-tests scope to a 3-level test structure (starters / orchestrator / REST API)
+**Status:** Accepted
+
+**Context:** improvement-183 needs real end-to-end REST scenario tests (create user → issue API
+key → create several advertisements) exercising the full stack — REST controller →
+marketplace-orchestrator → domain starters → Postgres — not just a single starter's repository
+layer. `integration-tests` (ADR-001) was scoped to "repository tests only," one domain starter at
+a time; neither `marketplace-orchestrator` nor `marketplace-rest-api` were dependencies of this
+module, and no other module in the repo has a real Postgres-backed HTTP scenario test today.
+
+**Decision:** Widen `integration-tests`'s scope from "repository tests only" to a 3-level
+structure, all still governed by ADR-001's original rationale (this module is never
+shipped/deployed, so it can freely depend on modules a production dependency graph couldn't):
+- Level 1 (moved, unchanged behavior) — `org.ost.integrationtests.level1.<domain>` — single-starter
+  repository tests.
+- Level 2 — `org.ost.integrationtests.level2.orchestrator` — `marketplace-orchestrator`-level
+  integration tests, composing multiple starters through a real use-case service. Scaffolded only
+  once a concrete test needs it, not built ahead of need.
+- Level 3 — `org.ost.integrationtests.level3.restapi` — HTTP-level scenario tests against
+  `marketplace-rest-api`'s controllers, real `MockMvc` bound to the real `WebApplicationContext`
+  (`TestRestTemplate` doesn't exist in this Spring Framework version — replaced by
+  `MockMvcBuilders.webAppContextSetup(...)` with the real security filter chain attached), reusing
+  the module's existing singleton Testcontainers Postgres container (ADR-002).
+  `integration-tests/pom.xml` gains `marketplace-orchestrator` and `marketplace-rest-api` as new
+  compile-scope dependencies. One top-level package per level, so the package itself signals which
+  layer a test exercises.
+
+**Rejected alternative — a separate Testcontainers layer inside marketplace-rest-api itself:**
+would keep `integration-tests`'s original scope untouched, but duplicates the singleton-container/
+`.env`/Liquibase scaffolding this module already owns (ADR-001, ADR-002), splitting Postgres-backed
+tests across two independent container lifecycles for no structural benefit — every other
+Postgres-backed test in the repo already lives in one place.
+
+**Consequences:**
+- `.claude/rules/integration-tests.md` now describes the 3-level structure.
+- Fast, DB-free REST contract tests (MockMvc against mocked orchestrator services) stay in
+  `marketplace-rest-api/src/test` — only tests that need a real database move here.
+- Level 2 exists only as a documented placeholder until a concrete orchestrator-level scenario
+  needs it.
+
+---
+
 ## ADR-001: One module owns every Testcontainers test — domain starters carry zero test code
 **Status:** Accepted
 

@@ -23,7 +23,7 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
 | `ApiKeyAuthenticationFilter` | Resolves `Authorization: Bearer <key>` into a `PreAuthenticatedAuthenticationToken` — only when no authentication already exists on the context, so it never overwrites HTTP Basic on the key-issuance endpoint. |
 | `OpenApiConfig` | Declares the `bearerKey`/`basicAuth` `@SecurityScheme`s Swagger UI's own "Authorize" button reads — kept separate from `ApiSecurityConfig` since one configures real enforcement and the other only documentation metadata. |
 | `ApiExceptionHandler` (`api.error`) | Maps every exception this module's controllers can throw to an HTTP status — the one place that needs visibility across all five controllers, which is why it (and its two response records) live in their own package instead of being nested into any single controller. |
-| Per-resource controllers (`AdvertisementApiController`, `ProviderProfileApiController`, `TaxonApiController`, `UserRegistrationController`, `ApiKeyController`) | Each wraps exactly the `marketplace-orchestrator` service(s) its own Vaadin-side counterpart already uses; each owns its own request/response records as nested static types, since none of those shapes are reused outside their controller. |
+| Per-resource controllers (`AdvertisementApiController`, `ProviderProfileApiController`, `TaxonApiController`, `UserApiController`, `ApiKeyController`) | Each wraps exactly the `marketplace-orchestrator` service(s) its own Vaadin-side counterpart already uses; each owns its own request/response records as nested static types, since none of those shapes are reused outside their controller. |
 
 ## Dependencies
 

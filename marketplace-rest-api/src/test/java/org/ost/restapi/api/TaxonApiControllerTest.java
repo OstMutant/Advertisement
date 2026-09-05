@@ -1,32 +1,42 @@
 package org.ost.restapi.api;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.dto.TaxonFilterDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
-import org.ost.restapi.api.TaxonApiController.TaxonCreateRequest;
-import org.ost.restapi.api.TaxonApiController.TaxonTranslationRequest;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.authenticateAs;
+import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.clearAuthentication;
+import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.mockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
 class TaxonApiControllerTest {
@@ -35,77 +45,138 @@ class TaxonApiControllerTest {
 
     @Mock private TaxonCatalogService taxonCatalogService;
 
-    private TaxonApiController controller;
+    private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        controller = new TaxonApiController(taxonCatalogService);
+        mockMvc = mockMvc(new TaxonApiController(taxonCatalogService));
+        authenticateAs(ACTOR_ID);
     }
 
+    @AfterEach
+    void tearDown() {
+        clearAuthentication();
+    }
+
+    // ── create — positive ──────────────────────────────────────────────────
+
     @Test
-    void create_convertsTranslationListToLocaleMap() {
-        TaxonCreateRequest request = new TaxonCreateRequest(TaxonType.CATEGORY,
-                List.of(new TaxonTranslationRequest("en", "Plumbing", "Plumbing services")));
+    void create_convertsTranslationListToLocaleMap() throws Exception {
         TaxonDto created = TaxonDto.builder().id(1L).type(TaxonType.CATEGORY).name("Plumbing").description("Plumbing services").build();
         Map<Locale, TaxonTranslationDto> expected = Map.of(Locale.ENGLISH,
                 TaxonTranslationDto.builder().locale("en").name("Plumbing").description("Plumbing services").build());
         when(taxonCatalogService.create(TaxonType.CATEGORY, expected, ACTOR_ID)).thenReturn(1L);
         when(taxonCatalogService.findById(1L, Locale.ENGLISH)).thenReturn(Optional.of(created));
+        String body = """
+                {"type":"CATEGORY","translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"}]}""";
 
-        TaxonDto result = controller.create(ACTOR_ID, request);
-
-        assertThat(result).isEqualTo(created);
+        mockMvc.perform(post("/api/taxons").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(1));
     }
 
-    private static UriComponentsBuilder baseUri() {
-        return UriComponentsBuilder.fromUriString("http://localhost/api/taxons");
+    // ── create — negative ──────────────────────────────────────────────────
+
+    @Test
+    void create_incompleteTranslations_returns400() throws Exception {
+        when(taxonCatalogService.create(any(), any(), eq(ACTOR_ID)))
+                .thenThrow(new IllegalArgumentException("Translation for locale 'uk' is missing or incomplete"));
+        String body = """
+                {"type":"CATEGORY","translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"}]}""";
+
+        mockMvc.perform(post("/api/taxons").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Translation for locale 'uk' is missing or incomplete"));
     }
 
     @Test
-    void list_delegatesToServiceAndSetsTotalCountHeader() {
+    void create_nonPrivilegedActor_returns403() throws Exception {
+        when(taxonCatalogService.create(any(), any(), eq(ACTOR_ID))).thenThrow(new AccessDeniedException("not privileged"));
+        String body = """
+                {"type":"CATEGORY","translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"}]}""";
+
+        mockMvc.perform(post("/api/taxons").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+    }
+
+    // ── list ──────────────────────────────────────────────────────────
+
+    @Test
+    void list_delegatesToServiceAndSetsTotalCountHeader() throws Exception {
         TaxonDto taxon = TaxonDto.builder().id(1L).type(TaxonType.CITY).name("Kyiv").description("").build();
         TaxonFilterDto filter = TaxonFilterDto.empty();
         when(taxonCatalogService.getPage(eq(TaxonType.CITY), eq(Locale.forLanguageTag("uk")), eq(filter), eq(0), eq(20), eq(Sort.unsorted())))
                 .thenReturn(List.of(taxon));
         when(taxonCatalogService.count(eq(TaxonType.CITY), eq(filter))).thenReturn(1);
 
-        ResponseEntity<List<TaxonDto>> result = controller.list(TaxonType.CITY, "uk", filter, 0, 20, null, baseUri());
-
-        assertThat(result.getBody()).containsExactly(taxon);
-        assertThat(result.getHeaders().getFirst("X-Total-Count")).isEqualTo("1");
+        mockMvc.perform(get("/api/taxons").param("type", "CITY").param("locale", "uk"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"));
     }
 
     @Test
-    void list_withSortParam_parsesIntoSort() {
+    void list_withSortParam_parsesIntoSort() throws Exception {
         TaxonFilterDto filter = TaxonFilterDto.empty();
         when(taxonCatalogService.getPage(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH), eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "id"))))
                 .thenReturn(List.of());
         when(taxonCatalogService.count(eq(TaxonType.CATEGORY), eq(filter))).thenReturn(0);
 
-        controller.list(TaxonType.CATEGORY, "en", filter, 0, 20, "id,desc", baseUri());
+        mockMvc.perform(get("/api/taxons").param("type", "CATEGORY").param("sort", "id,desc")).andExpect(status().isOk());
 
         verify(taxonCatalogService).getPage(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH), eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "id")));
     }
 
     @Test
-    void list_unknownSortField_throws() {
-        TaxonFilterDto filter = TaxonFilterDto.empty();
-
-        assertThatThrownBy(() -> controller.list(TaxonType.CATEGORY, "en", filter, 0, 20, "secretField", baseUri()))
-                .isInstanceOf(IllegalArgumentException.class);
+    void list_unknownSortField_returns400() throws Exception {
+        mockMvc.perform(get("/api/taxons").param("type", "CATEGORY").param("sort", "secretField"))
+                .andExpect(status().isBadRequest());
     }
 
+    // ── getById ──────────────────────────────────────────────────────────
+
     @Test
-    void getById_notFound_throws() {
+    void getById_notFound_returns404() throws Exception {
         when(taxonCatalogService.findById(eq(1L), eq(Locale.ENGLISH))).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> controller.getById(1L, "en")).isInstanceOf(java.util.NoSuchElementException.class);
+        mockMvc.perform(get("/api/taxons/1")).andExpect(status().isNotFound());
     }
 
     @Test
-    void softDelete_delegatesToService() {
-        controller.softDelete(ACTOR_ID, 1L, 0L);
+    void getById_missingTranslation_fallsBackToEnglish() throws Exception {
+        TaxonDto taxon = TaxonDto.builder().id(1L).type(TaxonType.CITY).name("Kyiv").description("").build();
+        when(taxonCatalogService.findById(eq(1L), eq(Locale.forLanguageTag("de")))).thenReturn(Optional.of(taxon));
+
+        mockMvc.perform(get("/api/taxons/1").param("locale", "de"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Kyiv"));
+    }
+
+    // ── update ──────────────────────────────────────────────────────────
+
+    @Test
+    void update_staleVersion_returns409() throws Exception {
+        doThrow(new OptimisticLockingFailureException("stale")).when(taxonCatalogService)
+                .update(eq(1L), any(), eq(ACTOR_ID), eq(0L));
+        String body = """
+                {"translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"}],"version":0}""";
+
+        mockMvc.perform(put("/api/taxons/1").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isConflict());
+    }
+
+    // ── delete ──────────────────────────────────────────────────────────
+
+    @Test
+    void softDelete_delegatesToService() throws Exception {
+        mockMvc.perform(delete("/api/taxons/1").param("version", "0")).andExpect(status().isOk());
 
         verify(taxonCatalogService).softDelete(1L, ACTOR_ID, 0L);
+    }
+
+    @Test
+    void softDelete_nonPrivilegedActor_returns403() throws Exception {
+        doThrow(new AccessDeniedException("not privileged")).when(taxonCatalogService).softDelete(1L, ACTOR_ID, 0L);
+
+        mockMvc.perform(delete("/api/taxons/1").param("version", "0")).andExpect(status().isForbidden());
     }
 }

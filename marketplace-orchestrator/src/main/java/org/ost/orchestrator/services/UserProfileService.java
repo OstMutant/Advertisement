@@ -7,6 +7,7 @@ import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.model.PageSizeLimits;
 import org.ost.platform.user.spi.UserAccountPort;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.platform.user.spi.UserPreferencesPort;
@@ -58,6 +59,16 @@ public class UserProfileService {
 
     public void saveSettings(@NonNull Long userId, @NonNull UserSettingsDto settings) {
         preferencesPort.saveSettings(userId, settings);
+    }
+
+    /** Effective page size for an advertisements list — the caller's own saved setting, or the shared default for an anonymous (actorId == null) caller. */
+    public int resolveAdsPageSize(Long actorId) {
+        return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getAdsPageSize();
+    }
+
+    /** Effective page size for a users list — same resolution as {@link #resolveAdsPageSize}. */
+    public int resolveUsersPageSize(Long actorId) {
+        return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getUsersPageSize();
     }
 
     public List<UserDto> getFiltered(@NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {

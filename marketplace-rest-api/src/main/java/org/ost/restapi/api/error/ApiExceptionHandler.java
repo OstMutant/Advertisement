@@ -1,6 +1,7 @@
 package org.ost.restapi.api.error;
 
 import org.ost.orchestrator.services.AccessDeniedException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.FieldError;
@@ -29,6 +30,18 @@ public class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleOptimisticLocking(OptimisticLockingFailureException ex) {
         return new ErrorResponse("The resource was modified by someone else — reload and retry.");
+    }
+
+    @ExceptionHandler(DuplicateKeyException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleDuplicateKey(DuplicateKeyException ex) {
+        return new ErrorResponse("A resource with this value already exists.");
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public ErrorResponse handleIllegalState(IllegalStateException ex) {
+        return new ErrorResponse(ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

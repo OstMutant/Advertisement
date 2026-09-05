@@ -1,138 +1,297 @@
 package org.ost.restapi.api;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ost.orchestrator.services.AccessDeniedException;
+import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
 import org.ost.orchestrator.services.AdvertisementReadService;
 import org.ost.orchestrator.services.AdvertisementSaveService;
+import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.model.AdKind;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.authenticateAs;
+import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.clearAuthentication;
+import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.mockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
 class AdvertisementApiControllerTest {
 
     private static final Long ACTOR_ID = 10L;
+    private static final String VALID_CREATE_BODY = """
+            {"title":"Title","description":"Desc","adKind":"OFFER","categoryIds":[1]}""";
 
     @Mock private AdvertisementSaveService saveService;
     @Mock private AdvertisementReadService readService;
+    @Mock private AdvertisementDisplayEnrichmentService enrichmentService;
+    @Mock private UserProfileService userProfileService;
 
-    private AdvertisementApiController controller;
+    private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        controller = new AdvertisementApiController(saveService, readService);
+        mockMvc = mockMvc(new AdvertisementApiController(saveService, readService, enrichmentService, userProfileService));
+        authenticateAs(ACTOR_ID);
+        lenient().when(userProfileService.resolveAdsPageSize(any())).thenReturn(20);
+        lenient().when(enrichmentService.enrichWithCategoryAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(enrichmentService.enrichWithActor(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(enrichmentService.enrichWithMedia(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(enrichmentService.enrichWithCategoriesAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(enrichmentService.enrichWithActorInfo(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(enrichmentService.enrichWithMediaSummary(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
+    @AfterEach
+    void tearDown() {
+        clearAuthentication();
+    }
+
+    // ── create — positive ──────────────────────────────────────────────────
+
     @Test
-    void create_savesThenReturnsFreshCopy() {
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", "Desc", AdKind.OFFER, Set.of(1L), null, null);
+    void create_validBody_savesThenReturnsFreshCopy() throws Exception {
         AdvertisementInfoDto saved = AdvertisementInfoDto.builder().id(100L).title("Title").build();
-        when(saveService.save(eq(dto), eq(ACTOR_ID), any())).thenReturn(100L);
+        when(saveService.save(any(), eq(ACTOR_ID), any())).thenReturn(100L);
         when(readService.findById(100L)).thenReturn(Optional.of(saved));
 
-        AdvertisementInfoDto result = controller.create(ACTOR_ID, dto);
-
-        assertThat(result).isEqualTo(saved);
+        mockMvc.perform(post("/api/advertisements").contentType(MediaType.APPLICATION_JSON).content(VALID_CREATE_BODY))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(100));
     }
 
-    private static UriComponentsBuilder baseUri() {
-        return UriComponentsBuilder.fromUriString("http://localhost/api/advertisements");
+    // ── create — negative (400 bean validation) ─────────────────────────────
+
+    @Test
+    void create_blankTitle_returns400WithFieldError() throws Exception {
+        String body = """
+                {"title":"","description":"Desc","adKind":"OFFER"}""";
+
+        mockMvc.perform(post("/api/advertisements").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.title").exists());
     }
 
     @Test
-    void list_delegatesToReadServiceAndSetsTotalCountHeader() {
+    void create_missingAdKind_returns400WithFieldError() throws Exception {
+        String body = """
+                {"title":"Title","description":"Desc"}""";
+
+        mockMvc.perform(post("/api/advertisements").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.adKind").exists());
+    }
+
+    @Test
+    void create_descriptionOverRawMaxLength_returns400() throws Exception {
+        String tooLong = "x".repeat(AdvertisementSaveDto.DESCRIPTION_RAW_MAX_LENGTH + 1);
+        String body = """
+                {"title":"Title","description":"%s","adKind":"OFFER"}""".formatted(tooLong);
+
+        mockMvc.perform(post("/api/advertisements").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.description").exists());
+    }
+
+    @Test
+    void create_tooManyCategoryIds_returns400() throws Exception {
+        String ids = "[1,2,3,4,5,6,7,8,9,10,11]";
+        String body = """
+                {"title":"Title","description":"Desc","adKind":"OFFER","categoryIds":%s}""".formatted(ids);
+
+        mockMvc.perform(post("/api/advertisements").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.categoryIds").exists());
+    }
+
+    // ── list — positive ──────────────────────────────────────────────────
+
+    @Test
+    void list_delegatesToReadServiceAndSetsTotalCountHeader() throws Exception {
         AdvertisementInfoDto info = AdvertisementInfoDto.builder().id(1L).build();
         AdvertisementFilterDto filter = AdvertisementFilterDto.empty();
         when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.unsorted()))).thenReturn(List.of(info));
         when(readService.count(eq(filter))).thenReturn(1);
 
-        ResponseEntity<List<AdvertisementInfoDto>> result = controller.list(filter, 0, 20, null, baseUri());
-
-        assertThat(result.getBody()).containsExactly(info);
-        assertThat(result.getHeaders().getFirst("X-Total-Count")).isEqualTo("1");
-        assertThat(result.getHeaders().get(HttpHeaders.LINK)).isNull();
+        mockMvc.perform(get("/api/advertisements"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"))
+                .andExpect(jsonPath("$[0].id").value(1));
     }
 
     @Test
-    void list_withSortParam_parsesIntoSort() {
+    void list_withSortParam_parsesIntoSort() throws Exception {
         AdvertisementFilterDto filter = AdvertisementFilterDto.empty();
         when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt")))).thenReturn(List.of());
         when(readService.count(eq(filter))).thenReturn(0);
 
-        controller.list(filter, 0, 20, "createdAt,desc", baseUri());
+        mockMvc.perform(get("/api/advertisements").param("sort", "createdAt,desc")).andExpect(status().isOk());
 
         verify(readService).getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt")));
     }
 
     @Test
-    void list_unknownSortField_throws() {
+    void list_pageSizeComesFromCallersSavedSettings_urlSizeParamIsIgnored() throws Exception {
         AdvertisementFilterDto filter = AdvertisementFilterDto.empty();
+        when(userProfileService.resolveAdsPageSize(ACTOR_ID)).thenReturn(50);
+        when(readService.getFiltered(eq(filter), eq(0), eq(50), any())).thenReturn(List.of());
+        when(readService.count(eq(filter))).thenReturn(0);
 
-        assertThatThrownBy(() -> controller.list(filter, 0, 20, "secretField", baseUri()))
-                .isInstanceOf(IllegalArgumentException.class);
+        // "size=5" in the URL must have no effect -- there is no such request parameter anymore.
+        mockMvc.perform(get("/api/advertisements").param("size", "5")).andExpect(status().isOk());
+
+        verify(readService).getFiltered(eq(filter), eq(0), eq(50), any());
     }
 
     @Test
-    void list_notLastPage_setsLinkHeaderWithNext() {
+    void list_anonymousCaller_usesSharedDefaultPageSize() throws Exception {
+        clearAuthentication();
+        AdvertisementFilterDto filter = AdvertisementFilterDto.empty();
+        when(userProfileService.resolveAdsPageSize(null)).thenReturn(20);
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), any())).thenReturn(List.of());
+        when(readService.count(eq(filter))).thenReturn(0);
+
+        mockMvc.perform(get("/api/advertisements")).andExpect(status().isOk());
+
+        verify(readService).getFiltered(eq(filter), eq(0), eq(20), any());
+    }
+
+    @Test
+    void list_notLastPage_setsLinkHeaderWithNext() throws Exception {
         AdvertisementFilterDto filter = AdvertisementFilterDto.empty();
         when(readService.getFiltered(eq(filter), eq(0), eq(20), any())).thenReturn(List.of());
         when(readService.count(eq(filter))).thenReturn(45);
 
-        ResponseEntity<List<AdvertisementInfoDto>> result = controller.list(filter, 0, 20, null, baseUri());
-
-        assertThat(result.getHeaders().getFirst(HttpHeaders.LINK)).contains("rel=\"next\"");
+        mockMvc.perform(get("/api/advertisements"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Link", org.hamcrest.Matchers.containsString("rel=\"next\"")));
     }
 
+    // ── list — negative ──────────────────────────────────────────────────
+
     @Test
-    void getById_found_returnsIt() {
+    void list_unknownSortField_returns400() throws Exception {
+        mockMvc.perform(get("/api/advertisements").param("sort", "secretField"))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ── getById ──────────────────────────────────────────────────────────
+
+    @Test
+    void getById_found_returnsIt() throws Exception {
         AdvertisementInfoDto info = AdvertisementInfoDto.builder().id(1L).build();
         when(readService.findById(1L)).thenReturn(Optional.of(info));
 
-        assertThat(controller.getById(1L)).isEqualTo(info);
+        mockMvc.perform(get("/api/advertisements/1")).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(1));
     }
 
     @Test
-    void getById_notFound_throws() {
+    void getById_notFound_returns404() throws Exception {
         when(readService.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> controller.getById(1L)).isInstanceOf(java.util.NoSuchElementException.class);
+        mockMvc.perform(get("/api/advertisements/1")).andExpect(status().isNotFound());
     }
 
+    // ── update ──────────────────────────────────────────────────────────
+
     @Test
-    void update_pathIdWinsOverBodyId() {
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(999L, "Title", "Desc", AdKind.OFFER, Set.of(), null, 0L);
+    void update_pathIdWinsOverBodyId() throws Exception {
         AdvertisementInfoDto saved = AdvertisementInfoDto.builder().id(1L).build();
         when(saveService.save(any(), eq(ACTOR_ID), any())).thenReturn(1L);
         when(readService.findById(1L)).thenReturn(Optional.of(saved));
+        String body = """
+                {"id":999,"title":"Title","description":"Desc","adKind":"OFFER","version":0}""";
 
-        controller.update(ACTOR_ID, 1L, dto);
+        mockMvc.perform(put("/api/advertisements/1").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
 
-        verify(saveService).save(eq(new AdvertisementSaveDto(1L, "Title", "Desc", AdKind.OFFER, Set.of(), null, 0L)), eq(ACTOR_ID), any());
+        verify(saveService).save(eq(new AdvertisementSaveDto(1L, "Title", "Desc", AdKind.OFFER, null, null, 0L)), eq(ACTOR_ID), any());
     }
 
     @Test
-    void delete_delegatesToSaveService() {
-        controller.delete(ACTOR_ID, 1L, 0L);
+    void update_notFound_returns404() throws Exception {
+        when(saveService.save(any(), eq(ACTOR_ID), any())).thenThrow(new java.util.NoSuchElementException());
+        String body = """
+                {"title":"Title","description":"Desc","adKind":"OFFER","version":0}""";
+
+        mockMvc.perform(put("/api/advertisements/1").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void update_staleVersion_returns409() throws Exception {
+        when(saveService.save(any(), eq(ACTOR_ID), any()))
+                .thenThrow(new OptimisticLockingFailureException("stale"));
+        String body = """
+                {"title":"Title","description":"Desc","adKind":"OFFER","version":0}""";
+
+        mockMvc.perform(put("/api/advertisements/1").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void update_notOwner_returns403() throws Exception {
+        when(saveService.save(any(), eq(ACTOR_ID), any()))
+                .thenThrow(new AccessDeniedException("not the owner"));
+        String body = """
+                {"title":"Title","description":"Desc","adKind":"OFFER","version":0}""";
+
+        mockMvc.perform(put("/api/advertisements/1").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+    }
+
+    // ── delete ──────────────────────────────────────────────────────────
+
+    @Test
+    void delete_delegatesToSaveService() throws Exception {
+        mockMvc.perform(delete("/api/advertisements/1").param("version", "0")).andExpect(status().isOk());
 
         verify(saveService).delete(1L, ACTOR_ID, 0L);
+    }
+
+    @Test
+    void delete_notOwner_returns403() throws Exception {
+        org.mockito.Mockito.doThrow(new AccessDeniedException("not the owner")).when(saveService).delete(1L, ACTOR_ID, 0L);
+
+        mockMvc.perform(delete("/api/advertisements/1").param("version", "0")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void delete_staleVersion_returns409() throws Exception {
+        org.mockito.Mockito.doThrow(new OptimisticLockingFailureException("stale")).when(saveService).delete(1L, ACTOR_ID, 0L);
+
+        mockMvc.perform(delete("/api/advertisements/1").param("version", "0")).andExpect(status().isConflict());
+    }
+
+    @Test
+    void delete_notFound_returns404() throws Exception {
+        org.mockito.Mockito.doThrow(new java.util.NoSuchElementException()).when(saveService).delete(1L, ACTOR_ID, 0L);
+
+        mockMvc.perform(delete("/api/advertisements/1").param("version", "0")).andExpect(status().isNotFound());
     }
 }

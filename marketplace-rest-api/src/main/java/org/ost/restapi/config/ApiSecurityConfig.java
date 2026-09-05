@@ -12,12 +12,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
-/**
- * Stateless security chain for the external REST API ({@code /api/**}), coexisting with the
- * Vaadin app's own security chain via Spring Security's ordered multi-chain matching (see
- * {@code .claude/nav/adr-index.md}). Reads are public; writes need HTTP Basic (key issuance only)
- * or a bearer API key, resolved by {@link ApiKeyAuthenticationFilter}.
- */
+/** Stateless security chain for the external REST API ({@code /api/**}). Advertisement/provider-profile/taxon reads are public; everything else needs HTTP Basic or a bearer key via {@link ApiKeyAuthenticationFilter}. */
 @Configuration
 @RequiredArgsConstructor
 public class ApiSecurityConfig {

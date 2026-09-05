@@ -19,12 +19,12 @@ Java package root: `org.ost.restapi`
 - `HealthController`, `SitemapController` (top-level `org.ost.restapi`) — trivial, unauthenticated
   endpoints
 - `org.ost.restapi.api` — the authenticated external-API family: `ApiKeyController`,
-  `UserRegistrationController`, `AdvertisementApiController`, `ProviderProfileApiController`,
+  `UserApiController`, `AdvertisementApiController`, `ProviderProfileApiController`,
   `TaxonApiController`. Each controller's own request/response records that no other class needs
   are nested as public static records inside that controller (e.g.
   `ApiKeyController.ApiKeyCreateRequest`/`ApiKeyCreatedResponse`,
   `TaxonApiController.TaxonCreateRequest`/`TaxonUpdateRequest`/`TaxonTranslationRequest`,
-  `UserRegistrationController.UserCreatedResponse`) rather than living as separate top-level files.
+  `UserApiController.UserCreatedResponse`) rather than living as separate top-level files.
 - `org.ost.restapi.api.error` — `ApiExceptionHandler` (`@RestControllerAdvice`) plus its two
   response records, `ErrorResponse`/`ValidationErrorResponse` — kept in their own package rather
   than nested, since the advice maps exceptions from every controller in this module, not owned by

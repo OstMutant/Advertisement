@@ -1,11 +1,12 @@
 package org.ost.platform.user.dto;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Builder;
 import lombok.Value;
 import lombok.experimental.FieldNameConstants;
+import org.ost.platform.user.model.PageSizeLimits;
+import tools.jackson.databind.annotation.JsonDeserialize;
 
 @Value
 @Builder(toBuilder = true)
@@ -15,15 +16,15 @@ public class UserSettingsDto {
 
     public static final int SCHEMA_VERSION = 1;
 
-    @Min(5) @Max(100)
+    @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE)
     int adsPageSize;
 
-    @Min(5) @Max(100)
+    @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE)
     int usersPageSize;
 
-    @Min(5) @Max(100)
+    @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE)
     @Builder.Default
-    int timelinePageSize = 20;
+    int timelinePageSize = PageSizeLimits.DEFAULT_PAGE_SIZE;
 
     long version;
 
@@ -32,13 +33,13 @@ public class UserSettingsDto {
 
     public static UserSettingsDto defaultSettings() {
         return UserSettingsDto.builder()
-                .adsPageSize(20)
-                .usersPageSize(20)
-                .timelinePageSize(20)
+                .adsPageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
+                .usersPageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
+                .timelinePageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
                 .version(0)
                 .build();
     }
 
-    @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+    @tools.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
     public static class UserSettingsDtoBuilder {}
 }

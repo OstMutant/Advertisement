@@ -98,11 +98,18 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
+| Top | 🔵 | 183 | improvement-183 — bundle of 11 independently-schedulable follow-ups from a REST API/taxon-UI review: admin/moderator REST user access, REST scenario-pipeline tooling, REST pagination reusing Settings page-size, taxon translation UI/validation rework (English primary, other languages via "Add"), taxon list style parity, REST `version`/id caller-writability audit, Swagger per-operation docs/examples, HTTP-level REST scenario tests, advertisement media-upload-via-REST design, Advertisement/Provider view-metadata parity, and a module-doc-standards/`/sync-docs` compliance audit |
 | Top | 🟡 | 138 | improvement-138 — "Architecture Control Plane". **Track A completed 2026-08-04**, its full execution history archived to `completed/issues/improvement-138-architecture-control-plane-track-a.md` on 2026-08-28. This issue's live scope is now **Track B** (ArchUnit contract/test model + AI-token-savings hypothesis, not started) plus **`improvement-135`'s absorbed items 3/5** (does the existing hand-authored `.claude/nav/` layer earn its cost — mechanism built, empirical answer pending real accumulated data; governing rule — no new `.claude/nav/*`-shaped content, including Track B, until that data shows a gap). `improvement-135` had nothing else still-open and is now closed (see `completed/BACKLOG-ARCHIVE.md`) |
 | Nice to have | — | 035, 096, 129, 036, 039, 065, 114, 063, 028, 130, 131, 133, 172, 142, 177, 181 | everything else — no internal priority order, pick up opportunistically |
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
+
+### Top priority — improvement-183
+
+| Issue | Origin | What |
+|---|---|---|
+| [improvement-183](issues/improvement-183-rest-api-and-taxon-ui-follow-ups.md) | New (user-supplied review pass over the REST API rollout and taxon i18n model, filed 2026-09-04) | Bundle of 11 independently-schedulable follow-ups: (1) admin/moderator REST read access to users — `GET /api/users` doesn't exist yet for any role; (2) REST multi-step scenario/pipeline tooling; (3) REST pagination page-size should reuse the Settings page's own options/limits, plus a REST endpoint to change those settings; (4) taxon translation validation — keep current all-languages-required behavior, add proper test coverage across UI/backend/REST plus Swagger docs; (5) taxon list style parity between the (indented) category tab and the (flat) city tab; (6) audit whether REST `version`/id fields should be caller-writable at all; (7) Swagger per-operation descriptions/examples, including which fields come from another endpoint's response; (8) HTTP-level REST scenario tests capturing literal request/response strings, replacing today's mock-only unit tests; (9) design a media/photo-upload path for advertisements via REST (currently none); (10) Advertisement/Provider view-vs-card metadata parity (Provider tabs lack any createdAt/updatedAt display today), refactored symmetrically with test coverage; (11) run `module-doc-standards`/`module-readme-standards` audits and root-cause any `/sync-docs` compliance drift, in phases. See the issue file for verified current-state facts per item |
 
 ### Top priority — improvement-138
 

@@ -71,6 +71,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-029 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | Bounded Contexts renders via Cytoscape as 4 category-split diagrams — flat domain nodes, per-edge evidence traced to its real caller |
 | ADR-032 (docs/architecture/scripts) | docs/architecture/scripts | Accepted **Verified:** 2026-08-21 |  | Every `SCRIPT_GROUP` script self-documents via a fixed 7-field header, plus a rendered `README.md` per directory — no hand-written prose describing what a script does anywhere in the tool |
 | ADR-001 (html-sanitizer-lib) | html-sanitizer-lib | Accepted |  | New shared library module for HTML sanitization — narrow admission criterion |
+| ADR-009 (integration-tests) | integration-tests | Accepted |  | Widen integration-tests scope to a 3-level test structure (starters / orchestrator / REST API) |
 | ADR-001 (integration-tests) | integration-tests | Accepted |  | One module owns every Testcontainers test — domain starters carry zero test code |
 | ADR-002 (integration-tests) | integration-tests | Accepted |  | Singleton Testcontainers Postgres container, shared across the whole `mvn test` run |
 | ADR-006 (integration-tests) | integration-tests | Accepted |  | Reusable test "steps" — `RepositoryTestSupport` / `RepositoryTestAutoConfig` / `TestDataCleaner` |
