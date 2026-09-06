@@ -12,10 +12,13 @@
 /user-spring-boot-starter/target/
 /advertisement-spring-boot-starter/target/
 /query-lib/target/
+/html-sanitizer-lib/target/
 /taxon-spring-boot-starter/target/
 /integration-tests/target/
 /provider-profile-spring-boot-starter/target/
 /marketplace-orchestrator/target/
+/apikey-spring-boot-starter/target/
+/marketplace-rest-api/target/
 
 # Vaadin frontend generated files
 /marketplace-app/src/main/frontend/generated/

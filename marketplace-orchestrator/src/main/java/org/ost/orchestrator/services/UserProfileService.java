@@ -7,6 +7,7 @@ import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.model.PageSizeLimits;
 import org.ost.platform.user.spi.UserAccountPort;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.platform.user.spi.UserPreferencesPort;
@@ -17,7 +18,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Mandatory direct {@link UserPort}/{@link UserAccountPort}/{@link UserPreferencesPort} fields —
+ * Profile/settings read+write; {@link #save} enforces self-or-admin authorization. Mandatory
+ * direct {@link UserPort}/{@link UserAccountPort}/{@link UserPreferencesPort} fields —
  * {@code user-spring-boot-starter} is a compile-scope, non-optional dependency of the final app,
  * matching {@link UserDeleteService}'s existing {@code UserAccountPort} precedent.
  */
@@ -28,12 +30,26 @@ public class UserProfileService {
     private final UserPort            userPort;
     private final UserAccountPort     accountPort;
     private final UserPreferencesPort preferencesPort;
+    private final AuthorizationService authorizationService;
 
     public Optional<UserDto> findById(@NonNull Long id) {
         return userPort.findById(id);
     }
 
     public void save(@NonNull UserProfileDto dto, @NonNull Long actingUserId) {
+        Optional<UserDto> actor = userPort.findById(actingUserId);
+        if (actor.isEmpty()) {
+            authorizationService.requireCanEditAccount(actingUserId, dto.id());
+            return;
+        }
+        authorizationService.requireCanEditAccount(actor.get(), dto.id());
+
+        // Self-edit reuses the actor row already fetched above instead of fetching it again.
+        Optional<UserDto> target = actingUserId.equals(dto.id()) ? actor : userPort.findById(dto.id());
+        boolean roleChanged = target.map(existing -> existing.role() != dto.role()).orElse(false);
+        if (roleChanged) {
+            authorizationService.requireCanEditRole(actor.get(), dto.id());
+        }
         accountPort.save(dto, actingUserId);
     }
 
@@ -43,6 +59,16 @@ public class UserProfileService {
 
     public void saveSettings(@NonNull Long userId, @NonNull UserSettingsDto settings) {
         preferencesPort.saveSettings(userId, settings);
+    }
+
+    /** Effective page size for an advertisements list — the caller's own saved setting, or the shared default for an anonymous (actorId == null) caller. */
+    public int resolveAdsPageSize(Long actorId) {
+        return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getAdsPageSize();
+    }
+
+    /** Effective page size for a users list — same resolution as {@link #resolveAdsPageSize}. */
+    public int resolveUsersPageSize(Long actorId) {
+        return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getUsersPageSize();
     }
 
     public List<UserDto> getFiltered(@NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {

@@ -9,8 +9,8 @@
  * Env: None.
  * Input: required by 03-marketplace-promotion-flow.spec.js (selectCategoryInAdForm,
  *   assertViewOverlayHasDeletedCategory, assertActivityDiffHasStruckThroughCategory),
- *   04-marketplace-advertisement-flow.spec.js (assertViewOverlayHasCategories),
- *   05-seed-filter-sort-pagination.spec.js (runCreateCategoryFlow); also required internally by
+ *   05-marketplace-advertisement-flow.spec.js (assertViewOverlayHasCategories),
+ *   06-seed-filter-sort-pagination.spec.js (runCreateCategoryFlow); also required internally by
  *   advertisement.flow.js, city.flow.js, delete.flow.js, and seed.flow.js.
  * Outputs: exports openReferenceDataTab, runCreateCategoryFlow, selectCategoryInAdForm,
  *   assertCardHasCategories, assertViewOverlayHasCategories, assertViewOverlayHasDeletedCategory,

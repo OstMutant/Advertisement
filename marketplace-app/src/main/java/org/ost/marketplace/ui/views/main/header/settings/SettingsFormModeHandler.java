@@ -1,5 +1,6 @@
 package org.ost.marketplace.ui.views.main.header.settings;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -39,6 +40,8 @@ import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+/** {@code AccountOverlay}'s Settings tab -- has no View mode, so re-checks
+ *  {@code canEditUserAccount} itself. */
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
@@ -51,6 +54,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         @NonNull Long     userId;
         @NonNull Runnable onSave;
         @NonNull Runnable onCancel;
+        @NonNull List<BreadcrumbStep> breadcrumbSteps;
+        @NonNull Component tabBar;
     }
 
     @Getter
@@ -85,8 +90,13 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .version(current.getVersion())
                 .build();
 
+        // Settings has no View mode to gate an Edit button on, unlike Name/Provider Profile.
+        boolean canEdit = access.canEditUserAccount(params.getUserId());
+
         saveButton = new UiPrimaryButton(getValue(SETTINGS_SAVE_BUTTON));
+        saveButton.setVisible(canEdit);
         discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));
+        discardButton.setVisible(canEdit);
         UiIconButton closeBtn = new UiIconButton(getValue(HEADER_HOME), VaadinIcon.CLOSE.create());
 
         wireSaveGuard(saveButton, params.getOnSave());
@@ -94,9 +104,12 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         closeBtn.addClickListener(_ -> params.getOnCancel().run());
 
         buildBinder(dto);
+        adsPageSizeField.setReadOnly(!canEdit);
         boolean privileged = access.canView();
         adsPageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         if (privileged) {
+            usersPageSizeField.setReadOnly(!canEdit);
+            timelinePageSizeField.setReadOnly(!canEdit);
             usersPageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
             timelinePageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         }
@@ -109,7 +122,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 : new Div(cardHeader, adsPageSizeField);
         fieldsCard.addClassName("overlay__form-fields-card");
 
-        Div settingsContent = new Div(fieldsCard);
+        Div settingsContent = new Div(params.getTabBar(), fieldsCard);
         settingsContent.addClassName("settings-overlay-content");
         layout.setContent(settingsContent);
 
@@ -130,7 +143,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .userId(params.getUserId())
                 .isPrivileged(true)
                 .canOperate(true)
-                .parentSteps(List.of(new BreadcrumbStep(getValue(HEADER_HOME), params.getOnCancel())))
+                .parentSteps(params.getBreadcrumbSteps())
                 .parentFormLabel(getValue(SETTINGS_SECTION_TITLE))
                 .currentLabelKey(SETTINGS_ACTIVITY_BUTTON)
                 .onRestoreRequested(this::handleRestoreFromActivity)

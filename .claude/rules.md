@@ -23,6 +23,12 @@ subagent to read or classify `DECISIONS.md` content, check `context-loading.md`'
 table first — it may already name a specific command/skill/agent (e.g. the `deep-review-orchestrator`
 agent's full-repo scope) that owns exactly this task shape instead of a fresh, undocumented dispatch.
 
+A direct `scripts/*.sh` invocation via Bash is itself, mechanically, always one of these
+choice points — check `flows.md`'s mechanism table for that situation before running the script,
+every single time, not only when a choice consciously feels ambiguous. Running the script directly
+still feels like the obvious default action in the moment, which is exactly why the check must be
+unconditional rather than triggered by first noticing a choice exists.
+
 ---
 
 > ## ⛔ One fact, one canonical home — the single governing rule for all documentation
@@ -343,7 +349,11 @@ subdirectory, which belongs to that one group alone.
    `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`. Always pass `--ux` —
    never run a Playwright scenario without it.
 5. Once the Monitor's target process reaches its final result (pass/fail line, completion
-   marker), stop that Monitor task immediately rather than leaving it running past that point.
+   marker) — or once its notification has already delivered the answer being waited for, even
+   before that marker — call `TaskStop` on that Monitor task immediately. A `tail -f`-based
+   Monitor never exits on its own; left running, it keeps emitting notifications until it hits its
+   own `timeout_ms`, creating stale-looking events for a result already reported. Do this for
+   every Monitor call site, not just the one whose result happened to matter most.
 
 ## Issue Lifecycle
 
@@ -783,7 +793,7 @@ When adding a new domain, use these as reference:
 - View: `AdvertisementsView` (init structure) + `UserView` (refresh guard)
 - Overlay: `AdvertisementOverlay` (OverlaySession, afterSave, mode switching)
 - ViewModeHandler: `AdvertisementViewOverlayModeHandler` (AbstractViewOverlayModeHandler)
-- FormModeHandler: `UserFormOverlayModeHandler` (buildBinder separate)
+- FormModeHandler: `AccountNameFormModeHandler` (buildBinder separate)
 - QueryBlock: `AdvertisementQueryBlock` and `UserQueryBlock` (identical structure)
 - FilterMeta: `AdvertisementFilterMeta` (Fields.* constants)
 - SortMeta: `AdvertisementSortMeta` (Fields.* constants)

@@ -13,5 +13,5 @@ hand-authored -- a marker wrapping more than one bold-led paragraph (e.g.
 | `hook-glossary` | `.claude/rules/platform-commons.md:45` | What is a Hook? |
 | `port-glossary` | `.claude/rules/platform-commons.md:38` | What is a Port? |
 | `spi-glossary` | `.claude/rules/platform-commons.md:28` | What is SPI? |
-| `spi-implementation-rules` | `.claude/rules/platform-commons.md:119` | Port Implementation (`*PortImpl`, `Default*Port`):; Hook Implementation (`*HookImpl`): |
+| `spi-implementation-rules` | `.claude/rules/platform-commons.md:118` | Port Implementation (`*PortImpl`, `Default*Port`):; Hook Implementation (`*HookImpl`): |
 | `why-port-hook-glossary` | `.claude/rules/platform-commons.md:53` | Why use Port/Hook? |

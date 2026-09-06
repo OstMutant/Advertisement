@@ -572,8 +572,8 @@ standalone `provider_profile` table/module (this ADR).
 symmetry with the established starter pattern, not an accident (see `.claude/nav/adr-index.md` for the
 "isn't this just a copy?" discussion this raised during implementation). Backed by
 a new `provider-profile-spring-boot-starter` module owning `ProviderProfile` entity/repository/
-service/port-impl/autoconfiguration — this batch is backend-only, no UI, no audit-write path yet
-(that's a later batch).
+service/port-impl/autoconfiguration. Category-assignment write ownership and audit capture landed
+in a later batch — see ADR-030.
 
 **Deliberate divergences from `AdvertisementPort`'s shape, each grounded in a real difference:**
 - `kind` is `NOT NULL` and the row is created **lazily** (only on first "become a provider" save) —
@@ -599,11 +599,9 @@ service/port-impl/autoconfiguration — this batch is backend-only, no UI, no au
   adds"). Treat it as a data-integrity guarantee (like `AdvertisementService`'s server-side
   description-length enforcement), not a precedent for adding general authorization logic to
   starters.
-- Unlike `advertisement`/`taxon`, `ProviderProfileService`'s own service — not a marketplace-app
-  orchestration service — writes category assignments directly via `TaxonPort.replaceAssignments()`.
-  This batch has no marketplace-app "SaveService" yet
-  (that's a later batch, alongside the actual `AuditPort.record()` call), so there was no other layer
-  to put it in.
+- Category-assignment writes and audit capture moved to `marketplace-orchestrator`'s
+  `ProviderProfileSaveService` in a later batch — see ADR-030. `ProviderProfileService` itself now
+  only resolves read-only, query-time category filters via `TaxonPort`.
 
 **Found and fixed during `/code-review`'s 8-angle pass (Batch B):** `ProviderProfileFilterDto
 .cityTaxonId` was declared but never wired into the repository's `SqlFilterBuilder` (a dead filter
@@ -616,14 +614,15 @@ duplication with `AdvertisementService`, and the shared "stale id during concurr
 case both `AdvertisementService.save()` and `ProviderProfileService.save()` have — were kept out of
 this batch (they require touching `advertisement-spring-boot-starter`, outside Batch B's own
 scope) and filed as a follow-up batch, at the user's explicit direction, rather than the generic
-deferred-findings bucket.
+deferred-findings bucket. **Both resolved:** the sanitizer duplication moved into a new shared
+`html-sanitizer-lib` module (see ADR-001 there); the stale-id-during-concurrent-delete race is now
+a hard `OptimisticLockingFailureException` guard in `marketplace-orchestrator` (see ADR-006 there).
 
 **Consequence:** `EntityType.USER_SETTINGS` keeps being used unchanged for the Settings tab
 (preferences never merged into `provider_profile`, so the earlier "keep as historical tag or
-migrate" open question from the superseded single-table design is moot). The next batch must land
-before the unified "My Account" overlay batch, per the updated gate tracked in the backlog.
-Starters may call other starters' `*Port`s via `platform-commons` — this is the correct pattern
-for cross-domain SPI composition; direct starter-to-starter imports remain forbidden regardless.
+migrate" open question from the superseded single-table design is moot). Starters may call other
+starters' `*Port`s via `platform-commons` — this is the correct pattern for cross-domain SPI
+composition; direct starter-to-starter imports remain forbidden regardless.
 
 ---
 
@@ -682,3 +681,40 @@ second legitimate `*Hook` caller alongside "starter," but this specific pair con
 new types** to `platform-commons` itself. `ArchitectureRulesTest
 .marketplace_app_must_not_depend_on_platform_commons_spi_directly` carries a named allow-list
 entry for these forwarder SPIs living outside `platform-commons`.
+
+---
+
+## ADR-030: `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator`
+
+**Status:** Accepted
+
+**Also affects:** provider-profile-spring-boot-starter, marketplace-orchestrator, marketplace-app
+
+**Context:** ADR-027 shipped `ProviderProfilePort` backend-only, with `ProviderProfileService`
+itself writing category assignments directly via `TaxonPort.replaceAssignments()` and no
+audit-write path — both explicitly flagged as "a later batch." During manual testing, an admin
+editing another user's provider profile via the Users grid hit
+`duplicate key value violates unique constraint idx_provider_profile_actor_id` —
+`ProviderProfileService.save()`'s single `actingUserId` parameter was used both as "who performed
+the save" and "who owns the new row," so an admin creating a profile for another user silently
+created it under their own account instead.
+
+**Decision:** `ProviderProfilePort.save()`/`ProviderProfileService.save()` now take two distinct
+identity parameters — `targetUserId` (whose profile this is; the row's `actor_id` on create) and
+`actingUserId` (who performed the save, audit purposes only) — mirroring the same split already
+used elsewhere in this app's write paths. They diverge whenever an admin/moderator edits another
+user's profile.
+
+Category-assignment writes (`TaxonAssignmentWriteService.replace()`) and audit capture
+(`AuditPort.captureCreation`/`captureUpdate`/`captureDeletion`) moved out of
+`ProviderProfileService` into a new `marketplace-orchestrator` service, `ProviderProfileSaveService`
+— the atomic save/delete transaction, mirroring `AdvertisementSaveService`'s existing shape
+exactly. `ProviderProfileService` itself now only resolves read-only, query-time category filters
+via `TaxonPort.findEntityIdsWithAnyTaxon()`.
+
+**Consequences:** `UserDeleteService` (`marketplace-orchestrator`) now cascades a user's provider
+profile through `ProviderProfileSaveService.delete()` instead of a direct `ProviderProfilePort`
+factory, so the delete path captures audit the same way a normal delete would. Covered by a new
+integration test (`ProviderProfileServiceTest.save_actorIdTakenFromTargetUser_whenCreatingNewProfile`)
+and a Playwright regression (`04-provider-profile-flow.spec.js`, admin editing another user's
+profile end-to-end).

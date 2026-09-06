@@ -6,6 +6,7 @@
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <changeSet id="taxon-001" author="taxon-starter">
+        <validCheckSum>ANY</validCheckSum>
 
         <!-- ── taxon ────────────────────────────────────────────────────── -->
         <createTable tableName="taxon"
@@ -18,15 +19,15 @@
             </column>
             <column name="code" type="VARCHAR(64)" remarks="Optional stable code (unique per type when set)"/>
             <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE" remarks="Soft-delete timestamp (NULL = active)"/>
-            <column name="deleted_by" type="BIGINT" remarks="User ID who soft-deleted the entry"/>
+            <column name="deleted_by" type="BIGINT" remarks="User ID who soft-deleted the entry. References user_information(id), no FK"/>
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Creation timestamp">
                 <constraints nullable="false"/>
             </column>
             <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Last update timestamp">
                 <constraints nullable="false"/>
             </column>
-            <column name="created_by" type="BIGINT" remarks="User ID who created the entry"/>
-            <column name="updated_by" type="BIGINT" remarks="User ID who last updated"/>
+            <column name="created_by" type="BIGINT" remarks="User ID who created the entry. References user_information(id), no FK"/>
+            <column name="updated_by" type="BIGINT" remarks="User ID who last updated. References user_information(id), no FK"/>
             <column name="version" type="BIGINT" defaultValueNumeric="0" remarks="Optimistic-lock counter (@Version, checked natively via CrudRepository.save())">
                 <constraints nullable="false"/>
             </column>

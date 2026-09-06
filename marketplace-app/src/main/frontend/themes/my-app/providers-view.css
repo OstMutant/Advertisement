@@ -1,0 +1,34 @@
+.providers-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  gap: 0;
+  box-sizing: border-box;
+}
+
+.providers-content-wrapper {
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.provider-profile-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+@keyframes providerFadeSlideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.provider-profile-card {
+  animation: providerFadeSlideUp 0.22s ease both;
+}

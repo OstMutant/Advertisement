@@ -64,7 +64,7 @@
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="actor_id" type="BIGINT" remarks="No FK -- matches this codebase's actor-reference-column convention">
+            <column name="actor_id" type="BIGINT" remarks="Matches this codebase's actor-reference-column convention. References user_information(id), no FK">
                 <constraints nullable="false" unique="true"/>
             </column>
             <column name="locale" type="VARCHAR(10)" remarks="BCP-47 language tag (e.g., 'en', 'uk')"/>

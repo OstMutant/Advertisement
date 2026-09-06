@@ -2,6 +2,188 @@
 
 ---
 
+## ADR-080: External REST API list endpoints — filter/sort bind onto the existing domain DTOs, pagination uses RFC 8288 `Link` + `X-Total-Count` headers, never an envelope or Spring HATEOAS
+
+**Status:** Accepted
+
+**Also affects:** marketplace-rest-api, taxon-spring-boot-starter
+
+**Context:** `GET /api/advertisements`/`GET /api/provider-profiles`/`GET /api/taxons` (shipped as part
+of the REST API infrastructure work) hardcoded an empty filter and unsorted results — no filter or
+sort query parameter was exposed at all, despite the exact same capability already working in the
+Vaadin UI and the orchestrator service layer underneath (`AdvertisementReadService.getFiltered`/
+`.count`, same for `ProviderProfileReadService`). `TaxonPort` had no pagination/count capability at
+any layer at all (`getAllByType`/`listAllByType` always returned the full unpaginated list) — the
+repository (`TaxonRepository.findAllByType`) already had filter (`TaxonFilter`, matched by name)
+and sort infrastructure (`SqlFilterBuilder`/`OrderByBuilder`), just no `LIMIT`/`OFFSET` or count.
+
+Three real design questions needed resolving, each grounded in this codebase's own existing
+precedent and industry practice (researched directly, not assumed):
+1. **Where does filter/sort/pagination logic belong?** `query-lib/DECISIONS.md` ADR-003 explicitly
+   freezes that library's SQL-DSL scope, rejecting "generic pagination abstractions" beyond the
+   already-narrow `PaginationSqlBuilder.pageLimit`. `marketplace-orchestrator` must stay
+   transport-agnostic (root `CLAUDE.md`'s 3-layer principle) — it already exposes `getFiltered`/
+   `count`, but HTTP-specific concerns (query-param parsing, response headers) don't belong there
+   either. `marketplace-rest-api` cannot import the UI's `AdvertisementFilterMeta`/
+   `AdvertisementSortMeta` (wrong dependency direction — `marketplace-app` depends on
+   `marketplace-rest-api`, not the reverse), so both sides independently reference the same
+   `*Dto.Fields.*` constants instead of one sharing the other's class.
+2. **How should filter validation stay in sync with the UI's own validation?** Already solved by
+   construction: `AdvertisementFilterDto`/`ProviderProfileFilterDto` are the same DTOs the UI's own
+   Binder validates (`@Size`, `@ValidRange` — real Jakarta Bean Validation constraints in
+   `platform-commons`, not duplicated logic). Binding REST query parameters directly onto these DTOs
+   via `@ModelAttribute @Valid` makes the identical constraints apply to REST for free, through the
+   already-existing `ApiExceptionHandler`'s `MethodArgumentNotValidException` → 400 mapping.
+3. **How should pagination expose "next page" navigation?** Compared three real options: a
+   hand-rolled `PageResponse<T>` envelope (breaks the existing plain-array response shape), Spring
+   HATEOAS (`PagedModel`/`PagedResourcesAssembler` — a new dependency, more framework machinery than
+   this project's own "explicit over implicit" principle favors), and an RFC 8288 `Link` response
+   header (`rel="next"/"prev"/"first"/"last"`) plus `X-Total-Count` — the convention GitHub's and
+   GitLab's own REST APIs already use. Chose the `Link`-header approach: no new dependency, no
+   breaking change to the existing array response body, genuinely navigable pagination.
+
+**Decision:**
+1. Each list endpoint binds `GET` query parameters directly onto its existing `<Domain>FilterDto`
+   via `@ModelAttribute @Valid` — no parallel REST-only filter DTO, except for `TaxonFilterDto`
+   (new, `platform-commons`), needed because `TaxonPort` never had a filter DTO of its own at any
+   layer before this (only an internal `TaxonFilter` inside `taxon-spring-boot-starter`, unreachable
+   across the module boundary) — `TaxonFilterDto` mirrors that internal type's own one real field
+   (`name`); its internal-only `showDeleted` field is not exposed, staying an admin-only concern
+   already handled by the separate `listAllByType(includeDeleted)` method.
+2. A `?sort=field,dir` query parameter, parsed by a new shared `SortQueryParser`
+   (`marketplace-rest-api`, `org.ost.restapi.api.paging`) and validated against an explicit
+   allow-list per controller, built from that domain's own response DTO's `@FieldNameConstants`
+   `Fields.*` constants (`AdvertisementInfoDto`, `ProviderProfileDto`, `TaxonDto` — the latter
+   gained `@FieldNameConstants` for this) — an unknown field is a 400
+   (`ApiExceptionHandler` gained an `IllegalArgumentException` → 400 mapping for this). Taxon's own
+   allow-list is deliberately narrower (`id` only) than what the repository's `SORT_ALIASES` map
+   technically supports (`id`/`createdAt`/`updatedAt`) — `TaxonDto` itself carries no
+   `createdAt`/`updatedAt` field, so exposing them as sort keys would let a caller sort by a field
+   it can never see in the response body.
+3. Pagination: a new shared `PageLinkHeaderBuilder`/`PagedResponseBuilder` pair
+   (`marketplace-rest-api`, same package) builds the RFC 8288 `Link` header and sets
+   `X-Total-Count`, reused identically by all three list endpoints. Response bodies stay plain
+   `List<T>`, unchanged shape.
+4. `TaxonPort` gained `getPageByType(type, locale, filter, page, size, sort)` + `count(type,
+   filter)`, mirroring `AdvertisementPort`/`ProviderProfilePort`'s already-established
+   `(FilterDto, page, size, Sort)`/`count(FilterDto)` shape exactly — not a new pattern, a third
+   application of an already-twice-proven one. `TaxonRepository.findAllByType`/
+   `TaxonService.listByType`'s `Sort` parameter became `Pageable` (carries `Sort` via
+   `Pageable.getSort()`, plus page/size for `PaginationSqlBuilder.pageLimit`); the three pre-existing
+   unpaginated callers (`getAllByType`, `listAllByType`, `getUsageCounts`) now pass
+   `Pageable.unpaged(sort)`/`Pageable.unpaged()` — no behavior change for them.
+
+**Rejected alternative — `PageResponse<T>` envelope:** rejected because it would have changed every
+list endpoint's response body shape (a breaking change for the array-shaped responses already
+shipped), for a benefit the header-based approach already delivers.
+
+**Rejected alternative — Spring HATEOAS:** rejected as more framework machinery than this specific
+need justifies — a hand-built RFC 8288 header string is a handful of lines
+(`PageLinkHeaderBuilder`), not a new library dependency, matching root `CLAUDE.md`'s "explicit over
+implicit" principle.
+
+**Consequences:**
+- A future new REST list endpoint follows this same three-part shape: bind query params onto the
+  existing domain `FilterDto`, validate sort against that domain's own response-DTO `Fields.*`,
+  delegate response assembly to `PagedResponseBuilder`.
+- Verified directly: unit 255/255 (`marketplace-rest-api` 49, up from 27 — new `SortQueryParser`/
+  `PageLinkHeaderBuilder`/`PagedResponseBuilder` unit tests plus extended controller tests),
+  integration 186/186 (3 new `TaxonRepository` pagination/count tests against real Postgres),
+  `ArchitectureRulesTest` 20/20 unaffected.
+- A `/review` pass (`deep-review-orchestrator`) found and fixed one real DRY violation during this
+  same implementation: the three controllers' `list()` methods duplicated the same 7-statement
+  response-assembly sequence verbatim — extracted into `PagedResponseBuilder` before this ADR was
+  written, so the shape described above already reflects the deduplicated version, not the
+  as-first-written one.
+
+---
+
+## ADR-079: Build-enforced ArchUnit rule blocks direct `TaxonPort.replaceAssignments()` calls from starters; the diagram category it superseded is removed
+
+**Status:** Accepted
+
+**Also affects:** docs/architecture/scripts
+
+**Context:** The Bounded Contexts diagram's "Cross-Starter Exceptions" tab existed to document a
+specific, real historical bug class: a starter (`provider-profile`/`advertisement`) calling
+`TaxonPort.replaceAssignments()` directly instead of routing the write through
+`marketplace-orchestrator`'s `TaxonAssignmentWriteService`. Both known instances of this bug were
+already fixed by the time this ADR was written — the tab's own regex-based regression guard
+(`generate-architecture-model.sh`) had found nothing for a while — but nothing actually *prevented*
+the bug from being reintroduced: `starters_must_not_import_sibling_starters`
+(`ArchitectureRulesTest`) only blocks a starter importing another starter's own package; it does
+not catch a starter injecting `ComponentFactory<TaxonPort>` (a `platform-commons` type, always
+importable) and calling a write method on it directly. The diagram category was therefore a
+documentation-time detector, not a build gate — a reintroduced bypass would only surface at the
+next architecture-doc regeneration, not at PR time.
+
+**Decision:**
+1. New `@ArchTest` in `ArchitectureRulesTest.java`:
+   `starters_must_route_taxon_assignment_writes_through_orchestrator` — fails the build if any class
+   outside `org.ost.orchestrator..`/`org.ost.marketplace..`/`org.ost.restapi..`/`org.ost.taxon..`
+   calls `TaxonPort.replaceAssignments()` directly (scanned via `getMethodCallsFromSelf()` +
+   `getTarget().getOwner().isAssignableTo(TaxonPort.class)`, same custom-`ArchCondition` style as
+   the existing `starters_must_not_import_sibling_starters` rule).
+2. The "Cross-Starter Exceptions" diagram category (`docs/architecture/scripts/generate-architecture-model.sh`:
+   `BC_CATEGORY_ORDER`/`BC_CATEGORY_LABEL`/`BC_CATEGORY_DESC`/`BC_LABEL_CATEGORY`'s `exceptions`
+   entries, the `"category assignment via"` label and its regex-based extraction loop) is removed
+   outright, along with its client-side JS mirrors (`BC_LABEL_MEANING`/`BC_CATEGORY_LABEL_JS`). It
+   was the one category whose entire membership (a single label) is now guaranteed empty by a
+   failing build rather than merely "currently empty" — permanently-empty documentation for
+   something a build gate already guarantees is not worth the tab.
+
+**Rejected alternative — keep the diagram category alongside the new rule:** rejected because the
+two mechanisms had identical scope (both keyed on the same one method,
+`TaxonPort.replaceAssignments()`) — keeping the diagram category bought no additional detection
+coverage over the ArchUnit rule, only a strictly weaker, slower one (documentation-regeneration-time
+instead of build-time).
+
+**Consequences:**
+- Verified directly: `ArchitectureRulesTest` passes (20/20, was 19/19 before this rule) against the
+  current, already-clean codebase — the new rule is a regression guard, not a fix for a live
+  violation.
+- A future genuinely new class of starter-to-starter Port-write bypass (a different Port, a
+  different method) is not automatically caught by this rule — it is scoped to the one concrete,
+  historically-observed case, matching this file's own established precedent of narrowly-scoped
+  custom `ArchCondition` rules rather than one generic "any write bypass" rule.
+
+---
+
+## ADR-078: External REST API authentication — long-lived bearer API-key, not OAuth2
+
+**Status:** Accepted
+
+**Context:** Building an external, Postman/Swagger-testable REST API (`marketplace-rest-api`) needed
+a real authentication mechanism beyond the existing Vaadin session login. The API serves
+programmatic/script access to a user's own account (external integrations, Playwright test
+seeding) — not third-party apps acting on behalf of a user. Considered reshaping the
+credential-issuance endpoint into a genuine OAuth2 client-credentials flow, since that is what
+Postman natively auto-refreshes without a custom script, and OpenAPI models declaratively via
+`securitySchemes: oauth2`.
+
+**Decision:** Kept the simpler, already-implemented pattern: a per-user, long-lived, revocable
+bearer API key (`POST /api/api-keys` issues it behind HTTP Basic auth; `Authorization: Bearer
+<key>` authenticates every other call, resolved via `ApiKeyAuthenticationFilter` →
+`ApiKeyManagementService`). This is the same pattern Stripe, GitHub, OpenAI, and Anthropic's own
+API use for exactly this use case (a user scripting against their own account) — a legitimate,
+standard pattern in its own right, not a simplified OAuth2. Key hashing is SHA-256 of a 32-byte
+`SecureRandom` value, not bcrypt/`PasswordEncoder` — bcrypt's deliberate slowness defends a
+low-entropy human password against offline brute-force; it buys nothing for an already-random
+256-bit token and would add real latency to every authenticated request.
+
+**Rejected alternatives:**
+- **OAuth2 client-credentials flow** — the natural fit for Postman/Swagger's native no-script
+  auto-auth, but solves a different problem: delegated third-party authorization, multiple
+  registered clients, short-lived token rotation. None apply here (no third-party apps, one
+  "client" = the account owner). Doing it properly would need a refresh-token mechanism, a
+  client-registration concept, and scopes — solving problems this app doesn't have, purely so
+  Postman's UI doesn't need a 5-line pre-request script. Rejected as disproportionate complexity
+  (YAGNI) for the actual requirement.
+- **bcrypt/`PasswordEncoder` for key hashing** — no benefit for an already-high-entropy random
+  token; only adds latency.
+
+---
+
 ## ADR-001: All Vaadin UI consolidated in marketplace-app
 **Status:** Accepted
 
@@ -1744,17 +1926,16 @@ overlay's open/closed state.
    overridden to `pushState(null, "")` before delegating to `BaseOverlay`'s real close logic (this
    correctly intercepts every path that closes the overlay, including the breadcrumb back button,
    which is wired via `this::closeToList` and resolves virtually to the override). Browser
-   Back/Forward is handled via `History.setHistoryStateChangeHandler(...)`, registered once in
-   `@PostConstruct`: if the new location isn't under `ads/` and the overlay is currently open in
-   VIEW mode, it closes without re-pushing history (`super.closeToList()` directly).
+   Back/Forward is handled via a handler registered through the shared `OverlayNavigationRegistry`
+   (see ADR-076): if the new location isn't under `ads/` and the overlay is currently open in VIEW
+   mode, it closes without re-pushing history (`super.closeToList()` directly).
 
-**Known limitation, deliberately not addressed:** Vaadin's `History` API is a single-handler slot
+**Known limitation, resolved by ADR-076:** Vaadin's `History` API is a single-handler slot
 (`setHistoryStateChangeHandler`, not an `addListener`-style multi-registration) —
-`AdvertisementOverlay` registering its own handler will silently overwrite any other overlay's
-handler on the same `UI`. Harmless today (no other domain has a deep-link route yet), but the next
-domain to add one cannot just copy this pattern — it needs a shared per-UI history dispatcher that
-every deep-linkable overlay registers into, not each calling `setHistoryStateChangeHandler`
-independently.
+`AdvertisementOverlay` registering its own handler directly would silently overwrite any other
+overlay's handler on the same `UI`. Left unaddressed here since no other domain had a deep-link
+route yet; once a second one did, ADR-076 introduced the shared per-UI history dispatcher this note
+predicted would be needed.
 
 **Consequences:**
 - The app is no longer a pure single-route SPA at the Vaadin router level
@@ -2673,3 +2854,201 @@ return raw (unenriched) data; the calling UI code enriches explicitly via the or
 alongside its existing `AdvertisementPort` one — found while designing `UserDeleteService`'s target
 shape, not previously wired despite `provider-profile-spring-boot-starter/CLAUDE.md` documenting
 the intent.
+
+---
+
+## ADR-074: `SettingsOverlay`/`UserOverlay` unified into `AccountOverlay`; Provider Profile gains a View/Edit split
+
+**Status:** Accepted
+
+**Context:** ADR-067 anticipated this batch as "the future Account overlay" while designing the
+stacked-history-overlay mechanism it now reuses. Separately, once Name/Settings/Provider Profile
+sections were planned to live side by side in one overlay, an inconsistency became visible: only
+Settings had its own Activity/history entry point, and only the Name section had a View/Edit mode
+split — Settings and the then-new Provider Profile section opened directly into an editable form
+with no read-only view first.
+
+**Decision:** `SettingsOverlay` and `UserOverlay` are replaced by one `AccountOverlay`, opened from
+both the header (self-service) and the Users grid (admin/moderator editing another user), with
+three tabs: Name, Settings, Provider Profile. Provider Profile gains the same View/Edit split
+Advertisement/Taxon/City already have (`ProviderProfileViewModeHandler`/
+`ProviderProfileFormOverlayModeHandler`), so all three tabs — and every other domain overlay in the
+app — now follow the same View-first, Edit-on-request shape. History/restore for each tab reuses
+ADR-067's shared `EntityActivityOverlay` stacked-overlay mechanism, opened via a
+`.{domain}-history-button` icon button rather than a tab.
+
+Both `AccountNameFormModeHandler`/`SettingsFormModeHandler` gained a defensive
+`AccessEvaluator.canEditUserAccount()` re-check inside `activate()` — the Users grid's Edit action
+reaches a form handler directly, bypassing the View mode's own Edit-button gate (which only blocks
+navigating *into* Edit, not the form's own field/button state once already there), and Settings has
+no View mode to gate at all.
+
+**Consequences:** the old `UserFormOverlayModeHandler`/`UserViewOverlayModeHandler` classes are
+gone, replaced by `AccountNameFormModeHandler`/`AccountNameViewModeHandler`. Landed in the same
+session as ADR-030 (`platform-commons/DECISIONS.md`), which moved provider-profile write ownership
+to `marketplace-orchestrator` and fixed the `targetUserId`/`actingUserId` conflation this batch's
+admin-edits-another-user path surfaced during manual testing. Playwright gained
+`04-provider-profile-flow.spec.js` (create/edit provider profile, moderator read-only view, admin
+editing another user's profile end-to-end); spec files 04-07 renumbered to 05-08 to make room.
+
+---
+
+## ADR-075: Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay
+
+**Status:** Accepted
+
+**Also affects:** provider-profile-spring-boot-starter, marketplace-orchestrator
+
+**Context:** `provider-profile-spring-boot-starter`/`ProviderProfilePort` (ADR-027) and the
+self-service `AccountOverlay` Provider Profile tab (ADR-074) already let an actor create/edit their
+own provider profile, but nothing surfaced a profile outside its owner's own account — no public
+listing, no shareable link with a rich preview, no search-engine visibility. ADR-059 already
+established the public-catalog/OG-meta/sitemap/deep-link pattern for the Advertisement domain; this
+batch is that same pattern applied to Provider Profile, not a new design.
+
+**Decision:**
+- New `ui/views/main/tabs/providers/` package mirrors the Advertisement domain's own public-facing
+  structure field-for-field: `ProvidersView` (catalog listing, mirrors `AdvertisementsView` minus
+  the add-button/keyboard-shortcut/refresh-polling machinery, since creation only ever happens via
+  `AccountOverlay`), `ProviderProfileCardView` (catalog card, text-only — kind badge, `about`
+  excerpt, city/category info lines — no photo, since `ProviderProfileDto` carries no media field
+  and portfolio support is out of scope), `query/ProviderProfileFilterMeta`/`SortMeta`/
+  `QueryBlock`/`QueryConfig` (mirrors the Advertisement query-layer trio, using the already-existing
+  `ProviderProfileFilterDto`'s `kinds`/`categoryIds`/`cityTaxonId` fields — no new filter fields
+  added, no title/date-range rows since that DTO has none of those).
+- `ProviderProfileCatalogOverlay` extends `BaseOverlay` directly, **not**
+  `AbstractEntityOverlay<H>` — a deliberate deviation from `AdvertisementOverlay`'s shape. This
+  catalog overlay is view-only and never enters an edit mode: editing a provider profile already
+  has its own dedicated, self-service path (`AccountOverlay`'s Provider Profile tab). Forcing it
+  through `AbstractEntityOverlay`'s form-handler-typed generic bound would mean carrying unused
+  `saveConfig()`/`proceed()`/`afterDiscard()` overrides and a phantom form-handler type for a mode
+  that structurally cannot exist here. Consequently `ProviderProfileCatalogViewModeHandler` has no
+  Edit button and no history button — history/restore has only ever been a form/edit-mode concern
+  in this codebase (see `.claude/rules.md`'s Form Handler Pattern), and a view-only overlay
+  correctly has nothing to attach it to.
+- New `ProviderProfileReadService` (`marketplace-orchestrator`) mirrors `AdvertisementReadService`
+  — wraps `ComponentFactory<ProviderProfilePort>`'s `getFiltered`/`count`/`findById`/`isAvailable`,
+  since the existing `ProviderProfileSaveService` only exposed the write/single-lookup methods a
+  self-service form needs, not the paginated listing a public catalog needs.
+- `OgMetaRequestListener` gains a `PROVIDER_PATH = Pattern.compile("^/providers/(\\d+)$")`
+  alongside `AD_PATH`, injects `ProviderProfileReadService`, and reuses the existing
+  `og:title`/`og:description`/`og:url`/JSON-LD shape. `og:type` is `"profile"` (not `"product"`,
+  which stays Advertisement-only) and the JSON-LD `@type` is `"ProfilePage"` — a provider profile
+  represents a person/business entity page, not a purchasable listing; `"profile"` is the closest
+  standard Open Graph type for that shape. Injection is skipped entirely when no profile is found
+  for the id (same early-return shape as the advertisement path).
+- The sitemap builder gains a parallel `allProviderProfiles()` page-walk (same
+  `Stream.iterate`+`takeWhile`+`flatMap` shape as `allAdvertisements()`) appended to the same
+  `/sitemap.xml` response, and `AppLinkService` gains `providerProfileUrl(Long id)` mirroring
+  `advertisementUrl()` (see ADR-076 for where the sitemap builder itself ended up living).
+- `ProviderProfileDeepLinkView` (`@Route("providers")`) mirrors `AdvertisementDeepLinkView`'s
+  session-attribute pending-deep-link pattern, but takes `HasUrlParameter<String>` rather than
+  `<Long>` — the optional slug in `/providers/42-ivan-plytochnyk` needs the leading numeric id
+  parsed out of the path segment manually (`AdvertisementDeepLinkView` has no slug support at all
+  today, so there was no existing `Long`-based precedent to copy for this part).
+- Delete button added in two places, both calling the existing `ProviderProfileSaveService.delete()`
+  (already wired end-to-end, only missing a UI trigger): `ProviderProfileCatalogViewModeHandler`
+  (public catalog) and `ProviderProfileViewModeHandler` (`AccountOverlay`'s own tab) — both visible
+  only under `AccessEvaluator.canEditUserAccount()`. The shared confirm-dialog-plus-delete-call
+  logic is factored into one `ProviderProfileDeleteUtil.confirmAndDelete()` static helper
+  (`ui/views/utils`-style, reused by both call sites) rather than duplicated, found and fixed during
+  this batch's own `/review` pass.
+- `MainView`'s new Providers tab is gated on `providerProfileReadService.isAvailable()`, matching
+  the existing Reference Data tab's `taxonCatalogService.isAvailable()` gate for the same kind of
+  optional-starter (`provider-profile-spring-boot-starter` is `<scope>runtime</scope>`) —
+  found and fixed during this batch's own `/review` pass; the tab would otherwise render
+  permanently empty instead of disappearing if the starter is ever excluded from the classpath.
+
+**Consequences:** Playwright's `04-provider-profile-flow.spec.js` gained public-catalog coverage
+(anonymous browsing/filtering by kind/category/city, deep-link navigation + sitemap.xml + crawler
+meta tags, delete-from-catalog, `SUPPORT`-kind disabled-not-removed for a non-privileged actor
+already holding that kind) alongside its existing `AccountOverlay` tab coverage — no new spec file,
+per this repo's "extend before adding a new one" Playwright convention. `improvement-124`'s last
+open batch (public Providers catalog) is now closed. The `SitemapController`/browser-History
+mechanics this ADR describes were both revised shortly after by ADR-076 — see that entry for the
+current shape.
+
+---
+
+## ADR-076: `OverlayNavigationRegistry` fans out browser History to every deep-linkable overlay; `SitemapController` thins to a `marketplace-orchestrator` `SitemapService`
+
+**Status:** Accepted
+
+**Context:** Verifying `improvement-179`'s Providers catalog against real running code (not just
+the plan) surfaced two real bugs, both directly caused by the pattern ADR-059/ADR-075 established
+for Advertisement being copied as-is for a second domain:
+1. ADR-059's own "Known limitation, deliberately not addressed" already predicted this: Vaadin's
+   `History.setHistoryStateChangeHandler(...)` is a single-handler slot, not an `addListener`-style
+   multi-registration. `AdvertisementOverlay` and the new `ProviderProfileCatalogOverlay` were each
+   calling it directly in their own `@PostConstruct`, so whichever overlay's bean initialized last
+   silently owned the only working browser-back/forward handler — the other domain's deep link
+   would open the overlay via `pushState` but back/forward navigation would go straight past it.
+2. `SitemapController`'s single-entry, 15-minute Caffeine cache lived in `marketplace-app` and had
+   no invalidation hook. A newly-added Playwright test for the provider-profile deep link
+   (`04-provider-profile-flow.spec.js`, running before the advertisement spec) pre-warmed that
+   cache with stale data, which the pre-existing advertisement sitemap test then observed as a
+   silent regression — passing or failing depending on run order, not on the code under test.
+
+**Decision:**
+- New `ui/views/services/OverlayNavigationRegistry` (`@SpringComponent @UIScope`) registers itself
+  as the *only* caller of `setHistoryStateChangeHandler` (once, in its own `@PostConstruct`) and
+  fans every incoming `HistoryStateChangeEvent` out to a `List<History.HistoryStateChangeHandler>`
+  built via `register(...)`. `AdvertisementOverlay` and `ProviderProfileCatalogOverlay` both now
+  call `navigationRegistry.register(...)` instead of touching `UI.getCurrent().getPage().getHistory()`
+  directly — this is the shared per-UI history dispatcher ADR-059 said the next domain would need,
+  now built rather than deferred again for a third domain.
+- `SitemapController` (`marketplace-app`, `rest/`) is now a thin adapter over a new
+  `marketplace-orchestrator` service, `SitemapService` — the cache, the `buildSitemap()` page-walk
+  over both `AdvertisementReadService`/`ProviderProfileReadService`, and a new `invalidate()` method
+  all moved there. `AdvertisementSaveService`/`ProviderProfileSaveService` (already living in the
+  same module) call `sitemapService.invalidate()` after every save/delete — a same-module direct
+  call, no cross-module event needed, since both save services and the sitemap builder were already
+  colocated in `marketplace-orchestrator`. This both fixes the stale-cache/test-order bug and moves
+  the sitemap-building logic to the module that already owns cross-domain read composition, rather
+  than leaving it as a `marketplace-app` REST controller doing orchestration work directly.
+
+**Consequences:** No behavior change for a real user — the sitemap still updates within at most one
+save's `invalidate()` call, just deterministically now instead of only after the 15-minute TTL
+expired. Any future domain adding its own deep-linkable overlay registers into
+`OverlayNavigationRegistry` instead of calling `setHistoryStateChangeHandler` directly; any future
+domain needing sitemap entries adds its own page-walk method to `SitemapService` and an
+`invalidate()` call from its own save service, following this same shape.
+
+---
+
+## ADR-077: Provider Profile catalog gains real date-range filters, mirroring Advertisement's exact mechanism
+
+**Status:** Accepted
+
+**Context:** `ProviderProfileQueryBlock` attached its only sort control (`updatedAt`) to the Kind
+filter row's own `filterRow(...)` call — a field the Kind row has no relationship to.
+`ProviderProfileSortMeta.CREATED_AT` was defined but completely unreferenced. The real root cause
+was not UI placement: `ProviderProfileFilterDto` had no date-range filter fields at all, unlike
+`AdvertisementFilterDto`, which offers `createdAtStart/End`/`updatedAtStart/End` range filters
+paired with sort. The sort icon was bolted onto an unrelated row as a workaround for a missing
+filter capability, rather than the gap being closed. Separately, `provider-profile-card.css` had
+the card's Share button (`.provider-profile-share`) sharing the same `opacity: 0` hover/focus-reveal
+rule as Delete, diverging from Advertisement's own Share button, which is always visible — an
+unintentional divergence from mirroring the Edit/Delete hover-reveal pattern, not a deliberate
+choice.
+
+**Decision:** `ProviderProfileFilterDto` gains `createdAtStart`/`createdAtEnd`/`updatedAtStart`/
+`updatedAtEnd` fields plus the same `@ValidRange` annotations `AdvertisementFilterDto` carries,
+field-for-field. `ProviderProfileRepository` gains 4 matching `SqlBoundFilter` date-range entries;
+`ProviderProfileFilterMeta` gains 4 matching `FilterFieldMeta` constants. `ProviderProfileQueryBlock`
+reverts the Kind row to the plain 3-arg `filterRow(...)` and adds Created/Updated rows using the
+*existing* 4-arg `filterRow(...)` overload — the same one `AdvertisementQueryBlock` already uses —
+with no new shared-infrastructure method. `provider-profile-card.css` drops `.provider-profile-share`
+from the opacity/hover/focus-reveal selectors, leaving only `.provider-profile-delete` gated.
+
+**Rejected alternatives:** A novel `QueryBlock<T>.sortOnlyRow()` method for a row with no filter
+field was considered and rejected — it would have fixed the Kind-row attachment but left Providers
+and Advertisement with two different sort/filter mechanisms, trading one asymmetry for another. The
+chosen approach makes the two domains genuinely symmetric instead: same filter capability, same UI
+mechanism, reusing existing infrastructure rather than inventing a new one-off shape for a single
+domain.
+
+**Consequences:** Providers become filterable/sortable by when they joined or were last active, the
+same capability Advertisement already offered. Any future domain needing date-range filter/sort
+follows this exact field-for-field pattern rather than a per-domain variant.
+

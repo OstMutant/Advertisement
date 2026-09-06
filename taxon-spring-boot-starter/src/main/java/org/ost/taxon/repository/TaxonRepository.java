@@ -6,9 +6,10 @@ import org.ost.platform.taxon.model.TaxonType;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
+import org.ost.query.sort.PaginationSqlBuilder;
 import org.ost.taxon.entities.Taxon;
 import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -69,21 +70,36 @@ public class TaxonRepository {
         return crud.findById(id);
     }
 
-    public List<Taxon> findAllByType(@NonNull TaxonType type, @NonNull TaxonFilter filter, @NonNull Sort sort) {
+    public List<Taxon> findAllByType(@NonNull TaxonType type, @NonNull TaxonFilter filter, @NonNull Pageable pageable) {
         var    params  = new MapSqlParameterSource().addValue("type", type.name());
         String dynamic = FILTER.build(params, filter, " AND ");
         String deleted = filter.showDeleted() ? "" : " AND t.deleted_at IS NULL";
-        String orderBy = OrderByBuilder.build(sort, SORT_ALIASES);
+        String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_ALIASES);
         return jdbcClient.sql("""
                         SELECT t.id, t.type, t.code, t.deleted_at, t.deleted_by, t.created_at, t.updated_at,
                                t.created_by, t.updated_by, t.version
                         FROM taxon t
                         LEFT JOIN taxon_translation tt ON tt.taxon_id = t.id AND tt.locale = 'en'
                         WHERE t.type = :type
-                        """ + deleted + dynamic + " " + orderBy)
+                        """ + deleted + dynamic + " " + orderBy + PaginationSqlBuilder.pageLimit(params, pageable))
                          .paramSource(params)
                          .query(ROW_MAPPER)
                          .list();
+    }
+
+    public int countByType(@NonNull TaxonType type, @NonNull TaxonFilter filter) {
+        var    params  = new MapSqlParameterSource().addValue("type", type.name());
+        String dynamic = FILTER.build(params, filter, " AND ");
+        String deleted = filter.showDeleted() ? "" : " AND t.deleted_at IS NULL";
+        return jdbcClient.sql("""
+                        SELECT COUNT(*)
+                        FROM taxon t
+                        LEFT JOIN taxon_translation tt ON tt.taxon_id = t.id AND tt.locale = 'en'
+                        WHERE t.type = :type
+                        """ + deleted + dynamic)
+                         .paramSource(params)
+                         .query(Integer.class)
+                         .single();
     }
 
     public List<Taxon> findByIds(@NonNull Set<Long> ids) {

@@ -124,13 +124,17 @@ public class AdvertisementsView extends VerticalLayout {
         }
     }
 
-    public void openPendingDeepLinkIfAny() {
+    public boolean openPendingDeepLinkIfAny() {
         PendingAdvertisementDeepLink pending = VaadinSession.getCurrent().getAttribute(PendingAdvertisementDeepLink.class);
-        if (pending == null) return;
+        if (pending == null) return false;
         VaadinSession.getCurrent().setAttribute(PendingAdvertisementDeepLink.class, null);
-        advertisementReadService.findById(pending.adId())
+        return advertisementReadService.findById(pending.adId())
                 .map(ad -> enrichmentService.enrichSingle(ad, localeProvider.getCurrentLocale()))
-                .ifPresent(ad -> overlay.openForView(ad, this::updateCardInPlace, this::checkForChanges));
+                .map(ad -> {
+                    overlay.openForView(ad, this::updateCardInPlace, this::checkForChanges);
+                    return true;
+                })
+                .orElse(false);
     }
 
     @PreDestroy

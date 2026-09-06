@@ -4,9 +4,15 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.providerprofile.model.ProviderKind;
 
+/** Single consolidated enum of every translation key across the app, rather than per-feature
+ *  enums, so {@link I18nService#get} has one type to accept. */
 @RequiredArgsConstructor
 public enum I18nKey {
+    // === Common ===
+    COMMON_NOTIFICATION_ACCESS_DENIED("common.notification.access.denied"),
+
     // === Header ===
     HEADER_SIGNED_IN("header.signedIn"),
     HEADER_NOT_SIGNED_IN("header.notSignedIn"),
@@ -83,8 +89,74 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_BUTTON_SAVE("advertisement.overlay.button.save"),
     ADVERTISEMENT_OVERLAY_BUTTON_CANCEL("advertisement.overlay.button.cancel"),
     ADVERTISEMENT_DESCRIPTION_OVERLAY_AUTHOR("advertisement.description.overlay.author"),
+
+    // === Provider Profile Overlay (AccountOverlay tab) ===
+    PROVIDER_PROFILE_OVERLAY_VALIDATION_KIND_REQUIRED("providerProfile.overlay.validation.kind.required"),
+    PROVIDER_PROFILE_OVERLAY_VALIDATION_ABOUT_LENGTH("providerProfile.overlay.validation.about.length"),
+    PROVIDER_PROFILE_OVERLAY_NOTIFICATION_SUCCESS("providerProfile.overlay.notification.success"),
+    PROVIDER_PROFILE_OVERLAY_NOTIFICATION_VALIDATION_FAILED("providerProfile.overlay.notification.validation.failed"),
+    PROVIDER_PROFILE_OVERLAY_NOTIFICATION_SAVE_ERROR("providerProfile.overlay.notification.save.error"),
+    PROVIDER_PROFILE_OVERLAY_NOTIFICATION_CONFLICT("providerProfile.overlay.notification.conflict"),
+    PROVIDER_PROFILE_OVERLAY_FIELD_KIND("providerProfile.overlay.field.kind"),
+    PROVIDER_PROFILE_OVERLAY_FIELD_ABOUT("providerProfile.overlay.field.about"),
+    PROVIDER_PROFILE_OVERLAY_FIELD_CATEGORIES("providerProfile.overlay.field.categories"),
+    PROVIDER_PROFILE_OVERLAY_FIELD_CITY("providerProfile.overlay.field.city"),
+    PROVIDER_PROFILE_OVERLAY_SECTION_LABEL("providerProfile.overlay.section.label"),
+    PROVIDER_PROFILE_OVERLAY_BUTTON_SAVE("providerProfile.overlay.button.save"),
+    PROVIDER_PROFILE_OVERLAY_BUTTON_CANCEL("providerProfile.overlay.button.cancel"),
+    PROVIDER_PROFILE_ACTIVITY_BUTTON("providerProfile.activity.button"),
+    PROVIDER_PROFILE_VIEW_BUTTON_EDIT("providerProfile.view.button.edit"),
+    PROVIDER_PROFILE_VIEW_BUTTON_CREATE("providerProfile.view.button.create"),
+    PROVIDER_PROFILE_VIEW_EMPTY_TEXT("providerProfile.view.empty.text"),
+    PROVIDER_PROFILE_VIEW_BUTTON_DELETE("providerProfile.view.button.delete"),
+    PROVIDER_PROFILE_VIEW_CONFIRM_DELETE_TITLE("providerProfile.view.confirm.delete.title"),
+    PROVIDER_PROFILE_VIEW_CONFIRM_DELETE_TEXT("providerProfile.view.confirm.delete.text"),
+    PROVIDER_PROFILE_VIEW_CONFIRM_DELETE_BUTTON("providerProfile.view.confirm.delete.button"),
+    PROVIDER_PROFILE_VIEW_CONFIRM_CANCEL_BUTTON("providerProfile.view.confirm.cancel.button"),
+    PROVIDER_PROFILE_VIEW_NOTIFICATION_DELETED("providerProfile.view.notification.deleted"),
+    PROVIDER_PROFILE_VIEW_NOTIFICATION_DELETE_ERROR("providerProfile.view.notification.delete.error"),
+    ACCOUNT_OVERLAY_TAB_NAME("account.overlay.tab.name"),
+    ACCOUNT_OVERLAY_TAB_SETTINGS("account.overlay.tab.settings"),
+    ACCOUNT_OVERLAY_TAB_PROVIDER_PROFILE("account.overlay.tab.providerProfile"),
     ADVERTISEMENT_DESCRIPTION_OVERLAY_CREATED("advertisement.description.overlay.created"),
     ADVERTISEMENT_DESCRIPTION_OVERLAY_UPDATED("advertisement.description.overlay.updated"),
+
+    // === Providers Catalog ===
+    MAIN_TAB_PROVIDERS("main.tab.providers"),
+    PROVIDERS_EMPTY_TITLE("providers.empty.title"),
+    PROVIDERS_EMPTY_HINT("providers.empty.hint"),
+    PROVIDERS_VIEW_NOTIFICATION_REFRESH_ERROR("providers.view.notification.refresh.error"),
+    PROVIDERS_VIEW_NOTIFICATION_VALIDATION_FAILED("providers.view.notification.validation.failed"),
+    PROVIDERS_VIEW_TOOLTIP_REFRESH_AVAILABLE("providers.view.tooltip.refresh.available"),
+    PROVIDERS_SORT_CREATED_AT("providers.sort.createdAt"),
+    PROVIDERS_SORT_UPDATED_AT("providers.sort.updatedAt"),
+    PROVIDERS_FILTER_KIND("providers.filter.kind"),
+    PROVIDERS_FILTER_DATE_CREATED_START("providers.filter.date.created.start"),
+    PROVIDERS_FILTER_DATE_CREATED_END("providers.filter.date.created.end"),
+    PROVIDERS_FILTER_DATE_UPDATED_START("providers.filter.date.updated.start"),
+    PROVIDERS_FILTER_DATE_UPDATED_END("providers.filter.date.updated.end"),
+    PROVIDERS_FILTER_TIME_CREATED_START("providers.filter.time.created.start"),
+    PROVIDERS_FILTER_TIME_CREATED_END("providers.filter.time.created.end"),
+    PROVIDERS_FILTER_TIME_UPDATED_START("providers.filter.time.updated.start"),
+    PROVIDERS_FILTER_TIME_UPDATED_END("providers.filter.time.updated.end"),
+    PROVIDERS_FILTER_CATEGORIES("providers.filter.categories"),
+    PROVIDERS_FILTER_CITY("providers.filter.city"),
+    PROVIDERS_CARD_ABOUT_EMPTY("providers.card.about.empty"),
+    PROVIDERS_CARD_CATEGORIES("providers.card.categories"),
+    PROVIDERS_CARD_CITY("providers.card.city"),
+    PROVIDERS_CARD_BUTTON_SHARE("providers.card.button.share"),
+    PROVIDERS_CARD_NOTIFICATION_LINK_COPIED("providers.card.notification.link.copied"),
+    PROVIDERS_CATALOG_OVERLAY_SHARE("providers.catalog.overlay.share"),
+    PROVIDERS_CATALOG_OVERLAY_DELETE("providers.catalog.overlay.delete"),
+    PROVIDERS_CATALOG_CONFIRM_DELETE_TITLE("providers.catalog.confirm.delete.title"),
+    PROVIDERS_CATALOG_CONFIRM_DELETE_TEXT("providers.catalog.confirm.delete.text"),
+    PROVIDERS_CATALOG_CONFIRM_DELETE_BUTTON("providers.catalog.confirm.delete.button"),
+    PROVIDERS_CATALOG_CONFIRM_CANCEL_BUTTON("providers.catalog.confirm.cancel.button"),
+    PROVIDERS_CATALOG_NOTIFICATION_DELETED("providers.catalog.notification.deleted"),
+    PROVIDERS_CATALOG_NOTIFICATION_DELETE_ERROR("providers.catalog.notification.delete.error"),
+    PROVIDER_KIND_MASTER("providerKind.master"),
+    PROVIDER_KIND_SHOP("providerKind.shop"),
+    PROVIDER_KIND_SUPPORT("providerKind.support"),
 
     // === User View ===
     USER_VIEW_HEADER_ID("user.view.header.id"),
@@ -318,6 +390,8 @@ public enum I18nKey {
     CHANGES_FIELD_DESCRIPTION_EN("changes.field.descriptionEn"),
     CHANGES_FIELD_NAME_UK("changes.field.nameUk"),
     CHANGES_FIELD_DESCRIPTION_UK("changes.field.descriptionUk"),
+    CHANGES_FIELD_KIND("changes.field.kind"),
+    CHANGES_FIELD_ABOUT("changes.field.about"),
     CHANGES_SETTING_ADS_PAGE_SIZE("audit.changes.setting.adsPageSize"),
     CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize"),
     CHANGES_SETTING_TIMELINE_PAGE_SIZE("audit.changes.setting.timelinePageSize"),
@@ -420,6 +494,14 @@ public enum I18nKey {
             case OFFER   -> ADVERTISEMENT_AD_KIND_OFFER;
             case REQUEST -> ADVERTISEMENT_AD_KIND_REQUEST;
             case PRODUCT -> ADVERTISEMENT_AD_KIND_PRODUCT;
+        };
+    }
+
+    public static I18nKey forProviderKind(ProviderKind kind) {
+        return switch (kind) {
+            case MASTER  -> PROVIDER_KIND_MASTER;
+            case SHOP    -> PROVIDER_KIND_SHOP;
+            case SUPPORT -> PROVIDER_KIND_SUPPORT;
         };
     }
 

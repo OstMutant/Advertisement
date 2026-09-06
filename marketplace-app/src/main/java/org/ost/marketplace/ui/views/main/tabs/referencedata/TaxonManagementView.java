@@ -16,6 +16,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.TaxonOverlay;
 import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
@@ -155,6 +156,9 @@ public class TaxonManagementView extends Div {
                         taxonCatalogService.softDelete(taxon.getId(), access.getCurrentUserId(), taxon.getVersion());
                         notificationService.success(TAXON_VIEW_NOTIFICATION_DELETED);
                         refresh();
+                    } catch (AccessDeniedException e) {
+                        log.warn("Access denied deleting taxon id={}: {}", taxon.getId(), e.getMessage());
+                        notificationService.accessDenied();
                     } catch (@SuppressWarnings("java:S7467") Exception e) {
                         log.error("Error deleting taxon id={}", taxon.getId(), e);
                         notificationService.error(TAXON_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
@@ -168,6 +172,9 @@ public class TaxonManagementView extends Div {
             taxonCatalogService.restore(taxon.getId(), access.getCurrentUserId());
             notificationService.success(TAXON_VIEW_NOTIFICATION_RESTORED);
             refresh();
+        } catch (AccessDeniedException e) {
+            log.warn("Access denied restoring taxon id={}: {}", taxon.getId(), e.getMessage());
+            notificationService.accessDenied();
         } catch (Exception e) {
             log.error("Error restoring taxon id={}", taxon.getId(), e);
             notificationService.error(TAXON_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());

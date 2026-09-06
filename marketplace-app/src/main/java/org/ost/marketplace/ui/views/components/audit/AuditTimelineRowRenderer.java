@@ -18,6 +18,7 @@ import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
 import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
+/** {@link #labelFor} is the single canonical field-name-to-label mapping for the audit timeline. */
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
@@ -42,7 +44,8 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
     // Entity types with a real field-name-to-label mapping below -- everything else falls back
     // to changeFormatter.buildChangesList() (raw, unexpanded changes, no label translation).
     private static final Set<EntityType> LABELED_ENTITY_TYPES =
-            EnumSet.of(EntityType.ADVERTISEMENT, EntityType.TAXON, EntityType.USER, EntityType.USER_SETTINGS);
+            EnumSet.of(EntityType.ADVERTISEMENT, EntityType.TAXON, EntityType.USER, EntityType.USER_SETTINGS,
+                    EntityType.PROVIDER_PROFILE);
 
     private final I18nService          i18n;
     private final InstantFormatter     formatter;
@@ -171,6 +174,13 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
                 case SettingsSnapshotDto.Fields.usersPageSize    -> I18nKey.CHANGES_SETTING_USERS_PAGE_SIZE;
                 case SettingsSnapshotDto.Fields.timelinePageSize -> I18nKey.CHANGES_SETTING_TIMELINE_PAGE_SIZE;
                 default                                          -> null;
+            };
+            case PROVIDER_PROFILE -> switch (rawFieldKey) {
+                case ProviderProfileSnapshotDto.Fields.kind        -> I18nKey.CHANGES_FIELD_KIND;
+                case ProviderProfileSnapshotDto.Fields.about       -> I18nKey.CHANGES_FIELD_ABOUT;
+                case ProviderProfileSnapshotDto.Fields.categoryIds -> I18nKey.CHANGES_FIELD_CATEGORY;
+                case ProviderProfileSnapshotDto.Fields.cityTaxonId -> I18nKey.CHANGES_FIELD_CITY;
+                default                                            -> null;
             };
             default -> null;
         };

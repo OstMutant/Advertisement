@@ -7,7 +7,7 @@
  *   activity, outer-breadcrumb navigation, and delete/restore with the deleted category rendered
  *   struck-through in an advertisement's view overlay and activity diff. A trailing
  *   `PW_FULL`-gated section signs up two 100-char-name boundary users and seeds 10 boundary
- *   categories (one at the 255-char name maximum) for spec 04's category-selection boundary tests.
+ *   categories (one at the 255-char name maximum) for spec 05's category-selection boundary tests.
  *   Per test -- role promotion:
  *   - "adminEn promotes moderatorUk/moderatorEn to MODERATOR, adminUk to ADMIN -- activity shows
  *     updated role, role badge in view and grid": login -> users tab -> edit user -> activity (v2
@@ -46,7 +46,7 @@
  *   (restored after a delete/restore cycle) and Vehicles plus cities Lviv and Kyiv in the
  *   database, and one throwaway advertisement ("Electronics Strikethrough Test Ad") used only to
  *   prove the struck-through-category rendering. With PW_FULL also leaves two boundary users
- *   (maxEn/maxUk) and 10 boundary categories seeded for spec 04 to select from.
+ *   (maxEn/maxUk) and 10 boundary categories seeded for spec 05 to select from.
  * Returns: Playwright's own pass/fail exit code convention -- 0 when every test in this file
  *   passes, non-zero otherwise.
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -237,7 +237,7 @@ test.describe('Promotion flow', () => {
 
     await test.step('admin renames userEn — grid reflects new name', async () => {
       await runOpenUserEditViaListFlow(page, TEST_USERS.userEn.email);
-      originalName = await page.locator('.user-overlay vaadin-text-field input').first().inputValue();
+      originalName = await page.locator('.account-overlay vaadin-text-field input').first().inputValue();
       await runFillUserRoleFlow(page, { name: editedName });
       await runSaveUserEditFlow(page, expect, 'cross-actor');
       await closeUserOverlay(page);
@@ -588,7 +588,7 @@ const MAX_EN         = { name: MAX_NAME_100, email: MAX_EMAIL_EN, password: 'pas
 const MAX_UK         = { name: MAX_NAME_100, email: MAX_EMAIL_UK, password: 'password' };
 
 // 255 chars — the name field's actual max (VARCHAR(255), maxLength(255) on the form) — one of
-// the 10 boundary categories uses this instead of a short "Boundary-XX" label so spec 04's
+// the 10 boundary categories uses this instead of a short "Boundary-XX" label so spec 05's
 // category-chip assertions exercise a genuinely long name, not just a short placeholder.
 const MAX_CATEGORY_NAME = 'Max Boundary Category Name Test '.repeat(8).substring(0, 255);
 
@@ -611,7 +611,7 @@ test.describe('Max-boundary users and categories', () => {
     await loginBulk(page, TEST_USERS.adminEn);
     await runNavigateToUsersTabFlow(page, expect);
     await runOpenUserEditViaListFlow(page, MAX_EN.email);
-    const nameInput = page.locator('.user-overlay vaadin-text-field input').first();
+    const nameInput = page.locator('.account-overlay vaadin-text-field input').first();
     await expect(nameInput).toHaveValue(MAX_NAME_100, { timeout: 5000 });
     await screenshot(page, 'max-01-en-user-name-100');
     const activityList = await openEntityActivity(page, '.user-history-button');
@@ -627,7 +627,7 @@ test.describe('Max-boundary users and categories', () => {
     await loginBulk(page, TEST_USERS.adminEn);
     await runNavigateToUsersTabFlow(page, expect);
     await runOpenUserEditViaListFlow(page, MAX_UK.email);
-    const nameInput = page.locator('.user-overlay vaadin-text-field input').first();
+    const nameInput = page.locator('.account-overlay vaadin-text-field input').first();
     await expect(nameInput).toHaveValue(MAX_NAME_100, { timeout: 5000 });
     await screenshot(page, 'max-03-uk-user-name-100');
     const activityList = await openEntityActivity(page, '.user-history-button');
@@ -638,7 +638,7 @@ test.describe('Max-boundary users and categories', () => {
     await logoutBulk(page);
   });
 
-  test('adminEn seeds 10 boundary categories — for max category selection in spec 04', async () => {
+  test('adminEn seeds 10 boundary categories — for max category selection in spec 05', async () => {
     await loginBulk(page, TEST_USERS.adminEn);
     await openRefDataTab(page);
     for (let i = 1; i <= 10; i++) {

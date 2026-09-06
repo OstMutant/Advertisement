@@ -2218,3 +2218,198 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   instead of re-researching if any `idea` row gets picked up later. Full detail:
   `completed/issues/improvement-160-ai-certification-practical-coverage.md` and
   `completed/issues/improvement-160-certification-coverage-map.md`.
+
+✅ Done (2026-08-28): improvement-176 closed — `/autopilot` review, 5 findings against real repo
+  state and the private certification document, all resolved. Fixed directly in
+  `.claude/commands/autopilot.md`: duplicate step "4." numbering (renumbered 1-6); a stale/false
+  claim that no git-commit hook exists (corrected to describe the real `PreToolUse:Bash` hook +
+  `/tmp/commit-approved` marker, already documented in `.claude/rules.md`'s "Two-call rule"); step
+  1 rewritten to use real `EnterPlanMode`/`ExitPlanMode` instead of a hand-rolled chat gate (real
+  tool mechanics verified directly first — no plan-text parameter, `ExitPlanMode` already requests
+  approval on its own); step 3 rewritten to dispatch this project's own `/review`→
+  `deep-review-orchestrator` instead of a stale "8 finder angles" reference to the deleted
+  `deep-review` skill (`improvement-171`). Decided against, user's explicit call: hook-enforcing
+  destructive git commands (force-push/`reset --hard`/etc.) — no clean approval release-valve like
+  the commit hook's marker file, would block `/autopilot` from ever completing a run that
+  genuinely needs one; stays prompt-enforced, done only in genuine extreme necessity. A follow-up
+  full-document certification audit (same session) found one confirmed existing match (parallel
+  Agent/Task spawning, already correct) and one candidate finding (whether `.claude/rules.md`'s
+  `@import` content survives `/compact` the same way root `CLAUDE.md` does) that the user decided
+  to treat as an accepted precaution rather than open a new issue for. The project-wide Approval
+  Rule → Plan Mode question (originally this issue's finding 4 before scope was narrowed) continues
+  in `improvement-177`. Full detail:
+  `completed/issues/improvement-176-autopilot-review-certification-findings.md`.
+
+✅ Done (2026-08-30): improvement-178 closed — unified `SettingsOverlay`/`UserOverlay` into one
+  `AccountOverlay` (Name/Settings/Provider Profile tabs), new `ProviderProfileSaveService` in
+  `marketplace-orchestrator` mirroring `AdvertisementSaveService`, new
+  `AccessEvaluator.canEditUserAccount()`/`canViewUserAccount()`. Five real bugs found and fixed
+  during manual testing/review: categories not enriched on re-edit; moderator permission bypass on
+  Name/Settings; provider profile created under the wrong owner (`targetUserId`/`actingUserId`
+  split — `platform-commons/DECISIONS.md` ADR-030); missing Provider Profile view CSS;
+  `UserDeleteService` bypassing the audit-capturing delete path. `ProviderProfileFormOverlayModeHandler`
+  hardened with the same defensive `canEditUserAccount()` re-check its Name/Settings siblings
+  already had. `marketplace-app/DECISIONS.md` ADR-074 records the overlay unification. Playwright
+  `04-provider-profile-flow.spec.js` added (4 tests); specs 04-07 renumbered to 05-08. `/ci` full
+  run green except `sonar` — a pre-existing, separately-tracked `new_coverage=0%` gap
+  (`improvement-114`, unrelated to this issue's own code, which has 0 new violations). Full detail:
+  `completed/issues/improvement-178-account-overlay-provider-profile-tab.md`.
+
+✅ Done (2026-08-31): improvement-175 closed — new `html-sanitizer-lib` module (plain Java library,
+  mirrors `query-lib`'s shape) replaces the duplicated `HTML_SANITIZER`/`sanitizeHtml()` logic in
+  `AdvertisementService`/`ProviderProfileService` with one shared `HtmlSanitizer.sanitize()`;
+  `AdvertisementSaveService`/`ProviderProfileSaveService` in `marketplace-orchestrator` now throw
+  `OptimisticLockingFailureException` instead of silently proceeding when a `save()` target row was
+  deleted concurrently (`before == null` for a non-new `dto`) — reaches
+  `AbstractEntityOverlay.handleSave()`'s existing conflict-handling UI path for free.
+  `platform-commons/DECISIONS.md` ADR-027 annotated resolved; new `html-sanitizer-lib/DECISIONS.md`
+  ADR-001 and `marketplace-orchestrator/DECISIONS.md` ADR-006 record the two decisions. `deep-review-orchestrator`
+  self-review found 0 SOLID/DRY/KISS/YAGNI findings; surfaced 2 stale-doc references (a rules-file
+  bullet naming a deleted method, a test class Javadoc describing the old behavior) fixed directly
+  in the same run. `/ci` full run green (unit/integration/e2e/archunit/docs) except `sonar` — the
+  same pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`, unrelated, 0 new
+  violations confirmed twice via `sonar-analyst`). Full detail:
+  `completed/issues/improvement-175-shared-sanitizer-stale-id-delete-race.md`.
+
+✅ Done (2026-09-02): improvement-179 closed — public Providers catalog (`ProvidersView`/
+  `ProviderProfileCardView`/`ProviderProfileDeepLinkView`/`overlay/ProviderProfileCatalogOverlay`+
+  `ProviderProfileCatalogViewModeHandler`/query-layer trio), `OgMetaRequestListener`/`AppLinkService`
+  extended to provider profiles, a Delete button wired into `ProviderProfileViewModeHandler`, new
+  Playwright coverage added to `04-provider-profile-flow.spec.js` (category filter + sort-icon
+  coverage, `SUPPORT`-disabled-not-removed assertions). This closes `improvement-124`'s last open
+  batch (124-D) — see that issue's own archive entry below. Five real bugs found and fixed during
+  verification: (1) `OverlayNavigationRegistry` resolves ADR-059's own documented single-handler
+  `History` conflict between `AdvertisementOverlay` and the new catalog overlay —
+  `marketplace-app/DECISIONS.md` ADR-076; (2) deep-link tab-selection — `MainView`'s
+  `pendingDeepLinkCheckers` map now actually selects the Providers tab when a provider deep link
+  opens directly, `ProvidersView`/`AdvertisementsView.openPendingDeepLinkIfAny()` both return
+  `boolean`; (3) sitemap cache staleness across specs — `SitemapController` thinned to a new
+  `marketplace-orchestrator` `SitemapService` with `invalidate()` called from both save services
+  (also ADR-076); (4) `ProviderProfileFormOverlayModeHandler`'s `setReadOnly()` calls were running
+  before `buildBinder()` established the Binder's clean baseline, causing a spurious "unsaved
+  changes" dialog for a privileged actor viewing another user's already-saved profile — reordered
+  after `buildBinder()`; (5) a non-privileged actor's own already-`SUPPORT` profile hit the same
+  false-dirty/required-validation failure, since `kindField`'s item list excluded `SUPPORT`
+  entirely — fixed via `RadioButtonGroup.setItemEnabledProvider` (kept in the list, disabled, not
+  hidden, when it's the actor's real current value). A separate, unrelated infra bug found during
+  Sonar re-verification: `scripts/sonar/run.sh`/`scripts/build-and-test/build.sh` both hardcoded a
+  module-copy list missing `html-sanitizer-lib` (added when that module was extracted), so the
+  scanner referenced a source folder that was never actually copied in — fixed in both scripts.
+  Playwright `e2e --ux` green (45 passed, 13 skipped, 0 failed). Sonar's 3 real findings (S7467
+  unnamed-pattern catch, S8491 dangling duplicate Javadoc, S1192 duplicated string literal) fixed,
+  confirmed `new_violations: 0` via the SonarQube API; the quality gate still shows `ERROR` solely
+  on the pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`, unrelated to
+  this issue's own code). Full detail: `completed/issues/improvement-179-provider-profile-catalog.md`.
+
+✅ Done (2026-09-02): improvement-124 closed — F-04's last open batch (124-D, public Providers
+  catalog) shipped via `improvement-179` (see that entry above); nothing left in this issue itself.
+  Full history: Batch A (`user_preferences` split) and A2 (`UserDto`/`UserPort` cleanup) shipped
+  2026-07-31; Batch B (`provider-profile-spring-boot-starter` module, backend only) shipped
+  2026-08-01 (`platform-commons/DECISIONS.md` ADR-027); Batch B2 (shared HTML sanitizer,
+  concurrent-delete race fix) moved to and shipped via `improvement-175`; Batch C (unified
+  `AccountOverlay`, `ProviderProfileSaveService`) moved to and shipped via `improvement-178`;
+  Batch D (this entry) moved to and shipped via `improvement-179`. Full detail:
+  `completed/issues/improvement-124-provider-profile.md`.
+
+✅ Done (2026-09-02): improvement-180 closed — Providers catalog gains real `createdAt`/`updatedAt`
+  date-range filters, mirroring `AdvertisementFilterDto`/`AdvertisementRepository`/
+  `AdvertisementFilterMeta`/`AdvertisementQueryBlock`'s existing pattern field-for-field
+  (`ProviderProfileFilterDto` 4 new fields + `@ValidRange`, 4 new `SqlBoundFilter` entries, 4 new
+  `FilterFieldMeta` constants, two new query-block rows reusing the existing 4-arg `filterRow(...)`
+  overload — no new shared-infrastructure method). The Kind row's sort icon (previously glued to an
+  unrelated `updatedAt` sort with no filter pairing) is now a plain filter row again. Also fixed:
+  `provider-profile-card.css`'s Share button no longer hides on hover/blur, matching Advertisement's
+  own always-visible Share button. See `marketplace-app/DECISIONS.md` ADR-077 (explicitly rejects an
+  earlier-considered "sort-only row" alternative in favor of real symmetry with Advertisement).
+  `deep-review-orchestrator` found zero findings. Full suite green: unit 69/69, integration 163/163
+  (including `ProviderProfileRepositoryTest` 13/13 covering the new date-range SQL), Playwright
+  `e2e --ux` 45/45 passed (13 skipped, expected). Sonar's only failing gate condition is the
+  pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`, unrelated to this
+  issue's own code) — no new issues. Full detail:
+  `completed/issues/improvement-180-providers-sort-icon-placement.md`.
+
+✅ Done (2026-09-03): improvement-111 closed — service-boundary authorization (previously UI-only
+  via `AccessEvaluator`) moved to `marketplace-orchestrator`'s new `AuthorizationService`
+  (`canOperate`/`canEditAccount`/`canEditRole`/`isPrivileged`, throwing `require*` variants raising
+  a new `AccessDeniedException`), wired into `AdvertisementSaveService`/`ProviderProfileSaveService`/
+  `UserProfileService`/`UserDeleteService`/`TaxonCatalogService` — grep-verified this module is
+  already the sole real caller of every mutating domain Port, so no `platform-commons` SPI or
+  starter code changed. `AccessEvaluator` now delegates rule composition to the same
+  `AuthorizationService` instead of re-implementing it (dedup found during a follow-up architecture
+  review). Also closed a role-escalation gap found along the way: `UserProfileService.save()` is
+  the one write path for both name and role, but only the UI disabled the role field for
+  unauthorized editors — now enforced server-side too. `/code-review --fix` applied 4 confirmed
+  cleanups (missing logs on `AccessDeniedException` catches, a duplicated catch block extracted to
+  `NotificationService.accessDenied()`, redundant double-fetches in 4 save/delete methods); several
+  other candidates (a suspected role-check bypass, a suspected read-skew race, N redundant
+  re-authorization lookups in cascade delete) were investigated and refuted with evidence. Sonar's
+  quality gate failure is the same pre-existing `new_coverage=0%` gap as `improvement-114`, not a
+  new issue (0 real BUG/CRITICAL findings). Along the way, fixed a real CI-breaking bug found by
+  running the full `/ci` pipeline: `TESTCONTAINERS_RYUK_DISABLED` disables Testcontainers' own
+  auto-cleanup with nothing replacing it, so a crashed run leaks its Postgres container forever on
+  the sandbox's fixed port, failing every later `integration` run — `integration-tests/run.sh` and
+  `scripts/build-and-test/build.sh` now remove any leaked `org.testcontainers`-labeled container
+  before starting, verified end-to-end via a clean rerun. Also fixed `.gitignore` missing
+  `html-sanitizer-lib/target/` (the one starter module absent from the per-module ignore list,
+  found because `git add -A` almost staged its build artifacts). See
+  `marketplace-orchestrator/DECISIONS.md` ADR-007. Full detail:
+  `completed/issues/improvement-111-authorization-enforced-in-ui-only-not-at-service-boundary.md`.
+
+✅ Done (2026-09-04): improvement-073 closed — REST API infrastructure for two audiences: dev-gated
+  Playwright seeding (spec 06 now seeds users/advertisements via real API calls instead of browser
+  automation) and a genuinely public, prod-reachable external API (users, advertisements, provider
+  profiles, taxons, API-key management), with bearer-API-key auth (`marketplace-app/DECISIONS.md`
+  ADR-078) and live Swagger/OpenAPI docs (`springdoc-openapi`, dual `bearerKey`/`basicAuth`
+  `@SecurityScheme`s). Landed as two new Maven modules — `apikey-spring-boot-starter` (credential
+  domain, `api_key` table keyed by `actor_id` with no FK, matching this codebase's established
+  actor-reference convention) and `marketplace-rest-api` (the non-Vaadin HTTP adapter, sibling to
+  `marketplace-app`, both sitting over `marketplace-orchestrator`). Along the way: fixed 3 real
+  Playwright bugs (bearer-token principal resolution, parallel-seeding sort-order, a login
+  click/`waitForLoadState` race); found and fixed a genuine architecture violation (the API-key
+  table originally coupled to `user-spring-boot-starter` via a hard FK and "user" vocabulary,
+  violating this codebase's own actor/no-FK precedent) and the SPI-placement gap it exposed
+  (`ApiKeyPort` had been left under `user.spi` instead of its own `apikey.spi`); added a new
+  `precedent-reviewer` review lens so `/code-review`/`/deep-review` check new code against
+  `.claude/rules.md`/`DECISIONS.md` precedent, not just SOLID/DRY/KISS/YAGNI; closed 3 more
+  hardcoded-module-list gaps in `generate-architecture-model.sh` (`DB_ERD_CHANGELOG_FILES`,
+  `FULL_DECISIONS_MODULES`, stale Module-Dependencies-diagram prose) found while regenerating docs
+  for the new modules; replaced the Database ERD's hand-curated no-FK-relationship list with a
+  `remarks=`-marker convention the generator derives mechanically (`docs/architecture/scripts/DECISIONS.md`
+  ADR-034), closing 6 real relationship gaps the old hand-curated list had silently accumulated;
+  added a build-enforced ArchUnit rule blocking a starter from writing taxon assignments directly
+  instead of through the orchestrator, replacing a diagram category that could only ever report the
+  same violation after the fact (`marketplace-app/DECISIONS.md` ADR-079); and fixed a second real
+  generator bug found the same way — `marketplace-rest-api` and `marketplace-orchestrator` both
+  claimed the same bounded-context classification, silently overwriting which module's source the
+  "Service Calls (BFF)" diagram tab actually scanned (16 real edges were rendering as ~0). Verified
+  end-to-end: unit 233/233, integration 183/183 (incl. `ArchitectureRulesTest` 20/20), clean
+  `--reset` deploy, Playwright 61/61 (8.7m). A Postman collection with automatic bearer-token
+  injection (linked/sync-imported from the now-live `/v3/api-docs` spec) was scoped but left for
+  manual setup outside the repo. Full detail:
+  `completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md`.
+
+✅ Done (2026-09-04): improvement-182 closed — REST API list endpoints
+(`/api/advertisements`/`provider-profiles`/`taxons`) gained real filter/sort/pagination, closing the
+gap where they hardcoded empty filters and unsorted results despite the same capability already
+working in the Vaadin UI. Filters bind query params straight onto the existing domain `FilterDto`s
+(`@ModelAttribute @Valid`, same validation as create/update, for free); sort (`?sort=field,dir`) is
+validated against each domain's own response-DTO `Fields.*` constants via a new shared
+`SortQueryParser`; pagination uses an RFC 8288 `Link` header + `X-Total-Count` (a new
+`PageLinkHeaderBuilder`/`PagedResponseBuilder` pair) instead of a breaking envelope or a new Spring
+HATEOAS dependency — recorded as `marketplace-app/DECISIONS.md` ADR-080. `TaxonPort` had no
+pagination/count capability at any layer before this (unlike Advertisement/ProviderProfile) — added
+`getPageByType`/`.count`, threading `Pageable` down through `TaxonRepository`/`TaxonService`, plus a
+new `TaxonFilterDto` (`platform-commons`). A `/review` pass found and fixed one real DRY violation
+(the three controllers' response-assembly sequence, extracted into `PagedResponseBuilder`) and, via
+the full `bash scripts/ci.sh` run this issue's `/autopilot` execution triggered, caught a real
+pre-existing CRITICAL Sonar finding unrelated to this issue's own diff (`java:S1192`, a
+duplicated `"actorId"` literal in `apikey-spring-boot-starter`'s `ApiKeyRepository`, from the
+earlier `improvement-073` commit) — fixed in the same pass. Also surfaced and fixed a real
+self-inflicted process bug: editing `DECISIONS.md`/`adr-index.md` while a triggered `ci.sh` run's
+own `docker build` was already in flight raced its `COPY . .` snapshot, failing that run's `docs`
+stage — exactly the failure mode `.claude/commands/autopilot.md`'s own step-2 exception describes.
+Verified: unit 255/255, integration 186/186 (3 new `TaxonRepository` pagination/count tests, real
+Postgres), full `ci.sh` — build/unit/integration/e2e/archunit/docs all green; `sonar`'s quality gate
+failed only on the pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`), zero
+new real issues (confirmed via direct SonarQube REST API query). Full detail:
+`completed/issues/improvement-182-rest-api-filter-sort-pagination-parity-with-ui.md`.

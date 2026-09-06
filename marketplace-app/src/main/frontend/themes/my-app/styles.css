@@ -17,6 +17,10 @@
 @import url("./locale-selector.css");
 @import url("./header-bar.css");
 @import url("./user-overlay.css");
+@import url("./provider-profile-overlay.css");
+@import url("./provider-profile-query-block.css");
+@import url("./providers-view.css");
+@import url("./provider-profile-card.css");
 @import url("./forms.css");
 @import url("./activity-feed.css");
 @import url("./entity-activity.css");

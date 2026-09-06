@@ -1,0 +1,755 @@
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Core advertisement lifecycle e2e coverage -- create (with YouTube/image/video
+ *   gallery, lightbox playback), edit (discard, activity diff, rich-text formatting, category/
+ *   city/listing-type changes, cross-user media replace), restore from a snapshot, optimistic-
+ *   locking conflict between two concurrent edit sessions, long-description truncation/expand,
+ *   and deep-link navigation (/ads/:id, share button, sitemap.xml, crawler meta tags/JSON-LD,
+ *   locale-aware category rendering). A second, separately gated 'Max-content advertisement
+ *   boundary' describe block (only runs when PW_FULL is set) exercises 255-char titles,
+ *   2000-char descriptions, 10 seeded categories and a 10-item media gallery.
+ *   Per test:
+ *   - "userEn/userUk creates advertisement -- YouTube, image and video, lightbox plays video,
+ *     single activity row": login -> create (title+desc+YouTube+image+WebM) -> activity (v1, no
+ *     restore btn) -> lightbox (play icon, video src).
+ *   - "userEn edits advertisement -- discard, two saves with activity diff, admin timeline
+ *     check": login -> discard: delete all media -> gallery restored -> discard: add YouTube ->
+ *     gallery restored -> save v2 (delete all media, new title+desc) -> activity (diff:
+ *     title+desc+media) -> save v3 (text-only) -> activity (media field shows "--") -> grid ->
+ *     admin timeline -> >=2 updated rows.
+ *   - "userUk edits advertisement -- ...": same flow -> admin timeline -> >=4 updated rows.
+ *   - "userEn/userUk restores advertisement -- activity diff shows restored media and text, view
+ *     and card updated": login -> activity (3 rows) -> restore v1 -> form (title+desc+3 media) ->
+ *     save v4 -> activity (restore diff) -> VIEW -> grid (restored title+desc+3 media).
+ *   - "moderatorEn edits EN / adminEn edits UK advertisement -- discard, two saves with activity
+ *     diff, add and replace media, timeline check": login as moderator/admin -> edit (discard
+ *     checks + save) -> activity (editor badge) -> media add+replace -> timeline -> >=4 updated
+ *     rows, titleText, actorText.
+ *   - "userEn verifies lightbox -- YouTube to image blanks iframe, WebM to image stops video":
+ *     YouTube->image: iframe src blanked; WebM->image: video stops.
+ * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 05-marketplace-
+ *   advertisement-flow --ux`, or as part of the full e2e suite (`bash /app/playwright/run.sh e2e
+ *   --ux`). The boundary describe block additionally needs `--full` (sets PW_FULL) to run.
+ * Uses: @playwright/test, Node's fs module (temp PNG cleanup for uploaded avatar images).
+ * Env: PW_FULL -- when unset/falsy, the 'Max-content advertisement boundary' describe block is
+ *   skipped entirely.
+ * Input: ./_helpers (test, expect, screenshot, waitForOverlayClosed, closeOverlay,
+ *   closeNotification, TEST_USERS, YT_URL, avatar, downloadPng), ./_flows/auth.flow,
+ *   ./_flows/advertisement.flow, ./_flows/delete.flow, ./_flows/entity-activity.flow,
+ *   ./_flows/timeline.flow, ./_flows/attachment.flow, ./_flows/seed.flow, ./_flows/category.flow.
+ * Outputs: Playwright HTML report entries (one per test/test.step), PNG screenshots attached to
+ *   the report when PW_SCREENSHOTS is set. Creates advertisements, categories, cities and
+ *   activity/timeline entries used only within this file's own serial test sequence.
+ * Returns: exit code from the Playwright test runner -- 0 when every test in this file passes,
+ *   non-zero otherwise.
+ * ──────────────────────────────────────────────────────────────────────────── */
+const fs = require('fs');
+const { test, expect, screenshot, waitForOverlayClosed, closeOverlay, closeNotification, TEST_USERS, YT_URL, avatar, downloadPng } = require('./_helpers');
+
+async function waitForOverlay(page, timeout = 10000) {
+  await page.locator('.base-overlay.overlay--visible').waitFor({ timeout });
+}
+const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
+const { MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList, deleteAllGalleryItems } = require('./_flows/advertisement.flow');
+const { runCreateSimpleAdvertisementFlow } = require('./_flows/delete.flow');
+const { closeEntityActivity } = require('./_flows/entity-activity.flow');
+const { openTimelineTab, openTimelineFilter, closeTimelineFilter, fillEntityType, assertFeedHasRow, assertTimelineHasRows } = require('./_flows/timeline.flow');
+const { waitForLightboxOpen, waitForLightboxClosed, getIframeSrc, clickLightboxThumb, getVideoSrc, isVideoWrapperVisible, waitForVideoWrapperVisible, waitForMainImageVisible } = require('./_flows/attachment.flow');
+const { loginBulk, logoutBulk } = require('./_flows/seed.flow');
+const { assertViewOverlayHasCategories } = require('./_flows/category.flow');
+
+test.describe.configure({ mode: 'serial' });
+
+const CREATE = {
+  enAd: { user: TEST_USERS.userEn, title: 'EN Advertisement', description: 'Advertisement created by English user with all media types: YouTube, image and video.' },
+  ukAd: { user: TEST_USERS.userUk, title: 'UK Оголошення',   description: 'Оголошення створене українським користувачем з усіма типами медіа: YouTube, зображення та відео.' },
+};
+
+const UPDATE = {
+  enAd: { title: 'EN Advertisement Updated', description: 'Updated description for the EN advertisement.' },
+  ukAd: { title: 'UK Оголошення Оновлено',  description: 'Оновлений опис для UK оголошення.'             },
+};
+
+const CROSS_UPDATE = {
+  enAd: { title: 'EN Advertisement Moderated', description: 'Description updated by moderator.'      },
+  ukAd: { title: 'UK Оголошення Адмін',        description: 'Опис оновлений адміністратором.'        },
+};
+
+test.describe('Advertisement flow', () => {
+  let page;
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    await page.goto('/');
+  });
+
+  test.afterAll(async () => {
+    await page.close();
+  });
+
+  test('userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, lightbox close button closes video and YouTube clips, two category rows, categories text and view chips, city text and view chip, listing type badge', async () => {
+    await runFillLoginFormFlow(page, CREATE.enAd.user);
+    await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
+    await runCreateAdvertisementFlow(page, expect, { title: CREATE.enAd.title, description: CREATE.enAd.description, screenshotPrefix: 'adv-useren-create', categories: ['Electronics', 'Vehicles'], city: 'Lviv', adKind: 'Request' });
+
+    await test.step('attachment lightbox — play icon visible, video src valid, close button works', async () => {
+      await page.locator('.advertisement-card')
+        .filter({ has: page.locator('.advertisement-title', { hasText: CREATE.enAd.title }) })
+        .first().click();
+      await waitForOverlay(page);
+      // WebM video is 3rd gallery item (YouTube=0, image=1, WebM=2)
+      await page.locator('.attachment-gallery__item').nth(2).waitFor({ timeout: 5000 });
+      await page.locator('.attachment-gallery__item').nth(2).click();
+      await page.locator('.attachment-lightbox').waitFor({ timeout: 5000 });
+      const videoEl = page.locator('.attachment-lightbox video');
+      await expect(videoEl).toBeVisible();
+      const src = await videoEl.getAttribute('src');
+      expect(src).toBeTruthy();
+      await screenshot(page, 'adv-useren-create-attachment-lightbox');
+      await page.locator('.attachment-lightbox .card-lightbox__close').click();
+      await page.locator('.attachment-lightbox').waitFor({ state: 'detached', timeout: 5000 });
+    });
+
+    await test.step('attachment lightbox — YouTube clip closes via the close button (not just Escape)', async () => {
+      // YouTube is the 1st gallery item (YouTube=0, image=1, WebM=2)
+      await page.locator('.attachment-gallery__item').nth(0).waitFor({ timeout: 5000 });
+      await page.locator('.attachment-gallery__item').nth(0).click();
+      await page.locator('.attachment-lightbox').waitFor({ timeout: 5000 });
+      await expect(page.locator('.attachment-lightbox iframe')).toBeVisible();
+      await screenshot(page, 'adv-useren-create-attachment-lightbox-youtube');
+      await page.locator('.attachment-lightbox .card-lightbox__close').click();
+      await page.locator('.attachment-lightbox').waitFor({ state: 'detached', timeout: 5000 });
+      await closeOverlay(page);
+    });
+
+    await runLogoutFlow(page, expect);
+  });
+
+  test('userUk creates advertisement — YouTube, image and video, single activity row', async () => {
+    await runFillLoginFormFlow(page, CREATE.ukAd.user);
+    await runSubmitLoginFlow(page, expect, CREATE.ukAd.user);
+    await runCreateAdvertisementFlow(page, expect, { title: CREATE.ukAd.title, description: CREATE.ukAd.description, screenshotPrefix: 'adv-useruk-create', locale: 'uk' });
+    await runLogoutFlow(page, expect);
+  });
+
+  test('userEn edits advertisement — discard, two saves with activity diff, all rich formats in view and card, format-only edit, outer breadcrumb link closes directly to list, admin timeline check', async () => {
+    await runFillLoginFormFlow(page, CREATE.enAd.user);
+    await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
+    await runEditAdvertisementFlow(page, expect, {
+      originalTitle: CREATE.enAd.title, originalDescription: CREATE.enAd.description,
+      newTitle: UPDATE.enAd.title,      newDescription: UPDATE.enAd.description,
+      startingVersion: 1,
+      startingVisibleRows: 1,
+      richText: true,
+      verifyOuterLinkClosesToList: true,
+      screenshotPrefix: 'adv-useren-edit',
+    });
+    await runLogoutFlow(page, expect);
+
+    await test.step('admin verifies timeline shows advertisement updates with rich text formatting and tooltips', async () => {
+      await runFillLoginFormFlow(page, TEST_USERS.adminEn);
+      await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+      await openTimelineTab(page);
+      await openTimelineFilter(page);
+      await fillEntityType(page, 'ADVERTISEMENT');
+      await closeTimelineFilter(page);
+      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 2, allFieldsText: [UPDATE.enAd.title], screenshotName: 'adv-useren-edit-timeline-admin' });
+
+      // Collect all change-item HTML across all rows for this ad to verify every rich format tag
+      const tlRows = page.locator('.activity-feed .activity-feed-row');
+      const tlRowCount = await tlRows.count();
+      let tlAllHtml = '';
+      for (let i = 0; i < tlRowCount; i++) {
+        const rowChangesText = await tlRows.nth(i).locator('.activity-feed-changes').textContent().catch(() => '');
+        if (!rowChangesText.includes(UPDATE.enAd.title)) continue;
+        const items = tlRows.nth(i).locator('.activity-feed-changes-item');
+        const n = await items.count();
+        for (let j = 0; j < n; j++) tlAllHtml += await items.nth(j).innerHTML();
+      }
+      assertAllRichTags(expect, tlAllHtml, 'timeline');
+      await screenshot(page, 'adv-useren-edit-timeline-rich-html');
+
+      await runLogoutFlow(page, expect);
+    });
+  });
+
+  test('userUk edits advertisement — discard, two saves with activity diff, admin timeline check', async () => {
+    await runFillLoginFormFlow(page, CREATE.ukAd.user);
+    await runSubmitLoginFlow(page, expect, CREATE.ukAd.user);
+    await runEditAdvertisementFlow(page, expect, {
+      originalTitle: CREATE.ukAd.title, originalDescription: CREATE.ukAd.description,
+      newTitle: UPDATE.ukAd.title,      newDescription: UPDATE.ukAd.description,
+      screenshotPrefix: 'adv-useruk-edit',
+    });
+    await runLogoutFlow(page, expect);
+
+    await test.step('admin verifies timeline shows advertisement updates', async () => {
+      await runFillLoginFormFlow(page, TEST_USERS.adminEn);
+      await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+      await openTimelineTab(page);
+      await openTimelineFilter(page);
+      await fillEntityType(page, 'ADVERTISEMENT');
+      await closeTimelineFilter(page);
+      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, allFieldsText: [UPDATE.ukAd.title, UPDATE.ukAd.description], screenshotName: 'adv-useruk-edit-timeline-admin' });
+      await runLogoutFlow(page, expect);
+    });
+  });
+
+  test('userEn restores advertisement — activity diff shows restored media and text, view and card updated', async () => {
+    await runFillLoginFormFlow(page, CREATE.enAd.user);
+    await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
+    await runRestoreAdvertisementFlow(page, expect, {
+      currentTitle: UPDATE.enAd.title,
+      restoredTitle: CREATE.enAd.title, restoredDescription: CREATE.enAd.description,
+      rowsBeforeRestore: 4,
+      targetRestoredVersion: 5,
+      restoreCountAfterRestore: 3,
+      screenshotPrefix: 'adv-useren-restore',
+    });
+    await runLogoutFlow(page, expect);
+  });
+
+  test('userUk restores advertisement — activity diff shows restored media and text, view and card updated', async () => {
+    await runFillLoginFormFlow(page, CREATE.ukAd.user);
+    await runSubmitLoginFlow(page, expect, CREATE.ukAd.user);
+    await runRestoreAdvertisementFlow(page, expect, {
+      currentTitle: UPDATE.ukAd.title,
+      restoredTitle: CREATE.ukAd.title, restoredDescription: CREATE.ukAd.description,
+      restoreCountAfterRestore: 2,
+      screenshotPrefix: 'adv-useruk-restore',
+    });
+    await runLogoutFlow(page, expect);
+  });
+
+  test('moderatorEn edits EN advertisement — discard, two saves with activity diff, add and replace media, timeline check', async () => {
+    await runFillLoginFormFlow(page, TEST_USERS.moderatorEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.moderatorEn);
+    await runEditAdvertisementFlow(page, expect, {
+      originalTitle:       CREATE.enAd.title,
+      originalDescription: CREATE.enAd.description,
+      newTitle:            CROSS_UPDATE.enAd.title,
+      newDescription:      CROSS_UPDATE.enAd.description,
+      startingVersion:     5,
+      startingVisibleRows: 5,
+      checkCurrentBadge:   true,
+      richText:            true,
+      screenshotPrefix:    'adv-moderatoren-edit',
+    });
+    await runCrossUserMediaReplaceFlow(page, expect, {
+      adTitle:          CROSS_UPDATE.enAd.title,
+      startingVersion:  8,
+      screenshotPrefix: 'adv-moderatoren-media',
+    });
+    await openTimelineTab(page);
+    await openTimelineFilter(page);
+    await fillEntityType(page, 'ADVERTISEMENT');
+    await closeTimelineFilter(page);
+    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, allFieldsText: [CROSS_UPDATE.enAd.title], actorText: TEST_USERS.moderatorEn.name, screenshotName: 'timeline-moderatoren-edit-ad' });
+    await runLogoutFlow(page, expect);
+  });
+
+  test('userEn and moderatorEn edit the same advertisement in two sessions — stale save shows conflict, first save wins', async ({ browser }) => {
+    const title = 'Concurrent Edit Conflict Ad';
+    await runFillLoginFormFlow(page, TEST_USERS.userEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
+    await runCreateSimpleAdvertisementFlow(page, { title, description: 'Ad for optimistic locking conflict test.', screenshotPrefix: 'adv-conflict-create' });
+
+    const context2 = await browser.newContext();
+    const page2 = await context2.newPage();
+    await page2.goto('/');
+    await page2.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first().waitFor({ timeout: 15000 });
+    await runFillLoginFormFlow(page2, TEST_USERS.moderatorEn);
+    await runSubmitLoginFlow(page2, expect, TEST_USERS.moderatorEn);
+
+    // Both sessions open the same ad for edit before either one saves — both load the same version.
+    const overlay1 = await openCardOverlay(page, cardByTitle(page, title), 'adv-conflict-session1');
+    await switchToEditMode(page, overlay1, 'adv-conflict-session1');
+
+    const overlay2 = await openCardOverlay(page2, cardByTitle(page2, title), 'adv-conflict-session2');
+    await switchToEditMode(page2, overlay2, 'adv-conflict-session2');
+
+    // Session 1 saves first — succeeds, bumps the version.
+    await overlay1.locator('[data-testid="advertisement-overlay-field-title"] input').fill(`${title} - saved first`);
+    await saveAndWaitForIdle(page, expect, overlay1, 'adv-conflict-session1-saved');
+
+    // Session 2 still holds the stale version loaded before session 1's save — its save must be rejected, not silently overwrite.
+    await overlay2.locator('[data-testid="advertisement-overlay-field-title"] input').fill(`${title} - saved second`);
+    await overlay2.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
+    await expect(page2.locator('vaadin-notification-card')).toContainText(/modified by another|змінено в іншій/i, { timeout: 8000 });
+    await screenshot(page2, 'adv-conflict-session2-conflict-notification');
+    await closeNotification(page2);
+
+    await closeOverlayToList(page, overlay1);
+    await expect(cardByTitle(page, `${title} - saved first`)).toBeVisible({ timeout: 5000 });
+    await expect(cardByTitle(page, `${title} - saved second`)).toHaveCount(0);
+
+    await context2.close();
+    await runLogoutFlow(page, expect);
+  });
+
+  test('adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, city set with activity diff and view chip, listing type set with activity diff and view badge, add and replace media, timeline check', async () => {
+    await runFillLoginFormFlow(page, TEST_USERS.adminEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+    await runEditAdvertisementFlow(page, expect, {
+      originalTitle:       CREATE.ukAd.title,
+      originalDescription: CREATE.ukAd.description,
+      newTitle:            CROSS_UPDATE.ukAd.title,
+      newDescription:      CROSS_UPDATE.ukAd.description,
+      startingVersion:     4,
+      checkCurrentBadge:   true,
+      richText:            true,
+      categoryToAdd:       'Vehicles',
+      categoryToRemove:    'Vehicles',
+      cityToSet:           'Kyiv',
+      adKindToSet:         'Product',
+      screenshotPrefix:    'adv-adminen-edit-uk',
+    });
+    await runCrossUserMediaReplaceFlow(page, expect, {
+      adTitle:          CROSS_UPDATE.ukAd.title,
+      startingVersion:  11,
+      screenshotPrefix: 'adv-adminen-media-uk',
+    });
+    await openTimelineTab(page);
+    await openTimelineFilter(page);
+    await fillEntityType(page, 'ADVERTISEMENT');
+    await closeTimelineFilter(page);
+    // changesText: 'Vehicles' confirms the Timeline tab resolves the category id to its name, not the raw taxon id.
+    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, allFieldsText: [CROSS_UPDATE.ukAd.title], actorText: TEST_USERS.adminEn.name, changesText: 'Vehicles', screenshotName: 'timeline-adminen-edit-ad' });
+    await runLogoutFlow(page, expect);
+  });
+
+  test('userEn verifies lightbox — YouTube to image blanks iframe, WebM to image stops video', async () => {
+    const imgPath = '/tmp/lightbox-avatar.png';
+    await downloadPng(avatar('lightbox'), imgPath);
+
+    await runFillLoginFormFlow(page, TEST_USERS.userEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
+
+    // Create ad with YouTube + image + WebM
+    await page.locator('.add-advertisement-button').click();
+    await waitForOverlay(page);
+    const ov = page.locator('.advertisement-overlay');
+    await ov.locator('[data-testid="advertisement-overlay-field-title"] input').fill('Lightbox Test Ad');
+    await ov.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill('YouTube lightbox test');
+    await ov.locator('.attachment-gallery__video-input input').fill(YT_URL);
+    await ov.locator('.attachment-gallery__video-input vaadin-button').click();
+    await ov.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
+    await ov.locator('vaadin-upload input[type="file"]').setInputFiles(imgPath);
+    await ov.locator('.attachment-gallery__item').nth(1).waitFor({ timeout: 10000 });
+    await ov.locator('vaadin-upload input[type="file"]').setInputFiles({ name: 'lightbox-test.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM });
+    await ov.locator('.attachment-gallery__item').nth(2).waitFor({ timeout: 15000 });
+    await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
+    await waitForOverlayClosed(page);
+    if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+
+    await page.locator('.advertisement-card')
+      .filter({ has: page.locator('.advertisement-title', { hasText: 'Lightbox Test Ad' }) })
+      .first().locator('.advertisement-thumbnail-wrapper').click();
+    await waitForLightboxOpen(page);
+    await screenshot(page, 'lightbox-youtube');
+
+    // Strip: YouTube(0) + image(1) + WebM(2)
+    const thumbCount = await page.evaluate(() => {
+      function findAll(root, sel) {
+        const els = [...root.querySelectorAll(sel)];
+        for (const c of root.querySelectorAll('*'))
+          if (c.shadowRoot) els.push(...findAll(c.shadowRoot, sel));
+        return els;
+      }
+      return findAll(document, '.card-lightbox__strip .card-lightbox__thumb').length;
+    });
+    expect(thumbCount).toBeGreaterThanOrEqual(3);
+    expect(await getIframeSrc(page)).toMatch(/youtube\.com\/embed/);
+
+    await test.step('YouTube → image: iframe blanked', async () => {
+      await clickLightboxThumb(page, 1);
+      await waitForMainImageVisible(page);
+      expect(await getIframeSrc(page)).toBe('about:blank');
+      await screenshot(page, 'lightbox-image');
+    });
+
+    await test.step('image → WebM: video wrapper visible, src valid', async () => {
+      await clickLightboxThumb(page, 2);
+      await waitForVideoWrapperVisible(page);
+      const src = await getVideoSrc(page);
+      expect(src).toBeTruthy();
+      expect(src).not.toBe('');
+      await screenshot(page, 'lightbox-webm');
+    });
+
+    await test.step('WebM → image: video wrapper hidden, src cleared', async () => {
+      await clickLightboxThumb(page, 1);
+      await waitForMainImageVisible(page);
+      expect(await isVideoWrapperVisible(page)).toBe(false);
+      const src = await getVideoSrc(page);
+      expect(src === '' || src === null || src === undefined).toBe(true);
+      await screenshot(page, 'lightbox-video-stopped');
+    });
+
+    await page.keyboard.press('Escape');
+    await waitForLightboxClosed(page);
+
+    await runLogoutFlow(page, expect);
+  });
+
+  test('adminEn verifies long description — activity diff shows all fields, collapsible value toggle, card truncated', async () => {
+    const LONG_DESC = 'This description is intentionally long to test the three-line clamp on the advertisement card. ' +
+      'It continues with more text to reliably exceed the visible area at any viewport width. ' +
+      'A third sentence ensures truncation activates even on wide screens, confirming the CSS clamp works as expected.';
+    const SHORT_DESC = 'Short initial description for expand test.';
+    const TITLE = 'Expand Toggle Test Ad';
+
+    await runFillLoginFormFlow(page, TEST_USERS.adminEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+
+    await runCreateSimpleAdvertisementFlow(page, { title: TITLE, description: SHORT_DESC, screenshotPrefix: 'trunc-create' });
+
+    const overlay = await openCardOverlay(page, cardByTitle(page, TITLE), 'trunc');
+    await switchToEditMode(page, overlay, 'trunc');
+    await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(LONG_DESC);
+    await saveAndWaitForIdle(page, expect, overlay, 'trunc-save');
+
+    await test.step('activity diff — all fields visible, long description value is collapsible', async () => {
+      const activityList = await openActivityTab(overlay);
+      const changes = activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
+      await expect(changes).toContainText(TITLE);
+      await expect(changes).toContainText(SHORT_DESC.substring(0, 20));
+      await screenshot(page, 'trunc-activity-all-fields');
+
+      const collapsibleValues = changes.locator('.entity-activity-changes-value--collapsible');
+      await expect(collapsibleValues).toHaveCount(1, { timeout: 5000 });
+      const valueToggle = changes.locator('.entity-activity-changes-value-toggle').first();
+      await expect(valueToggle).toBeVisible();
+      await screenshot(page, 'trunc-activity-diff-collapsed');
+
+      await valueToggle.click();
+      await expect(collapsibleValues).toHaveCount(0);
+      await screenshot(page, 'trunc-activity-diff-expanded');
+
+      await valueToggle.click();
+      await expect(collapsibleValues).toHaveCount(1);
+      await screenshot(page, 'trunc-activity-diff-recollapsed');
+    });
+
+    await closeOverlayToList(page, overlay);
+
+    await test.step('card shows truncated description — clamp visible, content present', async () => {
+      const card = cardByTitle(page, TITLE);
+      await expect(card).toBeVisible({ timeout: 5000 });
+      await expect(card.locator('.advertisement-description--truncated')).toBeVisible();
+      await screenshot(page, 'trunc-card-collapsed');
+    });
+
+    await runLogoutFlow(page, expect);
+  });
+
+  test('userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay, share button copies link, sitemap.xml lists the ad, userUk reopens the same link with the category shown in Ukrainian', async () => {
+    const title = 'Deep Link Test Advertisement';
+    await runFillLoginFormFlow(page, TEST_USERS.userEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
+    await runCreateSimpleAdvertisementFlow(page, { title, description: 'Advertisement used to verify the /ads/:id deep link.', screenshotPrefix: 'adv-deep-link-create', categories: ['Vehicles'] });
+
+    const card = cardByTitle(page, title);
+    await card.first().waitFor({ timeout: 5000 });
+    const adId = await card.first().getAttribute('data-ad-id');
+    expect(adId).toBeTruthy();
+
+    await page.goto(`/ads/${adId}`);
+    const overlay = page.locator('.advertisement-overlay');
+    await overlay.waitFor({ timeout: 10000 });
+    await expect(overlay.locator('.overlay__view-title')).toHaveText(title);
+    await screenshot(page, 'adv-deep-link-opened');
+
+    await test.step('share button — copies link to clipboard, shows confirmation notification', async () => {
+      // navigator.share is unavailable in headless Chromium; stub clipboard.writeText so the
+      // fallback branch resolves deterministically without needing OS clipboard permissions.
+      await page.evaluate(() => {
+        navigator.clipboard.writeText = () => Promise.resolve();
+      });
+      await overlay.locator('.overlay__view-share').click();
+      await page.locator('vaadin-notification-card').filter({ hasText: /link copied/i }).first().waitFor({ timeout: 5000 });
+      await screenshot(page, 'adv-deep-link-share-copied');
+      await closeNotification(page);
+    });
+
+    await closeOverlay(page);
+
+    await test.step('sitemap.xml — valid XML, lists this advertisement\'s deep link', async () => {
+      const response = await page.request.get('/sitemap.xml');
+      expect(response.ok()).toBeTruthy();
+      expect(response.headers()['content-type']).toContain('xml');
+      const body = await response.text();
+      expect(body).toContain('<urlset');
+      expect(body).toContain(`/ads/${adId}</loc>`);
+    });
+
+    await test.step('crawler-facing HTML — og:title/description/url, twitter:card uses name= not property=, JSON-LD Product block present', async () => {
+      const response = await page.request.get(`/ads/${adId}`);
+      expect(response.ok()).toBeTruthy();
+      const html = await response.text();
+      expect(html).toContain(`<meta property="og:title" content="${title}">`);
+      expect(html).toContain('<meta property="og:type" content="product">');
+      expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
+      expect(html).not.toContain('property="twitter:card"');
+      expect(html).toMatch(/<script type="application\/ld\+json">\{.*"@type":"Product".*\}<\/script>/);
+    });
+
+    await test.step('card click — updates URL to /ads/:id, browser Back closes overlay and returns to /', async () => {
+      await card.first().click();
+      await overlay.waitFor({ timeout: 10000 });
+      await expect(page).toHaveURL(new RegExp(`/ads/${adId}$`));
+      await page.goBack();
+      await overlay.waitFor({ state: 'hidden', timeout: 10000 });
+      await expect(page).toHaveURL(/\/$/);
+      await screenshot(page, 'adv-deep-link-history-back');
+    });
+
+    await test.step('userUk opens the same deep link — category chip renders in Ukrainian, not English', async () => {
+      await runLogoutFlow(page, expect);
+      await runFillLoginFormFlow(page, TEST_USERS.userUk);
+      await runSubmitLoginFlow(page, expect, TEST_USERS.userUk);
+      await page.goto(`/ads/${adId}`);
+      await overlay.waitFor({ timeout: 10000 });
+      await assertViewOverlayHasCategories(page, expect, overlay, ['Транспорт'], 'adv-deep-link-locale-uk-category');
+      await expect(overlay.locator('.advertisement-category-chip', { hasText: 'Vehicles' })).toHaveCount(0);
+      await closeOverlay(page);
+    });
+
+    await runLogoutFlow(page, expect);
+  });
+});
+
+// ─── Boundary: max-content advertisements (PW_FULL only) ─────────────────────
+
+const MAX_TITLE_EN    = 'Max Boundary Advertisement EN Title Test '.repeat(7).substring(0, 255);
+const MAX_TITLE_EN_V2 = 'Max Boundary Advertisement EN Title Edited '.repeat(6).substring(0, 255);
+const MAX_TITLE_UK    = 'Max Boundary Advertisement UK Title Test '.repeat(7).substring(0, 255);
+const MAX_TITLE_UK_V2 = 'Max Boundary Advertisement UK Title Edited '.repeat(6).substring(0, 255);
+const MAX_DESC_EN     = 'This advertisement tests maximum boundary values for all content fields. '.repeat(29).substring(0, 2000);
+const MAX_DESC_EN_V2  = 'Max boundary EN advertisement description edited with all content. '.repeat(31).substring(0, 2000);
+const MAX_DESC_UK     = 'This advertisement tests maximum boundary values for all content fields. (UK) '.repeat(27).substring(0, 2000);
+const MAX_DESC_UK_V2  = 'Max boundary UK advertisement description edited with all content. '.repeat(31).substring(0, 2000);
+// Category #1 uses the same 255-char max-length name spec 03's boundary-category seed test
+// creates it with (VARCHAR(255)/maxLength(255) on the form) instead of a short "Boundary-01"
+// label, so the category-chip assertions below exercise a genuinely long name.
+const MAX_CATEGORY_NAME = 'Max Boundary Category Name Test '.repeat(8).substring(0, 255);
+const BOUNDARY_CATS   = Array.from({ length: 10 }, (_, i) =>
+    i === 0 ? MAX_CATEGORY_NAME : `Boundary-${String(i + 1).padStart(2, '0')}`);
+const _emailLocal     = '0'.repeat(48);
+const _emailSeg1      = 'max-domain-seg1-' + '0'.repeat(47);
+const _emailSeg2      = 'max-domain-seg2-' + '0'.repeat(47);
+const _emailSeg3      = 'max-domain-seg3-' + '0'.repeat(45);
+const MAX_EMAIL_EN    = `max-boundary-en-${_emailLocal}@${_emailSeg1}.${_emailSeg2}.${_emailSeg3}`;
+const MAX_EMAIL_UK    = `max-boundary-uk-${_emailLocal}@${_emailSeg1}.${_emailSeg2}.${_emailSeg3}`;
+const MAX_EN          = { email: MAX_EMAIL_EN, password: 'password' };
+const MAX_UK          = { email: MAX_EMAIL_UK, password: 'password' };
+
+test.describe('Max-content advertisement boundary', () => {
+  test.skip(!process.env.PW_FULL, 'Skipped by default — run with --full for boundary tests');
+
+  let page;
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    await page.goto('/');
+  });
+
+  test.afterAll(async () => {
+    await page.close();
+  });
+
+  test('maxEn creates max-content EN advertisement — 255-char title, 10 categories, YouTube + image + video, lightbox, activity', async () => {
+    await loginBulk(page, MAX_EN);
+    await runCreateAdvertisementFlow(page, expect, {
+      title: MAX_TITLE_EN,
+      description: MAX_DESC_EN,
+      categories: BOUNDARY_CATS,
+      screenshotPrefix: 'max-en-create',
+    });
+    await logoutBulk(page);
+  });
+
+  test('maxUk creates max-content UK advertisement — 255-char title, 10 categories, YouTube + image + video, lightbox, activity', async () => {
+    await loginBulk(page, MAX_UK);
+    await runCreateAdvertisementFlow(page, expect, {
+      title: MAX_TITLE_UK,
+      description: MAX_DESC_UK,
+      categories: BOUNDARY_CATS,
+      screenshotPrefix: 'max-uk-create',
+    });
+    await logoutBulk(page);
+  });
+
+  test('maxEn edits EN max-content advertisement — discard restores 3 items, replace all media with 10-item gallery, 255-char title v2, activity v2, gallery in view and card', async () => {
+    const img1 = '/tmp/max-en-edit-img1.png';
+    const img2 = '/tmp/max-en-edit-img2.png';
+    const img3 = '/tmp/max-en-edit-img3.png';
+    await downloadPng(avatar('max-en-edit-1'), img1);
+    await downloadPng(avatar('max-en-edit-2'), img2);
+    await downloadPng(avatar('max-en-edit-3'), img3);
+
+    await loginBulk(page, MAX_EN);
+    const overlay = await openCardOverlay(page, cardByTitle(page, MAX_TITLE_EN), 'max-en-edit');
+    await switchToEditMode(page, overlay, 'max-en-edit');
+
+    await test.step('discard restores 3 gallery items', async () => {
+      await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(3, { timeout: 5000 });
+      await deleteAllGalleryItems(expect, overlay);
+      await screenshot(page, 'max-en-edit-media-deleted');
+
+      await overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first().click();
+      await closeNotification(page);
+      await expect(overlay.locator('[data-testid="advertisement-overlay-field-title"] input')).toHaveValue(MAX_TITLE_EN, { timeout: 5000 });
+      await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(3, { timeout: 8000 });
+      await screenshot(page, 'max-en-edit-discarded');
+    });
+
+    await test.step('replace all media, set 255-char title v2, save v2', async () => {
+      await deleteAllGalleryItems(expect, overlay);
+
+      const titleInput = overlay.locator('[data-testid="advertisement-overlay-field-title"] input');
+      await titleInput.clear();
+      await titleInput.fill(MAX_TITLE_EN_V2);
+
+      await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(MAX_DESC_EN_V2);
+
+      await overlay.locator('.attachment-gallery__video-input input').fill(YT_URL);
+      await overlay.locator('.attachment-gallery__video-input vaadin-button').click();
+      await overlay.locator('.attachment-gallery__item').nth(0).waitFor({ timeout: 10000 });
+
+      await overlay.locator('vaadin-upload input[type="file"]').setInputFiles([img1, img2, img3]);
+      await overlay.locator('.attachment-gallery__item').nth(3).waitFor({ timeout: 20000 });
+
+      await overlay.locator('vaadin-upload input[type="file"]').setInputFiles([
+        { name: 'vid1.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM },
+        { name: 'vid2.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM },
+        { name: 'vid3.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM },
+        { name: 'vid4.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM },
+        { name: 'vid5.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM },
+        { name: 'vid6.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM },
+      ]);
+      await overlay.locator('.attachment-gallery__item').nth(9).waitFor({ timeout: 40000 });
+      await screenshot(page, 'max-en-edit-gallery-filled');
+
+      await saveAndWaitForIdle(page, expect, overlay, 'max-en-edit');
+
+      const activityList = await openActivityTab(overlay);
+      await expect(activityList.locator('.entity-activity-row')).toHaveCount(2, { timeout: 5000 });
+      await expect(activityList.locator('.entity-activity-restore-btn')).toHaveCount(1, { timeout: 5000 });
+      const row0 = activityList.locator('.entity-activity-row').nth(0);
+      await expect(row0.locator('.entity-activity-version')).toContainText('v2');
+      const changes0 = row0.locator('.entity-activity-changes');
+      await expect(changes0).toContainText('Title Test');
+      await expect(changes0).toContainText('Title Edited');
+      await screenshot(page, 'max-en-edit-activity');
+    });
+
+    await test.step('view reflects saved state with full 10-item gallery', async () => {
+      await closeEntityActivity(page);
+      await overlay.locator('vaadin-button')
+        .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
+        .first().click();
+      await overlay.locator('.overlay__view-title').waitFor({ timeout: 5000 });
+      await expect(overlay.locator('.overlay__view-title')).toContainText('Title Edited');
+      await screenshot(page, 'max-en-edit-view-updated');
+    });
+
+    await test.step('card shows thumbnail badge=10', async () => {
+      await closeOverlayToList(page, overlay);
+      const card = cardByTitle(page, MAX_TITLE_EN_V2);
+      await expect(card).toBeVisible({ timeout: 5000 });
+      await expect(card.locator('.advertisement-thumbnail-badge')).toContainText('10');
+      await expect(card.locator('img').first()).toHaveAttribute('src', /.+/);
+      await screenshot(page, 'max-en-edit-list-updated');
+    });
+
+    [img1, img2, img3].forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); });
+    await logoutBulk(page);
+  });
+
+  test('maxUk edits UK max-content advertisement — discard restores 3 items, replace all media with 10-item gallery, 255-char title v2, activity v2, gallery in view and card', async () => {
+    const img1 = '/tmp/max-uk-edit-img1.png';
+    const img2 = '/tmp/max-uk-edit-img2.png';
+    const img3 = '/tmp/max-uk-edit-img3.png';
+    await downloadPng(avatar('max-uk-edit-1'), img1);
+    await downloadPng(avatar('max-uk-edit-2'), img2);
+    await downloadPng(avatar('max-uk-edit-3'), img3);
+
+    await loginBulk(page, MAX_UK);
+    const overlay = await openCardOverlay(page, cardByTitle(page, MAX_TITLE_UK), 'max-uk-edit');
+    await switchToEditMode(page, overlay, 'max-uk-edit');
+
+    await test.step('discard restores 3 gallery items', async () => {
+      await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(3, { timeout: 5000 });
+      await deleteAllGalleryItems(expect, overlay);
+      await screenshot(page, 'max-uk-edit-media-deleted');
+
+      await overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first().click();
+      await closeNotification(page);
+      await expect(overlay.locator('[data-testid="advertisement-overlay-field-title"] input')).toHaveValue(MAX_TITLE_UK, { timeout: 5000 });
+      await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(3, { timeout: 8000 });
+      await screenshot(page, 'max-uk-edit-discarded');
+    });
+
+    await test.step('replace all media, set 255-char title v2, save v2', async () => {
+      await deleteAllGalleryItems(expect, overlay);
+
+      const titleInput = overlay.locator('[data-testid="advertisement-overlay-field-title"] input');
+      await titleInput.clear();
+      await titleInput.fill(MAX_TITLE_UK_V2);
+
+      await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(MAX_DESC_UK_V2);
+
+      await overlay.locator('.attachment-gallery__video-input input').fill(YT_URL);
+      await overlay.locator('.attachment-gallery__video-input vaadin-button').click();
+      await overlay.locator('.attachment-gallery__item').nth(0).waitFor({ timeout: 10000 });
+
+      await overlay.locator('vaadin-upload input[type="file"]').setInputFiles([img1, img2, img3]);
+      await overlay.locator('.attachment-gallery__item').nth(3).waitFor({ timeout: 20000 });
+
+      await overlay.locator('vaadin-upload input[type="file"]').setInputFiles([
+        { name: 'vid1.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM },
+        { name: 'vid2.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM },
+        { name: 'vid3.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM },
+        { name: 'vid4.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM },
+        { name: 'vid5.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM },
+        { name: 'vid6.webm', mimeType: 'video/webm', buffer: MINIMAL_WEBM },
+      ]);
+      await overlay.locator('.attachment-gallery__item').nth(9).waitFor({ timeout: 40000 });
+      await screenshot(page, 'max-uk-edit-gallery-filled');
+
+      await saveAndWaitForIdle(page, expect, overlay, 'max-uk-edit');
+
+      const activityList = await openActivityTab(overlay);
+      await expect(activityList.locator('.entity-activity-row')).toHaveCount(2, { timeout: 5000 });
+      await expect(activityList.locator('.entity-activity-restore-btn')).toHaveCount(1, { timeout: 5000 });
+      const row0 = activityList.locator('.entity-activity-row').nth(0);
+      await expect(row0.locator('.entity-activity-version')).toContainText('v2');
+      const changes0 = row0.locator('.entity-activity-changes');
+      await expect(changes0).toContainText('Title Test');
+      await expect(changes0).toContainText('Title Edited');
+      await screenshot(page, 'max-uk-edit-activity');
+    });
+
+    await test.step('view reflects saved state with full 10-item gallery', async () => {
+      await closeEntityActivity(page);
+      await overlay.locator('vaadin-button')
+        .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
+        .first().click();
+      await overlay.locator('.overlay__view-title').waitFor({ timeout: 5000 });
+      await expect(overlay.locator('.overlay__view-title')).toContainText('Title Edited');
+      await screenshot(page, 'max-uk-edit-view-updated');
+    });
+
+    await test.step('card shows thumbnail badge=10', async () => {
+      await closeOverlayToList(page, overlay);
+      const card = cardByTitle(page, MAX_TITLE_UK_V2);
+      await expect(card).toBeVisible({ timeout: 5000 });
+      await expect(card.locator('.advertisement-thumbnail-badge')).toContainText('10');
+      await expect(card.locator('img').first()).toHaveAttribute('src', /.+/);
+      await screenshot(page, 'max-uk-edit-list-updated');
+    });
+
+    [img1, img2, img3].forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); });
+    await logoutBulk(page);
+  });
+});

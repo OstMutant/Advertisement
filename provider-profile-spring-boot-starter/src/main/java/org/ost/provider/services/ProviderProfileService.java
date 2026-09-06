@@ -4,10 +4,6 @@ import jakarta.validation.Valid;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jsoup.Jsoup;
-import org.owasp.html.HtmlPolicyBuilder;
-import org.owasp.html.PolicyFactory;
-import org.owasp.html.Sanitizers;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
@@ -17,6 +13,7 @@ import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.provider.entity.ProviderProfile;
 import org.ost.provider.repository.ProviderProfileRepository;
+import org.ost.sanitizer.HtmlSanitizer;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -27,16 +24,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+/** CRUD for {@code provider_profile} -- does not write category assignments. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Validated
 public class ProviderProfileService {
-
-    private static final PolicyFactory HTML_SANITIZER = Sanitizers.FORMATTING
-            .and(Sanitizers.LINKS)
-            .and(Sanitizers.BLOCKS)
-            .and(new HtmlPolicyBuilder().allowElements("pre").toFactory());
 
     private final ProviderProfileRepository        repository;
     private final ComponentFactory<TaxonPort>      taxonPortFactory;
@@ -71,16 +64,14 @@ public class ProviderProfileService {
     // ── CRUD ─────────────────────────────────────────────────────────────────
 
     @Transactional
-    public Long save(@NonNull @Valid ProviderProfileSaveDto dto, @NonNull Long actingUserId, boolean actingUserIsPrivileged) {
+    public Long save(@NonNull @Valid ProviderProfileSaveDto dto, @NonNull Long targetUserId, @NonNull Long actingUserId, boolean actingUserIsPrivileged) {
         if (dto.kind() == ProviderKind.SUPPORT && !actingUserIsPrivileged) {
             throw new IllegalStateException("Only a privileged actor may set kind=SUPPORT");
         }
-        log.info("ProviderProfile save: id={}, actorId={}, isNew={}", dto.id(), actingUserId, dto.id() == null);
+        log.info("ProviderProfile save: id={}, targetUserId={}, actingUserId={}, isNew={}", dto.id(), targetUserId, actingUserId, dto.id() == null);
         Optional<ProviderProfile> before = dto.id() == null ? Optional.empty() : repository.findById(dto.id());
-        ProviderProfile entity = buildEntity(dto, actingUserId, before.orElse(null));
-        Long id = repository.save(entity).getId();
-        taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.PROVIDER_PROFILE, id, dto.categoryIds() != null ? dto.categoryIds() : Set.of()));
-        return id;
+        ProviderProfile entity = buildEntity(dto, targetUserId, before.orElse(null));
+        return repository.save(entity).getId();
     }
 
     public Optional<ProviderProfileDto> findById(@NonNull Long id) {
@@ -102,38 +93,18 @@ public class ProviderProfileService {
     @Transactional
     public void delete(@NonNull Long id, Long version) {
         log.info("ProviderProfile delete: id={}", id);
-        repository.findById(id).ifPresent(_ -> taxonPortFactory.ifAvailable(
-                p -> p.replaceAssignments(EntityType.PROVIDER_PROFILE, id, Set.of())));
         repository.delete(id, version);
     }
 
-    // ── HTML sanitization ────────────────────────────────────────────────────
-
-    private static ProviderProfile buildEntity(@NonNull ProviderProfileSaveDto dto, Long actingUserId, ProviderProfile before) {
+    private static ProviderProfile buildEntity(@NonNull ProviderProfileSaveDto dto, Long targetUserId, ProviderProfile before) {
         return ProviderProfile.builder()
                 .id(dto.id())
-                .actorId(before != null ? before.getActorId() : actingUserId)
+                .actorId(before != null ? before.getActorId() : targetUserId)
                 .kind(dto.kind())
-                .about(sanitizeHtml(dto.about()))
+                .about(HtmlSanitizer.sanitize(dto.about(), ProviderProfileSaveDto.ABOUT_MAX_LENGTH))
                 .cityTaxonId(dto.cityTaxonId())
                 .createdAt(before != null ? before.getCreatedAt() : null)
                 .version(dto.version())
                 .build();
-    }
-
-    private static String sanitizeHtml(String html) {
-        if (html == null || html.isBlank()) return html;
-        String sanitized = HTML_SANITIZER.sanitize(html);
-        validateAboutLength(sanitized);
-        return sanitized;
-    }
-
-    private static void validateAboutLength(String html) {
-        int textLength = Jsoup.parse(html).text().length();
-        if (textLength > ProviderProfileSaveDto.ABOUT_MAX_LENGTH) {
-            throw new IllegalArgumentException(
-                    "About text exceeds maximum length of "
-                            + ProviderProfileSaveDto.ABOUT_MAX_LENGTH + " characters");
-        }
     }
 }

@@ -7,7 +7,8 @@
  * Uses: ../_helpers (screenshot), ./user-management.flow, ./settings.flow, ./entity-activity.flow.
  * Env: None.
  * Input: required by 02-marketplace-authentication-flow.spec.js
- *   (runVerifySettingsAfterSignupFlow, runVerifyUserAuditActivityFlow).
+ *   (runVerifySettingsAfterSignupFlow, runVerifyUserAuditActivityFlow), and by
+ *   04-provider-profile-flow.spec.js (runOpenSettingsFlow, runCloseSettingsFlow).
  * Outputs: exports runOpenSettingsFlow, runCloseSettingsFlow, runVerifyEntityActivityFlow,
  *   runVerifySettingsAfterSignupFlow, runVerifyUserAuditActivityFlow.
  * Returns: N/A
@@ -19,15 +20,15 @@ const { openEntityActivity } = require('./entity-activity.flow');
 
 async function runOpenSettingsFlow(page) {
   await page.locator('.header-settings-button').click();
-  await page.locator('.settings-overlay').waitFor({ timeout: 5000 });
+  await page.locator('.account-overlay').waitFor({ timeout: 5000 });
 }
 
 async function runCloseSettingsFlow(page) {
-  await page.locator('.settings-overlay vaadin-button')
+  await page.locator('.account-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first()
     .click();
-  await page.locator('.settings-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+  await page.locator('.account-overlay').waitFor({ state: 'hidden', timeout: 5000 });
 }
 
 // rows: [{ action, version, actor, changesIncludes, hasUnchangedItem, hasDiff }] — all fields optional

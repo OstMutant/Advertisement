@@ -20,6 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 advertisement-parent (root pom)
 ├── query-lib                         — SQL filter/sort helper library (SqlFilterBuilder, OrderByBuilder)
+├── html-sanitizer-lib                 — shared HTML sanitizer + visible-text-length validator library
 ├── platform-commons                  — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter         — audit subsystem: write + read side (auto-configured starter)
 ├── attachment-spring-boot-starter    — photo/attachment module + S3 storage (auto-configured starter)
@@ -27,12 +28,16 @@ advertisement-parent (root pom)
 ├── advertisement-spring-boot-starter — Advertisement domain: entity, service, AdvertisementPortImpl (auto-configured starter)
 ├── taxon-spring-boot-starter         — Taxonomy domain: taxon/category/tag management, TaxonPort (auto-configured starter)
 ├── provider-profile-spring-boot-starter — Provider profile domain: MASTER/SHOP/SUPPORT catalog entries, ProviderProfilePort (auto-configured starter)
+├── apikey-spring-boot-starter         — API-key credential domain: entity, hasher, ApiKeyPortImpl (auto-configured starter)
 ├── integration-tests                 — Testcontainers repository tests + fixtures for every starter (test-only, never shipped)
 ├── marketplace-orchestrator           — application/BFF layer: cross-domain use-case orchestration between marketplace-app and the domain starters
+├── marketplace-rest-api               — external REST API adapter: non-Vaadin HTTP delivery channel over marketplace-orchestrator, sibling to marketplace-app
 └── marketplace-app                   — main Vaadin application (all UI)
 ```
 
 **query-lib** is a plain Java SQL helper library (no Spring Boot autoconfiguration). Provides `SqlFilterBuilder`, `OrderByBuilder` (`org.ost.query.filter/sort`) used directly by repositories as `private static final` constants.
+
+**html-sanitizer-lib** is a plain Java library (no Spring Boot autoconfiguration). Provides `HtmlSanitizer` (`org.ost.sanitizer`), used directly by `advertisement-spring-boot-starter` and `provider-profile-spring-boot-starter` to sanitize rich-text input and enforce a visible-text-length cap.
 
 **integration-tests** is the sole home for Testcontainers-based repository tests and their fixtures (`AbstractPostgresIntegrationTest` — shared singleton Testcontainers Postgres instance). Domain starters never carry test code for this purpose themselves — it depends on whichever starters it needs to test (`advertisement-spring-boot-starter`, `user-spring-boot-starter`, `platform-commons`, ...), which is safe only because this module is never shipped or deployed (see `.claude/rules/integration-tests.md` for the full rationale). Requires a reachable Docker daemon; never runs inside `deploy.sh`'s Docker build stage (see `.claude/rules/scripts.md`).
 
@@ -41,6 +46,7 @@ advertisement-parent (root pom)
 - `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`, `AuditTimelineFilterDto`), `audit.spi` (`AuditPort`, `AuditDomainHook`, `AuditActivityEnrichHook` — note `AuditActivityFieldsHook` does not exist: field-name-to-label mapping lives entirely in `marketplace-app`'s `AuditTimelineRowRenderer`, not a per-domain Hook)
 - `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentAuditPort`) — note `AttachmentMediaChangeHook` does not exist — `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
 - `user.*` — `user.spi` (`UserPort`/`UserAccountPort`/`UserAuthorizationPort`/`UserPreferencesPort` — one logical split, see `.claude/rules/platform-commons.md`; plus `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
+- `apikey.*` — `apikey.spi` (`ApiKeyPort`), `apikey.dto` (`ApiKeySummaryDto`)
 - `advertisement.*` — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto` (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`, `AdvertisementSnapshotDto`), `advertisement.model` (`AdKind`)
 - `taxon.*` — `taxon.spi` (`TaxonPort`), `taxon.dto` (`TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`), `taxon.model` (`TaxonType`)
 - `providerprofile.*` — `providerprofile.spi` (`ProviderProfilePort`), `providerprofile.dto` (`ProviderProfileDto`, `ProviderProfileSaveDto`, `ProviderProfileFilterDto`, `ProviderProfileSnapshotDto`), `providerprofile.model` (`ProviderKind`)
@@ -59,7 +65,11 @@ advertisement-parent (root pom)
 
 → Provider profile domain (owned classes): `.claude/rules/provider-profile-spring-boot-starter.md`
 
+→ API-key credential domain (owned classes): `.claude/rules/apikey-spring-boot-starter.md`
+
 → Application/BFF orchestration layer (cross-domain use cases, owned classes): `.claude/rules/marketplace-orchestrator.md`
+
+→ External REST API adapter (owned classes): `.claude/rules/marketplace-rest-api.md`
 
 ---
 
@@ -174,6 +184,7 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/attachment-spring-boot-starter/DECISIONS.md`
 - `/app/platform-commons/DECISIONS.md`
 - `/app/query-lib/DECISIONS.md`
+- `/app/html-sanitizer-lib/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
 - `/app/scripts/DECISIONS.md`
 - `/app/scripts/ci/DECISIONS.md`
@@ -184,8 +195,9 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/marketplace-orchestrator/DECISIONS.md`
 - `/app/.claude/DECISIONS.md`
 
-Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`, and
-`provider-profile-spring-boot-starter` have no hand-authored `DECISIONS.md` of their own — their
+Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`,
+`provider-profile-spring-boot-starter`, `apikey-spring-boot-starter`, and `marketplace-rest-api`
+have no hand-authored `DECISIONS.md` of their own — their
 key decisions are recorded in `marketplace-app/DECISIONS.md` and `platform-commons/DECISIONS.md`
 instead. Each of these three modules has a generated, pointer-only `DECISIONS.md`
 (`bash docs/architecture/scripts/generate-architecture-model.sh`) listing whichever ADRs cross-reference it via

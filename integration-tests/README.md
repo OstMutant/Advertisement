@@ -66,7 +66,9 @@ vars are required — the sandbox-only `--sandbox` workarounds (also documented 
 ## What `run.sh` does
 
 1. Applies `--sandbox` workarounds if passed (`TESTCONTAINERS_RYUK_DISABLED=true`,
-   `INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`) — omit on a normal developer machine.
+   `INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`) — omit on a normal developer machine. Since Ryuk
+   is disabled, also removes any Testcontainers container leaked by a prior crashed `--sandbox` run
+   (`docker ps -aq --filter "label=org.testcontainers=true" | xargs -r docker rm -f`).
 2. Runs `./mvnw -pl integration-tests -am test`, optionally scoped to one test class via
    `-Dtest=<ClassName> -Dsurefire.failIfNoSpecifiedTests=false`.
 3. Streams full Maven/Testcontainers output live.
@@ -102,7 +104,7 @@ vars are required — the sandbox-only `--sandbox` workarounds (also documented 
 | `attachment/AttachmentSnapshotServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentSnapshotService`'s filename resolution (real filename vs. URL-segment fallback when no matching attachment row exists) and independent resolution of duplicate original filenames across URLs |
 | `audit/AuditLogRepositoryTest` | Testcontainers + `@SpringBootTest` | `AuditLogRepository.findTimeline()`/`getSnapshotContent()`'s `version`-numbering subqueries get an `id` tiebreaker for same-`created_at` rows |
 | `providerprofile/ProviderProfileRepositoryTest` | Testcontainers + `@SpringBootTest` | Real SQL correctness for `ProviderProfileRepository` — filter (kind, cityTaxonId), sort, pagination, `findOwnerIds()`, optimistic-locked `delete()` — against real `provider-profile-spring-boot-starter` + `user-spring-boot-starter` autoconfiguration |
-| `providerprofile/ProviderProfileServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `ProviderProfileService`'s HTML sanitization policy (mirrors `AdvertisementServiceHtmlSanitizationTest`) and the `kind == SUPPORT` requires-privileged-actor authorization rule (accept/reject) |
+| `providerprofile/ProviderProfileServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `ProviderProfileService`'s HTML sanitization policy (mirrors `AdvertisementServiceHtmlSanitizationTest`), the `kind == SUPPORT` requires-privileged-actor authorization rule (accept/reject), and that a new profile's `actor_id` is taken from the `targetUserId` parameter, not the acting user, when an admin creates a profile on another user's behalf |
 | `providerprofile/ProviderProfileSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `ProviderProfileSnapshotDto.diff()` — pure field-comparison logic — plus a Jackson polymorphic round-trip (de)serialization test, the first of any `AuditableSnapshot` subtype to have one |
 | `SharedEnvConfigTest` | Plain JUnit, no Spring, no DB | `SharedEnvConfig.require()` walking up directories to find the repo-root `.env`, and its failure modes (no `.env` in range, key missing from an `.env` that does exist) |
 | `user/UserPreferencesRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserPreferencesRepository.save()`'s optimistic locking embedded in the `settings` JSONB column's own `version` field (fresh row starts at 0, stale version throws, correct version succeeds and increments) |

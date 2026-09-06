@@ -8,7 +8,7 @@
  * Uses: ./_helpers (screenshot, assertRightAligned), ./filter.flow (openQueryPanel, waitForVaadin).
  * Env: None.
  * Input: required by 02-marketplace-authentication-flow.spec.js, 03-marketplace-promotion-flow.spec.js,
- *   04-marketplace-advertisement-flow.spec.js, 05-seed-filter-sort-pagination.spec.js.
+ *   05-marketplace-advertisement-flow.spec.js, 06-seed-filter-sort-pagination.spec.js.
  * Outputs: exports openTimelineTab, openTimelineFilter, closeTimelineFilter, assertFeedHasRow,
  *   assertTimelineHasRows, assertAllRowsHaveType, assertAllRowsHaveAction, assertActorPickerVisible,
  *   fillEntityType, fillActionType, fillActorPicker, removeActorChip, actorChipCount, TIMELINE_BLOCK.

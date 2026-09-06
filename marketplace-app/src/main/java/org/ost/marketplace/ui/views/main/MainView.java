@@ -10,6 +10,7 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.timepicker.TimePicker;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.PostConstruct;
@@ -20,20 +21,25 @@ import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.marketplace.ui.query.elements.fields.QueryLongField;
 import org.ost.marketplace.ui.views.main.header.HeaderBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementsView;
+import org.ost.marketplace.ui.views.main.tabs.providers.ProvidersView;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.ReferenceDataView;
 import org.ost.marketplace.ui.views.main.tabs.timeline.TimelineView;
 import org.ost.marketplace.ui.views.main.tabs.users.UserView;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
+import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.orchestrator.services.TaxonCatalogService;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_ADVERTISEMENTS;
+import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_PROVIDERS;
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_REFERENCE_DATA;
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_TIMELINE;
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_USERS;
 
+/** The app's single root route ({@code @Route("")}), assembling the top-level tab layout. */
 @Route("")
 @RequiredArgsConstructor
 @Uses(Notification.class)
@@ -43,16 +49,19 @@ import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_USERS;
 @Uses(TimePicker.class)
 @Uses(QueryDateTimeField.class)
 @Uses(QueryLongField.class)
+@Uses(IntegerField.class)
 public class MainView extends VerticalLayout {
 
     private final transient HeaderBar headerBar;
     private final transient AdvertisementsView advertisementsView;
+    private final transient ProvidersView providersView;
     private final transient UserView usersView;
     private final transient TimelineView timelineView;
     private final transient ReferenceDataView referenceDataView;
     private final transient AccessEvaluator access;
     private final transient I18nService i18n;
     private final transient TaxonCatalogService taxonCatalogService;
+    private final transient ProviderProfileReadService providerProfileReadService;
 
     @PostConstruct
     public void init() {
@@ -62,12 +71,23 @@ public class MainView extends VerticalLayout {
         setSizeFull();
 
         Map<Tab, Component> tabsToPages = new HashMap<>();
+        Map<Tab, Supplier<Boolean>> pendingDeepLinkCheckers = new HashMap<>();
 
         Tab advertisementTab = new Tab(i18n.get(MAIN_TAB_ADVERTISEMENTS));
         Tabs tabs = buildTabs(advertisementTab);
         Div pages = buildPages();
 
         tabsToPages.put(advertisementTab, advertisementsView);
+        pendingDeepLinkCheckers.put(advertisementTab, advertisementsView::openPendingDeepLinkIfAny);
+
+        if (providerProfileReadService.isAvailable()) {
+            Tab providersTab = new Tab(i18n.get(MAIN_TAB_PROVIDERS));
+            tabs.add(providersTab);
+            pages.add(providersView);
+            tabsToPages.put(providersTab, providersView);
+            pendingDeepLinkCheckers.put(providersTab, providersView::openPendingDeepLinkIfAny);
+            providersView.setVisible(false);
+        }
 
         if (access.canView()) {
             Tab usersTab = new Tab(i18n.get(MAIN_TAB_USERS));
@@ -99,7 +119,10 @@ public class MainView extends VerticalLayout {
         headerBar.addClassName("main-header");
         add(headerBar, tabs, pages);
 
-        advertisementsView.openPendingDeepLinkIfAny();
+        pendingDeepLinkCheckers.entrySet().stream()
+                .filter(e -> e.getValue().get())
+                .findFirst()
+                .ifPresent(e -> tabs.setSelectedTab(e.getKey()));
     }
 
     private Tabs buildTabs(Tab initialTab) {

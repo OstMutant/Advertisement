@@ -37,13 +37,30 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   of a direct `LocaleProvider`/`I18nService` dependency.
 - `ProviderProfileDisplayEnrichmentService` — the ProviderProfile equivalent of the Advertisement
   enrichment service (category/city/actor only — no attachments).
+- `ProviderProfileSaveService` — the ProviderProfile equivalent of `AdvertisementSaveService`:
+  write + category assignment (via `TaxonAssignmentWriteService`) + audit capture, one
+  `TransactionTemplate`-bounded unit. `save(dto, targetUserId, actorId, actorIsPrivileged)` takes
+  two distinct identity parameters — `targetUserId` (whose profile this is, forwarded to
+  `ProviderProfilePort.save()` as the row owner) and `actorId` (who performed the save, audit-only)
+  — since an admin/moderator editing another user's profile makes the two diverge. No attachment
+  gallery step (unlike Advertisement) — provider profiles carry no media.
 - `UserDeleteService` — cascades a user's own dependent data (advertisements, provider profile)
   before deleting the account itself.
 - `AdvertisementReadService` — wraps `ComponentFactory<AdvertisementPort>`'s query methods
   (`findById`/`getFiltered`/`count`) so marketplace-app never holds a direct `AdvertisementPort`.
+- `ProviderProfileReadService` — the `ProviderProfilePort` equivalent of `AdvertisementReadService`,
+  wrapping `ComponentFactory<ProviderProfilePort>`'s `getFiltered`/`count`/`findById`/`isAvailable`
+  for the public Providers catalog listing, distinct from `ProviderProfileSaveService`'s
+  write/single-lookup methods.
+- `SitemapService` — builds and caches `/sitemap.xml`'s XML body (advertisements + provider
+  profiles, one Caffeine cache entry, 15-minute TTL). `AdvertisementSaveService`/
+  `ProviderProfileSaveService` call `invalidate()` after every save/delete, since both already live
+  in this same module — a same-module direct call, no cross-module event needed.
+  `marketplace-app`'s `SitemapController` (`rest/`) is a thin adapter over `getSitemap()`.
 - `TaxonCatalogService` — wraps `ComponentFactory<TaxonPort>`'s catalog-management methods
-  (`getAllByType`/`listAllByType`/`getUsageCounts`/`create`/`update`/`findById`/`getTranslations`)
-  — distinct from `TaxonLookupService`, which stays narrowly scoped to entity-assignment lookups.
+  (`getAllByType`/`listAllByType`/`getUsageCounts`/`getPage`/`count`/`create`/`update`/`findById`/
+  `getTranslations`) — distinct from `TaxonLookupService`, which stays narrowly scoped to
+  entity-assignment lookups.
 - `AttachmentMediaService` — wraps `ComponentFactory<AttachmentPort>` +
   `ComponentFactory<AttachmentAuditPort>` for the full gallery lifecycle (upload/commit/delete/
   restore) plus audit-diff media state; reuses `AttachmentSnapshotReaderService` internally instead
@@ -59,12 +76,18 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   per-`EntityType` existence-check routing (`findExisting`).
 - `UserActorNameService` — actor-name-resolution collaborator `AuditDomainHookImpl` (in `spi/`,
   below) delegates to; stays in `services/` since it doesn't itself implement an SPI interface.
-- `AuthorizationService` — pure delegation over a direct, mandatory `UserAuthorizationPort` field
-  (same shape as `UserDeleteService`'s `UserAccountPort`), exposing `isAdmin`/`isModerator`/
-  `isOwner`. `marketplace-app`'s `AccessEvaluator` depends on this instead of holding
-  `UserAuthorizationPort` directly — see the "Forwarder SPI pattern" section below for why this
-  isn't itself a forwarder SPI (it wraps a genuine `platform-commons` `*Port`, not a UI-shell
-  resource).
+- `AuthorizationService` — role/ownership rule composition (`canOperate`/`canEditAccount`/
+  `canEditRole`/`isPrivileged`, both `UserDto`-taking and id-taking overloads, plus throwing
+  `require*` variants raising `AccessDeniedException`) over a direct, mandatory
+  `UserAuthorizationPort` field (same shape as `UserDeleteService`'s `UserAccountPort`) and the
+  `ActorLookupService` collaborator (id-taking overloads resolve the actor, then delegate to the
+  `UserDto`-taking ones — the single source of truth for each rule). Reused both by
+  `marketplace-app`'s `AccessEvaluator` and by this module's own save/delete services for
+  service-boundary authorization — see the "Forwarder SPI pattern" section below for why
+  `AccessEvaluator`'s dependency on it isn't itself a forwarder SPI (it wraps a genuine
+  `platform-commons` `*Port`, not a UI-shell resource).
+- `AccessDeniedException` — thrown by `AuthorizationService`'s `require*` methods when the acting
+  user is neither the resource's owner nor privileged.
 - `CurrentUserService` — thin wrapper over the `CurrentUserHook` forwarder SPI (see below),
   exposing `getCurrentUser()`/`getCurrentUserLocale()` to any orchestrator-side or future-adapter
   caller without assuming how identity is resolved.

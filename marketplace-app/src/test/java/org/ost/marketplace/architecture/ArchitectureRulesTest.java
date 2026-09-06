@@ -11,6 +11,7 @@ import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import org.ost.platform.taxon.spi.TaxonPort;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,7 +41,7 @@ class ArchitectureRulesTest {
 
     private static final List<String> STARTER_PACKAGES = List.of(
             "org.ost.audit", "org.ost.attachment", "org.ost.user",
-            "org.ost.advertisement", "org.ost.taxon", "org.ost.provider");
+            "org.ost.advertisement", "org.ost.taxon", "org.ost.provider", "org.ost.apikey");
 
     @ArchTest
     static final ArchRule ui_must_not_call_repositories_directly =
@@ -53,7 +54,7 @@ class ArchitectureRulesTest {
     static final ArchRule starters_must_not_depend_on_vaadin =
             noClasses().that().resideInAnyPackage(
                             "org.ost.audit..", "org.ost.attachment..", "org.ost.user..",
-                            "org.ost.advertisement..", "org.ost.taxon..")
+                            "org.ost.advertisement..", "org.ost.taxon..", "org.ost.apikey..")
                     .should().dependOnClassesThat().resideInAPackage("com.vaadin..")
                     .because("starters have no Vaadin dependency — UI code lives only in "
                             + "marketplace-app, see each starter's own CLAUDE.md \"Key constraints\"");
@@ -102,7 +103,7 @@ class ArchitectureRulesTest {
 
     @ArchTest
     static final ArchRule marketplace_app_must_not_depend_on_platform_commons_spi_directly =
-            noClasses().that().resideInAPackage("org.ost.marketplace..")
+            noClasses().that().resideInAnyPackage("org.ost.marketplace..", "org.ost.restapi..")
                     .should().dependOnClassesThat(new DescribedPredicate<JavaClass>(
                             "reside in a platform-commons *.spi package and are not allow-listed") {
                         @Override
@@ -112,9 +113,9 @@ class ArchitectureRulesTest {
                                     && !PLATFORM_SPI_ALLOWLIST.contains(input.getSimpleName());
                         }
                     })
-                    .because("marketplace-app should have zero direct *Port/*Hook usage from "
-                            + "platform-commons — cross-domain composition routes through "
-                            + "marketplace-orchestrator instead, see improvement-150. "
+                    .because("marketplace-app and marketplace-rest-api should have zero direct "
+                            + "*Port/*Hook usage from platform-commons — cross-domain composition "
+                            + "routes through marketplace-orchestrator instead, see improvement-150. "
                             + "AuthenticatedPrincipal is allow-listed above.");
 
     @ArchTest
@@ -187,7 +188,8 @@ class ArchitectureRulesTest {
 
     @ArchTest
     static final ArchRule marketplace_must_not_import_starter_internals =
-            noClasses().that().resideInAnyPackage("org.ost.marketplace..", "org.ost.orchestrator..")
+            noClasses().that().resideInAnyPackage(
+                            "org.ost.marketplace..", "org.ost.orchestrator..", "org.ost.restapi..")
                     .should().dependOnClassesThat(new DescribedPredicate<JavaClass>(
                             "reside in a starter's util/services/repository package") {
                         @Override
@@ -197,9 +199,34 @@ class ArchitectureRulesTest {
                                     Pattern.quote(p) + "\\.(util|services|repository)(\\..*)?"));
                         }
                     })
-                    .because("marketplace/orchestrator may import from starters only via "
-                            + "platform-commons contracts (Ports/Hooks/DTOs), never via internal "
-                            + "impl classes — see .claude/rules.md \"Module Import Rules\"");
+                    .because("marketplace/orchestrator/marketplace-rest-api may import from starters "
+                            + "only via platform-commons contracts (Ports/Hooks/DTOs), never via "
+                            + "internal impl classes — see .claude/rules.md \"Module Import Rules\"");
+
+    @ArchTest
+    static final ArchRule starters_must_route_taxon_assignment_writes_through_orchestrator =
+            noClasses().should(new ArchCondition<JavaClass>("not call TaxonPort.replaceAssignments() directly") {
+                @Override
+                public void check(JavaClass javaClass, ConditionEvents events) {
+                    boolean allowedCaller = javaClass.getPackageName().startsWith("org.ost.orchestrator")
+                            || javaClass.getPackageName().startsWith("org.ost.marketplace")
+                            || javaClass.getPackageName().startsWith("org.ost.restapi")
+                            || javaClass.getPackageName().startsWith("org.ost.taxon");
+                    if (allowedCaller) {
+                        return;
+                    }
+                    javaClass.getMethodCallsFromSelf().forEach(call -> {
+                        if (call.getTarget().getOwner().isAssignableTo(TaxonPort.class)
+                                && call.getTarget().getName().equals("replaceAssignments")) {
+                            events.add(SimpleConditionEvent.violated(javaClass,
+                                    javaClass.getFullName() + " calls TaxonPort.replaceAssignments() directly — "
+                                            + "category/city assignment writes must go through "
+                                            + "marketplace-orchestrator's TaxonAssignmentWriteService, "
+                                            + "see .claude/rules.md guideline 2 \"Three layers, not two\""));
+                        }
+                    });
+                }
+            });
 
     // Counts only ComponentFactory<XPort>-wrapped (optional cross-domain composition) fields --
     // a direct, mandatory *Port field (e.g. UserAccountPort in a user-owned use case) is not the

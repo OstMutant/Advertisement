@@ -47,8 +47,12 @@ public class ProviderProfileRepository {
     };
 
     private static final SqlFilterBuilder<ProviderProfileFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
-            SqlBoundFilter.of(kinds,        "pp.kind",          (m, v) -> inSet(m, v.getKinds())),
-            SqlBoundFilter.of(cityTaxonId,  "pp.city_taxon_id", (m, v) -> equalsTo(m, v.getCityTaxonId()))
+            SqlBoundFilter.of(kinds,          "pp.kind",          (m, v) -> inSet(m, v.getKinds())),
+            SqlBoundFilter.of(createdAtStart, "pp.created_at",    (m, v) -> after(m, v.getCreatedAtStart())),
+            SqlBoundFilter.of(createdAtEnd,   "pp.created_at",    (m, v) -> before(m, v.getCreatedAtEnd())),
+            SqlBoundFilter.of(updatedAtStart, "pp.updated_at",    (m, v) -> after(m, v.getUpdatedAtStart())),
+            SqlBoundFilter.of(updatedAtEnd,   "pp.updated_at",    (m, v) -> before(m, v.getUpdatedAtEnd())),
+            SqlBoundFilter.of(cityTaxonId,    "pp.city_taxon_id", (m, v) -> equalsTo(m, v.getCityTaxonId()))
     ));
 
     private static final String SELECT = """

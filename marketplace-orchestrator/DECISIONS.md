@@ -2,6 +2,91 @@
 
 ---
 
+## ADR-007: Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only
+
+**Status:** Accepted
+
+**Context:** Mutating service/port methods across 4 domains (`AdvertisementPort`,
+`ProviderProfilePort`, `UserAccountPort`, `TaxonPort`) trusted `actingUserId` with no ownership/role
+check — authorization lived only in `marketplace-app`'s `AccessEvaluator` (UI button-gating). The
+first non-UI caller (a future REST endpoint) would inherit zero authorization at the port. Two
+shapes were considered; a first implementation draft actually started down the "checks inside each
+starter" shape (a new `UserAuthorizationPort.canOperate(Long,Long)` SPI method +
+`ComponentFactory<UserAuthorizationPort>` wiring into 4 starters) before being reversed the same day.
+
+**Decision:** Place the checks in `marketplace-orchestrator` instead. Grep-verified every mutating
+Port method is called only from this module today — never directly from `marketplace-app` (already
+ArchUnit-enforced) and never from a sibling starter for a human-actor-authorized mutation — making
+this module the real, already-enforced choke point every mutation passes through, without touching
+`platform-commons` SPI signatures or any starter's own code. New `AuthorizationService` methods:
+`canOperate`/`canEditAccount`/`canEditRole`/`isPrivileged`, both `UserDto`-taking (the actual rule
+composition — single source of truth) and `Long`-id-taking (resolve via `ActorLookupService`, then
+delegate) overloads, plus throwing `require*` variants raising a new `AccessDeniedException`. Wired
+into `AdvertisementSaveService`, `ProviderProfileSaveService`, `UserProfileService`,
+`UserDeleteService`, `TaxonCatalogService`. `AccessEvaluator` (`marketplace-app`) now delegates its
+own rule composition to the same `UserDto`-taking overloads instead of independently
+re-implementing `isAdmin || isModerator || isOwner`-shaped logic — **supersedes ADR-003's
+"AccessEvaluator keeps a direct `UserAuthorizationPort` field" framing** (it still resolves the
+current `UserDto` for free via session, avoiding the id-based overloads' extra lookup, but no
+longer owns rule composition itself). Also closed a related bug found during implementation:
+`UserProfileService.save()` is the one write path for both name and role, but only the UI disabled
+the role field for unauthorized editors — server-side, nothing stopped a crafted request from
+self-escalating role. Fixed by requiring the stricter `canEditRole` check whenever `dto.role()`
+differs from the stored value.
+
+**Rejected alternatives:**
+1. Checks inside each of the 4 starters — reversed once grep confirmed the orchestrator is already
+   the sole real caller, making the starter-level version no stronger in practice while touching
+   far more files (new SPI method, 4 starters' own `ComponentFactory` wiring).
+2. UI-only authorization plus an ArchUnit-enforced convention (e.g. `@PreAuthorize` required on
+   every `*Controller`) — cheaper, but leaves a residual gap for non-REST callers (a `@Scheduled`
+   job, an event listener) an ArchUnit rule can't reach; rejected as the primary mechanism for a
+   project heading toward public endpoints.
+
+**Consequences:** No `AdvertisementPort`/`ProviderProfilePort`/`UserAccountPort`/`TaxonPort`
+signature changes — `ProviderProfileSaveService.save()` dropped its untrusted
+`actorIsPrivileged` parameter, computing it internally instead. A hypothetical future direct-Port
+caller bypassing the orchestrator (a new module, a scheduled job) would still have zero
+authorization — same residual gap option 2 already accepted; not closed now. New
+`AccessDeniedException` is caught at every `marketplace-app` save/delete call site, showing one
+shared, localized notification (`I18nKey.COMMON_NOTIFICATION_ACCESS_DENIED`) instead of the
+exception's raw internal message — the first genuinely domain-agnostic notification string in this
+app's `I18nKey` enum, a deliberate exception to the per-view key-naming convention.
+
+**Trigger to revisit:** If a non-orchestrator-mediated mutation caller is ever added, the residual
+authorization gap above becomes real and needs its own fix.
+
+---
+
+## ADR-006: Stale-id-during-concurrent-delete guard in `AdvertisementSaveService`/`ProviderProfileSaveService`
+
+**Status:** Accepted
+
+**Context:** Both `SaveService`s already read a `before` snapshot ahead of calling the port's
+`save()`, purely to build the audit diff. When an edit's target row was deleted between read and
+write, `before` came back `null` for a non-new `dto` — previously this only logged a warning
+("...updated but no 'before' snapshot was available (concurrent delete?) - skipping audit
+capture") and proceeded to call `save()` anyway, which hit a pre-existing bug in both starters'
+`buildEntity()`: a stale, non-null `id` combined with a `null` `before` silently produces
+insert-shaped defaults, and Spring Data JDBC then attempts an update-path against a non-existent
+row instead of a clear error.
+
+**Decision:** Right after computing `before` in each `SaveService.save()`, before calling the
+port's own `save()`: `if (!isNew && before == null) throw new OptimisticLockingFailureException(...)`.
+This exception type was already the proven, correct shape — both `AdvertisementRepository`/
+`ProviderProfileRepository` already throw it for version conflicts, and `marketplace-app`'s
+`AbstractEntityOverlay.handleSave()` already has a dedicated catch block showing
+`saveConfig().conflict()`, so this reaches correct UI handling for free. The guard makes
+`captureAudit()`'s old `before == null` branch unreachable, so it collapses to a plain
+`isNew ? captureCreation : captureUpdate` dispatch — the dead `log.warn(...)` branch is removed.
+
+**Rejected alternative:** a guard inside each starter's own `buildEntity()` (the originally-planned
+location) — moved one layer up once `AdvertisementSaveService`/`ProviderProfileSaveService` were
+confirmed to already compute the exact state needed, making the fix smaller and requiring no
+`buildEntity()` change in either starter.
+
+---
+
 ## ADR-001: Extract a dedicated Application/BFF module instead of moving orchestration into marketplace-app
 **Status:** Accepted — the "never depends on a starter jar" consequence is superseded by ADR-004;
 the module-extraction decision itself stands
@@ -103,7 +188,8 @@ field. Role/ownership checks (`isAdmin`/`isModerator`/`isOwner`) are the securit
 not a domain read-model this module composes — the same category as a `*Hook`, called on nearly
 every render across the whole UI, where an orchestrator round-trip would cost real latency for no
 architectural benefit. `user-spring-boot-starter` is non-optional, so this carries no decoupling
-risk either.
+risk either. → superseded by ADR-007 (`AccessEvaluator` now delegates rule composition to
+`AuthorizationService` instead of holding `UserAuthorizationPort` directly).
 
 Alongside this, the module's 9 pre-existing service classes (scattered across 5 domain-scoped
 sub-packages: `shared/`, `advertisement/enrich/`, `advertisement/save/`, `providerprofile/enrich/`,

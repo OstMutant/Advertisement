@@ -12,7 +12,7 @@
  * Env: None.
  * Input: required by 03-marketplace-promotion-flow.spec.js (cardByTitle, openCardOverlay,
  *   switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList) and
- *   04-marketplace-advertisement-flow.spec.js (all remaining exports); selectAdKind is also
+ *   05-marketplace-advertisement-flow.spec.js (all remaining exports); selectAdKind is also
  *   required internally by seed.flow.js.
  * Outputs: exports MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow,
  *   runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow,

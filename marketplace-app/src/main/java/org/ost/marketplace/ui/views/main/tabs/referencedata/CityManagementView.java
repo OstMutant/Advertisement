@@ -16,6 +16,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.CityOverlay;
 import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
@@ -155,6 +156,9 @@ public class CityManagementView extends Div {
                         taxonCatalogService.softDelete(city.getId(), access.getCurrentUserId(), city.getVersion());
                         notificationService.success(CITY_VIEW_NOTIFICATION_DELETED);
                         refresh();
+                    } catch (AccessDeniedException e) {
+                        log.warn("Access denied deleting city id={}: {}", city.getId(), e.getMessage());
+                        notificationService.accessDenied();
                     } catch (@SuppressWarnings("java:S7467") Exception e) {
                         log.error("Error deleting city id={}", city.getId(), e);
                         notificationService.error(CITY_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
@@ -168,6 +172,9 @@ public class CityManagementView extends Div {
             taxonCatalogService.restore(city.getId(), access.getCurrentUserId());
             notificationService.success(CITY_VIEW_NOTIFICATION_RESTORED);
             refresh();
+        } catch (AccessDeniedException e) {
+            log.warn("Access denied restoring city id={}: {}", city.getId(), e.getMessage());
+            notificationService.accessDenied();
         } catch (Exception e) {
             log.error("Error restoring city id={}", city.getId(), e);
             notificationService.error(CITY_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());

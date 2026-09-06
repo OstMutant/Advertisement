@@ -6,7 +6,9 @@
 #   subprocesses), python3 (only when --with-sonar/--with-archunit are passed).
 # Input: pom.xml, real Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
 #   .claude/nav/adr-index.md, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents,
-#   backlog/.
+#   backlog/, root CLAUDE.md, .claude/rules/*.md (each file's own 5th line for its one-line module
+#   description, plus any <!-- #arch-embed:KEY --> ... <!-- /#arch-embed --> marked section,
+#   embedded live into the generated HTML).
 # Output: docs/architecture/data/architecture-model.json + docs/architecture/architecture-map.html +
 #   docs/architecture/data/arch-embed-index.md.
 #
@@ -64,17 +66,13 @@ for arg in "$@"; do
   esac
 done
 
-# The 6 real Liquibase changelogs holding an actual createTable -- single source of truth for the
-# live Database ERD (see root CLAUDE.md's "Database Changes" guideline). Declared early so the
-# module-table-ownership computation below can use it too, not just db_erd_json() further down.
-DB_ERD_CHANGELOG_FILES=(
-  "user-spring-boot-starter/src/main/resources/db/user-changelog/changes/01-user-schema.xml"
-  "advertisement-spring-boot-starter/src/main/resources/db/advertisement-changelog/changes/01-advertisement-schema.xml"
-  "attachment-spring-boot-starter/src/main/resources/db/attachment-changelog/changes/01-attachment-schema.xml"
-  "audit-spring-boot-starter/src/main/resources/db/audit-changelog/changes/01-audit-schema.xml"
-  "taxon-spring-boot-starter/src/main/resources/db/taxon-changelog/changes/001-taxon.xml"
-  "provider-profile-spring-boot-starter/src/main/resources/db/provider-profile-changelog/changes/01-provider-profile-schema.xml"
-)
+# Every real Liquibase changelog holding an actual createTable, discovered dynamically per module
+# (db/*/changes/*.xml under each module in pom.xml's own <modules> list) rather than a hand-typed
+# path per module -- single source of truth for the live Database ERD (see root CLAUDE.md's
+# "Database Changes" guideline) that never goes stale when a new module adds its own schema.
+# Declared early so the module-table-ownership computation below can use it too, not just
+# db_erd_json() further down. MODULES itself is populated a few lines below via mapfile from
+# pom.xml -- this loop runs after that assignment.
 
 json_escape() {
   # Escapes backslash and double-quote, strips newlines/carriage-returns and other C0 control
@@ -84,17 +82,25 @@ json_escape() {
   printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | LC_ALL=C tr -d '\000-\037'
 }
 
-# ── Full ADR content (Knowledge Pyramid L1 fact, "decisions" domain) for modules listed here --
-# embedded directly into this module's node in architecture-model.json (inlined into
-# architecture-map.html's own <script> block at generation time, same mechanism the rest of MODEL
-# already uses) -- NOT a separate <module>/DECISIONS.json loaded at runtime via <script src>. That
-# design was tried and reverted: it depends on browser-specific file:// security policy for
-# cross-directory script loading, an unacceptable dependency for a tool meant to just work when
-# double-clicked -- see .claude/nav/adr-index.md. Parsing lives in
-# .claude/nav/scripts/md-to-decisions-json.js (Node) -- an earlier awk version hit two real bugs on real content (label+list with no blank
-# line merging into one paragraph; multi-line list items losing their numbering) that
-# JSON.stringify()'s correct-by-construction escaping and normal regex/string methods avoid.
-FULL_DECISIONS_MODULES=(attachment-spring-boot-starter audit-spring-boot-starter integration-tests marketplace-app platform-commons query-lib taxon-spring-boot-starter scripts docs/architecture/scripts scripts/ci scripts/sonar playwright)
+# ── Full ADR content (Knowledge Pyramid L1 fact, "decisions" domain) for modules with a real,
+# hand-authored DECISIONS.md -- embedded directly into this module's node in
+# architecture-model.json (inlined into architecture-map.html's own <script> block at generation
+# time, same mechanism the rest of MODEL already uses) -- NOT a separate <module>/DECISIONS.json
+# loaded at runtime via <script src>. That design was tried and reverted: it depends on
+# browser-specific file:// security policy for cross-directory script loading, an unacceptable
+# dependency for a tool meant to just work when double-clicked -- see .claude/nav/adr-index.md.
+# Parsing lives in .claude/nav/scripts/md-to-decisions-json.js (Node) -- an earlier awk version hit
+# two real bugs on real content (label+list with no blank line merging into one paragraph,
+# multi-line list items losing their numbering) that JSON.stringify()'s correct-by-construction
+# escaping and normal regex/string methods avoid.
+#
+# FULL_DECISIONS_MODULES itself is computed dynamically further down (right after
+# POINTER_DECISIONS_MODULES, which already detects "has real content" per Maven module) rather
+# than hand-typed here, so a new module with a real DECISIONS.md is included automatically. Only
+# the non-Maven tooling directories below stay a fixed list -- they aren't in pom.xml's <modules>,
+# so there's no dynamic source to derive them from.
+FULL_DECISIONS_NON_MODULE_DIRS=(scripts docs/architecture/scripts scripts/ci scripts/sonar playwright)
+FULL_DECISIONS_MODULES=()
 
 # ── Non-Maven tooling directories -- get a SCRIPT_GROUP node (same ADR-embedding/popup mechanism
 # as MODULE nodes) so their files/decisions are visible on the Tooling & Pipelines screen, not
@@ -131,8 +137,9 @@ SCRIPT_TREE_ROOTS=(scripts playwright .claude)
 # SCRIPT_TREE_ROOTS subtree -- generated/report output, never source. "wiki" is Dagu's own
 # runtime-created documentation folder (see `dagu config`'s "Wiki directory"), written directly
 # into whatever directory Dagu was started with `--dags` pointed at -- not part of the real source
-# tree, confirmed by its absence outside a running ci-runner container.
-SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report logs node_modules wiki)
+# tree, confirmed by its absence outside a running ci-runner container. "worktrees" holds active
+# git worktree checkouts -- full copies of the repo tree, not source of their own.
+SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report logs node_modules wiki worktrees)
 
 # Directories whose real subdirectories are never recursed into, even though they exist on disk --
 # .claude/skills/<name>/ is never a folder-card of its own: each skill's own SKILL.md is already
@@ -199,6 +206,17 @@ root_md_json_for() {
 mapfile -t MODULES < <(sed -n '/<modules>/,/<\/modules>/p' "$REPO_ROOT/pom.xml" \
   | grep -o '<module>[^<]*</module>' | sed 's/<module>\(.*\)<\/module>/\1/')
 
+# ── DB_ERD_CHANGELOG_FILES: discover every changelog under each module's own db/*/changes/ that
+# holds a real createTable, instead of a hand-typed path per module -- see the comment near this
+# array's declaration further up for why. ──────────────────────────────────────────────────────
+DB_ERD_CHANGELOG_FILES=()
+for erd_mod in "${MODULES[@]}"; do
+  while IFS= read -r erd_file; do
+    [ -z "$erd_file" ] && continue
+    grep -q '<createTable' "$erd_file" && DB_ERD_CHANGELOG_FILES+=("${erd_file#"$REPO_ROOT/"}")
+  done < <(find "$REPO_ROOT/$erd_mod/src/main/resources/db" -mindepth 3 -maxdepth 3 -name "*.xml" 2>/dev/null | sort)
+done
+
 # ── Domain <-> module mapping, derived live from each module's own pom.xml
 # <properties><architecture.boundedContext> declaration -- self-describing, not a hardcoded list of
 # module names here. A module with no such property (query-lib, integration-tests) is simply not a
@@ -209,7 +227,7 @@ mapfile -t MODULES < <(sed -n '/<modules>/,/<\/modules>/p' "$REPO_ROOT/pom.xml" 
 # new ADR recorded alongside this change.
 declare -A BC_DOMAIN_MODULE=() BC_DOMAIN_LABEL=() BC_DOMAIN_KIND=()
 BC_DOMAIN_ORDER=() BC_DOMAIN_ORDER_STARTERS=()
-bc_shared_mod="" bc_ui_mod="" bc_orch_mod=""
+bc_shared_mod="" bc_ui_mod="" bc_orch_mod="" bc_restapi_mod=""
 for bc_mod in "${MODULES[@]}"; do
   bc_kind="$(sed -n '/<properties>/,/<\/properties>/p' "$REPO_ROOT/$bc_mod/pom.xml" 2>/dev/null \
     | grep -o '<architecture.boundedContext>[^<]*</architecture.boundedContext>' \
@@ -219,6 +237,7 @@ for bc_mod in "${MODULES[@]}"; do
     shared) bc_shared_mod="$bc_mod" ;;
     ui) bc_ui_mod="$bc_mod" ;;
     orchestrator) bc_orch_mod="$bc_mod" ;;
+    rest-api) bc_restapi_mod="$bc_mod" ;;
     starter)
       bc_word="${bc_mod%-spring-boot-starter}"
       bc_id="" bc_label_words=()
@@ -243,6 +262,10 @@ if [ -n "$bc_orch_mod" ]; then
   BC_DOMAIN_MODULE[Orchestrator]="$bc_orch_mod"; BC_DOMAIN_LABEL[Orchestrator]="Application/BFF Layer"
   BC_DOMAIN_KIND[Orchestrator]="orchestrator"; BC_DOMAIN_ORDER+=(Orchestrator)
 fi
+if [ -n "$bc_restapi_mod" ]; then
+  BC_DOMAIN_MODULE[RestApi]="$bc_restapi_mod"; BC_DOMAIN_LABEL[RestApi]="External REST API"
+  BC_DOMAIN_KIND[RestApi]="rest-api"; BC_DOMAIN_ORDER+=(RestApi)
+fi
 if [ -n "$bc_ui_mod" ]; then
   BC_DOMAIN_MODULE[UI]="$bc_ui_mod"; BC_DOMAIN_LABEL[UI]="UI/Application Layer"
   BC_DOMAIN_KIND[UI]="ui"; BC_DOMAIN_ORDER+=(UI)
@@ -264,7 +287,6 @@ declare -A BC_LABEL_PAYLOAD=(
   ["decouples"]="Compile-time dependency only -- no runtime payload"
   ["audited via"]="AuditableSnapshot (AuditPort.captureCreation/Update/Deletion/Restore)"
   ["can have"]="AttachmentMediaSummaryDto (AttachmentPort.getMediaSummaries)"
-  ["category assignment via"]="Set<Long> of taxon ids (TaxonPort.replaceAssignments)"
   ["calls"]="Whatever DTO that domain's own Port methods return -- varies per call, see SPI Map for the real per-method types"
   ["calls back via Hook implementations"]="Varies by which Hook interface backs this edge -- see BC_HOOK_PAYLOAD"
 )
@@ -285,30 +307,36 @@ declare -A BC_HOOK_PAYLOAD=(
   [SessionActorHook]="Optional<Long> (getCurrentActorId)"
 )
 
-# ── Bounded Contexts category split -- the same 16 relationships render with the same arrow+label
+# ── Bounded Contexts category split -- the same relationships render with the same arrow+label
 # visual regardless of how different their real nature is (a genuine BFF call vs. a reverse Hook
-# callback vs. a documented starter-to-starter exception vs. a derived, not-a-call fact), which was
-# the actual source of user confusion ("чому стартери зі стартерами, аудіт з юай, а ми ж казали БФФ").
-# One diagram tab per category (mirrors SPI_SUBSYSTEM_ORDER/SPI_SUBSYSTEM_LABEL's per-subsystem
-# split above for SPI Map). BC_LABEL_CATEGORY maps every existing BC_LABEL_PAYLOAD key except
-# "decouples" (never drawn -- see add_rel's Shared loop) to one of the 4 categories below.
-declare -a BC_CATEGORY_ORDER=(orchestration hooks exceptions derived)
+# callback vs. a derived, not-a-call fact), which was the actual source of user confusion ("чому
+# стартери зі стартерами, аудіт з юай, а ми ж казали БФФ"). One diagram tab per category (mirrors
+# SPI_SUBSYSTEM_ORDER/SPI_SUBSYSTEM_LABEL's per-subsystem split above for SPI Map).
+# BC_LABEL_CATEGORY maps every existing BC_LABEL_PAYLOAD key except "decouples" (never drawn -- see
+# add_rel's Shared loop) to one of the 3 categories below. A 4th category, "exceptions" (Cross-
+# Starter Exceptions -- a starter-to-starter Port call bypassing the orchestrator, e.g.
+# TaxonPort.replaceAssignments() called from provider-profile/advertisement instead of
+# marketplace-orchestrator's TaxonAssignmentWriteService), existed here until it was superseded by a
+# real, build-enforced ArchUnit rule
+# (marketplace-app/.../architecture/ArchitectureRulesTest.java's
+# starters_must_route_taxon_assignment_writes_through_orchestrator) -- the diagram category always
+# rendered zero relationships once that specific bypass was fixed (see this file's own git history)
+# and now can never render any again, so removed rather than kept as permanently-empty documentation
+# for something a failing build already guarantees.
+declare -a BC_CATEGORY_ORDER=(orchestration hooks derived)
 declare -A BC_CATEGORY_LABEL=(
   [orchestration]="Service Calls (BFF)"
   [hooks]="Hook Callbacks"
-  [exceptions]="Cross-Starter Exceptions"
   [derived]="Derived Facts"
 )
 declare -A BC_CATEGORY_DESC=(
   [orchestration]="Forward-direction real Port calls -- Orchestrator composing each domain, UI calling Orchestrator, and the one documented UI exception (AccessEvaluator -> UserAuthorizationPort). The BFF pattern working as intended."
   [hooks]="Reverse-direction calls -- a starter or Orchestrator calls a *Hook interface it depends on; marketplace-app/marketplace-orchestrator supplies the real implementation. Dependency inversion, not orchestration -- does not violate the BFF principle."
-  [exceptions]="A real starter-to-starter Port call that bypasses the orchestrator -- documented technical debt, not the intended pattern."
   [derived]="Not code calls at all -- classification/composition facts derived from data (which EntityTypes get audited, which domains can carry attachments)."
 )
 declare -A BC_LABEL_CATEGORY=(
   ["calls"]="orchestration"
   ["calls back via Hook implementations"]="hooks"
-  ["category assignment via"]="exceptions"
   ["audited via"]="derived"
   ["can have"]="derived"
 )
@@ -543,6 +571,16 @@ for m in "${MODULES[@]}"; do
     POINTER_DECISIONS_MODULES+=("$m")
   fi
 done
+
+# ── FULL_DECISIONS_MODULES: every Maven module with real content (i.e. not in
+# POINTER_DECISIONS_MODULES, computed just above) plus the fixed non-Maven tooling dirs. ──────────
+for m in "${MODULES[@]}"; do
+  is_pointer=false
+  for p in "${POINTER_DECISIONS_MODULES[@]}"; do [ "$p" = "$m" ] && is_pointer=true; done
+  $is_pointer || FULL_DECISIONS_MODULES+=("$m")
+done
+FULL_DECISIONS_MODULES+=("${FULL_DECISIONS_NON_MODULE_DIRS[@]}")
+
 generate_pointer_decisions_md() {
   local module="$1" items home id title content
   items="$(adr_intent_for_module "$module")"
@@ -781,11 +819,12 @@ issue_list_json() {
 # group now has one diagram per subsystem (7 tabs instead of one 71-node canvas -- user reported
 # the single flat graph was too cluttered to read). Reused again inside spi_map_json() further
 # down instead of a second, separately-maintained local copy.
-declare -a SPI_SUBSYSTEM_ORDER=(audit attachment user advertisement taxon providerprofile core)
+declare -a SPI_SUBSYSTEM_ORDER=(audit attachment user apikey advertisement taxon providerprofile core)
 declare -A SPI_SUBSYSTEM_LABEL=(
   [audit]="Audit Subsystem"
   [attachment]="Attachment Subsystem"
   [user]="User Subsystem"
+  [apikey]="API-Key Subsystem"
   [advertisement]="Advertisement Subsystem"
   [taxon]="Taxon (Reference Data) Subsystem"
   [providerprofile]="Provider Profile Subsystem"
@@ -815,18 +854,24 @@ bounded_contexts_diagrams_json() {
 }
 
 # Order and description are both data here, same source of truth as file/label.
-diagram_groups_json="  {\"key\": \"bounded-contexts\", \"label\": \"Bounded Contexts\", \"file\": \"real code (live)\", \"description\": \"Which domain actually calls which other domain in real code, and why -- entities/services/tables/ports per domain, relationships from real Hook/Port usage signals. Split one tab per relationship nature (BFF service calls, reverse Hook callbacks, cross-starter exceptions, derived facts) -- the single combined graph mixed 4 fundamentally different kinds of relationship in one arrow+label visual.\", \"diagrams\": [$(bounded_contexts_diagrams_json)]},"$'\n'"  {\"key\": \"02-spi-map\", \"label\": \"SPI Map\", \"file\": \"platform-commons/src (live)\", \"description\": \"Every cross-module Port/Hook interface in platform-commons, who really calls it, and who really implements it -- three real-code facts, not a build-graph fact. Split one tab per subsystem -- the single combined graph got too dense to read.\", \"diagrams\": [$(spi_map_diagrams_json)]},"$'\n'"  {\"key\": \"01-module-dependencies\", \"label\": \"Module Dependencies\", \"file\": \"pom.xml (live)\", \"description\": \"Which module's JAR ends up on which other module's classpath, per real pom.xml <dependency> declarations -- a Maven build-graph fact, not a real-code-call fact (a module can depend on a JAR nothing in its code calls yet).\", \"diagrams\": [{\"title\": \"Dependency Graph\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"04-database-erd\", \"label\": \"Database ERD\", \"file\": \"Liquibase changelogs (live)\", \"description\": \"Every table and column this app persists, with the business-meaning remarks pulled live from each Liquibase changelog.\", \"diagrams\": [{\"title\": \"Entity Relationship Diagram\", \"source\": \"\"}]}"
+diagram_groups_json="  {\"key\": \"bounded-contexts\", \"label\": \"Bounded Contexts\", \"file\": \"real code (live)\", \"description\": \"Which domain actually calls which other domain in real code, and why -- entities/services/tables/ports per domain, relationships from real Hook/Port usage signals. Split one tab per relationship nature (BFF service calls, reverse Hook callbacks, derived facts) -- the single combined graph mixed fundamentally different kinds of relationship in one arrow+label visual.\", \"diagrams\": [$(bounded_contexts_diagrams_json)]},"$'\n'"  {\"key\": \"02-spi-map\", \"label\": \"SPI Map\", \"file\": \"platform-commons/src (live)\", \"description\": \"Every cross-module Port/Hook interface in platform-commons, who really calls it, and who really implements it -- three real-code facts, not a build-graph fact. Split one tab per subsystem -- the single combined graph got too dense to read.\", \"diagrams\": [$(spi_map_diagrams_json)]},"$'\n'"  {\"key\": \"01-module-dependencies\", \"label\": \"Module Dependencies\", \"file\": \"pom.xml (live)\", \"description\": \"Which module's JAR ends up on which other module's classpath, per real pom.xml <dependency> declarations -- a Maven build-graph fact, not a real-code-call fact (a module can depend on a JAR nothing in its code calls yet).\", \"diagrams\": [{\"title\": \"Dependency Graph\", \"source\": \"\"}]},"$'\n'"  {\"key\": \"04-database-erd\", \"label\": \"Database ERD\", \"file\": \"Liquibase changelogs (live)\", \"description\": \"Every table and column this app persists, with the business-meaning remarks pulled live from each Liquibase changelog.\", \"diagrams\": [{\"title\": \"Entity Relationship Diagram\", \"source\": \"\"}]}"
 
 # ── SPI Map: mechanically extracted from real Java source, same "live from real source, not a
 # separately-maintained .md" pattern as Module Dependencies (01) -- every *.spi interface under
-# platform-commons + every real `implements` of it across the starters/marketplace-app, via grep
-# (text-pattern matching, not full semantic/bytecode analysis -- same bar as module_deps()).
-# "Purpose" one-liners are the one genuinely-editorial part with no mechanical source, carried over
-# from the retired docs/architecture/02-spi-map.md as a static lookup, same exception Module
-# Dependencies' Key Observations already established.
-# Subsystem-level editorial notes carried over verbatim -- explain a non-obvious absence (Attachment
-# has no starter->marketplace media-change callback) or a design rationale (User's 4-port split) that
-# the mechanical per-interface extraction has no way to produce on its own.
+# platform-commons, plus every real caller/implementor of it across the starters/marketplace-app.
+# Caller/implementor edges: real bytecode-derived data from ArchitectureMetricsExport.java's
+# spiEdges when available, falling back to grep (text-pattern matching, not full semantic/bytecode
+# analysis -- same bar as module_deps()) otherwise -- see javadoc_purpose_for()'s neighboring
+# archunit_file handling above.
+# "Purpose" one-liners ARE mechanically extracted too, just from a different real source than the
+# edges: javadoc_purpose_for() reads each interface's own Javadoc block live, every run -- not a
+# static lookup, and not something ArchUnit could supply even in principle (bytecode carries no
+# Javadoc text). This makes every *.spi interface's own Javadoc a mechanically-required input, per
+# module-doc-standards/SKILL.md's "SPI interface Javadoc" section.
+# Subsystem-level editorial notes (SPI_SUBSYSTEM_NOTE below) remain the one genuinely-editorial,
+# no-mechanical-source part of this diagram -- explain a non-obvious absence (Attachment has no
+# starter->marketplace media-change callback) or a design rationale (User's 4-port split) that no
+# per-interface extraction, mechanical or not, has any way to produce on its own.
 declare -A SPI_SUBSYSTEM_NOTE=(
   [attachment]="AttachmentMediaChangeHook does not exist -- there is no starter->marketplace media-change callback. Media summaries are computed at read time via AttachmentPort.getMediaSummaries() instead (see marketplace-app/DECISIONS.md ADR-035)."
   [user]="Split into 4 narrow ports (see platform-commons/DECISIONS.md ADR-026 for the rationale -- interface cohesion, not runtime-toggle behavior; all 4 are always implemented by user-spring-boot-starter)."
@@ -1009,25 +1054,21 @@ for caller in edges.get('callers', []):
 
 # ── Database ERD: live from the real Liquibase changelogs (table/column/type/constraints/FKs/
 # indexes/remarks -- single source of truth, see root CLAUDE.md's "Database Changes" guideline and
-# the sibling SPI Javadoc convention above). What's NOT mechanically derivable: cross-table
-# relationships with no real SQL-level FK (this codebase deliberately decouples actor-reference
-# columns -- advertisement.created_by, audit_log.actor_id, provider_profile.city_taxon_id, etc. --
-# see marketplace-app/DECISIONS.md ADR-034/ADR-035). Those stay a hand-preserved list, carried over
-# verbatim from the retired 04-database-erd.md's ER diagram. Real FKs (taxon_translation/taxon_assignment -> taxon,
-# user_information's self-referential deleted_by) are NOT duplicated here -- they come live from
-# liquibase-schema-to-json.js.
+# the sibling SPI Javadoc convention above). Real FKs (taxon_translation/taxon_assignment -> taxon,
+# user_information's self-referential deleted_by) come live from liquibase-schema-to-json.js.
+# Conceptual (no real SQL-level FK) relationships come from two sources:
+#  1. Derived, in db_erd_json() below, from any column whose own remarks= carries the fixed marker
+#     "References <table>(<column>), no FK" (module-doc-standards' Liquibase remarks convention --
+#     every actor-reference/no-FK column in this codebase's changelogs already carries it).
+#  2. What that marker can't express -- a generic entity_type/entity_id column pair, whose real
+#     target table is a runtime data value, not a schema fact -- stays a small hand-preserved list
+#     below.
 db_erd_conceptual_relationships_json() {
   cat <<'EOF'
 [
-  {"from": "USER_INFORMATION", "to": "ADVERTISEMENT", "label": "creates (created_by, no FK)"},
-  {"from": "USER_INFORMATION", "to": "ADVERTISEMENT", "label": "modifies (updated_by, no FK)"},
-  {"from": "USER_INFORMATION", "to": "ADVERTISEMENT", "label": "deletes (deleted_by, no FK)"},
-  {"from": "USER_INFORMATION", "to": "USER_PREFERENCES", "label": "has (actor_id, no FK)"},
-  {"from": "USER_INFORMATION", "to": "PROVIDER_PROFILE", "label": "has (actor_id, no FK)"},
   {"from": "ADVERTISEMENT", "to": "ATTACHMENT", "label": "owns (entity_type/entity_id, generic, no FK)"},
-  {"from": "ATTACHMENT", "to": "ATTACHMENT_SNAPSHOT", "label": "has_snapshots (entity_type/entity_id, no FK)"},
-  {"from": "AUDIT_LOG", "to": "USER_INFORMATION", "label": "actor_is (actor_id, no FK)"},
-  {"from": "PROVIDER_PROFILE", "to": "TAXON", "label": "city_taxon_id (no FK)"}
+  {"from": "ADVERTISEMENT", "to": "TAXON_ASSIGNMENT", "label": "categorized_by (entity_type/entity_id, generic, no FK)"},
+  {"from": "ATTACHMENT", "to": "ATTACHMENT_SNAPSHOT", "label": "has_snapshots (entity_type/entity_id, no FK)"}
 ]
 EOF
 }
@@ -1035,9 +1076,23 @@ db_erd_json() {
   local files=()
   local f
   for f in "${DB_ERD_CHANGELOG_FILES[@]}"; do files+=("$REPO_ROOT/$f"); done
-  local tables_json relationships_json
+  local tables_json curated_json relationships_json
   tables_json="$(run_node "$REPO_ROOT/docs/architecture/scripts/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}")"
-  relationships_json="$(db_erd_conceptual_relationships_json)"
+  curated_json="$(db_erd_conceptual_relationships_json)"
+  relationships_json="$(echo "$tables_json" | run_node -e '
+    let d = "";
+    process.stdin.on("data", c => d += c);
+    process.stdin.on("end", () => {
+      const curated = JSON.parse(process.argv[1]);
+      const re = /References\s+(\w+)\(([\w,]+)\),\s*no FK/i;
+      const derived = [];
+      JSON.parse(d).forEach(t => t.columns.forEach(c => {
+        const m = re.exec(c.remarks || "");
+        if (m) derived.push({ from: m[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
+      }));
+      process.stdout.write(JSON.stringify([...derived, ...curated]));
+    });
+  ' "$curated_json")"
   echo "{\"tables\": $tables_json, \"conceptualRelationships\": $relationships_json}"
 }
 
@@ -1070,7 +1125,7 @@ ensure_sonar_fresh() {
   fi
   stamp_file="$(mktemp)"
   touch -d "$analysis_date" "$stamp_file" 2>/dev/null
-  newest_java="$(find "$REPO_ROOT" -name '*.java' -not -path '*/target/*' -newer "$stamp_file" 2>/dev/null | head -1)"
+  newest_java="$(find "$REPO_ROOT" -name '*.java' -not -path '*/target/*' -not -path '*/.claude/worktrees/*' -newer "$stamp_file" 2>/dev/null | head -1)"
   rm -f "$stamp_file"
   if [ -n "$newest_java" ]; then
     echo "SonarQube data stale ($newest_java changed since last scan) -- rescanning via bash scripts/sonar.sh --no-gate..." >&2
@@ -1226,7 +1281,7 @@ largest_java_files_json() {
     $first_i || items_json="$items_json,"$'\n'
     first_i=false
     items_json="$items_json    {\"file\": \"$(json_escape "$(basename "$file")")\", \"path\": \"$(json_escape "$file")\", \"lines\": $lines, \"module\": \"$(json_escape "$mod")\"}"
-  done < <(find "$REPO_ROOT" -path '*/src/main/java/*' -name '*.java' -not -path '*/target/*' -exec wc -l {} \; 2>/dev/null | sort -rn | head -10)
+  done < <(find "$REPO_ROOT" -path '*/src/main/java/*' -name '*.java' -not -path '*/target/*' -not -path '*/.claude/worktrees/*' -exec wc -l {} \; 2>/dev/null | sort -rn | head -10)
   echo "[$items_json"$'\n'"  ]"
 }
 
@@ -1245,7 +1300,7 @@ constructor_injection_json() {
     $first_i || items_json="$items_json,"$'\n'
     first_i=false
     items_json="$items_json    {\"class\": \"$(json_escape "$class_name")\", \"module\": \"$(json_escape "$mod")\", \"fieldCount\": $field_count, \"file\": \"$(json_escape "${f#"$REPO_ROOT"/}")\"}"
-  done < <(grep -rl '@RequiredArgsConstructor' "$REPO_ROOT" --include='*.java' 2>/dev/null | grep -v '/target/' | grep '/src/main/java/' | sort)
+  done < <(grep -rl '@RequiredArgsConstructor' "$REPO_ROOT" --include='*.java' 2>/dev/null | grep -v '/target/' | grep -v '/.claude/worktrees/' | grep '/src/main/java/' | sort)
 
   echo "[$items_json"$'\n'"  ]"
 }
@@ -1267,7 +1322,7 @@ god_packages_json() {
     $first_i || items_json="$items_json,"$'\n'
     first_i=false
     items_json="$items_json    {\"package\": \"$(json_escape "${pkg#"$REPO_ROOT"/}")\", \"fileCount\": $count}"
-  done < <(find "$REPO_ROOT" -path '*/src/main/java/*' -not -path '*/target/*' -type d 2>/dev/null | sort)
+  done < <(find "$REPO_ROOT" -path '*/src/main/java/*' -not -path '*/target/*' -not -path '*/.claude/worktrees/*' -type d 2>/dev/null | sort)
 
   echo "[$items_json"$'\n'"  ]"
 }
@@ -1551,7 +1606,7 @@ bounded_contexts_json() {
     # Orchestrator -> starter: real evidence per starter -- which *Port interfaces
     # marketplace-orchestrator's own source actually injects via ComponentFactory<XPort>, matched
     # against which starter really implements each one.
-    local pf p_iface p_evidence ui_orch_ev
+    local pf p_iface p_evidence ui_orch_ev restapi_orch_ev
     for pf in "$REPO_ROOT/platform-commons/src/main/java"/org/ost/platform/*/spi/*Port.java; do
       [ -f "$pf" ] || continue
       p_iface="$(basename "$pf" .java)"
@@ -1568,6 +1623,19 @@ bounded_contexts_json() {
     ui_orch_ev="$(grep -rl "import org\.ost\.orchestrator\." "$REPO_ROOT/marketplace-app/src/main/java" --include='*.java' 2>/dev/null | wc -l | tr -d ' ')" || true
     if [ "${ui_orch_ev:-0}" -gt 0 ]; then
       add_rel "UI" "Orchestrator" "calls" "extracted" "$ui_orch_ev marketplace-app classes import org.ost.orchestrator.*" "false"
+    fi
+    # RestApi -> Orchestrator: same real signal as UI -> Orchestrator above, for
+    # marketplace-rest-api's own source instead of marketplace-app's -- the external REST API is a
+    # second real consumer of the orchestrator, never a domain-composition layer itself (it has no
+    # ComponentFactory<XPort> usage of its own at all -- enforced by ArchitectureRulesTest's
+    # marketplace_app_must_not_depend_on_platform_commons_spi_directly rule, scoped to also cover
+    # org.ost.restapi.. -- so no RestApi -> starter direct-call loop exists here, unlike UI's, since
+    # it would always find nothing by construction, not just by current coincidence).
+    if [ -n "$bc_restapi_mod" ]; then
+      restapi_orch_ev="$(grep -rl "import org\.ost\.orchestrator\." "$REPO_ROOT/$bc_restapi_mod/src/main/java" --include='*.java' 2>/dev/null | wc -l | tr -d ' ')" || true
+      if [ "${restapi_orch_ev:-0}" -gt 0 ]; then
+        add_rel "RestApi" "Orchestrator" "calls" "extracted" "$restapi_orch_ev $bc_restapi_mod classes import org.ost.orchestrator.*" "false"
+      fi
     fi
   fi
 
@@ -1600,16 +1668,13 @@ bounded_contexts_json() {
       "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/spi" \
       "$REPO_ROOT/marketplace-orchestrator/src/main/java/org/ost/orchestrator/spi" --include="*.java" 2>/dev/null)
 
-  # "category assignment via" -- real replaceAssignments() call sites. Provider's own service calls
-  # it directly; Advertisement's real call site is marketplace-app's AdvertisementSaveService
-  # instead (that starter never writes its own category assignments -- see that starter's own
-  # CLAUDE.md) -- found while building this, not part of the original hand-typed diagram at all.
-  local pt_evidence
-  pt_evidence="$(grep -rn "TaxonPort.*replaceAssignments\|\.replaceAssignments(" "$REPO_ROOT/provider-profile-spring-boot-starter/src/main/java" --include="*.java" 2>/dev/null | head -1 | sed "s|$REPO_ROOT/||")"
-  [ -n "$pt_evidence" ] && add_rel "ProviderProfile" "Taxon" "category assignment via" "extracted" "$pt_evidence" "false"
-  local at_evidence
-  at_evidence="$(grep -rn "TaxonPort.*replaceAssignments\|\.replaceAssignments(" "$REPO_ROOT/marketplace-app/src/main/java/org/ost/marketplace/services/advertisement" --include="*.java" 2>/dev/null | head -1 | sed "s|$REPO_ROOT/||")"
-  [ -n "$at_evidence" ] && add_rel "Advertisement" "Taxon" "category assignment via" "extracted" "$at_evidence" "false"
+  # A starter-side direct TaxonPort.replaceAssignments() call (bypassing marketplace-orchestrator's
+  # own TaxonAssignmentWriteService) used to be detected here via a regex regression guard and drawn
+  # as a "category assignment via" / Cross-Starter Exceptions relationship. Removed once a real,
+  # build-enforced ArchUnit rule replaced it (marketplace-app/.../architecture/
+  # ArchitectureRulesTest.java's starters_must_route_taxon_assignment_writes_through_orchestrator) --
+  # a failing build is a stronger guarantee than a diagram category that could only ever report the
+  # violation after the fact, at the next documentation regeneration.
 
   # UI -> starter: real evidence per starter, same shape as the Orchestrator -> starter loop above --
   # since the true-BFF migration, marketplace-app holds almost no direct *Port reference anymore
@@ -1751,7 +1816,7 @@ arch_embed_index_md() {
         })')"
       echo "| \`$key\` | \`$rel:$line\` | $desc |"
     done < <(grep -oP '(?<=<!-- #arch-embed:)[a-z0-9-]+(?= -->)' "$file" | sort -u)
-  done < <(find "$REPO_ROOT" \( -name "CLAUDE.md" -o -path "$REPO_ROOT/.claude/rules/*.md" \) -not -path "*/node_modules/*" -not -path "*/target/*" -not -path "*/.git/*" | sort)
+  done < <(find "$REPO_ROOT" \( -name "CLAUDE.md" -o -path "$REPO_ROOT/.claude/rules/*.md" \) -not -path "*/node_modules/*" -not -path "*/target/*" -not -path "*/.git/*" -not -path "*/.claude/worktrees/*" | sort)
 }
 
 [ -n "$WITH_SONAR" ] && ensure_sonar_fresh
@@ -2446,11 +2511,12 @@ function moduleBadgeHtml(id) {
 // in place here if they go stale, there is no other copy.
 const MODULE_DEPENDENCY_KEY_OBSERVATIONS = [
   "**Shared Kernel:** platform-commons is the foundation — no module depends on any other module except via platform-commons SPI contracts.",
-  "**Starter Independence:** Each starter (audit, attachment, user, advertisement, taxon, provider-profile) is self-contained and can be deployed independently.",
+  "**Starter Independence:** Each starter (audit, attachment, user, advertisement, taxon, provider-profile, apikey) is self-contained and can be deployed independently.",
   "**Optional Dependencies:** advertisement-spring-boot-starter declares audit and attachment as <optional>true</optional> — it can run without them.",
   "**Query Library:** query-lib is a pure utility library (no Spring Boot autoconfiguration) that provides SQL filtering and sorting helpers.",
   "**No Circular Dependencies:** All edges are acyclic — the dependency graph forms a DAG.",
-  "**Marketplace App Dependency:** The main application depends on all starters, composing the full feature set.",
+  "**Orchestrator Pulls Every Starter:** marketplace-orchestrator, not marketplace-app, declares all 6 starter dependencies (audit/attachment/user/advertisement at compile scope, taxon/provider-profile at runtime scope) — the one module that assembles the full feature set onto the runtime classpath.",
+  "**Two Adapters, One Orchestrator:** marketplace-app (Vaadin UI) and marketplace-rest-api (external REST API) each depend only on platform-commons + marketplace-orchestrator (marketplace-app also depends on marketplace-rest-api directly, to stay the sole @SpringBootApplication entry point) — neither adapter composes multiple domain Ports itself.",
   "**Test-Only Reactor Member:** integration-tests is the sole module allowed to depend on more than one domain starter at once — a real, compile-scope Maven dependency, not SPI-mediated. This is safe only because the module is never shipped, deployed, or depended upon by anything else (a leaf with zero inbound edges) — see integration-tests/CLAUDE.md for the full rationale and why this doesn't violate \"starters must not depend on each other.\""
 ];
 
@@ -3686,7 +3752,7 @@ function buildDbErdMermaidSource() {
 // two flat siblings is the ordinary case dagre handles fine -- it was never the failure mode ADR-016
 // diagnosed. Gets the same native pan/zoom/click/drag interaction every other Cytoscape diagram
 // already has for free, instead of the hand-rolled scroll-drag Mermaid fallback needed elsewhere.
-// category: one of BC_CATEGORY_ORDER's keys ("orchestration"/"hooks"/"exceptions"/"derived"), or
+// category: one of BC_CATEGORY_ORDER's keys ("orchestration"/"hooks"/"derived"), or
 // omitted/falsy for the full, unfiltered graph (used only by the Markdown export -- every live tab
 // always passes its own category). Node set is restricted to domains actually touched by the
 // filtered edges, not all 8 every time -- that's the real decluttering this split exists for.
@@ -3803,7 +3869,6 @@ const BC_LABEL_MEANING = {
   "calls": "The source domain directly invokes a method on the target domain's own Port interface (a real method call, not just a Maven dependency).",
   "audited via": "The source domain's entities get captured as audit-log snapshots through the Audit domain.",
   "can have": "The source domain's entities may carry attachment/media data, resolved through the Attachment domain at read time.",
-  "category assignment via": "The source domain writes its taxon/category assignments through the target domain's Port.",
   "calls back via Hook implementations": "Reverse direction: the source domain (a starter) calls a Hook interface; the target domain supplies the real implementation."
 };
 
@@ -3812,7 +3877,6 @@ const BC_LABEL_MEANING = {
 const BC_CATEGORY_LABEL_JS = {
   "orchestration": "Service Calls (BFF)",
   "hooks": "Hook Callbacks",
-  "exceptions": "Cross-Starter Exceptions",
   "derived": "Derived Facts"
 };
 
@@ -3887,7 +3951,7 @@ function renderBoundedContextsExtrasHtml(activeCategory) {
 
 function exportBoundedContextsMarkdown() {
   let md = `# Bounded Contexts — Context Map\n\n`;
-  md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › Bounded Contexts. The live version splits relationships across 4 tabs by category (Service Calls / Hook Callbacks / Cross-Starter Exceptions / Derived Facts); this export keeps all of them in one document, with a Category column.\n\n`;
+  md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › Bounded Contexts. The live version splits relationships across 3 tabs by category (Service Calls / Hook Callbacks / Derived Facts); this export keeps all of them in one document, with a Category column.\n\n`;
   md += `## Context Map\n\n\`\`\`mermaid\n${buildContextMapMermaidSource()}\`\`\`\n\n`;
   md += `platform-commons ("Shared") is a compile-time dependency of every domain and Orchestrator -- not drawn above (same fact repeated 7 times), stated once here instead.\n\n`;
   md += `## Domain Contents\n\n`;
