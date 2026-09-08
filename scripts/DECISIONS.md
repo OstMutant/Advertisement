@@ -2,6 +2,72 @@
 
 ---
 
+## ADR-014: Activity Monitor — token-efficient step-checklist narration wrapping backgrounded scripts, chained ahead of the agent's own Monitor tool
+
+**Status:** Accepted
+
+**Context:** The agent's `Monitor` tool tails a backgrounded script's raw stdout directly, so every
+raw log line (Testcontainers/Maven chatter especially) lands in the agent's own context regardless
+of whether it comments on it — cost scales with a script's log verbosity, not its actual signal.
+
+**Decision:** `scripts/activity-monitor/run.sh` wraps a target command instead of tailing a
+pre-existing log file — it spawns the command, captures its raw output to its own log, redacts
+secrets unconditionally, and mechanically parses the existing `AGENTIC_SUCCESS_BLOCK`/
+`AGENTIC_ERROR_BLOCK` contract (ADR-013) via one shared `profiles/agentic.sh` — not one profile per
+script, since all 7 top-level scripts emit the same JSON shape — into a small step-state table.
+Content with no matching profile falls back to a single cheap-model (Haiku) narration call per
+batch. Pass/fail is always the wrapped command's own real exit code, never narration. The agent
+backgrounds `run.sh` instead of tee-ing raw output, and points `Monitor` at the resulting
+`tree.txt` (redrawn only on a real step transition) instead of the raw log. A human can run the
+identical command standalone in a second terminal pane (`--watch`) for the same view with no agent
+involved — both modes share one engine, no duplicated rendering logic.
+
+Two real findings shaped the implementation, not assumptions: `jq` is not installed anywhere in
+this sandbox and is not a dependency of any other script in this repo — confirmed directly before
+use, so `profiles/agentic.sh` parses the fixed-shape JSON via targeted `sed` instead (`jq` stays a
+real dependency only of the `generic` profile's model-narration fallback, guarded with a visible
+error instead of a silent failure if missing). `scripts/deploy-and-run.sh` has no execute bit in
+this checkout, and this project's own convention always invokes scripts via an explicit `bash
+scripts/X.sh` — `run.sh`'s script-name detection recognizes an interpreter prefix (`bash`/`sh`/
+`python3`) and reads the real script from the next argument instead of the interpreter's own name.
+
+`scripts/deploy-and-run/run.sh` gained 3 additional `emit_agentic_success_block` calls
+(infra/build/start-container, alongside its existing `start-application`) so the checklist reflects
+real step boundaries instead of one coarse marker per script. `ci.sh` is explicitly excluded — it
+keeps its own existing Dagu-API-based `watch-run.py` mechanism (already gives exact, mechanical,
+parallel-branch-aware step status for free; this tool would only duplicate it).
+
+**Rejected alternatives:**
+- A `PostToolUse` hook intercepting `Monitor`'s own tool-call result to redact/narrate before the
+  agent's context — checked directly against Claude Code's real hooks documentation: `PostToolUse`
+  fires once per tool call, and `Monitor` is fire-and-forget (its own tool call returns
+  immediately; every subsequent notification arrives as a separate async conversation event, not
+  part of that original tool call) — so it cannot intercept `Monitor`'s live streamed
+  notifications. Also independently ruled out regardless: hooks only exist inside a Claude Code
+  session, so they could never cover the standalone/no-agent usage mode either.
+- A bespoke profile file per script — rejected once confirmed 5 of 7 (now all 7) scripts already
+  emit the identical `agentic-output.sh` JSON shape; one shared profile plus a small per-script
+  metadata map (step labels, container association) avoids duplicating the same parsing logic 7
+  times.
+
+**Deferred, not solved here:** a Sonar quality-gate failure caused only by the already-tracked
+JaCoCo/`new_coverage` gap should render as a non-critical warning rather than a full error, but
+that needs Sonar's own per-condition quality-gate breakdown, not just the single `description`
+string `AGENTIC_ERROR_BLOCK` carries today — not implemented; a Sonar quality-gate failure
+currently renders as a plain error regardless of cause.
+
+**Extended, same session:** a long-running step redraws the tree only on a real transition, so a
+human watching had no way to tell "still working" from "stalled" during a multi-minute step. Added
+per-step elapsed/duration display, a one-line description per step, and stall detection —
+adaptive, learned from `$WORK_DIR/history.tsv`'s own past-run durations (2× a step's own historical
+max) rather than one hand-picked constant, plus a direct `docker inspect` container-state check for
+container-associated steps. A CPU-usage-based "is it actually working" signal was considered and
+rejected: this project's heaviest steps delegate real work into Docker containers, invisible to the
+wrapping script's own host process tree, so a CPU check would read near-zero exactly during the
+steps most worth watching.
+
+---
+
 ## ADR-013: Agentic JSON output envelope (AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK) for script results
 **Status:** Accepted
 

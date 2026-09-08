@@ -7,13 +7,14 @@ Steps:
    guarantees the shared parent directory exists (a real user's own `.bat` entry point gets this
    from `clean.bat` instead -- see that file's own header -- but a direct `bash` invocation like
    this one doesn't go through it, so this command does it itself).
-2. Launch Monitor tool (persistent: true) watching /tmp/build-and-test.log every 10s:
-   - If 1 minute with no new output → report "process may be stuck"
-   - If ERROR appears in new output → report immediately
-   - If BUILD SUCCESS or "Build done" appears → report and call TaskStop on the monitor task
+2. Launch Monitor tool (persistent: true) watching
+   /tmp/activity-monitor/build-and-test.sh/tree.txt every 10s (wait-then-tail wrapper): report a
+   step transitioning to ❌, or the tree reaching a stable final state (an `exit_code` file appears
+   in the same directory).
 3. Run synchronously (timeout: 600000):
    ```
-   bash scripts/build-and-test.sh 2>&1 | tee /tmp/build-and-test.log
+   bash scripts/activity-monitor.sh -- bash scripts/build-and-test.sh
    ```
 4. After the build completes — call TaskStop on the monitor task if not already stopped.
-5. Report success (or failure with the exact error lines).
+5. Report success (or failure with the exact error lines — read
+   /tmp/activity-monitor/build-and-test.sh/raw.log for the real detail behind any ❌ step).

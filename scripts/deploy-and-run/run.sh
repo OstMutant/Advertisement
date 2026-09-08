@@ -44,11 +44,12 @@
 #   container unless --from-scratch).
 # Outputs: running marketplace-app container on APP_PORT -- a real, separately built and tagged
 #   "marketplace-app" image only with --from-scratch; the default path runs `java -jar` inside a
-#   plain eclipse-temurin:25-jre container with no image of its own. Also prints a single-line
-#   AGENTIC_SUCCESS_BLOCK JSON marker on a clean finish, or an AGENTIC_ERROR_BLOCK JSON marker
+#   plain eclipse-temurin:25-jre container with no image of its own. Also prints an
+#   AGENTIC_SUCCESS_BLOCK JSON marker at each of 4 step boundaries (infra, build, start-container,
+#   start-application), or an AGENTIC_ERROR_BLOCK JSON marker
 #   (errorCategory/isRetryable/currentStep/description/durationSeconds) on any failure path, for
-#   an AI agent reading raw script output to parse machine-readable status instead of scraping
-#   free text.
+#   an AI agent reading raw script output to parse machine-readable per-step status instead of
+#   scraping free text.
 # Returns: 0 on success, non-zero on build/startup failure.
 # ────────────────────────────────────────────────────────────────────────────
 set -e
@@ -111,10 +112,12 @@ for arg in "$@"; do
   esac
 done
 
+CURRENT_STEP="deploy"
+
 if $FILE_MODE; then
-  trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "App logs:"; docker logs --tail=40 "$APP_CONTAINER" 2>/dev/null; echo "Full log: $LOG"; emit_agentic_error_block "transient" "true" "deploy" "Deploy script failed with exit code $_rc -- see log above (full log: $LOG)."; exit $_rc' ERR
+  trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "App logs:"; docker logs --tail=40 "$APP_CONTAINER" 2>/dev/null; echo "Full log: $LOG"; emit_agentic_error_block "transient" "true" "$CURRENT_STEP" "Deploy script failed with exit code $_rc -- see log above (full log: $LOG)."; exit $_rc' ERR
 else
-  trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; docker logs --tail=20 "$APP_CONTAINER" 2>/dev/null; emit_agentic_error_block "transient" "true" "deploy" "Deploy script failed with exit code $_rc -- see log above."; exit $_rc' ERR
+  trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; docker logs --tail=20 "$APP_CONTAINER" 2>/dev/null; emit_agentic_error_block "transient" "true" "$CURRENT_STEP" "Deploy script failed with exit code $_rc -- see log above."; exit $_rc' ERR
 fi
 
 # ── Helper: pull image if not present locally ─────────────────────────────────
@@ -216,6 +219,7 @@ start_infra() {
 }
 
 # ── Step 1: Infra ─────────────────────────────────────────────────────────────
+CURRENT_STEP="infra"
 echo ""
 echo "=== Step 1: Infrastructure ==="
 
@@ -229,6 +233,7 @@ if [ "$MODE" = "restart-infra" ]; then
 fi
 
 start_infra
+emit_agentic_success_block "infra"
 
 if $RESET_ONLY_DB; then
   echo "Resetting database (reset-clean.sql)..."
@@ -236,6 +241,7 @@ if $RESET_ONLY_DB; then
 fi
 
 # ── Step 1.5: reuse build-and-test.sh's shared jar (skipped with --from-scratch) ──────────────
+CURRENT_STEP="build"
 if ! $FROM_SCRATCH; then
   echo ""
   echo "=== Step 1.5: Build via build-and-test.sh (shared maven-cache jar) ==="
@@ -281,6 +287,8 @@ if $PRUNE_ALL; then
   docker container prune -f
   docker volume prune -f
 fi
+
+emit_agentic_success_block "build"
 
 # ── Helper: start the app container ───────────────────────────────────────────
 start_app_container() {
@@ -339,8 +347,11 @@ wait_for_app() {
 # ── Step 3: Start application ─────────────────────────────────────────────────
 echo ""
 echo "=== Step 3: Start application ==="
+CURRENT_STEP="start-container"
 $FROM_SCRATCH || pull_if_missing "eclipse-temurin:25-jre"
 start_app_container
+emit_agentic_success_block "start-container"
+CURRENT_STEP="start-application"
 
 status=0
 wait_for_app && status=0 || status=$?

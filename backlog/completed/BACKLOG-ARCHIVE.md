@@ -2413,3 +2413,27 @@ Postgres), full `ci.sh` — build/unit/integration/e2e/archunit/docs all green; 
 failed only on the pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`), zero
 new real issues (confirmed via direct SonarQube REST API query). Full detail:
 `completed/issues/improvement-182-rest-api-filter-sort-pagination-parity-with-ui.md`.
+
+✅ Done (2026-09-08): improvement-184 closed — Activity Monitor (`scripts/activity-monitor/`), a
+bash tool wrapping a backgrounded script and rendering a live step checklist instead of raw
+stdout, chained ahead of the agent's own `Monitor` tool so watching a long run costs tokens
+proportional to real signal, not log volume. One shared `profiles/agentic.sh` mechanically parses
+the existing `AGENTIC_SUCCESS_BLOCK`/`AGENTIC_ERROR_BLOCK` contract (`scripts/DECISIONS.md`
+ADR-014, ADR-013) for all 7 top-level scripts; unrecognized content falls back to a single
+cheap-model (Haiku) narration call per batch; pass/fail is always the wrapped command's own real
+exit code. `scripts/deploy-and-run/run.sh` gained 4 real step-boundary markers (infra/build/
+start-container/start-application) plus per-step `CURRENT_STEP` tracking in its `ERR` traps (a
+`/review`-caught bug: the traps originally still hardcoded the old single coarse step name).
+`.claude/rules.md`/`.claude/rules/scripts.md` and the `/build-and-test`, `/deploy-and-run`,
+`/playwright`, `/sonar`, `/run-all-tests` command files now default to this pattern (`ci.sh` keeps
+its own separate Dagu-API-based mechanism, unchanged). A human can run the identical command
+standalone in a second terminal pane (`--watch`) with no agent involved. Real findings that
+changed the implementation from the drafted plan: `jq` isn't installed anywhere in this sandbox
+and isn't a dependency of any other script in this repo, so the shared profile parses the fixed-
+shape JSON via `sed` instead; `scripts/deploy-and-run.sh` has no execute bit in this checkout, so
+the engine's script-name detection now recognizes an interpreter prefix (`bash`/`sh`/`python3`).
+Verified: 24/24 `run.test.sh` assertions, one real dry run against the actual
+`deploy-and-run.sh` (620 raw log lines compacted to a 5-line checklist, real exit code 0), a
+`/review` pass (2 confirmed findings fixed — the `CURRENT_STEP` bug above and 5 stale command
+files; 3 lower-confidence findings fixed directly rather than filed as a follow-up issue). Full
+detail: `completed/issues/improvement-184-activity-monitor-token-efficient-narration.md`.

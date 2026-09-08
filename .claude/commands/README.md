@@ -7,6 +7,9 @@ self-contained entry point, described below and linked to its real file.
 - [`/autopilot`](autopilot.md) — Plan once, approve once, then execute the whole task end-to-end
   without further check-ins — implementation, all relevant tests, docs/ADR, issue lifecycle —
   reporting back only when genuinely done (or genuinely blocked).
+- [`/activity-monitor`](activity-monitor.md) — Wrap a backgrounded script and watch its live step
+  checklist instead of raw stdout, so `Monitor` costs tokens proportional to real signal, not log
+  volume.
 - [`/build-and-test`](build-and-test.md) — Builds the whole reactor inside the shared
   build-and-test container (works even without a local Java install) — refreshes
   `marketplace-app.jar` in the shared `maven-cache` volume. Optionally runs unit/integration tests

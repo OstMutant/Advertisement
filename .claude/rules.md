@@ -330,6 +330,19 @@ gets its own dedicated folder (e.g. `scripts/utils/`) — distinct from a script
 subdirectory, which belongs to that one group alone.
 
 **Run all scripts backgrounded, watched by Monitor — never a bare `tail -f`:**
+0. For any of the 7 top-level scripts `scripts/activity-monitor/README.md` covers
+   (`build-and-test.sh`, `ci.sh`, `deploy-and-run.sh`, `playwright.sh`, `reset.sh`,
+   `run-all-tests.sh`, `sonar.sh`), background `bash scripts/activity-monitor.sh -- <script>
+   [args...]` instead of tee-ing the script's own raw output directly, and point `Monitor` at
+   `/tmp/activity-monitor/<script-basename>/tree.txt` instead of a raw log — that file only
+   changes on a real step transition (mechanically recognized `agentic-output.sh` markers), not
+   per raw line, so token cost scales with real signal instead of log volume. Steps 1-5 below still
+   apply, just against that compact tree file; when asked for status, print the tree directly
+   rather than paraphrasing it, and on a real error read the pointer it names (`docker logs
+   <container>` or the wrapped script's own raw log) for the actual diagnosis before answering. For
+   anything not covered by an activity-monitor profile (a script outside that list, or a bare
+   command like the dev-infra `docker-compose` invocation), steps 1-5 below apply directly, without
+   this wrapper.
 1. Start the target command with `run_in_background: true`, output redirected to a real log file,
    as one Bash call — never nest a second `&` inside that same call to background it a second way;
    that loses reliable track of which process is actually the live one.

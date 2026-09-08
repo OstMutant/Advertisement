@@ -78,10 +78,10 @@ has neither an image nor a build context specified" — confirmed by direct test
 This is documented, version-independent Compose behavior — the same fix applies on any machine,
 not just this sandbox.
 
-**How to run deploy-and-run.sh:** per `.claude/rules.md`'s "Scripts" section — background
-`bash scripts/deploy-and-run.sh [args] > /tmp/deploy.log 2>&1`, then attach `Monitor` with the
-wait-then-tail wrapper against `/tmp/deploy.log`; stay quiet on routine progress, surface errors,
-a stall well past normal build time, or `BUILD SUCCESS`/`Started Application`.
+**How to run deploy-and-run.sh:** per `.claude/rules.md`'s "Scripts" section, step 0 — background
+`bash scripts/activity-monitor.sh -- scripts/deploy-and-run.sh [args]`, then attach `Monitor`
+against `/tmp/activity-monitor/deploy-and-run.sh/tree.txt`; stay quiet on routine step transitions,
+surface a real error (with its named pointer's detail) or a stall well past normal build time.
 
 ### Local run (Maven, no Docker image rebuild)
 ```bat
@@ -145,10 +145,10 @@ and `scripts/build-and-test/reports/logs/` (the full raw console log for whichev
 `unit-tests.log`/`integration-tests.log`/`archunit-metrics.log` — persists the real failure detail
 past this run's own terminal output/scrollback).
 
-**How to run it:** per `.claude/rules.md`'s "Scripts" section — background
-`bash scripts/build-and-test.sh --unit --integration > /tmp/build-and-test.log 2>&1`,
-then attach `Monitor` with the wait-then-tail wrapper against that log; stay quiet on routine
-progress, surface errors, a stall, or `PASSED|FAILED|BUILD SUCCESS|BUILD FAILURE`.
+**How to run it:** per `.claude/rules.md`'s "Scripts" section, step 0 — background
+`bash scripts/activity-monitor.sh -- scripts/build-and-test.sh --unit --integration`, then attach
+`Monitor` against `/tmp/activity-monitor/build-and-test.sh/tree.txt`; stay quiet on routine step
+transitions, surface a real error (with its named pointer's detail) or a stall.
 
 ### Via direct Maven/module scripts (need a local Java install)
 
@@ -215,12 +215,12 @@ simpler, single-level case.
 
 ## Running Playwright Tests
 
-**How to run playwright.sh:** per `.claude/rules.md`'s "Scripts" section.
+**How to run playwright.sh:** per `.claude/rules.md`'s "Scripts" section, step 0.
 1. Kill stale processes: `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`
-2. Background `bash scripts/playwright.sh [scenario] > /tmp/playwright.log 2>&1`, then attach
-   `Monitor` with the wait-then-tail wrapper against that log.
-3. Stay quiet on routine per-test progress; surface a real error, a stall, or the final
-   `passed`/`failed` summary line.
+2. Background `bash scripts/activity-monitor.sh -- scripts/playwright.sh [scenario]`, then attach
+   `Monitor` against `/tmp/activity-monitor/playwright.sh/tree.txt`.
+3. Stay quiet on routine step transitions; surface a real error (with its named pointer's detail)
+   or a stall.
 
 ---
 
@@ -301,15 +301,17 @@ cached via `ci-tools-cache` (downloaded once, reused across image rebuilds — s
 overrides (container/network names, ports, volume names — default to the exact values already in
 use, so normal dev usage is unaffected) for the isolated e2e stack.
 
-**How to run it (Monitor-backed, same pattern as deploy/playwright/build-and-test):**
+**How to run it (Monitor-backed, its own mechanism — not the activity-monitor tree, see below):**
 1. Trigger: `bash scripts/ci.sh [flags]` (no `--foreground`) — returns once the image is built, the
    container is up, and the run is triggered.
 2. Launch `Monitor` with `command: "python3 -u scripts/ci/watch-run.py"` (`-u` is required, see the
    script's own header) — polls Dagu's REST API
    (through the proxy sidecar, not a log file, since a triggered run has no single streaming log)
    and emits one line per step-status transition, then a final `RUN <status>` line and exits on its
-   own once the run reaches a terminal state. Unlike `deploy.log`/`playwright.log`, there's no file
-   to `tail`, so this script — not a raw shell command — is what Monitor watches.
+   own once the run reaches a terminal state. Unlike a log file, there's no file to `tail`, so this
+   script — not a raw shell command — is what Monitor watches. This already gives CI its own live,
+   mechanical, per-step (including parallel-branch) status for free — `scripts/activity-monitor.sh`
+   is not used for `ci.sh` for this reason (see `scripts/activity-monitor/README.md`'s own scope).
 
 Use `--foreground` + Monitor+`tee` on `ci.sh` itself only when a single blocking call with a
 definite end is actually needed (e.g. scripted verification inside a larger multi-step check) —
