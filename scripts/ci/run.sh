@@ -45,7 +45,8 @@
 #                                        --foreground; needed manually after a background run, or
 #                                        after triggering a run directly from Dagu's own web UI)
 # Uses: bash, docker, curl, scripts/utils/agentic-output.sh
-#   (emit_agentic_success_block/emit_agentic_error_block).
+#   (emit_agentic_success_block/emit_agentic_error_block), python3 (--foreground only --
+#   scripts/ci/dagu-rest-run-monitor.py polls the run and emits its own real per-step markers).
 # Env: None read directly -- every flag above is translated into either a container-start env var
 #   (FORCE_TOOLS_REFRESH, passed via `docker run -e`) or a Dagu param (passed via
 #   `dagu start ... -- key=value`).
@@ -186,6 +187,7 @@ if [ -z "$NO_REBUILD" ]; then
     emit_agentic_error_block "transient" "true" "build-image" "ci-runner image build failed with exit code $BUILD_RC."
     exit $BUILD_RC
   fi
+  emit_agentic_success_block "build-image"
 
   docker volume create ci-m2-cache >/dev/null
   docker volume create ci-dagu-home >/dev/null
@@ -195,28 +197,80 @@ if [ -z "$NO_REBUILD" ]; then
 
   echo ""
   echo "=== Starting ci-runner (Dagu server) ==="
-  docker run -d --name "$CONTAINER" \
+  # Captured by ID, not just started under $CONTAINER's name -- every liveness/CPU check below
+  # queries this specific ID, not the name, because the name is a mutable pointer: if this
+  # container is killed and anything else creates a new one reusing the same name, a name-based
+  # `docker inspect`/`docker stats` silently starts reporting on that *other* container and would
+  # never notice this one died. See DECISIONS.md.
+  CONTAINER_ID="$(docker run -d --name "$CONTAINER" \
     --network host \
     -e FORCE_TOOLS_REFRESH="$REFRESH_TOOLS" \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v ci-m2-cache:/root/.m2 \
     -v ci-dagu-home:/root/.dagu \
     -v ci-tools-cache:/root/.ci-tools \
-    "$IMAGE" >/dev/null
+    "$IMAGE")"
 
   echo "Waiting for Dagu's web UI to come up (first start downloads buildx/compose/dagu into" \
-       "ci-tools-cache if not already cached there -- can take a minute)..."
+       "ci-tools-cache if not already cached there -- real duration depends on network speed, not" \
+       "a fixed guess)..."
+
+  # Readiness is checked via `docker exec ... curl` (through the docker socket), never a direct
+  # `curl localhost:$DAGU_PORT` from this process. ci-runner runs --network host, so a direct curl
+  # only works when this script itself runs directly on the host, sharing that network namespace --
+  # confirmed directly to fail otherwise: Dagu was fully healthy and answering 200 from inside the
+  # container while a direct outer curl from the caller's own process never reached it at all,
+  # because that caller doesn't share ci-runner's network namespace (e.g. it's itself sandboxed
+  # without host networking). `docker exec` always works regardless of the caller's own network
+  # namespace, since it goes through the docker socket, not the network stack -- one mechanism that
+  # works whether this script runs on a bare host or inside another, non-host-networked container.
+  dagu_ready() {
+    docker exec "$CONTAINER_ID" curl -sf "http://localhost:$DAGU_PORT/" >/dev/null 2>&1
+  }
+
+  # Typical-case wait: poll for up to TYPICAL_WAIT_SECONDS, same shape as before -- covers the
+  # common case where startup finishes within the usual window.
+  TYPICAL_WAIT_SECONDS=120
   UP=""
-  for _ in $(seq 1 120); do
-    if curl -sf "http://localhost:$DAGU_PORT/" >/dev/null 2>&1; then
+  for _ in $(seq 1 "$TYPICAL_WAIT_SECONDS"); do
+    if dagu_ready; then
       UP=1
       break
     fi
     sleep 1
   done
+
+  # Past the typical wait and still not up: rather than cutting off at a bigger, still-arbitrary
+  # number, keep going as long as the container is genuinely still alive and actively doing real
+  # work (real CPU activity -- the tool download/unpack this step depends on), re-checking both
+  # liveness and readiness every EXTENDED_CHECK_INTERVAL_SECONDS. Only declares failure once the
+  # container has actually died or gone idle without ever coming up -- a real signal, not a second
+  # guessed duration.
+  EXTENDED_CHECK_INTERVAL_SECONDS=30
+  EXTENDED_WAIT_DEADLINE=$(( $(date +%s) + 600 ))
+  while [ -z "$UP" ] && [ "$(date +%s)" -lt "$EXTENDED_WAIT_DEADLINE" ]; do
+    if [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_ID" 2>/dev/null)" != "true" ]; then
+      echo "===== FAILED (ci-runner container exited unexpectedly during startup -- container id $CONTAINER_ID) ====="
+      docker logs --tail 30 "$CONTAINER_ID" 2>&1
+      emit_agentic_error_block "transient" "true" "start-ci-runner" "ci-runner container (id $CONTAINER_ID) exited during startup, before Dagu's web UI ever came up -- see the printed logs above."
+      exit 1
+    fi
+    CPU_PCT="$(docker stats --no-stream --format '{{.CPUPerc}}' "$CONTAINER_ID" 2>/dev/null | tr -d '%')"
+    if [ -z "$CPU_PCT" ] || [ "$(awk -v cpu="$CPU_PCT" 'BEGIN { print (cpu+0 >= 1) ? 1 : 0 }')" != "1" ]; then
+      echo "===== FAILED (ci-runner container is alive but idle -- CPU ${CPU_PCT:-unknown}%, no longer doing real work -- container id $CONTAINER_ID) ====="
+      docker logs --tail 30 "$CONTAINER_ID" 2>&1
+      emit_agentic_error_block "transient" "true" "start-ci-runner" "ci-runner container (id $CONTAINER_ID) went idle (CPU ${CPU_PCT:-unknown}%) before Dagu's web UI ever came up -- see the printed logs above."
+      exit 1
+    fi
+    echo "Still working (CPU ${CPU_PCT}%) -- waiting another ${EXTENDED_CHECK_INTERVAL_SECONDS}s..."
+    sleep "$EXTENDED_CHECK_INTERVAL_SECONDS"
+    dagu_ready && UP=1
+  done
+
   if [ -z "$UP" ]; then
-    echo "===== FAILED (Dagu web UI never came up on :$DAGU_PORT -- check: docker logs $CONTAINER) ====="
-    emit_agentic_error_block "transient" "true" "start-ci-runner" "Dagu web UI never came up on :$DAGU_PORT within the startup wait -- check: docker logs $CONTAINER."
+    echo "===== FAILED (Dagu web UI never came up on :$DAGU_PORT -- container id $CONTAINER_ID) ====="
+    docker logs --tail 30 "$CONTAINER_ID" 2>&1
+    emit_agentic_error_block "transient" "true" "start-ci-runner" "Dagu web UI never came up on :$DAGU_PORT within the extended wait (container id $CONTAINER_ID) -- see the printed logs above."
     exit 1
   fi
 
@@ -238,6 +292,13 @@ if [ -z "$NO_REBUILD" ]; then
     alpine/socat "TCP-LISTEN:$UI_PROXY_PORT,fork,reuseaddr" "TCP:$BRIDGE_GATEWAY:$DAGU_PORT" >/dev/null
 
   echo "Dagu web UI is up: http://localhost:$UI_PROXY_PORT"
+  emit_agentic_success_block "start-ci-runner"
+else
+  # --no-rebuild: the image/container from a previous invocation are being reused as-is -- from
+  # this run's own perspective both milestones are already satisfied, the same real fact whether
+  # this run just built them or a previous one did.
+  emit_agentic_success_block "build-image"
+  emit_agentic_success_block "start-ci-runner"
 fi
 
 DAGU_PARAMS=(
@@ -261,7 +322,13 @@ echo "=== Triggering ci DAG run (${DAGU_PARAMS[*]}) ==="
 DAG_FILE=scripts/ci/dagu/ci.yaml
 
 if [ -n "$FOREGROUND" ]; then
-  docker exec "$CONTAINER" dagu start "$DAG_FILE" -- "${DAGU_PARAMS[@]}"
+  docker exec -d "$CONTAINER" dagu start "$DAG_FILE" -- "${DAGU_PARAMS[@]}"
+  # scripts/ci/dagu-rest-run-monitor.py polls Dagu's own REST API and prints a real
+  # AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK marker per step -- this is what lets
+  # scripts/activity-monitor.sh render a real per-step tree.txt for `ci.sh --foreground`, the same
+  # way it already does for every other wrapped script (see .claude/rules/scripts.md's "Local CI
+  # Runner" section). Its own exit code becomes this script's real exit code.
+  DAGU_UI_PORT="$UI_PROXY_PORT" python3 -u scripts/ci/dagu-rest-run-monitor.py
   EXIT_CODE=$?
   if ! sync_artifacts && [ "$EXIT_CODE" -eq 0 ]; then
     echo "docker cp of architecture-model.json/architecture-map.html failed -- the docs stage" \

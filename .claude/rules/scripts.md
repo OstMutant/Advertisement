@@ -301,17 +301,34 @@ cached via `ci-tools-cache` (downloaded once, reused across image rebuilds — s
 overrides (container/network names, ports, volume names — default to the exact values already in
 use, so normal dev usage is unaffected) for the isolated e2e stack.
 
-**How to run it (Monitor-backed, its own mechanism — not the activity-monitor tree, see below):**
-1. Trigger: `bash scripts/ci.sh [flags]` (no `--foreground`) — returns once the image is built, the
-   container is up, and the run is triggered.
-2. Launch `Monitor` with `command: "python3 -u scripts/ci/watch-run.py"` (`-u` is required, see the
-   script's own header) — polls Dagu's REST API
-   (through the proxy sidecar, not a log file, since a triggered run has no single streaming log)
-   and emits one line per step-status transition, then a final `RUN <status>` line and exits on its
-   own once the run reaches a terminal state. Unlike a log file, there's no file to `tail`, so this
-   script — not a raw shell command — is what Monitor watches. This already gives CI its own live,
-   mechanical, per-step (including parallel-branch) status for free — `scripts/activity-monitor.sh`
-   is not used for `ci.sh` for this reason (see `scripts/activity-monitor/README.md`'s own scope).
+**How to run it — `ci.sh` is now an 8th `activity-monitor.sh`-wrappable script, same mechanism as
+the other 7, not a separate one:**
+
+```bash
+bash scripts/activity-monitor.sh -- bash scripts/ci.sh --foreground
+```
+
+One command, one terminal, real per-step `tree.txt` — identical UX to
+`bash scripts/activity-monitor.sh -- bash scripts/deploy-and-run.sh`. Mechanically:
+`--foreground` triggers the Dagu run in the background, then runs
+`scripts/ci/dagu-rest-run-monitor.py` (the one thing in this repo that knows how to poll Dagu's own
+REST API — JSON-over-HTTP is a Python job, not a bash one) and blocks on it; every time a Dagu step
+reaches `succeeded`/a failure-shaped terminal status, that script prints a real
+`AGENTIC_SUCCESS_BLOCK`/`AGENTIC_ERROR_BLOCK` marker to `run.sh`'s own stdout — the exact contract
+`scripts/activity-monitor.sh`'s existing marker parser already reads for every other wrapped script,
+so it renders the checklist itself, no separate tree-drawing code of its own for `ci.sh`.
+`unit`/`integration`/`e2e`/`sonar`/`archunit_metrics` genuinely run in parallel in Dagu (all depend
+only on `build`) — `scripts/activity-monitor/run.sh`'s `SCRIPT_STEP_PARALLEL_GROUPS` renders all of
+them as `⏳ running` simultaneously while any is still in flight, instead of the normal
+one-step-at-a-time sequence view. Steps backed by one well-known container
+(`unit`/`integration`/`e2e`/`archunit_metrics`) get the same live `docker inspect`-based
+container-state warning `deploy-and-run.sh`/`playwright.sh` already have.
+
+`bash scripts/ci.sh` (default, no `--foreground`) is unaffected — still triggers in the background
+and returns immediately, exactly as before; check on it later via Dagu's own web UI
+(`http://localhost:8082`) or by running `python3 -u scripts/ci/dagu-rest-run-monitor.py` directly
+(prints the same real per-step transitions, as raw `AGENTIC_*_BLOCK` marker lines rather than a
+rendered tree, when nothing is wrapping it).
 
 Use `--foreground` + Monitor+`tee` on `ci.sh` itself only when a single blocking call with a
 definite end is actually needed (e.g. scripted verification inside a larger multi-step check) —

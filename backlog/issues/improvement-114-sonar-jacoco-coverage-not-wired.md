@@ -37,24 +37,59 @@ hadn't been exercised end-to-end against real new code since that leak period st
    agent without separately instrumenting the running server under test, a materially bigger lift
    than "just add the Maven plugin."
 
-## Suggested fix (investigate at implementation time, not decided here)
+## Decided plan (2026-09-08, ready for implementation)
 
-1. Add `jacoco-maven-plugin` to the parent POM (or each module that has JUnit/Testcontainers
-   tests), producing an `exec`/`xml` report during `scripts/unit-tests.sh` and
-   `scripts/integration-tests.sh` runs.
-2. Merge/aggregate both reports (unit + integration) per module before the Sonar scan — check
-   whether `jacoco:report-aggregate` or a manual `sonar.coverage.jacoco.xmlReportPaths` list of
-   both paths is the right shape for this multi-module reactor.
-3. Point `sonar.coverage.jacoco.xmlReportPaths` in `scripts/sonar/sonar-project.properties` at the
-   aggregated report(s).
-4. For the UI-layer gap (sub-problem 2): decide whether to carve out `sonar.coverage.exclusions`
-   for `ui/**` package trees (formalizing "this code is verified by Playwright, not JaCoCo" as
-   explicit config, the same reasoning already applied narrowly to
-   `ui/query/elements/**` during improvement-113 — see `marketplace-app/DECISIONS.md` ADR-056) or
-   pursue real server-side JaCoCo instrumentation during Playwright runs (bigger, likely not worth
-   it given the project's deliberate two-test-type split).
-5. Re-run `bash scripts/sonar.sh` (blocking mode) against a real, small change once wired up to
-   confirm `new_coverage` reflects actual test coverage instead of a hardcoded `0.0%`.
+**Key nuance driving this shape:** `integration-tests` is this project's sole home for
+Testcontainers-based repository tests of the 7 domain starters (advertisement/user/taxon/audit/
+attachment/provider-profile/apikey) — the starters carry no test code of their own (see
+`.claude/rules/integration-tests.md`). A plain, per-module `jacoco:report` in each starter would
+therefore report `0%` for all of them regardless of real coverage, because the test code that
+exercises them physically lives in a different module — `report` only attributes exec hits against
+classes present in *that same module's own* `target/classes`. Confirmed via `integration-tests/pom.xml`:
+it already reactor-depends on `platform-commons` + all 7 starters + `marketplace-orchestrator` +
+`marketplace-rest-api` — exactly what `jacoco:report-aggregate` needs to correctly attribute
+integration-tests' exec data back to those modules' own classes, with no new aggregator module
+needed.
+
+**Two separate report shapes, matching this project's existing two-container test split**
+(`scripts/build-and-test/build.sh`'s `run_unit_tests` vs `run_integration_tests`, run in
+separate, isolated Docker containers — so a module's own `jacoco.exec` is only visible within the
+same container it was generated in):
+
+1. **The 4 unit-tested modules** (`query-lib`, `marketplace-app`, `marketplace-orchestrator`,
+   `marketplace-rest-api`) — plain `jacoco:report`, generated inside the same container that already
+   runs their unit tests. Self-contained, no cross-module attribution needed.
+2. **`integration-tests`** — `jacoco:report-aggregate`, generated inside the integration-tests
+   container (which already does a full `-DskipTests` reactor install first, so `target/classes`
+   for every module it depends on already exists there). This is what actually closes sub-problem 1
+   for the 7 starter modules.
+
+**Files to touch:**
+- `pom.xml` (root) — add `jacoco-maven-plugin` to `<build><plugins>` (inherited by every module
+  automatically). Two executions: `prepare-agent` (attaches the coverage agent to the JVM surefire
+  forks for), `report` bound to the `test` phase (JaCoCo's own documented pattern — phase-ordering
+  within `test` makes it run after surefire's own `test` goal, no `verify`-phase workaround needed).
+- `integration-tests/pom.xml` — one additional `report-aggregate` execution.
+- `scripts/build-and-test/build.sh` — copy each module's `target/site/jacoco/jacoco.xml` (4 direct
+  reports + 1 aggregated report from `integration-tests`) into `$LOGS_DIR`/`$REPORTS_DIR`, next to
+  the existing surefire-report copy loop.
+- `scripts/sonar/run.sh` — carry those 5 XML files into the `sonar-scanner` container, same
+  `docker cp`/volume mechanism already used for `target-classes`.
+- `scripts/sonar/sonar-project.properties` — `sonar.coverage.jacoco.xmlReportPaths=` listing all 5
+  paths, comma-separated. `marketplace-orchestrator`/`marketplace-rest-api` will legitimately appear
+  in two of the five reports (their own unit-test report + integration-tests' aggregate touching
+  their classes too) — safe: Sonar's JaCoCo XML importer merges multiple report inputs per
+  file+line, not a conflict or double-count.
+- Sub-problem 2 (UI layer, `ui/**`, deliberately Playwright-only) — carve out
+  `sonar.coverage.exclusions` for it in the same properties file, same reasoning already applied
+  narrowly to `ui/query/elements/**` in improvement-113 (`marketplace-app/DECISIONS.md` ADR-056),
+  just widened to the whole `ui/**` tree.
+
+**Verification plan (unchanged from original):**
+- After wiring: make a trivial change to a JUnit-covered service method, run `bash scripts/sonar.sh`,
+  confirm `new_coverage` reports a non-zero, plausible percentage instead of `0.0%`.
+- Confirm the quality gate can pass end-to-end (not just via `--no-gate`) for a change that
+  genuinely has good test coverage.
 
 ## Verification plan
 

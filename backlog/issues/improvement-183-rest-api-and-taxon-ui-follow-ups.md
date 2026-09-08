@@ -487,6 +487,112 @@ endpoint — created eagerly at registration, unlike Advertisement/ProviderProfi
 don't exist yet on create). `platform-commons`'s `UserSettingsDto` itself stays untouched (same
 reasoning as items 6/15: it's shared with the Vaadin Settings UI form, which has no HTTP layer).
 
+## 17. `ci.sh --foreground` should be wrappable by `activity-monitor.sh` exactly like the other 7 scripts — ✅ Done (2026-09-08)
+
+**Current state:** `scripts/activity-monitor.sh` wraps 7 scripts (`deploy-and-run.sh`,
+`build-and-test.sh`, `playwright.sh`, `sonar.sh`, `run-all-tests.sh`, `reset.sh`, and one
+non-agentic-output-contract command) by redirecting the wrapped command's own stdout/stderr into
+`/tmp/activity-monitor/<script-basename>/raw.log`, polling that file for new bytes, and parsing
+`AGENTIC_SUCCESS_BLOCK`/`AGENTIC_ERROR_BLOCK` JSON marker lines the wrapped script prints directly,
+itself, at each real step (`scripts/utils/agentic-output.sh`'s `emit_agentic_success_block`/
+`emit_agentic_error_block`) — this is what lets `activity-monitor.sh` render the `✅/⏳/⬜/⚠️/❌`
+`tree.txt` a human sees. `ci.sh` cannot use this today: `bash scripts/ci.sh` triggers an async Dagu
+DAG run and its own process returns almost immediately (or, with `--foreground`, blocks on a plain
+`docker exec ... dagu start ...` call that streams no per-step markers at all — only one marker at
+the very end, `ci-run`) — the real per-step work (unit/integration/e2e/sonar/...) happens inside
+Dagu, in its own per-step log files, never reaching `ci.sh`'s own stdout. `scripts/ci/watch-run.py`
+exists to bridge this gap by polling Dagu's own REST API directly (`GET /api/v1/dag-runs/ci/<id>`)
+and printing one plain line per step-status transition.
+
+**First attempt (implemented, then reverted same day):** made `watch-run.py` write its own
+`✅/⏳/⬜/⚠️/❌` `tree.txt` and its own `docker inspect`-based container-state check, independent of
+`activity-monitor.sh`. Verified working against a real triggered run, but rejected on review — it
+duplicates a mechanism (`tree.txt` rendering, container-state checking) that already exists,
+correctly, in `scripts/activity-monitor/run.sh`'s own bash code (`render_step_line()`,
+`container_state_warning()`, `STEP_IS_CONTAINER`) — two independent implementations of "how do we
+draw a CI status tree" is exactly the duplication this project's own standards forbid. Reverted.
+
+**Revised plan — reuse the one existing bash mechanism instead of a second Python one:**
+1. Rename `scripts/ci/watch-run.py` → `scripts/ci/dagu-rest-run-monitor.py` (name states what it
+   actually does: the one thing in this repo that knows how to poll Dagu's REST API for a run's
+   step statuses — JSON-over-HTTP is a Python job, not a bash one, which is why this file stays
+   separate rather than being folded into `run.sh`).
+2. Its Dagu-polling loop is unchanged. Its *output* changes: instead of a plain
+   `print(f"{name}: {status}")` line per transition, print the same
+   `AGENTIC_SUCCESS_BLOCK: {...}` / `AGENTIC_ERROR_BLOCK: {...}` JSON-line format
+   `emit_agentic_success_block`/`emit_agentic_error_block` already produce (exact shape confirmed
+   from `scripts/utils/agentic-output.sh`) — this becomes its only step-reporting format. Remove
+   the tree.txt-writing/container-check code added in the reverted first attempt (`render_tree`,
+   `flush_tree`, `STEP_ICONS`, `TREE_DIR`/`TREE_FILE`, `container_state_warning()`,
+   `STEP_CONTAINERS`, the `calendar`/`subprocess` imports they needed).
+3. `scripts/ci/run.sh`'s `--foreground` branch: replace the blocking
+   `docker exec "$CONTAINER" dagu start "$DAG_FILE" -- ...` call with triggering in the background
+   (`docker exec -d ...`) followed by `python3 -u scripts/ci/dagu-rest-run-monitor.py` — its exit
+   code becomes `run.sh`'s own real exit code. `run.sh`'s own stdout now carries real per-step
+   markers, the same way `deploy-and-run.sh`'s own stdout already does.
+4. `scripts/activity-monitor/run.sh` (the one existing bash mechanism, not a new one): add
+   `STEP_LABELS`/`STEP_DESCRIPTIONS` entries for `ci.sh:unit`/`integration`/`e2e`/`sonar`/
+   `archunit_metrics`/`pipeline_metrics`/`docs`; add `STEP_IS_CONTAINER` entries for the steps
+   backed by one well-known container (`ci.sh:unit`→`advertisement-build-only-unit`,
+   `ci.sh:integration`→`advertisement-build-only-integration`, `ci.sh:e2e`→`ci-marketplace-app`,
+   `ci.sh:archunit_metrics`→`advertisement-build-only-archunit` — real names from
+   `scripts/ci/dagu/ci.yaml`'s own `BUILD_CONTAINER_NAME`/`APP_CONTAINER` overrides; `sonar`
+   deliberately excluded, multi-container stack, doesn't fit the single-container check); extend
+   `SCRIPT_STEP_SEQUENCE["ci.sh"]` with the new step ids after `start-ci-runner`.
+5. Update every reference to the old `watch-run.py` name: `.claude/rules/scripts.md`'s "Local CI
+   Runner" section, `scripts/ci/README.md`, this item.
+
+**Implemented, all 5 steps above, plus one design gap found and fixed along the way:**
+`unit`/`integration`/`e2e`/`sonar`/`archunit_metrics` genuinely run in parallel in Dagu (all depend
+only on `build`, not on each other) — a plain `SCRIPT_STEP_SEQUENCE` entry would only ever show the
+*first* of the five as "running" and the rest as "pending" until it finished, misrepresenting real
+concurrent progress. Fixed by teaching `render_tree()` itself a new `SCRIPT_STEP_PARALLEL_GROUPS`
+concept: a declared group of step ids rendered as one unit — every still-incomplete member shows
+`⏳ running` simultaneously, the group only counts as done (and the sequence advances) once every
+member has completed. Verified directly (not assumed) via a standalone harness sourcing
+`scripts/activity-monitor/run.sh` and calling `render_tree()` with simulated `STEP_COMPLETED_AT`
+state for three scenarios: group not started (all 5 show running), group mid-flight (only the
+still-running members show running, finished ones show their real duration), group fully done
+(sequence correctly advances to `pipeline_metrics`).
+
+**Result:** `bash scripts/activity-monitor.sh -- bash scripts/ci.sh --foreground` works identically
+to `bash scripts/activity-monitor.sh -- bash scripts/deploy-and-run.sh` — one command, one
+mechanism, real per-step `tree.txt` (including genuine parallel-step rendering), no duplicate
+tree-drawing code. `bash scripts/ci.sh` (default, no `--foreground`) and
+`bash scripts/ci.sh --foreground` run directly (unwrapped) both keep working exactly as before —
+this only changed what `--foreground` prints while it blocks, it didn't remove either invocation
+path. `scripts/activity-monitor/README.md`'s own usage examples updated to include `ci.sh` as an
+8th covered script (was previously, correctly at the time, excluded).
+
+## 18. SonarQube quality gate is persistently failing, not a one-off — needs a real fix, not just `improvement-114`
+
+**Found (2026-09-08, while investigating this session's own CI run's `sonar` step failure):**
+Checked real scan history via SonarQube's API (`GET /api/project_analyses/search?project=advertisement`)
+instead of assuming — the quality gate has failed repeatedly, confirmed by real `QUALITY_GATE`
+events on **2026-08-17** ("New Issues > 0") and **2026-08-29** ("New Issues > 0, Coverage on New
+Code < 80"), and again on today's run. Scans themselves run frequently (roughly every 1-4 days:
+08-14, 08-15, 08-17, 08-18, 08-20, 08-21, 08-26, 08-28, 08-29, 09-02, 09-03, 09-04, 09-08) — an
+earlier claim in this same conversation that Sonar "hadn't run in 3+ weeks" was wrong, based on
+misreading the quality gate's `period.date` field (the New Code Period baseline, i.e. "previous
+version" reference point fixed at 2026-08-14) as if it were the last scan date. Corrected here so
+the record is accurate.
+
+**Root cause — structural, not incidental:** `new_coverage` reads **0%** against an ≥80% threshold
+on every single scan (`improvement-114` — JaCoCo never wired into the scan) — this condition
+mechanically cannot pass regardless of what code changes, so the gate is effectively guaranteed to
+fail on every run until JaCoCo is actually wired in. `new_violations` (currently 10-18 real
+findings, `java:S5663`/`S7467`/`S1192`/`S1450`/`S8491` across `marketplace-rest-api`/
+`marketplace-app`/`apikey-spring-boot-starter`) is a secondary, independent failing condition — even
+a `new_violations = 0` run would still fail the gate on `new_coverage` alone.
+
+**Ask:** treat this as a real fix, not just the existing `improvement-114` coverage-wiring item in
+isolation — `improvement-114` already covers the `new_coverage`/JaCoCo half; this item's scope is
+the other half (`new_violations`, the 10-18 real findings) plus confirming, once both are addressed,
+that the gate can actually reach a passing state at least once (not yet observed in the real scan
+history checked above).
+
+**Not yet started.**
+
 - [improvement-073](../completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) —
   REST API infrastructure (API-key auth, Swagger, apikey/rest-api modules) this whole batch follows
   up on.

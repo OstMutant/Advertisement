@@ -2,6 +2,76 @@
 
 ---
 
+## ADR-011: `run.sh`'s ci-runner startup wait checks the container's own ID, not its mutable name
+**Status:** Accepted
+
+**Context:** `run.sh`'s post-start wait loop (waiting for Dagu's web UI to come up) checked
+liveness and CPU activity via `docker inspect -f '{{.State.Running}}' "$CONTAINER"` / `docker stats
+... "$CONTAINER"`, where `$CONTAINER` is the fixed name `"ci-runner"`, not the specific container
+instance this invocation just started. A container name is a mutable pointer, not an identity: if
+that specific container is killed by anything external (confirmed directly — `docker events` showed
+`ci-runner` receiving `docker kill` with `signal=9`/`exitCode=137` and being replaced by a
+freshly-created container reusing the same name, with no `ci.sh`/`run.sh` process running at the
+time, so the trigger was outside this script entirely and remains unidentified) and something else
+creates a new container under that same name before the next poll, the name-based checks
+immediately start reporting on the *new* container — "Running: true", real CPU activity from its
+own fresh startup — with no way to tell that the original instance this loop was actually waiting
+on had died. The loop never detects the death; it just keeps printing "Still working" indefinitely
+against whatever currently holds the name.
+
+An earlier version of this entry attributed a specific failed DAG run's cause to `run.sh`'s own
+`docker rm -f` (a concurrent invocation) and added a guard against that one scenario. That guard
+was removed: it assumed the *mechanism* it could reproduce was the *confirmed cause* of the
+specific incident investigated, without ruling out this same unidentified external kill source —
+which was later observed producing the identical kill signature with no `ci.sh`/`run.sh` process
+active at all. The guard didn't address (and couldn't have addressed) the live "stuck on Start
+ci-runner: running Nm" symptom this ADR actually fixes, since that symptom is caused by the
+name-vs-ID gap below, not by a concurrent script invocation.
+
+**Decision:** `docker run -d ...` output (the real container ID, printed to stdout) is captured
+into `CONTAINER_ID` instead of being discarded. Every liveness/CPU/logs check in the wait loop
+queries `$CONTAINER_ID`, not `$CONTAINER`. If that specific ID is no longer running — regardless of
+whether a same-named replacement already exists — the loop now reports a real failure immediately
+instead of continuing to poll a container it never actually started.
+
+**Second gap found in the same wait loop, same session — network-namespace mismatch mistaken for
+"still starting up":** even with the ID-based checks above, a live case showed `ci-runner`
+genuinely healthy (`docker logs` showed Dagu's scheduler fully initialized, DAGs loaded, locks
+acquired) and its HTTP port answering `200` when queried directly against the Docker host — yet the
+wait loop kept reporting "Still working" for 4+ minutes past that point, and `docker top ci-runner`
+confirmed the actual DAG-triggering `docker exec ... dagu start ci.yaml` had never been issued. The
+outer `curl localhost:$DAGU_PORT` this loop polls only succeeds when the process running `run.sh`
+shares `ci-runner`'s network namespace (`ci-runner` runs `--network host`; this script is meant to
+run directly on the host for exactly that reason). When the caller itself lacks host networking
+(e.g. running inside another, non-host-networked container), that curl fails forever even after
+Dagu is fully healthy — and the CPU-activity fallback below it (added to distinguish "still
+downloading tools" from "genuinely dead") kept mistaking Dagu's own idle background housekeeping
+(zombie detector every 45s, retry scanner every 30s) for real startup progress, looping all the way
+to the 600s deadline instead of ever reporting the actual cause.
+
+**Decision (continued), first pass:** an initial fix added a *diagnostic* `docker exec
+"$CONTAINER_ID" curl -sf http://localhost:$DAGU_PORT/` check inside the extended-wait loop, run
+before the CPU-activity fallback — if that inside curl succeeded while the outer, direct curl kept
+failing, the script would fail immediately with an explicit "network-namespace mismatch" diagnosis
+instead of waiting out the rest of the deadline. Confirmed working exactly as designed on a live
+run: the script now failed fast with that precise message instead of hanging silently.
+
+**Decision (final):** rather than leaving two different readiness-check mechanisms in place (a
+direct outer curl that only works on a bare host, plus an inner exec-based curl used only for
+diagnosis after the outer one had already failed for the whole typical-wait window), both the
+typical-wait and extended-wait loops now call a single `dagu_ready()` helper —
+`docker exec "$CONTAINER_ID" curl -sf http://localhost:$DAGU_PORT/` — as their *only* readiness
+check. `docker exec` goes through the docker socket, not the caller's own network stack, so it
+works identically whether this script runs directly on the host or inside another,
+non-host-networked container. This removes the network-namespace mismatch as a failure mode
+entirely, rather than merely diagnosing it faster.
+
+**Still open:** what actually kills `ci-runner` periodically (observed independent of any
+`ci.sh`/`run.sh` invocation) remains unidentified — this ADR fixes the wait loop's blindness to
+container replacement and to network-namespace mismatches, not the kill itself.
+
+---
+
 ## ADR-001: ci-runner container via Docker-outside-of-Docker, not Docker-in-Docker
 **Status:** Accepted
 

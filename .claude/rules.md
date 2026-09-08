@@ -574,6 +574,14 @@ rule's name at face value. Once genuinely confirmed:
 Never suppress a finding in code without also confirming it's genuinely false first — a suppression
 is only legitimate when the finding truly doesn't apply, never a shortcut to silence a real one.
 
+**Never mutate SonarQube's own server-side state without a separate, explicit approval for that
+specific call.** This includes `do_transition` (false-positive/won't-fix/reopen) and any other
+write call against the SonarQube API — approval to add a code-side `@SuppressWarnings` annotation
+is not itself approval for the matching server-side transition, and general approval to "fix
+Sonar findings" is not approval for a server-side write either. Ask for that one action by name
+before making it, every time — a shared analysis server's own state is not local, reversible
+project state the standing code-edit approval flow already covers.
+
 ---
 
 ## Overlay Pattern

@@ -178,9 +178,8 @@ public class UserService {
             User user = repository.findById(userId).orElseThrow();
             UserPrincipal principal = toPrincipal(user);
             Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
-            Authentication newAuth = currentAuth != null
-                    ? new UsernamePasswordAuthenticationToken(principal, currentAuth.getCredentials(), principal.getAuthorities())
-                    : new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+            Authentication newAuth = new UsernamePasswordAuthenticationToken(
+                    principal, currentAuth != null ? currentAuth.getCredentials() : null, principal.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(newAuth);
             log.debug("Refreshed security principal for user id={}", userId);
         } catch (Exception ex) {

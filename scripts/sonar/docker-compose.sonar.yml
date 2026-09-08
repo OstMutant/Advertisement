@@ -1,18 +1,28 @@
 # ── Header ──────────────────────────────────────────────────────────────────
-# Description: Defines the local SonarQube server container (sonarqube:community, port 9099) that
-#   scripts/sonar/run.sh's scanner uploads analysis to.
+# Description: Defines the local SonarQube server container (port 9099) that
+#   scripts/sonar/run.sh's scanner uploads analysis to. Image pinned to an explicit version tag
+#   (not the floating `community` tag) for reproducibility -- bump SONARQUBE_VERSION to upgrade.
+#   The embedded database this container uses does NOT support cross-version migration (confirmed
+#   directly: POST /api/system/migrate_db returns "Upgrade is not supported on embedded database"
+#   after a version bump) -- every version bump requires wiping the data volumes
+#   (docker volume rm sonar_sonarqube_data sonar_sonarqube_extensions sonar_sonarqube_logs
+#   sonar_sonarqube_temp) and starting fresh, losing scan history. A real external Postgres backend
+#   would remove this limitation but is not currently set up.
 # Usage: docker compose -f scripts/sonar/docker-compose.sonar.yml up -d -- not invoked directly in
 #   normal use, run.sh owns this container's full lifecycle (pull/create/recreate/start).
-# Uses: docker compose; sonarqube:community base image.
-# Env: SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true (Elasticsearch bootstrap checks off, needed for the
-#   embedded DB on a typical dev machine's resource limits).
+#   SONARQUBE_VERSION=<tag> docker compose -f scripts/sonar/docker-compose.sonar.yml up -d
+#   --force-recreate to upgrade (then wipe volumes per above, since migration isn't supported).
+# Uses: docker compose.
+# Env: SONARQUBE_VERSION (default 26.9.0.129388-community, see Docker Hub's sonarqube tags for
+#   available versions), SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true (Elasticsearch bootstrap checks
+#   off, needed for the embedded DB on a typical dev machine's resource limits).
 # Input: None (self-contained service definition).
 # Outputs: a running `sonarqube` container; dashboard at http://localhost:9099 once up.
 # ────────────────────────────────────────────────────────────────────────────
 
 services:
   sonarqube:
-    image: sonarqube:community
+    image: sonarqube:${SONARQUBE_VERSION:-26.9.0.129388-community}
     container_name: sonarqube
     ports:
       - "9099:9000"

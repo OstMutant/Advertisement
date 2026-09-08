@@ -159,7 +159,7 @@ public class TaxonManagementView extends Div {
                     } catch (AccessDeniedException e) {
                         log.warn("Access denied deleting taxon id={}: {}", taxon.getId(), e.getMessage());
                         notificationService.accessDenied();
-                    } catch (@SuppressWarnings("java:S7467") Exception e) {
+                    } catch (Exception e) {
                         log.error("Error deleting taxon id={}", taxon.getId(), e);
                         notificationService.error(TAXON_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
                     }

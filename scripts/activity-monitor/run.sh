@@ -56,6 +56,14 @@ declare -A STEP_LABELS=(
   ["ci.sh:sync-artifacts"]="Sync artifacts"
   ["ci.sh:build-image"]="Build image"
   ["ci.sh:start-ci-runner"]="Start ci-runner"
+  ["ci.sh:build"]="Compile reactor"
+  ["ci.sh:unit"]="Unit tests"
+  ["ci.sh:integration"]="Integration tests"
+  ["ci.sh:e2e"]="E2E (Playwright)"
+  ["ci.sh:sonar"]="Sonar analysis"
+  ["ci.sh:archunit_metrics"]="ArchUnit metrics"
+  ["ci.sh:pipeline_metrics"]="Pipeline metrics"
+  ["ci.sh:docs"]="Docs freshness + architecture-model regen"
   ["ci.sh:ci-run"]="CI run"
   ["ci.sh:trigger-background-run"]="Trigger background run"
   ["run-all-tests.sh:run-all-tests"]="Run all tests"
@@ -81,6 +89,10 @@ declare -A STEP_IS_CONTAINER=(
   ["playwright.sh:check-app-container"]="${APP_CONTAINER:-marketplace-app}"
   ["playwright.sh:start-app"]="${APP_CONTAINER:-marketplace-app}"
   ["playwright.sh:restart-app"]="${APP_CONTAINER:-marketplace-app}"
+  ["ci.sh:unit"]="advertisement-build-only-unit"
+  ["ci.sh:integration"]="advertisement-build-only-integration"
+  ["ci.sh:e2e"]="ci-marketplace-app"
+  ["ci.sh:archunit_metrics"]="advertisement-build-only-archunit"
 )
 
 # One short line per step, same "script:step" key shape as STEP_LABELS.
@@ -97,6 +109,14 @@ declare -A STEP_DESCRIPTIONS=(
   ["ci.sh:sync-artifacts"]="pulls architecture-metrics.json/pipeline-metrics.json onto the host"
   ["ci.sh:build-image"]="builds the ci-runner Docker image"
   ["ci.sh:start-ci-runner"]="starts the persistent ci-runner container"
+  ["ci.sh:build"]="compiles and installs the reactor inside ci-runner, before the parallel stages"
+  ["ci.sh:unit"]="unit tests, in their own build-and-test.sh container"
+  ["ci.sh:integration"]="Testcontainers-based integration tests, in their own container"
+  ["ci.sh:e2e"]="deploys the isolated e2e stack and runs the Playwright suite against it"
+  ["ci.sh:sonar"]="builds, scans, and checks the quality gate"
+  ["ci.sh:archunit_metrics"]="exports ArchUnit module-coupling metrics"
+  ["ci.sh:pipeline_metrics"]="aggregates this run's own per-stage metrics"
+  ["ci.sh:docs"]="doc-freshness checks plus architecture-model.json/architecture-map.html regen"
   ["ci.sh:ci-run"]="triggers a Dagu DAG run inside ci-runner"
   ["ci.sh:trigger-background-run"]="fires the run and returns without waiting for it to finish"
   ["run-all-tests.sh:run-all-tests"]="runs build-and-test.sh and deploy-and-run.sh+playwright.sh in parallel, combines both results"
@@ -124,9 +144,21 @@ declare -A SCRIPT_STEP_SEQUENCE=(
   ["deploy-and-run.sh"]="infra build start-container start-application"
   ["reset.sh"]="reset"
   ["build-and-test.sh"]="build-and-test"
+  ["ci.sh"]="build-image start-ci-runner build unit integration e2e sonar archunit_metrics pipeline_metrics docs"
   ["run-all-tests.sh"]="run-all-tests"
   ["sonar.sh"]="sonar-analysis"
   ["playwright.sh"]="playwright-run"
+)
+
+# Step ids (space-separated, must be a contiguous run within the matching SCRIPT_STEP_SEQUENCE
+# entry) that genuinely execute in parallel with each other, not one after another -- e.g. ci.sh's
+# unit/integration/e2e/sonar/archunit_metrics Dagu steps all depend only on "build", not on each
+# other (scripts/ci/dagu/ci.yaml). render_tree() treats the whole group as one unit: every member
+# still incomplete renders "running" simultaneously (not just the first, the way a normal sequence
+# step would) while any member is unfinished; the group as a whole only counts as "done" and
+# advances the sequence once every member has completed.
+declare -A SCRIPT_STEP_PARALLEL_GROUPS=(
+  ["ci.sh"]="unit integration e2e sonar archunit_metrics"
 )
 
 # Script basename -> profile. Every script already on the shared agentic-output.sh contract maps
@@ -244,7 +276,7 @@ mark_step() {
   STEP_REASON["$id"]="$reason"
   STEP_POINTER["$id"]="$pointer"
   case "$status" in
-    ok|error|warn) STEP_COMPLETED_AT["$id"]="$(date +%s)" ;;
+    ok|error|warn|skipped) STEP_COMPLETED_AT["$id"]="$(date +%s)" ;;
   esac
 }
 
@@ -254,6 +286,7 @@ step_icon() {
     running) echo "⏳" ;;
     warn) echo "⚠️" ;;
     error) echo "❌" ;;
+    skipped) echo "⏭️" ;;
     *) echo "⬜" ;;
   esac
 }
@@ -294,21 +327,77 @@ render_step_line() {
   [[ -n "$pointer" ]] && printf '   details: %s\n' "$pointer"
 }
 
+# The "next" declared-sequence step with no marker yet is only genuinely "running" while the
+# wrapped process (main()'s own local $cmd_pid, visible here via bash's dynamic scoping) is still
+# alive -- once it has exited (a fatal error at an earlier real step, before ever reaching this
+# one), rendering it "running" is false: the process will never reach it. Falls back to "running"
+# when cmd_pid isn't set yet (e.g. a unit test harness calling render_tree() directly) so existing
+# callers/tests are unaffected.
+next_step_status() {
+  [[ -n "${cmd_pid:-}" ]] && ! kill -0 "$cmd_pid" 2>/dev/null && { echo "pending"; return; }
+  echo "running"
+}
+
 render_tree() {
   local out=""
   local sequence="${SCRIPT_STEP_SEQUENCE[$CURRENT_SCRIPT_NAME]:-}"
+  local parallel_group="${SCRIPT_STEP_PARALLEL_GROUPS[$CURRENT_SCRIPT_NAME]:-}"
   local rendered_ids=()
 
   if [[ -n "$sequence" ]]; then
     local baseline="$WRAPPER_START_TIME"
     local current_shown=0
+    local group_consumed=0
     for id in $sequence; do
+      local is_group_member=0
+      if [[ -n "$parallel_group" ]]; then
+        for p in $parallel_group; do [[ "$p" == "$id" ]] && is_group_member=1 && break; done
+      fi
+
+      if (( is_group_member )); then
+        # Only act once per group -- subsequent members of the same contiguous group are skipped
+        # here (already rendered as part of the group below).
+        (( group_consumed )) && continue
+        group_consumed=1
+        rendered_ids+=($parallel_group)
+        local group_done=1 group_latest=0
+        for gid in $parallel_group; do
+          if [[ -z "${STEP_COMPLETED_AT[$gid]:-}" ]]; then
+            group_done=0
+          elif (( STEP_COMPLETED_AT[$gid] > group_latest )); then
+            group_latest="${STEP_COMPLETED_AT[$gid]}"
+          fi
+        done
+        if (( group_done )); then
+          for gid in $parallel_group; do
+            out+="$(render_step_line "$gid" "${STEP_STATUS[$gid]:-}" "$baseline")"$'\n'
+          done
+          baseline="$group_latest"
+        elif (( current_shown == 0 )); then
+          local group_next_status
+          group_next_status="$(next_step_status)"
+          for gid in $parallel_group; do
+            if [[ -n "${STEP_COMPLETED_AT[$gid]:-}" ]]; then
+              out+="$(render_step_line "$gid" "${STEP_STATUS[$gid]:-}" "$baseline")"$'\n'
+            else
+              out+="$(render_step_line "$gid" "$group_next_status" "$baseline")"$'\n'
+            fi
+          done
+          current_shown=1
+        else
+          for gid in $parallel_group; do
+            out+="$(render_step_line "$gid" "pending" "$baseline")"$'\n'
+          done
+        fi
+        continue
+      fi
+
       rendered_ids+=("$id")
       if [[ -n "${STEP_COMPLETED_AT[$id]:-}" ]]; then
         out+="$(render_step_line "$id" "${STEP_STATUS[$id]:-}" "$baseline")"$'\n'
         baseline="${STEP_COMPLETED_AT[$id]}"
       elif (( current_shown == 0 )); then
-        out+="$(render_step_line "$id" "running" "$baseline")"$'\n'
+        out+="$(render_step_line "$id" "$(next_step_status)" "$baseline")"$'\n'
         current_shown=1
       else
         out+="$(render_step_line "$id" "pending" "$baseline")"$'\n'
@@ -583,6 +672,10 @@ main() {
 
   echo "$exit_code" > "$WORK_DIR/exit_code"
   flush_tree
+  # Clear before this final print too, on a real terminal -- otherwise the loop's own last redraw
+  # (line ~643 above) stays on screen and this final, authoritative render prints again right
+  # below it with nothing cleared in between, showing as a literal duplicate block.
+  [[ -t 1 ]] && clear
   cat "$WORK_DIR/tree.txt"
 
   return "$exit_code"

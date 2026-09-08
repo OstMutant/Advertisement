@@ -36,7 +36,9 @@ public class ApiKeyController {
 
     @Operation(summary = "Issue a new API key", description = "Authenticated via HTTP Basic (email:password), not a bearer key -- this is how a caller obtains their first bearer key. The raw key is returned once and never retrievable again.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-            {"label":"my laptop"}""")))
+            {
+              "label": "my laptop"
+            }""")))
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "basicAuth")

@@ -74,7 +74,13 @@ public class AdvertisementApiController {
 
     @Operation(summary = "Create an advertisement", description = "categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-            {"title":"Plumbing services","description":"Fast and reliable plumbing","adKind":"OFFER","categoryIds":[1],"cityTaxonId":5}""")))
+            {
+              "title": "Plumbing services",
+              "description": "Fast and reliable plumbing",
+              "adKind": "OFFER",
+              "categoryIds": [1],
+              "cityTaxonId": 5
+            }""")))
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
@@ -111,7 +117,13 @@ public class AdvertisementApiController {
 
     @Operation(summary = "Update an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-            {"title":"Plumbing services","description":"Fast and reliable plumbing, now weekends too","adKind":"OFFER","categoryIds":[1],"cityTaxonId":5}""")))
+            {
+              "title": "Plumbing services",
+              "description": "Fast and reliable plumbing, now weekends too",
+              "adKind": "OFFER",
+              "categoryIds": [1],
+              "cityTaxonId": 5
+            }""")))
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public AdvertisementInfoDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,

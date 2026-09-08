@@ -159,7 +159,7 @@ public class CityManagementView extends Div {
                     } catch (AccessDeniedException e) {
                         log.warn("Access denied deleting city id={}: {}", city.getId(), e.getMessage());
                         notificationService.accessDenied();
-                    } catch (@SuppressWarnings("java:S7467") Exception e) {
+                    } catch (Exception e) {
                         log.error("Error deleting city id={}", city.getId(), e);
                         notificationService.error(CITY_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
                     }

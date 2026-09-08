@@ -30,9 +30,12 @@ flowchart TD
     D -->|no| E[docker build Dockerfile] --> E1{build succeeded?}
     E1 -->|no| Z4[exit non-zero]
     E1 -->|yes| F[start ci-runner container]
-    F --> F1[poll Dagu web UI, up to 120s]
-    F1 --> F2{came up?}
+    F --> F1[watch container logs for Dagu's own startup line, up to 10min]
+    F1 --> F2{server logged startup?}
     F2 -->|no| Z5[exit 1]
+    F2 -->|yes| F3[poll HTTP :18080, up to 15s]
+    F3 --> F4{responded?}
+    F4 -->|no| Z5
     F2 -->|yes| G[start ci-runner-dagu-proxy sidecar]
     D -->|yes| H[reuse already-running ci-runner]
     G --> I[dagu start ci.yaml -- params]
@@ -72,10 +75,13 @@ here.
 exposed and which metrics files sync onto the host. Run history is backed by the `ci-dagu-home`
 named volume.
 
-For a scripted/automated watch instead of the browser, `python3 -u` [`watch-run.py`](watch-run.py)
-polls the same API for whichever `ci` run is newest, prints one line per step-status change, and
-exits once the run reaches a terminal state — see its own header for the exact output/exit-code
-contract.
+For a scripted/automated watch instead of the browser,
+`python3 -u` [`dagu-rest-run-monitor.py`](dagu-rest-run-monitor.py) polls the same API for whichever
+`ci` run is newest and prints an `AGENTIC_SUCCESS_BLOCK`/`AGENTIC_ERROR_BLOCK` marker per
+step-status change, exiting once the run reaches a terminal state — `run.sh --foreground` invokes
+this itself, which is what lets `bash scripts/activity-monitor.sh -- bash scripts/ci.sh --foreground`
+render a real per-step checklist the same way it already does for every other wrapped script; see
+the script's own header for the exact output/exit-code contract.
 
 ## Isolation
 

@@ -214,9 +214,7 @@ public class AdvertisementCardView extends HorizontalLayout
         return metaPanelFactory.build(AdvertisementCardMetaPanel.Parameters.builder()
                 .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
                 .authorEmail(ad.getCreatedByUserEmail())
-                .dateLabel(neverEdited
-                        ? getValue(ADVERTISEMENT_CARD_CREATED)
-                        : getValue(ADVERTISEMENT_CARD_UPDATED))
+                .dateLabel(getValue(neverEdited ? ADVERTISEMENT_CARD_CREATED : ADVERTISEMENT_CARD_UPDATED))
                 .date(neverEdited ? ad.getCreatedAt() : ad.getUpdatedAt())
                 .build());
     }

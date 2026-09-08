@@ -70,7 +70,12 @@ public class ProviderProfileApiController {
 
     @Operation(summary = "Create a provider profile", description = "Self-service only -- the profile is always created for the caller's own account. categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY. kind=SUPPORT requires a privileged (admin/moderator) caller.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-            {"kind":"MASTER","about":"Experienced plumber","categoryIds":[1],"cityTaxonId":5}""")))
+            {
+              "kind": "MASTER",
+              "about": "Experienced plumber",
+              "categoryIds": [1],
+              "cityTaxonId": 5
+            }""")))
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
@@ -104,7 +109,12 @@ public class ProviderProfileApiController {
 
     @Operation(summary = "Update a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-            {"kind":"MASTER","about":"Experienced plumber, now also water heaters","categoryIds":[1],"cityTaxonId":5}""")))
+            {
+              "kind": "MASTER",
+              "about": "Experienced plumber, now also water heaters",
+              "categoryIds": [1],
+              "cityTaxonId": 5
+            }""")))
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public ProviderProfileDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,

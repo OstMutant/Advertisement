@@ -54,7 +54,7 @@ public class AttachmentCleanupService {
             try {
                 storageService.delete(url);
                 deleted++;
-            } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
+            } catch (Exception e) {
                 log.warn("Failed to delete stale temp upload {}: {}", url, e.getMessage());
             }
         }
@@ -83,7 +83,7 @@ public class AttachmentCleanupService {
         deletedUrls.stream()
                 .filter(url -> !videoUrls.contains(url)) // external video urls have no S3 object
                 .forEach(url -> {
-                    try { storageService.delete(url); } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
+                    try { storageService.delete(url); } catch (Exception e) {
                         log.warn("Failed to delete S3 object {}: {}", url, e.getMessage());
                         failedUrls.add(url);
                     }
@@ -113,7 +113,7 @@ public class AttachmentCleanupService {
                 try {
                     storageService.delete(url);
                     deleted++;
-                } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
+                } catch (Exception e) {
                     log.warn("Failed to delete orphaned entity file {}: {}", url, e.getMessage());
                 }
             }

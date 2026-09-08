@@ -190,6 +190,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-005 (query-lib) | query-lib | Accepted |  | `SqlOperator.ANY_OF` / `SqlCondition.anyOf(Set<Long>)` — a second `IN`-shaped operator, for id sets specifically |
 | ADR-006 (query-lib) | query-lib | Accepted |  | `anyOf`/`inSet` empty-input null (= "no restriction") must never back an access-narrowing predicate |
 | ADR-007 (query-lib) | query-lib | Accepted |  | `SqlCondition.like()` escapes `%`/`_`/`\` before wrapping |
+| ADR-011 (scripts/ci) | scripts/ci | Accepted |  | `run.sh`'s ci-runner startup wait checks the container's own ID, not its mutable name |
 | ADR-001 (scripts/ci) | scripts/ci | Accepted |  | ci-runner container via Docker-outside-of-Docker, not Docker-in-Docker |
 | ADR-002 (scripts/ci) | scripts/ci | Superseded by ADR-009 — the `progress.txt`-polling mechanism no longer exists in code |  | Background by default, live progress via `docker cp`-polled `progress.txt` |
 | ADR-003 (scripts/ci) | scripts/ci | Accepted |  | Default stage selection is the most extensive run, not the narrowest |

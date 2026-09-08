@@ -63,7 +63,13 @@ public class TaxonApiController {
     @Operation(summary = "Create a category or city",
             description = "translations must include every supported locale (en + uk today) with a non-blank name and description each -- an incomplete set is rejected with 400.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Category with both required locales", value = """
-            {"type":"CATEGORY","translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"},{"locale":"uk","name":"Сантехніка","description":"Сантехнічні послуги"}]}""")))
+            {
+              "type": "CATEGORY",
+              "translations": [
+                {"locale": "en", "name": "Plumbing", "description": "Plumbing services"},
+                {"locale": "uk", "name": "Сантехніка", "description": "Сантехнічні послуги"}
+              ]
+            }""")))
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
@@ -100,7 +106,12 @@ public class TaxonApiController {
 
     @Operation(summary = "Update a category or city's translations", description = "Same all-supported-locales-required rule as create; admin/moderator only. If-Match must carry the version from the last GET response.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Both required locales", value = """
-            {"translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"},{"locale":"uk","name":"Сантехніка","description":"Сантехнічні послуги"}]}""")))
+            {
+              "translations": [
+                {"locale": "en", "name": "Plumbing", "description": "Plumbing services"},
+                {"locale": "uk", "name": "Сантехніка", "description": "Сантехнічні послуги"}
+              ]
+            }""")))
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public TaxonDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestBody TaxonUpdateRequest request,

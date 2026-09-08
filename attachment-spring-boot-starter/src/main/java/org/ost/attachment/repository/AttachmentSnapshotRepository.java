@@ -121,7 +121,7 @@ public class AttachmentSnapshotRepository {
                 }
             }
             return urls;
-        } catch (SQLException e) { //NOSONAR java:S7467 -- e.getMessage() is used
+        } catch (SQLException e) {
             log.warn("Failed to read attachment_urls array: {}", e.getMessage());
             return List.of();
         }

@@ -62,7 +62,11 @@ public class UserApiController {
 
     @Operation(summary = "Register a new account", description = "Public, no authentication needed. Rate-limited by client IP (5 failed attempts / 15 min). Follow up with POST /api/api-keys (Basic auth) to obtain a bearer key for the other endpoints.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-            {"name":"Jane Doe","email":"jane@example.com","password":"password123"}""")))
+            {
+              "name": "Jane Doe",
+              "email": "jane@example.com",
+              "password": "password123"
+            }""")))
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UserCreatedResponse register(@RequestBody @Valid SignUpDto dto, HttpServletRequest request) {
@@ -103,7 +107,11 @@ public class UserApiController {
 
     @Operation(summary = "Update the caller's own paginated-list page-size preferences", description = "Same validation limits as the Settings UI form. If-Match must carry the version from the last GET response's ETag.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-            {"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20}""")))
+            {
+              "adsPageSize": 20,
+              "usersPageSize": 20,
+              "timelinePageSize": 20
+            }""")))
     @PatchMapping("/me/settings")
     @SecurityRequirement(name = "bearerKey")
     public UserSettingsDto updateSettings(@AuthenticationPrincipal Long actorId, @RequestBody @Valid UserSettingsWriteRequest request,

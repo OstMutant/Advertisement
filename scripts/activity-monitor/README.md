@@ -23,7 +23,7 @@ directly — see `.claude/rules.md`'s "Script-group directory structure"). Any s
 after the wrapped command, unchanged:
 
 ```bash
-# Run any of the 7 covered scripts wrapped — <command-basename> below is always this command's
+# Run any of the 8 covered scripts wrapped — <command-basename> below is always this command's
 # own basename (e.g. "deploy-and-run.sh"), used by --render/--watch to find its run directory.
 bash scripts/activity-monitor.sh -- bash scripts/deploy-and-run.sh [flags...]
 bash scripts/activity-monitor.sh -- bash scripts/build-and-test.sh [flags...]
@@ -31,8 +31,9 @@ bash scripts/activity-monitor.sh -- bash scripts/playwright.sh [scenario] [flags
 bash scripts/activity-monitor.sh -- bash scripts/sonar.sh [flags...]
 bash scripts/activity-monitor.sh -- bash scripts/run-all-tests.sh [flags...]
 bash scripts/activity-monitor.sh -- bash scripts/reset.sh [flags...]
-# Not ci.sh -- it keeps its own separate Dagu-API-based mechanism (watch-run.py), see
-# .claude/rules/scripts.md's "Local CI Runner" section.
+# ci.sh needs --foreground -- without it, ci.sh's own process returns almost immediately after
+# triggering the Dagu run, long before the run itself finishes:
+bash scripts/activity-monitor.sh -- bash scripts/ci.sh --foreground [flags...]
 
 # A command not on the agentic-output.sh contract still works, fully model-narrated (needs
 # ANTHROPIC_API_KEY + jq -- see "Dependencies" below):

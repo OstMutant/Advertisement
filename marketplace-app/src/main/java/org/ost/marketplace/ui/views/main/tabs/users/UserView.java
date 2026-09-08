@@ -181,7 +181,7 @@ public class UserView extends VerticalLayout {
                     } catch (AccessDeniedException e) {
                         log.warn("Access denied deleting user id={}: {}", user.id(), e.getMessage());
                         notificationService.accessDenied();
-                    } catch (@SuppressWarnings("java:S7467") Exception e) {
+                    } catch (Exception e) {
                         log.error("Error deleting user id={}", user.id(), e);
                         notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
                     }
