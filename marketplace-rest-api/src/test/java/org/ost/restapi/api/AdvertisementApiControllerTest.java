@@ -220,14 +220,15 @@ class AdvertisementApiControllerTest {
     // ── update ──────────────────────────────────────────────────────────
 
     @Test
-    void update_pathIdWinsOverBodyId() throws Exception {
+    void update_idComesFromPath_versionComesFromIfMatchHeader() throws Exception {
         AdvertisementInfoDto saved = AdvertisementInfoDto.builder().id(1L).build();
         when(saveService.save(any(), eq(ACTOR_ID), any())).thenReturn(1L);
         when(readService.findById(1L)).thenReturn(Optional.of(saved));
         String body = """
-                {"id":999,"title":"Title","description":"Desc","adKind":"OFFER","version":0}""";
+                {"title":"Title","description":"Desc","adKind":"OFFER"}""";
 
-        mockMvc.perform(put("/api/advertisements/1").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(put("/api/advertisements/1").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk());
 
         verify(saveService).save(eq(new AdvertisementSaveDto(1L, "Title", "Desc", AdKind.OFFER, null, null, 0L)), eq(ACTOR_ID), any());
@@ -237,21 +238,23 @@ class AdvertisementApiControllerTest {
     void update_notFound_returns404() throws Exception {
         when(saveService.save(any(), eq(ACTOR_ID), any())).thenThrow(new java.util.NoSuchElementException());
         String body = """
-                {"title":"Title","description":"Desc","adKind":"OFFER","version":0}""";
+                {"title":"Title","description":"Desc","adKind":"OFFER"}""";
 
-        mockMvc.perform(put("/api/advertisements/1").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(put("/api/advertisements/1").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    void update_staleVersion_returns409() throws Exception {
+    void update_staleVersion_returns412() throws Exception {
         when(saveService.save(any(), eq(ACTOR_ID), any()))
                 .thenThrow(new OptimisticLockingFailureException("stale"));
         String body = """
-                {"title":"Title","description":"Desc","adKind":"OFFER","version":0}""";
+                {"title":"Title","description":"Desc","adKind":"OFFER"}""";
 
-        mockMvc.perform(put("/api/advertisements/1").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isConflict());
+        mockMvc.perform(put("/api/advertisements/1").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isPreconditionFailed());
     }
 
     @Test
@@ -259,9 +262,10 @@ class AdvertisementApiControllerTest {
         when(saveService.save(any(), eq(ACTOR_ID), any()))
                 .thenThrow(new AccessDeniedException("not the owner"));
         String body = """
-                {"title":"Title","description":"Desc","adKind":"OFFER","version":0}""";
+                {"title":"Title","description":"Desc","adKind":"OFFER"}""";
 
-        mockMvc.perform(put("/api/advertisements/1").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(put("/api/advertisements/1").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
     }
 
@@ -269,7 +273,7 @@ class AdvertisementApiControllerTest {
 
     @Test
     void delete_delegatesToSaveService() throws Exception {
-        mockMvc.perform(delete("/api/advertisements/1").param("version", "0")).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/advertisements/1").header("If-Match", "\"0\"")).andExpect(status().isNoContent());
 
         verify(saveService).delete(1L, ACTOR_ID, 0L);
     }
@@ -278,20 +282,20 @@ class AdvertisementApiControllerTest {
     void delete_notOwner_returns403() throws Exception {
         org.mockito.Mockito.doThrow(new AccessDeniedException("not the owner")).when(saveService).delete(1L, ACTOR_ID, 0L);
 
-        mockMvc.perform(delete("/api/advertisements/1").param("version", "0")).andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/advertisements/1").header("If-Match", "\"0\"")).andExpect(status().isForbidden());
     }
 
     @Test
-    void delete_staleVersion_returns409() throws Exception {
+    void delete_staleVersion_returns412() throws Exception {
         org.mockito.Mockito.doThrow(new OptimisticLockingFailureException("stale")).when(saveService).delete(1L, ACTOR_ID, 0L);
 
-        mockMvc.perform(delete("/api/advertisements/1").param("version", "0")).andExpect(status().isConflict());
+        mockMvc.perform(delete("/api/advertisements/1").header("If-Match", "\"0\"")).andExpect(status().isPreconditionFailed());
     }
 
     @Test
     void delete_notFound_returns404() throws Exception {
         org.mockito.Mockito.doThrow(new java.util.NoSuchElementException()).when(saveService).delete(1L, ACTOR_ID, 0L);
 
-        mockMvc.perform(delete("/api/advertisements/1").param("version", "0")).andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/advertisements/1").header("If-Match", "\"0\"")).andExpect(status().isNotFound());
     }
 }

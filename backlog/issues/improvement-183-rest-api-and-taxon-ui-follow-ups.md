@@ -143,6 +143,14 @@ Swagger-only annotation fix), applied consistently across all three REST-exposed
   (still carry `id`/`version` fields) — the Vaadin UI's own form-save path uses these same DTOs
   directly with no HTTP layer involved, so those fields stay needed there; only the REST-facing
   request shape changed.
+- **Follow-up caught during review:** the read DTOs (`AdvertisementInfoDto`, `ProviderProfileDto`,
+  `TaxonDto`) still carried `version` as a plain JSON field, so a REST response duplicated the same
+  fact in two places at once (the field and the new `ETag` header) — exactly the kind of
+  one-fact-two-homes problem this whole change was meant to clean up. Fixed: `version` on all three
+  gets `@Getter(onMethod_ = @JsonIgnore)` — excluded from JSON output (`ETag` is now the sole
+  wire-visible source), while the plain Java getter stays intact for the Vaadin UI's own direct
+  field access (`ad.getVersion()`, used for delete/update calls in ~10 UI call sites, confirmed via
+  grep — none of them serialize these DTOs to JSON, so nothing breaks).
 
 ## 7. Swagger: per-operation descriptions + examples, including cross-endpoint value sources
 
@@ -427,6 +435,26 @@ the original `01-provider-profile-schema.xml` changeset directly (no new migrati
 **Not yet started** — large enough in scope (26 files, 6 modules) to warrant its own focused
 implementation pass with tests (unit + integration + Playwright) rather than folding into an
 unrelated bug-fix; pick up as its own scheduled unit of work.
+
+## 14. `OrderByBuilder.build()` never appends a stable tiebreaker — paginated results non-deterministic on ties
+
+**Found (real, reproduced via test flakiness, not a hypothetical):** `query-lib`'s
+`OrderByBuilder.build(sort, aliasToExpression)` emits `ORDER BY` using only the caller-supplied
+sort field(s), with no secondary, always-unique tiebreaker (e.g. `id`) appended. All 5 current
+callers (`AdvertisementRepository`, `ProviderProfileRepository`, `TaxonRepository`,
+`UserRepository`, `AuditLogRepository`) inherit this gap. Confirmed real, not theoretical:
+`ProviderProfilePaginationScenarioTest.realDataVolume_pagesAndSorts` (sorting by `createdAt`, the
+only sortable field ProviderProfile exposes with no unique alternative) intermittently returned a
+different row at a page boundary across two runs — rows created within the same timestamp tick tie
+on the sort key, and Postgres does not guarantee stable ordering for ties without an explicit
+secondary key. Any real caller paging through `createdAt`/`updatedAt`-sorted results (bulk import,
+high write throughput) can see the same row twice or skip one entirely across two page requests.
+
+**Ask:** decide whether `OrderByBuilder.build()` should always append a stable tiebreaker (e.g. the
+entity's own id column, via a small addition to each caller's alias map or a new parameter) and
+implement it once, fixing all 5 callers together — a query-lib-level fix, not a per-repository one.
+
+**Not yet started.**
 
 ## Related
 

@@ -1,7 +1,13 @@
 package org.ost.restapi.api;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
 import org.ost.orchestrator.services.AdvertisementReadService;
@@ -10,9 +16,12 @@ import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
+import org.ost.platform.advertisement.model.AdKind;
+import org.ost.restapi.api.concurrency.ETagUtil;
 import org.ost.restapi.api.paging.PagedResponseBuilder;
 import org.ost.restapi.api.paging.SortQueryParser;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,6 +32,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -62,7 +72,9 @@ public class AdvertisementApiController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
-    public AdvertisementInfoDto create(@AuthenticationPrincipal Long actorId, @RequestBody @Valid AdvertisementSaveDto dto) {
+    public AdvertisementInfoDto create(@AuthenticationPrincipal Long actorId, @RequestBody @Valid AdvertisementWriteRequest request) {
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, request.title(), request.description(),
+                request.adKind(), request.categoryIds(), request.cityTaxonId(), null);
         Long id = saveService.save(dto, actorId, ref -> null);
         return enrich(readService.findById(id).orElseThrow(), DEFAULT_LOCALE);
     }
@@ -82,16 +94,21 @@ public class AdvertisementApiController {
         return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
     }
 
+    @Operation(summary = "Get one advertisement by id")
+    @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
-    public AdvertisementInfoDto getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
-        return enrich(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
+    public ResponseEntity<AdvertisementInfoDto> getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
+        AdvertisementInfoDto ad = enrich(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
+        return ETagUtil.withVersion(ResponseEntity.ok(), ad.getVersion()).body(ad);
     }
 
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
-    public AdvertisementInfoDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestBody @Valid AdvertisementSaveDto dto) {
-        AdvertisementSaveDto withId = new AdvertisementSaveDto(id, dto.title(), dto.description(), dto.adKind(), dto.categoryIds(), dto.cityTaxonId(), dto.version());
-        Long savedId = saveService.save(withId, actorId, ref -> null);
+    public AdvertisementInfoDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
+            @RequestBody @Valid AdvertisementWriteRequest request, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(id, request.title(), request.description(),
+                request.adKind(), request.categoryIds(), request.cityTaxonId(), ETagUtil.parseIfMatch(ifMatch));
+        Long savedId = saveService.save(dto, actorId, ref -> null);
         return enrich(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
     }
 
@@ -102,8 +119,19 @@ public class AdvertisementApiController {
     }
 
     @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
-    public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestParam(required = false) Long version) {
-        saveService.delete(id, actorId, version);
+    public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        saveService.delete(id, actorId, ETagUtil.parseIfMatch(ifMatch));
+    }
+
+    /** Caller-writable fields for both create and update -- id/version are server-managed (path variable / If-Match header), never client-supplied here. */
+    public record AdvertisementWriteRequest(
+            @NotBlank @Size(min = 1, max = AdvertisementSaveDto.TITLE_MAX_LENGTH) String title,
+            @NotBlank @Size(max = AdvertisementSaveDto.DESCRIPTION_RAW_MAX_LENGTH) String description,
+            @NotNull AdKind adKind,
+            @Size(max = AdvertisementSaveDto.CATEGORY_MAX_COUNT) Set<Long> categoryIds,
+            Long cityTaxonId
+    ) {
     }
 }

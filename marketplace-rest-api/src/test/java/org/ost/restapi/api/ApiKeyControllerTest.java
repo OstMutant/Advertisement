@@ -55,7 +55,7 @@ class ApiKeyControllerTest {
 
         mockMvc.perform(post("/api/api-keys").contentType(MediaType.APPLICATION_JSON).content("""
                         {"label":"my key"}"""))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.rawKey").value("raw-key"));
     }
 
@@ -64,7 +64,7 @@ class ApiKeyControllerTest {
         authenticateAs(testPrincipal());
         when(apiKeyManagementService.create(ACTOR_ID, null)).thenReturn("raw-key");
 
-        mockMvc.perform(post("/api/api-keys")).andExpect(status().isOk());
+        mockMvc.perform(post("/api/api-keys")).andExpect(status().isCreated());
 
         verify(apiKeyManagementService).create(ACTOR_ID, null);
     }
@@ -88,7 +88,7 @@ class ApiKeyControllerTest {
     void revoke_delegatesToServiceWithActorIdAndKeyId() throws Exception {
         authenticateAs(ACTOR_ID);
 
-        mockMvc.perform(delete("/api/api-keys/5")).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/api-keys/5")).andExpect(status().isNoContent());
 
         verify(apiKeyManagementService).revoke(ACTOR_ID, 5L);
     }

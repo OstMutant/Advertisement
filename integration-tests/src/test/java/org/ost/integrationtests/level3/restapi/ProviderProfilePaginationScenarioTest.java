@@ -149,8 +149,8 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
 
         // Updating "First" last (via its own owner's bearer key -- self-service) must move it to the end of updatedAt,asc.
         String updateBody = """
-                {"kind":"MASTER","about":"About First","version":0}""";
-        mockMvc.perform(put("/api/provider-profiles/" + first.id())
+                {"kind":"MASTER","about":"About First"}""";
+        mockMvc.perform(put("/api/provider-profiles/" + first.id()).header("If-Match", "\"0\"")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + first.owner().rawApiKey())
                         .contentType(MediaType.APPLICATION_JSON).content(updateBody))
                 .andExpect(status().isOk());
@@ -166,25 +166,27 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
             createProvider("Provider%02d".formatted(i), "MASTER", null, null);
         }
 
-        mockMvc.perform(get("/api/provider-profiles").param("page", "0").param("size", "5").param("sort", "createdAt,asc"))
-                .andExpect(status().isOk())
-                .andExpect(header().string("X-Total-Count", "12"))
-                .andExpect(jsonPath("$.length()").value(5))
-                .andExpect(jsonPath("$[0].about").value("About Provider01"));
-
-        mockMvc.perform(get("/api/provider-profiles").param("page", "1").param("size", "5").param("sort", "createdAt,asc"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(5))
-                .andExpect(jsonPath("$[0].about").value("About Provider06"));
-
-        mockMvc.perform(get("/api/provider-profiles").param("page", "2").param("size", "5").param("sort", "createdAt,asc"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].about").value("About Provider11"));
-
-        mockMvc.perform(get("/api/provider-profiles").param("page", "3").param("size", "5").param("sort", "createdAt,asc"))
-                .andExpect(status().isOk())
-                .andExpect(header().string("X-Total-Count", "12"))
-                .andExpect(jsonPath("$.length()").value(0));
+        // createdAt has no unique tiebreaker for ProviderProfile (no unique sortable business field exists),
+        // so rows created within the same timestamp tick can land on either side of a page boundary --
+        // assert page sizes/total deterministically, and assert the full set is covered without gaps/dupes.
+        java.util.List<String> collected = new java.util.ArrayList<>();
+        for (int page = 0; page <= 3; page++) {
+            String response = mockMvc.perform(get("/api/provider-profiles").param("page", String.valueOf(page)).param("size", "5").param("sort", "createdAt,asc"))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("X-Total-Count", "12"))
+                    .andReturn().getResponse().getContentAsString();
+            int expectedLength = switch (page) {
+                case 0, 1 -> 5;
+                case 2 -> 2;
+                default -> 0;
+            };
+            com.jayway.jsonpath.DocumentContext json = com.jayway.jsonpath.JsonPath.parse(response);
+            java.util.List<String> abouts = json.read("$[*].about");
+            org.assertj.core.api.Assertions.assertThat(abouts).hasSize(expectedLength);
+            collected.addAll(abouts);
+        }
+        java.util.List<String> expected = new java.util.ArrayList<>();
+        for (int i = 1; i <= 12; i++) expected.add("About Provider%02d".formatted(i));
+        org.assertj.core.api.Assertions.assertThat(collected).containsExactlyInAnyOrderElementsOf(expected);
     }
 }

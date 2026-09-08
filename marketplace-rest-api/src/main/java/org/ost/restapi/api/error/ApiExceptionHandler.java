@@ -26,8 +26,9 @@ public class ApiExceptionHandler {
         return new ErrorResponse(ex.getMessage());
     }
 
+    // RFC 9110 §13.1.1: If-Match's precondition failed -- not a generic 409 Conflict.
     @ExceptionHandler(OptimisticLockingFailureException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
+    @ResponseStatus(HttpStatus.PRECONDITION_FAILED)
     public ErrorResponse handleOptimisticLocking(OptimisticLockingFailureException ex) {
         return new ErrorResponse("The resource was modified by someone else — reload and retry.");
     }

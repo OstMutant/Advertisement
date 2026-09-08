@@ -2,8 +2,10 @@ package org.ost.restapi.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,8 +14,10 @@ import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.dto.TaxonFilterDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
+import org.ost.restapi.api.concurrency.ETagUtil;
 import org.ost.restapi.api.paging.SortQueryParser;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,6 +28,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -85,27 +90,31 @@ public class TaxonApiController {
         return ResponseEntity.ok().header("X-Total-Count", String.valueOf(items.size())).body(items);
     }
 
-    @Operation(summary = "Get one category/city by id", description = "Falls back to the English translation if the requested locale has none.")
+    @Operation(summary = "Get one category/city by id", description = "Falls back to the English translation if the requested locale has none. ETag response header carries the version to send back via If-Match on update/delete.")
+    @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
-    public TaxonDto getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
-        return taxonCatalogService.findById(id, Locale.forLanguageTag(locale)).orElseThrow(NoSuchElementException::new);
+    public ResponseEntity<TaxonDto> getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
+        TaxonDto taxon = taxonCatalogService.findById(id, Locale.forLanguageTag(locale)).orElseThrow(NoSuchElementException::new);
+        return ETagUtil.withVersion(ResponseEntity.ok(), taxon.getVersion()).body(taxon);
     }
 
-    @Operation(summary = "Update a category or city's translations", description = "Same all-supported-locales-required rule as create; admin/moderator only.")
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Both required locales, version from the last GET", value = """
-            {"translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"},{"locale":"uk","name":"Сантехніка","description":"Сантехнічні послуги"}],"version":0}""")))
+    @Operation(summary = "Update a category or city's translations", description = "Same all-supported-locales-required rule as create; admin/moderator only. If-Match must carry the version from the last GET response.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Both required locales", value = """
+            {"translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"},{"locale":"uk","name":"Сантехніка","description":"Сантехнічні послуги"}]}""")))
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
-    public TaxonDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestBody TaxonUpdateRequest request) {
-        taxonCatalogService.update(id, toTranslations(request.translations()), actorId, request.version());
+    public TaxonDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestBody TaxonUpdateRequest request,
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        taxonCatalogService.update(id, toTranslations(request.translations()), actorId, ETagUtil.parseIfMatch(ifMatch));
         return taxonCatalogService.findById(id, DEFAULT_LOCALE).orElseThrow();
     }
 
-    @Operation(summary = "Soft-delete a category or city", description = "version comes from the last GET/create/update response for this id; admin/moderator only.")
+    @Operation(summary = "Soft-delete a category or city", description = "If-Match must carry the version from the last GET/create/update response for this id; admin/moderator only.")
     @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
-    public void softDelete(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestParam(required = false) Long version) {
-        taxonCatalogService.softDelete(id, actorId, version);
+    public void softDelete(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        taxonCatalogService.softDelete(id, actorId, ETagUtil.parseIfMatch(ifMatch));
     }
 
     private static Map<Locale, TaxonTranslationDto> toTranslations(List<TaxonTranslationRequest> translations) {
@@ -121,8 +130,8 @@ public class TaxonApiController {
     public record TaxonCreateRequest(TaxonType type, List<TaxonTranslationRequest> translations) {
     }
 
-    /** Request body for updating a taxon's translations. */
-    public record TaxonUpdateRequest(List<TaxonTranslationRequest> translations, Long version) {
+    /** Request body for updating a taxon's translations -- version comes from the If-Match header, not this body. */
+    public record TaxonUpdateRequest(List<TaxonTranslationRequest> translations) {
     }
 
     /** One locale's translation for a taxon create/update request. */

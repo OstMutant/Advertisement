@@ -152,22 +152,24 @@ class ProviderProfileApiControllerTest {
     // ── update ──────────────────────────────────────────────────────────
 
     @Test
-    void update_staleVersion_returns409() throws Exception {
+    void update_staleVersion_returns412() throws Exception {
         when(saveService.save(any(), eq(ACTOR_ID), eq(ACTOR_ID))).thenThrow(new OptimisticLockingFailureException("stale"));
         String body = """
-                {"kind":"MASTER","version":0}""";
+                {"kind":"MASTER"}""";
 
-        mockMvc.perform(put("/api/provider-profiles/1").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isConflict());
+        mockMvc.perform(put("/api/provider-profiles/1").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isPreconditionFailed());
     }
 
     @Test
     void update_notOwner_returns403() throws Exception {
         when(saveService.save(any(), eq(ACTOR_ID), eq(ACTOR_ID))).thenThrow(new AccessDeniedException("not the owner"));
         String body = """
-                {"kind":"MASTER","version":0}""";
+                {"kind":"MASTER"}""";
 
-        mockMvc.perform(put("/api/provider-profiles/1").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(put("/api/provider-profiles/1").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
     }
 
@@ -175,7 +177,7 @@ class ProviderProfileApiControllerTest {
 
     @Test
     void delete_delegatesToSaveService() throws Exception {
-        mockMvc.perform(delete("/api/provider-profiles/1").param("version", "0")).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/provider-profiles/1").header("If-Match", "\"0\"")).andExpect(status().isNoContent());
 
         verify(saveService).delete(1L, ACTOR_ID, 0L);
     }
@@ -184,6 +186,6 @@ class ProviderProfileApiControllerTest {
     void delete_notOwner_returns403() throws Exception {
         doThrow(new AccessDeniedException("not the owner")).when(saveService).delete(1L, ACTOR_ID, 0L);
 
-        mockMvc.perform(delete("/api/provider-profiles/1").param("version", "0")).andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/provider-profiles/1").header("If-Match", "\"0\"")).andExpect(status().isForbidden());
     }
 }

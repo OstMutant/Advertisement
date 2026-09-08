@@ -53,7 +53,7 @@ public abstract class AbstractRestApiScenarioTest extends AbstractPostgresIntegr
 
         String basicAuth = Base64.getEncoder().encodeToString((email + ":" + password).getBytes());
         String apiKeyResponse = mockMvc.perform(post("/api/api-keys").header(HttpHeaders.AUTHORIZATION, "Basic " + basicAuth))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         String rawKey = JsonScenarioUtils.extractStringField(apiKeyResponse, "rawKey");
         return new RegisteredUser(userId, email, password, rawKey);

@@ -31,19 +31,19 @@ class AdvertisementAuthorizationScenarioTest extends AbstractRestApiScenarioTest
         long adId = JsonScenarioUtils.extractId(createResponse);
 
         String updateBody = """
-                {"title":"Hijacked","description":"Desc","adKind":"OFFER","version":0}""";
-        mockMvc.perform(put("/api/advertisements/" + adId)
+                {"title":"Hijacked","description":"Desc","adKind":"OFFER"}""";
+        mockMvc.perform(put("/api/advertisements/" + adId).header("If-Match", "\"0\"")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger.rawApiKey())
                         .contentType(MediaType.APPLICATION_JSON).content(updateBody))
                 .andExpect(status().isForbidden());
 
-        mockMvc.perform(delete("/api/advertisements/" + adId).param("version", "0")
+        mockMvc.perform(delete("/api/advertisements/" + adId).header("If-Match", "\"0\"")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger.rawApiKey()))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void staleVersion_onRealConcurrentEdit_getsRealConflict() throws Exception {
+    void staleVersion_onRealConcurrentEdit_getsRealPreconditionFailed() throws Exception {
         RegisteredUser owner = registerUserAndIssueApiKey("Owner");
         String createBody = """
                 {"title":"Original","description":"Desc","adKind":"OFFER"}""";
@@ -55,18 +55,18 @@ class AdvertisementAuthorizationScenarioTest extends AbstractRestApiScenarioTest
         long adId = JsonScenarioUtils.extractId(createResponse);
 
         String firstEditBody = """
-                {"title":"First edit","description":"Desc","adKind":"OFFER","version":0}""";
-        mockMvc.perform(put("/api/advertisements/" + adId)
+                {"title":"First edit","description":"Desc","adKind":"OFFER"}""";
+        mockMvc.perform(put("/api/advertisements/" + adId).header("If-Match", "\"0\"")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.rawApiKey())
                         .contentType(MediaType.APPLICATION_JSON).content(firstEditBody))
                 .andExpect(status().isOk());
 
-        // Second edit still carries version 0, but the row is now at version 1 after the first edit above.
+        // Second edit still carries If-Match "0", but the row is now at version 1 after the first edit above.
         String staleEditBody = """
-                {"title":"Second edit","description":"Desc","adKind":"OFFER","version":0}""";
-        mockMvc.perform(put("/api/advertisements/" + adId)
+                {"title":"Second edit","description":"Desc","adKind":"OFFER"}""";
+        mockMvc.perform(put("/api/advertisements/" + adId).header("If-Match", "\"0\"")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.rawApiKey())
                         .contentType(MediaType.APPLICATION_JSON).content(staleEditBody))
-                .andExpect(status().isConflict());
+                .andExpect(status().isPreconditionFailed());
     }
 }

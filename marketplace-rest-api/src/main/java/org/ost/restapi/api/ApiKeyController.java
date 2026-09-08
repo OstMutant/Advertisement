@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.ApiKeyManagementService;
 import org.ost.platform.apikey.dto.ApiKeySummaryDto;
 import org.ost.platform.user.spi.AuthenticatedPrincipal;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -30,6 +32,7 @@ public class ApiKeyController {
     private final ApiKeyManagementService apiKeyManagementService;
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "basicAuth")
     public ApiKeyCreatedResponse create(@AuthenticationPrincipal @NonNull AuthenticatedPrincipal principal,
             @RequestBody(required = false) ApiKeyCreateRequest request) {
@@ -45,6 +48,7 @@ public class ApiKeyController {
     }
 
     @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
     public void revoke(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id) {
         apiKeyManagementService.revoke(actorId, id);

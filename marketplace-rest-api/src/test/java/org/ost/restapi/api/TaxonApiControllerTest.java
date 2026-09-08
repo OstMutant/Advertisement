@@ -169,21 +169,22 @@ class TaxonApiControllerTest {
     // ── update ──────────────────────────────────────────────────────────
 
     @Test
-    void update_staleVersion_returns409() throws Exception {
+    void update_staleVersion_returns412() throws Exception {
         doThrow(new OptimisticLockingFailureException("stale")).when(taxonCatalogService)
                 .update(eq(1L), any(), eq(ACTOR_ID), eq(0L));
         String body = """
-                {"translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"}],"version":0}""";
+                {"translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"}]}""";
 
-        mockMvc.perform(put("/api/taxons/1").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isConflict());
+        mockMvc.perform(put("/api/taxons/1").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isPreconditionFailed());
     }
 
     // ── delete ──────────────────────────────────────────────────────────
 
     @Test
     void softDelete_delegatesToService() throws Exception {
-        mockMvc.perform(delete("/api/taxons/1").param("version", "0")).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/taxons/1").header("If-Match", "\"0\"")).andExpect(status().isNoContent());
 
         verify(taxonCatalogService).softDelete(1L, ACTOR_ID, 0L);
     }
@@ -192,6 +193,6 @@ class TaxonApiControllerTest {
     void softDelete_nonPrivilegedActor_returns403() throws Exception {
         doThrow(new AccessDeniedException("not privileged")).when(taxonCatalogService).softDelete(1L, ACTOR_ID, 0L);
 
-        mockMvc.perform(delete("/api/taxons/1").param("version", "0")).andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/taxons/1").header("If-Match", "\"0\"")).andExpect(status().isForbidden());
     }
 }

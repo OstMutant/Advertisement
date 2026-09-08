@@ -153,8 +153,8 @@ class AdvertisementPaginationScenarioTest extends AbstractRestApiScenarioTest {
 
         // Updating "Charlie" (the first-created ad) last must move it to the end of an updatedAt,asc sort.
         String updateBody = """
-                {"title":"Charlie","description":"Description","adKind":"OFFER","version":0}""";
-        mockMvc.perform(put("/api/advertisements/" + idA)
+                {"title":"Charlie","description":"Description","adKind":"OFFER"}""";
+        mockMvc.perform(put("/api/advertisements/" + idA).header("If-Match", "\"0\"")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + seller.rawApiKey())
                         .contentType(MediaType.APPLICATION_JSON).content(updateBody))
                 .andExpect(status().isOk());

@@ -1,7 +1,12 @@
 package org.ost.restapi.api;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.ProviderProfileDisplayEnrichmentService;
 import org.ost.orchestrator.services.ProviderProfileReadService;
@@ -9,9 +14,12 @@ import org.ost.orchestrator.services.ProviderProfileSaveService;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
+import org.ost.platform.providerprofile.model.ProviderKind;
+import org.ost.restapi.api.concurrency.ETagUtil;
 import org.ost.restapi.api.paging.PagedResponseBuilder;
 import org.ost.restapi.api.paging.SortQueryParser;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,6 +30,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -59,7 +68,8 @@ public class ProviderProfileApiController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
-    public ProviderProfileDto create(@AuthenticationPrincipal Long actorId, @RequestBody @Valid ProviderProfileSaveDto dto) {
+    public ProviderProfileDto create(@AuthenticationPrincipal Long actorId, @RequestBody @Valid ProviderProfileWriteRequest request) {
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, request.kind(), request.about(), request.categoryIds(), request.cityTaxonId(), null);
         Long id = saveService.save(dto, actorId, actorId);
         return enrich(readService.findById(id).orElseThrow(), DEFAULT_LOCALE);
     }
@@ -77,16 +87,20 @@ public class ProviderProfileApiController {
         return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
     }
 
+    @Operation(summary = "Get one provider profile by id")
+    @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
-    public ProviderProfileDto getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
-        return enrich(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
+    public ResponseEntity<ProviderProfileDto> getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
+        ProviderProfileDto profile = enrich(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
+        return ETagUtil.withVersion(ResponseEntity.ok(), profile.getVersion()).body(profile);
     }
 
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
-    public ProviderProfileDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestBody @Valid ProviderProfileSaveDto dto) {
-        ProviderProfileSaveDto withId = new ProviderProfileSaveDto(id, dto.kind(), dto.about(), dto.categoryIds(), dto.cityTaxonId(), dto.version());
-        Long savedId = saveService.save(withId, actorId, actorId);
+    public ProviderProfileDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
+            @RequestBody @Valid ProviderProfileWriteRequest request, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(id, request.kind(), request.about(), request.categoryIds(), request.cityTaxonId(), ETagUtil.parseIfMatch(ifMatch));
+        Long savedId = saveService.save(dto, actorId, actorId);
         return enrich(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
     }
 
@@ -96,8 +110,18 @@ public class ProviderProfileApiController {
     }
 
     @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
-    public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestParam(required = false) Long version) {
-        saveService.delete(id, actorId, version);
+    public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        saveService.delete(id, actorId, ETagUtil.parseIfMatch(ifMatch));
+    }
+
+    /** Caller-writable fields for both create and update -- id/version are server-managed (path variable / If-Match header), never client-supplied here. */
+    public record ProviderProfileWriteRequest(
+            @NotNull ProviderKind kind,
+            @Size(max = ProviderProfileSaveDto.ABOUT_RAW_MAX_LENGTH) String about,
+            @Size(max = ProviderProfileSaveDto.CATEGORY_MAX_COUNT) Set<Long> categoryIds,
+            Long cityTaxonId
+    ) {
     }
 }
