@@ -38,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/** Fast MockMvc contract tests for {@link TaxonApiController} -- mocked orchestrator services, no DB. */
 @ExtendWith(MockitoExtension.class)
 class TaxonApiControllerTest {
 

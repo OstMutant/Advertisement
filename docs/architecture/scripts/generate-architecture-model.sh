@@ -183,10 +183,10 @@ decisions_json_for() {
   run_node "$REPO_ROOT/.claude/nav/scripts/md-to-decisions-json.js" --stdout "$module"
 }
 
-# A SCRIPT_GROUP dir's own README.md (if it has one), read raw via Node's JSON.stringify --
-# json_escape() strips newlines, unsuitable for multi-paragraph content. Always embedded (unlike
-# decisions_json_for(), which is opt-in behind --with-adr-details) -- a README is orders of
-# magnitude smaller than a full ADR history.
+# A SCRIPT_GROUP or MODULE dir's own README.md (if it has one), read raw via Node's
+# JSON.stringify -- json_escape() strips newlines, unsuitable for multi-paragraph content. Always
+# embedded (unlike decisions_json_for(), which is opt-in behind --with-adr-details) -- a README is
+# orders of magnitude smaller than a full ADR history.
 readme_json_for() {
   local dir="$1"
   [ -f "$REPO_ROOT/$dir/README.md" ] || { echo "null"; return; }
@@ -960,7 +960,7 @@ for caller in edges.get('callers', []):
           edges="$edges    {\"source\": \"$(json_escape "$iface")\", \"target\": \"$(json_escape "$impl")\", \"label\": \"implemented by\"}"
           $first_impl || impls_json="$impls_json, "
           first_impl=false
-          impls_json="$impls_json{\"class\": \"$(json_escape "$impl")\", \"module\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "$file_path")\"}"
+          impls_json="$impls_json{\"class\": \"$(json_escape "$impl")\", \"module\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "$file_path")\", \"purpose\": \"$(json_escape "$(javadoc_purpose_for "$REPO_ROOT/$file_path")")\"}"
         elif [ "$row_kind" = "caller" ]; then
           caller="$class_name"; module_c="$mod"
           if [ -z "${group_seen[$module_c]:-}" ]; then
@@ -976,7 +976,7 @@ for caller in edges.get('callers', []):
           edges="$edges    {\"source\": \"$(json_escape "call_$caller")\", \"target\": \"$(json_escape "$iface")\", \"label\": \"calls\"}"
           $first_caller || callers_json="$callers_json, "
           first_caller=false
-          callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "$file_path")\", \"calls\": ${calls_json:-[]}}"
+          callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "$file_path")\", \"purpose\": \"$(json_escape "$(javadoc_purpose_for "$REPO_ROOT/$file_path")")\", \"calls\": ${calls_json:-[]}}"
         fi
       done <<< "$edge_rows"
     else
@@ -1004,7 +1004,7 @@ for caller in edges.get('callers', []):
           edges="$edges    {\"source\": \"$(json_escape "$iface")\", \"target\": \"$(json_escape "$impl")\", \"label\": \"implemented by\"}"
           $first_impl || impls_json="$impls_json, "
           first_impl=false
-          impls_json="$impls_json{\"class\": \"$(json_escape "$impl")\", \"module\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
+          impls_json="$impls_json{\"class\": \"$(json_escape "$impl")\", \"module\": \"$(json_escape "$module")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\", \"purpose\": \"$(json_escape "$(javadoc_purpose_for "$candidate_file")")\"}"
         fi
         if grep -qP "$CALLER_PATTERN" "$candidate_file" 2>/dev/null; then
           caller="$(basename "$candidate_file" .java)"
@@ -1023,7 +1023,7 @@ for caller in edges.get('callers', []):
           edges="$edges    {\"source\": \"$(json_escape "call_$caller")\", \"target\": \"$(json_escape "$iface")\", \"label\": \"calls\"}"
           $first_caller || callers_json="$callers_json, "
           first_caller=false
-          callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\"}"
+          callers_json="$callers_json{\"class\": \"$(json_escape "$caller")\", \"module\": \"$(json_escape "$module_c")\", \"file\": \"$(json_escape "${candidate_file#"$REPO_ROOT"/}")\", \"purpose\": \"$(json_escape "$(javadoc_purpose_for "$candidate_file")")\"}"
         fi
       done < <(grep -rlP "${IMPL_PATTERN}|${CALLER_PATTERN}" \
           "$REPO_ROOT"/*-spring-boot-starter/src/main/java "$REPO_ROOT"/marketplace-app/src/main/java \
@@ -1891,6 +1891,7 @@ ci_metrics_json="null"
     echo "      \"keyServices\": $(json_named_file_array "${MODULE_KEYSERVICES[$m]:-}"),"
     echo "      \"contracts\": $(json_named_file_array "${MODULE_CONTRACT[$m]:-}"),"
     echo "      \"tables\": $(json_str_array "${MODULE_TABLES[$m]:-}"),"
+    echo "      \"readme\": $(readme_json_for "$m"),"
     deps="$(module_deps "$m")"
     compile_list=$(echo "$deps" | awk -F'|' '$2=="compile" && $3=="false" {print $1}')
     runtime_list=$(echo "$deps" | awk -F'|' '$2=="runtime" {print $1}')

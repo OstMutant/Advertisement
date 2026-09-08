@@ -9,6 +9,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/** Unit tests for {@link PagedResponseBuilder}'s header assembly. */
 class PagedResponseBuilderTest {
 
     private static UriComponentsBuilder baseUri() {

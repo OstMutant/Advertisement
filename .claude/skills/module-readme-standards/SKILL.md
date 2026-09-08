@@ -141,6 +141,9 @@ content earns no presumption of compliance just because it predates this run; ev
 new, is re-derived from the finished Javadoc and re-tested against the "README — what belongs here,
 and only here" rule before being kept.
 
+`/sync-docs --module <name>` is the mechanical entry point for running this whole-module check on
+demand, rather than only reacting to an individual edit.
+
 "In scope" means the invoked module only — a run scoped to one module (e.g. "run the skill over
 `taxon-spring-boot-starter`") fixes only that module's own `README.md` content, never a stale
 reference, gap, or unrelated finding noticed in some other module while working, even one

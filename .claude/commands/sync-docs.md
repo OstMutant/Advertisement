@@ -7,6 +7,21 @@ Usage:
                              CLAUDE.md/.claude/rules/*.md claim, plus every *.java class/method
                              Javadoc and infra/tooling file header, against current code (see "Full
                              Audit Mode" below)
+  /sync-docs --module <name> — Full Audit Mode's own checklist, scoped to one module's own files
+                             only (its README.md, DECISIONS.md, .claude/rules/<name>.md, pom.xml,
+                             every *.java under it) — verified against current code regardless of
+                             any diff. "Run `/sync-docs` on module X" means this mode, not the
+                             diff-based default — see "Full Audit Mode" below for the scoping detail.
+  /sync-docs --package <name> — same idea, one level narrower: Full Audit Mode's per-file Javadoc
+                             checklist only, scoped to one Java package's own *.java files (no
+                             module-level README.md/DECISIONS.md/pom.xml check — those are
+                             module-level facts, out of a single package's scope). "Run `/sync-docs`
+                             on package X" means this mode.
+
+**General scoping principle:** whatever structure is named, every file genuinely inside it is
+checked exhaustively, not sampled — a module means the whole module, a package means the whole
+package, a diff means exactly (and only) the files the diff touched. Never partially check a named
+scope and call it done.
 
 **Known limitation of the default (diff-based) mode:** it only re-checks documentation for files
 that changed in the given diff. Staleness introduced by a rename/removal in commit A, where no
@@ -39,6 +54,8 @@ Use this mapping table:
 | Any `**/DECISIONS.md` | `.claude/nav/adr-index.md` — regenerate via `bash .claude/nav/scripts/generate-adr-index.sh` |
 | Any `scripts/**`, `docker-compose*.yml`, or other root-level infra/tooling file | root `INFRASTRUCTURE.md` (technical infra overview) — per `app-readme-standards`; a script-group's own `README.md` — per `infra-readme-standards` |
 | Any `*.java` (main or test) | that file's own class-level and method-level Javadoc — per `module-doc-standards`. Not optional: "Class-level Javadoc — always required," no exception, even a self-explanatory `record`/`enum`. Check every class actually touched by the diff, not just new ones — a class edited for unrelated reasons still gets checked if it lacks one. |
+| Any `**/pom.xml` | that file's own file-level header comment — per `module-doc-standards`. Not optional: "Every `pom.xml` carries a file-level header, no exception." A `pom.xml` touched by this diff that has none gets one now, one line (`<!-- Description: ... -->` before `<project>`). Also re-check any touched `<dependency>`/`<exclusion>`/version pin against the same skill's "comment only the non-obvious" rule. |
+| Any `*.java` or `**/pom.xml` changed inside a module | that module's own `README.md` — per `module-readme-standards`, **accuracy check only**, not a full regenerate (a full rewrite from finished Javadoc is `--full-audit`'s job, see below): does it still use the current section-shape convention (not a deprecated one — check `module-readme-standards`'s own "default shape" for what's current), does it name every class/endpoint/package this diff touched or removed, is there now a stale reference to something renamed/deleted. Fix drift found; don't rewrite the whole file. |
 | Any `scripts/**`, `docker-compose*.yml`, `.properties`/`.env`, YAML config, `.gitignore`/`.gitattributes`, or other infra/tooling file (bash/batch/JS/Python) | that file's own file-level and per-function header — per `infra-doc-standards` |
 
 Print which targets are affected before proceeding.
@@ -98,11 +115,17 @@ diagram, since there is no separate `.md` copy to pull from; until then, that pa
 `INFRASTRUCTURE.md` is the technical-infra-overview counterpart — update it when a diff touches
 `scripts/**` or other root-level infra/tooling files in a way that changes what it documents.
 
-**A Java module's own `README.md`** — consult `module-readme-standards` before editing; a
-script-group directory's own `README.md` (`scripts/<name>/README.md` and similar) — consult
-`infra-readme-standards` instead. Neither is a diff-mode target on its own (see Step 2's mapping
-table — most facts belong in Javadoc/script headers per `module-doc-standards`/`infra-doc-standards`
-first), but both are in scope for `--full-audit` (see "Full Audit Mode" below).
+**A Java module's own `README.md`** — consult `module-readme-standards` before editing. Now a real
+diff-mode target for **accuracy only** (see Step 2's mapping table — a module whose `*.java`/
+`pom.xml` changed gets its own `README.md` checked for drift the diff itself introduced: a stale
+class/endpoint/package reference, or a deprecated section shape), the same "check it every run, not
+only `--full-audit`" treatment as the Javadoc row below. A full regenerate-from-Javadoc rewrite of
+every section is still `--full-audit`-only (see "Full Audit Mode" below) — diff-mode fixes only the
+drift this specific diff caused, it does not re-derive the whole file.
+
+A script-group directory's own `README.md` (`scripts/<name>/README.md` and similar) — consult
+`infra-readme-standards` instead; not a diff-mode target on its own, in scope for `--full-audit`
+only (unchanged).
 
 **Every changed `*.java` file's own class/method Javadoc** — per `module-doc-standards`, checked
 directly against Step 2's mapping table row for it, not deferred to a full audit. This is a real
@@ -111,6 +134,10 @@ run, not only when `--full-audit` is passed. "Class-level Javadoc — always req
 exception: a class touched by this diff that has none gets one now, one line stating the real,
 non-obvious fact (not a generic filler restating the class name). Method-level Javadoc follows the
 same "one line or none" rule from `.claude/rules.md`, verified against the method's actual body.
+
+**Every changed `pom.xml`'s own file-level header** — per `module-doc-standards`, same diff-mode
+treatment as the Javadoc row above: a touched `pom.xml` missing its required
+`<!-- Description: ... -->` header gets one now.
 
 **Every changed infra/tooling file's own file-level and per-function header** — per
 `infra-doc-standards`, same diff-mode treatment as the Javadoc row above (script/config files
@@ -144,6 +171,23 @@ found it wrongly claiming `taxon-spring-boot-starter` had no `DECISIONS.md` when
 (77 lines, 4 real ADRs) — the default diff-based mode would never catch this class of drift, since
 a module-listing claim in a *different* file than the one that changed never appears in any single
 commit's diff.
+
+**`--module <name>` scopes this same mode to one module.** Step A1's enumeration narrows to just
+that module's own `README.md`, `DECISIONS.md`, `.claude/rules/<name>.md`, `pom.xml`, and every
+`*.java` file under `<name>/src` — Steps A2-A6 below run unchanged, just against that narrower file
+set, same verify-every-claim rigor as a repo-wide run. This is the mechanical entry point for
+`module-doc-standards`'s and `module-readme-standards`'s own "Applying this standard — what 'run
+the skill over a module' means" sections (referenced there, not restated here) — invoking
+`/sync-docs --module <name>` *is* running those two skills over that module, checking every
+pre-existing line, not only what a diff happened to touch.
+
+**`--package <name>` narrows one level further, to a single Java package.** Step A1's enumeration
+is just every `*.java` file directly inside that package's own directory (not its sub-packages,
+unless `<name>` itself names a parent whose children are the intended scope — resolve literally
+from the directory the given package name maps to). Only the per-file Javadoc checklist from
+`module-doc-standards` applies at this granularity — `README.md`/`DECISIONS.md`/`pom.xml` are
+module-level facts, out of scope for a single package. Same exhaustive, no-sampling rigor as
+`--module`/`--full-audit`, just over a smaller file set.
 
 ### Step A0 — Regenerate the ADR index
 

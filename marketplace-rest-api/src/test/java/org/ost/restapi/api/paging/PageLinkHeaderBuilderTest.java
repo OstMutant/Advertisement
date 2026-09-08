@@ -5,6 +5,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/** Unit tests for {@link PageLinkHeaderBuilder}'s first/prev/next/last link assembly. */
 class PageLinkHeaderBuilderTest {
 
     private static UriComponentsBuilder baseUri() {

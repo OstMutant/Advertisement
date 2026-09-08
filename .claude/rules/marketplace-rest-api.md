@@ -24,11 +24,21 @@ Java package root: `org.ost.restapi`
   are nested as public static records inside that controller (e.g.
   `ApiKeyController.ApiKeyCreateRequest`/`ApiKeyCreatedResponse`,
   `TaxonApiController.TaxonCreateRequest`/`TaxonUpdateRequest`/`TaxonTranslationRequest`,
-  `UserApiController.UserCreatedResponse`) rather than living as separate top-level files.
+  `UserApiController.UserCreatedResponse`/`UserSettingsWriteRequest`,
+  `AdvertisementApiController.AdvertisementWriteRequest`,
+  `ProviderProfileApiController.ProviderProfileWriteRequest` — the two `*WriteRequest` shapes carry
+  no `id`/`version` field at all, server-managed via the path variable / `If-Match` header instead)
+  rather than living as separate top-level files.
 - `org.ost.restapi.api.error` — `ApiExceptionHandler` (`@RestControllerAdvice`) plus its two
   response records, `ErrorResponse`/`ValidationErrorResponse` — kept in their own package rather
   than nested, since the advice maps exceptions from every controller in this module, not owned by
   any single one.
+- `org.ost.restapi.api.concurrency` — `ETagUtil`, the sole conversion point between a resource's
+  `version` and the HTTP `ETag`/`If-Match` header representation: `withVersion()` sets a response's
+  `ETag` (skipped when the version is null), `parseIfMatch()` reads the expected version back off an
+  incoming `If-Match` request header. Used by every controller's read (`ETag`) and write
+  (`If-Match`) endpoints in `org.ost.restapi.api` — `id`/`version` are never caller-writable body
+  fields, only path variable / header.
 - `org.ost.restapi.api.paging` — shared list-endpoint plumbing, reused by
   `AdvertisementApiController`/`ProviderProfileApiController`/`TaxonApiController`'s `list()`
   methods: `SortQueryParser` (parses `?sort=field,dir` against a per-controller allow-list built

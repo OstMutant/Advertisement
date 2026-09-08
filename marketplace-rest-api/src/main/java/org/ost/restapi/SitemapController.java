@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/** Top-level, unauthenticated sitemap feed -- outside {@code /api/**}, not subject to {@code ApiSecurityConfig}. */
 @RestController
 @RequiredArgsConstructor
 public class SitemapController {

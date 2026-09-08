@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/** Unit tests for {@link ApiExceptionHandler}'s exception-to-status mappings. */
 class ApiExceptionHandlerTest {
 
     private final ApiExceptionHandler handler = new ApiExceptionHandler();

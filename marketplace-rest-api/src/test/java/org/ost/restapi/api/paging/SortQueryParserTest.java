@@ -8,6 +8,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/** Unit tests for {@link SortQueryParser}'s {@code ?sort=field,dir} parsing against an allow-list. */
 class SortQueryParserTest {
 
     private static final Set<String> ALLOWED = Set.of("title", "createdAt");

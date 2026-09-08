@@ -93,7 +93,7 @@ don't.
 consistently to both tabs — or confirm cities genuinely have no hierarchy and document why no
 indent applies there.
 
-## 6. REST `version`/id fields must be server-managed, not caller-writable
+## 6. REST `version`/id fields must be server-managed, not caller-writable — ✅ Done (core), `@JsonIgnore` sub-item deliberately deferred (2026-09-08)
 
 **Found (real bug, confirmed via code, not just design smell):** `AdvertisementApiController.create()`/
 `ProviderProfileApiController.create()` passed the raw client-supplied `AdvertisementSaveDto`/
@@ -103,33 +103,31 @@ that happened to include a non-null `id` silently became an `UPDATE` of that exi
 (blocked only by ownership/authorization, not by "this is a create" semantics) — a real REST
 contract violation, not just a documentation gap.
 
-**Approach (decided 2026-09-05, not yet implemented) — full If-Match/ETag redesign (chosen over a
-Swagger-only annotation fix), applied consistently across all three REST-exposed domains:**
-- `AdvertisementApiController`/`ProviderProfileApiController` gain dedicated nested request records
-  (`AdvertisementCreateRequest`/`AdvertisementUpdateRequest`, `ProviderProfileCreateRequest`/
-  `ProviderProfileUpdateRequest`) with **no `id` or `version` field at all** — mirroring the pattern
-  `TaxonApiController.TaxonCreateRequest`/`TaxonUpdateRequest` already established; the controller
-  builds the actual `AdvertisementSaveDto`/`ProviderProfileSaveDto` passed to the orchestrator
-  service itself (`id` from the path variable on update, `null` on create; `version` from the
-  `If-Match` header, `null` on create).
-- `TaxonApiController.TaxonUpdateRequest` loses its own `version` field for the same reason.
-- Every `GET .../{id}` response gains an `ETag` header carrying the resource's current version.
-- Every `PUT`/`DELETE` reads the expected version from an `If-Match` request header instead of a
-  body field (`PUT`) or `?version=` query param (`DELETE`) — same nullable-version semantics as
-  before (an absent `If-Match` behaves exactly like the previously-absent body/query value did),
-  just relocated to where HTTP already has a standard mechanism for this exact concern.
+**Implemented (verified directly against code 2026-09-08) — full If-Match/ETag redesign, applied
+consistently across all three REST-exposed domains:**
+- `AdvertisementApiController`/`ProviderProfileApiController` gained dedicated nested request
+  records (`AdvertisementWriteRequest`, `ProviderProfileWriteRequest`, one shared shape for both
+  create and update) with **no `id` or `version` field at all** — same pattern
+  `TaxonApiController.TaxonCreateRequest`/`TaxonUpdateRequest` already established. The controller
+  builds the actual `AdvertisementSaveDto`/`ProviderProfileSaveDto` itself (`id` from the path
+  variable on update, `null` on create; `version` from the `If-Match` header via `ETagUtil.parseIfMatch`,
+  `null` on create).
+- `TaxonApiController.TaxonUpdateRequest` has no `version` field either, for the same reason.
+- Every `GET .../{id}` response carries an `ETag` header with the resource's current version
+  (`ETagUtil.withVersion`).
+- Every `PUT`/`DELETE` reads the expected version from an `If-Match` request header (`ETagUtil.parseIfMatch`)
+  instead of a body field or query param.
 - `platform-commons`'s `AdvertisementSaveDto`/`ProviderProfileSaveDto` themselves are unchanged
   (still carry `id`/`version` fields) — the Vaadin UI's own form-save path uses these same DTOs
   directly with no HTTP layer involved, so those fields stay needed there; only the REST-facing
   request shape changed.
-- **Follow-up caught during review:** the read DTOs (`AdvertisementInfoDto`, `ProviderProfileDto`,
-  `TaxonDto`) still carried `version` as a plain JSON field, so a REST response duplicated the same
-  fact in two places at once (the field and the new `ETag` header) — exactly the kind of
-  one-fact-two-homes problem this whole change was meant to clean up. Fixed: `version` on all three
-  gets `@Getter(onMethod_ = @JsonIgnore)` — excluded from JSON output (`ETag` is now the sole
-  wire-visible source), while the plain Java getter stays intact for the Vaadin UI's own direct
-  field access (`ad.getVersion()`, used for delete/update calls in ~10 UI call sites, confirmed via
-  grep — none of them serialize these DTOs to JSON, so nothing breaks).
+
+**Deferred by explicit decision (2026-09-08) — the "Follow-up caught during review" sub-item:** the
+read DTOs (`AdvertisementInfoDto`, `ProviderProfileDto`, `TaxonDto`) still carry `version` as a
+plain JSON field (confirmed via grep — no `@JsonIgnore` anywhere in `platform-commons`), so a REST
+response duplicates the same fact in two places (the field and the `ETag` header). Not applying
+`@Getter(onMethod_ = @JsonIgnore)` for now — deliberate, not forgotten; revisit if the duplication
+becomes an actual problem.
 
 ## 7. Swagger: per-operation descriptions + examples, including cross-endpoint value sources — ✅ Done (2026-09-08)
 
@@ -319,7 +317,7 @@ shows categories/city/author/createdAt/updatedAt — the raw request's Advertise
 fully unambiguous against what's already verified present) before changing anything there; extend
 Playwright specs to assert the new Provider fields render.
 
-## 11. Run module-doc-standards/module-readme-standards audit; find out why /sync-docs output doesn't match them
+## 11. Run module-doc-standards/module-readme-standards audit; find out why /sync-docs output doesn't match them — ✅ Done for `marketplace-rest-api` (2026-09-08); repo-wide rollout still open
 
 **Current state:** the `module-doc-standards`/`module-readme-standards` skills exist and are
 already referenced from `.claude/commands/sync-docs.md` (confirmed by direct read — `sync-docs.md`
@@ -332,14 +330,38 @@ separately find out why `/sync-docs` runs haven't produced fully rule-compliant 
 touched those files (or confirm it does invoke them correctly and any drift comes from edits made
 outside `/sync-docs`). Work this in fixed phases, each presented for approval before executing.
 
-**Approach:**
-- **Phase 1 — audit:** systematic compliance pass over a representative sample of module
-  `README.md`/Javadoc, checked against each skill's *full* rule set (per `.claude/rules.md`'s
-  "Apply the full standard, not just the most obvious rule in it"), not just the most obvious rule.
-- **Phase 2 — root cause:** determine, for each drift found, whether the skill wasn't invoked, was
-  invoked but a rule was missed, or the file was edited outside `/sync-docs` entirely.
-- **Phase 3 — fix:** address identified gaps module-by-module, each step presented for approval
-  before executing.
+**Done, scoped to `marketplace-rest-api` only (2026-09-08) — all three phases:**
+- **Phase 1 — audit:** compliance pass over `marketplace-rest-api/README.md`, every Javadoc/comment
+  under `marketplace-rest-api/src/main/java`, and its `pom.xml`, checked against each skill's *full*
+  rule set. Found: README on the deprecated "Key classes" table shape plus stale content (missing
+  admin/moderator user listing, ETag/If-Match, settings endpoints); `pom.xml` missing its mandatory
+  file-level header; 3 classes (`RestApiAutoConfiguration`, `HealthController`, `SitemapController`)
+  missing class-level Javadoc; 9 test classes missing class-level Javadoc.
+- **Phase 2 — root cause:** README staleness is a `/sync-docs` **design gap** — the module README
+  was never a diff-mode target at all (full-audit-only), so no amount of running the default mode
+  could have caught it; confirmed repo-wide (7 of 8 module READMEs still on the deprecated format).
+  Missing Javadoc on `HealthController`/`SitemapController` is an **execution gap** — `/sync-docs`
+  was demonstrably not run after the relevant commits (`.claude/rules/marketplace-rest-api.md` went
+  4 commits without a factual update). `pom.xml`'s missing header is a second **design gap** — the
+  command's own Step 2 mapping table had no row for a `pom.xml`'s own header check at all, in either
+  mode.
+- **Fix — both the tool and the code:**
+  - `.claude/commands/sync-docs.md`: added a `pom.xml` file-header row to Step 2 (closing that
+    design gap); made a module's own `README.md` a real diff-mode target for **accuracy only** (not
+    a full regenerate); added `--module <name>` and `--package <name>` scoped Full-Audit-Mode
+    entry points, plus a general "whatever structure is named, check it exhaustively" scoping
+    principle. `module-doc-standards`/`module-readme-standards` SKILL.md files each got a one-line
+    pointer to `/sync-docs --module <name>` as the mechanical entry point for their existing
+    "run the skill over a module" sections.
+  - Verified the new rows actually work: ran `/sync-docs 37629629` (diff-mode) — the new README-
+    accuracy row caught and fixed the exact staleness Phase 1 found by hand. Ran
+    `/sync-docs --module marketplace-rest-api` (the new full-module mode) — fixed everything Phase 1
+    found: `pom.xml` header, all 3 missing class Javadocs, all 9 missing test-class Javadocs
+    (previously left as an open question — resolved in favor of the rule, no exception, once asked
+    to run the full module), and `.claude/rules/marketplace-rest-api.md`'s own missing
+    `concurrency`/`ETagUtil` package and new `*WriteRequest` nested records.
+- **Repo-wide rollout** (the other 7 starter modules' own README "Key classes" → "Data flow"
+  migration, plus a full `--module` pass on each) — still open, not scheduled.
 
 ## 12. `TaxonPort.getPageByType`/`DefaultTaxonPort` naming no longer matches Taxon's REST contract
 

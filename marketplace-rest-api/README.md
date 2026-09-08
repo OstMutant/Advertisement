@@ -7,23 +7,38 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
 
 ## What it provides
 
-- Full CRUD over advertisements, provider profiles, and the taxon catalog, plus user
-  self-registration — the same `marketplace-orchestrator` services `marketplace-app`'s own Vaadin
-  forms call, so a REST write and a UI write go through identical validation/authorization/audit
-  behavior.
+- Full CRUD over advertisements and provider profiles, category/city catalog management, plus user
+  self-registration and admin/moderator-only user listing — the same `marketplace-orchestrator`
+  services `marketplace-app`'s own Vaadin forms call, so a REST write and a UI write go through
+  identical validation/authorization/audit behavior.
 - Bearer API-key authentication (issuance gated by HTTP Basic) for every write; reads are public,
   mirroring the existing public Vaadin browsing experience.
-- A live OpenAPI 3 spec and Swagger UI, generated from these same controllers/DTOs.
+- Optimistic concurrency over HTTP's own mechanism: every `GET .../{id}` returns an `ETag` response
+  header carrying the resource's version; every write reads the expected version back from an
+  `If-Match` request header — `id`/`version` are never caller-writable body fields.
+  `PATCH /api/users/me/settings` lets a caller change their own saved pagination-size preferences
+  the same way.
+- A live OpenAPI 3 spec and Swagger UI, generated from these same controllers/DTOs, with
+  per-operation descriptions and request examples.
 
-## Key classes
+## Data flow
 
-| Class | Role |
-|---|---|
-| `ApiSecurityConfig` | The `/api/**` `SecurityFilterChain` (`@Order(1)`) — coexists with `marketplace-app`'s own Vaadin security chain via Spring Security's ordered multi-chain matching, never edits that chain. |
-| `ApiKeyAuthenticationFilter` | Resolves `Authorization: Bearer <key>` into a `PreAuthenticatedAuthenticationToken` — only when no authentication already exists on the context, so it never overwrites HTTP Basic on the key-issuance endpoint. |
-| `OpenApiConfig` | Declares the `bearerKey`/`basicAuth` `@SecurityScheme`s Swagger UI's own "Authorize" button reads — kept separate from `ApiSecurityConfig` since one configures real enforcement and the other only documentation metadata. |
-| `ApiExceptionHandler` (`api.error`) | Maps every exception this module's controllers can throw to an HTTP status — the one place that needs visibility across all five controllers, which is why it (and its two response records) live in their own package instead of being nested into any single controller. |
-| Per-resource controllers (`AdvertisementApiController`, `ProviderProfileApiController`, `TaxonApiController`, `UserApiController`, `ApiKeyController`) | Each wraps exactly the `marketplace-orchestrator` service(s) its own Vaadin-side counterpart already uses; each owns its own request/response records as nested static types, since none of those shapes are reused outside their controller. |
+Every request enters through `ApiSecurityConfig`'s `/api/**` filter chain: `ApiKeyAuthenticationFilter`
+resolves an `Authorization: Bearer <key>` header into a `PreAuthenticatedAuthenticationToken` —
+skipped when a request already carries HTTP Basic authentication (the key-issuance endpoint) —
+before Spring's own authorization check runs. From there, each of the five per-resource controllers
+(`AdvertisementApiController`, `ProviderProfileApiController`, `TaxonApiController`,
+`UserApiController`, `ApiKeyController`) calls straight into the same `marketplace-orchestrator`
+service its Vaadin-side counterpart already uses — no intermediate service layer of its own. A write
+endpoint builds its save DTO from a nested request record carrying no `id`/`version` field at all
+(`id` from the path variable on update, `version` parsed from the `If-Match` header via
+`concurrency.ETagUtil`); a read endpoint attaches the resource's version as an `ETag` response
+header the same way. Any exception a controller or the orchestrator service throws is caught
+centrally by `ApiExceptionHandler` (`api.error`, `@RestControllerAdvice` scoped to
+`org.ost.restapi.api`) and mapped to the matching HTTP status. `OpenApiConfig` declares the two auth
+schemes Swagger UI's "Authorize" button offers, matching `ApiSecurityConfig`'s real dual-auth shape;
+springdoc itself generates the rest of the spec live from the controllers/DTOs, no hand-written copy
+to keep in sync.
 
 ## Dependencies
 

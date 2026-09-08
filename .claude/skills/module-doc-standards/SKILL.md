@@ -223,3 +223,5 @@ Anyone (human or Claude) writing or editing a `.java` file's own Javadoc/comment
 dependency comments, or a Liquibase changelog's `remarks=` attribute, in any of the Java-module
 directories in this repo — not a new trigger, the same standing discipline `.claude/rules.md`'s two
 comment rules already require, made concrete for Javadoc, `pom.xml`, and Liquibase specifically.
+`/sync-docs --module <name>` is the mechanical entry point for running the "Applying this standard"
+check above against one whole module on demand, rather than only reacting to an individual edit.
