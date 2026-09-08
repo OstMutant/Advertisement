@@ -1,7 +1,10 @@
 package org.ost.restapi.api;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -65,6 +68,9 @@ public class ProviderProfileApiController {
     private final ProviderProfileReadService readService;
     private final ProviderProfileDisplayEnrichmentService enrichmentService;
 
+    @Operation(summary = "Create a provider profile", description = "Self-service only -- the profile is always created for the caller's own account. categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY. kind=SUPPORT requires a privileged (admin/moderator) caller.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+            {"kind":"MASTER","about":"Experienced plumber","categoryIds":[1],"cityTaxonId":5}""")))
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
@@ -74,6 +80,7 @@ public class ProviderProfileApiController {
         return enrich(readService.findById(id).orElseThrow(), DEFAULT_LOCALE);
     }
 
+    @Operation(summary = "List/filter/sort provider profiles")
     @GetMapping
     public ResponseEntity<List<ProviderProfileDto>> list(@ModelAttribute @Valid ProviderProfileFilterDto filter,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
@@ -95,10 +102,14 @@ public class ProviderProfileApiController {
         return ETagUtil.withVersion(ResponseEntity.ok(), profile.getVersion()).body(profile);
     }
 
+    @Operation(summary = "Update a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+            {"kind":"MASTER","about":"Experienced plumber, now also water heaters","categoryIds":[1],"cityTaxonId":5}""")))
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public ProviderProfileDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
-            @RequestBody @Valid ProviderProfileWriteRequest request, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+            @RequestBody @Valid ProviderProfileWriteRequest request,
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(id, request.kind(), request.about(), request.categoryIds(), request.cityTaxonId(), ETagUtil.parseIfMatch(ifMatch));
         Long savedId = saveService.save(dto, actorId, actorId);
         return enrich(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
@@ -109,10 +120,12 @@ public class ProviderProfileApiController {
         return enrichmentService.enrichWithActor(profile);
     }
 
+    @Operation(summary = "Delete a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
-    public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+    public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         saveService.delete(id, actorId, ETagUtil.parseIfMatch(ifMatch));
     }
 

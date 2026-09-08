@@ -1,5 +1,8 @@
 package org.ost.restapi.api;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +34,9 @@ public class ApiKeyController {
 
     private final ApiKeyManagementService apiKeyManagementService;
 
+    @Operation(summary = "Issue a new API key", description = "Authenticated via HTTP Basic (email:password), not a bearer key -- this is how a caller obtains their first bearer key. The raw key is returned once and never retrievable again.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+            {"label":"my laptop"}""")))
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "basicAuth")
@@ -41,12 +47,14 @@ public class ApiKeyController {
         return new ApiKeyCreatedResponse(rawKey);
     }
 
+    @Operation(summary = "List the caller's own API keys", description = "Returns summaries only (label, creation date, masked key) -- the raw key is never retrievable after issuance.")
     @GetMapping
     @SecurityRequirement(name = "bearerKey")
     public List<ApiKeySummaryDto> list(@AuthenticationPrincipal @NonNull Long actorId) {
         return apiKeyManagementService.listForActor(actorId);
     }
 
+    @Operation(summary = "Revoke one of the caller's own API keys")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")

@@ -56,48 +56,27 @@ to match, and the widening itself recorded via `/record-decision`):
 Requires `integration-tests/pom.xml` to gain `marketplace-orchestrator` and `marketplace-rest-api`
 as new dependencies.
 
-## 3. REST API page size must reuse Settings' page-size options, not an arbitrary literal
+## 3. REST API page size must reuse Settings' page-size options, not an arbitrary literal — ✅ Done (2026-09-05)
 
-**Current state (verified):** `AdvertisementApiController`, `ProviderProfileApiController`, and
-`TaxonApiController` each hardcode `@RequestParam(defaultValue = "20") int size` with no upper
-bound, unrelated to the Settings page's own page-size options (`SettingsEditDto`,
-`SettingsPaginationService`, `PaginationBar`) that the UI already enforces.
+**Implemented:** `AdvertisementApiController`/`UserApiController` resolve `size` from the caller's
+saved `UserSettingsDto` (`adsPageSize`/`usersPageSize`) via `UserProfileService.resolveAdsPageSize`/
+`resolveUsersPageSize` — the `size` request parameter was removed from both endpoints entirely, so a
+caller cannot override it via the URL. `PATCH /api/users/me/settings` lets a caller change those
+settings under the same validation limits (`PageSizeLimits`) the Settings UI form already enforces.
+`ProviderProfileApiController`/`TaxonApiController` deliberately left unchanged (no saved-settings
+concept for those two lists) — `TaxonApiController`'s own `page`/`size` were later removed entirely
+(see item 12/`getAll()`), not resolved from settings.
 
-**Ask:** REST pagination should read from the same page-size option set as the Settings page, with
-the same limits — and a dedicated REST request should let a caller change those settings, the same
-way the Settings UI page does, under the same constraints.
+## 4. Taxon translation validation — keep current behavior, add test coverage + Swagger docs — ✅ Done (2026-09-05)
 
-**Approach:** validate/clamp `size` against the existing Settings page-size option set; add a
-settings-update REST endpoint delegating to the same service the Settings UI form uses. Needs a
-decision on the exact route shape and whether it's scoped to the caller's own key/user only.
-
-## 4. Taxon translation validation — keep current behavior, add test coverage + Swagger docs
-
-**Current state (verified):** `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` render
-English and Ukrainian fields side by side, both marked `asRequired()` in the Vaadin binder.
-Backend `TaxonService.validateTranslations()` throws unless *every* locale in
-`TaxonProperties.supportedLocales` (default `[uk, en]`) has a non-blank name+description — i.e.
-today both languages are mandatory, not "at least one." Only the REST DTO layer
-(`TaxonApiController.TaxonTranslationRequest`, a plain `List` with no `@Size(min=1)`) has no
-compile-time minimum, so a REST caller could submit just English and only fail at runtime via
-`validateTranslations`. No dedicated unit test for `TaxonService.validateTranslations()` was found,
-and no Swagger `@Operation`/`@Schema(example=...)` annotations exist on `TaxonApiController`.
-
-**Ask:** keep the current all-languages-required behavior as-is — no UI/validation rework. Instead:
-add proper test coverage for the translation validation logic, verify it behaves consistently across
-every layer (UI binder, backend service, REST), and update Swagger for the taxon endpoints with
-descriptions/examples per item 7's approach.
-
-**Approach:**
-- Add unit tests for `TaxonService.validateTranslations()` in `taxon-spring-boot-starter` covering:
-  a missing locale, a blank name, a blank description, and the successful all-locales-present case.
-- Verify the same rule is enforced consistently at every entry point — Vaadin binder
-  (`TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler`), the backend service, and
-  `TaxonApiController` (REST) — and add a REST-level test asserting an incomplete-translations
-  request is rejected the same way the UI already rejects it.
-- Apply item 7's Swagger approach specifically to `TaxonApiController`: `@Operation`/
-  `@Schema(example=...)` on the create/update operations, explicitly documenting that translations
-  must include every supported locale (en + uk today) with an example payload showing both.
+**Implemented:** kept the current all-languages-required behavior unchanged (no UI/validation
+rework). Added `TaxonServiceTest` coverage for `TaxonService.validateTranslations()` — missing
+locale, blank name, blank description, all-locales-present success — in
+`taxon-spring-boot-starter`. Added a REST-level test (`TaxonApiControllerTest.create_incompleteTranslations_returns400`)
+confirming the same rule surfaces as 400 through the REST layer. Added `@Operation`/
+`@io.swagger.v3.oas.annotations.parameters.RequestBody`+`@ExampleObject` to `TaxonApiController`'s
+create/update operations, documenting the all-supported-locales requirement with a two-locale
+example payload.
 
 ## 5. Align taxon list styles — category indentation vs. flat city list
 
@@ -152,21 +131,17 @@ Swagger-only annotation fix), applied consistently across all three REST-exposed
   field access (`ad.getVersion()`, used for delete/update calls in ~10 UI call sites, confirmed via
   grep — none of them serialize these DTOs to JSON, so nothing breaks).
 
-## 7. Swagger: per-operation descriptions + examples, including cross-endpoint value sources
+## 7. Swagger: per-operation descriptions + examples, including cross-endpoint value sources — ✅ Done (2026-09-08)
 
-**Current state (verified):** `@SecurityRequirement` annotations exist on write operations, but no
-`@Operation(summary=..., description=...)` or `@Schema(example=...)` annotations were found on any
-reviewed controller. Nothing in Swagger today distinguishes which fields the caller invents from
-which must come from another endpoint's response (e.g. `categoryIds`/`cityTaxonId` come from `GET
-/api/taxons`).
-
-**Ask:** add per-operation explanations and payload examples to Swagger, explicitly noting which
-values are freely chosen by the caller and which must be sourced from another endpoint's response
-first.
-
-**Approach:** add `@Operation`/`@Parameter`/`@Schema(example=...)` springdoc annotations across
-every REST controller; for cross-referenced fields, name the source endpoint directly in the
-field's description (e.g. `categoryIds` — "obtain from `GET /api/taxons?type=CATEGORY`").
+**Implemented:** `@Operation(summary=..., description=...)` on every operation across
+`AdvertisementApiController`, `ProviderProfileApiController`, `UserApiController`, `ApiKeyController`
+(`TaxonApiController` already had this from item 4), plus `HealthController`/`SitemapController`
+(the two top-level, unauthenticated endpoints, initially missed from the plan and added after being
+flagged). Every write operation gets an `@io.swagger.v3.oas.annotations.parameters.RequestBody`
+`@ExampleObject` payload. Cross-referenced fields (`categoryIds`/`cityTaxonId`) name their source
+endpoint directly in the operation description. Every `GET .../{id}` and the new
+`GET /api/users/me/settings` document their `ETag` response header via `@ApiResponse`/`@Header`;
+every `PUT`/`PATCH`/`DELETE` documents its `If-Match` request header via `@Parameter`.
 
 ## 8. REST unit tests exist but don't capture request/response as reviewable scenarios — ✅ Done (2026-09-04)
 
@@ -457,6 +432,38 @@ implement it once, fixing all 5 callers together — a query-lib-level fix, not 
 **Not yet started.**
 
 ## Related
+
+## 15. `ProviderProfileApiController` should resolve `size` from settings too, mirroring the UI
+
+**Found (2026-09-08):** `ProviderProfileApiController.list()` still takes a caller-supplied
+`@RequestParam(defaultValue = "20") int size` — deliberately left this way in item 3 on the
+assumption that ProviderProfile has no saved-settings concept for page size. That assumption is
+wrong: `ProvidersView.java` (the Vaadin UI's own Providers catalog) already reuses
+`UserSettingsDto::getAdsPageSize` for its own pagination (`settingsPaginationBinding.register(paginationBar,
+UserSettingsDto::getAdsPageSize, this::refresh)`) — there is no separate
+`providerProfilesPageSize` field even on the UI side. REST should mirror this exact behavior
+instead of accepting a caller-supplied `size`.
+
+**Approach:** `ProviderProfileApiController.list()` drops the `size` request parameter and calls
+`userProfileService.resolveAdsPageSize(actorId)` — the same method `AdvertisementApiController`
+already uses — instead of adding a new settings field. `ProviderProfileApiController` currently has
+no `@AuthenticationPrincipal Long actorId` parameter on `list()` at all (the endpoint is public,
+unauthenticated reads); needs one added (nullable, same anonymous-caller-gets-default-size pattern
+`AdvertisementApiController`/`UserApiController` already use).
+
+**Not yet started.**
+
+## 16. `PATCH /api/users/me/settings` should use If-Match too, not a body `version` field — ✅ Done (2026-09-08)
+
+**Implemented:** added `GET /api/users/me/settings` returning `UserSettingsDto` with an `ETag`
+response header. `PATCH` now takes a dedicated `UserSettingsWriteRequest` record (adsPageSize/
+usersPageSize/timelinePageSize only, no `version`/`schemaVersion`) mirroring
+`AdvertisementWriteRequest`/`ProviderProfileWriteRequest`, and requires the expected version via a
+mandatory `If-Match` header instead of the body (mandatory, unlike the optional If-Match on
+create/update elsewhere, since a settings row always exists by the time a caller can reach this
+endpoint — created eagerly at registration, unlike Advertisement/ProviderProfile/Taxon rows which
+don't exist yet on create). `platform-commons`'s `UserSettingsDto` itself stays untouched (same
+reasoning as items 6/15: it's shared with the Vaadin Settings UI form, which has no HTTP layer).
 
 - [improvement-073](../completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) —
   REST API infrastructure (API-key auth, Swagger, apikey/rest-api modules) this whole batch follows

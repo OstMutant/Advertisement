@@ -1,7 +1,10 @@
 package org.ost.restapi.api;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -69,6 +72,9 @@ public class AdvertisementApiController {
     private final AdvertisementDisplayEnrichmentService enrichmentService;
     private final UserProfileService userProfileService;
 
+    @Operation(summary = "Create an advertisement", description = "categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+            {"title":"Plumbing services","description":"Fast and reliable plumbing","adKind":"OFFER","categoryIds":[1],"cityTaxonId":5}""")))
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
@@ -79,6 +85,7 @@ public class AdvertisementApiController {
         return enrich(readService.findById(id).orElseThrow(), DEFAULT_LOCALE);
     }
 
+    @Operation(summary = "List/filter/sort advertisements", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
     @GetMapping
     public ResponseEntity<List<AdvertisementInfoDto>> list(@AuthenticationPrincipal Long actorId,
             @ModelAttribute @Valid AdvertisementFilterDto filter, @RequestParam(defaultValue = "0") int page,
@@ -102,10 +109,14 @@ public class AdvertisementApiController {
         return ETagUtil.withVersion(ResponseEntity.ok(), ad.getVersion()).body(ad);
     }
 
+    @Operation(summary = "Update an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+            {"title":"Plumbing services","description":"Fast and reliable plumbing, now weekends too","adKind":"OFFER","categoryIds":[1],"cityTaxonId":5}""")))
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public AdvertisementInfoDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
-            @RequestBody @Valid AdvertisementWriteRequest request, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+            @RequestBody @Valid AdvertisementWriteRequest request,
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(id, request.title(), request.description(),
                 request.adKind(), request.categoryIds(), request.cityTaxonId(), ETagUtil.parseIfMatch(ifMatch));
         Long savedId = saveService.save(dto, actorId, ref -> null);
@@ -118,10 +129,12 @@ public class AdvertisementApiController {
         return enrichmentService.enrichWithMedia(ad);
     }
 
+    @Operation(summary = "Delete an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
-    public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+    public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         saveService.delete(id, actorId, ETagUtil.parseIfMatch(ifMatch));
     }
 

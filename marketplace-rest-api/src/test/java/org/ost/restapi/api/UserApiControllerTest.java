@@ -203,9 +203,10 @@ class UserApiControllerTest {
         UserSettingsDto saved = UserSettingsDto.builder().adsPageSize(30).usersPageSize(30).timelinePageSize(20).version(1).build();
         when(userProfileService.loadSettings(ACTOR_ID)).thenReturn(saved);
         String body = """
-                {"adsPageSize":30,"usersPageSize":30,"timelinePageSize":20,"version":0}""";
+                {"adsPageSize":30,"usersPageSize":30,"timelinePageSize":20}""";
 
-        mockMvc.perform(patch("/api/users/me/settings").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.adsPageSize").value(30));
 
@@ -217,9 +218,10 @@ class UserApiControllerTest {
     @Test
     void updateSettings_pageSizeBelowMinimum_returns400() throws Exception {
         String body = """
-                {"adsPageSize":1,"usersPageSize":20,"timelinePageSize":20,"version":0}""";
+                {"adsPageSize":1,"usersPageSize":20,"timelinePageSize":20}""";
 
-        mockMvc.perform(patch("/api/users/me/settings").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.adsPageSize").exists());
     }
@@ -227,9 +229,10 @@ class UserApiControllerTest {
     @Test
     void updateSettings_pageSizeAboveMaximum_returns400() throws Exception {
         String body = """
-                {"adsPageSize":20,"usersPageSize":500,"timelinePageSize":20,"version":0}""";
+                {"adsPageSize":20,"usersPageSize":500,"timelinePageSize":20}""";
 
-        mockMvc.perform(patch("/api/users/me/settings").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.usersPageSize").exists());
     }

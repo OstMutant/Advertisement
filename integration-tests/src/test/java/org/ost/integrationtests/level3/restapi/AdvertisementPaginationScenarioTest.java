@@ -169,8 +169,8 @@ class AdvertisementPaginationScenarioTest extends AbstractRestApiScenarioTest {
         RegisteredUser user = createSeller();
 
         String settingsBody = """
-                {"adsPageSize":10,"usersPageSize":20,"timelinePageSize":20,"version":0}""";
-        mockMvc.perform(patch("/api/users/me/settings")
+                {"adsPageSize":10,"usersPageSize":20,"timelinePageSize":20}""";
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + user.rawApiKey())
                         .contentType(MediaType.APPLICATION_JSON).content(settingsBody))
                 .andExpect(status().isOk());
