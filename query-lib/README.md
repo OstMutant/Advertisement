@@ -14,17 +14,18 @@ org.ost.query.filter
   SqlFilterBinding<F, R>     — @FunctionalInterface: getCondition(F filter) → SqlCondition<R>
   SqlFilterMapping           — interface: filterProperty() + sqlExpression()
   SqlCondition<R>            — a single resolved WHERE condition (expression, param, value, operator)
-  SqlOperator                — EQUALS, LIKE_IGNORE_CASE, IN, GREATER_OR_EQUAL, LESS_OR_EQUAL
+  SqlOperator                — EQUALS, LIKE_IGNORE_CASE, IN, ANY_OF, GREATER_OR_EQUAL, LESS_OR_EQUAL
 
 org.ost.query.sort
   OrderByBuilder             — converts Spring Sort into an ORDER BY clause via an alias→expression map
+  SortField                  — record consumed by OrderByBuilder's tiebreaker-aware overload
   PaginationSqlBuilder       — converts a Pageable into a LIMIT :limit OFFSET :offset clause + named params
   OffsetPageable             — a Pageable carrying an arbitrary row offset (not page*size-derived),
                                for callers (e.g. Vaadin's CallbackDataProvider) that already have a
                                raw, possibly non-page-aligned offset
 ```
 
-That's the entire module — 9 classes, two packages. No UI code lives here; Vaadin query-bar
+That's the entire module — 10 classes, two packages. No UI code lives here; Vaadin query-bar
 components live in `marketplace-app`.
 
 ---
@@ -70,6 +71,7 @@ All are null-safe: return `null` when the filter value is absent; `SqlFilterBuil
 | `after(mapping, long)` | `col >= :param` |
 | `before(mapping, long)` | `col <= :param` |
 | `inSet(mapping, enumSet)` | `col IN (:param)` |
+| `anyOf(mapping, longSet)` | `col = ANY(:param)` — for unbounded-cardinality `Set<Long>` id filters, not `inSet`'s small fixed-cardinality enum sets |
 
 ---
 
@@ -89,6 +91,10 @@ Looks up each `Sort.Order`'s property directly in the alias map — no case conv
 Map keys must be the exact camelCase DTO field name (e.g. via `SomeDto.Fields.xyz`), not a
 hand-converted snake_case string. Unknown sort properties are silently skipped.
 
+A second `OrderByBuilder.build(sort, List<SortField>)` overload adds stable tiebreakers (e.g. a
+row's own `id`) so paginated results stay deterministic when rows tie on the caller's sort field —
+see `.claude/rules/query-lib.md` for usage.
+
 ---
 
 ## PaginationSqlBuilder
@@ -97,3 +103,14 @@ hand-converted snake_case string. Unknown sort properties are silently skipped.
 PaginationSqlBuilder.pageLimit(params, pageable)
 // → " LIMIT :limit OFFSET :offset"  (adds "limit"/"offset" named params), or "" if pageable is unpaged
 ```
+
+---
+
+## Dependencies
+
+- `spring-boot-starter-data-jdbc` / `spring-jdbc` — `Sort`, `Pageable`, `MapSqlParameterSource`;
+  every public method signature in this module is built directly on these Spring Data JDBC types.
+- `lombok` — `@NonNull`/`@RequiredArgsConstructor`/`@NoArgsConstructor` on the builder classes.
+- No dependency on any domain module — nothing in `org.ost.platform.*` (`platform-commons`) is
+  imported anywhere in this module's own source, matching this module's own "no domain knowledge"
+  goal (see `.claude/nav/adr-index.md`).

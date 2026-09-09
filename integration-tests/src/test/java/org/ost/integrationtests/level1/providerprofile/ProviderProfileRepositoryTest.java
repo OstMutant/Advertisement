@@ -20,8 +20,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -189,6 +192,44 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
 
         assertThat(firstPage).hasSize(2);
         assertThat(secondPage).hasSize(1);
+    }
+
+    @Test
+    void findByFilter_sortByCreatedAt_tiedRows_usesIdAsStableTiebreaker() {
+        ProviderProfile first = save(actorId, ProviderKind.MASTER);
+        ProviderProfile second = save(newActor(), ProviderKind.SHOP);
+        jdbcClient.sql("UPDATE provider_profile SET created_at = :ts WHERE id = ANY(:ids)")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("ts", OffsetDateTime.now(ZoneOffset.UTC))
+                        .addValue("ids", new Long[]{first.getId(), second.getId()}))
+                .update();
+
+        List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
+                ProviderProfileFilterDto.empty(),
+                PageRequest.of(0, 10, Sort.by(Sort.Order.asc(ProviderProfileDto.Fields.createdAt))),
+                null);
+
+        assertThat(results).extracting(ProviderProfileDto::getId)
+                .containsExactly(second.getId(), first.getId());
+    }
+
+    @Test
+    void findByFilter_sortByUpdatedAt_tiedRows_usesIdAsStableTiebreaker() {
+        ProviderProfile first = save(actorId, ProviderKind.MASTER);
+        ProviderProfile second = save(newActor(), ProviderKind.SHOP);
+        jdbcClient.sql("UPDATE provider_profile SET updated_at = :ts WHERE id = ANY(:ids)")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("ts", OffsetDateTime.now(ZoneOffset.UTC))
+                        .addValue("ids", new Long[]{first.getId(), second.getId()}))
+                .update();
+
+        List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
+                ProviderProfileFilterDto.empty(),
+                PageRequest.of(0, 10, Sort.by(Sort.Order.asc(ProviderProfileDto.Fields.updatedAt))),
+                null);
+
+        assertThat(results).extracting(ProviderProfileDto::getId)
+                .containsExactly(second.getId(), first.getId());
     }
 
     @Test

@@ -11,9 +11,9 @@ constants. Repositories need dynamic filter/sort SQL without coupling to Spring 
 pure JUnit testing without an application context).
 
 **Decision:** Module renamed to `query-lib`. It provides only `SqlFilterBuilder`, `SqlBoundFilter`,
-`SqlCondition`, `SqlFilterBinding`, `SqlFilterMapping`, `SqlOperator`, `OrderByBuilder`, and
-`PaginationSqlBuilder` (added later — see ADR-003's amendment). No `@AutoConfiguration`, no Spring
-beans, no `META-INF/spring` registration.
+`SqlCondition`, `SqlFilterBinding`, `SqlFilterMapping`, `SqlOperator`, `OrderByBuilder`,
+`PaginationSqlBuilder` (added later — see ADR-003's amendment), and `SortField` (added later). No
+`@AutoConfiguration`, no Spring beans, no `META-INF/spring` registration.
 
 **Consequences:**
 - Consumers import the artifact as a plain library dependency, not as a starter.

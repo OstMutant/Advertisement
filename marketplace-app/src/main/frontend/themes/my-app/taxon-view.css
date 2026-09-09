@@ -17,7 +17,7 @@
   overflow: auto;
 }
 
-.taxon-management-view {
+.taxon-management-view, .city-management-view {
   width: 100%;
   padding: 1rem;
   box-sizing: border-box;

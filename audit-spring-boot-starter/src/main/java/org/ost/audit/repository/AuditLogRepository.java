@@ -14,6 +14,7 @@ import org.ost.platform.core.model.EntityType;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
+import org.ost.query.sort.SortField;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.RowMapper;
@@ -28,7 +29,6 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.actionTypes;
@@ -61,7 +61,9 @@ import static org.ost.query.filter.SqlCondition.inSet;
 @SuppressWarnings("java:S1192")
 public class AuditLogRepository {
 
-    private static final Map<String, String> SORT_ALIASES = Map.of(AuditTimelineItemDto.Fields.createdAt, "al.created_at");
+    private static final List<SortField> SORT_FIELDS = List.of(
+            SortField.of(AuditTimelineItemDto.Fields.createdAt, "al.created_at", Sort.Direction.DESC,
+                    SortField.of(AuditTimelineItemDto.Fields.snapshotId, "al.id")));
 
     private static final SqlFilterBuilder<AuditTimelineFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
             SqlBoundFilter.of(actorIds,    "al.actor_id",    (m, v) -> anyOf(m, v.getActorIds())),
@@ -129,8 +131,7 @@ public class AuditLogRepository {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("limit",  size)
                 .addValue("offset", (long) page * size);
-        String orderBy = OrderByBuilder.build(sort, SORT_ALIASES);
-        if (orderBy.isBlank()) orderBy = " ORDER BY al.created_at DESC";
+        String orderBy = OrderByBuilder.build(sort, SORT_FIELDS);
         String sql = """
                         WITH numbered AS (
                             SELECT id, entity_type, entity_id, action_type, actor_id, created_at,

@@ -40,8 +40,9 @@
 #                                      generate-architecture-model.sh --with-archunit)
 #   --sync-artifacts                 -- pull whatever architecture-metrics.json/
 #                                        pipeline-metrics.json/architecture-model.json/
-#                                        architecture-map.html the container has produced onto the
-#                                        host, without triggering a new run (automatic after
+#                                        architecture-map.html/Playwright report/unit+integration
+#                                        Surefire+logs/Sonar report+log the run has produced onto
+#                                        the host, without triggering a new run (automatic after
 #                                        --foreground; needed manually after a background run, or
 #                                        after triggering a run directly from Dagu's own web UI)
 # Uses: bash, docker, curl, scripts/utils/agentic-output.sh
@@ -56,11 +57,14 @@
 #   that remain running on the host after this script exits. The ci-runner container's Dagu web
 #   UI, reachable at http://localhost:8082 through the ci-runner-dagu-proxy sidecar (ci-runner
 #   itself runs --network host, whose bound ports aren't reachable from a real browser in this
-#   sandbox -- see DECISIONS.md). With --foreground or --sync-artifacts, also refreshes
-#   scripts/build-and-test/reports/architecture-metrics.json,
-#   scripts/ci/reports/pipeline-metrics.json, and (whenever the docs stage ran and regenerated
-#   them) docs/architecture/data/architecture-model.json and docs/architecture/architecture-map.html
-#   on the host.
+#   sandbox -- see DECISIONS.md). With --foreground or --sync-artifacts, also refreshes onto the
+#   host: scripts/build-and-test/reports/architecture-metrics.json, scripts/ci/reports/
+#   pipeline-metrics.json, (whenever the docs stage ran and regenerated them)
+#   docs/architecture/data/architecture-model.json and docs/architecture/architecture-map.html,
+#   plus (whenever the matching stage ran) playwright/pw-report/, scripts/logs/playwright/,
+#   scripts/build-and-test/reports/advertisement-build-only-{unit,integration,sonar}/,
+#   scripts/logs/build-and-test/advertisement-build-only-{unit,integration,sonar}/,
+#   integration-tests/reports/, scripts/sonar/report/report.html, and scripts/logs/sonar/.
 # Returns: 0 on success; non-zero on an unrecognized flag, image-build failure, Dagu-startup
 #   failure, a failed docker cp of architecture-model.json/architecture-map.html onto the host
 #   (--foreground/--sync-artifacts only), or (--foreground only) a failed DAG run -- a backgrounded
@@ -117,6 +121,35 @@ sync_artifacts() {
     "$ROOT/docs/architecture/data/architecture-model.json" || docs_synced=1
   docker cp "$CONTAINER:/app/docs/architecture/architecture-map.html" \
     "$ROOT/docs/architecture/architecture-map.html" || docs_synced=1
+
+  # Test-result artifacts (Playwright report, unit/integration Surefire+logs, Sonar's run log) are
+  # written directly into the shared `test-reports` named volume by the build/pw-runner/scanner
+  # containers -- pulled out here via a throwaway container mounting that volume (named-volume `-v`
+  # mounts are reliable in this sandbox, unlike host-path bind mounts -- see DECISIONS.md), the
+  # same established pattern scripts/run-all-tests/run.sh already uses. This does not depend on
+  # $CONTAINER (ci-runner) still holding its own copy of anything -- best-effort, errors suppressed,
+  # since a partial run still leaves whatever earlier steps produced worth pulling.
+  local VOL_READER="ci-artifact-reader"
+  docker rm -f "$VOL_READER" >/dev/null 2>&1
+  docker run -d --name "$VOL_READER" -v test-reports:/reports alpine sleep 60 >/dev/null 2>&1
+  for name in advertisement-build-only-unit advertisement-build-only-integration advertisement-build-only-sonar; do
+    docker cp "$VOL_READER:/reports/$name/." "$ROOT/scripts/build-and-test/reports/$name/" 2>/dev/null
+    docker cp "$VOL_READER:/reports/logs/$name/." "$ROOT/scripts/logs/build-and-test/$name/" 2>/dev/null
+  done
+  docker cp "$VOL_READER:/reports/advertisement-build-only-integration/it-mirror/." \
+    "$ROOT/integration-tests/reports/" 2>/dev/null
+  docker cp "$VOL_READER:/reports/playwright/." "$ROOT/playwright/pw-report/" 2>/dev/null
+  docker cp "$VOL_READER:/reports/playwright-log/." "$ROOT/scripts/logs/playwright/" 2>/dev/null
+  docker cp "$VOL_READER:/reports/sonar/." "$ROOT/scripts/logs/sonar/" 2>/dev/null
+  docker rm -f "$VOL_READER" >/dev/null 2>&1
+
+  # Sonar's final report.html is generated fresh in the scanner container's own /tmp and never
+  # staged into test-reports -- only $CONTAINER's own copy (produced when the sonar step's own
+  # sonar/run.sh ran inside it) has it, so this one keeps the ci-runner-filesystem fallback instead
+  # of the volume.
+  docker cp "$CONTAINER:/app/scripts/sonar/report/report.html" \
+    "$ROOT/scripts/sonar/report/report.html" 2>/dev/null
+
   return $docs_synced
 }
 
@@ -156,11 +189,13 @@ done
 if [ -n "$SYNC_ARTIFACTS_ONLY" ]; then
   if sync_artifacts; then
     echo "Synced architecture-metrics.json/pipeline-metrics.json/architecture-model.json/" \
-         "architecture-map.html from $CONTAINER onto the host."
+         "architecture-map.html, plus whichever of Playwright report/unit+integration" \
+         "Surefire+logs/Sonar report+log the run produced, from $CONTAINER and the" \
+         "test-reports volume onto the host."
     emit_agentic_success_block "sync-artifacts"
     exit 0
   else
-    echo "Synced architecture-metrics.json/pipeline-metrics.json, but failed to copy" \
+    echo "Synced whatever else was available, but failed to copy" \
          "architecture-model.json/architecture-map.html from $CONTAINER onto the host."
     emit_agentic_error_block "transient" "true" "sync-artifacts" "docker cp of architecture-model.json/architecture-map.html failed -- is $CONTAINER running?"
     exit 1

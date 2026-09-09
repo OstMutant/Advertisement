@@ -248,10 +248,29 @@ run_integration_tests() {
   mkdir -p "$REPORTS_DIR/it-mirror/surefire"
   cp -r "$ROOT"/integration-tests/target/surefire-reports/* "$REPORTS_DIR/it-mirror/surefire/" 2>/dev/null || true
 
-  # report-aggregate's combined XML -- attributes coverage back to the starters this run exercised.
+  # Attributes coverage back to the starters this run exercised. Not jacoco:report-aggregate (the
+  # Maven goal) -- that goal only sees dependency modules that are part of the *same reactor
+  # session*, which the scoped `-pl integration-tests test` above never provides, so it silently
+  # produced an empty report (see .claude/nav/adr-index.md). The standalone JaCoCo CLI jar has no
+  # such requirement -- it reads the exec file plus each dependency module's already-compiled
+  # target/classes and src/main/java straight off disk, no reactor involved.
   mkdir -p "$REPORTS_DIR/jacoco"
-  if [ -f "$ROOT/integration-tests/target/site/jacoco-aggregate/jacoco.xml" ]; then
-    cp "$ROOT/integration-tests/target/site/jacoco-aggregate/jacoco.xml" "$REPORTS_DIR/jacoco/integration-tests-aggregate.xml"
+  JACOCO_VERSION=$(grep -m1 '<jacoco.version>' "$ROOT/pom.xml" | sed -E 's#.*<jacoco.version>([^<]+)</jacoco.version>.*#\1#')
+  JACOCO_CLI_JAR="/root/.m2/repository/org/jacoco/org.jacoco.cli/$JACOCO_VERSION/org.jacoco.cli-$JACOCO_VERSION-nodeps.jar"
+  [ -f "$JACOCO_CLI_JAR" ] || ./mvnw -q dependency:get -Dartifact=org.jacoco:org.jacoco.cli:"$JACOCO_VERSION":jar:nodeps
+  # Same module set integration-tests/pom.xml itself declares as <dependency> -- the only modules
+  # this run's jacoco.exec can hold hits for. query-lib/marketplace-app get their own correct
+  # jacoco.xml from run_unit_tests() already, so they're deliberately not repeated here.
+  JACOCO_AGGREGATE_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter audit-spring-boot-starter attachment-spring-boot-starter provider-profile-spring-boot-starter apikey-spring-boot-starter marketplace-orchestrator marketplace-rest-api"
+  CLI_REPORT_ARGS=()
+  for m in $JACOCO_AGGREGATE_MODULES; do
+    [ -d "$ROOT/$m/target/classes" ] && CLI_REPORT_ARGS+=(--classfiles "$ROOT/$m/target/classes")
+    [ -d "$ROOT/$m/src/main/java" ] && CLI_REPORT_ARGS+=(--sourcefiles "$ROOT/$m/src/main/java")
+  done
+  if [ -f "$JACOCO_CLI_JAR" ] && [ -f "$ROOT/integration-tests/target/jacoco.exec" ]; then
+    java -jar "$JACOCO_CLI_JAR" report "$ROOT/integration-tests/target/jacoco.exec" \
+      "${CLI_REPORT_ARGS[@]}" --xml "$REPORTS_DIR/jacoco/integration-tests-aggregate.xml" \
+      --name "integration-tests aggregate"
   fi
 
   return $INTEGRATION_EXIT

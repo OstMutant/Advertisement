@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.support.RepositoryTestSupport;
 import org.ost.integrationtests.support.TestDataCleaner;
+import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.model.Role;
@@ -131,6 +132,38 @@ class UserRepositoryTest extends AbstractPostgresIntegrationTest {
 
         assertThat(result).extracting(User::getId).containsExactly(active.getId());
         assertThat(userRepository.countByFilter(UserFilterDto.empty())).isEqualTo(1L);
+    }
+
+    @Test
+    void findByFilter_sortByCreatedAt_tiedRows_usesIdAsStableTiebreaker() {
+        User first = save("First", "first-" + UUID.randomUUID() + "@example.com", "hash", Role.USER);
+        User second = save("Second", "second-" + UUID.randomUUID() + "@example.com", "hash", Role.USER);
+        jdbcClient.sql("UPDATE user_information SET created_at = :ts WHERE id = ANY(:ids)")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("ts", OffsetDateTime.now(ZoneOffset.UTC))
+                        .addValue("ids", new Long[]{first.getId(), second.getId()}))
+                .update();
+
+        List<User> results = userRepository.findByFilter(UserFilterDto.empty(),
+                PageRequest.of(0, 10, Sort.by(Sort.Order.asc(UserDto.Fields.createdAt))));
+
+        assertThat(results).extracting(User::getId).containsExactly(second.getId(), first.getId());
+    }
+
+    @Test
+    void findByFilter_sortByUpdatedAt_tiedRows_usesIdAsStableTiebreaker() {
+        User first = save("First", "first-" + UUID.randomUUID() + "@example.com", "hash", Role.USER);
+        User second = save("Second", "second-" + UUID.randomUUID() + "@example.com", "hash", Role.USER);
+        jdbcClient.sql("UPDATE user_information SET updated_at = :ts WHERE id = ANY(:ids)")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("ts", OffsetDateTime.now(ZoneOffset.UTC))
+                        .addValue("ids", new Long[]{first.getId(), second.getId()}))
+                .update();
+
+        List<User> results = userRepository.findByFilter(UserFilterDto.empty(),
+                PageRequest.of(0, 10, Sort.by(Sort.Order.asc(UserDto.Fields.updatedAt))));
+
+        assertThat(results).extracting(User::getId).containsExactly(second.getId(), first.getId());
     }
 
     @Test

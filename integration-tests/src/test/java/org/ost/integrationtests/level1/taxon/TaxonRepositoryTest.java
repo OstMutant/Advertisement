@@ -14,8 +14,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 
@@ -94,6 +97,38 @@ class TaxonRepositoryTest extends AbstractPostgresIntegrationTest {
         var result = taxonRepository.findAllByType(TaxonType.CATEGORY, TaxonFilter.active(), org.springframework.data.domain.Pageable.unpaged());
 
         assertThat(result).extracting(Taxon::getId).containsExactlyInAnyOrderElementsOf(ids);
+    }
+
+    @Test
+    void findAllByType_sortByCreatedAt_tiedRows_usesIdAsStableTiebreaker() {
+        Taxon first = save("tied-created-a");
+        Taxon second = save("tied-created-b");
+        jdbcClient.sql("UPDATE taxon SET created_at = :ts WHERE id = ANY(:ids)")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("ts", OffsetDateTime.now(ZoneOffset.UTC))
+                        .addValue("ids", new Long[]{first.getId(), second.getId()}))
+                .update();
+
+        var result = taxonRepository.findAllByType(TaxonType.CATEGORY, TaxonFilter.active(),
+                PageRequest.of(0, 10, Sort.by(Sort.Order.asc(Taxon.Fields.createdAt))));
+
+        assertThat(result).extracting(Taxon::getId).containsExactly(second.getId(), first.getId());
+    }
+
+    @Test
+    void findAllByType_sortByUpdatedAt_tiedRows_usesIdAsStableTiebreaker() {
+        Taxon first = save("tied-updated-a");
+        Taxon second = save("tied-updated-b");
+        jdbcClient.sql("UPDATE taxon SET updated_at = :ts WHERE id = ANY(:ids)")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("ts", OffsetDateTime.now(ZoneOffset.UTC))
+                        .addValue("ids", new Long[]{first.getId(), second.getId()}))
+                .update();
+
+        var result = taxonRepository.findAllByType(TaxonType.CATEGORY, TaxonFilter.active(),
+                PageRequest.of(0, 10, Sort.by(Sort.Order.asc(Taxon.Fields.updatedAt))));
+
+        assertThat(result).extracting(Taxon::getId).containsExactly(second.getId(), first.getId());
     }
 
     @Test

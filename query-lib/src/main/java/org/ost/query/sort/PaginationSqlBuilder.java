@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
+/** Builds a SQL LIMIT/OFFSET clause from a Spring Data {@link Pageable}, adding its named parameters. */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class PaginationSqlBuilder {
 

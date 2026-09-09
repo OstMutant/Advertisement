@@ -20,8 +20,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -182,6 +185,44 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
 
         assertThat(results).extracting(AdvertisementInfoDto::getTitle)
                 .containsExactly("Alpha", "Bravo", "Charlie");
+    }
+
+    @Test
+    void findByFilter_sortByCreatedAt_tiedRows_usesIdAsStableTiebreaker() {
+        Advertisement first = save("First", "d1");
+        Advertisement second = save("Second", "d2");
+        jdbcClient.sql("UPDATE advertisement SET created_at = :ts WHERE id = ANY(:ids)")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("ts", OffsetDateTime.now(ZoneOffset.UTC))
+                        .addValue("ids", new Long[]{first.getId(), second.getId()}))
+                .update();
+
+        List<AdvertisementInfoDto> results = advertisementRepository.findByFilter(
+                AdvertisementFilterDto.empty(),
+                PageRequest.of(0, 10, Sort.by(Sort.Order.asc(AdvertisementInfoDto.Fields.createdAt))),
+                null);
+
+        assertThat(results).extracting(AdvertisementInfoDto::getId)
+                .containsExactly(second.getId(), first.getId());
+    }
+
+    @Test
+    void findByFilter_sortByUpdatedAt_tiedRows_usesIdAsStableTiebreaker() {
+        Advertisement first = save("First", "d1");
+        Advertisement second = save("Second", "d2");
+        jdbcClient.sql("UPDATE advertisement SET updated_at = :ts WHERE id = ANY(:ids)")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("ts", OffsetDateTime.now(ZoneOffset.UTC))
+                        .addValue("ids", new Long[]{first.getId(), second.getId()}))
+                .update();
+
+        List<AdvertisementInfoDto> results = advertisementRepository.findByFilter(
+                AdvertisementFilterDto.empty(),
+                PageRequest.of(0, 10, Sort.by(Sort.Order.asc(AdvertisementInfoDto.Fields.updatedAt))),
+                null);
+
+        assertThat(results).extracting(AdvertisementInfoDto::getId)
+                .containsExactly(second.getId(), first.getId());
     }
 
     @Test

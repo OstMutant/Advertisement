@@ -7,6 +7,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/** Covers {@link SqlCondition}'s static factory methods, including value escaping for {@code like}. */
 class SqlConditionTest {
 
     private static final SqlFilterMapping MAPPING = new SqlFilterMapping() {

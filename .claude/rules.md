@@ -357,7 +357,13 @@ subdirectory, which belongs to that one group alone.
    chat commentary to every one; the streamed event itself is the update. Speak up only for a real
    signal: an error, a stall (no new output far longer than that step normally takes), the final
    result, or when explicitly asked for the current status — answer with the real current state
-   then, never with continued silence.
+   then, never with continued silence. "Stay silent" means exactly that — no reply at all to a
+   routine notification, not a placeholder acknowledgment ("...", "still running", "no change")
+   either; a placeholder is still unwanted chat noise on every tick, confirmed directly as a real
+   annoyance, not just a hypothetical one. Do not stop/restart the Monitor task to chase a quieter
+   filter when it's firing on routine ticks — the Monitor keeps running regardless of whether a
+   given notification gets a reply; responding to a routine tick with nothing is a valid, complete
+   turn, not a gap that needs filling.
 4. Before running Playwright specifically, kill stale processes first:
    `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`. Always pass `--ux` —
    never run a Playwright scenario without it.

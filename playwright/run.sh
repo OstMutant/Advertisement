@@ -100,6 +100,10 @@ else
 fi
 docker exec "$PW_CONTAINER" sh -c "mkdir -p /reports/playwright-log" >/dev/null 2>&1 || true
 
+# Kills any stale Playwright process left running inside pw-runner from a prior crashed/interrupted
+# run, so it can't conflict with this one.
+docker exec "$PW_CONTAINER" pkill -f "node.*playwright" 2>/dev/null || true
+
 # This script's own top-level progress messages (app container startup, DB reset) otherwise go only
 # to whichever terminal invoked this script -- never persisted anywhere, unlike the actual test
 # output (already captured in run.log). A synchronous, foreground `docker exec -i ... cat >>` per

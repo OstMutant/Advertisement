@@ -10,6 +10,7 @@ import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
+import org.ost.query.sort.SortField;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
@@ -19,13 +20,13 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.ost.platform.providerprofile.dto.ProviderProfileFilterDto.Fields.*;
 import static org.ost.query.filter.SqlCondition.*;
 
+/** Bespoke {@code JdbcClient} queries for {@code provider_profile} (filtering/sorting/pagination); trivial CRUD delegates to {@link ProviderProfileCrudRepository}. */
 @Repository
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
@@ -78,14 +79,18 @@ public class ProviderProfileRepository {
                 .query(ROW_MAPPER).optional();
     }
 
+    private static final List<SortField> SORT_FIELDS = List.of(
+            SortField.of(ProviderProfileDto.Fields.id,        "pp.id"),
+            SortField.of(ProviderProfileDto.Fields.kind,      "pp.kind"),
+            SortField.of(ProviderProfileDto.Fields.createdAt, "pp.created_at",
+                    SortField.of(ProviderProfileDto.Fields.id, "pp.id")),
+            SortField.of(ProviderProfileDto.Fields.updatedAt, "pp.updated_at",
+                    SortField.of(ProviderProfileDto.Fields.id, "pp.id")));
+
     public List<ProviderProfileDto> findByFilter(@NonNull ProviderProfileFilterDto filter, @NonNull Pageable pageable,
                                                   Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();
-        String orderBy = OrderByBuilder.build(pageable.getSort(), Map.ofEntries(
-                Map.entry(ProviderProfileDto.Fields.id,        "pp.id"),
-                Map.entry(ProviderProfileDto.Fields.kind,      "pp.kind"),
-                Map.entry(ProviderProfileDto.Fields.createdAt, "pp.created_at"),
-                Map.entry(ProviderProfileDto.Fields.updatedAt, "pp.updated_at")));
+        String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_FIELDS);
         String sql = (SELECT + "WHERE 1=1%s%s%s%s")
                 .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();

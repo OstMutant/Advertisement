@@ -7,6 +7,7 @@ import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
+import org.ost.query.sort.SortField;
 import org.ost.taxon.entities.Taxon;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Pageable;
@@ -18,13 +19,13 @@ import org.springframework.stereotype.Repository;
 import java.sql.Timestamp;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.ost.query.filter.SqlCondition.like;
 import static org.ost.taxon.repository.TaxonFilter.Fields.*;
 
+/** Bespoke {@code JdbcClient} queries for {@code taxon} (soft-delete-aware filtering/sorting); trivial CRUD delegates to {@link TaxonCrudRepository}. */
 @Repository
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
@@ -53,11 +54,10 @@ public class TaxonRepository {
             SqlBoundFilter.of(name, "tt.name", (m, f) -> like(m, f.name()))
     ));
 
-    private static final Map<String, String> SORT_ALIASES = Map.of(
-            Taxon.Fields.id,        "t.id",
-            Taxon.Fields.createdAt, "t.created_at",
-            Taxon.Fields.updatedAt, "t.updated_at"
-    );
+    private static final List<SortField> SORT_FIELDS = List.of(
+            SortField.of(Taxon.Fields.id,        "t.id"),
+            SortField.of(Taxon.Fields.createdAt, "t.created_at", SortField.of(Taxon.Fields.id, "t.id")),
+            SortField.of(Taxon.Fields.updatedAt, "t.updated_at", SortField.of(Taxon.Fields.id, "t.id")));
 
     private final TaxonCrudRepository crud;
     private final JdbcClient          jdbcClient;
@@ -74,7 +74,7 @@ public class TaxonRepository {
         var    params  = new MapSqlParameterSource().addValue("type", type.name());
         String dynamic = FILTER.build(params, filter, " AND ");
         String deleted = filter.showDeleted() ? "" : " AND t.deleted_at IS NULL";
-        String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_ALIASES);
+        String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_FIELDS);
         return jdbcClient.sql("""
                         SELECT t.id, t.type, t.code, t.deleted_at, t.deleted_by, t.created_at, t.updated_at,
                                t.created_by, t.updated_by, t.version

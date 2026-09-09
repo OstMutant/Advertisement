@@ -18,6 +18,10 @@
           {
             "type": "command",
             "command": "cmd=$(cat | grep -o '\"command\":\"[^\"]*\"' | sed 's/\"command\":\"//;s/\"$//'); echo \"$cmd\" | grep -q 'git commit' && { if [ -f /tmp/commit-approved ] && [ -z \"$(find /tmp/commit-approved -mmin +5 2>/dev/null)\" ]; then rm -f /tmp/commit-approved; exit 0; else echo 'git commit BLOCKED — say \"зроби коміт\" first' >&2; exit 2; fi; } || exit 0"
+          },
+          {
+            "type": "command",
+            "command": "cmd=$(cat | grep -o '\"command\":\"[^\"]*\"' | sed 's/\"command\":\"//;s/\"$//'); echo \"$cmd\" | grep -qE 'scripts/[A-Za-z0-9_./-]+\\.sh' && exit 0; echo \"$cmd\" | grep -qE '(^|[;&|]|&&|\\|\\|)[[:space:]]*(sudo[[:space:]]+)?(\\./?mvnw|mvn|docker)\\b' && echo '{\"systemMessage\":\"Raw mvn/mvnw/docker command detected -- check .claude/rules/scripts.md and CLAUDE.md Always-use-project-scripts rule before running this directly.\",\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"This Bash command invokes mvn/mvnw/docker directly rather than via scripts/*.sh. Re-check .claude/rules/scripts.md / CLAUDE.md Scripts section for whether a project script should be used instead before proceeding.\"}}'; exit 0"
           }
         ]
       }

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Description: plain Java SQL filter/sort/pagination helper library, no Spring Boot autoconfiguration, no domain knowledge. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
@@ -22,11 +23,6 @@
 
     <dependencies>
 
-        <dependency>
-            <groupId>org.ost</groupId>
-            <artifactId>platform-commons</artifactId>
-        </dependency>
-
         <!-- Spring Data JDBC — Sort, Pageable, NamedParameterJdbcTemplate -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -36,17 +32,6 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-jdbc</artifactId>
-        </dependency>
-
-        <!-- Validation -->
-        <dependency>
-            <groupId>jakarta.validation</groupId>
-            <artifactId>jakarta.validation-api</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
         </dependency>
 
         <dependency>

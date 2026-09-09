@@ -2,6 +2,7 @@ package org.ost.query.filter;
 
 import java.util.function.BiFunction;
 
+/** Binds one filter DTO field to its SQL expression and a condition-building function; a {@link SqlFilterBuilder}'s own list entries are usually built via {@link #of}. */
 public record SqlBoundFilter<F, R>(
         String filterProperty,
         String sqlExpression,

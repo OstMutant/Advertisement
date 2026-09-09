@@ -78,20 +78,25 @@ confirming the same rule surfaces as 400 through the REST layer. Added `@Operati
 create/update operations, documenting the all-supported-locales requirement with a two-locale
 example payload.
 
-## 5. Align taxon list styles — category indentation vs. flat city list
+## 5. Align taxon list styles — category indentation vs. flat city list — ✅ Done (2026-09-09)
 
 **Current state (verified):** neither `TaxonManagementView.java` nor `CityManagementView.java`
-(183 lines each) contains any indentation/level/depth rendering logic, and `taxon-view.css` has no
-indent-related rule — the category tab's visible indentation was not located via static analysis
-(possibly baked into seed data name strings rather than rendering code). The city tab renders flat.
+(183 lines each) contains any indentation/level/depth rendering logic — there is no category
+hierarchy anywhere (confirmed via the `taxon`/`taxon_translation` Liquibase schema, no `parent_id`
+or equivalent column at all). Both tabs render an equally flat list of cards.
 
-**Ask:** make the two tabs' styling consistent — categories currently look indented/nested, cities
-don't.
+**Real root cause found (not seed data):** `taxon-view.css` defines `.taxon-management-view {
+width: 100%; padding: 1rem; box-sizing: border-box; }`, giving the Categories tab's root `Div`
+(which carries that class) a 1rem padding on every side — top gap from the tab underline, left/right
+gaps from the viewport edge. `CityManagementView.init()` puts the class `city-management-view` on
+its own root `Div` instead, and **no CSS rule for `.city-management-view` existed at all** — so the
+Cities tab rendered with zero padding, flush against the tab line and the left edge. Confirmed
+visually via real Playwright screenshots (`taxon-02-two-categories-in-list` vs.
+`city-01-two-cities-in-list`, both from a real CI e2e run) before fixing.
 
-**Approach:** locate where the category indentation actually originates during implementation
-(audit seed data and any shared renderer), then apply the same hierarchy-aware rendering
-consistently to both tabs — or confirm cities genuinely have no hierarchy and document why no
-indent applies there.
+**Fix:** `marketplace-app/src/main/frontend/themes/my-app/taxon-view.css` — extended the existing
+selector to `.taxon-management-view, .city-management-view { ... }`, one line, no other changes
+needed (`.taxon-list-container`/`.taxon-row-wrapper`/etc. were already shared by both tabs).
 
 ## 6. REST `version`/id fields must be server-managed, not caller-writable — ✅ Done (core), `@JsonIgnore` sub-item deliberately deferred (2026-09-08)
 
@@ -433,7 +438,7 @@ the original `01-provider-profile-schema.xml` changeset directly (no new migrati
 implementation pass with tests (unit + integration + Playwright) rather than folding into an
 unrelated bug-fix; pick up as its own scheduled unit of work.
 
-## 14. `OrderByBuilder.build()` never appends a stable tiebreaker — paginated results non-deterministic on ties
+## 14. `OrderByBuilder.build()` never appends a stable tiebreaker — paginated results non-deterministic on ties — ✅ Done (2026-09-09)
 
 **Found (real, reproduced via test flakiness, not a hypothetical):** `query-lib`'s
 `OrderByBuilder.build(sort, aliasToExpression)` emits `ORDER BY` using only the caller-supplied
@@ -451,7 +456,66 @@ high write throughput) can see the same row twice or skip one entirely across tw
 entity's own id column, via a small addition to each caller's alias map or a new parameter) and
 implement it once, fixing all 5 callers together — a query-lib-level fix, not a per-repository one.
 
-**Not yet started.**
+**Decided design (2026-09-09), after iterating through several rejected alternatives** (a
+generic-tiebreaker overload applied to every field regardless of type — rejected as broader than
+needed initially; a per-repository hardcoded string check for date fields, duplicated 5x —
+rejected as duplication; concatenating the tiebreaker directly into an alias-map string value —
+rejected, a real bug: applies the sort direction only to the last column in a comma list, silently
+breaking `DESC` sorts; reflection-based `Instant`-type detection — rejected, adds complexity and
+breaks from this codebase's established `Fields.*`-constant convention):
+
+- New `query-lib` type `org.ost.query.sort.SortField` — a record
+  `(String property, String expression, Sort.Direction direction, List<SortField> tiebreakers)`,
+  recursive by design so a tiebreaker can itself carry its own tiebreakers if ever needed (no
+  concrete case for that today — deliberate flexibility, not filling an existing need). Three
+  static factories: `of(property, expression)` (leaf, no tiebreakers); `of(property, expression,
+  SortField... tiebreakers)` (tiebreakers with the default `DESC` direction); `of(property,
+  expression, Sort.Direction direction, SortField... tiebreakers)` (explicit direction override).
+  `direction` is only read when the `SortField` is acting as a nested tiebreaker (via
+  `directionOrDefault()`) — ignored when it's a top-level entry matched against the caller's own
+  `Sort.Order`, whose direction always wins there instead.
+- New `OrderByBuilder.build(Sort sort, List<SortField> fields)` overload (existing `build(Sort,
+  Map<String,String>)` untouched, still used wherever a plain repository has no tiebreaker need).
+  Builds one `List<String>` of clauses and joins once at the end (no string-concatenation
+  chaining). Recursively walks each matched field's `tiebreakers()`, skipping any tiebreaker whose
+  `property` is already present anywhere in the caller's requested `Sort` (duplicate-avoidance,
+  checked by property name, not by SQL-expression string).
+- All 5 repositories switch their `Map.ofEntries(...)` sort-alias literal to a `private static
+  final List<SortField> SORT_FIELDS` — only `createdAt`/`updatedAt` entries carry a tiebreaker
+  (`SortField.of(Fields.id, "<alias>.id")`), matching this issue's original `createdAt`/`updatedAt`
+  scope; other fields (`title`, `name`, `kind`, etc.) stay tiebreaker-free leaves.
+- **Refined further (still 2026-09-09):** `AuditLogRepository`'s hand-written `if
+  (orderBy.isBlank()) orderBy = " ORDER BY al.created_at DESC"` fallback string is gone entirely —
+  `OrderByBuilder.build(Sort, List<SortField>)` itself now falls back to the **first field in the
+  list**, using that field's own `direction`, whenever the caller's `Sort` is empty **and** that
+  first field declares an explicit `direction`. Safe for the other 4 repositories: their top-level
+  `SortField` entries never set `direction` (always the 2-arg `of(property, expression)` factory),
+  so `direction == null` and the fallback never activates for them — confirmed empty `Sort` is a
+  real, reachable case there too (`SortQueryParser.parse(null, ...)` in `marketplace-rest-api`
+  returns `Sort.unsorted()` whenever a caller omits `?sort=`), so changing this only for the one
+  repository that opts in (via an explicit `direction`) avoids silently changing pagination order
+  for the other 3 REST-exposed domains. `AuditLogRepository.SORT_FIELDS` is now the single
+  declarative source of both its normal sort and its default: `SortField.of(Fields.createdAt,
+  "al.created_at", Sort.Direction.DESC, SortField.of(Fields.snapshotId, "al.id"))`.
+
+**Implemented and verified (2026-09-09):**
+- `OrderByBuilderTest` (`query-lib`) — 14 tests (11 original + 3 for the empty-sort default
+  fallback), all passing, run via `bash scripts/build-and-test.sh --unit --no-integration
+  --skip-vaadin` (0 failures, 0 errors).
+- Full reactor compile (all 5 changed repositories, via the same `build-and-test.sh` run's `-am`)
+  — `BUILD SUCCESS`.
+- `ProviderProfilePaginationScenarioTest.sortByEachField_bothDirections` (the real failure that
+  surfaced this issue) — re-run via `bash integration-tests/run.sh --sandbox --no-check
+  ProviderProfilePaginationScenarioTest` against a real Postgres: 6/6 tests passing, 0 failures.
+
+**Coverage closed (2026-09-09):** added 8 new integration tests — one pair per repository
+(`AdvertisementRepositoryTest`, `ProviderProfileRepositoryTest`, `TaxonRepositoryTest`,
+`UserRepositoryTest`; `AuditLogRepositoryTest` already had equivalent coverage) — each forces a
+`createdAt`/`updatedAt` tie via a direct `UPDATE`, sorts by that field, and asserts `id DESC` as the
+stable tiebreaker. All 42 tests in the 4 classes passing (`bash integration-tests/run.sh --sandbox
+"AdvertisementRepositoryTest,ProviderProfileRepositoryTest,TaxonRepositoryTest,UserRepositoryTest"`).
+This closed the real Sonar `new_coverage` gap the tiebreaker change itself created — see item 20 for
+why the first attempt to verify that didn't show any improvement.
 
 ## Related
 
@@ -564,7 +628,7 @@ this only changed what `--foreground` prints while it blocks, it didn't remove e
 path. `scripts/activity-monitor/README.md`'s own usage examples updated to include `ci.sh` as an
 8th covered script (was previously, correctly at the time, excluded).
 
-## 18. SonarQube quality gate is persistently failing, not a one-off — needs a real fix, not just `improvement-114`
+## 18. SonarQube quality gate is persistently failing, not a one-off — needs a real fix, not just `improvement-114` — ✅ Done (both halves), 2026-09-09
 
 **Found (2026-09-08, while investigating this session's own CI run's `sonar` step failure):**
 Checked real scan history via SonarQube's API (`GET /api/project_analyses/search?project=advertisement`)
@@ -591,7 +655,123 @@ the other half (`new_violations`, the 10-18 real findings) plus confirming, once
 that the gate can actually reach a passing state at least once (not yet observed in the real scan
 history checked above).
 
-**Not yet started.**
+**`new_coverage`/JaCoCo half — ✅ Done via `improvement-114` (2026-09-08):** JaCoCo wired
+reactor-wide, `bash scripts/sonar.sh` run in blocking mode (no `--no-gate`) reached
+`QUALITY GATE STATUS: PASSED` end to end for the first time — the "gate can actually reach a
+passing state at least once" confirmation this item asked for is now satisfied. See
+`completed/issues/improvement-114-sonar-jacoco-coverage-not-wired.md`.
+
+**`new_violations` half — ✅ Done, verified 2026-09-09 against a real completed CI scan** (Dagu run
+`034Lh059uIy2ylVQs8ACOU`, `sonar` step finished 07:14:49Z). Checked directly via SonarQube's API
+(`GET /api/qualitygates/project_status`, `GET /api/issues/search`), not assumed:
+- Quality gate: `OK` — all 3 conditions green, `new_violations` actual value `0`.
+- Project-wide: `GET /api/issues/search?componentKeys=advertisement&resolved=false` returns
+  `total: 0` — no open issues anywhere in the project.
+- Per named rule (any status, all time): `java:S5663` — 9 findings, all `CLOSED` (the
+  `marketplace-rest-api` controllers named in the original finding); `java:S7467`/`java:S1192`/
+  `java:S1450`/`java:S8491` — 0 findings, no trace of any of them.
+
+**Both halves of item 18 confirmed done — the quality gate has now genuinely passed end to end**
+(see `improvement-114`'s own verification for the `new_coverage` half, 2026-09-08; this
+`new_violations` check, 2026-09-09).
+
+## 19. `ci-runner`'s CI-stage artifacts never reach the host disk — only 4 of ~8 output kinds are synced back
+
+**Found (2026-09-09), while investigating why `playwright/pw-report/` stayed dated 2026-09-05 despite
+a same-day CI run:** `ci-runner` (`scripts/ci/Dockerfile`) is built via `COPY . .` — a frozen
+snapshot of the source tree at image-build time, not a live bind mount of the host working
+directory (confirmed: host-path bind mounts don't work reliably when the caller invoking `docker
+run`/`docker build` is itself running inside a container, same root cause already documented for
+`scripts/build-and-test/run.sh` — see `scripts/ci/DECISIONS.md`). This is a deliberate, already-
+accepted design (ADR-001, `scripts/ci`), not itself a bug.
+
+The actual gap: every wrapped script (`build-and-test.sh`, `playwright/run.sh`, `sonar/run.sh`)
+already does its own internal `docker cp` to pull results out of its own test container — but when
+that script runs *inside* `ci-runner` (as every `unit`/`integration`/`e2e`/`sonar` Dagu step does),
+its own `$ROOT`-relative `docker cp` destination resolves to `ci-runner`'s own internal filesystem
+copy, not the real host disk. `scripts/ci/run.sh`'s own `sync_artifacts()` function does perform
+the second hop (`ci-runner` → real host disk) — but only for 4 files:
+`architecture-metrics.json`, `pipeline-metrics.json`, `architecture-model.json`,
+`architecture-map.html` (the `archunit_metrics`/`docs` steps' outputs).
+
+**Confirmed missing from that second hop** (verified directly, `docker exec ci-runner ls`/`docker
+inspect` timestamps, not assumed):
+- `unit` step — Surefire reports (`scripts/build-and-test/reports/surefire/<module>/`), JaCoCo XML
+  (`.../jacoco/*.xml`), run log (`scripts/logs/build-and-test/`)
+- `integration` step — Surefire mirror (`integration-tests/reports/`), run log
+- `e2e` step — Playwright HTML report + screenshots (`playwright/pw-report/`), run log
+  (`scripts/logs/playwright/`)
+- `sonar` step — HTML report (`scripts/sonar/report/report.html`), run log (`scripts/logs/sonar/`)
+
+**Decided approach (2026-09-09), two mechanisms depending on where the artifact actually lives:**
+1. **Volume-based (preferred, more robust)** — for artifacts that already land in the shared
+   `test-reports` named Docker volume before any per-script `docker cp` moves them further (this is
+   true for Playwright's report/screenshots and the unit/integration Surefire+log output — all
+   confirmed to originate in `/reports/...` inside that volume, written by the build container /
+   `pw-runner` regardless of which host process later reads them out). `sync_artifacts()` gains a
+   step that mounts `test-reports` via a throwaway container (`docker run --rm -v
+   test-reports:/reports -v "$ROOT/...":/dest alpine cp -r ...`) and copies the relevant subtrees
+   straight to the host — this does not depend on `ci-runner` still holding a copy, and survives
+   even if `ci-runner` itself were removed and recreated between the run and the sync.
+2. **Direct `docker cp` from `ci-runner`'s own filesystem (fallback)** — for the one artifact that
+   does not pass through `test-reports`: Sonar's final `report.html` (written directly to `$ROOT`
+   inside the scanner-invoking script, never staged in the shared volume). Same pattern as the
+   existing 4 `sync_artifacts()` entries: `docker cp "$CONTAINER:/app/scripts/sonar/report/report.html" ...`.
+
+**Verification plan, once implemented:** run a real `bash scripts/ci.sh --foreground` end to end,
+confirm all ~8 artifact kinds land on the real host disk with fresh timestamps matching the run,
+not stale copies from an earlier session. Once verified working for real, record the design via
+`/record-decision` in `scripts/ci/DECISIONS.md` and reflect the new sync coverage in
+`scripts/ci/README.md` (both — the decision *why* two different mechanisms are used belongs in
+`DECISIONS.md`, the current *what gets synced* fact belongs in the README per this project's
+one-fact-one-home rule).
+
+**Not yet started** — scoped and approved 2026-09-09, implementation deliberately deferred to a
+dedicated pass (not folded into this session's other work).
+
+## 20. `jacoco:report-aggregate` silently produced an empty coverage report for every `*-spring-boot-starter` module — ✅ Done (2026-09-09)
+
+**Found while verifying item 14's new tests actually closed the `new_coverage` gap:** after adding
+8 new integration tests (item 14), `new_coverage` stayed exactly 54.2% — unchanged. Direct Sonar API
+check showed every `*-spring-boot-starter` repository class at 0% coverage for its **entire** file
+(not just new lines), including files untouched that day (`AttachmentRepository`,
+`ApiKeyRepository`). `query-lib` (a plain library, covered by its own unit tests) showed correct
+real coverage (93.6%) — the gap was isolated to modules whose only tests live in `integration-tests`
+(this codebase's own architecture: domain starters carry no test code of their own).
+
+**Root cause:** `integration-tests/run.sh` and `scripts/build-and-test/build.sh`'s
+`run_integration_tests()` both invoke `./mvnw -pl integration-tests test` (no `-am`) — a deliberate
+speed optimization (a separate staleness-check step installs starter JARs first). `jacoco:report-
+aggregate` (the Maven goal meant to attribute `integration-tests`' exec data back to the starter
+classes it exercises) only resolves dependency modules present in the *same reactor session* — with
+scoped `-pl` alone, that session contains only `integration-tests` itself, so the goal silently
+produced a report with 0 packages (confirmed: no "Analyzed bundle" log line for that goal, unlike
+the plain `jacoco:report` goal immediately above it in the same log; the copied XML was a bare
+250-byte `<report>` skeleton).
+
+**Rejected fix:** adding `-am` to the mvn invocation — confirmed working (report-aggregate then sees
+all 10 dependency modules) but reintroduces real side effects (`marketplace-orchestrator`/
+`marketplace-rest-api`'s own unit tests re-run a second time, recompilation of all 10 modules) that
+defeat the point of the narrow `-pl` optimization — rejected after discussion.
+
+**Actual fix:** the standalone JaCoCo CLI jar (`org.jacoco:org.jacoco.cli:0.8.14:nodeps`, same
+version already pinned for the Maven plugin) has no reactor-session requirement — its `report`
+command reads the exec file plus explicit `--classfiles`/`--sourcefiles` directory paths straight
+off disk. Both scripts now generate `integration-tests-aggregate.xml` via this CLI instead of
+copying `jacoco:report-aggregate`'s (broken) output, listing the same 10 modules
+`integration-tests/pom.xml` itself declares as `<dependency>` entries (`platform-commons` + 7
+starters + `marketplace-orchestrator` + `marketplace-rest-api`). No extra mvn invocation, no
+recompilation, no repeated test runs — one `java -jar` call after the exec file already exists;
+the CLI jar itself is fetched once via `mvnw dependency:get` into the shared `~/.m2` if missing.
+
+**Verified (2026-09-09):**
+- Manual CLI run against the existing `jacoco.exec`: 159 classes analyzed (was 0 via
+  `report-aggregate`), `AdvertisementRepository.java` — LINE 61 covered / 18 missed (was 0/67).
+- End-to-end via `integration-tests/run.sh` (with the fix wired in): same real numbers reproduced
+  automatically, no manual CLI invocation needed.
+- Full `bash scripts/sonar.sh` re-run: `new_coverage` 54.2% → **88.8%** (threshold 80%), quality
+  gate `OK`, all 3 conditions green — verified directly via SonarQube's API
+  (`GET /api/qualitygates/project_status`), not assumed.
 
 - [improvement-073](../completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) —
   REST API infrastructure (API-key auth, Swagger, apikey/rest-api modules) this whole batch follows

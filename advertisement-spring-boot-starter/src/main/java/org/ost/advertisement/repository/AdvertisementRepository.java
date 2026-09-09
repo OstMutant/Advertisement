@@ -10,6 +10,7 @@ import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
+import org.ost.query.sort.SortField;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
@@ -19,13 +20,13 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.ost.platform.advertisement.dto.AdvertisementFilterDto.Fields.*;
 import static org.ost.query.filter.SqlCondition.*;
 
+/** Bespoke {@code JdbcClient} queries for {@code advertisement} (filtering/sorting/pagination); trivial CRUD delegates to {@link AdvertisementCrudRepository}. */
 @Repository
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
@@ -81,15 +82,19 @@ public class AdvertisementRepository {
                 .query(ROW_MAPPER).list();
     }
 
+    private static final List<SortField> SORT_FIELDS = List.of(
+            SortField.of(AdvertisementInfoDto.Fields.id,          "a.id"),
+            SortField.of(AdvertisementInfoDto.Fields.title,       "a.title"),
+            SortField.of(AdvertisementInfoDto.Fields.description, "a.description"),
+            SortField.of(AdvertisementInfoDto.Fields.createdAt,   "a.created_at",
+                    SortField.of(AdvertisementInfoDto.Fields.id, "a.id")),
+            SortField.of(AdvertisementInfoDto.Fields.updatedAt,   "a.updated_at",
+                    SortField.of(AdvertisementInfoDto.Fields.id, "a.id")));
+
     public List<AdvertisementInfoDto> findByFilter(@NonNull AdvertisementFilterDto filter, @NonNull Pageable pageable,
                                                     Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();
-        String orderBy = OrderByBuilder.build(pageable.getSort(), Map.ofEntries(
-                Map.entry(AdvertisementInfoDto.Fields.id,          "a.id"),
-                Map.entry(AdvertisementInfoDto.Fields.title,       "a.title"),
-                Map.entry(AdvertisementInfoDto.Fields.description, "a.description"),
-                Map.entry(AdvertisementInfoDto.Fields.createdAt,   "a.created_at"),
-                Map.entry(AdvertisementInfoDto.Fields.updatedAt,   "a.updated_at")));
+        String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_FIELDS);
         String sql = ("""
                         SELECT a.id, a.title, a.description, a.ad_kind, a.created_at, a.updated_at, a.created_by, a.version
                         FROM advertisement a
