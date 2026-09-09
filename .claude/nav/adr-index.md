@@ -207,7 +207,8 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-004 (scripts) | scripts | Accepted |  | run-all-tests.sh — real 3-way parallelism (unit, integration, Playwright) |
 | ADR-009 (scripts) | scripts | Accepted |  | DB/S3 credentials consolidated into the repo-root `.env`, loaded as fallback defaults (not unconditional overrides) so CI's per-run port overrides survive |
 | ADR-012 (scripts) | scripts | Accepted |  | `deploy-dev.sh` eliminated |
-| ADR-001 (scripts/sonar) | scripts/sonar | Accepted |  | SonarQube setup via Docker, no pom.xml changes |
+| ADR-010 (scripts/sonar) | scripts/sonar | Accepted |  | JaCoCo coverage wired reactor-wide; `sonar.sh` now runs real tests, not `--no-unit --no-integration` |
+| ADR-001 (scripts/sonar) | scripts/sonar | Accepted — the "no pom.xml changes" constraint is partially revised by ADR-010 (`jacoco-maven-plugin` added to root `pom.xml`); every other decision in this entry (Docker-based scanner, no Sonar-specific plugin/properties in `pom.xml`) still holds. |  | SonarQube setup via Docker, no pom.xml changes |
 | ADR-003 (scripts/sonar) | scripts/sonar | Accepted |  | `sonar.java.libraries` intentionally left empty |
 | ADR-004 (scripts/sonar) | scripts/sonar | Accepted |  | Quality gate blocking by default, opt-out via `--no-gate` |
 | ADR-006 (scripts/sonar) | scripts/sonar | Accepted |  | SonarQube server and scanner containers get a pull-then-up freshness check, not just an API health check |

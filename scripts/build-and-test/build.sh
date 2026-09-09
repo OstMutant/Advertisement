@@ -185,11 +185,14 @@ run_unit_tests() {
   mkdir -p "$LOGS_DIR"
   cp /tmp/unit-tests.log "$LOGS_DIR/unit-tests.log"
 
-  mkdir -p "$REPORTS_DIR/surefire"
+  mkdir -p "$REPORTS_DIR/surefire" "$REPORTS_DIR/jacoco"
   for m in query-lib marketplace-app marketplace-orchestrator marketplace-rest-api; do
     if [ -d "$ROOT/$m/target/surefire-reports" ]; then
       mkdir -p "$REPORTS_DIR/surefire/$m"
       cp -r "$ROOT/$m"/target/surefire-reports/* "$REPORTS_DIR/surefire/$m/" 2>/dev/null || true
+    fi
+    if [ -f "$ROOT/$m/target/site/jacoco/jacoco.xml" ]; then
+      cp "$ROOT/$m/target/site/jacoco/jacoco.xml" "$REPORTS_DIR/jacoco/$m.xml"
     fi
   done
   return $UNIT_EXIT
@@ -244,6 +247,12 @@ run_integration_tests() {
   # destinations reading it via `docker cp` are unaffected by that duplication.
   mkdir -p "$REPORTS_DIR/it-mirror/surefire"
   cp -r "$ROOT"/integration-tests/target/surefire-reports/* "$REPORTS_DIR/it-mirror/surefire/" 2>/dev/null || true
+
+  # report-aggregate's combined XML -- attributes coverage back to the starters this run exercised.
+  mkdir -p "$REPORTS_DIR/jacoco"
+  if [ -f "$ROOT/integration-tests/target/site/jacoco-aggregate/jacoco.xml" ]; then
+    cp "$ROOT/integration-tests/target/site/jacoco-aggregate/jacoco.xml" "$REPORTS_DIR/jacoco/integration-tests-aggregate.xml"
+  fi
 
   return $INTEGRATION_EXIT
 }

@@ -2437,3 +2437,20 @@ Verified: 24/24 `run.test.sh` assertions, one real dry run against the actual
 `/review` pass (2 confirmed findings fixed — the `CURRENT_STEP` bug above and 5 stale command
 files; 3 lower-confidence findings fixed directly rather than filed as a follow-up issue). Full
 detail: `completed/issues/improvement-184-activity-monitor-token-efficient-narration.md`.
+
+✅ Done (2026-09-08): improvement-114 closed — JaCoCo coverage wired reactor-wide so SonarQube's
+`new_coverage` gate condition stops structurally reading `0.0%`. `jacoco-maven-plugin` (0.8.14,
+first version with official Java 25 support) added to root `pom.xml`, inherited by every module;
+`integration-tests/pom.xml` runs `report-aggregate` (not plain `report`) since the 7 domain
+starters carry no test code of their own and only get exercised via `integration-tests`' own
+Testcontainers tests. `scripts/sonar/run.sh` now runs real tests (`--unit --integration`, not
+`--no-unit --no-integration`) since coverage data is a side effect of the test phase.
+`sonar.coverage.exclusions` widened from `improvement-113`'s narrow `ui/query/elements/**` to the
+whole `ui/**` tree (Playwright-verified, never JUnit). Amends `scripts/sonar/DECISIONS.md` ADR-001's
+"no pom.xml changes" constraint, narrowly (ADR-010). Verified via a real blocking
+`bash scripts/sonar.sh` run (no `--no-gate`): scanner log confirmed "Importing 5 report(s)",
+overall `coverage` metric moved from always-`0.0%` to a real `20.0%`, and
+`QUALITY GATE STATUS: PASSED` end to end for the first time. A `/review` pass found and fixed 3
+confirmed "one line or none" comment-style violations plus one duplicate-loop DRY consolidation in
+`scripts/build-and-test/build.sh`. Full detail:
+`completed/issues/improvement-114-sonar-jacoco-coverage-not-wired.md`.

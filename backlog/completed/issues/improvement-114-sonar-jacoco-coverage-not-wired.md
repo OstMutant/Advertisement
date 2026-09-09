@@ -142,6 +142,27 @@ live post-fix (`docker exec --user root sonar-scanner test -d
 replace this issue's own JaCoCo-wiring gap above — both still need to land before `new_coverage`
 reports a real, non-zero number.
 
+## Verified (2026-09-08)
+
+Implemented the plan above (all 5 files) and ran `bash scripts/sonar.sh` in blocking mode (no
+`--no-gate`). Real, confirmed results from the SonarQube API:
+- Scanner log: `Importing 5 report(s)` — all 5 JaCoCo XML paths found and imported.
+- `coverage` (overall project metric): **20.0%** — previously always literally `0.0%` (no data
+  ever imported at all); this is the definitive proof the wiring works.
+- `new_coverage` for this specific run: `0.0%`, but with only 7 new coverable lines in the current
+  `PREVIOUS_VERSION` leak period (residual from an earlier commit this session) and
+  `ignoredConditions: true` in the gate response — SonarQube's own standard behavior when too
+  little new code exists to meaningfully evaluate a new-code percentage metric, not a wiring
+  failure.
+- `QUALITY GATE STATUS: PASSED` — end to end, in blocking mode, for the first time.
+
+`sonar.coverage.exclusions` widened from the narrow `ui/query/elements/**` (improvement-113's
+stopgap) to the whole `marketplace-app/.../ui/**` tree, closing sub-problem 2 from this issue's
+original analysis.
+
+See `scripts/sonar/DECISIONS.md` ADR-010 for the full design record (also amends ADR-001's
+"no pom.xml changes" constraint, narrowly, for `jacoco-maven-plugin`).
+
 ## Related
 
 - [improvement-113](../completed/issues/improvement-113-query-elements-leaf-components-plain-classes.md) —
@@ -149,3 +170,26 @@ reports a real, non-zero number.
   `ui/query/elements/**` there as a stopgap, not a full fix for this issue.
 - `scripts/sonar/DECISIONS.md` — quality-gate-blocking rationale (why `-Dsonar.qualitygate.wait=true`
   needed more than just adding the flag).
+
+## Operational notes
+- token_cost_review: 109204
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: 1 / 3
+- context_loading_task_type: n/a
+- context_loading_consulted: n/a
+- context_loading_matched: n/a
+- flows_situation: implement an already-decided infra/config plan end to end via /autopilot, verify via a real blocking Sonar run
+- flows_chosen: /autopilot
+- flows_matched: yes
+
+### Agent calls
+- Code review of JaCoCo wiring changes | subagent_type=deep-review-orchestrator | tokens=109204 | tool_uses=40 | duration_s=460 | mode=background | batch=solo
+
+### Script/command runs
+- bash scripts/sonar.sh (blocking, no --no-gate) | duration_s=382 | mode=background | result=pass
+
+### Review angle yield
+- dry-kiss-yagni | survived=1 | total_candidates=1 | tokens=56745
+- solid | survived=0 | total_candidates=0 | tokens=38897
+- precedent | survived=2 | total_candidates=2 | tokens=80544

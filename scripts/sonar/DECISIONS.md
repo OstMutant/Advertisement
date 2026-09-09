@@ -2,9 +2,52 @@
 
 ---
 
+## ADR-010: JaCoCo coverage wired reactor-wide; `sonar.sh` now runs real tests, not `--no-unit --no-integration`
+**Status:** Accepted
+
+**Context:** `new_coverage` always read `0.0%` on every quality-gate run regardless of real test
+quality — no JaCoCo agent was ever attached to any test JVM, so Sonar never received coverage data
+for any module. Two compounding causes: (1) no `jacoco-maven-plugin` anywhere in the reactor, and
+(2) `scripts/sonar/run.sh` built the reactor via `build-and-test.sh --no-unit --no-integration`
+(deliberately skipping tests for scan speed), so even a JaCoCo agent would have had nothing to
+record. This project's own test-placement convention (see `.claude/rules/integration-tests.md`)
+adds a real wrinkle: the 7 domain starters carry no test code of their own — their repository
+coverage only exists via `integration-tests`' Testcontainers-based tests — so a naive per-module
+`jacoco:report` would report `0%` for every starter regardless of real coverage, since `report`
+only attributes exec hits to classes present in the *same* module's own `target/classes`.
+
+**Decision:** `jacoco-maven-plugin` (0.8.14, the first version with official Java 25 support) added
+to root `pom.xml`'s `<build><plugins>` (inherited reactor-wide, not `pluginManagement` — every
+module needs it applied, none opts in individually), `prepare-agent` + `report` bound to the `test`
+phase. `integration-tests/pom.xml` additionally runs `report-aggregate` instead of plain `report` —
+it already reactor-depends on every domain starter plus `platform-commons`, exactly what
+`report-aggregate` needs to attribute its own exec data back to those starters' real classes.
+`build-and-test.sh` copies both report shapes (4 per-module reports + 1 aggregate) into
+`$REPORTS_DIR/jacoco/`. `scripts/sonar/run.sh` now invokes `build-and-test.sh --unit --integration`
+(not `--no-unit --no-integration`) — coverage data doesn't exist until tests actually run, so a
+scan this deliberately skipped tests for speed could never carry real numbers; a sonar run is now
+noticeably slower, an accepted trade-off since a scan with no real test execution can't report real
+coverage. `sonar.coverage.jacoco.xmlReportPaths` in `sonar-project.properties` lists all 5 report
+paths (Sonar's XML importer safely merges overlapping coverage per file+line when a class appears
+in more than one report). `sonar.coverage.exclusions` widened from the narrow
+`ui/query/elements/**` carve-out to the whole `marketplace-app/.../ui/**` tree — the Vaadin UI
+layer is deliberately verified via Playwright, never JUnit, so it should never count against the
+coverage threshold in the first place.
+
+**This revises ADR-001's "no pom.xml changes" constraint, narrowly.** `jacoco-maven-plugin` is a
+general-purpose Java coverage tool, not Sonar-specific config — Sonar is one consumer of its
+output, not the reason it exists. ADR-001's actual concern (keeping *Sonar-specific* plugins/
+properties out of the shared `pom.xml`) still holds: no Sonar plugin or Sonar property was added to
+`pom.xml`, only a standard coverage instrumentation plugin every module now carries regardless of
+whether Sonar ever runs.
+
+---
+
 ## ADR-001: SonarQube setup via Docker, no pom.xml changes
 
-**Status:** Accepted
+**Status:** Accepted — the "no pom.xml changes" constraint is partially revised by ADR-010
+(`jacoco-maven-plugin` added to root `pom.xml`); every other decision in this entry (Docker-based
+scanner, no Sonar-specific plugin/properties in `pom.xml`) still holds.
 
 **Context:** Decided 2026-05-15. Needed a way to run SonarQube analysis against the project without
 adding dev-only infrastructure (plugins, properties) to the shared `pom.xml`.
