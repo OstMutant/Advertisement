@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/** Pure delegation implementing {@link AttachmentPort} -- no business logic of its own. */
 @Component
 @RequiredArgsConstructor
 public class DefaultAttachmentPort implements AttachmentPort {

@@ -328,3 +328,52 @@ an arbitrary one — see `improvement-124`'s Part 1 item 4). Needs a real produc
 fix — the narrow fix actually shipped for the immediate bug was `RadioButtonGroup.setItemEnabledProvider`
 (keep `SUPPORT` in the item list — disabled, not hidden — when it's already the actor's current
 value, so the field stays representable without granting the actor a way to freshly select it).
+
+### 18. Four `.claude/rules/*.md` files still point at the deprecated README "Key classes" table (found during improvement-183 item 11 repo-wide rollout, 2026-09-09)
+
+`.claude/rules/advertisement-spring-boot-starter.md`, `audit-spring-boot-starter.md`,
+`user-spring-boot-starter.md`, and `attachment-spring-boot-starter.md` each still direct readers to
+their module's README "Key classes" table for the class list — that table no longer exists once
+`module-readme-standards`' current shape (`What it provides`/`Data flow`/`Dependencies`) was applied
+to all 4 modules during item 11's repo-wide pass. Mechanical fix (update each pointer to name the
+current section instead), deferred only because it touches 4 files outside that item's approved
+Java/pom.xml/README-only scope.
+
+### 19. Two Liquibase changelogs missing their mandatory file-level header (found during improvement-183 item 11, 2026-09-09)
+
+`taxon-spring-boot-starter/db/taxon-changelog/master.xml` and
+`audit-spring-boot-starter/db/audit-changelog/audit-changelog-master.xml` (plus that module's
+`changes/01-audit-schema.xml`) lack the `<!-- Description: ... -->` header `module-doc-standards`
+requires on every master changelog and change file. Deferred only because Liquibase changelogs were
+outside item 11's approved scope (Java/pom.xml/README.md only), not because the header shape for a
+change file is settled — `module-doc-standards` itself flags the change-file header shape as "not
+yet designed."
+
+### 20. `provider_profile`'s Liquibase `remarks=` wrongly claims this starter writes category assignments (found during improvement-183 item 11, 2026-09-09)
+
+The changelog's `remarks=` text on `provider_profile` (`db/provider-profile-changelog/changes/
+01-provider-profile-schema.xml`) states category assignments are written directly by this starter's
+own service. Actually false — `marketplace-orchestrator`'s `ProviderProfileSaveService`/
+`TaxonAssignmentWriteService` writes them; `provider-profile-spring-boot-starter` only resolves them
+read-only for query-time filtering. Root `CLAUDE.md` treats `remarks=` as the single source of truth
+for a column's business meaning, so this is a real factual bug in living documentation, not just
+staleness — deferred only because Liquibase changelogs were outside item 11's approved scope.
+
+### 21. `attachment-spring-boot-starter/pom.xml` declares two dependencies with zero real references (found during improvement-183 item 11, 2026-09-09)
+
+`query-lib` and `jackson-datatype-jsr310` are both declared as dependencies in this module's
+`pom.xml` but neither is imported or used anywhere in `attachment-spring-boot-starter/src`. Likely
+dead — needs a grep-confirmed removal pass (same shape as `query-lib/pom.xml`'s own 3-dependency
+cleanup earlier this session), deferred only because it wasn't part of item 11's approved
+Java/pom.xml-comment/README scope (this is a dependency-removal, not a comment fix).
+
+### 22. Trimmed rationale in `attachment-spring-boot-starter` has no `DECISIONS.md` entry to route to (found during improvement-183 item 11, 2026-09-09)
+
+Two inline comments were trimmed during item 11's Javadoc/comment pass per the repo's ticket-number
+ban (`AttachmentCleanupService.cleanup()`'s Javadoc cited `improvement-049 item 4`;
+`AttachmentRepository`'s inline comment cited `improvement-054`), each carrying real design
+rationale (DB-commit-before-S3-delete ordering in the cleanup flow; array-bind vs. `IN(:list)` for
+an unbounded id set) that `module-doc-standards`' own "Where comment rationale that got trimmed
+actually goes" table says belongs in that module's `DECISIONS.md` — which doesn't have an entry for
+either yet. Needs a `/record-decision` pass to actually preserve the rationale, not just a one-line
+pointer with nothing on the other end.

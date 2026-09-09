@@ -42,18 +42,9 @@ import static org.ost.query.filter.SqlCondition.before;
 import static org.ost.query.filter.SqlCondition.inSet;
 
 /**
- * Persistence layer for the audit subsystem. All reads and writes go through {@code audit_log} table.
- *
- * <p>Write side: {@link #save} appends a new snapshot row; {@link #deleteOlderThan} is called by the
- * cleanup scheduler.
- *
- * <p>Read side: {@link #findRows} queries by entity (with optional actor filter); {@link #findTimeline}
- * queries a filtered, paginated cross-entity feed. Both return {@link AuditLogProjection} with SQL window-function columns
- * ({@code version}, {@code prev_id}, {@code prev_snapshot_data}) pre-computed at query time — correct
- * for future pagination. Services map rows to their specific DTOs and apply limits via streams.
- *
- * <p>Snapshot-specific queries ({@link #getLastSnapshot}, {@link #getSnapshotContent}) are used
- * by {@code DefaultAuditPort} for restore flows and return typed results directly.
+ * Persistence layer for the audit subsystem: all reads and writes go through the {@code audit_log}
+ * table, with window-function queries pre-computing each row's version and previous-snapshot for
+ * diff-at-read-time.
  */
 @Slf4j
 @Repository
@@ -198,6 +189,7 @@ public class AuditLogRepository {
         }
     }
 
+    /** Maps one {@code audit_log} window-function result row into an {@link AuditLogProjection}, deserializing its snapshot columns via Jackson. */
     @Slf4j
     @Component
     @RequiredArgsConstructor
@@ -237,6 +229,7 @@ public class AuditLogRepository {
         }
     }
 
+    /** Maps one {@code audit_log} row into an {@link AuditSnapshotContentDto} for the snapshot-content read used by restore flows. */
     @Component
     @RequiredArgsConstructor
     static class SnapshotContentMapper implements RowMapper<AuditSnapshotContentDto<? extends AuditableSnapshot>> {

@@ -13,7 +13,10 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
-
+/**
+ * JdbcClient-backed queries for {@code user_preferences} -- settings stored as JSONB with an
+ * in-column optimistic-lock version; no entity class, this table is accessed via raw SQL only.
+ */
 @Slf4j
 @Repository
 @RequiredArgsConstructor

@@ -21,6 +21,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Read-side query service assembling entity activity history and cross-entity timeline pages from
+ * {@link AuditLogRepository} rows, applying {@link AuditActivityEnrichHook} enrichment before returning.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

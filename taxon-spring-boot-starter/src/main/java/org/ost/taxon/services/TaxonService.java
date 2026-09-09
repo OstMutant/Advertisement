@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+/** Catalog-side operations: a taxon's own lifecycle (create/update/soft-delete/restore) and translations, with no awareness of what's assigned to it; captures an audit snapshot via {@link AuditPort} on every write when an actor id is known. */
 @Slf4j
 @Service
 @RequiredArgsConstructor

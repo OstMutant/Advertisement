@@ -38,6 +38,11 @@ import tools.jackson.databind.json.JsonMapper;
 import javax.sql.DataSource;
 import java.util.TimeZone;
 
+/**
+ * Auto-configures the User domain -- Liquibase migration, Spring Security beans (password
+ * encoder, {@code UserDetailsService}, {@code AuthenticationManager}), every {@code User*Port}
+ * component-factory bean, and the scheduled soft-deleted-user cleanup job.
+ */
 @Slf4j
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)

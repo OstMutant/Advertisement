@@ -11,6 +11,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 
+/** One uploaded file or embedded video row linked to an entity, soft-deletable via {@code deletedAt}/{@code deletedByActorId}. */
 @Value
 @Builder
 @FieldNameConstants

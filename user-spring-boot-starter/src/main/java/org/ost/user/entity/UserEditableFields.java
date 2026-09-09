@@ -10,6 +10,11 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 
+/**
+ * Narrower {@code user_information} projection (id/name/role/updatedAt/version only, no
+ * email/passwordHash) mapped to the same table so the profile-edit path's generated {@code UPDATE}
+ * can never touch a sensitive field.
+ */
 @Value
 @Builder
 @Table("user_information")

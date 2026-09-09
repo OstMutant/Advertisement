@@ -19,6 +19,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Captures a filename-diff snapshot of an entity's active attachment urls after every mutation,
+ * and serves the resulting history back for restore and audit display.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

@@ -23,6 +23,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Uploads, deletes, restores, and lists attachments -- coordinates {@link StorageService} (the
+ * file bytes) with {@link AttachmentRepository} (the row) and {@link AttachmentSnapshotService}
+ * (the audit/restore trail) behind every mutating call.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

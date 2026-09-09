@@ -8,6 +8,7 @@ import org.ost.user.security.OwnershipChecker;
 import org.ost.user.security.RoleChecker;
 import org.springframework.stereotype.Service;
 
+/** Delegates every {@link UserAuthorizationPort} method to {@code RoleChecker}/{@code OwnershipChecker}. */
 @Service
 @RequiredArgsConstructor
 public class UserAuthorizationPortImpl implements UserAuthorizationPort {

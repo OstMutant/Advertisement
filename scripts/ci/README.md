@@ -72,8 +72,9 @@ here.
 ## Live status, logs, and run history
 
 `http://localhost:8082` — Dagu's own web UI; see [`run.sh`](run.sh)'s own header for how it's
-exposed and which metrics files sync onto the host. Run history is backed by the `ci-dagu-home`
-named volume.
+exposed and the full list of test/metrics artifacts `sync_artifacts()` pulls onto the host (every
+stage's Surefire/JaCoCo/Playwright/Sonar output, not just the architecture-metrics files). Run
+history is backed by the `ci-dagu-home` named volume.
 
 For a scripted/automated watch instead of the browser,
 `python3 -u` [`dagu-rest-run-monitor.py`](dagu-rest-run-monitor.py) polls the same API for whichever

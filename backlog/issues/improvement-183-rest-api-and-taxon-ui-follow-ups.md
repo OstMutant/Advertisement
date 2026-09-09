@@ -322,7 +322,7 @@ shows categories/city/author/createdAt/updatedAt — the raw request's Advertise
 fully unambiguous against what's already verified present) before changing anything there; extend
 Playwright specs to assert the new Provider fields render.
 
-## 11. Run module-doc-standards/module-readme-standards audit; find out why /sync-docs output doesn't match them — ✅ Done for `marketplace-rest-api` (2026-09-08); repo-wide rollout still open
+## 11. Run module-doc-standards/module-readme-standards audit; find out why /sync-docs output doesn't match them — ✅ Done, all 8 modules (2026-09-09)
 
 **Current state:** the `module-doc-standards`/`module-readme-standards` skills exist and are
 already referenced from `.claude/commands/sync-docs.md` (confirmed by direct read — `sync-docs.md`
@@ -365,8 +365,33 @@ outside `/sync-docs`). Work this in fixed phases, each presented for approval be
     (previously left as an open question — resolved in favor of the rule, no exception, once asked
     to run the full module), and `.claude/rules/marketplace-rest-api.md`'s own missing
     `concurrency`/`ETagUtil` package and new `*WriteRequest` nested records.
-- **Repo-wide rollout** (the other 7 starter modules' own README "Key classes" → "Data flow"
-  migration, plus a full `--module` pass on each) — still open, not scheduled.
+- **Repo-wide rollout — done (2026-09-09), 6 parallel agents, one per module** (`apikey-spring-boot-
+  starter` was already compliant, needed none): `advertisement-` (4 classes), `user-` (15 classes),
+  `taxon-` (14 classes), `audit-` (7, incl. 2 nested records + one 4-paragraph Javadoc trimmed to
+  one line), `attachment-` (18, incl. 3 nested records), `provider-profile-spring-boot-starter` (3
+  classes) — every missing class-level Javadoc added, every `pom.xml` got its mandatory header,
+  every `README.md` regenerated to the current `What it provides`/`Data flow`/`Dependencies` shape.
+  Each module's README also went through the skill's required independent fresh-context review
+  pass, which caught and fixed real Javadoc-restated-in-README duplications and factual errors in
+  several modules (worst: `user-spring-boot-starter`'s README wrongly claimed `user_preferences`
+  rows are created lazily — they're created unconditionally at registration).
+
+**Cross-cutting findings surfaced along the way, out of this item's own scope (Java/pom.xml/README
+only) — proposed for `improvement-133`'s deferred-findings bucket, not yet added:**
+- `.claude/rules/{advertisement,audit,user,attachment}-spring-boot-starter.md` all still point
+  readers at their README's old "Key classes" table, now gone after the regenerate — stale
+  cross-references in 4 files.
+- 2 Liquibase changelogs missing their mandatory file-level header: `taxon-changelog/master.xml`,
+  `audit-changelog-master.xml` (+ `audit-spring-boot-starter/changes/01-audit-schema.xml`).
+- `provider-profile-spring-boot-starter`'s Liquibase `remarks=` on `provider_profile` states
+  category assignments are written by this starter's own service — factually wrong, actually
+  written by `marketplace-orchestrator`'s `TaxonAssignmentWriteService`.
+- `attachment-spring-boot-starter/pom.xml` declares `query-lib` and `jackson-datatype-jsr310` as
+  dependencies with zero references anywhere in that module's source — likely dead.
+- Trimmed rationale with no existing `DECISIONS.md` entry to route to: DB-commit-before-S3-delete
+  ordering and array-bind-vs-`IN(:list)` in `attachment-spring-boot-starter`'s `AttachmentRepository`/
+  `AttachmentCleanupService` (comments trimmed per the ticket-number ban, original rationale not
+  yet preserved anywhere).
 
 ## 12. `TaxonPort.getPageByType`/`DefaultTaxonPort` naming no longer matches Taxon's REST contract
 
@@ -675,7 +700,7 @@ passing state at least once" confirmation this item asked for is now satisfied. 
 (see `improvement-114`'s own verification for the `new_coverage` half, 2026-09-08; this
 `new_violations` check, 2026-09-09).
 
-## 19. `ci-runner`'s CI-stage artifacts never reach the host disk — only 4 of ~8 output kinds are synced back
+## 19. `ci-runner`'s CI-stage artifacts never reach the host disk — only 4 of ~8 output kinds are synced back — ✅ Done (2026-09-09)
 
 **Found (2026-09-09), while investigating why `playwright/pw-report/` stayed dated 2026-09-05 despite
 a same-day CI run:** `ci-runner` (`scripts/ci/Dockerfile`) is built via `COPY . .` — a frozen
@@ -726,8 +751,24 @@ not stale copies from an earlier session. Once verified working for real, record
 `DECISIONS.md`, the current *what gets synced* fact belongs in the README per this project's
 one-fact-one-home rule).
 
-**Not yet started** — scoped and approved 2026-09-09, implementation deliberately deferred to a
-dedicated pass (not folded into this session's other work).
+**Implemented (2026-09-09):** `sync_artifacts()` extended exactly per the decided approach above —
+volume-based copy (throwaway `alpine` container mounting `test-reports`) for unit/integration/sonar
+Surefire+JaCoCo+logs and Playwright's report+screenshots+log, plus the `docker cp` fallback for
+Sonar's `report.html`. Already committed (`scripts/ci/run.sh`).
+
+**Verified (2026-09-09), real host files, not assumed:** confirmed fresh, non-empty output for
+every one of the ~8 artifact kinds after a real `ci` DAG run (18:49-19:11 UTC) — `playwright/
+pw-report/` (mtime 19:11, matching), `scripts/build-and-test/reports/advertisement-build-only-
+{unit,integration,sonar}/jacoco/*.xml` + `surefire`/`it-mirror`, `scripts/logs/build-and-test/
+advertisement-build-only-*/`, `integration-tests/reports/surefire/*.txt`,
+`scripts/sonar/report/report.html` + `scripts/logs/sonar/run.log` (mtime 15:48, matching that
+run's own sonar step) — all present.
+
+**Doc-sync step closed too:** `run.sh`'s own header (the canonical home, per the atomic-unit-first
+rule) already lists every synced artifact kind in full since the implementation commit —
+`README.md`'s "Live status" section pointed at it but undersold it ("metrics files"); corrected the
+wording there to name the real scope (Surefire/JaCoCo/Playwright/Sonar output, not just
+architecture-metrics) rather than duplicating the list itself.
 
 ## 20. `jacoco:report-aggregate` silently produced an empty coverage report for every `*-spring-boot-starter` module — ✅ Done (2026-09-09)
 

@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/** {@link StorageService} implementation backed by an S3-compatible bucket via the AWS SDK. */
 @RequiredArgsConstructor
 public class S3StorageService implements StorageService {
 

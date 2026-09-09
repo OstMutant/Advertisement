@@ -15,6 +15,7 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 
 import javax.sql.DataSource;
 
+/** Auto-configures the Provider Profile domain -- its own Liquibase migration plus the {@code ProviderProfilePort}/{@code TaxonPort} component factory beans. */
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
 @ComponentScan({"org.ost.provider.spi", "org.ost.provider.services", "org.ost.provider.repository"})

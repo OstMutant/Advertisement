@@ -8,6 +8,7 @@ import org.ost.user.services.UserPreferencesService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/** Delegates every {@link UserPreferencesPort} method to {@code UserPreferencesService}. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

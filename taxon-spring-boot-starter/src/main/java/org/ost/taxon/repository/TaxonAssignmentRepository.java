@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/** Bespoke {@code JdbcClient} queries for {@code taxon_assignment}: assign/unassign and the lookup shapes {@link org.ost.taxon.services.TaxonAssignmentService} needs. */
 @Repository
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
@@ -74,7 +75,7 @@ public class TaxonAssignmentRepository {
     }
 
     public List<TaxonAssignment> findAllByEntities(@NonNull String entityType, @NonNull Set<Long> entityIds) {
-        // Array bind, not a Set -- avoids IN(:set)'s unbounded placeholder expansion (improvement-054).
+        // Array bind, not a Set -- avoids IN(:set)'s unbounded placeholder expansion.
         return jdbcClient.sql("""
                         SELECT entity_type, entity_id, taxon_id, assigned_at, assigned_by
                         FROM taxon_assignment

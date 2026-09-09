@@ -2,6 +2,7 @@ package org.ost.taxon.repository;
 
 import lombok.experimental.FieldNameConstants;
 
+/** Filter conditions for {@link TaxonRepository}'s catalog queries: an optional name search and whether soft-deleted rows are included. */
 @FieldNameConstants
 public record TaxonFilter(String name, boolean showDeleted) {
 

@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/** JdbcClient-backed queries for {@code attachment_snapshot} -- the diff-history table behind restore/audit. */
 @Slf4j
 @Repository
 @RequiredArgsConstructor

@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+/** Read-only delegation implementing {@link UserPort} -- forwards every query to {@code UserService}. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

@@ -43,6 +43,11 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+/**
+ * User domain business logic -- filtered queries, registration (first-user auto-admin promotion,
+ * Caffeine-backed rate-limiting), profile updates, soft-delete, cross-domain retention cleanup, and
+ * Spring Security principal construction/refresh.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

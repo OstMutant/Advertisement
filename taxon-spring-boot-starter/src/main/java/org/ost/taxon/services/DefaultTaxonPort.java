@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/** The {@link TaxonPort} SPI implementation: coordinates {@link TaxonService} and {@link TaxonAssignmentService}, resolving raw entities into locale-aware {@link TaxonDto}s for callers outside this starter. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

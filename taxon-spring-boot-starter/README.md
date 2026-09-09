@@ -12,27 +12,50 @@ reuse for "this advertisement/provider profile belongs to these categories and t
   advertisements, so `provider-profile-spring-boot-starter` reuses the same table/service shape
   for its own category assignments instead of each domain rolling its own many-to-many table.
 - **SPI implementation:** `TaxonPort` (called by `marketplace-orchestrator`'s
-  `TaxonCatalogService`/`TaxonLookupService`/`TaxonAssignmentWriteService`).
+  `TaxonCatalogService`/`TaxonLookupService`/`TaxonAssignmentWriteService`/`EntityExistenceService`,
+  and directly by `advertisement-spring-boot-starter`'s `AdvertisementService` and
+  `provider-profile-spring-boot-starter`'s `ProviderProfileService` via their own
+  `ComponentFactory<TaxonPort>`).
 
-## Key classes
+## Data flow
 
-| Class | Role |
-|---|---|
-| `TaxonService` | Catalog-side operations — a taxon's own lifecycle and translations, no awareness of what's assigned to it. |
-| `TaxonAssignmentService` | Assignment-side operations — which taxon ids are attached to a given `(EntityType, entityId)` pair; the two services stay separate since a catalog change (renaming a category) and an assignment change (tagging one ad) are independent write paths with different callers. |
-| `DefaultTaxonPort` | The `TaxonPort` SPI implementation — thin delegation to both services above, the only class outside this starter ever needs to know about. |
-| `TaxonRepository`/`TaxonTranslationRepository`/`TaxonAssignmentRepository` | `JdbcClient`-based repositories, one per table (`taxon`/`taxon_translation`/`taxon_assignment`) — `TaxonCrudRepository` handles the trivial `taxon` CRUD, the other two are bespoke-query `@Repository` classes per this project's repository pattern. |
+Every operation enters through `DefaultTaxonPort`, the sole `TaxonPort` implementation, which
+coordinates two independent services and never touches a repository directly:
+
+- **Catalog write:** `TaxonPort.create`/`update`/`softDelete`/`restore` → `DefaultTaxonPort` →
+  `TaxonService`, which saves/updates the `Taxon` row (via `TaxonRepository`, backed by
+  `TaxonCrudRepository` for the trivial save/find and bespoke `JdbcClient` SQL for filtered
+  listing/soft-delete/restore), upserts its `TaxonTranslation` rows (`TaxonTranslationRepository`),
+  and — when an actor id is present — captures a `TaxonSnapshotDto` via the optional
+  `ComponentFactory<AuditPort>`.
+- **Catalog/assignment read:** `TaxonPort.getForEntity`/`getForEntities`/`getAllByType`/
+  `getPageByType`/`findById`/`findByIds`/`listAllByType` → `DefaultTaxonPort` resolves the raw
+  `Taxon`/`TaxonTranslation`/`TaxonAssignment` rows (via `TaxonService` and, for entity-scoped
+  lookups, `TaxonAssignmentService`) into locale-aware `TaxonDto`s — the requested locale first,
+  falling back to `TaxonProperties.defaultLocale()`, then to any available translation.
+  `TaxonPort.getUsageCounts` follows the same read path but returns raw assignment counts
+  (`TaxonAssignmentService.countByTaxonIds`) rather than `TaxonDto`s.
+- **Assignment write:** `TaxonPort.replaceAssignments` → `DefaultTaxonPort` →
+  `TaxonAssignmentService.replaceAssignments`, which diffs the new taxon id set against the current
+  one (`TaxonAssignmentRepository.findAllByEntity`) and issues only the resulting `assign`/`unassign`
+  calls.
 
 ## Schema
 
-Liquibase changelog under `db/*-changelog/`. Tables: `taxon` (the catalog entry itself, typed by
-`TaxonType`), `taxon_translation` (per-locale name/description), `taxon_assignment` (the generic
-entity↔taxon many-to-many, keyed by `EntityType` + entity id rather than a domain-specific FK).
+Liquibase changelog under `db/taxon-changelog/`. Tables: `taxon` (the catalog entry itself, typed
+by `TaxonType`, soft-deletable and optimistically locked via `version`), `taxon_translation`
+(per-locale name/description, PK `(taxon_id, locale)`, cascades on `taxon` deletion),
+`taxon_assignment` (the generic entity↔taxon many-to-many, PK `(entity_type, entity_id, taxon_id)`,
+keyed by `EntityType` + entity id rather than a domain-specific FK). A partial unique index enforces
+`(type, code)` uniqueness only among rows that carry a non-null `code`.
 
 ## Dependencies
 
-- `platform-commons` — `TaxonPort`/`TaxonDto`/`TaxonTranslationDto`/`TaxonSnapshotDto`/`TaxonType`.
-- `query-lib` — `SqlFilterBuilder`/`OrderByBuilder` for `TaxonRepository`'s dynamic catalog queries.
+- `platform-commons` — `TaxonPort`/`TaxonDto`/`TaxonFilterDto`/`TaxonSnapshotDto`/
+  `TaxonTranslationDto`/`TaxonType` (own SPI contract), plus `AuditPort`/`ComponentFactory`/
+  `EntityType` (the shared audit/assignment contracts every domain starter uses).
+- `query-lib` — `SqlFilterBuilder`/`OrderByBuilder`/`PaginationSqlBuilder` for `TaxonRepository`'s
+  dynamic, paginated catalog queries.
 - No dependency on any sibling starter — the generic `EntityType`-keyed assignment table is what
   lets `provider-profile-spring-boot-starter` reuse this starter's assignment mechanism without a
   direct starter-to-starter dependency (enforced by the shared `enforce-no-starter-to-starter-deps`

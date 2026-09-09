@@ -11,6 +11,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * Spring Security {@code UserDetails} implementation wrapping a {@link User} entity and its
+ * resolved locale -- also implements {@link AuthenticatedPrincipal} so the rest of the application
+ * can read the current actor without a Spring Security dependency.
+ */
 public record UserPrincipal(User user, String locale) implements UserDetails, AuthenticatedPrincipal {
 
     @Override

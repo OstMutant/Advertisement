@@ -18,13 +18,19 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * JdbcClient-backed bespoke queries for {@code attachment} -- the trivial save/find lives in
+ * {@link AttachmentCrudRepository} instead.
+ */
 @Repository
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
 public class AttachmentRepository {
 
+    /** The entity's main (earliest-created, non-deleted) attachment url/content-type plus its total active count. */
     public record MediaStats(String mainUrl, String mainContentType, int count) {}
 
+    /** A soft-deleted attachment row's url/content-type, as returned to the cleanup sweep for the matching S3 delete. */
     public record DeletableAttachment(String url, String contentType) {}
 
     private static final RowMapper<Attachment> ROW_MAPPER = (rs, _) -> {
@@ -168,7 +174,7 @@ public class AttachmentRepository {
 
     // re-checks deleted_at + RETURNING url so a concurrently-restored row survives
     public List<String> deleteByUrls(@NonNull List<String> urls) {
-        // Array bind, not a List -- avoids IN(:list)'s unbounded placeholder expansion (improvement-054).
+        // Array bind, not a List -- avoids IN(:list)'s unbounded placeholder expansion.
         return jdbcClient.sql("DELETE FROM attachment WHERE url = ANY(:urls) AND deleted_at IS NOT NULL RETURNING url")
                          .paramSource(new MapSqlParameterSource("urls", urls.toArray(new String[0])))
                          .query(String.class)

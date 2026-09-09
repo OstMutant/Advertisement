@@ -12,6 +12,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 
+/** A single catalog entry (category, city, ...) typed by {@link TaxonType}; soft-deletable via {@code deletedAt}/{@code deletedBy} and optimistically locked via {@code version}. */
 @Value
 @Builder
 @FieldNameConstants
