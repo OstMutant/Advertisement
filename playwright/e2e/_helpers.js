@@ -1,8 +1,9 @@
 /* ── Header ──────────────────────────────────────────────────────────────────
  * Description: Shared Playwright test library -- test-user fixtures, media constants, overlay/
  *   notification wait helpers, a screenshot helper gated on PW_SCREENSHOTS, single-value field
- *   assertions for cards/overlays, computed-style/geometry assertions, and a PNG download helper.
- *   Required by every spec file and every _flows/*.flow.js file in this suite.
+ *   assertions for cards/overlays, field presence/absence/vertical-order assertions,
+ *   computed-style/geometry assertions, and a PNG download helper. Required by every spec file
+ *   and every _flows/*.flow.js file in this suite.
  * Usage: None -- a library only, never run directly.
  * Uses: @playwright/test (test, expect), Node's fs and https modules.
  * Env: PW_SCREENSHOTS -- when unset/falsy, screenshot() is a no-op; when set, it attaches a
@@ -10,7 +11,8 @@
  * Input: None.
  * Outputs: exports test, expect, TEST_USERS, YT_URL, avatar, waitForOverlayClosed, closeOverlay,
  *   closeNotification, screenshot, downloadPng, assertCardHasText, assertOverlayHasText,
- *   assertComputedColor, assertRightAligned. TEST_USERS (password "password" for all six):
+ *   assertComputedColor, assertRightAligned, assertAbsent, assertVerticalOrder. TEST_USERS
+ *   (password "password" for all six):
  *   - userEn      -- user.en@example.com      -- USER      -- en
  *   - userUk      -- user.uk@example.com      -- USER      -- uk
  *   - moderatorEn -- moderator.en@example.com -- MODERATOR -- en
@@ -176,6 +178,47 @@ async function assertRightAligned(expect, elementLocator, containerLocator, tole
   expect(gap, `expected element's right edge within ${toleranceInPx}px of container's right edge, gap was ${gap}px`).toBeLessThanOrEqual(toleranceInPx);
 }
 
+// ── Field presence / absence / vertical-order assertions ──────────────────────
+
+/**
+ * Asserts `selector` matches no element inside `container` -- for optional fields that must not
+ * render at all when they have no value.
+ * @param {import('@playwright/test').Expect} expect
+ * @param {import('@playwright/test').Locator} container
+ * @param {string} selector
+ * @returns {Promise<void>}
+ */
+async function assertAbsent(expect, container, selector) {
+  await expect(container.locator(selector)).toHaveCount(0);
+}
+
+/**
+ * Asserts the given selectors render top-to-bottom, in the given order, inside `container`.
+ * A selector that matches nothing is skipped (pair with assertAbsent to also require its
+ * absence). Each present element must start at or below the previous present one.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Expect} expect
+ * @param {import('@playwright/test').Locator} container
+ * @param {string[]} selectors in expected top-to-bottom order.
+ * @param {string} [screenshotName] when set, takes a screenshot once every present field checks out.
+ * @returns {Promise<void>}
+ */
+async function assertVerticalOrder(page, expect, container, selectors, screenshotName) {
+  let prevTop = -Infinity;
+  let prevName = 'top of container';
+  for (const selector of selectors) {
+    const loc = container.locator(selector).first();
+    if ((await loc.count()) === 0) continue;
+    await expect(loc, `${selector} is visible`).toBeVisible({ timeout: 5000 });
+    const box = await loc.boundingBox();
+    expect(box, `${selector} has a bounding box`).not.toBeNull();
+    expect(box.y, `${selector} renders below ${prevName}`).toBeGreaterThanOrEqual(prevTop - 1);
+    prevTop = box.y;
+    prevName = selector;
+  }
+  if (screenshotName) await screenshot(page, screenshotName);
+}
+
 // ── Download helper ───────────────────────────────────────────────────────────
 
 /**
@@ -202,4 +245,5 @@ module.exports = {
   closeNotification,
   screenshot, downloadPng,
   assertCardHasText, assertOverlayHasText, assertComputedColor, assertRightAligned,
+  assertAbsent, assertVerticalOrder,
 };

@@ -19,7 +19,8 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
-import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.EntityMetaPanel;
 import org.ost.marketplace.ui.views.services.AppLinkService;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.utils.ShareUtil;
@@ -54,7 +55,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     private final AccessEvaluator                                   access;
     @Getter
     private final I18nService                                       i18nService;
-    private final OverlayAdvertisementMetaPanel                     metaPanel;
+    private final UiComponentFactory<EntityMetaPanel>              metaPanelFactory;
     private final AttachmentMediaService                            attachmentMediaService;
     private final ComponentFactory<AttachmentGalleryService>      galleryServiceFactory;
     private final TaxonLookupService                                taxonLookupService;
@@ -101,7 +102,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
             gallery.addClassName("attachment-gallery--" + params.getAd().getAdKind().name().toLowerCase());
             viewBody.add(gallery);
         }
-        viewBody.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
+        viewBody.add(buildMetaPanel(params.getAd()));
         viewBody.addClassName("overlay__view-body");
 
         return viewBody;
@@ -114,6 +115,16 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         return badge;
     }
 
+    private EntityMetaPanel buildMetaPanel(AdvertisementInfoDto ad) {
+        return metaPanelFactory.build(EntityMetaPanel.Parameters.builder()
+                .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
+                .authorEmail(ad.getCreatedByUserEmail())
+                .createdAt(ad.getCreatedAt())
+                .updatedAt(ad.getUpdatedAt())
+                .variant(EntityMetaPanel.Variant.OVERLAY)
+                .build());
+    }
+
     private static void buildChipRow(Div textCard, List<TaxonDto> taxons, TaxonType type,
                                       String rowCssClass, String chipCssClass, String ariaLabel) {
         List<TaxonDto> matching = taxons.stream().filter(t -> t.getType() == type).toList();
@@ -122,6 +133,9 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         row.addClassName(rowCssClass);
         row.getElement().setAttribute("role", "list");
         row.getElement().setAttribute("aria-label", ariaLabel);
+        Span label = new Span(ariaLabel + ":");
+        label.addClassName("overlay-chips-label");
+        row.add(label);
         matching.forEach(taxon -> {
             Span chip = new Span(taxon.getName());
             chip.addClassName(chipCssClass);

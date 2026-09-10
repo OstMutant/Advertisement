@@ -12,6 +12,8 @@ import lombok.Value;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.Configurable;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.EntityMetaPanel;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
@@ -51,6 +53,7 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
     private final ProviderProfileSaveService providerProfileSaveService;
     private final AccessEvaluator            access;
     private final NotificationService        notificationService;
+    private final UiComponentFactory<EntityMetaPanel> metaPanelFactory;
     @Getter
     private final I18nService                i18nService;
 
@@ -91,14 +94,24 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
         about.addClassName("overlay__view-description");
         about.getElement().setProperty("innerHTML", profile.getAbout() != null ? profile.getAbout() : "");
 
-        Div card = new Div(cardHeader, kindBadge, about);
+        Div card = new Div(cardHeader, about);
         buildChipRow(card, profile.getCategoryNames(), "provider-profile-categories-chips",
                 "provider-profile-category-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CATEGORIES));
         if (profile.getCityName() != null) {
             buildChipRow(card, List.of(profile.getCityName()), "provider-profile-city-chips",
                     "provider-profile-city-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
         }
+        card.add(kindBadge);
+        card.add(buildMetaPanel(profile));
         return card;
+    }
+
+    private EntityMetaPanel buildMetaPanel(ProviderProfileDto profile) {
+        return metaPanelFactory.build(EntityMetaPanel.Parameters.builder()
+                .createdAt(profile.getCreatedAt())
+                .updatedAt(profile.getUpdatedAt())
+                .variant(EntityMetaPanel.Variant.OVERLAY)
+                .build());
     }
 
     private static void buildChipRow(Div card, List<String> names, String rowCssClass, String chipCssClass, String ariaLabel) {
@@ -107,6 +120,9 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
         row.addClassName(rowCssClass);
         row.getElement().setAttribute("role", "list");
         row.getElement().setAttribute("aria-label", ariaLabel);
+        Span label = new Span(ariaLabel + ":");
+        label.addClassName("overlay-chips-label");
+        row.add(label);
         names.forEach(name -> {
             Span chip = new Span(name);
             chip.addClassName(chipCssClass);

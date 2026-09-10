@@ -88,7 +88,11 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_SECTION_VIEW("advertisement.overlay.section.view"),
     ADVERTISEMENT_OVERLAY_BUTTON_SAVE("advertisement.overlay.button.save"),
     ADVERTISEMENT_OVERLAY_BUTTON_CANCEL("advertisement.overlay.button.cancel"),
-    ADVERTISEMENT_DESCRIPTION_OVERLAY_AUTHOR("advertisement.description.overlay.author"),
+
+    // === Entity meta line (author + created/updated) -- shared card + detail-view component ===
+    ENTITY_META_AUTHOR("entity.meta.author"),
+    ENTITY_META_CREATED("entity.meta.created"),
+    ENTITY_META_UPDATED("entity.meta.updated"),
 
     // === Provider Profile Overlay (AccountOverlay tab) ===
     PROVIDER_PROFILE_OVERLAY_VALIDATION_KIND_REQUIRED("providerProfile.overlay.validation.kind.required"),
@@ -118,8 +122,6 @@ public enum I18nKey {
     ACCOUNT_OVERLAY_TAB_NAME("account.overlay.tab.name"),
     ACCOUNT_OVERLAY_TAB_SETTINGS("account.overlay.tab.settings"),
     ACCOUNT_OVERLAY_TAB_PROVIDER_PROFILE("account.overlay.tab.providerProfile"),
-    ADVERTISEMENT_DESCRIPTION_OVERLAY_CREATED("advertisement.description.overlay.created"),
-    ADVERTISEMENT_DESCRIPTION_OVERLAY_UPDATED("advertisement.description.overlay.updated"),
 
     // === Providers Catalog ===
     MAIN_TAB_PROVIDERS("main.tab.providers"),
@@ -240,8 +242,6 @@ public enum I18nKey {
     ADVERTISEMENT_AD_KIND_PRODUCT("advertisement.adKind.product"),
 
     // === Advertisement Card ===
-    ADVERTISEMENT_CARD_CREATED("advertisement.card.created"),
-    ADVERTISEMENT_CARD_UPDATED("advertisement.card.updated"),
     ADVERTISEMENT_CARD_CATEGORIES("advertisement.card.categories"),
     ADVERTISEMENT_CARD_CITY("advertisement.card.city"),
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),

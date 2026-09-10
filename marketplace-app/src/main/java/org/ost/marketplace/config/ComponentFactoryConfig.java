@@ -14,7 +14,7 @@ import org.ost.marketplace.ui.views.main.header.account.ProviderProfileViewModeH
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementCardView;
 import org.ost.marketplace.ui.views.main.tabs.providers.ProviderProfileCardView;
 import org.ost.marketplace.ui.views.main.tabs.providers.overlay.ProviderProfileCatalogViewModeHandler;
-import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
+import org.ost.marketplace.ui.views.components.EntityMetaPanel;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.UserGridConfigurator;
@@ -76,7 +76,7 @@ public class ComponentFactoryConfig {
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AdvertisementCardMetaPanel> advertisementCardMetaPanelFactory(ObjectProvider<AdvertisementCardMetaPanel> p) {
+    public UiComponentFactory<EntityMetaPanel> entityMetaPanelFactory(ObjectProvider<EntityMetaPanel> p) {
         return new UiComponentFactory<>(p);
     }
 

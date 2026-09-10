@@ -45,7 +45,7 @@ import org.ost.marketplace.ui.views.utils.BeforeUnloadUtil;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
+import org.ost.marketplace.ui.views.components.EntityMetaPanel;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
@@ -91,7 +91,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private final UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>>  formBinderFactory;
     private final AuditQueryService                                             auditQueryService;
     private final EntityActivityOverlay                                        entityActivityOverlay;
-    private final OverlayAdvertisementMetaPanel                                metaPanel;
+    private final UiComponentFactory<EntityMetaPanel>                         metaPanelFactory;
     private final TaxonCatalogService                                          taxonCatalogService;
     private final LocaleProvider                                               localeProvider;
     private final AdvertisementDisplayEnrichmentService                        enrichmentService;
@@ -196,7 +196,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         }
 
         if (!isCreate) {
-            content.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
+            content.add(buildMetaPanel(params.getAd()));
         }
 
         saveButton = new UiPrimaryButton(getValue(ADVERTISEMENT_OVERLAY_BUTTON_SAVE));
@@ -257,6 +257,16 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
     private Long commitGallery(EntityRef entityRef) {
         return activeHandle != null ? activeHandle.commit(entityRef) : null;
+    }
+
+    private EntityMetaPanel buildMetaPanel(AdvertisementInfoDto ad) {
+        return metaPanelFactory.build(EntityMetaPanel.Parameters.builder()
+                .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
+                .authorEmail(ad.getCreatedByUserEmail())
+                .createdAt(ad.getCreatedAt())
+                .updatedAt(ad.getUpdatedAt())
+                .variant(EntityMetaPanel.Variant.OVERLAY)
+                .build());
     }
 
     public void loadRestored(@NonNull AdvertisementEditDto restoredDto) {

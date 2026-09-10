@@ -194,7 +194,7 @@ async function selectCategoryInAdForm(page, overlay, categoryName) {
 }
 
 /**
- * Asserts an advertisement card's categories line contains every expected category name.
+ * Asserts an advertisement card's "Categories:" chip row holds exactly the expected category chips.
  * @param {import('@playwright/test').Page} page
  * @param {import('@playwright/test').Expect} expect
  * @param {import('@playwright/test').Locator} card
@@ -203,10 +203,11 @@ async function selectCategoryInAdForm(page, overlay, categoryName) {
  * @returns {Promise<void>}
  */
 async function assertCardHasCategories(page, expect, card, categoryNames, screenshotName) {
-  const line = card.locator('.advertisement-categories');
-  await expect(line).toBeVisible({ timeout: 5000 });
+  const row = card.locator('.advertisement-card-chip-row[aria-label="Categories:"]');
+  await expect(row).toBeVisible({ timeout: 5000 });
+  await expect(row.locator('.advertisement-category-chip')).toHaveCount(categoryNames.length, { timeout: 5000 });
   for (const name of categoryNames) {
-    await expect(line).toContainText(name, { timeout: 5000 });
+    await expect(row.locator('.advertisement-category-chip', { hasText: name })).toBeVisible({ timeout: 5000 });
   }
   if (screenshotName) await screenshot(page, screenshotName);
 }

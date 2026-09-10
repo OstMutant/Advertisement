@@ -43,14 +43,14 @@
  *   non-zero otherwise.
  * ──────────────────────────────────────────────────────────────────────────── */
 const fs = require('fs');
-const { test, expect, screenshot, waitForOverlayClosed, closeOverlay, closeNotification, TEST_USERS, YT_URL, avatar, downloadPng } = require('./_helpers');
+const { test, expect, screenshot, waitForOverlayClosed, closeOverlay, closeNotification, TEST_USERS, YT_URL, avatar, downloadPng, assertAbsent, assertVerticalOrder } = require('./_helpers');
 
 async function waitForOverlay(page, timeout = 10000) {
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout });
 }
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList, deleteAllGalleryItems } = require('./_flows/advertisement.flow');
-const { runCreateSimpleAdvertisementFlow } = require('./_flows/delete.flow');
+const { runCreateSimpleAdvertisementFlow, confirmDeleteDialog } = require('./_flows/delete.flow');
 const { closeEntityActivity } = require('./_flows/entity-activity.flow');
 const { openTimelineTab, openTimelineFilter, closeTimelineFilter, fillEntityType, assertFeedHasRow, assertTimelineHasRows } = require('./_flows/timeline.flow');
 const { waitForLightboxOpen, waitForLightboxClosed, getIframeSrc, clickLightboxThumb, getVideoSrc, isVideoWrapperVisible, waitForVideoWrapperVisible, waitForMainImageVisible } = require('./_flows/attachment.flow');
@@ -119,6 +119,85 @@ test.describe('Advertisement flow', () => {
       await page.locator('.attachment-lightbox .card-lightbox__close').click();
       await page.locator('.attachment-lightbox').waitFor({ state: 'detached', timeout: 5000 });
       await closeOverlay(page);
+    });
+
+    await test.step('card + view overlay — every field renders in the expected top-to-bottom order', async () => {
+      const card = page.locator('.advertisement-card')
+        .filter({ has: page.locator('.advertisement-title', { hasText: CREATE.enAd.title }) }).first();
+      await expect(card).toBeVisible({ timeout: 5000 });
+      await assertVerticalOrder(page, expect, card.locator('.advertisement-content'), [
+        '.advertisement-title',
+        '.advertisement-description-wrapper',
+        '.advertisement-card-chip-row[aria-label="Categories:"]',
+        '.advertisement-card-chip-row[aria-label="City:"]',
+        '.advertisement-ad-kind-badge',
+        '.entity-meta',
+      ], 'adv-useren-create-card-field-order');
+
+      await card.click();
+      await waitForOverlay(page);
+      await assertVerticalOrder(page, expect, page.locator('.advertisement-overlay .overlay__view-card'), [
+        '.overlay__view-card-header',
+        '.overlay__view-title',
+        '.overlay__view-description',
+        '.advertisement-categories-chips',
+        '.advertisement-city-chips',
+        '.advertisement-ad-kind-badge',
+      ], 'adv-useren-create-overlay-field-order');
+      await expect(page.locator('.advertisement-overlay .overlay__view-body .entity-meta')).toBeVisible();
+      await closeOverlay(page);
+    });
+
+    await runLogoutFlow(page, expect);
+  });
+
+  test('userEn creates a minimal advertisement — no category, no city: those rows are absent, card and overlay field order stays title -> description -> ad-kind badge -> meta', async () => {
+    await runFillLoginFormFlow(page, TEST_USERS.userEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
+    const title = 'Minimal EN Advertisement';
+    await runCreateAdvertisementFlow(page, expect, {
+      title, description: 'No category, no city on this one.',
+      categories: [], city: null, adKind: 'Offer',
+      screenshotPrefix: 'adv-minimal',
+    });
+
+    await test.step('card — no chip rows, reduced field order intact', async () => {
+      const card = page.locator('.advertisement-card')
+        .filter({ has: page.locator('.advertisement-title', { hasText: title }) }).first();
+      await expect(card).toBeVisible({ timeout: 5000 });
+      await assertAbsent(expect, card, '.advertisement-card-chip-row');
+      await assertVerticalOrder(page, expect, card.locator('.advertisement-content'), [
+        '.advertisement-title',
+        '.advertisement-description-wrapper',
+        '.advertisement-ad-kind-badge',
+        '.entity-meta',
+      ], 'adv-minimal-card-order');
+    });
+
+    await test.step('view overlay — no chip rows, reduced field order intact', async () => {
+      await page.locator('.advertisement-card')
+        .filter({ has: page.locator('.advertisement-title', { hasText: title }) }).first().click();
+      await waitForOverlay(page);
+      const viewCard = page.locator('.advertisement-overlay .overlay__view-card');
+      await assertAbsent(expect, viewCard, '.advertisement-categories-chips');
+      await assertAbsent(expect, viewCard, '.advertisement-city-chips');
+      await assertVerticalOrder(page, expect, viewCard, [
+        '.overlay__view-card-header',
+        '.overlay__view-title',
+        '.overlay__view-description',
+        '.advertisement-ad-kind-badge',
+      ], 'adv-minimal-overlay-order');
+      await expect(page.locator('.advertisement-overlay .overlay__view-body .entity-meta')).toBeVisible();
+      await closeOverlay(page);
+    });
+
+    await test.step('clean up — delete the minimal advertisement so later row counts stay unaffected', async () => {
+      const card = page.locator('.advertisement-card')
+        .filter({ has: page.locator('.advertisement-title', { hasText: title }) }).first();
+      await card.locator('.advertisement-delete').click();
+      await confirmDeleteDialog(page);
+      await expect(page.locator('.advertisement-card')
+        .filter({ has: page.locator('.advertisement-title', { hasText: title }) })).toHaveCount(0, { timeout: 5000 });
     });
 
     await runLogoutFlow(page, expect);

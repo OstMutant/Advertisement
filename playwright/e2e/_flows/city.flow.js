@@ -3,7 +3,7 @@
  *   creating a city through its overlay form, selecting a city in the advertisement form, and
  *   asserting a city name is shown on a card / view overlay.
  * Usage: None -- a library only, required by spec files (see Input).
- * Uses: ../_helpers (screenshot, assertCardHasText, assertOverlayHasText), ./category.flow
+ * Uses: ../_helpers (screenshot, assertOverlayHasText), ./category.flow
  *   (openReferenceDataTab, shared with the Categories sub-tab since both live under Reference Data).
  * Env: None.
  * Input: required by 06-seed-filter-sort-pagination.spec.js (runCreateCityFlow); also required
@@ -12,7 +12,7 @@
  *   assertViewOverlayHasCity.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
-const { screenshot, assertCardHasText, assertOverlayHasText } = require('../_helpers');
+const { screenshot, assertOverlayHasText } = require('../_helpers');
 const { openReferenceDataTab } = require('./category.flow');
 
 /**
@@ -91,7 +91,10 @@ async function selectCityInAdForm(page, overlay, cityName) {
  * @returns {Promise<void>}
  */
 async function assertCardHasCity(page, expect, card, cityName, screenshotName) {
-  return assertCardHasText(page, expect, card, '.advertisement-city', cityName, screenshotName);
+  const row = card.locator('.advertisement-card-chip-row[aria-label="City:"]');
+  await expect(row).toBeVisible({ timeout: 5000 });
+  await expect(row.locator('.advertisement-city-chip', { hasText: cityName })).toBeVisible({ timeout: 5000 });
+  if (screenshotName) await screenshot(page, screenshotName);
 }
 
 /**

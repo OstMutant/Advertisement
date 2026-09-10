@@ -376,8 +376,188 @@ unification stays item 13.
 
 Empty taxon list — `buildChipRow` still returns early, so no bare label is shown.
 
-**Not started.** Still open (meta-panel overlay/account-tab surfaces, shared-vs-separate meta-panel
-class, sequencing vs item 13, tests) — not yet decided.
+### Implemented — the decided parts (2026-09-10)
+
+Both decision blocks above are now in code; the still-open questions below are untouched.
+
+- **Provider card** (`ProviderProfileCardView`) — `createMetaLine(profile)` added: one `Span`
+  `.provider-profile-card-meta`, `Created:`/`Updated:` + `TimeZoneUtil.formatInstantHuman`, same
+  collapsed rule as `AdvertisementCardView`, **no author**. Bottom row is now
+  `HorizontalLayout(meta, actions)` with `Alignment.END` + `JustifyContentMode.BETWEEN` (was
+  actions-only, `END`). Kind badge moved below the categories/city lines.
+- **Detail-view labels** — `AdvertisementViewOverlayModeHandler`,
+  `ProviderProfileCatalogViewModeHandler`, `ProviderProfileViewModeHandler`: each `buildChipRow`
+  prepends a `Span` `.overlay-chips-label` = `ariaLabel + ":"`.
+- **City bug fix** — `ProviderProfileCatalogViewModeHandler` no longer asks `getForEntity` for
+  `TaxonType.CITY`; a new `buildCityRow(textCard, cityName)` renders the city chip from the
+  already-enriched `profile.getCityName()`. Categories still use `getForEntity` (richer `TaxonDto`).
+- **i18n** — new `providers.card.created` / `providers.card.updated` (`PROVIDERS_CARD_CREATED` /
+  `_UPDATED`) in `I18nKey` + `messages_{en,uk}.properties`. Detail-view labels reuse the existing
+  `*_OVERLAY_FIELD_CATEGORIES`/`_CITY` keys, ":" appended in code.
+- **CSS** — one `.overlay-chips-label` rule in `styles.css` (shared by both overlay domains).
+
+**Verified (2026-09-10)** — `deploy-and-run.sh --reset-only-db` then `playwright.sh e2e --ux`:
+48 passed, 13 skipped, 0 failed. Screenshots confirm each decided change:
+- `provider-catalog-list` — meta line reads `Created:` / `Updated:` + date, **no author**; kind
+  badge sits below the categories/city lines.
+- `provider-catalog-deep-link-opened` — `Categories:` / `City:` label prefixes present; the
+  **`City: Lviv` row now renders** (was absent before — the scalar-vs-assignment bug).
+- `provider-profile-view-after-create` — same `Categories:` / `City:` label prefixes on the
+  account-tab view.
+- `adv-deep-link-opened` — `Categories:` label prefix on the Advertisement detail overlay.
+- `trunc-card-collapsed` — Advertisement card unchanged (author + one date, badge above meta).
+
+### Decision — cards render categories/city as chips like the detail views (2026-09-10, recorded, not started)
+
+On the cards (`AdvertisementCardView`, `ProviderProfileCardView`) categories/city are plain text
+lines (`Categories: cat1, cat2` / `City: Lviv`). Make them chip rows identical to the detail
+views' pills, and keep the vertical rhythm tight (no big gaps).
+
+- `AdvertisementCardView.createCategoriesLine` / `createCityLine` — stop calling
+  `createInfoLine(...)`; build a chip row instead: a `Span.overlay-chips-label` prefix
+  (`Categories:` / `City:`) + one `Span.advertisement-category-chip` / `.advertisement-city-chip`
+  per name (from `getCategoryNames()` / `getCityName()` — plain strings, no `TaxonDto`, so no
+  `--deleted` state). `createInfoLine` becomes unused → remove it. Return type `Span` → `Div`;
+  update the call sites in `createContent`.
+- `ProviderProfileCardView.createCategoriesLine` / `createCityLine` — same, chips
+  `.provider-profile-category-chip` / `.provider-profile-city-chip`; `createInfoLine` removed.
+- `advertisement-card.css` — remove the now-unused `.advertisement-categories` / `.advertisement-city`
+  text rules; add `.advertisement-card-chip-row { display:flex; flex-wrap:wrap; align-items:center;
+  gap:6px; }` with **no `margin-top`** (the existing `.advertisement-content { gap:6px }` already
+  spaces every child). Chip and label classes reused as-is.
+- `provider-profile-card.css` — replace the text `.provider-profile-card-categories,
+  .provider-profile-card-city` rules with a `.provider-profile-card-chip-row` container of the
+  same shape; `.provider-profile-card-content { gap:6px }` gives the uniform rhythm.
+- Vertical spacing: every card child (title → about → categories → city → kind badge → meta)
+  separated by the container's single `gap:6px`; chips `gap:6px` internally; the meta line stays
+  pinned to the bottom via its existing `margin-top:auto`. No stacked `margin-top:8px`.
+
+### Decision — kind badge to the bottom in the Provider detail views (2026-09-10, recorded, not started)
+
+Flagged from the `provider-profile-view-after-create` screenshot (the `MASTER` badge sits at the
+top, right under the card header). Move the `MASTER`/`SHOP`/`SUPPORT` kind badge from the top to
+the **bottom** — after the categories/city rows — in both Provider detail views, symmetric with
+the card change already done (item 3 of the card-decisions block):
+- `ProviderProfileViewModeHandler.buildProfileCard` — `new Div(cardHeader, about)`, then the
+  category/city chip rows, then `card.add(kindBadge)` last (currently `new Div(cardHeader,
+  kindBadge, about)`).
+- `ProviderProfileCatalogViewModeHandler.buildPrimaryContent` — same move: `new Div(cardHeader,
+  about)`, chip rows, then `textCard.add(kindBadge)` last.
+
+### Decision — per-field presence/absence + placement test coverage (2026-09-10, recorded, not started)
+
+Once the UI decisions above are implemented, extend the Playwright specs so every field on each
+card/detail surface is verified for **both** its rendering position **and** — for optional fields
+— its absence:
+
+- **Surfaces:** `AdvertisementCardView`, `AdvertisementViewOverlayModeHandler`,
+  `ProviderProfileCardView`, `ProviderProfileCatalogViewModeHandler`, `ProviderProfileViewModeHandler`.
+- **Optional fields** — assert absence (element not in the DOM at all when the value is empty)
+  **and** placement (correct vertical order vs the sibling fields when present):
+  - Advertisement: description, categories, city, media/thumbnail.
+  - Provider: categories, city (about has an empty-state fallback, so it's effectively required —
+    assert placement only).
+- **Required fields** — assert placement (vertical order) only:
+  - Advertisement: title, ad-kind badge, meta line (author + created/updated date).
+  - Provider: title/actor name, kind badge, meta line (created/updated date).
+- **Placement = actual order**, not "each is visible somewhere": read the ordered list of the
+  content container's child class names (or use `locator(...).nth(i)`) and assert the exact
+  sequence (e.g. Provider card: title → about → categories → city → kind badge → meta; each
+  surface's own expected order spelled out in the spec).
+- **Fixtures needed:** a provider profile with categories+city, one with no categories, one with
+  no city; the same three shapes for advertisements. Add via `test.step` inside the existing
+  create/edit flows where possible (per `.claude/rules/playwright.md`'s "extend an existing test"
+  rule); a dedicated `test(...)` only for the "empty" shapes that need their own setup.
+- Specs to touch: `04-provider-profile-flow.spec.js`, `05-marketplace-advertisement-flow.spec.js`.
+
+### Resolutions (2026-09-10) — the last three open questions, now decided
+
+1. **createdAt/updatedAt on the Provider detail views — YES, add to both.**
+   `ProviderProfileCatalogViewModeHandler` (catalog overlay) and `ProviderProfileViewModeHandler`
+   (account-tab) both gain a created/updated line, date only, no author (same as the card). Tests
+   cover its presence + placement.
+2. **Shared meta-panel component — YES, extract one.** Keeping `AdvertisementCardMetaPanel` +
+   `OverlayAdvertisementMetaPanel` + Provider's inline `createMetaLine` + the new Provider
+   detail-view meta as separate implementations is duplication. Extract a single shared
+   `EntityMetaPanel` (`ui/views/components/`), `Configurable` prototype bean, with:
+   `authorName`/`authorEmail` nullable (Advertisement passes them, Provider passes null → the
+   author span is omitted) and a variant for card (compact `Span`, one collapsed date line) vs
+   overlay (`HorizontalLayout`, `Created:` + `Updated:` when edited). All four call sites migrate
+   to it; the two `Advertisement*MetaPanel` classes are deleted.
+3. **Item 13 — NOT bundled (assessed 2026-09-10).** Item 13 is genuinely 26 files / 6 modules:
+   a schema change (drop `city_taxon_id`, needs a `--reset` deploy), 8 public `platform-commons`
+   DTOs (`*InfoDto`/`SaveDto`/`FilterDto`/`SnapshotDto` for both domains), the
+   `provider-profile-spring-boot-starter` entity/repo/service, four `marketplace-orchestrator`
+   enrichment/save/audit services, two REST controllers, and a wide `marketplace-app` sweep
+   (`MultiSelectComboBox`, `*FilterMeta`, `AuditTimelineRowRenderer`), plus a unit+integration+e2e
+   matrix. Folding that into item 10 turns a contained `marketplace-app` visual pass into a
+   cross-contract refactor — rejected. **Instead:** item 10 builds the city chip row and the
+   meta panel to take a `List<String>` from the start (fed `List.of(cityName)` today), so when
+   item 13 flips the DTO the view code just passes `getCityNames()` — a ~5-line delta per surface,
+   no rework of the rendering machinery.
+
+**Item 10 remaining work — all decided, ready to implement (2026-09-10):**
+- **A. Shared `EntityMetaPanel`** (`ui/views/components/`, `Configurable` prototype): params
+  `authorName`/`authorEmail` (nullable → author span omitted when null), `createdAt`, `updatedAt`,
+  `variant` (CARD = compact `Span`, one collapsed date; OVERLAY = `HorizontalLayout`, `Created:` +
+  `Updated:` when edited). Replaces `AdvertisementCardMetaPanel` + `OverlayAdvertisementMetaPanel`
+  (both deleted) + Provider's inline `createMetaLine`; also added to the two Provider detail views.
+- **B. Card categories/city → chip rows** (per the card-chips decision block above).
+- **C. Kind badge → bottom in the two Provider detail views** (per the badge-position block above).
+- **D. createdAt/updatedAt on both Provider detail views** — `EntityMetaPanel` OVERLAY variant,
+  no author, after the kind badge.
+- **E. Tests** — per the per-field presence/absence + placement block above, plus the new
+  Provider detail-view meta line.
+- **F. Verify** — compile → `deploy-and-run.sh --reset-only-db` → `playwright.sh e2e --ux` →
+  screenshots.
+
+### ✅ Implemented in full + verified (2026-09-10)
+
+**A-D done:**
+- `EntityMetaPanel` (`ui/views/components/`) — one `Configurable` prototype, CARD (compact `Div`,
+  one collapsed date) / OVERLAY (`Created:` + `Updated:` when edited) variants, author span
+  omitted when `authorName == null`. New shared i18n keys `ENTITY_META_AUTHOR/CREATED/UPDATED`.
+  All five call sites migrated (`AdvertisementCardView`, `AdvertisementViewOverlayModeHandler`,
+  `AdvertisementFormOverlayModeHandler`, `ProviderProfileCardView`, plus the two Provider detail
+  handlers now show it too). `AdvertisementCardMetaPanel` + `OverlayAdvertisementMetaPanel`
+  deleted, their factory bean + 7 now-dead i18n keys removed.
+- Card categories/city render as chip rows (`.advertisement-card-chip-row` /
+  `.provider-profile-card-chip-row`, `aria-label` = `Categories:` / `City:`), reusing the
+  detail-view chip pills; `createInfoLine` removed from both card views. City chip row is fed a
+  `List<String>` — ready for item 13's `cityNames` with a one-line delta.
+- Kind badge moved below the categories/city rows in both Provider detail views.
+- Both Provider detail views gained the `EntityMetaPanel` (OVERLAY, no author) after the badge.
+
+**Spacing pass** (flagged from a screenshot — the gap after the kind badge looked bigger than the
+others): removed `margin-bottom: 4px` from `.advertisement-ad-kind-badge` /
+`.provider-profile-kind-badge` and `margin-top: 8px` from the four overlay chip-row classes — those
+fought the containers' flex `gap` (6px on cards, 12px on overlays). Vertical rhythm is now uniform.
+CSS: `.entity-meta*` + `.overlay-chips-label` live in `styles.css` (shared); the dead
+`.advertisement-meta*`, `.advertisement-categories`/`-city` text rules and
+`.overlay__meta-container` block removed.
+
+**E (tests) done:**
+- `_helpers.js` — new `assertAbsent(expect, container, selector)` and
+  `assertVerticalOrder(page, expect, container, selectors[], screenshotName)` (bounding-box
+  top-to-bottom order; missing selectors skipped).
+- `04-provider-profile-flow.spec.js` — field-order steps added to `userEn creates provider
+  profile` (account view) and the anonymous-catalog test (catalog card + catalog overlay); new
+  `moderatorEn creates a minimal provider profile` test (no category / no city → both chip rows
+  `assertAbsent`, reduced order header→about→badge→meta, then deleted so it leaves no state).
+- `05-marketplace-advertisement-flow.spec.js` — field-order steps added to `userEn creates
+  advertisement` (card + overlay); new `userEn creates a minimal advertisement` test (no
+  category / no city → `assertAbsent`, reduced order, then deleted).
+- Broken helpers fixed: `category.flow.js:assertCardHasCategories` and `city.flow.js:assertCardHasCity`
+  now target the chip rows, not the removed `.advertisement-categories`/`.advertisement-city` text.
+
+**F verified:** `bash scripts/build-and-test.sh --no-unit --no-integration --skip-vaadin` →
+`BUILD SUCCESS`. `deploy-and-run.sh --reset-only-db` → `playwright.sh e2e --ux`: **50 passed,
+0 failed**. Screenshots confirm chips on all card/detail surfaces, `Categories:`/`City:` labels,
+kind badge below categories/city everywhere, `EntityMetaPanel` on every surface, uniform vertical
+spacing, and the optional-field-absent layout.
+
+**Still open — not yet decided:** shared-vs-separate is resolved (extracted); item 13 sequencing
+(kept separate, item 10's chip/meta code is list-shaped for a cheap later delta).
 
 ## 11. Run module-doc-standards/module-readme-standards audit; find out why /sync-docs output doesn't match them — ✅ Done, all 8 modules (2026-09-09)
 

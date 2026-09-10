@@ -14,6 +14,8 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.Initialization;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.EntityMetaPanel;
 import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton;
 import org.ost.marketplace.ui.views.components.buttons.action.ShareActionButton;
 import org.ost.marketplace.ui.views.main.tabs.providers.overlay.ProviderProfileCatalogOverlay;
@@ -25,6 +27,8 @@ import org.ost.marketplace.ui.views.utils.ShareUtil;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.springframework.context.annotation.Scope;
+
+import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -51,6 +55,7 @@ public class ProviderProfileCardView extends HorizontalLayout
     private final transient AccessEvaluator                    access;
     private final transient ProviderProfileCatalogOverlay        overlay;
     private final transient AppLinkService                      appLinkService;
+    private final transient UiComponentFactory<EntityMetaPanel> metaPanelFactory;
 
     @Override
     @PostConstruct
@@ -80,9 +85,10 @@ public class ProviderProfileCardView extends HorizontalLayout
     private VerticalLayout createContent(ProviderProfileDto profile, Runnable onListChanged) {
         Span spacer = new Span();
 
-        HorizontalLayout bottom = new HorizontalLayout(createActions(profile, onListChanged));
+        HorizontalLayout bottom = new HorizontalLayout(createMetaLine(profile), createActions(profile, onListChanged));
         bottom.setWidthFull();
-        bottom.setJustifyContentMode(JustifyContentMode.END);
+        bottom.setAlignItems(Alignment.END);
+        bottom.setJustifyContentMode(JustifyContentMode.BETWEEN);
 
         VerticalLayout content = new VerticalLayout(createTitle(profile), createAbout(profile), spacer);
         content.addClassName("provider-profile-card-content");
@@ -90,13 +96,21 @@ public class ProviderProfileCardView extends HorizontalLayout
         content.setSpacing(false);
         content.setFlexGrow(1, spacer);
 
-        content.add(createKindBadge(profile));
-        Span categoriesLine = createCategoriesLine(profile);
+        Div categoriesLine = createCategoriesLine(profile);
         if (categoriesLine != null) content.add(categoriesLine);
-        Span cityLine = createCityLine(profile);
+        Div cityLine = createCityLine(profile);
         if (cityLine != null) content.add(cityLine);
+        content.add(createKindBadge(profile));
         content.add(bottom);
         return content;
+    }
+
+    private EntityMetaPanel createMetaLine(ProviderProfileDto profile) {
+        return metaPanelFactory.build(EntityMetaPanel.Parameters.builder()
+                .createdAt(profile.getCreatedAt())
+                .updatedAt(profile.getUpdatedAt())
+                .variant(EntityMetaPanel.Variant.CARD)
+                .build());
     }
 
     private H3 createTitle(ProviderProfileDto profile) {
@@ -124,20 +138,31 @@ public class ProviderProfileCardView extends HorizontalLayout
         return badge;
     }
 
-    private Span createCategoriesLine(ProviderProfileDto profile) {
+    private Div createCategoriesLine(ProviderProfileDto profile) {
         if (profile.getCategoryNames() == null || profile.getCategoryNames().isEmpty()) return null;
-        return createInfoLine(PROVIDERS_CARD_CATEGORIES, String.join(", ", profile.getCategoryNames()), "provider-profile-card-categories");
+        return chipRow(PROVIDERS_CARD_CATEGORIES, profile.getCategoryNames(), "provider-profile-category-chip");
     }
 
-    private Span createCityLine(ProviderProfileDto profile) {
+    private Div createCityLine(ProviderProfileDto profile) {
         if (profile.getCityName() == null) return null;
-        return createInfoLine(PROVIDERS_CARD_CITY, profile.getCityName(), "provider-profile-card-city");
+        return chipRow(PROVIDERS_CARD_CITY, List.of(profile.getCityName()), "provider-profile-city-chip");
     }
 
-    private Span createInfoLine(I18nKey label, String text, String cssClass) {
-        Span line = new Span(getValue(label) + " " + text);
-        line.addClassName(cssClass);
-        return line;
+    private Div chipRow(I18nKey label, List<String> names, String chipCssClass) {
+        Div row = new Div();
+        row.addClassName("provider-profile-card-chip-row");
+        row.getElement().setAttribute("role", "list");
+        row.getElement().setAttribute("aria-label", getValue(label));
+        Span labelSpan = new Span(getValue(label));
+        labelSpan.addClassName("overlay-chips-label");
+        row.add(labelSpan);
+        names.forEach(name -> {
+            Span chip = new Span(name);
+            chip.addClassName(chipCssClass);
+            chip.getElement().setAttribute("role", "listitem");
+            row.add(chip);
+        });
+        return row;
     }
 
     private HorizontalLayout createActions(ProviderProfileDto profile, Runnable onListChanged) {

@@ -193,24 +193,6 @@
     margin-top: 0.75em;
 }
 
-/* ----------------------------------------------------------------- meta container */
-
-.overlay__meta-container {
-    border-top: 1px solid var(--app-border-default);
-    padding-top: var(--lumo-space-m);
-    margin-top: var(--lumo-space-s);
-}
-
-.overlay__meta-container .advertisement-meta {
-    margin-top: 0;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
-    font-size: var(--lumo-font-size-s);
-    color: var(--app-text-muted);
-    flex-wrap: wrap;
-}
-
 /* ----------------------------------------------------------------- edit body */
 
 .overlay__edit-body {

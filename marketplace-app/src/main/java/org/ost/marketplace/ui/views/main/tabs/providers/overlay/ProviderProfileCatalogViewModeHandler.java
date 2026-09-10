@@ -12,6 +12,8 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.Configurable;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.EntityMetaPanel;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.providers.ProviderProfileDeleteUtil;
@@ -60,6 +62,7 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
     private final LocaleProvider             localeProvider;
     private final AppLinkService             appLinkService;
     private final NotificationService        notificationService;
+    private final UiComponentFactory<EntityMetaPanel> metaPanelFactory;
 
     private Parameters params;
 
@@ -84,16 +87,29 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         about.addClassName("overlay__view-description");
         about.getElement().setProperty("innerHTML", profile.getAbout() != null ? profile.getAbout() : "");
 
-        Div textCard = new Div(cardHeader, kindBadge, about);
+        Div textCard = new Div(cardHeader, about);
         textCard.addClassName("overlay__view-card");
 
         var taxons = taxonLookupService.getForEntity(EntityType.PROVIDER_PROFILE, profile.getId(), localeProvider.getCurrentLocale());
         buildChipRow(textCard, taxons, TaxonType.CATEGORY, "provider-profile-categories-chips",
                 "provider-profile-category-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CATEGORIES));
-        buildChipRow(textCard, taxons, TaxonType.CITY, "provider-profile-city-chips",
-                "provider-profile-city-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
+        // City is the scalar provider_profile.city_taxon_id, not a taxon_assignment row, so it is
+        // absent from getForEntity() -- render it from the already-enriched cityName instead.
+        if (profile.getCityName() != null) {
+            buildCityRow(textCard, profile.getCityName());
+        }
+        textCard.add(kindBadge);
+        textCard.add(buildMetaPanel(profile));
 
         return new Div(textCard);
+    }
+
+    private EntityMetaPanel buildMetaPanel(ProviderProfileDto profile) {
+        return metaPanelFactory.build(EntityMetaPanel.Parameters.builder()
+                .createdAt(profile.getCreatedAt())
+                .updatedAt(profile.getUpdatedAt())
+                .variant(EntityMetaPanel.Variant.OVERLAY)
+                .build());
     }
 
     private static void buildChipRow(Div textCard, List<TaxonDto> taxons, TaxonType type,
@@ -104,12 +120,29 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         row.addClassName(rowCssClass);
         row.getElement().setAttribute("role", "list");
         row.getElement().setAttribute("aria-label", ariaLabel);
+        Span label = new Span(ariaLabel + ":");
+        label.addClassName("overlay-chips-label");
+        row.add(label);
         matching.forEach(taxon -> {
             Span chip = new Span(taxon.getName());
             chip.addClassName(chipCssClass);
             chip.getElement().setAttribute("role", "listitem");
             row.add(chip);
         });
+        textCard.add(row);
+    }
+
+    private void buildCityRow(Div textCard, String cityName) {
+        Div row = new Div();
+        row.addClassName("provider-profile-city-chips");
+        row.getElement().setAttribute("role", "list");
+        row.getElement().setAttribute("aria-label", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
+        Span label = new Span(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY) + ":");
+        label.addClassName("overlay-chips-label");
+        Span chip = new Span(cityName);
+        chip.addClassName("provider-profile-city-chip");
+        chip.getElement().setAttribute("role", "listitem");
+        row.add(label, chip);
         textCard.add(row);
     }
 

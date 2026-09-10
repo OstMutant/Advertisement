@@ -43,7 +43,7 @@
  * Returns: exit code from the Playwright test runner -- 0 when every test in this file passes,
  *   non-zero otherwise.
  * ──────────────────────────────────────────────────────────────────────────── */
-const { test, expect, screenshot, closeNotification, closeOverlay, TEST_USERS } = require('./_helpers');
+const { test, expect, screenshot, closeNotification, closeOverlay, TEST_USERS, assertAbsent, assertVerticalOrder } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runOpenSettingsFlow, runCloseSettingsFlow } = require('./_flows/audit.flow');
 const { openEntityActivity, closeEntityActivity } = require('./_flows/entity-activity.flow');
@@ -122,6 +122,56 @@ test.describe('Provider Profile flow', () => {
     await expect(page.locator('.account-overlay .provider-profile-category-chip')).toContainText('Electronics');
     await expect(page.locator('.account-overlay .provider-profile-city-chip')).toContainText('Lviv');
     await screenshot(page, 'provider-profile-view-after-create');
+
+    await test.step('account-tab view — every field renders in the expected top-to-bottom order', async () => {
+      await assertVerticalOrder(page, expect, page.locator('.account-overlay .overlay__view-card'), [
+        '.overlay__view-card-header',
+        '.overlay__view-description',
+        '.provider-profile-categories-chips',
+        '.provider-profile-city-chips',
+        '.provider-profile-kind-badge',
+        '.entity-meta',
+      ], 'provider-profile-view-field-order');
+    });
+
+    await runCloseSettingsFlow(page);
+    await runLogoutFlow(page, expect);
+  });
+
+  test('moderatorEn creates a minimal provider profile — no category, no city: those chip rows are absent, field order stays header -> about -> kind badge -> meta on the account view, then deleted', async () => {
+    await runFillLoginFormFlow(page, TEST_USERS.moderatorEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.moderatorEn);
+    await runOpenSettingsFlow(page);
+    await openProviderProfileTab(page);
+
+    await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Create Profile' }).click();
+    await page.waitForTimeout(300);
+    await page.locator('.account-overlay vaadin-radio-button').filter({ hasText: 'MASTER' }).first().click();
+    await fillAbout(page, 'Minimal profile: kind and about only, no category, no city.');
+    await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Save' }).click();
+    await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
+    await closeNotification(page);
+    await page.locator('.account-overlay vaadin-button[title="Cancel"]').click();
+    await page.waitForTimeout(300);
+
+    await test.step('account-tab view — chip rows absent, reduced field order intact', async () => {
+      const viewCard = page.locator('.account-overlay .overlay__view-card');
+      await expect(viewCard.locator('.provider-profile-kind-badge')).toContainText('MASTER', { timeout: 5000 });
+      await assertAbsent(expect, viewCard, '.provider-profile-categories-chips');
+      await assertAbsent(expect, viewCard, '.provider-profile-city-chips');
+      await assertVerticalOrder(page, expect, viewCard, [
+        '.overlay__view-card-header',
+        '.overlay__view-description',
+        '.provider-profile-kind-badge',
+        '.entity-meta',
+      ], 'provider-minimal-view-order');
+    });
+
+    await test.step('clean up — delete the minimal profile', async () => {
+      await page.locator('.account-overlay .provider-profile-delete-button').click();
+      await confirmDeleteDialog(page);
+      await expect(page.locator('.account-overlay .provider-profile-view-empty-text')).toBeVisible({ timeout: 5000 });
+    });
 
     await runCloseSettingsFlow(page);
     await runLogoutFlow(page, expect);
@@ -322,6 +372,18 @@ test.describe('Provider Profile flow', () => {
     await expect(container.locator('.provider-profile-kind-badge--master')).toHaveCount(1);
     await expect(container.locator('.provider-profile-share').first()).toBeVisible();
     await screenshot(page, 'provider-catalog-list');
+
+    await test.step('catalog card — every field renders in the expected top-to-bottom order', async () => {
+      const anyCard = container.locator('.provider-profile-card').first();
+      await assertVerticalOrder(page, expect, anyCard.locator('.provider-profile-card-content'), [
+        '.provider-profile-card-title',
+        '.provider-profile-card-about-wrapper',
+        '.provider-profile-card-chip-row[aria-label="Categories:"]',
+        '.provider-profile-card-chip-row[aria-label="City:"]',
+        '.provider-profile-kind-badge',
+        '.entity-meta',
+      ], 'provider-catalog-card-field-order');
+    });
 
     await page.locator('.providers-content-wrapper .query-status-bar').click();
     await expect(page.locator('.provider-profile-query-block')).toBeVisible({ timeout: 5000 });
@@ -540,6 +602,17 @@ test.describe('Provider Profile flow', () => {
     await overlay.waitFor({ timeout: 10000 });
     await expect(overlay.locator('.provider-profile-kind-badge')).toContainText('Shop');
     await screenshot(page, 'provider-catalog-deep-link-opened');
+
+    await test.step('catalog overlay — every field renders in the expected top-to-bottom order', async () => {
+      await assertVerticalOrder(page, expect, overlay.locator('.overlay__view-card'), [
+        '.overlay__view-card-header',
+        '.overlay__view-description',
+        '.provider-profile-categories-chips',
+        '.provider-profile-city-chips',
+        '.provider-profile-kind-badge',
+        '.entity-meta',
+      ], 'provider-catalog-overlay-field-order');
+    });
 
     await test.step('share button — copies link to clipboard, shows confirmation notification', async () => {
       await page.evaluate(() => {

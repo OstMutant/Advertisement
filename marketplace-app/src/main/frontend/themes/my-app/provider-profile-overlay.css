@@ -8,7 +8,6 @@
   border-radius: 10px;
   font-size: 0.72rem;
   font-weight: 600;
-  margin-bottom: 4px;
 }
 
 .provider-profile-kind-badge--master {
@@ -31,7 +30,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
 }
 
 .provider-profile-category-chip,

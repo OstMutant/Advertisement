@@ -26,7 +26,7 @@ import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.core.Initialization;
-import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
+import org.ost.marketplace.ui.views.components.EntityMetaPanel;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton;
 import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
@@ -40,6 +40,7 @@ import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -67,7 +68,7 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient AdvertisementSaveService                    advertisementSaveService;
     private final transient AttachmentMediaService                       attachmentMediaService;
     private final transient ComponentFactory<AttachmentGalleryService> galleryServiceFactory;
-    private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
+    private final transient UiComponentFactory<EntityMetaPanel>        metaPanelFactory;
     private final transient AccessEvaluator                            access;
     private final transient AdvertisementOverlay                       overlay;
     private final transient AppLinkService                             appLinkService;
@@ -156,29 +157,40 @@ public class AdvertisementCardView extends HorizontalLayout
         content.setSpacing(false);
         content.setFlexGrow(1, spacer);
 
-        Span categoriesLine = createCategoriesLine(ad);
+        Div categoriesLine = createCategoriesLine(ad);
         if (categoriesLine != null) content.add(categoriesLine);
-        Span cityLine = createCityLine(ad);
+        Div cityLine = createCityLine(ad);
         if (cityLine != null) content.add(cityLine);
         content.add(createAdKindBadge(ad));
         content.add(bottom);
         return content;
     }
 
-    private Span createCategoriesLine(AdvertisementInfoDto ad) {
+    private Div createCategoriesLine(AdvertisementInfoDto ad) {
         if (ad.getCategoryNames() == null || ad.getCategoryNames().isEmpty()) return null;
-        return createInfoLine(ADVERTISEMENT_CARD_CATEGORIES, String.join(", ", ad.getCategoryNames()), "advertisement-categories");
+        return chipRow(ADVERTISEMENT_CARD_CATEGORIES, ad.getCategoryNames(), "advertisement-category-chip");
     }
 
-    private Span createCityLine(AdvertisementInfoDto ad) {
+    private Div createCityLine(AdvertisementInfoDto ad) {
         if (ad.getCityName() == null) return null;
-        return createInfoLine(ADVERTISEMENT_CARD_CITY, ad.getCityName(), "advertisement-city");
+        return chipRow(ADVERTISEMENT_CARD_CITY, List.of(ad.getCityName()), "advertisement-city-chip");
     }
 
-    private Span createInfoLine(I18nKey label, String text, String cssClass) {
-        Span line = new Span(getValue(label) + " " + text);
-        line.addClassName(cssClass);
-        return line;
+    private Div chipRow(I18nKey label, List<String> names, String chipCssClass) {
+        Div row = new Div();
+        row.addClassName("advertisement-card-chip-row");
+        row.getElement().setAttribute("role", "list");
+        row.getElement().setAttribute("aria-label", getValue(label));
+        Span labelSpan = new Span(getValue(label));
+        labelSpan.addClassName("overlay-chips-label");
+        row.add(labelSpan);
+        names.forEach(name -> {
+            Span chip = new Span(name);
+            chip.addClassName(chipCssClass);
+            chip.getElement().setAttribute("role", "listitem");
+            row.add(chip);
+        });
+        return row;
     }
 
     private Span createAdKindBadge(AdvertisementInfoDto ad) {
@@ -208,14 +220,13 @@ public class AdvertisementCardView extends HorizontalLayout
         return wrapper;
     }
 
-    private AdvertisementCardMetaPanel createMetaPanel(AdvertisementInfoDto ad) {
-        boolean neverEdited = ad.getUpdatedAt().equals(ad.getCreatedAt());
-
-        return metaPanelFactory.build(AdvertisementCardMetaPanel.Parameters.builder()
+    private EntityMetaPanel createMetaPanel(AdvertisementInfoDto ad) {
+        return metaPanelFactory.build(EntityMetaPanel.Parameters.builder()
                 .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
                 .authorEmail(ad.getCreatedByUserEmail())
-                .dateLabel(getValue(neverEdited ? ADVERTISEMENT_CARD_CREATED : ADVERTISEMENT_CARD_UPDATED))
-                .date(neverEdited ? ad.getCreatedAt() : ad.getUpdatedAt())
+                .createdAt(ad.getCreatedAt())
+                .updatedAt(ad.getUpdatedAt())
+                .variant(EntityMetaPanel.Variant.CARD)
                 .build());
     }
 

@@ -67,15 +67,13 @@
   overflow: hidden;
 }
 
-.provider-profile-card-categories,
-.provider-profile-card-city {
-  font-size: 0.78rem;
-  color: var(--app-text-muted);
-  display: block;
-  width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Category/city chip row on the card -- same pills as the detail overlay; the
+   .provider-profile-card-content flex gap spaces every child, so no margin-top here. */
+.provider-profile-card-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .provider-profile-card-actions {
