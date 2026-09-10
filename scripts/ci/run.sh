@@ -1,12 +1,15 @@
 #!/bin/bash
 # ── Header ──────────────────────────────────────────────────────────────────
-# Description: Thin trigger over a persistent Dagu server. (Re)builds the ci-runner image,
-#   (re)starts the ci-runner container (Docker-outside-of-Docker: docker.sock mounted, so it can
-#   create/tear down its own isolated ci-* sibling containers) plus its ci-runner-dagu-proxy
-#   sidecar, then fires a DAG run (scripts/ci/dagu/ci.yaml) inside it with the requested params.
-#   Dagu replaces the orchestration/UI layer only -- every DAG step calls the exact same scripts
-#   this project's other tools already use (build-and-test.sh, deploy-and-run.sh, playwright/
-#   run.sh, sonar.sh).
+# Description: Thin trigger over a persistent Dagu server. Rebuilds the ci-runner image only when
+#   scripts/ci/Dockerfile or scripts/ci/docker-entrypoint.sh changed since the image was built,
+#   the image is missing, or --rebuild is passed; otherwise reuses the running ci-runner container
+#   (Docker-outside-of-Docker: docker.sock mounted, so it can create/tear down its own isolated ci-* sibling
+#   containers) plus its ci-runner-dagu-proxy sidecar. Every run, before firing the DAG, it
+#   streams the current working tree into the container's /app via tar -- the image's own
+#   `COPY . .` is not trusted as the source of truth (Docker layer-cache staleness). Then fires a
+#   DAG run (scripts/ci/dagu/ci.yaml) with the requested params. Dagu replaces the orchestration/
+#   UI layer only -- every DAG step calls the exact same scripts this project's other tools
+#   already use (build-and-test.sh, deploy-and-run.sh, playwright/run.sh, sonar.sh).
 # Usage: bash scripts/ci/run.sh [flags]
 #   (no flags)               -- most extensive run: unit + integration + e2e + sonar +
 #                                archunit_metrics + docs
@@ -31,8 +34,10 @@
 #   --foreground              -- block and stream this run's output instead of firing it and
 #                                 returning immediately; also syncs artifacts (see Outputs)
 #                                 automatically once the run finishes
-#   --no-rebuild               -- trigger a new DAG run against the already-running ci-runner
-#                                  container instead of rebuilding/recreating it
+#   --rebuild                  -- force an image rebuild + container recreation even when the
+#                                  Dockerfile/entrypoint are unchanged (normally the image is
+#                                  rebuilt only when they change; the working tree is streamed in
+#                                  fresh every run regardless)
 #   --refresh-tools              -- force re-download of buildx/compose/dagu into ci-tools-cache
 #                                    even if already cached (e.g. after bumping DAGU_VERSION)
 #   --no-archunit-metrics           -- skip ArchUnit's module-coupling export (on by default --
@@ -51,8 +56,11 @@
 # Env: None read directly -- every flag above is translated into either a container-start env var
 #   (FORCE_TOOLS_REFRESH, passed via `docker run -e`) or a Dagu param (passed via
 #   `dagu start ... -- key=value`).
-# Input: scripts/ci/Dockerfile, scripts/ci/dagu/ci.yaml.
-# Outputs: (unless --no-rebuild/--sync-artifacts) three lasting named volumes (ci-m2-cache,
+# Input: scripts/ci/Dockerfile, scripts/ci/docker-entrypoint.sh (mtime vs the image decides
+#   whether to rebuild), scripts/ci/dagu/ci.yaml, and the working tree itself -- the `git ls-files`
+#   set (tracked + untracked-not-.gitignored) is streamed into the container's /app before every
+#   run, so build output, node_modules, .git and report/log dirs are excluded for free.
+# Outputs: (unless --sync-artifacts) three lasting named volumes (ci-m2-cache,
 #   ci-dagu-home, ci-tools-cache) and two persistent containers (ci-runner, ci-runner-dagu-proxy)
 #   that remain running on the host after this script exits. The ci-runner container's Dagu web
 #   UI, reachable at http://localhost:8082 through the ci-runner-dagu-proxy sidecar (ci-runner
@@ -94,7 +102,7 @@ STAGE_DOCS=1
 KEEP_INFRA="true"
 RESET_E2E_DB="false"
 FOREGROUND=""
-NO_REBUILD=""
+REBUILD=""
 REFRESH_TOOLS="false"
 ARCHUNIT_METRICS="true"
 SYNC_ARTIFACTS_ONLY=""
@@ -172,7 +180,7 @@ for arg in "$@"; do
     --no-keep-e2e-infra)   KEEP_INFRA="false" ;;
     --reset-e2e-db)        RESET_E2E_DB="true" ;;
     --foreground)          FOREGROUND=1 ;;
-    --no-rebuild)          NO_REBUILD=1 ;;
+    --rebuild)             REBUILD=1 ;;
     --refresh-tools)       REFRESH_TOOLS="true" ;;
     --no-archunit-metrics) ARCHUNIT_METRICS="false" ;;
     --sync-artifacts)      SYNC_ARTIFACTS_ONLY=1 ;;
@@ -213,7 +221,32 @@ fi
 
 bool() { [ -n "$1" ] && echo true || echo false; }
 
-if [ -z "$NO_REBUILD" ]; then
+# ── ci-runner lifecycle: rebuild the image only on real need, reuse the running container ──────
+# The ci-runner image bakes the repo in via `COPY . .`, and Docker's layer cache can silently
+# serve a stale copy of that layer (a generated file caught mid-rewrite has shipped as 0 bytes
+# this way -- see improvement-183). So the image is not trusted as the working-tree source: build
+# it only when scripts/ci/Dockerfile or scripts/ci/docker-entrypoint.sh changed since the image
+# was built (or the image is missing, or --rebuild is passed), keep the running container across
+# runs, and overlay /app with the live working tree via tar before every run (further below).
+IMAGE_CREATED_EPOCH="$(date -d "$(docker image inspect -f '{{.Created}}' "$IMAGE" 2>/dev/null)" +%s 2>/dev/null || echo 0)"
+DOCKERFILE_MTIME="$(stat -c %Y "$ROOT/scripts/ci/Dockerfile" "$ROOT/scripts/ci/docker-entrypoint.sh" 2>/dev/null | sort -n | tail -1)"
+DOCKERFILE_MTIME="${DOCKERFILE_MTIME:-0}"
+
+NEED_BUILD=""
+if [ -n "$REBUILD" ] \
+   || ! docker image inspect "$IMAGE" >/dev/null 2>&1 \
+   || [ "$DOCKERFILE_MTIME" -gt "$IMAGE_CREATED_EPOCH" ]; then
+  NEED_BUILD=1
+fi
+
+NEED_CONTAINER=""
+if [ -n "$NEED_BUILD" ] \
+   || [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null)" != "true" ] \
+   || [ "$(docker inspect -f '{{.State.Running}}' "$UI_PROXY_CONTAINER" 2>/dev/null)" != "true" ]; then
+  NEED_CONTAINER=1
+fi
+
+if [ -n "$NEED_BUILD" ]; then
   echo "=== Building ci-runner image ==="
   docker build -f "$ROOT/scripts/ci/Dockerfile" -t "$IMAGE" "$ROOT"
   BUILD_RC=$?
@@ -222,8 +255,10 @@ if [ -z "$NO_REBUILD" ]; then
     emit_agentic_error_block "transient" "true" "build-image" "ci-runner image build failed with exit code $BUILD_RC."
     exit $BUILD_RC
   fi
-  emit_agentic_success_block "build-image"
+fi
+emit_agentic_success_block "build-image"
 
+if [ -n "$NEED_CONTAINER" ]; then
   docker volume create ci-m2-cache >/dev/null
   docker volume create ci-dagu-home >/dev/null
   docker volume create ci-tools-cache >/dev/null
@@ -327,14 +362,33 @@ if [ -z "$NO_REBUILD" ]; then
     alpine/socat "TCP-LISTEN:$UI_PROXY_PORT,fork,reuseaddr" "TCP:$BRIDGE_GATEWAY:$DAGU_PORT" >/dev/null
 
   echo "Dagu web UI is up: http://localhost:$UI_PROXY_PORT"
-  emit_agentic_success_block "start-ci-runner"
 else
-  # --no-rebuild: the image/container from a previous invocation are being reused as-is -- from
-  # this run's own perspective both milestones are already satisfied, the same real fact whether
-  # this run just built them or a previous one did.
-  emit_agentic_success_block "build-image"
-  emit_agentic_success_block "start-ci-runner"
+  echo "=== Reusing the already-running ci-runner container ==="
 fi
+emit_agentic_success_block "start-ci-runner"
+
+# ── Overlay /app inside the running container with the live working tree, every run ────────────
+# The image's own `COPY . .` is never trusted (stale-layer risk -- see the lifecycle note above),
+# so the working tree is streamed in fresh before every DAG run. The file set comes from
+# `git ls-files` (tracked + untracked-not-.gitignored), not a tar tree-walk -- git already
+# excludes `.git`, every `*/target`, `node_modules`, report/log dirs, etc., and this never trips
+# over a build artifact an IDE has locked (a real `tar=2` on Windows) or a socket/FIFO. `*.md` is
+# kept (unlike `.dockerignore`), since the docs stage needs DECISIONS.md / flows.md / adr-index.md.
+# `tar -x` overlays files in place -- unlike `docker cp -`, fussier about target dir perms.
+echo ""
+echo "=== Syncing working tree into $CONTAINER ==="
+git -C "$ROOT" ls-files -z --cached --others --exclude-standard \
+  | tar -C "$ROOT" --null --no-recursion --ignore-failed-read -T - -cf - \
+  | docker exec -i "$CONTAINER" tar -C /app -xf -
+SYNC_RC=("${PIPESTATUS[@]}")
+# tar exit 1 = non-fatal (a listed file changed/vanished mid-read on a live tree) -- tolerated;
+# a failed `git ls-files` (empty file set), a fatal tar (2), or a failed extract is a real failure.
+if [ "${SYNC_RC[0]}" -ne 0 ] || [ "${SYNC_RC[1]}" -gt 1 ] || [ "${SYNC_RC[2]}" -ne 0 ]; then
+  echo "===== FAILED (working-tree sync into $CONTAINER -- ls-files=${SYNC_RC[0]} tar=${SYNC_RC[1]} extract=${SYNC_RC[2]}) ====="
+  emit_agentic_error_block "transient" "true" "sync-source" "Streaming the working tree into $CONTAINER failed (ls-files=${SYNC_RC[0]} tar=${SYNC_RC[1]} extract=${SYNC_RC[2]})."
+  exit 1
+fi
+emit_agentic_success_block "sync-source"
 
 DAGU_PARAMS=(
   "unit=$(bool "$STAGE_UNIT")"

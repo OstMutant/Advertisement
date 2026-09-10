@@ -322,6 +322,63 @@ shows categories/city/author/createdAt/updatedAt — the raw request's Advertise
 fully unambiguous against what's already verified present) before changing anything there; extend
 Playwright specs to assert the new Provider fields render.
 
+### Decisions — Provider catalog card, `ProviderProfileCardView` (2026-09-10)
+
+Advertisement side confirmed out of scope — its card and overlay already show the full metadata
+set; item 10 is Provider-only. Card-level decisions, fixed:
+
+1. **Add a meta panel to the Provider card** — a date line only, **no author line** (the card
+   title already is `actorName`).
+2. **Show createdAt/updatedAt** on the Provider card using the same collapsed rule
+   `AdvertisementCardView` uses: one line, `Created …` when `updatedAt == createdAt`, otherwise
+   `Updated …`.
+3. **Move the kind badge below the categories/city lines** so the Provider card's element order
+   matches `AdvertisementCardView` (title → about → spacer → categories → city → kind badge →
+   bottom row).
+4. Nothing else changes on either card.
+
+### Decisions — detail-view category/city labels + Provider catalog-view missing city (2026-09-10)
+
+Separate from the meta-panel (createdAt/updatedAt) work above — this batch is category/city
+label parity between the cards and the detail overlays, plus one real bug it surfaced.
+
+**Bug — city never renders in `ProviderProfileCatalogViewModeHandler`.** `buildPrimaryContent()`
+pulls taxons via `taxonLookupService.getForEntity(EntityType.PROVIDER_PROFILE, id, locale)` (reads
+`taxon_assignment` rows) then filters `TaxonType.CITY`. A provider profile's city is the scalar
+`provider_profile.city_taxon_id` column, **not** a `taxon_assignment` row (categories are
+assignments, city is not — the same asymmetry item 13 exists to remove wholesale), so the CITY
+filter is always empty and the city row never appears. `ProviderProfileDto.cityName` is already
+correctly enriched (`ProviderProfileDisplayEnrichmentService`, via `taxonLookupService.findById`)
+and reaches this handler on both open paths (card click + deep-link, both `enrichSingle`), just
+unused for the city row. `ProviderProfileViewModeHandler` (account-tab) already renders city the
+right way — from `profile.getCityName()`. Targeted fix here, no schema change; full assignment-based
+unification stays item 13.
+
+**Plan — 3 Java files + 1 CSS rule:**
+
+1. `AdvertisementViewOverlayModeHandler.buildChipRow(...)` — add a visible label as the row's first
+   child: `Span label = new Span(ariaLabel + ":"); label.addClassName("overlay-chips-label");
+   row.add(label);`. `ariaLabel` is the already-resolved value of
+   `ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES`/`_CITY`; the `":"` suffix in code matches the card's
+   `Categories:` style — no `.properties` change. `role="list"` + `aria-label` on the row unchanged.
+2. `ProviderProfileCatalogViewModeHandler` — same visible label in its `buildChipRow(...)`; **plus**
+   drop the `buildChipRow(textCard, taxons, TaxonType.CITY, …)` call and instead render the city
+   row from `params.getProfile().getCityName()` when non-null (small dedicated method, mirroring
+   `ProviderProfileViewModeHandler.buildProfileCard`). Categories stay on the `getForEntity` path
+   (richer `TaxonDto`, carries `isDeleted()`).
+3. `ProviderProfileViewModeHandler.buildChipRow(...)` — same visible label (city already renders
+   correctly here).
+4. CSS — one rule `.overlay-chips-label { font-size: 0.78rem; font-weight: 500; color:
+   var(--app-text-muted); align-self: center; }`. `advertisement-card.css` and
+   `provider-profile-overlay.css` both carry the chip-row selectors and both are `@import`ed from
+   `styles.css`; put the rule in whichever is the natural shared home (likely a shared/global
+   block) so both overlays pick it up.
+
+Empty taxon list — `buildChipRow` still returns early, so no bare label is shown.
+
+**Not started.** Still open (meta-panel overlay/account-tab surfaces, shared-vs-separate meta-panel
+class, sequencing vs item 13, tests) — not yet decided.
+
 ## 11. Run module-doc-standards/module-readme-standards audit; find out why /sync-docs output doesn't match them — ✅ Done, all 8 modules (2026-09-09)
 
 **Current state:** the `module-doc-standards`/`module-readme-standards` skills exist and are
@@ -813,6 +870,148 @@ the CLI jar itself is fetched once via `mvnw dependency:get` into the shared `~/
 - Full `bash scripts/sonar.sh` re-run: `new_coverage` 54.2% → **88.8%** (threshold 80%), quality
   gate `OK`, all 3 conditions green — verified directly via SonarQube's API
   (`GET /api/qualitygates/project_status`), not assumed.
+
+## 21. `check-*-freshness.sh`'s restore trap can zero out the committed file it's meant to protect — ✅ Done (2026-09-10)
+
+**Found (2026-09-10, investigating two consecutive CI `docs`-stage failures — Dagu runs
+`034M0xpg8nVyoIZpd2iF0H` 2026-09-09 20:33 and `034MCQrzuvTFjPzz66x33D` 2026-09-10 04:20).** Both
+failed only on the `docs` step, only on `check-adr-index-freshness.sh`, with
+`ERROR: .claude/nav/adr-index.md is stale`. The first was a genuine stale-index commit, fixed by
+`c6cb4df0`. The second was not: `.claude/nav/adr-index.md` extracted straight from that run's own
+CI image (`docker create` + `docker cp`, no entrypoint) had md5 `d41d8cd98f00b204e9800998ecf8427e`
+— the md5 of an empty file. `ci.sh` builds the runner image via `COPY . .` from the working tree
+at invocation time, so the working-tree copy of `adr-index.md` was 0 bytes when that run started.
+
+**Root cause — the freshness-check scripts' own "safe restore" is not safe:**
+```bash
+BACKUP="$(mktemp)"                         # 1. empty temp file
+trap 'mv "$BACKUP" "$COMMITTED"' EXIT      # 2. on ANY exit, move temp over the real file
+cp "$COMMITTED" "$BACKUP"                  # 3. fill the temp with real content
+bash generate-adr-index.sh > /dev/null     # 4. (truncates + rewrites COMMITTED in place)
+```
+Interrupted (SIGINT / tool timeout) between steps 1 and 3, the EXIT trap still fires and runs
+`mv <empty temp> <adr-index.md>`, replacing the real ~40 KB file with an empty one. Compounding
+it, `generate-adr-index.sh` (and `generate-architecture-model.sh`) truncate their output with
+`> "$OUTPUT"` as the first write, so a hard kill mid-generation leaves the committed file partial
+regardless of the trap. An earlier interrupted freshness-check run in a dev session left
+`adr-index.md` at 0 bytes; the next `ci.sh` snapshotted it and CI went red.
+
+**Fix — 4 files:**
+- `.claude/nav/scripts/generate-adr-index.sh` — takes an optional `OUTPUT_PATH` arg (default the
+  committed path); builds into a `mktemp` sibling and `mv`s into place only on full success, with
+  an EXIT trap that `rm -f`s the temp. An interrupted run now leaves the target untouched.
+- `.claude/nav/scripts/check-adr-index-freshness.sh` — rewritten to call
+  `generate-adr-index.sh "$GENERATED"` (a throwaway temp) and `diff` that against the committed
+  file. The committed file is never opened for writing at all — no backup, no restore trap, no
+  possible clobber.
+- `docs/architecture/scripts/generate-architecture-model.sh` — same atomic pattern for its
+  `.json` and `.html` outputs (temp siblings + `mv` at the end + cleanup trap).
+- `docs/architecture/scripts/check-architecture-model-freshness.sh` — still backs up/regenerates/
+  restores (its generator has no output-path arg), but populates both backups *before* arming the
+  trap and guards each restore `mv` with `[ -s "$BACKUP" ]`, so a truncated/empty backup can
+  never overwrite an intact committed file. Header brought to the full 7-field shape.
+
+Also: `.gitignore` gains patterns for the three atomic-write temp siblings (only ever present
+after a hard kill). `docs/architecture/data/architecture-model.json` + `architecture-map.html`
+regenerated to re-embed the two changed script headers (the generator parses every script's
+header into the model) — word-diff confirms those two header blocks are the only change.
+
+**Verified (2026-09-10):**
+- `generate-adr-index.sh /tmp/…` writes to the given path, leaves `.claude/nav/adr-index.md`
+  git-clean; content byte-identical to `HEAD`.
+- `generate-adr-index.sh` (no arg) and `check-adr-index-freshness.sh` both leave the committed
+  file git-clean; freshness check reports "up to date"; no leftover `*.tmp`.
+- The three CI `docs`-stage checks (`check-adr-index-freshness.sh`,
+  `check-flows-completeness.sh`, `check-hardcoded-counts.sh`) all pass.
+- `generate-architecture-model.sh` re-run end to end (GEN_EXIT=0): committed files survive, no
+  leftover `*.tmp`; the earlier trap bug (EXIT trap deleting the just-moved final file after the
+  var was reassigned) found and fixed before this.
+- `check-architecture-model-freshness.sh`: committed files always present and restored after a
+  run, even when the generator's own trap misfired mid-development — the `[ -s ]`-guarded restore
+  is what saved them.
+- `bash -n` clean on all four scripts.
+
+**Note on the CI failures themselves:** no code was ever broken — `HEAD` passed the freshness
+check throughout, and a fresh `docker build` of the ci-runner image from the current tree passes
+all three `docs`-stage checks. The trap fix above stops the *working tree* from ever holding an
+empty `adr-index.md`. A third `docs` failure (2026-09-10 06:39) proved a second, independent
+mechanism is also in play — see item 22.
+
+## 22. `ci.sh` can run against a stale Docker `COPY . .` layer — the ci-runner must always see the live working tree — ✅ Done (2026-09-10)
+
+**Found (2026-09-10, third consecutive `docs`-stage CI failure, Dagu run `034MFq3hlntYSebmASSdvA`).**
+Same `adr-index.md is stale` error. `.claude/nav/adr-index.md` extracted straight from that run's
+ci-runner image (and from the still-running container) was **0 bytes**, while the host working-tree
+file was a correct 39888 bytes, git-clean, untouched since well before the run. A fresh
+`docker build -f scripts/ci/Dockerfile -t testci "$ROOT"` (byte-identical to what `scripts/ci/run.sh`
+does) produced an image with the correct 39888-byte file and all three `docs` checks green
+(`adr rc=0`, `flows rc=0`, `counts rc=0`).
+
+**Root cause:** `scripts/ci/run.sh` builds the ci-runner image with a plain `docker build "$ROOT"`
+(no cache control). The `COPY . .` layer got served from Docker's build cache — a layer baked
+around the time item 21's trap bug had left `adr-index.md` at 0 bytes on the host. Docker's cache
+key for that `COPY` layer did not reflect the file's later 0 → 39888-byte change, so `ci.sh`
+snapshotted an empty file into the image even though the host tree was correct. `docker system df`
+shows ~15.6 GB of ci-runner build cache. The ci-runner image has no dependency-download layer
+worth caching past the `apt-get` step (the Dockerfile itself says so).
+
+**Decided design (2026-09-10) — sync live source into the running container, don't rebuild:**
+- Dagu run history is safe either way — it lives in the `ci-dagu-home` **named volume**
+  (`run.sh:245` `-v ci-dagu-home:/root/.dagu`), independent of the image and the container
+  filesystem; `docker rm -f` + recreate does not touch it.
+- **`run.sh` — new default flow:**
+  1. `NEED_BUILD` — build the image only when it is missing, when `scripts/ci/Dockerfile` /
+     `scripts/ci/docker-entrypoint.sh` is newer than the image's own creation timestamp, or when
+     `--rebuild` is passed. Otherwise skip `docker build` entirely.
+  2. `NEED_CONTAINER` — (re)create the container + proxy only when a build just happened, or when
+     `ci-runner` / `ci-runner-dagu-proxy` isn't running. Otherwise keep the running container.
+  3. **Every run, before triggering:** overlay `/app` inside the running container with the current
+     working tree — `git -C "$ROOT" ls-files -z --cached --others --exclude-standard | tar -C
+     "$ROOT" --null --no-recursion --ignore-failed-read -T - -cf - | docker exec -i "$CONTAINER"
+     tar -C /app -xf -`. The file set is `git ls-files` (tracked + untracked-not-`.gitignored`),
+     **not** a tar tree-walk — so `.git`, every `*/target`, `node_modules`, and report/log dirs are
+     excluded for free, and it never trips over an IDE-locked build artifact (the real `tar=2` a
+     first attempt hit on Windows) or a socket/FIFO. `*.md` is kept (unlike `.dockerignore`). Same
+     host↔container transfer pattern `sync_artifacts()` uses in reverse (`run.sh:114-150`).
+  4. Trigger the Dagu run unchanged (`docker exec -d "$CONTAINER" dagu start ...`).
+- **Flags:** `--no-rebuild` **removed** (the smart default replaces its "reuse as-is" behavior; the
+  pair `--rebuild`/`--no-rebuild` read as contradictory). `--rebuild` kept as the one manual
+  override — force an image rebuild + container recreation even when the Dockerfile is unchanged.
+- **Sync failure handling:** `git ls-files` failure (empty set), fatal `tar` (exit 2), or a failed
+  extract side ends the run with a `sync-source` `AGENTIC_ERROR_BLOCK`; a non-fatal `tar` exit 1
+  (a listed file changed/vanished mid-read on a live tree) is tolerated.
+- **Not doing:** a host bind mount (`-v "$ROOT:/app"`) — documented broken under nested Docker,
+  the reason `docker cp` is used throughout this repo; a `CACHEBUST` build-arg — superseded by
+  not rebuilding at all in the common case.
+- **One-time:** `docker builder prune -f` to drop the stale ~15.6 GB cache.
+- **Docs updated in the same change:** `run.sh` header; `.claude/rules/scripts.md` "Local CI
+  Runner" section; `scripts/ci/README.md` (Flow diagram + the UI-path caveat); new
+  `scripts/ci/DECISIONS.md` ADR via `/record-decision` (+ adr-index regen).
+
+**Implemented (2026-09-10):**
+- `scripts/ci/run.sh` — `NEED_BUILD`/`NEED_CONTAINER` detection, `--rebuild` flag (`--no-rebuild`
+  removed), a `sync-source` step that pipes `git ls-files` through `tar` into `ci-runner:/app`
+  before every trigger, with a `sync-source` `AGENTIC_ERROR_BLOCK` on a real failure. Header +
+  Usage updated.
+- `scripts/activity-monitor/run.sh` — `sync-source` added to `SCRIPT_STEP_SEQUENCE["ci.sh"]`,
+  `STEP_LABELS`, `STEP_DESCRIPTIONS`.
+- `.claude/rules/scripts.md`, `scripts/ci/README.md` — updated for the new behavior; README Flow
+  diagram redrawn.
+- `docker builder prune -f` — ran, ~10.75 GB reclaimed.
+- First attempt used a raw `tar` tree-walk with `--exclude`s; it failed with `tar=2` on a real
+  Windows run (an IDE-locked jar under `target/`). Replaced with `git ls-files | tar` — git's own
+  file set never touches `target/`, `node_modules`, `.git`, sockets.
+
+**Verified (2026-09-10):**
+- `bash -n scripts/ci/run.sh` / `scripts/activity-monitor/run.sh` clean.
+- The `NEED_BUILD`/`NEED_CONTAINER` expressions, run standalone against the live state: both
+  empty (image newer than Dockerfile, both containers running) → fast path, no rebuild.
+- The exact `git ls-files -z --cached --others --exclude-standard | tar --null --no-recursion
+  --ignore-failed-read -T - -cf - | docker exec -i ci-runner tar -C /app -xf -` pipeline run
+  against the poisoned running `ci-runner` (`adr-index.md` was 0 bytes): pipe status `0 0 0`,
+  file became 40072 bytes, no `/app/.git`, no `/app/marketplace-app/target` in the container.
+- A fresh `docker build -f scripts/ci/Dockerfile -t testci "$ROOT"` (identical to `run.sh`'s own
+  build) produced an image with the correct `adr-index.md` and all three `docs`-stage checks green.
 
 - [improvement-073](../completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) —
   REST API infrastructure (API-key auth, Swagger, apikey/rest-api modules) this whole batch follows

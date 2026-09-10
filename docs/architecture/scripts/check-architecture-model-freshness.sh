@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-# Description: CI gate -- fails if the committed architecture-model.json/architecture-map.html
-#   are stale (out of sync with what the generator would produce from current repo state).
-# Uses: bash, calls generate-architecture-model.sh as a subprocess.
-# Input: the current committed docs/architecture/data/architecture-model.json + architecture-map.html,
-#   plus everything generate-architecture-model.sh itself reads.
-# Output: exit 0 ("up to date") or exit 1 with an ERROR line naming which file is stale --
-#   no file is written, the committed files are always restored afterward.
-#
-# Fails if architecture-model.json / architecture-map.html don't match what
-# generate-architecture-model.sh would produce right now. Read-only: never modifies the tracked
-# files, restores them after comparing. Reuses the generator script verbatim -- no separate
-# parsing logic to keep in sync. Same pattern as check-adr-index-freshness.sh.
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: CI gate -- fails if the committed docs/architecture/data/architecture-model.json or
+#   docs/architecture/architecture-map.html are stale (out of sync with what
+#   generate-architecture-model.sh would produce from current repo state). Backs both files up,
+#   regenerates in place, diffs, then restores the originals -- restore is guarded so an
+#   interrupted run can never overwrite an intact committed file with a truncated backup.
+# Usage: bash docs/architecture/scripts/check-architecture-model-freshness.sh
+# Uses: bash, sed, diff; calls generate-architecture-model.sh as a subprocess.
+# Env: None.
+# Input: the committed architecture-model.json + architecture-map.html, plus everything
+#   generate-architecture-model.sh itself reads.
+# Outputs: an ERROR line naming which file is stale, if any; the committed files are backed up
+#   before and restored after, so a successful run leaves them byte-identical to how it found them.
+# Returns: 0 = up to date, 1 = stale (or the files don't exist yet).
+# ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -25,10 +28,18 @@ fi
 
 BACKUP_JSON="$(mktemp)"
 BACKUP_HTML="$(mktemp)"
-trap 'mv "$BACKUP_JSON" "$JSON"; mv "$BACKUP_HTML" "$HTML"' EXIT
-
 cp "$JSON" "$BACKUP_JSON"
 cp "$HTML" "$BACKUP_HTML"
+
+# Arm the restore only after both backups are known-good, and guard each mv so a truncated or
+# empty backup can never clobber an intact committed file -- an interrupted freshness check must
+# never corrupt the tracked files.
+restore_committed() {
+  if [ -s "$BACKUP_JSON" ]; then mv -f "$BACKUP_JSON" "$JSON"; else rm -f "$BACKUP_JSON"; fi
+  if [ -s "$BACKUP_HTML" ]; then mv -f "$BACKUP_HTML" "$HTML"; else rm -f "$BACKUP_HTML"; fi
+}
+trap restore_committed EXIT
+
 bash "$REPO_ROOT/docs/architecture/scripts/generate-architecture-model.sh" > /dev/null
 
 # sonarMetrics.analysisDate is a live SonarQube scan timestamp -- it legitimately differs between

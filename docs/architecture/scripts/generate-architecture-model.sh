@@ -10,7 +10,9 @@
 #   description, plus any <!-- #arch-embed:KEY --> ... <!-- /#arch-embed --> marked section,
 #   embedded live into the generated HTML).
 # Output: docs/architecture/data/architecture-model.json + docs/architecture/architecture-map.html +
-#   docs/architecture/data/arch-embed-index.md.
+#   docs/architecture/data/arch-embed-index.md. The .json and .html are written atomically
+#   (built into temp siblings, moved into place only on full success) so an interrupted run
+#   never leaves a partial or empty committed file.
 #
 # Generates architecture-model.json (Track A of the architecture control plane) from
 # already-structured, non-code sources only -- no ArchUnit, no bytecode analysis. Node types:
@@ -25,6 +27,14 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 OUTPUT="$REPO_ROOT/docs/architecture/data/architecture-model.json"
 HTML_OUTPUT="$REPO_ROOT/docs/architecture/architecture-map.html"
 ARCH_EMBED_INDEX="$REPO_ROOT/docs/architecture/data/arch-embed-index.md"
+
+# Atomic write: build the .json/.html into temp siblings and mv into place only on full success,
+# so an interrupted run never leaves a partial or empty committed file.
+OUTPUT_FINAL="$OUTPUT"
+HTML_OUTPUT_FINAL="$HTML_OUTPUT"
+OUTPUT="$(mktemp "${OUTPUT}.XXXXXX.tmp")"
+HTML_OUTPUT="$(mktemp "${HTML_OUTPUT}.XXXXXX.tmp")"
+trap 'rm -f "$OUTPUT" "$HTML_OUTPUT"' EXIT
 ADR_INDEX="$REPO_ROOT/.claude/nav/adr-index.md"
 FLOWS="$REPO_ROOT/.claude/nav/flows.md"
 ROOT_CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
@@ -2003,12 +2013,12 @@ ci_metrics_json="null"
 
 if command -v python3 >/dev/null 2>&1; then
   python3 -c "import json,sys; json.load(open('$OUTPUT'))" \
-    && echo "Valid JSON: $OUTPUT" \
+    && echo "Valid JSON: $OUTPUT_FINAL" \
     || { echo "ERROR: generated JSON is invalid" >&2; exit 1; }
 fi
 
 node_count=$(grep -c '"type":' "$OUTPUT" || true)
-echo "Wrote $node_count nodes to $OUTPUT"
+echo "Wrote $node_count nodes to $OUTPUT_FINAL"
 
 # ── A2: architecture-map.html -- a real drill-down pyramid (System -> Module -> [Contract/
 # Implementation/Method placeholders for Track B] -> Tooling & Pipelines), not a flat graph with a
@@ -4347,7 +4357,12 @@ render();
 </html>
 HTML_TAIL
 
-echo "Wrote $HTML_OUTPUT"
+# Move the temp siblings into place. $OUTPUT/$HTML_OUTPUT stay pointed at the (now-gone) temp
+# paths so the EXIT trap's `rm -f` is a harmless no-op and never touches the real files.
+mv -f "$OUTPUT" "$OUTPUT_FINAL"
+mv -f "$HTML_OUTPUT" "$HTML_OUTPUT_FINAL"
+
+echo "Wrote $HTML_OUTPUT_FINAL"
 
 arch_embed_index_md > "$ARCH_EMBED_INDEX"
 echo "Wrote $ARCH_EMBED_INDEX"

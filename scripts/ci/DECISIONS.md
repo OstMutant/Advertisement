@@ -2,6 +2,61 @@
 
 ---
 
+## ADR-012: ci-runner source is streamed into the running container each run; the image is rebuilt only on a real Dockerfile change
+**Status:** Accepted
+
+**Verified:** 2026-09-10
+
+**Context:** `run.sh` rebuilt the ci-runner image on every invocation and baked the repo in via
+`COPY . .` (ADR-001); `--no-rebuild` (ADR-009) let a run reuse the previous image/container as-is.
+Both paths trust the image as the source of truth for the working tree. Docker's layer cache broke
+that trust: across three consecutive CI runs the `docs` stage failed on
+`.claude/nav/adr-index.md is stale`, and the file pulled straight from the ci-runner image was
+0 bytes while the host working-tree copy was correct and git-clean. A `COPY . .` layer had been
+cached at a moment when that generated file was briefly 0 bytes on disk (an unrelated
+interrupted-script bug, fixed separately), and the cache key never reflected the file's later
+return to full content, so `ci.sh` kept snapshotting the empty file into the image. A fresh
+`--no-cache` build always produced the correct image; the staleness was purely Docker's build
+cache.
+
+**Decision:** The ci-runner image is no longer trusted as the working-tree source.
+`scripts/ci/run.sh` now:
+- Builds the image only when `scripts/ci/Dockerfile` or `scripts/ci/docker-entrypoint.sh` is
+  newer than the image's own creation timestamp, when the image is missing, or when `--rebuild`
+  is passed (a new flag). buildx/compose/dagu live in the `ci-tools-cache` volume, so a skipped
+  build costs nothing there.
+- (Re)creates the `ci-runner` + `ci-runner-dagu-proxy` containers only when a build just happened
+  or when either is not running; otherwise the running container is kept across runs.
+- Before every DAG trigger, overlays `/app` inside the running container with the current working
+  tree: `git -C "$ROOT" ls-files -z --cached --others --exclude-standard | tar -C "$ROOT" --null
+  --no-recursion --ignore-failed-read -T - -cf - | docker exec -i ci-runner tar -C /app -xf -`.
+  The file set is `git ls-files` (tracked + untracked-not-`.gitignored`), **not** a tar tree-walk:
+  git already excludes `.git`, every `*/target`, `node_modules`, and the report/log dirs, and this
+  never trips over a build artifact an IDE has locked (a real `tar=2` on Windows) or a socket/FIFO.
+  `*.md` is kept (unlike `.dockerignore`) — the `docs` stage needs `DECISIONS.md` / `flows.md` /
+  `adr-index.md`. `tar -x` overlays files in place (unlike `docker cp -`, fussier about the target
+  directory's ownership/perms). Same host↔container transfer pattern `sync_artifacts()` already
+  uses in the reverse direction. A new `sync-source` step marker is emitted so
+  `scripts/activity-monitor.sh` renders it in the `ci.sh` step tree.
+
+Dagu run history is unaffected: it lives in the `ci-dagu-home` named volume, independent of the
+image and the container filesystem.
+
+**Rejected alternatives:**
+- **Host bind mount `-v "$ROOT:/app"`** — does not work when the process invoking `docker run` is
+  itself inside a container (this sandbox), the same constraint that already forces `docker cp`
+  everywhere else in this repo (ADR-001 notes it for the e2e stack).
+- **`--no-cache` on the ci-runner build, or a `CACHEBUST` build-arg** — would rebuild the
+  `apt-get` layer (or everything after `CACHEBUST`) on every run for no benefit once the image is
+  only rebuilt on a real Dockerfile change and the source is streamed in separately.
+- **Always rebuild + recreate the container each run** — wasteful (image export/unpack, container
+  restart, Dagu server re-warm) for what a few-second `tar` stream achieves.
+- **Keeping both `--rebuild` and `--no-rebuild`** — the pair reads as contradictory and invites
+  the "which one do I want?" confusion the smart default removes. `--no-rebuild` (ADR-009) is
+  dropped; `--rebuild` stays as the single manual override.
+
+---
+
 ## ADR-011: `run.sh`'s ci-runner startup wait checks the container's own ID, not its mutable name
 **Status:** Accepted
 

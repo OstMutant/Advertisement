@@ -262,10 +262,10 @@ bash scripts/ci.sh --reset-e2e-db                                  # full --rese
 bash scripts/ci.sh --foreground                                     # block and stream this run's
                                                                       # output instead of firing it
                                                                       # and returning immediately
-bash scripts/ci.sh --no-rebuild                                      # trigger a new run against
-                                                                       # the already-running
-                                                                       # container instead of
-                                                                       # rebuilding/recreating it
+bash scripts/ci.sh --rebuild                                         # force an image rebuild +
+                                                                       # container recreation even
+                                                                       # when the Dockerfile is
+                                                                       # unchanged
 bash scripts/ci.sh --refresh-tools                                    # force re-download of
                                                                         # buildx/compose/dagu even
                                                                         # if already cached
@@ -289,12 +289,14 @@ see `.claude/nav/adr-index.md`. There is no `scripts/ci/reports/` tree, `progres
 `--report-dir`/`--keep-reports` flag anymore — Dagu's UI and run history (backed by the
 `ci-dagu-home` named volume) replace all of that. Once the container is running, a DAG run can also
 be triggered directly from that UI ("Start" on the `ci` DAG opens a dialog with a field per
-`scripts/ci/dagu/ci.yaml` param) — `bash scripts/ci.sh` itself is only needed to build/start the
-container in the first place, or to trigger a run from a script/CI context. **Triggering from the
-UI never picks up source changes made since the last `bash scripts/ci.sh` rebuild** — the container
-has no live view of the working tree (see `.claude/nav/adr-index.md` for why a bind mount
-isn't used instead); re-run `bash scripts/ci.sh` after any code change before relying on the UI's
-"Start" button again. Maven dependencies are
+`scripts/ci/dagu/ci.yaml` param). `bash scripts/ci.sh` streams the current working tree into the
+running container before every run — the `git ls-files` set (tracked + untracked-not-`.gitignored`),
+piped through `tar` — and rebuilds the image only when `scripts/ci/Dockerfile` or `scripts/ci/docker-entrypoint.sh`
+changed since the image was built (`--rebuild` forces a rebuild + container recreation anyway) —
+the image's own baked-in `COPY . .` is never trusted as the source of truth, since Docker's layer
+cache can silently serve a stale copy of it. **Triggering a run from the Dagu web UI directly does NOT sync the working
+tree** — it runs against whatever source `bash scripts/ci.sh` last streamed in; a bind mount
+isn't used instead (see `.claude/nav/adr-index.md`). Maven dependencies are
 cached across runs via the `ci-m2-cache` named volume; buildx/compose/Dagu's own binaries are
 cached via `ci-tools-cache` (downloaded once, reused across image rebuilds — see
 `scripts/ci/docker-entrypoint.sh`). `deploy-and-run.sh` and `playwright/run.sh` accept env-var

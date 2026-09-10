@@ -26,20 +26,19 @@ flowchart TD
     B1 -->|no| Z0[print error, exit 1]
     B1 -->|yes| C{--sync-artifacts only?}
     C -->|yes| C1[docker cp metrics files onto host] --> Z1[exit 0]
-    C -->|no| D{--no-rebuild?}
-    D -->|no| E[docker build Dockerfile] --> E1{build succeeded?}
+    C -->|no| D{Dockerfile/entrypoint changed, image missing, or --rebuild?}
+    D -->|yes| E[docker build Dockerfile] --> E1{build succeeded?}
     E1 -->|no| Z4[exit non-zero]
-    E1 -->|yes| F[start ci-runner container]
-    F --> F1[watch container logs for Dagu's own startup line, up to 10min]
-    F1 --> F2{server logged startup?}
+    E1 -->|yes| F[recreate ci-runner container]
+    F --> F1[wait for Dagu's web UI, typical 120s then extended while the container is busy]
+    F1 --> F2{web UI came up?}
     F2 -->|no| Z5[exit 1]
-    F2 -->|yes| F3[poll HTTP :18080, up to 15s]
-    F3 --> F4{responded?}
-    F4 -->|no| Z5
     F2 -->|yes| G[start ci-runner-dagu-proxy sidecar]
-    D -->|yes| H[reuse already-running ci-runner]
-    G --> I[dagu start ci.yaml -- params]
-    H --> I
+    D -->|no| H{ci-runner + proxy both running?}
+    H -->|no| F
+    H -->|yes| S
+    G --> S[git ls-files | tar-stream the working tree into ci-runner:/app]
+    S --> I[dagu start ci.yaml -- params]
     I --> J{--foreground?}
     J -->|yes| K[stream output, block until done] --> L[sync_artifacts] --> Z2[exit: 0 if PASSED, non-zero if FAILED]
     J -->|no| M[trigger detached] --> Z3[return immediately, exit 0 -- watch progress at :8082]
@@ -53,10 +52,13 @@ flowchart LR
     U[open http://localhost:8082] --> S["Start" button on the ci DAG] --> P[fill in params dialog] --> T[dagu executes ci.yaml]
 ```
 
-**The UI path never picks up source changes made since the last rebuild** — `ci-runner` has no live
-view of the host filesystem (a bind mount doesn't work when the caller invoking `docker run` is
-itself running inside a container, confirmed directly — see [`DECISIONS.md`](DECISIONS.md)).
-Re-run `run.sh` after any code change before relying on the UI's "Start" button again.
+`run.sh` streams the working tree into `ci-runner:/app` before every run — the `git ls-files` set
+(tracked + untracked-not-`.gitignored`), piped through `tar` — and rebuilds the image only when
+[`Dockerfile`](Dockerfile)/[`docker-entrypoint.sh`](docker-entrypoint.sh) changed — the image's
+own baked-in `COPY . .` is not trusted, since Docker's layer cache can serve a stale copy of it.
+**The UI "Start" path does not stream the working tree** — it runs against whatever source `run.sh`
+last synced in; a bind mount isn't used instead (it doesn't work when the caller invoking
+`docker run` is itself inside a container — see [`DECISIONS.md`](DECISIONS.md)).
 
 ## Running
 

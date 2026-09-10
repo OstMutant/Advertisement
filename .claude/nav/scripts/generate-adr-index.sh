@@ -2,19 +2,25 @@
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Regenerates .claude/nav/adr-index.md from every DECISIONS.md file's own ADR
 #   headings/Status lines -- purely mechanical, no manual metadata. See .claude/nav/adr-index.md.
-# Usage: bash .claude/nav/scripts/generate-adr-index.sh
+# Usage: bash .claude/nav/scripts/generate-adr-index.sh [OUTPUT_PATH]
+#   OUTPUT_PATH  where to write the index (default .claude/nav/adr-index.md) -- the freshness
+#                check passes a throwaway temp path here so it never rewrites the committed file.
 # Uses: bash, awk, find.
 # Env: None.
 # Input: every DECISIONS.md file in the repo (only files using the "## ADR-NNN:" numbering
 #   convention are indexed).
-# Outputs: overwrites .claude/nav/adr-index.md; a WARN line to stderr per ADR with no **Status:**
-#   line; a "## Known gaps" section listing any DECISIONS.md file with no "## ADR-NNN:" heading.
+# Outputs: writes OUTPUT_PATH atomically -- generated into a temp sibling, moved into place only
+#   on full success, so an interrupted run never leaves a partial or empty file; a WARN line to
+#   stderr per ADR with no **Status:** line; a "## Known gaps" section listing any DECISIONS.md
+#   file with no "## ADR-NNN:" heading.
 # Returns: 0 always.
 # ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-OUTPUT="$REPO_ROOT/.claude/nav/adr-index.md"
+OUTPUT="${1:-$REPO_ROOT/.claude/nav/adr-index.md}"
+WORK="$(mktemp "${OUTPUT}.XXXXXX.tmp")"
+trap 'rm -f "$WORK"' EXIT
 
 {
   echo "# ADR index (generated)"
@@ -32,13 +38,13 @@ OUTPUT="$REPO_ROOT/.claude/nav/adr-index.md"
   echo
   echo "| ADR | Module | Status | Verified | Title |"
   echo "|---|---|---|---|---|"
-} > "$OUTPUT"
+} > "$WORK"
 
 gaps=""
 while IFS= read -r -d '' file; do
   rel="${file#"$REPO_ROOT"/}"
   module="$(dirname "$rel")"
-  rows_before=$(wc -l < "$OUTPUT")
+  rows_before=$(wc -l < "$WORK")
   awk -v module="$module" '
     { sub(/\r$/, "") }
     function flush() {
@@ -107,8 +113,8 @@ while IFS= read -r -d '' file; do
     }
     state == 4 { flush(); adr = ""; state = 0; next }
     END { flush() }
-  ' "$file" >> "$OUTPUT"
-  rows_after=$(wc -l < "$OUTPUT")
+  ' "$file" >> "$WORK"
+  rows_after=$(wc -l < "$WORK")
   if [ "$rows_after" -eq "$rows_before" ]; then
     gaps="$gaps- \`$rel\` — no \`## ADR-NNN:\` heading found (non-standard format); not indexed\n"
   fi
@@ -120,8 +126,10 @@ if [ -n "$gaps" ]; then
     echo "## Known gaps"
     echo
     echo "$gaps"
-  } >> "$OUTPUT"
+  } >> "$WORK"
 fi
+
+mv -f "$WORK" "$OUTPUT"
 
 count=$(grep -c '^| ADR-' "$OUTPUT" || true)
 echo "Wrote $count entries to $OUTPUT"
