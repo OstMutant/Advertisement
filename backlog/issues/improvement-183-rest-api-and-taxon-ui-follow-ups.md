@@ -1253,9 +1253,13 @@ kept the exact order on `createdAt,desc` (fully deterministic there). Verified v
 pass — and a full `ci.sh` run (`034MUhJy`: integration/sonar/docs all green; e2e failed only on
 `05-...:399` YouTube-lightbox `ECONNREFUSED`, an external-network flake unrelated to any change).
 
-**Open:** `docs/architecture/scripts/DECISIONS.md` ADR-001 established the "build-enforced
-freshness backstop" for the ADR index that this item removes — an ADR annotation via
-`/record-decision` is the proper record of that reversal, not yet written.
+**ADR status (checked 2026-09-11):** `scripts/ci/DECISIONS.md` ADR-013 already records this exact
+reversal in full — including that it "realigns with `docs/architecture/scripts` ADR-001's stated
+preference" (ADR-001 itself never established a freshness gate; it explicitly preferred manual
+regeneration "rather than inventing a separate drift-detection mechanism," and the freshness-gate
+script this item removes was an undocumented later addition that briefly contradicted it). No
+second/duplicate ADR needed — this "Open" note was stale, superseded by ADR-013 once item 24's
+work landed it the same day.
 
 ## 24. `ci.sh --foreground` monitors the wrong Dagu run when another is in flight; concurrent runs collide; failures are misreported — ✅ Done (2026-09-10)
 
@@ -1304,8 +1308,11 @@ unrelated Playwright specs failing with `.header-settings-button` not found. Thr
 `scripts/activity-monitor/run.sh`, `scripts/activity-monitor/profiles/agentic.sh`,
 `scripts/ci/DECISIONS.md` (ADR-012/013 touched), `scripts/ci/README.md`.
 
-**Open:** an ADR for the "one ci run at a time + self-assigned run-id contract between run.sh and
-the monitor" is not yet written.
+**Resolved (2026-09-11):** the "one ci run at a time + self-assigned run-id contract between
+`run.sh` and the monitor" is now recorded in `scripts/ci/DECISIONS.md` (see
+`.claude/nav/adr-index.md` for the entry) — no code change, this only closed the missing paper
+trail for the fix already shipped above. `.claude/nav/adr-index.md` regenerated in the same
+operation.
 
 **Follow-up (2026-09-11) -- the real recurring cause of point 3's sync failure, found after point 3's
 own fix started reporting it honestly:** `sync_artifacts()`'s host-side write of

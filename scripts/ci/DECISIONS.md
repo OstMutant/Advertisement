@@ -2,6 +2,57 @@
 
 ---
 
+## ADR-014: `ci.sh` refuses concurrent runs and assigns its own Dagu run id, so `--foreground` always watches the run it started
+
+**Status:** Accepted
+
+**Context:** Investigating (2026-09-10) odd behavior while running `ci.sh --foreground` a second
+time during item 10/23 verification, with an earlier `ci` DAG run still in its e2e stage, surfaced
+three separate defects. First, `dagu-rest-run-monitor.py`'s `await_fresh_run_id()` starts polling
+only after `run.sh`'s detached `dagu start`, then picks "the newest run that isn't terminal"; a
+several-second registration lag meant a still-in-flight earlier run was the newest non-terminal
+one, so the monitor watched the wrong run — its already-succeeded early stages all reported done
+in one poll, and `scripts/activity-monitor/run.sh`'s `mark_step` timestamps a step's completion
+with `date +%s` when it sees the marker rather than Dagu's real finish time, so several stages
+showed `(0s)` each, a display artifact on top of the real wrong-run bug. Second, the e2e stage's
+`ci-advertisement-db`/`ci-marketplace-app`/... containers have fixed, non-per-run names, and
+Dagu's own `maxActiveRuns` does not gate a manually triggered `dagu start`, so a second run's e2e
+stage redeployed/reset the shared stack out from under the first run's still-executing Playwright
+tests, cascading unrelated spec failures. Third, when every DAG stage passed but `run.sh`'s
+post-run `sync_artifacts()` (host-side `docker cp` of the regenerated docs/adr-index) failed, the
+tree still reported "CI DAG run failed — one or more stages did not pass," the opposite of what
+happened.
+
+**Decision:** `run.sh` now owns run identity and concurrency instead of leaving both to guesswork:
+- Refuses to start while a run is genuinely alive, checked via `docker exec "$CONTAINER" dagu ps
+  -d ci` (the live process store) rather than the REST `statusLabel` — a run killed together with
+  its container is left showing `running` in persisted history until Dagu reconciles it, and
+  `dagu ps` never shows that zombie.
+- Assigns the run's id itself before triggering: `DAGU_RUN_ID="ci-$(date -u
+  +%Y%m%dT%H%M%SZ)-$$-${RANDOM}${RANDOM}"`, passed both to `dagu start -r "$DAGU_RUN_ID"` and as
+  an env var to `dagu-rest-run-monitor.py`. The monitor's `wait_for_run(run_id)` waits for that
+  exact id to register, then watches only it — no more "newest non-terminal" guessing;
+  `await_fresh_run_id()` stays as the fallback for a monitor run by hand against a UI-triggered
+  run, where no id is passed.
+- `--foreground` distinguishes a real DAG-stage failure ("A ci DAG stage failed") from an
+  artifact-sync-only failure ("Every ci DAG stage passed, but ... sync ... failed — re-run ...
+  --sync-artifacts") as two different outcomes, never conflated. The run id is surfaced on every
+  outcome via a generic `AGENTIC_CONTEXT:` marker the monitor emits, prepended by `render_tree()`
+  as `tree.txt`'s first line, and echoed again in the PASSED/FAILED line.
+
+**Rejected alternatives:**
+- Retrying/polling harder on `await_fresh_run_id()` until the guess matches — still a guess under
+  registration lag; a self-assigned, passed-through id removes the guess entirely.
+- Letting Dagu's `maxActiveRuns` gate concurrency — confirmed it does not apply to a manually
+  triggered `dagu start`; the gate has to live in `run.sh` itself.
+- Per-run container names for the e2e stack (would remove the collision without a concurrency
+  guard) — larger change, rejected in favor of the simpler "don't allow a second run" gate, since
+  two CI runs racing was never an intended use case.
+
+Incidental to this fix: `scripts/ci/Dockerfile`'s `DAGU_VERSION` bumped 2.16.2 → 2.16.3.
+
+---
+
 ## ADR-013: The `docs` stage regenerates the ADR index and hands it back, rather than gating the run on drift
 **Status:** Accepted
 

@@ -190,6 +190,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-005 (query-lib) | query-lib | Accepted |  | `SqlOperator.ANY_OF` / `SqlCondition.anyOf(Set<Long>)` — a second `IN`-shaped operator, for id sets specifically |
 | ADR-006 (query-lib) | query-lib | Accepted |  | `anyOf`/`inSet` empty-input null (= "no restriction") must never back an access-narrowing predicate |
 | ADR-007 (query-lib) | query-lib | Accepted |  | `SqlCondition.like()` escapes `%`/`_`/`\` before wrapping |
+| ADR-014 (scripts/ci) | scripts/ci | Accepted |  | `ci.sh` refuses concurrent runs and assigns its own Dagu run id, so `--foreground` always watches the run it started |
 | ADR-013 (scripts/ci) | scripts/ci | Accepted | 2026-09-10 | The `docs` stage regenerates the ADR index and hands it back, rather than gating the run on drift |
 | ADR-012 (scripts/ci) | scripts/ci | Accepted | 2026-09-10 | ci-runner source is streamed into the running container each run; the image is rebuilt only on a real Dockerfile change |
 | ADR-011 (scripts/ci) | scripts/ci | Accepted |  | `run.sh`'s ci-runner startup wait checks the container's own ID, not its mutable name |
