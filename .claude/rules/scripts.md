@@ -215,11 +215,12 @@ simpler, single-level case.
 
 ## Running Playwright Tests
 
-**How to run playwright.sh:** per `.claude/rules.md`'s "Scripts" section, step 0.
-1. Kill stale processes: `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`
-2. Background `bash scripts/activity-monitor.sh -- scripts/playwright.sh [scenario]`, then attach
+**How to run playwright.sh:** per `.claude/rules.md`'s "Scripts" section, step 0. `playwright/run.sh`
+already kills any stale Playwright process left inside `pw-runner` itself, so no manual step is
+needed here.
+1. Background `bash scripts/activity-monitor.sh -- scripts/playwright.sh [scenario]`, then attach
    `Monitor` against `/tmp/activity-monitor/playwright.sh/tree.txt`.
-3. Stay quiet on routine step transitions; surface a real error (with its named pointer's detail)
+2. Stay quiet on routine step transitions; surface a real error (with its named pointer's detail)
    or a stall.
 
 ---

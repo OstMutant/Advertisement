@@ -4,10 +4,16 @@ import org.junit.jupiter.api.Test;
 import org.ost.integrationtests.support.AbstractRestApiScenarioTest;
 import org.ost.integrationtests.support.JsonScenarioUtils;
 import org.ost.integrationtests.support.Level3ScenarioTest;
+import org.ost.integrationtests.support.TimestampObservations;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -25,6 +31,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @Level3ScenarioTest
 class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest {
+
+    @Autowired
+    private JdbcClient jdbcClient;
 
     private long createCategory(RegisteredUser admin, String name) throws Exception {
         String body = """
@@ -135,28 +144,30 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
     @Test
     void sortByEachField_bothDirections() throws Exception {
         CreatedProvider first = createProvider("First", "MASTER", null, null);
-        createProvider("Second", "MASTER", null, null);
-        createProvider("Third", "MASTER", null, null);
+        CreatedProvider second = createProvider("Second", "MASTER", null, null);
+        CreatedProvider third = createProvider("Third", "MASTER", null, null);
+        Map<Long, String> aboutById = Map.of(
+                first.id(), "About First", second.id(), "About Second", third.id(), "About Third");
+        List<Long> ids = List.of(first.id(), second.id(), third.id());
 
-        // createdAt has no unique tiebreaker, so on a shared tick an ascending sort ties-breaks by id DESC, not creation order.
-        String asc = mockMvc.perform(get("/api/provider-profiles").param("sort", "createdAt,asc"))
+        Map<Long, Instant> createdAtById = TimestampObservations.read(jdbcClient, "provider_profile", "created_at", ids);
+        List<String> expectedAsc = ids.stream().sorted(Comparator.comparing(createdAtById::get))
+                .map(aboutById::get).toList();
+        List<String> expectedDesc = expectedAsc.reversed();
+
+        mockMvc.perform(get("/api/provider-profiles").param("sort", "createdAt,asc"))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        org.assertj.core.api.Assertions.assertThat(
-                        com.jayway.jsonpath.JsonPath.parse(asc).<java.util.List<String>>read("$[*].about"))
-                .containsExactlyInAnyOrder("About First", "About Second", "About Third");
-        org.assertj.core.api.Assertions.assertThat(
-                        com.jayway.jsonpath.JsonPath.parse(asc).<java.util.List<String>>read("$[*].createdAt")
-                                .stream().map(Instant::parse).toList())
-                .isSorted();
+                .andExpect(jsonPath("$[0].about").value(expectedAsc.get(0)))
+                .andExpect(jsonPath("$[1].about").value(expectedAsc.get(1)))
+                .andExpect(jsonPath("$[2].about").value(expectedAsc.get(2)));
 
         mockMvc.perform(get("/api/provider-profiles").param("sort", "createdAt,desc"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].about").value("About Third"))
-                .andExpect(jsonPath("$[1].about").value("About Second"))
-                .andExpect(jsonPath("$[2].about").value("About First"));
+                .andExpect(jsonPath("$[0].about").value(expectedDesc.get(0)))
+                .andExpect(jsonPath("$[1].about").value(expectedDesc.get(1)))
+                .andExpect(jsonPath("$[2].about").value(expectedDesc.get(2)));
 
-        // Updating "First" last (via its own owner's bearer key -- self-service) must move it to the end of updatedAt,asc.
+        Instant firstUpdatedAtBefore = TimestampObservations.read(jdbcClient, "provider_profile", "updated_at", ids).get(first.id());
         String updateBody = """
                 {"kind":"MASTER","about":"About First"}""";
         mockMvc.perform(put("/api/provider-profiles/" + first.id()).header("If-Match", "\"0\"")
@@ -164,9 +175,15 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
                         .contentType(MediaType.APPLICATION_JSON).content(updateBody))
                 .andExpect(status().isOk());
 
+        // Direct before/after check that the update itself bumped updated_at -- independent of the sort assertion below.
+        Map<Long, Instant> updatedAtById = TimestampObservations.read(jdbcClient, "provider_profile", "updated_at", ids);
+        org.assertj.core.api.Assertions.assertThat(updatedAtById.get(first.id())).isAfter(firstUpdatedAtBefore);
+
+        List<String> expectedUpdatedDesc = ids.stream().sorted(Comparator.comparing(updatedAtById::get).reversed())
+                .map(aboutById::get).toList();
         mockMvc.perform(get("/api/provider-profiles").param("sort", "updatedAt,desc"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].about").value("About First"));
+                .andExpect(jsonPath("$[0].about").value(expectedUpdatedDesc.get(0)));
     }
 
     @Test

@@ -244,6 +244,25 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(userSnapshot.role()).isEqualTo("USER");
     }
 
+    // A later insert (higher id) can still land an earlier created_at than an earlier insert --
+    // real, observed clock behavior, not just a tie -- version/prevId must follow id, not created_at.
+    @Test
+    void findTimeline_createdAtReversed_versionAndPrevIdFollowInsertionOrder() {
+        Instant t = Instant.parse("2026-01-01T00:00:00Z");
+        Long firstId = insertRow(EntityType.USER, 8L, t);
+        Long secondId = insertRow(EntityType.USER, 8L, t.minusSeconds(1));
+
+        List<AuditLogProjection> rows = auditLogRepository.findTimeline(
+                AuditTimelineFilterDto.empty(), Sort.by("createdAt").ascending(), 0, 10);
+
+        AuditLogProjection firstRow = rows.stream().filter(r -> r.id().equals(firstId)).findFirst().orElseThrow();
+        AuditLogProjection secondRow = rows.stream().filter(r -> r.id().equals(secondId)).findFirst().orElseThrow();
+        assertThat(firstRow.version()).isEqualTo(1);
+        assertThat(firstRow.prevId()).isNull();
+        assertThat(secondRow.version()).isEqualTo(2);
+        assertThat(secondRow.prevId()).isEqualTo(firstId);
+    }
+
     // Covers improvement-075: actorIds filter matches any of the selected actors via = ANY(),
     // not just a single one.
     @Test

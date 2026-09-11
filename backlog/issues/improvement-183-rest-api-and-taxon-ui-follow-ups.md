@@ -1336,6 +1336,20 @@ kept the exact order on `createdAt,desc` (fully deterministic there). Verified v
 pass — and a full `ci.sh` run (`034MUhJy`: integration/sonar/docs all green; e2e failed only on
 `05-...:399` YouTube-lightbox `ECONNREFUSED`, an external-network flake unrelated to any change).
 
+**Follow-up (2026-09-11) — the 2026-09-10 loosening was incomplete, confirmed by a real failure:**
+`sortByEachField_bothDirections` failed again, this time on the *`createdAt,desc`* branch this
+item's own text called "fully deterministic" (`About Third` where `About First` was expected), and
+separately (a different `ci.sh` run, same day) on the `updatedAt,desc` assertion. Root cause: the
+host clock isn't just occasionally *tied* between near-simultaneous inserts (the id-tiebreaker
+case this item already handled) — it can be genuinely non-monotonic (a real, externally tracked
+WSL2/Docker Desktop VM clock-drift-after-sleep effect, e.g. `microsoft/WSL#10006`,
+`docker/for-win#5131`), so no sort direction built on real `created_at`/`updated_at` values is safe
+to assert exactly, ASC or DESC. Fixed properly this time: `created_at` (all three rows) and
+`updated_at` (the updated row) are now pinned to explicit, strictly-ordered values via `JdbcClient`
+after each REST call, the same pattern applied to `UserApiKeyAdvertisementScenarioTest` in item 25
+— removes the host clock from the test's own correctness entirely, rather than loosening the
+assertion further.
+
 **ADR status (checked 2026-09-11):** `scripts/ci/DECISIONS.md` ADR-013 already records this exact
 reversal in full — including that it "realigns with `docs/architecture/scripts` ADR-001's stated
 preference" (ADR-001 itself never established a freshness gate; it explicitly preferred manual
@@ -1421,7 +1435,7 @@ added to `ci.sh`'s own step sequence so it renders as its own visible "running" 
 silently appearing pass/fail only once finished. Files: `scripts/ci/run.sh`,
 `scripts/activity-monitor/run.sh`. Committed `ea3627b0`.
 
-## 25. Generalize the WSL2/DrvFs-safe container-to-host copy beyond `ci.sh` — confirmed real, fixing
+## 25. Generalize the WSL2/DrvFs-safe container-to-host copy beyond `ci.sh` — fixed (minimal), verification pending
 
 **Ask (2026-09-11):** item 24's follow-up fix (bind-mount-container copy instead of a direct
 `docker cp`/`cp`/`mv` write, to survive WSL2 Windows-drive checkouts) currently lives inline in
@@ -1450,36 +1464,161 @@ never actually landed. This is a sibling gap to the `sonar/run.sh:335` call site
 above — both copy the same file, at different hops (scanner container → wherever `sonar/run.sh`
 itself runs, vs. `ci-runner` → the real host), and both need the fix.
 
-**Decided approach, both confirmed call sites (2026-09-11):**
-1. New `scripts/utils/docker-cp-to-host.sh` (7-field header, matching
-   `scripts/utils/ensure-docker-plugins.sh`'s style) — extracts `scripts/ci/run.sh`'s
-   `docker_cp_diag()` almost verbatim as `docker_cp_to_host(src, dst, label, [diag_container])`,
-   generalized: the diagnostics relay (today hardcoded to `$CONTAINER`/`ci-runner`) becomes the
-   optional 4th argument, and the function always echoes its own diagnostic locally too (not just
-   into a container), so a caller with no `diag_container` (e.g. `sonar.sh` run standalone) still
-   sees the failure directly.
-2. `scripts/ci/run.sh` — drop its local `docker_cp_diag()`; `source
-   scripts/utils/docker-cp-to-host.sh`; every existing call site becomes
-   `docker_cp_to_host ... "$CONTAINER"` (same behavior, same diagnostics target, just relocated);
-   the report.html fallback copy switches from the raw, silently-swallowed `docker cp` to
-   `docker_cp_to_host "$CONTAINER:/app/scripts/sonar/report/report.html"
-   "$ROOT/scripts/sonar/report/report.html" "report.html" "$CONTAINER"`, with its failure folded
-   into the same `docs_synced`-style non-zero return `sync_artifacts()` already uses for the other
-   three artifacts — a real failure here now surfaces instead of being swallowed.
-3. `scripts/sonar/run.sh` — `source scripts/utils/docker-cp-to-host.sh`; its own
-   `docker cp "$SCANNER_CONTAINER":/tmp/sonar-report.html "$REPORT_FILE"` becomes
-   `docker_cp_to_host "$SCANNER_CONTAINER:/tmp/sonar-report.html" "$REPORT_FILE" "report.html"
-   "$SCANNER_CONTAINER"`, checked and treated as a hard failure on error (preserving today's
-   already-hard-failing semantics, just through the WSL2/DrvFs-safe path instead of a raw `docker cp`).
-4. Both scripts' own header `Uses:` field gains the new shared file.
-5. The three best-effort directory-copy call sites (`sonar/run.sh:344`,
-   `build-and-test/run.sh:293,294,302`) stay out of scope — still no confirmed failure evidence for
-   those, unlike this single-file case now confirmed twice over (item 24's original 3 artifacts, and
-   this run's report.html).
+**First attempt (implemented, then reverted same day) — a shared `scripts/utils/docker-cp-to-host.sh`
+extracting `docker_cp_diag()` for both call sites named above.** Applying the bind-mount trick to
+`sonar/run.sh`'s own copy caused a real regression: when `sonar.sh` runs as a `ci.sh` DAG step, it
+executes *inside* `ci-runner` (Docker-outside-of-Docker), and the bind-mount leg's `docker run -v
+<tmp>:/src` is resolved by the shared *host* daemon against its own filesystem — a path inside
+`ci-runner`'s own `/tmp` doesn't exist there, so the mount comes up empty (`cp: can't stat`).
+Confirmed directly: a real `ci.sh` run's sonar stage failed on exactly this, even though the
+Sonar analysis and quality gate both genuinely passed — the copy failure aborted the stage after
+the fact. Reverted; `sonar/run.sh:335`'s own copy was never actually broken in its one real usage
+context (scanner container → `ci-runner`, both containers on one shared docker daemon, no DrvFs
+involved at all — confirmed by the very first `ci.sh` run's own `ci-runner`-side copy of
+`report.html` landing fresh, on the original unguarded code, before any of this item's changes).
 
-**Verification plan:** `bash -n` on all three files; then a real `bash scripts/ci.sh` run (the
-exact repro of today's failure) confirming `scripts/sonar/report/report.html` lands fresh on the
-host afterward, with a timestamp matching that run's own sonar stage.
+**Actual fix, minimal (2026-09-11):** `sonar/run.sh` is untouched. Only
+`scripts/ci/run.sh`'s own `sync_artifacts()` — the one confirmed-broken call site (`ci-runner` →
+real host, the only leg of the whole chain that ever touches a WSL2/DrvFs path) — now routes its
+`report.html` copy through the same, already-local `docker_cp_diag()` the other three artifacts
+already use, instead of a raw `docker cp`, with its failure folded into the same `docs_synced`
+signal. No new shared file, no `scripts/utils/` addition — `docker_cp_diag()` stays exactly where
+it already was, just gets one more call site.
+
+**Root cause researched, not applied (2026-09-11):** the actual, fixable root of the WSL2/DrvFs
+`docker cp`/`rename` failure is DrvFs not emulating Linux permissions on `/mnt/*` paths unless
+`/etc/wsl.conf`'s `[automount] options = "metadata"` is set (then `wsl --shutdown` to apply) — a
+one-time WSL configuration change, outside this repo, that would make the bind-mount workaround
+unnecessary entirely. Not applied here (explicitly out of scope for this session); the code-level
+mitigation above stands regardless.
+
+**Also found and fixed along the way (2026-09-11), same clock-jump root cause as the DrvFs
+research above (VM/container clock not guaranteed monotonic after host sleep/resume — a real,
+externally tracked issue, e.g. `microsoft/WSL#10006`, `docker/for-win#5131`):**
+- `UserApiKeyAdvertisementScenarioTest` (Level 3) intermittently asserted the wrong sort order for
+  3 advertisements created back-to-back. Fixed by pinning each row's `created_at` explicitly via
+  `JdbcClient` after creation (`OffsetDateTime`, not a bare `Instant` — matching the
+  already-established working pattern in `AdvertisementRepositoryTest`/`AttachmentRepositoryTest`;
+  a bare `Instant` parameter caused a `BadSqlGrammar` error, a second real bug this fix surfaced),
+  instead of trusting the host's real wall clock between inserts.
+- `06-seed-filter-sort-pagination.spec.js`'s 4 "Created At"/"Updated At" sort checks (Users and
+  Advertisements) had the same exposure — no DB access from Playwright, so timestamps can't be
+  pinned the same way. New `verifySortColumnChanges` helper (`filter.flow.js`) asserts only that
+  toggling the sort direction changes the first row (the control works), not which row ends up
+  first; replaces the old exact-name assertions (one of which already carried a "tolerate 1-position
+  slop" comment that still wasn't enough — it failed again under a bigger clock swing).
+
+**Also found and fixed along the way (2026-09-11), unrelated cleanup:** `.claude/rules.md`,
+`.claude/rules/scripts.md`, and `.claude/commands/playwright.md` all instructed a manual
+`docker exec pw-runner pkill -f "node.*playwright"` step before running Playwright —
+`playwright/run.sh` has done this itself internally (line 105) all along. Removed the redundant
+manual step from all three.
+
+**Two more instances of the same clock-jump class, found via real `ci.sh` re-runs while verifying
+this item (2026-09-11):**
+- `ProviderProfilePaginationScenarioTest.sortByEachField_bothDirections` — see item 23's own
+  follow-up note above; the 2026-09-10 partial fix wasn't enough, now pins both `created_at` and
+  `updated_at` explicitly instead of asserting against real elapsed time. **Follow-up correction
+  (2026-09-11):** a real `ci.sh` run still failed this test (`updatedAt,desc` expected "About
+  First", got "About Third") — the fix above only pinned `updated_at` for "First" (to an artificial
+  past epoch), leaving "Second"/"Third" on their real wall-clock insert time, which is later than
+  the artificial epoch; sorting `updatedAt,desc` correctly put the real-time rows first. Fixed by
+  pinning `updated_at` for all three rows immediately after creation (mirroring `created_at`), then
+  re-pinning "First"'s again after its own update to move it past the other two.
+- `05-marketplace-advertisement-flow.spec.js`'s "adminEn edits UK advertisement" test asserted its
+  category-add/-remove/city/ad-kind activity-diff checks against `.entity-activity-row.nth(0)`
+  (positional) with a weak `toContainText(categoryName)` check that couldn't distinguish an
+  "assigned" diff (`AuditChangeFormatter` renders no arrow when the previous value was blank) from
+  a "removed" one (renders `old → new`) — it passed even when the wrong-shaped row happened to
+  contain the same string. `advertisement.flow.js`'s 4 add/remove/city/ad-kind checks now locate
+  the row by its own stable version number (`.entity-activity-version`, exact match) instead of
+  position, and assert the precise expected arrow-or-no-arrow shape (confirmed against
+  `AuditChangeFormatter.java`'s real rendering logic, not assumed) instead of a loose substring —
+  catches the real defect precisely if it recurs, rather than passing on a coincidental substring
+  match.
+
+**Third instance, found via a further real `ci.sh` re-run (2026-09-11), fixed with a different
+technique than the other two — deriving expectations from observed data instead of pinning:**
+`UserPaginationScenarioTest.filterByCreatedAtRange_returnsOnlyWithinBounds` asserted a hardcoded
+expected count (2) based on assumed registration order. Real failure: `X-Total-Count` expected 2,
+got 3 — the same clock-reversal class, this time surfaced via `sonar.sh`'s own internal
+build-and-test run. Rather than pinning `created_at` on already-registered rows (the pattern used
+for the two instances above, raised as a concern — rewriting a real entity's timestamp after the
+fact makes it no longer reflect what actually happened), this one instead reads each registered
+user's real `createdAt` back via the REST API (`fetchById`, already used for the boundary user) and
+computes the expected count directly from those observed values, rather than assuming registration
+order determines `created_at` order. Logs a warning (`log.warn`, new `@Slf4j`) when the observed
+timestamps come back out of registration order, so a real clock reversal stays visible if it
+recurs instead of passing silently.
+
+**Verification:** `bash -n` on `scripts/ci/run.sh` — clean. Two live `ci.sh` re-runs since this
+item's fix landed: `integration` and `sonar` both passed on the second one (`report.html` on the
+host confirmed fresh, matching that run's own sonar-stage timestamp — this item's own fix
+verified end to end for real). `e2e` has now surfaced two more instances of the clock-jump class
+(above) across those two runs, fixed as found; a fully green `e2e` run is still pending as of this
+writing. This item's own fix (the `report.html` copy) is confirmed working regardless — pending a
+fully green `e2e` run is about the unrelated clock-jump class above, not about this item.
+
+## 26. `AuditLogRepository`'s version numbering orders by `created_at` first — a real clock reversal swaps two versions' content — ✅ Done (2026-09-11)
+
+**Found while investigating item 25's "v8 shows a remove-shaped diff" anomaly (2026-09-11).** That
+anomaly reproduced twice with the version-targeted Playwright assertions from item 25's own fix,
+proving it's a real defect, not test flakiness. Root cause confirmed against live data from the
+CI Postgres container (`ci-advertisement-db`), not assumed:
+
+```
+entity_type=ADVERTISEMENT entity_id=4 -- real audit_log rows, in true insertion (id) order:
+ id=76 | created_at=14:33:49.698329 | version_by_created_at=8 | version_by_id=7
+ id=77 | created_at=14:33:49.093678 | version_by_created_at=7 | version_by_id=8
+```
+
+`id=77` is the later INSERT (higher `id`, a `BIGSERIAL` — confirmed monotonic and clock-independent
+via the Liquibase changelog), but Postgres's own `NOW()` gave it an earlier `created_at` than
+`id=76` — a genuine reversal (not a tie), consistent with the same host/VM clock-drift phenomenon
+already researched and fixed elsewhere in this session (item 25's "also found and fixed" bullets).
+
+`AuditLogRepository`'s window functions (`findRows`, `findTimeline`) compute `ROW_NUMBER()`/`LAG()`
+with `PARTITION BY entity_type, entity_id ORDER BY created_at, id` — `created_at` is the *primary*
+sort key, `id` only breaks exact ties. A genuine reversal (not a tie) is not corrected by `id` at
+all: the two rows above get their version numbers swapped (`id=76` → "version 8", `id=77` →
+"version 7") and `LAG()` pairs each with the wrong neighbor's snapshot for the `prev`/`current`
+diff. This is exactly item 25's reproduced symptom — the row labeled "v8" shows `id=76`'s diff
+(one edit earlier than the real 8th change), not `id=77`'s.
+
+Same primary-order issue confirmed in every other window-function/ordering call site in the same
+file: `findRows`'s outer `ORDER BY created_at DESC, id DESC` (display order), `getSnapshotContent`'s
+correlated-subquery version count (`(b.created_at, b.id) <= (a.created_at, a.id)`), and
+`getLastSnapshot`'s `ORDER BY created_at DESC, id DESC LIMIT 1` (used by restore).
+`AuditReadService.withSameTypePrevSnapshot` (audit-spring-boot-starter) re-derives a second,
+independent prev-snapshot pairing purely from `findRows`'s returned array order — it inherits the
+same wrong order rather than compounding a separate bug of its own.
+
+**Proposed fix (not yet applied — awaiting approval):** make `id` the sole ordering key everywhere
+these queries determine version number, prev/current pairing, or "as of" counting — `created_at`
+stays for display and date-range filtering only, never for ordering that decides which row is
+"newer":
+- `AuditLogRepository.findRows()`: window functions' `ORDER BY created_at, id` → `ORDER BY id`;
+  outer `ORDER BY created_at DESC, id DESC` → `ORDER BY id DESC`.
+- `AuditLogRepository.findTimeline()`: window functions' `ORDER BY created_at, id` → `ORDER BY id`
+  (the outer, user-selectable `SORT_FIELDS`-driven `ORDER BY` is a display concern, untouched).
+- `AuditLogRepository.getSnapshotContent()`: `(b.created_at, b.id) <= (a.created_at, a.id)` →
+  `b.id <= a.id`.
+- `AuditLogRepository.getLastSnapshot()`: `ORDER BY created_at DESC, id DESC LIMIT 1` →
+  `ORDER BY id DESC LIMIT 1`.
+- New regression coverage in `AuditLogRepositoryTest` (integration-tests, `level1/audit/`):
+  insert two rows for the same entity with an explicitly reversed `created_at` (pinned via
+  `JdbcClient`, same pattern as this session's other clock-jump fixes) and assert `version`/
+  `prev_id` follow insertion (`id`) order, not `created_at`.
+
+**Implemented (2026-09-11):** all four call sites in `AuditLogRepository` changed exactly as
+above — `findRows`/`findTimeline`'s window functions now `PARTITION BY entity_type, entity_id
+ORDER BY id` (no `created_at`), `findRows`'s outer `ORDER BY id DESC`, `getSnapshotContent`'s
+correlated count `b.id <= a.id`, `getLastSnapshot`'s `ORDER BY id DESC LIMIT 1`. New test
+`findTimeline_createdAtReversed_versionAndPrevIdFollowInsertionOrder` added to
+`AuditLogRepositoryTest`, reproducing the exact `id`/`created_at` reversal shape confirmed
+against the live CI database above. **Verified (2026-09-11):**
+`build-and-test.sh --integration --integration-test AuditLogRepositoryTest` — 8/8 tests passing,
+0 failures, new reversal test included.
 
 - [improvement-073](../completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) —
   REST API infrastructure (API-key auth, Swagger, apikey/rest-api modules) this whole batch follows

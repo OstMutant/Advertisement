@@ -4,10 +4,15 @@ import org.junit.jupiter.api.Test;
 import org.ost.integrationtests.support.AbstractRestApiScenarioTest;
 import org.ost.integrationtests.support.JsonScenarioUtils;
 import org.ost.integrationtests.support.Level3ScenarioTest;
+import org.ost.integrationtests.support.TimestampObservations;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -24,6 +29,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @Level3ScenarioTest
 class UserPaginationScenarioTest extends AbstractRestApiScenarioTest {
+
+    @Autowired
+    private JdbcClient jdbcClient;
 
     @Test
     void filterByName_returnsOnlySubstringMatches() throws Exception {
@@ -72,16 +80,19 @@ class UserPaginationScenarioTest extends AbstractRestApiScenarioTest {
     @Test
     void filterByCreatedAtRange_returnsOnlyWithinBounds() throws Exception {
         RegisteredUser admin = registerUserAndIssueApiKey("Admin");
-        registerNamed("Old User", "old-user");
-        String boundaryResponse = registerNamed("Boundary User", "boundary-user");
-        Instant boundaryCreatedAt = Instant.parse(JsonScenarioUtils.extractStringField(
-                fetchById(admin, JsonScenarioUtils.extractId(boundaryResponse)), "createdAt"));
-        registerNamed("New User", "new-user");
+        long oldId = JsonScenarioUtils.extractId(registerNamed("Old User", "old-user"));
+        long boundaryId = JsonScenarioUtils.extractId(registerNamed("Boundary User", "boundary-user"));
+        long newId = JsonScenarioUtils.extractId(registerNamed("New User", "new-user"));
+        List<Long> ids = List.of(admin.id(), oldId, boundaryId, newId);
+
+        Map<Long, Instant> createdAtById = TimestampObservations.read(jdbcClient, "user_information", "created_at", ids);
+        Instant boundaryCreatedAt = createdAtById.get(boundaryId);
+        long expectedCount = createdAtById.values().stream().filter(t -> !t.isBefore(boundaryCreatedAt)).count();
 
         mockMvc.perform(get("/api/users").header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey())
                         .param("createdAtStart", boundaryCreatedAt.toString()))
                 .andExpect(status().isOk())
-                .andExpect(header().string("X-Total-Count", "2"));
+                .andExpect(header().string("X-Total-Count", String.valueOf(expectedCount)));
     }
 
     @Test
@@ -201,12 +212,6 @@ class UserPaginationScenarioTest extends AbstractRestApiScenarioTest {
         return mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-    }
-
-    private String fetchById(RegisteredUser admin, long id) throws Exception {
-        return mockMvc.perform(get("/api/users/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey()))
-                .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
     }
 }

@@ -364,9 +364,7 @@ subdirectory, which belongs to that one group alone.
    filter when it's firing on routine ticks — the Monitor keeps running regardless of whether a
    given notification gets a reply; responding to a routine tick with nothing is a valid, complete
    turn, not a gap that needs filling.
-4. Before running Playwright specifically, kill stale processes first:
-   `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`. Always pass `--ux` —
-   never run a Playwright scenario without it.
+4. Always pass `--ux` when running Playwright — never run a scenario without it.
 5. Once the Monitor's target process reaches its final result (pass/fail line, completion
    marker) — or once its notification has already delivered the answer being waited for, even
    before that marker — call `TaskStop` on that Monitor task immediately. A `tail -f`-based

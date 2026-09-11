@@ -212,12 +212,9 @@ sync_artifacts() {
   docker cp "$VOL_READER:/reports/sonar/." "$ROOT/scripts/logs/sonar/" 2>/dev/null
   docker rm -f "$VOL_READER" >/dev/null 2>&1
 
-  # Sonar's final report.html is generated fresh in the scanner container's own /tmp and never
-  # staged into test-reports -- only $CONTAINER's own copy (produced when the sonar step's own
-  # sonar/run.sh ran inside it) has it, so this one keeps the ci-runner-filesystem fallback instead
-  # of the volume.
-  docker cp "$CONTAINER:/app/scripts/sonar/report/report.html" \
-    "$ROOT/scripts/sonar/report/report.html" 2>/dev/null
+  # Sonar's report.html only ever exists in $CONTAINER's own filesystem, not the test-reports volume -- this leg writes to the real host, so it needs docker_cp_diag, not a plain docker cp.
+  docker_cp_diag "$CONTAINER:/app/scripts/sonar/report/report.html" \
+    "$ROOT/scripts/sonar/report/report.html" "report.html" || docs_synced=1
 
   return $docs_synced
 }

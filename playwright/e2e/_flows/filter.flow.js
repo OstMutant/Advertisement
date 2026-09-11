@@ -391,6 +391,46 @@ async function verifySortColumn(page, {
   }
 }
 
+/**
+ * Same setup/click cycle as verifySortColumn, but for a column whose real values can be
+ * non-monotonic in this environment (created_at, host clock not guaranteed monotonic between
+ * near-simultaneous inserts) -- asserts only that toggling the direction actually changes the
+ * first row (the sort control works), not which row ends up first.
+ * @param {import('@playwright/test').Page} page
+ * @param {Object} params same shape as verifySortColumn, minus firstAsc/firstDesc.
+ * @param {string} params.block
+ * @param {string} params.sortCol
+ * @param {string} params.itemSelector
+ * @param {string} params.assertSelector
+ * @param {Object} [params.setup]
+ * @param {string} params.prefix
+ * @returns {Promise<void>}
+ */
+async function verifySortColumnChanges(page, { block, sortCol, itemSelector, assertSelector, setup, prefix }) {
+  if (setup?.reset === 'all') {
+    await resetDefaultSorts(page, block);
+  } else if (setup?.reset === 'clearAll') {
+    await clearFilter(page, block);
+    await resetDefaultSorts(page, block);
+  } else if (setup?.reset) {
+    await clearFilter(page, block);
+    await clickSort(page, block, setup.reset, itemSelector);
+  }
+  if (setup?.filter) {
+    await fillText(page, block, setup.filter.field, setup.filter.value);
+    await applyFilter(page, block);
+  }
+
+  const slug = sortCol.toLowerCase().replace(/ /g, '-');
+  const descFirst = await page.locator(assertSelector).first().textContent();
+  await screenshot(page, `${prefix}-sort-${slug}-desc`);
+  await clickSort(page, block, sortCol, itemSelector); // DESC → NEUTRAL
+  await clickSort(page, block, sortCol, itemSelector); // NEUTRAL → ASC
+  const ascFirst = await page.locator(assertSelector).first().textContent();
+  await screenshot(page, `${prefix}-sort-${slug}-asc`);
+  expect(ascFirst).not.toBe(descFirst);
+}
+
 // ── date range filter verification ───────────────────────────────────────────
 
 /**
@@ -481,5 +521,5 @@ module.exports = {
   getRow,
   getTotalCount,
   goToNextPage, goToPrevPage, goToFirstPage, goToLastPage,
-  verifyPagination, verifyDateRangeFilters, verifySortColumn,
+  verifyPagination, verifyDateRangeFilters, verifySortColumn, verifySortColumnChanges,
 };
