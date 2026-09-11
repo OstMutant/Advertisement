@@ -296,7 +296,7 @@ existing upload flow is built around Vaadin's in-progress-gallery/temp-attachmen
 endpoint (e.g. `POST /api/advertisements/{id}/media`) delegating to `AttachmentPort`, decoupled
 from the create/update JSON body.
 
-## 10. Advertisement/Provider view-vs-card metadata parity, refactored symmetrically
+## 10. Advertisement/Provider view-vs-card metadata parity, refactored symmetrically — ✅ Done (2026-09-10)
 
 **Current state (verified):** `AdvertisementInfoDto`/`ProviderProfileDto` (the shared REST+UI DTOs)
 already carry `categoryNames`/`cityName`/`createdAt`/`updatedAt` (Advertisement also `createdBy`;
@@ -1435,7 +1435,7 @@ added to `ci.sh`'s own step sequence so it renders as its own visible "running" 
 silently appearing pass/fail only once finished. Files: `scripts/ci/run.sh`,
 `scripts/activity-monitor/run.sh`. Committed `ea3627b0`.
 
-## 25. Generalize the WSL2/DrvFs-safe container-to-host copy beyond `ci.sh` — fixed (minimal), verification pending
+## 25. Generalize the WSL2/DrvFs-safe container-to-host copy beyond `ci.sh` — ✅ Done (2026-09-11)
 
 **Ask (2026-09-11):** item 24's follow-up fix (bind-mount-container copy instead of a direct
 `docker cp`/`cp`/`mv` write, to survive WSL2 Windows-drive checkouts) currently lives inline in
@@ -1494,37 +1494,31 @@ mitigation above stands regardless.
 
 **Also found and fixed along the way (2026-09-11), same clock-jump root cause as the DrvFs
 research above (VM/container clock not guaranteed monotonic after host sleep/resume — a real,
-externally tracked issue, e.g. `microsoft/WSL#10006`, `docker/for-win#5131`):**
-- `UserApiKeyAdvertisementScenarioTest` (Level 3) intermittently asserted the wrong sort order for
-  3 advertisements created back-to-back. Fixed by pinning each row's `created_at` explicitly via
-  `JdbcClient` after creation (`OffsetDateTime`, not a bare `Instant` — matching the
-  already-established working pattern in `AdvertisementRepositoryTest`/`AttachmentRepositoryTest`;
-  a bare `Instant` parameter caused a `BadSqlGrammar` error, a second real bug this fix surfaced),
-  instead of trusting the host's real wall clock between inserts.
+externally tracked issue, e.g. `microsoft/WSL#10006`, `docker/for-win#5131`), across several real
+`ci.sh` re-runs while verifying this item — three Level 3 scenario tests kept asserting sort/filter
+outcomes against an *assumed* insertion order for rows created back-to-back
+(`UserApiKeyAdvertisementScenarioTest`, `ProviderProfilePaginationScenarioTest.sortByEachField_bothDirections`,
+`UserPaginationScenarioTest.filterByCreatedAtRange_returnsOnlyWithinBounds`). An earlier pass fixed
+these by pinning `created_at`/`updated_at` via a raw `UPDATE` after creating the rows through the
+real REST flow — this worked, but was raised as a real concern: rewriting a row's own timestamp
+after creating it through the real REST flow means the row no longer reflects what actually
+happened, purely for test convenience. Replaced with a different technique in all three: a new
+shared `TimestampObservations.read()` (`integration-tests/support/`) reads the real, already-
+recorded `created_at`/`updated_at` values back via `SELECT` and derives the expected order/count
+from those observed values instead of assuming insertion order or overwriting anything — fails the
+test outright on a `null`/tied value, warns (not fails) when the observed values come back out of
+insertion order. `ProviderProfilePaginationScenarioTest`'s `updatedAt` check also gained a direct,
+explicit before/after assertion that the update itself bumped `updated_at`, independent of the sort
+assertion, so that specific invariant stays covered even though the sort assertion itself is now
+fully derived from observation. Recorded as its own ADR (`integration-tests/DECISIONS.md` ADR-011)
+since it's a pattern future Level 3 tests should follow, and explicitly rejects the pin-after-write
+approach for this class of test.
 - `06-seed-filter-sort-pagination.spec.js`'s 4 "Created At"/"Updated At" sort checks (Users and
   Advertisements) had the same exposure — no DB access from Playwright, so timestamps can't be
-  pinned the same way. New `verifySortColumnChanges` helper (`filter.flow.js`) asserts only that
+  read back the same way. New `verifySortColumnChanges` helper (`filter.flow.js`) asserts only that
   toggling the sort direction changes the first row (the control works), not which row ends up
   first; replaces the old exact-name assertions (one of which already carried a "tolerate 1-position
   slop" comment that still wasn't enough — it failed again under a bigger clock swing).
-
-**Also found and fixed along the way (2026-09-11), unrelated cleanup:** `.claude/rules.md`,
-`.claude/rules/scripts.md`, and `.claude/commands/playwright.md` all instructed a manual
-`docker exec pw-runner pkill -f "node.*playwright"` step before running Playwright —
-`playwright/run.sh` has done this itself internally (line 105) all along. Removed the redundant
-manual step from all three.
-
-**Two more instances of the same clock-jump class, found via real `ci.sh` re-runs while verifying
-this item (2026-09-11):**
-- `ProviderProfilePaginationScenarioTest.sortByEachField_bothDirections` — see item 23's own
-  follow-up note above; the 2026-09-10 partial fix wasn't enough, now pins both `created_at` and
-  `updated_at` explicitly instead of asserting against real elapsed time. **Follow-up correction
-  (2026-09-11):** a real `ci.sh` run still failed this test (`updatedAt,desc` expected "About
-  First", got "About Third") — the fix above only pinned `updated_at` for "First" (to an artificial
-  past epoch), leaving "Second"/"Third" on their real wall-clock insert time, which is later than
-  the artificial epoch; sorting `updatedAt,desc` correctly put the real-time rows first. Fixed by
-  pinning `updated_at` for all three rows immediately after creation (mirroring `created_at`), then
-  re-pinning "First"'s again after its own update to move it past the other two.
 - `05-marketplace-advertisement-flow.spec.js`'s "adminEn edits UK advertisement" test asserted its
   category-add/-remove/city/ad-kind activity-diff checks against `.entity-activity-row.nth(0)`
   (positional) with a weak `toContainText(categoryName)` check that couldn't distinguish an
@@ -1535,29 +1529,20 @@ this item (2026-09-11):**
   position, and assert the precise expected arrow-or-no-arrow shape (confirmed against
   `AuditChangeFormatter.java`'s real rendering logic, not assumed) instead of a loose substring —
   catches the real defect precisely if it recurs, rather than passing on a coincidental substring
-  match.
+  match. This precision is exactly what caught item 26's real backend bug.
 
-**Third instance, found via a further real `ci.sh` re-run (2026-09-11), fixed with a different
-technique than the other two — deriving expectations from observed data instead of pinning:**
-`UserPaginationScenarioTest.filterByCreatedAtRange_returnsOnlyWithinBounds` asserted a hardcoded
-expected count (2) based on assumed registration order. Real failure: `X-Total-Count` expected 2,
-got 3 — the same clock-reversal class, this time surfaced via `sonar.sh`'s own internal
-build-and-test run. Rather than pinning `created_at` on already-registered rows (the pattern used
-for the two instances above, raised as a concern — rewriting a real entity's timestamp after the
-fact makes it no longer reflect what actually happened), this one instead reads each registered
-user's real `createdAt` back via the REST API (`fetchById`, already used for the boundary user) and
-computes the expected count directly from those observed values, rather than assuming registration
-order determines `created_at` order. Logs a warning (`log.warn`, new `@Slf4j`) when the observed
-timestamps come back out of registration order, so a real clock reversal stays visible if it
-recurs instead of passing silently.
+**Also found and fixed along the way (2026-09-11), unrelated cleanup:** `.claude/rules.md`,
+`.claude/rules/scripts.md`, and `.claude/commands/playwright.md` all instructed a manual
+`docker exec pw-runner pkill -f "node.*playwright"` step before running Playwright —
+`playwright/run.sh` has done this itself internally (line 105) all along. Removed the redundant
+manual step from all three.
 
-**Verification:** `bash -n` on `scripts/ci/run.sh` — clean. Two live `ci.sh` re-runs since this
-item's fix landed: `integration` and `sonar` both passed on the second one (`report.html` on the
-host confirmed fresh, matching that run's own sonar-stage timestamp — this item's own fix
-verified end to end for real). `e2e` has now surfaced two more instances of the clock-jump class
-(above) across those two runs, fixed as found; a fully green `e2e` run is still pending as of this
-writing. This item's own fix (the `report.html` copy) is confirmed working regardless — pending a
-fully green `e2e` run is about the unrelated clock-jump class above, not about this item.
+**Verification:** `bash -n` on `scripts/ci/run.sh` — clean. This item's own fix (the `report.html`
+copy) confirmed working via a real `ci.sh` run — the file landed fresh on the host, matching that
+run's own sonar-stage timestamp. A later full `ci.sh` run's `e2e` stage passed in full (19m11s, all
+specs green). The three rewritten Level 3 tests and `AuditLogRepositoryTest` (item 26's new
+regression test) verified individually via `build-and-test.sh --integration --integration-test`:
+16/16, 6/6, and 8/8 respectively, 0 failures. Committed `dbb5a0c1`.
 
 ## 26. `AuditLogRepository`'s version numbering orders by `created_at` first — a real clock reversal swaps two versions' content — ✅ Done (2026-09-11)
 
