@@ -34,6 +34,7 @@ import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
+import java.util.Objects;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -102,7 +103,10 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
             gallery.addClassName("attachment-gallery--" + params.getAd().getAdKind().name().toLowerCase());
             viewBody.add(gallery);
         }
-        viewBody.add(buildMetaPanel(params.getAd()));
+        AdvertisementInfoDto ad = params.getAd();
+        viewBody.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(
+                Objects.requireNonNullElse(ad.getCreatedByUserName(), "—"),
+                ad.getCreatedByUserEmail(), ad.getCreatedAt(), ad.getUpdatedAt())));
         viewBody.addClassName("overlay__view-body");
 
         return viewBody;
@@ -113,16 +117,6 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         badge.addClassName("advertisement-ad-kind-badge");
         badge.addClassName("advertisement-ad-kind-badge--" + ad.getAdKind().name().toLowerCase());
         return badge;
-    }
-
-    private EntityMetaPanel buildMetaPanel(AdvertisementInfoDto ad) {
-        return metaPanelFactory.build(EntityMetaPanel.Parameters.builder()
-                .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
-                .authorEmail(ad.getCreatedByUserEmail())
-                .createdAt(ad.getCreatedAt())
-                .updatedAt(ad.getUpdatedAt())
-                .variant(EntityMetaPanel.Variant.OVERLAY)
-                .build());
     }
 
     private static void buildChipRow(Div textCard, List<TaxonDto> taxons, TaxonType type,

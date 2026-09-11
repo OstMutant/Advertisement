@@ -102,16 +102,8 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
                     "provider-profile-city-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
         }
         card.add(kindBadge);
-        card.add(buildMetaPanel(profile));
+        card.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));
         return card;
-    }
-
-    private EntityMetaPanel buildMetaPanel(ProviderProfileDto profile) {
-        return metaPanelFactory.build(EntityMetaPanel.Parameters.builder()
-                .createdAt(profile.getCreatedAt())
-                .updatedAt(profile.getUpdatedAt())
-                .variant(EntityMetaPanel.Variant.OVERLAY)
-                .build());
     }
 
     private static void buildChipRow(Div card, List<String> names, String rowCssClass, String chipCssClass, String ariaLabel) {

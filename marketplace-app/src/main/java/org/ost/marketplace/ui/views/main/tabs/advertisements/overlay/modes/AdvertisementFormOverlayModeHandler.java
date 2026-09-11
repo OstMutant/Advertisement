@@ -56,6 +56,7 @@ import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -196,7 +197,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         }
 
         if (!isCreate) {
-            content.add(buildMetaPanel(params.getAd()));
+            AdvertisementInfoDto ad = params.getAd();
+            content.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(
+                    Objects.requireNonNullElse(ad.getCreatedByUserName(), "—"),
+                    ad.getCreatedByUserEmail(), ad.getCreatedAt(), ad.getUpdatedAt())));
         }
 
         saveButton = new UiPrimaryButton(getValue(ADVERTISEMENT_OVERLAY_BUTTON_SAVE));
@@ -257,16 +261,6 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
     private Long commitGallery(EntityRef entityRef) {
         return activeHandle != null ? activeHandle.commit(entityRef) : null;
-    }
-
-    private EntityMetaPanel buildMetaPanel(AdvertisementInfoDto ad) {
-        return metaPanelFactory.build(EntityMetaPanel.Parameters.builder()
-                .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
-                .authorEmail(ad.getCreatedByUserEmail())
-                .createdAt(ad.getCreatedAt())
-                .updatedAt(ad.getUpdatedAt())
-                .variant(EntityMetaPanel.Variant.OVERLAY)
-                .build());
     }
 
     public void loadRestored(@NonNull AdvertisementEditDto restoredDto) {

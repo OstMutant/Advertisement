@@ -93,23 +93,14 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         var taxons = taxonLookupService.getForEntity(EntityType.PROVIDER_PROFILE, profile.getId(), localeProvider.getCurrentLocale());
         buildChipRow(textCard, taxons, TaxonType.CATEGORY, "provider-profile-categories-chips",
                 "provider-profile-category-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CATEGORIES));
-        // City is the scalar provider_profile.city_taxon_id, not a taxon_assignment row, so it is
-        // absent from getForEntity() -- render it from the already-enriched cityName instead.
+        // city is a scalar column, not a taxon_assignment row, so it is absent from getForEntity()
         if (profile.getCityName() != null) {
             buildCityRow(textCard, profile.getCityName());
         }
         textCard.add(kindBadge);
-        textCard.add(buildMetaPanel(profile));
+        textCard.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));
 
         return new Div(textCard);
-    }
-
-    private EntityMetaPanel buildMetaPanel(ProviderProfileDto profile) {
-        return metaPanelFactory.build(EntityMetaPanel.Parameters.builder()
-                .createdAt(profile.getCreatedAt())
-                .updatedAt(profile.getUpdatedAt())
-                .variant(EntityMetaPanel.Variant.OVERLAY)
-                .build());
     }
 
     private static void buildChipRow(Div textCard, List<TaxonDto> taxons, TaxonType type,

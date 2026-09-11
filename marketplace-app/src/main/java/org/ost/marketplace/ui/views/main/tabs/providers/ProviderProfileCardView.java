@@ -9,7 +9,6 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.Configurable;
@@ -22,6 +21,7 @@ import org.ost.marketplace.ui.views.main.tabs.providers.overlay.ProviderProfileC
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.services.AppLinkService;
 import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.marketplace.ui.views.utils.ChipRowUtil;
 import org.ost.marketplace.ui.views.utils.HtmlExcerptUtil;
 import org.ost.marketplace.ui.views.utils.ShareUtil;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
@@ -106,11 +106,7 @@ public class ProviderProfileCardView extends HorizontalLayout
     }
 
     private EntityMetaPanel createMetaLine(ProviderProfileDto profile) {
-        return metaPanelFactory.build(EntityMetaPanel.Parameters.builder()
-                .createdAt(profile.getCreatedAt())
-                .updatedAt(profile.getUpdatedAt())
-                .variant(EntityMetaPanel.Variant.CARD)
-                .build());
+        return metaPanelFactory.build(EntityMetaPanel.Parameters.card(profile.getCreatedAt(), profile.getUpdatedAt()));
     }
 
     private H3 createTitle(ProviderProfileDto profile) {
@@ -140,29 +136,14 @@ public class ProviderProfileCardView extends HorizontalLayout
 
     private Div createCategoriesLine(ProviderProfileDto profile) {
         if (profile.getCategoryNames() == null || profile.getCategoryNames().isEmpty()) return null;
-        return chipRow(PROVIDERS_CARD_CATEGORIES, profile.getCategoryNames(), "provider-profile-category-chip");
+        return ChipRowUtil.labelled(getValue(PROVIDERS_CARD_CATEGORIES), profile.getCategoryNames(),
+                "provider-profile-card-chip-row", "provider-profile-category-chip");
     }
 
     private Div createCityLine(ProviderProfileDto profile) {
         if (profile.getCityName() == null) return null;
-        return chipRow(PROVIDERS_CARD_CITY, List.of(profile.getCityName()), "provider-profile-city-chip");
-    }
-
-    private Div chipRow(I18nKey label, List<String> names, String chipCssClass) {
-        Div row = new Div();
-        row.addClassName("provider-profile-card-chip-row");
-        row.getElement().setAttribute("role", "list");
-        row.getElement().setAttribute("aria-label", getValue(label));
-        Span labelSpan = new Span(getValue(label));
-        labelSpan.addClassName("overlay-chips-label");
-        row.add(labelSpan);
-        names.forEach(name -> {
-            Span chip = new Span(name);
-            chip.addClassName(chipCssClass);
-            chip.getElement().setAttribute("role", "listitem");
-            row.add(chip);
-        });
-        return row;
+        return ChipRowUtil.labelled(getValue(PROVIDERS_CARD_CITY), List.of(profile.getCityName()),
+                "provider-profile-card-chip-row", "provider-profile-city-chip");
     }
 
     private HorizontalLayout createActions(ProviderProfileDto profile, Runnable onListChanged) {

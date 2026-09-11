@@ -12,12 +12,12 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
+import org.ost.marketplace.ui.views.utils.ChipRowUtil;
 import org.ost.marketplace.ui.views.utils.HtmlExcerptUtil;
 import org.ost.marketplace.ui.views.utils.ShareUtil;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.orchestrator.services.AdvertisementSaveService;
 import org.ost.marketplace.services.security.AccessEvaluator;
-import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.AppLinkService;
 import org.ost.marketplace.ui.views.services.NotificationService;
@@ -41,6 +41,7 @@ import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -168,29 +169,14 @@ public class AdvertisementCardView extends HorizontalLayout
 
     private Div createCategoriesLine(AdvertisementInfoDto ad) {
         if (ad.getCategoryNames() == null || ad.getCategoryNames().isEmpty()) return null;
-        return chipRow(ADVERTISEMENT_CARD_CATEGORIES, ad.getCategoryNames(), "advertisement-category-chip");
+        return ChipRowUtil.labelled(getValue(ADVERTISEMENT_CARD_CATEGORIES), ad.getCategoryNames(),
+                "advertisement-card-chip-row", "advertisement-category-chip");
     }
 
     private Div createCityLine(AdvertisementInfoDto ad) {
         if (ad.getCityName() == null) return null;
-        return chipRow(ADVERTISEMENT_CARD_CITY, List.of(ad.getCityName()), "advertisement-city-chip");
-    }
-
-    private Div chipRow(I18nKey label, List<String> names, String chipCssClass) {
-        Div row = new Div();
-        row.addClassName("advertisement-card-chip-row");
-        row.getElement().setAttribute("role", "list");
-        row.getElement().setAttribute("aria-label", getValue(label));
-        Span labelSpan = new Span(getValue(label));
-        labelSpan.addClassName("overlay-chips-label");
-        row.add(labelSpan);
-        names.forEach(name -> {
-            Span chip = new Span(name);
-            chip.addClassName(chipCssClass);
-            chip.getElement().setAttribute("role", "listitem");
-            row.add(chip);
-        });
-        return row;
+        return ChipRowUtil.labelled(getValue(ADVERTISEMENT_CARD_CITY), List.of(ad.getCityName()),
+                "advertisement-card-chip-row", "advertisement-city-chip");
     }
 
     private Span createAdKindBadge(AdvertisementInfoDto ad) {
@@ -221,13 +207,9 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private EntityMetaPanel createMetaPanel(AdvertisementInfoDto ad) {
-        return metaPanelFactory.build(EntityMetaPanel.Parameters.builder()
-                .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
-                .authorEmail(ad.getCreatedByUserEmail())
-                .createdAt(ad.getCreatedAt())
-                .updatedAt(ad.getUpdatedAt())
-                .variant(EntityMetaPanel.Variant.CARD)
-                .build());
+        return metaPanelFactory.build(EntityMetaPanel.Parameters.card(
+                Objects.requireNonNullElse(ad.getCreatedByUserName(), "—"),
+                ad.getCreatedByUserEmail(), ad.getCreatedAt(), ad.getUpdatedAt()));
     }
 
     private HorizontalLayout createActions(AdvertisementInfoDto ad, Consumer<AdvertisementInfoDto> onUpdated,

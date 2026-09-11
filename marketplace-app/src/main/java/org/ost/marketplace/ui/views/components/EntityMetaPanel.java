@@ -26,11 +26,9 @@ import static org.ost.marketplace.services.i18n.I18nKey.ENTITY_META_CREATED;
 import static org.ost.marketplace.services.i18n.I18nKey.ENTITY_META_UPDATED;
 
 /**
- * Author + created/updated line, shared by every card and detail-view surface (Advertisement and
- * Provider Profile). {@code authorName} is optional -- Provider Profile passes {@code null} and the
- * author span is left out. {@link Variant#CARD} renders one collapsed date ("Created:" until the
- * row is edited, then "Updated:"); {@link Variant#OVERLAY} renders "Created:" plus "Updated:" once
- * the row has been edited.
+ * Author + created/updated meta line shared by every card and detail-view surface, where a null
+ * {@code authorName} omits the author span and {@link Variant} selects card (one collapsed date)
+ * vs overlay (created plus updated-if-edited) layout.
  */
 @SpringComponent
 @Scope("prototype")
@@ -48,6 +46,31 @@ public class EntityMetaPanel extends Div
         @NonNull Instant createdAt;
         @NonNull Instant updatedAt;
         @NonNull Variant variant;
+
+        /** Card-variant line with an author (Advertisement). */
+        public static Parameters card(String authorName, String authorEmail, Instant createdAt, Instant updatedAt) {
+            return of(Variant.CARD, authorName, authorEmail, createdAt, updatedAt);
+        }
+
+        /** Card-variant line with no author (Provider Profile). */
+        public static Parameters card(Instant createdAt, Instant updatedAt) {
+            return of(Variant.CARD, null, null, createdAt, updatedAt);
+        }
+
+        /** Overlay-variant line with an author (Advertisement). */
+        public static Parameters overlay(String authorName, String authorEmail, Instant createdAt, Instant updatedAt) {
+            return of(Variant.OVERLAY, authorName, authorEmail, createdAt, updatedAt);
+        }
+
+        /** Overlay-variant line with no author (Provider Profile). */
+        public static Parameters overlay(Instant createdAt, Instant updatedAt) {
+            return of(Variant.OVERLAY, null, null, createdAt, updatedAt);
+        }
+
+        private static Parameters of(Variant variant, String authorName, String authorEmail, Instant createdAt, Instant updatedAt) {
+            return builder().variant(variant).authorName(authorName).authorEmail(authorEmail)
+                    .createdAt(createdAt).updatedAt(updatedAt).build();
+        }
     }
 
     @Getter
