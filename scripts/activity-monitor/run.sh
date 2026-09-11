@@ -146,7 +146,7 @@ declare -A SCRIPT_STEP_SEQUENCE=(
   ["deploy-and-run.sh"]="infra build start-container start-application"
   ["reset.sh"]="reset"
   ["build-and-test.sh"]="build-and-test"
-  ["ci.sh"]="build-image start-ci-runner sync-source build unit integration e2e sonar archunit_metrics pipeline_metrics docs"
+  ["ci.sh"]="build-image start-ci-runner sync-source build unit integration e2e sonar archunit_metrics pipeline_metrics docs ci-run"
   ["run-all-tests.sh"]="run-all-tests"
   ["sonar.sh"]="sonar-analysis"
   ["playwright.sh"]="playwright-run"
@@ -658,14 +658,17 @@ main() {
     process_batch "$(tail -c +$((last_size + 1)) "$RAW_LOG")"
   fi
 
-  # Any step never marked terminal (ok/error/warn) when the process exited non-zero is the real
-  # failure point even without its own explicit marker -- the exit code is always the source of
-  # truth for pass/fail, never narration (see engine header).
+  # Any step never marked terminal (ok/error/warn/skipped) when the process exited non-zero is the
+  # real failure point even without its own explicit marker -- the exit code is always the source
+  # of truth for pass/fail, never narration (see engine header). A step already marked "skipped"
+  # (a real, deliberate terminal state -- e.g. a Dagu step whose precondition wasn't met) must
+  # never be overwritten to "error" just because the overall run failed somewhere else entirely.
   if (( exit_code != 0 )); then
     for name in "${STEP_ORDER[@]}"; do
-      if [[ "${STEP_STATUS[$name]}" != "ok" && "${STEP_STATUS[$name]}" != "error" ]]; then
-        mark_step "$name" "error" "process exited with code $exit_code" "$RAW_LOG"
-      fi
+      case "${STEP_STATUS[$name]}" in
+        ok|error|warn|skipped) ;;
+        *) mark_step "$name" "error" "process exited with code $exit_code" "$RAW_LOG" ;;
+      esac
     done
     if (( ${#STEP_ORDER[@]} == 0 )); then
       mark_step "$script_name" "error" "process exited with code $exit_code" "$RAW_LOG"

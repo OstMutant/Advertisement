@@ -19,6 +19,10 @@
 #   --e2e                    -- run the e2e stage
 #   --sonar                  -- run the sonar stage
 #   --all                    -- unit + integration + e2e (no sonar)
+#   --docs-only              -- skip unit/integration/e2e/sonar/archunit_metrics entirely (build
+#                                then straight to pipeline_metrics/docs) -- the fastest real path
+#                                for testing the docs stage/sync_artifacts alone, minutes not
+#                                dozens of minutes
 #   --no-docs                -- skip the docs stage (regenerates architecture-model.json/
 #                                architecture-map.html inside the container -- see ci.yaml)
 #   --playwright-args <arg>  -- override the e2e stage's Playwright args (default
@@ -123,10 +127,48 @@ ANY_STAGE_FLAG=""
 # a failed/partial run still surfaces whatever archunit_metrics/pipeline_metrics managed to produce
 # before failing. architecture-model.json/architecture-map.html are different: the docs DAG step
 # now regenerates them in place (see ci.yaml), so a copy failure here means the host's committed
-# copies were NOT actually refreshed -- returns non-zero in that case so callers can tell. Stderr
-# is NOT suppressed for these three -- a retry masked the real error once already; whatever
-# docker cp actually says must reach the log so a real failure is diagnosable, not just retried
-# blind.
+# copies were NOT actually refreshed -- returns non-zero in that case so callers can tell.
+# Whatever `docker cp` actually says on stderr is relayed into $CONTAINER itself (never just
+# $ROOT, the caller's own host filesystem) -- $CONTAINER is the one piece of shared, inspectable
+# state whoever triggered this run and whoever is debugging it both have access to, via
+# `docker exec $CONTAINER cat /tmp/ci-sync-diag.log`, independent of whose shell/host actually ran
+# run.sh (confirmed a real gap: a previous version only wrote to $ROOT, invisible cross-host).
+# `docker cp` writing straight to a WSL2 Windows-drive mount (/mnt/c, /mnt/d, ...) has been seen to
+# fail with "unlinkat ...: permission denied", and a plain shell `cp -f`/`mv` onto the same path
+# hits the identical wall ("cp: cannot create regular file ...: Permission denied", even for a
+# brand-new file in that directory) -- this is DrvFs enforcing the real Windows ACL underneath,
+# which a WSL shell process cannot route around no matter which Linux tool it uses. Docker
+# Desktop's own bind-mount file-sharing layer for Windows/WSL2 goes through a different path than
+# a WSL shell's direct DrvFs access, so the final host-side write is done from *inside* a
+# throwaway container that bind-mounts the destination directory, not from this shell directly.
+docker_cp_diag() {
+  local src="$1" dst="$2" label="$3" out rc tmp tmp_dir tmp_name dst_dir dst_name
+  tmp="$(mktemp)"
+  out="$(docker cp "$src" "$tmp" 2>&1 >/dev/null)"
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    # Bind-mounting a single file whose target path doesn't already exist inside the image can
+    # get Docker to create a directory there instead (a real, confirmed gotcha) -- mount the
+    # temp file's own directory instead and reference it by name.
+    tmp_dir="$(dirname "$tmp")"
+    tmp_name="$(basename "$tmp")"
+    dst_dir="$(cd "$(dirname "$dst")" && pwd)"
+    dst_name="$(basename "$dst")"
+    if out="$(docker run --rm -v "$tmp_dir:/src:ro" -v "$dst_dir:/out" alpine \
+        sh -c "cp -f '/src/$tmp_name' '/out/.$dst_name.ci-sync-tmp' && mv -f '/out/.$dst_name.ci-sync-tmp' '/out/$dst_name'" 2>&1)"; then
+      rc=0
+    else
+      rc=1
+    fi
+  fi
+  rm -f "$tmp"
+  {
+    echo "=== $(date -u +%FT%TZ) $label rc=$rc ==="
+    [ -n "$out" ] && echo "$out"
+  } | docker exec -i "$CONTAINER" sh -c 'cat >> /tmp/ci-sync-diag.log' 2>/dev/null
+  return $rc
+}
+
 sync_artifacts() {
   mkdir -p "$ROOT/scripts/build-and-test/reports" "$ROOT/scripts/ci/reports"
   docker cp "$CONTAINER:/app/scripts/build-and-test/reports/architecture-metrics.json" \
@@ -135,14 +177,19 @@ sync_artifacts() {
     "$ROOT/scripts/ci/reports/pipeline-metrics.json" 2>/dev/null
 
   local docs_synced=0
-  docker cp "$CONTAINER:/app/docs/architecture/data/architecture-model.json" \
-    "$ROOT/docs/architecture/data/architecture-model.json" || docs_synced=1
-  docker cp "$CONTAINER:/app/docs/architecture/architecture-map.html" \
-    "$ROOT/docs/architecture/architecture-map.html" || docs_synced=1
+  docker exec "$CONTAINER" sh -c ': > /tmp/ci-sync-diag.log' 2>/dev/null
+  docker_cp_diag "$CONTAINER:/app/docs/architecture/data/architecture-model.json" \
+    "$ROOT/docs/architecture/data/architecture-model.json" "architecture-model.json" || docs_synced=1
+  docker_cp_diag "$CONTAINER:/app/docs/architecture/architecture-map.html" \
+    "$ROOT/docs/architecture/architecture-map.html" "architecture-map.html" || docs_synced=1
 
   # adr-index.md is regenerated in-container by the docs stage; copy it back too -- docker cp's own exit code is the check, a failed copy sets docs_synced.
-  docker cp "$CONTAINER:/app/.claude/nav/adr-index.md" \
-    "$ROOT/.claude/nav/adr-index.md" || docs_synced=1
+  docker_cp_diag "$CONTAINER:/app/.claude/nav/adr-index.md" \
+    "$ROOT/.claude/nav/adr-index.md" "adr-index.md" || docs_synced=1
+  if [ "$docs_synced" -ne 0 ]; then
+    echo "docker cp errors (also saved inside $CONTAINER at /tmp/ci-sync-diag.log):"
+    docker exec "$CONTAINER" cat /tmp/ci-sync-diag.log 2>/dev/null
+  fi
 
   # Test-result artifacts (Playwright report, unit/integration Surefire+logs, Sonar's run log) are
   # written directly into the shared `test-reports` named volume by the build/pw-runner/scanner
@@ -189,6 +236,7 @@ for arg in "$@"; do
     --integration)      STAGE_INTEGRATION=1; ANY_STAGE_FLAG=1 ;;
     --e2e)               STAGE_E2E=1; ANY_STAGE_FLAG=1 ;;
     --sonar)              STAGE_SONAR=1; ANY_STAGE_FLAG=1 ;;
+    --docs-only)           ANY_STAGE_FLAG=1; ARCHUNIT_METRICS="false" ;;
     --no-docs)             STAGE_DOCS="" ;;
     --all)                 STAGE_UNIT=1; STAGE_INTEGRATION=1; STAGE_E2E=1; ANY_STAGE_FLAG=1 ;;
     --no-keep-e2e-infra)   KEEP_INFRA="false" ;;
