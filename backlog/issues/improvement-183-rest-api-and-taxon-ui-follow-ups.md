@@ -1307,6 +1307,54 @@ unrelated Playwright specs failing with `.header-settings-button` not found. Thr
 **Open:** an ADR for the "one ci run at a time + self-assigned run-id contract between run.sh and
 the monitor" is not yet written.
 
+**Follow-up (2026-09-11) -- the real recurring cause of point 3's sync failure, found after point 3's
+own fix started reporting it honestly:** `sync_artifacts()`'s host-side write of
+`architecture-model.json`/`architecture-map.html`/`adr-index.md` failed consistently (not
+transient) on a checkout under a WSL2 Windows-drive mount (`/mnt/c`, `/mnt/d`, ...). `docker cp`'s
+own unlink-then-recreate extraction, and a plain shell `cp -f`/`mv` fallback tried after it, both
+hit DrvFs enforcing the real Windows ACL underneath -- confirmed down to `cp: cannot create regular
+file ...: Permission denied` on a brand-new file in the destination directory, so no client-side
+cp/mv/rename trick can route around it (this is a real, sourced WSL2/DrvFs limitation, not a bug in
+any of those tools -- see the fix commit for citations). Fixed by doing the final write from
+*inside* a throwaway `alpine` container that bind-mounts the destination directory instead of the
+calling shell touching it directly -- Docker Desktop's own WSL2 file-sharing layer for a bind mount
+goes through a different path than a WSL shell's direct DrvFs access, and does succeed. Diagnostics
+(per-file copy outcome, with the real stderr) are relayed into `$CONTAINER` itself via `docker exec`
+(`/tmp/ci-sync-diag.log`), not just to `$ROOT`, since `$ROOT` is the caller's own host filesystem --
+invisible to whoever else needs to debug a run they didn't personally trigger. Verified end to end
+on the actual affected WSL2 checkout: `rc=0` for all three files, run `succeeded` with no trailing
+sync failure. Also fixed alongside: `scripts/activity-monitor/run.sh`'s exit-code fallback no longer
+overwrites an already-`skipped` step to `error` just because the wrapped script failed elsewhere
+(hit via the new `--docs-only` flag, which skips unit/integration/e2e/sonar/archunit_metrics
+entirely for a fast path to test the docs stage/sync alone); `ci-run` (the post-DAG artifact sync)
+added to `ci.sh`'s own step sequence so it renders as its own visible "running" step instead of
+silently appearing pass/fail only once finished. Files: `scripts/ci/run.sh`,
+`scripts/activity-monitor/run.sh`. Committed `ea3627b0`.
+
+## 25. Generalize the WSL2/DrvFs-safe container-to-host copy beyond `ci.sh` -- not started, deferred
+
+**Ask (2026-09-11):** item 24's follow-up fix (bind-mount-container copy instead of a direct
+`docker cp`/`cp`/`mv` write, to survive WSL2 Windows-drive checkouts) currently lives inline in
+`scripts/ci/run.sh`'s own `docker_cp_diag()`. Other scripts have the same container-to-host `docker
+cp` shape and would hit the identical DrvFs wall on the same kind of checkout:
+
+- `scripts/sonar/run.sh:335` -- `docker cp "$SCANNER_CONTAINER":/tmp/sonar-report.html
+  "$REPORT_FILE"` -- a single file, **not** suppressed (no `|| true`), the direct analog of what
+  item 24 just fixed; `sonar.sh` would hard-fail the same way `ci.sh` did.
+- `scripts/sonar/run.sh:344` and `scripts/build-and-test/run.sh:293,294,302` -- directory copies
+  (`docker cp CONTAINER:/reports/.../. HOST/`), already wrapped in `2>/dev/null || true`
+  (best-effort, non-fatal today even if DrvFs blocks them) -- would need a directory-copy variant
+  of the fix (`mktemp -d` + a recursive merge inside the throwaway container), not just the
+  single-file one.
+
+**Planned approach:** extract the single-file bind-mount-copy helper out of `scripts/ci/run.sh`
+into a shared `scripts/utils/docker-cp-to-host.sh` (this repo's established home for logic shared
+across script-groups, see `scripts/utils/README.md`), source it from both `scripts/ci/run.sh` and
+`scripts/sonar/run.sh`, and use it for the `sonar/run.sh:335` call site. The directory-copy variant
+for the three best-effort call sites is separate, lower-priority work (not blocking anything today)
+-- deferred further, picked up only if one of those best-effort copies is confirmed actually
+failing on a real WSL2 checkout, not built speculatively ahead of that evidence.
+
 - [improvement-073](../completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) —
   REST API infrastructure (API-key auth, Swagger, apikey/rest-api modules) this whole batch follows
   up on.
