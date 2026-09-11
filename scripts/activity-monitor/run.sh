@@ -189,6 +189,7 @@ declare -A STEP_COMPLETED_AT=() # step id -> epoch seconds, set once a step reac
 WRAPPER_START_TIME=0            # epoch seconds, set in main() right before spawning the command
 LAST_ACTIVITY_AT=0              # epoch seconds of the last time raw.log actually grew
 LAST_ACTIVITY=""                # most recent free-text narration line (generic-profile fallback only)
+CONTEXT_LINE=""                 # one persistent header line (e.g. a run id) set via an AGENTIC_CONTEXT: marker
 
 # Global default stall threshold -- most steps (infra, container start, image build) produce
 # output at least this often when healthy, so silence past this is a real signal. Steps that are
@@ -417,6 +418,7 @@ render_tree() {
   done
 
   [[ -n "$LAST_ACTIVITY" ]] && out+="[${TS_LAST_ACTIVITY:-$(timestamp)}] ${LAST_ACTIVITY}"$'\n'
+  [[ -n "$CONTEXT_LINE" ]] && out="${CONTEXT_LINE}"$'\n'"${out}"
   printf '%s' "$out"
 }
 

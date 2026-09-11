@@ -137,14 +137,22 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
         createProvider("Second", "MASTER", null, null);
         createProvider("Third", "MASTER", null, null);
 
-        mockMvc.perform(get("/api/provider-profiles").param("sort", "createdAt,asc"))
+        // createdAt has no unique tiebreaker, so on a shared tick an ascending sort ties-breaks by id DESC, not creation order.
+        String asc = mockMvc.perform(get("/api/provider-profiles").param("sort", "createdAt,asc"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].about").value("About First"))
-                .andExpect(jsonPath("$[2].about").value("About Third"));
+                .andReturn().getResponse().getContentAsString();
+        org.assertj.core.api.Assertions.assertThat(
+                        com.jayway.jsonpath.JsonPath.parse(asc).<java.util.List<String>>read("$[*].about"))
+                .containsExactlyInAnyOrder("About First", "About Second", "About Third");
+        org.assertj.core.api.Assertions.assertThat(
+                        com.jayway.jsonpath.JsonPath.parse(asc).<java.util.List<String>>read("$[*].createdAt")
+                                .stream().map(Instant::parse).toList())
+                .isSorted();
 
         mockMvc.perform(get("/api/provider-profiles").param("sort", "createdAt,desc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].about").value("About Third"))
+                .andExpect(jsonPath("$[1].about").value("About Second"))
                 .andExpect(jsonPath("$[2].about").value("About First"));
 
         // Updating "First" last (via its own owner's bearer key -- self-service) must move it to the end of updatedAt,asc.

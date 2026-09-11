@@ -10,9 +10,10 @@
 # Input: every DECISIONS.md file in the repo (only files using the "## ADR-NNN:" numbering
 #   convention are indexed).
 # Outputs: writes OUTPUT_PATH atomically -- generated into a temp sibling, moved into place only
-#   on full success, so an interrupted run never leaves a partial or empty file; a WARN line to
-#   stderr per ADR with no **Status:** line; a "## Known gaps" section listing any DECISIONS.md
-#   file with no "## ADR-NNN:" heading.
+#   on full success, so an interrupted run never leaves a partial or empty file, then chmod 644 (the
+#   temp sibling is mktemp-created 0600; the committed index must stay world-readable so CI's
+#   working-tree sync can read it); a WARN line to stderr per ADR with no **Status:** line; a
+#   "## Known gaps" section listing any DECISIONS.md file with no "## ADR-NNN:" heading.
 # Returns: 0 always.
 # ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -130,6 +131,7 @@ if [ -n "$gaps" ]; then
 fi
 
 mv -f "$WORK" "$OUTPUT"
+chmod 644 "$OUTPUT"  # mktemp makes 0600; the committed index must stay world-readable for CI's sync
 
 count=$(grep -c '^| ADR-' "$OUTPUT" || true)
 echo "Wrote $count entries to $OUTPUT"

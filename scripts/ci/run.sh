@@ -68,15 +68,22 @@
 #   sandbox -- see DECISIONS.md). With --foreground or --sync-artifacts, also refreshes onto the
 #   host: scripts/build-and-test/reports/architecture-metrics.json, scripts/ci/reports/
 #   pipeline-metrics.json, (whenever the docs stage ran and regenerated them)
-#   docs/architecture/data/architecture-model.json and docs/architecture/architecture-map.html,
+#   docs/architecture/data/architecture-model.json, docs/architecture/architecture-map.html and
+#   .claude/nav/adr-index.md,
 #   plus (whenever the matching stage ran) playwright/pw-report/, scripts/logs/playwright/,
 #   scripts/build-and-test/reports/advertisement-build-only-{unit,integration,sonar}/,
 #   scripts/logs/build-and-test/advertisement-build-only-{unit,integration,sonar}/,
 #   integration-tests/reports/, scripts/sonar/report/report.html, and scripts/logs/sonar/.
 # Returns: 0 on success; non-zero on an unrecognized flag, image-build failure, Dagu-startup
-#   failure, a failed docker cp of architecture-model.json/architecture-map.html onto the host
-#   (--foreground/--sync-artifacts only), or (--foreground only) a failed DAG run -- a backgrounded
-#   run always returns 0 once triggered, regardless of how the DAG run itself later finishes. Also
+#   failure, a ci DAG run already being in progress (refused: concurrent runs collide on the
+#   shared e2e ci-* stack), or (--foreground only) either a failed DAG stage or a failed
+#   docker cp of architecture-model.json/architecture-map.html/adr-index.md back to the host --
+#   these last two are reported distinctly ("A ci DAG stage failed" vs "Every ci DAG stage passed,
+#   but ... sync ... failed") so the failure line names where it broke. A backgrounded run always
+#   returns 0 once triggered, regardless of how the DAG run itself later finishes. Each run is
+#   given a self-assigned id (`dagu start -r`), printed as "Dagu run id: <id>", surfaced as the
+#   tree.txt header line (AGENTIC_CONTEXT), and echoed again in the PASSED/FAILED line, so it's
+#   unambiguous which run any output refers to. Also
 #   prints a single-line
 #   AGENTIC_SUCCESS_BLOCK JSON marker on a clean finish (including a successfully-triggered
 #   background run), or an AGENTIC_ERROR_BLOCK JSON marker
@@ -116,7 +123,10 @@ ANY_STAGE_FLAG=""
 # a failed/partial run still surfaces whatever archunit_metrics/pipeline_metrics managed to produce
 # before failing. architecture-model.json/architecture-map.html are different: the docs DAG step
 # now regenerates them in place (see ci.yaml), so a copy failure here means the host's committed
-# copies were NOT actually refreshed -- returns non-zero in that case so callers can tell.
+# copies were NOT actually refreshed -- returns non-zero in that case so callers can tell. Stderr
+# is NOT suppressed for these three -- a retry masked the real error once already; whatever
+# docker cp actually says must reach the log so a real failure is diagnosable, not just retried
+# blind.
 sync_artifacts() {
   mkdir -p "$ROOT/scripts/build-and-test/reports" "$ROOT/scripts/ci/reports"
   docker cp "$CONTAINER:/app/scripts/build-and-test/reports/architecture-metrics.json" \
@@ -129,6 +139,10 @@ sync_artifacts() {
     "$ROOT/docs/architecture/data/architecture-model.json" || docs_synced=1
   docker cp "$CONTAINER:/app/docs/architecture/architecture-map.html" \
     "$ROOT/docs/architecture/architecture-map.html" || docs_synced=1
+
+  # adr-index.md is regenerated in-container by the docs stage; copy it back too -- docker cp's own exit code is the check, a failed copy sets docs_synced.
+  docker cp "$CONTAINER:/app/.claude/nav/adr-index.md" \
+    "$ROOT/.claude/nav/adr-index.md" || docs_synced=1
 
   # Test-result artifacts (Playwright report, unit/integration Surefire+logs, Sonar's run log) are
   # written directly into the shared `test-reports` named volume by the build/pw-runner/scanner
@@ -205,7 +219,7 @@ if [ -n "$SYNC_ARTIFACTS_ONLY" ]; then
   else
     echo "Synced whatever else was available, but failed to copy" \
          "architecture-model.json/architecture-map.html from $CONTAINER onto the host."
-    emit_agentic_error_block "transient" "true" "sync-artifacts" "docker cp of architecture-model.json/architecture-map.html failed -- is $CONTAINER running?"
+    emit_agentic_error_block "transient" "true" "sync-artifacts" "docker cp of architecture-model.json/architecture-map.html/adr-index.md failed -- is $CONTAINER running?"
     exit 1
   fi
 fi
@@ -367,23 +381,31 @@ else
 fi
 emit_agentic_success_block "start-ci-runner"
 
-# ── Overlay /app inside the running container with the live working tree, every run ────────────
+# ── Replace /app inside the running container with the live working tree, every run ────────────
 # The image's own `COPY . .` is never trusted (stale-layer risk -- see the lifecycle note above),
 # so the working tree is streamed in fresh before every DAG run. The file set comes from
 # `git ls-files` (tracked + untracked-not-.gitignored), not a tar tree-walk -- git already
-# excludes `.git`, every `*/target`, `node_modules`, report/log dirs, etc., and this never trips
-# over a build artifact an IDE has locked (a real `tar=2` on Windows) or a socket/FIFO. `*.md` is
-# kept (unlike `.dockerignore`), since the docs stage needs DECISIONS.md / flows.md / adr-index.md.
-# `tar -x` overlays files in place -- unlike `docker cp -`, fussier about target dir perms.
+# excludes `.git`, every `*/target`, `node_modules`, report/log dirs, sockets/FIFOs, etc. `*.md`
+# is kept (unlike `.dockerignore`), since the docs stage needs DECISIONS.md / flows.md /
+# adr-index.md. `/app` is wiped first, then re-extracted -- a plain `tar -x` overlay leaves behind
+# files that were deleted from the working tree since the last sync (a stale copy of a
+# since-removed .java then breaks the compile). Everything under /app is regenerated by the build
+# (target/, node_modules, ...); the durable caches live in separate volumes (/root/.m2,
+# /root/.ci-tools, /root/.dagu), untouched by this.
+#
+# `tar` runs WITHOUT `--ignore-failed-read` on purpose: an unreadable listed file (e.g. one a
+# generator left mode 0600, so the sync user can't read it) must fail the whole sync loudly, not
+# be silently dropped -- a missing file only surfaces later as a confusing downstream stage
+# failure (a "stale adr-index.md" in the docs stage, say). Any non-zero tar exit is fatal here.
 echo ""
 echo "=== Syncing working tree into $CONTAINER ==="
 git -C "$ROOT" ls-files -z --cached --others --exclude-standard \
-  | tar -C "$ROOT" --null --no-recursion --ignore-failed-read -T - -cf - \
-  | docker exec -i "$CONTAINER" tar -C /app -xf -
+  | tar -C "$ROOT" --null --no-recursion -T - -cf - \
+  | docker exec -i "$CONTAINER" sh -c 'find /app -mindepth 1 -delete 2>/dev/null; exec tar -C /app -xf -'
 SYNC_RC=("${PIPESTATUS[@]}")
-# tar exit 1 = non-fatal (a listed file changed/vanished mid-read on a live tree) -- tolerated;
-# a failed `git ls-files` (empty file set), a fatal tar (2), or a failed extract is a real failure.
-if [ "${SYNC_RC[0]}" -ne 0 ] || [ "${SYNC_RC[1]}" -gt 1 ] || [ "${SYNC_RC[2]}" -ne 0 ]; then
+# Every stage must succeed: a failed `git ls-files` (empty file set), any tar read failure, or a
+# failed extract is a real failure -- nothing is tolerated.
+if [ "${SYNC_RC[0]}" -ne 0 ] || [ "${SYNC_RC[1]}" -ne 0 ] || [ "${SYNC_RC[2]}" -ne 0 ]; then
   echo "===== FAILED (working-tree sync into $CONTAINER -- ls-files=${SYNC_RC[0]} tar=${SYNC_RC[1]} extract=${SYNC_RC[2]}) ====="
   emit_agentic_error_block "transient" "true" "sync-source" "Streaming the working tree into $CONTAINER failed (ls-files=${SYNC_RC[0]} tar=${SYNC_RC[1]} extract=${SYNC_RC[2]})."
   exit 1
@@ -410,34 +432,59 @@ echo "=== Triggering ci DAG run (${DAGU_PARAMS[*]}) ==="
 # instead, relative to the image's WORKDIR (/app).
 DAG_FILE=scripts/ci/dagu/ci.yaml
 
+# Refuse to start a second run while one is genuinely alive. The e2e stage's ci-* stack
+# (ci-advertisement-db / ci-marketplace-app / ...) has fixed, non-per-run container names, so a
+# concurrent run's e2e stage redeploys/resets it out from under the first run's Playwright tests
+# -- the app vanishes mid-test and unrelated specs fail (see scripts/ci/README.md). Dagu's own
+# maxActiveRuns does not gate a manual `dagu start`, so gate it here. Use `dagu ps` (the live
+# process store), not the REST status: a run killed with its container is left as "running" in the
+# persisted history until Dagu reconciles it, and `dagu ps` never shows that zombie.
+ACTIVE_RUN="$(docker exec "$CONTAINER" dagu ps -d ci 2>/dev/null | awk '$1 == "ci" { print $2; exit }')"
+if [ -n "$ACTIVE_RUN" ]; then
+  echo "===== FAILED (a ci DAG run is already in progress: $ACTIVE_RUN -- wait for it to finish or stop it at http://localhost:$UI_PROXY_PORT) ====="
+  emit_agentic_error_block "business" "false" "ci-run" "A ci DAG run is already in progress ($ACTIVE_RUN); refusing to start a second -- concurrent e2e stages collide on the shared ci-* stack."
+  exit 1
+fi
+
+# Assign this run's id ourselves (`dagu start -r <id>`) so the monitor watches exactly this run,
+# never a guess from the API. Timestamp + pid + a random tail -- unique by construction.
+DAGU_RUN_ID="ci-$(date -u +%Y%m%dT%H%M%SZ)-$$-${RANDOM}${RANDOM}"
+echo "Dagu run id: $DAGU_RUN_ID"
+
 if [ -n "$FOREGROUND" ]; then
-  docker exec -d "$CONTAINER" dagu start "$DAG_FILE" -- "${DAGU_PARAMS[@]}"
+  docker exec -d "$CONTAINER" dagu start -r "$DAGU_RUN_ID" "$DAG_FILE" -- "${DAGU_PARAMS[@]}"
   # scripts/ci/dagu-rest-run-monitor.py polls Dagu's own REST API and prints a real
   # AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK marker per step -- this is what lets
   # scripts/activity-monitor.sh render a real per-step tree.txt for `ci.sh --foreground`, the same
   # way it already does for every other wrapped script (see .claude/rules/scripts.md's "Local CI
-  # Runner" section). Its own exit code becomes this script's real exit code.
-  DAGU_UI_PORT="$UI_PROXY_PORT" python3 -u scripts/ci/dagu-rest-run-monitor.py
-  EXIT_CODE=$?
-  if ! sync_artifacts && [ "$EXIT_CODE" -eq 0 ]; then
-    echo "docker cp of architecture-model.json/architecture-map.html failed -- the docs stage" \
-         "regenerated them inside $CONTAINER, but the host's committed copies were not refreshed."
-    EXIT_CODE=1
-  fi
+  # Runner" section). Its own exit code becomes this script's real exit code. DAGU_RUN_ID tells it
+  # exactly which run to watch -- no guessing.
+  DAGU_UI_PORT="$UI_PROXY_PORT" DAGU_RUN_ID="$DAGU_RUN_ID" python3 -u scripts/ci/dagu-rest-run-monitor.py
+  DAG_EXIT=$?
+  SYNC_FAILED=""
+  sync_artifacts || SYNC_FAILED=1
   echo ""
-  if [ "$EXIT_CODE" -eq 0 ]; then
-    echo "===== PASSED ====="
-    emit_agentic_success_block "ci-run"
+  if [ "$DAG_EXIT" -ne 0 ]; then
+    # A real DAG stage failed -- the artifact sync outcome is secondary here.
+    EXIT_CODE=1
+    echo "===== FAILED${DAGU_RUN_ID:+ -- Dagu run $DAGU_RUN_ID} ====="
+    emit_agentic_error_block "business" "false" "ci-run" "A ci DAG stage failed${DAGU_RUN_ID:+ (Dagu run $DAGU_RUN_ID)} -- see the per-step lines above; not retryable as-is."
+  elif [ -n "$SYNC_FAILED" ]; then
+    # Every DAG stage passed; only pulling the regenerated docs/adr-index back to the host failed.
+    EXIT_CODE=1
+    echo "===== FAILED (artifact sync)${DAGU_RUN_ID:+ -- Dagu run $DAGU_RUN_ID} ====="
+    emit_agentic_error_block "transient" "true" "ci-run" "Every ci DAG stage passed${DAGU_RUN_ID:+ (Dagu run $DAGU_RUN_ID)}, but copying the regenerated architecture-model.json/architecture-map.html/adr-index.md from $CONTAINER back to the host failed -- re-run 'bash scripts/ci/run.sh --sync-artifacts' to retry just that."
   else
-    echo "===== FAILED (exit $EXIT_CODE) ====="
-    emit_agentic_error_block "business" "false" "ci-run" "CI DAG run failed (exit $EXIT_CODE) -- one or more stages did not pass, not retryable as-is."
+    EXIT_CODE=0
+    echo "===== PASSED${DAGU_RUN_ID:+ (Dagu run $DAGU_RUN_ID)} ====="
+    emit_agentic_success_block "ci-run"
   fi
   echo "Full history: http://localhost:$UI_PROXY_PORT"
   exit $EXIT_CODE
 else
-  docker exec -d "$CONTAINER" dagu start "$DAG_FILE" -- "${DAGU_PARAMS[@]}"
+  docker exec -d "$CONTAINER" dagu start -r "$DAGU_RUN_ID" "$DAG_FILE" -- "${DAGU_PARAMS[@]}"
   echo ""
-  echo "DAG run triggered in the background."
+  echo "DAG run triggered in the background (Dagu run $DAGU_RUN_ID)."
   echo "Watch live status/logs: http://localhost:$UI_PROXY_PORT"
   echo "Once it finishes, run 'bash scripts/ci/run.sh --sync-artifacts' to pull" \
        "architecture-metrics.json/pipeline-metrics.json onto the host."

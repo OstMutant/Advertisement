@@ -289,9 +289,11 @@ see `.claude/nav/adr-index.md`. There is no `scripts/ci/reports/` tree, `progres
 `--report-dir`/`--keep-reports` flag anymore — Dagu's UI and run history (backed by the
 `ci-dagu-home` named volume) replace all of that. Once the container is running, a DAG run can also
 be triggered directly from that UI ("Start" on the `ci` DAG opens a dialog with a field per
-`scripts/ci/dagu/ci.yaml` param). `bash scripts/ci.sh` streams the current working tree into the
-running container before every run — the `git ls-files` set (tracked + untracked-not-`.gitignored`),
-piped through `tar` — and rebuilds the image only when `scripts/ci/Dockerfile` or `scripts/ci/docker-entrypoint.sh`
+`scripts/ci/dagu/ci.yaml` param). `bash scripts/ci.sh` replaces `/app` in the
+running container with the current working tree before every run — it wipes `/app` and re-extracts
+the `git ls-files` set (tracked + untracked-not-`.gitignored`), piped through `tar` (wiping first,
+so a file deleted from the working tree doesn't linger and break the compile) — and rebuilds the
+image only when `scripts/ci/Dockerfile` or `scripts/ci/docker-entrypoint.sh`
 changed since the image was built (`--rebuild` forces a rebuild + container recreation anyway) —
 the image's own baked-in `COPY . .` is never trusted as the source of truth, since Docker's layer
 cache can silently serve a stale copy of it. **Triggering a run from the Dagu web UI directly does NOT sync the working

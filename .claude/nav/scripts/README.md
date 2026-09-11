@@ -10,7 +10,6 @@ Real entry points, independently invocable:
 
 ```bash
 bash .claude/nav/scripts/generate-adr-index.sh
-bash .claude/nav/scripts/check-adr-index-freshness.sh
 bash .claude/nav/scripts/check-flows-completeness.sh
 bash .claude/nav/scripts/check-hardcoded-counts.sh
 node .claude/nav/scripts/md-to-decisions-json.js <module> [<module> ...]
@@ -18,12 +17,14 @@ node .claude/nav/scripts/md-to-decisions-json.js --stdout <module>
 node .claude/nav/scripts/md-to-decisions-json.js --extract <module> <ADR-NNN>[,<ADR-NNN>...]
 ```
 
-`check-adr-index-freshness.sh` wraps `generate-adr-index.sh` (backs up the committed
-`adr-index.md`, re-runs the generator, diffs, restores) — a real caller/callee relationship.
-`check-adr-index-freshness.sh`, `check-flows-completeness.sh`, and `check-hardcoded-counts.sh` run
-together as the `docs` stage in `scripts/ci/dagu/ci.yaml`. `generate-adr-index.sh` is also called
-directly, outside that stage, by `/record-decision` and by a standing `.claude/rules.md` rule
-requiring it after any `DECISIONS.md` edit.
+`generate-adr-index.sh` is run by the `docs` stage in `scripts/ci/dagu/ci.yaml` (via
+`docs/architecture/scripts/generate-architecture-model.sh`, which regenerates the index in place
+before building the model that reads it), by `/record-decision`, and by a standing
+`.claude/rules.md` rule requiring it after any `DECISIONS.md` edit. The `docs` stage no longer
+diffs the committed index against a fresh regeneration — it regenerates it and `scripts/ci/run.sh`
+copies the result back to the host, so a run just leaves the fresh file to commit.
+`check-flows-completeness.sh` and `check-hardcoded-counts.sh` are the `docs` stage's read-only
+verifiers.
 
 `md-to-decisions-json.js` has two distinct real callers, not one flow: its `--stdout` mode is
 called by `docs/architecture/scripts/generate-architecture-model.sh` (a script in a different
@@ -32,10 +33,10 @@ directly, on demand, per `.claude/nav/README.md`'s own guidance, not from any ot
 
 ```mermaid
 flowchart TD
-    CI[scripts/ci/dagu/ci.yaml docs stage] --> F[check-adr-index-freshness.sh]
-    CI --> FL[check-flows-completeness.sh]
+    CI[scripts/ci/dagu/ci.yaml docs stage] --> FL[check-flows-completeness.sh]
     CI --> H[check-hardcoded-counts.sh]
-    F --> G[generate-adr-index.sh]
+    CI --> GAM
+    GAM["docs/architecture/scripts/generate-architecture-model.sh"] --> G[generate-adr-index.sh]
     RD["/record-decision command"] --> G
-    GAM["docs/architecture/scripts/generate-architecture-model.sh --with-adr-details"] --> M["md-to-decisions-json.js --stdout"]
+    GAM -->|--with-adr-details| M["md-to-decisions-json.js --stdout"]
 ```

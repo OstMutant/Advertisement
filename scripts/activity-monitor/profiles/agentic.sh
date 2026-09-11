@@ -23,7 +23,8 @@
 # Env: none of its own -- reads run.sh's CURRENT_SCRIPT_NAME/STEP_LABELS/STEP_IS_CONTAINER/RAW_LOG.
 # Input: a redacted text batch (possibly multiple lines) from run.sh.
 # Outputs: calls run.sh's mark_step() for every recognised AGENTIC_SUCCESS_BLOCK/ERROR_BLOCK/
-#   SKIP_BLOCK line; silently ignores every other line in the batch.
+#   SKIP_BLOCK line; sets run.sh's CONTEXT_LINE (one persistent tree.txt header line) from an
+#   AGENTIC_CONTEXT: line; silently ignores every other line in the batch.
 # Returns: 0 always -- this profile never falls back to the model, by design (see Description).
 # ────────────────────────────────────────────────────────────────────────────
 
@@ -70,6 +71,11 @@ try_mechanical_format() {
         step="$(extract_agentic_field "$json" "currentStep")"
         [[ -z "$step" ]] && continue
         mark_step "$step" "skipped" "" ""
+        ;;
+      AGENTIC_CONTEXT:*)
+        # One persistent header line for tree.txt -- e.g. dagu-rest-run-monitor.py emitting the
+        # Dagu run id so every rendered tree names which run it is.
+        CONTEXT_LINE="${line#AGENTIC_CONTEXT: }"
         ;;
       *)
         continue

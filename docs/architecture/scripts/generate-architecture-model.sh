@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Description: Generates architecture-model.json and architecture-map.html -- the live, browsable
-#   architecture control plane -- from real repo state, no hand-maintained markdown.
-# Uses: bash, node (invokes liquibase-schema-to-json.js always, and
+# Description: Regenerates .claude/nav/adr-index.md first (a generated file this script then reads),
+#   then generates architecture-model.json and architecture-map.html -- the live, browsable
+#   architecture control plane -- from real repo state, no hand-maintained markdown. Regenerating
+#   the ADR index here keeps a single "regenerate the architecture docs" run from leaving it stale.
+# Uses: bash (invokes .claude/nav/scripts/generate-adr-index.sh first, to refresh the ADR index),
+#   node (invokes liquibase-schema-to-json.js always, and
 #   .claude/nav/scripts/md-to-decisions-json.js only when --with-adr-details is passed, as
 #   subprocesses), python3 (only when --with-sonar/--with-archunit are passed).
 # Input: pom.xml, real Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
@@ -9,10 +12,11 @@
 #   backlog/, root CLAUDE.md, .claude/rules/*.md (each file's own 5th line for its one-line module
 #   description, plus any <!-- #arch-embed:KEY --> ... <!-- /#arch-embed --> marked section,
 #   embedded live into the generated HTML).
-# Output: docs/architecture/data/architecture-model.json + docs/architecture/architecture-map.html +
-#   docs/architecture/data/arch-embed-index.md. The .json and .html are written atomically
-#   (built into temp siblings, moved into place only on full success) so an interrupted run
-#   never leaves a partial or empty committed file.
+# Output: .claude/nav/adr-index.md (regenerated first, in place) + docs/architecture/data/
+#   architecture-model.json + docs/architecture/architecture-map.html + docs/architecture/data/
+#   arch-embed-index.md. The .json and .html are written atomically (built into temp siblings,
+#   moved into place only on full success) so an interrupted run never leaves a partial or empty
+#   committed file.
 #
 # Generates architecture-model.json (Track A of the architecture control plane) from
 # already-structured, non-code sources only -- no ArchUnit, no bytecode analysis. Node types:
@@ -24,6 +28,11 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+
+# The ADR index is a generated file this script then reads -- regenerate it first so one
+# "regenerate the architecture docs" run refreshes it too and never leaves it stale behind the model/map.
+bash "$REPO_ROOT/.claude/nav/scripts/generate-adr-index.sh"
+
 OUTPUT="$REPO_ROOT/docs/architecture/data/architecture-model.json"
 HTML_OUTPUT="$REPO_ROOT/docs/architecture/architecture-map.html"
 ARCH_EMBED_INDEX="$REPO_ROOT/docs/architecture/data/arch-embed-index.md"
@@ -163,7 +172,7 @@ SCRIPT_TREE_LEAF_DIRS=(.claude/skills)
 # sort) for any directory not listed here. Applies uniformly to SCRIPT_GROUP_DIRS's flat dirs and
 # to every level of the SCRIPT_TREE_ROOTS tree (looked up by the node's own directory path).
 declare -A SCRIPT_GROUP_FILE_ORDER=(
-  [.claude/nav/scripts]="generate-adr-index.sh check-adr-index-freshness.sh check-hardcoded-counts.sh check-flows-completeness.sh md-to-decisions-json.js"
+  [.claude/nav/scripts]="generate-adr-index.sh check-hardcoded-counts.sh check-flows-completeness.sh md-to-decisions-json.js"
   [docs/architecture]="architecture-doc.sh architecture-doc.bat"
   [docs/architecture/scripts]="generate-architecture-model.sh liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh Dockerfile"
   [docs/architecture/data]="architecture-model.json arch-embed-index.md runtime-notes.md"
@@ -522,7 +531,7 @@ adr_intent_for_module() {
   local module="$1"
   if [ -f "$ADR_INDEX" ]; then
     awk -F' \\| ' -v m="$module" '
-      /^\| ADR-/ && $2 == m { sub(/^\| /, "", $1); sub(/ *\|$/, "", $4); print $1 "\x1f" $4 }
+      /^\| ADR-/ && $2 == m { sub(/^\| /, "", $1); sub(/ *\|$/, "", $5); print $1 "\x1f" $5 }
     ' "$ADR_INDEX"
   fi
 }
@@ -542,7 +551,7 @@ all_adrs_json() {
       $first_i || items_json="$items_json,"$'\n'
       first_i=false
       items_json="$items_json    {\"id\": \"$(json_escape "$id")\", \"module\": \"$(json_escape "$home")\", \"status\": \"$(json_escape "$status")\", \"title\": \"$(json_escape "$title")\"}"
-    done < <(awk -F' \\| ' '/^\| ADR-/ { sub(/^\| /, "", $1); sub(/ *\|$/, "", $4); print $1 "\x1f" $2 "\x1f" $3 "\x1f" $4 }' "$ADR_INDEX")
+    done < <(awk -F' \\| ' '/^\| ADR-/ { sub(/^\| /, "", $1); sub(/ *\|$/, "", $5); print $1 "\x1f" $2 "\x1f" $3 "\x1f" $5 }' "$ADR_INDEX")
   fi
   echo "[$items_json"$'\n'"  ]"
 }
@@ -4361,6 +4370,7 @@ HTML_TAIL
 # paths so the EXIT trap's `rm -f` is a harmless no-op and never touches the real files.
 mv -f "$OUTPUT" "$OUTPUT_FINAL"
 mv -f "$HTML_OUTPUT" "$HTML_OUTPUT_FINAL"
+chmod 644 "$OUTPUT_FINAL" "$HTML_OUTPUT_FINAL"  # mktemp makes 0600; committed files must stay world-readable for CI's sync
 
 echo "Wrote $HTML_OUTPUT_FINAL"
 

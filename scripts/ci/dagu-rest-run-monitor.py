@@ -21,7 +21,10 @@
 #   visible output for several minutes of a real run despite the run itself progressing normally.
 # Uses: python3 (stdlib only -- json, os, sys, time, urllib.request).
 # Env: DAGU_UI_PORT (default 8082, the proxy sidecar's published port) -- may be exported directly
-#   in the calling shell if the sidecar was started on a non-default port.
+#   in the calling shell if the sidecar was started on a non-default port. DAGU_RUN_ID (set
+#   automatically by run.sh, which assigns it via `dagu start -r`) -- the exact run to watch; when
+#   absent (monitor run by hand against a UI-triggered run) it falls back to guessing the newest
+#   non-terminal run.
 # Input: Dagu's local REST API (GET /api/v1/dag-runs, GET /api/v1/dag-runs/ci/<id>).
 # Outputs: one AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK/AGENTIC_SKIP_BLOCK JSON line per step
 #   reaching "succeeded", a failure-shaped terminal status (failed/cancelled/partially_succeeded),
@@ -30,8 +33,9 @@
 #   "... still running: <steps>" heartbeat line roughly every HEARTBEAT_INTERVAL_SECONDS
 #   whenever nothing transitioned in that window (keeps raw.log growing so
 #   scripts/activity-monitor/run.sh's own generic silence-stall check doesn't fire during a long,
-#   healthy step with no container-state check of its own, e.g. sonar), plus a final "RUN <status>"
-#   line for a human reading stdout directly.
+#   healthy step with no container-state check of its own, e.g. sonar), plus a
+#   "Watching Dagu run <id>" line at the start and a "RUN <status> (Dagu run <id>)" line at the
+#   end for a human reading stdout directly.
 # Returns: 0 if the run's own final status is succeeded; 1 for any other terminal status
 #   (failed, partially_succeeded, cancelled), if no fresh run appears within
 #   FRESH_RUN_WAIT_SECONDS, or if the Dagu REST API fails MAX_CONSECUTIVE_FETCH_FAILURES polls in
@@ -77,9 +81,26 @@ def run_status_label(run_id):
     return fetch(f"{BASE_URL}/dag-runs/ci/{run_id}").get("dagRunDetails", {}).get("statusLabel")
 
 
+def wait_for_run(run_id):
+    """Wait up to FRESH_RUN_WAIT_SECONDS for a run with this exact id to register with Dagu
+    (a detached `dagu start -r <id>` takes a few seconds to appear in the API), then return it."""
+    deadline = time.monotonic() + FRESH_RUN_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        try:
+            if run_status_label(run_id):
+                return run_id
+        except (urllib.error.URLError, OSError, ValueError):
+            pass
+        time.sleep(2)
+    return None
+
+
 def await_fresh_run_id():
-    """Return the id of the run this invocation is meant to watch -- the one that appeared after
-    (or is still running since) monitoring started, never a stale terminal run from before."""
+    """Fallback when run.sh did not pass an explicit DAGU_RUN_ID (e.g. the monitor is run by hand
+    against a run triggered from Dagu's own web UI). Guesses the run to watch -- the one that
+    appeared after (or is still running since) monitoring started. Can misfire when a *previous*
+    run is still in flight and this one hasn't registered yet, which is exactly why run.sh assigns
+    an explicit id instead."""
     try:
         baseline = latest_run_id()
     except (urllib.error.URLError, OSError, ValueError):
@@ -122,12 +143,22 @@ def emit_agentic_skip_block(step):
     print(f'AGENTIC_SKIP_BLOCK: {{"status":"skipped","currentStep":"{step}","durationSeconds":{elapsed}}}')
 
 
-run_id = await_fresh_run_id()
-if not run_id:
-    print(f"No fresh 'ci' DAG run appeared within {FRESH_RUN_WAIT_SECONDS}s of monitoring start.")
-    sys.exit(1)
+explicit_run_id = os.environ.get("DAGU_RUN_ID")
+if explicit_run_id:
+    run_id = wait_for_run(explicit_run_id)
+    if not run_id:
+        print(f"Dagu run {explicit_run_id} did not register within {FRESH_RUN_WAIT_SECONDS}s.")
+        sys.exit(1)
+else:
+    run_id = await_fresh_run_id()
+    if not run_id:
+        print(f"No fresh 'ci' DAG run appeared within {FRESH_RUN_WAIT_SECONDS}s of monitoring start.")
+        sys.exit(1)
 
-print(f"Watching run {run_id}")
+print(f"Watching Dagu run {run_id}")
+# Persistent header line for scripts/activity-monitor.sh's tree.txt (agentic profile) -- so every
+# rendered tree, at every state, names which Dagu run it is.
+print(f"AGENTIC_CONTEXT: Dagu run {run_id}")
 last_status = {}
 last_output_at = time.monotonic()
 consecutive_failures = 0
@@ -170,7 +201,7 @@ while True:
         last_output_at = time.monotonic()
 
     if run_status in TERMINAL_STATUSES:
-        print(f"RUN {run_status}")
+        print(f"RUN {run_status} (Dagu run {run_id})")
         sys.exit(0 if run_status == "succeeded" else 1)
 
     time.sleep(POLL_INTERVAL_SECONDS)

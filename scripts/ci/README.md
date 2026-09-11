@@ -37,7 +37,7 @@ flowchart TD
     D -->|no| H{ci-runner + proxy both running?}
     H -->|no| F
     H -->|yes| S
-    G --> S[git ls-files | tar-stream the working tree into ci-runner:/app]
+    G --> S[wipe ci-runner:/app, re-extract git ls-files set]
     S --> I[dagu start ci.yaml -- params]
     I --> J{--foreground?}
     J -->|yes| K[stream output, block until done] --> L[sync_artifacts] --> Z2[exit: 0 if PASSED, non-zero if FAILED]
@@ -52,8 +52,10 @@ flowchart LR
     U[open http://localhost:8082] --> S["Start" button on the ci DAG] --> P[fill in params dialog] --> T[dagu executes ci.yaml]
 ```
 
-`run.sh` streams the working tree into `ci-runner:/app` before every run — the `git ls-files` set
-(tracked + untracked-not-`.gitignored`), piped through `tar` — and rebuilds the image only when
+`run.sh` replaces `ci-runner:/app` with the working tree before every run — it wipes `/app` and
+re-extracts the `git ls-files` set (tracked + untracked-not-`.gitignored`), piped through `tar`
+(wiping first, so a file *deleted* from the working tree doesn't linger in the container and break
+the compile) — and rebuilds the image only when
 [`Dockerfile`](Dockerfile)/[`docker-entrypoint.sh`](docker-entrypoint.sh) changed — the image's
 own baked-in `COPY . .` is not trusted, since Docker's layer cache can serve a stale copy of it.
 **The UI "Start" path does not stream the working tree** — it runs against whatever source `run.sh`

@@ -556,6 +556,17 @@ CSS: `.entity-meta*` + `.overlay-chips-label` live in `styles.css` (shared); the
 kind badge below categories/city everywhere, `EntityMetaPanel` on every surface, uniform vertical
 spacing, and the optional-field-absent layout.
 
+**Follow-up fix (2026-09-10):** the commit above failed the Sonar `new_duplicated_lines_density`
+gate (6.28% > 3%) — CPD flagged the four copy-pasted `buildMetaPanel(...)` methods (2 Advertisement
++ 2 Provider handlers) and the near-identical private `chipRow(...)` in the two card views. Fixed:
+`EntityMetaPanel.Parameters` gained static factories `card(...)` / `card(created, updated)` /
+`overlay(...)` / `overlay(created, updated)` (author overloads for Advertisement, no-author for
+Provider), collapsing every `buildMetaPanel` to a one-line call at the use site; the card chip row
+moved to a new `ui/views/utils/ChipRowUtil.labelled(label, names, rowCss, chipCss)`. Also tightened
+two comments to the "one line or none" rule (the 2-line city-scalar note, `EntityMetaPanel`'s
+3-sentence class Javadoc). Verified via full `ci.sh` — all stages green, **QUALITY GATE STATUS:
+PASSED**.
+
 **Still open — not yet decided:** shared-vs-separate is resolved (extracted); item 13 sequencing
 (kept separate, item 10's chip/meta code is list-shaped for a cheap later delta).
 
@@ -1181,6 +1192,15 @@ worth caching past the `apt-get` step (the Dockerfile itself says so).
 - First attempt used a raw `tar` tree-walk with `--exclude`s; it failed with `tar=2` on a real
   Windows run (an IDE-locked jar under `target/`). Replaced with `git ls-files | tar` — git's own
   file set never touches `target/`, `node_modules`, `.git`, sockets.
+- **Follow-up fix (2026-09-10):** the `git ls-files | tar -x` overlay left behind files *deleted*
+  from the working tree since the last sync — a CI run compiled a stale copy of a
+  `.java` removed in item 10 while its `I18nKey` constants were already gone, so `build` failed
+  with `cannot find symbol` and every downstream stage cascaded. Fixed: the `docker exec` side is
+  now `sh -c 'find /app -mindepth 1 -delete; exec tar -C /app -xf -'` — `/app` is wiped then
+  re-extracted, so it always equals the working-tree `git ls-files` set exactly. Safe: everything
+  under `/app` is build-regenerated; the durable caches are in the `/root/.m2` / `/root/.ci-tools`
+  / `/root/.dagu` volumes. `scripts/ci/DECISIONS.md` ADR-012, `scripts/ci/README.md` (flow +
+  prose), `.claude/rules/scripts.md` updated to match.
 
 **Verified (2026-09-10):**
 - `bash -n scripts/ci/run.sh` / `scripts/activity-monitor/run.sh` clean.
@@ -1192,6 +1212,100 @@ worth caching past the `apt-get` step (the Dockerfile itself says so).
   file became 40072 bytes, no `/app/.git`, no `/app/marketplace-app/target` in the container.
 - A fresh `docker build -f scripts/ci/Dockerfile -t testci "$ROOT"` (identical to `run.sh`'s own
   build) produced an image with the correct `adr-index.md` and all three `docs`-stage checks green.
+
+## 23. CI `docs` stage should regenerate the ADR index and hand it back, not gate on drift — ✅ Done (2026-09-10)
+
+**Found (2026-09-10, item 10 dedup follow-up run):** two consecutive CI runs (`034MPDm5` 13:01,
+`034MRjxH` 14:44) failed the `docs` step on `check-adr-index-freshness.sh` (`adr-index.md is
+stale`) while the committed index was in fact byte-identical to a fresh regeneration on the host.
+Root cause: `generate-adr-index.sh` builds via `mktemp` + `mv` and never `chmod`s, so every local
+run left the committed `.claude/nav/adr-index.md` at mode `0600` (owner-only). When `run.sh`'s
+`sync-source` `tar` ran as a different uid it could not read the file, `--ignore-failed-read`
+silently dropped it, and the container's `/app` had no `adr-index.md` at all — the freshness diff
+then compared a fresh regeneration against a missing file and reported "stale".
+
+**Decided (2026-09-10):** stop gating on drift. The `docs` stage now *regenerates* the index and
+the run hands the fresh file back:
+- `generate-adr-index.sh` — `chmod 644` after the atomic `mv` so the committed file is always
+  world-readable regardless of who ran it.
+- `scripts/ci/run.sh` `sync-source` — dropped `--ignore-failed-read`; any tar read failure now
+  fails the sync loudly instead of silently dropping a file.
+- `docs/architecture/scripts/generate-architecture-model.sh` — regenerates `.claude/nav/adr-index.md`
+  in place first (it then reads it to fold ADRs into each module's intent list), so one
+  "regenerate the architecture docs" run refreshes the index too.
+- `scripts/ci/dagu/ci.yaml` `docs` stage — `check-adr-index-freshness.sh` removed.
+- `scripts/ci/run.sh` `sync_artifacts()` — copies `ci-runner:/app/.claude/nav/adr-index.md` back
+  to the host; `docker cp`'s own exit code is the check, no extra size comparison (an earlier
+  `docker exec stat` size check was dropped — it added a flaky daemon round-trip for coverage
+  `docker cp` already gives).
+- `.claude/nav/scripts/check-adr-index-freshness.sh` deleted; `.claude/nav/README.md`,
+  `.claude/nav/scripts/README.md` (prose + mermaid), `docs/architecture/data/runtime-notes.md`,
+  and `generate-architecture-model.sh`'s script-order map updated to match.
+- The standing `.claude/rules.md` rule (regenerate + commit the index in the same operation as any
+  `DECISIONS.md` edit) is unchanged and stays the primary defense.
+
+**Also fixed here (2026-09-10):** `ProviderProfilePaginationScenarioTest.sortByEachField_bothDirections`
+was flaky — it asserted exact `createdAt,asc` positions, but the real `ORDER BY pp.created_at ASC,
+pp.id DESC` reverses same-tick rows via the id-DESC tiebreaker (deliberate `OrderByBuilder`
+default). Loosened to assert only what the impl guarantees: full set + non-decreasing `createdAt`;
+kept the exact order on `createdAt,desc` (fully deterministic there). Verified via
+`build-and-test.sh --integration --integration-test ProviderProfilePaginationScenarioTest` — 6/6
+pass — and a full `ci.sh` run (`034MUhJy`: integration/sonar/docs all green; e2e failed only on
+`05-...:399` YouTube-lightbox `ECONNREFUSED`, an external-network flake unrelated to any change).
+
+**Open:** `docs/architecture/scripts/DECISIONS.md` ADR-001 established the "build-enforced
+freshness backstop" for the ADR index that this item removes — an ADR annotation via
+`/record-decision` is the proper record of that reversal, not yet written.
+
+## 24. `ci.sh --foreground` monitors the wrong Dagu run when another is in flight; concurrent runs collide; failures are misreported — ✅ Done (2026-09-10)
+
+**Found (2026-09-10, item 10/23 verification runs):** while a `ci` DAG run was still in its long
+e2e stage, launching a second `ci.sh --foreground` produced a nonsense step tree — early stages
+shown `✅` with `(0s)` durations while the user's Dagu tab showed them still running. Also seen: 5
+unrelated Playwright specs failing with `.header-settings-button` not found. Three separate defects:
+
+1. **Monitor attaches to the wrong run.** `dagu-rest-run-monitor.py`'s `await_fresh_run_id()` starts
+   *after* `run.sh`'s detached `docker exec -d dagu start`, then picks "the newest run that isn't
+   terminal". If the new run hasn't registered with Dagu's API yet (a few-second lag) and a
+   *previous* run is still in flight (early stages done, e2e still going), "newest non-terminal" is
+   that previous run -- so the monitor watches it. Its `build/unit/integration/archunit` are already
+   `succeeded`; the monitor emits all their done-markers in one poll, and
+   `scripts/activity-monitor/run.sh`'s `mark_step` timestamps a step's completion with `date +%s`
+   *when it sees the marker*, not Dagu's real finish time -- several "done" in one instant →
+   `(0s)` each. Benign display artifact on top of the real "wrong run" bug.
+2. **Concurrent runs collide on the shared e2e stack.** The e2e stage's `ci-advertisement-db` /
+   `ci-marketplace-app` / ... containers have fixed, non-per-run names. A second run's e2e stage
+   redeploys/`--reset-only-db`s that stack out from under the first run's Playwright tests -- the
+   app vanishes mid-test, `.header-settings-button` never appears, specs cascade-fail. Dagu's
+   `maxActiveRuns` does not gate a manual `dagu start`.
+3. **Misleading failure line.** When every DAG stage passed but `run.sh`'s post-run
+   `sync_artifacts()` (host-side `docker cp` of the regenerated docs/adr-index) failed, the tree
+   still said "CI DAG run failed -- one or more stages did not pass" -- the opposite of what
+   happened.
+
+**Fix:**
+- `run.sh` assigns the run id itself: `DAGU_RUN_ID="ci-<UTC>-<pid>-<rnd>"`, passed to both
+  `dagu start -r "$DAGU_RUN_ID"` and (as env) `dagu-rest-run-monitor.py`. The monitor's new
+  `wait_for_run()` waits for *that exact id* to register, then watches it -- no guessing.
+  `await_fresh_run_id()` kept only as the fallback for a hand-run monitor against a UI-triggered run.
+- `run.sh` refuses to start while a run is genuinely alive -- checked via `dagu ps -d ci` (the live
+  process store), not the REST `statusLabel` (a run killed with its container lingers as
+  `running` in persisted history until Dagu reconciles it; `dagu ps` never shows that zombie).
+- `run.sh --foreground` now reports a real DAG-stage failure and an artifact-sync-only failure
+  distinctly ("A ci DAG stage failed" vs "Every ci DAG stage passed, but ... sync ... failed --
+  re-run ... --sync-artifacts").
+- The run id is surfaced as `tree.txt`'s first line on every state via a new generic
+  `AGENTIC_CONTEXT:` marker (`dagu-rest-run-monitor.py` emits it; `scripts/activity-monitor/profiles/agentic.sh`
+  sets `run.sh`'s `CONTEXT_LINE`; `render_tree()` prepends it), plus in the `Dagu run id:` line and
+  the PASSED/FAILED line.
+- `scripts/ci/Dockerfile` `DAGU_VERSION` 2.16.2 → 2.16.3.
+
+**Files:** `scripts/ci/run.sh`, `scripts/ci/dagu-rest-run-monitor.py`, `scripts/ci/Dockerfile`,
+`scripts/activity-monitor/run.sh`, `scripts/activity-monitor/profiles/agentic.sh`,
+`scripts/ci/DECISIONS.md` (ADR-012/013 touched), `scripts/ci/README.md`.
+
+**Open:** an ADR for the "one ci run at a time + self-assigned run-id contract between run.sh and
+the monitor" is not yet written.
 
 - [improvement-073](../completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) —
   REST API infrastructure (API-key auth, Swagger, apikey/rest-api modules) this whole batch follows
