@@ -40,7 +40,8 @@ public class UserPreferencesService {
     }
 
     public SettingsSnapshotDto toSettingsSnapshot(@NonNull UserSettingsDto settings) {
-        return new SettingsSnapshotDto(settings.getAdsPageSize(), settings.getUsersPageSize(), settings.getTimelinePageSize());
+        return new SettingsSnapshotDto(settings.getAdsPageSize(), settings.getUsersPageSize(),
+                settings.getTimelinePageSize(), settings.getProviderProfilesPageSize());
     }
 
     @Transactional

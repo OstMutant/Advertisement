@@ -201,10 +201,10 @@ class UserApiControllerTest {
 
     @Test
     void updateSettings_validBody_savesThenReturnsFreshCopy() throws Exception {
-        UserSettingsDto saved = UserSettingsDto.builder().adsPageSize(30).usersPageSize(30).timelinePageSize(20).version(1).build();
+        UserSettingsDto saved = UserSettingsDto.builder().adsPageSize(30).usersPageSize(30).timelinePageSize(20).providerProfilesPageSize(20).version(1).build();
         when(userProfileService.loadSettings(ACTOR_ID)).thenReturn(saved);
         String body = """
-                {"adsPageSize":30,"usersPageSize":30,"timelinePageSize":20}""";
+                {"adsPageSize":30,"usersPageSize":30,"timelinePageSize":20,"providerProfilesPageSize":20}""";
 
         mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -219,7 +219,7 @@ class UserApiControllerTest {
     @Test
     void updateSettings_pageSizeBelowMinimum_returns400() throws Exception {
         String body = """
-                {"adsPageSize":1,"usersPageSize":20,"timelinePageSize":20}""";
+                {"adsPageSize":1,"usersPageSize":20,"timelinePageSize":20,"providerProfilesPageSize":20}""";
 
         mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -230,11 +230,22 @@ class UserApiControllerTest {
     @Test
     void updateSettings_pageSizeAboveMaximum_returns400() throws Exception {
         String body = """
-                {"adsPageSize":20,"usersPageSize":500,"timelinePageSize":20}""";
+                {"adsPageSize":20,"usersPageSize":500,"timelinePageSize":20,"providerProfilesPageSize":20}""";
 
         mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.usersPageSize").exists());
+    }
+
+    @Test
+    void updateSettings_providerProfilesPageSizeBelowMinimum_returns400() throws Exception {
+        String body = """
+                {"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20,"providerProfilesPageSize":1}""";
+
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.providerProfilesPageSize").exists());
     }
 }

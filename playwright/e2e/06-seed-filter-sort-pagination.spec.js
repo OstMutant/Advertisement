@@ -15,10 +15,13 @@
  *     title/date/category filters -> sort columns -> verify page counts.
  *   - "users -- email, role and date filters, column sort, pagination": apply email/role/date
  *     filters -> sort columns -> verify page counts.
- *   - "adminEn changes page sizes -- activity diff, ads and users grids reflect sizes, restore
- *     defaults": change sizes (5/3) -> activity (both fields shown, diff, restore btn) -> ads
- *     grid (1-5 of) -> users grid (1-3 of) -> restore -> activity (>=2 rows) -> ads grid (1-20 of)
- *     -> users grid (1-20 of) -> change one size -> switch to activity tab -> save -> form
+ *   - "adminEn changes page sizes -- activity diff, ads/users/providers grids reflect sizes,
+ *     restore defaults": change all three sizes (5/6/7) -> activity (all three fields shown,
+ *     diff, restore btn) -> ads grid (1-5 of) -> users grid (1-7 of) -> providers field
+ *     round-trips (6, no grid-truncation check -- too few real rows in this suite's seeded data,
+ *     that real-data-volume proof lives in ProviderProfilePaginationScenarioTest instead) ->
+ *     restore -> activity (>=2 rows) -> ads grid (1-20 of) -> users grid (1-20 of) -> providers
+ *     field round-trips (20) -> change one size -> switch to activity tab -> save -> form
  *     visible -> restore -> close.
  *   - "adminEn verifies timeline -- ADVERTISEMENT and USER type filters, CREATED and UPDATED
  *     action filters, actor filter, pagination": total > SEED_COUNT -> ADVERTISEMENT type filter
@@ -417,17 +420,18 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 5: settings page sizes, activity verification, restore ───────────
 
-  test('adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults, no cross-session bleed', async ({ browser }) => {
+  test('adminEn changes page sizes — activity diff, ads/users grids reflect sizes, providers field persists, restore defaults, no cross-session bleed', async ({ browser }) => {
     test.setTimeout(3 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
 
     // ── verify page size defaults are 20 before any change ───────────────────
-    const { adsPageSize: adsDefault, usersPageSize: usersDefault } = await getPageSizes(page);
+    const { adsPageSize: adsDefault, providerProfilesPageSize: providersDefault, usersPageSize: usersDefault } = await getPageSizes(page);
     expect(adsDefault).toBe(20);
+    expect(providersDefault).toBe(20);
     expect(usersDefault).toBe(20);
 
-    // ── change both page sizes, verify change appears in activity ─────────────
-    await changePageSizes(page, 5, 7);
+    // ── change all three page sizes, verify change appears in activity ────────
+    await changePageSizes(page, 5, 6, 7);
     await screenshotThenClose(page, 'settings-changed');
 
     // ── cross-session bleed check: userEn's own session must stay unaffected ──
@@ -457,6 +461,7 @@ test.describe('Seed data and query validation', () => {
     const firstActivityRow = page.locator('.entity-activity-overlay .entity-activity-list .entity-activity-row').first();
     await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /Ads per page|Оголошень/i }).first()).toBeVisible();
     await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /Users per page|Користувач/i }).first()).toBeVisible();
+    await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /Provider profiles per page|Постачальників/i }).first()).toBeVisible();
     await screenshot(page, 'settings-activity-after-change');
     // X goes back to Settings (the screen history was opened from), same as the "Settings" link
     await closeHistory(page, 'x');
@@ -476,6 +481,13 @@ test.describe('Seed data and query validation', () => {
     await expect(page.locator('.pagination-count:visible'))
       .toContainText('1\u20137 of', { timeout: 5000 });
     await screenshot(page, 'settings-users-page-size-7');
+
+    // Provider Profiles has too few real rows in this suite's seeded data (well under
+    // PageSizeLimits.MIN_PAGE_SIZE) for a page-boundary/truncation check to mean anything here --
+    // that real-data-volume proof already lives in ProviderProfilePaginationScenarioTest
+    // (Level 3, real Postgres). This asserts the field itself round-trips through save -> reload.
+    const { providerProfilesPageSize: providersChanged } = await getPageSizes(page);
+    expect(providersChanged).toBe(6);
 
     // ── restore defaults via activity, verify restore entry recorded ──────────
     await openSettings(page);
@@ -506,6 +518,10 @@ test.describe('Seed data and query validation', () => {
     await expect(page.locator('.pagination-count:visible'))
       .toContainText('1\u201320 of', { timeout: 5000 });
     await screenshot(page, 'settings-users-restored-20');
+
+    // ── verify the field itself round-trips through save -> restore -> reload ─
+    const { providerProfilesPageSize: providersRestored } = await getPageSizes(page);
+    expect(providersRestored).toBe(20);
 
     // ── verify an unsaved field edit survives a trip into history and back ────
     // History now covers the whole Settings form (a separate overlay, not a tab), so an

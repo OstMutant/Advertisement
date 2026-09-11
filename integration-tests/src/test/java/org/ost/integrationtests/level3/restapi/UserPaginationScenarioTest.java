@@ -155,7 +155,7 @@ class UserPaginationScenarioTest extends AbstractRestApiScenarioTest {
         RegisteredUser admin = registerUserAndIssueApiKey("Admin");
 
         String settingsBody = """
-                {"adsPageSize":20,"usersPageSize":10,"timelinePageSize":20}""";
+                {"adsPageSize":20,"usersPageSize":10,"timelinePageSize":20,"providerProfilesPageSize":20}""";
         mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey())
                         .contentType(MediaType.APPLICATION_JSON).content(settingsBody))

@@ -26,6 +26,10 @@ public class UserSettingsDto {
     @Builder.Default
     int timelinePageSize = PageSizeLimits.DEFAULT_PAGE_SIZE;
 
+    @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE)
+    @Builder.Default
+    int providerProfilesPageSize = PageSizeLimits.DEFAULT_PAGE_SIZE;
+
     long version;
 
     @Builder.Default
@@ -36,6 +40,7 @@ public class UserSettingsDto {
                 .adsPageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
                 .usersPageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
                 .timelinePageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
+                .providerProfilesPageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
                 .version(0)
                 .build();
     }

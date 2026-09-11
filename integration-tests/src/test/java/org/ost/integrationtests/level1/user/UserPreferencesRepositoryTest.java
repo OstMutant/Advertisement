@@ -92,6 +92,8 @@ class UserPreferencesRepositoryTest extends AbstractPostgresIntegrationTest {
         UserSettingsDto loaded = preferencesRepository.loadSettings(actorId);
 
         assertThat(loaded.getTimelinePageSize()).isEqualTo(20);
+        // providerProfilesPageSize is absent from this legacy row's JSONB -- @Builder.Default fills it in.
+        assertThat(loaded.getProviderProfilesPageSize()).isEqualTo(20);
         assertThat(loaded.getSchemaVersion()).isEqualTo(UserSettingsDto.SCHEMA_VERSION);
     }
 
@@ -104,6 +106,7 @@ class UserPreferencesRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(loaded.getAdsPageSize()).isEqualTo(20);
         assertThat(loaded.getUsersPageSize()).isEqualTo(20);
         assertThat(loaded.getTimelinePageSize()).isEqualTo(20);
+        assertThat(loaded.getProviderProfilesPageSize()).isEqualTo(20);
         assertThat(loaded.getSchemaVersion()).isEqualTo(UserSettingsDto.SCHEMA_VERSION);
     }
 

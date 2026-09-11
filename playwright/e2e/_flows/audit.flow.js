@@ -70,13 +70,16 @@ async function runVerifyEntityActivityFlow(page, expect, scope, { screenshotName
 async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, privileged = false }) {
   await runOpenSettingsFlow(page);
 
+  // Field order: ads(0), providerProfiles(1) are ungated (every role); users(2), timeline(3) are
+  // privileged-only (moderator/admin).
   const fields = page.locator('.settings-overlay-content vaadin-integer-field');
-  await expect(fields).toHaveCount(privileged ? 3 : 1, { timeout: 5000 });
+  await expect(fields).toHaveCount(privileged ? 4 : 2, { timeout: 5000 });
   const adsValue = await fields.nth(0).locator('input').inputValue();
+  const providersValue = await fields.nth(1).locator('input').inputValue();
   let usersValue, timelineValue;
   if (privileged) {
-    usersValue = await fields.nth(1).locator('input').inputValue();
-    timelineValue = await fields.nth(2).locator('input').inputValue();
+    usersValue = await fields.nth(2).locator('input').inputValue();
+    timelineValue = await fields.nth(3).locator('input').inputValue();
   }
   await screenshot(page, `${screenshotName}-defaults`);
 
@@ -87,6 +90,7 @@ async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, 
   await expect(row.locator('.entity-activity-action')).toContainText(/created|створено/i);
   await expect(row.locator('.entity-activity-version')).toContainText('v1');
   await expect(row).toContainText(adsValue);
+  await expect(row).toContainText(providersValue);
   if (privileged) {
     await expect(row).toContainText(usersValue);
     await expect(row).toContainText(timelineValue);

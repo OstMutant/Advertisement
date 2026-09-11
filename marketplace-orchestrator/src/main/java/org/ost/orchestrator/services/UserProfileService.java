@@ -71,6 +71,11 @@ public class UserProfileService {
         return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getUsersPageSize();
     }
 
+    /** Effective page size for a provider profiles list — same resolution as {@link #resolveAdsPageSize}. */
+    public int resolveProviderProfilesPageSize(Long actorId) {
+        return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getProviderProfilesPageSize();
+    }
+
     public List<UserDto> getFiltered(@NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
         return userPort.getFiltered(filter, page, size, sort);
     }

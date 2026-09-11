@@ -168,6 +168,9 @@ async function fillRole(page, blockSelector, role) {
   await combo.locator('input').click();
   await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.type(role);
+  // Same race as fillCategory -- wait for a matching item to actually render before selecting it.
+  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: role }).first()
+    .waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await page.evaluate((sel) => {
@@ -191,6 +194,10 @@ async function fillCategory(page, blockSelector, categoryName) {
   await combo.locator('input').click();
   await page.waitForFunction((sel) => document.querySelector(sel)?.opened === true, selector, { timeout: 5000 });
   await page.keyboard.type(categoryName);
+  // Filtering re-renders asynchronously -- wait for a matching item to actually render before
+  // selecting it, or ArrowDown/Enter can race an empty/stale overlay.
+  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: categoryName }).first()
+    .waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await page.evaluate((sel) => {
@@ -211,6 +218,9 @@ async function fillCity(page, blockSelector, cityName) {
   const combo = page.locator(`${blockSelector} vaadin-combo-box`);
   await combo.locator('input').click();
   await combo.locator('input').fill(cityName);
+  // Same race as fillCategory -- wait for a matching item to actually render before selecting it.
+  await page.locator('vaadin-combo-box-item').filter({ hasText: cityName }).first()
+    .waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
 }
@@ -229,6 +239,9 @@ async function fillAdKind(page, blockSelector, adKindName) {
   await combo.locator('input').click();
   await page.waitForFunction((sel) => document.querySelector(sel)?.opened === true, selector, { timeout: 5000 });
   await page.keyboard.type(adKindName);
+  // Same race as fillCategory -- wait for a matching item to actually render before selecting it.
+  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: adKindName }).first()
+    .waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await page.evaluate((sel) => {

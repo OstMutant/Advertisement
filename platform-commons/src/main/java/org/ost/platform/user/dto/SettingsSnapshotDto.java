@@ -20,13 +20,14 @@ public record SettingsSnapshotDto(
         int adsPageSize,
         int usersPageSize,
         int timelinePageSize,
+        int providerProfilesPageSize,
         int schemaVersion
 ) implements AuditableSnapshot {
 
     public static final int SCHEMA_VERSION = 1;
 
-    public SettingsSnapshotDto(int adsPageSize, int usersPageSize, int timelinePageSize) {
-        this(adsPageSize, usersPageSize, timelinePageSize, SCHEMA_VERSION);
+    public SettingsSnapshotDto(int adsPageSize, int usersPageSize, int timelinePageSize, int providerProfilesPageSize) {
+        this(adsPageSize, usersPageSize, timelinePageSize, providerProfilesPageSize, SCHEMA_VERSION);
     }
 
     @Override
@@ -39,17 +40,19 @@ public record SettingsSnapshotDto(
     public List<ChangeEntry> diff(AuditableSnapshot previous) {
         SettingsSnapshotDto prev = previous instanceof SettingsSnapshotDto p ? p : null;
         List<ChangeEntry> changes = new ArrayList<>();
-        diffField(changes, Fields.adsPageSize,      field(prev, SettingsSnapshotDto::adsPageSize),      adsPageSize());
-        diffField(changes, Fields.usersPageSize,    field(prev, SettingsSnapshotDto::usersPageSize),    usersPageSize());
-        diffField(changes, Fields.timelinePageSize, field(prev, SettingsSnapshotDto::timelinePageSize), timelinePageSize());
+        diffField(changes, Fields.adsPageSize,              field(prev, SettingsSnapshotDto::adsPageSize),              adsPageSize());
+        diffField(changes, Fields.usersPageSize,            field(prev, SettingsSnapshotDto::usersPageSize),            usersPageSize());
+        diffField(changes, Fields.timelinePageSize,         field(prev, SettingsSnapshotDto::timelinePageSize),         timelinePageSize());
+        diffField(changes, Fields.providerProfilesPageSize, field(prev, SettingsSnapshotDto::providerProfilesPageSize), providerProfilesPageSize());
         return changes;
     }
 
     @Override
     public List<FieldChange> allFields() {
         return List.of(
-                new FieldChange(Fields.adsPageSize,      null, String.valueOf(adsPageSize())),
-                new FieldChange(Fields.usersPageSize,    null, String.valueOf(usersPageSize())),
-                new FieldChange(Fields.timelinePageSize, null, String.valueOf(timelinePageSize())));
+                new FieldChange(Fields.adsPageSize,              null, String.valueOf(adsPageSize())),
+                new FieldChange(Fields.usersPageSize,            null, String.valueOf(usersPageSize())),
+                new FieldChange(Fields.timelinePageSize,         null, String.valueOf(timelinePageSize())),
+                new FieldChange(Fields.providerProfilesPageSize, null, String.valueOf(providerProfilesPageSize())));
     }
 }

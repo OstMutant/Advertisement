@@ -110,7 +110,8 @@ public class UserApiController {
             {
               "adsPageSize": 20,
               "usersPageSize": 20,
-              "timelinePageSize": 20
+              "timelinePageSize": 20,
+              "providerProfilesPageSize": 20
             }""")))
     @PatchMapping("/me/settings")
     @SecurityRequirement(name = "bearerKey")
@@ -120,6 +121,7 @@ public class UserApiController {
                 .adsPageSize(request.adsPageSize())
                 .usersPageSize(request.usersPageSize())
                 .timelinePageSize(request.timelinePageSize())
+                .providerProfilesPageSize(request.providerProfilesPageSize())
                 .version(ETagUtil.parseIfMatch(ifMatch))
                 .build();
         userProfileService.saveSettings(actorId, dto);
@@ -134,7 +136,8 @@ public class UserApiController {
     public record UserSettingsWriteRequest(
             @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int adsPageSize,
             @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int usersPageSize,
-            @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int timelinePageSize
+            @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int timelinePageSize,
+            @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int providerProfilesPageSize
     ) {
     }
 }

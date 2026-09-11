@@ -7,7 +7,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Verifies the builder-based deserialization applies Lombok's {@code @Builder.Default timelinePageSize} when the JSON payload omits that key. */
+/** Verifies the builder-based deserialization applies Lombok's {@code @Builder.Default timelinePageSize}/{@code providerProfilesPageSize} when the JSON payload omits that key -- the shape an old {@code user_preferences} row written before a field existed deserializes as. */
 class UserSettingsDtoTest {
 
     private final ObjectMapper mapper = JsonMapper.builder().build();
@@ -24,9 +24,20 @@ class UserSettingsDtoTest {
     }
 
     @Test
+    void deserialize_missingProviderProfilesPageSizeKey_fallsBackToBuilderDefault() throws Exception {
+        String json = """
+                {"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20}
+                """;
+
+        UserSettingsDto settings = mapper.readValue(json, UserSettingsDto.class);
+
+        assertThat(settings.getProviderProfilesPageSize()).isEqualTo(20);
+    }
+
+    @Test
     void deserialize_allKeysPresent_usesProvidedValues() throws Exception {
         String json = """
-                {"adsPageSize":30,"usersPageSize":40,"timelinePageSize":50}
+                {"adsPageSize":30,"usersPageSize":40,"timelinePageSize":50,"providerProfilesPageSize":60}
                 """;
 
         UserSettingsDto settings = mapper.readValue(json, UserSettingsDto.class);
@@ -34,5 +45,6 @@ class UserSettingsDtoTest {
         assertThat(settings.getAdsPageSize()).isEqualTo(30);
         assertThat(settings.getUsersPageSize()).isEqualTo(40);
         assertThat(settings.getTimelinePageSize()).isEqualTo(50);
+        assertThat(settings.getProviderProfilesPageSize()).isEqualTo(60);
     }
 }

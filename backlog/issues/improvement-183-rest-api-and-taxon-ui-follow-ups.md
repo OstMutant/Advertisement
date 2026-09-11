@@ -792,7 +792,7 @@ why the first attempt to verify that didn't show any improvement.
 
 ## Related
 
-## 15. `ProviderProfileApiController` should resolve `size` from settings too, mirroring the UI
+## 15. `ProviderProfileApiController` should resolve `size` from settings too, mirroring the UI — ✅ Done (2026-09-11)
 
 **Found (2026-09-08):** `ProviderProfileApiController.list()` still takes a caller-supplied
 `@RequestParam(defaultValue = "20") int size` — deliberately left this way in item 3 on the
@@ -803,14 +803,97 @@ UserSettingsDto::getAdsPageSize, this::refresh)`) — there is no separate
 `providerProfilesPageSize` field even on the UI side. REST should mirror this exact behavior
 instead of accepting a caller-supplied `size`.
 
-**Approach:** `ProviderProfileApiController.list()` drops the `size` request parameter and calls
-`userProfileService.resolveAdsPageSize(actorId)` — the same method `AdvertisementApiController`
-already uses — instead of adding a new settings field. `ProviderProfileApiController` currently has
-no `@AuthenticationPrincipal Long actorId` parameter on `list()` at all (the endpoint is public,
-unauthenticated reads); needs one added (nullable, same anonymous-caller-gets-default-size pattern
-`AdvertisementApiController`/`UserApiController` already use).
+**Revised approach (2026-09-11, user-requested) — dedicated `providerProfilesPageSize` field,
+symmetric with `adsPageSize`/`usersPageSize`/`timelinePageSize`, not a reuse of `adsPageSize`.**
+Verified every touch point against real code before scoping, not assumed:
 
-**Not yet started.**
+- **platform-commons:**
+  - `UserSettingsDto` — new `@Min/@Max(PageSizeLimits)` field `providerProfilesPageSize`, with
+    `@Builder.Default = PageSizeLimits.DEFAULT_PAGE_SIZE` (same pattern `timelinePageSize` already
+    uses) so existing `user_preferences.settings` JSONB rows written before this field existed
+    still deserialize cleanly; added to `defaultSettings()`.
+  - `SettingsSnapshotDto` — new `providerProfilesPageSize` component; wired into the constructor
+    overload, `diff()`, and `allFields()`, mirroring the other three fields exactly.
+- **user-spring-boot-starter:**
+  - `UserPreferencesService.toSettingsSnapshot()` — pass the new field through.
+  - `01-user-schema.xml`'s `user_preferences.settings` `defaultValue` JSON literal — add
+    `"providerProfilesPageSize":20`, editing the existing changeset in place (no new migration —
+    same no-production-data convention item 13 already uses), since `timelinePageSize` is already
+    present there.
+- **marketplace-orchestrator:** `UserProfileService` — new `resolveProviderProfilesPageSize(actorId)`,
+  mirroring `resolveAdsPageSize`/`resolveUsersPageSize` exactly (`actorId == null` →
+  `PageSizeLimits.DEFAULT_PAGE_SIZE`, else `loadSettings(actorId).getProviderProfilesPageSize()`).
+- **marketplace-rest-api:**
+  - `UserApiController.UserSettingsWriteRequest` — new `providerProfilesPageSize` field (same
+    `@Min/@Max`); `updateSettings()` passes it into the builder; Swagger `@ExampleObject` JSON
+    updated.
+  - `ProviderProfileApiController.list()` — add `@AuthenticationPrincipal Long actorId` (nullable,
+    public endpoint), drop the caller-supplied `size` request param, call
+    `userProfileService.resolveProviderProfilesPageSize(actorId)`.
+- **marketplace-app:**
+  - `SettingsEditDto` — new `Integer providerProfilesPageSize` field.
+  - `SettingsFormModeHandler` — new `providerProfilesPageSizeField` (`IntegerField`), wired through
+    `activate()`/`buildBinder()`/`save()`/`discardChanges()`/`handleRestoreFromActivity()`/
+    `loadRestored()`, same shape as the three existing fields. **Visibility — decided (2026-09-11):**
+    ungated, shown to every user, same tier as `adsPageSize` — Provider Profiles is a public catalog
+    like Advertisements (`ProviderProfileApiController.list()` is an unauthenticated read), unlike
+    `usersPageSize`/`timelinePageSize` which stay behind `access.canView()` (User/Timeline are
+    admin/moderator-only surfaces).
+  - `ProvidersView.java` — pagination binding switches from `UserSettingsDto::getAdsPageSize` to
+    `UserSettingsDto::getProviderProfilesPageSize`.
+  - `AuditTimelineRowRenderer` — new `case SettingsSnapshotDto.Fields.providerProfilesPageSize ->`
+    entry mapping to a new `I18nKey`.
+  - `I18nKey` — new `SETTINGS_PROVIDER_PROFILES_PAGE_SIZE_LABEL`
+    (`settings.providerProfilesPageSize.label`) and `CHANGES_SETTING_PROVIDER_PROFILES_PAGE_SIZE`
+    (`audit.changes.setting.providerProfilesPageSize`).
+  - `messages_en.properties`/`messages_uk.properties` — matching label pairs for both new keys
+    ("Provider profiles per page" / Ukrainian equivalent), same style as the three existing rows.
+
+**Admin/moderator visibility question — checked, no issue needed (2026-09-11):** verified directly
+against code that `AccessEvaluator.canView()` → `AuthorizationService.canOperate(actor, null)` =
+`isAdmin(actor) || isModerator(actor)`, and this exact predicate gates both the Users/Timeline tabs
+(`MainView.java`) and the `usersPageSizeField`/`timelinePageSizeField` in Settings — fully
+consistent already, admin-or-moderator everywhere, no mismatch found. `goal-001-activity-field-visibility-by-role.md`
+(existing, low-priority, open-goal) covers a related but different concern (a USER-role viewer
+seeing `usersPageSize`/`timelinePageSize` changes in their own activity log, fields their role never
+configured) — left as is, not expanded, no new issue filed.
+
+- **Tests — including the specific coverage requested (2026-09-11):**
+  - `UserSettingsDtoTest`, `SettingsSnapshotDtoTest`, `UserPreferencesRepositoryTest`
+    (integration-tests) extended for the new field (default value, `@Builder.Default`
+    backward-compat deserialization of an old JSONB row missing the field, `@Min`/`@Max` bounds).
+  - `UserApiControllerTest` extended for `PATCH /api/users/me/settings` carrying the new field and
+    for `ProviderProfileApiController.list()`'s new `resolveProviderProfilesPageSize(actorId)` path
+    (authenticated + anonymous-default cases, mirroring the existing Advertisement/User coverage).
+  - **Timeline sees the change:** no dedicated `AuditTimelineRowRendererTest` exists in the repo
+    (there was nothing to extend, despite the plan assuming one) — covered instead by a real
+    end-to-end Playwright assertion (`06-seed-filter-sort-pagination.spec.js`, Test 5) that the
+    activity row's own rendered label ("Provider profiles per page"/"Постачальників на сторінку")
+    appears, not a raw field name — the same real rendering pipeline a unit test would exercise in
+    isolation, proven through the actual UI instead.
+  - **Activity/recovery works too:** the same Playwright test opens the nested history overlay,
+    restores the latest snapshot, and confirms (via `getPageSizes()`) that `providerProfilesPageSize`
+    round-trips back to its pre-change default — covered end to end, not just save/load.
+  - A Playwright step asserts the Settings field itself persists through save/reload. The original
+    plan's "Providers catalog page size follows it" sub-check was dropped after investigation: this
+    suite's own seeded data never has more than ~3 real provider profiles by the time this spec
+    runs, well under `PageSizeLimits.MIN_PAGE_SIZE` (5) — no valid page-size value could ever
+    demonstrate real truncation there. That real-data-volume proof already exists and passes in
+    `ProviderProfilePaginationScenarioTest` (Level 3, real Postgres, 12 real rows).
+
+**Real bug found and fixed along the way, unrelated to this item's own scope:** three of four
+verification runs failed on a pre-existing, unrelated race in `playwright/e2e/_flows/filter.flow.js`
+(`fillCategory`/`fillAdKind`/`fillRole`/`fillCity`) — `ArrowDown`/`Enter` fired immediately after
+typing, before the combo-box's filtered overlay item actually rendered, intermittently selecting
+nothing. Fixed by waiting for the matching overlay item to be visible before selecting it, in all
+four helpers.
+
+**Verified (2026-09-11):** `bash scripts/build-and-test.sh --unit --integration --sandbox` —
+230 integration tests + full unit reactor, 0 failures. `deploy-and-run.sh --reset-only-db` +
+`playwright.sh e2e --full --ux` — 63 passed, 0 failed (after the `filter.flow.js` race fix above;
+three earlier attempts failed on that unrelated pre-existing flake, confirmed unrelated by checking
+each failure's own root cause before retrying). `deep-review-orchestrator` (SOLID/DRY/KISS/YAGNI,
+3 lenses) — zero findings.
 
 ## 16. `PATCH /api/users/me/settings` should use If-Match too, not a body `version` field — ✅ Done (2026-09-08)
 
@@ -1338,7 +1421,7 @@ added to `ci.sh`'s own step sequence so it renders as its own visible "running" 
 silently appearing pass/fail only once finished. Files: `scripts/ci/run.sh`,
 `scripts/activity-monitor/run.sh`. Committed `ea3627b0`.
 
-## 25. Generalize the WSL2/DrvFs-safe container-to-host copy beyond `ci.sh` -- not started, deferred
+## 25. Generalize the WSL2/DrvFs-safe container-to-host copy beyond `ci.sh` — confirmed real, fixing
 
 **Ask (2026-09-11):** item 24's follow-up fix (bind-mount-container copy instead of a direct
 `docker cp`/`cp`/`mv` write, to survive WSL2 Windows-drive checkouts) currently lives inline in
@@ -1354,13 +1437,49 @@ cp` shape and would hit the identical DrvFs wall on the same kind of checkout:
   of the fix (`mktemp -d` + a recursive merge inside the throwaway container), not just the
   single-file one.
 
-**Planned approach:** extract the single-file bind-mount-copy helper out of `scripts/ci/run.sh`
-into a shared `scripts/utils/docker-cp-to-host.sh` (this repo's established home for logic shared
-across script-groups, see `scripts/utils/README.md`), source it from both `scripts/ci/run.sh` and
-`scripts/sonar/run.sh`, and use it for the `sonar/run.sh:335` call site. The directory-copy variant
-for the three best-effort call sites is separate, lower-priority work (not blocking anything today)
--- deferred further, picked up only if one of those best-effort copies is confirmed actually
-failing on a real WSL2 checkout, not built speculatively ahead of that evidence.
+**Confirmed real (2026-09-11), a second, distinct unguarded call site — not the one this item
+originally named:** a real `bash scripts/ci.sh` run on this same WSL2/DrvFs checkout left
+`scripts/sonar/report/report.html` stale on the host (old content, untouched by that run) while the
+same file inside `ci-runner` was fresh, timestamped to that exact run's sonar stage. Root cause,
+verified against the code: `scripts/ci/run.sh`'s own `sync_artifacts()` copies this one file back
+with a **plain, unguarded** `docker cp "$CONTAINER:/app/scripts/sonar/report/report.html" "$ROOT/scripts/sonar/report/report.html" 2>/dev/null`
+— never routed through `docker_cp_diag()` the way the other three artifacts (`architecture-model.json`/
+`architecture-map.html`/`adr-index.md`) already are. `2>/dev/null` swallows the failure silently, so
+`sync_artifacts()` reports success and the CI run's own step tree shows ✅ even though this one file
+never actually landed. This is a sibling gap to the `sonar/run.sh:335` call site originally named
+above — both copy the same file, at different hops (scanner container → wherever `sonar/run.sh`
+itself runs, vs. `ci-runner` → the real host), and both need the fix.
+
+**Decided approach, both confirmed call sites (2026-09-11):**
+1. New `scripts/utils/docker-cp-to-host.sh` (7-field header, matching
+   `scripts/utils/ensure-docker-plugins.sh`'s style) — extracts `scripts/ci/run.sh`'s
+   `docker_cp_diag()` almost verbatim as `docker_cp_to_host(src, dst, label, [diag_container])`,
+   generalized: the diagnostics relay (today hardcoded to `$CONTAINER`/`ci-runner`) becomes the
+   optional 4th argument, and the function always echoes its own diagnostic locally too (not just
+   into a container), so a caller with no `diag_container` (e.g. `sonar.sh` run standalone) still
+   sees the failure directly.
+2. `scripts/ci/run.sh` — drop its local `docker_cp_diag()`; `source
+   scripts/utils/docker-cp-to-host.sh`; every existing call site becomes
+   `docker_cp_to_host ... "$CONTAINER"` (same behavior, same diagnostics target, just relocated);
+   the report.html fallback copy switches from the raw, silently-swallowed `docker cp` to
+   `docker_cp_to_host "$CONTAINER:/app/scripts/sonar/report/report.html"
+   "$ROOT/scripts/sonar/report/report.html" "report.html" "$CONTAINER"`, with its failure folded
+   into the same `docs_synced`-style non-zero return `sync_artifacts()` already uses for the other
+   three artifacts — a real failure here now surfaces instead of being swallowed.
+3. `scripts/sonar/run.sh` — `source scripts/utils/docker-cp-to-host.sh`; its own
+   `docker cp "$SCANNER_CONTAINER":/tmp/sonar-report.html "$REPORT_FILE"` becomes
+   `docker_cp_to_host "$SCANNER_CONTAINER:/tmp/sonar-report.html" "$REPORT_FILE" "report.html"
+   "$SCANNER_CONTAINER"`, checked and treated as a hard failure on error (preserving today's
+   already-hard-failing semantics, just through the WSL2/DrvFs-safe path instead of a raw `docker cp`).
+4. Both scripts' own header `Uses:` field gains the new shared file.
+5. The three best-effort directory-copy call sites (`sonar/run.sh:344`,
+   `build-and-test/run.sh:293,294,302`) stay out of scope — still no confirmed failure evidence for
+   those, unlike this single-file case now confirmed twice over (item 24's original 3 artifacts, and
+   this run's report.html).
+
+**Verification plan:** `bash -n` on all three files; then a real `bash scripts/ci.sh` run (the
+exact repro of today's failure) confirming `scripts/sonar/report/report.html` lands fresh on the
+host afterward, with a timestamp matching that run's own sonar stage.
 
 - [improvement-073](../completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) —
   REST API infrastructure (API-key auth, Swagger, apikey/rest-api modules) this whole batch follows

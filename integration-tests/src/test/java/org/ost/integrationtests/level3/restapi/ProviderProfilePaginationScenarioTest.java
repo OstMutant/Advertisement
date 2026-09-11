@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import java.time.Instant;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -170,6 +171,16 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
 
     @Test
     void realDataVolume_pagesAndSorts() throws Exception {
+        // One profile per actor (unique actor_id index), so the 12 providers each need their own
+        // owner -- a separate reader actor exercises the real page-size-from-settings resolution.
+        RegisteredUser reader = registerUserAndIssueApiKey("Reader");
+        String settingsBody = """
+                {"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20,"providerProfilesPageSize":5}""";
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + reader.rawApiKey())
+                        .contentType(MediaType.APPLICATION_JSON).content(settingsBody))
+                .andExpect(status().isOk());
+
         for (int i = 1; i <= 12; i++) {
             createProvider("Provider%02d".formatted(i), "MASTER", null, null);
         }
@@ -177,9 +188,12 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
         // createdAt has no unique tiebreaker for ProviderProfile (no unique sortable business field exists),
         // so rows created within the same timestamp tick can land on either side of a page boundary --
         // assert page sizes/total deterministically, and assert the full set is covered without gaps/dupes.
+        // "size=999" in the URL must have no effect -- the real page size (5) comes from the reader's saved setting above.
         java.util.List<String> collected = new java.util.ArrayList<>();
         for (int page = 0; page <= 3; page++) {
-            String response = mockMvc.perform(get("/api/provider-profiles").param("page", String.valueOf(page)).param("size", "5").param("sort", "createdAt,asc"))
+            String response = mockMvc.perform(get("/api/provider-profiles")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + reader.rawApiKey())
+                            .param("page", String.valueOf(page)).param("size", "999").param("sort", "createdAt,asc"))
                     .andExpect(status().isOk())
                     .andExpect(header().string("X-Total-Count", "12"))
                     .andReturn().getResponse().getContentAsString();

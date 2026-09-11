@@ -10,6 +10,7 @@ import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.ProviderProfileDisplayEnrichmentService;
 import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
+import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
@@ -47,17 +48,19 @@ class ProviderProfileApiControllerTest {
     @Mock private ProviderProfileSaveService saveService;
     @Mock private ProviderProfileReadService readService;
     @Mock private ProviderProfileDisplayEnrichmentService enrichmentService;
+    @Mock private UserProfileService userProfileService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = mockMvc(new ProviderProfileApiController(saveService, readService, enrichmentService));
+        mockMvc = mockMvc(new ProviderProfileApiController(saveService, readService, enrichmentService, userProfileService));
         authenticateAs(ACTOR_ID);
         lenient().when(enrichmentService.enrichWithCategoryAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithActor(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithCategoriesAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithActorInfo(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(userProfileService.resolveProviderProfilesPageSize(any())).thenReturn(20);
     }
 
     @AfterEach
@@ -139,6 +142,32 @@ class ProviderProfileApiControllerTest {
     @Test
     void list_unknownSortField_returns400() throws Exception {
         mockMvc.perform(get("/api/provider-profiles").param("sort", "secretField")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void list_pageSizeComesFromCallersSavedSettings_urlSizeParamIsIgnored() throws Exception {
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
+        when(userProfileService.resolveProviderProfilesPageSize(ACTOR_ID)).thenReturn(50);
+        when(readService.getFiltered(eq(filter), eq(0), eq(50), any())).thenReturn(List.of());
+        when(readService.count(eq(filter))).thenReturn(0);
+
+        // "size=5" in the URL must have no effect -- there is no such request parameter anymore.
+        mockMvc.perform(get("/api/provider-profiles").param("size", "5")).andExpect(status().isOk());
+
+        verify(readService).getFiltered(eq(filter), eq(0), eq(50), any());
+    }
+
+    @Test
+    void list_anonymousCaller_usesSharedDefaultPageSize() throws Exception {
+        clearAuthentication();
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
+        when(userProfileService.resolveProviderProfilesPageSize(null)).thenReturn(20);
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), any())).thenReturn(List.of());
+        when(readService.count(eq(filter))).thenReturn(0);
+
+        mockMvc.perform(get("/api/provider-profiles")).andExpect(status().isOk());
+
+        verify(readService).getFiltered(eq(filter), eq(0), eq(20), any());
     }
 
     // ── getById ──────────────────────────────────────────────────────────

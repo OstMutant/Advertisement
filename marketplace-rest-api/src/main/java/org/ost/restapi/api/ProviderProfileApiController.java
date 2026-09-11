@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.ProviderProfileDisplayEnrichmentService;
 import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
+import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
@@ -67,6 +68,7 @@ public class ProviderProfileApiController {
     private final ProviderProfileSaveService saveService;
     private final ProviderProfileReadService readService;
     private final ProviderProfileDisplayEnrichmentService enrichmentService;
+    private final UserProfileService userProfileService;
 
     @Operation(summary = "Create a provider profile", description = "Self-service only -- the profile is always created for the caller's own account. categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY. kind=SUPPORT requires a privileged (admin/moderator) caller.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
@@ -85,12 +87,13 @@ public class ProviderProfileApiController {
         return enrich(readService.findById(id).orElseThrow(), DEFAULT_LOCALE);
     }
 
-    @Operation(summary = "List/filter/sort provider profiles")
+    @Operation(summary = "List/filter/sort provider profiles", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
     @GetMapping
-    public ResponseEntity<List<ProviderProfileDto>> list(@ModelAttribute @Valid ProviderProfileFilterDto filter,
-            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
+    public ResponseEntity<List<ProviderProfileDto>> list(@AuthenticationPrincipal Long actorId,
+            @ModelAttribute @Valid ProviderProfileFilterDto filter, @RequestParam(defaultValue = "0") int page,
             @RequestParam(required = false) String sort, @RequestParam(defaultValue = "en") String locale,
             UriComponentsBuilder uriBuilder) {
+        int size = userProfileService.resolveProviderProfilesPageSize(actorId);
         Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
         List<ProviderProfileDto> items = readService.getFiltered(filter, page, size, sortObj);
         items = enrichmentService.enrichWithCategoriesAndCity(items, Locale.forLanguageTag(locale));

@@ -80,7 +80,7 @@ public class ProvidersView extends VerticalLayout {
 
         paginationBar.setPageChangeListener(_ -> refresh());
 
-        settingsPaginationBinding.register(paginationBar, UserSettingsDto::getAdsPageSize, this::refresh);
+        settingsPaginationBinding.register(paginationBar, UserSettingsDto::getProviderProfilesPageSize, this::refresh);
         refresh();
     }
 

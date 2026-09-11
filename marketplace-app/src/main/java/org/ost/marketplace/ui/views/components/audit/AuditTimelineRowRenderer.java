@@ -170,10 +170,11 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
                 default                           -> null;
             };
             case USER_SETTINGS -> switch (rawFieldKey) {
-                case SettingsSnapshotDto.Fields.adsPageSize      -> I18nKey.CHANGES_SETTING_ADS_PAGE_SIZE;
-                case SettingsSnapshotDto.Fields.usersPageSize    -> I18nKey.CHANGES_SETTING_USERS_PAGE_SIZE;
-                case SettingsSnapshotDto.Fields.timelinePageSize -> I18nKey.CHANGES_SETTING_TIMELINE_PAGE_SIZE;
-                default                                          -> null;
+                case SettingsSnapshotDto.Fields.adsPageSize              -> I18nKey.CHANGES_SETTING_ADS_PAGE_SIZE;
+                case SettingsSnapshotDto.Fields.usersPageSize            -> I18nKey.CHANGES_SETTING_USERS_PAGE_SIZE;
+                case SettingsSnapshotDto.Fields.timelinePageSize         -> I18nKey.CHANGES_SETTING_TIMELINE_PAGE_SIZE;
+                case SettingsSnapshotDto.Fields.providerProfilesPageSize -> I18nKey.CHANGES_SETTING_PROVIDER_PROFILES_PAGE_SIZE;
+                default                                                  -> null;
             };
             case PROVIDER_PROFILE -> switch (rawFieldKey) {
                 case ProviderProfileSnapshotDto.Fields.kind        -> I18nKey.CHANGES_FIELD_KIND;

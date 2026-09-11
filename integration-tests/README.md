@@ -95,7 +95,7 @@ vars are required — the sandbox-only `--sandbox` workarounds (also documented 
 | `user/UserRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserRepository.updateProfile()` — optimistic locking, and that the narrower `UserProfileUpdate` entity structurally cannot touch `email`/`passwordHash` |
 | `user/UserServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `UserService.register()` rate-limiting: threshold blocks before save, duplicate-key failures count, successful registration does **not** reset the IP counter (asymmetry vs. login), different IPs tracked separately |
 | `user/SettingsSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `SettingsSnapshotDto.diff()` — pure field-comparison logic, direct analogy with `AdvertisementSnapshotDtoTest` |
-| `user/UserSettingsDtoTest` | Plain JUnit, no Spring, no DB | Confirms Jackson's builder-based deserialization correctly applies `UserSettingsDto`'s `@Builder.Default timelinePageSize = 20` for a JSON payload missing that key |
+| `user/UserSettingsDtoTest` | Plain JUnit, no Spring, no DB | Confirms Jackson's builder-based deserialization correctly applies `UserSettingsDto`'s `@Builder.Default timelinePageSize`/`providerProfilesPageSize` for a JSON payload missing that key |
 | `attachment/AttachmentServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentService.commitTempUploadsQuiet()` cleans up already-moved files on a mid-batch `storageService.move()` failure, instead of leaking them |
 | `attachment/AttachmentServiceTransactionTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | `AttachmentService.upload()` rolls back its DB row (real transaction, real Postgres) when a post-save step throws |
 | `attachment/AttachmentCleanupServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentCleanupService.deleteAttachments()` deletes DB rows before S3 objects (`InOrder`-verified), and a storage failure never affects the already-completed DB delete |
@@ -194,12 +194,14 @@ No Spring context, no DB — direct analogy with `AdvertisementSnapshotDtoTest`.
 
 | Test | Verifies |
 |---|---|
-| `diff_noPrevious_returnsChangesForAllFields` | `diff(null)` reports all 3 page-size fields as changed |
+| `diff_noPrevious_returnsChangesForAllFields` | `diff(null)` reports all 4 page-size fields as changed |
 | `diff_identicalSnapshots_returnsNoChanges` | No spurious changes when nothing actually changed |
 | `diff_adsPageSizeChanged_returnsSingleFieldChange` | Only `adsPageSize` changing produces exactly one `FieldChange` |
 | `diff_usersPageSizeChanged_returnsSingleFieldChange` | Only `usersPageSize` changing produces exactly one `FieldChange` |
 | `diff_timelinePageSizeChanged_returnsSingleFieldChange` | Only `timelinePageSize` changing produces exactly one `FieldChange` |
-| `diff_allFieldsChanged_returnsAllChangedFields` | All 3 fields changing surface in one `diff()` call |
+| `diff_providerProfilesPageSizeChanged_returnsSingleFieldChange` | Only `providerProfilesPageSize` changing produces exactly one `FieldChange` |
+| `diff_allFieldsChanged_returnsAllChangedFields` | All 4 fields changing surface in one `diff()` call |
+| `allFields_returnsEveryFieldWithNullOldValue` | `allFields()` lists every field with a `null` old value |
 
 ### `advertisement/AdvertisementServiceCategoryFilterTest`
 

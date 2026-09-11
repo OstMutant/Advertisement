@@ -366,6 +366,7 @@ public enum I18nKey {
     SETTINGS_ADS_PAGE_SIZE_LABEL("settings.adsPageSize.label"),
     SETTINGS_USERS_PAGE_SIZE_LABEL("settings.usersPageSize.label"),
     SETTINGS_TIMELINE_PAGE_SIZE_LABEL("settings.timelinePageSize.label"),
+    SETTINGS_PROVIDER_PROFILES_PAGE_SIZE_LABEL("settings.providerProfilesPageSize.label"),
     SETTINGS_SAVE_BUTTON("settings.save.button"),
     SETTINGS_SAVED_SUCCESS("settings.saved.success"),
     SETTINGS_PAGE_SIZE_RANGE("settings.page.size.range"),
@@ -395,6 +396,7 @@ public enum I18nKey {
     CHANGES_SETTING_ADS_PAGE_SIZE("audit.changes.setting.adsPageSize"),
     CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize"),
     CHANGES_SETTING_TIMELINE_PAGE_SIZE("audit.changes.setting.timelinePageSize"),
+    CHANGES_SETTING_PROVIDER_PROFILES_PAGE_SIZE("audit.changes.setting.providerProfilesPageSize"),
 
     // === Reference Data tab ===
     REFERENCE_DATA_TAB_CATEGORIES("reference.data.tab.categories"),
