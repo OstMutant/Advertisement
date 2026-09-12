@@ -281,20 +281,14 @@ contract tests above already cover in isolation:
    `POST /api/users` — asserts the real `DuplicateKeyException`-driven behavior end-to-end (ties to
    the same gap flagged above, confirms the fix once made, against the real unique index).
 
-## 9. Media/photo upload for advertisements via REST — not currently possible
+## 9. Media/photo upload for advertisements via REST — moved to `improvement-186`
 
-**Current state (verified):** `AdvertisementApiController`'s own class Javadoc states: "No photo
-upload via this API (no in-progress gallery to commit, unlike the Vaadin form)." `AdvertisementSaveDto`
-has no media field; `AdvertisementInfoDto` exposes `mediaUrl`/`mediaContentType`/`mediaCount` as
-read-only output only.
-
-**Ask:** is there a way to attach media to an advertisement via REST? If not, design one.
-
-**Approach:** needs its own scoped design pass, not a quick add — `attachment-spring-boot-starter`'s
-existing upload flow is built around Vaadin's in-progress-gallery/temp-attachment UX
-(`TempAttachmentDto`). The REST equivalent would likely be a separate `multipart/form-data`
-endpoint (e.g. `POST /api/advertisements/{id}/media`) delegating to `AttachmentPort`, decoupled
-from the create/update JSON body.
+**Moved (2026-09-12):** the design conversation for this item grew into three related but
+independently-sizable pieces (the media sub-resource itself, project-wide `PATCH`/partial-update
+support, and REST hypermedia/HAL action-discovery) — carved out into its own tracked issue rather
+than kept here, so this bundle's own scope stays closed. See
+[improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) for the
+full current state, research, and approach.
 
 ## 10. Advertisement/Provider view-vs-card metadata parity, refactored symmetrically — ✅ Done (2026-09-10)
 
@@ -625,21 +619,27 @@ outside `/sync-docs`). Work this in fixed phases, each presented for approval be
   rows are created lazily — they're created unconditionally at registration).
 
 **Cross-cutting findings surfaced along the way, out of this item's own scope (Java/pom.xml/README
-only) — proposed for `improvement-133`'s deferred-findings bucket, not yet added:**
+only) — added to `improvement-133`'s deferred-findings bucket as entries 18-22 (2026-09-09; this
+note itself had gone stale saying "not yet added" — corrected 2026-09-12):**
 - `.claude/rules/{advertisement,audit,user,attachment}-spring-boot-starter.md` all still point
   readers at their README's old "Key classes" table, now gone after the regenerate — stale
-  cross-references in 4 files.
+  cross-references in 4 files. Still open — `improvement-133` entry 18.
 - 2 Liquibase changelogs missing their mandatory file-level header: `taxon-changelog/master.xml`,
-  `audit-changelog-master.xml` (+ `audit-spring-boot-starter/changes/01-audit-schema.xml`).
+  `audit-changelog-master.xml` (+ `audit-spring-boot-starter/changes/01-audit-schema.xml`). Still
+  open — `improvement-133` entry 19.
 - `provider-profile-spring-boot-starter`'s Liquibase `remarks=` on `provider_profile` states
   category assignments are written by this starter's own service — factually wrong, actually
-  written by `marketplace-orchestrator`'s `TaxonAssignmentWriteService`.
+  written by `marketplace-orchestrator`'s `TaxonAssignmentWriteService`. **Resolved as a side effect
+  of item 13's own schema edit (2026-09-12)** — the `remarks=` text now correctly attributes both
+  category and city assignment writes to `marketplace-orchestrator`; the `improvement-133` entry
+  for this (was entry 20) has been removed, remaining entries renumbered down by one.
 - `attachment-spring-boot-starter/pom.xml` declares `query-lib` and `jackson-datatype-jsr310` as
-  dependencies with zero references anywhere in that module's source — likely dead.
+  dependencies with zero references anywhere in that module's source — likely dead. Still open —
+  `improvement-133` entry 20 (was 21).
 - Trimmed rationale with no existing `DECISIONS.md` entry to route to: DB-commit-before-S3-delete
   ordering and array-bind-vs-`IN(:list)` in `attachment-spring-boot-starter`'s `AttachmentRepository`/
   `AttachmentCleanupService` (comments trimmed per the ticket-number ban, original rationale not
-  yet preserved anywhere).
+  yet preserved anywhere). Still open — `improvement-133` entry 21 (was 22).
 
 ## 12. Drop filter/sort/pagination for Taxon end-to-end — REST parity with UI was applied mechanically, UI never had any of it — ✅ Done (2026-09-11)
 
@@ -761,7 +761,7 @@ this change doesn't introduce a new pattern, just makes the existing one try a c
 - solid-reviewer | survived=0 | total_candidates=0 | tokens=n/a
 - precedent-reviewer | survived=0 | total_candidates=1 | tokens=n/a
 
-## 13. City becomes list-based, assignment-backed (`taxon_assignment`), symmetric across Advertisement and ProviderProfile
+## 13. Provider profile city unified to `taxon_assignment` storage, matching Advertisement — ✅ Done (2026-09-12)
 
 **Current state (2026-09-05):** `provider_profile.city_taxon_id` is a plain nullable scalar column
 (not a `taxon_assignment` row), a deliberate ADR decision (`platform-commons/DECISIONS.md`) on the
@@ -774,44 +774,206 @@ crashed on a null-key map lookup for any profile with no city — the null-key l
 *because* city needed its own separate batch-resolution path distinct from the assignment-based
 category lookup Advertisement already reuses for its own city).
 
-**Decision:** unify on the assignment-based model for both domains, and expose city as a **list**
-(`cityTaxonIds`/`cityNames`, mirroring `categoryIds`/`categoryNames`) rather than a single
-scalar everywhere it's read or written — even though exactly one city is written in practice today
-— so that scaling to more than one city later needs no schema/DTO shape change, only a UI/validation
-change. Since the app has no production data yet, drop `provider_profile.city_taxon_id` by editing
-the original `01-provider-profile-schema.xml` changeset directly (no new migration changeset).
+**Decision, revised (2026-09-12, superseding the 2026-09-05 "expose as a list everywhere" framing
+above) — scope narrowed to exactly "symmetric to Advertisement," nothing more:** Advertisement's
+city already lives in `taxon_assignment` (same mechanism as categories); its DTOs still expose it
+as a single scalar (`Long cityTaxonId`/`String cityName`, taking the first assigned city). The user
+explicitly chose to bring ProviderProfile's *storage mechanism* in line with Advertisement's
+existing mechanism — drop the `city_taxon_id` column, write/read city via `taxon_assignment` — while
+leaving every DTO, REST contract, and UI field **scalar**, exactly matching Advertisement's own
+current shape. Advertisement itself is **not touched** — no list conversion anywhere, for either
+domain. The list-shaped (`cityTaxonIds`/`cityNames`) idea from the original 2026-09-05 decision is
+explicitly deferred to whenever multiple cities per listing actually becomes a real requirement —
+noted here so a future pass doesn't need to rediscover it.
 
-**Scope (26 main-source files across 6 modules):**
-- **Schema:** `provider-profile-spring-boot-starter/src/main/resources/db/provider-profile-changelog/changes/01-provider-profile-schema.xml`
-  — remove the `city_taxon_id` column entirely.
-- **provider-profile-spring-boot-starter:** `ProviderProfile` entity (drop field), `ProviderProfileRepository`
-  (drop city from SQL/row-mapper/filter, query-time city filter becomes an id-set resolved via
-  `TaxonPort` the same way `resolveCategoryFilter` already does for categories), `ProviderProfileService`
-  (drop city from `buildEntity`; city assignment writing moves to `marketplace-orchestrator`'s
-  `ProviderProfileSaveService`, matching how category assignment writing already lives there, not
-  in this starter).
-- **platform-commons:** `ProviderProfileDto`/`ProviderProfileSaveDto`/`ProviderProfileFilterDto`/
-  `ProviderProfileSnapshotDto` and, symmetrically, `AdvertisementInfoDto`/`AdvertisementSaveDto`/
-  `AdvertisementFilterDto`/`AdvertisementSnapshotDto` — `Long cityTaxonId`/`String cityName` →
-  `Set<Long> cityTaxonIds`/`List<String> cityNames` in every one of the 8 DTOs.
-- **marketplace-orchestrator:** `ProviderProfileDisplayEnrichmentService` rewritten to the same
-  assignment-scan pattern `AdvertisementDisplayEnrichmentService` already uses (collecting every
-  `TaxonType.CITY` entry into a list instead of a single null-prone lookup — this also removes the
-  NPE's root cause entirely, no separate null-guard needed); `ProviderProfileSaveService` writes
-  city via `TaxonAssignmentWriteService`, same call already used for categories;
-  `AdvertisementDisplayEnrichmentService`/`AdvertisementSaveService`/`AdvertisementAuditEnrichService`
-  updated from "first city found" to "every city found."
-- **marketplace-rest-api:** `AdvertisementApiController`/`ProviderProfileApiController` — query
-  param `cityTaxonId` → `cityTaxonIds`.
-- **marketplace-app:** `AdvertisementEditDto`/`ProviderProfileEditDto` (city field becomes a set),
-  both `*FormOverlayModeHandler`s (city `ComboBox` → `MultiSelectComboBox`, mirroring the existing
-  category field), both `*CardView`s (city rendered as a chip list, mirroring categories),
-  both `*FilterMeta`s (query-bar city filter becomes multi-select), `ProviderProfileViewModeHandler`,
-  `AuditTimelineRowRenderer` (city audit-diff label/rendering for a list instead of a scalar).
+**Scope (much smaller than the original 26-file estimate — no `platform-commons` DTO changes, no
+REST contract change, no UI combo-box conversion; only `provider-profile-spring-boot-starter` +
+`marketplace-orchestrator`'s Provider-side services + one UI cleanup):**
 
-**Not yet started** — large enough in scope (26 files, 6 modules) to warrant its own focused
-implementation pass with tests (unit + integration + Playwright) rather than folding into an
-unrelated bug-fix; pick up as its own scheduled unit of work.
+**1. Schema** — `provider-profile-spring-boot-starter/.../01-provider-profile-schema.xml`: remove
+the `city_taxon_id` `<column>` entirely (edit the existing changeset in place, no new migration,
+same no-production-data convention item 15 already used).
+
+**2. `platform-commons`:** **no changes.** `ProviderProfileDto`/`SaveDto`/`FilterDto`/`SnapshotDto`
+already carry `Long cityTaxonId`/`String cityName` — already the exact scalar shape Advertisement's
+own DTOs use. `AdvertisementInfoDto`/`SaveDto`/`FilterDto`/`SnapshotDto` are untouched.
+
+**3. `provider-profile-spring-boot-starter`:**
+- `ProviderProfile` entity: drop the `cityTaxonId` field (no longer a column).
+- `ProviderProfileRepository`: drop `city_taxon_id` from `ROW_MAPPER`/`SELECT`/`FILTER` entirely —
+  no SQL replacement needed; city filtering moves to the same id-set-via-`TaxonPort` mechanism
+  `categoryIds` filtering already uses (the existing `buildIdClause(allowedIds)` AND-by-id mechanism
+  covers it with no repository change).
+- `ProviderProfileService`: add `resolveCityFilter(filter)` (wraps `filter.getCityTaxonId()` into
+  `Set.of(id)` when non-null, `Optional.empty()` otherwise) and `resolveCategoryAndCityFilter`
+  (intersects the two resolved id-sets) — copied 1:1 from `AdvertisementService`'s existing pattern.
+  `getFiltered`/`count` switch to the combined resolver. `buildEntity()` drops `.cityTaxonId(...)`.
+
+**4. `marketplace-orchestrator`:**
+- `ProviderProfileDisplayEnrichmentService`: rewritten to mirror
+  `AdvertisementDisplayEnrichmentService.applyCategoryAndCityData` exactly — the single
+  `getForEntity`/`getForEntities` call (already fetching category assignments) also picks out the
+  first `TaxonType.CITY` entry, exactly as Advertisement already does. Deletes `findCities()` and
+  the null-key-prone scalar city batch-lookup entirely — this is what actually removes the NPE root
+  cause this whole item started from.
+- `ProviderProfileSaveService.save()`: unions `categoryIds` and the single `cityTaxonId` into one
+  set before `taxonAssignmentWriteService.replace(EntityType.PROVIDER_PROFILE, id, ...)`, using the
+  exact same nullable-single-id union `AdvertisementSaveService.unionAssignmentIds(Set<Long>
+  catIds, Long cityId)` already implements. **DRY note, apply during implementation:** since both
+  save services now need the literal same `unionAssignmentIds(Set<Long>, Long)` logic, hoist it into
+  `TaxonAssignmentWriteService` as a shared static/instance helper instead of duplicating it a
+  second time — per the standing "surface adjacent quality issues" rule.
+- `AdvertisementSaveService`/`AdvertisementDisplayEnrichmentService`/`AdvertisementAuditEnrichService`:
+  **no changes** (Advertisement is out of scope).
+
+**5. `marketplace-rest-api`:** **no changes.** `ProviderProfileApiController`'s
+`ProviderProfileWriteRequest.cityTaxonId` stays `Long`; `create()`/`update()`/Swagger examples are
+already correct for a scalar city and need no edits.
+
+**6. `marketplace-app`:**
+- `ProviderProfileEditDto`, `ProviderProfileFormOverlayModeHandler` (`cityComboBox` stays a
+  single-select `ComboBox<TaxonDto>`), `ProviderProfileCardView.createCityLine()`,
+  `ProviderProfileFilterMeta.CITY_TAXON_ID`, `ProviderProfileQueryBlock`'s `cityField`,
+  `ProviderProfileViewModeHandler.buildProfileCard()`, `AuditTimelineRowRenderer`'s
+  `ProviderProfileSnapshotDto.Fields.cityTaxonId` case: **no changes** — all already operate on the
+  scalar `cityTaxonId`/`cityName` that stays exactly as-is; enrichment continues to populate
+  `cityName` the same way, just sourced from the rewritten assignment-scan in step 4 instead of the
+  deleted `findCities()` lookup.
+- `ProviderProfileCatalogViewModeHandler.buildPrimaryContent()`: **the one real UI cleanup.** Now
+  that city is a real `taxon_assignment` row fetched by the same `taxonLookupService.getForEntity(...)`
+  call already used for categories, delete the bespoke `buildCityRow()` method and the now-false
+  "city is a scalar column... absent from getForEntity()" comment; call the existing generic
+  `buildChipRow(textCard, taxons, TaxonType.CITY, "provider-profile-city-chips",
+  "provider-profile-city-chip", ...)` right after the categories row, exactly mirroring
+  `AdvertisementViewOverlayModeHandler`'s own two-call shape. This is the real, assignment-based fix
+  for the item-10-documented city-rendering bug, replacing the scalar-based patch applied there.
+- Advertisement-side UI: **no changes.**
+
+**7. Tests:**
+- `ProviderProfileRepositoryTest.findByFilter_cityTaxonIdFilter_returnsOnlyMatchingRows` — deleted
+  (its premise, a `city_taxon_id` column, no longer exists at the repository level; same precedent
+  item 12 already set for a removed-column test). Equivalent coverage continues via the existing
+  Level 3 `ProviderProfilePaginationScenarioTest.filterByCategoryIdsAndCityTaxonId_returnsOnlyMatching`,
+  which needs **no change** since the REST contract is unchanged.
+- `ProviderProfileSaveServiceTest.save_newProfile_capturesCreationNotUpdate`: currently asserts
+  `verify(taxonAssignmentWriteService).replace(EntityType.PROVIDER_PROFILE, 100L, Set.of(1L, 2L))`
+  with no city id — update to `Set.of(1L, 2L, 5L)` (the dto's `cityTaxonId = 5L` must now be unioned
+  in). Check the other test methods in this class for the same gap.
+- New unit coverage: `ProviderProfileServiceTest`/an integration test proving the new
+  `resolveCityFilter`/`resolveCategoryAndCityFilter` path works end-to-end (mirrors however
+  Advertisement's own city filter is already tested).
+- New `ProviderProfileDisplayEnrichmentServiceTest` coverage (or extend existing) proving a profile
+  with **no** assigned city no longer throws (the actual regression test for the NPE this item
+  exists to fix) and a profile **with** a city resolves its name correctly via the rewritten
+  assignment-scan path.
+- Playwright: no functional change expected (DTO/API/UI contract for Provider city is unchanged) —
+  re-run the existing Provider Profile flows to confirm the `ProviderProfileCatalogViewModeHandler`
+  cleanup renders identically, and specifically exercise the "no city" case to confirm the fixed NPE
+  path (a profile with no city rendering cleanly is exactly what was crashing before).
+
+**8. Docs/ADR:**
+- New `platform-commons/DECISIONS.md` ADR via `/record-decision`, annotating the existing "a
+  provider has exactly one city, so a scalar column is the simpler shape" entry: the *scalar city*
+  decision stands (still true), but the *storage mechanism* (plain column vs. `taxon_assignment`)
+  is reversed to match Advertisement — note this precisely, since it's a narrower reversal than the
+  original 2026-09-05 framing above suggested.
+- `.claude/rules/provider-profile-spring-boot-starter.md`: remove the now-false
+  "`provider_profile.city_taxon_id` is a plain column..." bullet.
+- Regenerate `.claude/nav/adr-index.md` in the same operation (standing rule).
+- `provider-profile-spring-boot-starter/README.md`: checked and corrected during implementation if
+  it documents `city_taxon_id` as a column.
+
+**9. Verification:** schema changed → `deploy-and-run.sh --reset` (full DB/MinIO wipe, not just
+`--reset-only-db`) before Playwright. `scripts/ci.sh --sonar` first (autopilot step 4a), `sync-docs`
++ the `DECISIONS.md` ADR before triggering the full run (step 4b/4c — both finished before `ci.sh`
+starts, since it snapshots the source tree at trigger time), then the full `scripts/ci.sh`
+(unit → integration → e2e → sonar → archunit → docs) plus `playwright.sh e2e --full --ux`.
+
+**10. Issue lifecycle:** once verified, mark this item (13) done in place with implementation notes,
+matching the style of items 1-12/14-26 — the parent `improvement-183` issue file itself stays open
+(item 9 remains unstarted).
+
+**Implemented exactly per the plan above (2026-09-12).** All 3 platform-commons DTO types
+(`ProviderProfileDto`/`SaveDto`/`FilterDto`/`SnapshotDto`) confirmed untouched; Advertisement-side
+code confirmed untouched except the shared-helper extractions below. One real quality finding
+surfaced and fixed along the way, beyond the plan's own scope:
+
+- `deep-review-orchestrator` (DRY/KISS/YAGNI + SOLID + precedent lenses) flagged two medium-
+  confidence findings, both applied:
+  1. `ProviderProfileDisplayEnrichmentService.applyCategoryAndCityData` had become structurally
+     identical to `AdvertisementDisplayEnrichmentService`'s own method of the same name once both
+     derived city from the same assignment-scan — extracted into a new shared
+     `CategoryAndCitySplit` record (`marketplace-orchestrator/services`, package-private, with its
+     own `CategoryAndCitySplitTest`), the read-side counterpart to `TaxonAssignmentWriteService
+     .unionAssignmentIds` on the write side.
+  2. The new `ProviderProfileDisplayEnrichmentServiceTest` class Javadoc violated the "one line or
+     none" comment rule (a 7-line background narrative) — trimmed to one line pointing at
+     `.claude/nav/adr-index.md` instead.
+- Also found and fixed, unrelated to this item's own scope but caught while running `/ci`:
+  `.claude/commands/ci.md` still named the retired `scripts/ci/watch-run.py` (renamed to
+  `dagu-rest-run-monitor.py` in an earlier session, per item 17 above) — `scripts/ci/README.md` had
+  already been updated at the time of that rename, this one command file was missed. Fixed.
+
+**Verified (2026-09-12):**
+- Unit: `build-and-test.sh --unit --no-integration --skip-vaadin` — 273/273 passing (two runs, one
+  before and one after the DRY-extraction fix), including the new `TaxonAssignmentWriteServiceTest`
+  (4/4), `CategoryAndCitySplitTest` (3/3), `ProviderProfileDisplayEnrichmentServiceTest` (2/2, the
+  actual NPE regression test), and `ProviderProfileSaveServiceTest`'s updated assignment-union
+  assertion (11/11).
+- Integration (real Postgres): `ProviderProfileRepositoryTest` (14/14, including the deleted
+  column-based city filter test) and `ProviderProfileServiceTest` (9/9, including the two new
+  `resolveCityFilter`/`resolveCategoryAndCityFilter` tests) — 23/23.
+- `/sonar`: quality gate `PASSED`; `sonar-analyst` confirmed zero new BUG/CRITICAL/BLOCKER-severity
+  issues.
+- `/ci` (full `unit`+`integration`+`e2e`+`sonar`+`archunit_metrics`+`docs`, `--reset-e2e-db` since
+  the schema column was dropped): first run hit two infrastructure-level failures unrelated to this
+  change — `sonar`'s post-scan HTML-report container had already exited by the time the report-copy
+  step ran (the scan and quality gate themselves had already passed), and `e2e` was killed by an
+  external `SIGKILL`/exit 137 after 30 of 63 specs had already passed with no failing assertion
+  (matches an already-documented, previously unexplained external-kill phenomenon in
+  `scripts/ci/DECISIONS.md`). Retried only the two affected stages (`--sonar --e2e
+  --reset-e2e-db`) once the earlier run's parallel resource pressure had cleared — both passed:
+  `RUN succeeded`, 63/63 Playwright specs green (including `04-provider-profile-flow.spec.js`),
+  Sonar quality gate `OK`.
+
+**Not touched, confirmed by design:** `platform-commons` DTOs, `marketplace-rest-api`'s
+`ProviderProfileWriteRequest`/query-param contract, every Advertisement-side DTO/UI/REST class, and
+Playwright's Provider Profile flows (no functional UI change) — all exactly as scoped in the
+approved plan.
+
+## Operational notes (item 13)
+- token_cost_review: 102257 (deep-review-orchestrator dispatch)
+- token_cost_research: 143123 (two dagu-analyst dispatches root-causing the sonar/e2e CI-infra failures)
+- token_cost_verification: 39104 (sonar-analyst bug check after the sonar scan)
+- review_signal_ratio: 2/2 (dry-kiss-yagni-reviewer + precedent-reviewer each raised one real, medium-confidence finding routed to "needs human review"; both independently confirmed and applied; solid-reviewer raised zero)
+- context_loading_task_type: Architectural change (new SPI, new `*Port`/`*Hook`, schema change touching ownership/FKs) — closest row for a `provider_profile` schema change
+- context_loading_consulted: no
+- context_loading_matched: n/a (not consulted; relevant `.claude/rules/*.md`/`DECISIONS.md` files were read directly instead)
+- flows_situation: full CI-equivalent pass (unit+integration+e2e+sonar+archunit+docs); separately, a static-analysis/quality-gate-only check
+- flows_chosen: `/ci` skill and `/sonar` skill (both, correctly — corrected mid-plan-writing from an initial draft that named raw `scripts/ci.sh --sonar`, per this same file's own item-12 lesson)
+- flows_matched: yes
+
+### Agent calls
+- Code review of item 13 city-storage fix | subagent_type=deep-review-orchestrator | tokens=102257 | tool_uses=25 | duration_s=480 | mode=background | batch=solo
+- SonarQube bug check | subagent_type=sonar-analyst | tokens=39104 | tool_uses=3 | duration_s=46 | mode=background | batch=solo
+- Diagnose sonar step failure in CI run | subagent_type=dagu-analyst | tokens=69584 | tool_uses=6 | duration_s=72 | mode=background | batch=solo
+- Diagnose e2e step failure in CI run | subagent_type=dagu-analyst | tokens=73539 | tool_uses=17 | duration_s=133 | mode=background | batch=solo
+
+### Script/command runs
+- bash scripts/build-and-test.sh --unit --no-integration --skip-vaadin (1st, before DRY fix) | duration_s=166 | mode=background | result=pass (273 tests)
+- bash scripts/build-and-test.sh --no-unit --integration --integration-test "ProviderProfileRepositoryTest,ProviderProfileServiceTest" | duration_s=182 | mode=background | result=pass (23 tests)
+- bash scripts/build-and-test.sh --unit --no-integration --skip-vaadin (2nd, after DRY fix) | duration_s=123 | mode=background | result=pass (273 tests, incl. 2 new test classes)
+- bash scripts/sonar.sh (via `/sonar`) | duration_s=324 | mode=foreground | result=pass (quality gate OK, 0 new BUG/CRITICAL)
+- bash docs/architecture/scripts/generate-architecture-model.sh (via `/sync-docs`) | duration_s=8 | mode=foreground | result=pass
+- bash .claude/nav/scripts/generate-adr-index.sh (after ADR-031) | duration_s=1 | mode=foreground | result=pass
+- bash scripts/ci.sh --reset-e2e-db (full run, via `/ci`) | duration_s=~1390 | mode=background | result=partially_succeeded (unit/integration/build/archunit_metrics/pipeline_metrics/docs passed; sonar and e2e hit unrelated CI-infra flakes, see below)
+- bash scripts/ci.sh --sonar --e2e --reset-e2e-db (retry, via `/ci`) | duration_s=~1280 | mode=background | result=pass (RUN succeeded — sonar quality gate OK, 63/63 Playwright specs green)
+- bash scripts/ci/run.sh --sync-artifacts | duration_s=50 | mode=foreground | result=pass
+
+### Review angle yield
+- dry-kiss-yagni-reviewer | survived=1 | total_candidates=1 | tokens=n/a
+- solid-reviewer | survived=0 | total_candidates=0 | tokens=n/a
+- precedent-reviewer | survived=1 | total_candidates=1 | tokens=n/a
 
 ## 14. `OrderByBuilder.build()` never appends a stable tiebreaker — paginated results non-deterministic on ties — ✅ Done (2026-09-09)
 
@@ -1706,6 +1868,48 @@ correlated count `b.id <= a.id`, `getLastSnapshot`'s `ORDER BY id DESC LIMIT 1`.
 against the live CI database above. **Verified (2026-09-11):**
 `build-and-test.sh --integration --integration-test AuditLogRepositoryTest` — 8/8 tests passing,
 0 failures, new reversal test included.
+
+## 27. Playwright `e2e --full --ux` failed on a standalone `deploy-and-run.sh --reset-only-db` + `playwright.sh` run — root cause not yet investigated
+
+**Reported (2026-09-12):** user ran `bash scripts/activity-monitor.sh -- bash scripts/deploy-and-run.sh
+--reset-only-db` then `bash scripts/activity-monitor.sh -- bash scripts/playwright.sh e2e --full --ux`
+in their own environment; the activity-monitor tree showed:
+```
+❌ Playwright run (3m23s) — Playwright run failed (exit 1) -- one or more tests did not pass, not retryable as-is.
+   details: /tmp/activity-monitor/playwright.sh/raw.log
+```
+**Blocked on the log itself:** `/tmp/activity-monitor/playwright.sh/raw.log` in this session's own
+environment is stale (dated 2026-09-11, a full day before the report), and the actual most-recent
+real run this session could find (`scripts/logs/playwright/run.log`, `pw-report/index.html`
+regenerated 2026-09-12 10:06) shows all 63 tests passing, 9.9m, no failures — so the failing run's
+own `raw.log` is not visible from this session's filesystem. The user's run and this session's own
+tool calls are evidently not sharing the same `/tmp` (different container/environment) — needs the
+actual `raw.log` content (or at minimum the failing spec name + error/stack trace) pasted in before
+this can be root-caused.
+
+**Ask:** find out why `e2e --full --ux` failed on a fresh `--reset-only-db` deploy, after this same
+session's own two full `scripts/ci.sh` e2e runs (unrelated infra: isolated `ci-*` containers, not
+the normal dev stack) both passed 63/63 earlier the same day.
+
+## 28. Activity-monitor: show live per-test pass/fail for a standalone `playwright.sh` run, not just one coarse step — feasibility confirmed, not yet designed/implemented
+
+**Asked (2026-09-12):** when running `playwright.sh` directly (not via `ci.sh`'s own Dagu-based e2e
+stage — that mechanism is untouched by this ask), the activity-monitor tree currently shows a
+single coarse step ("⏳ Playwright run (running Xs)") for the whole suite, with no visibility into
+which individual tests have passed/failed while it's still running.
+
+**Feasibility (confirmed, not yet designed):** Playwright's own list reporter already prints one
+line per completed test (`✓`/`✗` + test name) directly to stdout in real time — the same stream
+`scripts/activity-monitor.sh` already tails into `raw.log` for its generic
+`AGENTIC_SUCCESS_BLOCK`/`AGENTIC_ERROR_BLOCK` marker parsing. A Playwright-specific rendering mode
+in `scripts/activity-monitor/run.sh` could tail `raw.log`, count `✓`/`✗` occurrences live, and
+render a running tally (e.g. "⏳ 42/63 passed, 1 failed: <test name>") in place of the current
+single-step elapsed-timer view — scoped only to a direct `activity-monitor.sh -- playwright.sh`
+invocation, no change to `ci.sh`'s own separate e2e monitoring path
+(`dagu-rest-run-monitor.py`/Dagu UI).
+
+**Not designed or implemented yet** — explicitly deferred at the user's own request ("поки дай
+відповідь", 2026-09-12) pending a dedicated pass.
 
 - [improvement-073](../completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) —
   REST API infrastructure (API-key auth, Swagger, apikey/rest-api modules) this whole batch follows

@@ -158,6 +158,10 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
 | ADR-004 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `*Hook` implementations that only need domain-port access move here; `pom.xml` gains all 6 starter dependencies directly, superseding ADR-001's "never depends on a starter jar" |
 | ADR-005 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern |
+| ADR-031 (platform-commons) | platform-commons | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
+| ADR-031 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
+| ADR-031 (platform-commons) | marketplace-orchestrator | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
+| ADR-031 (platform-commons) | marketplace-app | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
 | ADR-001 (platform-commons) | platform-commons | Accepted |  | Package restructure — core / audit / attachment / user / advertisement |
 | ADR-002 (platform-commons) | platform-commons | Accepted |  | Package semantics — api vs spi vs dto |
 | ADR-003 (platform-commons) | platform-commons | Accepted |  | SPI naming convention — Port and Hook suffixes |
@@ -178,8 +182,8 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-025 (platform-commons) | platform-commons | Accepted |  | Batch G governance cleanup — DTO boundary, Hook→Port rename |
 | ADR-026 (platform-commons) | platform-commons | Accepted |  | One starter, multiple `*Port` interfaces — `UserPort` split into 4 |
 | ADR-026 (platform-commons) | user-spring-boot-starter | Accepted |  | One starter, multiple `*Port` interfaces — `UserPort` split into 4 |
-| ADR-027 (platform-commons) | platform-commons | Accepted |  | `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter` |
-| ADR-027 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter` |
+| ADR-027 (platform-commons) | platform-commons | Accepted (the `city_taxon_id`-is-a-plain-column portion reversed by ADR-031; every other divergence below remains Accepted) |  | `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter` |
+| ADR-027 (platform-commons) | provider-profile-spring-boot-starter | Accepted (the `city_taxon_id`-is-a-plain-column portion reversed by ADR-031; every other divergence below remains Accepted) |  | `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter` |
 | ADR-028 (platform-commons) | platform-commons | Accepted |  | `AdvertisementPort`/`ProviderProfilePort` drop `Locale` from `getFiltered`/`findById`/`findByActorId` |
 | ADR-029 (platform-commons) | platform-commons | Accepted |  | `UiLabelHook`/`SessionActorHook` forwarder SPIs do not live in `platform-commons` |
 | ADR-030 (platform-commons) | platform-commons | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |

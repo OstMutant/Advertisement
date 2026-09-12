@@ -22,7 +22,14 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   reused by every domain's own display-enrichment step. Return raw `TaxonDto`/`UserDto` data —
   domain-specific field mapping stays in the calling class.
 - `TaxonAssignmentWriteService` — shared `TaxonPort.replaceAssignments()` write, reused by every
-  domain's save/delete path.
+  domain's save/delete path; also exposes the static `unionAssignmentIds(Set<Long>, Long)` helper
+  (union a nullable single city id into a category-id set before one `replace()` call, since
+  `replaceAssignments()` diff-replaces every taxon type for the entity at once), reused by both
+  `AdvertisementSaveService` and `ProviderProfileSaveService`.
+- `CategoryAndCitySplit` (package-private record) — splits one entity's assigned-taxon list into
+  category ids/names and its first assigned city, shared by `AdvertisementDisplayEnrichmentService`
+  and `ProviderProfileDisplayEnrichmentService`'s own `applyCategoryAndCityData`, since both domains
+  fold the exact same `TaxonType.CATEGORY`/`TaxonType.CITY` split into their own DTO's builder.
 - `AttachmentSnapshotReaderService` / `AttachmentSoftDeleteService` — shared read-only snapshot
   lookup and soft-delete-cascade write against `AttachmentPort`.
 - `AdvertisementDisplayEnrichmentService` — assembles `AdvertisementInfoDto`'s display-only fields
@@ -38,8 +45,9 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
 - `ProviderProfileDisplayEnrichmentService` — the ProviderProfile equivalent of the Advertisement
   enrichment service (category/city/actor only — no attachments).
 - `ProviderProfileSaveService` — the ProviderProfile equivalent of `AdvertisementSaveService`:
-  write + category assignment (via `TaxonAssignmentWriteService`) + audit capture, one
-  `TransactionTemplate`-bounded unit. `save(dto, targetUserId, actorId, actorIsPrivileged)` takes
+  write + category/city assignment (via `TaxonAssignmentWriteService.unionAssignmentIds` +
+  `TaxonAssignmentWriteService`) + audit capture, one `TransactionTemplate`-bounded unit.
+  `save(dto, targetUserId, actorId, actorIsPrivileged)` takes
   two distinct identity parameters — `targetUserId` (whose profile this is, forwarded to
   `ProviderProfilePort.save()` as the row owner) and `actorId` (who performed the save, audit-only)
   — since an admin/moderator editing another user's profile makes the two diverge. No attachment

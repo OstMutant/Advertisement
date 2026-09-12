@@ -10,7 +10,7 @@
 
         <!-- ── provider_profile ────────────────────────────────────────────── -->
         <createTable tableName="provider_profile"
-                      remarks="Row created lazily, only on first 'become a provider' save -- never eagerly at registration. delete() is a real DELETE, no soft-delete columns, no restore concept. Category assignments (many-to-many) go through TaxonPort.replaceAssignments(), written directly by this starter's own service.">
+                      remarks="Row created lazily, only on first 'become a provider' save -- never eagerly at registration. delete() is a real DELETE, no soft-delete columns, no restore concept. Category and city assignments both go through TaxonPort.replaceAssignments() (taxon_assignment rows), written by marketplace-orchestrator's ProviderProfileSaveService, not this starter's own service.">
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -21,7 +21,6 @@
                 <constraints nullable="false"/>
             </column>
             <column name="about" type="VARCHAR(20000)" remarks="Sanitized HTML (OWASP HTML Sanitizer)"/>
-            <column name="city_taxon_id" type="BIGINT" remarks="Plain column, not a taxon_assignment row -- a provider has exactly one city. References taxon(id), no FK"/>
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Creation timestamp">
                 <constraints nullable="false"/>
             </column>

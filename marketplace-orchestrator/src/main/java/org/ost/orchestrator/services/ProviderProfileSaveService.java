@@ -21,7 +21,7 @@ import java.util.Set;
 
 /**
  * Application-level use case: save/delete a provider profile in one transaction, including its
- * category assignment, audit capture, and owner-or-privileged authorization. 2 direct domain
+ * category/city assignment, audit capture, and owner-or-privileged authorization. 2 direct domain
  * ports (ProviderProfile + Audit) plus the shared {@link TaxonAssignmentWriteService} collaborator
  * -- see marketplace-orchestrator/CLAUDE.md's "≤2 domain *Port types per class" constraint.
  */
@@ -59,7 +59,8 @@ public class ProviderProfileSaveService {
             }
 
             Set<Long> catIds = dto.categoryIds() != null ? dto.categoryIds() : Set.of();
-            taxonAssignmentWriteService.replace(EntityType.PROVIDER_PROFILE, id, catIds);
+            taxonAssignmentWriteService.replace(EntityType.PROVIDER_PROFILE, id,
+                    TaxonAssignmentWriteService.unionAssignmentIds(catIds, dto.cityTaxonId()));
 
             ProviderProfileDto saved = displayEnrichmentService.enrichWithCategoryAndCity(
                     providerProfilePortFactory.get().findById(id).orElseThrow(), currentLocaleHook.getCurrentLocale());

@@ -349,17 +349,7 @@ outside item 11's approved scope (Java/pom.xml/README.md only), not because the 
 change file is settled — `module-doc-standards` itself flags the change-file header shape as "not
 yet designed."
 
-### 20. `provider_profile`'s Liquibase `remarks=` wrongly claims this starter writes category assignments (found during improvement-183 item 11, 2026-09-09)
-
-The changelog's `remarks=` text on `provider_profile` (`db/provider-profile-changelog/changes/
-01-provider-profile-schema.xml`) states category assignments are written directly by this starter's
-own service. Actually false — `marketplace-orchestrator`'s `ProviderProfileSaveService`/
-`TaxonAssignmentWriteService` writes them; `provider-profile-spring-boot-starter` only resolves them
-read-only for query-time filtering. Root `CLAUDE.md` treats `remarks=` as the single source of truth
-for a column's business meaning, so this is a real factual bug in living documentation, not just
-staleness — deferred only because Liquibase changelogs were outside item 11's approved scope.
-
-### 21. `attachment-spring-boot-starter/pom.xml` declares two dependencies with zero real references (found during improvement-183 item 11, 2026-09-09)
+### 20. `attachment-spring-boot-starter/pom.xml` declares two dependencies with zero real references (found during improvement-183 item 11, 2026-09-09)
 
 `query-lib` and `jackson-datatype-jsr310` are both declared as dependencies in this module's
 `pom.xml` but neither is imported or used anywhere in `attachment-spring-boot-starter/src`. Likely
@@ -367,7 +357,7 @@ dead — needs a grep-confirmed removal pass (same shape as `query-lib/pom.xml`'
 cleanup earlier this session), deferred only because it wasn't part of item 11's approved
 Java/pom.xml-comment/README scope (this is a dependency-removal, not a comment fix).
 
-### 22. Trimmed rationale in `attachment-spring-boot-starter` has no `DECISIONS.md` entry to route to (found during improvement-183 item 11, 2026-09-09)
+### 21. Trimmed rationale in `attachment-spring-boot-starter` has no `DECISIONS.md` entry to route to (found during improvement-183 item 11, 2026-09-09)
 
 Two inline comments were trimmed during item 11's Javadoc/comment pass per the repo's ticket-number
 ban (`AttachmentCleanupService.cleanup()`'s Javadoc cited `improvement-049 item 4`;

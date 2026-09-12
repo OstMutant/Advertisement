@@ -40,7 +40,6 @@ public class ProviderProfileRepository {
                 .actorId(rs.getObject("actor_id", Long.class))
                 .kind(ProviderKind.valueOf(rs.getString("kind")))
                 .about(rs.getString("about"))
-                .cityTaxonId(rs.getObject("city_taxon_id", Long.class))
                 .createdAt(createdAt != null ? createdAt.toInstant() : null)
                 .updatedAt(updatedAt != null ? updatedAt.toInstant() : null)
                 .version(rs.getObject("version", Long.class))
@@ -52,12 +51,11 @@ public class ProviderProfileRepository {
             SqlBoundFilter.of(createdAtStart, "pp.created_at",    (m, v) -> after(m, v.getCreatedAtStart())),
             SqlBoundFilter.of(createdAtEnd,   "pp.created_at",    (m, v) -> before(m, v.getCreatedAtEnd())),
             SqlBoundFilter.of(updatedAtStart, "pp.updated_at",    (m, v) -> after(m, v.getUpdatedAtStart())),
-            SqlBoundFilter.of(updatedAtEnd,   "pp.updated_at",    (m, v) -> before(m, v.getUpdatedAtEnd())),
-            SqlBoundFilter.of(cityTaxonId,    "pp.city_taxon_id", (m, v) -> equalsTo(m, v.getCityTaxonId()))
+            SqlBoundFilter.of(updatedAtEnd,   "pp.updated_at",    (m, v) -> before(m, v.getUpdatedAtEnd()))
     ));
 
     private static final String SELECT = """
-            SELECT pp.id, pp.actor_id, pp.kind, pp.about, pp.city_taxon_id, pp.created_at, pp.updated_at, pp.version
+            SELECT pp.id, pp.actor_id, pp.kind, pp.about, pp.created_at, pp.updated_at, pp.version
             FROM provider_profile pp
             """;
 

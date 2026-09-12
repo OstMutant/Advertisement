@@ -127,20 +127,6 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void findByFilter_cityTaxonIdFilter_returnsOnlyMatchingRows() {
-        ProviderProfile inCity = providerProfileRepository.save(ProviderProfile.builder()
-                .actorId(actorId).kind(ProviderKind.MASTER).cityTaxonId(7L).build());
-        providerProfileRepository.save(ProviderProfile.builder()
-                .actorId(newActor()).kind(ProviderKind.SHOP).cityTaxonId(8L).build());
-
-        List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
-                ProviderProfileFilterDto.builder().cityTaxonId(7L).build(),
-                PageRequest.of(0, 10), null);
-
-        assertThat(results).extracting(ProviderProfileDto::getId).containsExactly(inCity.getId());
-    }
-
-    @Test
     void findByFilter_emptyFilter_returnsAllRows() {
         save(actorId, ProviderKind.MASTER);
         save(newActor(), ProviderKind.SHOP);

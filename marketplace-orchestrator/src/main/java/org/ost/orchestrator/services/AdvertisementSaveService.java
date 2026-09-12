@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Application-level use case: save/delete an advertisement in one transaction, including its
@@ -67,7 +65,8 @@ public class AdvertisementSaveService {
 
             Set<Long> catIds = dto.categoryIds() != null ? dto.categoryIds() : Set.of();
             Long cityId = dto.cityTaxonId();
-            taxonAssignmentWriteService.replace(EntityType.ADVERTISEMENT, id, unionAssignmentIds(catIds, cityId));
+            taxonAssignmentWriteService.replace(EntityType.ADVERTISEMENT, id,
+                    TaxonAssignmentWriteService.unionAssignmentIds(catIds, cityId));
 
             // Last mutation before commit -- shrinks the window for a post-move rollback to orphan S3 files.
             EntityRef entityRef = new EntityRef(EntityType.ADVERTISEMENT, id);
@@ -87,13 +86,6 @@ public class AdvertisementSaveService {
         });
         sitemapService.invalidate();
         return savedId;
-    }
-
-    // replaceAssignments() diff-replaces ALL taxon types at once -- ids must be unioned into one call.
-    private static Set<Long> unionAssignmentIds(Set<Long> catIds, Long cityId) {
-        return cityId != null
-                ? Stream.concat(catIds.stream(), Stream.of(cityId)).collect(Collectors.toSet())
-                : catIds;
     }
 
     private static Long resolveAttachmentSnapshotId(Long gallerySnapshotId, AdvertisementSnapshotDto before) {

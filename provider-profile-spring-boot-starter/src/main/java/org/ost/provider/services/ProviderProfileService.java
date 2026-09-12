@@ -20,11 +20,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-/** CRUD for {@code provider_profile} -- does not write category assignments. */
+/** CRUD for {@code provider_profile} -- does not write category/city assignments. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -37,28 +38,47 @@ public class ProviderProfileService {
     // ── Query & filter ───────────────────────────────────────────────────────
 
     public List<ProviderProfileDto> getFiltered(@Valid @NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort) {
-        Optional<Set<Long>> categoryFilter = resolveCategoryFilter(filter);
-        if (categoryFilter.filter(Set::isEmpty).isPresent()) {
+        Optional<Set<Long>> taxonFilter = resolveCategoryAndCityFilter(filter);
+        if (taxonFilter.filter(Set::isEmpty).isPresent()) {
             return List.of();
         }
-        return repository.findByFilter(filter, PageRequest.of(page, size, sort), categoryFilter.orElse(null));
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort), taxonFilter.orElse(null));
     }
 
     public int count(@Valid @NonNull ProviderProfileFilterDto filter) {
-        Optional<Set<Long>> categoryFilter = resolveCategoryFilter(filter);
-        if (categoryFilter.filter(Set::isEmpty).isPresent()) {
+        Optional<Set<Long>> taxonFilter = resolveCategoryAndCityFilter(filter);
+        if (taxonFilter.filter(Set::isEmpty).isPresent()) {
             return 0;
         }
-        return repository.countByFilter(filter, categoryFilter.orElse(null)).intValue();
+        return repository.countByFilter(filter, taxonFilter.orElse(null)).intValue();
+    }
+
+    // AND-combines independently-resolved category/city constraints; empty() means no filter was requested.
+    private Optional<Set<Long>> resolveCategoryAndCityFilter(ProviderProfileFilterDto filter) {
+        Optional<Set<Long>> categoryConstraint = resolveCategoryFilter(filter);
+        Optional<Set<Long>> cityConstraint = resolveCityFilter(filter);
+        if (categoryConstraint.isEmpty()) return cityConstraint;
+        if (cityConstraint.isEmpty()) return categoryConstraint;
+        Set<Long> intersected = new HashSet<>(categoryConstraint.get());
+        intersected.retainAll(cityConstraint.get());
+        return Optional.of(intersected);
     }
 
     private Optional<Set<Long>> resolveCategoryFilter(ProviderProfileFilterDto filter) {
-        Set<Long> categoryIds = filter.getCategoryIds();
-        if (categoryIds == null) {
+        return resolveTaxonIdFilter(filter.getCategoryIds());
+    }
+
+    private Optional<Set<Long>> resolveCityFilter(ProviderProfileFilterDto filter) {
+        Long cityId = filter.getCityTaxonId();
+        return resolveTaxonIdFilter(cityId == null ? null : Set.of(cityId));
+    }
+
+    private Optional<Set<Long>> resolveTaxonIdFilter(Set<Long> taxonIds) {
+        if (taxonIds == null) {
             return Optional.empty();
         }
         return taxonPortFactory.findIfAvailable()
-                .map(p -> p.findEntityIdsWithAnyTaxon(EntityType.PROVIDER_PROFILE, categoryIds));
+                .map(p -> p.findEntityIdsWithAnyTaxon(EntityType.PROVIDER_PROFILE, taxonIds));
     }
 
     // ── CRUD ─────────────────────────────────────────────────────────────────
@@ -102,7 +122,6 @@ public class ProviderProfileService {
                 .actorId(before != null ? before.getActorId() : targetUserId)
                 .kind(dto.kind())
                 .about(HtmlSanitizer.sanitize(dto.about(), ProviderProfileSaveDto.ABOUT_MAX_LENGTH))
-                .cityTaxonId(dto.cityTaxonId())
                 .createdAt(before != null ? before.getCreatedAt() : null)
                 .version(dto.version())
                 .build();

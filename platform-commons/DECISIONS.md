@@ -2,6 +2,68 @@
 
 ---
 
+## ADR-031: Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list
+
+**Status:** Accepted
+
+**Also affects:** provider-profile-spring-boot-starter, marketplace-orchestrator, marketplace-app
+
+**Context:** ADR-027 gave `provider_profile` a plain `city_taxon_id` column, on the stated
+reasoning that "a provider has exactly one city, so a scalar column is the simpler, correct
+shape." `advertisement`'s own city, by contrast, was already stored as a `taxon_assignment` row
+(`TaxonType.CITY`) — the same mechanism `categoryIds` uses for both domains. Both columns encode
+the same real-world fact (exactly one city today) via two different storage mechanisms. This
+surfaced as a real bug: `ProviderProfileDisplayEnrichmentService.enrichWithCategoriesAndCity()`'s
+separate `findCities()` batch-lookup (needed only because city lived outside the assignment scan
+categories already use) threw an NPE on a null-key map lookup for any profile with no city
+assigned.
+
+An earlier framing of this same investigation (2026-09-05) proposed going further — exposing city
+as a list (`cityTaxonIds`/`cityNames`) across both Advertisement and ProviderProfile, anticipating
+a future multi-city requirement. That framing was explicitly rejected by the user in favor of the
+narrower fix below: bring ProviderProfile's *storage mechanism* in line with Advertisement's
+*existing* mechanism, touch nothing in Advertisement, and keep the DTO/REST/UI shape scalar on
+both sides. The list-shaped idea is deliberately deferred, not discarded — revisit only once
+multiple cities per listing is an actual requirement, not before.
+
+**Decision:** `provider_profile.city_taxon_id` column removed (edited directly into ADR-027's
+original `01-provider-profile-schema.xml` changeset — no production data existed). City is now
+written and read as a `taxon_assignment` row (`TaxonType.CITY`), exactly like `advertisement`'s
+city and both domains' `categoryIds`:
+- `ProviderProfileDisplayEnrichmentService` rewritten to derive both category and city from one
+  `TaxonLookupService.getForEntity`/`getForEntities` assignment-list scan — the same
+  `applyCategoryAndCityData` shape `AdvertisementDisplayEnrichmentService` already used. This is
+  what actually removes the NPE's root cause: there is no longer a separate, null-key-prone city
+  lookup at all.
+- `ProviderProfileSaveService.save()` (extending ADR-030's move of assignment-writing into this
+  class) unions the category-id set with the single city id before one
+  `TaxonPort.replaceAssignments()` call — `replaceAssignments()` diff-replaces every taxon type for
+  the entity at once, so a nullable single city id must be unioned in beforehand, never written via
+  a second call. This union logic already existed, privately, in `AdvertisementSaveService`; both
+  save services now share it via a new `TaxonAssignmentWriteService.unionAssignmentIds(Set<Long>,
+  Long)` static helper instead of each keeping its own private copy.
+- `ProviderProfileService` (the starter's own service) gains `resolveCityFilter`/
+  `resolveCategoryAndCityFilter`, copied from `AdvertisementService`'s existing pattern — city
+  filtering is now resolved into an id-set via `TaxonPort.findEntityIdsWithAnyTaxon()` and
+  intersected with the category constraint, the same as `advertisement`'s own city filter already
+  works. `ProviderProfileRepository` drops `city_taxon_id` from its `SELECT`/`ROW_MAPPER`/
+  `SqlBoundFilter` entirely — no SQL replacement needed, since the existing `allowedIds`
+  AND-by-id mechanism already covers it.
+
+**Explicitly not done (deferred, per the narrowed scope above):** `platform-commons`'s
+`ProviderProfileDto`/`SaveDto`/`FilterDto`/`SnapshotDto` keep `Long cityTaxonId`/`String cityName`
+unchanged — no list conversion. `AdvertisementInfoDto`/`SaveDto`/`FilterDto`/`SnapshotDto` and every
+Advertisement-side REST/UI class are untouched. `marketplace-rest-api`'s
+`ProviderProfileWriteRequest`/query-param contract is unchanged (still a scalar `cityTaxonId`).
+
+**Rejected alternative:** exposing city as `Set<Long> cityTaxonIds`/`List<String> cityNames` on all
+8 Advertisement+ProviderProfile DTOs (the original 2026-09-05 framing) — rejected as
+disproportionate to the actual ask (bring Provider's storage in line with Advertisement's existing
+mechanism) and as unnecessary speculative generality for a requirement (multiple cities per
+listing) that does not exist today.
+
+---
+
 ## ADR-001: Package restructure — core / audit / attachment / user / advertisement
 **Status:** Accepted
 
@@ -553,7 +615,8 @@ cite, with the same consumer-grep-first discipline, not a rubber stamp for split
 
 ## ADR-027: `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter`
 
-**Status:** Accepted
+**Status:** Accepted (the `city_taxon_id`-is-a-plain-column portion reversed by ADR-031; every
+other divergence below remains Accepted)
 
 **Also affects:** provider-profile-spring-boot-starter
 
@@ -578,10 +641,12 @@ in a later batch — see ADR-030.
 **Deliberate divergences from `AdvertisementPort`'s shape, each grounded in a real difference:**
 - `kind` is `NOT NULL` and the row is created **lazily** (only on first "become a provider" save) —
   unlike `advertisement`, there is no "every actor gets one eagerly at registration" concept.
-- `city_taxon_id` is a **plain column** on `provider_profile`, not a `taxon_assignment` row like
+- ~~`city_taxon_id` is a **plain column** on `provider_profile`, not a `taxon_assignment` row like
   `advertisement`'s city/category handling — a provider has exactly one city, so a scalar column is
   the simpler, correct shape; only `categoryIds` (many-to-many) goes through
-  `TaxonPort.replaceAssignments()`.
+  `TaxonPort.replaceAssignments()`.~~ **Reversed by ADR-031** — the plain-column *storage* choice is
+  gone (city is now a `taxon_assignment` row, matching `advertisement`); the scalar (one city per
+  provider) *shape* stands unchanged.
 - `delete()` is a **real `DELETE`**, not a soft-delete — `provider_profile` carries no
   `deleted_at`/`deleted_by` columns, so there is no "restore a deleted provider profile" concept in
   this design.

@@ -25,7 +25,6 @@ public class ProviderProfile {
     Long actorId;
     ProviderKind kind;
     String about;
-    Long cityTaxonId;
 
     @CreatedDate
     Instant createdAt;

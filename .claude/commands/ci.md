@@ -22,7 +22,7 @@ Steps:
 2. If `--foreground` was passed: the call blocks until the run finishes -- read its final output
    directly, no Monitor needed. Skip to step 5.
 3. Otherwise (the default, backgrounded case): launch a `Monitor` with
-   `command: "python3 -u scripts/ci/watch-run.py"` (`-u` required, see the script's own header) --
+   `command: "python3 -u scripts/ci/dagu-rest-run-monitor.py"` (`-u` required, see the script's own header) --
    polls Dagu's REST API through the proxy sidecar and emits one line per step-status transition,
    then a final `RUN <statusLabel>` line (Dagu's own terminal status, lowercase --
    `succeeded`/`failed`/`partially_succeeded`/`cancelled`, e.g. `RUN succeeded`) and exits on its

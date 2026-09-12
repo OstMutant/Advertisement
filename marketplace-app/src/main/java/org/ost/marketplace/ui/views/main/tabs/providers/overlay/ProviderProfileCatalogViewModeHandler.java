@@ -93,10 +93,8 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         var taxons = taxonLookupService.getForEntity(EntityType.PROVIDER_PROFILE, profile.getId(), localeProvider.getCurrentLocale());
         buildChipRow(textCard, taxons, TaxonType.CATEGORY, "provider-profile-categories-chips",
                 "provider-profile-category-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CATEGORIES));
-        // city is a scalar column, not a taxon_assignment row, so it is absent from getForEntity()
-        if (profile.getCityName() != null) {
-            buildCityRow(textCard, profile.getCityName());
-        }
+        buildChipRow(textCard, taxons, TaxonType.CITY, "provider-profile-city-chips",
+                "provider-profile-city-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
         textCard.add(kindBadge);
         textCard.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));
 
@@ -120,20 +118,6 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
             chip.getElement().setAttribute("role", "listitem");
             row.add(chip);
         });
-        textCard.add(row);
-    }
-
-    private void buildCityRow(Div textCard, String cityName) {
-        Div row = new Div();
-        row.addClassName("provider-profile-city-chips");
-        row.getElement().setAttribute("role", "list");
-        row.getElement().setAttribute("aria-label", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
-        Span label = new Span(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY) + ":");
-        label.addClassName("overlay-chips-label");
-        Span chip = new Span(cityName);
-        chip.addClassName("provider-profile-city-chip");
-        chip.getElement().setAttribute("role", "listitem");
-        row.add(label, chip);
         textCard.add(row);
     }
 

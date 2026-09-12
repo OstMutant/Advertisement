@@ -6,10 +6,11 @@ city, and a sanitized "about" write-up, shown on the public Providers catalog.
 
 ## What it provides
 
-- CRUD for a single `ProviderProfile` row per actor (`kind`, `about`, `cityTaxonId`), created
-  lazily on the actor's first "become a provider" save rather than eagerly at registration.
-- Filtered/paginated/sorted reads (`kind`, `createdAt`/`updatedAt` range, `cityTaxonId`, plus a
-  query-time category filter resolved via `TaxonPort.findEntityIdsWithAnyTaxon()`) for the public
+- CRUD for a single `ProviderProfile` row per actor (`kind`, `about`), created lazily on the
+  actor's first "become a provider" save rather than eagerly at registration. `cityTaxonId` is not
+  a row field — it is a `taxon_assignment` entry, same as `categoryIds`.
+- Filtered/paginated/sorted reads (`kind`, `createdAt`/`updatedAt` range, plus query-time
+  category/city filters both resolved via `TaxonPort.findEntityIdsWithAnyTaxon()`) for the public
   Providers catalog.
 - Sanitizes the `about` rich-text field via `html-sanitizer-lib`'s `HtmlSanitizer.sanitize()`, the
   same pattern `advertisement-spring-boot-starter` uses for its own description field.
@@ -36,11 +37,11 @@ the module's only business-logic class.
   `ProviderProfileRepository.save` → `ProviderProfileCrudRepository.save`.
 - **Read:** `findById`/`findByActorId` → `ProviderProfileRepository`'s matching `JdbcClient` query,
   mapped by its `RowMapper` into a `ProviderProfileDto`.
-- **Filtered listing:** `getFiltered`/`count` → `ProviderProfileService` first resolves a
-  `categoryIds` filter into an allow-list of profile ids via `TaxonPort.findEntityIdsWithAnyTaxon()`
-  (short-circuiting to an empty result once that lookup returns none), then
-  `ProviderProfileRepository.findByFilter`/`countByFilter` build the `WHERE`/`ORDER BY`/pagination
-  clauses via `query-lib`'s `SqlFilterBuilder`/`OrderByBuilder`.
+- **Filtered listing:** `getFiltered`/`count` → `ProviderProfileService` resolves `categoryIds` and
+  `cityTaxonId` filters independently into two allow-lists of profile ids via
+  `TaxonPort.findEntityIdsWithAnyTaxon()` and intersects them (short-circuiting to an empty result
+  once either lookup returns none), then `ProviderProfileRepository.findByFilter`/`countByFilter`
+  build the `WHERE`/`ORDER BY`/pagination clauses via `query-lib`'s `SqlFilterBuilder`/`OrderByBuilder`.
 - **Delete:** `delete(id, version)` → `ProviderProfileRepository.delete` runs a real
   `DELETE ... WHERE id = :id AND version = :version`, throwing `OptimisticLockingFailureException`
   on a stale version — no soft-delete columns, no restore path.
@@ -48,9 +49,8 @@ the module's only business-logic class.
 ## Schema
 
 Liquibase changelog: `db/provider-profile-changelog/provider-profile-changelog-master.xml`. Table:
-`provider_profile` — `actor_id` carries a unique index (at most one profile per actor);
-`city_taxon_id` is a plain column, not a `taxon_assignment` row, since a provider has exactly one
-city. Category assignments (many-to-many) live in `taxon-spring-boot-starter`'s own
+`provider_profile` — `actor_id` carries a unique index (at most one profile per actor); it has no
+city column at all. Both category and city assignments live in `taxon-spring-boot-starter`'s own
 `taxon_assignment` table instead, written by `marketplace-orchestrator`'s
 `TaxonAssignmentWriteService` — this starter only resolves them read-only, via
 `TaxonPort.findEntityIdsWithAnyTaxon()`, for query-time filtering.
@@ -59,13 +59,14 @@ city. Category assignments (many-to-many) live in `taxon-spring-boot-starter`'s 
 
 - `platform-commons` — `ProviderProfilePort`/`ProviderProfileDto`/`ProviderProfileSaveDto`/
   `ProviderProfileFilterDto`/`ProviderProfileSnapshotDto`/`ProviderKind`, plus `TaxonPort`
-  (query-time category filter resolution only — never a write).
+  (query-time category/city filter resolution only — never a write).
 - `query-lib` — `SqlFilterBuilder`/`OrderByBuilder` for the public catalog's filter/sort/pagination
   query.
 - `html-sanitizer-lib` — sanitizes and visible-text-length-validates the `about` field, the same
   pattern `advertisement-spring-boot-starter` uses for its own rich-text field.
 - No dependency on `taxon-spring-boot-starter` or any other sibling starter (enforced by this
-  module's own `enforce-no-starter-to-starter-deps` rule) — category-assignment writing is composed
-  by `marketplace-orchestrator`'s `TaxonAssignmentWriteService` at the application layer instead.
+  module's own `enforce-no-starter-to-starter-deps` rule) — category/city-assignment writing is
+  composed by `marketplace-orchestrator`'s `TaxonAssignmentWriteService` at the application layer
+  instead.
 - Spring Boot (`spring-boot-starter`, `spring-boot-starter-data-jdbc`, `spring-boot-liquibase`,
   `spring-boot-starter-validation`), PostgreSQL JDBC driver (runtime).

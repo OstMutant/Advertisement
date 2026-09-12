@@ -104,7 +104,7 @@ class ProviderProfileSaveServiceTest {
         ProviderProfileSnapshotDto after = (ProviderProfileSnapshotDto) afterCaptor.getValue();
         assertThat(after.about()).isEqualTo("About");
         assertThat(after.categoryIds()).containsExactly(1L, 2L);
-        verify(taxonAssignmentWriteService).replace(EntityType.PROVIDER_PROFILE, 100L, Set.of(1L, 2L));
+        verify(taxonAssignmentWriteService).replace(EntityType.PROVIDER_PROFILE, 100L, Set.of(1L, 2L, 5L));
     }
 
     @Test

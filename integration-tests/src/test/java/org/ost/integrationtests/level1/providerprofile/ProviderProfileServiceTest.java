@@ -7,6 +7,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.integrationtests.support.ProviderProfileServiceTestSupport;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.model.EntityType;
+import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
 import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.taxon.spi.TaxonPort;
@@ -14,15 +16,24 @@ import org.ost.provider.entity.ProviderProfile;
 import org.ost.provider.repository.ProviderProfileRepository;
 import org.ost.provider.services.ProviderProfileService;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
+import java.util.Optional;
+import java.util.Set;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * Mockito-based (no Spring context, no Testcontainers) tests for {@link ProviderProfileService} —
- * the SUPPORT-privilege authorization rule and the HTML sanitization policy for {@code about},
- * mirroring {@code AdvertisementServiceHtmlSanitizationTest}'s shape.
+ * the SUPPORT-privilege authorization rule, the HTML sanitization policy for {@code about}
+ * (mirroring {@code AdvertisementServiceHtmlSanitizationTest}'s shape), and the category/city
+ * query-time filter resolution via {@code TaxonPort}.
  */
 @ExtendWith(MockitoExtension.class)
 class ProviderProfileServiceTest {
@@ -119,5 +130,35 @@ class ProviderProfileServiceTest {
         service.save(dto, 42L, 99L, false);
 
         assertThat(captor.getValue().getActorId()).isEqualTo(42L);
+    }
+
+    @Test
+    void getFiltered_cityFilter_resolvesViaTaxonPortAndPassesAsAllowedIds() {
+        ProviderProfileService service = newService();
+        TaxonPort taxonPort = mock(TaxonPort.class);
+        when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
+        when(taxonPort.findEntityIdsWithAnyTaxon(EntityType.PROVIDER_PROFILE, Set.of(7L))).thenReturn(Set.of(10L, 20L));
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().cityTaxonId(7L).build();
+        PageRequest pageable = PageRequest.of(0, 10, Sort.unsorted());
+
+        service.getFiltered(filter, 0, 10, Sort.unsorted());
+
+        verify(repository).findByFilter(filter, pageable, Set.of(10L, 20L));
+    }
+
+    @Test
+    void getFiltered_categoryAndCityFilters_intersectsBothResolvedIdSets() {
+        ProviderProfileService service = newService();
+        TaxonPort taxonPort = mock(TaxonPort.class);
+        when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
+        when(taxonPort.findEntityIdsWithAnyTaxon(EntityType.PROVIDER_PROFILE, Set.of(1L))).thenReturn(Set.of(10L, 20L));
+        when(taxonPort.findEntityIdsWithAnyTaxon(EntityType.PROVIDER_PROFILE, Set.of(7L))).thenReturn(Set.of(20L, 30L));
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder()
+                .categoryIds(Set.of(1L)).cityTaxonId(7L).build();
+        PageRequest pageable = PageRequest.of(0, 10, Sort.unsorted());
+
+        service.getFiltered(filter, 0, 10, Sort.unsorted());
+
+        verify(repository).findByFilter(filter, pageable, Set.of(20L));
     }
 }

@@ -15,8 +15,8 @@ Java package root: `org.ost.provider`
 - `ProviderProfile` entity + `ProviderProfileRepository` — CRUD and filter/sort queries
 - `ProviderProfileService` — create/update, delete, sanitizes `about` via the shared
   `html-sanitizer-lib` module's `HtmlSanitizer.sanitize()`, enforces the `kind == SUPPORT`
-  requires-privileged-actor rule, resolves query-time category
-  filters via `TaxonPort.findEntityIdsWithAnyTaxon()`. Does not write category assignments (see
+  requires-privileged-actor rule, resolves query-time category and city
+  filters via `TaxonPort.findEntityIdsWithAnyTaxon()`. Does not write category/city assignments (see
   Key constraints) and does not enrich display fields — `getFiltered()`/`findById()`/
   `findByActorId()` return raw (unenriched) `ProviderProfileDto`s; category/city/actor display
   enrichment happens afterward via `marketplace-orchestrator`'s `ProviderProfileDisplayEnrichmentService`.
@@ -44,9 +44,13 @@ Tables: `provider_profile`
   provider" save, never eagerly at registration (unlike `advertisement`, there is no "every actor
   gets one" concept). `provider_profile.actor_id` has a unique index — at most one profile per
   actor.
-- `provider_profile.city_taxon_id` is a **plain column**, not a `taxon_assignment` row — a
-  provider has exactly one city, so a scalar column is the simpler, correct shape. Only
-  `categoryIds` (many-to-many) goes through `TaxonPort`.
+- A provider has exactly one city (`ProviderProfileDto.cityTaxonId`/`cityName` are plain scalars,
+  not a list), but the city is stored as a `taxon_assignment` row (`TaxonType.CITY`), the same
+  mechanism `categoryIds` already uses — not a scalar column on `provider_profile` — matching how
+  `advertisement`'s own city is already stored. `marketplace-orchestrator`'s `ProviderProfileSaveService`
+  unions the category-id set with the single city id (`TaxonAssignmentWriteService.unionAssignmentIds`)
+  before one `TaxonPort.replaceAssignments()` call, since that call diff-replaces every taxon type
+  for the entity at once. See `.claude/nav/adr-index.md`.
 - `delete()` is a **real `DELETE`**, not a soft-delete — no `deleted_at`/`deleted_by` columns, no
   "restore" concept for provider status.
 - `ProviderProfileService.save(dto, targetUserId, actingUserId, actingUserIsPrivileged)` takes two
@@ -60,7 +64,7 @@ Tables: `provider_profile`
   `created_by` protection) — no `clearActorReferences()`, since there are no nullable
   actor-reference columns on this table to null.
 - `marketplace-orchestrator`'s `ProviderProfileSaveService` — not this starter's own service —
-  writes category assignments via `TaxonAssignmentWriteService` and captures audit via `AuditPort`,
-  mirroring the Advertisement domain's own `AdvertisementSaveService` save path exactly. This
-  starter's `ProviderProfileService` only resolves query-time category filters (read-only) via
-  `TaxonPort`.
+  writes category/city assignments via `TaxonAssignmentWriteService` and captures audit via
+  `AuditPort`, mirroring the Advertisement domain's own `AdvertisementSaveService` save path
+  exactly. This starter's `ProviderProfileService` only resolves query-time category/city filters
+  (read-only) via `TaxonPort`.

@@ -8,12 +8,9 @@ import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
-import org.ost.platform.taxon.model.TaxonType;
 import org.ost.platform.user.dto.UserDto;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,21 +45,11 @@ public class AdvertisementDisplayEnrichmentService {
     }
 
     private static AdvertisementInfoDto applyCategoryAndCityData(AdvertisementInfoDto ad, List<TaxonDto> assigned) {
-        Set<Long> catIds = new LinkedHashSet<>();
-        List<String> catNames = new ArrayList<>();
-        TaxonDto city = null;
-        for (TaxonDto t : assigned) {
-            if (t.getType() == TaxonType.CATEGORY) {
-                catIds.add(t.getId());
-                catNames.add(t.getName());
-            } else if (t.getType() == TaxonType.CITY && city == null) {
-                city = t;
-            }
-        }
+        CategoryAndCitySplit split = CategoryAndCitySplit.of(assigned);
         return ad.toBuilder()
-                .categoryIds(catIds).categoryNames(catNames)
-                .cityTaxonId(city != null ? city.getId() : null)
-                .cityName(city != null ? city.getName() : null)
+                .categoryIds(split.categoryIds()).categoryNames(split.categoryNames())
+                .cityTaxonId(split.cityTaxonId())
+                .cityName(split.cityName())
                 .build();
     }
 
