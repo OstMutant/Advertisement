@@ -29,7 +29,7 @@ coordinates two independent services and never touches a repository directly:
   and — when an actor id is present — captures a `TaxonSnapshotDto` via the optional
   `ComponentFactory<AuditPort>`.
 - **Catalog/assignment read:** `TaxonPort.getForEntity`/`getForEntities`/`getAllByType`/
-  `getPageByType`/`findById`/`findByIds`/`listAllByType` → `DefaultTaxonPort` resolves the raw
+  `findById`/`findByIds`/`listAllByType` → `DefaultTaxonPort` resolves the raw
   `Taxon`/`TaxonTranslation`/`TaxonAssignment` rows (via `TaxonService` and, for entity-scoped
   lookups, `TaxonAssignmentService`) into locale-aware `TaxonDto`s — the requested locale first,
   falling back to `TaxonProperties.defaultLocale()`, then to any available translation.
@@ -51,7 +51,7 @@ keyed by `EntityType` + entity id rather than a domain-specific FK). A partial u
 
 ## Dependencies
 
-- `platform-commons` — `TaxonPort`/`TaxonDto`/`TaxonFilterDto`/`TaxonSnapshotDto`/
+- `platform-commons` — `TaxonPort`/`TaxonDto`/`TaxonSnapshotDto`/
   `TaxonTranslationDto`/`TaxonType` (own SPI contract), plus `AuditPort`/`ComponentFactory`/
   `EntityType` (the shared audit/assignment contracts every domain starter uses).
 - `query-lib` — `SqlFilterBuilder`/`OrderByBuilder`/`PaginationSqlBuilder` for `TaxonRepository`'s

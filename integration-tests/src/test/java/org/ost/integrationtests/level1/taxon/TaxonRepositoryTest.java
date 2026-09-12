@@ -131,17 +131,4 @@ class TaxonRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(result).extracting(Taxon::getId).containsExactly(second.getId(), first.getId());
     }
 
-    @Test
-    void countByType_matchesRealRowCount() {
-        save("count-a");
-        save("count-b");
-        Taxon deleted = save("count-deleted");
-        taxonRepository.softDelete(deleted.getId(), null, deleted.getVersion());
-
-        int activeCount = taxonRepository.countByType(TaxonType.CATEGORY, TaxonFilter.active());
-        int allCount = taxonRepository.countByType(TaxonType.CATEGORY, TaxonFilter.all());
-
-        assertThat(activeCount).isEqualTo(2);
-        assertThat(allCount).isEqualTo(3);
-    }
 }

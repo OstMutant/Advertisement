@@ -109,10 +109,6 @@ public class TaxonService {
         return taxonRepository.findAllByType(type, filter, pageable);
     }
 
-    public int countByType(@NonNull TaxonType type, @NonNull TaxonFilter filter) {
-        return taxonRepository.countByType(type, filter);
-    }
-
     public Optional<Taxon> findById(@NonNull Long id) {
         return taxonRepository.findById(id);
     }

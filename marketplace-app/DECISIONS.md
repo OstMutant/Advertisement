@@ -2,9 +2,52 @@
 
 ---
 
-## ADR-080: External REST API list endpoints — filter/sort bind onto the existing domain DTOs, pagination uses RFC 8288 `Link` + `X-Total-Count` headers, never an envelope or Spring HATEOAS
+## ADR-081: `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it
 
 **Status:** Accepted
+
+**Also affects:** marketplace-rest-api, taxon-spring-boot-starter, platform-commons
+
+**Context:** ADR-080 added filter/sort/pagination to all three REST list endpoints (Advertisement,
+ProviderProfile, Taxon) in one pass, applying "REST parity with UI" uniformly without confirming
+each domain's own UI actually has these features. Taxon's UI (`TaxonManagementView`/
+`CityManagementView`) has never had a filter box, a sort control, or a `PaginationBar` — both just
+call `listAllByType(type, locale, true)` and split active/deleted client-side in Java. Confirmed by
+grepping the whole repository: `TaxonCatalogService.getPage()` and `count(TaxonType,
+TaxonFilterDto)` had zero real callers anywhere, not even their own unit test; `TaxonApiController
+.list()`'s `filter`/`sort` query params were functionally equivalent to the pre-existing
+`getAllByType()` for every real-world call (empty filter, `id`-only sort — the same order
+`getAllByType()` already produces by default) and differed only when a caller actually exercised
+the feature this ADR removes.
+
+**Decision:** Remove the REST-facing filter/sort/pagination layer for Taxon end to end:
+`TaxonApiController.list()` no longer accepts `filter`/`sort` query params and calls
+`TaxonCatalogService.getAllByType(type, locale)` directly; `TaxonCatalogService.getPage()`/
+`getAll()`/`count(TaxonType, TaxonFilterDto)` removed; `TaxonPort.getPageByType()`/`count()`
+removed from the interface; `TaxonFilterDto` (`platform-commons`) deleted entirely;
+`DefaultTaxonPort`'s corresponding overrides and `TaxonService`/`TaxonRepository`'s `countByType`
+removed as now-dead code.
+
+`TaxonRepository`'s own generic filter/sort/`Pageable` machinery (`FILTER`, `SORT_FIELDS`, the
+`Pageable` parameter on `findAllByType`) is deliberately kept as ordinary reusable repository
+infrastructure, unrelated to the REST-facing feature being removed — every remaining real caller
+(`getAllByType`, `listAllByType`) already calls it with fixed defaults
+(`Pageable.unpaged(Sort.by("id"))`).
+
+ADR-080 itself stays `Accepted` for its Advertisement and ProviderProfile portions — both domains'
+UIs genuinely have `PaginationBar`/`QueryBlock`, so that parity mandate remains valid and
+untouched. Only ADR-080's Taxon-specific mandate (its decision item 4) is reversed here.
+
+**Consequences:**
+- A future REST list endpoint follows ADR-080's shape only after confirming the corresponding UI
+  actually has filter/sort/pagination — this ADR is the record of what happens when that check is
+  skipped.
+
+---
+
+## ADR-080: External REST API list endpoints — filter/sort bind onto the existing domain DTOs, pagination uses RFC 8288 `Link` + `X-Total-Count` headers, never an envelope or Spring HATEOAS
+
+**Status:** Accepted (Taxon-specific portion reversed by ADR-081; Advertisement/ProviderProfile portions remain Accepted)
 
 **Also affects:** marketplace-rest-api, taxon-spring-boot-starter
 

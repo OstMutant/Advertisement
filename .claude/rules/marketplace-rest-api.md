@@ -40,12 +40,13 @@ Java package root: `org.ost.restapi`
   (`If-Match`) endpoints in `org.ost.restapi.api` — `id`/`version` are never caller-writable body
   fields, only path variable / header.
 - `org.ost.restapi.api.paging` — shared list-endpoint plumbing, reused by
-  `AdvertisementApiController`/`ProviderProfileApiController`/`TaxonApiController`'s `list()`
-  methods: `SortQueryParser` (parses `?sort=field,dir` against a per-controller allow-list built
-  from that domain's own response DTO's `Fields.*` constants — an unknown field throws
-  `IllegalArgumentException`, mapped to 400 by `ApiExceptionHandler`), `PageLinkHeaderBuilder`
-  (builds the RFC 8288 `Link` header), `PagedResponseBuilder` (assembles the final
-  `ResponseEntity` — body plus `X-Total-Count` and, when applicable, `Link`).
+  `AdvertisementApiController`/`ProviderProfileApiController`'s `list()` methods: `SortQueryParser`
+  (parses `?sort=field,dir` against a per-controller allow-list built from that domain's own
+  response DTO's `Fields.*` constants — an unknown field throws `IllegalArgumentException`, mapped
+  to 400 by `ApiExceptionHandler`), `PageLinkHeaderBuilder` (builds the RFC 8288 `Link` header),
+  `PagedResponseBuilder` (assembles the final `ResponseEntity` — body plus `X-Total-Count` and
+  `Link`). `TaxonApiController.list()` is reference data only — always the full matching set, no
+  filter/sort/pagination query params, no dependency on this package.
 - `org.ost.restapi.config` — `ApiSecurityConfig` (the `/api/**` `SecurityFilterChain`, `@Order(1)`,
   coexisting with `marketplace-app`'s own Vaadin security chain via Spring Security's ordered
   multi-chain matching), `ApiKeyAuthenticationFilter` (resolves `Authorization: Bearer <key>` into

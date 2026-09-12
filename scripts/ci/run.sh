@@ -134,34 +134,48 @@ ANY_STAGE_FLAG=""
 # `docker exec $CONTAINER cat /tmp/ci-sync-diag.log`, independent of whose shell/host actually ran
 # run.sh (confirmed a real gap: a previous version only wrote to $ROOT, invisible cross-host).
 # `docker cp` writing straight to a WSL2 Windows-drive mount (/mnt/c, /mnt/d, ...) has been seen to
-# fail with "unlinkat ...: permission denied", and a plain shell `cp -f`/`mv` onto the same path
-# hits the identical wall ("cp: cannot create regular file ...: Permission denied", even for a
-# brand-new file in that directory) -- this is DrvFs enforcing the real Windows ACL underneath,
-# which a WSL shell process cannot route around no matter which Linux tool it uses. Docker
-# Desktop's own bind-mount file-sharing layer for Windows/WSL2 goes through a different path than
-# a WSL shell's direct DrvFs access, so the final host-side write is done from *inside* a
-# throwaway container that bind-mounts the destination directory, not from this shell directly.
+# fail with "unlinkat ...: permission denied" on a real WSL2/Docker Desktop host, and a plain shell
+# `cp -f`/`mv` onto the same path hits the identical wall ("cp: cannot create regular file ...:
+# Permission denied", even for a brand-new file in that directory) -- this is DrvFs enforcing the
+# real Windows ACL underneath, which a WSL shell process cannot route around no matter which Linux
+# tool it uses. That failure is specifically an in-place-overwrite problem (the ACL blocks
+# replacing a file that already exists), so the fallback below routes the final write through a
+# throwaway container's own bind-mounted view of the destination directory and uses `mv` (a rename,
+# not an overwrite) to land it.
+#
+# Try the plain, single-step `docker cp` straight to the final destination first -- it succeeds on
+# some hosts (confirmed: this sandbox's own Docker Desktop VM has no such ACL restriction) and
+# needs none of the machinery below. Only fall back to the temp-file + bind-mount-container dance
+# when the direct copy actually fails, so a host where it works never pays for the elaborate path.
 docker_cp_diag() {
-  local src="$1" dst="$2" label="$3" out rc tmp tmp_dir tmp_name dst_dir dst_name
-  tmp="$(mktemp)"
-  out="$(docker cp "$src" "$tmp" 2>&1 >/dev/null)"
+  local src="$1" dst="$2" label="$3" out rc tmp tmp_dir tmp_name dst_dir dst_name direct_out
+  direct_out="$(docker cp "$src" "$dst" 2>&1 >/dev/null)"
   rc=$?
   if [ "$rc" -eq 0 ]; then
-    # Bind-mounting a single file whose target path doesn't already exist inside the image can
-    # get Docker to create a directory there instead (a real, confirmed gotcha) -- mount the
-    # temp file's own directory instead and reference it by name.
-    tmp_dir="$(dirname "$tmp")"
-    tmp_name="$(basename "$tmp")"
-    dst_dir="$(cd "$(dirname "$dst")" && pwd)"
-    dst_name="$(basename "$dst")"
-    if out="$(docker run --rm -v "$tmp_dir:/src:ro" -v "$dst_dir:/out" alpine \
-        sh -c "cp -f '/src/$tmp_name' '/out/.$dst_name.ci-sync-tmp' && mv -f '/out/.$dst_name.ci-sync-tmp' '/out/$dst_name'" 2>&1)"; then
-      rc=0
-    else
-      rc=1
+    out="$direct_out"
+  else
+    tmp="$(mktemp)"
+    out="$(docker cp "$src" "$tmp" 2>&1 >/dev/null)"
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
+      # Bind-mounting a single file whose target path doesn't already exist inside the image can
+      # get Docker to create a directory there instead (a real, confirmed gotcha) -- mount the
+      # temp file's own directory instead and reference it by name.
+      tmp_dir="$(dirname "$tmp")"
+      tmp_name="$(basename "$tmp")"
+      dst_dir="$(cd "$(dirname "$dst")" && pwd)"
+      dst_name="$(basename "$dst")"
+      if out="$(docker run --rm -v "$tmp_dir:/src:ro" -v "$dst_dir:/out" alpine \
+          sh -c "cp -f '/src/$tmp_name' '/out/.$dst_name.ci-sync-tmp' && mv -f '/out/.$dst_name.ci-sync-tmp' '/out/$dst_name'" 2>&1)"; then
+        rc=0
+      else
+        rc=1
+      fi
     fi
+    rm -f "$tmp"
+    out="direct copy failed: $direct_out
+$out"
   fi
-  rm -f "$tmp"
   {
     echo "=== $(date -u +%FT%TZ) $label rc=$rc ==="
     [ -n "$out" ] && echo "$out"

@@ -4,7 +4,6 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
-import org.ost.platform.taxon.dto.TaxonFilterDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.platform.taxon.spi.TaxonPort;
@@ -13,7 +12,6 @@ import org.ost.taxon.entities.Taxon;
 import org.ost.taxon.entities.TaxonAssignment;
 import org.ost.taxon.entities.TaxonTranslation;
 import org.ost.taxon.repository.TaxonFilter;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -85,21 +83,6 @@ public class DefaultTaxonPort implements TaxonPort {
             return List.of();
         }
         return resolveDtos(taxa.stream().map(Taxon::getId).toList(), locale, false);
-    }
-
-    @Override
-    public List<TaxonDto> getPageByType(@NonNull TaxonType type, @NonNull Locale locale, @NonNull TaxonFilterDto filter,
-                                        int page, int size, @NonNull Sort sort) {
-        List<Taxon> taxa = taxonService.listByType(type, toInternalFilter(filter), PageRequest.of(page, size, sort));
-        if (taxa.isEmpty()) {
-            return List.of();
-        }
-        return resolveDtos(taxa.stream().map(Taxon::getId).toList(), locale, false);
-    }
-
-    @Override
-    public int count(@NonNull TaxonType type, @NonNull TaxonFilterDto filter) {
-        return taxonService.countByType(type, toInternalFilter(filter));
     }
 
     @Override
@@ -239,10 +222,6 @@ public class DefaultTaxonPort implements TaxonPort {
                 .deleted(taxon.getDeletedAt() != null)
                 .version(taxon.getVersion())
                 .build();
-    }
-
-    private TaxonFilter toInternalFilter(TaxonFilterDto filter) {
-        return TaxonFilter.of(filter.getName(), false);
     }
 
     private Map<Locale, TaxonTranslationData> toTranslationData(Map<Locale, TaxonTranslationDto> translations) {

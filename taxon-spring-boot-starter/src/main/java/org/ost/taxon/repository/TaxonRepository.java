@@ -87,21 +87,6 @@ public class TaxonRepository {
                          .list();
     }
 
-    public int countByType(@NonNull TaxonType type, @NonNull TaxonFilter filter) {
-        var    params  = new MapSqlParameterSource().addValue("type", type.name());
-        String dynamic = FILTER.build(params, filter, " AND ");
-        String deleted = filter.showDeleted() ? "" : " AND t.deleted_at IS NULL";
-        return jdbcClient.sql("""
-                        SELECT COUNT(*)
-                        FROM taxon t
-                        LEFT JOIN taxon_translation tt ON tt.taxon_id = t.id AND tt.locale = 'en'
-                        WHERE t.type = :type
-                        """ + deleted + dynamic)
-                         .paramSource(params)
-                         .query(Integer.class)
-                         .single();
-    }
-
     public List<Taxon> findByIds(@NonNull Set<Long> ids) {
         return jdbcClient.sql("""
                         SELECT id, type, code, deleted_at, deleted_by, created_at, updated_at, created_by, updated_by, version

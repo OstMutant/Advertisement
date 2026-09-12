@@ -9,11 +9,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
-import org.ost.platform.taxon.dto.TaxonFilterDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
 import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -105,8 +103,7 @@ class TaxonApiControllerTest {
     @Test
     void list_delegatesToServiceAndSetsTotalCountHeader() throws Exception {
         TaxonDto taxon = TaxonDto.builder().id(1L).type(TaxonType.CITY).name("Kyiv").description("").build();
-        TaxonFilterDto filter = TaxonFilterDto.empty();
-        when(taxonCatalogService.getAll(eq(TaxonType.CITY), eq(Locale.forLanguageTag("uk")), eq(filter), eq(Sort.unsorted())))
+        when(taxonCatalogService.getAllByType(eq(TaxonType.CITY), eq(Locale.forLanguageTag("uk"))))
                 .thenReturn(List.of(taxon));
 
         mockMvc.perform(get("/api/taxons").param("type", "CITY").param("locale", "uk"))
@@ -115,30 +112,12 @@ class TaxonApiControllerTest {
     }
 
     @Test
-    void list_withSortParam_parsesIntoSort() throws Exception {
-        TaxonFilterDto filter = TaxonFilterDto.empty();
-        when(taxonCatalogService.getAll(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH), eq(filter), eq(Sort.by(Sort.Direction.DESC, "id"))))
-                .thenReturn(List.of());
-
-        mockMvc.perform(get("/api/taxons").param("type", "CATEGORY").param("sort", "id,desc")).andExpect(status().isOk());
-
-        verify(taxonCatalogService).getAll(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH), eq(filter), eq(Sort.by(Sort.Direction.DESC, "id")));
-    }
-
-    @Test
-    void list_unknownSortField_returns400() throws Exception {
-        mockMvc.perform(get("/api/taxons").param("type", "CATEGORY").param("sort", "secretField"))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
     void list_omittedType_mergesCategoriesAndCities() throws Exception {
-        TaxonFilterDto filter = TaxonFilterDto.empty();
         TaxonDto category = TaxonDto.builder().id(1L).type(TaxonType.CATEGORY).name("Plumbing").description("").build();
         TaxonDto city = TaxonDto.builder().id(2L).type(TaxonType.CITY).name("Kyiv").description("").build();
-        when(taxonCatalogService.getAll(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH), eq(filter), eq(Sort.unsorted())))
+        when(taxonCatalogService.getAllByType(eq(TaxonType.CATEGORY), eq(Locale.ENGLISH)))
                 .thenReturn(List.of(category));
-        when(taxonCatalogService.getAll(eq(TaxonType.CITY), eq(Locale.ENGLISH), eq(filter), eq(Sort.unsorted())))
+        when(taxonCatalogService.getAllByType(eq(TaxonType.CITY), eq(Locale.ENGLISH)))
                 .thenReturn(List.of(city));
 
         mockMvc.perform(get("/api/taxons"))

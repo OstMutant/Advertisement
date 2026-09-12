@@ -641,23 +641,125 @@ only) — proposed for `improvement-133`'s deferred-findings bucket, not yet add
   `AttachmentCleanupService` (comments trimmed per the ticket-number ban, original rationale not
   yet preserved anywhere).
 
-## 12. `TaxonPort.getPageByType`/`DefaultTaxonPort` naming no longer matches Taxon's REST contract
+## 12. Drop filter/sort/pagination for Taxon end-to-end — REST parity with UI was applied mechanically, UI never had any of it — ✅ Done (2026-09-11)
 
-**Current state (2026-09-05):** `GET /api/taxons` no longer takes `page`/`size` at all — confirmed
-neither `TaxonManagementView`/`CityManagementView` (no `PaginationBar`, `listAllByType` loads
-everything) nor any other UI has ever paged Taxon, unlike Advertisement/ProviderProfile/User (all
-three use `PaginationBar`). `TaxonCatalogService.getAll(type, locale, filter, sort)` is now the
-only method `TaxonApiController` calls for listing — it always returns the full matching set.
-Internally, `getAll()` still calls `TaxonPort.getPageByType(type, locale, filter, 0,
-Integer.MAX_VALUE, sort)` unchanged, reusing the existing paginated repository/port plumbing
-(`DefaultTaxonPort` → `TaxonService.listByType` → `TaxonRepository.findAllByType`, all still take an
-explicit `Pageable`) rather than touching those lower layers.
+**Root cause (confirmed via `git log`):** `improvement-182` added filter/sort/pagination to all
+three list endpoints (Advertisement, ProviderProfile, Taxon) in one pass, titled "REST API
+filter/sort/pagination parity with UI" — applied uniformly without checking whether each domain's
+UI actually has these features. `improvement-183`'s item 5/commit `a1f6fa08` already reversed the
+pagination half for Taxon specifically, its own commit message noting "confirmed no UI parity for
+filter/sort/pagination" — but only removed `page`/`size` from the REST endpoint; it left the
+filter/sort machinery (and the now-dead pagination plumbing underneath) in place. Confirmed
+directly: neither `TaxonManagementView` nor `CityManagementView` has ever had a filter box, a sort
+control, or a `PaginationBar` — both just call `listAllByType(type, locale, true)` and split
+active/deleted in Java.
 
-**Ask:** sort out whether `getPageByType` used this way (real page/size machinery, called with an
-effectively-unbounded size) is acceptable as an implementation-reuse detail, or whether the naming
-is misleading now that no real caller ever passes a bounded page — either rename it to something
-accurate, or split into a dedicated unpaged method, or otherwise resolve the mismatch between the
-method's name and its only remaining real use.
+**Confirmed dead/unused chain (grepped, zero real callers beyond the one path below):**
+- `TaxonCatalogService.getPage(...)` — zero callers anywhere, not even in `TaxonCatalogServiceTest`.
+- `TaxonCatalogService.count(TaxonType, TaxonFilterDto)` — same, zero callers.
+- `TaxonPort.getPageByType(...)`/`TaxonPort.count(...)` — called only by the two dead methods above,
+  plus the one live path: `TaxonApiController.list()` → `TaxonCatalogService.getAll(type, locale,
+  filter, sort)` → `TaxonPort.getPageByType(type, locale, filter, 0, Integer.MAX_VALUE, sort)`.
+- On that one live path, `filter` is always `TaxonFilterDto.empty()` unless a REST caller passes
+  `?name=`, and the controller's own `SORTABLE_FIELDS` only ever allows sorting by `id` — the same
+  order `getAllByType()` already produces by default. So `getAll()` is functionally equivalent to
+  the already-existing `getAllByType()` for every real-world call with no `name`/`sort` param, and
+  differs only when a caller actually exercises the one feature this item proposes removing.
+- `TaxonRepository.countByType`/`TaxonService.countByType` — used only by the dead `count()` chain
+  above, plus one integration test (`TaxonRepositoryTest.countByType_matchesRealRowCount`) that
+  tests the dead method itself.
+- `TaxonRepository`'s `FILTER` (`SqlBoundFilter<TaxonFilter>`, the `tt.name LIKE` clause) — every
+  real caller of `findAllByType` (`getAllByType`, `listAllByType`) passes `TaxonFilter.active()`/
+  `.all()`/`.of(null, includeDeleted)` — `name` is always `null`. Only `getPageByType` ever threads
+  a real `name` through, and that's the path this item removes.
+- `TaxonRepository`'s `SORT_FIELDS` (`id`/`createdAt`/`updatedAt`) + the `Pageable` parameter on
+  `findAllByType`/`listByType` — every real caller passes `Pageable.unpaged(Sort.by("id"))` or
+  `Pageable.unpaged()`; only `getPageByType` ever passes a bounded `PageRequest` or a non-`id` sort
+  (and the controller already restricts callers to `id` only).
+
+**Plan (layer by layer, most-derived first):**
+1. **marketplace-rest-api** — `TaxonApiController.list()`: drop the `filter`/`sort` request params
+   and the `SORTABLE_FIELDS` constant; call `taxonCatalogService.getAllByType(type, locale)` per
+   branch instead of `getAll(type, locale, filter, sort)`. Update `TaxonApiControllerTest`
+   (`list_...`, `list_withSortParam_parsesIntoSort`, `list_unknownSortField_returns400`) to match —
+   no more `?name=`/`?sort=` coverage to assert.
+2. **marketplace-orchestrator** — `TaxonCatalogService`: delete `getPage(...)`, `getAll(...)`, and
+   `count(TaxonType, TaxonFilterDto)` (all three now dead once step 1 lands; `getAllByType` already
+   covers the one real remaining use).
+3. **platform-commons** — `TaxonPort`: delete `getPageByType(...)` and `count(TaxonType,
+   TaxonFilterDto)` from the interface. Delete `TaxonFilterDto` (`org.ost.platform.taxon.dto`)
+   entirely once nothing references it.
+4. **taxon-spring-boot-starter**:
+   - `DefaultTaxonPort`: delete the `getPageByType`/`count` overrides and the `toInternalFilter`
+     helper.
+   - `TaxonService`: delete `countByType` (dead — zero real callers, only exercised by the deleted
+     `count()` chain and its own dead-code integration test).
+   - `TaxonRepository`: delete `countByType` only. **`FILTER`/`SORT_FIELDS`/the `Pageable`
+     parameter on `findAllByType` stay as-is** — decided to keep the repository's own generic
+     filter/sort/paging shape even though `getAllByType`/`listAllByType` only ever call it with
+     defaults (`TaxonFilter.active()`/`.all()`, `Pageable.unpaged(Sort.by("id"))`); this is the
+     project's standard repository query-building pattern (`SqlFilterBuilder`/`OrderByBuilder`,
+     same as every other `*Repository`), not REST-only scaffolding, so it's not in scope for
+     removal here.
+   - Update `TaxonRepositoryTest`: remove `countByType_matchesRealRowCount` only; the
+     filter/sort/pagination tests on `findAllByType` itself (`findAllByType_appliesPageSizeAndSort`,
+     `findAllByType_sortByCreatedAt_tiedRows_...`, `findAllByType_sortByUpdatedAt_tiedRows_...`,
+     `findAllByType_unpaged_returnsEveryRow`) stay — they cover the repository capability being kept.
+
+**Resolved:** repository-level filter/sort/pagination machinery (`TaxonRepository`/`TaxonFilter`/
+`TaxonService.listByType`) stays untouched — confirmed acceptable as generic, already-defaulted
+repository infrastructure. Only the layers added specifically to expose it externally for REST
+"parity with UI" (`TaxonCatalogService.getPage/getAll/count`, `TaxonPort.getPageByType/count`,
+`DefaultTaxonPort`'s two overrides + `toInternalFilter`, `TaxonFilterDto`, `TaxonApiController`'s
+`filter`/`sort` params, and the fully-dead `countByType` at every layer) get removed.
+
+Implemented exactly as planned above, plus `docs/sync-docs` follow-up fixes to two now-stale
+references (`taxon-spring-boot-starter/README.md`'s `getPageByType`/`TaxonFilterDto` mentions,
+`.claude/rules/marketplace-orchestrator.md`'s `TaxonCatalogService` method list) and a new
+`marketplace-app/DECISIONS.md` entry (ADR-081) annotating ADR-080's Taxon-specific portion as
+reversed. Verified via `scripts/ci.sh` (unit/integration/e2e/sonar/archunit/docs all green).
+
+Side finding, investigated and fixed in the same task at the user's explicit request: `scripts/ci/
+run.sh`'s `docker_cp_diag()` (the WSL2/DrvFs-safe container-to-host copy) failed in this sandbox
+with `cp: can't stat '/src/tmp.XXXX': No such file or directory` — root-caused to the sandbox's own
+9p-backed `/app` mount not making a just-written temp file visible to a freshly bind-mounted
+sibling container (a caching/visibility gap distinct from the real-WSL2 permission-denied case the
+function was originally written for). Fixed by trying a plain, single-step `docker cp` straight to
+the final destination first, falling back to the existing temp+bind-mount-container dance only when
+that direct copy fails — succeeds immediately in this sandbox, unchanged behavior on a real WSL2
+host where the direct copy is expected to fail and fall through. Verified via `bash scripts/ci.sh
+--sync-artifacts` succeeding after the fix. No `DECISIONS.md` entry — the underlying mechanism was
+never ADR'd (documented only as `docker_cp_diag`'s own code comment, its true canonical home), and
+this change doesn't introduce a new pattern, just makes the existing one try a cheaper path first.
+
+## Operational notes
+- token_cost_review: 102134 (deep-review-orchestrator dispatch)
+- token_cost_research: n/a (root-cause investigation done directly via Bash/Read, no Agent dispatch)
+- token_cost_verification: n/a (verification run directly via scripts/ci.sh, no Agent dispatch)
+- review_signal_ratio: 0/1 (precedent-reviewer raised one candidate — confirmed factually accurate on independent re-verification, but classified as a deliberate, already-tracked reversal, not a real defect — dropped from the auto-report bucket; DRY/KISS/YAGNI and SOLID lenses raised zero candidates)
+- context_loading_task_type: Architectural change (new SPI, new `*Port`/`*Hook`, schema change touching ownership/FKs) — closest row for a `TaxonPort` interface-method removal
+- context_loading_consulted: no
+- context_loading_matched: n/a (not consulted; `platform-commons/DECISIONS.md` was not read in full despite touching `TaxonPort`)
+- flows_situation: full CI-equivalent pass in one shot (unit+integration+e2e+sonar+archunit+docs)
+- flows_chosen: direct `bash scripts/ci.sh [flags]` via Bash, not the `/ci` skill
+- flows_matched: no (user caught this mid-task; `.claude/nav/flows.md` names `/ci` for this exact situation, and `.claude/rules.md` requires checking flows.md before every direct `scripts/*.sh` invocation)
+
+### Agent calls
+- Code review of Taxon filter/sort cleanup | subagent_type=deep-review-orchestrator | tokens=102134 | tool_uses=99 | duration_s=483 | mode=background | batch=solo
+
+### Script/command runs
+- bash scripts/ci.sh --sonar --foreground (1st attempt) | duration_s=8 | mode=background | result=fail (unstaged deletion broke working-tree sync into ci-runner)
+- bash scripts/ci.sh --sonar --foreground (retry after staging) | duration_s=660 | mode=background | result=pass (sonar/archunit/pipeline-metrics/docs all green; only the post-run artifact-sync copy-back failed)
+- bash scripts/ci/run.sh --sync-artifacts (1st retry, pre-fix) | duration_s=40 | mode=foreground | result=fail (same docker_cp_diag bug)
+- bash scripts/ci.sh --foreground (full run) | duration_s=1440 | mode=background | result=fail overall exit, but every real DAG stage passed (unit/integration/e2e/sonar/archunit/docs); only the post-run artifact-sync copy-back failed again
+- bash scripts/ci.sh --sync-artifacts (post-fix verification) | duration_s=34 | mode=foreground | result=pass
+- bash docs/architecture/scripts/generate-architecture-model.sh (manual, pre-CI-run doc sync) | duration_s=270 | mode=background | result=pass
+- bash .claude/nav/scripts/generate-adr-index.sh (manual, after ADR-081 write) | duration_s=1 | mode=foreground | result=pass
+
+### Review angle yield
+- dry-kiss-yagni-reviewer | survived=0 | total_candidates=0 | tokens=n/a
+- solid-reviewer | survived=0 | total_candidates=0 | tokens=n/a
+- precedent-reviewer | survived=0 | total_candidates=1 | tokens=n/a
 
 ## 13. City becomes list-based, assignment-backed (`taxon_assignment`), symmetric across Advertisement and ProviderProfile
 
