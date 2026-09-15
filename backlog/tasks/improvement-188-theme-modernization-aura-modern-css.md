@@ -125,13 +125,73 @@ verification (generated schema diff, not just a green compile) before merging, t
 separate step rather than bundled into the patch-bump pass above.
 
 **Task A — Aura pilot (exploratory, time-boxed, does not block B/C/D):**
-Vaadin supports switching themes at runtime via a `?theme=aura` query parameter — no parallel
-branch/deployment needed. Pilot scope: Providers catalog page. Confirmed limitation not in the
-original prompt: because Vaadin bundles the whole theme as one stylesheet (no per-view scoping),
-the pilot will also render shared chrome (`dialogs.css`, `query-block.css`,
-`query-status-bar.css`) that references `--lumo-*` tokens with no Aura equivalent — the plan must
-account for partial-fidelity rendering on those shared pieces, not just the page's own card CSS.
-Ends in a written recommendation only — no merge.
+
+**Original premise corrected (2026-09-15):** a `?theme=aura` runtime query-parameter switch,
+originally assumed available, does **not** exist in Vaadin Flow — re-verified directly against
+multiple official sources during this task; "switching between packaged themes at runtime is not
+supported in Vaadin Flow" (only light/dark *color scheme* switching is a real runtime API).
+Real, confirmed-working mechanism instead: **build-time** theme selection via
+`@StyleSheet(Aura.STYLESHEET)` on `AppShellConfigurator` (`AppShell.java`) — the modern Vaadin 25
+replacement for the deprecated `@Theme`/`theme.json` mechanism, directly overlapping with
+`improvement-116`'s own scope.
+
+**Real setup that worked, verified end to end:**
+1. Added `com.vaadin:vaadin-aura-theme` as an explicit dependency to `marketplace-app/pom.xml`
+   (not a transitive dependency of `vaadin-core`/`vaadin-spring-boot-starter` — confirmed via
+   `~/.m2` inspection; resolves via the existing `vaadin-bom` import, no explicit version needed).
+2. Removed `"lumo": true` from `theme.json` (kept `"name": "my-app"`, so our own `styles.css` +
+   all 30 imported component CSS files still load).
+3. Added `@StyleSheet(Aura.STYLESHEET)` (`com.vaadin.flow.theme.aura.Aura`) to `AppShell.java`,
+   alongside the existing `@Theme("my-app")` and the Lumo-specific
+   `@JsModule("@vaadin/vaadin-lumo-styles/vaadin-iconset.js")` (left untouched for this pass).
+4. Full reactor build, deploy, and app start all succeeded with zero errors.
+
+**Real verification results (Providers catalog + Advertisements tab, anonymous/empty-state):**
+- Zero browser console errors, zero failed network requests (checked via Playwright
+  `page.on('console'/'response')`) navigating between tabs under the Aura build.
+- Tab switching itself works correctly — confirmed via the `selected` DOM attribute flipping
+  correctly on click, not just visually. (An earlier read of a "broken-looking", near-blank
+  screenshot turned out to be a false alarm from an early draft of the diagnostic script with too
+  short a wait — the *same* blank-page artifact reproduced identically on a plain **Lumo** rebuild
+  taken specifically to rule this out, proving it was a cold-start timing issue unrelated to
+  Aura.)
+- **Visual result, with a real Lumo baseline screenshot taken specifically for comparison:** the
+  basic empty-state Advertisements/Providers views look strikingly similar between Lumo and the
+  Aura pilot build — same blue accent color, same card/spacing layout, same overall look. This
+  is because this app's own 57 `--app-*` custom tokens (not `--lumo-*`) already drive nearly all
+  visible chrome in these basic views — the base-theme swap alone doesn't produce a strongly
+  differentiated look without also adopting Aura's own token values (Task C's `oklch()`/
+  `color-mix()` work would be the actual visual differentiator, not Task A alone).
+- **Not tested, real risk still open:** neither a dialog nor the query-block filter panel was
+  opened during this pass — both are exactly the shared-chrome files (`dialogs.css`,
+  `query-block.css`, `query-status-bar.css`) confirmed earlier to hold `--lumo-*` references with
+  no Aura equivalent. Whether those specific surfaces render broken under Aura remains genuinely
+  unverified, not ruled out.
+
+**Recommendation (evidence-based, not a predetermined conclusion):** **no strong case for a full
+Aura migration based on this pilot alone.** The pilot's own basic-view comparison showed minimal
+visual differentiation — this app's existing custom token system already overrides most of what
+a base-theme swap changes — while the one class of real risk this pilot could have caught
+(dialogs/query-block's `--lumo-*` references) was left unexercised. A "go" decision would need
+either (a) re-running this same setup against a dialog/query-block-opening flow to close that gap,
+or (b) treating Task A as answered "no, not worth it standalone" and letting B/C/D (which touch
+the same `--app-*` token system directly, with a much clearer, already-demonstrated payoff) carry
+this issue's real value instead.
+
+Experimental changes (dependency, `theme.json`, `AppShell.java`) fully reverted after this pilot —
+confirmed via `git status --short` showing a clean tree. No merge, per this task's own scope limit.
+
+**Is a future migration to Aura actually required? No.** Confirmed directly: Vaadin's own
+position is that "the Lumo theme will still be available and fully supported" going forward — Aura
+is an additional option, not a replacement. What genuinely is deprecated (`forRemoval = true`) is
+the *selection mechanism* — the `@Theme` annotation and `theme.json` — not Lumo the theme itself.
+That mechanism migration (`@Theme("my-app")`/`theme.json` → `@StyleSheet(Lumo.STYLESHEET)`,
+staying on Lumo) is real future work, already tracked separately as `improvement-116` — unrelated
+to whether this app ever adopts Aura.
+
+**Task A status: done.** Real pilot executed, go/no-go delivered (lean "no" — see Recommendation
+above), no forced migration exists, follow-up mechanism work correctly attributed to
+`improvement-116` instead of this task.
 
 **Task B — `light-dark()` for `improvement-039`:** define light+dark values together per token at
 declaration time instead of a separate override block; add the toggle + `prefers-color-scheme`

@@ -2517,3 +2517,19 @@ enforced, not just compiles: a temporary real Vaadin dependency + reference inje
 failure), then fully reverted. Full Definition-of-Done run (`--unit --integration --sandbox`): 766
 tests across 103 classes, 0 failures/errors/skipped. Full detail:
 `completed/tasks/improvement-181-module-list-auto-discovery.md`.
+
+✅ Done (2026-09-15): improvement-189 closed — root `README.md` restructured for portfolio-first
+reading order (Quick Start → What is it? → What can you do in it? → If you have 5 minutes →
+Technical debt tracking → About → Architectural Principles → Module Layout → Key Technical
+Decisions → Testing Strategy → Roadmap → Author's Note), no technical claims changed. Real facts
+verified against the actually-running app before writing (port 8081, live `/swagger-ui/index.html`
++ `/v3/api-docs`, no seed/demo credentials — the real `UserService.register()` first-user-becomes-
+admin mechanism documented instead of an invented login), stale ASCII module tree (missing
+`apikey-spring-boot-starter`/`marketplace-rest-api`/`html-sanitizer-lib`) replaced with a Mermaid
+diagram, stale Roadmap REST-API line corrected. A user review round caught one real presentation
+issue (redundant closing "manifesto", overly categorical phrasing, product-before-engineering
+ordering) — all applied — and one false alarm (claimed dead `file:///`/`localhost:63342` links,
+confirmed via direct `grep` not to exist anywhere in the file; almost certainly the user's local
+IntelliJ Markdown-preview server rendering ordinary relative links as local absolute URLs in its
+own preview pane, not a defect in the committed file). Full detail:
+`completed/tasks/improvement-189-readme-portfolio-restructure.md`.
