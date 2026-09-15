@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "prompt=$(cat | grep -o '\"prompt\":\"[^\"]*\"' | sed 's/\"prompt\":\"//;s/\"$//'); echo \"$prompt\" | grep -qiE '\u0437\u0440\u043e\u0431\u0438 +\u043a\u043e\u043c\u0456\u0442|\u0437\u0430\u043a\u043e\u043c\u0456[\u0442\u0447]|\\bcommit\\b' && touch /tmp/commit-approved; exit 0"
+            "command": "input=$(cat); prompt=$(echo \"$input\" | grep -o '\"prompt\":\"[^\"]*\"' | sed 's/\"prompt\":\"//;s/\"$//'); sid=$(echo \"$input\" | grep -o '\"session_id\":\"[^\"]*\"' | head -1 | sed 's/\"session_id\":\"//;s/\"$//'); echo \"$prompt\" | grep -qiE '\u0437\u0440\u043e\u0431\u0438 +\u043a\u043e\u043c\u0456\u0442|\u0437\u0430\u043a\u043e\u043c\u0456[\u0442\u0447]|\\bplease commit\\b|\\bcommit (this|it|now|please)\\b|^[[:space:]]*commit[.!]?[[:space:]]*$' && [ -n \"$sid\" ] && mkdir -p /tmp/claude-commit-approved && touch \"/tmp/claude-commit-approved/$sid\"; exit 0"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cmd=$(cat | grep -o '\"command\":\"[^\"]*\"' | sed 's/\"command\":\"//;s/\"$//'); echo \"$cmd\" | grep -q 'git commit' && { if [ -f /tmp/commit-approved ] && [ -z \"$(find /tmp/commit-approved -mmin +5 2>/dev/null)\" ]; then rm -f /tmp/commit-approved; exit 0; else echo 'git commit BLOCKED \u2014 say \"\u0437\u0440\u043e\u0431\u0438 \u043a\u043e\u043c\u0456\u0442\" first' >&2; exit 2; fi; } || exit 0"
+            "command": "input=$(cat); cmd=$(echo \"$input\" | sed -E 's/^.*\"command\":\"((\\\\.|[^\"\\\\])*)\".*$/\\1/'); sid=$(echo \"$input\" | grep -o '\"session_id\":\"[^\"]*\"' | head -1 | sed 's/\"session_id\":\"//;s/\"$//'); is_mutation=false; echo \"$cmd\" | grep -qE '\\bgit\\b' && echo \"$cmd\" | grep -qE '\\b(commit|push)\\b' && is_mutation=true; if [ \"$is_mutation\" = true ]; then marker=\"/tmp/claude-commit-approved/$sid\"; if [ -n \"$sid\" ] && [ -f \"$marker\" ] && [ -z \"$(find \"$marker\" -mmin +5 2>/dev/null)\" ]; then rm -f \"$marker\"; exit 0; else echo 'git commit/push BLOCKED for this session \u2014 say \"\u0437\u0440\u043e\u0431\u0438 \u043a\u043e\u043c\u0456\u0442\" first' >&2; exit 2; fi; fi; exit 0"
           },
           {
             "type": "command",
