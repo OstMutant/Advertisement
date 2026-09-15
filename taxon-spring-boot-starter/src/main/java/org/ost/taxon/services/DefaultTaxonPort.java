@@ -12,6 +12,7 @@ import org.ost.taxon.entities.Taxon;
 import org.ost.taxon.entities.TaxonAssignment;
 import org.ost.taxon.entities.TaxonTranslation;
 import org.ost.taxon.repository.TaxonFilter;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/** The {@link TaxonPort} SPI implementation: coordinates {@link TaxonService} and {@link TaxonAssignmentService}, resolving raw entities into locale-aware {@link TaxonDto}s for callers outside this starter. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -76,7 +78,7 @@ public class DefaultTaxonPort implements TaxonPort {
 
     @Override
     public List<TaxonDto> getAllByType(@NonNull TaxonType type, @NonNull Locale locale) {
-        List<Taxon> taxa = taxonService.listByType(type, TaxonFilter.active(), Sort.by("id"));
+        List<Taxon> taxa = taxonService.listByType(type, TaxonFilter.active(), Pageable.unpaged(Sort.by("id")));
         if (taxa.isEmpty()) {
             return List.of();
         }
@@ -107,7 +109,7 @@ public class DefaultTaxonPort implements TaxonPort {
 
     @Override
     public List<TaxonDto> listAllByType(@NonNull TaxonType type, @NonNull Locale locale, boolean includeDeleted) {
-        List<Taxon> taxa = taxonService.listByType(type, TaxonFilter.of(null, includeDeleted), Sort.by("id"));
+        List<Taxon> taxa = taxonService.listByType(type, TaxonFilter.of(null, includeDeleted), Pageable.unpaged(Sort.by("id")));
         if (taxa.isEmpty()) {
             return List.of();
         }
@@ -133,7 +135,7 @@ public class DefaultTaxonPort implements TaxonPort {
 
     @Override
     public Map<Long, Long> getUsageCounts(@NonNull TaxonType type) {
-        List<Taxon> taxa = taxonService.listByType(type, TaxonFilter.all(), Sort.unsorted());
+        List<Taxon> taxa = taxonService.listByType(type, TaxonFilter.all(), Pageable.unpaged());
         if (taxa.isEmpty()) {
             return Map.of();
         }

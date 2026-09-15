@@ -248,11 +248,11 @@ one: the file's own header.
 A significant fact discovered while actually running or investigating a script (not obvious from
 reading the code alone — an environment quirk, a real risk, why something behaves the way it
 does) gets written into whichever file the finding is actually about, not left only in a chat
-transcript or a backlog issue — placement follows "Files first, then README" above.
+transcript or a backlog task — placement follows "Files first, then README" above.
 
-A finding captured only in a backlog issue during investigation is a legitimate intermediate step
-(the issue is where it's confirmed and worded first) — but once confirmed, it belongs in the file
-it actually describes, not left permanently in the issue as the only record.
+A finding captured only in a backlog task during investigation is a legitimate intermediate step
+(the task is where it's confirmed and worded first) — but once confirmed, it belongs in the file
+it actually describes, not left permanently in the task as the only record.
 
 ## Per-function headers — only for files that are `source`d by other scripts
 

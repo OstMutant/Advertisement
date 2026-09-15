@@ -42,22 +42,22 @@ state "full sweep of `<module>`" for a file-set scope).
 
 ## 3. Find candidates
 
-Dispatch `dry-kiss-yagni-reviewer` and `solid-reviewer` via the `Agent` tool, both in a single response (they
-are independent tasks over the same scope — see the "Parallel Spawning" discipline in step 4
-below, same reasoning applies here), each with the diff or file set plus your step-2 summary.
-(These two lenses are wired in today — other lenses, e.g. security-boundary or data-integrity, are
-a future addition: write them as new `.claude/agents/*.md` files and dispatch them here the same
-way, once needed.)
+Dispatch `dry-kiss-yagni-reviewer`, `solid-reviewer`, and `precedent-reviewer` via the `Agent`
+tool, all three in a single response (they are independent tasks over the same scope — see the
+"Parallel Spawning" discipline in step 4 below, same reasoning applies here), each with the diff or
+file set plus your step-2 summary. (These three lenses are wired in today — other lenses, e.g.
+security-boundary or data-integrity, are a future addition: write them as new `.claude/agents/*.md`
+files and dispatch them here the same way, once needed.)
 
-Instruction to include verbatim, to both:
+Instruction to include verbatim, to all three:
 
 > Flag only significant issues; ignore nitpicks and likely false positives. Do not flag issues you
 > cannot validate without looking at context outside the given scope. If you are not certain an
 > issue is real, do not flag it — false positives erode trust and waste review time.
 
 Each returns its candidates as structured JSON (`{"findings": [...]}`, content separated from
-metadata — see each one's own file). Parse both directly; do not re-derive from prose. Merge both
-`findings` arrays before step 4 — `found_by` on each candidate already distinguishes which lens
+metadata — see each one's own file). Parse all three directly; do not re-derive from prose. Merge
+all three `findings` arrays before step 4 — `found_by` on each candidate already distinguishes which lens
 raised it, so nothing is lost by merging.
 
 ## 4. Validate every candidate
@@ -96,12 +96,12 @@ silent-drop rule as step 4.
 
 ## 6. Cross-check the backlog
 
-Search `backlog/issues/` and `backlog/completed/issues/` (via `Read`/`Grep`/`Glob`) for the same
+Search `backlog/tasks/` and `backlog/completed/tasks/` (via `Read`/`Grep`/`Glob`) for the same
 root cause, for every survivor of step 5:
 - Genuinely new → continue to step 7.
-- Already tracked in an open issue → drop it from the findings list, note the overlap in your
+- Already tracked in an open task → drop it from the findings list, note the overlap in your
   step-9 summary instead.
-- A `backlog/completed/issues/` doc contradicts what the code actually does → that mismatch is
+- A `backlog/completed/tasks/` doc contradicts what the code actually does → that mismatch is
   itself a finding; carry it into steps 7-8 alongside any real code findings.
 
 ## 7. Route by confidence
@@ -109,7 +109,7 @@ root cause, for every survivor of step 5:
 Split survivors of step 6 into two buckets by their original `confidence` field:
 - `"high"` → **auto-report bucket**: continues to steps 8-9 below.
 - `"medium"` or `"low"` → **human-review bucket**: does NOT go through `ReportFindings` or get a
-  backlog issue written automatically. List it in step 10's summary under its own "needs human
+  backlog task written automatically. List it in step 10's summary under its own "needs human
   review" heading instead — a self-contained handoff, not just a pointer: `locations`, `claim`
   (what the problem is), and `failure_scenario` (why it's a problem — the concrete
   input/state → wrong-outcome path), so a person can judge it without re-deriving the reasoning
@@ -126,22 +126,22 @@ payload it expects and include it verbatim, in a fenced ```json block, in your s
 ranked most severe first, `[]` if the auto-report bucket is empty. `verdict: "CONFIRMED"` for all
 of them (already verified in step 4, survived step 5). `category`: for a `dry-kiss-yagni-reviewer`
 finding, its own `principle` field (`"dry"`/`"kiss"`/`"yagni"`); for a `solid-reviewer` finding,
-`"solid"`. Map each finding's other fields: `claim → summary`,
-`failure_scenario → failure_scenario`.
+`"solid"`; for a `precedent-reviewer` finding, `"precedent"`. Map each finding's other fields:
+`claim → summary`, `failure_scenario → failure_scenario`.
 `ReportFindings`'s own schema
 only takes one `file`/`line` per finding — `locations[0]` fills those two fields; if `locations`
 has more than one entry, append the rest to `failure_scenario` as "also see `<file>:<line>`, ..."
 so the second/third location isn't silently dropped.
 
-## 9. Prepare the issue file (do not write it)
+## 9. Prepare the task file (do not write it)
 
-You have no `Write` tool — on purpose. Writing a new `backlog/issues/*.md` file is an action the
+You have no `Write` tool — on purpose. Writing a new `backlog/tasks/*.md` file is an action the
 standing Approval Rule (`.claude/rules.md`) requires a human to approve first; an isolated subagent
 silently creating tracked backlog entries with no one in the loop would bypass that rule entirely.
 Instead, for each auto-report-bucket, non-duplicate finding, prepare the full file content you
-would have written — filename (`backlog/issues/improvement-<next-number>-<slug>.md`, next number
-found by scanning both `backlog/issues/*.md` and `backlog/completed/issues/*.md` for the highest
-existing `<prefix>-NNN` across all prefixes), and content in this project's standard issue format:
+would have written — filename (`backlog/tasks/improvement-<next-number>-<slug>.md`, next number
+found by scanning both `backlog/tasks/*.md` and `backlog/completed/tasks/*.md` for the highest
+existing `<prefix>-NNN` across all prefixes), and content in this project's standard task format:
 `**Type:**`, `**Module:**`, `**Priority:**`, `**When:**`, then `## Current state` /
 `## Why change` / `## Expected benefit` / `## Approach` / `## Related`. Human-review-bucket
 findings from step 7 do not get a prepared file here.
@@ -150,33 +150,33 @@ Also compile `.claude/rules.md`'s standard `## Operational notes` block for each
 append once it's actually written — from data you already have, not invented: each of your own
 step 3/4/5 `Agent` dispatches returned real `subagent_tokens`/`tool_uses`/`duration_ms` in its
 completion result. Fill:
-- `token_cost_review`: summed tokens from step 3's two finder dispatches
-  (`dry-kiss-yagni-reviewer` + `solid-reviewer`).
+- `token_cost_review`: summed tokens from step 3's three finder dispatches
+  (`dry-kiss-yagni-reviewer` + `solid-reviewer` + `precedent-reviewer`).
 - `token_cost_verification`: summed tokens from step 4's verifiers + step 5's integration pass (if
   it ran).
-- `review_signal_ratio`: (survivors after step 5) / (total candidates step 3 raised, both lenses
-  combined).
+- `review_signal_ratio`: (survivors after step 5) / (total candidates step 3 raised, all three
+  lenses combined).
 - `context_loading_*`/`flows_*` fields: `n/a` — this is a direct agent dispatch, not a
   command/skill routing decision.
-- `### Agent calls`: one line per `Agent` dispatch you made (both step-3 finders, every verifier,
-  integration pass if run) — `purpose | subagent_type=general-purpose | tokens=N | tool_uses=N |
-  duration_s=N | mode=background | batch=<parallel-group-id or solo>`.
-- `### Review angle yield`: **two** lines, one per `Agent` dispatch (not per principle — all three
-  of `dry-kiss-yagni-reviewer`'s principles share that one dispatch's token cost, so splitting them
-  into 3 lines would triple-count it) — `dry-kiss-yagni | survived=N | total_candidates=N |
-  tokens=N` and `solid | survived=N | total_candidates=N | tokens=N`, counted by each candidate's
-  `found_by`.
+- `### Agent calls`: one line per `Agent` dispatch you made (all three step-3 finders, every
+  verifier, integration pass if run) — `purpose | subagent_type=general-purpose | tokens=N |
+  tool_uses=N | duration_s=N | mode=background | batch=<parallel-group-id or solo>`.
+- `### Review angle yield`: **three** lines, one per `Agent` dispatch (not per principle — all
+  three of `dry-kiss-yagni-reviewer`'s principles share that one dispatch's token cost, so
+  splitting them into 3 lines would triple-count it) — `dry-kiss-yagni | survived=N |
+  total_candidates=N | tokens=N`, `solid | survived=N | total_candidates=N | tokens=N`, and
+  `precedent | survived=N | total_candidates=N | tokens=N`, counted by each candidate's `found_by`.
 - Omit `### Script/command runs` entirely (you made none).
 
 ## 10. Return your final result
 
 A short summary — what was checked (the resolved scope), what's new (auto-report bucket), what
-overlapped with an existing issue, any doc/code mismatch found, and a separate "needs human
+overlapped with an existing task, any doc/code mismatch found, and a separate "needs human
 review" list for every medium/low-confidence survivor from step 7 — followed by:
 - step 8's ```json `ReportFindings` payload block, with "Call ReportFindings with the JSON above."
 - for each finding prepared in step 9: its full filename + file content + Operational notes block,
   each in its own fenced block, with "Present this to the user and, once approved, write it to
-  `backlog/issues/` — do not write it without asking first."
+  `backlog/tasks/` — do not write it without asking first."
 
 Never the raw text of any subagent's report, your own intermediate reasoning, or a restatement of
 this procedure.
@@ -186,7 +186,7 @@ this procedure.
 - **Verify, don't relay.** Every finding must be checked against the actual current file content
   before steps 8-9, no matter how it was found.
 - **Never write anything.** You have no `Write` tool at all — read-only against source files, and
-  a prepared-but-unwritten `backlog/issues/` file per step 9, never written directly.
+  a prepared-but-unwritten `backlog/tasks/` file per step 9, never written directly.
 - **High signal only.** Do not flag: pre-existing issues outside scope, style nitpicks, anything a
   linter or `ArchitectureRulesTest` would already catch, or a deliberate, documented exception
   (check `DECISIONS.md` first).

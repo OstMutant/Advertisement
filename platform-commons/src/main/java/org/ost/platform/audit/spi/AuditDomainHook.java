@@ -10,7 +10,6 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Hook: audit-starter → marketplace.
  * Combines actor name resolution, entity existence checks, and snapshot type casting —
  * all are domain lookups that audit-starter delegates to marketplace.
  * Marketplace implements this against its own user and entity repositories.

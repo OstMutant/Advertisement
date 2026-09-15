@@ -10,6 +10,7 @@ import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
+import org.ost.query.sort.SortField;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
@@ -19,13 +20,13 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.ost.platform.providerprofile.dto.ProviderProfileFilterDto.Fields.*;
 import static org.ost.query.filter.SqlCondition.*;
 
+/** Bespoke {@code JdbcClient} queries for {@code provider_profile} (filtering/sorting/pagination); trivial CRUD delegates to {@link ProviderProfileCrudRepository}. */
 @Repository
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
@@ -39,7 +40,6 @@ public class ProviderProfileRepository {
                 .actorId(rs.getObject("actor_id", Long.class))
                 .kind(ProviderKind.valueOf(rs.getString("kind")))
                 .about(rs.getString("about"))
-                .cityTaxonId(rs.getObject("city_taxon_id", Long.class))
                 .createdAt(createdAt != null ? createdAt.toInstant() : null)
                 .updatedAt(updatedAt != null ? updatedAt.toInstant() : null)
                 .version(rs.getObject("version", Long.class))
@@ -47,12 +47,15 @@ public class ProviderProfileRepository {
     };
 
     private static final SqlFilterBuilder<ProviderProfileFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
-            SqlBoundFilter.of(kinds,        "pp.kind",          (m, v) -> inSet(m, v.getKinds())),
-            SqlBoundFilter.of(cityTaxonId,  "pp.city_taxon_id", (m, v) -> equalsTo(m, v.getCityTaxonId()))
+            SqlBoundFilter.of(kinds,          "pp.kind",          (m, v) -> inSet(m, v.getKinds())),
+            SqlBoundFilter.of(createdAtStart, "pp.created_at",    (m, v) -> after(m, v.getCreatedAtStart())),
+            SqlBoundFilter.of(createdAtEnd,   "pp.created_at",    (m, v) -> before(m, v.getCreatedAtEnd())),
+            SqlBoundFilter.of(updatedAtStart, "pp.updated_at",    (m, v) -> after(m, v.getUpdatedAtStart())),
+            SqlBoundFilter.of(updatedAtEnd,   "pp.updated_at",    (m, v) -> before(m, v.getUpdatedAtEnd()))
     ));
 
     private static final String SELECT = """
-            SELECT pp.id, pp.actor_id, pp.kind, pp.about, pp.city_taxon_id, pp.created_at, pp.updated_at, pp.version
+            SELECT pp.id, pp.actor_id, pp.kind, pp.about, pp.created_at, pp.updated_at, pp.version
             FROM provider_profile pp
             """;
 
@@ -74,14 +77,18 @@ public class ProviderProfileRepository {
                 .query(ROW_MAPPER).optional();
     }
 
+    private static final List<SortField> SORT_FIELDS = List.of(
+            SortField.of(ProviderProfileDto.Fields.id,        "pp.id"),
+            SortField.of(ProviderProfileDto.Fields.kind,      "pp.kind"),
+            SortField.of(ProviderProfileDto.Fields.createdAt, "pp.created_at",
+                    SortField.of(ProviderProfileDto.Fields.id, "pp.id")),
+            SortField.of(ProviderProfileDto.Fields.updatedAt, "pp.updated_at",
+                    SortField.of(ProviderProfileDto.Fields.id, "pp.id")));
+
     public List<ProviderProfileDto> findByFilter(@NonNull ProviderProfileFilterDto filter, @NonNull Pageable pageable,
                                                   Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();
-        String orderBy = OrderByBuilder.build(pageable.getSort(), Map.ofEntries(
-                Map.entry(ProviderProfileDto.Fields.id,        "pp.id"),
-                Map.entry(ProviderProfileDto.Fields.kind,      "pp.kind"),
-                Map.entry(ProviderProfileDto.Fields.createdAt, "pp.created_at"),
-                Map.entry(ProviderProfileDto.Fields.updatedAt, "pp.updated_at")));
+        String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_FIELDS);
         String sql = (SELECT + "WHERE 1=1%s%s%s%s")
                 .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();

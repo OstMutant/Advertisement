@@ -78,10 +78,10 @@ has neither an image nor a build context specified" — confirmed by direct test
 This is documented, version-independent Compose behavior — the same fix applies on any machine,
 not just this sandbox.
 
-**How to run deploy-and-run.sh:** per `.claude/rules.md`'s "Scripts" section — background
-`bash scripts/deploy-and-run.sh [args] > /tmp/deploy.log 2>&1`, then attach `Monitor` with the
-wait-then-tail wrapper against `/tmp/deploy.log`; stay quiet on routine progress, surface errors,
-a stall well past normal build time, or `BUILD SUCCESS`/`Started Application`.
+**How to run deploy-and-run.sh:** per `.claude/rules.md`'s "Scripts" section, step 0 — background
+`bash scripts/activity-monitor.sh -- scripts/deploy-and-run.sh [args]`, then attach `Monitor`
+against `/tmp/activity-monitor/deploy-and-run.sh/tree.txt`; stay quiet on routine step transitions,
+surface a real error (with its named pointer's detail) or a stall well past normal build time.
 
 ### Local run (Maven, no Docker image rebuild)
 ```bat
@@ -129,7 +129,7 @@ bash scripts/build-and-test.sh --no-unit --integration-test AdvertisementReposit
 ```
 
 Builds the whole reactor into a container-isolated `~/.m2` first, then runs unit
-(`query-lib`/`marketplace-app`/`marketplace-orchestrator`) and integration (`integration-tests`
+(`query-lib`/`marketplace-app`/`marketplace-orchestrator`/`marketplace-rest-api`) and integration (`integration-tests`
 module — Testcontainers-based repository tests, real Postgres) as parallel jobs inside that same
 container. See `scripts/build-and-test/README.md` for the full flow and
 `scripts/build-and-test/build.sh`'s own header for every flag. `TESTCONTAINERS_RYUK_DISABLED=true
@@ -145,10 +145,10 @@ and `scripts/build-and-test/reports/logs/` (the full raw console log for whichev
 `unit-tests.log`/`integration-tests.log`/`archunit-metrics.log` — persists the real failure detail
 past this run's own terminal output/scrollback).
 
-**How to run it:** per `.claude/rules.md`'s "Scripts" section — background
-`bash scripts/build-and-test.sh --unit --integration > /tmp/build-and-test.log 2>&1`,
-then attach `Monitor` with the wait-then-tail wrapper against that log; stay quiet on routine
-progress, surface errors, a stall, or `PASSED|FAILED|BUILD SUCCESS|BUILD FAILURE`.
+**How to run it:** per `.claude/rules.md`'s "Scripts" section, step 0 — background
+`bash scripts/activity-monitor.sh -- scripts/build-and-test.sh --unit --integration`, then attach
+`Monitor` against `/tmp/activity-monitor/build-and-test.sh/tree.txt`; stay quiet on routine step
+transitions, surface a real error (with its named pointer's detail) or a stall.
 
 ### Via direct Maven/module scripts (need a local Java install)
 
@@ -215,12 +215,13 @@ simpler, single-level case.
 
 ## Running Playwright Tests
 
-**How to run playwright.sh:** per `.claude/rules.md`'s "Scripts" section.
-1. Kill stale processes: `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`
-2. Background `bash scripts/playwright.sh [scenario] > /tmp/playwright.log 2>&1`, then attach
-   `Monitor` with the wait-then-tail wrapper against that log.
-3. Stay quiet on routine per-test progress; surface a real error, a stall, or the final
-   `passed`/`failed` summary line.
+**How to run playwright.sh:** per `.claude/rules.md`'s "Scripts" section, step 0. `playwright/run.sh`
+already kills any stale Playwright process left inside `pw-runner` itself, so no manual step is
+needed here.
+1. Background `bash scripts/activity-monitor.sh -- scripts/playwright.sh [scenario]`, then attach
+   `Monitor` against `/tmp/activity-monitor/playwright.sh/tree.txt`.
+2. Stay quiet on routine step transitions; surface a real error (with its named pointer's detail)
+   or a stall.
 
 ---
 
@@ -262,10 +263,10 @@ bash scripts/ci.sh --reset-e2e-db                                  # full --rese
 bash scripts/ci.sh --foreground                                     # block and stream this run's
                                                                       # output instead of firing it
                                                                       # and returning immediately
-bash scripts/ci.sh --no-rebuild                                      # trigger a new run against
-                                                                       # the already-running
-                                                                       # container instead of
-                                                                       # rebuilding/recreating it
+bash scripts/ci.sh --rebuild                                         # force an image rebuild +
+                                                                       # container recreation even
+                                                                       # when the Dockerfile is
+                                                                       # unchanged
 bash scripts/ci.sh --refresh-tools                                    # force re-download of
                                                                         # buildx/compose/dagu even
                                                                         # if already cached
@@ -289,27 +290,50 @@ see `.claude/nav/adr-index.md`. There is no `scripts/ci/reports/` tree, `progres
 `--report-dir`/`--keep-reports` flag anymore — Dagu's UI and run history (backed by the
 `ci-dagu-home` named volume) replace all of that. Once the container is running, a DAG run can also
 be triggered directly from that UI ("Start" on the `ci` DAG opens a dialog with a field per
-`scripts/ci/dagu/ci.yaml` param) — `bash scripts/ci.sh` itself is only needed to build/start the
-container in the first place, or to trigger a run from a script/CI context. **Triggering from the
-UI never picks up source changes made since the last `bash scripts/ci.sh` rebuild** — the container
-has no live view of the working tree (see `.claude/nav/adr-index.md` for why a bind mount
-isn't used instead); re-run `bash scripts/ci.sh` after any code change before relying on the UI's
-"Start" button again. Maven dependencies are
+`scripts/ci/dagu/ci.yaml` param). `bash scripts/ci.sh` replaces `/app` in the
+running container with the current working tree before every run — it wipes `/app` and re-extracts
+the `git ls-files` set (tracked + untracked-not-`.gitignored`), piped through `tar` (wiping first,
+so a file deleted from the working tree doesn't linger and break the compile) — and rebuilds the
+image only when `scripts/ci/Dockerfile` or `scripts/ci/docker-entrypoint.sh`
+changed since the image was built (`--rebuild` forces a rebuild + container recreation anyway) —
+the image's own baked-in `COPY . .` is never trusted as the source of truth, since Docker's layer
+cache can silently serve a stale copy of it. **Triggering a run from the Dagu web UI directly does NOT sync the working
+tree** — it runs against whatever source `bash scripts/ci.sh` last streamed in; a bind mount
+isn't used instead (see `.claude/nav/adr-index.md`). Maven dependencies are
 cached across runs via the `ci-m2-cache` named volume; buildx/compose/Dagu's own binaries are
 cached via `ci-tools-cache` (downloaded once, reused across image rebuilds — see
 `scripts/ci/docker-entrypoint.sh`). `deploy-and-run.sh` and `playwright/run.sh` accept env-var
 overrides (container/network names, ports, volume names — default to the exact values already in
 use, so normal dev usage is unaffected) for the isolated e2e stack.
 
-**How to run it (Monitor-backed, same pattern as deploy/playwright/build-and-test):**
-1. Trigger: `bash scripts/ci.sh [flags]` (no `--foreground`) — returns once the image is built, the
-   container is up, and the run is triggered.
-2. Launch `Monitor` with `command: "python3 -u scripts/ci/watch-run.py"` (`-u` is required, see the
-   script's own header) — polls Dagu's REST API
-   (through the proxy sidecar, not a log file, since a triggered run has no single streaming log)
-   and emits one line per step-status transition, then a final `RUN <status>` line and exits on its
-   own once the run reaches a terminal state. Unlike `deploy.log`/`playwright.log`, there's no file
-   to `tail`, so this script — not a raw shell command — is what Monitor watches.
+**How to run it — `ci.sh` is now an 8th `activity-monitor.sh`-wrappable script, same mechanism as
+the other 7, not a separate one:**
+
+```bash
+bash scripts/activity-monitor.sh -- bash scripts/ci.sh --foreground
+```
+
+One command, one terminal, real per-step `tree.txt` — identical UX to
+`bash scripts/activity-monitor.sh -- bash scripts/deploy-and-run.sh`. Mechanically:
+`--foreground` triggers the Dagu run in the background, then runs
+`scripts/ci/dagu-rest-run-monitor.py` (the one thing in this repo that knows how to poll Dagu's own
+REST API — JSON-over-HTTP is a Python job, not a bash one) and blocks on it; every time a Dagu step
+reaches `succeeded`/a failure-shaped terminal status, that script prints a real
+`AGENTIC_SUCCESS_BLOCK`/`AGENTIC_ERROR_BLOCK` marker to `run.sh`'s own stdout — the exact contract
+`scripts/activity-monitor.sh`'s existing marker parser already reads for every other wrapped script,
+so it renders the checklist itself, no separate tree-drawing code of its own for `ci.sh`.
+`unit`/`integration`/`e2e`/`sonar`/`archunit_metrics` genuinely run in parallel in Dagu (all depend
+only on `build`) — `scripts/activity-monitor/run.sh`'s `SCRIPT_STEP_PARALLEL_GROUPS` renders all of
+them as `⏳ running` simultaneously while any is still in flight, instead of the normal
+one-step-at-a-time sequence view. Steps backed by one well-known container
+(`unit`/`integration`/`e2e`/`archunit_metrics`) get the same live `docker inspect`-based
+container-state warning `deploy-and-run.sh`/`playwright.sh` already have.
+
+`bash scripts/ci.sh` (default, no `--foreground`) is unaffected — still triggers in the background
+and returns immediately, exactly as before; check on it later via Dagu's own web UI
+(`http://localhost:8082`) or by running `python3 -u scripts/ci/dagu-rest-run-monitor.py` directly
+(prints the same real per-step transitions, as raw `AGENTIC_*_BLOCK` marker lines rather than a
+rendered tree, when nothing is wrapping it).
 
 Use `--foreground` + Monitor+`tee` on `ci.sh` itself only when a single blocking call with a
 definite end is actually needed (e.g. scripted verification inside a larger multi-step check) —

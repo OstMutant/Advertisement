@@ -13,7 +13,7 @@ import org.ost.taxon.entities.TaxonTranslation;
 import org.ost.taxon.repository.TaxonFilter;
 import org.ost.taxon.repository.TaxonRepository;
 import org.ost.taxon.repository.TaxonTranslationRepository;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+/** Catalog-side operations: a taxon's own lifecycle (create/update/soft-delete/restore) and translations, with no awareness of what's assigned to it; captures an audit snapshot via {@link AuditPort} on every write when an actor id is known. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -104,8 +105,8 @@ public class TaxonService {
         }
     }
 
-    public List<Taxon> listByType(@NonNull TaxonType type, @NonNull TaxonFilter filter, @NonNull Sort sort) {
-        return taxonRepository.findAllByType(type, filter, sort);
+    public List<Taxon> listByType(@NonNull TaxonType type, @NonNull TaxonFilter filter, @NonNull Pageable pageable) {
+        return taxonRepository.findAllByType(type, filter, pageable);
     }
 
     public Optional<Taxon> findById(@NonNull Long id) {

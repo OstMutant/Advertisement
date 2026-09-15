@@ -11,7 +11,6 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Port: marketplace → advertisement-starter.
  * CRUD advertisements, filtered/paginated queries, ownership checks, and purge-safety helpers
  * (findOwnerIds/clearActorReferences) used when a user account is deleted.
  * Implementation lives in advertisement-spring-boot-starter.

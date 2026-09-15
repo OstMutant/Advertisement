@@ -7,7 +7,6 @@ import org.ost.platform.core.model.EntityRef;
 import java.util.List;
 
 /**
- * Port: marketplace → attachment-starter.
  * Provides attachment-domain data to marketplace orchestration code.
  * Marketplace delegates to this port from {@code ActivityEnrichHookImpl}.
  * Implementation lives in attachment-spring-boot-starter.

@@ -13,6 +13,10 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 
+/**
+ * The full {@code user_information} row -- authentication credentials (email/passwordHash), role,
+ * and audit timestamps -- convertible to the caller-facing {@link UserDto} via {@link #toDto()}.
+ */
 @Value
 @Builder
 @FieldNameConstants

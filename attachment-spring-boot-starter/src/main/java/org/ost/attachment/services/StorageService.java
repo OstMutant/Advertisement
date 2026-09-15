@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
 
+/** File-storage backend abstraction -- upload, move, delete, and prefix-listing, implemented by {@link S3StorageService}. */
 public interface StorageService {
     String upload(String folder, String originalFilename, InputStream inputStream, long contentLength, String contentType);
 

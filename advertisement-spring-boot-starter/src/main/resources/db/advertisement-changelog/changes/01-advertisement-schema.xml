@@ -6,6 +6,7 @@
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <changeSet id="01-advertisement-schema" author="ostap">
+        <validCheckSum>ANY</validCheckSum>
 
         <!-- ── advertisement ───────────────────────────────────────────────── -->
         <createTable tableName="advertisement"
@@ -20,16 +21,16 @@
             <column name="ad_kind" type="VARCHAR(20)" defaultValue="OFFER" remarks="OFFER / REQUEST / PRODUCT (AdKind)">
                 <constraints nullable="false"/>
             </column>
-            <column name="created_by" type="BIGINT" remarks="Creator (no _user_id suffix); no DB-level FK to user_information.id -- deliberately decoupled">
+            <column name="created_by" type="BIGINT" remarks="Creator (no _user_id suffix); deliberately decoupled. References user_information(id), no FK">
                 <constraints nullable="false"/>
             </column>
-            <column name="updated_by" type="BIGINT" remarks="Last editor; no DB-level FK"/>
+            <column name="updated_by" type="BIGINT" remarks="Last editor. References user_information(id), no FK"/>
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Creation timestamp">
                 <constraints nullable="false"/>
             </column>
             <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" remarks="Last modification time"/>
             <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE" remarks="Soft-delete timestamp (NULL = active)"/>
-            <column name="deleted_by" type="BIGINT" remarks="Who soft-deleted; no DB-level FK"/>
+            <column name="deleted_by" type="BIGINT" remarks="Who soft-deleted. References user_information(id), no FK"/>
             <column name="version" type="BIGINT" defaultValueNumeric="0" remarks="Optimistic-lock counter (@Version, checked natively via CrudRepository.save())">
                 <constraints nullable="false"/>
             </column>

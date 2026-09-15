@@ -23,6 +23,12 @@ subagent to read or classify `DECISIONS.md` content, check `context-loading.md`'
 table first — it may already name a specific command/skill/agent (e.g. the `deep-review-orchestrator`
 agent's full-repo scope) that owns exactly this task shape instead of a fresh, undocumented dispatch.
 
+A direct `scripts/*.sh` invocation via Bash is itself, mechanically, always one of these
+choice points — check `flows.md`'s mechanism table for that situation before running the script,
+every single time, not only when a choice consciously feels ambiguous. Running the script directly
+still feels like the obvious default action in the moment, which is exactly why the check must be
+unconditional rather than triggered by first noticing a choice exists.
+
 ---
 
 > ## ⛔ One fact, one canonical home — the single governing rule for all documentation
@@ -83,7 +89,7 @@ agent's full-repo scope) that owns exactly this task shape instead of a fresh, u
 
 > ## ⛔ Rules in this file must state the abstract principle, not a case study
 > When adding or editing a rule, write the general principle a reader can apply to an unrelated
-> future situation. Do not embed a specific incident's class/method/table names, issue numbers, or
+> future situation. Do not embed a specific incident's class/method/table names, task numbers, or
 > a blow-by-blow retelling of what happened — that belongs in a commit message or `DECISIONS.md`,
 > not here. A rule padded with one incident's specifics reads as "this is about X," making it
 > harder to recognize the same principle applies somewhere unrelated to X.
@@ -115,11 +121,11 @@ agent's full-repo scope) that owns exactly this task shape instead of a fresh, u
 > undocumented operational mechanism is exactly the kind of adjacent quality gap the standing
 > "surface it unprompted" rule already covers — don't wait for a later audit to catch it.
 
-> ## ⛔ Code comments: one line or none, never an issue/ticket number
+> ## ⛔ Code comments: one line or none, never a task/ticket number
 > Every code comment (production code and test code alike) is either **one line** or **not
 > written at all**. Never a multi-line block explaining background/rationale in full — that
-> belongs in the issue file, ADR, or commit message. Also never mention an issue/ticket number
-> (`improvement-NNN`, etc.) inside a code comment — it looks bad and rots as issues get renumbered
+> belongs in the task file, ADR, or commit message. Also never mention a task/ticket number
+> (`improvement-NNN`, etc.) inside a code comment — it looks bad and rots as tasks get renumbered
 > or archived; that traceability belongs in the commit message, not the code. Write the one-line,
 > number-free version on the first pass; do not wait to be told to fix it. Violating this rule has
 > happened repeatedly. When the rationale being trimmed out is a real fact or design decision (not
@@ -134,7 +140,7 @@ agent's full-repo scope) that owns exactly this task shape instead of a fresh, u
 > never written from the method name/tag alone without checking the code. If the comment claims to
 > summarize the whole method, it must cover every real branch, not just the first path.
 
-> ## ⛔ No issue/ticket numbers or dated "resolved" narrative in current-state documentation
+> ## ⛔ No task/ticket numbers or dated "resolved" narrative in current-state documentation
 > The same "no ticket numbers" principle above extends to every file that describes the system's
 > *current* state — `CLAUDE.md`, `README.md`, `docs/architecture/*.md`, `.claude/nav/*.md`, skill/
 > command `.md` files, and shell-script comments. None of these may cite an
@@ -142,15 +148,15 @@ agent's full-repo scope) that owns exactly this task shape instead of a fresh, u
 > "resolved"/"as of \<date\>" narrative describing a past state that no longer holds. If a fact
 > changes, delete the old fact — don't mark it resolved in place; a file describing "what is"
 > should read as if it always looked this way. `DECISIONS.md` keeps its own append-only historical
-> character (date, decision, reasoning) but drops the issue-number citation the same way — an ADR
+> character (date, decision, reasoning) but drops the task-number citation the same way — an ADR
 > records the decision and why, never which ticket produced it.
 >
-> **Why:** a ticket citation is a forward-link that only ever goes stale — issues get renumbered,
+> **Why:** a ticket citation is a forward-link that only ever goes stale — tasks get renumbered,
 > merged, or archived, while the file citing them keeps being read as live guidance long after the
 > ticket closes. A "resolved" note left in place reads as current information to a reader with no
 > way to tell it stopped mattering.
 >
-> **How to apply:** history lives only in `backlog/completed/issues/*.md` (full detail) and
+> **How to apply:** history lives only in `backlog/completed/tasks/*.md` (full detail) and
 > `backlog/completed/BACKLOG-ARCHIVE.md` (searchable one-line index) — keep those naming the real
 > classes/modules/concepts touched, not just "cleanup pass," so a keyword grep finds them. The
 > reverse link — which ticket produced a given current line — is `git blame`/`git log`, already
@@ -258,10 +264,10 @@ bookkeeping, moving a file, updating an index). Being the obvious next step is n
 permission; ask separately.
 
 Before presenting a plan for a multi-step change, first write the complete, current plan into the
-relevant `backlog/issues/<n>.md` file — never present a plan only in chat. Update the issue file
+relevant `backlog/tasks/<n>.md` file — never present a plan only in chat. Update the task file
 again every time the plan changes (new finding, scope correction) or a plan item is actually
 implemented (mark that item done in place, with date), then present a short summary from that file
-for approval — never re-paraphrase the whole issue back at length.
+for approval — never re-paraphrase the whole task back at length.
 
 ## Module Import Rules
 
@@ -324,6 +330,23 @@ gets its own dedicated folder (e.g. `scripts/utils/`) — distinct from a script
 subdirectory, which belongs to that one group alone.
 
 **Run all scripts backgrounded, watched by Monitor — never a bare `tail -f`:**
+0. For any of the 7 top-level scripts `scripts/activity-monitor/README.md` covers
+   (`build-and-test.sh`, `ci.sh`, `deploy-and-run.sh`, `playwright.sh`, `reset.sh`,
+   `run-all-tests.sh`, `sonar.sh`), background `bash scripts/activity-monitor.sh -- <script>
+   [args...]` instead of tee-ing the script's own raw output directly, and point `Monitor` at
+   `/tmp/activity-monitor/<script-basename>/tree.txt` instead of a raw log — that file only
+   changes on a real step transition (mechanically recognized `agentic-output.sh` markers), not
+   per raw line, so token cost scales with real signal instead of log volume. Steps 1-5 below still
+   apply, just against that compact tree file; when asked for status, print the tree directly
+   rather than paraphrasing it, and on a real error read the pointer it names (`docker logs
+   <container>` or the wrapped script's own raw log) for the actual diagnosis before answering. A
+   standalone run triggered from a shell whose own filesystem state isn't reliably visible from
+   here (see `scripts/activity-monitor/README.md`'s "Running in a container" section) can add
+   `--in-container` right after `scripts/activity-monitor.sh` so its live state lives in
+   Docker-daemon state instead. For
+   anything not covered by an activity-monitor profile (a script outside that list, or a bare
+   command like the dev-infra `docker-compose` invocation), steps 1-5 below apply directly, without
+   this wrapper.
 1. Start the target command with `run_in_background: true`, output redirected to a real log file,
    as one Bash call — never nest a second `&` inside that same call to background it a second way;
    that loses reliable track of which process is actually the live one.
@@ -338,28 +361,36 @@ subdirectory, which belongs to that one group alone.
    chat commentary to every one; the streamed event itself is the update. Speak up only for a real
    signal: an error, a stall (no new output far longer than that step normally takes), the final
    result, or when explicitly asked for the current status — answer with the real current state
-   then, never with continued silence.
-4. Before running Playwright specifically, kill stale processes first:
-   `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`. Always pass `--ux` —
-   never run a Playwright scenario without it.
+   then, never with continued silence. "Stay silent" means exactly that — no reply at all to a
+   routine notification, not a placeholder acknowledgment ("...", "still running", "no change")
+   either; a placeholder is still unwanted chat noise on every tick, confirmed directly as a real
+   annoyance, not just a hypothetical one. Do not stop/restart the Monitor task to chase a quieter
+   filter when it's firing on routine ticks — the Monitor keeps running regardless of whether a
+   given notification gets a reply; responding to a routine tick with nothing is a valid, complete
+   turn, not a gap that needs filling.
+4. Always pass `--ux` when running Playwright — never run a scenario without it.
 5. Once the Monitor's target process reaches its final result (pass/fail line, completion
-   marker), stop that Monitor task immediately rather than leaving it running past that point.
+   marker) — or once its notification has already delivered the answer being waited for, even
+   before that marker — call `TaskStop` on that Monitor task immediately. A `tail -f`-based
+   Monitor never exits on its own; left running, it keeps emitting notifications until it hits its
+   own `timeout_ms`, creating stale-looking events for a result already reported. Do this for
+   every Monitor call site, not just the one whose result happened to matter most.
 
-## Issue Lifecycle
+## Task Lifecycle
 
-Before filing a new ADR (`/record-decision`) or a new backlog issue (`/feature`), consult
+Before filing a new ADR (`/record-decision`) or a new backlog task (`/feature`), consult
 `.claude/nav/adr-index.md` (if present) for an already-decided overlapping ADR — mandatory, not
 best-effort. See `.claude/nav/README.md` for what the file is and how it stays current.
 
-When filing a **new** issue in `backlog/issues/`:
-- Always assign a `**Priority:**` line in the issue file itself — never leave it blank/TBD.
+When filing a **new** task in `backlog/tasks/`:
+- Always assign a `**Priority:**` line in the task file itself — never leave it blank/TBD.
 - Always add it to `backlog/BACKLOG.md`'s Priority order table at a ranked position (not just the
-  "Still open" listing table) in the same operation — a new issue is never left unranked pending
+  "Still open" listing table) in the same operation — a new task is never left unranked pending
   future triage. See `backlog/BACKLOG.md`'s "Maintenance rules".
 
-When an issue in `backlog/issues/` is resolved (fix is implemented and committed):
-- Move the file to `backlog/completed/issues/` — **immediately, in the same operation as the fix**
-- Do not leave resolved issues in `backlog/issues/`
+When a task in `backlog/tasks/` is resolved (fix is implemented and committed):
+- Move the file to `backlog/completed/tasks/` — **immediately, in the same operation as the fix**
+- Do not leave resolved tasks in `backlog/tasks/`
 - Remove its row from `backlog/BACKLOG.md` and add a one-line `✅ Done` entry to
   `backlog/completed/BACKLOG-ARCHIVE.md` under the relevant wave — same operation, see
   `backlog/BACKLOG.md`'s "Maintenance rules"
@@ -369,11 +400,11 @@ When a `/code-review` (or any other review) finding is real and worth fixing but
 its solution is too large to fit in the current batch/PR (a new abstraction, an architectural
 change, a cross-module refactor), do not silently skip it and do not fix it inline outside the
 approved scope either. At the end of the review, propose appending it as a new entry to this
-project's standing collection bucket for exactly this class of finding — search `backlog/issues/`
+project's standing collection bucket for exactly this class of finding — search `backlog/tasks/`
 for the file covering "deferred oversized review findings" — state what it covers and why it
-doesn't fit now, and wait for approval before writing the entry. Do not create a brand-new issue
+doesn't fit now, and wait for approval before writing the entry. Do not create a brand-new task
 file per finding; that scatters oversized findings across dozens of one-off files instead of one
-triage-able list. Only carve a finding out into its own issue once it's actually being picked up
+triage-able list. Only carve a finding out into its own task once it's actually being picked up
 and sized for real work.
 
 ### Final reports — no file-by-file diff table
@@ -384,9 +415,9 @@ Keep the report human: what was done in plain terms, test results (counts, not j
 and review-finding decisions. Skip the enumerated file-changes section entirely.
 
 ### Final reports record real operational data in a fixed, mechanically-parseable block
-Whenever completing an issue, append an `## Operational notes` block to that issue file — real
+Whenever completing a task, append an `## Operational notes` block to that task file — real
 observations from the real task just done, not a synthetic exercise, and not free-form prose (a
-later aggregate pass greps/parses this across many issue files, the same way `## ADR-NNN:` +
+later aggregate pass greps/parses this across many task files, the same way `## ADR-NNN:` +
 `**Status:**` makes `DECISIONS.md` mechanically indexable — inconsistent formatting defeats that).
 Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply to this task:
 
@@ -417,7 +448,7 @@ Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply 
 aggregate is computed from; omit the whole subsection, not empty, if no /code-review ran)
 ```
 
-Show this same block in the chat final report too, not only in the issue file — writing it to the
+Show this same block in the chat final report too, not only in the task file — writing it to the
 file alone is invisible to the user unless they go open that file themselves. Include it verbatim
 (or immediately adjacent to) the rest of the completion report, every time, not just when a number
 happens to look interesting.
@@ -464,8 +495,8 @@ A feature or fix is not complete until all of the following hold:
 - `DECISIONS.md` (the relevant module's) is updated if the change is architectural — a new
   decision, or an annotation to an existing one it supersedes — via `/record-decision`, not a
   hand-written entry.
-- The issue file is moved from `backlog/issues/` to `backlog/completed/issues/`, its `BACKLOG.md`
-  row removed, and a `✅ Done` entry added to `BACKLOG-ARCHIVE.md` — see "Issue Lifecycle" above.
+- The task file is moved from `backlog/tasks/` to `backlog/completed/tasks/`, its `BACKLOG.md`
+  row removed, and a `✅ Done` entry added to `BACKLOG-ARCHIVE.md` — see "Task Lifecycle" above.
 
 ## After Interruption
 After any [Request interrupted by user] — full stop. No further tool calls, no continuation, no fixes.
@@ -550,6 +581,14 @@ rule's name at face value. Once genuinely confirmed:
    the rule key in the annotation is already self-documenting and searchable on its own.
 Never suppress a finding in code without also confirming it's genuinely false first — a suppression
 is only legitimate when the finding truly doesn't apply, never a shortcut to silence a real one.
+
+**Never mutate SonarQube's own server-side state without a separate, explicit approval for that
+specific call.** This includes `do_transition` (false-positive/won't-fix/reopen) and any other
+write call against the SonarQube API — approval to add a code-side `@SuppressWarnings` annotation
+is not itself approval for the matching server-side transition, and general approval to "fix
+Sonar findings" is not approval for a server-side write either. Ask for that one action by name
+before making it, every time — a shared analysis server's own state is not local, reversible
+project state the standing code-edit approval flow already covers.
 
 ---
 
@@ -783,7 +822,7 @@ When adding a new domain, use these as reference:
 - View: `AdvertisementsView` (init structure) + `UserView` (refresh guard)
 - Overlay: `AdvertisementOverlay` (OverlaySession, afterSave, mode switching)
 - ViewModeHandler: `AdvertisementViewOverlayModeHandler` (AbstractViewOverlayModeHandler)
-- FormModeHandler: `UserFormOverlayModeHandler` (buildBinder separate)
+- FormModeHandler: `AccountNameFormModeHandler` (buildBinder separate)
 - QueryBlock: `AdvertisementQueryBlock` and `UserQueryBlock` (identical structure)
 - FilterMeta: `AdvertisementFilterMeta` (Fields.* constants)
 - SortMeta: `AdvertisementSortMeta` (Fields.* constants)

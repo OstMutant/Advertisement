@@ -9,6 +9,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 
+/** Spring Data JDBC entity mapped to the {@code advertisement} table; optimistic locking via {@code version}, actor-reference columns track who created/updated/deleted the row. */
 @Value
 @Builder
 @FieldNameConstants

@@ -30,23 +30,29 @@ Steps:
    integration-tests/reports scripts/logs/run-all-tests` -- a direct `bash scripts/run-all-tests.sh`
    invocation never goes through `run-all-tests.bat`/`clean.bat` (those are Windows-only entry
    points), so nothing else clears stale reports from a previous invocation before this one starts.
-3. Launch a Monitor tool call (persistent: true) watching /tmp/run-all-tests.log every 10s (the
-   same file step 4 below tees into -- this captures the script's own live output, including
-   build-and-test.sh's and playwright.sh's progress, progressively, not just at the end): catch
-   PASSED|FAILED|ERROR|BUILD SUCCESS|BUILD FAILURE|passed|failed.
-4. Default (no --background): run synchronously in foreground with tee, same pattern as every
-   other test script:
+3. Launch a Monitor tool call (persistent: true) watching
+   /tmp/activity-monitor/run-all-tests.sh/tree.txt every 10s (wait-then-tail wrapper): report a
+   step transitioning to ❌, or the tree reaching a stable final state (an `exit_code` file appears
+   in the same directory). Note: `run-all-tests.sh` today emits only one combined
+   `AGENTIC_SUCCESS_BLOCK`/`ERROR_BLOCK` at the very end (its own build-and-test.sh/playwright.sh
+   branches run to completion independently first, then their exit codes are combined) — so the
+   tree shows one step, not sub-suite progress; for full raw progress while it runs, read
+   /tmp/activity-monitor/run-all-tests.sh/raw.log directly.
+4. Default (no --background): run synchronously in foreground, same pattern as every other test
+   script:
    ```
-   bash scripts/run-all-tests.sh [grouped args] 2>&1 | tee /tmp/run-all-tests.log
+   bash scripts/activity-monitor.sh -- bash scripts/run-all-tests.sh [grouped args]
    ```
    with timeout: 600000. Note: `run-all-tests/run.sh` itself never copies its own logs to a host
    path anymore (that only happens via `run-all-tests.bat`'s own native Windows copy step, which
-   this direct `bash` invocation doesn't go through) -- `/tmp/run-all-tests.log` from this `tee` is
-   the only host-visible record when invoked this way; the container's own volume
+   this direct `bash` invocation doesn't go through) --
+   `/tmp/activity-monitor/run-all-tests.sh/raw.log` is the only host-visible full record when
+   invoked this way; the container's own volume
    (`docker exec run-all-tests-reports cat /reports/run-all-tests/...`) has the same data too.
 5. --background: run the same command with run_in_background: true instead, so the conversation
    stays open; report back when the harness notifies completion. Only use this mode when the user
    explicitly passes --background — default always stays synchronous.
 6. After completion — call TaskStop on the monitor task if not already stopped.
 7. Report the final summary (ALL PASSED / SOME FAILED) plus which suite(s) failed and why, reading
-   the actual failing log lines from /tmp/run-all-tests.log — never just "it failed."
+   the actual failing log lines from /tmp/activity-monitor/run-all-tests.sh/raw.log — never just
+   "it failed."

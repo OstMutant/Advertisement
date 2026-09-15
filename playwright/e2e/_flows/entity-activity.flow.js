@@ -4,10 +4,10 @@
  * Usage: None -- a library only, required by spec files (see Input).
  * Uses: @playwright/test (expect).
  * Env: None.
- * Input: required directly by 03-marketplace-promotion-flow.spec.js and
- *   04-marketplace-advertisement-flow.spec.js, and indirectly by every other spec that goes
- *   through ./audit.flow, ./advertisement.flow, ./settings.flow, or ./user-management.flow, which
- *   each require this file internally.
+ * Input: required directly by 03-marketplace-promotion-flow.spec.js,
+ *   04-provider-profile-flow.spec.js, and 05-marketplace-advertisement-flow.spec.js, and
+ *   indirectly by every other spec that goes through ./audit.flow, ./advertisement.flow,
+ *   ./settings.flow, or ./user-management.flow, which each require this file internally.
  * Outputs: exports openEntityActivity, closeEntityActivity, restoreFromEntityActivity.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */

@@ -2,6 +2,230 @@
 
 ---
 
+## ADR-014: `ci.sh` refuses concurrent runs and assigns its own Dagu run id, so `--foreground` always watches the run it started
+
+**Status:** Accepted
+
+**Context:** Investigating (2026-09-10) odd behavior while running `ci.sh --foreground` a second
+time during item 10/23 verification, with an earlier `ci` DAG run still in its e2e stage, surfaced
+three separate defects. First, `dagu-rest-run-monitor.py`'s `await_fresh_run_id()` starts polling
+only after `run.sh`'s detached `dagu start`, then picks "the newest run that isn't terminal"; a
+several-second registration lag meant a still-in-flight earlier run was the newest non-terminal
+one, so the monitor watched the wrong run — its already-succeeded early stages all reported done
+in one poll, and `scripts/activity-monitor/run.sh`'s `mark_step` timestamps a step's completion
+with `date +%s` when it sees the marker rather than Dagu's real finish time, so several stages
+showed `(0s)` each, a display artifact on top of the real wrong-run bug. Second, the e2e stage's
+`ci-advertisement-db`/`ci-marketplace-app`/... containers have fixed, non-per-run names, and
+Dagu's own `maxActiveRuns` does not gate a manually triggered `dagu start`, so a second run's e2e
+stage redeployed/reset the shared stack out from under the first run's still-executing Playwright
+tests, cascading unrelated spec failures. Third, when every DAG stage passed but `run.sh`'s
+post-run `sync_artifacts()` (host-side `docker cp` of the regenerated docs/adr-index) failed, the
+tree still reported "CI DAG run failed — one or more stages did not pass," the opposite of what
+happened.
+
+**Decision:** `run.sh` now owns run identity and concurrency instead of leaving both to guesswork:
+- Refuses to start while a run is genuinely alive, checked via `docker exec "$CONTAINER" dagu ps
+  -d ci` (the live process store) rather than the REST `statusLabel` — a run killed together with
+  its container is left showing `running` in persisted history until Dagu reconciles it, and
+  `dagu ps` never shows that zombie.
+- Assigns the run's id itself before triggering: `DAGU_RUN_ID="ci-$(date -u
+  +%Y%m%dT%H%M%SZ)-$$-${RANDOM}${RANDOM}"`, passed both to `dagu start -r "$DAGU_RUN_ID"` and as
+  an env var to `dagu-rest-run-monitor.py`. The monitor's `wait_for_run(run_id)` waits for that
+  exact id to register, then watches only it — no more "newest non-terminal" guessing;
+  `await_fresh_run_id()` stays as the fallback for a monitor run by hand against a UI-triggered
+  run, where no id is passed.
+- `--foreground` distinguishes a real DAG-stage failure ("A ci DAG stage failed") from an
+  artifact-sync-only failure ("Every ci DAG stage passed, but ... sync ... failed — re-run ...
+  --sync-artifacts") as two different outcomes, never conflated. The run id is surfaced on every
+  outcome via a generic `AGENTIC_CONTEXT:` marker the monitor emits, prepended by `render_tree()`
+  as `tree.txt`'s first line, and echoed again in the PASSED/FAILED line.
+
+**Rejected alternatives:**
+- Retrying/polling harder on `await_fresh_run_id()` until the guess matches — still a guess under
+  registration lag; a self-assigned, passed-through id removes the guess entirely.
+- Letting Dagu's `maxActiveRuns` gate concurrency — confirmed it does not apply to a manually
+  triggered `dagu start`; the gate has to live in `run.sh` itself.
+- Per-run container names for the e2e stack (would remove the collision without a concurrency
+  guard) — larger change, rejected in favor of the simpler "don't allow a second run" gate, since
+  two CI runs racing was never an intended use case.
+
+Incidental to this fix: `scripts/ci/Dockerfile`'s `DAGU_VERSION` bumped 2.16.2 → 2.16.3.
+
+---
+
+## ADR-013: The `docs` stage regenerates the ADR index and hands it back, rather than gating the run on drift
+**Status:** Accepted
+
+**Verified:** 2026-09-10
+
+**Context:** The `docs` DAG step ran `check-adr-index-freshness.sh` — regenerate `.claude/nav/adr-index.md`
+into a temp, `diff` against the committed copy, `exit 1` on any difference — added by a later
+navigation-layer follow-up, not by the ADR (`docs/architecture/scripts` ADR-001) that established
+the index itself, which explicitly preferred `/decision`/`/sync-docs` regeneration "rather than
+inventing a separate drift-detection mechanism". Three consecutive CI runs then failed this check
+with `adr-index.md is stale` while the committed file was byte-identical to a fresh regeneration
+on the host. Root cause: `generate-adr-index.sh` builds via `mktemp` + `mv` and never `chmod`s, so
+every local run left the committed file mode `0600` (owner-only); when `run.sh`'s `sync-source`
+`tar` ran as a different uid it could not read it, `--ignore-failed-read` silently dropped it, and
+the container's `/app` had no `adr-index.md` at all — the check then diffed a fresh regeneration
+against a missing file.
+
+**Decision:** Stop gating on drift; regenerate and return the file.
+- `check-adr-index-freshness.sh` is removed from the `docs` stage and deleted.
+- `docs/architecture/scripts/generate-architecture-model.sh` regenerates `.claude/nav/adr-index.md`
+  in place as its first step (it then reads the index to fold ADRs into each module's intent
+  list), so the one "regenerate the architecture docs" run the `docs` stage already makes now
+  refreshes the index too.
+- `run.sh`'s `sync_artifacts()` copies `ci-runner:/app/.claude/nav/adr-index.md` back to the host
+  alongside `architecture-model.json`/`architecture-map.html` -- `docker cp`'s own exit code is
+  the check (a failed copy fails the sync); no extra size/content comparison, which only added a
+  flaky `docker exec` round-trip for no coverage `docker cp` doesn't already give.
+- `generate-adr-index.sh` `chmod 644`s its output after the atomic `mv`, so the committed file is
+  always world-readable regardless of who ran it; `run.sh`'s `sync-source` drops
+  `--ignore-failed-read` so a future unreadable file fails loudly instead (see ADR-012).
+- The standing `.claude/rules.md` rule — regenerate and commit the index in the same operation as
+  any `DECISIONS.md` edit — is unchanged and remains the primary defense; realigns with
+  `docs/architecture/scripts` ADR-001's stated preference.
+
+**Rejected alternative — keep the check, just fix the `0600` permission:** the permission fix is
+kept regardless, but a purely mechanical generated file is more usefully *rebuilt and handed back*
+by the run than used to fail it — "here is the fresh file, commit it" beats "stale, go run the
+generator yourself" when the run already had everything it needed to produce it.
+
+---
+
+## ADR-012: ci-runner source is streamed into the running container each run; the image is rebuilt only on a real Dockerfile change
+**Status:** Accepted
+
+**Verified:** 2026-09-10
+
+**Context:** `run.sh` rebuilt the ci-runner image on every invocation and baked the repo in via
+`COPY . .` (ADR-001); `--no-rebuild` (ADR-009) let a run reuse the previous image/container as-is.
+Both paths trust the image as the source of truth for the working tree. Docker's layer cache broke
+that trust: across three consecutive CI runs the `docs` stage failed on
+`.claude/nav/adr-index.md is stale`, and the file pulled straight from the ci-runner image was
+0 bytes while the host working-tree copy was correct and git-clean. A `COPY . .` layer had been
+cached at a moment when that generated file was briefly 0 bytes on disk (an unrelated
+interrupted-script bug, fixed separately), and the cache key never reflected the file's later
+return to full content, so `ci.sh` kept snapshotting the empty file into the image. A fresh
+`--no-cache` build always produced the correct image; the staleness was purely Docker's build
+cache.
+
+**Decision:** The ci-runner image is no longer trusted as the working-tree source.
+`scripts/ci/run.sh` now:
+- Builds the image only when `scripts/ci/Dockerfile` or `scripts/ci/docker-entrypoint.sh` is
+  newer than the image's own creation timestamp, when the image is missing, or when `--rebuild`
+  is passed (a new flag). buildx/compose/dagu live in the `ci-tools-cache` volume, so a skipped
+  build costs nothing there.
+- (Re)creates the `ci-runner` + `ci-runner-dagu-proxy` containers only when a build just happened
+  or when either is not running; otherwise the running container is kept across runs.
+- Before every DAG trigger, replaces `/app` inside the running container with the current working
+  tree: `git -C "$ROOT" ls-files -z --cached --others --exclude-standard | tar -C "$ROOT" --null
+  --no-recursion -T - -cf - | docker exec -i ci-runner sh -c 'find /app -mindepth 1 -delete; exec
+  tar -C /app -xf -'`. The file set is `git ls-files` (tracked + untracked-not-`.gitignored`),
+  **not** a tar tree-walk: git already excludes `.git`, every `*/target`, `node_modules`, the
+  report/log dirs, and sockets/FIFOs. `/app` is wiped first, not just overlaid -- a plain `tar -x`
+  leaves behind a file that was *deleted* from the working tree since the last sync, and a stale
+  copy of a since-removed `.java` then breaks the compile. `tar` runs **without**
+  `--ignore-failed-read` on purpose: an unreadable listed file (a generator that left the
+  committed file mode `0600`, say) must fail the whole sync loudly, not be silently dropped and
+  surface later as a confusing downstream failure -- any non-zero tar exit is fatal. Everything
+  under `/app` is regenerated by the build; the durable caches are in separate volumes
+  (`/root/.m2`, `/root/.ci-tools`, `/root/.dagu`), untouched.
+  `*.md` is kept (unlike `.dockerignore`) — the `docs` stage needs `DECISIONS.md` / `flows.md` /
+  `adr-index.md`. `tar -x` overlays files in place (unlike `docker cp -`, fussier about the target
+  directory's ownership/perms). Same host↔container transfer pattern `sync_artifacts()` already
+  uses in the reverse direction. A new `sync-source` step marker is emitted so
+  `scripts/activity-monitor.sh` renders it in the `ci.sh` step tree.
+
+Dagu run history is unaffected: it lives in the `ci-dagu-home` named volume, independent of the
+image and the container filesystem.
+
+**Rejected alternatives:**
+- **Host bind mount `-v "$ROOT:/app"`** — does not work when the process invoking `docker run` is
+  itself inside a container (this sandbox), the same constraint that already forces `docker cp`
+  everywhere else in this repo (ADR-001 notes it for the e2e stack).
+- **`--no-cache` on the ci-runner build, or a `CACHEBUST` build-arg** — would rebuild the
+  `apt-get` layer (or everything after `CACHEBUST`) on every run for no benefit once the image is
+  only rebuilt on a real Dockerfile change and the source is streamed in separately.
+- **Always rebuild + recreate the container each run** — wasteful (image export/unpack, container
+  restart, Dagu server re-warm) for what a few-second `tar` stream achieves.
+- **Keeping both `--rebuild` and `--no-rebuild`** — the pair reads as contradictory and invites
+  the "which one do I want?" confusion the smart default removes. `--no-rebuild` (ADR-009) is
+  dropped; `--rebuild` stays as the single manual override.
+
+---
+
+## ADR-011: `run.sh`'s ci-runner startup wait checks the container's own ID, not its mutable name
+**Status:** Accepted
+
+**Context:** `run.sh`'s post-start wait loop (waiting for Dagu's web UI to come up) checked
+liveness and CPU activity via `docker inspect -f '{{.State.Running}}' "$CONTAINER"` / `docker stats
+... "$CONTAINER"`, where `$CONTAINER` is the fixed name `"ci-runner"`, not the specific container
+instance this invocation just started. A container name is a mutable pointer, not an identity: if
+that specific container is killed by anything external (confirmed directly — `docker events` showed
+`ci-runner` receiving `docker kill` with `signal=9`/`exitCode=137` and being replaced by a
+freshly-created container reusing the same name, with no `ci.sh`/`run.sh` process running at the
+time, so the trigger was outside this script entirely and remains unidentified) and something else
+creates a new container under that same name before the next poll, the name-based checks
+immediately start reporting on the *new* container — "Running: true", real CPU activity from its
+own fresh startup — with no way to tell that the original instance this loop was actually waiting
+on had died. The loop never detects the death; it just keeps printing "Still working" indefinitely
+against whatever currently holds the name.
+
+An earlier version of this entry attributed a specific failed DAG run's cause to `run.sh`'s own
+`docker rm -f` (a concurrent invocation) and added a guard against that one scenario. That guard
+was removed: it assumed the *mechanism* it could reproduce was the *confirmed cause* of the
+specific incident investigated, without ruling out this same unidentified external kill source —
+which was later observed producing the identical kill signature with no `ci.sh`/`run.sh` process
+active at all. The guard didn't address (and couldn't have addressed) the live "stuck on Start
+ci-runner: running Nm" symptom this ADR actually fixes, since that symptom is caused by the
+name-vs-ID gap below, not by a concurrent script invocation.
+
+**Decision:** `docker run -d ...` output (the real container ID, printed to stdout) is captured
+into `CONTAINER_ID` instead of being discarded. Every liveness/CPU/logs check in the wait loop
+queries `$CONTAINER_ID`, not `$CONTAINER`. If that specific ID is no longer running — regardless of
+whether a same-named replacement already exists — the loop now reports a real failure immediately
+instead of continuing to poll a container it never actually started.
+
+**Second gap found in the same wait loop, same session — network-namespace mismatch mistaken for
+"still starting up":** even with the ID-based checks above, a live case showed `ci-runner`
+genuinely healthy (`docker logs` showed Dagu's scheduler fully initialized, DAGs loaded, locks
+acquired) and its HTTP port answering `200` when queried directly against the Docker host — yet the
+wait loop kept reporting "Still working" for 4+ minutes past that point, and `docker top ci-runner`
+confirmed the actual DAG-triggering `docker exec ... dagu start ci.yaml` had never been issued. The
+outer `curl localhost:$DAGU_PORT` this loop polls only succeeds when the process running `run.sh`
+shares `ci-runner`'s network namespace (`ci-runner` runs `--network host`; this script is meant to
+run directly on the host for exactly that reason). When the caller itself lacks host networking
+(e.g. running inside another, non-host-networked container), that curl fails forever even after
+Dagu is fully healthy — and the CPU-activity fallback below it (added to distinguish "still
+downloading tools" from "genuinely dead") kept mistaking Dagu's own idle background housekeeping
+(zombie detector every 45s, retry scanner every 30s) for real startup progress, looping all the way
+to the 600s deadline instead of ever reporting the actual cause.
+
+**Decision (continued), first pass:** an initial fix added a *diagnostic* `docker exec
+"$CONTAINER_ID" curl -sf http://localhost:$DAGU_PORT/` check inside the extended-wait loop, run
+before the CPU-activity fallback — if that inside curl succeeded while the outer, direct curl kept
+failing, the script would fail immediately with an explicit "network-namespace mismatch" diagnosis
+instead of waiting out the rest of the deadline. Confirmed working exactly as designed on a live
+run: the script now failed fast with that precise message instead of hanging silently.
+
+**Decision (final):** rather than leaving two different readiness-check mechanisms in place (a
+direct outer curl that only works on a bare host, plus an inner exec-based curl used only for
+diagnosis after the outer one had already failed for the whole typical-wait window), both the
+typical-wait and extended-wait loops now call a single `dagu_ready()` helper —
+`docker exec "$CONTAINER_ID" curl -sf http://localhost:$DAGU_PORT/` — as their *only* readiness
+check. `docker exec` goes through the docker socket, not the caller's own network stack, so it
+works identically whether this script runs directly on the host or inside another,
+non-host-networked container. This removes the network-namespace mismatch as a failure mode
+entirely, rather than merely diagnosing it faster.
+
+**Still open:** what actually kills `ci-runner` periodically (observed independent of any
+`ci.sh`/`run.sh` invocation) remains unidentified — this ADR fixes the wait loop's blindness to
+container replacement and to network-namespace mismatches, not the kill itself.
+
+---
+
 ## ADR-001: ci-runner container via Docker-outside-of-Docker, not Docker-in-Docker
 **Status:** Accepted
 

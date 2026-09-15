@@ -17,6 +17,10 @@
 @import url("./locale-selector.css");
 @import url("./header-bar.css");
 @import url("./user-overlay.css");
+@import url("./provider-profile-overlay.css");
+@import url("./provider-profile-query-block.css");
+@import url("./providers-view.css");
+@import url("./provider-profile-card.css");
 @import url("./forms.css");
 @import url("./activity-feed.css");
 @import url("./entity-activity.css");
@@ -138,6 +142,47 @@ html, body {
     display: inline-block;
     vertical-align: middle;
     line-height: 1;
+}
+
+/* "Categories:" / "City:" prefix before the chip rows in the Advertisement and Provider card and
+   detail views -- shared by both domains, so it lives here rather than in either domain's own CSS. */
+.overlay-chips-label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--app-text-muted);
+    align-self: center;
+}
+
+/* Author + created/updated line (EntityMetaPanel) -- shared by every card and detail-view surface. */
+.entity-meta {
+    font-size: 0.78rem;
+    display: flex;
+    align-items: baseline;
+    gap: 2px 6px;
+}
+.entity-meta--card {
+    margin-top: auto;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.entity-meta--overlay {
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--app-border-default);
+    color: var(--app-text-muted);
+}
+.entity-meta-author {
+    color: var(--app-text-tertiary);
+    font-weight: 500;
+}
+.entity-meta-date {
+    color: var(--app-text-muted);
+}
+.entity-meta-separator {
+    color: var(--app-border-subtle);
 }
 
 /* Ensure all interactive buttons have a pointer cursor */

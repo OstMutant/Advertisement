@@ -15,6 +15,7 @@ import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
+import org.ost.marketplace.ui.views.services.OverlayNavigationRegistry;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 
 import java.util.List;
@@ -49,12 +50,13 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
     @Getter private final EntityOverlaySupport  support;
     private final UiComponentFactory<AdvertisementViewOverlayModeHandler> viewModeHandlerFactory;
     private final UiComponentFactory<AdvertisementFormOverlayModeHandler> formModeHandlerFactory;
+    private final OverlayNavigationRegistry navigationRegistry;
 
     private OverlaySession session;
 
     @PostConstruct
     private void registerHistoryListener() {
-        UI.getCurrent().getPage().getHistory().setHistoryStateChangeHandler(event -> {
+        navigationRegistry.register(event -> {
             boolean onAdPath = event.getLocation().getPath().startsWith(AD_PATH_PREFIX);
             if (!onAdPath && session != null && session.mode() == Mode.VIEW && hasClassName("overlay--visible")) {
                 session.onClosed().run();

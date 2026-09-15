@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Collection;
 import java.util.List;
 
+/** Bespoke {@code JdbcClient} queries for {@code taxon_translation}: per-locale upsert and lookup by one or many taxon ids. */
 @Repository
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")

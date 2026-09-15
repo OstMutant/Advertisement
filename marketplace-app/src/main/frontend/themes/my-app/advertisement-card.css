@@ -115,25 +115,13 @@
   overflow: hidden;
 }
 
-.advertisement-meta {
-  font-size: 0.78rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: auto;
-}
-
-.advertisement-meta-author {
-  color: var(--app-text-tertiary);
-  font-weight: 500;
-}
-
-.advertisement-meta-separator {
-  color: var(--app-border-subtle);
-}
-
-.advertisement-meta-date {
-  color: var(--app-text-muted);
+/* Category/city chip row on the card -- same pills as the detail overlay, tighter vertical rhythm
+   (the .advertisement-content flex gap already spaces every child, so no margin-top here). */
+.advertisement-card-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 /* Action buttons */
@@ -179,23 +167,11 @@
     filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
 }
 
-/* Category text line on card */
-.advertisement-categories {
-  font-size: 0.78rem;
-  color: var(--app-text-muted);
-  display: block;
-  width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* Category chips in view overlay */
 .advertisement-categories-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
 }
 
 .advertisement-category-chip {
@@ -218,22 +194,11 @@
   text-decoration: line-through;
 }
 
-/* City text line on card, city chip in view overlay -- same shape as categories above */
-.advertisement-city {
-  font-size: 0.78rem;
-  color: var(--app-text-muted);
-  display: block;
-  width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
+/* City chip in view overlay -- same shape as categories above */
 .advertisement-city-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
 }
 
 .advertisement-city-chip {
@@ -265,7 +230,6 @@
   border-radius: 10px;
   font-size: 0.72rem;
   font-weight: 600;
-  margin-bottom: 4px;
 }
 
 .advertisement-ad-kind-badge--offer {

@@ -4,6 +4,7 @@ import lombok.NonNull;
 import org.ost.platform.user.dto.UserDto;
 import org.springframework.stereotype.Component;
 
+/** Checks whether a resource's recorded owner id matches a given user's own id. */
 @Component
 public class OwnershipChecker {
 

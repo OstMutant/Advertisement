@@ -2,6 +2,70 @@
 
 ---
 
+## ADR-034: Database ERD's no-FK point relationships derived from a `remarks=` marker convention, not a hand-curated list
+
+**Status:** Accepted
+
+**Context:** `db_erd_conceptual_relationships_json()` (established by ADR-017) held 9 hand-curated
+`{from, to, label}` entries for conceptual (no real SQL-level FK) relationships. Adding
+`apikey-spring-boot-starter` surfaced that `USER_INFORMATION → API_KEY` was missing — the list was
+never updated when that starter shipped. A full sweep of every `*_id`/`*_by`-shaped column across
+every changelog (advertisement, api_key, attachment, attachment_snapshot, audit_log,
+provider_profile, taxon, user_preferences) found the list already missing four more real
+relationships even before `api_key` (`taxon.created_by`/`updated_by`/`deleted_by`,
+`attachment_snapshot.changed_by_actor_id`, `audit_log.actor_id`, `user_preferences.actor_id`) —
+9 entries existed where 13 real point-relationships do, plus a 4th generic entity_type/entity_id
+pair (`ADVERTISEMENT → TAXON_ASSIGNMENT`, `taxon-spring-boot-starter`) also missing. A
+column-name-pattern heuristic (match `actor_id`/`_by`/`_actor_id`) was considered and rejected:
+column naming is inconsistent across starters (`created_by` vs. `deleted_by_actor_id` vs.
+`changed_by_actor_id`), several existing `remarks=` never mention "no FK" at all (`audit_log.actor_id`
+just says "User ID who made the change"), and a name-only heuristic cannot express *which* table is
+the real target — defaulting to "always `user_information`" would have been wrong for
+`provider_profile.city_taxon_id → taxon`, the one point-relationship in this codebase whose target
+isn't the actor table.
+
+**Decision:**
+1. A new, fixed, machine-parseable `remarks=` marker: every no-FK reference column's `remarks=` now
+   carries the literal substring `References <table>(<column>), no FK` — mirrors the real Liquibase
+   FK syntax (`references="table(id)"`) as prose, appended to whatever business-meaning text
+   root `CLAUDE.md`'s "Database Changes" guideline already requires, never a replacement for it.
+   Documented as a mechanically-required convention in `.claude/skills/module-doc-standards/SKILL.md`
+   ("No-FK reference columns" section + a pre-write checklist line) — the same mechanically-required
+   tier as that skill's `*.spi` interface Javadoc convention, since a missing/malformed marker
+   silently drops the relationship from the live diagram instead of erroring.
+2. Applied to all 13 existing point-relationship columns across 7 changelog files (advertisement,
+   api_key, attachment ×2, audit_log, provider_profile ×2, taxon ×3, user_preferences), each also
+   gaining `<validCheckSum>ANY</validCheckSum>` where missing (advertisement, audit,
+   provider-profile, taxon) so a future non-`--reset` deploy doesn't fail on the remarks-text
+   checksum change.
+3. `db_erd_json()` (`generate-architecture-model.sh`) now derives the point-relationship half of
+   `conceptualRelationships` itself: a `run_node -e` post-processing step regex-scans every parsed
+   column's `remarks=` for the marker (`from` = the table named in the marker, `to` = the table the
+   column lives on, `label` = the column name), merged with a much-shrunk hand-curated list
+   (`db_erd_conceptual_relationships_json()`) that now holds only the 3 genuine generic
+   entity_type/entity_id pairs — whose real target is a runtime data value, not a schema fact, so
+   no marker can express it (unchanged from ADR-017's original reasoning for this narrower class).
+
+**Rejected alternative — column-name pattern matching** (regex on column name alone, e.g.
+`actor_id$|_by$|_actor_id$`): rejected per the Context above — inconsistent naming across starters
+and remarks text not always mentioning "no FK" would keep producing silent misses, and the target
+table still couldn't be determined without a further, separate hardcoded assumption.
+
+**Consequences:**
+- Verified directly: regenerated `architecture-model.json` shows all 16 real conceptual
+  relationships (13 derived + 3 curated), including the two gaps this sweep found
+  (`USER_INFORMATION → API_KEY`, `ADVERTISEMENT → TAXON_ASSIGNMENT`) and the four pre-existing ones
+  listed in Context.
+- A future new no-FK reference column is captured automatically the moment its `remarks=` carries
+  the marker — no further edit to `generate-architecture-model.sh` needed, closing off this
+  specific recurring class of hardcoded-list drift (see `backlog/completed/BACKLOG-ARCHIVE.md`'s
+  `improvement-181` for the broader pattern this instance belongs to).
+- `liquibase-schema-to-json.js` itself is unchanged — the derivation lives in `db_erd_json()`
+  instead, since the parser's existing plain-array output shape has a second consumer
+  (`MODULE_TABLES`'s own `run_node -e` extraction) that a shape change would have broken.
+
+---
+
 ## ADR-033: "AI Tooling" generalized into a `.claude`-rooted tree, same mechanism as "Scripts"; README becomes the sole canonical file list, chip-row is last-resort only
 
 **Status:** Accepted
@@ -699,7 +763,10 @@ general correctness fix independent of this diagram's fate.
 
 ## ADR-017: Database ERD rebuilt live from real Liquibase changelogs — descriptions moved into `remarks=`, `docs/architecture/04-database-erd.md` retired; the same "single source of truth" pattern also applied retroactively to SPI Map's purpose text
 
-**Status:** Accepted
+**Status:** Accepted — decision #3's hand-preserved list of actor-reference/no-FK point
+relationships is superseded by ADR-034 (now derived mechanically from a `remarks=` marker
+convention); the entity_type/entity_id generic-relationship portion of that same list, and every
+other part of this decision, still stands.
 
 **Context:** Asked to migrate `04-database-erd.md` fully into `architecture-map.html`, same spirit
 as Module Dependencies (01)/SPI Map (02) — live diagram + real links + every piece of the

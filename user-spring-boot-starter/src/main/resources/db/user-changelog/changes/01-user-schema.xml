@@ -64,11 +64,11 @@
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="actor_id" type="BIGINT" remarks="No FK -- matches this codebase's actor-reference-column convention">
+            <column name="actor_id" type="BIGINT" remarks="Matches this codebase's actor-reference-column convention. References user_information(id), no FK">
                 <constraints nullable="false" unique="true"/>
             </column>
             <column name="locale" type="VARCHAR(10)" remarks="BCP-47 language tag (e.g., 'en', 'uk')"/>
-            <column name="settings" type="JSONB" defaultValue='{"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20,"version":0}'
+            <column name="settings" type="JSONB" defaultValue='{"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20,"providerProfilesPageSize":20,"version":0}'
                     remarks="Pagination defaults; own optimistic-lock version embedded in the JSONB, not a SQL column -- see marketplace-app/DECISIONS.md ADR-044 (superseded by ADR-070)">
                 <constraints nullable="false"/>
             </column>

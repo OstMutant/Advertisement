@@ -26,6 +26,10 @@ import org.springframework.scheduling.support.CronTrigger;
 import javax.sql.DataSource;
 import java.util.TimeZone;
 
+/**
+ * Auto-configures the audit subsystem -- write-side capture, read-side query services, scheduled
+ * cleanup, and the {@link AuditPort} bean -- whenever a {@link DataSource} is on the classpath.
+ */
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
 @ComponentScan({"org.ost.audit.services", "org.ost.audit.repository"})

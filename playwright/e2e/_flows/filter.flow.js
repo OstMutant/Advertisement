@@ -7,7 +7,7 @@
  * Usage: None -- a library only, required by spec files (see Input).
  * Uses: @playwright/test (expect), ../_helpers (screenshot).
  * Env: None.
- * Input: required directly by 05-seed-filter-sort-pagination.spec.js, and indirectly by every
+ * Input: required directly by 06-seed-filter-sort-pagination.spec.js, and indirectly by every
  *   other spec that goes through ./timeline.flow, which requires this file internally.
  * Outputs: exports openQueryPanel, applyFilter, clearFilter, waitForVaadin,
  *   clickSort, resetDefaultSorts, fillText, fillNumber, fillRole, fillCategory, fillCity,
@@ -168,6 +168,9 @@ async function fillRole(page, blockSelector, role) {
   await combo.locator('input').click();
   await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.type(role);
+  // Same race as fillCategory -- wait for a matching item to actually render before selecting it.
+  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: role }).first()
+    .waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await page.evaluate((sel) => {
@@ -191,6 +194,10 @@ async function fillCategory(page, blockSelector, categoryName) {
   await combo.locator('input').click();
   await page.waitForFunction((sel) => document.querySelector(sel)?.opened === true, selector, { timeout: 5000 });
   await page.keyboard.type(categoryName);
+  // Filtering re-renders asynchronously -- wait for a matching item to actually render before
+  // selecting it, or ArrowDown/Enter can race an empty/stale overlay.
+  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: categoryName }).first()
+    .waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await page.evaluate((sel) => {
@@ -211,6 +218,9 @@ async function fillCity(page, blockSelector, cityName) {
   const combo = page.locator(`${blockSelector} vaadin-combo-box`);
   await combo.locator('input').click();
   await combo.locator('input').fill(cityName);
+  // Same race as fillCategory -- wait for a matching item to actually render before selecting it.
+  await page.locator('vaadin-combo-box-item').filter({ hasText: cityName }).first()
+    .waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
 }
@@ -229,6 +239,9 @@ async function fillAdKind(page, blockSelector, adKindName) {
   await combo.locator('input').click();
   await page.waitForFunction((sel) => document.querySelector(sel)?.opened === true, selector, { timeout: 5000 });
   await page.keyboard.type(adKindName);
+  // Same race as fillCategory -- wait for a matching item to actually render before selecting it.
+  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: adKindName }).first()
+    .waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await page.evaluate((sel) => {
@@ -378,6 +391,46 @@ async function verifySortColumn(page, {
   }
 }
 
+/**
+ * Same setup/click cycle as verifySortColumn, but for a column whose real values can be
+ * non-monotonic in this environment (created_at, host clock not guaranteed monotonic between
+ * near-simultaneous inserts) -- asserts only that toggling the direction actually changes the
+ * first row (the sort control works), not which row ends up first.
+ * @param {import('@playwright/test').Page} page
+ * @param {Object} params same shape as verifySortColumn, minus firstAsc/firstDesc.
+ * @param {string} params.block
+ * @param {string} params.sortCol
+ * @param {string} params.itemSelector
+ * @param {string} params.assertSelector
+ * @param {Object} [params.setup]
+ * @param {string} params.prefix
+ * @returns {Promise<void>}
+ */
+async function verifySortColumnChanges(page, { block, sortCol, itemSelector, assertSelector, setup, prefix }) {
+  if (setup?.reset === 'all') {
+    await resetDefaultSorts(page, block);
+  } else if (setup?.reset === 'clearAll') {
+    await clearFilter(page, block);
+    await resetDefaultSorts(page, block);
+  } else if (setup?.reset) {
+    await clearFilter(page, block);
+    await clickSort(page, block, setup.reset, itemSelector);
+  }
+  if (setup?.filter) {
+    await fillText(page, block, setup.filter.field, setup.filter.value);
+    await applyFilter(page, block);
+  }
+
+  const slug = sortCol.toLowerCase().replace(/ /g, '-');
+  const descFirst = await page.locator(assertSelector).first().textContent();
+  await screenshot(page, `${prefix}-sort-${slug}-desc`);
+  await clickSort(page, block, sortCol, itemSelector); // DESC → NEUTRAL
+  await clickSort(page, block, sortCol, itemSelector); // NEUTRAL → ASC
+  const ascFirst = await page.locator(assertSelector).first().textContent();
+  await screenshot(page, `${prefix}-sort-${slug}-asc`);
+  expect(ascFirst).not.toBe(descFirst);
+}
+
 // ── date range filter verification ───────────────────────────────────────────
 
 /**
@@ -468,5 +521,5 @@ module.exports = {
   getRow,
   getTotalCount,
   goToNextPage, goToPrevPage, goToFirstPage, goToLastPage,
-  verifyPagination, verifyDateRangeFilters, verifySortColumn,
+  verifyPagination, verifyDateRangeFilters, verifySortColumn, verifySortColumnChanges,
 };

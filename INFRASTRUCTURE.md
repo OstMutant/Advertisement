@@ -45,6 +45,7 @@ app, and waits for a real startup signal before returning.
 |---|---|
 | Container | `marketplace-app` |
 | App URL | [http://localhost:8081](http://localhost:8081) |
+| REST API docs (Swagger UI) | [http://localhost:8081/swagger-ui/index.html](http://localhost:8081/swagger-ui/index.html) — spec JSON at `/v3/api-docs` |
 
 ```bash
 bash scripts/deploy-and-run.sh                  # reuse the shared build, start everything

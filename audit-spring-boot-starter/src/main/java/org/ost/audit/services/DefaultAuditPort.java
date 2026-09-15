@@ -20,6 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Sole implementation of {@link AuditPort}: pure delegation from every write/read method to
+ * {@link AuditLogRepository}/{@link AuditReadService}, resolving a null actor id via {@link CurrentActorHook}.
+ */
 @Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

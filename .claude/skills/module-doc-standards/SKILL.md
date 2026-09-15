@@ -17,6 +17,34 @@ directory-level index" principle: a class's or method's own Javadoc is the canon
 that class/method does; `README.md` only covers what spans more than one file. This skill states
 this domain's own mechanics; it does not restate the general principle.
 
+## ⛔ Atomic unit first, then README — highest priority in this document
+
+Applies `.claude/rules.md`'s "One fact, one canonical home" rule's "Atomic unit first, then
+directory-level index" principle to this skill's own domain, where the atomic unit is one Java
+class/method (or one `pom.xml` entry, or one Liquibase `<column>`/`<createTable>`). This section
+states this domain's specific ordering mechanics; it does not restate the general principle.
+
+A class's own Javadoc is the highest-priority artifact. It must fully and precisely describe what
+that class is and why it exists as its own unit — lean and laconic but with no gap in coverage.
+Finish every class's own Javadoc first; classes are independent of each other, so this can happen
+in any order or in parallel. Do not open or reference the module's `README.md` at all while doing
+this, not even to check for overlap.
+
+Only once every class/method/`pom.xml` entry/Liquibase attribute in scope already has a complete,
+accurate comment does `README.md` get written or touched. `README.md` may only ever contain
+information that is fundamentally about more than one file at once — a class's role *relative to*
+other classes, the module's overall purpose, what it depends on and why. What any single class or
+method does, on its own, is never README's job, at any level of brevity — not even a one-sentence
+gloss "for navigation." If a fact is already covered by a class's own Javadoc, it must never appear
+in `README.md` in any form — not restated, not reworded, not summarized. Before writing any README
+sentence, check: does an existing Javadoc block already say this, or could it be answered by
+reading one class alone? If yes, drop the sentence.
+
+This is the single governing statement of the file-vs-README duplication rule across both this
+skill and `module-readme-standards` — every other section touching the same topic (the "Where
+comment rationale that got trimmed actually goes" table here, `module-readme-standards`'s own
+"README — what belongs here, and only here" section) defers to this rule rather than restating it.
+
 ## Base standard
 
 Grounded in Oracle's own [How to Write Doc Comments for the Javadoc
@@ -32,7 +60,7 @@ sentence.
 
 `.claude/rules.md` already governs every code comment, Javadoc included, project-wide:
 
-- **"Code comments: one line or none, never an issue/ticket number"** — applies to a class's own
+- **"Code comments: one line or none, never a task/ticket number"** — applies to a class's own
   top-level Javadoc exactly as it applies to an inline `//` comment. A multi-line Javadoc block
   explaining background/rationale in full is the same violation as a multi-line inline comment —
   Javadoc syntax doesn't grant an exemption. "One line" means one logical statement, not one
@@ -110,10 +138,12 @@ by researching Liquibase's own best practices, not yet decided — flag it as a 
 than adopting it unilaterally here.
 
 **Master changelog — always carries a file-level header, no exception**, an XML comment before the
-`<databaseChangeLog>` opening tag:
+`<databaseChangeLog>` opening tag. XML forbids a literal `--` anywhere inside a comment body (only
+at its own opening/closing delimiters) — use a comma or em dash instead of `--` as a clause
+separator here, unlike the `#`/`//` comments elsewhere in this skill:
 
 ```xml
-<!-- Description: entry point Liquibase loads for this module -- includes, in order, every change
+<!-- Description: entry point Liquibase loads for this module, includes, in order, every change
   file under changes/. -->
 ```
 
@@ -121,6 +151,37 @@ than adopting it unilaterally here.
 fact (what specific schema change this file represents), fully contained within that one file,
 distinct from `remarks=`'s per-column/table altitude. **Not yet designed:** the exact header shape
 for a change file is still open — flag before writing one, don't invent a field structure inline.
+
+## No-FK reference columns — mechanically required `References <table>(<column>), no FK` marker
+
+Same mechanically-required tier as the `*.spi` interface Javadoc convention above, not just a style
+preference: the Database ERD diagram's generator (`docs/architecture/scripts/generate-architecture-model.sh`'s
+`db_erd_json()`) parses this exact phrase out of a column's own `remarks=` to derive that
+column's conceptual (non-FK) relationship line on the diagram — a missing or misworded marker
+silently drops that relationship from the diagram instead of raising an error.
+
+Every column that conceptually references another table's row but deliberately carries no real
+SQL-level FK (this codebase's actor-reference-column convention — `created_by`/`updated_by`/
+`deleted_by`/`actor_id`/`*_actor_id`, or any other deliberately-decoupled reference, e.g.
+`city_taxon_id`) must include the literal, fixed-format substring
+
+```
+References <table>(<column>), no FK
+```
+
+somewhere in its `remarks=` text — mirroring the real FK syntax (`references="table(id)"`) so it
+reads naturally next to one, but as prose rather than an actual constraint. `<table>` is always the
+real table name the column conceptually points to (verify it — don't default to guessing
+`user_information`; a column can reference any table, e.g. `provider_profile.city_taxon_id`
+references `taxon`). The rest of the `remarks=` text still carries whatever real business-meaning
+explanation root `CLAUDE.md`'s "Database Changes" guideline already requires — the marker is an
+addition to that text, never a replacement for it.
+
+This applies only to a column referencing one specific, statically-known table. A generic
+`entity_type`/`entity_id` column pair (its real target table is a runtime data value, not a schema
+fact — `attachment`, `taxon_assignment`, `audit_log`) cannot use this marker at all, since there is
+no single `<table>` to name; those relationships stay a small hand-preserved list inside
+`db_erd_conceptual_relationships_json()` itself, with a comment there explaining why.
 
 ## Where comment rationale that got trimmed actually goes
 
@@ -136,11 +197,12 @@ home, per the same "reference, don't restate" pattern as everywhere else:
 ## Pre-write checklist
 
 - [ ] Is this Javadoc/comment one logical statement (one line, or one wrapped paragraph), or genuinely none needed? (see "Class-level Javadoc" above)
-- [ ] Does it cite an issue/ticket number? → remove it, route the rationale per the table above
+- [ ] Does it cite a task/ticket number? → remove it, route the rationale per the table above
 - [ ] If it's a method comment, does it describe what the body actually does, verified by reading it — not a narrative about callers?
 - [ ] If it's a `*.spi` interface, does its Javadoc immediately precede the `interface` declaration with no stray blank line/comment breaking that adjacency? (see "SPI interface Javadoc" above — a missing or malformed block silently blanks that interface's purpose in the SPI Map)
 - [ ] If it's a `pom.xml` comment, is the dependency/version genuinely non-obvious — or is this restating what the artifact id or the module's own `README.md` `Dependencies` section already says?
 - [ ] If it's a Liquibase `<column>`/`<createTable>`, does it carry a real `remarks=` attribute? (per root `CLAUDE.md`)
+- [ ] If that column deliberately references another table's row with no real FK, does its `remarks=` carry the literal `References <table>(<column>), no FK` marker, with the real target table named? (see "No-FK reference columns" above — a missing marker silently drops the relationship from the live ERD diagram)
 - [ ] Could this fact be answered by reading the module's own `README.md` instead — if so, it doesn't belong here at all (see `module-readme-standards`)
 
 ## Applying this standard — what "run the skill over a module" means
@@ -161,3 +223,5 @@ Anyone (human or Claude) writing or editing a `.java` file's own Javadoc/comment
 dependency comments, or a Liquibase changelog's `remarks=` attribute, in any of the Java-module
 directories in this repo — not a new trigger, the same standing discipline `.claude/rules.md`'s two
 comment rules already require, made concrete for Javadoc, `pom.xml`, and Liquibase specifically.
+`/sync-docs --module <name>` is the mechanical entry point for running the "Applying this standard"
+check above against one whole module on demand, rather than only reacting to an individual edit.

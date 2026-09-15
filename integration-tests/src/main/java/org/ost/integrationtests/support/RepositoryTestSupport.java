@@ -60,7 +60,9 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
 @EnableJdbcAuditing
 public class RepositoryTestSupport {
 
+    // @ConditionalOnMissingBean: a test that supplies its own request-scoped AuditorAware (e.g. a Level 3 REST scenario) already provides this bean.
     @Bean
+    @ConditionalOnMissingBean(AuditorAware.class)
     public MutableAuditorAware auditorAware() {
         return new MutableAuditorAware();
     }
@@ -70,7 +72,9 @@ public class RepositoryTestSupport {
         return new ComponentFactory<>(provider);
     }
 
+    // @ConditionalOnMissingBean: a test that also includes the real AttachmentAutoConfiguration (e.g. a Level 3 REST scenario) already provides this bean.
     @Bean
+    @ConditionalOnMissingBean
     public ComponentFactory<AttachmentPort> attachmentPortFactory(ObjectProvider<AttachmentPort> provider) {
         return new ComponentFactory<>(provider);
     }

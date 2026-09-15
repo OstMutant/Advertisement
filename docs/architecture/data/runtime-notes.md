@@ -48,6 +48,6 @@ the scripts that build and verify `architecture-map.html`:
 - `screenshot-architecture-map.sh` — headless-Playwright screenshots of every screen, no args;
   needs Docker (spins its own `arch-map-shot` container) — same sandbox constraint as Playwright
   itself: use `docker cp`, never a `-v` volume mount.
-- `generate-adr-index.sh` / `check-adr-index-freshness.sh` (`.claude/nav/scripts/`) — rebuild/verify
-  `.claude/nav/adr-index.md`; rerun the generator after any `DECISIONS.md` edit (standing rule), no
-  args either way.
+- `generate-adr-index.sh` (`.claude/nav/scripts/`) — rebuilds `.claude/nav/adr-index.md`; run it
+  after any `DECISIONS.md` edit (standing rule), no args. The `docs` CI stage runs it too (via
+  `generate-architecture-model.sh`) and copies the result back to the host.

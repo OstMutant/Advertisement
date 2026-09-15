@@ -6,8 +6,9 @@
  * Uses: ../_helpers (screenshot).
  * Env: None.
  * Input: required by 02-marketplace-authentication-flow.spec.js,
- *   03-marketplace-promotion-flow.spec.js, 04-marketplace-advertisement-flow.spec.js,
- *   06-marketplace-delete-flow.spec.js, 07-accessibility.spec.js, and _flows/signup.flow.js.
+ *   03-marketplace-promotion-flow.spec.js, 04-provider-profile-flow.spec.js,
+ *   05-marketplace-advertisement-flow.spec.js, 07-marketplace-delete-flow.spec.js,
+ *   08-accessibility.spec.js, and _flows/signup.flow.js.
  * Outputs: exports runFillLoginFormFlow, runSubmitLoginFlow, runCancelLogoutFlow, runLogoutFlow.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -41,9 +42,11 @@ const TAB_LABELS = {
  * @returns {Promise<void>}
  */
 async function runSubmitLoginFlow(page, expect, user, locale = user.locale) {
-  await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).last().click();
-  // login triggers a full page reload server-side, not an in-place push update
-  await page.waitForLoadState('networkidle').catch(() => {});
+  // Pair the wait with the click -- login triggers a full page reload, and waiting after the fact races it.
+  await Promise.all([
+    page.waitForLoadState('load'),
+    page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).last().click(),
+  ]);
   await expect(page.locator('.header-settings-button')).toBeVisible({ timeout: 15000 });
 
   const labels = TAB_LABELS[locale];

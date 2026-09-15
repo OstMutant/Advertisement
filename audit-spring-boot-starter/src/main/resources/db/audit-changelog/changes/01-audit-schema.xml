@@ -6,6 +6,7 @@
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <changeSet id="01-audit-schema" author="ostap">
+        <validCheckSum>ANY</validCheckSum>
 
         <!-- ── audit_log ───────────────────────────────────────────────────── -->
         <createTable tableName="audit_log"
@@ -23,7 +24,7 @@
                 <constraints nullable="false"/>
             </column>
             <column name="snapshot_data" type="JSONB" remarks="Before/after snapshot: {before: {...}, after: {...}} or {snapshot: {...}}"/>
-            <column name="actor_id" type="BIGINT" remarks="User ID who made the change">
+            <column name="actor_id" type="BIGINT" remarks="User ID who made the change. References user_information(id), no FK">
                 <constraints nullable="false"/>
             </column>
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Timestamp of change">

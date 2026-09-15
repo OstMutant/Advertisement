@@ -9,11 +9,13 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Set;
 
+/** Resolves an embedded-video URL (YouTube, or an allow-listed Vimeo embed host) into its stored/display form. */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class AttachmentVideoUtil {
 
     private static final Set<String> ALLOWED_EMBED_HOSTS = Set.of("vimeo.com", "player.vimeo.com");
 
+    /** The resolved stored url, display filename, and content type for one embedded video. */
     public record VideoDescriptor(String url, String filename, String contentType) {}
 
     public static VideoDescriptor resolveVideoDescriptor(String url) {

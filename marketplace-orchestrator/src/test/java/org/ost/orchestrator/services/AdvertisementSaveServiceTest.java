@@ -15,6 +15,7 @@ import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -25,6 +26,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 /**
@@ -47,13 +49,16 @@ class AdvertisementSaveServiceTest {
     @Mock private TaxonAssignmentWriteService taxonAssignmentWriteService;
     @Mock private AttachmentSnapshotReaderService attachmentSnapshotReaderService;
     @Mock private AttachmentSoftDeleteService attachmentSoftDeleteService;
+    @Mock private SitemapService sitemapService;
+    @Mock private AuthorizationService authorizationService;
 
     private AdvertisementSaveService service;
 
     @BeforeEach
     void setUp() {
         service = new AdvertisementSaveService(tx, advertisementPortFactory, auditPortFactory,
-                taxonLookupService, taxonAssignmentWriteService, attachmentSnapshotReaderService, attachmentSoftDeleteService);
+                taxonLookupService, taxonAssignmentWriteService, attachmentSnapshotReaderService, attachmentSoftDeleteService,
+                sitemapService, authorizationService);
         lenient().when(tx.execute(this.<Long>callback())).thenAnswer(inv -> {
             TransactionCallback<Long> callback = inv.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));
@@ -121,20 +126,41 @@ class AdvertisementSaveServiceTest {
     }
 
     @Test
-    void save_existingAdvertisementConcurrentlyDeleted_savesButSkipsAuditCaptureInsteadOfThrowing() {
+    void save_existingAdvertisement_deniedByAuthorization_throwsAndNeverSaves() {
         Long adId = 42L;
         AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "New Title", "New Desc", AdKind.OFFER, Set.of(), null, 5L);
-        AdvertisementInfoDto afterInfo = AdvertisementInfoDto.builder().id(adId).title("New Title").description("New Desc").build();
+        AdvertisementInfoDto info = AdvertisementInfoDto.builder().id(adId).createdBy(99L).title("Old").description("Old").build();
+        when(advertisementPort.findById(adId)).thenReturn(Optional.of(info));
+        doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanOperate(ACTOR_ID, 99L);
 
-        when(advertisementPort.findById(adId)).thenReturn(Optional.empty(), Optional.of(afterInfo));
-        when(advertisementPort.save(dto)).thenReturn(adId);
+        assertThatThrownBy(() -> service.save(dto, ACTOR_ID, ref -> null))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(advertisementPort, never()).save(any());
+    }
+
+    @Test
+    void save_newAdvertisement_neverChecksAuthorization() {
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", "Desc", AdKind.OFFER, Set.of(), null, null);
+        when(advertisementPort.save(dto)).thenReturn(100L);
+        when(advertisementPort.findById(100L)).thenReturn(Optional.of(
+                AdvertisementInfoDto.builder().id(100L).title("Title").description("Desc").build()));
         stubAvailable(auditPortFactory, auditPort);
 
-        Long id = service.save(dto, ACTOR_ID, ref -> null);
+        service.save(dto, ACTOR_ID, ref -> null);
 
-        assertThat(id).isEqualTo(adId);
-        verify(auditPort, never()).captureUpdate(any(), any(), any());
-        verify(auditPort, never()).captureCreation(any(), any(), any());
+        verify(authorizationService, never()).requireCanOperate(any(), any());
+    }
+
+    @Test
+    void save_existingAdvertisementConcurrentlyDeleted_throwsOptimisticLockingFailure() {
+        Long adId = 42L;
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "New Title", "New Desc", AdKind.OFFER, Set.of(), null, 5L);
+
+        when(advertisementPort.findById(adId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.save(dto, ACTOR_ID, ref -> null))
+                .isInstanceOf(OptimisticLockingFailureException.class);
+        verify(advertisementPort, never()).save(any());
     }
 
     @Test
@@ -200,6 +226,19 @@ class AdvertisementSaveServiceTest {
         ArgumentCaptor<AuditableSnapshot> snapshotCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
         verify(auditPort).captureDeletion(eq(adId), snapshotCaptor.capture(), eq(ACTOR_ID));
         assertThat(((AdvertisementSnapshotDto) snapshotCaptor.getValue()).title()).isEqualTo("Deleted Title");
+    }
+
+    @Test
+    void delete_deniedByAuthorization_throwsAndNeverDeletes() {
+        Long adId = 42L;
+        when(advertisementPort.findById(adId)).thenReturn(Optional.of(
+                AdvertisementInfoDto.builder().id(adId).createdBy(99L).title("T").description("D").build()));
+        doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanOperate(ACTOR_ID, 99L);
+
+        assertThatThrownBy(() -> service.delete(adId, ACTOR_ID, 5L))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(advertisementPort, never()).delete(any(), any(), any());
+        verify(taxonAssignmentWriteService, never()).clear(any(), any());
     }
 
     @Test

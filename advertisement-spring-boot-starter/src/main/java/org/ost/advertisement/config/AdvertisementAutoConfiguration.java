@@ -23,6 +23,7 @@ import org.springframework.scheduling.support.CronTrigger;
 import javax.sql.DataSource;
 import java.util.TimeZone;
 
+/** Autoconfigures the Advertisement domain: Liquibase migration, JDBC repositories, the retention-based cleanup scheduler, and {@code ComponentFactory} beans for {@code AdvertisementPort}/{@code TaxonPort}. */
 @Slf4j
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)

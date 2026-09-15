@@ -26,17 +26,19 @@ flowchart TD
     B1 -->|no| Z0[print error, exit 1]
     B1 -->|yes| C{--sync-artifacts only?}
     C -->|yes| C1[docker cp metrics files onto host] --> Z1[exit 0]
-    C -->|no| D{--no-rebuild?}
-    D -->|no| E[docker build Dockerfile] --> E1{build succeeded?}
+    C -->|no| D{Dockerfile/entrypoint changed, image missing, or --rebuild?}
+    D -->|yes| E[docker build Dockerfile] --> E1{build succeeded?}
     E1 -->|no| Z4[exit non-zero]
-    E1 -->|yes| F[start ci-runner container]
-    F --> F1[poll Dagu web UI, up to 120s]
-    F1 --> F2{came up?}
+    E1 -->|yes| F[recreate ci-runner container]
+    F --> F1[wait for Dagu's web UI, typical 120s then extended while the container is busy]
+    F1 --> F2{web UI came up?}
     F2 -->|no| Z5[exit 1]
     F2 -->|yes| G[start ci-runner-dagu-proxy sidecar]
-    D -->|yes| H[reuse already-running ci-runner]
-    G --> I[dagu start ci.yaml -- params]
-    H --> I
+    D -->|no| H{ci-runner + proxy both running?}
+    H -->|no| F
+    H -->|yes| S
+    G --> S[wipe ci-runner:/app, re-extract git ls-files set]
+    S --> I[dagu start ci.yaml -- params]
     I --> J{--foreground?}
     J -->|yes| K[stream output, block until done] --> L[sync_artifacts] --> Z2[exit: 0 if PASSED, non-zero if FAILED]
     J -->|no| M[trigger detached] --> Z3[return immediately, exit 0 -- watch progress at :8082]
@@ -50,10 +52,15 @@ flowchart LR
     U[open http://localhost:8082] --> S["Start" button on the ci DAG] --> P[fill in params dialog] --> T[dagu executes ci.yaml]
 ```
 
-**The UI path never picks up source changes made since the last rebuild** — `ci-runner` has no live
-view of the host filesystem (a bind mount doesn't work when the caller invoking `docker run` is
-itself running inside a container, confirmed directly — see [`DECISIONS.md`](DECISIONS.md)).
-Re-run `run.sh` after any code change before relying on the UI's "Start" button again.
+`run.sh` replaces `ci-runner:/app` with the working tree before every run — it wipes `/app` and
+re-extracts the `git ls-files` set (tracked + untracked-not-`.gitignored`), piped through `tar`
+(wiping first, so a file *deleted* from the working tree doesn't linger in the container and break
+the compile) — and rebuilds the image only when
+[`Dockerfile`](Dockerfile)/[`docker-entrypoint.sh`](docker-entrypoint.sh) changed — the image's
+own baked-in `COPY . .` is not trusted, since Docker's layer cache can serve a stale copy of it.
+**The UI "Start" path does not stream the working tree** — it runs against whatever source `run.sh`
+last synced in; a bind mount isn't used instead (it doesn't work when the caller invoking
+`docker run` is itself inside a container — see [`DECISIONS.md`](DECISIONS.md)).
 
 ## Running
 
@@ -69,13 +76,17 @@ here.
 ## Live status, logs, and run history
 
 `http://localhost:8082` — Dagu's own web UI; see [`run.sh`](run.sh)'s own header for how it's
-exposed and which metrics files sync onto the host. Run history is backed by the `ci-dagu-home`
-named volume.
+exposed and the full list of test/metrics artifacts `sync_artifacts()` pulls onto the host (every
+stage's Surefire/JaCoCo/Playwright/Sonar output, not just the architecture-metrics files). Run
+history is backed by the `ci-dagu-home` named volume.
 
-For a scripted/automated watch instead of the browser, `python3 -u` [`watch-run.py`](watch-run.py)
-polls the same API for whichever `ci` run is newest, prints one line per step-status change, and
-exits once the run reaches a terminal state — see its own header for the exact output/exit-code
-contract.
+For a scripted/automated watch instead of the browser,
+`python3 -u` [`dagu-rest-run-monitor.py`](dagu-rest-run-monitor.py) polls the same API for whichever
+`ci` run is newest and prints an `AGENTIC_SUCCESS_BLOCK`/`AGENTIC_ERROR_BLOCK` marker per
+step-status change, exiting once the run reaches a terminal state — `run.sh --foreground` invokes
+this itself, which is what lets `bash scripts/activity-monitor.sh -- bash scripts/ci.sh --foreground`
+render a real per-step checklist the same way it already does for every other wrapped script; see
+the script's own header for the exact output/exit-code contract.
 
 ## Isolation
 

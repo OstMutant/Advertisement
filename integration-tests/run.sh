@@ -90,6 +90,8 @@ ENV_PREFIX=()
 if [ -n "$SANDBOX" ]; then
   ENV_PREFIX+=("TESTCONTAINERS_RYUK_DISABLED=true" "INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432")
   echo "Applying sandbox Docker workarounds (--sandbox): Ryuk disabled, fixed Postgres port 25432."
+  # Ryuk is disabled above, so remove any Testcontainers container leaked by a prior crashed run.
+  docker ps -aq --filter "label=org.testcontainers=true" | xargs -r docker rm -f
 fi
 
 cd "$ROOT"
@@ -98,7 +100,16 @@ if [ -n "$NO_CHECK" ]; then
   echo "Applying --no-check: skipping the staleness check — testing against whatever is already" \
        "in ~/.m2, even if stale."
 else
-  STARTER_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter audit-spring-boot-starter attachment-spring-boot-starter provider-profile-spring-boot-starter"
+  # Module list derived from root pom.xml (keep only modules with no own src/test/java content,
+  # excluding integration-tests itself) instead of hand-maintained -- the complementary set to
+  # build.sh's own UNIT_MODULES derivation, same source, same "does src/test/java/**/*.java exist"
+  # predicate inverted -- see improvement-181.
+  STARTER_MODULES=$(sed -n '/<modules>/,/<\/modules>/p' "$ROOT/pom.xml" \
+    | grep -oE '<module>[^<]+</module>' | sed -E 's#</?module>##g' \
+    | grep -v '^integration-tests$' \
+    | while read -r m; do
+        [ -z "$(find "$ROOT/$m/src/test/java" -name '*.java' 2>/dev/null | head -1)" ] && echo "$m"
+      done | paste -sd' ')
   NEEDS_INSTALL=""
   for m in $STARTER_MODULES; do
     JAR="$(find "$HOME/.m2/repository/org/ost/$m" -name '*.jar' 2>/dev/null | head -1)"
@@ -141,6 +152,27 @@ EXIT_CODE=${PIPESTATUS[0]}
 
 mkdir -p "$REPORT_DIR/surefire"
 cp -r "$ROOT"/integration-tests/target/surefire-reports/* "$REPORT_DIR/surefire/" 2>/dev/null || true
+
+# Attributes coverage back to the starters this run exercised, via the standalone JaCoCo CLI jar
+# reading target/classes+src/main/java straight off disk -- not jacoco:report-aggregate (the Maven
+# goal), which only sees dependency modules present in the *same reactor session* and this script's
+# scoped `-pl integration-tests test` above never provides that, so it silently produces an empty
+# report instead (see .claude/nav/adr-index.md).
+JACOCO_VERSION="$(grep -m1 '<jacoco.version>' "$ROOT/pom.xml" | sed -E 's#.*<jacoco.version>([^<]+)</jacoco.version>.*#\1#')"
+JACOCO_CLI_JAR="$HOME/.m2/repository/org/jacoco/org.jacoco.cli/$JACOCO_VERSION/org.jacoco.cli-$JACOCO_VERSION-nodeps.jar"
+[ -f "$JACOCO_CLI_JAR" ] || ./mvnw -q dependency:get -Dartifact=org.jacoco:org.jacoco.cli:"$JACOCO_VERSION":jar:nodeps
+JACOCO_AGGREGATE_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter audit-spring-boot-starter attachment-spring-boot-starter provider-profile-spring-boot-starter apikey-spring-boot-starter marketplace-orchestrator marketplace-rest-api"
+CLI_REPORT_ARGS=()
+for m in $JACOCO_AGGREGATE_MODULES; do
+  [ -d "$ROOT/$m/target/classes" ] && CLI_REPORT_ARGS+=(--classfiles "$ROOT/$m/target/classes")
+  [ -d "$ROOT/$m/src/main/java" ] && CLI_REPORT_ARGS+=(--sourcefiles "$ROOT/$m/src/main/java")
+done
+if [ -f "$JACOCO_CLI_JAR" ] && [ -f "$ROOT/integration-tests/target/jacoco.exec" ]; then
+  mkdir -p "$REPORT_DIR/jacoco"
+  java -jar "$JACOCO_CLI_JAR" report "$ROOT/integration-tests/target/jacoco.exec" \
+    "${CLI_REPORT_ARGS[@]}" --xml "$REPORT_DIR/jacoco/integration-tests-aggregate.xml" \
+    --name "integration-tests aggregate"
+fi
 
 echo ""
 if [ "$EXIT_CODE" -eq 0 ]; then

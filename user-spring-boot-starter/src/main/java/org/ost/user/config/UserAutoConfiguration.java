@@ -1,7 +1,5 @@
 package org.ost.user.config;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.core.ComponentFactory;
@@ -33,10 +31,18 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import javax.sql.DataSource;
 import java.util.TimeZone;
 
+/**
+ * Auto-configures the User domain -- Liquibase migration, Spring Security beans (password
+ * encoder, {@code UserDetailsService}, {@code AuthenticationManager}), every {@code User*Port}
+ * component-factory bean, and the scheduled soft-deleted-user cleanup job.
+ */
 @Slf4j
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
@@ -58,7 +64,7 @@ public class UserAutoConfiguration {
     @Bean("userSettingsObjectMapper")
     @ConditionalOnMissingBean(name = "userSettingsObjectMapper")
     ObjectMapper userSettingsObjectMapper() {
-        return new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        return JsonMapper.builder().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build();
     }
 
     @Bean

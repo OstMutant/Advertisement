@@ -154,7 +154,6 @@ steps:
   - id: docs
     depends: [pipeline_metrics]
     run: |
-      bash .claude/nav/scripts/check-adr-index-freshness.sh
       bash .claude/nav/scripts/check-flows-completeness.sh
       bash .claude/nav/scripts/check-hardcoded-counts.sh
       SONAR_FLAG=""

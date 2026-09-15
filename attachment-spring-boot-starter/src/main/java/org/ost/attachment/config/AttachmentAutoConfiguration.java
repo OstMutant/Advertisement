@@ -23,6 +23,11 @@ import org.springframework.scheduling.support.CronTrigger;
 import javax.sql.DataSource;
 import java.util.TimeZone;
 
+/**
+ * Auto-configures the attachment module -- its own Liquibase migration, the shared
+ * {@code attachmentObjectMapper} bean, the scheduled cleanup trigger, and the
+ * {@code AttachmentPort}/{@code AttachmentAuditPort} component factory beans.
+ */
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
 @ComponentScan({"org.ost.attachment.services", "org.ost.attachment.spi", "org.ost.attachment.util", "org.ost.attachment.repository"})

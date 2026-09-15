@@ -63,7 +63,7 @@ codebase's actor-reference-column convention, e.g. `advertisement.created_by`)
   `UPDATE` cannot touch them — this eliminates the class of bug where a profile edit accidentally
   forwards the wrong (or missing) value for a sensitive field, without relying on builder
   discipline. There is no dedicated server-side restore-apply method — restoring a user from a
-  snapshot is client-side only (`UserFormOverlayModeHandler.loadRestored()` loads the snapshot's
+  snapshot is client-side only (`AccountNameFormModeHandler.loadRestored()` loads the snapshot's
   name/role into the edit form), and only takes effect once the moderator explicitly saves, going
   through the same `save()` → `updateProfile()` path as any other profile edit. See
   `.claude/nav/adr-index.md`.

@@ -13,7 +13,6 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Port: marketplace → taxon-starter.
  * Marketplace calls this to manage taxon assignments and resolve localised taxon data.
  * Injected via {@code ObjectProvider} — degrades gracefully when the starter is absent.
  */

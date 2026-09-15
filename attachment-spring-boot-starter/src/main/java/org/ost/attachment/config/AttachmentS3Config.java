@@ -13,6 +13,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 import java.net.URI;
 
+/** Builds the AWS {@code S3Client} and the default {@link StorageService} bean from {@code storage.s3.*} properties. */
 @Configuration
 public class AttachmentS3Config {
 

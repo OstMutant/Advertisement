@@ -12,6 +12,10 @@ import org.ost.user.repository.UserPreferencesRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Loads, saves, and mutates per-actor settings/locale, firing {@link UserSettingsChangedHook} and
+ * capturing an audit snapshot on save.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -36,7 +40,8 @@ public class UserPreferencesService {
     }
 
     public SettingsSnapshotDto toSettingsSnapshot(@NonNull UserSettingsDto settings) {
-        return new SettingsSnapshotDto(settings.getAdsPageSize(), settings.getUsersPageSize(), settings.getTimelinePageSize());
+        return new SettingsSnapshotDto(settings.getAdsPageSize(), settings.getUsersPageSize(),
+                settings.getTimelinePageSize(), settings.getProviderProfilesPageSize());
     }
 
     @Transactional

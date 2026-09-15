@@ -6,6 +6,10 @@ import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.core.config.CleanupProperties;
 import org.springframework.stereotype.Service;
 
+/**
+ * Scheduled job, triggered by {@link org.ost.audit.config.AuditAutoConfiguration}'s cron trigger,
+ * that deletes {@code audit_log} rows older than the configured retention window.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

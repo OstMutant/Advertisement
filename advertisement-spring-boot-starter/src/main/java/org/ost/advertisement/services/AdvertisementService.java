@@ -12,10 +12,7 @@ import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.spi.TaxonPort;
-import org.jsoup.Jsoup;
-import org.owasp.html.HtmlPolicyBuilder;
-import org.owasp.html.PolicyFactory;
-import org.owasp.html.Sanitizers;
+import org.ost.sanitizer.HtmlSanitizer;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -27,16 +24,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+/** CRUD + query/filter for {@code advertisement} -- does not write category/city assignments or enrich display fields. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Validated
 public class AdvertisementService {
-
-    private static final PolicyFactory HTML_SANITIZER = Sanitizers.FORMATTING
-            .and(Sanitizers.LINKS)
-            .and(Sanitizers.BLOCKS)
-            .and(new HtmlPolicyBuilder().allowElements("pre").toFactory());
 
     private final AdvertisementRepository          repository;
     private final ComponentFactory<TaxonPort>      taxonPortFactory;
@@ -130,33 +123,15 @@ public class AdvertisementService {
         log.info("Advertisement cleanup finished: deletedRows={}", deleted);
     }
 
-    // ── HTML sanitization ────────────────────────────────────────────────────
-
     private static Advertisement buildEntity(@NonNull AdvertisementSaveDto dto, Advertisement before) {
         return Advertisement.builder()
                 .id(dto.id())
                 .title(dto.title())
-                .description(sanitizeHtml(dto.description()))
+                .description(HtmlSanitizer.sanitize(dto.description(), AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH))
                 .adKind(dto.adKind())
                 .createdAt(before != null ? before.getCreatedAt() : null)
                 .createdBy(before != null ? before.getCreatedBy() : null)
                 .version(dto.version())
                 .build();
-    }
-
-    private static String sanitizeHtml(String html) {
-        if (html == null || html.isBlank()) return html;
-        String sanitized = HTML_SANITIZER.sanitize(html);
-        validateDescriptionLength(sanitized);
-        return sanitized;
-    }
-
-    private static void validateDescriptionLength(String html) {
-        int textLength = Jsoup.parse(html).text().length();
-        if (textLength > AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH) {
-            throw new IllegalArgumentException(
-                    "Description text exceeds maximum length of "
-                            + AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH + " characters");
-        }
     }
 }

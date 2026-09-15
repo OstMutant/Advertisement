@@ -11,6 +11,7 @@ import org.ost.query.filter.SqlCondition;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
+import org.ost.query.sort.SortField;
 import org.ost.user.entity.User;
 import org.ost.user.entity.UserEditableFields;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 import static org.ost.platform.user.dto.UserFilterDto.Fields.*;
 import static org.ost.query.filter.SqlCondition.*;
 
+/** Bespoke {@code JdbcClient} queries for {@code user_information} (filtering/sorting/pagination); trivial CRUD delegates to {@link UserCrudRepository}. */
 @Repository
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
@@ -73,15 +75,17 @@ public class UserRepository {
     public Optional<User> findById(@NonNull Long id)    { return crud.findById(id); }
     public void deleteById(@NonNull Long id)            { crud.deleteById(id); }
 
+    private static final List<SortField> SORT_FIELDS = List.of(
+            SortField.of(UserDto.Fields.id,        "u.id"),
+            SortField.of(UserDto.Fields.name,      "u.name"),
+            SortField.of(UserDto.Fields.email,     "u.email"),
+            SortField.of(UserDto.Fields.role,      "u.role"),
+            SortField.of(UserDto.Fields.createdAt, "u.created_at", SortField.of(UserDto.Fields.id, "u.id")),
+            SortField.of(UserDto.Fields.updatedAt, "u.updated_at", SortField.of(UserDto.Fields.id, "u.id")));
+
     public List<User> findByFilter(@NonNull UserFilterDto filter, @NonNull Pageable pageable) {
         var params = new MapSqlParameterSource();
-        String orderBy = OrderByBuilder.build(pageable.getSort(), Map.of(
-                UserDto.Fields.id,        "u.id",
-                UserDto.Fields.name,      "u.name",
-                UserDto.Fields.email,     "u.email",
-                UserDto.Fields.role,      "u.role",
-                UserDto.Fields.createdAt, "u.created_at",
-                UserDto.Fields.updatedAt, "u.updated_at"));
+        String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_FIELDS);
         String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, version FROM user_information u WHERE u.deleted_at IS NULL%s%s%s"
                 .formatted(FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();

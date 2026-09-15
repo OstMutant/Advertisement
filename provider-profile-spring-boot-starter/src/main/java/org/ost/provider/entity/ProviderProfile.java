@@ -12,6 +12,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 
+/** A provider's catalog profile -- kind, city, and about text -- created lazily on the actor's first "become a provider" save, at most one row per actor. */
 @Value
 @Builder
 @FieldNameConstants
@@ -24,7 +25,6 @@ public class ProviderProfile {
     Long actorId;
     ProviderKind kind;
     String about;
-    Long cityTaxonId;
 
     @CreatedDate
     Instant createdAt;

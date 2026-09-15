@@ -5,7 +5,7 @@
  * Uses: @playwright/test (expect), ./entity-activity.flow (openEntityActivity, closeEntityActivity,
  *   restoreFromEntityActivity).
  * Env: None.
- * Input: required directly by 05-seed-filter-sort-pagination.spec.js, and indirectly by every
+ * Input: required directly by 06-seed-filter-sort-pagination.spec.js, and indirectly by every
  *   other spec that goes through ./audit.flow, which requires this file internally.
  * Outputs: exports changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes.
  * Returns: N/A
@@ -14,19 +14,25 @@ const { expect } = require('@playwright/test');
 const { openEntityActivity, closeEntityActivity, restoreFromEntityActivity } = require('./entity-activity.flow');
 
 /**
- * Opens the Settings overlay, sets both page size fields, and saves.
+ * Opens the Settings overlay, sets all three page size fields, and saves. Field order in the DOM
+ * is ads(0), providerProfiles(1), users(2) -- the ungated fields (ads, providerProfiles) come
+ * before the privileged-only ones (users, timeline).
  * @param {import('@playwright/test').Page} page
  * @param {number} adsSize advertisements page size.
+ * @param {number} providerProfilesSize provider profiles page size.
  * @param {number} usersSize users page size.
  * @returns {Promise<void>}
  */
-async function changePageSizes(page, adsSize, usersSize) {
+async function changePageSizes(page, adsSize, providerProfilesSize, usersSize) {
   await page.locator('.header-settings-button').click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
-  const adsInput   = page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input');
-  const usersInput = page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input');
+  const adsInput      = page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input');
+  const providersInput = page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input');
+  const usersInput    = page.locator('.settings-overlay-content vaadin-integer-field').nth(2).locator('input');
   await adsInput.click({ clickCount: 3 });
   await adsInput.fill(String(adsSize));
+  await providersInput.click({ clickCount: 3 });
+  await providersInput.fill(String(providerProfilesSize));
   await usersInput.click({ clickCount: 3 });
   await usersInput.fill(String(usersSize));
   await page.locator('.base-overlay.overlay--visible vaadin-button')
@@ -72,18 +78,19 @@ async function restoreLatestFromActivity(page) {
 }
 
 /**
- * Opens the Settings overlay, reads both page size fields, closes the overlay, and returns them.
+ * Opens the Settings overlay, reads all three page size fields, closes the overlay, and returns them.
  * @param {import('@playwright/test').Page} page
- * @returns {Promise<{adsPageSize: number, usersPageSize: number}>}
+ * @returns {Promise<{adsPageSize: number, providerProfilesPageSize: number, usersPageSize: number}>}
  */
 async function getPageSizes(page) {
   await page.locator('.header-settings-button').click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
-  const adsPageSize   = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input').inputValue(), 10);
-  const usersPageSize = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input').inputValue(), 10);
+  const adsPageSize              = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input').inputValue(), 10);
+  const providerProfilesPageSize = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input').inputValue(), 10);
+  const usersPageSize            = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(2).locator('input').inputValue(), 10);
   await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
-  return { adsPageSize, usersPageSize };
+  return { adsPageSize, providerProfilesPageSize, usersPageSize };
 }
 
 module.exports = { changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes };

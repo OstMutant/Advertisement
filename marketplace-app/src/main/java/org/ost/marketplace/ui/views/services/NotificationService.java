@@ -43,6 +43,12 @@ public class NotificationService {
         show(NotificationType.ERROR, message);
     }
 
+    /** Fixed, localized notification for a denied authorization check -- never shows the raw
+     *  exception message, which carries internal actor/owner ids. */
+    public void accessDenied() {
+        error(I18nKey.COMMON_NOTIFICATION_ACCESS_DENIED);
+    }
+
     private void show(NotificationType type, I18nKey key, Object... args) {
         show(type, i18n.get(key, args));
     }

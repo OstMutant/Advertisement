@@ -26,6 +26,29 @@ public class AuthContextService implements CurrentUserHook {
         return currentPrincipal().map(AuthenticatedPrincipal::locale);
     }
 
+    /**
+     * Resolves the acting user's id from either a Vaadin session principal ({@link AuthenticatedPrincipal})
+     * or a REST bearer-token principal (a plain {@link Long}, set by {@code ApiKeyAuthenticationFilter}).
+     */
+    public Optional<Long> getCurrentActorId() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) {
+                return Optional.empty();
+            }
+            if (auth.getPrincipal() instanceof AuthenticatedPrincipal p) {
+                return Optional.of(p.toUserDto().id());
+            }
+            if (auth.getPrincipal() instanceof Long userId) {
+                return Optional.of(userId);
+            }
+            return Optional.empty();
+        } catch (Exception ex) {
+            log.warn("Failed to read current actor id from security context", ex);
+            return Optional.empty();
+        }
+    }
+
     private Optional<AuthenticatedPrincipal> currentPrincipal() {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();

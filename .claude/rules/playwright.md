@@ -26,24 +26,24 @@ All scenarios live in `/app/playwright/`. Run via `run.sh`:
 ```bash
 bash /app/playwright/run.sh                  # all tests
 bash /app/playwright/run.sh --ux             # all tests with screenshots
-bash /app/playwright/run.sh e2e --ux         # e2e suite (specs 01–06, skips spec 05 seed)
-bash /app/playwright/run.sh e2e --full --ux  # e2e suite including spec 05 (seeds 60 users + 60 ads)
+bash /app/playwright/run.sh e2e --ux         # e2e suite (01–08), skips spec 06 seed
+bash /app/playwright/run.sh e2e --full --ux  # e2e suite including spec 06 (seeds 60 users + 60 ads)
 bash /app/playwright/run.sh 01-marketplace-empty-flow --ux  # single spec file, with screenshots
 ```
 
-**`--full` flag:** spec `05-seed-filter-sort-pagination` is skipped by default (it takes ~2 min to seed 120 entities — `SEED_COUNT = 60`). Pass `--full` to include it. Spec 06 (delete flow) works correctly in both modes — it creates its own ad to delete.
+**`--full` flag:** spec `06-seed-filter-sort-pagination` is skipped by default (it takes ~2 min to seed 120 entities — `SEED_COUNT = 60`). Pass `--full` to include it. Spec 07 (delete flow) works correctly in both modes — it creates its own ad to delete.
 
 **IMPORTANT:** Volume mounts don't work from inside the claude container (Docker socket path issue).
 `run.sh` uses `docker cp` internally — always use `run.sh`, never raw `docker run -v`.
 
 **Don't run a single spec file in isolation unless it's genuinely self-contained.** Per
 `playwright/README.md`, specs are serial and ordered — most later specs depend on state earlier
-specs create (registered `TEST_USERS`, seeded categories/cities). Running e.g. spec 04 alone
+specs create (registered `TEST_USERS`, seeded categories/cities). Running e.g. spec 05 alone
 against a database that never had specs 01-03 run against it fails at the very first login, not at
 whatever behavior the spec was meant to verify. Run the full `e2e --ux` suite (or `e2e --full --ux`
-only when the change actually touches spec 05's seeded-pagination scenario — `--full` is not
+only when the change actually touches spec 06's seeded-pagination scenario — `--full` is not
 needed just to make a later spec's preconditions exist, since categories/cities are seeded in spec
-03, not spec 05).
+03, not spec 06).
 
 **Always deploy with a clean database (`bash scripts/deploy-and-run.sh --reset-only-db` — truncate,
 fast — or `--reset` — full DB/MinIO volume wipe, only needed when the schema itself changed)

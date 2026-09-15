@@ -12,7 +12,7 @@
  * Env: None.
  * Input: required by 03-marketplace-promotion-flow.spec.js (cardByTitle, openCardOverlay,
  *   switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList) and
- *   04-marketplace-advertisement-flow.spec.js (all remaining exports); selectAdKind is also
+ *   05-marketplace-advertisement-flow.spec.js (all remaining exports); selectAdKind is also
  *   required internally by seed.flow.js.
  * Outputs: exports MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow,
  *   runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow,
@@ -582,16 +582,27 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     });
   }
 
+  // Version-targeted from here on, not positional .nth(0) -- a row is found by its own stable
+  // version number, immune to any ordering ambiguity in the activity list itself.
+  let runningVersion = richText ? textEditVersion + 1 : textEditVersion;
+
   if (categoryToAdd) {
-    await test.step(`add category ${categoryToAdd} — activity diff shows all fields, category assigned`, async () => {
+    runningVersion += 1;
+    const catAddVersion = runningVersion;
+    await test.step(`add category ${categoryToAdd} v${catAddVersion} — activity diff shows all fields, category assigned`, async () => {
       await closeEntityActivity(overlay.page());
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
       await selectCategoryInAdForm(page, overlay, categoryToAdd);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-cat-add`);
       const catActivityList = await openActivityTab(overlay);
-      const catChanges = catActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
+      const catRow = catActivityList.locator('.entity-activity-row')
+        .filter({ has: page.locator('.entity-activity-version', { hasText: new RegExp(`^v${catAddVersion}$`) }) });
+      const catChanges = catRow.locator('.entity-activity-changes');
       await expect(catChanges).toContainText(newTitle, { timeout: 5000 });
+      // No arrow expected -- the field was unset before this edit (AuditChangeFormatter renders a
+      // bare "field: value" with no "→" when the previous value was blank).
       await expect(catChanges).toContainText(categoryToAdd);
+      await expect(catChanges).not.toContainText(`${categoryToAdd} →`);
       await expect(catChanges).not.toContainText('null');
       await expect(catChanges).not.toContainText(': null');
       await screenshot(page, `${screenshotPrefix}-cat-add-activity`);
@@ -599,15 +610,20 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   }
 
   if (categoryToRemove) {
-    await test.step(`remove category ${categoryToRemove} — activity diff shows all fields, category unassigned`, async () => {
+    runningVersion += 1;
+    const catRemoveVersion = runningVersion;
+    await test.step(`remove category ${categoryToRemove} v${catRemoveVersion} — activity diff shows all fields, category unassigned`, async () => {
       await closeEntityActivity(overlay.page());
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
       await selectCategoryInAdForm(page, overlay, categoryToRemove);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-cat-remove`);
       const catActivityList = await openActivityTab(overlay);
-      const catChanges = catActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
+      const catRow = catActivityList.locator('.entity-activity-row')
+        .filter({ has: page.locator('.entity-activity-version', { hasText: new RegExp(`^v${catRemoveVersion}$`) }) });
+      const catChanges = catRow.locator('.entity-activity-changes');
       await expect(catChanges).toContainText(newTitle, { timeout: 5000 });
-      await expect(catChanges).toContainText(categoryToRemove);
+      // Arrow expected -- the field had a value before this edit (from non-blank), removed here.
+      await expect(catChanges).toContainText(`${categoryToRemove} →`);
       await expect(catChanges).not.toContainText('null');
       await expect(catChanges).not.toContainText(': null');
       await screenshot(page, `${screenshotPrefix}-cat-remove-activity`);
@@ -615,13 +631,17 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   }
 
   if (cityToSet) {
-    await test.step(`set city ${cityToSet} — activity diff shows city change`, async () => {
+    runningVersion += 1;
+    const citySetVersion = runningVersion;
+    await test.step(`set city ${cityToSet} v${citySetVersion} — activity diff shows city change`, async () => {
       await closeEntityActivity(overlay.page());
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
       await selectCityInAdForm(page, overlay, cityToSet);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-city-set`);
       const cityActivityList = await openActivityTab(overlay);
-      const cityChanges = cityActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
+      const cityRow = cityActivityList.locator('.entity-activity-row')
+        .filter({ has: page.locator('.entity-activity-version', { hasText: new RegExp(`^v${citySetVersion}$`) }) });
+      const cityChanges = cityRow.locator('.entity-activity-changes');
       await expect(cityChanges).toContainText(newTitle, { timeout: 5000 });
       await expect(cityChanges).toContainText(cityToSet);
       await expect(cityChanges).toContainText('City');
@@ -630,13 +650,17 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   }
 
   if (adKindToSet) {
-    await test.step(`set ad kind ${adKindToSet} — activity diff shows ad kind change`, async () => {
+    runningVersion += 1;
+    const adKindSetVersion = runningVersion;
+    await test.step(`set ad kind ${adKindToSet} v${adKindSetVersion} — activity diff shows ad kind change`, async () => {
       await closeEntityActivity(overlay.page());
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
       await selectAdKind(page, overlay, adKindToSet);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-ad-kind-set`);
       const typeActivityList = await openActivityTab(overlay);
-      const typeChanges = typeActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
+      const typeRow = typeActivityList.locator('.entity-activity-row')
+        .filter({ has: page.locator('.entity-activity-version', { hasText: new RegExp(`^v${adKindSetVersion}$`) }) });
+      const typeChanges = typeRow.locator('.entity-activity-changes');
       await expect(typeChanges).toContainText(newTitle, { timeout: 5000 });
       await expect(typeChanges).toContainText(adKindToSet);
       await expect(typeChanges).toContainText('Advertisement kind');

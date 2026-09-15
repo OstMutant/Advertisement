@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/** Scheduled job removing stale temp uploads, retention-expired attachments/snapshots, and orphaned S3 files. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -27,11 +28,8 @@ public class AttachmentCleanupService {
     private final CleanupProperties             cleanupProperties;
 
     /**
-     * Deliberately not {@code @Transactional}: {@link #deleteAttachments} depends on its single
-     * {@code deleteByUrls()} DELETE statement (already atomic on its own — one SQL statement) auto
-     * -committing immediately, before the S3 delete loop that follows it. Wrapping this method in
-     * a transaction would defer that commit until the whole method returns, recreating the exact
-     * crash-window bug this ordering exists to close — see improvement-049 item 4.
+     * Deliberately not {@code @Transactional} -- {@link #deleteAttachments}'s DELETE must commit
+     * before the S3 delete loop that follows it, which a surrounding transaction would defer.
      */
     public void cleanup() {
         log.info("Attachment cleanup started, retention = {} days", cleanupProperties.retentionDays());
@@ -54,7 +52,7 @@ public class AttachmentCleanupService {
             try {
                 storageService.delete(url);
                 deleted++;
-            } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
+            } catch (Exception e) {
                 log.warn("Failed to delete stale temp upload {}: {}", url, e.getMessage());
             }
         }
@@ -83,7 +81,7 @@ public class AttachmentCleanupService {
         deletedUrls.stream()
                 .filter(url -> !videoUrls.contains(url)) // external video urls have no S3 object
                 .forEach(url -> {
-                    try { storageService.delete(url); } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
+                    try { storageService.delete(url); } catch (Exception e) {
                         log.warn("Failed to delete S3 object {}: {}", url, e.getMessage());
                         failedUrls.add(url);
                     }
@@ -113,7 +111,7 @@ public class AttachmentCleanupService {
                 try {
                     storageService.delete(url);
                     deleted++;
-                } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
+                } catch (Exception e) {
                     log.warn("Failed to delete orphaned entity file {}: {}", url, e.getMessage());
                 }
             }

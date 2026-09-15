@@ -1,0 +1,231 @@
+package org.ost.integrationtests.level3.restapi;
+
+import org.junit.jupiter.api.Test;
+import org.ost.integrationtests.support.AbstractRestApiScenarioTest;
+import org.ost.integrationtests.support.JsonScenarioUtils;
+import org.ost.integrationtests.support.Level3ScenarioTest;
+import org.ost.integrationtests.support.TimestampObservations;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
+
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * Level 3 scenario: the full spectrum of {@code GET /api/provider-profiles} filter/sort/pagination
+ * requests against real data -- every field {@link org.ost.marketplace.ui.views.main.tabs.providers.query.ProviderProfileFilterMeta}/
+ * {@code ProviderProfileSortMeta} also exposes in the UI's own query bar. One profile per actor
+ * (real unique index on {@code actor_id}), so each data point is its own registered user.
+ */
+@Level3ScenarioTest
+class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest {
+
+    @Autowired
+    private JdbcClient jdbcClient;
+
+    private long createCategory(RegisteredUser admin, String name) throws Exception {
+        String body = """
+                {"type":"CATEGORY","translations":[{"locale":"en","name":"%s","description":"%s services"},{"locale":"uk","name":"%s","description":"%s послуги"}]}"""
+                .formatted(name, name, name, name);
+        String response = mockMvc.perform(post("/api/taxons")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return JsonScenarioUtils.extractId(response);
+    }
+
+    private long createCity(RegisteredUser admin, String name) throws Exception {
+        String body = """
+                {"type":"CITY","translations":[{"locale":"en","name":"%s","description":"City of %s"},{"locale":"uk","name":"%s","description":"Місто %s"}]}"""
+                .formatted(name, name, name, name);
+        String response = mockMvc.perform(post("/api/taxons")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return JsonScenarioUtils.extractId(response);
+    }
+
+    private record CreatedProvider(long id, RegisteredUser owner, String responseJson) {
+    }
+
+    private CreatedProvider createProvider(String namePrefix, String kind, Long categoryId, Long cityTaxonId) throws Exception {
+        RegisteredUser owner = registerUserAndIssueApiKey(namePrefix);
+        String categoryPart = categoryId != null ? "\"categoryIds\":[%d],".formatted(categoryId) : "";
+        String cityPart = cityTaxonId != null ? "\"cityTaxonId\":%d,".formatted(cityTaxonId) : "";
+        String body = """
+                {"kind":"%s",%s%s"about":"About %s"}""".formatted(kind, categoryPart, cityPart, namePrefix);
+        String response = mockMvc.perform(post("/api/provider-profiles")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.rawApiKey())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return new CreatedProvider(JsonScenarioUtils.extractId(response), owner, response);
+    }
+
+    @Test
+    void filterByKinds_returnsOnlyMatchingKind() throws Exception {
+        // Support1 registers first -- the first-ever user in a clean DB becomes ADMIN, required for kind=SUPPORT.
+        createProvider("Support1", "SUPPORT", null, null);
+        createProvider("Master1", "MASTER", null, null);
+        createProvider("Shop1", "SHOP", null, null);
+
+        mockMvc.perform(get("/api/provider-profiles").param("kinds", "SHOP"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"))
+                .andExpect(jsonPath("$[0].kind").value("SHOP"));
+
+        mockMvc.perform(get("/api/provider-profiles").param("kinds", "MASTER,SUPPORT"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "2"));
+    }
+
+    @Test
+    void filterByCreatedAtRange_returnsOnlyWithinBounds() throws Exception {
+        createProvider("Old", "MASTER", null, null);
+        CreatedProvider boundary = createProvider("Boundary", "MASTER", null, null);
+        Instant boundaryCreatedAt = Instant.parse(JsonScenarioUtils.extractStringField(boundary.responseJson(), "createdAt"));
+        createProvider("New", "MASTER", null, null);
+
+        mockMvc.perform(get("/api/provider-profiles")
+                        .param("createdAtStart", boundaryCreatedAt.toString())
+                        .param("sort", "createdAt,asc"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "2"));
+    }
+
+    @Test
+    void filterByCategoryIdsAndCityTaxonId_returnsOnlyMatching() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        long categoryId = createCategory(admin, "Plumbing");
+        long otherCategoryId = createCategory(admin, "Electrical");
+        long cityId = createCity(admin, "Kyiv");
+
+        createProvider("PlumberInKyiv", "MASTER", categoryId, cityId);
+        createProvider("ElectricianElsewhere", "MASTER", otherCategoryId, null);
+        createProvider("Uncategorized", "MASTER", null, null);
+
+        mockMvc.perform(get("/api/provider-profiles").param("categoryIds", String.valueOf(categoryId)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"));
+
+        mockMvc.perform(get("/api/provider-profiles").param("cityTaxonId", String.valueOf(cityId)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"));
+    }
+
+    @Test
+    void combinedFilters_applyAsAnd() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        long cityId = createCity(admin, "Lviv");
+
+        createProvider("MasterInLviv", "MASTER", null, cityId);
+        createProvider("ShopInLviv", "SHOP", null, cityId);
+        createProvider("MasterElsewhere", "MASTER", null, null);
+
+        mockMvc.perform(get("/api/provider-profiles").param("kinds", "MASTER").param("cityTaxonId", String.valueOf(cityId)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"));
+    }
+
+    @Test
+    void sortByEachField_bothDirections() throws Exception {
+        CreatedProvider first = createProvider("First", "MASTER", null, null);
+        CreatedProvider second = createProvider("Second", "MASTER", null, null);
+        CreatedProvider third = createProvider("Third", "MASTER", null, null);
+        Map<Long, String> aboutById = Map.of(
+                first.id(), "About First", second.id(), "About Second", third.id(), "About Third");
+        List<Long> ids = List.of(first.id(), second.id(), third.id());
+
+        Map<Long, Instant> createdAtById = TimestampObservations.read(jdbcClient, "provider_profile", "created_at", ids);
+        List<String> expectedAsc = ids.stream().sorted(Comparator.comparing(createdAtById::get))
+                .map(aboutById::get).toList();
+        List<String> expectedDesc = expectedAsc.reversed();
+
+        mockMvc.perform(get("/api/provider-profiles").param("sort", "createdAt,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].about").value(expectedAsc.get(0)))
+                .andExpect(jsonPath("$[1].about").value(expectedAsc.get(1)))
+                .andExpect(jsonPath("$[2].about").value(expectedAsc.get(2)));
+
+        mockMvc.perform(get("/api/provider-profiles").param("sort", "createdAt,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].about").value(expectedDesc.get(0)))
+                .andExpect(jsonPath("$[1].about").value(expectedDesc.get(1)))
+                .andExpect(jsonPath("$[2].about").value(expectedDesc.get(2)));
+
+        Instant firstUpdatedAtBefore = TimestampObservations.read(jdbcClient, "provider_profile", "updated_at", ids).get(first.id());
+        String updateBody = """
+                {"kind":"MASTER","about":"About First"}""";
+        mockMvc.perform(put("/api/provider-profiles/" + first.id()).header("If-Match", "\"0\"")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + first.owner().rawApiKey())
+                        .contentType(MediaType.APPLICATION_JSON).content(updateBody))
+                .andExpect(status().isOk());
+
+        // Direct before/after check that the update itself bumped updated_at -- independent of the sort assertion below.
+        Map<Long, Instant> updatedAtById = TimestampObservations.read(jdbcClient, "provider_profile", "updated_at", ids);
+        org.assertj.core.api.Assertions.assertThat(updatedAtById.get(first.id())).isAfter(firstUpdatedAtBefore);
+
+        List<String> expectedUpdatedDesc = ids.stream().sorted(Comparator.comparing(updatedAtById::get).reversed())
+                .map(aboutById::get).toList();
+        mockMvc.perform(get("/api/provider-profiles").param("sort", "updatedAt,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].about").value(expectedUpdatedDesc.get(0)));
+    }
+
+    @Test
+    void realDataVolume_pagesAndSorts() throws Exception {
+        // One profile per actor (unique actor_id index), so the 12 providers each need their own
+        // owner -- a separate reader actor exercises the real page-size-from-settings resolution.
+        RegisteredUser reader = registerUserAndIssueApiKey("Reader");
+        String settingsBody = """
+                {"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20,"providerProfilesPageSize":5}""";
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + reader.rawApiKey())
+                        .contentType(MediaType.APPLICATION_JSON).content(settingsBody))
+                .andExpect(status().isOk());
+
+        for (int i = 1; i <= 12; i++) {
+            createProvider("Provider%02d".formatted(i), "MASTER", null, null);
+        }
+
+        // createdAt has no unique tiebreaker for ProviderProfile (no unique sortable business field exists),
+        // so rows created within the same timestamp tick can land on either side of a page boundary --
+        // assert page sizes/total deterministically, and assert the full set is covered without gaps/dupes.
+        // "size=999" in the URL must have no effect -- the real page size (5) comes from the reader's saved setting above.
+        java.util.List<String> collected = new java.util.ArrayList<>();
+        for (int page = 0; page <= 3; page++) {
+            String response = mockMvc.perform(get("/api/provider-profiles")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + reader.rawApiKey())
+                            .param("page", String.valueOf(page)).param("size", "999").param("sort", "createdAt,asc"))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("X-Total-Count", "12"))
+                    .andReturn().getResponse().getContentAsString();
+            int expectedLength = switch (page) {
+                case 0, 1 -> 5;
+                case 2 -> 2;
+                default -> 0;
+            };
+            com.jayway.jsonpath.DocumentContext json = com.jayway.jsonpath.JsonPath.parse(response);
+            java.util.List<String> abouts = json.read("$[*].about");
+            org.assertj.core.api.Assertions.assertThat(abouts).hasSize(expectedLength);
+            collected.addAll(abouts);
+        }
+        java.util.List<String> expected = new java.util.ArrayList<>();
+        for (int i = 1; i <= 12; i++) expected.add("About Provider%02d".formatted(i));
+        org.assertj.core.api.Assertions.assertThat(collected).containsExactlyInAnyOrderElementsOf(expected);
+    }
+}

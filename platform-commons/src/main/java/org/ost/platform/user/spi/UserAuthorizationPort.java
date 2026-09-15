@@ -4,7 +4,6 @@ import lombok.NonNull;
 import org.ost.platform.user.dto.UserDto;
 
 /**
- * Port: marketplace → user-starter.
  * Role and ownership checks (isAdmin/isModerator/isOwner) used by UI access control.
  * Implementation lives in user-spring-boot-starter.
  */

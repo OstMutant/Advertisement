@@ -12,10 +12,13 @@
 /user-spring-boot-starter/target/
 /advertisement-spring-boot-starter/target/
 /query-lib/target/
+/html-sanitizer-lib/target/
 /taxon-spring-boot-starter/target/
 /integration-tests/target/
 /provider-profile-spring-boot-starter/target/
 /marketplace-orchestrator/target/
+/apikey-spring-boot-starter/target/
+/marketplace-rest-api/target/
 
 # Vaadin frontend generated files
 /marketplace-app/src/main/frontend/generated/
@@ -66,3 +69,8 @@
 
 # .claude/nav usage counters (hook-generated, personal instrumentation)
 /.claude/nav/.*-read-count
+
+# atomic-write temp siblings from the generate-*.sh doc generators (present only after a hard kill)
+/.claude/nav/adr-index.md.*.tmp
+/docs/architecture/data/architecture-model.json.*.tmp
+/docs/architecture/architecture-map.html.*.tmp

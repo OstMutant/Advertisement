@@ -15,6 +15,7 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 
 import javax.sql.DataSource;
 
+/** Auto-configuration entry point: wires this starter's Liquibase changelog, {@code taxon.repository} JDBC repositories, and the {@link TaxonPort} {@link ComponentFactory} bean. */
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
 @ComponentScan(basePackageClasses = TaxonPackageMarker.class)

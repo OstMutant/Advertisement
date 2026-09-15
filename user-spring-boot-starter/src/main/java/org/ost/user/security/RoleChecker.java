@@ -5,6 +5,7 @@ import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.model.Role;
 import org.springframework.stereotype.Component;
 
+/** Checks whether a {@link UserDto} holds the ADMIN or MODERATOR role. */
 @Component
 public class RoleChecker {
 

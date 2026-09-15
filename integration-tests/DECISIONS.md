@@ -2,6 +2,79 @@
 
 ---
 
+## ADR-011: Level 3 scenario tests derive expected ordering from observed DB timestamps instead of pinning them
+**Status:** Accepted
+
+**Context:** Level 3 scenario tests asserting sort/filter behavior over `created_at`/`updated_at`
+repeatedly failed under real host/container clock non-monotonicity (a later INSERT landing an
+earlier timestamp than an earlier one) — confirmed directly against live CI data, not assumed. An
+earlier fix in `UserApiKeyAdvertisementScenarioTest`/`ProviderProfilePaginationScenarioTest`
+force-pinned `created_at`/`updated_at` via a raw `UPDATE` after creating rows through the real REST
+flow — this made the assertion deterministic, but left the row's own recorded timestamp no longer
+matching what actually happened, purely for test convenience.
+
+**Decision:** Level 3 scenario tests needing a deterministic expected order/count over
+`created_at`/`updated_at` read the real, already-recorded values back via a direct `SELECT`
+(`TimestampObservations.read()`, `integration-tests/support/`) instead of overwriting them, then
+derive the expected outcome from those observed values rather than from assumed insertion order.
+`TimestampObservations.read()` fails the test outright if any value comes back `null` or if two
+values tie (a tie makes a derived expected order ambiguous), and logs a warning when observed
+values come back out of insertion order (expected, not fatal — the point of deriving from
+observation is to be immune to this). Applied to `UserApiKeyAdvertisementScenarioTest`,
+`ProviderProfilePaginationScenarioTest.sortByEachField_bothDirections`, and
+`UserPaginationScenarioTest.filterByCreatedAtRange_returnsOnlyWithinBounds`.
+
+**Rejected alternative — pin timestamps via `UPDATE` after creation (the original fix):** works,
+and is still used by the unrelated Level 1 `*_tiedRows_usesIdAsStableTiebreaker` tests (which
+deliberately need an exact *tie*, something no real insert can produce) — but for Level 3 scenario
+tests specifically, rewriting a real entity's own timestamp after creating it through the real REST
+flow means the row no longer reflects what actually happened, undermining the "true end-to-end, no
+mocks" character these tests are meant to have.
+
+---
+
+## ADR-009: Widen integration-tests scope to a 3-level test structure (starters / orchestrator / REST API)
+**Status:** Accepted
+
+**Context:** improvement-183 needs real end-to-end REST scenario tests (create user → issue API
+key → create several advertisements) exercising the full stack — REST controller →
+marketplace-orchestrator → domain starters → Postgres — not just a single starter's repository
+layer. `integration-tests` (ADR-001) was scoped to "repository tests only," one domain starter at
+a time; neither `marketplace-orchestrator` nor `marketplace-rest-api` were dependencies of this
+module, and no other module in the repo has a real Postgres-backed HTTP scenario test today.
+
+**Decision:** Widen `integration-tests`'s scope from "repository tests only" to a 3-level
+structure, all still governed by ADR-001's original rationale (this module is never
+shipped/deployed, so it can freely depend on modules a production dependency graph couldn't):
+- Level 1 (moved, unchanged behavior) — `org.ost.integrationtests.level1.<domain>` — single-starter
+  repository tests.
+- Level 2 — `org.ost.integrationtests.level2.orchestrator` — `marketplace-orchestrator`-level
+  integration tests, composing multiple starters through a real use-case service. Scaffolded only
+  once a concrete test needs it, not built ahead of need.
+- Level 3 — `org.ost.integrationtests.level3.restapi` — HTTP-level scenario tests against
+  `marketplace-rest-api`'s controllers, real `MockMvc` bound to the real `WebApplicationContext`
+  (`TestRestTemplate` doesn't exist in this Spring Framework version — replaced by
+  `MockMvcBuilders.webAppContextSetup(...)` with the real security filter chain attached), reusing
+  the module's existing singleton Testcontainers Postgres container (ADR-002).
+  `integration-tests/pom.xml` gains `marketplace-orchestrator` and `marketplace-rest-api` as new
+  compile-scope dependencies. One top-level package per level, so the package itself signals which
+  layer a test exercises.
+
+**Rejected alternative — a separate Testcontainers layer inside marketplace-rest-api itself:**
+would keep `integration-tests`'s original scope untouched, but duplicates the singleton-container/
+`.env`/Liquibase scaffolding this module already owns (ADR-001, ADR-002), splitting Postgres-backed
+tests across two independent container lifecycles for no structural benefit — every other
+Postgres-backed test in the repo already lives in one place.
+
+**Consequences:**
+- `.claude/rules/integration-tests.md` now describes the 3-level structure.
+- Fast, DB-free REST contract tests (MockMvc against mocked orchestrator services) stay in
+  `marketplace-rest-api/src/test` — only tests that need a real database move here.
+- Level 2 exists only as a documented placeholder until a concrete orchestrator-level scenario
+  needs it.
+
+---
+
 ## ADR-001: One module owns every Testcontainers test — domain starters carry zero test code
 **Status:** Accepted
 

@@ -18,7 +18,7 @@
 #       RUN_UNIT (both touch marketplace-app's own target/), parallel-safe against
 #       RUN_INTEGRATION only.
 #     UNIT_TEST_ARG (default empty) -- narrows RUN_UNIT to one module (query-lib/marketplace-app/
-#       marketplace-orchestrator) or one test class by name; empty runs all 3 modules.
+#       marketplace-orchestrator/marketplace-rest-api) or one test class by name; empty runs all 4 modules.
 #     INTEGRATION_TEST_ARG (default empty) -- narrows RUN_INTEGRATION to one scenario ("smoke") or
 #       one test class by name; empty runs the whole integration-tests module.
 #     SKIP_VAADIN (true/false, default false) -- adds -Dvaadin.skip=true to the reactor install,
@@ -109,11 +109,17 @@ flock "$MVN_LOCK" -c "./mvnw install $MVN_INSTALL_FLAGS"
 # copy below) when SKIP_VAADIN=true -- its target/classes and jar are missing the Vaadin frontend
 # bundle in that case, and both this shared volume path and $ARTIFACT are read by other callers
 # (sonar, deploy-and-run.sh/e2e) that need the real thing, not a partial one. ──────────
+# Module list derived from root pom.xml (excluding integration-tests) instead of hand-maintained --
+# a separately hardcoded copy here silently drifted out of sync before (confirmed directly:
+# apikey-spring-boot-starter/marketplace-rest-api were missing, so scripts/sonar/run.sh's
+# sonar.java.binaries pointed at directories that were never populated).
 TARGET_CLASSES_DIR=/root/.m2/target-classes
 mkdir -p "$TARGET_CLASSES_DIR"
-for module in query-lib platform-commons audit-spring-boot-starter attachment-spring-boot-starter \
-              user-spring-boot-starter advertisement-spring-boot-starter taxon-spring-boot-starter \
-              provider-profile-spring-boot-starter marketplace-orchestrator marketplace-app; do
+# Pure grep/sed, not python3 -- this script runs inside the minimal (JDK-only) build container,
+# unlike scripts/sonar/run.sh's own host-side module-list validator, which can use python3.
+TARGET_CLASSES_MODULES=$(sed -n '/<modules>/,/<\/modules>/p' "$ROOT/pom.xml" \
+  | grep -oE '<module>[^<]+</module>' | sed -E 's#</?module>##g' | grep -v '^integration-tests$')
+for module in $TARGET_CLASSES_MODULES; do
   if [ "$module" = "marketplace-app" ] && [ "$SKIP_VAADIN" = "true" ]; then
     continue
   fi
@@ -163,11 +169,22 @@ trap - ERR
 # No flock here (unlike the install step above) -- once ~/.m2 is installed, both this and the
 # integration-test block below only *read* it, never write, so they're safe to run concurrently
 # against each other. They touch different target/ dirs too (query-lib/marketplace-app/
-# marketplace-orchestrator vs integration-tests), so no output collision either.
+# marketplace-orchestrator/marketplace-rest-api vs integration-tests), so no output collision either.
 run_unit_tests() {
-  UNIT_MODULES="query-lib,marketplace-app,marketplace-orchestrator"
+  # Module list derived from root pom.xml (keep only modules with their own src/test/java content)
+  # instead of hand-maintained -- a separately hardcoded copy here silently drifted out of sync
+  # before (confirmed directly: html-sanitizer-lib's own HtmlSanitizerTest was never executed by
+  # --unit, with no error or warning, the same class of gap already fixed for
+  # TARGET_CLASSES_MODULES above -- see improvement-181).
+  ALL_UNIT_MODULES=$(sed -n '/<modules>/,/<\/modules>/p' "$ROOT/pom.xml" \
+    | grep -oE '<module>[^<]+</module>' | sed -E 's#</?module>##g' \
+    | grep -v '^integration-tests$' \
+    | while read -r m; do
+        [ -n "$(find "$ROOT/$m/src/test/java" -name '*.java' 2>/dev/null | head -1)" ] && echo "$m"
+      done | paste -sd,)
+  UNIT_MODULES="$ALL_UNIT_MODULES"
   UNIT_TEST_FLAG=""
-  if [ "$UNIT_TEST_ARG" = "query-lib" ] || [ "$UNIT_TEST_ARG" = "marketplace-app" ] || [ "$UNIT_TEST_ARG" = "marketplace-orchestrator" ]; then
+  if echo ",$ALL_UNIT_MODULES," | grep -q ",$UNIT_TEST_ARG,"; then
     UNIT_MODULES="$UNIT_TEST_ARG"
   elif [ -n "$UNIT_TEST_ARG" ]; then
     UNIT_TEST_FLAG="-Dtest=${UNIT_TEST_ARG} -Dsurefire.failIfNoSpecifiedTests=false"
@@ -179,11 +196,14 @@ run_unit_tests() {
   mkdir -p "$LOGS_DIR"
   cp /tmp/unit-tests.log "$LOGS_DIR/unit-tests.log"
 
-  mkdir -p "$REPORTS_DIR/surefire"
-  for m in query-lib marketplace-app marketplace-orchestrator; do
+  mkdir -p "$REPORTS_DIR/surefire" "$REPORTS_DIR/jacoco"
+  for m in $(echo "$ALL_UNIT_MODULES" | tr ',' ' '); do
     if [ -d "$ROOT/$m/target/surefire-reports" ]; then
       mkdir -p "$REPORTS_DIR/surefire/$m"
       cp -r "$ROOT/$m"/target/surefire-reports/* "$REPORTS_DIR/surefire/$m/" 2>/dev/null || true
+    fi
+    if [ -f "$ROOT/$m/target/site/jacoco/jacoco.xml" ]; then
+      cp "$ROOT/$m/target/site/jacoco/jacoco.xml" "$REPORTS_DIR/jacoco/$m.xml"
     fi
   done
   return $UNIT_EXIT
@@ -206,6 +226,11 @@ print_unit_summary() {
 # "testcontainers" exclusion -- without it, every real @Tag("testcontainers") repository test is
 # silently skipped, same override integration-tests/run.sh already applies.
 run_integration_tests() {
+  # Ryuk is disabled here, so remove any Testcontainers container leaked by a prior crashed run.
+  if [ -n "$TESTCONTAINERS_RYUK_DISABLED" ]; then
+    docker ps -aq --filter "label=org.testcontainers=true" | xargs -r docker rm -f
+  fi
+
   INTEGRATION_TEST_FLAG=""
   if [ "$INTEGRATION_TEST_ARG" = "smoke" ]; then
     INTEGRATION_TEST_FLAG="-Dtest=PostgresContainerSmokeTest -Dsurefire.failIfNoSpecifiedTests=false"
@@ -233,6 +258,31 @@ run_integration_tests() {
   # destinations reading it via `docker cp` are unaffected by that duplication.
   mkdir -p "$REPORTS_DIR/it-mirror/surefire"
   cp -r "$ROOT"/integration-tests/target/surefire-reports/* "$REPORTS_DIR/it-mirror/surefire/" 2>/dev/null || true
+
+  # Attributes coverage back to the starters this run exercised. Not jacoco:report-aggregate (the
+  # Maven goal) -- that goal only sees dependency modules that are part of the *same reactor
+  # session*, which the scoped `-pl integration-tests test` above never provides, so it silently
+  # produced an empty report (see .claude/nav/adr-index.md). The standalone JaCoCo CLI jar has no
+  # such requirement -- it reads the exec file plus each dependency module's already-compiled
+  # target/classes and src/main/java straight off disk, no reactor involved.
+  mkdir -p "$REPORTS_DIR/jacoco"
+  JACOCO_VERSION=$(grep -m1 '<jacoco.version>' "$ROOT/pom.xml" | sed -E 's#.*<jacoco.version>([^<]+)</jacoco.version>.*#\1#')
+  JACOCO_CLI_JAR="/root/.m2/repository/org/jacoco/org.jacoco.cli/$JACOCO_VERSION/org.jacoco.cli-$JACOCO_VERSION-nodeps.jar"
+  [ -f "$JACOCO_CLI_JAR" ] || ./mvnw -q dependency:get -Dartifact=org.jacoco:org.jacoco.cli:"$JACOCO_VERSION":jar:nodeps
+  # Same module set integration-tests/pom.xml itself declares as <dependency> -- the only modules
+  # this run's jacoco.exec can hold hits for. query-lib/marketplace-app get their own correct
+  # jacoco.xml from run_unit_tests() already, so they're deliberately not repeated here.
+  JACOCO_AGGREGATE_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter audit-spring-boot-starter attachment-spring-boot-starter provider-profile-spring-boot-starter apikey-spring-boot-starter marketplace-orchestrator marketplace-rest-api"
+  CLI_REPORT_ARGS=()
+  for m in $JACOCO_AGGREGATE_MODULES; do
+    [ -d "$ROOT/$m/target/classes" ] && CLI_REPORT_ARGS+=(--classfiles "$ROOT/$m/target/classes")
+    [ -d "$ROOT/$m/src/main/java" ] && CLI_REPORT_ARGS+=(--sourcefiles "$ROOT/$m/src/main/java")
+  done
+  if [ -f "$JACOCO_CLI_JAR" ] && [ -f "$ROOT/integration-tests/target/jacoco.exec" ]; then
+    java -jar "$JACOCO_CLI_JAR" report "$ROOT/integration-tests/target/jacoco.exec" \
+      "${CLI_REPORT_ARGS[@]}" --xml "$REPORTS_DIR/jacoco/integration-tests-aggregate.xml" \
+      --name "integration-tests aggregate"
+  fi
 
   return $INTEGRATION_EXIT
 }

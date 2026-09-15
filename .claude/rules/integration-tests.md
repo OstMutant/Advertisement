@@ -4,11 +4,34 @@ paths: ["integration-tests/**"]
 
 ## integration-tests
 
-Sole home for every Testcontainers-based repository test and its supporting fixtures, across
-every domain starter. Owns both the shared scaffolding (container lifecycle, `.env` config) and
-the actual test classes themselves — domain starters never carry any of this.
+Sole home for every Testcontainers-based test that needs a real Postgres, across three levels —
+domain starters never carry any of this, and neither do `marketplace-orchestrator`/
+`marketplace-rest-api`. Owns both the shared scaffolding (container lifecycle, `.env` config) and
+the actual test classes themselves.
 
 Java package root: `org.ost.integrationtests`
+
+**Level structure (2026-09-04), one top-level package per level so the package itself signals which layer a test exercises:**
+- **Level 1** — `org.ost.integrationtests.level1.<domain>` (e.g. `.advertisement`, `.user`) —
+  repository tests against a single domain starter, the module's original and still primary
+  purpose. See "What it owns" below for the shared scaffolding every Level 1 test uses.
+- **Level 2** — `org.ost.integrationtests.level2.orchestrator` — `marketplace-orchestrator`-level
+  integration tests, composing multiple domain starters through a real use-case service instead of
+  one starter's own repository. Scaffolded only once a concrete test needs it — not built ahead of
+  need.
+- **Level 3** — `org.ost.integrationtests.level3.restapi` — HTTP-level scenario tests against
+  `marketplace-rest-api`'s controllers, real `MockMvc` bound to the real `WebApplicationContext`
+  (`MockMvcBuilders.webAppContextSetup(...)`, real security filter chain included) driving real
+  requests through the full stack (REST → orchestrator → starters → Postgres) end to end — no
+  mocks anywhere in the chain. `RestApiTestAutoConfig` (`support/`) supplies the web/security/JSON
+  autoconfiguration layer on top of `RepositoryTestAutoConfig`'s DB list.
+
+Levels 2 and 3 depend on `marketplace-orchestrator`/`marketplace-rest-api` as real compile-scope
+dependencies (`integration-tests/pom.xml`) — this is the one place in the repo those two modules'
+own code is imported by something other than `marketplace-app`, justified the same way Level 1's
+starter dependencies already are: this module is never shipped or deployed, so it doesn't
+participate in the production dependency graph the "no direct imports between sibling modules"
+rule protects.
 
 ---
 
@@ -66,10 +89,10 @@ would mask real cross-module schema-compatibility regressions that a test agains
   is intentionally **committed** (not `.gitignore`d) and must only ever hold non-secret, dev-only
   values (currently just `POSTGRES_IMAGE`) — any future addition to it must keep that invariant;
   production secrets belong in CI/deploy-time environment variables, never in this file.
-- Per-starter `*RepositoryTest` classes (e.g. `advertisement/AdvertisementRepositoryTest`) and
-  plain unit tests for pure logic that would otherwise have no home (e.g. `diff()` on
+- Per-starter `*RepositoryTest` classes (e.g. `level1/advertisement/AdvertisementRepositoryTest`)
+  and plain unit tests for pure logic that would otherwise have no home (e.g. `diff()` on
   `platform-commons` snapshot DTOs) — organized into sub-packages per domain
-  (`org.ost.integrationtests.advertisement`, etc.) to keep the module navigable as it grows.
+  (`org.ost.integrationtests.level1.advertisement`, etc.) to keep the module navigable as it grows.
 - `support/RepositoryTestSupport` and `support/TestDataCleaner` — reusable "steps", by analogy
   with Playwright's `_flows/*.flow.js` (see below).
 

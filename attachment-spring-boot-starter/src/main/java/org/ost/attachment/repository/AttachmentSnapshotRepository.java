@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/** JdbcClient-backed queries for {@code attachment_snapshot} -- the diff-history table behind restore/audit. */
 @Slf4j
 @Repository
 @RequiredArgsConstructor
@@ -121,7 +122,7 @@ public class AttachmentSnapshotRepository {
                 }
             }
             return urls;
-        } catch (SQLException e) { //NOSONAR java:S7467 -- e.getMessage() is used
+        } catch (SQLException e) {
             log.warn("Failed to read attachment_urls array: {}", e.getMessage());
             return List.of();
         }

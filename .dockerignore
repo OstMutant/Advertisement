@@ -10,3 +10,8 @@ marketplace-app/src/main/frontend/generated/
 !CLAUDE.md
 *.bat
 docker-compose*.yml
+playwright/pw-report/
+playwright/test-results/
+scripts/logs/
+scripts/build-and-test/reports/
+integration-tests/reports/

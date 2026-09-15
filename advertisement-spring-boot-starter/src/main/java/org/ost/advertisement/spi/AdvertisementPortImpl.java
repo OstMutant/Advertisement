@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+/** Implements {@link AdvertisementPort} via pure delegation to {@link AdvertisementService} -- no business logic of its own. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

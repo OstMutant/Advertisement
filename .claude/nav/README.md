@@ -58,10 +58,10 @@ this layer specifically.
 
 Two more mechanisms guard against drift: a standing `.claude/rules.md` rule — any `DECISIONS.md`
 edit, by any workflow, regenerates the index (`bash .claude/nav/scripts/generate-adr-index.sh`) in the same
-operation, not only when going through `/record-decision` — and `bash .claude/nav/scripts/check-adr-index-freshness.sh`,
-a read-only check (diffs the current file against a fresh regeneration, always restores the
-working tree regardless of outcome) wired as an unconditional early stage in `scripts/ci.sh`. The
-rules.md rule is the primary defense; the CI stage is a backstop for whenever `/ci` is actually
-run — this repo has no automatic per-commit or per-push trigger yet, so neither mechanism is a
-hard guarantee on every single change, only on ones that go through Claude's own discipline or an
-explicit CI run.
+operation, not only when going through `/record-decision` — and the `docs` stage of `scripts/ci.sh`,
+which regenerates the index itself (via `generate-architecture-model.sh`) and copies the result
+back onto the host, so an explicit `/ci` run simply leaves the fresh file staged to commit rather
+than failing on drift. The rules.md rule is the primary defense; the CI stage is a backstop for
+whenever `/ci` is actually run — this repo has no automatic per-commit or per-push trigger yet, so
+neither mechanism is a hard guarantee on every single change, only on ones that go through
+Claude's own discipline or an explicit CI run.

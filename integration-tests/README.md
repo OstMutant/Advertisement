@@ -66,7 +66,9 @@ vars are required — the sandbox-only `--sandbox` workarounds (also documented 
 ## What `run.sh` does
 
 1. Applies `--sandbox` workarounds if passed (`TESTCONTAINERS_RYUK_DISABLED=true`,
-   `INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`) — omit on a normal developer machine.
+   `INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`) — omit on a normal developer machine. Since Ryuk
+   is disabled, also removes any Testcontainers container leaked by a prior crashed `--sandbox` run
+   (`docker ps -aq --filter "label=org.testcontainers=true" | xargs -r docker rm -f`).
 2. Runs `./mvnw -pl integration-tests -am test`, optionally scoped to one test class via
    `-Dtest=<ClassName> -Dsurefire.failIfNoSpecifiedTests=false`.
 3. Streams full Maven/Testcontainers output live.
@@ -93,7 +95,7 @@ vars are required — the sandbox-only `--sandbox` workarounds (also documented 
 | `user/UserRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserRepository.updateProfile()` — optimistic locking, and that the narrower `UserProfileUpdate` entity structurally cannot touch `email`/`passwordHash` |
 | `user/UserServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `UserService.register()` rate-limiting: threshold blocks before save, duplicate-key failures count, successful registration does **not** reset the IP counter (asymmetry vs. login), different IPs tracked separately |
 | `user/SettingsSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `SettingsSnapshotDto.diff()` — pure field-comparison logic, direct analogy with `AdvertisementSnapshotDtoTest` |
-| `user/UserSettingsDtoTest` | Plain JUnit, no Spring, no DB | Confirms Jackson's builder-based deserialization correctly applies `UserSettingsDto`'s `@Builder.Default timelinePageSize = 20` for a JSON payload missing that key |
+| `user/UserSettingsDtoTest` | Plain JUnit, no Spring, no DB | Confirms Jackson's builder-based deserialization correctly applies `UserSettingsDto`'s `@Builder.Default timelinePageSize`/`providerProfilesPageSize` for a JSON payload missing that key |
 | `attachment/AttachmentServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentService.commitTempUploadsQuiet()` cleans up already-moved files on a mid-batch `storageService.move()` failure, instead of leaking them |
 | `attachment/AttachmentServiceTransactionTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | `AttachmentService.upload()` rolls back its DB row (real transaction, real Postgres) when a post-save step throws |
 | `attachment/AttachmentCleanupServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentCleanupService.deleteAttachments()` deletes DB rows before S3 objects (`InOrder`-verified), and a storage failure never affects the already-completed DB delete |
@@ -102,7 +104,7 @@ vars are required — the sandbox-only `--sandbox` workarounds (also documented 
 | `attachment/AttachmentSnapshotServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentSnapshotService`'s filename resolution (real filename vs. URL-segment fallback when no matching attachment row exists) and independent resolution of duplicate original filenames across URLs |
 | `audit/AuditLogRepositoryTest` | Testcontainers + `@SpringBootTest` | `AuditLogRepository.findTimeline()`/`getSnapshotContent()`'s `version`-numbering subqueries get an `id` tiebreaker for same-`created_at` rows |
 | `providerprofile/ProviderProfileRepositoryTest` | Testcontainers + `@SpringBootTest` | Real SQL correctness for `ProviderProfileRepository` — filter (kind, cityTaxonId), sort, pagination, `findOwnerIds()`, optimistic-locked `delete()` — against real `provider-profile-spring-boot-starter` + `user-spring-boot-starter` autoconfiguration |
-| `providerprofile/ProviderProfileServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `ProviderProfileService`'s HTML sanitization policy (mirrors `AdvertisementServiceHtmlSanitizationTest`) and the `kind == SUPPORT` requires-privileged-actor authorization rule (accept/reject) |
+| `providerprofile/ProviderProfileServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `ProviderProfileService`'s HTML sanitization policy (mirrors `AdvertisementServiceHtmlSanitizationTest`), the `kind == SUPPORT` requires-privileged-actor authorization rule (accept/reject), and that a new profile's `actor_id` is taken from the `targetUserId` parameter, not the acting user, when an admin creates a profile on another user's behalf |
 | `providerprofile/ProviderProfileSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `ProviderProfileSnapshotDto.diff()` — pure field-comparison logic — plus a Jackson polymorphic round-trip (de)serialization test, the first of any `AuditableSnapshot` subtype to have one |
 | `SharedEnvConfigTest` | Plain JUnit, no Spring, no DB | `SharedEnvConfig.require()` walking up directories to find the repo-root `.env`, and its failure modes (no `.env` in range, key missing from an `.env` that does exist) |
 | `user/UserPreferencesRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserPreferencesRepository.save()`'s optimistic locking embedded in the `settings` JSONB column's own `version` field (fresh row starts at 0, stale version throws, correct version succeeds and increments) |
@@ -192,12 +194,14 @@ No Spring context, no DB — direct analogy with `AdvertisementSnapshotDtoTest`.
 
 | Test | Verifies |
 |---|---|
-| `diff_noPrevious_returnsChangesForAllFields` | `diff(null)` reports all 3 page-size fields as changed |
+| `diff_noPrevious_returnsChangesForAllFields` | `diff(null)` reports all 4 page-size fields as changed |
 | `diff_identicalSnapshots_returnsNoChanges` | No spurious changes when nothing actually changed |
 | `diff_adsPageSizeChanged_returnsSingleFieldChange` | Only `adsPageSize` changing produces exactly one `FieldChange` |
 | `diff_usersPageSizeChanged_returnsSingleFieldChange` | Only `usersPageSize` changing produces exactly one `FieldChange` |
 | `diff_timelinePageSizeChanged_returnsSingleFieldChange` | Only `timelinePageSize` changing produces exactly one `FieldChange` |
-| `diff_allFieldsChanged_returnsAllChangedFields` | All 3 fields changing surface in one `diff()` call |
+| `diff_providerProfilesPageSizeChanged_returnsSingleFieldChange` | Only `providerProfilesPageSize` changing produces exactly one `FieldChange` |
+| `diff_allFieldsChanged_returnsAllChangedFields` | All 4 fields changing surface in one `diff()` call |
+| `allFields_returnsEveryFieldWithNullOldValue` | `allFields()` lists every field with a `null` old value |
 
 ### `advertisement/AdvertisementServiceCategoryFilterTest`
 

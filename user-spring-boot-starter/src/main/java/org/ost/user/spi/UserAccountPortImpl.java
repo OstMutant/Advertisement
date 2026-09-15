@@ -9,6 +9,7 @@ import org.ost.user.services.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/** Delegates every {@link UserAccountPort} method to {@code UserService} -- no business logic of its own. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

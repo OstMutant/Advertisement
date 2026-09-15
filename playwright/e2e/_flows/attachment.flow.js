@@ -7,7 +7,7 @@
  * Usage: None -- a library only, required by spec files (see Input).
  * Uses: None (plain page.evaluate/waitForFunction DOM traversal).
  * Env: None.
- * Input: required directly by 04-marketplace-advertisement-flow.spec.js, and by
+ * Input: required directly by 05-marketplace-advertisement-flow.spec.js, and by
  *   advertisement.flow.js (clickLightboxThumb, getVideoSrc, waitForVideoWrapperVisible), which is
  *   itself required by that same spec file.
  * Outputs: exports waitForLightboxOpen, waitForLightboxClosed, getIframeSrc, clickLightboxThumb,

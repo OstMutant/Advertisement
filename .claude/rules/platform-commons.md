@@ -104,7 +104,6 @@ This is the single source of truth for what the interface is for — `docs/archi
 
 ```java
 /**
- * Port: marketplace → audit-starter.
  * Write side: captures entity creation, update, deletion, and restore as immutable audit entries.
  * Read side: resolves snapshot content, per-entity activity, and the cross-entity timeline feed.
  * Implementation lives in audit-spring-boot-starter.
@@ -112,7 +111,7 @@ This is the single source of truth for what the interface is for — `docs/archi
 public interface AuditPort {
 ```
 
-Convention: first line states `Port: <caller> → <implementor>.` / `Hook: <caller> → <implementor>.` (matching the direction in the table above), followed by 1-3 sentences on what the interface actually does. `@FunctionalInterface`-annotated interfaces put the annotation between the Javadoc and the `interface` keyword — the extraction skips over it.
+Convention: 1-3 sentences on what the interface actually does. No `Port: <caller> → <implementor>.`/`Hook: <caller> → <implementor>.` opening line — the direction is already conveyed by the `*Port`/`*Hook` suffix itself and the table above; restating it in every interface's own Javadoc added no information a reader didn't already have. `@FunctionalInterface`-annotated interfaces put the annotation between the Javadoc and the `interface` keyword — the extraction skips over it.
 
 ## Hook and Port Implementation Rules
 

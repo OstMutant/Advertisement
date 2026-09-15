@@ -9,8 +9,9 @@
  *   closeNotification), ./entity-activity.flow (openEntityActivity, closeEntityActivity).
  * Env: None.
  * Input: required by 02-marketplace-authentication-flow.spec.js, 03-marketplace-promotion-flow.spec.js,
- *   06-marketplace-delete-flow.spec.js, and by ./_flows/audit.flow.js (runOpenUserEditViaListFlow,
- *   runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter).
+ *   04-provider-profile-flow.spec.js, 07-marketplace-delete-flow.spec.js, and by
+ *   ./_flows/audit.flow.js (runOpenUserEditViaListFlow, runOpenUserViewDialogFlow,
+ *   closeUserOverlay, clearUserFilter).
  * Outputs: exports closeUserOverlay, closeUserOverlayFromEdit, clearUserFilter,
  *   runNavigateToUsersTabFlow, runFilterUserByEmailFlow, runOpenUserViewDialogFlow,
  *   runOpenUserEditViaViewFlow, runOpenUserEditViaListFlow, runFillUserRoleFlow,
@@ -36,11 +37,11 @@ const ROLE_COLOR = {
  */
 async function closeUserOverlay(page) {
   await closeEntityActivity(page);
-  await page.locator('.user-overlay vaadin-button')
+  await page.locator('.account-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first()
     .click();
-  await page.locator('.user-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
+  await page.locator('.account-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
 }
 
 /**
@@ -89,7 +90,7 @@ async function runOpenUserViewDialogFlow(page, email) {
   await runFilterUserByEmailFlow(page, email);
   await page.locator('.user-grid-name:visible').first().waitFor({ timeout: 5000 });
   await page.locator('.user-grid-name:visible').first().click();
-  await page.locator('.user-overlay.overlay--visible').waitFor({ timeout: 5000 });
+  await page.locator('.account-overlay.overlay--visible').waitFor({ timeout: 5000 });
   await screenshot(page, 'user-management-view-dialog-opened');
 }
 
@@ -101,9 +102,9 @@ async function runOpenUserViewDialogFlow(page, email) {
  */
 async function runOpenUserEditViaViewFlow(page, email) {
   await runOpenUserViewDialogFlow(page, email);
-  await page.locator('.user-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).click();
-  await page.locator('.user-overlay vaadin-combo-box').waitFor({ timeout: 5000 });
-  await expect(page.locator('.user-overlay .overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
+  await page.locator('.account-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).click();
+  await page.locator('.account-overlay vaadin-combo-box').waitFor({ timeout: 5000 });
+  await expect(page.locator('.account-overlay .overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
   await screenshot(page, 'user-management-promote-dialog-opened');
 }
 
@@ -119,9 +120,9 @@ async function runOpenUserEditViaListFlow(page, email) {
   const editButton = page.locator('.user-grid-actions vaadin-button[title="Edit"], .user-grid-actions vaadin-button[title="Редагувати"]').first();
   await editButton.waitFor({ timeout: 5000 });
   await editButton.click();
-  await page.locator('.user-overlay.overlay--visible').waitFor({ timeout: 5000 });
-  await expect(page.locator('.user-overlay .overlay__breadcrumb-back')).toHaveCount(1, { timeout: 3000 });
-  await page.locator('.user-overlay vaadin-combo-box').waitFor({ timeout: 5000 });
+  await page.locator('.account-overlay.overlay--visible').waitFor({ timeout: 5000 });
+  await expect(page.locator('.account-overlay .overlay__breadcrumb-back')).toHaveCount(1, { timeout: 3000 });
+  await page.locator('.account-overlay vaadin-combo-box').waitFor({ timeout: 5000 });
   await screenshot(page, 'user-management-promote-dialog-opened');
 }
 
@@ -133,11 +134,11 @@ async function runOpenUserEditViaListFlow(page, email) {
  */
 async function runFillUserRoleFlow(page, { role, name }) {
   if (name != null) {
-    const nameField = page.locator('.user-overlay vaadin-text-field input');
+    const nameField = page.locator('.account-overlay vaadin-text-field input');
     await nameField.fill(name);
   }
   if (role != null) {
-    const roleCombo = page.locator('.user-overlay vaadin-combo-box');
+    const roleCombo = page.locator('.account-overlay vaadin-combo-box');
     await roleCombo.locator('input').click();
     await roleCombo.locator('input').fill(role);
     await page.keyboard.press('ArrowDown');
@@ -155,8 +156,8 @@ async function runFillUserRoleFlow(page, { role, name }) {
  * @returns {Promise<void>}
  */
 async function runSaveUserEditFlow(page, expect, role) {
-  await expect(page.locator('.user-overlay vaadin-button').filter({ hasText: /Save|Зберегти/i })).toBeEnabled({ timeout: 5000 });
-  await page.locator('.user-overlay vaadin-button').filter({ hasText: /Save|Зберегти/i }).click();
+  await expect(page.locator('.account-overlay vaadin-button').filter({ hasText: /Save|Зберегти/i })).toBeEnabled({ timeout: 5000 });
+  await page.locator('.account-overlay vaadin-button').filter({ hasText: /Save|Зберегти/i }).click();
   await expect(page.locator('vaadin-notification-container')).toContainText(
     /User updated successfully|Користувача успішно оновлено/i,
     { timeout: 5000 }
@@ -172,10 +173,10 @@ async function runSaveUserEditFlow(page, expect, role) {
  */
 async function closeUserOverlayFromEdit(page) {
   await closeEntityActivity(page);
-  await page.locator('.user-overlay vaadin-button')
+  await page.locator('.account-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first().click();
-  await page.locator('.user-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('.account-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
   await closeUserOverlay(page);
 }
 
@@ -229,20 +230,20 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
 
   // EDIT → VIEW
   await closeEntityActivity(page);
-  await page.locator('.user-overlay vaadin-button')
+  await page.locator('.account-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first().click();
-  await page.locator('.user-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('.account-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
 
   // Check role in VIEW mode
-  await expect(page.locator('.user-overlay .user-role-badge')).toContainText(role);
+  await expect(page.locator('.account-overlay .user-role-badge')).toContainText(role);
   // The view-card's accent border must match the role badge color -- header text stays static.
   const roleClass = role.toLowerCase();
   const expectedColor = ROLE_COLOR[roleClass];
-  const viewCard = page.locator(`.user-overlay .user-view-card.user-view-card--${roleClass}`);
+  const viewCard = page.locator(`.account-overlay .user-view-card.user-view-card--${roleClass}`);
   await expect(viewCard).toHaveCount(1);
   await assertComputedColor(expect, viewCard, 'borderTopColor', expectedColor);
-  await expect(page.locator(`.user-overlay .overlay__view-card-header.overlay__view-card-header--${roleClass}`)).toHaveCount(1);
+  await expect(page.locator(`.account-overlay .overlay__view-card-header.overlay__view-card-header--${roleClass}`)).toHaveCount(1);
   await screenshot(page, `user-management-promoted-${roleClass}-view`);
 
   // VIEW → close

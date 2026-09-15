@@ -8,6 +8,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/** Covers {@link SqlFilterBuilder#build}, including null-condition skipping and multi-condition joining. */
 class SqlFilterBuilderTest {
 
     private static final SqlFilterMapping TITLE_MAPPING = new SqlFilterMapping() {

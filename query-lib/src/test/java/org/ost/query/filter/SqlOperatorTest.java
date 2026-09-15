@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/** Covers each {@link SqlOperator} constant's own {@code formatClause} output. */
 class SqlOperatorTest {
 
     @Test

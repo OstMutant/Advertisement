@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/** Pure delegation implementing {@link AttachmentAuditPort} -- no business logic of its own. */
 @Component
 @RequiredArgsConstructor
 public class AttachmentAuditPortImpl implements AttachmentAuditPort {

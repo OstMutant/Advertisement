@@ -1,4 +1,4 @@
-Scaffold a new tracked issue in `backlog/issues/` from the standard template, then rank it in
+Scaffold a new tracked task in `backlog/tasks/` from the standard template, then rank it in
 `backlog/BACKLOG.md`'s priority table.
 
 Usage: /feature <short description or title>
@@ -6,14 +6,14 @@ Example: /feature UserPickerField pagination bug with CallbackDataProvider offse
 
 Steps:
 0. Check `.claude/nav/adr-index.md` (if present) for an already-decided ADR overlapping this request —
-   mandatory, before drafting. Do not file an issue that re-opens a settled decision without
+   mandatory, before drafting. Do not file a task that re-opens a settled decision without
    noting it.
 1. Determine the prefix (default `improvement` — the dominant convention; use `goal` only if the
    user explicitly frames this as a new capability/epic rather than a fix/improvement, or `feature`
    only if the user explicitly says "feature"). Determine the next available number by scanning
-   both `backlog/issues/*.md` and `backlog/completed/issues/*.md` for the highest `<prefix>-NNN`
+   both `backlog/tasks/*.md` and `backlog/completed/tasks/*.md` for the highest `<prefix>-NNN`
    across all prefixes seen (numbers are a single shared sequence, not per-prefix) and incrementing.
-2. Slugify the title into a filename: `backlog/issues/<prefix>-NNN-<kebab-case-slug>.md`.
+2. Slugify the title into a filename: `backlog/tasks/<prefix>-NNN-<kebab-case-slug>.md`.
 3. Fill the template using what you already know from the current conversation — do not leave
    placeholder text for fields you can reasonably infer:
    ```
@@ -23,7 +23,7 @@ Steps:
    **Module:** <module(s) affected, as file paths — verify these exist before writing them, per
      the general "verify before recommending" rule>
    **Priority:** <low|medium|medium-high|high — see step 5, must not be left blank>
-   **When:** <independent, no blockers — OR — blocked on [other-issue](path.md) — explain why>
+   **When:** <independent, no blockers — OR — blocked on [other-task](path.md) — explain why>
 
    ## Current state
 
@@ -47,17 +47,17 @@ Steps:
 
    ## Related
 
-   <cross-references to related issues/ADRs/CLAUDE.md sections already surfaced in conversation>
+   <cross-references to related tasks/ADRs/CLAUDE.md sections already surfaced in conversation>
    ```
    If the conversation so far doesn't have enough concrete detail for these sections (e.g. the
    user just said a short title with no discussion), read the relevant source first (per this
-   project's established pattern in every issue filed so far this session) rather than writing a
-   vague placeholder — verify claims against actual code before committing them to the issue file.
+   project's established pattern in every task filed so far this session) rather than writing a
+   vague placeholder — verify claims against actual code before committing them to the task file.
 4. Present the drafted file content and wait for confirmation before writing (per the Approval
    Rule in `.claude/rules.md`) — unless the user's `/feature` invocation already came after an
    explicit "so, roby"/"yes, do it" for this exact content in the current conversation, in which
    case write directly.
-5. Assign a Priority (mandatory — see `.claude/rules.md` "Issue Lifecycle": every new issue needs
+5. Assign a Priority (mandatory — see `.claude/rules.md` "Task Lifecycle": every new task needs
    both a `**Priority:**` line and a ranked row in `BACKLOG.md` in the same change, never left for
    later triage). Judge tier from the same rubric already used throughout this backlog: 🟢 cheap +
    low-impact, 🟡 high/medium ROI (real bug or high-value fix, proportionate effort), 🔵 larger

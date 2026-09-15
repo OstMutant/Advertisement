@@ -46,6 +46,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-024 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted (done 2026-06-26) |  | captureRestore() — dedicated method for restore audit events |
 | ADR-002 (.claude) | .claude | Accepted |  | Formalize `/deep-review`'s reasoning layer as real, isolated `.claude/agents/*.md` subagents |
 | ADR-001 (.claude) | .claude | Accepted |  | Split module-specific AI guidance into path-scoped `.claude/rules/*.md`; deduplicate memory against canonical rules |
+| ADR-034 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | Database ERD's no-FK point relationships derived from a `remarks=` marker convention, not a hand-curated list |
 | ADR-033 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | "AI Tooling" generalized into a `.claude`-rooted tree, same mechanism as "Scripts"; README becomes the sole canonical file list, chip-row is last-resort only |
 | ADR-001 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | Generated ADR index over `DECISIONS.md`, mechanical fields only, no per-entry authoring |
 | ADR-002 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | `check-hardcoded-counts.sh` — build-enforced backstop for stale hard-coded counts, not prose alone |
@@ -59,7 +60,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-014 (docs/architecture/scripts) | docs/architecture/scripts | Accepted — `.md` file deleted 2026-08-05, after explicit user comparison and go-ahead |  | SPI Map rebuilt live from real Java source, same pattern as Module Dependencies — `docs/architecture/02-spi-map.md` retired |
 | ADR-015 (docs/architecture/scripts) | docs/architecture/scripts | Accepted — the diagram-rendering approach noted in Consequences is superseded by ADR-016; the rename/link/ordering decisions remain current |  | Bounded Contexts stays hand-maintained (unlike Module Dependencies/SPI Map) — renamed, linked, and `/sync-docs` ordering made explicit |
 | ADR-016 (docs/architecture/scripts) | docs/architecture/scripts | Accepted — the "dropped from the tool entirely" part is superseded by ADR-029; the diagnosis below (why the Cytoscape+dagre compound pipeline specifically fails on this graph) still stands and is exactly why ADR-029 restores the diagram through a *different* rendering path instead of retrying the same one. |  | Bounded Contexts diagram dropped from the tool entirely — real graph is cyclic, not just mis-ranked |
-| ADR-017 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | Database ERD rebuilt live from real Liquibase changelogs — descriptions moved into `remarks=`, `docs/architecture/04-database-erd.md` retired; the same "single source of truth" pattern also applied retroactively to SPI Map's purpose text |
+| ADR-017 (docs/architecture/scripts) | docs/architecture/scripts | Accepted — decision #3's hand-preserved list of actor-reference/no-FK point relationships is superseded by ADR-034 (now derived mechanically from a `remarks=` marker convention); the entity_type/entity_id generic-relationship portion of that same list, and every other part of this decision, still stands. |  | Database ERD rebuilt live from real Liquibase changelogs — descriptions moved into `remarks=`, `docs/architecture/04-database-erd.md` retired; the same "single source of truth" pattern also applied retroactively to SPI Map's purpose text |
 | ADR-019 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | Bounded Contexts domain grouping and relationships now generated live from real code — no longer hand-typed in `bounded-contexts.md` |
 | ADR-020 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | `docs/architecture/05-08-*.md` retired in full — SonarQube + ArchUnit metrics, live coupling checks, and the tool's own files relocated into `docs/architecture/` |
 | ADR-021 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | Sonar/ArchUnit fetch made opt-in (default off); architecture-generation tooling — and this file — moved into `scripts/architecture/`, a sibling of `scripts/ai/` |
@@ -69,12 +70,25 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-028 (docs/architecture/scripts) | docs/architecture/scripts | Superseded by ADR-029 — the Mermaid-based Context Map/Shared Dependencies split was replaced by a single Cytoscape-rendered diagram; the `audited via` evidence-repair fix (item 4) remains current |  | Bounded Contexts splits into Context Map + Shared Dependencies; per-box item cap; tighter Mermaid spacing; audited-via evidence repaired |
 | ADR-029 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | Bounded Contexts renders via Cytoscape as 4 category-split diagrams — flat domain nodes, per-edge evidence traced to its real caller |
 | ADR-032 (docs/architecture/scripts) | docs/architecture/scripts | Accepted **Verified:** 2026-08-21 |  | Every `SCRIPT_GROUP` script self-documents via a fixed 7-field header, plus a rendered `README.md` per directory — no hand-written prose describing what a script does anywhere in the tool |
+| ADR-001 (html-sanitizer-lib) | html-sanitizer-lib | Accepted |  | New shared library module for HTML sanitization — narrow admission criterion |
+| ADR-011 (integration-tests) | integration-tests | Accepted |  | Level 3 scenario tests derive expected ordering from observed DB timestamps instead of pinning them |
+| ADR-009 (integration-tests) | integration-tests | Accepted |  | Widen integration-tests scope to a 3-level test structure (starters / orchestrator / REST API) |
 | ADR-001 (integration-tests) | integration-tests | Accepted |  | One module owns every Testcontainers test — domain starters carry zero test code |
 | ADR-002 (integration-tests) | integration-tests | Accepted |  | Singleton Testcontainers Postgres container, shared across the whole `mvn test` run |
 | ADR-006 (integration-tests) | integration-tests | Accepted |  | Reusable test "steps" — `RepositoryTestSupport` / `RepositoryTestAutoConfig` / `TestDataCleaner` |
 | ADR-007 (integration-tests) | integration-tests | Accepted |  | `run.sh` auto-detects starter staleness instead of a manual skip-`-am` flag |
 | ADR-008 (integration-tests) | integration-tests | Accepted |  | Test package-private/private internal logic through its public entry point, never through a same-package trick or a widened production visibility |
 | ADR-010 (integration-tests) | integration-tests | Accepted |  | `@Tag("testcontainers")` on the shared base class + Surefire `excludedGroups`; `SharedEnvConfig` gains a testable overload |
+| ADR-081 (marketplace-app) | marketplace-app | Accepted |  | `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it |
+| ADR-081 (marketplace-app) | marketplace-rest-api | Accepted |  | `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it |
+| ADR-081 (marketplace-app) | taxon-spring-boot-starter | Accepted |  | `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it |
+| ADR-081 (marketplace-app) | platform-commons | Accepted |  | `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it |
+| ADR-080 (marketplace-app) | marketplace-app | Accepted (Taxon-specific portion reversed by ADR-081; Advertisement/ProviderProfile portions remain Accepted) |  | External REST API list endpoints — filter/sort bind onto the existing domain DTOs, pagination uses RFC 8288 `Link` + `X-Total-Count` headers, never an envelope or Spring HATEOAS |
+| ADR-080 (marketplace-app) | marketplace-rest-api | Accepted (Taxon-specific portion reversed by ADR-081; Advertisement/ProviderProfile portions remain Accepted) |  | External REST API list endpoints — filter/sort bind onto the existing domain DTOs, pagination uses RFC 8288 `Link` + `X-Total-Count` headers, never an envelope or Spring HATEOAS |
+| ADR-080 (marketplace-app) | taxon-spring-boot-starter | Accepted (Taxon-specific portion reversed by ADR-081; Advertisement/ProviderProfile portions remain Accepted) |  | External REST API list endpoints — filter/sort bind onto the existing domain DTOs, pagination uses RFC 8288 `Link` + `X-Total-Count` headers, never an envelope or Spring HATEOAS |
+| ADR-079 (marketplace-app) | marketplace-app | Accepted |  | Build-enforced ArchUnit rule blocks direct `TaxonPort.replaceAssignments()` calls from starters; the diagram category it superseded is removed |
+| ADR-079 (marketplace-app) | docs/architecture/scripts | Accepted |  | Build-enforced ArchUnit rule blocks direct `TaxonPort.replaceAssignments()` calls from starters; the diagram category it superseded is removed |
+| ADR-078 (marketplace-app) | marketplace-app | Accepted |  | External REST API authentication — long-lived bearer API-key, not OAuth2 |
 | ADR-001 (marketplace-app) | marketplace-app | Accepted |  | All Vaadin UI consolidated in marketplace-app |
 | ADR-002 (marketplace-app) | marketplace-app | Accepted |  | No JPA / no Hibernate — JdbcClient + inline SQL |
 | ADR-003 (marketplace-app) | marketplace-app | Accepted |  | Inline SQL repository style — no descriptor layer |
@@ -131,11 +145,23 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-071 (marketplace-app) | marketplace-app | Accepted |  | `UserDto.locale` removed, `UserProfileUpdate` renamed, `UserPort` split (Batch A2) |
 | ADR-071 (marketplace-app) | user-spring-boot-starter | Accepted |  | `UserDto.locale` removed, `UserProfileUpdate` renamed, `UserPort` split (Batch A2) |
 | ADR-073 (marketplace-app) | marketplace-app | Accepted — the "`AdvertisementAuditEnrichService` stays in `marketplace-app`" call below was itself reversed shortly after, see `marketplace-orchestrator/DECISIONS.md` ADR-005: its two real UI-shell touchpoints (current locale, an `AdKind` label) turned out to be single-value lookups rather than the HTML-diff formatting itself, so both moved behind the `CurrentLocaleHook`/ `UiLabelHook` forwarder-SPI pair and `AdvertisementAuditEnrichService` now lives in `marketplace-orchestrator` too, not `marketplace-app`. |  | `AdvertisementSaveService`/`UserDeleteService` move to `marketplace-orchestrator`; `AdvertisementAuditEnrichService` stays |
+| ADR-074 (marketplace-app) | marketplace-app | Accepted |  | `SettingsOverlay`/`UserOverlay` unified into `AccountOverlay`; Provider Profile gains a View/Edit split |
+| ADR-075 (marketplace-app) | marketplace-app | Accepted |  | Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay |
+| ADR-075 (marketplace-app) | provider-profile-spring-boot-starter | Accepted |  | Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay |
+| ADR-075 (marketplace-app) | marketplace-orchestrator | Accepted |  | Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay |
+| ADR-076 (marketplace-app) | marketplace-app | Accepted |  | `OverlayNavigationRegistry` fans out browser History to every deep-linkable overlay; `SitemapController` thins to a `marketplace-orchestrator` `SitemapService` |
+| ADR-077 (marketplace-app) | marketplace-app | Accepted |  | Provider Profile catalog gains real date-range filters, mirroring Advertisement's exact mechanism |
+| ADR-007 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only |
+| ADR-006 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | Stale-id-during-concurrent-delete guard in `AdvertisementSaveService`/`ProviderProfileSaveService` |
 | ADR-001 (marketplace-orchestrator) | marketplace-orchestrator | Accepted — the "never depends on a starter jar" consequence is superseded by ADR-004; the module-extraction decision itself stands |  | Extract a dedicated Application/BFF module instead of moving orchestration into marketplace-app |
 | ADR-002 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `AdvertisementSaveService`'s cascade-cleanup-on-delete folds into the same transaction, not a separate step |
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
 | ADR-004 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `*Hook` implementations that only need domain-port access move here; `pom.xml` gains all 6 starter dependencies directly, superseding ADR-001's "never depends on a starter jar" |
 | ADR-005 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern |
+| ADR-031 (platform-commons) | platform-commons | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
+| ADR-031 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
+| ADR-031 (platform-commons) | marketplace-orchestrator | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
+| ADR-031 (platform-commons) | marketplace-app | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
 | ADR-001 (platform-commons) | platform-commons | Accepted |  | Package restructure — core / audit / attachment / user / advertisement |
 | ADR-002 (platform-commons) | platform-commons | Accepted |  | Package semantics — api vs spi vs dto |
 | ADR-003 (platform-commons) | platform-commons | Accepted |  | SPI naming convention — Port and Hook suffixes |
@@ -156,10 +182,14 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-025 (platform-commons) | platform-commons | Accepted |  | Batch G governance cleanup — DTO boundary, Hook→Port rename |
 | ADR-026 (platform-commons) | platform-commons | Accepted |  | One starter, multiple `*Port` interfaces — `UserPort` split into 4 |
 | ADR-026 (platform-commons) | user-spring-boot-starter | Accepted |  | One starter, multiple `*Port` interfaces — `UserPort` split into 4 |
-| ADR-027 (platform-commons) | platform-commons | Accepted |  | `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter` |
-| ADR-027 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter` |
+| ADR-027 (platform-commons) | platform-commons | Accepted (the `city_taxon_id`-is-a-plain-column portion reversed by ADR-031; every other divergence below remains Accepted) |  | `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter` |
+| ADR-027 (platform-commons) | provider-profile-spring-boot-starter | Accepted (the `city_taxon_id`-is-a-plain-column portion reversed by ADR-031; every other divergence below remains Accepted) |  | `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter` |
 | ADR-028 (platform-commons) | platform-commons | Accepted |  | `AdvertisementPort`/`ProviderProfilePort` drop `Locale` from `getFiltered`/`findById`/`findByActorId` |
 | ADR-029 (platform-commons) | platform-commons | Accepted |  | `UiLabelHook`/`SessionActorHook` forwarder SPIs do not live in `platform-commons` |
+| ADR-030 (platform-commons) | platform-commons | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
+| ADR-030 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
+| ADR-030 (platform-commons) | marketplace-orchestrator | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
+| ADR-030 (platform-commons) | marketplace-app | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
 | ADR-001 (playwright) | playwright | Accepted |  | data-testid convention for form field selectors |
 | ADR-002 (playwright) | playwright | Accepted |  | No waitForTimeout — wait on Vaadin state attributes |
 | ADR-003 (playwright) | playwright | Accepted |  | --ux flag controls screenshots |
@@ -169,6 +199,10 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-005 (query-lib) | query-lib | Accepted |  | `SqlOperator.ANY_OF` / `SqlCondition.anyOf(Set<Long>)` — a second `IN`-shaped operator, for id sets specifically |
 | ADR-006 (query-lib) | query-lib | Accepted |  | `anyOf`/`inSet` empty-input null (= "no restriction") must never back an access-narrowing predicate |
 | ADR-007 (query-lib) | query-lib | Accepted |  | `SqlCondition.like()` escapes `%`/`_`/`\` before wrapping |
+| ADR-014 (scripts/ci) | scripts/ci | Accepted |  | `ci.sh` refuses concurrent runs and assigns its own Dagu run id, so `--foreground` always watches the run it started |
+| ADR-013 (scripts/ci) | scripts/ci | Accepted | 2026-09-10 | The `docs` stage regenerates the ADR index and hands it back, rather than gating the run on drift |
+| ADR-012 (scripts/ci) | scripts/ci | Accepted | 2026-09-10 | ci-runner source is streamed into the running container each run; the image is rebuilt only on a real Dockerfile change |
+| ADR-011 (scripts/ci) | scripts/ci | Accepted |  | `run.sh`'s ci-runner startup wait checks the container's own ID, not its mutable name |
 | ADR-001 (scripts/ci) | scripts/ci | Accepted |  | ci-runner container via Docker-outside-of-Docker, not Docker-in-Docker |
 | ADR-002 (scripts/ci) | scripts/ci | Superseded by ADR-009 — the `progress.txt`-polling mechanism no longer exists in code |  | Background by default, live progress via `docker cp`-polled `progress.txt` |
 | ADR-003 (scripts/ci) | scripts/ci | Accepted |  | Default stage selection is the most extensive run, not the narrowest |
@@ -177,6 +211,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-008 (scripts/ci) | scripts/ci | Accepted |  | `unit`/`integration` stages merged into one `build_and_test` stage |
 | ADR-009 (scripts/ci) | scripts/ci | Accepted |  | `progress.txt` polling replaced by a persistent Dagu server; three problems only found by running it for real |
 | ADR-010 (scripts/ci) | scripts/ci | Accepted |  | CI pipeline metrics + ArchUnit export as DAG steps; three more real bugs; a genuine build-speed fix along the way |
+| ADR-014 (scripts) | scripts | Accepted |  | Activity Monitor — token-efficient step-checklist narration wrapping backgrounded scripts, chained ahead of the agent's own Monitor tool |
 | ADR-013 (scripts) | scripts | Accepted |  | Agentic JSON output envelope (AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK) for script results |
 | ADR-001 (scripts) | scripts | Accepted |  | All operations via project scripts — no raw commands |
 | ADR-002 (scripts) | scripts | Accepted, with one carved-out exception — see the update note below. |  | scripts/ folder for all developer scripts |
@@ -184,7 +219,8 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-004 (scripts) | scripts | Accepted |  | run-all-tests.sh — real 3-way parallelism (unit, integration, Playwright) |
 | ADR-009 (scripts) | scripts | Accepted |  | DB/S3 credentials consolidated into the repo-root `.env`, loaded as fallback defaults (not unconditional overrides) so CI's per-run port overrides survive |
 | ADR-012 (scripts) | scripts | Accepted |  | `deploy-dev.sh` eliminated |
-| ADR-001 (scripts/sonar) | scripts/sonar | Accepted |  | SonarQube setup via Docker, no pom.xml changes |
+| ADR-010 (scripts/sonar) | scripts/sonar | Accepted |  | JaCoCo coverage wired reactor-wide; `sonar.sh` now runs real tests, not `--no-unit --no-integration` |
+| ADR-001 (scripts/sonar) | scripts/sonar | Accepted — the "no pom.xml changes" constraint is partially revised by ADR-010 (`jacoco-maven-plugin` added to root `pom.xml`); every other decision in this entry (Docker-based scanner, no Sonar-specific plugin/properties in `pom.xml`) still holds. |  | SonarQube setup via Docker, no pom.xml changes |
 | ADR-003 (scripts/sonar) | scripts/sonar | Accepted |  | `sonar.java.libraries` intentionally left empty |
 | ADR-004 (scripts/sonar) | scripts/sonar | Accepted |  | Quality gate blocking by default, opt-out via `--no-gate` |
 | ADR-006 (scripts/sonar) | scripts/sonar | Accepted |  | SonarQube server and scanner containers get a pull-then-up freshness check, not just an API health check |
@@ -198,4 +234,4 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 
 ## Known gaps
 
-- `advertisement-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `provider-profile-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `user-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n
+- `advertisement-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `apikey-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `marketplace-rest-api/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `provider-profile-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `user-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n
