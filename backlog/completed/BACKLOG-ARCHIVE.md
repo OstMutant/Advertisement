@@ -2561,3 +2561,29 @@ recommended follow-up, then actually fixed after direct feedback that flagging a
 archiving the task anyway doesn't add up: modules are now processed sequentially instead of all at
 once, capping real concurrency at ≤3 regardless of module count. Full detail:
 `completed/tasks/improvement-192-agentic-governance-hardening-commit-hook-review-waves-agent-audit.md`.
+A real-world regression was found and fixed the next day (2026-09-16): the English-only trigger
+narrowing left both Ukrainian phrases unanchored, causing a live false-positive approval (a
+planning sentence containing "закомітимо" armed the marker); fixed by anchoring every trigger form
+— Ukrainian and English alike — to essentially the whole message instead of matching anywhere,
+verified via a 7-case battery including the exact message that caused it. Addendum in the same
+completed task file.
+
+✅ Done (2026-09-15/16): improvement-190 closed — `.claude/` rule system self-consistency audit.
+Task 1 (mechanical glob check): built `.claude/nav/scripts/check-rule-path-globs.sh` — found and
+fixed two real bugs in the script itself while building it (a `find`-per-rule-file loop with an
+unguarded prune expression that walked into a stray `.claude/worktrees/` duplicate-repo leftover,
+causing a 120s timeout; an unguarded `grep` against `.claude/rules/README.md`'s missing `paths:`
+line crashing the script under `set -e`) before it ever produced a real result. Confirmed 8 of 16
+rule files have at least one unintended path match — a previously-undocumented `.claude/nav/scripts/`
+instance for `scripts.md`, plus 7 files matching their own module-named Surefire-report/log-artifact
+subdirectories under `scripts/build-and-test/reports/**`/`scripts/logs/**`. Checked whether an
+anchored-glob syntax exists to avoid this (real docs search) — none found; documented all instances
+in `.claude/rules/README.md`'s existing "Important" section instead of an unverified workaround,
+plus a new note on Claude Code's own documented "loads on Read, not Write" behavior. Added a
+standing trigger rule to `.claude/rules.md` (mirroring the ADR-index rule) so a future `paths:` edit
+gets re-checked in the same operation. Task 2 (semantic review pass): read all 15
+`.claude/rules/*.md` module files directly — no confirmed contradictions or dead rules found (this
+repo's prior `improvement-168` consolidation already left the rule set self-consistent); one
+apparent duplication pattern (a negative fact like "X does not exist" repeated across sibling
+files) turned out to be a deliberate, load-bearing choice given path-scoped conditional loading, not
+a defect. Full detail: `completed/tasks/improvement-190-claude-rules-self-consistency-audit.md`.
