@@ -52,6 +52,36 @@ bash scripts/activity-monitor.sh --render deploy-and-run.sh
 Force a specific profile instead of the auto-selected one (rarely needed): `--profile NAME` right
 after `scripts/activity-monitor.sh`, before `--`.
 
+## Running in a container
+
+`--in-container` (right after `scripts/activity-monitor.sh`, before `--`) runs the wrapped command
+inside a dedicated, disposable `dev-shell` container instead of the current shell. Use it whenever
+a standalone run's own live state needs to stay visible from here regardless of which shell/
+terminal actually triggered it — `tree.txt`/`raw.log` then live in Docker-daemon state (readable
+via `docker exec dev-shell cat ...`), not on a host filesystem path this process may not reliably
+see. [`scripts/utils/ensure-dev-shell.sh`](../utils/ensure-dev-shell.sh) starts the container on
+first use and self-terminates it after an idle period; [`scripts/utils/sync-source.sh`](../utils/sync-source.sh)
+syncs the current working tree into it before every run. Default (no flag) behavior is unchanged.
+
+```bash
+bash scripts/activity-monitor.sh --in-container -- bash scripts/deploy-and-run.sh --reset-only-db
+```
+
+Verified support, both modes, each run for real (not assumed):
+
+| Script | Local | `--in-container` |
+|---|---|---|
+| `deploy-and-run.sh` | ✅ | ✅ |
+| `build-and-test.sh` | ✅ | ✅ |
+| `playwright.sh` | ✅ | ✅ |
+| `sonar.sh` | ✅ | ✅ |
+| `reset.sh` | ✅ | ✅ |
+| `run-all-tests.sh` | ✅ | ✅ |
+| `ci.sh` | N/A | N/A |
+
+`ci.sh` already always runs its own work inside its own container regardless of this flag, so the
+local/`--in-container` distinction doesn't apply to it.
+
 ## Flow
 
 Entry point: [`run.sh`](run.sh).

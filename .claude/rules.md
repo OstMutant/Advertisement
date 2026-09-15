@@ -339,7 +339,11 @@ subdirectory, which belongs to that one group alone.
    per raw line, so token cost scales with real signal instead of log volume. Steps 1-5 below still
    apply, just against that compact tree file; when asked for status, print the tree directly
    rather than paraphrasing it, and on a real error read the pointer it names (`docker logs
-   <container>` or the wrapped script's own raw log) for the actual diagnosis before answering. For
+   <container>` or the wrapped script's own raw log) for the actual diagnosis before answering. A
+   standalone run triggered from a shell whose own filesystem state isn't reliably visible from
+   here (see `scripts/activity-monitor/README.md`'s "Running in a container" section) can add
+   `--in-container` right after `scripts/activity-monitor.sh` so its live state lives in
+   Docker-daemon state instead. For
    anything not covered by an activity-monitor profile (a script outside that list, or a bare
    command like the dev-infra `docker-compose` invocation), steps 1-5 below apply directly, without
    this wrapper.

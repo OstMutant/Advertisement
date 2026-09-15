@@ -2454,3 +2454,24 @@ overall `coverage` metric moved from always-`0.0%` to a real `20.0%`, and
 confirmed "one line or none" comment-style violations plus one duplicate-loop DRY consolidation in
 `scripts/build-and-test/build.sh`. Full detail:
 `completed/issues/improvement-114-sonar-jacoco-coverage-not-wired.md`.
+
+✅ Done (2026-09-12): improvement-187 closed — `scripts/activity-monitor.sh --in-container`, a new
+flag that runs any of the 6 covered scripts (plus `run-all-tests.sh`) inside a dedicated,
+self-cleaning `dev-shell` container instead of the current shell, so a standalone run's live state
+stays visible regardless of which WSL2 distro/shell actually triggered it — closes a real,
+recurring gap where a user-triggered run was invisible from a different distro due to a documented
+9p/DrvFs cross-mount cache-staleness bug. `scripts/utils/sync-source.sh` (working-tree-into-
+container sync, extracted from `scripts/ci/run.sh`, which now shares it) and
+`scripts/utils/ensure-dev-shell.sh` (starts/reuses the container, idle-cleanup watchdog verified
+to self-terminate and auto-remove the container roughly 65s past its idle threshold) back the new
+flag. Also fixed two adjacent bugs found during verification: `scripts/ci/run.sh`'s artifact-sync
+step misreported success as failure whenever the sonar stage didn't run (it unconditionally tried
+to copy Sonar's `report.html`); and `run-all-tests.sh`'s live log mirror held a `docker exec -i`
+connection open for the whole run, which intermittently died under heavy concurrent Docker load
+and killed the real test run itself (`SIGPIPE`, confirmed ~1-in-4 under `--in-container`) — fixed
+by mirroring a completed local file after the fact instead of streaming live. Verified: all 6
+scripts (`deploy-and-run.sh`, `build-and-test.sh`, `playwright.sh`, `sonar.sh`, `reset.sh`,
+`run-all-tests.sh`) confirmed working both locally and via `--in-container` (`run-all-tests.sh`
+specifically re-verified with 4 consecutive clean runs post-fix, plus a local-mode regression
+check), table in `scripts/activity-monitor/README.md`. Full detail:
+`completed/issues/improvement-187-activity-monitor-in-container-mode.md`.

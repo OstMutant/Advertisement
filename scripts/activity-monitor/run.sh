@@ -49,6 +49,7 @@ declare -A STEP_LABELS=(
   ["deploy-and-run.sh:start-container"]="Start container"
   ["deploy-and-run.sh:start-application"]="Health check"
   ["deploy-and-run.sh:deploy"]="Deploy"
+  ["deploy-and-run.sh:reset"]="Database reset"
   ["reset.sh:reset"]="Database reset"
   ["build-and-test.sh:precondition-check"]="Precondition check"
   ["build-and-test.sh:build-and-test"]="Build and test"
@@ -103,6 +104,7 @@ declare -A STEP_DESCRIPTIONS=(
   ["deploy-and-run.sh:start-container"]="starts the marketplace-app container against the built jar/image"
   ["deploy-and-run.sh:start-application"]="waits for the app to log \"Started Application\""
   ["deploy-and-run.sh:deploy"]="generic fallback step name for a failure not attributed to a more specific step"
+  ["deploy-and-run.sh:reset"]="truncates app tables via reset-clean.sql against the dev DB"
   ["reset.sh:reset"]="truncates app tables via reset-clean.sql against the dev DB"
   ["build-and-test.sh:precondition-check"]="verifies the build container/cache prerequisites before compiling"
   ["build-and-test.sh:build-and-test"]="installs the reactor, then runs unit/integration tests if requested"
@@ -190,6 +192,31 @@ WRAPPER_START_TIME=0            # epoch seconds, set in main() right before spaw
 LAST_ACTIVITY_AT=0              # epoch seconds of the last time raw.log actually grew
 LAST_ACTIVITY=""                # most recent free-text narration line (generic-profile fallback only)
 CONTEXT_LINE=""                 # one persistent header line (e.g. a run id) set via an AGENTIC_CONTEXT: marker
+
+# Live per-test tally for playwright.sh's own "playwright-run" step, updated by profiles/agentic.sh
+PW_TOTAL=0     # total test count, parsed from Playwright's own "Running N tests" header line
+PW_PASSED=0    # passed so far
+PW_FAILED=0    # failed so far
+PW_LAST_SPEC="" # most recently finished spec file's basename
+
+# Parses Playwright's own "Running N tests using M workers" header line for the live total.
+track_playwright_total() {
+  local n
+  n="$(printf '%s' "$1" | sed -n 's/^Running \([0-9][0-9]*\) tests\?.*/\1/p')"
+  [[ -n "$n" ]] && PW_TOTAL="$n"
+}
+
+# Parses one Playwright list-reporter result line ("  <mark>  N spec.js:LINE:COL > ...") into the live pass/fail tally and the most recently finished spec file's name.
+track_playwright_test_line() {
+  local line="$1" spec
+  spec="$(printf '%s' "$line" | sed -n 's/^[[:space:]]*[✓✘][[:space:]]*[0-9][0-9]*[[:space:]]\+\([^: ]*\).*/\1/p')"
+  [[ -z "$spec" ]] && return
+  case "$line" in
+    *✓*) PW_PASSED=$((PW_PASSED + 1)) ;;
+    *✘*) PW_FAILED=$((PW_FAILED + 1)) ;;
+  esac
+  PW_LAST_SPEC="$spec"
+}
 
 # Global default stall threshold -- most steps (infra, container start, image build) produce
 # output at least this often when healthy, so silence past this is a real signal. Steps that are
@@ -323,6 +350,11 @@ render_step_line() {
         line+=" ⚠️ no output for $(format_duration $(( $(date +%s) - LAST_ACTIVITY_AT )))"
       fi
     fi
+    if [[ "$id" == "playwright-run" && "$PW_TOTAL" -gt 0 ]]; then
+      desc="${PW_PASSED}/${PW_TOTAL} passed"
+      (( PW_FAILED > 0 )) && desc+=", ${PW_FAILED} failed"
+      [[ -n "$PW_LAST_SPEC" ]] && desc+=" · last: ${PW_LAST_SPEC}"
+    fi
   fi
   [[ -n "$reason" ]] && line+=" — ${reason}"
   [[ -z "$reason" && -n "$desc" ]] && line+=" — ${desc}"
@@ -341,80 +373,101 @@ next_step_status() {
   echo "running"
 }
 
-render_tree() {
-  local out=""
+# Builds the ordered list of render units for the current script: a "unit" is either one step id,
+# or (for a declared parallel group) the group's members collapsed into a single unit sharing one
+# key -- $1 is the array name to fill with unit keys, $2 is the array name to fill with each key's
+# space-separated member id(s). A stray step (arrived via mark_step but not part of the declared
+# sequence -- e.g. a nested script's own marker bleeding through the same merged stdout, see
+# render_tree()) becomes its own one-member unit, appended after every declared unit; render_tree
+# itself re-sorts everything by real completion time, so this function's own ordering only matters
+# for declared-vs-declared ties (never actually happens -- every declared id is distinct) and for
+# stray-vs-stray arrival order.
+collect_render_units() {
+  local -n _units="$1" _members="$2"
   local sequence="${SCRIPT_STEP_SEQUENCE[$CURRENT_SCRIPT_NAME]:-}"
   local parallel_group="${SCRIPT_STEP_PARALLEL_GROUPS[$CURRENT_SCRIPT_NAME]:-}"
-  local rendered_ids=()
-
-  if [[ -n "$sequence" ]]; then
-    local baseline="$WRAPPER_START_TIME"
-    local current_shown=0
-    local group_consumed=0
-    for id in $sequence; do
-      local is_group_member=0
-      if [[ -n "$parallel_group" ]]; then
-        for p in $parallel_group; do [[ "$p" == "$id" ]] && is_group_member=1 && break; done
-      fi
-
-      if (( is_group_member )); then
-        # Only act once per group -- subsequent members of the same contiguous group are skipped
-        # here (already rendered as part of the group below).
-        (( group_consumed )) && continue
-        group_consumed=1
-        rendered_ids+=($parallel_group)
-        local group_done=1 group_latest=0
-        for gid in $parallel_group; do
-          if [[ -z "${STEP_COMPLETED_AT[$gid]:-}" ]]; then
-            group_done=0
-          elif (( STEP_COMPLETED_AT[$gid] > group_latest )); then
-            group_latest="${STEP_COMPLETED_AT[$gid]}"
-          fi
-        done
-        if (( group_done )); then
-          for gid in $parallel_group; do
-            out+="$(render_step_line "$gid" "${STEP_STATUS[$gid]:-}" "$baseline")"$'\n'
-          done
-          baseline="$group_latest"
-        elif (( current_shown == 0 )); then
-          local group_next_status
-          group_next_status="$(next_step_status)"
-          for gid in $parallel_group; do
-            if [[ -n "${STEP_COMPLETED_AT[$gid]:-}" ]]; then
-              out+="$(render_step_line "$gid" "${STEP_STATUS[$gid]:-}" "$baseline")"$'\n'
-            else
-              out+="$(render_step_line "$gid" "$group_next_status" "$baseline")"$'\n'
-            fi
-          done
-          current_shown=1
-        else
-          for gid in $parallel_group; do
-            out+="$(render_step_line "$gid" "pending" "$baseline")"$'\n'
-          done
-        fi
-        continue
-      fi
-
-      rendered_ids+=("$id")
-      if [[ -n "${STEP_COMPLETED_AT[$id]:-}" ]]; then
-        out+="$(render_step_line "$id" "${STEP_STATUS[$id]:-}" "$baseline")"$'\n'
-        baseline="${STEP_COMPLETED_AT[$id]}"
-      elif (( current_shown == 0 )); then
-        out+="$(render_step_line "$id" "$(next_step_status)" "$baseline")"$'\n'
-        current_shown=1
-      else
-        out+="$(render_step_line "$id" "pending" "$baseline")"$'\n'
-      fi
+  local group_consumed=0
+  for id in $sequence; do
+    local is_group_member=0
+    if [[ -n "$parallel_group" ]]; then
+      for p in $parallel_group; do [[ "$p" == "$id" ]] && is_group_member=1 && break; done
+    fi
+    if (( is_group_member )); then
+      (( group_consumed )) && continue
+      group_consumed=1
+      _units+=("$id")
+      _members["$id"]="$parallel_group"
+    else
+      _units+=("$id")
+      _members["$id"]="$id"
+    fi
+  done
+  for id in "${STEP_ORDER[@]}"; do
+    local declared=0
+    for u in "${_units[@]}"; do
+      for m in ${_members[$u]}; do [[ "$m" == "$id" ]] && declared=1 && break 2; done
     done
+    (( declared == 0 )) && { _units+=("$id"); _members["$id"]="$id"; }
+  done
+}
+
+# Renders every step/unit collected by collect_render_units, in true chronological order: every
+# unit that has actually completed (every member has a real STEP_COMPLETED_AT -- mark_step only
+# ever sets it for a real ok/error/skipped marker, so a unit is either fully done or not started)
+# renders first, sorted by its own real completion time -- this is what puts a nested script's own
+# stray step (e.g. reset.sh's "reset" marker bleeding through a deploy-and-run.sh run) at the point
+# in the tree it actually happened, not always at the very end regardless of when it really ran.
+# Whichever declared units haven't completed yet render afterward, in their original declared
+# order, exactly as before (the next one live as running/pending, the rest as plain pending).
+render_tree() {
+  local out=""
+  local -a units=()
+  local -A members=()
+  collect_render_units units members
+
+  local -a completed_keys=()
+  local -a pending_units=()
+  for u in "${units[@]}"; do
+    local all_done=1 latest=0
+    for m in ${members[$u]}; do
+      if [[ -z "${STEP_COMPLETED_AT[$m]:-}" ]]; then
+        all_done=0
+        break
+      fi
+      (( STEP_COMPLETED_AT[$m] > latest )) && latest="${STEP_COMPLETED_AT[$m]}"
+    done
+    if (( all_done )); then
+      completed_keys+=("$latest|$u")
+    else
+      pending_units+=("$u")
+    fi
+  done
+
+  local baseline="$WRAPPER_START_TIME"
+  if (( ${#completed_keys[@]} > 0 )); then
+    while IFS= read -r entry; do
+      local u="${entry#*|}"
+      for m in ${members[$u]}; do
+        out+="$(render_step_line "$m" "${STEP_STATUS[$m]:-}" "$baseline")"$'\n'
+      done
+      baseline="${entry%%|*}"
+    done < <(printf '%s\n' "${completed_keys[@]}" | sort -t'|' -k1,1n)
   fi
 
-  # Steps that arrived but aren't part of the declared sequence (e.g. a nested script's own
-  # markers bleeding through the same merged stdout) -- appended after, in arrival order.
-  for id in "${STEP_ORDER[@]}"; do
-    local already=0
-    for r in "${rendered_ids[@]:-}"; do [[ "$r" == "$id" ]] && already=1 && break; done
-    (( already == 1 )) && continue
-    out+="$(render_step_line "$id" "${STEP_STATUS[$id]:-}" "$WRAPPER_START_TIME")"$'\n'
+  local current_shown=0
+  for u in "${pending_units[@]}"; do
+    if (( current_shown == 0 )); then
+      local next_status
+      next_status="$(next_step_status)"
+      for m in ${members[$u]}; do
+        out+="$(render_step_line "$m" "$next_status" "$baseline")"$'\n'
+      done
+      current_shown=1
+    else
+      for m in ${members[$u]}; do
+        out+="$(render_step_line "$m" "pending" "$baseline")"$'\n'
+      done
+    fi
   done
 
   [[ -n "$LAST_ACTIVITY" ]] && out+="[${TS_LAST_ACTIVITY:-$(timestamp)}] ${LAST_ACTIVITY}"$'\n'
@@ -576,6 +629,7 @@ watch_tree() {
 # ────────────────────────────────────────────────────────────────────────────
 main() {
   local profile_override=""
+  local in_container=""
   local args=("$@")
   local cmd=()
   local i=0
@@ -584,16 +638,42 @@ main() {
       --render) render_once "${args[$((i+1))]}"; return 0 ;;
       --watch)  watch_tree "${args[$((i+1))]}"; return 0 ;;
       --profile) profile_override="${args[$((i+1))]}"; i=$((i+2)); continue ;;
+      --in-container) in_container=1; i=$((i+1)); continue ;;
       --) i=$((i+1)); cmd=("${args[@]:$i}"); break ;;
       *) cmd=("${args[@]:$i}"); break ;;
     esac
   done
 
   if (( ${#cmd[@]} == 0 )); then
-    echo "usage: scripts/activity-monitor.sh [--profile NAME] -- <command> [args...]" >&2
+    echo "usage: scripts/activity-monitor.sh [--profile NAME] [--in-container] -- <command> [args...]" >&2
     echo "       scripts/activity-monitor.sh --render <command-basename>" >&2
     echo "       scripts/activity-monitor.sh --watch <command-basename>" >&2
     return 2
+  fi
+
+  # Runs the wrapped command inside a dedicated "dev-shell" container instead of locally, so tree.txt/raw.log live in Docker-daemon state instead of a host path this process may not reliably see.
+  if [[ -n "$in_container" ]]; then
+    source "$SELF_DIR/../utils/ensure-dev-shell.sh"
+    source "$SELF_DIR/../utils/sync-source.sh"
+
+    if ! ensure_dev_shell; then
+      echo "ERROR: failed to start the dev-shell container (see error above)" >&2
+      return 1
+    fi
+    if ! sync_source_into dev-shell; then
+      echo "ERROR: failed to sync the working tree into dev-shell (see error above)" >&2
+      return 1
+    fi
+
+    # -t only when this invocation itself has a real terminal, so the inner script's own tty check sees one too.
+    local docker_exec_flags=(-i)
+    [[ -t 1 ]] && docker_exec_flags+=(-t)
+
+    local inner_args=()
+    [[ -n "$profile_override" ]] && inner_args+=(--profile "$profile_override")
+    inner_args+=(-- "${cmd[@]}")
+
+    exec docker exec "${docker_exec_flags[@]}" dev-shell bash scripts/activity-monitor.sh "${inner_args[@]}"
   fi
 
   # Identify the wrapped script for profile lookup/naming. This project's own convention invokes

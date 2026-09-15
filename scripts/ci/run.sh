@@ -200,10 +200,6 @@ sync_artifacts() {
   # adr-index.md is regenerated in-container by the docs stage; copy it back too -- docker cp's own exit code is the check, a failed copy sets docs_synced.
   docker_cp_diag "$CONTAINER:/app/.claude/nav/adr-index.md" \
     "$ROOT/.claude/nav/adr-index.md" "adr-index.md" || docs_synced=1
-  if [ "$docs_synced" -ne 0 ]; then
-    echo "docker cp errors (also saved inside $CONTAINER at /tmp/ci-sync-diag.log):"
-    docker exec "$CONTAINER" cat /tmp/ci-sync-diag.log 2>/dev/null
-  fi
 
   # Test-result artifacts (Playwright report, unit/integration Surefire+logs, Sonar's run log) are
   # written directly into the shared `test-reports` named volume by the build/pw-runner/scanner
@@ -227,8 +223,18 @@ sync_artifacts() {
   docker rm -f "$VOL_READER" >/dev/null 2>&1
 
   # Sonar's report.html only ever exists in $CONTAINER's own filesystem, not the test-reports volume -- this leg writes to the real host, so it needs docker_cp_diag, not a plain docker cp.
+  local sonar_report_failed=0
   docker_cp_diag "$CONTAINER:/app/scripts/sonar/report/report.html" \
-    "$ROOT/scripts/sonar/report/report.html" "report.html" || docs_synced=1
+    "$ROOT/scripts/sonar/report/report.html" "report.html" || sonar_report_failed=1
+  # report.html only exists when this run's own sonar stage actually ran -- only STAGE_SONAR runs count a missing copy as a real failure.
+  if [ "$sonar_report_failed" -ne 0 ] && [ -n "$STAGE_SONAR" ]; then
+    docs_synced=1
+  fi
+
+  if [ "$docs_synced" -ne 0 ]; then
+    echo "docker cp errors (also saved inside $CONTAINER at /tmp/ci-sync-diag.log):"
+    docker exec "$CONTAINER" cat /tmp/ci-sync-diag.log 2>/dev/null
+  fi
 
   return $docs_synced
 }
@@ -458,15 +464,10 @@ emit_agentic_success_block "start-ci-runner"
 # failure (a "stale adr-index.md" in the docs stage, say). Any non-zero tar exit is fatal here.
 echo ""
 echo "=== Syncing working tree into $CONTAINER ==="
-git -C "$ROOT" ls-files -z --cached --others --exclude-standard \
-  | tar -C "$ROOT" --null --no-recursion -T - -cf - \
-  | docker exec -i "$CONTAINER" sh -c 'find /app -mindepth 1 -delete 2>/dev/null; exec tar -C /app -xf -'
-SYNC_RC=("${PIPESTATUS[@]}")
-# Every stage must succeed: a failed `git ls-files` (empty file set), any tar read failure, or a
-# failed extract is a real failure -- nothing is tolerated.
-if [ "${SYNC_RC[0]}" -ne 0 ] || [ "${SYNC_RC[1]}" -ne 0 ] || [ "${SYNC_RC[2]}" -ne 0 ]; then
-  echo "===== FAILED (working-tree sync into $CONTAINER -- ls-files=${SYNC_RC[0]} tar=${SYNC_RC[1]} extract=${SYNC_RC[2]}) ====="
-  emit_agentic_error_block "transient" "true" "sync-source" "Streaming the working tree into $CONTAINER failed (ls-files=${SYNC_RC[0]} tar=${SYNC_RC[1]} extract=${SYNC_RC[2]})."
+source "$ROOT/scripts/utils/sync-source.sh"
+if ! sync_source_into "$CONTAINER"; then
+  echo "===== FAILED (working-tree sync into $CONTAINER) ====="
+  emit_agentic_error_block "transient" "true" "sync-source" "Streaming the working tree into $CONTAINER failed -- see the error printed above for which stage (ls-files/tar/extract)."
   exit 1
 fi
 emit_agentic_success_block "sync-source"
@@ -529,10 +530,11 @@ if [ -n "$FOREGROUND" ]; then
     echo "===== FAILED${DAGU_RUN_ID:+ -- Dagu run $DAGU_RUN_ID} ====="
     emit_agentic_error_block "business" "false" "ci-run" "A ci DAG stage failed${DAGU_RUN_ID:+ (Dagu run $DAGU_RUN_ID)} -- see the per-step lines above; not retryable as-is."
   elif [ -n "$SYNC_FAILED" ]; then
-    # Every DAG stage passed; only pulling the regenerated docs/adr-index back to the host failed.
+    # Every DAG stage passed; only pulling architecture-model.json/architecture-map.html/
+    # adr-index.md, or (when the sonar stage actually ran) report.html, back to the host failed.
     EXIT_CODE=1
     echo "===== FAILED (artifact sync)${DAGU_RUN_ID:+ -- Dagu run $DAGU_RUN_ID} ====="
-    emit_agentic_error_block "transient" "true" "ci-run" "Every ci DAG stage passed${DAGU_RUN_ID:+ (Dagu run $DAGU_RUN_ID)}, but copying the regenerated architecture-model.json/architecture-map.html/adr-index.md from $CONTAINER back to the host failed -- re-run 'bash scripts/ci/run.sh --sync-artifacts' to retry just that."
+    emit_agentic_error_block "transient" "true" "ci-run" "Every ci DAG stage passed${DAGU_RUN_ID:+ (Dagu run $DAGU_RUN_ID)}, but copying architecture-model.json/architecture-map.html/adr-index.md${STAGE_SONAR:+/report.html} from $CONTAINER back to the host failed -- see the docker cp errors above; re-run 'bash scripts/ci/run.sh --sync-artifacts' to retry just that."
   else
     EXIT_CODE=0
     echo "===== PASSED${DAGU_RUN_ID:+ (Dagu run $DAGU_RUN_ID)} ====="

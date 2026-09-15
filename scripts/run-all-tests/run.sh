@@ -136,6 +136,7 @@ $RESET_FULL && DEPLOY_FLAGS=(--reset)
 
 echo "Starting deploy-and-run.sh ${DEPLOY_FLAGS[*]} + playwright in background (log: $PW_LOG)..."
 log_orchestrator "Starting deploy-and-run.sh ${DEPLOY_FLAGS[*]} + playwright in background (log: $PW_LOG)..."
+PW_LOG_TMP="/tmp/run-all-tests-pw.$$.log"
 {
   bash "$ROOT/scripts/deploy-and-run.sh" "${DEPLOY_FLAGS[@]}"
   DEPLOY_EXIT=$?
@@ -147,31 +148,27 @@ log_orchestrator "Starting deploy-and-run.sh ${DEPLOY_FLAGS[*]} + playwright in 
     RC=$DEPLOY_EXIT
   fi
   echo "$RC" > "$PW_EXIT_FILE"
-} 2>&1 | docker exec -i "$REPORTS_CONTAINER" sh -c "cat > /reports/run-all-tests/playwright.log" &
+} 2>&1 | tee "$PW_LOG_TMP" &
 PW_PID=$!
 
 echo "Running build-and-test.sh --unit --integration..."
 log_orchestrator "Running build-and-test.sh --unit --integration..."
-# A named pipe (mkfifo) + an explicitly backgrounded writer with its own captured PID, not
-# `tee >(...)` process substitution -- confirmed directly that bash does not reliably wait for a
-# process substitution's own subprocess (a bare `wait` returned immediately, before a deliberately
-# slow writer had finished, in a controlled test), which let the flush step below read from the
-# volume before this write had actually finished. `wait $BUILD_LOG_WRITER_PID` blocks on that
-# specific, real PID instead, so the write is guaranteed done before flushing.
-BUILD_LOG_FIFO="/tmp/run-all-tests-build.$$.fifo"
-mkfifo "$BUILD_LOG_FIFO"
-docker exec -i "$REPORTS_CONTAINER" sh -c "cat > /reports/run-all-tests/build-and-test.log" < "$BUILD_LOG_FIFO" &
-BUILD_LOG_WRITER_PID=$!
-bash "$ROOT/scripts/build-and-test.sh" "${BUILD_AND_TEST_FLAGS[@]}" 2>&1 | tee "$BUILD_LOG_FIFO"
+# tee targets a plain local file, not a live docker-exec pipe -- a dropped long-held exec connection would otherwise SIGPIPE the real build itself.
+BUILD_LOG_TMP="/tmp/run-all-tests-build.$$.log"
+bash "$ROOT/scripts/build-and-test.sh" "${BUILD_AND_TEST_FLAGS[@]}" 2>&1 | tee "$BUILD_LOG_TMP"
 BUILD_EXIT=${PIPESTATUS[0]}
-wait $BUILD_LOG_WRITER_PID
-rm -f "$BUILD_LOG_FIFO"
+docker exec -i "$REPORTS_CONTAINER" sh -c "cat > /reports/run-all-tests/build-and-test.log" < "$BUILD_LOG_TMP" \
+  || echo "warning: failed to mirror build-and-test.log into $REPORTS_CONTAINER (best-effort only, real result above is unaffected)" >&2
+rm -f "$BUILD_LOG_TMP"
 
 echo "Waiting for deploy-and-run + playwright to finish..."
 log_orchestrator "Waiting for deploy-and-run + playwright to finish..."
 wait $PW_PID
 PW_EXIT="$(cat "$PW_EXIT_FILE" 2>/dev/null || echo 1)"
 rm -f "$PW_EXIT_FILE"
+docker exec -i "$REPORTS_CONTAINER" sh -c "cat > /reports/run-all-tests/playwright.log" < "$PW_LOG_TMP" \
+  || echo "warning: failed to mirror playwright.log into $REPORTS_CONTAINER (best-effort only, real result above is unaffected)" >&2
+rm -f "$PW_LOG_TMP"
 
 # No host copy and no container removal here anymore -- confirmed directly that `docker cp`'s own
 # destination-path argument cannot reliably resolve a WSL docker-desktop-bind-mounts alias path

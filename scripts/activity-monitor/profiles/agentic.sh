@@ -24,7 +24,8 @@
 # Input: a redacted text batch (possibly multiple lines) from run.sh.
 # Outputs: calls run.sh's mark_step() for every recognised AGENTIC_SUCCESS_BLOCK/ERROR_BLOCK/
 #   SKIP_BLOCK line; sets run.sh's CONTEXT_LINE (one persistent tree.txt header line) from an
-#   AGENTIC_CONTEXT: line; silently ignores every other line in the batch.
+#   AGENTIC_CONTEXT: line; for playwright.sh only, also updates run.sh's live PW_*/track_playwright_*
+#   per-test tally from Playwright's own list-reporter lines; silently ignores every other line.
 # Returns: 0 always -- this profile never falls back to the model, by design (see Description).
 # ────────────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,14 @@ try_mechanical_format() {
         # One persistent header line for tree.txt -- e.g. dagu-rest-run-monitor.py emitting the
         # Dagu run id so every rendered tree names which run it is.
         CONTEXT_LINE="${line#AGENTIC_CONTEXT: }"
+        ;;
+      Running\ [0-9]*)
+        # Playwright's own list-reporter header line -- live per-test tally, playwright.sh only.
+        [[ "$CURRENT_SCRIPT_NAME" == "playwright.sh" ]] && track_playwright_total "$line"
+        ;;
+      *✓*|*✘*)
+        # Playwright's own per-test result line -- live per-test tally, playwright.sh only.
+        [[ "$CURRENT_SCRIPT_NAME" == "playwright.sh" ]] && track_playwright_test_line "$line"
         ;;
       *)
         continue

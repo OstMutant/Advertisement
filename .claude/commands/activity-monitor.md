@@ -5,12 +5,19 @@ for free; anything else falls back to one cheap-model narration call per batch. 
 always the wrapped command's own real exit code, never narration. See
 `scripts/activity-monitor/README.md` for the full flow.
 
-Usage: `/activity-monitor <script and args>`
+Usage: `/activity-monitor <script and args>` or `/activity-monitor --in-container <script and args>`
+
+`--in-container` runs the wrapped command inside a dedicated, disposable `dev-shell` container
+instead of the current shell — use it when a standalone run's own live state (`tree.txt`/
+`raw.log`) needs to be visible regardless of which host shell/terminal triggered it (see
+`scripts/activity-monitor/README.md`'s "Running in a container" section for why this exists).
+Default (no flag) behavior is unchanged.
 
 Steps:
 1. Background the wrapped run:
    ```
    bash scripts/activity-monitor.sh -- <script> [args...]
+   bash scripts/activity-monitor.sh --in-container -- <script> [args...]
    ```
 2. Attach `Monitor` to `/tmp/activity-monitor/<script-basename>/tree.txt` (the wait-then-tail
    wrapper) instead of the wrapped script's own raw log — this file only changes when a real step

@@ -125,6 +125,23 @@ letting one long line dictate the whole node's width — a diamond in particular
 node shape as its label gets longer, since the shape needs extra padding at its own corners to stay
 readable.
 
+## Capability/support matrix — when a script-group has more than one real run mode
+
+When a script-group's own entry point supports more than one genuinely distinct run mode (a flag
+that changes *where* or *how* it executes, not just an ordinary option) and a reader needs to know
+which real capabilities apply in which mode, state it as a Markdown table, not prose — a reader
+scanning for "does X work in mode Y" finds a table cell far faster than a paragraph. Follow GitHub's
+own rendering constraints, since that's where this repo is actually read: keep a table to five or
+six columns at most (GitHub renders Markdown in a fixed-width container; a wider table forces
+horizontal scrolling on a narrower screen) — split into two smaller tables sharing the same row
+labels rather than force extra columns into one. Reuse this repo's own existing status-icon
+vocabulary (✅ verified working / ❌ not supported / ⚠️ works with a caveat, the same icons
+`scripts/activity-monitor.sh`'s own live tree already renders) instead of inventing a second one —
+one icon set for "did this actually work" across the whole repo, not a per-README house style. A
+cell's own icon must reflect something actually verified (a real run, a real result), never an
+assumed capability — the same "state what was verified, not what should theoretically work"
+discipline this project applies everywhere else.
+
 ## The root `scripts/README.md` — a different shape from a script-group's own README
 
 Every rule above (`README — what the tool is`, `README "Flow" section`) describes a single
