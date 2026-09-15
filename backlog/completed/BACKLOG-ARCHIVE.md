@@ -2475,3 +2475,9 @@ scripts (`deploy-and-run.sh`, `build-and-test.sh`, `playwright.sh`, `sonar.sh`, 
 specifically re-verified with 4 consecutive clean runs post-fix, plus a local-mode regression
 check), table in `scripts/activity-monitor/README.md`. Full detail:
 `completed/issues/improvement-187-activity-monitor-in-container-mode.md`.
+
+✅ Done (2026-09-15): improvement-183 closed — all 28 items resolved (item 9 carved out to
+`improvement-186` earlier; item 27 closed without repro, reopen if it recurs; item 28's live
+per-test Playwright tally turned out to already be implemented on this branch, closed the gap by
+adding 7 test assertions for it in `scripts/activity-monitor/run.test.sh`, 37/37 passing). Full
+detail: `completed/issues/improvement-183-rest-api-and-taxon-ui-follow-ups.md`.

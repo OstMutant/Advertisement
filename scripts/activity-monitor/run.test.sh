@@ -249,6 +249,43 @@ rm -rf "$WORK_DIR"
 assert "a container that genuinely doesn't exist warns, doesn't silently pass" \
   '[[ "$(container_state_warning "definitely-not-a-real-container-name-xyz")" == *"⚠️"* ]]'
 
+# 15. playwright live tally — track_playwright_total/track_playwright_test_line parse Playwright's
+# own list-reporter lines, and the tally shows up in a rendered running step ------------------
+PW_TOTAL=0; PW_PASSED=0; PW_FAILED=0; PW_LAST_SPEC=""
+track_playwright_total "Running 63 tests using 4 workers"
+assert "track_playwright_total parses the real test count" '(( PW_TOTAL == 63 ))'
+track_playwright_test_line "  ✓  1 05-marketplace-advertisement-flow.spec.js:12:3 › userEn creates advertisement (2.1s)"
+assert "a ✓ result line increments PW_PASSED" '(( PW_PASSED == 1 ))'
+assert "a ✓ result line records the finished spec's basename" \
+  '[[ "$PW_LAST_SPEC" == "05-marketplace-advertisement-flow.spec.js" ]]'
+track_playwright_test_line "  ✘  2 06-seed-filter-sort-pagination.spec.js:40:3 › some flaky check (1.4s)"
+assert "a ✘ result line increments PW_FAILED, leaves PW_PASSED unchanged" \
+  '(( PW_FAILED == 1 && PW_PASSED == 1 ))'
+
+STEP_ORDER=(); STEP_STATUS=(); STEP_REASON=(); STEP_POINTER=(); STEP_COMPLETED_AT=()
+CURRENT_SCRIPT_NAME="playwright.sh"
+WORK_DIR="$(mktemp -d)"
+WRAPPER_START_TIME=$(( $(date +%s) - 5 ))
+mark_step "playwright-run" "running" "" ""
+tree_out="$(render_tree)"
+assert "a running playwright-run step shows the live pass/fail tally in its description" \
+  '[[ "$tree_out" == *"1/63 passed, 1 failed"* ]]'
+assert "the tally names the most recently finished spec" \
+  '[[ "$tree_out" == *"last: 06-seed-filter-sort-pagination.spec.js"* ]]'
+rm -rf "$WORK_DIR"
+
+# 16. playwright tally dispatch is gated to playwright.sh only -- the same lines through another
+# script's own batch must not touch PW_* state ---------------------------------------------------
+PW_TOTAL=0; PW_PASSED=0; PW_FAILED=0; PW_LAST_SPEC=""
+STEP_ORDER=(); STEP_STATUS=(); STEP_REASON=(); STEP_POINTER=(); STEP_COMPLETED_AT=()
+CURRENT_SCRIPT_NAME="deploy-and-run.sh"
+RAW_LOG="/tmp/fake-raw.log"
+load_profile "agentic"
+try_mechanical_format "Running 63 tests using 4 workers"
+try_mechanical_format "  ✓  1 some.spec.js:1:1 › whatever (1s)"
+assert "the live tally is never touched for a script other than playwright.sh" \
+  '(( PW_TOTAL == 0 && PW_PASSED == 0 ))'
+
 echo ""
 echo "passed: $PASS, failed: $FAIL"
 rm -f "$FAKE_CURL_LOG" "$FAKE_CURL_LAST_ARGS"

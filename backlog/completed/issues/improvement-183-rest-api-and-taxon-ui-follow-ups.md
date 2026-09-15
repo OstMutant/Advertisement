@@ -1869,7 +1869,7 @@ against the live CI database above. **Verified (2026-09-11):**
 `build-and-test.sh --integration --integration-test AuditLogRepositoryTest` — 8/8 tests passing,
 0 failures, new reversal test included.
 
-## 27. Playwright `e2e --full --ux` failed on a standalone `deploy-and-run.sh --reset-only-db` + `playwright.sh` run — root cause not yet investigated
+## 27. Playwright `e2e --full --ux` failed on a standalone `deploy-and-run.sh --reset-only-db` + `playwright.sh` run — closed, reopen on reproduction (2026-09-15)
 
 **Reported (2026-09-12):** user ran `bash scripts/activity-monitor.sh -- bash scripts/deploy-and-run.sh
 --reset-only-db` then `bash scripts/activity-monitor.sh -- bash scripts/playwright.sh e2e --full --ux`
@@ -1887,11 +1887,12 @@ tool calls are evidently not sharing the same `/tmp` (different container/enviro
 actual `raw.log` content (or at minimum the failing spec name + error/stack trace) pasted in before
 this can be root-caused.
 
-**Ask:** find out why `e2e --full --ux` failed on a fresh `--reset-only-db` deploy, after this same
-session's own two full `scripts/ci.sh` e2e runs (unrelated infra: isolated `ci-*` containers, not
-the normal dev stack) both passed 63/63 earlier the same day.
+**Closed (2026-09-15), user decision:** no repro observed since the original report, and the
+failing run's own log was never recoverable. Reopen (new entry, same title) if this failure is
+seen again — capture the actual `raw.log`/failing spec name/error before it's overwritten by the
+next run, since that's what blocked root-causing it this time.
 
-## 28. Activity-monitor: show live per-test pass/fail for a standalone `playwright.sh` run, not just one coarse step — feasibility confirmed, not yet designed/implemented
+## 28. Activity-monitor: show live per-test pass/fail for a standalone `playwright.sh` run, not just one coarse step — ✅ Done (2026-09-15)
 
 **Asked (2026-09-12):** when running `playwright.sh` directly (not via `ci.sh`'s own Dagu-based e2e
 stage — that mechanism is untouched by this ask), the activity-monitor tree currently shows a
@@ -1908,8 +1909,27 @@ single-step elapsed-timer view — scoped only to a direct `activity-monitor.sh 
 invocation, no change to `ci.sh`'s own separate e2e monitoring path
 (`dagu-rest-run-monitor.py`/Dagu UI).
 
-**Not designed or implemented yet** — explicitly deferred at the user's own request ("поки дай
-відповідь", 2026-09-12) pending a dedicated pass.
+**Implemented (commit `31919d81`, landed on this branch before this pass):** `run.sh` gained
+`PW_TOTAL`/`PW_PASSED`/`PW_FAILED`/`PW_LAST_SPEC` state plus `track_playwright_total()` (parses
+Playwright's own `"Running N tests..."` header line) and `track_playwright_test_line()` (parses
+each `✓`/`✘` list-reporter result line into the running tally + most-recently-finished spec
+basename); `render_step_line()` shows `"${PW_PASSED}/${PW_TOTAL} passed"` (+ `", N failed"` when
+`PW_FAILED>0`, + `"· last: <spec>"`) as the `playwright-run` step's live description while running.
+`profiles/agentic.sh` dispatches both parsers from its own line-matching loop (`Running [0-9]*`,
+`*✓*|*✘*` cases), gated to `[[ "$CURRENT_SCRIPT_NAME" == "playwright.sh" ]]` only — no change to
+`ci.sh`'s own e2e path, exactly as scoped.
+
+**Gap found and closed (2026-09-15):** the feature had zero test coverage — `run.test.sh`'s 30
+existing assertions never touched `track_playwright_total`/`track_playwright_test_line`, the live
+description text in `render_step_line`, or the `playwright.sh`-only dispatch gate. Added 7 new
+assertions to `scripts/activity-monitor/run.test.sh` (tests 15-16): total-line parsing, a `✓` line
+incrementing `PW_PASSED` + setting `PW_LAST_SPEC`, a `✘` line incrementing `PW_FAILED` (leaving
+`PW_PASSED` unchanged), the live tally text (`"N/M passed, K failed"` + `"last: <spec>"`) actually
+appearing in a rendered `running` step line, and confirming the dispatch is a no-op when
+`CURRENT_SCRIPT_NAME` isn't `playwright.sh` (e.g. `deploy-and-run.sh`).
+
+**Verified (2026-09-15):** `bash scripts/activity-monitor/run.test.sh` — 37/37 passing (30
+pre-existing + 7 new), 0 failures.
 
 - [improvement-073](../completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) —
   REST API infrastructure (API-key auth, Swagger, apikey/rest-api modules) this whole batch follows
