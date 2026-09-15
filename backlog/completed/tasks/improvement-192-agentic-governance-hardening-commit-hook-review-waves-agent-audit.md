@@ -133,6 +133,36 @@ through without the `PreToolUse` block firing, confirming Claude Code serializes
 UTF-8, not escaped — the Ukrainian trigger phrase works correctly in the live environment. The
 English phrases remain a confirmed-reliable fallback regardless.
 
+**Real-world regression found and fixed (2026-09-16, post-completion).** The Task A hardening pass
+above narrowed the English trigger phrases from a bare `\bcommit\b` to specific imperative forms,
+but left both Ukrainian phrases (`зроби +коміт`, `закомі[тч]`) completely unguarded — still matched
+anywhere in a message, no position/boundary restriction, unlike the English side. This produced a
+real false-positive in actual use, not a hypothetical: the message *"ну давай спочатку все
+виправимо по таску а тоді **закомітимо** зараз що семантичний ревю?"* — a planning sentence about
+committing *later*, after other work — contains the substring "закомі" + "т", matching
+`закомі[тч]` and arming the approval marker. A subsequent real `git commit` (commit `0f96b1a1`)
+went through without genuine intent to approve it right then. The user caught this directly ("чому
+хук не спрацював я ж не давав апрув на коміт") rather than it being found by testing.
+
+Fixed by applying the same whole-message-anchoring principle already used for the English
+standalone-`commit` case to *every* trigger form, Ukrainian and English alike — both now require
+the phrase to be essentially the whole message (small optional leading confirmation word, small
+optional trailing words), not merely present anywhere in a longer sentence:
+```
+^[[:space:]]*(так|окей|гаразд|давай|ok)?[,!]?[[:space:]]*(зроби[[:space:]]+ком[іi]т|закоміт[ьи]|ком[іi]ть)([[:space:]]+[а-яіїєa-z]+){0,3}[.!?]?[[:space:]]*$|^[[:space:]]*(please[[:space:]]+)?commit([[:space:]]+(this|it|now|please))?([[:space:]]+[a-z]+){0,3}[.!?]?[[:space:]]*$
+```
+Also closed the same class of gap on the English side while at it (not yet reported as a separate
+finding, found by applying the same scrutiny): `commit (this|it|now|please)` was equally
+unanchored — `"please don't commit this yet"` would have matched `commit this` as a substring.
+
+Verified via a 7-case end-to-end battery (synthetic JSON piped into the real extracted hook
+script), including the exact real false-positive message above: "зроби коміт" / "так, закоміть і
+це" / "please commit" still arm correctly; the real false-positive message, a negated "не треба
+зроби коміт зараз, почекай", "please don't commit this yet", and an unrelated "what is a commit in
+git" all correctly do not. The commit that slipped through (`0f96b1a1`) was left in place per
+explicit user instruction — its actual content had already been reviewed and was not itself wrong,
+only the approval process around it was skipped.
+
 **Real finding during application:** the first attempt to edit `UserPromptSubmit`'s command was
 **blocked by Claude Code's own auto-mode classifier** with reason `[Self-Modification]` — the
 `PreToolUse` edit (the enforcement half) went through in the same batch without issue, but the
