@@ -60,7 +60,7 @@ sentence.
 
 `.claude/rules.md` already governs every code comment, Javadoc included, project-wide:
 
-- **"Code comments: one line or none, never an issue/ticket number"** — applies to a class's own
+- **"Code comments: one line or none, never a task/ticket number"** — applies to a class's own
   top-level Javadoc exactly as it applies to an inline `//` comment. A multi-line Javadoc block
   explaining background/rationale in full is the same violation as a multi-line inline comment —
   Javadoc syntax doesn't grant an exemption. "One line" means one logical statement, not one
@@ -197,7 +197,7 @@ home, per the same "reference, don't restate" pattern as everywhere else:
 ## Pre-write checklist
 
 - [ ] Is this Javadoc/comment one logical statement (one line, or one wrapped paragraph), or genuinely none needed? (see "Class-level Javadoc" above)
-- [ ] Does it cite an issue/ticket number? → remove it, route the rationale per the table above
+- [ ] Does it cite a task/ticket number? → remove it, route the rationale per the table above
 - [ ] If it's a method comment, does it describe what the body actually does, verified by reading it — not a narrative about callers?
 - [ ] If it's a `*.spi` interface, does its Javadoc immediately precede the `interface` declaration with no stray blank line/comment breaking that adjacency? (see "SPI interface Javadoc" above — a missing or malformed block silently blanks that interface's purpose in the SPI Map)
 - [ ] If it's a `pom.xml` comment, is the dependency/version genuinely non-obvious — or is this restating what the artifact id or the module's own `README.md` `Dependencies` section already says?

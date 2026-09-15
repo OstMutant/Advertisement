@@ -112,7 +112,7 @@ composition; domain starters keep only their own bounded-context logic; `marketp
 orchestrator services instead of composing multiple domain Ports directly. Every real cross-domain
 call site in the repository was inventoried before deciding what moves — see the full discovery
 (Phase 0) and target-architecture (Phase 1) writeup preserved in
-`backlog/completed/issues/improvement-136-marketplace-orchestrator-extraction.md` for the complete
+`backlog/completed/tasks/improvement-136-marketplace-orchestrator-extraction.md` for the complete
 evidence trail, including the classes that were deliberately *not* moved and why.
 
 **Consequences:** Root `CLAUDE.md`'s "Architecture Guidelines" now describes three layers, not two.
@@ -160,7 +160,7 @@ resolution (a different, deliberately-not-moved concern — see `marketplace-orc
 **Status:** Accepted
 
 **Context:** ADR-001 built this module as a composition layer, but its own guiding spec (preserved
-verbatim in `backlog/completed/issues/improvement-136-marketplace-orchestrator-extraction.md`)
+verbatim in `backlog/completed/tasks/improvement-136-marketplace-orchestrator-extraction.md`)
 contained an internal contradiction never caught during that extraction: the target diagram showed
 `Vaadin UI → marketplace-orchestrator → domain starters` with no direct UI-to-starter arrow at all,
 but the accompanying rule only banned `marketplace-app` from composing *multiple* domain Ports for
@@ -218,11 +218,11 @@ test — renamed to `AuditQueryService` and re-verified boot succeeds. Confirmed
 that no other new service name collides with an existing class elsewhere in the repo.
 
 **Trigger to revisit:** None currently open — Open Questions A/B/C from
-`backlog/completed/issues/improvement-147-marketplace-orchestrator-followups.md` are all resolved
+`backlog/completed/tasks/improvement-147-marketplace-orchestrator-followups.md` are all resolved
 (A: route presence-guards through the orchestrator; B: the `EntityExistenceService` exception; C:
 withdrawn, not a real design fork). The module's original single-caller-collaborator question
 (`TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService`) moved
-to `backlog/issues/improvement-124-provider-profile.md`'s Batch 124-C, unrelated to this ADR.
+to `backlog/tasks/improvement-124-provider-profile.md`'s Batch 124-C, unrelated to this ADR.
 
 ---
 

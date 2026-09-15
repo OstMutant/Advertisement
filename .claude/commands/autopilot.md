@@ -1,5 +1,5 @@
 Plan once, approve once, then execute the whole task end-to-end without further check-ins —
-implementation, all relevant tests, docs/ADR, issue lifecycle — reporting back only when
+implementation, all relevant tests, docs/ADR, task lifecycle — reporting back only when
 genuinely done (or genuinely blocked).
 
 Usage: /autopilot <task description>
@@ -15,10 +15,10 @@ per-step check-ins for this run, not for the project in general — the standing
 Steps:
 
 1. **Plan, once.** If $ARGUMENTS references a plan already fully hashed out earlier in this
-   conversation (or a backlog issue file with a complete `## Suggested fix`/`## Approach`),
+   conversation (or a backlog task file with a complete `## Suggested fix`/`## Approach`),
    synthesize it into the plan instead of re-deriving it from scratch; otherwise research the
    codebase first (read the relevant files, find the pattern to mirror, check for prior art).
-   Either way, write the complete plan into the relevant `backlog/issues/<n>.md` file per the
+   Either way, write the complete plan into the relevant `backlog/tasks/<n>.md` file per the
    Approval Rule (plain-language layer first, technical layer second), then present a short
    summary from that file in chat, ending with a literal question. Send a `PushNotification` at
    this point too — the plan is ready and the user may have stepped away while it was being
@@ -35,14 +35,14 @@ Steps:
      (one line or none, ever) — every code comment written during this run gets checked against it
      before moving on, not just left for step 3's `/code-review` pass to catch.
    - Resolve implementation questions yourself: grep/read the codebase for the existing pattern,
-     mirror it, and record the decision in the issue file — same mechanism as step 4's autonomous-
+     mirror it, and record the decision in the task file — same mechanism as step 4's autonomous-
      decision handling — then carry it into step 6's final report; never just a final-report-only
-     mention with no trace in the issue file. This is the entire point of `/autopilot` — per the
+     mention with no trace in the task file. This is the entire point of `/autopilot` — per the
      user's own framing, "questions that come up along the way, resolve them yourself, having
      studied the problem in detail and looked at similar things in the code."
    - Do NOT stop to ask about routine follow-up steps that were implicitly part of the approved
      plan: running tests, redeploying, rerunning Playwright after a fix, writing the ADR, moving
-     the issue to `completed/`. Chain them straight through.
+     the task to `completed/`. Chain them straight through.
    - DO still stop and ask before anything the plan didn't cover and that is genuinely
      destructive/hard-to-reverse — a schema change beyond what was scoped, a force-push, deleting
      data outside a disposable dev volume, or anything matching "Executing actions with care" in
@@ -98,7 +98,7 @@ Steps:
    **`/review`'s `deep-review-orchestrator` never writes anything itself** (no `Write` tool, by
    design) — it independently dispatches and verifies two finder lenses (`dry-kiss-yagni-reviewer`
    + `solid-reviewer`), confirms every surviving candidate with its own fresh verifier subagent, and
-   returns a `ReportFindings` JSON payload plus prepared-but-unwritten issue-file content for
+   returns a `ReportFindings` JSON payload plus prepared-but-unwritten task-file content for
    anything genuinely new. `/autopilot` — not `/review` — is what applies findings and writes
    files here:
    1. `Agent({description: "Code review", subagent_type: "deep-review-orchestrator", prompt:
@@ -107,7 +107,7 @@ Steps:
       that is not this step's job (per `.claude/commands/review.md`'s own step 2).
    3. Call `ReportFindings` with the JSON payload it returns, then apply every auto-report-bucket
       finding directly (per this step's own default-to-applying rule above).
-   4. Any prepared-but-unwritten `backlog/issues/*.md` content: present it and, only after
+   4. Any prepared-but-unwritten `backlog/tasks/*.md` content: present it and, only after
       explicit approval, write it via `Write` — never automatically, per the standing Approval
       Rule (same rule `deep-review-orchestrator` itself is built to respect by having no `Write`
       tool at all).
@@ -145,9 +145,9 @@ Steps:
      If a test fails, root-cause and fix it in the same run rather than reporting a partial result
      and stopping — that's still "implementation," not a new decision point.
    Any autonomous decision made while fixing a finding or failure in any of 4a/4b/4d gets recorded
-   in the issue file, not just the final report.
+   in the task file, not just the final report.
 
-5. **Issue lifecycle.** If the task closes a backlog issue, move it to `backlog/completed/issues/`,
+5. **Task lifecycle.** If the task closes a backlog task, move it to `backlog/completed/tasks/`,
    drop its `BACKLOG.md` row, and add the one-line archive entry.
 
 6. **One final report, comprehensive but human — no file-by-file diff table.** When the whole

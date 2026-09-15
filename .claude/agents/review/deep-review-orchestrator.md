@@ -96,12 +96,12 @@ silent-drop rule as step 4.
 
 ## 6. Cross-check the backlog
 
-Search `backlog/issues/` and `backlog/completed/issues/` (via `Read`/`Grep`/`Glob`) for the same
+Search `backlog/tasks/` and `backlog/completed/tasks/` (via `Read`/`Grep`/`Glob`) for the same
 root cause, for every survivor of step 5:
 - Genuinely new → continue to step 7.
-- Already tracked in an open issue → drop it from the findings list, note the overlap in your
+- Already tracked in an open task → drop it from the findings list, note the overlap in your
   step-9 summary instead.
-- A `backlog/completed/issues/` doc contradicts what the code actually does → that mismatch is
+- A `backlog/completed/tasks/` doc contradicts what the code actually does → that mismatch is
   itself a finding; carry it into steps 7-8 alongside any real code findings.
 
 ## 7. Route by confidence
@@ -109,7 +109,7 @@ root cause, for every survivor of step 5:
 Split survivors of step 6 into two buckets by their original `confidence` field:
 - `"high"` → **auto-report bucket**: continues to steps 8-9 below.
 - `"medium"` or `"low"` → **human-review bucket**: does NOT go through `ReportFindings` or get a
-  backlog issue written automatically. List it in step 10's summary under its own "needs human
+  backlog task written automatically. List it in step 10's summary under its own "needs human
   review" heading instead — a self-contained handoff, not just a pointer: `locations`, `claim`
   (what the problem is), and `failure_scenario` (why it's a problem — the concrete
   input/state → wrong-outcome path), so a person can judge it without re-deriving the reasoning
@@ -133,15 +133,15 @@ only takes one `file`/`line` per finding — `locations[0]` fills those two fiel
 has more than one entry, append the rest to `failure_scenario` as "also see `<file>:<line>`, ..."
 so the second/third location isn't silently dropped.
 
-## 9. Prepare the issue file (do not write it)
+## 9. Prepare the task file (do not write it)
 
-You have no `Write` tool — on purpose. Writing a new `backlog/issues/*.md` file is an action the
+You have no `Write` tool — on purpose. Writing a new `backlog/tasks/*.md` file is an action the
 standing Approval Rule (`.claude/rules.md`) requires a human to approve first; an isolated subagent
 silently creating tracked backlog entries with no one in the loop would bypass that rule entirely.
 Instead, for each auto-report-bucket, non-duplicate finding, prepare the full file content you
-would have written — filename (`backlog/issues/improvement-<next-number>-<slug>.md`, next number
-found by scanning both `backlog/issues/*.md` and `backlog/completed/issues/*.md` for the highest
-existing `<prefix>-NNN` across all prefixes), and content in this project's standard issue format:
+would have written — filename (`backlog/tasks/improvement-<next-number>-<slug>.md`, next number
+found by scanning both `backlog/tasks/*.md` and `backlog/completed/tasks/*.md` for the highest
+existing `<prefix>-NNN` across all prefixes), and content in this project's standard task format:
 `**Type:**`, `**Module:**`, `**Priority:**`, `**When:**`, then `## Current state` /
 `## Why change` / `## Expected benefit` / `## Approach` / `## Related`. Human-review-bucket
 findings from step 7 do not get a prepared file here.
@@ -171,12 +171,12 @@ completion result. Fill:
 ## 10. Return your final result
 
 A short summary — what was checked (the resolved scope), what's new (auto-report bucket), what
-overlapped with an existing issue, any doc/code mismatch found, and a separate "needs human
+overlapped with an existing task, any doc/code mismatch found, and a separate "needs human
 review" list for every medium/low-confidence survivor from step 7 — followed by:
 - step 8's ```json `ReportFindings` payload block, with "Call ReportFindings with the JSON above."
 - for each finding prepared in step 9: its full filename + file content + Operational notes block,
   each in its own fenced block, with "Present this to the user and, once approved, write it to
-  `backlog/issues/` — do not write it without asking first."
+  `backlog/tasks/` — do not write it without asking first."
 
 Never the raw text of any subagent's report, your own intermediate reasoning, or a restatement of
 this procedure.
@@ -186,7 +186,7 @@ this procedure.
 - **Verify, don't relay.** Every finding must be checked against the actual current file content
   before steps 8-9, no matter how it was found.
 - **Never write anything.** You have no `Write` tool at all — read-only against source files, and
-  a prepared-but-unwritten `backlog/issues/` file per step 9, never written directly.
+  a prepared-but-unwritten `backlog/tasks/` file per step 9, never written directly.
 - **High signal only.** Do not flag: pre-existing issues outside scope, style nitpicks, anything a
   linter or `ArchitectureRulesTest` would already catch, or a deliberate, documented exception
   (check `DECISIONS.md` first).

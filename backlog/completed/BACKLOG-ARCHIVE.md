@@ -1,7 +1,7 @@
 # Backlog Archive — completed work history
 
 Chronological record of everything resolved from [BACKLOG.md](BACKLOG.md). Each entry documents
-what shipped, how it was verified, and links to the corresponding file in `completed/issues/` (or
+what shipped, how it was verified, and links to the corresponding file in `completed/tasks/` (or
 a legacy `completed/<name>/` folder for pre-issue-convention work — see
 [Maintenance rules](BACKLOG.md#maintenance-rules)). This file is never reordered — entries stay in
 the order they were done, oldest first within each wave.
@@ -15,11 +15,11 @@ the order they were done, oldest first within each wave.
 0f02b91d), virtual threads (commit 0f02b91d), DelegatingPasswordEncoder (commit 0f02b91d),
 owasp-sanitizer bump 20240325.1→20260313.1 (commit a9ed6d7e) — all verified with a full
 reactor build, `deploy-dev.sh`, and a green 46/46 e2e run each time. Resolved issues moved to
-`completed/issues/`.
+`completed/tasks/`.
 
 Also fixed this session, not originally tracked as Week-0 items: a Quill false-dirty-state bug
 and 3-layer description length validation (commit b7d64cc2 — closes
-`completed/issues/issue-description-length-tag-spam.md`, unblocks improvement-006; see
+`completed/tasks/issue-description-length-tag-spam.md`, unblocks improvement-006; see
 `marketplace-app/DECISIONS.md` ADR-021 update and ADR-024).
 
 ✅ Done (2026-07-10): buildx + BuildKit cache mounts (Part 1/3 of process-improvements, commit
@@ -35,7 +35,7 @@ every build, incompatible with a fixed cache mountpoint.
 
 ✅ Done (2026-07-04): improvement-005 — plain-text card excerpt (Jsoup `.text()` instead of raw
 `innerHTML`) + sanitizer allowlist merge (`<pre>` added, `mailto:`/extra tags kept as accepted
-divergence). Moved to `completed/issues/`. Updated an outdated Playwright assertion
+divergence). Moved to `completed/tasks/`. Updated an outdated Playwright assertion
 (`e2e/_flows/advertisement.flow.js`, card step) that expected rich HTML tags in the card —
 full e2e 46/46 green.
 
@@ -52,14 +52,14 @@ doesn't apply to this app's single-route Vaadin SPA model, and the resulting pro
 future REST controllers. Rate limiting (Caffeine, `AuthService.login()` /
 `UserService.register()`) implemented, then corrected to count only real failures — not
 successes — after it broke bulk e2e signups from a shared IP (see ADR-026). Moved to
-`completed/issues/`. Full e2e suite 47/47 green (47, not 46 — new `rateLimitUser` test added to
+`completed/tasks/`. Full e2e suite 47/47 green (47, not 46 — new `rateLimitUser` test added to
 spec 02).
 
 ✅ Done (2026-07-11): improvement-007 — `TaxonPort.findByIds()` bulk lookup (kills the N+1 in
 `DefaultTaxonPort.resolveDtos()`/`buildDtoIndex()`) + `AttachmentSnapshotService
 .captureAndGetId()`. Bundled with improvement-004 — `PaginationSqlBuilder` extracted to
 query-lib, `deleted_by` added to `taxon` (edited directly into `001-taxon.xml` since the DB
-isn't in production yet, not a new migration). Both moved to `completed/issues/`. Editing an
+isn't in production yet, not a new migration). Both moved to `completed/tasks/`. Editing an
 already-applied changeset required a full `deploy.sh --reset` (Liquibase checksum mismatch
 otherwise). Full e2e suite 47/47 green.
 
@@ -69,7 +69,7 @@ otherwise). Full e2e suite 47/47 green.
 proxy instead of Render's own edge address. See `marketplace-app/DECISIONS.md` ADR-027 (also
 records why a coarser global backstop limiter was considered and dropped — registration
 failures have no natural per-target key to count against, unlike login). Moved to
-`completed/issues/`. Full e2e suite 47/47 green. Note: whether Render actually forwards
+`completed/tasks/`. Full e2e suite 47/47 green. Note: whether Render actually forwards
 `X-Forwarded-For` isn't verifiable from this dev environment — worth confirming once actually
 deployed.
 
@@ -83,14 +83,14 @@ rows. The `*ActivityFieldsHookImpl` label mappings were already complete — the
 `AuditTimelineRowRenderer.buildEntityChangesDiv()` never called `labelHook.labelFor()`. Fixed by
 threading the resolved `AuditActivityFieldsHook` through both call sites (Timeline enrich-hook
 branch, overlay Activity-tab overload); see `marketplace-app/DECISIONS.md` ADR-030. Moved to
-`completed/issues/`. Updated one Playwright assertion from a raw-field-tolerant regex to the
+`completed/tasks/`. Updated one Playwright assertion from a raw-field-tolerant regex to the
 actual humanized label. Full e2e suite 48/48 green.
 
 **Wave 2 is now fully complete except for independent, unblocked items — see `BACKLOG.md`'s
 Wave 2 "Still open, no longer blocked" / "Migrated" tables.**
 
 ✅ Done (2026-07-04): tag-spam validator + 3-layer Jsoup-based length validation
-(`issue-description-length-tag-spam` → moved to `completed/issues/`), alongside a fix for a
+(`issue-description-length-tag-spam` → moved to `completed/tasks/`), alongside a fix for a
 Quill false-dirty-state bug (edit form showed Save/Discard as active on open for rich-text
 descriptions — not separately tracked as an issue, fixed directly; see
 `marketplace-app/DECISIONS.md` ADR-021 update). Full e2e 46/46 green.
@@ -99,7 +99,7 @@ descriptions — not separately tracked as an issue, fixed directly; see
 bleed (real multi-user bug: user X's page size change was silently applied to every other
 logged-in user's live grid) + UI-reference leak risk (cleanup relied solely on `@PreDestroy`).
 Fixed by adding `userId` ownership to `BindingEntry` and a `bar.addDetachListener(...)` safety
-net; see `marketplace-app/DECISIONS.md` ADR-028. Moved to `completed/issues/`. Extended the
+net; see `marketplace-app/DECISIONS.md` ADR-028. Moved to `completed/tasks/`. Extended the
 existing page-size Playwright test with a second-session bleed check instead of a new spec
 file. Full e2e suite 47/47 green.
 
@@ -108,7 +108,7 @@ file. Full e2e suite 47/47 green.
 yet in production); `@Version` on all three entities, with a manual guard for `User` (its real
 edit path bypasses `CrudRepository`) and for `softDelete` on `Advertisement`/`Taxon`. UI shows a
 dedicated conflict notification, no auto-reload (see `marketplace-app/DECISIONS.md` ADR-029,
-`platform-commons/DECISIONS.md` ADR-019). Moved to `completed/issues/`. New Playwright test:
+`platform-commons/DECISIONS.md` ADR-019). Moved to `completed/tasks/`. New Playwright test:
 two-session concurrent edit, stale save shows conflict instead of silently overwriting. Full e2e
 suite green.
 
@@ -120,7 +120,7 @@ suite green.
 `user_information` table via its own `UserProfileCrudRepository` — the sensitive-field-overwrite
 risk this refactor would otherwise carry is closed at the type level (those fields aren't mapped
 properties, so the generated `UPDATE` can't reference them), not by builder discipline. See
-`marketplace-app/DECISIONS.md` ADR-029 update. Moved to `completed/issues/`.
+`marketplace-app/DECISIONS.md` ADR-029 update. Moved to `completed/tasks/`.
 
 ✅ Done (2026-07-14): improvement-041 — `AdvertisementRepository`'s raw SQL
 `LEFT JOIN user_information` removed (both `findAdvertisementById()` and `findByFilter()`),
@@ -132,7 +132,7 @@ Taxon's convention: `created_by_user_id`→`created_by`, `last_modified_by_user_
 `deleted_by_user_id`→`deleted_by` (`01-advertisement-schema.xml` edited directly, `deploy.sh
 --reset` required). See `marketplace-app/DECISIONS.md` ADR-034 (also records the sort-by-author
 escape hatch for the future: denormalize via a hook, like `media_url`, never rejoin or sort
-in-memory post-pagination). Moved to `completed/issues/`.
+in-memory post-pagination). Moved to `completed/tasks/`.
 
 ✅ Done (2026-07-14): improvement-042 — `advertisement.media_url`/`media_content_type`/
 `media_count` denormalized columns removed. New `AttachmentPort.getMediaSummaries()` bulk lookup
@@ -143,7 +143,7 @@ entirely, not just emptied: `MediaChangeHookImpl`, `AdvertisementService.onMedia
 `AdvertisementPort.onMediaChanged()` (confirmed unused by marketplace-app) are all gone —
 `AttachmentMediaChangeHook` still fires from `AttachmentService` but now has zero listeners, a
 valid gracefully-degraded state. Three dead media sort-aliases removed alongside the columns. See
-`marketplace-app/DECISIONS.md` ADR-035. Moved to `completed/issues/`.
+`marketplace-app/DECISIONS.md` ADR-035. Moved to `completed/tasks/`.
 
 ✅ Done (2026-07-14): improvement-043 — `OrderByBuilder.build()` no longer snake-cases the
 incoming `Sort.Order` property before lookup; every repository's alias map is now keyed by the
@@ -154,29 +154,29 @@ instance of the exact bug this issue
 warns about while re-keying: `TaxonRepository.SORT_ALIASES` had `"createdAt"`/`"updatedAt"` keys
 in camelCase (not snake_case like Advertisement/User), which never matched the snake-cased lookup
 — silently dead, harmless only because `DefaultTaxonPort` always hardcodes `Sort.by("id")` and
-never lets a caller choose. No SQL/behavior change elsewhere. Moved to `completed/issues/`.
+never lets a caller choose. No SQL/behavior change elsewhere. Moved to `completed/tasks/`.
 
-✅ Done (2026-07-15): [improvement-051](completed/issues/improvement-051-parallel-test-suite-orchestration.md)
+✅ Done (2026-07-15): [improvement-051](completed/tasks/improvement-051-parallel-test-suite-orchestration.md)
 — `scripts/run-all-tests.sh`: `unit-tests.sh` → `integration-tests.sh` sequential (both can race on
 the same starter modules' `target/` dirs), `playwright.sh` parallel from the start (no Maven
 reactor overlap); `/run-all-tests` slash command added. End-to-end run confirmed both the
 sequencing and failure-detection paths. Committed in `a699a990`; issue file moved to
-`completed/issues/` afterward (bookkeeping only, no code change).
+`completed/tasks/` afterward (bookkeeping only, no code change).
 
-✅ Done (2026-07-15): [improvement-054](completed/issues/improvement-054-unbounded-in-clause-taxon-assignment-attachment.md)
+✅ Done (2026-07-15): [improvement-054](completed/tasks/improvement-054-unbounded-in-clause-taxon-assignment-attachment.md)
 — `TaxonAssignmentRepository.findAllByEntities()` and `AttachmentRepository.deleteByUrls()` both
 switched from `IN (:set)` to `= ANY(:array)`, reusing the array-bind fix improvement-050 item 2
 already proved (ADR-036) — no caller-side changes needed. `TaxonAssignmentRepositoryTest` 8/8,
 `AttachmentRepositoryTest` 8/8, full `integration-tests` suite 83/83.
 
-✅ Done (2026-07-15): [improvement-045](completed/issues/improvement-045-critical-test-coverage-gaps.md)
+✅ Done (2026-07-15): [improvement-045](completed/tasks/improvement-045-critical-test-coverage-gaps.md)
 — all 8 critical untested code paths covered: `AccessEvaluatorTest` (17/17) +
 `AuthServiceTest`/`UserServiceTest` (5/5 each) + `UserRepositoryTest` (3/3) + `TaxonRepository`
 soft-delete SQL fix + `TaxonPortTranslationFallbackTest` (4/4) + `UserServiceRestoreTest` (2/2 —
 tested via public `UserService.restoreToSnapshot()`, see `integration-tests/DECISIONS.md` ADR-008,
 not the private `applyUserRestore()`) + `SettingsSnapshotDtoTest` (6/6).
 
-✅ Done (2026-07-15): [improvement-049](completed/issues/improvement-049-taxon-attachment-incomplete-rollback-bugs.md)
+✅ Done (2026-07-15): [improvement-049](completed/tasks/improvement-049-taxon-attachment-incomplete-rollback-bugs.md)
 — all 4 real bugs fixed and TDD-verified: `TaxonService.update()` now forwards `deletedBy`
 (`TaxonServiceTest` 2/2); `AttachmentService.commitTempUploadsQuiet()`'s `storageService.move()`
 moved inside the `try` so mid-batch failures clean up already-moved files (`AttachmentServiceTest`
@@ -188,9 +188,9 @@ delete actually commits before the S3 loop runs, not just textually reordered
 (`AttachmentCleanupServiceTest` 2/2, `InOrder`-verified). Full `integration-tests` suite: 49/49,
 twice consecutively.
 
-✅ Done (2026-07-15): [improvement-050](completed/issues/improvement-050-toctou-scalability-locale-audit-tiebreak.md)
+✅ Done (2026-07-15): [improvement-050](completed/tasks/improvement-050-toctou-scalability-locale-audit-tiebreak.md)
 — all 5 findings resolved: item 1 extracted to
-[improvement-052](issues/improvement-052-first-admin-registration-toctou-race.md) (deliberately
+[improvement-052](tasks/improvement-052-first-admin-registration-toctou-race.md) (deliberately
 deferred, accepted risk); item 2 fixed via `= ANY()` array binding instead of `IN (:set)` —
 removes the parameter-count risk without the real-data-volume answer or a JOIN-based rewrite that
 would have reversed ADR-034 (`AdvertisementRepositoryTest` 9/9, see `marketplace-app/DECISIONS.md`
@@ -201,7 +201,7 @@ improvement-027 Batch-3 test); item 5's Liquibase default updated after confirmi
 `UserSettingsDtoTest` (2/2) it wasn't a live bug. Full `integration-tests` suite: 56/56, twice
 consecutively.
 
-✅ Done (2026-07-15): [improvement-027](completed/issues/improvement-027-unit-testcontainers-test-layer.md)
+✅ Done (2026-07-15): [improvement-027](completed/tasks/improvement-027-unit-testcontainers-test-layer.md)
 — Batches 0-3 all complete, the `integration-tests` module's original scope fully delivered.
 Batch 2 (plain unit tests): `TaxonSnapshotDto.diff()` (7/7) and `AdvertisementService
 .sanitizeHtml()` (`AdvertisementServiceHtmlSanitizationTest` 4/4, tested through the real public
@@ -215,7 +215,7 @@ fixed:** `TaxonAssignmentRepository.findAllByEntities()` and `AttachmentReposito
 both still have the same unbounded `IN (:set)` shape improvement-050 item 2 already fixed once for
 `AdvertisementRepository` — flagged in the issue, not fixed as part of this batch (test-coverage
 scope, not a second performance pass). Full `integration-tests` suite: 83/83, twice consecutively.
-(Fixed the same day — see [improvement-054](completed/issues/improvement-054-unbounded-in-clause-taxon-assignment-attachment.md).)
+(Fixed the same day — see [improvement-054](completed/tasks/improvement-054-unbounded-in-clause-taxon-assignment-attachment.md).)
 
 ✅ Done (2026-07-13): improvement-011 — UI components hard-injecting starter ports
 (`AttachmentGalleryService`, `AttachmentGallery`, `AuditActivityPanel`). The consolidated
@@ -225,7 +225,7 @@ Fixed instead with plain `ComponentFactory<Port>` wrapping (Option A) plus movin
 availability gate at six call sites from the wrapping UI factory to the port's own factory; two
 pre-existing instances of the same wrong-level gate were found and fixed in
 `TaxonFormOverlayModeHandler`/`UserFormOverlayModeHandler` along the way. See
-`marketplace-app/DECISIONS.md` ADR-033. Moved to `completed/issues/`. Full e2e suite 48/48 green.
+`marketplace-app/DECISIONS.md` ADR-033. Moved to `completed/tasks/`. Full e2e suite 48/48 green.
 
 ✅ Done (2026-07-13): improvement-023 — `RequestCorrelationFilter` (MDC `requestId`, 8-char
 console pattern) + closed silent-logging gaps found during the review: `TaxonService`,
@@ -233,7 +233,7 @@ console pattern) + closed silent-logging gaps found during the review: `TaxonSer
 `TaxonAssignmentService`, `AttachmentSnapshotService`, `UserSettingsService`,
 `AdvertisementSaveService`, both cleanup services (now log deleted-row counts, not just "ran"),
 and `LoginDialog`'s missing catch-all exception log. See `marketplace-app/DECISIONS.md`
-ADR-032. Moved to `completed/issues/`. Verified via `docker logs` — distinct requestId per
+ADR-032. Moved to `completed/tasks/`. Verified via `docker logs` — distinct requestId per
 request. Full e2e suite 48/48 green.
 
 ✅ Done (2026-07-13): improvement-006 — `QuillEditor` character counter ("N / 2000", reads
@@ -242,10 +242,10 @@ request. Full e2e suite 48/48 green.
 raw HTML including formatting tags, and 20000 is the already-established raw-size cap
 (`DESCRIPTION_RAW_MAX_LENGTH`, ADR-024), not the 2000 visible-text limit. Capping at 2000 would
 have rejected legitimately-formatted descriptions. See `marketplace-app/DECISIONS.md` ADR-031.
-Moved to `completed/issues/`. Counter visually confirmed via Playwright screenshot. Full e2e
+Moved to `completed/tasks/`. Counter visually confirmed via Playwright screenshot. Full e2e
 suite 48/48 green.
 
-✅ Done (2026-07-16): [improvement-026](issues/improvement-026-duplicate-raw-buttons-instead-of-ui-button-wrappers.md)
+✅ Done (2026-07-16): [improvement-026](tasks/improvement-026-duplicate-raw-buttons-instead-of-ui-button-wrappers.md)
 — raw `new Button(...)` spots converted to `Ui*Button` wrappers across 4 phased batches: Batch 1
 `HeaderBar` (4 auth buttons → `UiPrimaryButton`, CSS classes preserved exactly for Playwright's
 login-check selectors), Batch 2 `PaginationBar` (4 nav buttons → `UiIconButton`), Batch 3
@@ -259,13 +259,13 @@ regression was found and fixed during verification: giving `UserPickerField`'s c
 tooltip for the first time broke `e2e/_flows/filter.flow.js`'s shared `clearFilter()`/
 `applyFilter()` helpers (selector collision inside `TimelineQueryBlock`) — fixed by scoping both
 helpers to `.query-action-block`. `NotificationService`'s close-button decision extracted to
-[improvement-057](issues/improvement-057-notificationservice-close-button-decision.md);
+[improvement-057](tasks/improvement-057-notificationservice-close-button-decision.md);
 `UserPickerField`'s inline search-button gap plus an unrelated pagination-correctness bug
 extracted to
-[improvement-056](issues/improvement-056-userpickerfield-inline-button-gap-and-pagination-bug.md).
+[improvement-056](tasks/improvement-056-userpickerfield-inline-button-gap-and-pagination-bug.md).
 See `marketplace-app/DECISIONS.md` ADR-037.
 
-✅ Done (2026-07-16): [improvement-037](issues/improvement-037-accessibility-contrast-and-aria.md)
+✅ Done (2026-07-16): [improvement-037](tasks/improvement-037-accessibility-contrast-and-aria.md)
 — WCAG AA contrast failure fixed via full theme-CSS tokenization (49 unique hex colors / ~180
 occurrences across 21 files named as `--app-*` custom properties in `styles.css`'s `:root`,
 bigger scope than originally requested but done together with improvement-039's identical
@@ -281,7 +281,7 @@ treatment. Verified twice with full `deploy.sh` + `bash scripts/playwright.sh e2
 compliant `#64748b`. improvement-039 (dark mode) is now unblocked at the infrastructure level —
 its own prerequisite shipped here, only the actual dark palette + toggle remain.
 
-✅ Done (2026-07-16): [improvement-031](issues/improvement-031-maven-enforcer-plugin.md) — Maven
+✅ Done (2026-07-16): [improvement-031](tasks/improvement-031-maven-enforcer-plugin.md) — Maven
 Enforcer added to root `pom.xml` (`dependencyConvergence`, `requireJavaVersion [25,)`,
 `requireMavenVersion [3.9,)`, active for every module via inheritance) plus a `bannedDependencies`
 starter-to-starter ban activated individually in each of the 5 starter poms (not at the root,
@@ -293,7 +293,7 @@ caught a genuine `commons-text` version conflict via `liquibase-core`'s two depe
 (1.15.0 direct vs. 1.13.1 via opencsv — pinned to 1.15.0). Verified via full `deploy.sh --no-cache`
 + `bash scripts/playwright.sh e2e --full --ux`, 48/48. See `marketplace-app/DECISIONS.md` ADR-039.
 
-✅ Done (2026-07-16): [improvement-059](issues/improvement-059-local-isolated-parameterized-ci-runner.md)
+✅ Done (2026-07-16): [improvement-059](tasks/improvement-059-local-isolated-parameterized-ci-runner.md)
 — local, isolated, parameterized CI runner: one `scripts/ci/Dockerfile` container
 (Docker-outside-of-Docker — host's `docker.sock` mounted, `--network host`), run via
 `scripts/ci.sh --unit/--integration/--e2e/--sonar/--all`. Isolated e2e stack reuses the
@@ -318,7 +318,7 @@ during a `scripts/ci.sh` run (data survived in untouched named volumes, containe
 moving both behind a new, opt-in `deploy.sh --prune-all` flag rather than dropping the capability.
 improvement-028 (GitHub Actions) is now unblocked. See `scripts/ci/DECISIONS.md` ADR-001.
 
-✅ Done (2026-07-16): [improvement-032](issues/improvement-032-sonarqube-quality-gate-blocking.md)
+✅ Done (2026-07-16): [improvement-032](tasks/improvement-032-sonarqube-quality-gate-blocking.md)
 — `scripts/sonar/run.sh` now passes `-Dsonar.qualitygate.wait=true` by default (script exits
 non-zero if the gate is `ERROR`), with `--no-gate` restoring the old informational-only behavior.
 `scripts/ci.sh`'s `sonar` stage takes the default. Turning this on surfaced a real bug that would
@@ -332,19 +332,19 @@ gate failure. Verified directly both ways: default mode correctly exits `3` on a
 stage as `FAILED` until those 35 issues are addressed or the gate reconfigured — intended, not a
 bug. See `scripts/sonar/DECISIONS.md` (2026-07-16 entry).
 
-✅ Done (2026-07-16): [improvement-034](issues/improvement-034-feature-workflow-standardization.md)
+✅ Done (2026-07-16): [improvement-034](tasks/improvement-034-feature-workflow-standardization.md)
 — `/feature <title>` skill (`.claude/commands/feature.md`) scaffolds a new
-`backlog/issues/<prefix>-NNN-<slug>.md` from the shape already in consistent use across this
-backlog (auto-numbered across both `backlog/issues/` and `backlog/completed/issues/`, filled from
+`backlog/tasks/<prefix>-NNN-<slug>.md` from the shape already in consistent use across this
+backlog (auto-numbered across both `backlog/tasks/` and `backlog/completed/tasks/`, filled from
 conversation context, reading source first when needed rather than leaving placeholders), and
 inserts a ranked row into `BACKLOG.md`'s priority table in the same operation — enforcing the
 `.claude/rules.md` "Issue Lifecycle" rule automatically. Corrected from the original wording along
 the way: the issue originally proposed a `backlog/<name>/SPEC.md`-per-directory template, citing
 `backlog/entity-extensions/SPEC.md` as an example — confirmed neither that file nor any other
-`SPEC.md` exists anywhere in the repo anymore; retargeted to formalize the `backlog/issues/`
+`SPEC.md` exists anywhere in the repo anymore; retargeted to formalize the `backlog/tasks/`
 one-file-per-issue shape that actually won out in practice instead.
 
-✅ Done (2026-07-16): [improvement-030](issues/improvement-030-archunit-test-module.md) — ArchUnit
+✅ Done (2026-07-16): [improvement-030](tasks/improvement-030-archunit-test-module.md) — ArchUnit
 (`com.tngtech.archunit:archunit-junit5:1.4.2`) added to `marketplace-app`'s existing test tree
 (`src/test/java/org/ost/marketplace/architecture/ArchitectureRulesTest.java`), not a new module —
 `marketplace-app` already depends on every starter + `platform-commons` + `query-lib`, so its test
@@ -367,7 +367,7 @@ dependency-direction rule ArchUnit expresses cleanly) — still open, needs its 
 unblocked improvement-033 (`/quality-gate` skill), whose three prerequisites (027/030/032) are now
 all done.
 
-✅ Done (2026-07-17): [improvement-056](issues/improvement-056-userpickerfield-inline-button-gap-and-pagination-bug.md) —
+✅ Done (2026-07-17): [improvement-056](tasks/improvement-056-userpickerfield-inline-button-gap-and-pagination-bug.md) —
 `UserPickerField`'s `CallbackDataProvider` offset→page pagination bug fixed via a new
 `OffsetPageable` (`query-lib`), a `Pageable` carrying a raw offset directly, plus a new
 `UserPort.getFilteredByOffset()` method — the repository's SQL needed no changes at all, since it
@@ -381,7 +381,7 @@ to `fillActorPicker`, specifically to exercise the previously-buggy path. Verifi
 `bash scripts/playwright.sh e2e --full --ux`, 48/48 passed. See `marketplace-app/DECISIONS.md`
 ADR-042.
 
-✅ Closed, not fixed (2026-07-17): [improvement-074](issues/improvement-074-mockito-self-attach-dynamic-agent-slow-first-test.md) —
+✅ Closed, not fixed (2026-07-17): [improvement-074](tasks/improvement-074-mockito-self-attach-dynamic-agent-slow-first-test.md) —
 investigation into the ~40-90s delay on whichever test runs first in each Maven test JVM fork. The
 original diagnosis (Mockito's dynamic self-attach) was disproven: configuring Mockito as a real
 `-javaagent` removed the self-attach warning but not the delay. JFR profiling
@@ -395,7 +395,7 @@ specific delay unchanged at ~43s). Root cause of the JUnit-launcher-session clas
 remains unidentified; all experimental changes reverted, nothing applied to the repo or
 environment. Closed as investigated-not-fixed rather than left open against a disproven diagnosis.
 
-✅ Done (2026-07-17): [improvement-058](issues/improvement-058-taxon-assignment-audit-trail-missing.md) —
+✅ Done (2026-07-17): [improvement-058](tasks/improvement-058-taxon-assignment-audit-trail-missing.md) —
 the Timeline tab (global activity feed) showed raw taxon ids instead of resolved category names in
 audit diffs, while the per-advertisement Activity tab already showed names correctly for the same
 data. Original framing (based on ADR-019's "must be audited" text) overstated the gap as "taxon
@@ -422,7 +422,7 @@ Playwright suite (48/48) — including a new `changesText: 'Vehicles'` assertion
 `04-marketplace-advertisement-flow.spec.js` proving the Timeline row now shows the resolved
 category name, not a raw id.
 
-✅ Done (2026-07-17): [improvement-066](issues/improvement-066-usersettingsrepository-missing-version-check.md) —
+✅ Done (2026-07-17): [improvement-066](tasks/improvement-066-usersettingsrepository-missing-version-check.md) —
 `UserSettingsRepository.save()` had no optimistic-locking version check at all, unlike every other
 mutable entity in this codebase (ADR-029) — two browser tabs of the same user editing settings
 could silently clobber each other, last-write-wins on the whole JSONB blob, no conflict signal.
@@ -443,7 +443,7 @@ already-applied changeset's `defaultValue` has no retroactive effect). Documente
 Playwright regression run (48/48 — no new Playwright assertions added, per explicit direction that
 dry-test coverage was sufficient for this fix).
 
-✅ Done (2026-07-17): [improvement-048](issues/improvement-048-service-layer-test-coverage.md) —
+✅ Done (2026-07-17): [improvement-048](tasks/improvement-048-service-layer-test-coverage.md) —
 `marketplace-app`'s non-UI service layer (`org.ost.marketplace.services.*`, zero `com.vaadin.*`
 imports) had no dedicated test tree, unlike the precedent already set by improvement-045's
 `AccessEvaluatorTest`. Added `services/advertisement/AdvertisementSaveServiceTest` (5 tests: create
@@ -462,7 +462,7 @@ mocked directly (a plain non-final class); Mockito's default-empty-values behavi
 `bash scripts/unit-tests.sh marketplace-app` — BUILD SUCCESS, all 19 new tests green, plus
 `ArchitectureRulesTest` (8/8) confirming no ArchUnit violations.
 
-✅ Done (2026-07-17): [improvement-047](issues/improvement-047-integration-tests-ci-safety.md) —
+✅ Done (2026-07-17): [improvement-047](tasks/improvement-047-integration-tests-ci-safety.md) —
 a plain `mvn install`/`mvn test` from the repo root silently required a reachable Docker daemon,
 because every Testcontainers-backed test in `integration-tests` ran unconditionally; a missing
 Docker daemon surfaced as an unclear failure deep inside Testcontainers' own connection probing.
@@ -486,7 +486,7 @@ delegation to it. Full design rationale — including why this doesn't repeat
 pattern, since `SharedEnvConfig` is this module's own internal test-support plumbing rather than a
 starter's shipped production surface — is in ADR-010.
 
-✅ Done (2026-07-17): [improvement-044](issues/improvement-044-shared-env-config-consolidation.md) —
+✅ Done (2026-07-17): [improvement-044](tasks/improvement-044-shared-env-config-consolidation.md) —
 DB credentials (`experiments`/`experiments_user`/`experiments_user_password`) and MinIO/S3
 credentials (`admin`/`admin12345`, bucket `advertisement`, region `us-east-1`) were each hardcoded
 independently across 4-5 files of different formats (`docker-compose.db.yml`/`.minio.yml`/
@@ -509,7 +509,7 @@ value despite sharing the same number today. Documented in `scripts/DECISIONS.md
 Verified via a full `bash scripts/deploy.sh --reset` (fresh DB/MinIO volumes+containers+image) and
 a full e2e Playwright run, 48/48 green.
 
-✅ Done (2026-07-18): [improvement-061](issues/improvement-061-supportutil-tolong-silent-truncation-id-filter.md) —
+✅ Done (2026-07-18): [improvement-061](tasks/improvement-061-supportutil-tolong-silent-truncation-id-filter.md) —
 the user id range filter used a `Double`-backed `NumberField` with `SupportUtil.toLong(Double)`
 (`value.longValue()`) silently truncating fractional input (`123.99` → `123`) with no validation
 error. The issue's own suggested fix (add a whole-number check to the DTO-level `idValid`
@@ -528,7 +528,7 @@ removed (zero other callers). Documented in `marketplace-app/DECISIONS.md` ADR-0
 (typing `1.5` sets Vaadin's `invalid` attribute, typing `1` clears it) — full e2e suite 48/48
 green.
 
-✅ Done (2026-07-18): [improvement-079](issues/improvement-079-formoverlaymodehandler-activity-tab-duplication-and-userid-bug.md) —
+✅ Done (2026-07-18): [improvement-079](tasks/improvement-079-formoverlaymodehandler-activity-tab-duplication-and-userid-bug.md) —
 `UserFormOverlayModeHandler.buildActivityContent()` passed `.userId(params.getUser().id())` (the
 profile subject) into `AuditActivityPanel.Parameters` instead of the acting viewer's id, unlike
 `AdvertisementFormOverlayModeHandler`/`TaxonFormOverlayModeHandler` which both correctly pass
@@ -542,7 +542,7 @@ independently duplicated across all three form handlers, into a new
 @lombok.Builder` parameter object per the "5+ fields" convention; `formTabs`/`editTab` moved from
 per-subclass private fields to `protected` base-class fields; Taxon's own now-redundant private
 `buildContentWithActivity(Div)` helper was deleted outright. See `marketplace-app/DECISIONS.md`
-ADR-046. Moved to `completed/issues/`. New `UserFormOverlayModeHandlerTest` (plain Mockito, no
+ADR-046. Moved to `completed/tasks/`. New `UserFormOverlayModeHandlerTest` (plain Mockito, no
 Spring context) constructs the handler with a viewer id deliberately different from the
 profile-subject id and asserts the panel receives the viewer's id — fails pre-fix, passes post-fix;
 no Playwright test added since the buggy path isn't reachable through any real UI flow today (see
@@ -550,16 +550,16 @@ masking note above). Full e2e suite (specs 01-06, `--ux`) re-run after the chang
 non-skipped tests green, including the User/Advertisement/Taxon activity-tab flows this refactor
 directly touches.
 
-✅ Done (2026-07-18): [improvement-060](issues/improvement-060-advertisementenrichservice-listallbytype-instead-of-findbyids.md) —
+✅ Done (2026-07-18): [improvement-060](tasks/improvement-060-advertisementenrichservice-listallbytype-instead-of-findbyids.md) —
 found already resolved on re-check: the issue's target method (`resolveCategoryNames()`, using
 `listAllByType()` + an in-memory `.filter()`) no longer exists under that shape.
 `AdvertisementEnrichService.resolveNames()` (its current form) already calls the bulk
 `TaxonPort.findByIds(ids, Locale.ENGLISH)` lookup the issue was asking for — a side effect of
 improvement-058 (2026-07-17, "Timeline tab resolves category names instead of raw taxon ids"),
 which rewrote this method for an unrelated reason and picked up the same fix along the way. No
-code change needed; moved directly to `completed/issues/`.
+code change needed; moved directly to `completed/tasks/`.
 
-✅ Done (2026-07-18): [improvement-067](issues/improvement-067-taxontranslationrepository-unbounded-in-clause.md) —
+✅ Done (2026-07-18): [improvement-067](tasks/improvement-067-taxontranslationrepository-unbounded-in-clause.md) —
 `TaxonTranslationRepository.findAllByTaxonIds()` was the one method improvement-054 missed when it
 fixed this same unbounded-`IN`-clause pattern in `TaxonAssignmentRepository`/`AttachmentRepository`.
 Switched to `WHERE taxon_id = ANY(:taxonIds)` with `taxonIds.toArray(new Long[0])`, matching the
@@ -574,8 +574,8 @@ public entry point that drives it with more than one id
 via `bash scripts/integration-tests.sh --sandbox TaxonPortTranslationFallbackTest` — 6/6 green
 (5 pre-existing + the new one).
 
-✅ Done (2026-07-18): [improvement-064](issues/improvement-064-s3storageservice-inputstream-not-closed.md) +
-[improvement-069](issues/improvement-069-attachment-s3-move-inside-db-transaction-orphans-on-rollback.md) —
+✅ Done (2026-07-18): [improvement-064](tasks/improvement-064-s3storageservice-inputstream-not-closed.md) +
+[improvement-069](tasks/improvement-069-attachment-s3-move-inside-db-transaction-orphans-on-rollback.md) —
 fixed together, both touch the attachment upload/cleanup path. improvement-064:
 `AttachmentService.upload()`/`uploadTemp()` now explicitly close the `InputStream` they're given
 (AWS SDK v2's `RequestBody.fromInputStream()` documents that it never does) via a `closeQuietly()`
@@ -598,7 +598,7 @@ and `marketplace-app/DECISIONS.md` ADR-047. New tests: `AttachmentServiceTest` (
 AttachmentServiceTest,AttachmentCleanupServiceTest` (8/8) and `AttachmentRepositoryTest` (8/8, real
 Postgres), plus a full Playwright e2e pass (35/35 non-skipped).
 
-✅ Done (2026-07-18): [improvement-070](issues/improvement-070-attachmentsnapshotrepository-unsafe-array-cast-silent-swallow.md) —
+✅ Done (2026-07-18): [improvement-070](tasks/improvement-070-attachmentsnapshotrepository-unsafe-array-cast-silent-swallow.md) —
 `AttachmentSnapshotRepository.extractUrls()`'s unsafe `(String[])` cast (resting on driver
 convention, not a `java.sql.Array` contract guarantee) wrapped in a silent `catch (Exception _)`.
 Rejected the initially-proposed `(Object[])` cast + `Stream.of(...).map(String::valueOf)` fix on
@@ -613,7 +613,7 @@ attachment-domain integration test sweep (`AttachmentServiceTest`, `AttachmentSe
 `AttachmentSnapshotRepositoryTest`, `AttachmentCleanupServiceTest`, `AttachmentRepositoryTest`) —
 21/21 green, no regression in adjacent tests.
 
-✅ Done (2026-07-18): [improvement-068](issues/improvement-068-attachment-audit-shows-uuid-not-original-filename.md) —
+✅ Done (2026-07-18): [improvement-068](tasks/improvement-068-attachment-audit-shows-uuid-not-original-filename.md) —
 `AttachmentSnapshotService.filename(url)` derived the displayed media name from the S3 object key
 (always `UUID + extension`), so Activity/Timeline diffs showed meaningless UUIDs instead of the
 uploaded file's real name. A dedicated research pass (user-prompted: "check whether this applies
@@ -630,7 +630,7 @@ tests, plain Mockito) covers real-name resolution, the no-match fallback, `getMe
 and the duplicate-filename-no-collision case. Full attachment-domain integration sweep (25/25) and
 a full Playwright e2e pass (35/35 non-skipped) both green.
 
-✅ Done (2026-07-18): [improvement-071](issues/improvement-071-taxonformoverlaymodehandler-raw-uicomponentfactory.md) —
+✅ Done (2026-07-18): [improvement-071](tasks/improvement-071-taxonformoverlaymodehandler-raw-uicomponentfactory.md) —
 `TaxonFormOverlayModeHandler` was the only one of the four `OverlayFormBinder`-using form handlers
 declaring its factory field with a raw type (`UiComponentFactory<OverlayFormBinder>`, with
 `@SuppressWarnings("rawtypes")`/`"unchecked"`). Parameterized to
@@ -643,7 +643,7 @@ marketplace-app` 58/58. Full Playwright e2e: first run hit 4 unrelated failures 
 error per `docker logs`), confirmed flaky by an immediate clean retry at 35/35 non-skipped green —
 not caused by this change (a compile-time-only generics fix cannot alter runtime UI behavior).
 
-✅ Done (2026-07-18): [improvement-075](issues/improvement-075-timeline-actor-filter-multi-select.md) —
+✅ Done (2026-07-18): [improvement-075](tasks/improvement-075-timeline-actor-filter-multi-select.md) —
 Timeline actor filter now supports multiple actors: picking a row in `UserPickerField`'s dialog
 adds to the selection instead of replacing it (dialog still closes after each pick), each selected
 actor shows as a removable chip, and the query matches "any of the selected actors" via a new
@@ -724,17 +724,17 @@ rerun confirming a one-off "TLS connection disconnected" failure (spec 04, immed
 plain login, nowhere near any of this session's code) did not reproduce — checked via screenshot
 before being ruled out, not assumed.
 
-✅ Done (2026-07-18): [improvement-076](issues/improvement-076-advertisementcardview-redundant-stoppropagation.md) —
+✅ Done (2026-07-18): [improvement-076](tasks/improvement-076-advertisementcardview-redundant-stoppropagation.md) —
 removed the redundant `.getElement().addEventListener("click", ...).addEventData("event.stopPropagation()")`
 calls in `AdvertisementCardView.createEditButton()`/`createDeleteButton()`; confirmed
 `BaseActionButton.applyConfig()` already registers the identical listener for both buttons.
 
-✅ Done (2026-07-18): [improvement-077](issues/improvement-077-advertisementcardview-dead-updatedat-null-check.md) —
+✅ Done (2026-07-18): [improvement-077](tasks/improvement-077-advertisementcardview-dead-updatedat-null-check.md) —
 removed the dead `ad.getUpdatedAt() == null ||` half of `AdvertisementCardView.createMetaPanel()`'s
 `neverEdited` check — `updatedAt` is `@LastModifiedDate`, never null on a persisted row. Kept the
 live `.equals(ad.getCreatedAt())` half unchanged.
 
-✅ Done (2026-07-18): [improvement-082](issues/improvement-082-cardlightboxviewer-redundant-queryselector.md) —
+✅ Done (2026-07-18): [improvement-082](tasks/improvement-082-cardlightboxviewer-redundant-queryselector.md) —
 `CardLightboxViewer.update()` no longer uses `document.querySelector`-based page-level JS; each of
 the three call sites was checked individually before removal rather than deleted in bulk. The
 iframe-`src` re-sets were literal duplicates of the direct `iframe.getElement().setAttribute(...)`
@@ -743,20 +743,20 @@ existing direct equivalent, so they were kept but rewritten as `videoEl.executeJ
 already-held `Element` reference (same pattern already used by `AttachmentLightbox`), rather than
 a page-wide `querySelector` that could cross-control a second open lightbox instance.
 
-✅ Done (2026-07-20): [improvement-087](issues/improvement-087-audit-prev-snapshot-and-last-snapshot-missing-id-tiebreaker.md) —
+✅ Done (2026-07-20): [improvement-087](tasks/improvement-087-audit-prev-snapshot-and-last-snapshot-missing-id-tiebreaker.md) —
 `AuditLogRepository.findTimeline()`'s `prev_id`/`prev_snapshot_data` subqueries and
 `getLastSnapshot()` now compare `(created_at, id)` tuples / order by `id DESC` as a tiebreaker,
 matching the shape improvement-050 item 4 already fixed for `version` numbering. TDD: three new
 tied-row tests in `AuditLogRepositoryTest` (reusing the raw-`jdbcClient`-insert technique) were
 confirmed red against the old strict-`<`/no-tiebreaker SQL before the fix, green after.
 
-✅ Done (2026-07-20): [improvement-091](issues/improvement-091-loadmediastats-nondeterministic-main-attachment.md) —
+✅ Done (2026-07-20): [improvement-091](tasks/improvement-091-loadmediastats-nondeterministic-main-attachment.md) —
 `AttachmentRepository.loadMediaStats` (single + bulk) now orders by `created_at ASC, id ASC`, so
 the "main attachment" pick on tied `created_at` is deterministic and the single/bulk variants
 agree. Fixed alongside improvement-087 (Batch A) — same defect class, same tied-row test
 technique, one PR covering both starters.
 
-✅ Done (2026-07-20): [improvement-090](issues/improvement-090-attachment-cleanup-restore-race-and-video-rows-never-purged.md) —
+✅ Done (2026-07-20): [improvement-090](tasks/improvement-090-attachment-cleanup-restore-race-and-video-rows-never-purged.md) —
 `AttachmentRepository.deleteByUrls` now re-checks `deleted_at IS NOT NULL` and returns only the
 urls it actually removed (`RETURNING url`), so a row restored concurrently between candidate
 collection and delete survives (item 1); `findUrlsDeletedOlderThan` no longer excludes video
@@ -767,26 +767,26 @@ by age via a new `AttachmentSnapshotRepository.deleteOlderThan()`, same shape as
 `AuditLogRepository.deleteOlderThan()` (item 3). Covered by new/rewritten tests in
 `AttachmentCleanupServiceTest`, `AttachmentRepositoryTest`, and `AttachmentSnapshotRepositoryTest`.
 
-✅ Done (2026-07-20): [improvement-093](issues/improvement-093-capturemediachanges-silent-skip-without-actor.md) —
+✅ Done (2026-07-20): [improvement-093](tasks/improvement-093-capturemediachanges-silent-skip-without-actor.md) —
 `AttachmentService.captureMediaChanges()` now uses `orElseThrow()` instead of silently skipping the
 snapshot when no actor is present, matching `delete()`'s fail-fast contract in the same class.
 Required updating one existing `AttachmentServiceTest` case that had stubbed an absent actor while
 expecting a normal upload to succeed; added a new case asserting the throw.
 
-✅ Done (2026-07-20): [improvement-106](issues/improvement-106-timeline-non-admin-empty-actorids-fail-open.md) —
+✅ Done (2026-07-20): [improvement-106](tasks/improvement-106-timeline-non-admin-empty-actorids-fail-open.md) —
 `TimelineView.refresh()` now fails closed (empty feed, no query) when a non-admin's actor id isn't
 resolvable, instead of building a filter with an empty `actorIds` set that `SqlCondition.anyOf()`
 silently turns into "no restriction." `query-lib/DECISIONS.md` ADR-006 records why `anyOf`/`inSet`
 themselves were left unchanged (their null-on-empty behavior is correct for the admin/optional-
 filter path) and the rule for future access-narrowing callers instead.
 
-✅ Done (2026-07-20): [improvement-088](issues/improvement-088-authservice-login-session-fixation.md) —
+✅ Done (2026-07-20): [improvement-088](tasks/improvement-088-authservice-login-session-fixation.md) —
 `AuthService.login()` now calls `request.changeSessionId()` right after successful authentication,
 before `saveContext()`. Chose the plain Servlet API over `VaadinService.reinitializeSession()`
 (the issue's other suggested option) because the latter needs a live `VaadinRequest` bound via
 `CurrentInstance`, which the existing plain-Mockito `AuthServiceTest` suite has none of.
 
-✅ Done (2026-07-20): [improvement-107](issues/improvement-107-embed-video-url-no-validation-and-sandbox-escape.md) —
+✅ Done (2026-07-20): [improvement-107](tasks/improvement-107-embed-video-url-no-validation-and-sandbox-escape.md) —
 `AttachmentService.addVideoTemp()`/`addVideo()` now validate the embed URL (scheme must be
 http/https, host must be in an allowlist) before persisting a `CT_EMBED` attachment; both
 lightbox classes' iframe `sandbox` attribute dropped `allow-same-origin`. Allowlist scoped to
@@ -794,25 +794,25 @@ Vimeo (YouTube already has its own path via `YoutubeUtil`) after confirming with
 placeholder text previously advertised "YouTube, Facebook..." but no Facebook resolver ever
 existed, so both EN/UK placeholders were corrected to "YouTube, Vimeo" to match reality.
 
-✅ Done (2026-07-20): [improvement-092](issues/improvement-092-advertisement-audit-capture-split-across-modules.md) —
+✅ Done (2026-07-20): [improvement-092](tasks/improvement-092-advertisement-audit-capture-split-across-modules.md) —
 delete-side audit capture moved from `AdvertisementService.delete()` (starter) into
 `AdvertisementSaveService.delete()` (marketplace-app), reusing the existing `buildCurrentSnapshot()`
 helper save already had — one module now owns all advertisement audit orchestration. Recorded as
 `marketplace-app/DECISIONS.md` ADR-050. `AdvertisementCardView` now calls the new service method
 directly instead of going through `ComponentFactory<AdvertisementPort>.ifAvailable(...)`.
 
-✅ Done (2026-07-20): [improvement-094](issues/improvement-094-resolvecategoryfilter-null-sentinel.md) —
+✅ Done (2026-07-20): [improvement-094](tasks/improvement-094-resolvecategoryfilter-null-sentinel.md) —
 `AdvertisementService.resolveCategoryFilter()` now returns `Optional<Set<Long>>` instead of a
 nullable `Set<Long>` (`empty()` = no filter/taxon starter absent, `of(ids)` possibly empty =
 filter resolved) — the repository's own `null`-means-no-filter contract is untouched. New
 `AdvertisementServiceCategoryFilterTest` covers all four states through `getFiltered()`/`count()`.
 
-✅ Done (2026-07-20): [improvement-062](issues/improvement-062-missing-readonly-transactional-on-port-impls.md) —
+✅ Done (2026-07-20): [improvement-062](tasks/improvement-062-missing-readonly-transactional-on-port-impls.md) —
 `UserPortImpl`, `AdvertisementPortImpl`, and `DefaultTaxonPort` all got class-level
 `@Transactional(readOnly = true)` plus per-method `@Transactional` overrides on their write
 methods, matching `DefaultAuditPort`'s existing pattern.
 
-✅ Done (2026-07-20): [improvement-089](issues/improvement-089-userservice-hard-delete-no-audit-trail.md) —
+✅ Done (2026-07-20): [improvement-089](tasks/improvement-089-userservice-hard-delete-no-audit-trail.md) —
 Option A (soft-delete, aligning with the rest of the platform). `user_information` gained
 `deleted_at`/`deleted_by` columns (added directly to the existing `01-user-schema` changeset, not
 a new one — app isn't in production yet). `UserService.delete()` now soft-deletes + captures a
@@ -836,17 +836,17 @@ delegation per the `*HookImpl` rule, with the actual name+deleted-flag combining
 the new service instead. New `I18nKey.AUDIT_ACTOR_DELETED_NAME` (`"{0} (deleted)"` / uk
 `"{0} (видалено)"`).
 
-✅ Done (2026-07-21): [improvement-078](issues/improvement-078-queryblock-filterrow-helper.md) —
+✅ Done (2026-07-21): [improvement-078](tasks/improvement-078-queryblock-filterrow-helper.md) —
 new `QueryBlock.filterRow()` helper family (3 overloads: single-field no-sort, single-field+sort,
 two-field+sort) collapses the repeated `add()` + sort-register + filter-register boilerplate;
 `AdvertisementQueryBlock`/`UserQueryBlock`/`TimelineQueryBlock` all migrated to use it.
 
-✅ Done (2026-07-21): [improvement-081](issues/improvement-081-lightbox-embedurl-and-iframe-attrs-duplication.md) —
+✅ Done (2026-07-21): [improvement-081](tasks/improvement-081-lightbox-embedurl-and-iframe-attrs-duplication.md) —
 new `org.ost.marketplace.ui.views.utils.LightboxUtil` (`resolveEmbedUrl()` +
 `applyEmbedIframeAttributes()`) extracted from the duplicated logic in `AttachmentLightbox` and
 `CardLightboxViewer`; both now delegate to it instead of each keeping its own copy.
 
-✅ Done (2026-07-21): [improvement-084](issues/improvement-084-snapshot-dto-diff-field-boilerplate.md) —
+✅ Done (2026-07-21): [improvement-084](tasks/improvement-084-snapshot-dto-diff-field-boilerplate.md) —
 `AuditableSnapshot` gained two `diffField()` static helper overloads (`String` via
 `Objects.equals`, `int`/boxed `Integer` for "no previous value" detection); `TaxonSnapshotDto`,
 `UserSnapshotDto`, `SettingsSnapshotDto`, and `AdvertisementSnapshotDto` all migrated their
@@ -863,14 +863,14 @@ container before the reset — confirms editing an already-applied changeset in 
 improvement-089's explicit non-prod exception) requires a volume reset on any environment that
 ran the old version of that changeset.
 
-✅ Done (2026-07-21): [improvement-083](issues/improvement-083-advertisementcardview-thumbnail-click-no-op-when-attachment-port-unavailable.md) —
+✅ Done (2026-07-21): [improvement-083](tasks/improvement-083-advertisementcardview-thumbnail-click-no-op-when-attachment-port-unavailable.md) —
 `AdvertisementCardView.createThumbnail()`'s click handler now uses
 `attachmentPortFactory.findIfAvailable().ifPresentOrElse(...)` instead of `.ifAvailable(...)`,
 showing a new `ADVERTISEMENT_CARD_NOTIFICATION_MEDIA_UNAVAILABLE` notification when the starter
 becomes unavailable mid-session instead of silently doing nothing.
 
-✅ Done (2026-07-21): [improvement-008](issues/improvement-008-deleted-category-strikethrough.md) +
-[improvement-101](issues/improvement-101-audit-diff-unresolved-category-ids.md) — both traced to
+✅ Done (2026-07-21): [improvement-008](tasks/improvement-008-deleted-category-strikethrough.md) +
+[improvement-101](tasks/improvement-101-audit-diff-unresolved-category-ids.md) — both traced to
 the same root cause: `TaxonRepository.findByIds()` had a `deleted_at IS NULL` filter (added for
 improvement-045) that made a soft-deleted category invisible to its only caller,
 `DefaultTaxonPort.indexById()`. This meant a deleted category didn't render struck-through in the
@@ -889,7 +889,7 @@ test in `03-marketplace-promotion-flow.spec.js` (rather than adding a new test) 
 assigns Electronics to a throwaway ad before deletion, then verifies the view-overlay chip and the
 activity-diff row both render it struck through, before the existing restore step runs.
 
-✅ Done (2026-07-21): [improvement-010](issues/improvement-010-advertisements-view-refresh-error-notification.md) —
+✅ Done (2026-07-21): [improvement-010](tasks/improvement-010-advertisements-view-refresh-error-notification.md) —
 `AdvertisementsView.refresh()`'s catch block now calls
 `notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_REFRESH_ERROR)`, matching `UserView`'s
 refresh guard. Also removed `AdvertisementService.save()`'s unused `actingUserId` parameter
@@ -898,12 +898,12 @@ the method body) — cascaded through `AdvertisementPort.save()`, `Advertisement
 and the call site in `AdvertisementSaveService.save()` (which keeps its own `actorId` parameter,
 still needed for audit capture).
 
-✅ Done (2026-07-21): [improvement-014](issues/improvement-014-media-diff-counts-summary.md) — no
+✅ Done (2026-07-21): [improvement-014](tasks/improvement-014-media-diff-counts-summary.md) — no
 code change. Decided to keep the full before/after filename list in media-change diff rows rather
 than collapsing it to a counts summary ("2 added, 1 removed") — explicit user direction: seeing
 which specific files were added/removed/kept matters more than a shorter row.
 
-✅ Done (2026-07-21): [improvement-080](issues/improvement-080-taxonformoverlaymodehandler-locale-field-dedup.md) —
+✅ Done (2026-07-21): [improvement-080](tasks/improvement-080-taxonformoverlaymodehandler-locale-field-dedup.md) —
 `TaxonFormOverlayModeHandler` collapsed its four separately-wired EN/UK locale fields
 (`nameEnField`/`descriptionEnField`/`nameUkField`/`descriptionUkField`) into a private
 `LocaleField` record (holding the two UI fields plus `ValueProvider`/`Setter` accessor pairs for
@@ -922,7 +922,7 @@ because `TaxonSnapshotDto` has a fixed 4-field shape — the DTO-shape change ne
 
 **Batch F complete** (078, 081, 084, 083, 008, 010, 014, 101, 080 — all done across three PRs).
 
-✅ Done (2026-07-21): [improvement-097](issues/improvement-097-modal-scrim-and-lightbox-close-placement.md) —
+✅ Done (2026-07-21): [improvement-097](tasks/improvement-097-modal-scrim-and-lightbox-close-placement.md) —
 added a `--app-modal-scrim` token applied to `vaadin-dialog-overlay::part(backdrop)` and
 `vaadin-confirm-dialog-overlay::part(backdrop)` (previously fully transparent — every dialog and
 the header behind it were left undimmed). Lightbox close button (`.card-lightbox__close`, shared
@@ -932,7 +932,7 @@ relative` container. `AttachmentLightbox` (a hand-rolled `Div`, not a Vaadin `Di
 Esc-to-close (`Shortcuts.addShortcutListener`) plus focus-into/restore-on-close — `CardMediaLightbox`
 already got both for free from Vaadin's own `Dialog`.
 
-✅ Done (2026-07-21): [improvement-098](issues/improvement-098-aria-labels-icon-only-controls.md) —
+✅ Done (2026-07-21): [improvement-098](tasks/improvement-098-aria-labels-icon-only-controls.md) —
 `BaseActionButton.applyConfig()` (grid edit/delete buttons) now sets `aria-label` alongside
 `title` — most other icon-only controls (pagination arrows, gallery delete/add-video, notification
 close, `UserPickerField` chips) already got this for free via the existing `UiIconButton`
@@ -946,7 +946,7 @@ attempt was reverted after manual testing showed it actually focused the overlay
 shadow DOM, so the breadcrumb "back" button was the only host-level `[tabindex]` match) — user
 correctly called this out as `хоме`/`Reference Data` getting focused instead of any real field.
 
-✅ Done (2026-07-21): [improvement-099](issues/improvement-099-confirm-dialogs-action-verbs-danger-styling.md) —
+✅ Done (2026-07-21): [improvement-099](tasks/improvement-099-confirm-dialogs-action-verbs-danger-styling.md) —
 turned out much smaller than filed: `ConfirmActionDialog` (advertisement/user/taxon delete,
 discard-changes) already took `confirmKey`/`cancelKey` as parameters and already applied
 `ButtonVariant.LUMO_ERROR` unconditionally — someone had already fixed that half. The only actual
@@ -957,7 +957,7 @@ generic-text case was `LogoutDialog` (a raw Vaadin `ConfirmDialog`, separate fro
 "Log Out" button and the dialog's confirm button now share the same text, so the locator also
 needed `.last()` to disambiguate (a bare `getByRole` matched both).
 
-✅ Done (2026-07-21): [improvement-110](issues/improvement-110-no-unsaved-changes-guard-on-tab-switch-and-unload.md) —
+✅ Done (2026-07-21): [improvement-110](tasks/improvement-110-no-unsaved-changes-guard-on-tab-switch-and-unload.md) —
 partially implemented, then partially reverted after manual verification. The `beforeunload`
 half works as filed: `BeforeUnloadUtil.sync(hasChanges)`, called from all three form handlers'
 `updateButtons()`, registers/unregisters a native "leave site?" browser prompt. The tab-switch
@@ -971,7 +971,7 @@ code for it was dead on arrival — removed per YAGNI rather than kept "for late
 
 **Batch L complete** (097, 098, 099, 110 — all done in one PR; 110 shipped as beforeunload-only).
 
-✅ Done (2026-07-21): [improvement-040](issues/improvement-040-spring-boot-vaadin-minor-bump.md) —
+✅ Done (2026-07-21): [improvement-040](tasks/improvement-040-spring-boot-vaadin-minor-bump.md) —
 routine dependency bump in root `pom.xml`: `spring-boot-starter-parent` 4.0.6 → 4.1.0,
 `vaadin.version` 25.1.5 → 25.2.3, `jsoup.version` 1.22.1 → 1.22.2, `aws-s3-sdk.version` 2.44.4 →
 2.48.4, `jetbrains-annotations.version` 24.1.0 → 26.1.0 (`mapstruct.version` left at 1.6.3 — latest
@@ -984,7 +984,7 @@ integration-tests (Testcontainers) 127/127, Playwright e2e --full --ux 49/49, al
 ERROR/FAILED in the actual log content, not just the summary line. Batch G's remaining item is
 improvement-085 (Playwright bump).
 
-✅ Done (2026-07-22): [improvement-085](issues/improvement-085-playwright-version-bump.md) —
+✅ Done (2026-07-22): [improvement-085](tasks/improvement-085-playwright-version-bump.md) —
 bumped Playwright from 1.52.0 to 1.61.1 (9 minor versions) in `playwright/run.sh`
 (`PLAYWRIGHT_VERSION`) and `playwright/CLAUDE.md`, keeping the `-jammy` image tag suffix (verified
 `v1.61.1-jammy` exists on `mcr.microsoft.com`, still Ubuntu 22.04-based — the plain, unsuffixed
@@ -997,8 +997,8 @@ patterns (`_react`/`_vue`/`:light` selectors, `page.accessibility`, `Locator.ari
 `bash scripts/playwright.sh e2e --full --ux`: 49/49 passed, 0 `failed`/`Error` in the actual log
 content. **Batch G complete** (040, 085 — both done, in two separate PRs/commits).
 
-✅ Done (2026-07-22): [improvement-019](issues/improvement-019-findtimeline-correlated-subqueries.md)
-and [improvement-095](issues/improvement-095-getentityactivity-hardcoded-limit.md) — audit
+✅ Done (2026-07-22): [improvement-019](tasks/improvement-019-findtimeline-correlated-subqueries.md)
+and [improvement-095](tasks/improvement-095-getentityactivity-hardcoded-limit.md) — audit
 read-side rewrite, one PR. `AuditLogRepository.findTimeline()` computed `version`/`prev_id`/
 `prev_snapshot_data` via three correlated subqueries per returned row (worst: a `COUNT(*)` with a
 `<=` inequality) — rewritten to the same window-function shape the sibling `findRows()` already
@@ -1016,8 +1016,8 @@ extracted to `ENTITY_ACTIVITY_MAX_ROWS` with a one-line comment on the silent-tr
 extraction only, YAGNI on speculative paging (per the issue's own guidance). Full suite: unit-tests
 and integration-tests (127/127) both clean. **Batch H complete.**
 
-✅ Done (2026-07-22): [improvement-102](issues/improvement-102-attachmentmediachangehook-zero-consumers.md)
-and [improvement-103](issues/improvement-103-attachmentservice-api-surface-reduction.md) —
+✅ Done (2026-07-22): [improvement-102](tasks/improvement-102-attachmentmediachangehook-zero-consumers.md)
+and [improvement-103](tasks/improvement-103-attachmentservice-api-surface-reduction.md) —
 attachment API simplification, one PR. Deeper verification beyond both issue files (direct
 whole-repo grep for every candidate method's callers) found more dead code than either issue
 anticipated: `AttachmentService.delete(Long)` (the snapshot-capturing delete) had **zero callers
@@ -1049,8 +1049,8 @@ unrelated login timeout, and a full clean rerun passed 49/49 with zero repeats o
 confirming both were environment flakes rather than regressions from this attachment-only change.
 **Batch M complete.**
 
-✅ Done (2026-07-22): [improvement-104](issues/improvement-104-expandactivityfields-feature-envy.md)
-and [improvement-105](issues/improvement-105-advertisementenrichservice-unify-dual-paths.md) —
+✅ Done (2026-07-22): [improvement-104](tasks/improvement-104-expandactivityfields-feature-envy.md)
+and [improvement-105](tasks/improvement-105-advertisementenrichservice-unify-dual-paths.md) —
 audit-rendering simplification, one PR. Verification beyond the issue file found the duplication
 was worse than described: the same null-safe "expand changes against the snapshot" three-liner was
 copy-pasted **four** times, not two — inline in `TaxonActivityFieldsHookImpl` and
@@ -1079,8 +1079,8 @@ guidance). Verified with unit-tests, integration-tests (127/127), and a clean fu
 e2e --full --ux run (49/49) — the existing Timeline/Activity diff assertions are the natural
 characterization test for this exact enrichment path. **Batch N complete.**
 
-✅ Done (2026-07-22): [improvement-029](issues/improvement-029-docs-drift-guard-and-hooks.md) and
-[improvement-033](issues/improvement-033-quality-gate-skill-and-definition-of-done.md) — process
+✅ Done (2026-07-22): [improvement-029](tasks/improvement-029-docs-drift-guard-and-hooks.md) and
+[improvement-033](tasks/improvement-033-quality-gate-skill-and-definition-of-done.md) — process
 tooling, one PR, both re-scoped after empirical verification. For 029: measured the
 incremental-compile hook's real cost in this sandbox before building it — `mvn compile -pl
 query-lib -q` (smallest module, nothing to recompile) took ~29s, `mvn compile -pl marketplace-app
@@ -1104,10 +1104,10 @@ live edit-and-revert against a real changelog file. For 033: confirmed `/ci` (im
 already chains unit → integration → e2e → Sonar in one command, exactly as the issue's own note
 predicted — no new skill built. Recorded the Definition of Done as a new section in
 `.claude/rules.md` (full suite green, `DECISIONS.md` updated if architectural, issue moved to
-`completed/issues/`), referencing `/ci`/`scripts/ci.sh` instead of the never-built `/quality-gate`.
+`completed/tasks/`), referencing `/ci`/`scripts/ci.sh` instead of the never-built `/quality-gate`.
 **Batch I complete.**
 
-✅ Done (2026-07-22): [improvement-108](issues/improvement-108-ilike-wildcard-not-escaped.md) —
+✅ Done (2026-07-22): [improvement-108](tasks/improvement-108-ilike-wildcard-not-escaped.md) —
 promoted to the top of the queue in the same day's full-backlog priority review (a real,
 currently-confirmed correctness bug beats everything else waiting, which was all tech debt or
 nice-to-haves). `SqlCondition.like()` now escapes `\` (first), `%`, and `_` before wrapping the
@@ -1128,7 +1128,7 @@ before trusting the green run, forced a `mvn install -pl query-lib`, and reran. 
 full suite: unit-tests (27/27 in query-lib), integration-tests (127/127) against the freshly
 installed jar, and Playwright e2e --full --ux (49/49).
 
-✅ Done (2026-07-22): [improvement-025](issues/improvement-025-leaf-ui-components-plain-classes.md)
+✅ Done (2026-07-22): [improvement-025](tasks/improvement-025-leaf-ui-components-plain-classes.md)
 (Batch J) — converted ~17 stateless leaf UI widgets from `@SpringComponent @Scope("prototype")`
 beans implementing `Configurable`/`Initialization` to plain Java classes, executed in 4 phased
 batches on `feature/leaf-ui-buttons-batch1` with a full Playwright run after each (per the issue's
@@ -1152,7 +1152,7 @@ Final state across all four batches: `UserFormOverlayModeHandler`'s constructor 
 converted widgets; unit-tests (72/72, including ArchUnit), integration-tests (127/127), and
 Playwright e2e --full --ux (49/49, confirmed twice) all green on the final batch.
 
-✅ Done (2026-07-23): [improvement-113](issues/improvement-113-query-elements-leaf-components-plain-classes.md)
+✅ Done (2026-07-23): [improvement-113](tasks/improvement-113-query-elements-leaf-components-plain-classes.md)
 (Batch L) — sibling refactor to improvement-025, found during a post-025 audit of the rest of the
 Vaadin UI layer for the same anti-pattern: the entire `ui/query/elements/*` tree (the query-bar/
 filter-panel widgets) still carried `@SpringComponent @Scope("prototype") + Configurable +
@@ -1171,7 +1171,7 @@ shared signature, `I18nKey`→`String`); and the remaining simple fields (`Query
 integration-tests (127/127), and Playwright e2e --full --ux (49/49, first try — no recurrence of
 the `fillActorPicker` flake fixed in the improvement-025 Batch 4 entry above).
 
-✅ Done (2026-07-23): [improvement-115](issues/improvement-115-intellij-inspection-cleanup-pass.md)
+✅ Done (2026-07-23): [improvement-115](tasks/improvement-115-intellij-inspection-cleanup-pass.md)
 — full triage of a project-wide IntelliJ IDEA inspection export (`/app/errors/*.xml`, 33 inspection
 files), run in 4 ordered sub-passes. Batch 1 (safe mechanical): 10 unused imports,
 `SequencedCollectionMethodCanBeUsed` ×20 (`.get(0)`→`.getFirst()`), diamond/method-ref, dangling
@@ -1186,7 +1186,7 @@ found and fixed an unrelated pre-existing build break in `integration-tests/pom.
 (`junit-jupiter-api` resolved to `runtime` scope transitively, invisible to `src/main` compilation
 — added an explicit `compile`-scope dependency, see `integration-tests/DECISIONS.md` ADR-011). The
 Vaadin `@Theme` deprecation was carved out into its own deferred issue,
-[improvement-116](issues/improvement-116-vaadin-theme-annotation-migration.md) — needs a full
+[improvement-116](tasks/improvement-116-vaadin-theme-annotation-migration.md) — needs a full
 visual-regression pass, not a mechanical fix. Batch 3: added missing `@NonNull`/`@jspecify.NonNull`
 across 20 real gaps (6 more were a `NullableProblems` inspection quirk on an interface that already
 followed the project's `@NonNull` convention — left alone). Batch 4 (dead code, largest): removed
@@ -1207,7 +1207,7 @@ a full Playwright e2e --full --ux run (a first run hit 3 cascading failures trac
 login timeout in spec 03 skipping fixture-creating tests that spec 04/05 depended on; a full
 re-run confirmed 49/49 green, not a regression).
 
-✅ Done (2026-07-24): [improvement-072](issues/improvement-072-uicomponentfactory-generics-design-debt.md)
+✅ Done (2026-07-24): [improvement-072](tasks/improvement-072-uicomponentfactory-generics-design-debt.md)
 — resolved all three generics/type-safety design-debt items. (1) `UiComponentFactory<T extends
 Configurable<T, ?>>` bound enforced at compile time; the 10 non-`Configurable` consumers
 (`AuditActivityListRenderer`, `AuditHistoryListRenderer`, `AuditHistoryRowRenderer`,
@@ -1237,11 +1237,11 @@ deployed database that could hit the same permanent-gap risk. Verified: unit-tes
 `bash scripts/ci.sh --sandbox` full chain — unit/integration/e2e all PASSED (e2e was the one that
 surfaced and then confirmed-fixed the Postgres volume issue); `sonar` stage still fails, but solely
 on the pre-existing, separately tracked `new_coverage` gap
-([improvement-114](issues/improvement-114-sonar-jacoco-coverage-not-wired.md) — JaCoCo was never
+([improvement-114](tasks/improvement-114-sonar-jacoco-coverage-not-wired.md) — JaCoCo was never
 wired into the scanner, unrelated to this issue's changes; `new_violations` and
 `new_duplicated_lines_density` both passed clean).
 
-✅ Done (2026-07-24): [improvement-117](issues/improvement-117-f01-deep-links-og-tags.md) — F-01
+✅ Done (2026-07-24): [improvement-117](tasks/improvement-117-f01-deep-links-og-tags.md) — F-01
 deep links + Open Graph meta tags, the product roadmap's Phase 1 community-migration mechanic.
 Four passes, each with its own `marketplace-app/DECISIONS.md` ADR: (1) ADR-059 —
 `AdvertisementDeepLinkView` (`@Route("ads")`) + `OgMetaRequestListener`
@@ -1261,9 +1261,9 @@ JSON-LD `Product` markup, and full browser History API sync (`pushState` on open
 Playwright test; full e2e suite 50/50 after each pass, unit-tests 73/73. The one inherently
 non-automatable item — sharing a real `/ads/:id` link into an actual Facebook post and Telegram
 chat, needs a public URL this sandbox doesn't have — carved out into
-[improvement-118](../issues/improvement-118-f01-real-world-og-preview-verification.md).
+[improvement-118](../tasks/improvement-118-f01-real-world-og-preview-verification.md).
 
-✅ Done (2026-07-25): [improvement-046](issues/improvement-046-list-stability-under-concurrent-edits.md)
+✅ Done (2026-07-25): [improvement-046](tasks/improvement-046-list-stability-under-concurrent-edits.md)
 — list stability after edit, option E (client-side variant) + a lightweight "N changes — Refresh"
 banner, chosen after external research showed the dashboard "live/paused" pattern makes E far
 cheaper than the server-side snapshot originally costed. `AdvertisementOverlay`/`UserOverlay`/
@@ -1279,7 +1279,7 @@ to stay open until an explicit close). Verified: unit-tests 73/73 (incl. ArchUni
 pagination), still the correct eventual fix for the deeper, unrelated instability from *other*
 users' concurrent inserts/deletes — tracked inside the issue file, not split out separately.
 
-✅ Done (2026-07-25): [improvement-120](issues/improvement-120-advertisement-user-hard-fk-coupling.md)
+✅ Done (2026-07-25): [improvement-120](tasks/improvement-120-advertisement-user-hard-fk-coupling.md)
 — removed the last hard SQL-level FK coupling between starters (`advertisement` → `user_information`,
 3 constraints: `created_by` RESTRICT, `updated_by`/`deleted_by` SET NULL), found during F-02
 planning review. Edited `01-advertisement-schema.xml` in place (pre-prod, no incremental
@@ -1303,7 +1303,7 @@ command outside a tested `if`/`&&`/`||` construct) — see `scripts/DECISIONS.md
 unit-tests 74/74, integration-tests 126/126 (full suite), Playwright `e2e --full --ux` 50/50
 (twice).
 
-✅ Done (2026-07-25): [improvement-119](issues/improvement-119-f02-city-dictionary-geo-filter.md)
+✅ Done (2026-07-25): [improvement-119](tasks/improvement-119-f02-city-dictionary-geo-filter.md)
 — F-02 city dictionary + geo filter, product roadmap Phase 1 item #2. Added `TaxonType.CITY`
 (`platform-commons`) reusing the existing `taxon_assignment` mechanism — zero schema changes
 anywhere. Caught (by reading the actual source first, not assuming) that
@@ -1332,7 +1332,7 @@ lifecycle test, shifting a downstream activity-version assertion by one. See
 update. Verified: unit-tests 75/75, integration-tests 128/128, Playwright `e2e --full --ux` 50/50
 (after both bugfixes above).
 
-✅ Done (2026-07-27): [improvement-122](issues/improvement-122-f03-listing-types.md) — F-03
+✅ Done (2026-07-27): [improvement-122](tasks/improvement-122-f03-listing-types.md) — F-03
 listing types (Offer/Request/Product), product roadmap Phase 1 item #3, the last piece of the
 "Shareability foundation" gate. Unlike F-02's city facet, a genuine new `advertisement.ad_kind
 VARCHAR(20) NOT NULL DEFAULT 'OFFER'` column (mandatory, closed set, no admin dictionary needed) —
@@ -1358,7 +1358,7 @@ idiom `verifyDateRangeFilters()` already used for this exact class of problem). 
 `marketplace-app/DECISIONS.md` ADR-066. Verified: unit-tests 77/77, integration-tests unaffected
 (schema/repository-only change), Playwright `e2e --full --ux` 50/50.
 
-✅ Done (2026-07-27): [improvement-125](issues/improvement-125-overlay-accent-color-sync.md) — synced
+✅ Done (2026-07-27): [improvement-125](tasks/improvement-125-overlay-accent-color-sync.md) — synced
 the view-overlay's accent border color with `AdKind` (advertisements) / `Role` (users), matching
 the already-correct card left-border / role-badge colors that existed only in the list view, not
 the detail overlay. `AdvertisementViewOverlayModeHandler`/`UserViewOverlayModeHandler` each gained
@@ -1388,7 +1388,7 @@ header/gallery *text* color too — the accent now lives only in the border, the
 user settled on after seeing the fuller-color version and finding it too busy. Verified: full
 Playwright `e2e --full --ux`, 50/50 passed, plus direct visual confirmation via screenshot.
 
-✅ Done (2026-07-28): [improvement-126](issues/improvement-126-timeline-activity-diff-findings.md) —
+✅ Done (2026-07-28): [improvement-126](tasks/improvement-126-timeline-activity-diff-findings.md) —
 Timeline row header no longer repeats the entity's display name (already shown in full in the
 always-visible field-dump body) — `AuditTimelineRowRenderer`/`AuditTimelineListRenderer` dropped
 `nameSpan()`/`displayNames` entirely, body untouched by design. Phase 2 (found the same day):
@@ -1402,10 +1402,10 @@ was the bug), caught only by looking at an actual rendered screenshot directly �
 checks (`timeBox.x - (actorBox.x + actorBox.width) < 20px`) to the tests afterward so a regression
 back to "technically right-aligned but visually far apart" would actually fail. Verified: full
 Playwright `e2e --full --ux`, 50/50 passed, confirmed visually via screenshot both before and after
-the wrapper-group fix. [improvement-127](issues/improvement-127-entitytype-localization-taxon-color.md)
+the wrapper-group fix. [improvement-127](tasks/improvement-127-entitytype-localization-taxon-color.md)
 (EntityType i18n + TAXON badge color) carved out from this fix, completed separately same day — see below.
 
-✅ Done (2026-07-28): [improvement-127](issues/improvement-127-entitytype-localization-taxon-color.md) —
+✅ Done (2026-07-28): [improvement-127](tasks/improvement-127-entitytype-localization-taxon-color.md) —
 `EntityType` Timeline badge (`AuditTimelineRowRenderer.typeSpan()`) and the Timeline "Entity type"
 filter dropdown (`TimelineQueryBlock`, found widening scope during investigation — same raw-enum-
 name gap) now show localized labels (`Advertisement`/`User`/`User Settings`/`Category`, EN+UK) via
@@ -1418,7 +1418,7 @@ Verified: `unit-tests.sh` (77/77), `integration-tests.sh --sandbox` (130/130), f
 `e2e --full --ux` (50/50), plus direct visual confirmation of the new teal `Category` badge via
 screenshot.
 
-✅ Done (2026-07-28): [improvement-002](issues/improvement-002-snapshot-schema-versioning.md) —
+✅ Done (2026-07-28): [improvement-002](tasks/improvement-002-snapshot-schema-versioning.md) —
 snapshot schema versioning for all three JSON-persisted blobs in the system. Landed as the
 prerequisite for F-04/improvement-124 (first new snapshot-bearing domain since this issue was
 filed). Went through two intermediate designs before the final one — a reflection-based
@@ -1454,7 +1454,7 @@ once all five callers migrated. Two real bugs caught by the user testing the run
 explicit stale-CSS-reference sweep before the final rollout run (`.settings-activity-*` classes
 still referenced after Settings moved onto the generic component). Full rationale, both correction
 rounds, and the rollout details: `marketplace-app/DECISIONS.md` ADR-067,
-`completed/issues/improvement-128-activity-restore-panel-redesign.md`. Verified (final, full
+`completed/tasks/improvement-128-activity-restore-panel-redesign.md`. Verified (final, full
 rollout): `unit-tests.sh` 77/77, `integration-tests.sh --sandbox` 133/133 (no schema/repository
 changes — pure UI refactor), Playwright `e2e --full --ux` 50/50. Unblocks improvement-124, which
 can now call `EntityActivityOverlay.openFor()` directly for its Account overlay's 2 history icons.
@@ -1469,8 +1469,8 @@ one item described was deleted entirely by the same-day breadcrumb/ADR-067 refac
 convention; two doc-drift items were already fixed; one query-lib finding was independently
 re-derived, not duplicated). improvement-132 also added 13 newly-found items (including one live
 i18n bug — `AdvertisementService.findById()` hardcoding English category names on the detail view).
-Full reconciliation table: `completed/issues/improvement-121-solid-dry-review-findings.md`'s
-supersession banner, `completed/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md`'s
+Full reconciliation table: `completed/tasks/improvement-121-solid-dry-review-findings.md`'s
+supersession banner, `completed/tasks/improvement-132-full-repo-solid-dry-review-2026-07-29.md`'s
 "How this was found" section.
 
 ✅ Done (2026-07-31): improvement-132 — all 11 execution batches resolved. Batches A, B, C, D, F,
@@ -1480,9 +1480,9 @@ notably ADR-014 in `attachment-spring-boot-starter` for Batch I's corrected `Att
 shape, ADR-025 in `platform-commons` for Batch G's corrected `UserSettingsService` instance-method
 shape). Batch E (item 12, `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` pure
 duplication) needs a design decision rather than a mechanical edit, so it was deferred to
-`issues/improvement-133-deferred-oversized-review-findings.md` entry 8 for later analysis instead
+`tasks/improvement-133-deferred-oversized-review-findings.md` entry 8 for later analysis instead
 of holding this issue open indefinitely. Full detail:
-`completed/issues/improvement-132-full-repo-solid-dry-review-2026-07-29.md`.
+`completed/tasks/improvement-132-full-repo-solid-dry-review-2026-07-29.md`.
 
 ✅ Done (2026-07-31): improvement-134 — additive AI-navigation/context-efficiency layer, filed and
 implemented same day via `/autopilot` once the spec was approved. `docs/ai/adr-index.md`
@@ -1500,7 +1500,7 @@ improvement-102, FK-coupling/optional-deps sections left over from improvement-1
 `/code-review --fix` (8-angle, high effort) caught and fixed a real bug in the generator itself
 (multi-line ADR `Status:`/heading text was silently truncated) plus two more instances of the same
 stale-doc pattern Phase 3 was already fixing. Full detail:
-`completed/issues/improvement-134-ai-navigation-context-efficiency-layer.md`.
+`completed/tasks/improvement-134-ai-navigation-context-efficiency-layer.md`.
 
 ✅ Done (2026-08-04): improvement-137 — new `.claude/skills/doc-standards/SKILL.md` (canonical-
 ownership table + fact-vs-constraint test + pre-write checklist) plus a repo-wide documentation
@@ -1522,8 +1522,8 @@ cross-reference in `marketplace-app/README.md`; an incorrect "compile" scope cla
 "7.1/10" architecture score synced to the real current 7.7/10 from `08-scorecard.md`. Companion
 **improvement-139** (`deep-review` full-mode's module scope list missing
 `provider-profile-spring-boot-starter`) fixed in the same change. `bash scripts/unit-tests.sh`:
-108/108 passed. Full detail: `completed/issues/improvement-137-doc-standards-skill-and-dedup-cleanup.md`,
-`completed/issues/improvement-139-deep-review-missing-provider-profile-module.md`.
+108/108 passed. Full detail: `completed/tasks/improvement-137-doc-standards-skill-and-dedup-cleanup.md`,
+`completed/tasks/improvement-139-deep-review-missing-provider-profile-module.md`.
 
 ✅ Done (2026-08-04): improvement-140 — documentation shrink pass finishing what improvement-137
 deferred, executed via `/autopilot`. Deduped restated facts (DAG/no-cycles, "marketplace-app
@@ -1553,7 +1553,7 @@ already resolved but still described as open in 3 files each; a stale `I18nKey.j
 a "largest file" column dropped with a pointer that delivered nothing) and fixed all of them
 directly. `bash scripts/unit-tests.sh`: 79/79 passed;
 `check-adr-index-freshness.sh`/`check-flows-completeness.sh`/`check-hardcoded-counts.sh`: all
-pass. Full detail: `completed/issues/improvement-140-documentation-shrink-and-dedup-completion.md`.
+pass. Full detail: `completed/tasks/improvement-140-documentation-shrink-and-dedup-completion.md`.
 
 ✅ Done (2026-08-04): improvement-141 — new standing rule (`.claude/rules.md`): current-state
 documentation (`CLAUDE.md`, `README.md`, `docs/architecture/*.md`, `docs/ai/*.md`, skill/command
@@ -1573,7 +1573,7 @@ narrative" smell without an attached ticket number in 9 more files (`playwright/
 regenerated; all CI freshness gates (`check-adr-index-freshness.sh`/`check-flows-completeness.sh`/
 `check-architecture-model-freshness.sh`/`check-hardcoded-counts.sh`) and `bash
 scripts/unit-tests.sh` (79/79) green. Full detail:
-`completed/issues/improvement-141-strip-issue-references-from-current-docs.md`.
+`completed/tasks/improvement-141-strip-issue-references-from-current-docs.md`.
 
 ✅ Done (2026-08-06): improvement-143 — the `docs/architecture/05-08-*.md` mechanization batch
 extracted from improvement-138, executed end-to-end via `/autopilot`. All seven planned pieces
@@ -1604,7 +1604,7 @@ Playwright e2e skipped as not required — no `marketplace-app` Vaadin UI was to
 standalone `architecture-map.html` tool, already verified directly via isolated Playwright
 container runs during implementation. `scripts/ai/DECISIONS.md` ADR-020 records the full decision;
 `docs/ai/adr-index.md` regenerated. Full detail:
-`completed/issues/improvement-143-architecture-docs-05-08-mechanization-batch.md`.
+`completed/tasks/improvement-143-architecture-docs-05-08-mechanization-batch.md`.
 
 ✅ Done (2026-08-06): improvement-144 — opt-in `--with-sonar`/`--with-archunit` flags on
 `generate-architecture-model.sh` (default off, `ensure_sonar_fresh` no longer runs unconditionally);
@@ -1625,7 +1625,7 @@ replacing content that used to live inline on every Module page. Full detail acr
 built — a companion-server on-demand refresh trigger — was split into `improvement-146` once
 everything else landed, since that piece's priority was still undecided while the rest was ready
 to close. Full detail:
-`completed/issues/improvement-144-code-metrics-dedicated-card-refresh-trigger.md`.
+`completed/tasks/improvement-144-code-metrics-dedicated-card-refresh-trigger.md`.
 
 ✅ Done (2026-08-07): improvement-145 — `md-to-decisions-json.js` gained
 `--extract <module> <ADR-NNN>[,...]`, printing the requested ADR(s) as raw markdown instead of the
@@ -1644,7 +1644,7 @@ block, and two rounds of dead-code/dead-data cleanup this surfaced (`renderAdrLi
 `openAdrPopupForIntent`/`adrFileLink`, and unused `.intent` payload on `SCRIPT_GROUP` nodes).
 Tightened `.claude/commands/decision.md`'s ADR-worthiness gate: a tool being about "architecture"
 doesn't exempt its own UI/layout changes from the gate. Full detail:
-`completed/issues/improvement-145-adr-extraction-token-efficiency.md`.
+`completed/tasks/improvement-145-adr-extraction-token-efficiency.md`.
 
 ✅ Done (2026-08-07): improvement-146 — closed with the companion server explicitly **decided
 against** (cost — new long-running process, port/lifecycle, unverified CORS — outweighed a rare,
@@ -1659,7 +1659,7 @@ reconsideration), dropping the ticket-number citation the first Amendment had br
 `docs/architecture/runtime-notes.md` gained an "Architecture map tooling" group covering every
 script involved in building the map (parameters, manual invocation, sandbox notes), replacing the
 single `--extract`-only bullet it had before. Full detail:
-`completed/issues/improvement-146-code-quality-refresh-companion-server.md`.
+`completed/tasks/improvement-146-code-quality-refresh-companion-server.md`.
 
 ✅ Done (2026-08-07): improvement-136 — extracted a new `marketplace-orchestrator` Maven module
 (Application/BFF composition layer between `marketplace-app` and the domain starters), moving
@@ -1690,7 +1690,7 @@ architecture-model generator), and the same module-list gap in `scripts/sonar/`'
 Playwright run showed 3 failures; re-verified via the standard `deploy.sh --reset` +
 `playwright.sh e2e --full --ux` dev workflow — **50/50 passed**, confirming the CI-stack failures
 were Docker-in-Docker environment flakiness, not a real regression. Full detail:
-`completed/issues/improvement-136-marketplace-orchestrator-extraction.md`.
+`completed/tasks/improvement-136-marketplace-orchestrator-extraction.md`.
 
 ✅ Done (2026-08-08): improvement-147 — flattened `marketplace-orchestrator`'s 9 pre-existing
 service classes (scattered across 5 domain-scoped sub-packages) into one flat
@@ -1723,7 +1723,7 @@ migration) and proposed for `improvement-133`'s deferred-findings bucket rather 
 `playwright.sh e2e --full --ux`: **50/50 passed**. The issue's original single-caller-collaborator
 question (`TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService`)
 moved in full to `improvement-124` Batch 124-C, the real second-consumer test. Full detail:
-`completed/issues/improvement-147-marketplace-orchestrator-followups.md`.
+`completed/tasks/improvement-147-marketplace-orchestrator-followups.md`.
 
 ✅ Done (2026-08-11): improvement-149 — `System › Diagrams` clarity pass, four fronts. **SPI Map**
 split into 7 per-subsystem tabs (was one dense 71-node canvas), with hover tooltips explaining
@@ -1760,7 +1760,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
 (`marketplace-app` should depend on nothing but `marketplace-orchestrator`, not even
 `platform-commons`/`query-lib`). `unit-tests.sh`: 72/72; `integration-tests.sh --sandbox`:
 165/165; `deploy.sh --reset` + `playwright.sh e2e --full --ux`: **50/50 passed**. Full detail:
-`completed/issues/improvement-149-architecture-map-module-deps-vs-bounded-contexts.md`.
+`completed/tasks/improvement-149-architecture-map-module-deps-vs-bounded-contexts.md`.
 
 - ✅ Done (2026-08-12): improvement-148 — re-verified optional-starter removability after the
   true-BFF migration. `taxon-spring-boot-starter` removal passed cleanly (app boots, degrades
@@ -1774,7 +1774,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   degradation spot-checked via code inspection — structurally sound. `unit-tests.sh`: 72/72
   (including `ArchitectureRulesTest`); `integration-tests.sh --sandbox`: 165/165. No Playwright run
   — config-only fix, not UI-visible. Full detail:
-  `completed/issues/improvement-148-reverify-optional-module-removal-after-bff-migration.md`.
+  `completed/tasks/improvement-148-reverify-optional-module-removal-after-bff-migration.md`.
 
 - ✅ Done (2026-08-13): improvement-150 — tightened improvement-149 Point 5 to zero direct
   `*Port`/`*Hook` (SPI) usage from `platform-commons` in `marketplace-app` (not a literal
@@ -1793,7 +1793,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   Result: 5 forwarder-SPI pairs total, documented in `marketplace-orchestrator/CLAUDE.md`'s new
   "Forwarder SPI pattern" section. `unit-tests.sh`: PASSED; `integration-tests.sh --sandbox`:
   165/165; `deploy.sh --reset` + `playwright.sh e2e --full --ux`: **50/50 passed**. Full detail:
-  `completed/issues/improvement-150-marketplace-app-zero-deps-except-orchestrator.md`.
+  `completed/tasks/improvement-150-marketplace-app-zero-deps-except-orchestrator.md`.
 
 - ✅ Done (2026-08-13): improvement-151 — architecture-generator content-drift cleanup
   (`scripts/architecture/generate-architecture-model.sh`). Removed `spi_call_flow_examples_json()`
@@ -1820,7 +1820,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   implemented here), a Track B/ArchUnit unblock investigation this issue's own SPI Map findings
   motivated, and its SPI Interface Details table redesign idea all moved to `improvement-152`.
   Docs/tooling-only change — no Java touched, so no unit/integration/Playwright run applicable.
-  Full detail: `completed/issues/improvement-151-scripts-avoid-redundant-recompile.md`.
+  Full detail: `completed/tasks/improvement-151-scripts-avoid-redundant-recompile.md`.
 
 - ✅ Done (2026-08-17): improvement-152 — `scripts/build.sh` redundant-recompile fix + Tooling &
   Pipelines regroup. Part A: consolidated `scripts/unit-tests.sh`/`scripts/integration-tests.sh`
@@ -1839,7 +1839,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   Part A also moved out: `improvement-153` (verify the merged CI stage for real) and
   `improvement-154` (deploy reusing `build-and-test.sh`'s shared-volume jar, closing the
   documented Playwright-freshness gap). Full detail:
-  `completed/issues/improvement-152-build-script-and-archunit-track-b-unblock.md`.
+  `completed/tasks/improvement-152-build-script-and-archunit-track-b-unblock.md`.
 
 - ✅ Done (2026-08-17): improvement-154 — `scripts/deploy.sh` restructured into
   `scripts/deploy-and-run/` (`run.sh`, `reset.sh`, `docker-compose*.yml`; `scripts/infra`/
@@ -1860,7 +1860,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   165/165, e2e ALL PASSED). Also removed `scripts/hooks/`/`scripts/install-hooks.sh` (never
   installed/used in this environment — the "should this run repo-wide" question was already
   flagged as an explicit user decision in `improvement-138`; user confirmed removal). Full detail:
-  `completed/issues/improvement-154-deploy-reuses-build-and-test-jar.md`.
+  `completed/tasks/improvement-154-deploy-reuses-build-and-test-jar.md`.
 
 - ✅ Done (2026-08-17): improvement-158 — same shared-jar-reuse pattern from improvement-154
   applied to `scripts/sonar/run.sh`: drops its own local `mvnw compile` (no local Java needed
@@ -1875,7 +1875,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   stays on; `--no-gate` only controls whether a failed gate makes the script itself exit non-zero.
   Verified end to end: real scan uploaded, gate evaluated (3 real issues found), HTML report
   written (2810 bytes). Full detail:
-  `completed/issues/improvement-158-sonar-reuses-build-and-test-jar.md`.
+  `completed/tasks/improvement-158-sonar-reuses-build-and-test-jar.md`.
 
 - ✅ Done (2026-08-18): improvement-153 — replaced `scripts/ci.sh`'s hand-rolled `progress.txt`
   polling with Dagu (single-binary DAG engine, built-in web UI). `ci-runner` becomes a persistent
@@ -1917,7 +1917,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   Verified end to end twice more: a full `ci.sh --reset-e2e-db` run (`e2e` now succeeded) and two
   direct `deploy-and-run.sh` + `playwright.sh e2e --full --ux` runs (50/50 passed both times,
   including the specific test that had failed on stale data). Full detail:
-  `completed/issues/improvement-153-dagu-local-ci-visualization.md`.
+  `completed/tasks/improvement-153-dagu-local-ci-visualization.md`.
 
 ✅ Done (2026-08-19): improvement-159 — full 9-step ADR system review, all steps executed for real,
   not just analyzed. Classified all 229 ADRs across 16 `DECISIONS.md` files (KEEP/MERGE/SUPERSEDE/
@@ -1929,7 +1929,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   (+ index column) replacing a one-time code-consistency audit that failed mid-run. Migration
   actually applied across all 13 non-empty `DECISIONS.md` files by 6 parallel agents: **229 → 172
   active ADRs**. A post-migration cross-file integrity sweep found and fixed 6 dangling references
-  to deleted ADR numbers. Full detail: `completed/issues/improvement-159-adr-system-review-and-
+  to deleted ADR numbers. Full detail: `completed/tasks/improvement-159-adr-system-review-and-
   refinement.md`.
 
 ✅ Done (2026-08-20): improvement-155 — repo-wide rollout of the `infra-doc-standards` convention
@@ -1948,7 +1948,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   `infra-doc-standards/SKILL.md`'s own illustrative `scripts/sonar/README.md` example lost its
   file-name pointer (kept the text, per "name a real file only when unavoidable"). `docs/ai/scripts/`
   split off to its own tracked issue, `improvement-161`, rather than folded in here. Full detail:
-  `completed/issues/improvement-155-infra-doc-standards-repo-wide-rollout.md`.
+  `completed/tasks/improvement-155-infra-doc-standards-repo-wide-rollout.md`.
 
 ✅ Done (2026-08-21): improvement-163 — separated raw process logs (`scripts/logs/<script>/`) from
   structured test reports (each script's own `reports/`/`pw-report/`) across build-and-test,
@@ -1962,7 +1962,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   `scripts/pull-logs.bat` to pull logs/reports from persistent containers without running a new
   test. One item (`architecture-map.html`'s script-header truncation/formatting bug, diagnosed but
   not implemented) split out to `improvement-164` rather than folded in here. Full detail:
-  `completed/issues/improvement-163-scripts-tooling-improvements.md`.
+  `completed/tasks/improvement-163-scripts-tooling-improvements.md`.
 
 ✅ Done (2026-08-21): improvement-165 — investigated three third-party `.claude/`-layer linters
   (agnix, AgentLint, AgentLinter) as candidates to mechanically validate `CLAUDE.md`/`SKILL.md`/
@@ -1973,7 +1973,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   rooted in this project's own writing conventions (shell placeholders in inline code, contrastive
   phrasing). Closed with no tool adopted — the underlying gap (no mechanical validation of the
   `.claude/` layer) stays open for a future attempt. Full detail:
-  `completed/issues/improvement-165-investigate-agnix-claude-layer-linter.md`.
+  `completed/tasks/improvement-165-investigate-agnix-claude-layer-linter.md`.
 
 ✅ Done (2026-08-21): improvement-166 — `scripts/collect-code.bat` gains a `--claude-only` mode:
   bundles just `.claude/` rules/commands/skills, every `CLAUDE.md` (root + per-module), and
@@ -1983,7 +1983,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   literal parentheses, since a stray paren in a comment can misparse the block the same way);
   `CLAUDE.md` files were initially missing from the bundle since `--claude-only` skips the general
   `*.md` scan that picks them up in full-project mode, fixed with an explicit `:FindFiles
-  "CLAUDE.md"` call. Full detail: `completed/issues/improvement-166-collect-code-claude-only-mode.md`.
+  "CLAUDE.md"` call. Full detail: `completed/tasks/improvement-166-collect-code-claude-only-mode.md`.
 
 ✅ Done (2026-08-25): improvement-164 — fixed `architecture-map.html`'s script-header display
   (dropped the 20-line read cap, joined continuation lines with `\n` instead of a space, added
@@ -1995,7 +1995,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   `infra-readme-standards` (README/Flow-diagram conventions), then ran both across `scripts/` end
   to end, finding and fixing two real gaps (`claude.bat`'s Unicode header markers, `sonar/README.md`
   + `docker-compose.sonar.yml`'s field/flow-step gaps). Full detail:
-  `completed/issues/improvement-164-architecture-map-script-header-truncation.md`.
+  `completed/tasks/improvement-164-architecture-map-script-header-truncation.md`.
 
 ✅ Done (2026-08-25): improvement-168 — AI guidance refactor across two independent sub-phases.
   Phase 2.1 (memory): audited all 55 auto-memory files against `.claude/rules.md`/every
@@ -2016,7 +2016,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   Recorded as `.claude/DECISIONS.md` ADR-001 (new file for this module). One out-of-scope finding
   (stale repo-wide prose references to the old `<module>/CLAUDE.md` paths) deferred to
   `improvement-133` entry 13 rather than fixed inline or dropped. Full detail:
-  `completed/issues/improvement-168-ai-guidance-memory-vs-canonical-rules.md`.
+  `completed/tasks/improvement-168-ai-guidance-memory-vs-canonical-rules.md`.
 
 ✅ Done (2026-08-25): improvement-170 — `doc-standards` vs `infra-doc-standards`/`infra-readme-standards`
   scope resolution, across 9 items. `doc-standards` split into `module-doc-standards` +
@@ -2033,7 +2033,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   `docs/architecture/scripts/DECISIONS.md` ADR-033 (supersedes ADR-010). `docs/architecture/data/*.md`
   content-governance and the orphaned "Canonical ownership table" both remain open gaps, not picked
   up by this resolution. Full detail:
-  `completed/issues/improvement-170-doc-skill-scope-resolution.md`.
+  `completed/tasks/improvement-170-doc-skill-scope-resolution.md`.
 
 ✅ Done (2026-08-25): improvement-161 — `.claude/nav/scripts/` `infra-doc-standards` rollout. Landed
   as a byproduct of `improvement-170`'s item 1/9 work rather than its own implementation pass: all
@@ -2042,7 +2042,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   `.claude/nav/scripts/README.md` exists with a `## Flow` section and mermaid diagram covering the
   `check-adr-index-freshness.sh` → `generate-adr-index.sh` relationship and the `docs` CI stage.
   Verified directly against current files, then closed. Full detail:
-  `completed/issues/improvement-161-ai-docs-scripts-infra-doc-standards-rollout.md`.
+  `completed/tasks/improvement-161-ai-docs-scripts-infra-doc-standards-rollout.md`.
 
 ✅ Done (2026-08-25): improvement-169 — Hybrid Agentic Review Factory investigation, closed with a
   decision: scope chosen is the narrowest candidate — formalize `diff-mode.md`'s already-working
@@ -2050,7 +2050,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   files plus one orchestrating Agent call, no Semgrep/Sonar-MCP/ArchUnit mechanical-layer
   expansion (two of the mission's proposed rules had directly contradicted this project's own
   documented architecture). Actual implementation split off as a new issue. Full detail:
-  `completed/issues/improvement-169-hybrid-agentic-review-factory.md`.
+  `completed/tasks/improvement-169-hybrid-agentic-review-factory.md`.
 
 ✅ Done (2026-08-25): improvement-162 — `docs/architecture/` reorganization: `architecture-doc.sh`/
   `.bat` relocated from `scripts/` to `docs/architecture/` (one level above
@@ -2062,7 +2062,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   approved-in-principle Dockerfile step (`docs/architecture/scripts/Dockerfile`, no more runtime
   `apt-get install python3`), plus `scripts/claude.bat`'s reuse-vs-`--recreate` container logic
   with the temporary `claude-dev-test` test name reverted back to `claude-dev`. Full detail:
-  `completed/issues/improvement-162-architecture-map-refactor.md`.
+  `completed/tasks/improvement-162-architecture-map-refactor.md`.
 
 ✅ Done (2026-08-26): improvement-171 — formalized `/deep-review`'s reasoning layer as real
   `.claude/agents/*.md` subagents, per `improvement-169`'s decided narrow scope. Final shape:
@@ -2088,7 +2088,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   left open: the `ReportFindings` non-empty-payload path was never directly exercised end to end —
   every live run's own backlog cross-check correctly excluded its candidates (either real issues
   already tracked, or a deliberately-injected test fixture the orchestrator recognized from this
-  issue's own text). Full detail: `completed/issues/improvement-171-formalize-deep-review-agents.md`.
+  issue's own text). Full detail: `completed/tasks/improvement-171-formalize-deep-review-agents.md`.
 
 ✅ Done (2026-08-26): improvement-167 — DAG-aware agent-friendly script execution contract,
   narrowed after investigation to a minimal shared-utility candidate (full mission scope rejected
@@ -2107,7 +2107,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   `deploy-and-run.sh` end to end (success path) and `build-and-test.sh --unit --integration
   --sandbox` (163 tests, 0 failures) both printed the expected `AGENTIC_SUCCESS_BLOCK`. No error
   path exercised live in any of the 7 scripts — verified by syntax check + review only. Full
-  detail: `completed/issues/improvement-167-dag-aware-agent-friendly-script-execution-contract.md`.
+  detail: `completed/tasks/improvement-167-dag-aware-agent-friendly-script-execution-contract.md`.
 
 ✅ Done (2026-08-26): improvement-173 — infra housekeeping: `.claude/skills/README.md`/
   `.claude/commands/README.md` audited (no drift found); `improvement-160`'s D3-3/D3-8/D5-7 rows
@@ -2129,7 +2129,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   a real script-group) plus four unsorted `grep -rl`/`find` pipelines making its own output
   non-deterministic — all fixed and verified (two independent regenerations now byte-identical,
   real freshness gate passes clean). Full detail:
-  `completed/issues/improvement-173-skill-readme-audit-sonar-dagu-mcp-integration.md`.
+  `completed/tasks/improvement-173-skill-readme-audit-sonar-dagu-mcp-integration.md`.
 
 ✅ Done (2026-08-27): improvement-156 — real ArchUnit-based `spi_map_json()` replacement.
   Reclassified first: the original "Track B, gated by `improvement-135` item 5" framing conflated
@@ -2148,7 +2148,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   click-edge-to-row linking) was also built and verified live while testing this — tracked
   separately under `improvement-157`, since its shape diverges from that issue's original spec
   (grouped by Interface, no Method column, vs. the planned Module → Class → Method). Full detail:
-  `completed/issues/improvement-156-archunit-track-b-unblock-decision.md`.
+  `completed/tasks/improvement-156-archunit-track-b-unblock-decision.md`.
 
 ✅ Done (2026-08-27): improvement-157 — SPI Interface Details table redesign, built on
   `improvement-156`'s real method-level data. Shipped shape diverges from the original plan: two
@@ -2161,7 +2161,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   covers its value; a stripped-down signature list gives less than the existing one-click file
   link). Closed with two documented open questions, not blocking: generic-interface type-argument
   display, and whether to eventually regroup by Module → Class → Method. Full detail:
-  `completed/issues/improvement-157-spi-interface-details-table-redesign.md`.
+  `completed/tasks/improvement-157-spi-interface-details-table-redesign.md`.
 
 ✅ Done (2026-08-28): improvement-174 — replaced Bounded Contexts' `ports_json`
   (`bounded_contexts_json()`, all 3 domain branches) and the Module screen's `MODULE_CONTRACT`
@@ -2184,14 +2184,14 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   in the committed `architecture-map.html`. Two adjacent ideas noted but not implemented: real
   ArchUnit cycle-detection for `coupling_checks_json()` (recorded in `improvement-114`), and making
   the generator's own passive data-reads unconditional by default (would touch ADR-021). Full
-  detail: `completed/issues/improvement-174-bounded-contexts-ports-archunit-replacement.md`.
+  detail: `completed/tasks/improvement-174-bounded-contexts-ports-archunit-replacement.md`.
 
 ✅ Done (2026-08-28): improvement-138 Track A — Architecture Control Plane's visual-control track
   (generated `architecture-model.json`/`architecture-map.html`, live Module Dependencies/SPI
   Map/Database ERD/Bounded Contexts pages replacing their hand-maintained markdown, `/sync-docs`
   wiring + freshness CI gate). Split out of the still-open `improvement-138` issue at the user's
   request (done vs. not-done separation) — full execution history moved to
-  `completed/issues/improvement-138-architecture-control-plane-track-a.md`. Track B (ArchUnit
+  `completed/tasks/improvement-138-architecture-control-plane-track-a.md`. Track B (ArchUnit
   contract/test model + AI-token hypothesis) remains not started, gated on the governing rule
   absorbed from `improvement-135` item 5 (see below), and stays tracked under the still-open
   `improvement-138`.
@@ -2206,7 +2206,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   B/B2 question (does a generated nav layer save tokens), just applied to the existing
   hand-authored layer instead of a new one. Nothing still-open remained in `improvement-135`
   itself, so the issue closed. Full detail:
-  `completed/issues/improvement-135-ai-nav-layer-validation-and-adr-index-ci-check.md`.
+  `completed/tasks/improvement-135-ai-nav-layer-validation-and-adr-index-ci-check.md`.
 
 ✅ Done (2026-08-28): improvement-160 closed at explicit user request — not because the work
   finished. AI certification practical-coverage investigation (5 domains: Orchestration, Tool
@@ -2216,8 +2216,8 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   coverage (`improvement-155`). Every remaining coverage-map row stays at `idea` status — none
   implemented. Archived as the record of what was investigated; reopen from the coverage map
   instead of re-researching if any `idea` row gets picked up later. Full detail:
-  `completed/issues/improvement-160-ai-certification-practical-coverage.md` and
-  `completed/issues/improvement-160-certification-coverage-map.md`.
+  `completed/tasks/improvement-160-ai-certification-practical-coverage.md` and
+  `completed/tasks/improvement-160-certification-coverage-map.md`.
 
 ✅ Done (2026-08-28): improvement-176 closed — `/autopilot` review, 5 findings against real repo
   state and the private certification document, all resolved. Fixed directly in
@@ -2238,7 +2238,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   to treat as an accepted precaution rather than open a new issue for. The project-wide Approval
   Rule → Plan Mode question (originally this issue's finding 4 before scope was narrowed) continues
   in `improvement-177`. Full detail:
-  `completed/issues/improvement-176-autopilot-review-certification-findings.md`.
+  `completed/tasks/improvement-176-autopilot-review-certification-findings.md`.
 
 ✅ Done (2026-08-30): improvement-178 closed — unified `SettingsOverlay`/`UserOverlay` into one
   `AccountOverlay` (Name/Settings/Provider Profile tabs), new `ProviderProfileSaveService` in
@@ -2253,7 +2253,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   `04-provider-profile-flow.spec.js` added (4 tests); specs 04-07 renumbered to 05-08. `/ci` full
   run green except `sonar` — a pre-existing, separately-tracked `new_coverage=0%` gap
   (`improvement-114`, unrelated to this issue's own code, which has 0 new violations). Full detail:
-  `completed/issues/improvement-178-account-overlay-provider-profile-tab.md`.
+  `completed/tasks/improvement-178-account-overlay-provider-profile-tab.md`.
 
 ✅ Done (2026-08-31): improvement-175 closed — new `html-sanitizer-lib` module (plain Java library,
   mirrors `query-lib`'s shape) replaces the duplicated `HTML_SANITIZER`/`sanitizeHtml()` logic in
@@ -2269,7 +2269,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   in the same run. `/ci` full run green (unit/integration/e2e/archunit/docs) except `sonar` — the
   same pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`, unrelated, 0 new
   violations confirmed twice via `sonar-analyst`). Full detail:
-  `completed/issues/improvement-175-shared-sanitizer-stale-id-delete-race.md`.
+  `completed/tasks/improvement-175-shared-sanitizer-stale-id-delete-race.md`.
 
 ✅ Done (2026-09-02): improvement-179 closed — public Providers catalog (`ProvidersView`/
   `ProviderProfileCardView`/`ProviderProfileDeepLinkView`/`overlay/ProviderProfileCatalogOverlay`+
@@ -2299,7 +2299,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   unnamed-pattern catch, S8491 dangling duplicate Javadoc, S1192 duplicated string literal) fixed,
   confirmed `new_violations: 0` via the SonarQube API; the quality gate still shows `ERROR` solely
   on the pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`, unrelated to
-  this issue's own code). Full detail: `completed/issues/improvement-179-provider-profile-catalog.md`.
+  this issue's own code). Full detail: `completed/tasks/improvement-179-provider-profile-catalog.md`.
 
 ✅ Done (2026-09-02): improvement-124 closed — F-04's last open batch (124-D, public Providers
   catalog) shipped via `improvement-179` (see that entry above); nothing left in this issue itself.
@@ -2309,7 +2309,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   concurrent-delete race fix) moved to and shipped via `improvement-175`; Batch C (unified
   `AccountOverlay`, `ProviderProfileSaveService`) moved to and shipped via `improvement-178`;
   Batch D (this entry) moved to and shipped via `improvement-179`. Full detail:
-  `completed/issues/improvement-124-provider-profile.md`.
+  `completed/tasks/improvement-124-provider-profile.md`.
 
 ✅ Done (2026-09-02): improvement-180 closed — Providers catalog gains real `createdAt`/`updatedAt`
   date-range filters, mirroring `AdvertisementFilterDto`/`AdvertisementRepository`/
@@ -2326,7 +2326,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   `e2e --ux` 45/45 passed (13 skipped, expected). Sonar's only failing gate condition is the
   pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`, unrelated to this
   issue's own code) — no new issues. Full detail:
-  `completed/issues/improvement-180-providers-sort-icon-placement.md`.
+  `completed/tasks/improvement-180-providers-sort-icon-placement.md`.
 
 ✅ Done (2026-09-03): improvement-111 closed — service-boundary authorization (previously UI-only
   via `AccessEvaluator`) moved to `marketplace-orchestrator`'s new `AuthorizationService`
@@ -2353,7 +2353,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   `html-sanitizer-lib/target/` (the one starter module absent from the per-module ignore list,
   found because `git add -A` almost staged its build artifacts). See
   `marketplace-orchestrator/DECISIONS.md` ADR-007. Full detail:
-  `completed/issues/improvement-111-authorization-enforced-in-ui-only-not-at-service-boundary.md`.
+  `completed/tasks/improvement-111-authorization-enforced-in-ui-only-not-at-service-boundary.md`.
 
 ✅ Done (2026-09-04): improvement-073 closed — REST API infrastructure for two audiences: dev-gated
   Playwright seeding (spec 06 now seeds users/advertisements via real API calls instead of browser
@@ -2386,7 +2386,7 @@ inline, bigger scope than this pass. `improvement-150` filed mid-session as a ti
   `--reset` deploy, Playwright 61/61 (8.7m). A Postman collection with automatic bearer-token
   injection (linked/sync-imported from the now-live `/v3/api-docs` spec) was scoped but left for
   manual setup outside the repo. Full detail:
-  `completed/issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md`.
+  `completed/tasks/improvement-073-rest-endpoint-infrastructure-test-seeding.md`.
 
 ✅ Done (2026-09-04): improvement-182 closed — REST API list endpoints
 (`/api/advertisements`/`provider-profiles`/`taxons`) gained real filter/sort/pagination, closing the
@@ -2412,7 +2412,7 @@ Verified: unit 255/255, integration 186/186 (3 new `TaxonRepository` pagination/
 Postgres), full `ci.sh` — build/unit/integration/e2e/archunit/docs all green; `sonar`'s quality gate
 failed only on the pre-existing, separately-tracked `new_coverage=0%` gap (`improvement-114`), zero
 new real issues (confirmed via direct SonarQube REST API query). Full detail:
-`completed/issues/improvement-182-rest-api-filter-sort-pagination-parity-with-ui.md`.
+`completed/tasks/improvement-182-rest-api-filter-sort-pagination-parity-with-ui.md`.
 
 ✅ Done (2026-09-08): improvement-184 closed — Activity Monitor (`scripts/activity-monitor/`), a
 bash tool wrapping a backgrounded script and rendering a live step checklist instead of raw
@@ -2436,7 +2436,7 @@ Verified: 24/24 `run.test.sh` assertions, one real dry run against the actual
 `deploy-and-run.sh` (620 raw log lines compacted to a 5-line checklist, real exit code 0), a
 `/review` pass (2 confirmed findings fixed — the `CURRENT_STEP` bug above and 5 stale command
 files; 3 lower-confidence findings fixed directly rather than filed as a follow-up issue). Full
-detail: `completed/issues/improvement-184-activity-monitor-token-efficient-narration.md`.
+detail: `completed/tasks/improvement-184-activity-monitor-token-efficient-narration.md`.
 
 ✅ Done (2026-09-08): improvement-114 closed — JaCoCo coverage wired reactor-wide so SonarQube's
 `new_coverage` gate condition stops structurally reading `0.0%`. `jacoco-maven-plugin` (0.8.14,
@@ -2453,7 +2453,7 @@ overall `coverage` metric moved from always-`0.0%` to a real `20.0%`, and
 `QUALITY GATE STATUS: PASSED` end to end for the first time. A `/review` pass found and fixed 3
 confirmed "one line or none" comment-style violations plus one duplicate-loop DRY consolidation in
 `scripts/build-and-test/build.sh`. Full detail:
-`completed/issues/improvement-114-sonar-jacoco-coverage-not-wired.md`.
+`completed/tasks/improvement-114-sonar-jacoco-coverage-not-wired.md`.
 
 ✅ Done (2026-09-12): improvement-187 closed — `scripts/activity-monitor.sh --in-container`, a new
 flag that runs any of the 6 covered scripts (plus `run-all-tests.sh`) inside a dedicated,
@@ -2474,16 +2474,30 @@ scripts (`deploy-and-run.sh`, `build-and-test.sh`, `playwright.sh`, `sonar.sh`, 
 `run-all-tests.sh`) confirmed working both locally and via `--in-container` (`run-all-tests.sh`
 specifically re-verified with 4 consecutive clean runs post-fix, plus a local-mode regression
 check), table in `scripts/activity-monitor/README.md`. Full detail:
-`completed/issues/improvement-187-activity-monitor-in-container-mode.md`.
+`completed/tasks/improvement-187-activity-monitor-in-container-mode.md`.
 
 ✅ Done (2026-09-15): improvement-183 closed — all 28 items resolved (item 9 carved out to
 `improvement-186` earlier; item 27 closed without repro, reopen if it recurs; item 28's live
 per-test Playwright tally turned out to already be implemented on this branch, closed the gap by
 adding 7 test assertions for it in `scripts/activity-monitor/run.test.sh`, 37/37 passing). Full
-detail: `completed/issues/improvement-183-rest-api-and-taxon-ui-follow-ups.md`.
+detail: `completed/tasks/improvement-183-rest-api-and-taxon-ui-follow-ups.md`.
 
 ✅ Done (2026-09-15): improvement-131 closed — the work itself (backfilling a tier emoji onto all
-27 pre-existing `backlog/issues/*.md` `**Priority:**` lines, per the "Resolution" section's own
+27 pre-existing `backlog/tasks/*.md` `**Priority:**` lines, per the "Resolution" section's own
 explicit user decision) was already finished and verified; the file had just never been moved out
-of `backlog/issues/` per the Issue Lifecycle rule. Pure bookkeeping, no new work. Full detail:
-`completed/issues/improvement-131-priority-emoji-rubric-doc-practice-mismatch.md`.
+of `backlog/tasks/` per the Issue Lifecycle rule. Pure bookkeeping, no new work. Full detail:
+`completed/tasks/improvement-131-priority-emoji-rubric-doc-practice-mismatch.md`.
+
+✅ Done (2026-09-15): improvement-130 closed — `backlog/issues/`/`backlog/completed/issues/`
+renamed to `backlog/tasks/`/`backlog/completed/tasks/` (91 files' path references fixed, in three
+passes after the first missed relative-link forms not using the `backlog/` prefix), plus the word
+"issue"/"issues" renamed to "task"/"tasks" in prose across every live standing-instruction file
+(`.claude/rules.md` — "Issue Lifecycle" → "Task Lifecycle" — `feature.md`, `BACKLOG.md`'s own
+prose/table headers, `autopilot.md`, `sync-docs.md`, `README.md`, `nav/flows.md`), classified
+occurrence-by-occurrence rather than blind sed (SonarQube's own "issue" terminology, the verb "to
+issue," and generic "quality issue" phrasing were correctly left alone). `BACKLOG-ARCHIVE.md`
+and individual task files' own body prose deliberately excluded (append-only historical record,
+same precedent already protecting `DECISIONS.md`) — only their literal path substrings fixed.
+Two pre-existing broken relative links found along the way (missing a `../` hop, predate this
+task) — flagged, not fixed, out of scope. Full detail:
+`completed/tasks/improvement-130-backlog-issues-folder-rename.md`.

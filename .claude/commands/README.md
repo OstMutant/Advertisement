@@ -5,7 +5,7 @@ here is independent — no file-to-file call chain between them, so no Flow diag
 self-contained entry point, described below and linked to its real file.
 
 - [`/autopilot`](autopilot.md) — Plan once, approve once, then execute the whole task end-to-end
-  without further check-ins — implementation, all relevant tests, docs/ADR, issue lifecycle —
+  without further check-ins — implementation, all relevant tests, docs/ADR, task lifecycle —
   reporting back only when genuinely done (or genuinely blocked).
 - [`/activity-monitor`](activity-monitor.md) — Wrap a backgrounded script and watch its live step
   checklist instead of raw stdout, so `Monitor` costs tokens proportional to real signal, not log
@@ -18,7 +18,7 @@ self-contained entry point, described below and linked to its real file.
   `scripts/ci/run.sh`).
 - [`/deploy-and-run`](deploy-and-run.md) — Rebuild the `marketplace-app` Docker image and start a
   fresh container using the project deploy script.
-- [`/feature`](feature.md) — Scaffold a new tracked issue in `backlog/issues/` from the standard
+- [`/feature`](feature.md) — Scaffold a new tracked task in `backlog/tasks/` from the standard
   template, then rank it in `backlog/BACKLOG.md`'s priority table.
 - [`/new-domain`](new-domain.md) — Create a complete new UI domain in `marketplace-app` following
   the established patterns.

@@ -41,7 +41,7 @@ as `improvement-171`.
    confidence is not reliable enough to drive an automated decision on its own.
 5. `ReportFindings` (a real tool, but main-thread-only — confirmed against Claude Code's own docs,
    always filtered from a subagent's tool list regardless of `tools:` frontmatter) and writing a
-   new `backlog/issues/*.md` file (an action the standing Approval Rule requires a human to approve
+   new `backlog/tasks/*.md` file (an action the standing Approval Rule requires a human to approve
    first) are both handled the same way: the orchestrator prepares the exact payload/content and
    returns it in its result; the dispatcher is responsible for calling `ReportFindings` and for
    presenting the prepared issue file to the user before writing it. The orchestrator has no

@@ -20,7 +20,7 @@ handful of known ids out of a file that can run to thousands of lines.
 | Task type | Consult | Usually skip |
 |---|---|---|
 | Trivial fix (typo, one-line, no behavior change) | nothing beyond what's already loaded | `DECISIONS.md`, backlog, `docs/architecture/` |
-| Bug fix, single module | filter [adr-index.md](adr-index.md) by module first, then `--extract` just the matching id(s); `backlog/completed/issues/` for a prior fix of the same shape | other modules' `DECISIONS.md`, `docs/architecture/` |
+| Bug fix, single module | filter [adr-index.md](adr-index.md) by module first, then `--extract` just the matching id(s); `backlog/completed/tasks/` for a prior fix of the same shape | other modules' `DECISIONS.md`, `docs/architecture/` |
 | Local refactor, single class/package | same module's `DECISIONS.md` — filter the index, `--extract` the matching id(s) | cross-module docs |
 | Feature, single module | filter the index for related ADRs and `--extract` them if only a few match, `backlog/BACKLOG.md` for related open work | `docs/architecture/` unless the feature touches a documented bounded-context boundary |
 | Cross-module feature | `adr-index.md` filtered to every touched module + `platform-commons`, `docs/architecture/architecture-map.html` (Diagrams › Bounded Contexts) | — |

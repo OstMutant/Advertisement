@@ -50,7 +50,7 @@ Use this mapping table:
 |----------------------|-----------------------|
 | `**/*.java` (main or test), `**/pom.xml`, `**/db/changelog/**`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `.claude/nav/flows.md`, `.claude/rules/*.md`, root `CLAUDE.md` | `docs/architecture/data/architecture-model.json` + `docs/architecture/architecture-map.html` + `docs/architecture/data/arch-embed-index.md` — every diagram (Module Dependencies, SPI Map, Database ERD, Bounded Contexts) and every module page's Code Metrics/Architecture Checks/Largest Files sections render live from real source; there is no separate `.md` to hand-edit for any of them. `.claude/rules/*.md`/`CLAUDE.md` are real generator inputs too, not just Java/pom.xml/DECISIONS.md — the generator reads each `.claude/rules/<module>.md`'s own 5th line for its one-line module description, and scans every `CLAUDE.md`/`.claude/rules/*.md` file for `<!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->` markers, whose content is embedded live into `architecture-map.html` (today: 5 markers in `.claude/rules/platform-commons.md`'s SPI/Port/Hook glossary sections, feeding the SPI Map screen) — editing marked content there is itself editing the live doc, no separate copy to keep in sync. Regenerate via `bash docs/architecture/scripts/generate-architecture-model.sh`. A schema change still needs its new/changed `<column>`/`<createTable>` to carry a real `remarks=` attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that edit happens in the changelog, not in the generated doc. **Run this last, after Step 4's other file updates** — the generator reads every `DECISIONS.md`/`.claude/rules/*.md`/`CLAUDE.md` as input, so it must run after those are updated, not before, or it regenerates from stale input. |
 | Any `*.java` or `**/pom.xml` | `.claude/rules/<module>.md` (per changed module — per-module `CLAUDE.md` files no longer exist, their content lives here), `DECISIONS.md` (per changed module) |
-| Any `*.java` or `**/pom.xml` | `backlog/issues/` — create/close/update tracked issues |
+| Any `*.java` or `**/pom.xml` | `backlog/tasks/` — create/close/update tracked tasks |
 | Any `**/DECISIONS.md` | `.claude/nav/adr-index.md` — regenerate via `bash .claude/nav/scripts/generate-adr-index.sh` |
 | Any `scripts/**`, `docker-compose*.yml`, or other root-level infra/tooling file | root `INFRASTRUCTURE.md` (technical infra overview) — per `app-readme-standards`; a script-group's own `README.md` — per `infra-readme-standards` |
 | Any `*.java` (main or test) | that file's own class-level and method-level Javadoc — per `module-doc-standards`. Not optional: "Class-level Javadoc — always required," no exception, even a self-explanatory `record`/`enum`. Check every class actually touched by the diff, not just new ones — a class edited for unrelated reasons still gets checked if it lacks one. |
@@ -86,7 +86,7 @@ is a pointer to the live tool, and every diagram/module-page section renders dir
 
 **DECISIONS.md** (per module) — ADR audit:
 - Mark realized open goals as done (add date)
-- Replace inline bug/improvement descriptions with `→ [issue-NNN](../backlog/issues/...)` links
+- Replace inline bug/improvement descriptions with `→ [task-NNN](../backlog/tasks/...)` links
 - Add new ADR entry if a new architectural pattern or constraint was introduced
 - Update Status of superseded entries
 - Remove entries whose patterns no longer exist in code
@@ -101,10 +101,10 @@ something it names directly (e.g. its "Reference Implementations" section, the m
 summary) — it is the one `CLAUDE.md` that still exists as a real file; every per-module
 `CLAUDE.md` was migrated into `.claude/rules/<module>.md` (see `.claude/rules/README.md`).
 
-**backlog/issues/** — lifecycle:
-- Create new issue file if a violation or open goal is detected that is not yet tracked
-- Close issue (move to `backlog/completed/issues/`) if the code confirms it is resolved
-- Update issue file if scope or constraints changed
+**backlog/tasks/** — lifecycle:
+- Create new task file if a violation or open goal is detected that is not yet tracked
+- Close task (move to `backlog/completed/tasks/`) if the code confirms it is resolved
+- Update task file if scope or constraints changed
 
 **Root `README.md`/`INFRASTRUCTURE.md`** — consult `app-readme-standards` before editing either.
 Root `README.md` currently has no live-generated architecture section to update (no
@@ -156,7 +156,7 @@ regenerate from stale input.
 
 Print a summary:
 - Which files were updated
-- Which issues were created / closed / updated
+- Which tasks were created / closed / updated
 - Which ADRs were added or status-changed
 - Any new violations found
 
@@ -257,7 +257,7 @@ file/module doesn't naturally prompt anyone to revisit the claim describing it f
 For every `*.java` file, check per `module-doc-standards`'s pre-write checklist: does the class
 carry a class-level Javadoc block at all (no exception, per "Class-level Javadoc — always
 required")? Does every method-level Javadoc actually describe what that method's body does,
-verified by reading it, not a narrative about callers? Does any comment cite an issue/ticket
+verified by reading it, not a narrative about callers? Does any comment cite a task/ticket
 number (must be removed, rationale routed per that skill's own table)? For every infra/tooling
 file, the same checklist from `infra-doc-standards` — file-level and per-function headers present
 and accurate. Classify each finding the same way as ADRs: **MISSING** (no Javadoc/header at all),
@@ -300,15 +300,15 @@ cross-reference / Javadoc and infra-header corrections), plus:
 ### Step A5 — Aggregate operational self-tracking notes
 
 Per `.claude/rules.md`'s "Final reports record real operational data in a fixed, mechanically-
-parseable block" rule, completed issues carry a `## Operational notes` block with fixed `key:
+parseable block" rule, completed tasks carry a `## Operational notes` block with fixed `key:
 value` lines (`token_cost_review`, `token_cost_research`, `token_cost_verification`,
 `context_loading_task_type`, `context_loading_consulted`, `context_loading_matched`,
-`flows_situation`, `flows_chosen`, `flows_matched`). Grep `backlog/completed/issues/` (and
-`backlog/issues/` for in-progress work) for `## Operational notes` blocks added since the last
+`flows_situation`, `flows_chosen`, `flows_matched`). Grep `backlog/completed/tasks/` (and
+`backlog/tasks/` for in-progress work) for `## Operational notes` blocks added since the last
 full-audit and aggregate mechanically (parse the `key: value` lines directly, the same way
 `generate-adr-index.sh` parses `## ADR-NNN:`/`**Status:**` — do not rely on prose parsing):
 - Token cost trend by purpose (`token_cost_review`/`research`/`verification`) across the sampled
-  issues — sum and average, `n/a` entries excluded from the average, not treated as zero.
+  tasks — sum and average, `n/a` entries excluded from the average, not treated as zero.
 - `context_loading_matched` yes/no/n/a tally, grouped by `context_loading_task_type`.
 - `flows_matched` yes/no/n/a tally.
 Feed the result into `.claude/nav/`'s own governing rule — no new navigation content until this data
@@ -335,5 +335,5 @@ above, and Step A5's operational self-tracking aggregate.
 - All diagrams must use Mermaid syntax
 - All conclusions must reference actual class names or file paths
 - ADR format: see `.claude/commands/record-decision.md` step 4
-- Issue format: see `.claude/commands/feature.md` step 3
-- Never duplicate issues — update existing ones rather than creating new
+- Task format: see `.claude/commands/feature.md` step 3
+- Never duplicate tasks — update existing ones rather than creating new

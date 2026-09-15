@@ -16,6 +16,6 @@ Steps:
 2. Read the orchestrator's final result in full -- it is not this command's job to re-verify
    findings, only to act on what the orchestrator already verified.
 3. If the result includes a `ReportFindings` JSON payload block: call `ReportFindings` with it.
-4. If the result includes any prepared-but-unwritten `backlog/issues/*.md` file content: present
+4. If the result includes any prepared-but-unwritten `backlog/tasks/*.md` file content: present
    it to the user and, only after explicit approval, write it via the `Write` tool -- never write
    it automatically, per the standing Approval Rule.

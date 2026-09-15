@@ -730,7 +730,7 @@ enforced only by a client-reachable, regex-based binder validator
 (`html.replaceAll("<[^>]+>", "")` + length check) that tag-spam could bypass — formatting tags
 like `<b></b>` survive the OWASP sanitizer (it preserves allowed tags), so thousands of empty
 ones pass the stripped-text check while still bloating the stored HTML
-(`backlog/completed/issues/issue-description-length-tag-spam.md`). No server-side length
+(`backlog/completed/tasks/issue-description-length-tag-spam.md`). No server-side length
 guard existed at all — a direct port call bypassing the UI could persist an unbounded
 description.
 
