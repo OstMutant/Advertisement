@@ -100,7 +100,16 @@ if [ -n "$NO_CHECK" ]; then
   echo "Applying --no-check: skipping the staleness check — testing against whatever is already" \
        "in ~/.m2, even if stale."
 else
-  STARTER_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter audit-spring-boot-starter attachment-spring-boot-starter provider-profile-spring-boot-starter apikey-spring-boot-starter"
+  # Module list derived from root pom.xml (keep only modules with no own src/test/java content,
+  # excluding integration-tests itself) instead of hand-maintained -- the complementary set to
+  # build.sh's own UNIT_MODULES derivation, same source, same "does src/test/java/**/*.java exist"
+  # predicate inverted -- see improvement-181.
+  STARTER_MODULES=$(sed -n '/<modules>/,/<\/modules>/p' "$ROOT/pom.xml" \
+    | grep -oE '<module>[^<]+</module>' | sed -E 's#</?module>##g' \
+    | grep -v '^integration-tests$' \
+    | while read -r m; do
+        [ -z "$(find "$ROOT/$m/src/test/java" -name '*.java' 2>/dev/null | head -1)" ] && echo "$m"
+      done | paste -sd' ')
   NEEDS_INSTALL=""
   for m in $STARTER_MODULES; do
     JAR="$(find "$HOME/.m2/repository/org/ost/$m" -name '*.jar' 2>/dev/null | head -1)"

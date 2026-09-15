@@ -11,6 +11,7 @@ import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import org.junit.jupiter.api.Test;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
@@ -18,14 +19,21 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * Codifies the cross-module architecture rules from the root {@code CLAUDE.md}/{@code rules.md}
@@ -39,9 +47,54 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 @AnalyzeClasses(packages = "org.ost", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureRulesTest {
 
-    private static final List<String> STARTER_PACKAGES = List.of(
-            "org.ost.audit", "org.ost.attachment", "org.ost.user",
-            "org.ost.advertisement", "org.ost.taxon", "org.ost.provider", "org.ost.apikey");
+    private static final List<String> STARTER_PACKAGES = discoverStarterPackages();
+
+    // Discovers each sibling *-spring-boot-starter module's own base package by scanning its
+    // src/main/java/org/ost/ directory (exactly one subdirectory per starter) instead of a
+    // hand-maintained list -- not derivable from the module directory name by a fixed string
+    // transform (provider-profile-spring-boot-starter's real package is org.ost.provider, not
+    // org.ost.providerprofile), but reliably discoverable from the filesystem. Maven always sets a
+    // module's own test working directory to that module's own directory, so ".." reliably
+    // resolves to the reactor root regardless of how `mvn test` is invoked.
+    private static List<String> discoverStarterPackages() {
+        Path reactorRoot = Paths.get("..").toAbsolutePath().normalize();
+        try (Stream<Path> modules = Files.list(reactorRoot)) {
+            return modules
+                    .filter(Files::isDirectory)
+                    .filter(p -> p.getFileName().toString().endsWith("-spring-boot-starter"))
+                    .map(p -> p.resolve("src/main/java/org/ost"))
+                    .filter(Files::isDirectory)
+                    .flatMap(ArchitectureRulesTest::listSubpackages)
+                    .sorted()
+                    .toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static Stream<String> listSubpackages(Path orgOstDir) {
+        try (Stream<Path> subs = Files.list(orgOstDir)) {
+            return subs.filter(Files::isDirectory)
+                    .map(s -> "org.ost." + s.getFileName())
+                    .toList().stream();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    // Safety net: a bug in discoverStarterPackages() returning an empty list wouldn't fail loudly
+    // -- starters_must_not_import_sibling_starters/marketplace_must_not_import_starter_internals
+    // below would just trivially pass on nothing to check, silently disabling real architecture
+    // enforcement instead of erroring. Deliberately does not assert an exact count/list -- that
+    // would reintroduce the same hand-maintained-list drift risk this discovery replaces.
+    @Test
+    void starterPackagesDiscoveryFoundAtLeastOneStarter() {
+        assertFalse(STARTER_PACKAGES.isEmpty(),
+                "STARTER_PACKAGES discovery found zero starter modules -- either the reactor-root "
+                        + "path assumption broke or every *-spring-boot-starter module is somehow "
+                        + "missing its own org.ost.<pkg> subdirectory; several @ArchTest rules "
+                        + "silently stop checking anything on an empty list");
+    }
 
     @ArchTest
     static final ArchRule ui_must_not_call_repositories_directly =

@@ -25,7 +25,7 @@
           },
           {
             "type": "command",
-            "command": "input=$(cat); cmd=$(echo \"$input\" | sed -E 's/^.*\"command\":\"((\\\\.|[^\"\\\\])*)\".*$/\\1/'); echo \"$cmd\" | grep -qE 'scripts/[A-Za-z0-9_./-]+\\.sh' || exit 0; sid=$(echo \"$input\" | sed -E 's/^.*\"session_id\":\"((\\\\.|[^\"\\\\])*)\".*$/\\1/'); if [ -f \"/tmp/claude-nav-check/$sid/context-loading\" ] && [ -f \"/tmp/claude-nav-check/$sid/flows\" ]; then exit 0; fi; echo 'scripts/*.sh invocation BLOCKED -- Read .claude/nav/context-loading.md and .claude/nav/flows.md first (per rules.md), then retry' >&2; exit 2"
+            "command": "input=$(cat); cmd=$(echo \"$input\" | sed -E 's/^.*\"command\":\"((\\\\.|[^\"\\\\])*)\".*$/\\1/'); echo \"$cmd\" | grep -qE 'scripts/[A-Za-z0-9_./-]+\\.sh' || exit 0; sid=$(echo \"$input\" | grep -o '\"session_id\":\"[^\"]*\"' | head -1 | sed 's/\"session_id\":\"//;s/\"$//'); if [ -f \"/tmp/claude-nav-check/$sid/context-loading\" ] && [ -f \"/tmp/claude-nav-check/$sid/flows\" ]; then exit 0; fi; echo 'scripts/*.sh invocation BLOCKED -- Read .claude/nav/context-loading.md and .claude/nav/flows.md first (per rules.md), then retry' >&2; exit 2"
           }
         ]
       },
@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); file=$(echo \"$input\" | sed -E 's/^.*\"file_path\":\"((\\\\.|[^\"\\\\])*)\".*$/\\1/'); echo \"$file\" | grep -q 'DECISIONS\\.md$' || exit 0; sid=$(echo \"$input\" | sed -E 's/^.*\"session_id\":\"((\\\\.|[^\"\\\\])*)\".*$/\\1/'); if [ -f \"/tmp/claude-nav-check/$sid/context-loading\" ] && [ -f \"/tmp/claude-nav-check/$sid/flows\" ]; then exit 0; fi; echo 'DECISIONS.md edit BLOCKED -- Read .claude/nav/context-loading.md and .claude/nav/flows.md first (per rules.md), then retry' >&2; exit 2"
+            "command": "input=$(cat); file=$(echo \"$input\" | grep -o '\"file_path\":\"[^\"]*\"' | head -1 | sed 's/\"file_path\":\"//;s/\"$//'); echo \"$file\" | grep -q 'DECISIONS\\.md$' || exit 0; sid=$(echo \"$input\" | grep -o '\"session_id\":\"[^\"]*\"' | head -1 | sed 's/\"session_id\":\"//;s/\"$//'); if [ -f \"/tmp/claude-nav-check/$sid/context-loading\" ] && [ -f \"/tmp/claude-nav-check/$sid/flows\" ]; then exit 0; fi; echo 'DECISIONS.md edit BLOCKED -- Read .claude/nav/context-loading.md and .claude/nav/flows.md first (per rules.md), then retry' >&2; exit 2"
           }
         ]
       }
@@ -63,7 +63,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); file=$(echo \"$input\" | sed -E 's/^.*\"file_path\":\"((\\\\.|[^\"\\\\])*)\".*$/\\1/'); sid=$(echo \"$input\" | sed -E 's/^.*\"session_id\":\"((\\\\.|[^\"\\\\])*)\".*$/\\1/'); [ -z \"$sid\" ] && exit 0; mkdir -p \"/tmp/claude-nav-check/$sid\"; echo \"$file\" | grep -q 'context-loading\\.md$' && touch \"/tmp/claude-nav-check/$sid/context-loading\"; echo \"$file\" | grep -q 'flows\\.md$' && touch \"/tmp/claude-nav-check/$sid/flows\"; exit 0"
+            "command": "input=$(cat); file=$(echo \"$input\" | grep -o '\"file_path\":\"[^\"]*\"' | head -1 | sed 's/\"file_path\":\"//;s/\"$//'); sid=$(echo \"$input\" | grep -o '\"session_id\":\"[^\"]*\"' | head -1 | sed 's/\"session_id\":\"//;s/\"$//'); [ -z \"$sid\" ] && exit 0; mkdir -p \"/tmp/claude-nav-check/$sid\"; echo \"$file\" | grep -q 'context-loading\\.md$' && touch \"/tmp/claude-nav-check/$sid/context-loading\"; echo \"$file\" | grep -q 'flows\\.md$' && touch \"/tmp/claude-nav-check/$sid/flows\"; exit 0"
           }
         ]
       }

@@ -2501,3 +2501,19 @@ same precedent already protecting `DECISIONS.md`) — only their literal path su
 Two pre-existing broken relative links found along the way (missing a `../` hop, predate this
 task) — flagged, not fixed, out of scope. Full detail:
 `completed/tasks/improvement-130-backlog-issues-folder-rename.md`.
+
+✅ Done (2026-09-15): improvement-181 closed — the three hand-maintained module-name lists in
+`scripts/build-and-test/build.sh` (`UNIT_MODULES`), `integration-tests/run.sh`
+(`STARTER_MODULES`), and `ArchitectureRulesTest` (`STARTER_PACKAGES`) now all auto-derive from root
+`pom.xml`'s `<modules>` list (plus, for `ArchitectureRulesTest`, real filesystem discovery of each
+starter's own `org.ost.<pkg>` subdirectory) instead of drifting silently out of sync. Found and
+fixed a real, currently-active instance of the exact bug this issue existed to prevent:
+`html-sanitizer-lib`'s `HtmlSanitizerTest` had never once been executed by `--unit` — fixing that
+gap surfaced one further genuine test bug (`sanitize_formattingLinksBlocksAndPre_arePreserved`
+asserted away `rel="nofollow"`, standard OWASP `Sanitizers.LINKS` behavior — expected value
+corrected). Verified `ArchitectureRulesTest`'s new `STARTER_PACKAGES` discovery actually gets
+enforced, not just compiles: a temporary real Vaadin dependency + reference injected into
+`apikey-spring-boot-starter` made `starters_must_not_depend_on_vaadin` genuinely fail (21 tests, 1
+failure), then fully reverted. Full Definition-of-Done run (`--unit --integration --sandbox`): 766
+tests across 103 classes, 0 failures/errors/skipped. Full detail:
+`completed/tasks/improvement-181-module-list-auto-discovery.md`.

@@ -16,7 +16,10 @@ class HtmlSanitizerTest {
     @Test
     void sanitize_formattingLinksBlocksAndPre_arePreserved() {
         String html = "<p><strong>bold</strong> <a href=\"https://example.com\">link</a></p><pre>code</pre>";
-        assertThat(HtmlSanitizer.sanitize(html, 100)).isEqualTo(html);
+        // Sanitizers.LINKS adds rel="nofollow" to every <a href> -- standard OWASP java-html-sanitizer
+        // behavior, not something this test should assert away.
+        String expected = "<p><strong>bold</strong> <a href=\"https://example.com\" rel=\"nofollow\">link</a></p><pre>code</pre>";
+        assertThat(HtmlSanitizer.sanitize(html, 100)).isEqualTo(expected);
     }
 
     @Test

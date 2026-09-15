@@ -171,9 +171,20 @@ trap - ERR
 # against each other. They touch different target/ dirs too (query-lib/marketplace-app/
 # marketplace-orchestrator/marketplace-rest-api vs integration-tests), so no output collision either.
 run_unit_tests() {
-  UNIT_MODULES="query-lib,marketplace-app,marketplace-orchestrator,marketplace-rest-api"
+  # Module list derived from root pom.xml (keep only modules with their own src/test/java content)
+  # instead of hand-maintained -- a separately hardcoded copy here silently drifted out of sync
+  # before (confirmed directly: html-sanitizer-lib's own HtmlSanitizerTest was never executed by
+  # --unit, with no error or warning, the same class of gap already fixed for
+  # TARGET_CLASSES_MODULES above -- see improvement-181).
+  ALL_UNIT_MODULES=$(sed -n '/<modules>/,/<\/modules>/p' "$ROOT/pom.xml" \
+    | grep -oE '<module>[^<]+</module>' | sed -E 's#</?module>##g' \
+    | grep -v '^integration-tests$' \
+    | while read -r m; do
+        [ -n "$(find "$ROOT/$m/src/test/java" -name '*.java' 2>/dev/null | head -1)" ] && echo "$m"
+      done | paste -sd,)
+  UNIT_MODULES="$ALL_UNIT_MODULES"
   UNIT_TEST_FLAG=""
-  if [ "$UNIT_TEST_ARG" = "query-lib" ] || [ "$UNIT_TEST_ARG" = "marketplace-app" ] || [ "$UNIT_TEST_ARG" = "marketplace-orchestrator" ] || [ "$UNIT_TEST_ARG" = "marketplace-rest-api" ]; then
+  if echo ",$ALL_UNIT_MODULES," | grep -q ",$UNIT_TEST_ARG,"; then
     UNIT_MODULES="$UNIT_TEST_ARG"
   elif [ -n "$UNIT_TEST_ARG" ]; then
     UNIT_TEST_FLAG="-Dtest=${UNIT_TEST_ARG} -Dsurefire.failIfNoSpecifiedTests=false"
@@ -186,7 +197,7 @@ run_unit_tests() {
   cp /tmp/unit-tests.log "$LOGS_DIR/unit-tests.log"
 
   mkdir -p "$REPORTS_DIR/surefire" "$REPORTS_DIR/jacoco"
-  for m in query-lib marketplace-app marketplace-orchestrator marketplace-rest-api; do
+  for m in $(echo "$ALL_UNIT_MODULES" | tr ',' ' '); do
     if [ -d "$ROOT/$m/target/surefire-reports" ]; then
       mkdir -p "$REPORTS_DIR/surefire/$m"
       cp -r "$ROOT/$m"/target/surefire-reports/* "$REPORTS_DIR/surefire/$m/" 2>/dev/null || true
