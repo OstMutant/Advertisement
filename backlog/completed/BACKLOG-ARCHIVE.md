@@ -2481,3 +2481,9 @@ check), table in `scripts/activity-monitor/README.md`. Full detail:
 per-test Playwright tally turned out to already be implemented on this branch, closed the gap by
 adding 7 test assertions for it in `scripts/activity-monitor/run.test.sh`, 37/37 passing). Full
 detail: `completed/issues/improvement-183-rest-api-and-taxon-ui-follow-ups.md`.
+
+✅ Done (2026-09-15): improvement-131 closed — the work itself (backfilling a tier emoji onto all
+27 pre-existing `backlog/issues/*.md` `**Priority:**` lines, per the "Resolution" section's own
+explicit user decision) was already finished and verified; the file had just never been moved out
+of `backlog/issues/` per the Issue Lifecycle rule. Pure bookkeeping, no new work. Full detail:
+`completed/issues/improvement-131-priority-emoji-rubric-doc-practice-mismatch.md`.
