@@ -159,14 +159,54 @@ string passed to `Bash`, not what a script does internally.
 4. Produce the change as a diff to `.claude/settings.json`. **Do not apply it** — this is a
    protected-path change, subject to the same Approval Rule as everywhere else.
 
-**Task B:** verify whether the installed Claude Code version actually supports a `plansDirectory`
-`settings.json` option, against real documentation/changelog, before proposing it as a complement
-to Task A. If unsupported or no clean fit with the `backlog/tasks/<n>.md` convention exists, report
-that and stop — Task A remains the primary fix either way.
+**Task B — done, no fix applied (2026-09-15).** Verified against real sources, not memory:
+`plansDirectory` is a genuine, documented `settings.json` key, settable at both user
+(`~/.claude/settings.json`) and project (`.claude/settings.json`) scope — the same layering this
+repo already uses. But two real blockers rule out a clean integration:
 
-**Task C:** add an explicit rule wherever `/review`'s dispatch pattern is documented: a review pass
-that would fan out to more than 3 parallel specialists splits into sequential waves instead. No
-change to the current 3-specialist structure.
+1. **Confirmed, apparently-unfixed bug.** GitHub issue #19537 ("Project-level plansDirectory
+   setting ignored in favor of global default") — a project-level `.claude/settings.json` value is
+   ignored, Claude Code still writes to the global `~/.claude/plans/`. Issue shows as "Closed" but
+   with no maintainer fix note; checked the official changelog through the latest listed version
+   (2.1.273 — our installed 2.1.272 is one patch behind) and found zero mentions of
+   `plansDirectory` in any release. Cannot confirm this is actually fixed in the installed version.
+2. **Directory-only control, not format control.** Even working, `plansDirectory` only relocates
+   *where* Plan Mode's harness-generated plan file lands — it does not make that file match this
+   project's `backlog/tasks/<n>.md` template (`**Priority:**`/`**When:**`/`## Approach` etc.). This
+   is the same incompatibility that already stopped `improvement-177`'s Plan Mode migration attempt
+   — `plansDirectory` does not close that gap, it only changes an unrelated path.
+
+**No clean integration exists — reported as required by this task's own instructions, nothing
+applied.** Task A (the hardened hook) remains the primary, and only, fix for the commit-gate.
+
+**Task C — done, applied (2026-09-15).** Added the wave-threshold rule to
+`.claude/agents/review/deep-review-orchestrator.md` in two places, not one:
+
+1. **Step 3 (finder-lens dispatch)** — today exactly 3 lenses (`dry-kiss-yagni-reviewer`,
+   `solid-reviewer`, `precedent-reviewer`), matching the task's own "no current behavior change"
+   framing: the rule only bites once a 4th lens is added.
+2. **Step 4 (per-candidate verification dispatch)** — added the same rule here too, not just step 3.
+   This step dispatches one verifier *per surviving candidate finding*, which routinely exceeds 3
+   in a real review with more than 3 findings — this is actually the more likely real trigger point
+   for the threshold in practice, and leaving it out would have meant the hardening didn't cover the
+   spot most likely to matter.
+
+**Gap found and fixed too, after user pushback on leaving a known real risk merely flagged
+(2026-09-15).** Re-reading step 1's `all`/`everything` scope during this task found it already
+fans out far past 3 in practice: it loops step 3 (3 lenses) once *per top-level Maven module*,
+"dispatched in parallel" — with ~14 modules in this repo's root `pom.xml`, a full-repo sweep issued
+roughly 14×3 ≈ 42 parallel `Agent` calls in one response, already well past the threshold this task
+added elsewhere. First pass left this as a recommended follow-up rather than fixing it (the source
+document's own Task C instruction said "do not change the current agent count or structure," and a
+per-module/per-lens wave-batching redesign looked like a bigger design question) — on reflection,
+and per direct feedback that recording a real gap and then archiving the task anyway doesn't add up,
+implemented the simplest fix that actually closes it: **modules are now processed sequentially, one
+at a time**, instead of dispatching every module's step 3 together. Each module's own step 3 still
+fires its 3 lenses together internally (within the wave threshold), but the next module doesn't
+start until the current one's step 3/4 finish — this caps real concurrency at ≤3 parallel `Agent`
+calls at any point, regardless of module count, with no new per-module/per-lens batching logic
+needed. Applied directly to `.claude/agents/review/deep-review-orchestrator.md`'s step 1 `all`
+bullet.
 
 **Task D+E:** one read pass over the 6 real `.claude/agents/*.md` files, reporting per agent: stated
 role/scope, role-specificity (CONFIRMED narrow / AMBIGUOUS / TOO BROAD), tools/MCP access,

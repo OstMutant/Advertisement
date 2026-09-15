@@ -30,10 +30,15 @@ diff):
 - `module <name>` (e.g. "module platform-commons") → a file set: every file under
   `<name>/src/main` (via `Glob`).
 - `all`/`everything`/"повністю" → loop step 3 once per top-level Maven module (read root `pom.xml`'s
-  `<module>` entries for the list), each scoped to that module's own `src/main` file set, dispatched
-  in parallel — the same per-module shape as this project's earlier full-sweep precedent, kept
-  because a single dispatch across the whole repo at once would blow past any one subagent's
-  useful context.
+  `<module>` entries for the list), each scoped to that module's own `src/main` file set — the same
+  per-module shape as this project's earlier full-sweep precedent, kept because a single dispatch
+  across the whole repo at once would blow past any one subagent's useful context. **Process
+  modules sequentially, one at a time — not all modules' step 3 together.** Each module's own step 3
+  still dispatches its 3 lenses together (within the wave threshold below), but firing every
+  module's 3-lens dispatch at once would fan out to `module_count`×3 parallel calls in a single
+  response — already ~14×3≈42 in this repo's own module count, well past the threshold this same
+  file's step 3/4 wave rule exists to prevent. Complete one module's step 3 (and its own step 4
+  verification) before starting the next module's.
 
 ## 2. Summarize
 
@@ -48,6 +53,12 @@ tool, all three in a single response (they are independent tasks over the same s
 file set plus your step-2 summary. (These three lenses are wired in today — other lenses, e.g.
 security-boundary or data-integrity, are a future addition: write them as new `.claude/agents/*.md`
 files and dispatch them here the same way, once needed.)
+
+**Wave threshold (hard rule, not a suggestion):** a coordinator accumulates context from every
+worker it dispatches — a single response fanning out to more than 3 parallel finder lenses is a
+real context-overload risk. If a 4th lens (or more) is ever added, do not dispatch all of them in
+one response once the count exceeds 3 — split into sequential waves of at most 3 concurrent
+dispatches instead. No change to today's 3-lens structure; this only governs future growth.
 
 Instruction to include verbatim, to all three:
 
@@ -65,7 +76,15 @@ raised it, so nothing is lost by merging.
 For each candidate in the merged `findings` array, dispatch a fresh, separate
 verification subagent via `Agent`. These are independent tasks — emit every `Agent` call for this
 step in a single response, not one at a time across separate turns; a sequential dispatch here adds
-latency for nothing. Pass each one that one finding's full `locations` array plus `claim`, plus
+latency for nothing.
+
+**Wave threshold (hard rule, not a suggestion):** if the merged `findings` array has more than 3
+candidates, do not dispatch all of their verifiers in one response — split into sequential waves of
+at most 3 concurrent dispatches instead. This is the step most likely to actually cross the
+threshold in practice (any review surfacing more than 3 real candidates), unlike step 3's
+currently-fixed 3-lens count.
+
+Pass each one that one finding's full `locations` array plus `claim`, plus
 this instruction:
 
 > Open the real, current file at every path/line in `locations` (there may be 2+, for a

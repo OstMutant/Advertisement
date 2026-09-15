@@ -2533,3 +2533,31 @@ confirmed via direct `grep` not to exist anywhere in the file; almost certainly 
 IntelliJ Markdown-preview server rendering ordinary relative links as local absolute URLs in its
 own preview pane, not a defect in the committed file). Full detail:
 `completed/tasks/improvement-189-readme-portfolio-restructure.md`.
+
+✅ Done (2026-09-15): improvement-192 closed — evaluated an external "AGENTIC GOVERNANCE
+HARDENING" directive's 5 tasks against real code rather than trusting its own premise. Task D+E:
+read-only role/tool-scope audit of all 6 real `.claude/agents/*.md` files — 6/6 roles CONFIRMED
+narrow, 5/6 tool scopes cleanly JUSTIFIED, one prose-only-restriction pattern in `dagu-analyst`
+flagged as a follow-on note. Task A: the directive's "commit gate is prose-only" premise was false
+— `.claude/settings.json` already had a working `UserPromptSubmit`+`PreToolUse` hook pair; direct
+inspection found two real bypasses instead (substring-match evasion via `git -c`/`--git-dir`,
+unscoped global `/tmp/commit-approved` marker), fixed and applied. End-to-end testing before
+landing caught two more real bugs: a position-anchored regex that broke detection of
+`bash -c "git commit"` (dropped the anchor), and a pre-existing JSON-field-extraction bug that
+truncates on an embedded quote (reused this file's own already-correct nav-check sed pattern
+instead of inventing a new one) — verified via an 11-case synthetic test battery, all passing.
+A real "зроби коміт" from the user (commit `f73f222e`) then served as the live confirmation that
+Claude Code serializes hook prompt payloads as raw UTF-8, resolving an encoding risk the synthetic
+tests alone couldn't settle. Task B: verified `plansDirectory` is a real `settings.json` key but
+has a confirmed, apparently-still-unfixed GitHub bug (#19537) ignoring project-level config, and
+even working would only relocate the plan file, not make it match this project's
+`backlog/tasks/<n>.md` template — no clean integration, nothing applied, Task A stays primary.
+Task C: added an explicit ">3 parallel specialists → sequential waves" hard rule to
+`.claude/agents/review/deep-review-orchestrator.md`'s finder-lens dispatch (step 3) and
+per-candidate verification dispatch (step 4). Re-reading step 1's `all`/`everything` scope during
+this task surfaced a live instance of the same problem it doesn't cover by itself — roughly
+14 modules × 3 lenses ≈ 42 parallel calls in one response for a full-repo sweep — first left as a
+recommended follow-up, then actually fixed after direct feedback that flagging a real risk and
+archiving the task anyway doesn't add up: modules are now processed sequentially instead of all at
+once, capping real concurrency at ≤3 regardless of module count. Full detail:
+`completed/tasks/improvement-192-agentic-governance-hardening-commit-hook-review-waves-agent-audit.md`.
