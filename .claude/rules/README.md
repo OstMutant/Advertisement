@@ -51,3 +51,32 @@ though that file lives under `docs/architecture/scripts/`, nested two levels dee
 top-level `scripts/` directory `scripts.md` was actually written for. Write globs narrow enough
 that an unrelated directory elsewhere in the repo sharing the same path segment can't trigger an
 unintended load.
+
+A full mechanical sweep (`bash .claude/nav/scripts/check-rule-path-globs.sh`) confirmed this isn't
+an isolated case — 8 of the 16 rule files here have at least one unintended match today:
+`scripts.md` also matches `.claude/nav/scripts/` (a second, previously-undocumented instance,
+alongside the `docs/architecture/scripts/` one above); `html-sanitizer-lib.md`,
+`integration-tests.md`, `marketplace-app.md`, `marketplace-orchestrator.md`,
+`marketplace-rest-api.md`, `playwright.md`, and `query-lib.md` all also match their own
+module-named subdirectories under `scripts/build-and-test/reports/**/surefire/` (per-module
+Surefire report output) and, for `integration-tests`/`playwright`, under `scripts/logs/` too. No
+anchored-glob syntax to avoid this is currently known to exist for the `paths:` field — the
+official docs' own examples (e.g. `src/**/*` described as "all files under `src/`") imply
+root-relative matching is the intent, but the actually-observed behavior in this installed version
+matches anywhere in the tree, and no alternate anchoring prefix is documented. Treat every instance
+above as low-severity (a matching path is a generated build-report/log artifact directory, not real
+module source — the cost is an unnecessary extra rule file loading into context, not a correctness
+bug) rather than attempting an unverified glob-syntax workaround. Re-run the checker script
+periodically (e.g. whenever a new `.claude/rules/*.md` file is added) rather than assuming this
+list stays complete by hand.
+
+## Important — path-scoped rules load on Read, not on Write
+
+Per Claude Code's own documentation: "Path-scoped rules trigger when Claude reads files matching
+the pattern, not on every tool use." Creating a brand-new file with `Write` in a module that has no
+file read yet in the current session does **not** load that module's `.claude/rules/<module>.md` —
+only a `Read` of a matching path does. In practice this rarely bites for edits to *existing* files
+(the `Edit` tool already requires a prior `Read` of the same file), but a genuinely new file in a
+module — e.g. the first class in a brand-new package — can be written before its module's own
+rules ever entered context. No mitigation currently in place beyond awareness: read an existing
+sibling file in the target module first when creating something genuinely new there.
