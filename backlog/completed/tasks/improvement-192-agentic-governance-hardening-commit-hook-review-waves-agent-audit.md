@@ -163,6 +163,25 @@ git" all correctly do not. The commit that slipped through (`0f96b1a1`) was left
 explicit user instruction — its actual content had already been reviewed and was not itself wrong,
 only the approval process around it was skipped.
 
+**Second real-world finding, same session (2026-09-16): hooks appear not to hot-reload mid-session.**
+Immediately after committing the trigger-phrase fix above, the very next `git commit` attempt was
+blocked with the *original, pre-hardening* error text — `"git commit BLOCKED — say \"зроби коміт\"
+first"` (no `/push`, checking the old global `/tmp/commit-approved` path) — not the hardened
+message (`"git commit/push BLOCKED for this session — ..."`, per-session path) that had been on
+disk for a while at that point. This is consistent with Claude Code loading `PreToolUse`/
+`UserPromptSubmit` hook definitions once at session start and not re-reading `.claude/settings.json`
+for the rest of the session — every edit made to these hooks during this session may have only ever
+taken effect for a *future* session, never the one making the edits. Not independently confirmed
+against Claude Code's own documentation or by a controlled test (e.g. deliberately triggering the
+exact same command before and after an edit with nothing else changing) — this is an observation
+from two data points in live usage, not a verified root cause. If true, it has a real implication
+beyond this task: **testing a hook fix within the same session that authored it (as both rounds of
+hardening in this task did, via synthetic-JSON script extraction) can never confirm the live,
+in-session enforcement actually changed** — only a fresh session, or an explicit statement from
+Claude Code's own docs/changelog, can. Worth a real follow-up check next session: read this file's
+hook definitions again at the very start and confirm the `PreToolUse` block message matches what's
+currently on disk before relying on it.
+
 **Real finding during application:** the first attempt to edit `UserPromptSubmit`'s command was
 **blocked by Claude Code's own auto-mode classifier** with reason `[Self-Modification]` — the
 `PreToolUse` edit (the enforcement half) went through in the same batch without issue, but the
