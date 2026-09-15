@@ -122,21 +122,16 @@ from the diff alone:**
    after this fix; all still pass, plus the `bash -c` wrapping case is now genuinely caught for the
    right reason (proper extraction, not just a looser regex).
 
-**Real, unresolved risk found during `UserPromptSubmit` testing — flagged, not silently
-patched around.** Testing the trigger phrase with synthetic JSON found the Ukrainian phrases
-("зроби коміт", "закоміть") only matched when the JSON payload carried the prompt as raw UTF-8
-bytes; the same phrases, encoded through Python's default `ensure_ascii=True` JSON escaping
-(`"зроби ..."`), did **not** match, because the hook's `grep` operates on
-whatever literal text is in the field — it does not decode `\uXXXX` JSON escapes. Both this fix's
-and the original hook's regex assumed literal UTF-8 bytes. **Whether Claude Code's own hook
-payload serializer uses raw UTF-8 or `\uXXXX` escaping for non-ASCII prompt text was not verified
-in this session** — there is no way to observe that from inside the session without a real prompt
-actually triggering the hook. The English trigger phrases (`please commit`, `commit this/it/now`,
-standalone `commit`) are pure ASCII and confirmed reliable in both encodings — they remain a
-working fallback regardless of which way this resolves. **Next real-world confirmation step:** the
-next time an actual commit is wanted, say the trigger phrase in a normal message and check whether
-`/tmp/claude-commit-approved/<real session id>` actually gets created — that is the only
-authoritative test, a synthetic one from inside this session cannot settle it.
+**Risk found during `UserPromptSubmit` testing — resolved by a real live test (2026-09-15).**
+Synthetic-JSON testing found the Ukrainian phrases ("зроби коміт", "закоміть") only matched when
+the JSON payload carried the prompt as raw UTF-8 bytes, not when encoded through Python's default
+`ensure_ascii=True` `\uXXXX` escaping — the hook's `grep` does not decode JSON unicode escapes, so
+whether it would work depended on which encoding Claude Code's own hook payload serializer actually
+uses, which could not be observed from inside the session. Resolved for real: the user said "зроби
+коміт" as an ordinary message; the resulting `git add` + `git commit` (commit `f73f222e`) went
+through without the `PreToolUse` block firing, confirming Claude Code serializes the prompt as raw
+UTF-8, not escaped — the Ukrainian trigger phrase works correctly in the live environment. The
+English phrases remain a confirmed-reliable fallback regardless.
 
 **Real finding during application:** the first attempt to edit `UserPromptSubmit`'s command was
 **blocked by Claude Code's own auto-mode classifier** with reason `[Self-Modification]` — the
