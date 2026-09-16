@@ -16,7 +16,7 @@
 
 .user-picker-layout:focus-within {
   border-color: var(--app-accent-primary);
-  box-shadow:   0 0 0 3px rgba(var(--app-accent-primary-rgb), 0.12);
+  box-shadow:   0 0 0 3px rgb(from var(--app-accent-primary) r g b / 0.12);
 }
 
 .user-picker-chips {

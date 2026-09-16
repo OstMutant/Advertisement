@@ -2,6 +2,51 @@
 
 ---
 
+## ADR-083: Accent-color derivation via CSS Relative Color Syntax (`oklch(from ...)`/`rgb(from ...)`), not `color-mix()`
+
+**Status:** Accepted
+
+**Context:** `improvement-188` Task C's goal was deriving `--app-accent-primary`'s 9 dependent
+tokens (plus its `-rgb` channel helper) from the one seed value, instead of 10 independently
+hand-picked hex values — the same class of drift risk ADR-038/`improvement-037` already hit once
+for `--app-text-muted`. `color-mix(in srgb|oklab, var(--app-accent-primary) P%, black|white)` was
+tried first and checked against real math (both plain sRGB and perceptual OKLab space): it fits 7
+of the 9 tokens closely (error 0-12 out of 255 per channel), but cannot reproduce `-strong`
+(`#1d4ed8`) or `-bold` (`#2563eb`) at all (error 27-37) — both carry a genuine hue shift, not just a
+lightness change, and mixing toward an achromatic color (black/white) cannot express a hue shift.
+
+**Decision:**
+1. Every derived token uses CSS Relative Color Syntax against the base instead:
+   `oklch(from var(--app-accent-primary) calc(l + ΔL) calc(c + ΔC) calc(h + ΔH))`, with `ΔL`/`ΔC`/`ΔH`
+   computed per token to exactly reproduce today's hex value. One mechanism for all 9 tokens, no
+   hand-picked exceptions.
+2. `--app-accent-primary-rgb` (a literal channel-triplet helper for `rgba(var(...), alpha)` call
+   sites) is removed entirely; its 7 call sites across 6 CSS files now use
+   `rgb(from var(--app-accent-primary) r g b / alpha)` — the same Relative Color Syntax mechanism.
+3. Browser support confirmed directly (caniuse, not assumed): 92.29% global, full support in
+   Chrome/Edge 131+, Safari 18+, Firefox 133+ since late 2024/early 2025 — same tier already
+   accepted for `color-mix()`/`oklch()`/`light-dark()` elsewhere in this task.
+4. Since the derivation is an exact fit by construction, no visual change resulted — confirmed via
+   the full Playwright `e2e --full --ux` suite (63/63) after fixing one pre-existing test literal
+   (`ROLE_COLOR.admin` in `playwright/e2e/_flows/user-management.flow.js`) that asserted the old
+   `rgb(29, 78, 216)` string; the browser now legitimately serializes the same color as
+   `oklch(0.488166 0.217197 264.381)` since that's the color function the token is declared in.
+
+**Consequences:**
+- Rebasing `--app-accent-primary` to a different hue/lightness in the future shifts the whole
+  9-token ladder relative to the new base automatically, instead of requiring 9 manual re-picks.
+- Any Playwright assertion on a computed color derived from an `oklch(from ...)`/`rgb(from ...)`
+  token must expect the browser's own serialization of that color function, not assume `rgb(...)`.
+- The gallery/violet accent groups are deliberately **not** touched by this decision — revisited
+  later based on this result.
+
+**Rejected alternatives:**
+- `color-mix(in srgb|oklab, ..., black|white)` — cannot express the hue shift `-strong`/`-bold`
+  need, would force 2 of 9 tokens to stay hand-picked exceptions, defeating the "one mechanism"
+  goal.
+
+---
+
 ## ADR-082: `UiComponentFactory<T>` gains a second type parameter `P`, closing the last unchecked cast ADR-058 left open
 
 **Status:** Accepted

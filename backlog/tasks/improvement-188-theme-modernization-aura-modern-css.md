@@ -33,8 +33,6 @@ system regardless of the Aura decision.
 
 ## Expected benefit
 
-- Task B: finishes `improvement-039` (real, user-visible dark mode) using a cleaner mechanism than
-  a duplicated `[data-theme="dark"]` override block.
 - Task C: accent-color ladder (9 values) derived from 1 base value instead of 9 hand-picked hex
   codes — fewer future contrast-drift bugs, single edit point.
 - Task D: removes some/all of the 43 existing `!important` overrides by giving the cascade an
@@ -193,15 +191,110 @@ to whether this app ever adopts Aura.
 above), no forced migration exists, follow-up mechanism work correctly attributed to
 `improvement-116` instead of this task.
 
-**Task B — `light-dark()` for `improvement-039`:** define light+dark values together per token at
-declaration time instead of a separate override block; add the toggle + `prefers-color-scheme`
-default `improvement-039` already specifies; verify dark-direction contrast explicitly, the same
-way `--app-text-muted` was checked.
+**Task B moved back to `improvement-039` in full (2026-09-16)** — it always was that issue's own
+remaining scope, tracked here only temporarily. A real implementation attempt was made and failed
+(UI wiring confirmed broken via manual testing); the full design, the failed attempt's branch, and
+what's actually broken are all recorded on `improvement-039` itself now, deprioritized to the
+bottom of the backlog pending a decision on whether the feature is even wanted. Do not restart
+Task B work here — see `improvement-039`.
 
 **Task C — `oklch()`/`color-mix()` for one accent-color group:** scope to
 `--app-accent-primary` and its 9 variants only; derive via `color-mix()` against
 white/black/surface tokens; visually compare against current values side by side before deciding
 whether to repeat for the other two accent groups.
+
+**Task C — plan (drafted 2026-09-16, pending approval):**
+
+Real facts checked directly (not assumed):
+- `--app-accent-primary`'s group is actually **10 color values**, not 9 as the line above says:
+  `-primary` (`#3b82f6`, the base), `-strong` (`#1d4ed8`), `-bold` (`#2563eb`), `-light` (`#60a5fa`),
+  `-faint` (`#93c5fd`), `-bg` (`#dbeafe`), `-bg-hover` (`#eff6ff`), `-bg-soft` (`#f0f9ff`), `-tint`
+  (`#f0f7ff`), `-glow` (`#e8f0fe`) — all in `styles.css` lines 68-78 — plus a separate
+  `--app-accent-primary-rgb` channel-triplet helper (`59, 130, 246`).
+- `--app-accent-primary-rgb` is consumed via the classic `rgba(var(--x-rgb), alpha)` pattern at
+  **7 call sites across 6 files**: `advertisement-query-block.css` (2), `forms.css`,
+  `highlight.css`, `timeline-query-block.css`, `user-picker-field.css`, `user-query-block.css`
+  (1 each). `color-mix()` produces an opaque color, not a decomposable channel list, so this
+  pattern can't survive unchanged once `-primary` itself becomes a `color-mix()` expression.
+- **Decision (2026-09-16, explicit):** drop `--app-accent-primary-rgb` entirely and migrate all 7
+  call sites to CSS Relative Color Syntax — `rgb(from var(--app-accent-primary) r g b / alpha)` —
+  same CSS Color Module Level 5 generation as `color-mix()`/`oklch()` already approved as a safe
+  baseline for this project. Chosen over keeping `-rgb` as a separately hand-picked value because
+  a second, un-derived value for the same color is exactly the class of drift bug (`--app-text-muted`,
+  `improvement-037`) this task exists to prevent — verify current real browser support for
+  `rgb(from ...)` before implementing, the same "check the real source, don't assume" discipline
+  Task 0 used for dependency versions.
+- Reproducing today's exact hex values via `color-mix()` against white/black alone is **not
+  possible for 2 of the 9 tokens** — checked the math directly (both plain sRGB and perceptual
+  OKLab space, same result either way): `-strong` (`#1d4ed8`, error ~37) and `-bold` (`#2563eb`,
+  error ~27) are hand-picked with a real hue shift, not just a lightness change, so no single
+  black-mix percentage reproduces them; the other 7 tokens fit within error 0-12 (visually
+  negligible). Checked where `-strong`/`-bold` are actually used before deciding how to resolve
+  this: text/accent elements, not large fills — `.query-inline-label-sort`,
+  `.query-status-bar-*-info`, `.taxon-row-name:hover`, `.user-role-admin` badge text, the admin
+  card's `border-top-color`, and one stop of the user-avatar gradient (`user-grid.css`,
+  `query-block.css`, `query-status-bar.css`, `taxon-view.css`, `user-overlay.css`).
+- **Resolved (2026-09-16): one single mechanism for all 9 tokens, not color-mix() with 2
+  exceptions.** `color-mix()` toward black/white can't express a hue shift because black/white are
+  achromatic; CSS Relative Color Syntax's `calc()` support on individual channels can. Computed
+  each of the 9 tokens' exact `(L, C, H)` deltas from the base in OKLCH space (Björn Ottosson's
+  sRGB↔OKLab matrices, `python3` one-off computation, not eyeballed):
+
+  | Token | ΔL | ΔC | ΔH |
+  |---|---|---|---|
+  | `-strong` | −0.1349 | +0.0292 | +4.56° |
+  | `-bold` | −0.0769 | +0.0272 | +3.07° |
+  | `-light` | +0.0907 | −0.0446 | −5.19° |
+  | `-faint` | +0.1860 | −0.0924 | −8.00° |
+  | `-bg` | +0.3088 | −0.1564 | −4.23° |
+  | `-bg-hover` | +0.3474 | −0.1738 | −5.21° |
+  | `-bg-soft` | +0.3540 | −0.1755 | −23.19° |
+  | `-tint` | +0.3501 | −0.1750 | −8.26° |
+  | `-glow` | +0.3301 | −0.1673 | +1.96° |
+
+  Each token becomes `oklch(from var(--app-accent-primary) calc(l + ΔL) calc(c + ΔC) calc(h + ΔH))`
+  — exact reproduction of today's value (these deltas are computed to fit exactly, by
+  construction), zero visual change, and — the actual point — if `--app-accent-primary` itself is
+  ever changed, every derived token shifts relative to the new base automatically, instead of
+  needing 9 manual re-picks. Browser support for CSS Relative Color Syntax (the `from` keyword,
+  works with `oklch()`/`rgb()`/any output function) checked directly via caniuse: **92.29% global,
+  full support in Chrome/Edge 131+, Safari 18+, Firefox 133+ since late 2024/early 2025** — same
+  safe-baseline tier already accepted for `color-mix()`/`oklch()`/`light-dark()` in this task.
+
+Proposed concrete changes:
+1. Keep `--app-accent-primary: #3b82f6;` as the one hand-picked seed value.
+2. Convert all 9 derived tokens to `oklch(from var(--app-accent-primary) calc(l + ΔL) calc(c + ΔC)
+   calc(h + ΔH))` using the exact deltas computed above.
+3. Remove `--app-accent-primary-rgb`; rewrite all 7 `rgba(var(--app-accent-primary-rgb), alpha)`
+   call sites to `rgb(from var(--app-accent-primary) r g b / alpha)` in the 6 files listed earlier
+   — same Relative Color Syntax mechanism, not a separate technique.
+4. Contrast re-check: any of the 10 tokens used for text (not just backgrounds/borders) gets a real
+   WCAG AA check, same discipline as `--app-text-muted` (`improvement-037`) — expected to pass
+   unchanged since the derived values exactly reproduce today's hex, but verify rather than assume.
+5. Visual verification: side-by-side comparison (screenshot) of every surface that renders an
+   accent-primary token today (the files named above) before/after, checked directly — expected to
+   be pixel-identical given the exact-fit construction, confirm rather than assume.
+6. Playwright: existing `e2e --full --ux` suite re-run to confirm no visual regression; no new
+   spec needed since no behavioral change is intended, only a mechanism change.
+7. `marketplace-app/DECISIONS.md`: new ADR via `/record-decision` for the OKLCH relative-color-syntax
+   mechanism (covering both the 9-token ladder and the `-rgb` → `rgb(from ...)` migration as one
+   unified decision, not two).
+8. Only after Task C ships for the primary group: decide, based on the real result, whether to
+   repeat the same treatment for the gallery/violet accent groups — not decided or scoped now.
+
+**Task C status: done (2026-09-16).** All 9 tokens converted to `oklch(from ...)`, `-rgb` helper
+removed and its 7 call sites migrated to `rgb(from ...)` — `styles.css` plus
+`advertisement-query-block.css`/`forms.css`/`highlight.css`/`timeline-query-block.css`/
+`user-picker-field.css`/`user-query-block.css`. First Playwright run caught one real, expected
+consequence (not a bug in the derivation): `playwright/e2e/_flows/user-management.flow.js`'s
+`ROLE_COLOR.admin` hardcoded the old `rgb(29, 78, 216)` literal — the browser now legitimately
+serializes the same color as `oklch(0.488166 0.217197 264.381)` (matching the computed `-strong`
+deltas to 6 significant figures, confirming the derivation is exact) since that's the function the
+token is declared in; updated the test literal accordingly. That one fix also cleared 3 further
+failures in later spec files (order-dependent suite, downstream of the first assertion failure, not
+independent bugs). Full re-run: **63/63 Playwright tests passed.** Recorded as
+`marketplace-app/DECISIONS.md` ADR-083. Gallery/violet accent groups intentionally not touched —
+open follow-up, no decision made either way yet.
 
 **Task D — `@layer` cascade layers:** define an explicit layer order once
 (`@layer tokens, base, components, overrides;`), assign each of the 30 imported files to its
@@ -212,9 +305,9 @@ Chosen order (per explicit user preference, 2026-09-15): start with Task A.
 
 ## Related
 
-- [improvement-039](improvement-039-dark-mode-lumo-tokens.md) — Task B directly implements this
-  issue's still-open remaining scope; when B ships, close `improvement-039` as part of that work
-  rather than separately.
+- [improvement-039](improvement-039-dark-mode-lumo-tokens.md) — dark mode's real home; this
+  issue's former "Task B" moved back there in full 2026-09-16 after a failed implementation
+  attempt, now deprioritized pending a decision on whether the feature is wanted at all.
 - [improvement-116](improvement-116-vaadin-theme-annotation-migration.md) — touches the same
   `@Theme` mechanism Task A's runtime theme-switch relies on; sequence 116 after Task A settles,
   not before, to avoid changing two theme-selection mechanisms at once.
