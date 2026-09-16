@@ -2587,3 +2587,33 @@ repo's prior `improvement-168` consolidation already left the rule set self-cons
 apparent duplication pattern (a negative fact like "X does not exist" repeated across sibling
 files) turned out to be a deliberate, load-bearing choice given path-scoped conditional loading, not
 a defect. Full detail: `completed/tasks/improvement-190-claude-rules-self-consistency-audit.md`.
+
+✅ Done (2026-09-16): improvement-194 closed — `generate-architecture-model.sh` still hardcoded the
+renamed `backlog/issues/`/`backlog/completed/issues/` paths (now `backlog/tasks/`/
+`backlog/completed/tasks/`), aborting the `docs` CI stage silently on every run under
+`set -euo pipefail`. Found root-causing `improvement-193`'s own `bash scripts/ci.sh` run; confirmed
+unrelated to that task's diff via `git log`. Fixed all 6 hardcoded references (2 `find` calls, 2
+`issue_list_json` calls, 2 embedded HTML description strings). Verified directly: the generator now
+exits 0 and its regenerated `architecture-model.json` carries correct real counts (34 open / 174
+completed, matching a real `ls`). Full detail:
+`completed/tasks/improvement-194-architecture-model-generator-stale-backlog-issues-path.md`.
+
+✅ Done (2026-09-16): improvement-193 closed — external SOLID/DRY review batch, all 5 confirmed
+items (3-7) implemented: `ApiExceptionHandler` split into `TooManyAttemptsException`(429)/generic
+`IllegalStateException`(500) fallback (fixed a real live bug — an unrelated
+`UserPreferencesRepository` exception was mis-mapped to 429); `TaxonService.update()` no longer
+discards `save()`'s auditing-refreshed return value; `AttachmentService` regrouped into 6 labeled
+sections; `UiComponentFactory<T, P>` gains the second type parameter, closing the last unchecked
+cast ADR-058 left open (54 sites/23 files, ADR-082 recorded); new `LocaleTranslationForm<T>`
+composition helper deduplicates `CityFormOverlayModeHandler`/`TaxonFormOverlayModeHandler`'s
+near-exact EN/UK field logic. Full `bash scripts/ci.sh` verification found and resolved 3 further
+real issues along the way: a host-level OOM killed the CI watcher process mid-run (recovered by
+reattaching a lightweight poller to the still-alive Dagu run, no duplicate run triggered); a real
+Sonar new-code-coverage gate failure (79.8% vs 80%, traced to 3 genuinely untested `AttachmentService`
+methods the reorder surfaced — 3 new unit tests closed it to 87.7%); and 4 flaky-looking Playwright
+E2E failures, 3 confirmed as real host-memory-pressure flakiness (passed cleanly on retry, no code
+change) and 1 a genuine bug (`04-provider-profile-flow.spec.js`'s own fragile category-combo-box
+selector, fixed by generalizing `category.flow.js`'s `selectCategoryInAdForm` into a shared
+`selectInMultiSelectComboBox` — full `e2e --ux` re-run: 63/63 passed). The unrelated `docs`-stage
+generator bug found along the way was carved out and fixed separately as `improvement-194`. Full
+detail: `completed/tasks/improvement-193-external-review-batch-exception-taxon-attachment-uicomponentfactory-city-taxon.md`.

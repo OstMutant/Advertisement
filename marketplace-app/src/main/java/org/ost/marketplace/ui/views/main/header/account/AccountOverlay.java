@@ -65,11 +65,11 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
     }
 
     @Getter private final transient EntityOverlaySupport support;
-    private final transient UiComponentFactory<AccountNameViewModeHandler>             nameViewHandlerFactory;
-    private final transient UiComponentFactory<AccountNameFormModeHandler>             nameFormHandlerFactory;
-    private final transient UiComponentFactory<SettingsFormModeHandler>                settingsHandlerFactory;
-    private final transient UiComponentFactory<ProviderProfileViewModeHandler>         providerProfileViewHandlerFactory;
-    private final transient UiComponentFactory<ProviderProfileFormOverlayModeHandler>  providerProfileHandlerFactory;
+    private final transient UiComponentFactory<AccountNameViewModeHandler, AccountNameViewModeHandler.Parameters>             nameViewHandlerFactory;
+    private final transient UiComponentFactory<AccountNameFormModeHandler, AccountNameFormModeHandler.Parameters>             nameFormHandlerFactory;
+    private final transient UiComponentFactory<SettingsFormModeHandler, SettingsFormModeHandler.Parameters>                settingsHandlerFactory;
+    private final transient UiComponentFactory<ProviderProfileViewModeHandler, ProviderProfileViewModeHandler.Parameters>         providerProfileViewHandlerFactory;
+    private final transient UiComponentFactory<ProviderProfileFormOverlayModeHandler, ProviderProfileFormOverlayModeHandler.Parameters>  providerProfileHandlerFactory;
     private final transient ProviderProfileSaveService                                 providerProfileSaveService;
 
     private OverlaySession session;

@@ -79,7 +79,7 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
     private final I18nService                                               i18nService;
     private final LocaleProvider                                            localeProvider;
     private final NotificationService                                       notificationService;
-    private final UiComponentFactory<OverlayFormBinder<ProviderProfileEditDto>> formBinderFactory;
+    private final UiComponentFactory<OverlayFormBinder<ProviderProfileEditDto>, OverlayFormBinder.Parameters<ProviderProfileEditDto>> formBinderFactory;
     private final AuditQueryService                                         auditQueryService;
     private final EntityActivityOverlay                                     entityActivityOverlay;
     private final TaxonCatalogService                                       taxonCatalogService;

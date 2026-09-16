@@ -39,7 +39,7 @@ public class ProviderProfileCatalogOverlay extends BaseOverlay {
 
     @Getter
     private final EntityOverlaySupport support;
-    private final UiComponentFactory<ProviderProfileCatalogViewModeHandler> viewModeHandlerFactory;
+    private final UiComponentFactory<ProviderProfileCatalogViewModeHandler, ProviderProfileCatalogViewModeHandler.Parameters> viewModeHandlerFactory;
     private final OverlayNavigationRegistry navigationRegistry;
 
     private OverlayLayout layout;

@@ -1,6 +1,7 @@
 package org.ost.restapi.api.error;
 
 import org.ost.orchestrator.services.AccessDeniedException;
+import org.ost.platform.core.TooManyAttemptsException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
@@ -39,8 +40,16 @@ public class ApiExceptionHandler {
         return new ErrorResponse("A resource with this value already exists.");
     }
 
-    @ExceptionHandler(IllegalStateException.class)
+    @ExceptionHandler(TooManyAttemptsException.class)
     @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public ErrorResponse handleTooManyAttempts(TooManyAttemptsException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
+    // Reaching here means a genuine unexpected-state bug, not a rate-limit signal -- the
+    // rate limiters throw TooManyAttemptsException specifically, handled above.
+    @ExceptionHandler(IllegalStateException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleIllegalState(IllegalStateException ex) {
         return new ErrorResponse(ex.getMessage());
     }

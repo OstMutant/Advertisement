@@ -1998,8 +1998,8 @@ ci_metrics_json="null"
   # for both open and completed lists. Not the full issue body (that would bloat the model the
   # same way embedding full ADR prose would, for content this tool doesn't otherwise need) -- click
   # shows the short description, a real link opens the actual file for the rest.
-  open_count=$(find "$REPO_ROOT/backlog/issues" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-  completed_count=$(find "$REPO_ROOT/backlog/completed/issues" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+  open_count=$(find "$REPO_ROOT/backlog/tasks" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+  completed_count=$(find "$REPO_ROOT/backlog/completed/tasks" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
   echo "    ,"
   echo "    {"
   echo "      \"id\": \"backlog\","
@@ -2011,8 +2011,8 @@ ci_metrics_json="null"
   echo "      \"evidence\": [{\"file\": \"backlog/BACKLOG.md\", \"line\": 1}],"
   echo "      \"open_issues\": $open_count,"
   echo "      \"completed_issues\": $completed_count,"
-  echo "      \"openIssues\": $(issue_list_json "$REPO_ROOT/backlog/issues" "backlog/issues"),"
-  echo "      \"completedIssues\": $(issue_list_json "$REPO_ROOT/backlog/completed/issues" "backlog/completed/issues"),"
+  echo "      \"openIssues\": $(issue_list_json "$REPO_ROOT/backlog/tasks" "backlog/tasks"),"
+  echo "      \"completedIssues\": $(issue_list_json "$REPO_ROOT/backlog/completed/tasks" "backlog/completed/tasks"),"
   echo "      \"edges\": {}"
   echo "    }"
 
@@ -3308,8 +3308,8 @@ function renderBacklog() {
   html += `<h2 class="screen-title">Backlog</h2>
     <div class="screen-desc">Per-issue titles in Track A — see ${sourceLink("backlog/BACKLOG.md")} for the ranked, priority view.</div>
     <div class="card-grid">
-      <div class="card ${backlogFilter === "open" ? "card-active" : ""}" onclick="setBacklogFilter('open')"><div class="card-title">${backlogNode.open_issues}</div><div class="card-desc">open issues (backlog/issues/)</div></div>
-      <div class="card ${backlogFilter === "completed" ? "card-active" : ""}" onclick="setBacklogFilter('completed')"><div class="card-title">${backlogNode.completed_issues}</div><div class="card-desc">completed issues (backlog/completed/issues/)</div></div>
+      <div class="card ${backlogFilter === "open" ? "card-active" : ""}" onclick="setBacklogFilter('open')"><div class="card-title">${backlogNode.open_issues}</div><div class="card-desc">open issues (backlog/tasks/)</div></div>
+      <div class="card ${backlogFilter === "completed" ? "card-active" : ""}" onclick="setBacklogFilter('completed')"><div class="card-title">${backlogNode.completed_issues}</div><div class="card-desc">completed issues (backlog/completed/tasks/)</div></div>
     </div>`;
   html += `<section class="block"><h3>${label} (${items.length})</h3>${renderIssueList(backlogFilter, items)}</section>`;
   document.getElementById("content").innerHTML = html;

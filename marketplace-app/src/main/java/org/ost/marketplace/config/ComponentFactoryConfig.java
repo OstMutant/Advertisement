@@ -29,124 +29,124 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Central registry of {@code UiComponentFactory<T>} beans, one {@code @Bean} per
+/** Central registry of {@code UiComponentFactory<T, T.Parameters>} beans, one {@code @Bean} per
  *  {@code Configurable} prototype UI type. */
 @Configuration
 public class ComponentFactoryConfig {
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>> advertisementFormBinderFactory(
+    public UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>, OverlayFormBinder.Parameters<AdvertisementEditDto>> advertisementFormBinderFactory(
             ObjectProvider<OverlayFormBinder<AdvertisementEditDto>> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<OverlayFormBinder<UserEditDto>> userFormBinderFactory(
+    public UiComponentFactory<OverlayFormBinder<UserEditDto>, OverlayFormBinder.Parameters<UserEditDto>> userFormBinderFactory(
             ObjectProvider<OverlayFormBinder<UserEditDto>> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<OverlayFormBinder<TaxonEditDto>> taxonFormBinderFactory(
+    public UiComponentFactory<OverlayFormBinder<TaxonEditDto>, OverlayFormBinder.Parameters<TaxonEditDto>> taxonFormBinderFactory(
             ObjectProvider<OverlayFormBinder<TaxonEditDto>> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<OverlayFormBinder<SettingsEditDto>> settingsFormBinderFactory(
+    public UiComponentFactory<OverlayFormBinder<SettingsEditDto>, OverlayFormBinder.Parameters<SettingsEditDto>> settingsFormBinderFactory(
             ObjectProvider<OverlayFormBinder<SettingsEditDto>> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<OverlayFormBinder<CityEditDto>> cityFormBinderFactory(
+    public UiComponentFactory<OverlayFormBinder<CityEditDto>, OverlayFormBinder.Parameters<CityEditDto>> cityFormBinderFactory(
             ObjectProvider<OverlayFormBinder<CityEditDto>> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<OverlayFormBinder<ProviderProfileEditDto>> providerProfileFormBinderFactory(
+    public UiComponentFactory<OverlayFormBinder<ProviderProfileEditDto>, OverlayFormBinder.Parameters<ProviderProfileEditDto>> providerProfileFormBinderFactory(
             ObjectProvider<OverlayFormBinder<ProviderProfileEditDto>> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AdvertisementCardView> advertisementCardViewFactory(ObjectProvider<AdvertisementCardView> p) {
+    public UiComponentFactory<AdvertisementCardView, AdvertisementCardView.Parameters> advertisementCardViewFactory(ObjectProvider<AdvertisementCardView> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<EntityMetaPanel> entityMetaPanelFactory(ObjectProvider<EntityMetaPanel> p) {
+    public UiComponentFactory<EntityMetaPanel, EntityMetaPanel.Parameters> entityMetaPanelFactory(ObjectProvider<EntityMetaPanel> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AdvertisementViewOverlayModeHandler> advertisementViewOverlayModeHandlerFactory(ObjectProvider<AdvertisementViewOverlayModeHandler> p) {
+    public UiComponentFactory<AdvertisementViewOverlayModeHandler, AdvertisementViewOverlayModeHandler.Parameters> advertisementViewOverlayModeHandlerFactory(ObjectProvider<AdvertisementViewOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AdvertisementFormOverlayModeHandler> advertisementFormOverlayModeHandlerFactory(ObjectProvider<AdvertisementFormOverlayModeHandler> p) {
+    public UiComponentFactory<AdvertisementFormOverlayModeHandler, AdvertisementFormOverlayModeHandler.Parameters> advertisementFormOverlayModeHandlerFactory(ObjectProvider<AdvertisementFormOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AccountNameFormModeHandler> accountNameFormModeHandlerFactory(ObjectProvider<AccountNameFormModeHandler> p) {
+    public UiComponentFactory<AccountNameFormModeHandler, AccountNameFormModeHandler.Parameters> accountNameFormModeHandlerFactory(ObjectProvider<AccountNameFormModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AccountNameViewModeHandler> accountNameViewModeHandlerFactory(ObjectProvider<AccountNameViewModeHandler> p) {
+    public UiComponentFactory<AccountNameViewModeHandler, AccountNameViewModeHandler.Parameters> accountNameViewModeHandlerFactory(ObjectProvider<AccountNameViewModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<ProviderProfileFormOverlayModeHandler> providerProfileFormOverlayModeHandlerFactory(ObjectProvider<ProviderProfileFormOverlayModeHandler> p) {
+    public UiComponentFactory<ProviderProfileFormOverlayModeHandler, ProviderProfileFormOverlayModeHandler.Parameters> providerProfileFormOverlayModeHandlerFactory(ObjectProvider<ProviderProfileFormOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<ProviderProfileViewModeHandler> providerProfileViewModeHandlerFactory(ObjectProvider<ProviderProfileViewModeHandler> p) {
+    public UiComponentFactory<ProviderProfileViewModeHandler, ProviderProfileViewModeHandler.Parameters> providerProfileViewModeHandlerFactory(ObjectProvider<ProviderProfileViewModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<ProviderProfileCardView> providerProfileCardViewFactory(ObjectProvider<ProviderProfileCardView> p) {
+    public UiComponentFactory<ProviderProfileCardView, ProviderProfileCardView.Parameters> providerProfileCardViewFactory(ObjectProvider<ProviderProfileCardView> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<ProviderProfileCatalogViewModeHandler> providerProfileCatalogViewModeHandlerFactory(ObjectProvider<ProviderProfileCatalogViewModeHandler> p) {
+    public UiComponentFactory<ProviderProfileCatalogViewModeHandler, ProviderProfileCatalogViewModeHandler.Parameters> providerProfileCatalogViewModeHandlerFactory(ObjectProvider<ProviderProfileCatalogViewModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<UserGridConfigurator> userGridConfiguratorFactory(ObjectProvider<UserGridConfigurator> p) {
+    public UiComponentFactory<UserGridConfigurator, UserGridConfigurator.Parameters> userGridConfiguratorFactory(ObjectProvider<UserGridConfigurator> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<SettingsFormModeHandler> settingsFormModeHandlerFactory(ObjectProvider<SettingsFormModeHandler> p) {
+    public UiComponentFactory<SettingsFormModeHandler, SettingsFormModeHandler.Parameters> settingsFormModeHandlerFactory(ObjectProvider<SettingsFormModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<TaxonFormOverlayModeHandler> taxonFormOverlayModeHandlerFactory(ObjectProvider<TaxonFormOverlayModeHandler> p) {
+    public UiComponentFactory<TaxonFormOverlayModeHandler, TaxonFormOverlayModeHandler.Parameters> taxonFormOverlayModeHandlerFactory(ObjectProvider<TaxonFormOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<TaxonViewOverlayModeHandler> taxonViewOverlayModeHandlerFactory(ObjectProvider<TaxonViewOverlayModeHandler> p) {
+    public UiComponentFactory<TaxonViewOverlayModeHandler, TaxonViewOverlayModeHandler.Parameters> taxonViewOverlayModeHandlerFactory(ObjectProvider<TaxonViewOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<CityFormOverlayModeHandler> cityFormOverlayModeHandlerFactory(ObjectProvider<CityFormOverlayModeHandler> p) {
+    public UiComponentFactory<CityFormOverlayModeHandler, CityFormOverlayModeHandler.Parameters> cityFormOverlayModeHandlerFactory(ObjectProvider<CityFormOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<CityViewOverlayModeHandler> cityViewOverlayModeHandlerFactory(ObjectProvider<CityViewOverlayModeHandler> p) {
+    public UiComponentFactory<CityViewOverlayModeHandler, CityViewOverlayModeHandler.Parameters> cityViewOverlayModeHandlerFactory(ObjectProvider<CityViewOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 }

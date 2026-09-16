@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.AuthorizationService;
 import org.ost.orchestrator.services.UserProfileService;
+import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserSettingsDto;
@@ -122,7 +123,7 @@ class UserApiControllerTest {
 
     @Test
     void register_tooManyAttempts_returns429() throws Exception {
-        doThrow(new IllegalStateException("Too many failed registration attempts, try again later"))
+        doThrow(new TooManyAttemptsException("Too many failed registration attempts, try again later"))
                 .when(userProfileService).register(any(), anyString());
         String body = """
                 {"name":"New User","email":"new@example.com","password":"password123"}""";

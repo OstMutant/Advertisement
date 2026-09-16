@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
@@ -145,7 +146,7 @@ public class UserService {
     public void register(@Valid @NonNull SignUpDto dto, @NonNull String clientIp) {
         AtomicInteger attempts = registerAttempts.get(clientIp, _ -> new AtomicInteger(0));
         if (attempts.get() >= MAX_REGISTER_ATTEMPTS) {
-            throw new IllegalStateException("Too many failed registration attempts, try again later");
+            throw new TooManyAttemptsException("Too many failed registration attempts, try again later");
         }
         log.info("User register: email={}", dto.getEmail());
         boolean isFirstUser = repository.countByFilter(UserFilterDto.empty()).equals(0L);

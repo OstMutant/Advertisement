@@ -48,8 +48,8 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
     private static final String AD_PATH_PREFIX = "ads/";
 
     @Getter private final EntityOverlaySupport  support;
-    private final UiComponentFactory<AdvertisementViewOverlayModeHandler> viewModeHandlerFactory;
-    private final UiComponentFactory<AdvertisementFormOverlayModeHandler> formModeHandlerFactory;
+    private final UiComponentFactory<AdvertisementViewOverlayModeHandler, AdvertisementViewOverlayModeHandler.Parameters> viewModeHandlerFactory;
+    private final UiComponentFactory<AdvertisementFormOverlayModeHandler, AdvertisementFormOverlayModeHandler.Parameters> formModeHandlerFactory;
     private final OverlayNavigationRegistry navigationRegistry;
 
     private OverlaySession session;

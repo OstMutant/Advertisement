@@ -56,7 +56,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     private final AccessEvaluator                                   access;
     @Getter
     private final I18nService                                       i18nService;
-    private final UiComponentFactory<EntityMetaPanel>              metaPanelFactory;
+    private final UiComponentFactory<EntityMetaPanel, EntityMetaPanel.Parameters>              metaPanelFactory;
     private final AttachmentMediaService                            attachmentMediaService;
     private final ComponentFactory<AttachmentGalleryService>      galleryServiceFactory;
     private final TaxonLookupService                                taxonLookupService;

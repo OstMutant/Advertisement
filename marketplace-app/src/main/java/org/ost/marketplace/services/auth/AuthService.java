@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpSession;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.platform.core.TooManyAttemptsException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -42,7 +43,7 @@ public class AuthService {
         AtomicInteger attempts = loginAttempts.get(key, _ -> new AtomicInteger(0));
         if (attempts.get() >= MAX_LOGIN_ATTEMPTS) {
             log.warn("Login blocked (rate limit): email={}", email);
-            throw new IllegalStateException("Too many failed login attempts, try again later");
+            throw new TooManyAttemptsException("Too many failed login attempts, try again later");
         }
 
         try {

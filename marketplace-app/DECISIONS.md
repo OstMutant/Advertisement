@@ -2,6 +2,35 @@
 
 ---
 
+## ADR-082: `UiComponentFactory<T>` gains a second type parameter `P`, closing the last unchecked cast ADR-058 left open
+
+**Status:** Accepted
+
+**Context:** ADR-058 bounded `UiComponentFactory<T extends Configurable<T, ?>>` but explicitly left
+one cast unavoidable: `build(P params)` still cast `get()` to `Configurable<T, P>`, since
+`Configurable<T, ?>`'s own second type parameter is existential and can't be linked to the
+caller-supplied `P`. An external SOLID/DRY review (`improvement-193` item 6) flagged this remaining
+cast; verified it was real and genuinely not already closed by ADR-058, which only addressed the
+`T` bound.
+
+**Decision:**
+1. `UiComponentFactory<T extends Configurable<T, P>, P> extends ComponentFactory<T>` — a second
+   class-level type parameter `P`, linked to `T`'s own `Configurable<T, P>` bound. `build(P params)`
+   is now `return get().configure(params);` — zero casts, zero `@SuppressWarnings("unchecked")`.
+2. All 54 real declaration sites across 23 files in `marketplace-app` updated to the two-argument
+   form (`UiComponentFactory<Xxx, Xxx.Parameters>`), each verified against that class's own actual
+   `implements Configurable<T, P>` signature rather than assumed uniform — including the
+   `OverlayFormBinder<X>` generic case, which needs `OverlayFormBinder.Parameters<X>` (itself a
+   generic nested type), not the simple `Xxx.Parameters` pattern every other consumer uses.
+3. Confirmed via a real `--unit` build (`BUILD SUCCESS`, `ArchitectureRulesTest` passing) that this
+   change crosses no ArchUnit boundary rule.
+
+**Consequences:**
+- ADR-058's own recorded decision (item 1) is superseded by this entry — see ADR-058's own
+  `Status:` update.
+- Any future `Configurable<T, P>` consumer now declares `UiComponentFactory<T, P>` with both type
+  arguments explicit; a single-argument declaration no longer compiles.
+
 ## ADR-081: `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it
 
 **Status:** Accepted
@@ -1830,7 +1859,7 @@ i18n key (both locales).
 
 ## ADR-058: `UiComponentFactory<T>` bounded to `T extends Configurable<T, ?>`; non-`Configurable` consumers migrated to plain `ComponentFactory<T>`
 
-**Status:** Accepted
+**Status:** Superseded by ADR-082 (item 1's "cast unavoidable" claim only; items 2-3 — ten-consumer migration, OverlayFormBinder four-beans split — remain current)
 
 **Context:** `UiComponentFactory<T>.build(params)` cast `get()` to `Configurable<T, P>` under
 `@SuppressWarnings("unchecked")` because `UiComponentFactory<T>` had no compile-time guarantee `T`

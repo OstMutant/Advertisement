@@ -62,7 +62,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private final I18nService                                       i18nService;
     private final UserProfileService                                userProfileService;
     private final AccessEvaluator                                   access;
-    private final UiComponentFactory<OverlayFormBinder<SettingsEditDto>> formBinderFactory;
+    private final UiComponentFactory<OverlayFormBinder<SettingsEditDto>, OverlayFormBinder.Parameters<SettingsEditDto>> formBinderFactory;
     private final AuditQueryService                                       auditQueryService;
     private final EntityActivityOverlay                                  entityActivityOverlay;
 

@@ -55,7 +55,7 @@ public class ProviderProfileCardView extends HorizontalLayout
     private final transient AccessEvaluator                    access;
     private final transient ProviderProfileCatalogOverlay        overlay;
     private final transient AppLinkService                      appLinkService;
-    private final transient UiComponentFactory<EntityMetaPanel> metaPanelFactory;
+    private final transient UiComponentFactory<EntityMetaPanel, EntityMetaPanel.Parameters> metaPanelFactory;
 
     @Override
     @PostConstruct

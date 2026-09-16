@@ -10,6 +10,7 @@ import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserFilterDto;
@@ -159,7 +160,7 @@ class UserServiceTest {
     }
 
     @Test
-    void register_thresholdReached_throwsIllegalStateException_beforeAttemptingSave() {
+    void register_thresholdReached_throwsTooManyAttemptsException_beforeAttemptingSave() {
         stubSaveThrowsDuplicateKey();
 
         for (int i = 0; i < 5; i++) {
@@ -168,7 +169,7 @@ class UserServiceTest {
         }
 
         assertThatThrownBy(() -> userService.register(signUpDto("taken@example.com"), CLIENT_IP))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(TooManyAttemptsException.class);
         verify(userRepository, times(5)).save(any());
     }
 
@@ -192,7 +193,7 @@ class UserServiceTest {
                     .isInstanceOf(DuplicateKeyException.class);
         }
         assertThatThrownBy(() -> userService.register(signUpDto("taken@example.com"), CLIENT_IP))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(TooManyAttemptsException.class);
     }
 
     @Test
@@ -204,7 +205,7 @@ class UserServiceTest {
                     .isInstanceOf(DuplicateKeyException.class);
         }
         assertThatThrownBy(() -> userService.register(signUpDto("taken@example.com"), blockedIp))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(TooManyAttemptsException.class);
 
         // A different IP must not be affected by blockedIp's attempts.
         stubSaveSucceeds();

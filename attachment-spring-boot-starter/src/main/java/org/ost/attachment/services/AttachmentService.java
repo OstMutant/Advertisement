@@ -38,6 +38,8 @@ public class AttachmentService {
     private final AttachmentSnapshotService   attachmentSnapshotService;
     private final CurrentActorHook            currentActorHook;
 
+    // ── Query ────────────────────────────────────────────────────────────────
+
     public List<AttachmentItemDto> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
         return attachmentRepository.getByEntityId(entityType, entityId).stream().map(Attachment::toDto).toList();
     }
@@ -52,6 +54,13 @@ public class AttachmentService {
                             stats.count());
                 }));
     }
+
+    public List<AttachmentItemDto> getByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId,
+                                                       @NonNull String[] urls) {
+        return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls).stream().map(Attachment::toDto).toList();
+    }
+
+    // ── Permanent attachments ───────────────────────────────────────────────────
 
     @Transactional
     public AttachmentItemDto upload(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String filename,
@@ -85,6 +94,8 @@ public class AttachmentService {
         });
     }
 
+    // ── Video ────────────────────────────────────────────────────────────────
+
     public TempAttachmentDto addVideoTemp(@NonNull String url) {
         AttachmentVideoUtil.VideoDescriptor d = AttachmentVideoUtil.resolveVideoDescriptor(url);
         return new TempAttachmentDto(d.url(), d.filename(), d.contentType(), 0L);
@@ -102,6 +113,8 @@ public class AttachmentService {
         return saved.toDto();
     }
 
+    // ── Temp upload session ─────────────────────────────────────────────────────
+
     public TempAttachmentDto uploadTemp(@NonNull String tempSessionId, @NonNull String filename,
                                         @NonNull InputStream inputStream, long contentLength,
                                         @NonNull String contentType) {
@@ -113,10 +126,6 @@ public class AttachmentService {
     public void commitTempUploads(@NonNull EntityType entityType, @NonNull Long entityId,
                                   @NonNull List<TempAttachmentDto> temps) {
         commitTempUploadsQuiet(entityType, entityId, temps);
-        captureMediaChanges(entityType, entityId);
-    }
-
-    public void captureSnapshot(@NonNull EntityType entityType, @NonNull Long entityId) {
         captureMediaChanges(entityType, entityId);
     }
 
@@ -147,10 +156,17 @@ public class AttachmentService {
         }
     }
 
-    public List<AttachmentItemDto> getByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId,
-                                                       @NonNull String[] urls) {
-        return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls).stream().map(Attachment::toDto).toList();
+    public void discardTempUploads(@NonNull List<TempAttachmentDto> temps) {
+        temps.stream()
+             .filter(t -> !AttachmentMediaContentType.isEmbedded(t.contentType()))
+             .forEach(t -> storageService.delete(t.tempUrl()));
     }
+
+    public void captureSnapshot(@NonNull EntityType entityType, @NonNull Long entityId) {
+        captureMediaChanges(entityType, entityId);
+    }
+
+    // ── Lifecycle / restore ─────────────────────────────────────────────────────
 
     @Transactional
     public void restoreToUrls(@NonNull EntityType entityType, @NonNull Long entityId,
@@ -172,12 +188,6 @@ public class AttachmentService {
     public void softDeleteAll(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long actorId) {
         log.info("Attachment delete all: entityType={}, entityId={}", entityType, entityId);
         attachmentRepository.softDeleteAll(entityType, entityId, actorId);
-    }
-
-    public void discardTempUploads(@NonNull List<TempAttachmentDto> temps) {
-        temps.stream()
-             .filter(t -> !AttachmentMediaContentType.isEmbedded(t.contentType()))
-             .forEach(t -> storageService.delete(t.tempUrl()));
     }
 
     // ── internals ────────────────────────────────────────────────────────────

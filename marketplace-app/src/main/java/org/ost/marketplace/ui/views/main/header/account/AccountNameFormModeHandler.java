@@ -75,7 +75,7 @@ public class AccountNameFormModeHandler extends AbstractFormOverlayModeHandler<U
     @Getter
     private final I18nService                                        i18nService;
     private final NotificationService                                notificationService;
-    private final UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
+    private final UiComponentFactory<OverlayFormBinder<UserEditDto>, OverlayFormBinder.Parameters<UserEditDto>> formBinderFactory;
     private final AuditQueryService                                  auditQueryService;
     private final EntityActivityOverlay                              entityActivityOverlay;
 

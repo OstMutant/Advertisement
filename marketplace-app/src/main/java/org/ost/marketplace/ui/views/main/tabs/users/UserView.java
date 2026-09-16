@@ -47,7 +47,7 @@ public class UserView extends VerticalLayout {
     private final transient I18nService                            i18n;
     private final transient NotificationService                    notificationService;
     private final QueryStatusBar<UserFilterDto>                    queryStatusBar;
-    private final transient UiComponentFactory<UserGridConfigurator> gridConfiguratorFactory;
+    private final transient UiComponentFactory<UserGridConfigurator, UserGridConfigurator.Parameters> gridConfiguratorFactory;
     private final AccountOverlay                                   overlay;
     private final PaginationBar                                    paginationBar;
     private final transient SettingsPaginationBinding              settingsPaginationBinding;
