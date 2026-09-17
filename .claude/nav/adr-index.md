@@ -79,6 +79,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-007 (integration-tests) | integration-tests | Accepted |  | `run.sh` auto-detects starter staleness instead of a manual skip-`-am` flag |
 | ADR-008 (integration-tests) | integration-tests | Accepted |  | Test package-private/private internal logic through its public entry point, never through a same-package trick or a widened production visibility |
 | ADR-010 (integration-tests) | integration-tests | Accepted |  | `@Tag("testcontainers")` on the shared base class + Surefire `excludedGroups`; `SharedEnvConfig` gains a testable overload |
+| ADR-084 (marketplace-app) | marketplace-app | Accepted |  | Verifying CSS on Vaadin Shadow DOM components — `getComputedStyle` is unreliable for paint properties, real diagnostic color swaps are required |
 | ADR-083 (marketplace-app) | marketplace-app | Accepted |  | Accent-color derivation via CSS Relative Color Syntax (`oklch(from ...)`/`rgb(from ...)`), not `color-mix()` |
 | ADR-082 (marketplace-app) | marketplace-app | Accepted |  | `UiComponentFactory<T>` gains a second type parameter `P`, closing the last unchecked cast ADR-058 left open |
 | ADR-081 (marketplace-app) | marketplace-app | Accepted |  | `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it |

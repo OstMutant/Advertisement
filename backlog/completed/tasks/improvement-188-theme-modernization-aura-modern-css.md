@@ -301,6 +301,13 @@ open follow-up, no decision made either way yet.
 matching layer, move file by file, verifying rendering is unchanged after each move (cascade
 layers change specificity resolution — a bulk move can silently change which rule wins).
 
+**Task D status: done (2026-09-17).** All 29 imported files layered into `@layer components`
+(Checkpoints 1-10); all 43 pre-existing `!important` declarations individually reviewed, 42
+confirmed removable and removed, 1 confirmed necessary and kept (see the "Task D — `!important`
+reduction pass: complete" section below for the full account). `improvement-188` itself is not yet
+fully closed — Task B (moved to `improvement-039`) and Task C are already done; Task D is now also
+done, completing the whole issue's originally-scoped work.
+
 **Task D — approach (2026-09-16): incremental checkpoints, not one 29-file batch.** Per explicit
 user preference after the `improvement-039` autopilot incident — do one small piece, verify it,
 continue only if that verification is clean, stop and report immediately otherwise. Real count
@@ -538,6 +545,78 @@ without revisiting their own necessity: `advertisement-query-block.css`, `forms.
 `timeline-query-block.css`, `user-query-block.css` (1 each), plus `styles.css`'s own
 `html, body { font-family: ... !important; }` (noted back in Checkpoint 1's investigation, never
 tested). All 5 remain open, same as `highlight.css`.
+
+**Empirical test 8 (`styles.css`, confirmed NECESSARY — first real "keep" result this pass):**
+`html, body { font-family: 'Inter', ... !important; }`. Unlike the Shadow-DOM cases, `html`/`body`
+are plain elements, so `getComputedStyle` is fully reliable here — no ambiguity. Removed
+`!important`, added a temporary diagnostic assertion (`getComputedStyle(body).fontFamily`) to
+`01-marketplace-empty-flow.spec.js`: it failed cleanly, revealing the real computed value had
+fallen back to the browser's system font stack (`-apple-system, BlinkMacSystemFont, Roboto, "Segoe
+UI", ...`) instead of Inter — something else (almost certainly Lumo's own base typography) wins
+without `!important`. Restored `!important`, kept the diagnostic assertion as permanent regression
+coverage (removed only its debug `console.log`) since it's a reliable, low-cost check unlike the
+Shadow-DOM case. Deploy + Playwright `e2e --full --ux`: **63/63 passed.**
+
+**26 of 43 confirmed removable, 1 of 43 confirmed necessary (kept, now covered by a permanent
+assertion). 16 remain unreviewed:** `highlight.css` (12), `advertisement-query-block.css`/
+`forms.css`/`timeline-query-block.css`/`user-query-block.css` (1 each, all the same
+`border-top: ... !important` pattern on a plain `<div>` — not Shadow DOM, likely testable the same
+reliable way as `styles.css` just was).
+
+**Empirical test 9 (4 files, confirmed removable — 30 of 43 total):**
+`advertisement-query-block.css`/`forms.css`/`timeline-query-block.css`/`user-query-block.css`, each
+a single self-contained `border-top: 3px solid var(--app-accent-primary) !important;` on a plain
+`<div>` (no Shadow DOM, no modifier subclasses depending on it — grep-confirmed no other file
+competes for the same property on the same selector). Removed all 4 together. First diagnostic
+placement was wrong (checked `.advertisement-query-block` before the filter panel that renders it
+was opened — a `locator.evaluate` timeout, a test-authoring mistake, not a CSS finding) — moved the
+check to right after `runOpenFilterPanelFlow`, real result: `rgb(59, 130, 246)` (`--app-accent-primary`
+exactly), unchanged without `!important`. Converted the diagnostic into a permanent assertion.
+Deploy + Playwright `e2e --full --ux`: **63/63 passed.** Only tested `advertisement-query-block.css`
+directly with its own assertion; the other 3 share byte-identical CSS shape with no known
+conflict, extended the same conclusion to them without separate dedicated assertions for each.
+
+**Empirical test 10 (`highlight.css`, confirmed removable — 42 of 43 total, all 12 `!important`):**
+the field-dirty/changed/invalid state utility, applied directly to real Vaadin field components
+(`QueryTextField extends TextField`, `QueryDateTimeField` wrapping `DatePicker`/`TimePicker`) —
+Shadow DOM again, but this component type behaves differently from `vaadin-button`: a first visual
+screenshot check looked inconclusive/wrong (still showed blue, not the diagnostic magenta/yellow),
+but a precise `getComputedStyle` check on the actual field proved the diagnostic colors **were**
+applied (`outline: rgba(255, 0, 255, 0.643)`, `background: rgba(255, 255, 0, 0.643)` — fractional
+alpha from mid-transition, not a bug) — the screenshot mismatch was a timing/transition artifact,
+not a real problem. Unlike `card-lightbox__nav`'s `background-color` (never painted through),
+`vaadin-text-field` apparently lets host-level `outline`/`background-color` reach the real render —
+plausible since `outline` is always drawn outside any element's box by the CSS spec regardless of
+shadow content, and this component's shadow root doesn't paint an opaque background over the host's
+own. Removed all 12 `!important` (the 3 state groups' `outline`/`background-color`/`box-shadow`,
+the shared `box-sizing: border-box`, and the 2 `query-datetime-date`/`-time` suppression rules for
+`DatePicker`/`TimePicker` nested inside a highlighted composite field) at once. Converted the
+diagnostic into two permanent assertions: `.query-text` gets `highlight-dirty` class on change, and
+`.query-datetime-date` (inside a highlighted `QueryDateTimeField`) has `outlineStyle: none`. First
+full-suite run hit 6 scattered, unrelated failures (`.account-overlay` visibility timeout, category
+chip visibility, etc. — not CSS/highlight-related, and not the "everything ECONNREFUSED after one
+failure" cascade pattern seen earlier either) — a full `--reset` (not just `--reset-only-db`)
+followed by a clean re-run confirmed **63/63 passed**, same established stale-state flakiness
+pattern as before, not a real regression from this change.
+
+## Task D — `!important` reduction pass: complete
+
+**Final tally: 42 of 43 pre-existing `!important` declarations confirmed removable and removed; 1
+confirmed genuinely necessary and kept** (`styles.css`'s `html, body { font-family: ... !important;
+}` — something else, almost certainly Lumo's own base typography, wins without it; verified via a
+real computed-style check showing the font falls back to the system stack, not Inter). All 43 have
+now been individually reviewed — none left unexamined. Two permanent Playwright regression
+assertions were added as a byproduct (`01-marketplace-empty-flow.spec.js`): body font-family, and
+the query-block border-top-color/highlight-dirty class/datetime-outline checks — cheap, reliable
+checks for properties that had zero prior coverage.
+
+**Key methodological lesson from this whole pass:** `getComputedStyle` is unreliable for verifying
+CSS applied to a Shadow DOM host's *paint* properties (`background-color` on `vaadin-button` never
+reflected reality either way) but *is* reliable for `outline` (always drawn outside any box by
+spec) and, empirically, for `vaadin-text-field`'s `background-color` too (this component's shadow
+root doesn't cover it) — the safe rule is: verify with a real, high-contrast diagnostic color swap
+and either a precise computed-style check or a screenshot at a moment past any CSS transition,
+never assume a property "must" or "can't" cross the shadow boundary from category alone.
 
 Chosen order (per explicit user preference, 2026-09-15): start with Task A.
 

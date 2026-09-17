@@ -52,8 +52,8 @@ plans converging on the same files.
    Playwright assertion — same lesson already learned in `improvement-126`.
 
 ## Related
-[improvement-188](improvement-188-theme-modernization-aura-modern-css.md) — theme baseline already
-answered, cite rather than re-investigate. [improvement-129](improvement-129-marketplace-feed-modernization.md)
+[improvement-188](../completed/tasks/improvement-188-theme-modernization-aura-modern-css.md) —
+theme baseline already answered, cite rather than re-investigate; closed in full 2026-09-17. [improvement-129](improvement-129-marketplace-feed-modernization.md)
 — owns AdvertisementCard/feed scope. [improvement-096](improvement-096-responsive-mobile-adaptation-pass.md)
 — owns mobile/responsive verification. [improvement-126](../completed/tasks/improvement-126-timeline-activity-diff-findings.md)
 — source of the geometry-only-Playwright visual QA lesson. `ArchitectureRulesTest` — the real

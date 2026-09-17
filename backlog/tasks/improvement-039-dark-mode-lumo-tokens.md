@@ -71,8 +71,8 @@ own scope is now narrower — only step 2 remains.
 - [improvement-037-accessibility-contrast-and-aria](../completed/tasks/improvement-037-accessibility-contrast-and-aria.md) —
   shipped this issue's own tokenization prerequisite as part of its own WCAG fix.
 - `marketplace-app/DECISIONS.md` ADR-038 — the token infrastructure this issue now builds on.
-- [improvement-188](improvement-188-theme-modernization-aura-modern-css.md) — this issue's scope
-  used to be tracked there as "Task B"; moved back here in full 2026-09-16 since it's this issue's
-  own scope, not a separate one. `improvement-188`'s Tasks C/D (accent-color `oklch()`/`color-mix()`,
-  `@layer` cascade) are unaffected and remain there.
+- [improvement-188](../completed/tasks/improvement-188-theme-modernization-aura-modern-css.md) —
+  this issue's scope used to be tracked there as "Task B"; moved back here in full 2026-09-16 since
+  it's this issue's own scope, not a separate one. `improvement-188` itself closed in full
+  2026-09-17 (Tasks 0/A/C/D all done, unaffected by this issue's own still-open dark-mode scope).
 - Branch `improvement-039` (git, not merged) — the failed first attempt's actual code.

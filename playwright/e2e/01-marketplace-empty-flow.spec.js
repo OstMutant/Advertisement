@@ -27,6 +27,7 @@
 const { test, expect } = require('@playwright/test');
 const { runOpenDefaultLocaleFlow, runSwitchToUkrainianFlow, runSwitchToEnglishFlow } = require('./_flows/language-switch.flow');
 const { runOpenFilterPanelFlow, runFillTitleFilterFlow, runApplyFilterFlow, runVerifyFilterStatusFlow, runClearFilterFlow, runCloseFilterPanelFlow } = require('./_flows/advertisement-filter.flow');
+const { setDateRange } = require('./_flows/filter.flow');
 
 test.describe.configure({ mode: 'serial' });
 
@@ -43,6 +44,8 @@ test.describe('Language switch (no auth)', () => {
 
   test('app loads — English locale, no admin controls visible', async () => {
     await runOpenDefaultLocaleFlow(page, expect);
+    const bodyFont = await page.locator('body').evaluate(el => getComputedStyle(el).fontFamily);
+    expect(bodyFont).toContain('Inter');
     await expect(page.locator('.add-advertisement-button')).not.toBeVisible();
     await expect(page.locator('.advertisement-edit').first()).not.toBeVisible();
     await expect(page.locator('.advertisement-delete').first()).not.toBeVisible();
@@ -63,7 +66,15 @@ test.describe('Language switch (no auth)', () => {
 
   test('unauthenticated user — filter panel accessible, title filter, apply and clear', async () => {
     await runOpenFilterPanelFlow(page, expect);
+    const queryBlockBorder = await page.locator('.advertisement-query-block').evaluate(el => getComputedStyle(el).borderTopColor);
+    expect(queryBlockBorder).toBe('rgb(59, 130, 246)');
     await runFillTitleFilterFlow(page, 'Test');
+    const titleField = page.locator('.advertisement-query-block .query-text').first();
+    await expect(titleField).toHaveClass(/highlight-dirty/);
+    await setDateRange(page, '.advertisement-query-block', 0, new Date().toISOString().slice(0, 10), undefined);
+    const dateSubField = page.locator('.advertisement-query-block .query-datetime-date').first();
+    const dateOutline = await dateSubField.evaluate(el => getComputedStyle(el).outlineStyle);
+    expect(dateOutline).toBe('none');
     await runApplyFilterFlow(page, expect);
     await runVerifyFilterStatusFlow(page, expect, 'Test');
     await runClearFilterFlow(page, expect);

@@ -2617,3 +2617,29 @@ selector, fixed by generalizing `category.flow.js`'s `selectCategoryInAdForm` in
 `selectInMultiSelectComboBox` — full `e2e --ux` re-run: 63/63 passed). The unrelated `docs`-stage
 generator bug found along the way was carved out and fixed separately as `improvement-194`. Full
 detail: `completed/tasks/improvement-193-external-review-batch-exception-taxon-attachment-uicomponentfactory-city-taxon.md`.
+
+✅ Done (2026-09-17): improvement-188 closed — theme modernization, all four tasks complete except
+dark mode (Task B), carved out to `improvement-039` after a failed implementation attempt and
+deprioritized pending a product decision on whether it's wanted at all. **Task 0**: Vaadin
+25.2.3→25.2.8 + 5 other dependency bumps, 2 real Maven Enforcer convergence conflicts found and
+fixed (a property alone isn't enough — needs an explicit `dependencyManagement` entry too),
+verified 766/766 backend + 63/63 Playwright. **Task A**: real Aura pilot via
+`@StyleSheet(Aura.STYLESHEET)` (the assumed `?theme=aura` runtime switch doesn't exist in Vaadin
+Flow), go/no-go delivered — lean "no", this app's own 57 `--app-*` tokens already dominate visible
+chrome; no future Aura migration forced, Lumo stays fully supported. **Task C**:
+`--app-accent-primary`'s 9 derived tokens + its `-rgb` helper converted to CSS Relative Color
+Syntax (`oklch(from ...)`/`rgb(from ...)`) instead of `color-mix()`, which can't express the hue
+shift 2 of the 9 tokens need — exact reproduction of prior hex values by construction, ADR-083.
+**Task D**: all 29 theme files migrated into `@layer components` (10 incremental checkpoints,
+escalating batch size once the process proved clean, per explicit user preference after the
+`improvement-039` autopilot incident); then all 43 pre-existing `!important` declarations
+individually reviewed — 42 confirmed removable and removed (mostly a repeated "the base rule's own
+`!important` was never necessary, forcing every modifier subclass to match it" pattern), 1
+confirmed necessary and kept (`styles.css`'s `html, body` font-family, losing to Lumo's own base
+typography without it). Found a real methodological trap along the way: `getComputedStyle` cannot
+reliably verify CSS applied to a Vaadin Shadow DOM component's paint properties (`background-color`
+never painted through on `vaadin-button` regardless of the CSS value or `!important`) — real ground
+truth needed a high-contrast diagnostic color swap plus either a precise computed-style read or a
+screenshot taken past any CSS transition; recorded as ADR-084. Two permanent Playwright assertions
+added as a byproduct. Full detail:
+`completed/tasks/improvement-188-theme-modernization-aura-modern-css.md`.

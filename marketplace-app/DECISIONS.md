@@ -2,6 +2,53 @@
 
 ---
 
+## ADR-084: Verifying CSS on Vaadin Shadow DOM components — `getComputedStyle` is unreliable for paint properties, real diagnostic color swaps are required
+
+**Status:** Accepted
+
+**Context:** `improvement-188` Task D's `!important` reduction pass (42 of 43 pre-existing
+declarations removed, 1 confirmed necessary and kept) needed to verify, per declaration, whether
+removing it changed real rendering. For plain elements (`html`/`body`, generic `<div>`s)
+`getComputedStyle` was fully reliable. For CSS applied directly to Vaadin custom elements (Shadow
+DOM web components: `vaadin-button`, `vaadin-text-field`, `vaadin-date-picker`), the same technique
+gave a false negative: a permanent computed-style check on `.card-lightbox__nav`'s
+`backgroundColor` failed identically whether `!important` was present, absent, or the whole file
+was fully unlayered — proving the check was structurally blind to this rule's real effect, not that
+a regression existed. Confirmed via a real diagnostic: forcing the same property to a bright,
+unmistakable value (`red`) with no `!important` produced a byte-identical cropped screenshot to the
+original translucent-white value — `background-color` set on this component's host never reaches
+whatever paints its actual visual, regardless of value. The same technique on `color` (an inherited
+property) showed the opposite: forcing it to `lime` produced a visibly green icon, confirming
+`color` does cross the shadow boundary. A different component (`vaadin-text-field`/`QueryTextField`)
+behaved differently again — `getComputedStyle` correctly reflected diagnostic `background-color`/
+`outline` changes made with no `!important` (an initial screenshot mismatch turned out to be a
+CSS-transition timing artifact, not a real discrepancy, confirmed by reading the value mid-transition).
+
+**Decision:**
+1. Never trust a plain `getComputedStyle` check alone to prove or disprove that a CSS rule visually
+   applies to a Vaadin custom element's host — it can return the CSS-cascade-correct value while the
+   component's shadow root paints something else entirely, independent of it.
+2. Before removing `!important` (or making any other cascade-order change) on a rule targeting a
+   Vaadin component's host, verify with a real diagnostic: temporarily force the property to an
+   unmistakable, high-contrast value with no `!important`, deploy, and check either (a) a precise
+   computed-style read, or (b) a cropped element screenshot taken after any CSS `transition` has
+   settled, comparing content or visually.
+3. `outline` is always safe to verify via `getComputedStyle` regardless of shadow DOM, since the CSS
+   spec draws it outside any element's own box, unaffected by shadow content painted inside. `color`
+   (inherited) reliably crosses the shadow boundary unless the component's own shadow template
+   overrides it internally. `background-color`/`box-shadow` painted on the host are the ones that
+   can silently fail to reach the real render — verify these per-component, never assume from
+   category alone.
+
+**Consequences:**
+- Two permanent Playwright assertions now exist as a byproduct in `01-marketplace-empty-flow.spec.js`
+  (body font-family; a query-block's `border-top-color` and a highlighted `QueryTextField`/
+  `QueryDateTimeField`'s class/outline state) — cheap regression coverage for properties that had
+  none before.
+- Any future CSS cleanup pass touching a Vaadin component's own class-based styling should budget
+  for this diagnostic-swap verification step, not assume a whole-suite pass (which only catches
+  functional/locator regressions, not silent visual no-ops) is sufficient.
+
 ## ADR-083: Accent-color derivation via CSS Relative Color Syntax (`oklch(from ...)`/`rgb(from ...)`), not `color-mix()`
 
 **Status:** Accepted

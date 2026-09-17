@@ -5,7 +5,7 @@
     margin-top:    0;
     padding:       0 16px 16px;
     border:        1px solid var(--app-accent-primary-bg);
-    border-top:    3px solid var(--app-accent-primary) !important;
+    border-top:    3px solid var(--app-accent-primary);
     border-radius: 12px;
     background:    linear-gradient(to bottom, var(--app-accent-primary-tint) 0%, var(--app-surface-white) 80px);
     gap:           0;
