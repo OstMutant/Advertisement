@@ -431,6 +431,51 @@ explicit layer order (not accidental specificity/source-order wins) governs prio
 `@layer components`. This is a separate, not-yet-started pass — every `!important` found during
 this migration was left in place as-is; none were evaluated for removability yet.
 
+## `!important` reduction pass (started 2026-09-17)
+
+**Real structural finding, checked before touching any code:** every one of the 29 files ended up
+in the exact same layer (`@layer components`) — none needed `base`/`overrides`. `@layer` only
+changes priority *between* layers; within one layer, plain specificity/source-order rules apply
+exactly as before this whole migration. So `@layer` by itself cannot have made any of the 43
+`!important`s removable purely by virtue of the file-migration just completed — any that turn out
+removable are removable for an unrelated, pre-existing reason, not because of anything Task D did
+structurally.
+
+**Empirical test 1 (`advertisement-overlay.css`, confirmed removable — 4 of 43):**
+`.overlay__view-card { border-top: ... !important; }` plus its three modifier classes
+(`--offer`/`--request`/`--product`, each `border-top-color: ... !important;`) — removing only the
+3 modifiers' `!important` broke a real Playwright assertion (`assertComputedColor` on
+`borderTopColor`, in `advertisement.flow.js`), because the base rule's own still-`!important`
+`border-top-color` (via the shorthand) then beat the now-non-important modifier regardless of
+specificity/order — `!important` always beats non-important, unconditionally. Removing the base
+rule's `!important` too (all 4 together) fixed it: deploy + Playwright `e2e --full --ux`, **63/63
+passed**, including the exact assertion that failed before. **Real mechanism confirmed:** the base
+rule's own `!important` was unnecessary to begin with (no real Vaadin/Lumo or cross-file
+conflict found for this exact rule); once removed, its modifiers no longer needed to match it.
+**This class of `!important` is only removable as a whole group (base + all its modifiers
+together), never one at a time** — confirmed directly, not assumed.
+
+**Empirical test 2 (`attachment-gallery.css`, confirmed removable — 4 more of 43):** the identical
+`.attachment-gallery` base + `--offer`/`--request`/`--product` modifier pattern, same fix (all 4
+`!important` removed together). Deploy + Playwright `e2e --full --ux`: **63/63 passed.**
+
+**Empirical test 3 (`user-overlay.css`, confirmed removable — 4 more of 43):** same pattern again,
+different class name (`.user-view-card` + `--admin`/`--user`/`--moderator`, not
+`.overlay__view-card` — structurally identical, no actual naming collision with the other two
+files). Deploy + Playwright `e2e --full --ux`: **63/63 passed.**
+
+**12 of 43 `!important` confirmed removable so far** (3 instances of the same base-rule-never-
+actually-needed-`!important` accent-border pattern, 4 each). Remaining 31 no longer match this
+exact shape — scanned the rest directly: `user-overlay.css`'s own leftover 2 (`.user-view-meta-row
+.labeled-field` flex-direction/align-items, overriding a Vaadin component default, not a same-file
+base rule), `taxon-view.css`'s 3 (`.taxon-row-deleted`, single class, no competing same-file rule
+found), `main-view.css`'s 1 (`display: none`), `card-lightbox.css`'s 8 (`.card-lightbox__nav`/
+`.card-lightbox__close` overriding Vaadin button defaults), and `highlight.css`'s 12 (field-state
+utility, several genuinely look like they're fighting Vaadin/Lumo defaults, not our own files) are
+all structurally different from the confirmed-safe pattern — each would need its own individual
+empirical test rather than being assumed safe by pattern match, and are less likely to be pure
+historical cruft given they don't have a redundant same-file base rule sitting behind them.
+
 Chosen order (per explicit user preference, 2026-09-15): start with Task A.
 
 ## Related

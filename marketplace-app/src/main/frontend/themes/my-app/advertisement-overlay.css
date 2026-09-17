@@ -121,7 +121,7 @@
 .overlay__view-card {
     background: var(--app-surface-white);
     border: 1px solid var(--app-border-default);
-    border-top: 3px solid var(--app-status-success-text) !important;
+    border-top: 3px solid var(--app-status-success-text);
     border-radius: 12px;
     padding: 20px 24px;
     display: flex;
@@ -133,15 +133,15 @@
 
 /* Accent border matching the listing type badge color -- see advertisement-card.css's left border */
 .overlay__view-card--offer {
-    border-top-color: var(--app-status-success-badge-text) !important;
+    border-top-color: var(--app-status-success-badge-text);
 }
 
 .overlay__view-card--request {
-    border-top-color: var(--app-status-info-text) !important;
+    border-top-color: var(--app-status-info-text);
 }
 
 .overlay__view-card--product {
-    border-top-color: var(--app-status-entity-advertisement-text) !important;
+    border-top-color: var(--app-status-entity-advertisement-text);
 }
 
 /* Spacing between text fields card and attachment gallery in edit mode */
