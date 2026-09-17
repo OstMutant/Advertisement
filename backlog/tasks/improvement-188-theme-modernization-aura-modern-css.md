@@ -531,6 +531,14 @@ method for this class of `!important`. `highlight.css`'s rules target plain `<di
 classes, not Vaadin custom elements directly, so this specific pitfall is less likely there, but
 should still be verified the same way rather than assumed.
 
+**Correction (2026-09-17): real remaining count is 17, not 12 — an inaccuracy caught after
+committing (`460cfb85`), not amended, corrected here instead.** `highlight.css` has 12, but 5 more
+were never actually tested for removal, only wrapped into `@layer components` back in Checkpoint 4
+without revisiting their own necessity: `advertisement-query-block.css`, `forms.css`,
+`timeline-query-block.css`, `user-query-block.css` (1 each), plus `styles.css`'s own
+`html, body { font-family: ... !important; }` (noted back in Checkpoint 1's investigation, never
+tested). All 5 remain open, same as `highlight.css`.
+
 Chosen order (per explicit user preference, 2026-09-15): start with Task A.
 
 ## Related
