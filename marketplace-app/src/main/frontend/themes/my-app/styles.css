@@ -1,3 +1,8 @@
+/* Cascade layer order, declared once up front (improvement-188 Task D) -- everything below is
+   either wrapped in one of these four layers already, or (the 29 imported component files)
+   still unlayered and therefore implicitly above all four, unaffected until each is migrated. */
+@layer tokens, base, components, overrides;
+
 /* Google Fonts — Inter */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
@@ -44,6 +49,7 @@
    implicitly followed that palette, this just gives it names.
    Full mapping rationale: marketplace-app/DECISIONS.md ADR-038.
    ========================================================================== */
+@layer tokens {
 :root {
     /* --- Text (neutral/slate) --- */
     --app-text-primary: #1e293b;     /* headings, primary labels */
@@ -130,7 +136,9 @@
     --app-status-danger-outline: #ef4444;
     --app-status-danger-outline-rgb: 239, 68, 68;
 }
+}
 
+@layer base {
 /* Global font + page background */
 html, body {
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
@@ -200,4 +208,5 @@ vaadin-button {
 .icon-button:focus-visible {
     outline: 2px solid var(--app-accent-primary);
     outline-offset: 2px;
+}
 }

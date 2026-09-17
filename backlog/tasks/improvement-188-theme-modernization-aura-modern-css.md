@@ -301,6 +301,72 @@ open follow-up, no decision made either way yet.
 matching layer, move file by file, verifying rendering is unchanged after each move (cascade
 layers change specificity resolution — a bulk move can silently change which rule wins).
 
+**Task D — approach (2026-09-16): incremental checkpoints, not one 29-file batch.** Per explicit
+user preference after the `improvement-039` autopilot incident — do one small piece, verify it,
+continue only if that verification is clean, stop and report immediately otherwise. Real count
+checked: `styles.css` itself imports **29 local files** (plus one Google Fonts `@import`, not part
+of this migration) and holds its own `:root` token block + a handful of global rules directly
+(`html`/`body`, `.svg-icon`, `.overlay-chips-label`, `.entity-meta*`, `vaadin-button`,
+`:focus-visible`) — not inside any imported file. 43 `!important` overrides exist across 12 of the
+29 files (`highlight.css` 12, `card-lightbox.css` 8, `advertisement-overlay.css`/
+`attachment-gallery.css` 4 each, the rest 1-6).
+
+**Checkpoint 1 (proposed first slice, not yet started):**
+1. Add `@layer tokens, base, components, overrides;` to the very top of `styles.css` — declares
+   the order only, moves nothing into any layer yet, so this line alone has zero visual effect
+   (nothing references `@layer` yet).
+2. Wrap `styles.css`'s own `:root` token block in `@layer tokens { ... }` and its own directly-written
+   global rules in `@layer base { ... }` — the one file already worked on twice this task (Task
+   B/C), so the most context exists here; also the natural root of the dependency graph, since
+   every other file consumes these tokens.
+3. Verify: `deploy-and-run` + `playwright e2e --full --ux` before touching any of the other 29
+   files. Stop and report here if anything looks off, per the incremental-checkpoint approach —
+   do not proceed to categorizing/moving the remaining files in the same pass.
+4. Only after Checkpoint 1 passes clean: propose the next slice (a first batch of "obviously
+   `base`" files, or "obviously `components`" files) as its own separate, small approval — the
+   full 29-file categorization is deliberately not decided all at once up front, since getting a
+   file's layer wrong is exactly the kind of thing that should be caught early on one file, not
+   discovered after 29 are already moved.
+
+**Checkpoint 1 status: done (2026-09-16).** `@layer tokens, base, components, overrides;` declared
+at the top of `styles.css`; its own `:root` token block wrapped in `@layer tokens`, its own global
+rules (`html, body`, `.svg-icon`, `.overlay-chips-label`, `.entity-meta*`, `vaadin-button`,
+`.primary-button:focus-visible` etc.) wrapped in `@layer base`. Checked directly for real selector
+conflicts with the other 29 files before wrapping (found 2 same-selector matches — `html, body` in
+`main-view.css`, `.svg-icon.*` in `sort-icon.css` — both touch disjoint CSS properties, no actual
+conflict). First verification run hit 10 Playwright failures starting at a rate-limit test timeout
+cascading into `ECONNREFUSED` for every later test — root-caused as stale DB/app state, not the
+`@layer` change (none of the failures were visual/CSS assertions). Full `--reset` (DB+MinIO volume
+wipe) + redeploy + re-run: **63/63 Playwright tests passed.**
+
+**Checkpoint 2 status: done (2026-09-16).** First real slice of the 29 imported files:
+`query-block.css`, `query-status-bar.css`, `sort-icon.css` wrapped in `@layer components`
+(all three had zero `!important`, chosen as the lowest-risk starting cluster). Checked for real
+cross-file selector conflicts before moving: one found (`.query-datetime-date`/`-time`, also
+targeted by `highlight.css` with `!important`) — confirmed safe, since an unlayered `!important`
+rule always outranks any layered rule regardless of layer order, so `highlight.css`'s override
+keeps winning unaffected by this move. Deploy + Playwright `e2e --full --ux`: **63/63 passed.**
+
+**Checkpoint 3 status: done (2026-09-16).** Per explicit user preference to move faster once the
+process proved clean, batched all remaining zero-`!important` files in one pass instead of
+one-by-one: `dialogs.css`, `advertisements-view.css`, `advertisement-card.css`, `user-grid.css`,
+`user-picker-field.css`, `user-layout.css`, `locale-selector.css`, `header-bar.css`,
+`provider-profile-overlay.css`, `provider-profile-query-block.css`, `providers-view.css`,
+`provider-profile-card.css`, `activity-feed.css`, `entity-activity.css`, `notification.css` (15
+files) wrapped in `@layer components`. Checked cross-file class-selector overlap programmatically
+across all 29 files first (first pass had a broken regex matching numeric CSS values like `0.15s`
+as fake "classes" — corrected before trusting the result). One real overlap found
+(`.advertisement-card`, defined in both `advertisements-view.css` and `advertisement-card.css`) —
+safe because both files are in this same batch, moving into the same layer together, so their
+relative priority is unchanged. Deploy + Playwright `e2e --full --ux`: **63/63 passed.**
+
+**18 of 29 files now layered (3 + 15). 11 remain unlayered — all 11 already carry `!important`**
+(`highlight.css` 12, `card-lightbox.css` 8, `user-overlay.css` 6, `advertisement-overlay.css`/
+`attachment-gallery.css` 4 each, `taxon-view.css` 3, `advertisement-query-block.css`/`forms.css`/
+`main-view.css`/`timeline-query-block.css`/`user-query-block.css` 1 each) — real, pre-existing
+specificity battlegrounds where `@layer` reordering has actual regression risk, unlike the 18
+already done. Reverting to small, individually-verified steps for these, not one big batch.
+
 Chosen order (per explicit user preference, 2026-09-15): start with Task A.
 
 ## Related

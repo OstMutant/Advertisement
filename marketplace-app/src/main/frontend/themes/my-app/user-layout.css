@@ -1,3 +1,5 @@
+@layer components {
+
 /* user-layout.css */
 
 .user-list-layout {
@@ -20,4 +22,5 @@
   margin-top: 0.5rem;
   align-self: stretch;
   box-sizing: border-box;
+}
 }
