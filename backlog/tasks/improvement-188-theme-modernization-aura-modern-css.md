@@ -366,6 +366,70 @@ relative priority is unchanged. Deploy + Playwright `e2e --full --ux`: **63/63 p
 `main-view.css`/`timeline-query-block.css`/`user-query-block.css` 1 each) — real, pre-existing
 specificity battlegrounds where `@layer` reordering has actual regression risk, unlike the 18
 already done. Reverting to small, individually-verified steps for these, not one big batch.
+Committed as `f01ad27e`.
+
+**Checkpoint 4 status: done (2026-09-17).** Lowest-risk slice of the remaining 11: the 5 files
+with exactly one `!important` each — `advertisement-query-block.css`, `forms.css`, `main-view.css`,
+`timeline-query-block.css`, `user-query-block.css` — wrapped in `@layer components`. Checked
+cross-file conflicts first: one real overlap found (`.overlay__form-fields-card`, also defined in
+`advertisement-overlay.css`, not yet layered) — confirmed safe, since the two files' rules for that
+selector set entirely disjoint CSS properties (`forms.css`'s is `border-top` only; the other sets
+background/border/padding/layout), no actual competition regardless of layer order. Deploy +
+Playwright `e2e --full --ux`: **63/63 passed.** 23 of 29 files now layered; 6 remain
+(`taxon-view.css` 3, `advertisement-overlay.css`/`attachment-gallery.css` 4 each, `user-overlay.css`
+6, `card-lightbox.css` 8, `highlight.css` 12), continuing one-by-one from here.
+
+**Checkpoint 5 status: done (2026-09-17).** `taxon-view.css` (3 `!important`, all self-contained on
+`.taxon-row-deleted`, no cross-file target) wrapped in `@layer components`. No selector conflicts
+found with any other file. Deploy + Playwright `e2e --full --ux`: **63/63 passed.** 24 of 29 files
+now layered; 5 remain (`advertisement-overlay.css`/`attachment-gallery.css` 4 each, `user-overlay.css`
+6, `card-lightbox.css` 8, `highlight.css` 12).
+
+**Checkpoint 6 status: done (2026-09-17).** `advertisement-overlay.css` (4 `!important`, all on a
+`.overlay__view-card`/modifier-class accent-border pattern, self-contained within the file) wrapped
+in `@layer components`. Two cross-file selector overlaps found (`.attachment-gallery` with the
+not-yet-layered `attachment-gallery.css`; `.overlay__form-fields-card` with the already-layered
+`forms.css`) — both confirmed safe, disjoint properties in each case (margin-top only vs.
+background/border/padding; border-top only vs. the same). Deploy + Playwright `e2e --full --ux`:
+**63/63 passed.** 25 of 29 files now layered; 4 remain (`attachment-gallery.css` 4,
+`user-overlay.css` 6, `card-lightbox.css` 8, `highlight.css` 12).
+
+**Checkpoint 7 status: done (2026-09-17).** `attachment-gallery.css` (4 `!important`, same
+modifier-class accent-border pattern as `advertisement-overlay.css`, self-contained) wrapped in
+`@layer components`. One cross-file overlap (`.attachment-gallery` with `advertisement-overlay.css`)
+already checked and confirmed safe in the previous checkpoint. Deploy + Playwright `e2e --full
+--ux`: **63/63 passed.** 26 of 29 files now layered; 3 remain (`user-overlay.css` 6,
+`card-lightbox.css` 8, `highlight.css` 12).
+
+**Checkpoint 8 status: done (2026-09-17).** `user-overlay.css` (6 `!important`: the same
+accent-border modifier pattern plus a `.user-view-meta-row .labeled-field` override beating a
+Vaadin/Lumo component default, not a custom-CSS cross-file conflict) wrapped in `@layer
+components`. No cross-file selector conflicts found. Deploy + Playwright `e2e --full --ux`:
+**63/63 passed.** 27 of 29 files now layered; 2 remain (`card-lightbox.css` 8, `highlight.css`
+12) — the two highest-risk files, left for last.
+
+**Checkpoint 9 status: done (2026-09-17).** `card-lightbox.css` (8 `!important`, all on
+`.card-lightbox__nav`/`.card-lightbox__close` overriding Vaadin button defaults, self-contained)
+wrapped in `@layer components`. No cross-file selector conflicts found. Deploy + Playwright
+`e2e --full --ux`: **63/63 passed.** 28 of 29 files now layered; only `highlight.css` (12
+`!important`, the highest-risk file) remains.
+
+**Checkpoint 10 status: done (2026-09-17) — all 29 files now layered.** `highlight.css` (12
+`!important`, the cross-cutting field-state utility applied across many other files' fields) wrapped
+in `@layer components`. Only known cross-file overlap (`.query-datetime-date`/`-time` with
+`query-block.css`) already verified safe in Checkpoint 2, and now both files sit in the same layer
+anyway so their relative order is unchanged from before this whole migration started. Deploy +
+Playwright `e2e --full --ux`: **63/63 passed.**
+
+**File migration complete: 29/29 imported files + `styles.css`'s own tokens/base rules all now
+explicitly layered (`@layer tokens, base, components, overrides;`).** Every file ended up in
+`@layer components` — none needed `overrides` (no file's whole purpose was "beat everything else,"
+which is what that layer is for) and none needed to stay outside `base`/`tokens` beyond
+`styles.css`'s own root-level content. **Not yet done — the original motivating goal of Task D**:
+review whether any of the 43 pre-existing `!important` declarations can now be removed, now that
+explicit layer order (not accidental specificity/source-order wins) governs priority within
+`@layer components`. This is a separate, not-yet-started pass — every `!important` found during
+this migration was left in place as-is; none were evaluated for removability yet.
 
 Chosen order (per explicit user preference, 2026-09-15): start with Task A.
 

@@ -1,3 +1,5 @@
+@layer components {
+
 /* ── Form card: blue top accent ──────────────────────────────────── */
 
 .overlay__form-fields-card {
@@ -84,4 +86,6 @@
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--app-text-tertiary);
+}
+
 }
