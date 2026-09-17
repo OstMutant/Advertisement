@@ -476,6 +476,61 @@ all structurally different from the confirmed-safe pattern — each would need i
 empirical test rather than being assumed safe by pattern match, and are less likely to be pure
 historical cruft given they don't have a redundant same-file base rule sitting behind them.
 
+**Empirical test 4 (`user-overlay.css`'s remaining 2, confirmed removable — 14 of 43 total):**
+`.user-view-meta-row .labeled-field { flex-direction: column !important; align-items: flex-start
+!important; }` — no existing Playwright assertion covers this specific property, so verified by
+reading the actual screenshot (`user-management-promoted-admin-view`, confirmed via the Java side
+— `AccountNameViewModeHandler.java` applies `.user-view-meta-row` in exactly this screenshotted
+view) after removal: the CREATED AT/UPDATED AT fields still render label-above-value, left-aligned,
+column layout unchanged. Deploy + Playwright `e2e --full --ux`: **63/63 passed** (no regression
+elsewhere either). This one turned out unnecessary too, despite initially looking like a genuine
+Vaadin-component override — worth remembering that "looks like it's fighting Vaadin" is not
+reliable enough to skip testing.
+
+**Empirical test 5 (`main-view.css`, confirmed removable — 15 of 43 total):**
+`.main-pages > *[hidden], .main-pages > *.vaadin-hidden { display: none !important; }` — hides
+inactive tab pages, a high-blast-radius candidate (if broken, multiple tabs' content would render
+simultaneously, which the extensive tab-navigating e2e suite would almost certainly catch via
+locator ambiguity errors, not just a visual diff). Deploy + Playwright `e2e --full --ux`: **63/63
+passed**, no such conflicts surfaced.
+
+**Empirical test 6 (`taxon-view.css`, confirmed removable — 18 of 43 total):**
+`.taxon-row-deleted { color; text-decoration: line-through; cursor: default; }` (all 3 properties).
+No existing assertion on this exact styling, verified via the `taxon-07-electronics-deleted`
+screenshot: the deleted "Electronics" category still renders with strikethrough text, muted color,
+and the "(deleted)" badge, unchanged. Deploy + Playwright `e2e --full --ux`: **63/63 passed.**
+
+**Empirical test 7 (`card-lightbox.css`, confirmed removable — 26 of 43 total, the most involved
+investigation of this pass):** `.card-lightbox__nav`/`.card-lightbox__close` (8 `!important` total)
+target a `UiIconButton extends Vaadin Button` — a real Shadow DOM web component. First attempt
+added a permanent `assertComputedColor` check (`backgroundColor`/`color`) to
+`advertisement.flow.js`'s existing lightbox flow — it failed (`expected rgba(255,255,255,0.15),
+got rgba(0,0,0,0)`), which first looked like a real regression. Restoring the `!important`
+produced the *exact same* failure, and removing the `@layer components` wrapper entirely (fully
+reverting to pre-Task-D state) *also* produced the identical result — proving the assertion itself
+was invalid, not a real regression: `background-color` set on a Shadow DOM host in plain CSS does
+not reach whatever paints the component's actual internal visual, so `getComputedStyle` on the
+host can never observe this rule's effect either way. The permanent assertion was reverted (kept
+would have been a permanently-failing, meaningless check).
+
+**Real ground truth established via targeted diagnostic (not assumed):** cropped
+`locator.screenshot()` of just the nav button, first with the real translucent-white value (came
+back blank/inconclusive — too subtle to read), then with the same property forced to solid `red`
+with no `!important` at all — **byte-identical screenshot hash to the original**, proving
+`background` genuinely never paints through on this element regardless of value or `!important`.
+Same technique on `color` (inherited property, unlike `background`) forced to `lime` — this time a
+visibly green icon appeared, confirming `color` *does* paint through and needs no `!important`
+either. Restored the real intended values (translucent white background, white color) with all 8
+`!important` removed. Deploy + Playwright `e2e --full --ux`: **63/63 passed.**
+
+**Lesson for the remaining file (`highlight.css`):** `getComputedStyle`-based verification is
+unreliable for any Shadow DOM host element — a passing/failing computed-style check on such an
+element proves nothing about its real rendering. Screenshot-based ground truth (ideally a
+high-contrast diagnostic color swap, not just checking the real subtle value) is the only reliable
+method for this class of `!important`. `highlight.css`'s rules target plain `<div>`/field-wrapper
+classes, not Vaadin custom elements directly, so this specific pitfall is less likely there, but
+should still be verified the same way rather than assumed.
+
 Chosen order (per explicit user preference, 2026-09-15): start with Task A.
 
 ## Related

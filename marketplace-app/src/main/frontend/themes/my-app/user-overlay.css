@@ -81,8 +81,8 @@
 }
 
 .user-view-meta-row .labeled-field {
-    flex-direction: column !important;
-    align-items: flex-start !important;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 2px;
 }
 

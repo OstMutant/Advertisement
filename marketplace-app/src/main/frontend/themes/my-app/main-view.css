@@ -62,7 +62,7 @@ html, body, #root {
 /* Hide inactive pages (covers Vaadin hidden conventions) */
 .main-pages > *[hidden],
 .main-pages > *.vaadin-hidden {
-  display: none !important;
+  display: none;
 }
 
 /* ── Tab bar ───────────────────────────────────────────────────────── */
