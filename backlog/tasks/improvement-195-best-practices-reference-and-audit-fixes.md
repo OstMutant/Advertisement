@@ -1,0 +1,466 @@
+# improvement-195: Best-practices reference doc + concrete fixes from a real cross-cutting audit
+
+**Type:** improvement — documentation + code/test/script hygiene
+**Module:** cross-cutting — `marketplace-app` tests, `integration-tests`, `playwright/`, `scripts/`,
+every module's `DECISIONS.md`
+**Priority:** 🔴 Top — user-requested top-of-backlog placement, 2026-09-17
+**When:** independent, no blockers
+
+## Current state
+
+A real audit was run against this codebase across five areas (Java/SOLID-DRY, JUnit, Playwright,
+Bash scripts, documentation, CI/CD), checking each claimed best practice directly against the
+actual code rather than trusting a generic checklist. Two things came out of it:
+
+1. A candidate reference list of best practices, each one checked against a real example already
+   living in this codebase (or flagged as not yet applied) — worth keeping somewhere so future work
+   has a concrete, project-grounded checklist instead of a generic one.
+2. A set of concrete, already-verified fixable issues — real code, not hypothetical — spanning
+   tests, Playwright config, Bash scripts, and documentation.
+
+Every finding below was re-verified directly against the current repository state on 2026-09-17
+(not just taken from the source audit at face value) — file paths, line numbers, and counts in this
+task reflect that direct check, not the original write-up.
+
+## Why change
+
+The audit surfaced real, low-risk fixes (a reflection-based test hack this project's own ADR-008
+already forbids, a dead trace-on-retry config, a live external YouTube dependency in e2e, two
+ShellCheck-flagged potential bugs) sitting alongside a genuinely useful artifact — a
+project-grounded best-practices checklist — that has no home yet. Both are worth capturing in one
+place rather than losing the audit's work the moment this conversation ends.
+
+## Approach — Phase 0: decide where the best-practices reference lives
+
+**Decided 2026-09-17 (user directive):** standalone `docs/best-practices.md`. Surfaced inside
+`docs/architecture/architecture-map.html` under the existing **System › Code Quality** screen
+(`renderCodeQuality()` in `docs/architecture/scripts/generate-architecture-model.sh`) as a 4th card,
+alongside the existing SonarQube/ArchUnit/Findings cards — rendered the same way `README.md`/
+`INFRASTRUCTURE.md` already render on the System screen (`root_md_json_for()` → `MODEL.rootXxx` →
+`mdBlockToHtml()`). **Not linked from root `CLAUDE.md` for now** (explicit user instruction — revisit
+later once the doc has settled).
+
+Confirmed via direct read of `generate-architecture-model.sh`:
+- `root_md_json_for(file)` (line ~218) already accepts any repo-relative path, not just root-level
+  files — `root_md_json_for("docs/best-practices.md")` works without modifying the function.
+- `renderCodeQuality()` (line ~2845) has a 3-card landing (`sonar`/`archunit`/`findings`) plus one
+  `if/else if` branch per section — a `practices` section follows the exact same shape as the
+  `sonar`/`archunit` branches, but rendering markdown via `mdBlockToHtml()` like the System screen's
+  own README/INFRASTRUCTURE blocks (`renderSystem()` line ~2399, `renderModule()`'s infra block line
+  ~3087) rather than a generated table.
+- Breadcrumb label logic (line ~2273) already special-cases `sonar`/`archunit`/`findings` sections
+  for the `Code Quality — X` title pattern — a `practices` case slots in the same way.
+
+Remaining open sub-question from the original three-option framing, not yet resolved: whether
+`app-readme-standards` (the skill family governing repo-root-scoped, non-module docs) should gain a
+short note covering `docs/best-practices.md`'s own "cites already-documented facts as illustration,
+canonical home stays elsewhere" exemption — modeled on that skill's existing `README.md` exemption
+paragraph. Proposed for approval below, not yet applied.
+
+### Candidate content — `docs/best-practices.md`
+
+One section per audited area; each entry: the practice, a named authoritative external source (no
+bare URLs, matching this project's own "cite by name" citation style), and either a real applied
+example in this codebase or an explicit "not yet applied" flag pointing at the fixing phase below
+(no ticket numbers in the doc's own prose — phase references here are for this approval step only).
+
+- **Java — SOLID & DRY**
+  - Dependency Inversion — source: Robert C. Martin, "Design Principles and Design Patterns" (the
+    original SOLID formulation). Applied: `AdvertisementPort`/`AdvertisementPortImpl` — callers
+    depend on the `platform-commons` interface, never the starter's own impl class.
+  - DRY — source: Hunt & Thomas, "The Pragmatic Programmer". Applied: `SqlFilterBuilder`/
+    `OrderByBuilder` in `query-lib`, reused across multiple repositories instead of each hand-rolling
+    filter/sort SQL.
+  - YAGNI — source: Kent Beck's Extreme Programming practices. Applied: this project's own "no
+    defensive empty checks" design-by-contract rule already rejects speculative guard code.
+- **JUnit**
+  - Test through the public API, not reflection into internals — source: JUnit 5 User Guide's
+    guidance on testing behavior, not implementation. Not yet applied (until Phase 1a lands):
+    `TimelineViewTest` invoked a private method via reflection.
+  - Deterministic assertions over incidental timing — source: JUnit 5 User Guide / general
+    test-determinism principle. Not yet applied (until Phase 1b lands): `AttachmentRepositoryTest`
+    used `Thread.sleep()` instead of relying on the query's own tiebreaker column.
+  - Descriptive naming (`method_condition_expectedResult`) — source: Given-When-Then structure
+    (Martin Fowler / BDD). Applied: most test methods in this codebase already follow this shape.
+- **Playwright**
+  - Prefer user-facing locators over CSS selectors — source: playwright.dev's official Best
+    Practices guide. Not yet broadly applied: a small minority of locators use `getByRole`/
+    `getByLabel`/`getByTestId` against a large majority of CSS selectors (deferred by design — see
+    Phase 2's own scoping).
+  - Don't depend on third-party services in tests — source: playwright.dev's official Best
+    Practices guide. Not yet applied (until Phase 2b lands): a live YouTube embed URL is hardcoded
+    in two e2e files.
+  - Capture a trace on real failure — source: playwright.dev's Trace Viewer documentation.
+    Currently misconfigured (until Phase 2a lands): `retries: 0` makes `trace: 'on-first-retry'`
+    dead configuration.
+- **Bash**
+  - `set -euo pipefail` at the top of every script — source: Google Shell Style Guide. Not yet
+    consistently applied (until Phase 3b lands): most scripts under `scripts/` still use a bare
+    `set -e`.
+  - Portable shebang (`#!/usr/bin/env bash`) — source: Google Shell Style Guide. Mixed today
+    (until Phase 3c lands).
+  - Static analysis via ShellCheck — source: Google Shell Style Guide's own recommendation to run
+    it. Not yet a CI gate (until Phase 3d lands); already caught two real bugs directly (Phase 3a).
+- **Documentation**
+  - Architecture Decision Records — source: Michael Nygard, "Documenting Architecture Decisions"
+    (2011). Applied: every module's `DECISIONS.md` already follows the Context/Decision/
+    Consequences shape.
+  - Current-state docs describe what is, not a changelog — general documentation-maintenance
+    principle. Applied inconsistently today (until Phase 4 lands): several `DECISIONS.md` files
+    still cite ticket numbers in prose, against this project's own stated rule.
+- **CI/CD**
+  - Shift security left (dependency/secret scanning in the pipeline) — source: OWASP's DevSecOps
+    guidance. Not yet applied — a consciously deferred gap tied to the still-open hosted-CI
+    migration decision, stated as such in the doc rather than left silent.
+
+Present this candidate structure + sourced descriptions for approval before writing the final doc
+and wiring the architecture-map changes.
+
+**Done 2026-09-17.** Final shape differs from the candidate above per direct user instruction during
+implementation: [`docs/best-practices.md`](../../docs/best-practices.md) contains only general,
+project-independent practice/definition/source entries — no repository facts, file paths, or ADR
+citations at all (the reverse relationship applies instead: other documents may link *to* this file).
+Related practices are grouped under a named subheading with a short "used for" purpose line per
+entry (e.g. SOLID, JUnit's FIRST, Playwright's official-docs practices vs. testing-craft practices,
+Bash's `set -euo pipefail`, ADRs vs. Diátaxis, CI/CD's three subgroups). Wired into
+`docs/architecture/architecture-map.html` as a 4th card under System › Code Quality
+(`docs/architecture/scripts/generate-architecture-model.sh`'s `renderCodeQuality()`), rendered via
+the same `mdBlockToHtml()` mechanism as `README.md`/`INFRASTRUCTURE.md`. Not linked from root
+`CLAUDE.md` (explicit user instruction, revisit later). The `app-readme-standards` skill was
+deliberately left untouched (explicit user instruction) since this file needs no "one fact, one
+canonical home" exemption once it carries no project facts at all.
+
+## Approach — Phase 1: JUnit test hygiene (small, safe, test-only)
+
+**1a. `TimelineViewTest` reflection hack**
+`marketplace-app/src/test/java/org/ost/marketplace/ui/views/main/tabs/timeline/TimelineViewTest.java`
+— `refresh_nonAdminWithNoResolvedActorId_rendersEmptyAndNeverQueries` calls a private
+`TimelineView.refresh()` via `getDeclaredMethod("refresh")` + `setAccessible(true)` + `invoke()`
+through a local `invokeRefresh()` helper (lines 17, 48, 55-58). This violates this project's own
+ADR-008 ("test package-private/private internal logic through its public entry point, never a
+same-package trick or reflection"). `TimelineView.setVisible(boolean)` already calls `refresh()`
+when `visible == true` and is a real public entry point — confirmed by reading the class.
+`Component.setVisible()` doesn't need an attached UI/session, so it's safe on a plain
+`new TimelineView(...)` in this Mockito-only test.
+- Replace `invokeRefresh();` with `view.setVisible(true);`.
+- Remove `throws Exception` from the test method signature.
+- Delete the `invokeRefresh()` helper and the now-unused `import java.lang.reflect.Method;`.
+- Check no other test method in the file still calls `invokeRefresh()` before deleting it.
+
+**1b. `AttachmentRepositoryTest` redundant `Thread.sleep`**
+`integration-tests/src/test/java/org/ost/integrationtests/level1/attachment/AttachmentRepositoryTest.java`
+— `Thread.sleep(10)` at line 222 (`loadMediaStats_singleEntity_...`) and line 242
+(`loadMediaStats_bulk_...`), both forcing distinct `created_at` values for deterministic "earliest"
+ordering. Confirmed unnecessary against `AttachmentRepository.loadMediaStats()`'s real SQL
+(`ORDER BY created_at ASC, id ASC`) — the `id ASC` tiebreaker already guarantees the first-inserted
+row (lower auto-increment id) sorts first regardless of timestamp ties.
+- Remove both `Thread.sleep(10);` lines.
+- Remove `throws InterruptedException` from both method signatures if nothing else needs it.
+- Do not change any assertions — the SQL tiebreaker already makes the expected result
+  deterministic without the sleep.
+
+**Verification:** run `TimelineViewTest` and `AttachmentRepositoryTest` directly first, then the
+full `marketplace-app` unit suite and `integration-tests` level1/attachment suite, to confirm
+nothing else depended on the removed helper/timing.
+
+**Done 2026-09-17.** Both fixes applied exactly as planned.
+- 1a: `invokeRefresh()`/`import java.lang.reflect.Method;` deleted, replaced with
+  `view.setVisible(true);`, `throws Exception` removed. Confirmed by reading
+  `TimelineView.setVisible(boolean)` directly that it calls `super.setVisible(visible)` then
+  `refresh()` when `visible == true` — the public entry point claim holds. Confirmed no other
+  method in the file still referenced `invokeRefresh()` before deleting it.
+  `TimelineViewTest` run standalone: 1/1 passed.
+- 1b: both `Thread.sleep(10);` lines removed, `throws InterruptedException` removed from both
+  signatures (nothing else in either method needed it). Re-verified the tiebreaker claim directly
+  against `AttachmentRepository.loadMediaStats()`'s real SQL before trusting it: both the
+  single-entity query and the bulk query's `ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY
+  created_at ASC, id ASC)` use `id ASC` as the tiebreaker, so `save()`'s insertion-order
+  auto-increment ids already make "first.jpg" sort first regardless of timestamp ties — the sleep
+  was genuinely adding nothing. `integration-tests/run.sh --sandbox AttachmentRepositoryTest` run
+  in progress at time of writing; full `marketplace-app` unit suite and `integration-tests`
+  level1/attachment suite still pending before Phase 1 is fully closed out.
+
+## Approach — Phase 2: Playwright config + test hygiene
+
+**2a. Dead trace config — real logical bug, not a style nit.**
+`playwright/playwright.config.js:26,28,37` — `retries: 0` with `trace: 'on-first-retry'`: a retry
+can never happen, so trace capture is dead code today. Fix: either raise `retries` to at least 1
+(CI runs only, if local runs should stay fast/deterministic) or change to
+`trace: 'retain-on-failure'` so a first-failure trace is actually captured. Needs a decision on
+which — present both options with their tradeoff before picking.
+
+**2b. Live external dependency in e2e — YouTube.**
+`playwright/e2e/_helpers.js:41` and `playwright/e2e/_flows/advertisement.flow.js:30` both hardcode
+`https://www.youtube.com/watch?v=dQw4w9WgXcQ` and the test asserts on `getIframeSrc(page)` against
+the real embed. Fix: stub via `page.route()` matching the YouTube embed URL pattern, serving a
+minimal fixture response, so the test no longer depends on YouTube being reachable from wherever
+Playwright runs.
+
+**2c. No ESLint in `playwright/`.**
+No `.eslintrc*`/`eslint.config.*` found under `playwright/`. Add a minimal config with
+`@typescript-eslint/no-floating-promises` (or the plain-JS equivalent covering un-awaited promises)
+as the primary rule this project cares about, matching the audit's own rationale — Playwright tests
+losing an `await` is a real, silent failure mode. Wire it into `scripts/ci.sh` or a dedicated lint
+step, not just left as a local-only config.
+
+**Deferred, not required for this task's own done-ness (large, no fast/safe path):**
+- Locator migration toward `getByRole`/`getByLabel`/`getByTestId` — currently ~7 role/label/testid
+  locators vs. 1000+ CSS-selector locators repo-wide. Migrating all of them is out of scope; apply
+  the preference to *new* tests and the most fragile existing ones opportunistically, not as a
+  batch here.
+- `storageState` session reuse (currently 0 usages) — real speed win, but touches every spec file's
+  setup; size it as its own task if picked up, don't fold into this one.
+- `fullyParallel: false` / `workers: 1` — already a documented, reasoned tradeoff in the config's
+  own comment (stateful Vaadin sessions + shared DB) — not a finding, no action needed.
+
+## Approach — Phase 3: Bash script hygiene
+
+**3a. Real ShellCheck-flagged bugs (not style) — fix these regardless of the rest of this phase.**
+- `docs/architecture/scripts/generate-architecture-model.sh:1358` —
+  `local dir="$1" files="$2"` followed by `files` later being used as an array in some paths but a
+  plain string here (ShellCheck SC2178) — and a later expansion at the call site around line 1430
+  only yields the first element instead of the whole array (SC2128). Read the surrounding function
+  fully before fixing — determine whether `files` should be an array throughout, or whether the
+  array usage elsewhere is the actual bug.
+- `scripts/build-and-test/build.sh:127` — `rm -rf "$TARGET_CLASSES_DIR/$module"`: if `$module` is
+  ever empty, this deletes all of `$TARGET_CLASSES_DIR`. Fix with `"${module:?module must be set}"`
+  (or equivalent guard) so an empty value fails loudly instead of silently widening the delete.
+
+**3b. `set -euo pipefail` consistency.**
+Verified directly: only 1 script under `scripts/` has the full `set -euo pipefail`; 5 have a bare
+`set -e` with no `-u`/`pipefail`. Bring the bare-`set -e` scripts up to the full form, checking each
+one individually for any place that currently relies on an unset variable defaulting to empty
+(pipefail/`-u` can change behavior, not just tighten it — verify, don't blind-apply).
+
+**3c. Shebang consistency.**
+Verified: 19 scripts use `#!/bin/bash`, 6 use `#!/usr/bin/env bash`. Standardize on
+`#!/usr/bin/env bash` (portable — resolves via `PATH` rather than assuming `/bin/bash`'s exact
+location). Mechanical, low-risk; do in one pass.
+
+**3d. ShellCheck as a real CI gate.**
+No `shellcheck` invocation found anywhere under `scripts/ci/`. Add it as a step in
+`scripts/ci.sh`'s pipeline (the Docker-based CI infrastructure already exists — this is one more
+stage, not new infrastructure). Any pre-existing suppression needed must carry a
+`# shellcheck disable=SCxxxx` with a one-line reason, per this project's own documentation-quality
+bar — never a blanket/unexplained suppression.
+
+## Approach — Phase 4: Documentation — enforce `improvement-141`'s own rule against current docs
+
+Root `CLAUDE.md`/`.claude/rules.md` already states current-state docs must never cite an
+`improvement-NNN` number or embed dated "resolved" narrative. Verified directly: 6 current
+`DECISIONS.md` files still contain `improvement-NNN` references in prose:
+`.claude/DECISIONS.md`, `docs/architecture/scripts/DECISIONS.md`, `integration-tests/DECISIONS.md`,
+`marketplace-app/DECISIONS.md`, `marketplace-orchestrator/DECISIONS.md`, `scripts/ci/DECISIONS.md`.
+
+- For each file, read every `improvement-NNN` occurrence in context and rewrite it to state the
+  fact/decision itself without the ticket citation (the pattern `improvement-141`'s own fix already
+  established) — never delete the substance, only the forward-link.
+  A rewrite from an actual instance found in the audit: "closing off this specific recurring class
+  of hardcoded-list drift (see `backlog/completed/BACKLOG-ARCHIVE.md`'s `improvement-181`...)"
+  becomes a plain statement of what the fix was and why, with no ticket pointer at all.
+- Do this file by file, presenting the before/after for each occurrence before writing — this is
+  editing already-Accepted ADR text, not new content, so accuracy after the rewrite matters more
+  than speed.
+
+**Not required, optional/lower-value:** standardizing every ADR to use a literal "Rejected
+alternatives" heading — verified only ~13% of ADRs use that exact heading, though many more discuss
+alternatives inline within "Context" (which is arguably fine, not obviously a defect). If picked up
+at all, treat as its own small follow-up, not blocking this task.
+
+## Approach — Phase 5: CI/CD — security scanning gap
+
+Verified: no dependency/CVE scanning (Trivy/Snyk/Dependabot/Grype/OWASP dependency-check) and no
+secret-scanning gate exists anywhere in the repo. This is consistent with the project's own already-
+documented decision to stay on a local Dagu-based CI runner before migrating to a hosted CI
+(`improvement-028`, still open) — GitHub-hosted CI would bring secret scanning/Dependabot largely
+for free, so this gap is a natural consequence of that deferral, not an independent oversight.
+
+- Do not silently leave this unstated. Add one explicit line to wherever Phase 0's best-practices
+  doc ends up, naming this as a consciously-deferred gap tied to `improvement-028`, the same way
+  this project already treats other acknowledged gaps.
+- Optional low-cost first step, only if picked up: `mvn dependency-check:check` (OWASP
+  Dependency-Check) or `trivy fs .` as one more opt-in flag on `scripts/ci.sh`, mirroring how
+  `--sonar`/`--no-gate` already work as flags on that script. Not required for this task's own
+  done-ness — flag it as a natural next step in the best-practices doc instead if not implemented
+  now.
+
+## Approach — Phase 6: Java/SOLID-DRY — extract duplicated failure-rate-limiter
+
+The original "Current state" audit covered Java/SOLID-DRY as one of its five areas, but no fix
+phase above addressed it — this phase fills that gap with a real, verified finding surfaced during
+this same task's work, added to this issue per explicit user instruction rather than a new task
+file.
+
+**Finding, verified directly against current code (2026-09-17):**
+`marketplace-app/src/main/java/org/ost/marketplace/services/auth/AuthService.java` (`login()`) and
+`user-spring-boot-starter/src/main/java/org/ost/user/services/UserService.java` (`register()`) each
+hand-roll an identical Caffeine-backed sliding-window failure counter: a
+`Cache<String, AtomicInteger>` (`expireAfterWrite(15 min)`, `maximumSize(10_000)`), the same
+`get(key, _ -> new AtomicInteger(0))` → threshold-check → `throw TooManyAttemptsException` shape,
+differing only in the threshold constant name, the message text, the cache key composition
+(IP+email vs. clientIp alone), and whether a success path calls `.invalidate(key)` (`login()` does;
+`register()` deliberately doesn't — registration has no retry-then-succeed flow to reset). This is
+genuine structural duplication of one well-defined generic algorithm, not two coincidentally similar
+domain rules — a real DRY case, not a premature-abstraction risk.
+`TooManyAttemptsException` (both already throw it) already lives in
+`platform-commons/src/main/java/org/ost/platform/core/TooManyAttemptsException.java` — a precedent
+for cross-cutting rate-limiting infrastructure living directly in `org.ost.platform.core` (not
+namespaced under one subsystem the way `YoutubeUtil` is under `platform.attachment.util`, since this
+concern belongs to neither `user` nor `marketplace-app` alone). `platform-commons/pom.xml` has no
+Caffeine dependency today (verified); `marketplace-app`/`marketplace-orchestrator`/
+`user-spring-boot-starter` already declare it unversioned, relying on the Spring Boot BOM
+`platform-commons` already imports.
+
+**6a. New shared class**
+`platform-commons/src/main/java/org/ost/platform/core/FailureRateLimiter.java` — a plain class
+(not a Port/Hook/DTO) wrapping one Caffeine `Cache<String, AtomicInteger>`:
+- Constructor `FailureRateLimiter(int maxAttempts, @NonNull Duration window)`.
+- `checkAllowed(@NonNull String key, @NonNull String message)` — throws `TooManyAttemptsException`
+  if the key is already at/over threshold.
+- `recordFailure(@NonNull String key)` — increments the counter.
+- `clear(@NonNull String key)` — invalidates the counter (only called by a caller with a
+  reset-on-success flow, e.g. login; registration will not call it).
+
+**6b. `platform-commons/pom.xml`** — add the `com.github.ben-manes.caffeine:caffeine` dependency,
+no `<version>` (Spring Boot BOM already manages it), next to the existing
+`jakarta.validation-api`/`lombok`/`spring-data-commons` block.
+
+**6c. `AuthService.login()`** — replace the hand-rolled `Cache<String, AtomicInteger> loginAttempts`
+field with `private final FailureRateLimiter loginLimiter = new FailureRateLimiter(MAX_LOGIN_ATTEMPTS, Duration.ofMinutes(15));`,
+replace the get/threshold-check block with `loginLimiter.checkAllowed(key, "Too many failed login attempts, try again later");`,
+replace `loginAttempts.invalidate(key);` with `loginLimiter.clear(key);`, replace
+`attempts.incrementAndGet();` (in the `BadCredentialsException` catch) with
+`loginLimiter.recordFailure(key);`. The existing `log.warn(...)` call currently sits inside the same
+`if` block, before the `throw` — since `checkAllowed()` now throws internally, move that `log.warn`
+call to just before the `checkAllowed()` call, otherwise it would never execute. Remove the
+now-unused Caffeine/`AtomicInteger` imports.
+
+**6d. `UserService.register()`** — same shape: replace `registerAttempts` with
+`private final FailureRateLimiter registerLimiter = new FailureRateLimiter(MAX_REGISTER_ATTEMPTS, Duration.ofMinutes(15));`,
+replace the get/threshold-check block with
+`registerLimiter.checkAllowed(clientIp, "Too many failed registration attempts, try again later");`,
+replace `attempts.incrementAndGet();` in the `DuplicateKeyException` catch block with
+`registerLimiter.recordFailure(clientIp);` — **the existing `throw ex;` right after it in that same
+catch block must stay**, this refactor only replaces the counter call, not the re-throw. Do **not**
+add a `.clear()` call anywhere in `register()` — it has no success-path reset today and this refactor
+must not change that observable behavior. Remove the now-unused Caffeine/`AtomicInteger` imports.
+
+**Verification:** run the existing `AuthServiceTest` and the `integration-tests` `UserServiceTest`
+unchanged first — both already simulate N failed attempts via a bounded loop and assert
+`TooManyAttemptsException` at the threshold, so their assertions should pass with zero test changes
+since observable behavior (threshold=5, 15-minute window, message text) is unchanged. Then run the
+full `marketplace-app` unit suite and the relevant `integration-tests`/`user-spring-boot-starter`
+suites. No other production code changes needed — this is a pure extract-shared-class refactor.
+
+**Done 2026-09-17.** All four sub-steps applied exactly as planned, with one real bug caught and
+fixed during implementation: an initial edit accidentally moved `AuthService`'s
+`log.warn("Login blocked...")` to run unconditionally on every `login()` call instead of only on
+the actual threshold-exceeded path (since `checkAllowed()` now throws internally instead of the
+caller checking a boolean first). Fixed by wrapping the `checkAllowed()` call in a
+`try/catch (TooManyAttemptsException ex)` that logs then rethrows — confirmed correct by reading the
+resulting test log directly: `"Login blocked"` now appears exactly once, immediately after the 5th
+`"Login failed"` line, not on every call. `UserService.register()` needed no such wrapping since its
+original code never logged on the blocked path.
+- `AuthServiceTest`: 7/7 passed.
+- `integration-tests` `UserServiceTest`: 10/10 passed.
+- Full `marketplace-app`/`query-lib`/`marketplace-orchestrator`/`marketplace-rest-api` unit suite:
+  71/71 passed, including `ArchitectureRulesTest` (20/20) — confirms the new
+  `platform-commons/org.ost.platform.core.FailureRateLimiter` class and its Caffeine dependency
+  don't violate this project's own module-boundary rules.
+
+## Approach — Phase 7: Playwright test isolation — open discussion, not decided, not scheduled
+
+**Raised 2026-09-17, deliberately deferred — a discussion topic, not an implementation item.** While
+deciding Phase 2a's trace-config fix, the fact that `playwright.config.js` already runs
+`fullyParallel: false`/`workers: 1` specifically because "Vaadin + shared DB — parallel runs cause
+race conditions" (own code comment), combined with `playwright/e2e/README.md`'s own statement that
+"tests are serial and ordered — each spec depends on state left by the previous one," was flagged as
+worth a real conversation: this project's e2e suite does not follow the official Playwright "isolate
+tests by default" best practice (already listed as its own entry in
+[`docs/best-practices.md`](../../docs/best-practices.md)'s Playwright section), and that has a real
+consequence surfaced during this same task — a failed test cannot be safely retried (Phase 2a's
+`retries: 1` option was rejected specifically because a retry wouldn't start from a clean state).
+
+Not analyzed yet: whether this is worth changing (e.g. per-spec-file database reset, isolated
+browser contexts/storage state per test instead of per suite), what it would cost given the current
+Vaadin-session/shared-DB constraint, or whether the current serial-and-ordered design is a
+deliberate, acceptable tradeoff that should just be documented more prominently rather than changed.
+Pick this up as its own conversation when ready — do not start implementation from this entry alone.
+
+## Approach — Phase 8: real bug found via Playwright verification — stale `<base href>` after client-side navigation
+
+**Found and fixed 2026-09-18, while verifying Phase 2a's trace-config change with a real `e2e --ux`
+run.** Not part of the original audit — a genuine, reproducible production bug surfaced by actually
+running the test suite, not by static review.
+
+**Finding:** `AdvertisementOverlay.openForView()`/`ProviderProfileCatalogOverlay.openForView()` push
+a shareable URL (`/ads/{id}`, `/providers/{id}`) into the browser's history via
+`UI.getCurrent().getPage().getHistory().pushState(...)` every time an advertisement/provider
+overlay opens in view mode — normal usage, not just deep-linking. Since this is a client-side
+history push (no real page reload), the page's `<base href>` tag — set once, correctly, at the
+original full-page bootstrap — never gets updated to match the new, deeper URL. Any Vaadin-generated
+relative resource URL computed afterward (confirmed concretely: a file upload's target URL) then
+resolves against the stale base and gets a path segment wrong, hitting a path Spring/Vaadin doesn't
+recognize and returning `403`.
+
+**First diagnosis was wrong, corrected after re-verification:** an initial fix in
+`MainView.java` (resyncing the URL once after consuming a one-time deep-link forward) did not
+address the real trigger and a second full `e2e --ux` run reproduced the identical failure —
+confirmed via the Playwright trace's network log (`Referer: .../ads/2`, upload URL wrongly
+prefixed `/ads/VAADIN/dynamic/resource/...` → `403`) that the actual cause was the general
+`pushState` call in the overlay classes, not the narrower deep-link-forward path `MainView.java`
+touches only once at startup.
+
+**Fix:** new `marketplace-app/src/main/java/org/ost/marketplace/ui/views/utils/BrowserHistoryUtil.java`
+— `pushStateWithBaseSync(String path)` pushes the history entry and, in the same call, updates
+`<base href>` via `executeJs` to the correct relative depth for the new path (same formula Vaadin's
+own server-side bootstrap uses, confirmed by comparing real `<base href>` values returned for
+`/`, `/ads`, and `/ads/2`). Replaces all 5 raw `UI.getCurrent().getPage().getHistory().pushState(...)`
+call sites across `AdvertisementOverlay.java` (2) and `ProviderProfileCatalogOverlay.java` (3).
+`MainView.java`'s earlier resync-on-deep-link-consumption call is left in place (harmless, still
+correct for that one case) rather than reverted.
+
+**Verification:** unit suite 71/71 (including `ArchitectureRulesTest`) after the fix. Full
+`e2e --ux` run first showed 4 new, unrelated-looking failures (different spec files, an unrelated
+`entity-activity-overlay` close timeout) — re-ran the identical suite a second time with zero code
+changes between runs to test reproducibility: the second run passed 50/50 (13 skipped, same as
+`--full`-gated spec 06 always shows) with zero failures. This confirms the 4 failures are **not
+deterministically caused by this fix** (same code, clean pass). The originally failing test
+(`moderatorEn edits EN advertisement — ... add and replace media`) passed cleanly in both runs,
+confirming the actual bug fix itself works.
+
+**Open, unresolved: the real cause of the 4 first-run failures is not established.** An initial
+"Docker resource contention from long-idle leftover containers (`ci-runner`/`sonarqube`, up for
+days)" theory was proposed and acted on (those containers stopped/removed) — but this was **never
+verified with real data** (no `docker stats`/load measurement was taken at the actual failure
+moment, and the containers were destroyed before that could be checked), and was explicitly
+rejected as the explanation on review. This project's own `scripts/ci/DECISIONS.md` ADR-005 records
+a real, previously-confirmed precedent for Playwright timeout flakiness under concurrent
+dev-stack+e2e-stack+SonarQube load on this same sandbox — a plausible contributing factor, not a
+confirmed one for this specific run. Flagged here rather than left silent: if the same
+unrelated-looking failure pattern (`entity-activity-overlay` close timeout, or similar) recurs on a
+future verification run, investigate the actual failing action's own code path directly instead of
+reaching for the environment-contention explanation again unverified.
+
+## Expected benefit
+
+A project-grounded best-practices reference that future work (human or AI) can check claims
+against instead of a generic checklist, plus a handful of concrete, already-verified bugs/gaps
+fixed: a forbidden reflection-test pattern, a dead trace config, a live external test dependency,
+two real ShellCheck-flagged risks, inconsistent script hardening, and stale ticket references in
+current documentation.
+
+## Related
+
+- `marketplace-app/DECISIONS.md` — ADR-008 (test-through-public-entry-point rule that Phase 1a
+  enforces).
+- [improvement-091](../completed/tasks/improvement-091-attachment-repository-ordering-tiebreaker.md)
+  (if this is the file that added the `id ASC` tiebreaker Phase 1b relies on — verify during
+  implementation, cite correctly or drop the reference if the number doesn't match).
+- [improvement-028](tasks/improvement-028-minimal-ci-pipeline.md) — the hosted-CI migration Phase 5's
+  security-scanning gap is a natural consequence of deferring.
+- [improvement-063](tasks/improvement-063-playwright-stability-guard-async-init-components.md) —
+  separate, pre-existing `waitForTimeout` violation of this project's own ADR-002 in
+  `04-provider-profile-flow.spec.js`; already tracked there, not duplicated into this task's Phase 2.
+- `.claude/rules.md` — "No task/ticket numbers... in current-state documentation" (the rule Phase 4
+  enforces against real current violations).

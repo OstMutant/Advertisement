@@ -1871,6 +1871,7 @@ ci_metrics_json="null"
   echo "  \"allAdrs\": $(all_adrs_json),"
   echo "  \"rootReadme\": $(root_md_json_for "README.md"),"
   echo "  \"rootInfrastructure\": $(root_md_json_for "INFRASTRUCTURE.md"),"
+  echo "  \"rootBestPractices\": $(root_md_json_for "docs/best-practices.md"),"
   echo "  \"nodes\": ["
 
   first=true
@@ -2273,6 +2274,7 @@ function crumbLabelFor(v) {
     if (v.section === "sonar") return "Code Quality — SonarQube";
     if (v.section === "archunit") return "Code Quality — ArchUnit";
     if (v.section === "findings") return "Code Quality — Findings";
+    if (v.section === "practices") return "Code Quality — Best Practices";
     return "Code Quality";
   }
   if (v.screen === "diagrams") {
@@ -2860,6 +2862,10 @@ function renderCodeQuality() {
         <div class="card-title">🔍 Findings</div>
         <div class="card-desc">Architecture checks, largest files/packages, constructor-injection complexity</div>
       </div>
+      <div class="card" onclick="navigate({screen:'codequality',section:'practices'})">
+        <div class="card-title">📋 Best Practices</div>
+        <div class="card-desc">Project-grounded Java/JUnit/Playwright/Bash/CI checklist, sourced and checked against real code</div>
+      </div>
     </div>`;
     document.getElementById("content").innerHTML = html;
     return;
@@ -2922,6 +2928,10 @@ function renderCodeQuality() {
     html += renderLargestJavaFilesHtml();
     html += renderConstructorInjectionHtml();
     html += renderGodPackagesHtml();
+  } else if (view.section === "practices") {
+    html += `<h2 class="screen-title">Code Quality — Best Practices</h2>
+      <div class="screen-desc">A project-grounded checklist -- each practice sourced from an authoritative reference and checked against real code in this repo.</div>`;
+    html += `<section class="block">${mdBlockToHtml(MODEL.rootBestPractices || "", "")}<div class="empty-hint">Source: ${sourceLink("docs/best-practices.md")}</div></section>`;
   }
 
   document.getElementById("content").innerHTML = html;

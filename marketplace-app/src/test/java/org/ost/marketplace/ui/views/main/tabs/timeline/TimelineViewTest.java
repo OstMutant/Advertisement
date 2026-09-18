@@ -14,8 +14,6 @@ import org.ost.orchestrator.services.AuditQueryService;
 import org.ost.platform.audit.dto.AuditTimelineFilterDto;
 import org.ost.platform.core.ComponentFactory;
 
-import java.lang.reflect.Method;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
@@ -40,21 +38,15 @@ class TimelineViewTest {
     }
 
     @Test
-    void refresh_nonAdminWithNoResolvedActorId_rendersEmptyAndNeverQueries() throws Exception {
+    void refresh_nonAdminWithNoResolvedActorId_rendersEmptyAndNeverQueries() {
         when(auditQueryService.isAvailable()).thenReturn(true);
         when(access.canView()).thenReturn(false);
         when(access.getCurrentUserId()).thenReturn(null);
 
-        invokeRefresh();
+        view.setVisible(true);
 
         verify(auditQueryService, never()).getTimelinePage(any(), any(), anyInt(), anyInt());
         verify(auditQueryService, never()).countTimeline(any());
         verify(paginationBar).setTotalCount(0);
-    }
-
-    private void invokeRefresh() throws Exception {
-        Method refresh = TimelineView.class.getDeclaredMethod("refresh");
-        refresh.setAccessible(true);
-        refresh.invoke(view);
     }
 }

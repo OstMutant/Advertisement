@@ -1,6 +1,7 @@
 package org.ost.marketplace.ui.views.main;
 
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dependency.Uses;
 import com.vaadin.flow.component.html.Div;
@@ -122,7 +123,11 @@ public class MainView extends VerticalLayout {
         pendingDeepLinkCheckers.entrySet().stream()
                 .filter(e -> e.getValue().get())
                 .findFirst()
-                .ifPresent(e -> tabs.setSelectedTab(e.getKey()));
+                .ifPresent(e -> {
+                    tabs.setSelectedTab(e.getKey());
+                    // Resyncs the URL after forwardTo("") so later relative resource URLs (e.g. uploads) don't miscompute.
+                    UI.getCurrent().getPage().getHistory().replaceState(null, "");
+                });
     }
 
     private Tabs buildTabs(Tab initialTab) {
