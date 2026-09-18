@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Runs SonarQube static analysis against the whole Maven reactor -- ensures the
 #   SonarQube server and scanner images/containers are current, builds and tests all modules via
@@ -33,7 +33,7 @@
 #   AI agent reading raw script output to parse machine-readable status instead of scraping free
 #   text.
 # ────────────────────────────────────────────────────────────────────────────
-set -e
+set -euo pipefail
 SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

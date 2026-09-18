@@ -1355,7 +1355,7 @@ god_packages_json() {
 # comment style this can't parse (#, // only) or that simply has no header yet yields no entry, not
 # an error, so a new file with the convention shows up with no generator edit needed.
 script_headers_json() {
-  local dir="$1" files="$2"
+  local dir="$1" file_list="$2"
   python3 -c "
 import json, os, re, sys
 
@@ -1427,7 +1427,7 @@ for f in files:
         'returns': fields['Returns'],
     })
 print(json.dumps(out))
-" "$REPO_ROOT" "$dir" "$files"
+" "$REPO_ROOT" "$dir" "$file_list"
 }
 
 # Emits one SCRIPT_GROUP-shaped JSON object for directory "$1" (relative to REPO_ROOT), recursing

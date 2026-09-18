@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Emits a single-line JSON status marker for a script's own execution result --
 #   AGENTIC_SUCCESS_BLOCK on a clean finish, AGENTIC_ERROR_BLOCK on failure -- so an AI agent

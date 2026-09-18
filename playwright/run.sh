@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Runs Playwright tests inside the reused `pw-runner` Docker container -- ensures
 #   marketplace-app is running (starts it and waits if stopped), resets/reseeds the DB only when it

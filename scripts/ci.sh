@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Thin entry point -- delegates to scripts/ci/run.sh, where the real logic lives.
 # Usage: same as scripts/ci/run.sh.

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Thin trigger over a persistent Dagu server. Rebuilds the ci-runner image only when
 #   scripts/ci/Dockerfile or scripts/ci/docker-entrypoint.sh changed since the image was built,

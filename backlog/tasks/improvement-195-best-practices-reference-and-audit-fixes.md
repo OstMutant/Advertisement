@@ -273,18 +273,29 @@ tracked as `improvement-133` entry 22 — a separate, larger piece of work, not 
   live, not left unexplained: removed and re-verified against a full `e2e --ux` run — the plain
   click works with no failure, confirming `force` was unnecessary (root cause never identified,
   since it's no longer reproducible; not worth chasing further once confirmed gone).
-- **Real self-inflicted bug found and fixed along the way:** `--lint`'s own `npm install`
-  (`eslint`/`eslint-plugin-playwright` only) was sharing `pw-runner`'s `/tmp/node_modules` with the
-  test-run path's own `playwright`/`@playwright/test` install. Since the test-run path only checks
-  `[ ! -d /tmp/node_modules ]` before installing, running `--lint` once left that directory present
-  but missing `@playwright/test` entirely, breaking every subsequent `e2e` run
-  (`Cannot find module '@playwright/test'`) until fixed. Fixed by giving `--lint` its own isolated
-  `/tmp/lint` directory (own `node_modules`), never touching `/tmp` at all.
-- **Verification:** full `e2e --ux` run — first attempt caught both the self-inflicted
-  `/tmp/node_modules` collision and the locale-hardcoded `runApplyFilterFlow` bug (both fixed); a
-  clean re-run afterward passed 50/50 (13 skipped, same `--full`-gated baseline as always), and a
-  final `--lint` re-run passed 0 errors / 36 warnings (all `no-wait-for-timeout`, tracked
-  separately).
+- **Two real self-inflicted bugs found and fixed in `run.sh` along the way, both from `--lint`
+  sharing state with the test-run path inside the reused `pw-runner` container:**
+  1. `--lint`'s own `npm install` (`eslint`/`eslint-plugin-playwright` only) was sharing
+     `pw-runner`'s `/tmp/node_modules` with the test-run path's own `playwright`/`@playwright/test`
+     install. Since the test-run path only checks `[ ! -d /tmp/node_modules ]` before installing,
+     running `--lint` once left that directory present but missing `@playwright/test` entirely,
+     breaking every subsequent `e2e` run (`Cannot find module '@playwright/test'`) until fixed.
+  2. First fix attempt copied lint's spec files into `/tmp/lint/e2e/` — still nested under `/tmp`.
+     The test-run path's own `testMatch: '**/*.spec.js'` (rooted at `/tmp`) then recursively picked
+     up `/tmp/lint/e2e/*.spec.js` too, doubling every test (126 collected instead of 63) — caught
+     live when the user ran a test command right after `--lint` and got 126, a sequence never
+     actually exercised end-to-end before that point (lint and e2e had only ever been verified
+     separately, never lint-then-e2e back to back).
+  Fixed by moving `--lint`'s whole working directory to `/lint` (container root, sibling to `/tmp`,
+  never nested inside it) — fully outside both the node_modules-existence check and the recursive
+  spec glob. Re-verified specifically in the `--lint` → `e2e` sequence this time (not each mode in
+  isolation) — `Running 63 tests using 1 worker`, correct count restored.
+- **Verification:** full `e2e --ux` run — first attempt caught both the `/tmp/node_modules`
+  collision and the locale-hardcoded `runApplyFilterFlow` bug (both fixed); a clean re-run
+  afterward passed 50/50 (13 skipped, same `--full`-gated baseline as always); a `--lint` → `e2e`
+  sequence re-run afterward caught and confirmed the fix for the 126-test doubling bug above; a
+  final `--lint` re-run on its own passed 0 errors / 36 warnings (all `no-wait-for-timeout`,
+  tracked separately).
 
 **Deferred, not required for this task's own done-ness (large, no fast/safe path):**
 - Locator migration toward `getByRole`/`getByLabel`/`getByTestId` — currently ~7 role/label/testid
@@ -305,9 +316,35 @@ tracked as `improvement-133` entry 22 — a separate, larger piece of work, not 
   only yields the first element instead of the whole array (SC2128). Read the surrounding function
   fully before fixing — determine whether `files` should be an array throughout, or whether the
   array usage elsewhere is the actual bug.
+
+  **Re-verified 2026-09-18 with a real ShellCheck run (0.8.0, installed ad hoc for this
+  investigation only — see 3d's own note on why that install method isn't the real fix): this is
+  not a runtime bug.** `script_headers_json()`'s own `local files="$2"` (line 1358) is a plain
+  newline-joined string, consumed by its own embedded `python3 -c "..."` via `sys.argv[3]
+  .splitlines()` — correct and self-consistent throughout that whole function, confirmed by
+  reading every `$files` reference inside it. The SC2178/SC2128 warnings are a cross-scope naming
+  collision: an unrelated, genuinely-array `files=()` exists at top-level script scope (line 499,
+  a Liquibase-changelog file list, entirely different purpose) and again as `local files=()` in a
+  separate function (line 1095) — ShellCheck's whole-file analysis conflates all three same-named
+  variables even though `local` fully isolates `script_headers_json()`'s own copy from the other
+  two at runtime. Fix: rename `script_headers_json()`'s own local parameter (`files` →
+  `file_list`, at both its declaration and the one call-site expansion) to eliminate the ambiguous
+  name — a zero-risk rename local to one ~15-line function, not a suppression, since the warning's
+  root cause (name reuse) is directly removable rather than worth silencing.
 - `scripts/build-and-test/build.sh:127` — `rm -rf "$TARGET_CLASSES_DIR/$module"`: if `$module` is
   ever empty, this deletes all of `$TARGET_CLASSES_DIR`. Fix with `"${module:?module must be set}"`
   (or equivalent guard) so an empty value fails loudly instead of silently widening the delete.
+
+**Done 2026-09-18.** Both fixed and re-verified with a real ShellCheck run (not blind-applied):
+`script_headers_json()`'s local `files` renamed to `file_list` (declaration + the one call-site
+expansion) — SC2178/SC2128 both gone on re-scan, confirmed no real bug ever existed, just a
+same-name collision with two unrelated `files` variables elsewhere in this 2900+-line script (one
+genuinely an array, at top-level scope and in a separate function — neither actually reachable from
+`script_headers_json()`'s own `local`-scoped copy). `build.sh:127` guarded with
+`"${TARGET_CLASSES_DIR:?}/${module:?module must be set}"` (both operands guarded, not just
+`module` — an empty `TARGET_CLASSES_DIR` would be equally catastrophic). Re-ran ShellCheck on both
+full files afterward: zero new warnings introduced by either fix; pre-existing, unrelated findings
+in `build.sh` (SC2154, SC2010, SC2086 ×2) left untouched — out of this phase's named scope.
 
 **3b. `set -euo pipefail` consistency.**
 Verified directly: only 1 script under `scripts/` has the full `set -euo pipefail`; 5 have a bare
@@ -315,10 +352,65 @@ Verified directly: only 1 script under `scripts/` has the full `set -euo pipefai
 one individually for any place that currently relies on an unset variable defaulting to empty
 (pipefail/`-u` can change behavior, not just tighten it — verify, don't blind-apply).
 
+**Done 2026-09-18.** All 5 upgraded to `set -euo pipefail`; two of them
+(`build-and-test/run.sh`, `sonar/run.sh`) have a *second* `set -e` later in the file restoring
+errexit after a deliberate `set +e` around a manual exit-code capture — that second occurrence was
+correctly left as plain `set -e` (`-u`/`pipefail` are never disabled by `set +e`, which only
+toggles errexit, so restating them there would be redundant, not wrong).
+
+The "verify, don't blind-apply" instruction caught 6 real behavior changes across 3 files, each
+confirmed empirically (a real `bash -c 'set -euo pipefail; ...'` reproduction, not just reasoned
+about) before fixing:
+- `scripts/ci/docker-entrypoint.sh` — all variables (`FORCE_TOOLS_REFRESH`/`DAGU_VERSION`/
+  `DAGU_PORT`) always set by the Dockerfile/caller; no pipes. Safe as-is, no fix needed.
+- `scripts/deploy-and-run/run.sh` — same story (all vars defaulted or function-local; the one
+  unguarded pipe, `docker build | tee | grep`, is already wrapped so `pipefail` actually *fixes* a
+  real pre-existing bug: today a failed `docker build` whose output happens to match the `grep`
+  filter is silently swallowed and the script continues as if the build succeeded). Safe as-is.
+- `scripts/build-and-test/build.sh` — 3 real fixes needed, all confirmed by reproducing the exact
+  failure first:
+  1. `if [ -n "$TESTCONTAINERS_RYUK_DISABLED" ]` — this env var is documented as optional
+     ("may be exported directly... if needed"), genuinely unset on a normal (non-sandbox) run.
+     Fixed: `${TESTCONTAINERS_RYUK_DISABLED:-}`.
+  2. `JAR=$(ls ".../"*.jar 2>/dev/null | grep -v ... | head -1)` — reproduced directly: under
+     `pipefail`, an empty `ls` glob match aborts the script immediately via this assignment, before
+     the existing `if [ -n "$JAR" ]` guard ever runs — breaking every cold-start build (no jar yet).
+     Fixed by appending `|| true`, confirmed the repro now completes normally.
+  3. Two best-effort diagnostic listings (`grep -rl "FAILED\|ERROR" .../*.txt | sed ... ` in both
+     the unit and integration failure-reporting branches) — reproduced the same way: `pipefail`
+     turns "no file happened to contain the literal string FAILED/ERROR" into a script-aborting
+     error instead of just printing nothing. Fixed both with `|| true`.
+  Other pipes in this file (pom.xml module-list extraction, JaCoCo version extraction) were left
+  as-is deliberately — failing loudly there is correct, since those inputs are project-controlled
+  and always expected to succeed; that's pipefail doing its actual job, not a regression.
+- `scripts/build-and-test/run.sh` — 3 more optional-env-var reads needed the same `:-` treatment
+  (`GITHUB_ACTIONS`, and — a subtler case — `TESTCONTAINERS_RYUK_DISABLED`/
+  `INTEGRATION_TESTS_POSTGRES_FIXED_PORT` a second time, this time inside a `[ -n "$VAR" ] && ...`
+  short-circuit rather than an `if`: the `-e`-exemption for `if`/`&&` conditions does **not** extend
+  to `-u`'s unbound-variable check, which fires on any expansion regardless of context). The
+  `unit=`/`integration=` property reads and the `tar | docker run` pipe (already wrapped in its own
+  `set +e`/`PIPESTATUS[0]` handling, independent of `pipefail`) needed no change.
+- `scripts/sonar/run.sh` — no fixes needed: `NO_GATE`/`PULL_LATEST` are pre-initialized to empty
+  strings, `CONTAINER_STATUS` is always assigned via `$(... || true)` before use, the
+  sonar-scanner's own `set +e`/`PIPESTATUS[0]` block is pipefail-independent, and the one
+  `grep '^sonar.token='` read is guaranteed to succeed by the preceding `ensure_sonar_token` call.
+
+All 5 files re-syntax-checked with `bash -n` after their edits.
+
 **3c. Shebang consistency.**
 Verified: 19 scripts use `#!/bin/bash`, 6 use `#!/usr/bin/env bash`. Standardize on
 `#!/usr/bin/env bash` (portable — resolves via `PATH` rather than assuming `/bin/bash`'s exact
 location). Mechanical, low-risk; do in one pass.
+
+**Done 2026-09-18.** Re-verified counts directly before touching anything (they'd drifted since
+the original audit — 20/9 actual, not 19/6, from scripts added in the meantime): 20 files
+converted. One candidate from the initial `grep -l` sweep, `scripts/activity-monitor/run.test.sh`,
+turned out to be a false positive — its own line-1 shebang was already `#!/usr/bin/env bash`; the
+grep matched a `#!/bin/bash` string appearing elsewhere in the file (a test fixture generating a
+fake shebang'd script), not its own header. The actual fix (`sed` restricted to line 1 specifically)
+left it untouched, confirmed via an empty diff. Verified afterward: `bash -n` syntax-checked on a
+spot sample, `head -1` re-swept across all candidates confirms zero files still start with
+`#!/bin/bash`.
 
 **3d. ShellCheck as a real CI gate.**
 No `shellcheck` invocation found anywhere under `scripts/ci/`. Add it as a step in
@@ -326,6 +418,15 @@ No `shellcheck` invocation found anywhere under `scripts/ci/`. Add it as a step 
 stage, not new infrastructure). Any pre-existing suppression needed must carry a
 `# shellcheck disable=SCxxxx` with a one-line reason, per this project's own documentation-quality
 bar — never a blanket/unexplained suppression.
+
+**Must run inside `ci-runner`'s own Docker image (`scripts/ci/Dockerfile`), never rely on a
+host-installed `shellcheck` binary** — this project's own standing convention is every tool runs
+inside its own container (`build-and-test`'s build container, `sonar`'s scanner container,
+`playwright`'s `pw-runner`, the whole `ci-runner` design itself) specifically so results stay
+reproducible and the host stays clean. `apt-get install -y shellcheck` was run directly in this
+sandbox during 3a's own investigation above purely to get a real diagnostic before touching code —
+a one-off, throwaway install for that investigation only, explicitly not the real implementation
+this phase needs (flagged by the user mid-investigation, not something to repeat unprompted).
 
 ## Approach — Phase 4: Documentation — enforce `improvement-141`'s own rule against current docs
 
@@ -528,6 +629,62 @@ confirmed one for this specific run. Flagged here rather than left silent: if th
 unrelated-looking failure pattern (`entity-activity-overlay` close timeout, or similar) recurs on a
 future verification run, investigate the actual failing action's own code path directly instead of
 reaching for the environment-contention explanation again unverified.
+
+## Approach — Phase 9: Java/SOLID-DRY — extract duplicated category/city taxon-filter resolution
+
+**Raised 2026-09-18, a second Java/SOLID-DRY finding in the same area Phase 6 already covers**
+(the original audit's Java/SOLID-DRY area named more than the one failure-rate-limiter case).
+
+**Finding, verified directly against current code:** `AdvertisementService`
+(`advertisement-spring-boot-starter`) and `ProviderProfileService`
+(`provider-profile-spring-boot-starter`) each carry four private methods
+(`resolveCategoryAndCityFilter`/`resolveCategoryFilter`/`resolveCityFilter`/
+`resolveTaxonIdFilter`, ~25 lines) that are byte-for-byte identical except for the hardcoded
+`EntityType.ADVERTISEMENT` vs `EntityType.PROVIDER_PROFILE` and the filter DTO type
+(`AdvertisementFilterDto` vs `ProviderProfileFilterDto`). Confirmed both DTOs expose the exact same
+field shape (`Set<Long> categoryIds`, `Long cityTaxonId`), so one shared signature covers both
+without an adapter.
+
+**Decided approach — `default` method on `TaxonPort` itself, not a new class.** Three alternatives
+were considered and ruled out before settling on this:
+- A new plain class in `platform-commons` (mirroring Phase 6's `FailureRateLimiter` precedent) —
+  workable, but adds a class, a name, and manual per-service instantiation for no real gain once
+  the interface-default option below was found.
+- `marketplace-orchestrator` — architecturally wrong, not just bigger: `marketplace-orchestrator`
+  already depends on both starters, so a starter depending back on the orchestrator would invert
+  the project's own three-layer dependency direction.
+- Implementing it in `taxon-spring-boot-starter`'s own `TaxonPort` implementation class instead of
+  the interface — would force `advertisement-`/`provider-profile-spring-boot-starter` to add a
+  hard compile-time dependency on a sibling starter's concrete class, violating "no direct imports
+  between sibling modules" and breaking `TaxonPort`'s existing optional-degradation contract
+  (`ComponentFactory<TaxonPort>` / `findIfAvailable()`).
+
+A `default` method directly on `TaxonPort` (`platform-commons`) avoids all three problems: zero new
+classes, zero new inter-module dependencies (both `ComponentFactory` and `TaxonPort` already live
+in `platform-commons`), and matches an existing precedent — `AuditActivityEnrichHook` already uses
+a `default` method on a `platform-commons` SPI interface.
+
+**Not yet implemented — plan only, pending its own execution pass:**
+1. Add to `TaxonPort` (`platform-commons/src/main/java/org/ost/platform/taxon/spi/TaxonPort.java`):
+   a `default Optional<Set<Long>> resolveCategoryAndCityFilter(@NonNull EntityType entityType,
+   Set<Long> categoryIds, Long cityTaxonId)` (the AND-combine logic, unchanged) plus a `private
+   Optional<Set<Long>> resolveTaxonIdFilter(EntityType entityType, Set<Long> taxonIds)` helper
+   (delegates to the already-existing `findEntityIdsWithAnyTaxon`).
+2. `AdvertisementService`: delete all four private methods; replace both call sites with
+   `taxonPortFactory.findIfAvailable().flatMap(p -> p.resolveCategoryAndCityFilter(EntityType.ADVERTISEMENT, filter.getCategoryIds(), filter.getCityTaxonId()))`.
+3. `ProviderProfileService`: identical change, `EntityType.PROVIDER_PROFILE`.
+4. Move/adapt whichever existing unit tests cover this logic today (`AdvertisementServiceTest`/
+   `ProviderProfileServiceTest`) into one shared test for `TaxonPort`'s new default method (a fake/
+   stub `TaxonPort` implementation exercising only `findEntityIdsWithAnyTaxon`), plus a thin
+   per-service test confirming the delegation call itself.
+5. No new `DECISIONS.md` entry needed on top of this task's own record — this is a pure extraction
+   with no behavior change, self-evident from the code + this task's own record here.
+
+**Verification, once implemented:** existing `AdvertisementServiceTest`/`ProviderProfileServiceTest`
+filter-related tests should pass unchanged (same observable behavior); full `marketplace-app`/
+`advertisement-spring-boot-starter`/`provider-profile-spring-boot-starter` unit suite plus
+`ArchitectureRulesTest` (confirms the `default` method doesn't introduce any new module-boundary
+violation).
 
 ## Expected benefit
 

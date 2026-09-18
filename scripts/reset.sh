@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Thin entry point -- delegates to scripts/deploy-and-run/reset.sh, where the real
 #   logic lives.
