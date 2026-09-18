@@ -25,7 +25,7 @@ const { openEntityActivity, closeEntityActivity } = require('./entity-activity.f
 
 // Expected computed colors per role -- must match user-grid.css's role badge colors exactly.
 const ROLE_COLOR = {
-  admin:     'rgb(29, 78, 216)',
+  admin:     'oklch(0.488166 0.217197 264.381)',
   user:      'rgb(21, 128, 61)',
   moderator: 'rgb(194, 65, 12)',
 };

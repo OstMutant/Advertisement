@@ -1,3 +1,5 @@
+@layer components {
+
 .card-lightbox [part="overlay"] {
     position: relative;
     background: rgba(0, 0, 0, 0.92);
@@ -36,9 +38,9 @@
 }
 
 .card-lightbox__nav {
-    background: rgba(255, 255, 255, 0.15) !important;
-    color: white !important;
-    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border-radius: 50%;
     min-width: 44px;
     width: 44px;
     height: 44px;
@@ -46,7 +48,7 @@
 }
 
 .card-lightbox__nav:hover {
-    background: rgba(255, 255, 255, 0.3) !important;
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .card-lightbox__strip {
@@ -105,9 +107,9 @@
     top: 16px;
     right: 16px;
     z-index: 9999;
-    background: rgba(255, 255, 255, 0.15) !important;
-    color: white !important;
-    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border-radius: 50%;
     min-width: 44px;
     width: 44px;
     height: 44px;
@@ -115,5 +117,7 @@
 }
 
 .card-lightbox__close:hover {
-    background: rgba(255, 255, 255, 0.3) !important;
+    background: rgba(255, 255, 255, 0.3);
+}
+
 }

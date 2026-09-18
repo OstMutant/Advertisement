@@ -17,7 +17,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -70,17 +69,18 @@ public class TaxonService {
                 .deletedBy(existing.getDeletedBy())
                 .createdAt(existing.getCreatedAt())
                 .createdBy(existing.getCreatedBy())
-                .updatedAt(Instant.now())
                 .updatedBy(actorId)
                 .version(version)
                 .build();
-        taxonRepository.save(updated);
+        // save()'s own return value carries the auditing-refreshed updatedAt/version -- the
+        // pre-save "updated" object does not, so it must not be what this method returns.
+        Taxon saved = taxonRepository.save(updated);
         translationRepository.saveAll(id, toEntities(id, translations));
         TaxonSnapshotDto afterSnapshot = buildSnapshotFromData(translations);
         if (actorId != null) {
             auditPortFactory.ifAvailable(p -> p.captureUpdate(id, afterSnapshot, actorId));
         }
-        return updated;
+        return saved;
     }
 
     @Transactional

@@ -57,8 +57,8 @@ componentFactory.build(MyPanel.Parameters.builder().entityId(id).onSave(onSave).
 - `Parameters` with Lombok `@Builder` when 5+ fields or any `Runnable`/`Consumer` callback.
 - `Configurable` lives in `org.ost.marketplace.ui.core`.
 - `Initialization` lives in `org.ost.marketplace.ui.core`.
-- `UiComponentFactory<T>` (marketplace-app `ui.core`) extends `ComponentFactory<T>` (platform-commons) and adds `build(P params)` for UI prototype wiring.
-- Use `UiComponentFactory<T>` for Configurable prototype UI beans (those that implement `Configurable` and need `.build(params)`).
+- `UiComponentFactory<T extends Configurable<T, P>, P>` (marketplace-app `ui.core`) extends `ComponentFactory<T>` (platform-commons); `build(P params)` calls `get().configure(params)` directly, no cast.
+- Use `UiComponentFactory<T, P>` for Configurable prototype UI beans (those that implement `Configurable` and need `.build(params)`), with `P` matching the bean's own `Parameters` type (e.g. `UiComponentFactory<MyPanel, MyPanel.Parameters>`).
 - Use `ComponentFactory<T>` for optional singleton services/ports (e.g. `AdvertisementPort`, `AuditPort`) — starters declare `ComponentFactory<X>` beans, inject as `ComponentFactory<X>` even in UI classes.
 
 **When NOT to use Configurable:**

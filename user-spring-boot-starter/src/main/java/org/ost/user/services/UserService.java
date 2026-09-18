@@ -1,7 +1,5 @@
 package org.ost.user.services;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.validation.Valid;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.FailureRateLimiter;
 import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
@@ -40,7 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -56,10 +54,7 @@ public class UserService {
 
     private static final int MAX_REGISTER_ATTEMPTS = 5;
 
-    private final Cache<String, AtomicInteger> registerAttempts = Caffeine.newBuilder()
-            .expireAfterWrite(Duration.ofMinutes(15))
-            .maximumSize(10_000)
-            .build();
+    private final FailureRateLimiter registerLimiter = new FailureRateLimiter(MAX_REGISTER_ATTEMPTS, Duration.ofMinutes(15));
 
     private final UserRepository                       repository;
     private final UserPreferencesRepository             preferencesRepository;
@@ -143,10 +138,7 @@ public class UserService {
 
     @Transactional
     public void register(@Valid @NonNull SignUpDto dto, @NonNull String clientIp) {
-        AtomicInteger attempts = registerAttempts.get(clientIp, _ -> new AtomicInteger(0));
-        if (attempts.get() >= MAX_REGISTER_ATTEMPTS) {
-            throw new IllegalStateException("Too many failed registration attempts, try again later");
-        }
+        registerLimiter.checkAllowed(clientIp, "Too many failed registration attempts, try again later");
         log.info("User register: email={}", dto.getEmail());
         boolean isFirstUser = repository.countByFilter(UserFilterDto.empty()).equals(0L);
         User newUser = User.builder()
@@ -159,7 +151,7 @@ public class UserService {
         try {
             saved = repository.save(newUser);
         } catch (DuplicateKeyException ex) {
-            attempts.incrementAndGet();
+            registerLimiter.recordFailure(clientIp);
             throw ex;
         }
         preferencesRepository.insertDefault(saved.getId());

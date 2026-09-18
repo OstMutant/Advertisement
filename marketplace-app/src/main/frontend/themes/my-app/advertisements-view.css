@@ -1,3 +1,5 @@
+@layer components {
+
 .advertisements-view {
   width: 100%;
   height: 100%;
@@ -73,3 +75,4 @@
 .advertisement-container .advertisement-card:nth-child(7)  { animation-delay: 0.20s; }
 .advertisement-container .advertisement-card:nth-child(8)  { animation-delay: 0.22s; }
 .advertisement-container .advertisement-card:nth-child(n+9) { animation-delay: 0.24s; }
+}

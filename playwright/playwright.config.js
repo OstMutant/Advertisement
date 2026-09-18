@@ -34,7 +34,7 @@ module.exports = defineConfig({
     viewport: { width: 1280, height: 900 },
     actionTimeout: 10_000,
     screenshot: 'only-on-failure',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
   },
 
   timeout: 60_000,

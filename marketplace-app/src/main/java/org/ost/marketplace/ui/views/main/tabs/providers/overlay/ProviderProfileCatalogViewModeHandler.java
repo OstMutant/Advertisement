@@ -62,7 +62,7 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
     private final LocaleProvider             localeProvider;
     private final AppLinkService             appLinkService;
     private final NotificationService        notificationService;
-    private final UiComponentFactory<EntityMetaPanel> metaPanelFactory;
+    private final UiComponentFactory<EntityMetaPanel, EntityMetaPanel.Parameters> metaPanelFactory;
 
     private Parameters params;
 

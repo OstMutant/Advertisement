@@ -1,3 +1,8 @@
+/* Cascade layer order, declared once up front (improvement-188 Task D) -- everything below is
+   either wrapped in one of these four layers already, or (the 29 imported component files)
+   still unlayered and therefore implicitly above all four, unaffected until each is migrated. */
+@layer tokens, base, components, overrides;
+
 /* Google Fonts — Inter */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
@@ -44,6 +49,7 @@
    implicitly followed that palette, this just gives it names.
    Full mapping rationale: marketplace-app/DECISIONS.md ADR-038.
    ========================================================================== */
+@layer tokens {
 :root {
     /* --- Text (neutral/slate) --- */
     --app-text-primary: #1e293b;     /* headings, primary labels */
@@ -64,18 +70,20 @@
     --app-overlay-backdrop: #000;
     --app-modal-scrim: rgba(0, 0, 0, 0.5);
 
-    /* --- Primary accent (blue) -- interactive elements, links, query blocks --- */
+    /* --- Primary accent (blue) -- interactive elements, links, query blocks ---
+       Every derived value below is oklch(from ...) relative to --app-accent-primary itself
+       (deltas fitted to today's hex values) -- rebasing the one seed color shifts the whole
+       ladder with it, rather than needing 9 manual re-picks. */
     --app-accent-primary: #3b82f6;
-    --app-accent-primary-rgb: 59, 130, 246;  /* channels of --app-accent-primary, for rgba() alpha blends */
-    --app-accent-primary-strong: #1d4ed8;
-    --app-accent-primary-bold: #2563eb;
-    --app-accent-primary-light: #60a5fa;
-    --app-accent-primary-faint: #93c5fd;
-    --app-accent-primary-bg: #dbeafe;
-    --app-accent-primary-bg-hover: #eff6ff;
-    --app-accent-primary-bg-soft: #f0f9ff;
-    --app-accent-primary-tint: #f0f7ff;
-    --app-accent-primary-glow: #e8f0fe;
+    --app-accent-primary-strong: oklch(from var(--app-accent-primary) calc(l - 0.1349) calc(c + 0.0292) calc(h + 4.56));
+    --app-accent-primary-bold: oklch(from var(--app-accent-primary) calc(l - 0.0769) calc(c + 0.0272) calc(h + 3.07));
+    --app-accent-primary-light: oklch(from var(--app-accent-primary) calc(l + 0.0907) calc(c - 0.0446) calc(h - 5.19));
+    --app-accent-primary-faint: oklch(from var(--app-accent-primary) calc(l + 0.1860) calc(c - 0.0924) calc(h - 8.00));
+    --app-accent-primary-bg: oklch(from var(--app-accent-primary) calc(l + 0.3088) calc(c - 0.1564) calc(h - 4.23));
+    --app-accent-primary-bg-hover: oklch(from var(--app-accent-primary) calc(l + 0.3474) calc(c - 0.1738) calc(h - 5.21));
+    --app-accent-primary-bg-soft: oklch(from var(--app-accent-primary) calc(l + 0.3540) calc(c - 0.1755) calc(h - 23.19));
+    --app-accent-primary-tint: oklch(from var(--app-accent-primary) calc(l + 0.3501) calc(c - 0.1750) calc(h - 8.26));
+    --app-accent-primary-glow: oklch(from var(--app-accent-primary) calc(l + 0.3301) calc(c - 0.1673) calc(h + 1.96));
 
     /* --- Gallery accent (indigo) -- attachment-gallery.css only --- */
     --app-accent-gallery: #6366f1;
@@ -128,7 +136,9 @@
     --app-status-danger-outline: #ef4444;
     --app-status-danger-outline-rgb: 239, 68, 68;
 }
+}
 
+@layer base {
 /* Global font + page background */
 html, body {
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
@@ -198,4 +208,5 @@ vaadin-button {
 .icon-button:focus-visible {
     outline: 2px solid var(--app-accent-primary);
     outline-offset: 2px;
+}
 }

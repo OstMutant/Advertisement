@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ost.platform.core.TooManyAttemptsException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
@@ -104,7 +105,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void login_thresholdReached_throwsIllegalStateException_beforeAttemptingAuthentication() {
+    void login_thresholdReached_throwsTooManyAttemptsException_beforeAttemptingAuthentication() {
         stubBadCredentials();
         String email = "user@example.com";
 
@@ -113,7 +114,7 @@ class AuthServiceTest {
         }
 
         assertThatThrownBy(() -> authService.login(email, "wrong"))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(TooManyAttemptsException.class);
         verify(authenticationManager, times(5)).authenticate(any());
     }
 
@@ -149,7 +150,7 @@ class AuthServiceTest {
             authService.login(blockedEmail, "wrong");
         }
         assertThatThrownBy(() -> authService.login(blockedEmail, "wrong"))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(TooManyAttemptsException.class);
 
         // Same IP, different email — must not be blocked by blockedEmail's attempts.
         assertThat(authService.login(otherEmail, "wrong")).isFalse();

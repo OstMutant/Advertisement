@@ -79,6 +79,9 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-007 (integration-tests) | integration-tests | Accepted |  | `run.sh` auto-detects starter staleness instead of a manual skip-`-am` flag |
 | ADR-008 (integration-tests) | integration-tests | Accepted |  | Test package-private/private internal logic through its public entry point, never through a same-package trick or a widened production visibility |
 | ADR-010 (integration-tests) | integration-tests | Accepted |  | `@Tag("testcontainers")` on the shared base class + Surefire `excludedGroups`; `SharedEnvConfig` gains a testable overload |
+| ADR-084 (marketplace-app) | marketplace-app | Accepted |  | Verifying CSS on Vaadin Shadow DOM components — `getComputedStyle` is unreliable for paint properties, real diagnostic color swaps are required |
+| ADR-083 (marketplace-app) | marketplace-app | Accepted |  | Accent-color derivation via CSS Relative Color Syntax (`oklch(from ...)`/`rgb(from ...)`), not `color-mix()` |
+| ADR-082 (marketplace-app) | marketplace-app | Accepted |  | `UiComponentFactory<T>` gains a second type parameter `P`, closing the last unchecked cast ADR-058 left open |
 | ADR-081 (marketplace-app) | marketplace-app | Accepted |  | `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it |
 | ADR-081 (marketplace-app) | marketplace-rest-api | Accepted |  | `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it |
 | ADR-081 (marketplace-app) | taxon-spring-boot-starter | Accepted |  | `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it |
@@ -132,7 +135,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-051 (marketplace-app) | marketplace-app | Accepted — `UserDeleteService`, `UserActorNameService`, and `AuditDomainHookImpl` (described below as living in `marketplace-app`) all later relocated to `marketplace-orchestrator` (see ADR-073 and `marketplace-orchestrator/CLAUDE.md`); this decision's reasoning still applies to those classes in their new location. |  | User deletion — soft-delete, cascade to the user's own ads, retention purge, actor-name annotation |
 | ADR-052 (marketplace-app) | marketplace-app | Accepted |  | Leaf UI components converted from `@SpringComponent` prototype beans to plain classes |
 | ADR-057 (marketplace-app) | marketplace-app | Accepted |  | `AbstractViewOverlayModeHandler`'s secondary/tertiary-tab machinery removed — dead since the Timeline-tab extraction |
-| ADR-058 (marketplace-app) | marketplace-app | Accepted |  | `UiComponentFactory<T>` bounded to `T extends Configurable<T, ?>`; non-`Configurable` consumers migrated to plain `ComponentFactory<T>` |
+| ADR-058 (marketplace-app) | marketplace-app | Superseded by ADR-082 (item 1's "cast unavoidable" claim only; items 2-3 — ten-consumer migration, OverlayFormBinder four-beans split — remain current) |  | `UiComponentFactory<T>` bounded to `T extends Configurable<T, ?>`; non-`Configurable` consumers migrated to plain `ComponentFactory<T>` |
 | ADR-059 (marketplace-app) | marketplace-app | Accepted |  | F-01 deep links + Open Graph meta tags, Share button, sitemap.xml, and browser History sync |
 | ADR-063 (marketplace-app) | marketplace-app | Accepted |  | List stability after edit — splice-in-place instead of full refresh (Advertisement, User, Taxon) |
 | ADR-064 (marketplace-app) | marketplace-app | Accepted |  | `advertisement` → `user_information` hard FK coupling removed — last one between starters |

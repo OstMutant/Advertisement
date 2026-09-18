@@ -102,6 +102,16 @@ unconditional rather than triggered by first noticing a choice exists.
 > any specific skill's own steps; the index going stale is not a lesser concern just because the
 > edit didn't go through the one command that happens to mention it.
 
+> ## ⛔ A new or edited `.claude/rules/*.md` `paths:` glob gets re-checked in the same operation
+> Whenever a `.claude/rules/*.md` file's `paths:` frontmatter is added, edited, or a new such file
+> is created, run `bash .claude/nav/scripts/check-rule-path-globs.sh` and address (or explicitly
+> accept, with a one-line reason) whatever it reports for that file before considering the change
+> complete. Path-scoped rule matching is not anchored to the repo root — a bare `<name>/**` glob
+> matches `<name>` appearing as a path segment anywhere in the tree, not only at the top level (see
+> `.claude/rules/README.md`'s "Important" sections for the confirmed mechanism and known
+> instances) — so a newly-added glob can silently pick up an unintended match the same way the
+> existing ones already do, and nothing else catches this automatically.
+
 > ## ⛔ Stamp an ADR's `Verified:` date whenever you happen to confirm it against real code
 > Every `DECISIONS.md` entry may carry an optional `**Verified:** YYYY-MM-DD` line right after
 > `**Status:**` — today's date, the last time anyone actually checked that entry's claim still

@@ -43,8 +43,8 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
     }
 
     @Getter private final EntityOverlaySupport support;
-    private final UiComponentFactory<TaxonViewOverlayModeHandler> viewModeHandlerFactory;
-    private final UiComponentFactory<TaxonFormOverlayModeHandler> formModeHandlerFactory;
+    private final UiComponentFactory<TaxonViewOverlayModeHandler, TaxonViewOverlayModeHandler.Parameters> viewModeHandlerFactory;
+    private final UiComponentFactory<TaxonFormOverlayModeHandler, TaxonFormOverlayModeHandler.Parameters> formModeHandlerFactory;
     private final TaxonCatalogService                             taxonCatalogService;
 
     private OverlaySession session;

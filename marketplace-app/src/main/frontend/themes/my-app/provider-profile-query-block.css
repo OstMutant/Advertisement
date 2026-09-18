@@ -1,3 +1,7 @@
+@layer components {
+
 .provider-profile-query-block {
   gap: 8px;
+}
+
 }

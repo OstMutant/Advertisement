@@ -89,10 +89,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private final NotificationService                                          notificationService;
     private final AttachmentMediaService                                       attachmentMediaService;
     private final ComponentFactory<AttachmentGalleryService>                 galleryServiceFactory;
-    private final UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>>  formBinderFactory;
+    private final UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>, OverlayFormBinder.Parameters<AdvertisementEditDto>>  formBinderFactory;
     private final AuditQueryService                                             auditQueryService;
     private final EntityActivityOverlay                                        entityActivityOverlay;
-    private final UiComponentFactory<EntityMetaPanel>                         metaPanelFactory;
+    private final UiComponentFactory<EntityMetaPanel, EntityMetaPanel.Parameters>                         metaPanelFactory;
     private final TaxonCatalogService                                          taxonCatalogService;
     private final LocaleProvider                                               localeProvider;
     private final AdvertisementDisplayEnrichmentService                        enrichmentService;

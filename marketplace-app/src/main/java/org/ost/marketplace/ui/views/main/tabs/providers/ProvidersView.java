@@ -43,7 +43,7 @@ public class ProvidersView extends VerticalLayout {
     private final transient ProviderProfileReadService              providerProfileReadService;
     private final transient ProviderProfileDisplayEnrichmentService enrichmentService;
     private final transient ProviderProfileCatalogOverlay           overlay;
-    private final transient UiComponentFactory<ProviderProfileCardView> cardViewFactory;
+    private final transient UiComponentFactory<ProviderProfileCardView, ProviderProfileCardView.Parameters> cardViewFactory;
     private final transient I18nService                             i18n;
     private final transient LocaleProvider                          localeProvider;
     private final transient NotificationService                     notificationService;

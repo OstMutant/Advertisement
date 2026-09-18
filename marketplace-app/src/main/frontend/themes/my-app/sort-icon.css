@@ -1,3 +1,5 @@
+@layer components {
+
 .sort-icon {
     cursor: pointer;
 }
@@ -12,4 +14,6 @@
 
 .svg-icon.custom {
     color: green;
+}
+
 }

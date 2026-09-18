@@ -8,8 +8,11 @@ Usage:
 
 ## Step 1 — Extract name→file mapping from the HTML report
 
-The Playwright HTML report embeds a ZIP archive in a base64 `<script>` block.
-Run this Python snippet to extract the mapping:
+The Playwright HTML report (playwright@1.61.1, the version this project pins) embeds a ZIP
+archive as base64 inside a `<template id="playwrightReportBase64">` element — not inside a
+`<script>` tag, and not as a `window.playwrightReportBase64 = "..."` assignment (an older report
+shape that no longer matches; searching for it silently finds zero matches instead of erroring,
+so this is easy to miss). Run this Python snippet to extract the mapping:
 
 ```bash
 python3 - <<'EOF'
@@ -20,9 +23,7 @@ pattern = sys.argv[1] if len(sys.argv) > 1 else ""
 with open('/app/playwright/pw-report/index.html', 'rb') as f:
     content = f.read()
 
-scripts = re.findall(rb'<script[^>]*>(.*?)</script>', content, re.DOTALL)
-b64_script = next(s for s in scripts if s.strip().startswith(b'window.playwrightReportBase64'))
-m = re.search(rb'base64,([A-Za-z0-9+/=]+)"', b64_script)
+m = re.search(rb'<template id="playwrightReportBase64">data:application/zip;base64,([A-Za-z0-9+/=]+)</template>', content)
 raw = base64.b64decode(m.group(1))
 z = zipfile.ZipFile(io.BytesIO(raw))
 

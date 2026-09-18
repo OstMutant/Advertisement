@@ -36,7 +36,7 @@ public class MarketplaceUiConfiguration {
     // ── Audit UI factories ────────────────────────────────────────────────────
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AuditActivityPanel> auditActivityPanelFactory(ObjectProvider<AuditActivityPanel> p) {
+    public UiComponentFactory<AuditActivityPanel, AuditActivityPanel.Parameters> auditActivityPanelFactory(ObjectProvider<AuditActivityPanel> p) {
         return new UiComponentFactory<>(p);
     }
 
@@ -88,7 +88,7 @@ public class MarketplaceUiConfiguration {
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AttachmentLightbox> attachmentLightboxFactory(ObjectProvider<AttachmentLightbox> p) {
+    public UiComponentFactory<AttachmentLightbox, AttachmentLightbox.Parameters> attachmentLightboxFactory(ObjectProvider<AttachmentLightbox> p) {
         return new UiComponentFactory<>(p);
     }
 

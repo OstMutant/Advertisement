@@ -1,3 +1,5 @@
+@layer components {
+
 .advertisement-card {
   background: var(--app-surface-white);
   border: 1px solid var(--app-border-default);
@@ -262,3 +264,5 @@
 
 /* Hide trailing empty Quill paragraph (<p><br></p>) in card display */
 .advertisement-description p:last-child:has(> br:only-child) { display: none; }
+
+}

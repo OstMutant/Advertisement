@@ -2,6 +2,127 @@
 
 ---
 
+## ADR-084: Verifying CSS on Vaadin Shadow DOM components — `getComputedStyle` is unreliable for paint properties, real diagnostic color swaps are required
+
+**Status:** Accepted
+
+**Context:** `improvement-188` Task D's `!important` reduction pass (42 of 43 pre-existing
+declarations removed, 1 confirmed necessary and kept) needed to verify, per declaration, whether
+removing it changed real rendering. For plain elements (`html`/`body`, generic `<div>`s)
+`getComputedStyle` was fully reliable. For CSS applied directly to Vaadin custom elements (Shadow
+DOM web components: `vaadin-button`, `vaadin-text-field`, `vaadin-date-picker`), the same technique
+gave a false negative: a permanent computed-style check on `.card-lightbox__nav`'s
+`backgroundColor` failed identically whether `!important` was present, absent, or the whole file
+was fully unlayered — proving the check was structurally blind to this rule's real effect, not that
+a regression existed. Confirmed via a real diagnostic: forcing the same property to a bright,
+unmistakable value (`red`) with no `!important` produced a byte-identical cropped screenshot to the
+original translucent-white value — `background-color` set on this component's host never reaches
+whatever paints its actual visual, regardless of value. The same technique on `color` (an inherited
+property) showed the opposite: forcing it to `lime` produced a visibly green icon, confirming
+`color` does cross the shadow boundary. A different component (`vaadin-text-field`/`QueryTextField`)
+behaved differently again — `getComputedStyle` correctly reflected diagnostic `background-color`/
+`outline` changes made with no `!important` (an initial screenshot mismatch turned out to be a
+CSS-transition timing artifact, not a real discrepancy, confirmed by reading the value mid-transition).
+
+**Decision:**
+1. Never trust a plain `getComputedStyle` check alone to prove or disprove that a CSS rule visually
+   applies to a Vaadin custom element's host — it can return the CSS-cascade-correct value while the
+   component's shadow root paints something else entirely, independent of it.
+2. Before removing `!important` (or making any other cascade-order change) on a rule targeting a
+   Vaadin component's host, verify with a real diagnostic: temporarily force the property to an
+   unmistakable, high-contrast value with no `!important`, deploy, and check either (a) a precise
+   computed-style read, or (b) a cropped element screenshot taken after any CSS `transition` has
+   settled, comparing content or visually.
+3. `outline` is always safe to verify via `getComputedStyle` regardless of shadow DOM, since the CSS
+   spec draws it outside any element's own box, unaffected by shadow content painted inside. `color`
+   (inherited) reliably crosses the shadow boundary unless the component's own shadow template
+   overrides it internally. `background-color`/`box-shadow` painted on the host are the ones that
+   can silently fail to reach the real render — verify these per-component, never assume from
+   category alone.
+
+**Consequences:**
+- Two permanent Playwright assertions now exist as a byproduct in `01-marketplace-empty-flow.spec.js`
+  (body font-family; a query-block's `border-top-color` and a highlighted `QueryTextField`/
+  `QueryDateTimeField`'s class/outline state) — cheap regression coverage for properties that had
+  none before.
+- Any future CSS cleanup pass touching a Vaadin component's own class-based styling should budget
+  for this diagnostic-swap verification step, not assume a whole-suite pass (which only catches
+  functional/locator regressions, not silent visual no-ops) is sufficient.
+
+## ADR-083: Accent-color derivation via CSS Relative Color Syntax (`oklch(from ...)`/`rgb(from ...)`), not `color-mix()`
+
+**Status:** Accepted
+
+**Context:** `improvement-188` Task C's goal was deriving `--app-accent-primary`'s 9 dependent
+tokens (plus its `-rgb` channel helper) from the one seed value, instead of 10 independently
+hand-picked hex values — the same class of drift risk ADR-038/`improvement-037` already hit once
+for `--app-text-muted`. `color-mix(in srgb|oklab, var(--app-accent-primary) P%, black|white)` was
+tried first and checked against real math (both plain sRGB and perceptual OKLab space): it fits 7
+of the 9 tokens closely (error 0-12 out of 255 per channel), but cannot reproduce `-strong`
+(`#1d4ed8`) or `-bold` (`#2563eb`) at all (error 27-37) — both carry a genuine hue shift, not just a
+lightness change, and mixing toward an achromatic color (black/white) cannot express a hue shift.
+
+**Decision:**
+1. Every derived token uses CSS Relative Color Syntax against the base instead:
+   `oklch(from var(--app-accent-primary) calc(l + ΔL) calc(c + ΔC) calc(h + ΔH))`, with `ΔL`/`ΔC`/`ΔH`
+   computed per token to exactly reproduce today's hex value. One mechanism for all 9 tokens, no
+   hand-picked exceptions.
+2. `--app-accent-primary-rgb` (a literal channel-triplet helper for `rgba(var(...), alpha)` call
+   sites) is removed entirely; its 7 call sites across 6 CSS files now use
+   `rgb(from var(--app-accent-primary) r g b / alpha)` — the same Relative Color Syntax mechanism.
+3. Browser support confirmed directly (caniuse, not assumed): 92.29% global, full support in
+   Chrome/Edge 131+, Safari 18+, Firefox 133+ since late 2024/early 2025 — same tier already
+   accepted for `color-mix()`/`oklch()`/`light-dark()` elsewhere in this task.
+4. Since the derivation is an exact fit by construction, no visual change resulted — confirmed via
+   the full Playwright `e2e --full --ux` suite (63/63) after fixing one pre-existing test literal
+   (`ROLE_COLOR.admin` in `playwright/e2e/_flows/user-management.flow.js`) that asserted the old
+   `rgb(29, 78, 216)` string; the browser now legitimately serializes the same color as
+   `oklch(0.488166 0.217197 264.381)` since that's the color function the token is declared in.
+
+**Consequences:**
+- Rebasing `--app-accent-primary` to a different hue/lightness in the future shifts the whole
+  9-token ladder relative to the new base automatically, instead of requiring 9 manual re-picks.
+- Any Playwright assertion on a computed color derived from an `oklch(from ...)`/`rgb(from ...)`
+  token must expect the browser's own serialization of that color function, not assume `rgb(...)`.
+- The gallery/violet accent groups are deliberately **not** touched by this decision — revisited
+  later based on this result.
+
+**Rejected alternatives:**
+- `color-mix(in srgb|oklab, ..., black|white)` — cannot express the hue shift `-strong`/`-bold`
+  need, would force 2 of 9 tokens to stay hand-picked exceptions, defeating the "one mechanism"
+  goal.
+
+---
+
+## ADR-082: `UiComponentFactory<T>` gains a second type parameter `P`, closing the last unchecked cast ADR-058 left open
+
+**Status:** Accepted
+
+**Context:** ADR-058 bounded `UiComponentFactory<T extends Configurable<T, ?>>` but explicitly left
+one cast unavoidable: `build(P params)` still cast `get()` to `Configurable<T, P>`, since
+`Configurable<T, ?>`'s own second type parameter is existential and can't be linked to the
+caller-supplied `P`. An external SOLID/DRY review (`improvement-193` item 6) flagged this remaining
+cast; verified it was real and genuinely not already closed by ADR-058, which only addressed the
+`T` bound.
+
+**Decision:**
+1. `UiComponentFactory<T extends Configurable<T, P>, P> extends ComponentFactory<T>` — a second
+   class-level type parameter `P`, linked to `T`'s own `Configurable<T, P>` bound. `build(P params)`
+   is now `return get().configure(params);` — zero casts, zero `@SuppressWarnings("unchecked")`.
+2. All 54 real declaration sites across 23 files in `marketplace-app` updated to the two-argument
+   form (`UiComponentFactory<Xxx, Xxx.Parameters>`), each verified against that class's own actual
+   `implements Configurable<T, P>` signature rather than assumed uniform — including the
+   `OverlayFormBinder<X>` generic case, which needs `OverlayFormBinder.Parameters<X>` (itself a
+   generic nested type), not the simple `Xxx.Parameters` pattern every other consumer uses.
+3. Confirmed via a real `--unit` build (`BUILD SUCCESS`, `ArchitectureRulesTest` passing) that this
+   change crosses no ArchUnit boundary rule.
+
+**Consequences:**
+- ADR-058's own recorded decision (item 1) is superseded by this entry — see ADR-058's own
+  `Status:` update.
+- Any future `Configurable<T, P>` consumer now declares `UiComponentFactory<T, P>` with both type
+  arguments explicit; a single-argument declaration no longer compiles.
+
 ## ADR-081: `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it
 
 **Status:** Accepted
@@ -1830,7 +1951,7 @@ i18n key (both locales).
 
 ## ADR-058: `UiComponentFactory<T>` bounded to `T extends Configurable<T, ?>`; non-`Configurable` consumers migrated to plain `ComponentFactory<T>`
 
-**Status:** Accepted
+**Status:** Superseded by ADR-082 (item 1's "cast unavoidable" claim only; items 2-3 — ten-consumer migration, OverlayFormBinder four-beans split — remain current)
 
 **Context:** `UiComponentFactory<T>.build(params)` cast `get()` to `Configurable<T, P>` under
 `@SuppressWarnings("unchecked")` because `UiComponentFactory<T>` had no compile-time guarantee `T`

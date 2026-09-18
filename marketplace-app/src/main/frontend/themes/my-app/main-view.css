@@ -1,3 +1,5 @@
+@layer components {
+
 /* main-view.css */
 
 /* Mirror the original Java layout calls:
@@ -60,7 +62,7 @@ html, body, #root {
 /* Hide inactive pages (covers Vaadin hidden conventions) */
 .main-pages > *[hidden],
 .main-pages > *.vaadin-hidden {
-  display: none !important;
+  display: none;
 }
 
 /* ── Tab bar ───────────────────────────────────────────────────────── */
@@ -90,4 +92,6 @@ html, body, #root {
     padding: 0 0.5rem;
     margin: 0;
   }
+}
+
 }

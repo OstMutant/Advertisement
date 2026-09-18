@@ -1,13 +1,7 @@
 package org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes;
 
 import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.html.H4;
-import com.vaadin.flow.data.binder.Setter;
-import com.vaadin.flow.data.validator.StringLengthValidator;
-import com.vaadin.flow.data.value.ValueChangeMode;
-import com.vaadin.flow.function.ValueProvider;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.NonNull;
@@ -22,8 +16,6 @@ import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
-import org.ost.marketplace.ui.views.components.fields.UiTextArea;
-import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
@@ -55,12 +47,6 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
 
     public enum Mode { CREATE, EDIT }
 
-    private record LocaleField(
-            UiTextField nameField, UiTextArea descriptionField,
-            ValueProvider<CityEditDto, String> getName, Setter<CityEditDto, String> setName,
-            ValueProvider<CityEditDto, String> getDescription, Setter<CityEditDto, String> setDescription,
-            ValueProvider<TaxonSnapshotDto, String> getSnapshotName, ValueProvider<TaxonSnapshotDto, String> getSnapshotDescription) {}
-
     @Value
     @lombok.Builder
     public static class Parameters {
@@ -77,12 +63,12 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
     private final TaxonCatalogService                                      taxonCatalogService;
     private final AuditQueryService                                         auditQueryService;
     private final NotificationService                                      notificationService;
-    private final UiComponentFactory<OverlayFormBinder<CityEditDto>>       formBinderFactory;
+    private final UiComponentFactory<OverlayFormBinder<CityEditDto>, OverlayFormBinder.Parameters<CityEditDto>>       formBinderFactory;
     private final EntityActivityOverlay                                    entityActivityOverlay;
 
     private Parameters params;
     @Getter private Long savedCityId;
-    private List<LocaleField> localeFields;
+    private LocaleTranslationForm<CityEditDto> localeForm;
     private UiPrimaryButton   saveButton;
     private UiTertiaryButton  discardButton;
 
@@ -94,25 +80,22 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
 
     @Override
     public void activate(OverlayLayout layout) {
-        UiTextField nameEnField = new UiTextField(getValue(CITY_OVERLAY_FIELD_NAME), getValue(CITY_OVERLAY_FIELD_NAME_PLACEHOLDER),
-                255, true, CITY_OVERLAY_FIELD_NAME.toTestId());
-        UiTextArea descriptionEnField = new UiTextArea(getValue(CITY_OVERLAY_FIELD_DESCRIPTION), getValue(CITY_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER),
-                2000, true, CITY_OVERLAY_FIELD_DESCRIPTION.toTestId());
-        UiTextField nameUkField = new UiTextField(getValue(CITY_OVERLAY_FIELD_NAME), getValue(CITY_OVERLAY_FIELD_NAME_PLACEHOLDER),
-                255, true, CITY_OVERLAY_FIELD_NAME.toTestId());
-        UiTextArea descriptionUkField = new UiTextArea(getValue(CITY_OVERLAY_FIELD_DESCRIPTION), getValue(CITY_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER),
-                2000, true, CITY_OVERLAY_FIELD_DESCRIPTION.toTestId());
-
-        localeFields = List.of(
-                new LocaleField(nameEnField, descriptionEnField,
+        localeForm = new LocaleTranslationForm<>(
+                CITY_OVERLAY_FIELD_NAME.toTestId(), CITY_OVERLAY_FIELD_DESCRIPTION.toTestId(),
+                new LocaleTranslationForm.Labels(
+                        getValue(CITY_OVERLAY_FIELD_NAME), getValue(CITY_OVERLAY_FIELD_NAME_PLACEHOLDER),
+                        getValue(CITY_OVERLAY_FIELD_DESCRIPTION), getValue(CITY_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER),
+                        getValue(CITY_OVERLAY_VALIDATION_NAME_REQUIRED), getValue(CITY_OVERLAY_VALIDATION_NAME_LENGTH),
+                        getValue(CITY_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED), getValue(CITY_OVERLAY_VALIDATION_DESCRIPTION_LENGTH),
+                        getValue(CITY_OVERLAY_LOCALE_TAB_EN), getValue(CITY_OVERLAY_LOCALE_TAB_UK)),
+                new LocaleTranslationForm.Accessors<CityEditDto>(
                         CityEditDto::getNameEn, CityEditDto::setNameEn,
                         CityEditDto::getDescriptionEn, CityEditDto::setDescriptionEn,
                         TaxonSnapshotDto::nameEn, TaxonSnapshotDto::descriptionEn),
-                new LocaleField(nameUkField, descriptionUkField,
+                new LocaleTranslationForm.Accessors<CityEditDto>(
                         CityEditDto::getNameUk, CityEditDto::setNameUk,
                         CityEditDto::getDescriptionUk, CityEditDto::setDescriptionUk,
-                        TaxonSnapshotDto::nameUk, TaxonSnapshotDto::descriptionUk)
-        );
+                        TaxonSnapshotDto::nameUk, TaxonSnapshotDto::descriptionUk));
 
         saveButton = new UiPrimaryButton(getValue(CITY_OVERLAY_BUTTON_SAVE));
         discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));
@@ -124,30 +107,9 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
 
         CityEditDto dto = buildDto();
         buildBinder(dto);
+        localeForm.wireValueChangeListeners(() -> updateButtons(binder.hasChanges()));
 
-        for (LocaleField lf : localeFields) {
-            lf.nameField().setValueChangeMode(ValueChangeMode.EAGER);
-            lf.descriptionField().setValueChangeMode(ValueChangeMode.EAGER);
-            lf.nameField().addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
-            lf.descriptionField().addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
-        }
-
-        Div cardHeader = new Div(VaadinIcon.TAG.create(), new Span(getValue(CITY_OVERLAY_SECTION_LABEL)));
-        cardHeader.addClassName("overlay__form-card-header");
-
-        H4 enLabel = new H4(getValue(CITY_OVERLAY_LOCALE_TAB_EN));
-        enLabel.addClassName("taxon-locale-label");
-        Div enContent = new Div(nameEnField, descriptionEnField);
-        enContent.addClassName("taxon-locale-content");
-
-        H4 ukLabel = new H4(getValue(CITY_OVERLAY_LOCALE_TAB_UK));
-        ukLabel.addClassName("taxon-locale-label");
-        Div ukContent = new Div(nameUkField, descriptionUkField);
-        ukContent.addClassName("taxon-locale-content");
-
-        Div fieldsCard = new Div(cardHeader, enLabel, enContent, ukLabel, ukContent);
-        fieldsCard.addClassName("overlay__form-fields-card");
-
+        Div fieldsCard = localeForm.buildFieldsCard(VaadinIcon.TAG.create(), getValue(CITY_OVERLAY_SECTION_LABEL));
         Div editContent = new Div(fieldsCard);
         layout.setContent(editContent);
 
@@ -201,7 +163,7 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
 
     public void discardChanges() {
         CityEditDto fresh = buildDto();
-        binder.reload(fresh, this::copyLocaleFields);
+        binder.reload(fresh, localeForm::copyLocaleFields);
         updateButtons(false);
     }
 
@@ -215,25 +177,15 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
                     TaxonSnapshotDto snapshot = content.snapshotData();
                     CityEditDto dto = new CityEditDto();
                     dto.setId(params.getCity().getId());
-                    localeFields.forEach(lf -> {
-                        lf.setName().accept(dto, lf.getSnapshotName().apply(snapshot));
-                        lf.setDescription().accept(dto, lf.getSnapshotDescription().apply(snapshot));
-                    });
+                    localeForm.restoreFromSnapshot(snapshot, dto);
                     loadRestored(dto);
                 });
     }
 
     public void loadRestored(@NonNull CityEditDto restoredDto) {
-        binder.loadRestored(restoredDto, this::copyLocaleFields);
+        binder.loadRestored(restoredDto, localeForm::copyLocaleFields);
         notificationService.success(FORM_RESTORE_BANNER);
         updateButtons(true);
-    }
-
-    private void copyLocaleFields(CityEditDto src, CityEditDto tgt) {
-        localeFields.forEach(lf -> {
-            lf.setName().accept(tgt, lf.getName().apply(src));
-            lf.setDescription().accept(tgt, lf.getDescription().apply(src));
-        });
     }
 
     private CityEditDto buildDto() {
@@ -262,16 +214,7 @@ public class CityFormOverlayModeHandler extends AbstractFormOverlayModeHandler<C
                         .dto(dto)
                         .build()
         );
-        for (LocaleField lf : localeFields) {
-            binder.getBinder().forField(lf.nameField())
-                    .asRequired(getValue(CITY_OVERLAY_VALIDATION_NAME_REQUIRED))
-                    .withValidator(new StringLengthValidator(getValue(CITY_OVERLAY_VALIDATION_NAME_LENGTH), 1, 255))
-                    .bind(lf.getName(), lf.setName());
-            binder.getBinder().forField(lf.descriptionField())
-                    .asRequired(getValue(CITY_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
-                    .withValidator(new StringLengthValidator(getValue(CITY_OVERLAY_VALIDATION_DESCRIPTION_LENGTH), 1, 2000))
-                    .bind(lf.getDescription(), lf.setDescription());
-        }
+        localeForm.bindValidation(binder);
         binder.readInitialValues();
     }
 

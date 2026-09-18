@@ -43,7 +43,7 @@ public class EntityActivityOverlay extends BaseOverlay {
 
     private final transient EntityOverlaySupport support;
     private final transient I18nService          i18n;
-    private final UiComponentFactory<AuditActivityPanel> auditActivityPanelFactory;
+    private final UiComponentFactory<AuditActivityPanel, AuditActivityPanel.Parameters> auditActivityPanelFactory;
 
     private OverlayLayout layout;
 

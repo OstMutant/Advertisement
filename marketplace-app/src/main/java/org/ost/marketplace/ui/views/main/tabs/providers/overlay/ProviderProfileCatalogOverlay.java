@@ -1,7 +1,6 @@
 package org.ost.marketplace.ui.views.main.tabs.providers.overlay;
 
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
@@ -14,6 +13,7 @@ import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.services.OverlayNavigationRegistry;
+import org.ost.marketplace.ui.views.utils.BrowserHistoryUtil;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 
 import java.util.List;
@@ -39,7 +39,7 @@ public class ProviderProfileCatalogOverlay extends BaseOverlay {
 
     @Getter
     private final EntityOverlaySupport support;
-    private final UiComponentFactory<ProviderProfileCatalogViewModeHandler> viewModeHandlerFactory;
+    private final UiComponentFactory<ProviderProfileCatalogViewModeHandler, ProviderProfileCatalogViewModeHandler.Parameters> viewModeHandlerFactory;
     private final OverlayNavigationRegistry navigationRegistry;
 
     private OverlayLayout layout;
@@ -70,12 +70,12 @@ public class ProviderProfileCatalogOverlay extends BaseOverlay {
         ensureInitialized();
         session = new Session(profile, onDeleted, onClosed);
         switchTo();
-        UI.getCurrent().getPage().getHistory().pushState(null, PROVIDER_PATH_PREFIX + profile.getId());
+        BrowserHistoryUtil.pushStateWithBaseSync(PROVIDER_PATH_PREFIX + profile.getId());
         open();
     }
 
     void handleDeleted() {
-        UI.getCurrent().getPage().getHistory().pushState(null, LIST_PATH);
+        BrowserHistoryUtil.pushStateWithBaseSync(LIST_PATH);
         super.closeToList();
         session.onDeleted().run();
     }
@@ -110,7 +110,7 @@ public class ProviderProfileCatalogOverlay extends BaseOverlay {
 
     @Override
     protected void closeToList() {
-        UI.getCurrent().getPage().getHistory().pushState(null, LIST_PATH);
+        BrowserHistoryUtil.pushStateWithBaseSync(LIST_PATH);
         super.closeToList();
         session.onClosed().run();
     }

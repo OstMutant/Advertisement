@@ -43,8 +43,8 @@ public class CityOverlay extends AbstractEntityOverlay<CityFormOverlayModeHandle
     }
 
     @Getter private final EntityOverlaySupport support;
-    private final UiComponentFactory<CityViewOverlayModeHandler> viewModeHandlerFactory;
-    private final UiComponentFactory<CityFormOverlayModeHandler> formModeHandlerFactory;
+    private final UiComponentFactory<CityViewOverlayModeHandler, CityViewOverlayModeHandler.Parameters> viewModeHandlerFactory;
+    private final UiComponentFactory<CityFormOverlayModeHandler, CityFormOverlayModeHandler.Parameters> formModeHandlerFactory;
     private final TaxonCatalogService                            taxonCatalogService;
 
     private OverlaySession session;

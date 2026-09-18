@@ -10,6 +10,7 @@ import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.services.AttachmentSnapshotService;
 import org.ost.attachment.services.StorageService;
+import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
@@ -63,6 +64,21 @@ class AttachmentServiceTest {
     void setUp() {
         service = new AttachmentService(storageService, attachmentRepository,
                 attachmentSnapshotService, currentActorHook);
+    }
+
+    @Test
+    void getByEntityAndUrls_mapsRepositoryResultsToDtos() {
+        Attachment a = Attachment.builder()
+                .id(1L).entityType(EntityType.ADVERTISEMENT).entityId(1L)
+                .url("final/1.jpg").filename("1.jpg").contentType("image/jpeg").size(100L)
+                .build();
+        when(attachmentRepository.findByEntityAndUrls(EntityType.ADVERTISEMENT, 1L, new String[]{"final/1.jpg"}))
+                .thenReturn(List.of(a));
+
+        List<AttachmentItemDto> result = service.getByEntityAndUrls(EntityType.ADVERTISEMENT, 1L, new String[]{"final/1.jpg"});
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().url()).isEqualTo("final/1.jpg");
     }
 
     @Test
@@ -142,6 +158,26 @@ class AttachmentServiceTest {
         service.uploadTemp("session-1", "clip.mp4", inputStream, 200L, "video/mp4");
 
         verify(inputStream).close();
+    }
+
+    @Test
+    void discardTempUploads_deletesNonEmbeddedAndSkipsEmbedded() {
+        TempAttachmentDto uploaded = new TempAttachmentDto("temp/clip.mp4", "clip.mp4", "video/mp4", 200);
+        TempAttachmentDto embedded = new TempAttachmentDto("https://youtube.com/watch?v=1", "video.mp4", "video/youtube", 0);
+
+        service.discardTempUploads(List.of(uploaded, embedded));
+
+        verify(storageService).delete("temp/clip.mp4");
+        verify(storageService, never()).delete("https://youtube.com/watch?v=1");
+    }
+
+    @Test
+    void captureSnapshot_capturesUsingCurrentActor() {
+        when(currentActorHook.getCurrentActorId()).thenReturn(Optional.of(1L));
+
+        service.captureSnapshot(EntityType.ADVERTISEMENT, 1L);
+
+        verify(attachmentSnapshotService).capture(EntityType.ADVERTISEMENT, 1L, 1L);
     }
 
     @Test

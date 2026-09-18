@@ -1,3 +1,5 @@
+@layer components {
+
 /* General settings for Vaadin dialog overlays */
 vaadin-dialog-overlay::part(backdrop),
 vaadin-confirm-dialog-overlay::part(backdrop) {
@@ -73,4 +75,5 @@ vaadin-dialog-overlay::part(footer) {
     color: var(--app-text-muted);
     margin-left: var(--lumo-space-m);
     white-space: nowrap;
+}
 }

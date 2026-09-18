@@ -1,3 +1,5 @@
+@layer components {
+
 .locale-selector {
   padding: 0;
   margin: 0;
@@ -7,4 +9,6 @@
 
 .locale-combobox {
   width: 150px;
+}
+
 }
