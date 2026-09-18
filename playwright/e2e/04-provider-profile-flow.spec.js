@@ -595,6 +595,7 @@ test.describe('Provider Profile flow', () => {
       .filter({ has: page.locator('.provider-profile-card-title', { hasText: TEST_USERS.userEn.name }) });
     await card.waitFor({ timeout: 5000 });
     const providerId = await card.getAttribute('data-provider-id');
+    // eslint-disable-next-line playwright/prefer-web-first-assertions -- the real string value is needed to build the URL below, not just an existence check
     expect(providerId).toBeTruthy();
 
     await page.goto(`/providers/${providerId}-userEn`);

@@ -189,6 +189,12 @@ can never happen, so trace capture is dead code today. Fix: either raise `retrie
 `trace: 'retain-on-failure'` so a first-failure trace is actually captured. Needs a decision on
 which — present both options with their tradeoff before picking.
 
+**Verified already fixed 2026-09-18** — re-read `playwright.config.js` directly before starting
+this phase: `retries: 0` (line 28) is paired with `trace: 'retain-on-failure'` (line 37), not
+`'on-first-retry'`. This was already corrected as a side effect of Phase 8's own verification work
+(that phase's own text mentions "Phase 2a's trace-config change" in passing) even though Phase 2
+itself was never marked done. No further action needed here.
+
 **2b. Live external dependency in e2e — YouTube.**
 `playwright/e2e/_helpers.js:41` and `playwright/e2e/_flows/advertisement.flow.js:30` both hardcode
 `https://www.youtube.com/watch?v=dQw4w9WgXcQ` and the test asserts on `getIframeSrc(page)` against
@@ -202,6 +208,83 @@ No `.eslintrc*`/`eslint.config.*` found under `playwright/`. Add a minimal confi
 as the primary rule this project cares about, matching the audit's own rationale — Playwright tests
 losing an `await` is a real, silent failure mode. Wire it into `scripts/ci.sh` or a dedicated lint
 step, not just left as a local-only config.
+
+**Done 2026-09-18.**
+- 2b: `_helpers.js` gained exported `stubYoutubeEmbed(page)` (routes
+  `https://www.youtube.com/embed/**` to a minimal fixture response via `page.route()`);
+  `05-marketplace-advertisement-flow.spec.js` calls it right after each of its two
+  `browser.newPage()` calls (the only spec file that actually triggers a YouTube iframe render —
+  confirmed `getIframeSrc()` only reads the `.src` attribute, never waits on real content, so the
+  fix doesn't change any assertion). `advertisement.flow.js`'s duplicate `YT_URL` constant was
+  removed in the same pass, now imported from `_helpers.js` instead (adjacent DRY fix).
+- 2c: `eslint-plugin-playwright@2.12.0` chosen over a generic floating-promise rule — its
+  `playwright/missing-playwright-await` rule is purpose-built for exactly this suite's own API
+  surface (verified against the plugin's real npm registry metadata and GitHub source, not
+  assumed). New `playwright/eslint.config.js` (flat config) + `playwright/package.json`
+  (devDependencies only — JSON carries no header per this repo's own doc standard, described in
+  `playwright/README.md`'s new "Linting" section instead). Wired as a new `--lint` mode on
+  `playwright/run.sh` (a script-group's single entry point, not a new sibling script) — skips the
+  app/DB entirely, syncs the same spec/flow/helper files plus the new config files into
+  `pw-runner`, installs, runs `npx eslint .`. Wired further into `scripts/ci/dagu/ci.yaml` as a new
+  `lint` step (`depends: build`, gated by a new `lint` param, default `true`) that just calls
+  `playwright/run.sh --lint` with `PW_CONTAINER=ci-pw-runner` — no Node.js needed inside
+  `ci-runner` itself, same delegation shape the existing `e2e` step already uses for its own
+  `pw-runner` dependency. `scripts/ci/run.sh` gained a matching `--no-lint` flag (mirrors
+  `--no-archunit-metrics`'s existing shape exactly) and `--docs-only` now also skips it.
+  `pipeline_metrics`'s `depends` list extended to include `lint`; `pipeline-metrics.py` itself
+  needed no change (already generic over every DAG node, not a hardcoded step list).
+
+**2c follow-up — enabling the full `flat/recommended` config (not just the one target rule)
+surfaced 106 real problems (6 errors, 100 warnings) across the whole suite, none previously caught
+by anything. Fixed down to 0 errors / 36 warnings (the 36 are all `no-wait-for-timeout`, already
+tracked as `improvement-133` entry 22 — a separate, larger piece of work, not duplicated here):**
+- `eslint --fix` auto-fixed most of it correctly, but broke 3 call sites of
+  `playwright/prefer-web-first-assertions` (`getAttribute()` → `toHaveAttribute()`) into invalid
+  syntax (`toHaveAttribute('x', )`, missing the second argument) — one of the three
+  (`05-marketplace-advertisement-flow.spec.js`'s deep-link test) also silently broke real behavior,
+  since the extracted value was reused afterward as a string in `page.goto(...)`, not just checked
+  for existence. All 3 found and fixed by hand (2 reverted to manual `getAttribute()` +
+  `// eslint-disable-next-line` with a stated reason since the real string value is genuinely
+  needed downstream; 1 rewritten as `toHaveAttribute('src', /.+/)` since only existence, not a
+  specific value, was ever being checked).
+- `playwright/expect-expect` (27 warnings) was almost entirely a false positive — this suite
+  deliberately delegates real assertions into `assert*`/`verify*`/`run*Flow`/`*ViaApi` helper
+  functions the rule can't statically see into. Fixed via `assertFunctionPatterns`, not by adding
+  redundant top-level `expect()` calls.
+- `playwright/no-conditional-in-test` (13) and `playwright/no-skipped-test` (2) — every real
+  instance checked individually; all are legitimate (config-parameter-driven flow branching,
+  data-filtering loops, temp-file cleanup, and the documented `--full` skip gate), never the
+  actual page-state-dependent non-determinism the rules exist to catch. Disabled in
+  `eslint.config.js` with the reasoning recorded in its own header comment.
+- `playwright/no-networkidle` (2 errors) — one call was dead weight (the next line already waits
+  deterministically), removed; the other (a Settings-save wait) replaced with waiting on the real
+  `vaadin-notification-card` success signal `SETTINGS_SAVED_SUCCESS` triggers, confirmed by reading
+  `AccountOverlay.java`'s save-config mapping.
+- `playwright/no-conditional-expect` (2, same line) — a **real bug**, not a lint nit:
+  `runApplyFilterFlow` (`_flows/advertisement-filter.flow.js`) had
+  `await expect(...).toBeVisible(...).catch(() => {})`, silently swallowing the assertion outright
+  regardless of cause. Its one real call site (`01-marketplace-empty-flow.spec.js`, run against a
+  genuinely still-empty DB) does legitimately expect zero filter results — fixed by adding an
+  explicit `expectResults` parameter: `true` asserts a card renders (unchanged default), `false`
+  asserts the pagination count actually shows a zero-result state (`toContainText('0–0', ...)`,
+  locale-independent — the first attempt hardcoded the English `'0–0 of 0'` and failed for real
+  against the Ukrainian-locale run, `'0–0 з 0 записів'`; fixed once caught by the live e2e run).
+- `playwright/no-force-option` (1) — `.card-lightbox__close`'s `{ force: true }` was investigated
+  live, not left unexplained: removed and re-verified against a full `e2e --ux` run — the plain
+  click works with no failure, confirming `force` was unnecessary (root cause never identified,
+  since it's no longer reproducible; not worth chasing further once confirmed gone).
+- **Real self-inflicted bug found and fixed along the way:** `--lint`'s own `npm install`
+  (`eslint`/`eslint-plugin-playwright` only) was sharing `pw-runner`'s `/tmp/node_modules` with the
+  test-run path's own `playwright`/`@playwright/test` install. Since the test-run path only checks
+  `[ ! -d /tmp/node_modules ]` before installing, running `--lint` once left that directory present
+  but missing `@playwright/test` entirely, breaking every subsequent `e2e` run
+  (`Cannot find module '@playwright/test'`) until fixed. Fixed by giving `--lint` its own isolated
+  `/tmp/lint` directory (own `node_modules`), never touching `/tmp` at all.
+- **Verification:** full `e2e --ux` run — first attempt caught both the self-inflicted
+  `/tmp/node_modules` collision and the locale-hardcoded `runApplyFilterFlow` bug (both fixed); a
+  clean re-run afterward passed 50/50 (13 skipped, same `--full`-gated baseline as always), and a
+  final `--lint` re-run passed 0 errors / 36 warnings (all `no-wait-for-timeout`, tracked
+  separately).
 
 **Deferred, not required for this task's own done-ness (large, no fast/safe path):**
 - Locator migration toward `getByRole`/`getByLabel`/`getByTestId` — currently ~7 role/label/testid
@@ -283,6 +366,10 @@ for free, so this gap is a natural consequence of that deferral, not an independ
   `--sonar`/`--no-gate` already work as flags on that script. Not required for this task's own
   done-ness — flag it as a natural next step in the best-practices doc instead if not implemented
   now.
+
+**Decided 2026-09-18 (user directive):** this optional dependency/secret-scanning step will not be
+picked up as part of this task — `improvement-028`'s own hosted-CI migration remains the deferred,
+tracked place for eventually closing this gap.
 
 ## Approach — Phase 6: Java/SOLID-DRY — extract duplicated failure-rate-limiter
 
@@ -454,13 +541,14 @@ current documentation.
 
 - `marketplace-app/DECISIONS.md` — ADR-008 (test-through-public-entry-point rule that Phase 1a
   enforces).
-- [improvement-091](../completed/tasks/improvement-091-attachment-repository-ordering-tiebreaker.md)
-  (if this is the file that added the `id ASC` tiebreaker Phase 1b relies on — verify during
-  implementation, cite correctly or drop the reference if the number doesn't match).
+- [improvement-091](../completed/tasks/improvement-091-loadmediastats-nondeterministic-main-attachment.md) —
+  confirmed as the file that added the `id ASC` tiebreaker Phase 1b relies on.
 - [improvement-028](tasks/improvement-028-minimal-ci-pipeline.md) — the hosted-CI migration Phase 5's
   security-scanning gap is a natural consequence of deferring.
-- [improvement-063](tasks/improvement-063-playwright-stability-guard-async-init-components.md) —
-  separate, pre-existing `waitForTimeout` violation of this project's own ADR-002 in
-  `04-provider-profile-flow.spec.js`; already tracked there, not duplicated into this task's Phase 2.
+- `04-provider-profile-flow.spec.js`'s 34 `waitForTimeout` calls — this citation previously (wrongly)
+  claimed the violation was already tracked by `improvement-063`; confirmed 2026-09-18 that `063`
+  never mentioned this file at all and has since been closed as invalid for an unrelated reason. Now
+  tracked as [improvement-133](tasks/improvement-133-deferred-oversized-review-findings.md) entry 22
+  instead — not duplicated into this task's Phase 2.
 - `.claude/rules.md` — "No task/ticket numbers... in current-state documentation" (the rule Phase 4
   enforces against real current violations).

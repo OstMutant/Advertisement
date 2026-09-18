@@ -426,9 +426,9 @@ async function verifySortColumnChanges(page, { block, sortCol, itemSelector, ass
   await screenshot(page, `${prefix}-sort-${slug}-desc`);
   await clickSort(page, block, sortCol, itemSelector); // DESC → NEUTRAL
   await clickSort(page, block, sortCol, itemSelector); // NEUTRAL → ASC
-  const ascFirst = await page.locator(assertSelector).first().textContent();
+  const ascFirst = page.locator(assertSelector).first();
   await screenshot(page, `${prefix}-sort-${slug}-asc`);
-  expect(ascFirst).not.toBe(descFirst);
+  await expect(ascFirst).not.toHaveText(descFirst);
 }
 
 // ── date range filter verification ───────────────────────────────────────────

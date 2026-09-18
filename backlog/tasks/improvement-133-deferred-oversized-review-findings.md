@@ -367,3 +367,19 @@ an unbounded id set) that `module-doc-standards`' own "Where comment rationale t
 actually goes" table says belongs in that module's `DECISIONS.md` — which doesn't have an entry for
 either yet. Needs a `/record-decision` pass to actually preserve the rationale, not just a one-line
 pointer with nothing on the other end.
+
+### 22. `04-provider-profile-flow.spec.js` has 34 `waitForTimeout(300)` calls, violating this project's own "no waitForTimeout" rule (found during improvement-195, 2026-09-18)
+
+`playwright/e2e/04-provider-profile-flow.spec.js` calls `page.waitForTimeout(300)` 34 times —
+confirmed by direct grep — a real, repo-wide violation of `.claude/rules.md`'s standing rule
+against `waitForTimeout` in Playwright specs. `improvement-195`'s own Related section had
+incorrectly claimed this was "already tracked" by `improvement-063`; checked directly, `063` never
+mentioned this file or this pattern at all (it was about an unrelated async-init "ready signal"
+concern, since closed as invalid) — this violation was never actually tracked anywhere, in any
+task or in this bucket, until now.
+
+Not fixed inline: 34 call sites, each presumably guarding a different UI-settling condition (a
+combo-box repaint, a debounced field, an overlay transition) — replacing them with real Playwright
+waits (`toBeVisible()`, `waitForSelector`, locator auto-waiting, network-idle, etc.) requires
+inspecting what each site is actually waiting for individually, not a blind global
+find-and-replace. Needs sizing (one pass vs. incremental) once picked up.

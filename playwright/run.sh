@@ -8,22 +8,26 @@
 #   Reuses `pw-runner` across calls -- the `playwright`/`@playwright/test` npm packages are only
 #   installed once (skipped on later runs if already present), and the pinned npm package version
 #   must match the container's own pre-baked Playwright browser version (both hardcoded here as
-#   PLAYWRIGHT_VERSION -- bump both together, never independently).
-# Usage: bash playwright/run.sh [scenario] [--ux] [--full] [--grep <pattern>]
+#   PLAYWRIGHT_VERSION -- bump both together, never independently). --lint is a separate mode that
+#   skips the app/DB entirely -- it only syncs the same spec/flow/helper files plus
+#   eslint.config.js/package.json, installs eslint/eslint-plugin-playwright, and runs `npx eslint .`.
+# Usage: bash playwright/run.sh [scenario] [--ux] [--full] [--lint] [--grep <pattern>]
 #   (no scenario)         run every *.spec.js file
 #   e2e                   run all e2e specs (skips spec 05's seed by default)
 #   e2e --full            run e2e specs including spec 05's seed
 #   <spec-name>           run a single spec file by name (with or without .spec.js)
 #   --ux                  also take screenshots (embedded in the HTML report)
+#   --lint                run ESLint over e2e/ instead of running any tests -- ignores scenario/--ux/--full/--grep
 #   --grep <pattern>      forwarded to Playwright's own --grep, run only matching tests
-# Uses: bash, docker, curl, npx playwright (inside pw-runner), scripts/deploy-and-run/reset.sh (DB
-#   reset, only when the DB actually has data), scripts/utils/agentic-output.sh
-#   (emit_agentic_success_block/emit_agentic_error_block).
+# Uses: bash, docker, curl, npx playwright (inside pw-runner), npx eslint (inside pw-runner, --lint
+#   only), scripts/deploy-and-run/reset.sh (DB reset, only when the DB actually has data),
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
 # Env: APP_URL (default http://localhost:8081), APP_CONTAINER (marketplace-app), PW_CONTAINER
 #   (pw-runner), DB_PORT (5432), DB_USER (experiments_user), DB_NAME (experiments) -- all
 #   overridable, used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack.
 # Input: playwright/e2e/*.spec.js, playwright/e2e/_flows/*.js, playwright/e2e/_helpers.js,
-#   playwright/playwright.config.js.
+#   playwright/playwright.config.js. --lint also reads playwright/eslint.config.js/package.json,
+#   ignores playwright.config.js.
 # Outputs: HTML report (a result) at playwright/pw-report/index.html. Full raw console log (same
 #   content streamed live to stdout, a process log, not a result) at scripts/logs/playwright/run.log
 #   -- kept in a separate host destination from pw-report/, same logs-vs-reports split
@@ -37,13 +41,14 @@
 #   path, so never subject to the docker-desktop-bind-mounts issue documented in
 #   .claude/nav/adr-index.md) -- then copied out via `docker cp`; the same volume can also be inspected
 #   directly at any time, e.g. `docker exec pw-runner cat /reports/playwright-log/orchestrator.log`.
-#   Restarts marketplace-app if the DB needed a reset.
+#   Restarts marketplace-app if the DB needed a reset. --lint produces no HTML report/run.log --
+#   ESLint output goes straight to stdout.
 # Returns: 0 if the Playwright run passes; non-zero if the app container isn't found/doesn't start,
 #   the DB reset fails, or any test fails. Also prints a single-line AGENTIC_SUCCESS_BLOCK JSON
 #   marker on a clean finish, or an AGENTIC_ERROR_BLOCK JSON marker
 #   (errorCategory/isRetryable/currentStep/description/durationSeconds) on any failure path, for
 #   an AI agent reading raw script output to parse machine-readable status instead of scraping
-#   free text.
+#   free text. --lint: 0 if ESLint reports no errors, non-zero otherwise -- same two JSON markers.
 # ────────────────────────────────────────────────────────────────────────────
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -53,6 +58,7 @@ source "$ROOT/scripts/utils/agentic-output.sh"
 # ── Parse args ───────────────────────────────────────────────────────────────
 UX=""
 FULL=""
+LINT=""
 SCENARIO=""
 GREP=""
 SKIP_NEXT=""
@@ -60,6 +66,7 @@ for arg in "$@"; do
   if [ -n "$SKIP_NEXT" ]; then GREP="$arg"; SKIP_NEXT=""; continue; fi
   if [ "$arg" = "--ux" ]; then UX=1;
   elif [ "$arg" = "--full" ]; then FULL=1;
+  elif [ "$arg" = "--lint" ]; then LINT=1;
   elif [ "$arg" = "--grep" ]; then SKIP_NEXT=1;
   else SCENARIO="$arg"; fi
 done
@@ -112,6 +119,50 @@ docker exec "$PW_CONTAINER" pkill -f "node.*playwright" 2>/dev/null || true
 log_orchestrator() {
   echo "$1" | docker exec -i "$PW_CONTAINER" sh -c "cat >> /reports/playwright-log/orchestrator.log" 2>/dev/null || true
 }
+
+# Copies e2e/*.spec.js, e2e/_flows/*.js and e2e/_helpers.js into pw-runner's <dest>/e2e -- shared
+# by both the lint path (below) and the test-run path (further down), since both need the same
+# real test source to check/execute against. Takes the destination dir so each path can use its
+# own node_modules (see --lint's own /lint below) -- sharing /tmp/node_modules between the two
+# previously caused the lint path's `npm install` (eslint/eslint-plugin-playwright only) to
+# satisfy the test-run path's own `[ ! -d /tmp/node_modules ]` existence check without actually
+# installing playwright/@playwright/test, breaking every test run until /tmp/node_modules was
+# manually removed (confirmed directly).
+sync_e2e_files() {
+  local dest="$1"
+  docker exec "$PW_CONTAINER" bash -c "mkdir -p $dest/e2e"
+  for f in "$ROOT"/playwright/e2e/*.spec.js; do
+    [ -f "$f" ] && docker cp "$f" "$PW_CONTAINER":$dest/e2e/ 2>/dev/null
+  done
+  if [ -d "$ROOT/playwright/e2e/_flows" ]; then
+    docker exec "$PW_CONTAINER" bash -c "mkdir -p $dest/e2e/_flows"
+    for f in "$ROOT"/playwright/e2e/_flows/*.js; do
+      [ -f "$f" ] && docker cp "$f" "$PW_CONTAINER":$dest/e2e/_flows/ 2>/dev/null
+    done
+  fi
+  [ -f "$ROOT/playwright/e2e/_helpers.js" ] && docker cp "$ROOT/playwright/e2e/_helpers.js" "$PW_CONTAINER":$dest/e2e/
+}
+
+# ── Lint mode — no app/DB needed, exits before any of that gets checked ──────
+# Uses its own /lint directory (own node_modules) -- never /tmp -- so its eslint/
+# eslint-plugin-playwright install can never collide with the test-run path's own playwright/
+# @playwright/test install below (see sync_e2e_files's own comment for the incident this avoids).
+if [ -n "$LINT" ]; then
+  echo "Running ESLint..."
+  docker exec "$PW_CONTAINER" bash -c "rm -rf /lint && mkdir -p /lint"
+  sync_e2e_files /lint
+  docker cp "$ROOT/playwright/eslint.config.js" "$PW_CONTAINER":/lint/
+  docker cp "$ROOT/playwright/package.json" "$PW_CONTAINER":/lint/
+  docker exec "$PW_CONTAINER" bash -c "cd /lint && npm install --no-save -q 2>&1 | grep -v '^npm notice'"
+  docker exec "$PW_CONTAINER" bash -c "cd /lint && npx eslint ."
+  EXIT_CODE=$?
+  if [ "$EXIT_CODE" -ne 0 ]; then
+    emit_agentic_error_block "business" "false" "eslint-lint" "ESLint found lint errors (exit $EXIT_CODE) -- see output above."
+  else
+    emit_agentic_success_block "eslint-lint"
+  fi
+  exit $EXIT_CODE
+fi
 
 if ! docker inspect "$APP_CONTAINER" &>/dev/null; then
   echo "ERROR: Container '$APP_CONTAINER' not found. Build and start it:"
@@ -202,17 +253,7 @@ INSTALL_CMD="if [ ! -d /tmp/node_modules ]; then cd /tmp && PLAYWRIGHT_SKIP_BROW
 docker exec "$PW_CONTAINER" bash -c "rm -rf /tmp/e2e /tmp/playwright.config.js /tmp/test-results /reports/playwright && rm -f /tmp/*.spec.js"
 
 # ── Sync spec files ───────────────────────────────────────────────────────────
-docker exec "$PW_CONTAINER" bash -c "mkdir -p /tmp/e2e"
-for f in "$ROOT"/playwright/e2e/*.spec.js; do
-  [ -f "$f" ] && docker cp "$f" "$PW_CONTAINER":/tmp/e2e/ 2>/dev/null
-done
-if [ -d "$ROOT/playwright/e2e/_flows" ]; then
-  docker exec "$PW_CONTAINER" bash -c "mkdir -p /tmp/e2e/_flows"
-  for f in "$ROOT"/playwright/e2e/_flows/*.js; do
-    [ -f "$f" ] && docker cp "$f" "$PW_CONTAINER":/tmp/e2e/_flows/ 2>/dev/null
-  done
-fi
-[ -f "$ROOT/playwright/e2e/_helpers.js" ] && docker cp "$ROOT/playwright/e2e/_helpers.js" "$PW_CONTAINER":/tmp/e2e/
+sync_e2e_files /tmp
 docker cp "$ROOT/playwright/playwright.config.js" "$PW_CONTAINER":/tmp/
 
 # ── Build run command ─────────────────────────────────────────────────────────

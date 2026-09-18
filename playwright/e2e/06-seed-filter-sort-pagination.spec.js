@@ -532,7 +532,8 @@ test.describe('Seed data and query validation', () => {
     await expect(page.locator('.overlay__form-fields-card')).toBeVisible({ timeout: 5000 });
     await expect(tabSizeInput).toHaveValue('15');
     await page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-    await page.waitForLoadState('networkidle');
+    await page.locator('vaadin-notification-card').first().waitFor({ timeout: 8000 });
+    await closeNotification(page);
     await screenshot(page, 'settings-history-trip-preserves-unsaved-edit');
 
     // ── cleanup: restore defaults again before logging out ────────────────────

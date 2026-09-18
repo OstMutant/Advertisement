@@ -2643,3 +2643,13 @@ truth needed a high-contrast diagnostic color swap plus either a precise compute
 screenshot taken past any CSS transition; recorded as ADR-084. Two permanent Playwright assertions
 added as a byproduct. Full detail:
 `completed/tasks/improvement-188-theme-modernization-aura-modern-css.md`.
+
+✅ Done (2026-09-18): improvement-063 closed as invalid, not implemented — picked up for
+implementation, then found its own premise didn't hold against current code. A full search for
+`customElements.define`/`connectedCallback` under `marketplace-app/src/main/frontend/` found only
+one component, `quill-editor.js`; `AttachmentGallery`, the task's second named example, has no
+`@JsModule`/client-side JS at all. `quill-editor.js`'s `connectedCallback()` was read in full and
+confirmed fully synchronous (no `await`/`Promise`/`setTimeout`) — no async gap exists for a
+Playwright interaction to race against, so the "ready" signal this task proposed has nothing to
+guard against today. No flaky failure of this kind was ever observed either. Full detail:
+`completed/tasks/improvement-063-playwright-stability-guard-async-init-components.md`.

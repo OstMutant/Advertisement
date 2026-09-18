@@ -9,8 +9,8 @@
  * Env: PW_SCREENSHOTS -- when unset/falsy, screenshot() is a no-op; when set, it attaches a
  *   full-page-false PNG screenshot to the current test's report.
  * Input: None.
- * Outputs: exports test, expect, TEST_USERS, YT_URL, avatar, waitForOverlayClosed, closeOverlay,
- *   closeNotification, screenshot, downloadPng, assertCardHasText, assertOverlayHasText,
+ * Outputs: exports test, expect, TEST_USERS, YT_URL, avatar, stubYoutubeEmbed, waitForOverlayClosed,
+ *   closeOverlay, closeNotification, screenshot, downloadPng, assertCardHasText, assertOverlayHasText,
  *   assertComputedColor, assertRightAligned, assertAbsent, assertVerticalOrder. TEST_USERS
  *   (password "password" for all six):
  *   - userEn      -- user.en@example.com      -- USER      -- en
@@ -42,6 +42,18 @@ const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
 const avatar = seed =>
   `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}&size=256&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+
+/**
+ * Routes the YouTube embed URL pattern to a minimal fixture response, so lightbox/video tests
+ * don't depend on YouTube actually being reachable from wherever Playwright runs.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<void>}
+ */
+async function stubYoutubeEmbed(page) {
+  await page.route('https://www.youtube.com/embed/**', route =>
+    route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><body></body></html>' })
+  );
+}
 
 // ── Overlay helpers ───────────────────────────────────────────────────────────
 
@@ -240,7 +252,7 @@ function downloadPng(url, dest) {
 
 module.exports = {
   test, expect,
-  TEST_USERS, YT_URL, avatar,
+  TEST_USERS, YT_URL, avatar, stubYoutubeEmbed,
   waitForOverlayClosed, closeOverlay,
   closeNotification,
   screenshot, downloadPng,

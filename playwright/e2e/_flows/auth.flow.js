@@ -55,7 +55,7 @@ async function runSubmitLoginFlow(page, expect, user, locale = user.locale) {
   if (user.role === 'MODERATOR' || user.role === 'ADMIN') {
     await expect(page.locator('vaadin-tab').filter({ hasText: labels.users }).first()).toBeVisible({ timeout: 15000 });
   } else {
-    await expect(page.locator('vaadin-tab').filter({ hasText: labels.users }).first()).not.toBeVisible();
+    await expect(page.locator('vaadin-tab').filter({ hasText: labels.users }).first()).toBeHidden();
   }
 
   await screenshot(page, 'auth-submit-logged-in');

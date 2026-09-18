@@ -7,7 +7,7 @@
  *   formatting), restore from a past version, and a cross-user media replace scenario.
  * Usage: None -- a library only, required by spec files (see Input).
  * Uses: Node's fs module; ../_helpers (test, screenshot, downloadPng, closeNotification,
- *   assertCardHasText, assertOverlayHasText, assertComputedColor, assertRightAligned);
+ *   assertCardHasText, assertOverlayHasText, assertComputedColor, assertRightAligned, YT_URL);
  *   ./attachment.flow, ./category.flow, ./city.flow, ./entity-activity.flow.
  * Env: None.
  * Input: required by 03-marketplace-promotion-flow.spec.js (cardByTitle, openCardOverlay,
@@ -21,13 +21,11 @@
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
 const fs = require('fs');
-const { test, screenshot, downloadPng, closeNotification, assertCardHasText, assertOverlayHasText, assertComputedColor, assertRightAligned } = require('../_helpers');
+const { test, screenshot, downloadPng, closeNotification, assertCardHasText, assertOverlayHasText, assertComputedColor, assertRightAligned, YT_URL } = require('../_helpers');
 const { clickLightboxThumb, getVideoSrc, waitForVideoWrapperVisible } = require('./attachment.flow');
 const { selectCategoryInAdForm, assertCardHasCategories, assertViewOverlayHasCategories } = require('./category.flow');
 const { selectCityInAdForm, assertCardHasCity, assertViewOverlayHasCity } = require('./city.flow');
 const { closeEntityActivity } = require('./entity-activity.flow');
-
-const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
 /**
  * Selects an ad-kind radio button in the advertisement form by its label text.
@@ -222,8 +220,8 @@ async function deleteAllGalleryItems(expect, overlay) {
 
 async function assertSingleCurrentBadge(page, expect, overlay) {
   const activityList = await openActivityTab(overlay);
-  const badgeCount = await activityList.locator('.entity-activity-current-badge').count();
-  expect(badgeCount).toBe(1);
+  const badgeCount = activityList.locator('.entity-activity-current-badge');
+  await expect(badgeCount).toHaveCount(1);
   await closeEntityActivity(overlay.page());
 }
 
@@ -254,7 +252,7 @@ async function openLightboxAndNavigate(page, card, screenshotPrefix) {
   const videoSrc = await getVideoSrc(page);
   if (!videoSrc) throw new Error('Card lightbox: no video src for WebM item');
   await screenshot(page, `${screenshotPrefix}-lightbox-video`);
-  await page.locator('.card-lightbox__close').click({ force: true });
+  await page.locator('.card-lightbox__close').click();
   await page.locator('.card-lightbox__content').waitFor({ state: 'hidden', timeout: 5000 });
 }
 
@@ -396,9 +394,11 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
       await assertCardHasCity(page, expect, cardByTitle(page, title), city, `${screenshotPrefix}-city`);
     });
   }
+
   await test.step('card shows listing type badge', async () => {
     await assertCardHasAdKind(page, expect, cardByTitle(page, title), adKind || defaultAdKindLabel, `${screenshotPrefix}-ad-kind`);
   });
+
   await openLightboxAndNavigate(page, card, screenshotPrefix);
 
   await test.step('history entries match expected count, no restore button', async () => {
@@ -589,6 +589,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   if (categoryToAdd) {
     runningVersion += 1;
     const catAddVersion = runningVersion;
+
     await test.step(`add category ${categoryToAdd} v${catAddVersion} — activity diff shows all fields, category assigned`, async () => {
       await closeEntityActivity(overlay.page());
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
@@ -612,6 +613,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   if (categoryToRemove) {
     runningVersion += 1;
     const catRemoveVersion = runningVersion;
+
     await test.step(`remove category ${categoryToRemove} v${catRemoveVersion} — activity diff shows all fields, category unassigned`, async () => {
       await closeEntityActivity(overlay.page());
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
@@ -633,6 +635,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   if (cityToSet) {
     runningVersion += 1;
     const citySetVersion = runningVersion;
+
     await test.step(`set city ${cityToSet} v${citySetVersion} — activity diff shows city change`, async () => {
       await closeEntityActivity(overlay.page());
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
@@ -652,6 +655,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   if (adKindToSet) {
     runningVersion += 1;
     const adKindSetVersion = runningVersion;
+
     await test.step(`set ad kind ${adKindToSet} v${adKindSetVersion} — activity diff shows ad kind change`, async () => {
       await closeEntityActivity(overlay.page());
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });

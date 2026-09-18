@@ -193,8 +193,9 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-030 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
 | ADR-030 (platform-commons) | marketplace-orchestrator | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
 | ADR-030 (platform-commons) | marketplace-app | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
+| ADR-004 (playwright) | playwright | Accepted |  | ESLint via eslint-plugin-playwright, delegated to pw-runner not ci-runner |
 | ADR-001 (playwright) | playwright | Accepted |  | data-testid convention for form field selectors |
-| ADR-002 (playwright) | playwright | Accepted |  | No waitForTimeout — wait on Vaadin state attributes |
+| ADR-002 (playwright) | playwright | Accepted **Verified:** 2026-09-18 |  | No waitForTimeout — wait on Vaadin state attributes |
 | ADR-003 (playwright) | playwright | Accepted |  | --ux flag controls screenshots |
 | ADR-001 (query-lib) | query-lib | Accepted |  | Renamed from query-starter to query-lib — plain Java library, no Spring autoconfiguration |
 | ADR-003 (query-lib) | query-lib | Accepted |  | API scope frozen — no DSL extensions |

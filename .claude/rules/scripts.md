@@ -235,9 +235,11 @@ from the current source tree and run with the host's `/var/run/docker.sock` moun
 containers, never touching the persistent dev stack. `ci-runner` runs Dagu
 (https://github.com/dagucloud/dagu), a single-binary DAG engine with a built-in web UI, orchestrating
 the stage sequence defined in `scripts/ci/dagu/ci.yaml` (`build` → `unit`/`integration`/`e2e`/
-`sonar`/`archunit_metrics` in parallel → `pipeline_metrics` → `docs`) — each step calls the same
-existing scripts (`build-and-test.sh`/`deploy-and-run.sh`+`playwright/run.sh`/`sonar.sh`) directly,
-no stage logic reimplemented. `unit`/`integration`/`archunit_metrics` pass `--skip-vaadin` to
+`sonar`/`archunit_metrics`/`lint` in parallel → `pipeline_metrics` → `docs`) — each step calls the
+same existing scripts (`build-and-test.sh`/`deploy-and-run.sh`+`playwright/run.sh`/`sonar.sh`)
+directly, no stage logic reimplemented (`lint` calls `playwright/run.sh --lint`, which manages its
+own `pw-runner`/Node.js environment — `ci-runner` itself never installs Node). `unit`/
+`integration`/`archunit_metrics` pass `--skip-vaadin` to
 `build-and-test.sh` (skips the Vaadin frontend bundle none of them need — see
 `.claude/nav/adr-index.md`). See `.claude/nav/adr-index.md` for the DooD (Docker-outside-of-Docker)
 design, the Dagu migration, and the pipeline-metrics/ArchUnit-export follow-up.
@@ -246,7 +248,7 @@ design, the Dagu migration, and the pipeline-metrics/ArchUnit-export follow-up.
 bash scripts/ci.sh                                        # build the image, start the persistent
                                                             # container, trigger the most extensive
                                                             # run (unit+integration+e2e+sonar+
-                                                            # archunit_metrics+docs)
+                                                            # archunit_metrics+lint+docs)
 bash scripts/ci.sh --unit --integration --e2e              # chosen stages only
 bash scripts/ci.sh --all --sonar                            # everything, explicit
 bash scripts/ci.sh --no-docs                                 # skip the doc-freshness stage
@@ -273,6 +275,8 @@ bash scripts/ci.sh --refresh-tools                                    # force re
 bash scripts/ci.sh --no-archunit-metrics                                # skip ArchUnit's
                                                                           # module-coupling export
                                                                           # (on by default)
+bash scripts/ci.sh --no-lint                                              # skip the ESLint stage
+                                                                            # (on by default)
 bash scripts/ci.sh --sync-artifacts                                      # pull architecture-metrics.json/
                                                                            # pipeline-metrics.json onto
                                                                            # the host without

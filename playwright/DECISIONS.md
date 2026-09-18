@@ -2,6 +2,31 @@
 
 ---
 
+## ADR-004: ESLint via eslint-plugin-playwright, delegated to pw-runner not ci-runner
+**Status:** Accepted
+
+**Context:** `playwright/e2e` had no static-analysis gate at all — nothing catches an un-awaited
+Playwright API call (a real, silent test-failure mode: the test continues past an action that
+never actually happened, producing hard-to-diagnose flakiness instead of a hard failure at the
+mistake itself).
+
+**Decision:** Add `eslint-plugin-playwright` (not a generic floating-promise rule) — its
+`playwright/missing-playwright-await` rule is purpose-built for this exact API surface. Wired as a
+new `--lint` mode on `playwright/run.sh` (this script-group's single entry point), not a new
+sibling script — reuses `run.sh`'s own `pw-runner` container/lifecycle instead of a second Docker
+orchestration path. `scripts/ci/dagu/ci.yaml`'s new `lint` stage calls `playwright/run.sh --lint`
+directly rather than installing Node.js into the `ci-runner` image itself — `pw-runner` already
+owns the Node/npm runtime this suite needs, the same delegation shape the existing `e2e` stage
+already uses.
+
+**Rejected alternatives:**
+- `@typescript-eslint/no-floating-promises` — requires TypeScript type information; this suite is
+  plain JS.
+- Installing Node.js/ESLint directly inside `ci-runner` — would duplicate a runtime `pw-runner`
+  already provides and couples an unrelated image to Node.js version churn.
+
+---
+
 ## ADR-001: data-testid convention for form field selectors
 **Status:** Accepted
 
@@ -22,6 +47,7 @@ The value is the `I18nKey` name converted to kebab-case
 
 ## ADR-002: No waitForTimeout — wait on Vaadin state attributes
 **Status:** Accepted
+**Verified:** 2026-09-18
 
 **Context:** Fixed timeouts are fragile — too short causes flaky tests, too long wastes time.
 Vaadin sets DOM attributes (`[opened]`, `[opening]`) to signal animation state.
@@ -40,9 +66,10 @@ await screenshot(page, 'some-dialog');
 invisible). `page.waitForFunction` + `getComputedStyle` does NOT work here because
 `document.querySelector` cannot pierce Playwright's shadow DOM.
 
-Two known `page.waitForTimeout()` calls currently violate this rule
-(`e2e/02-marketplace-authentication-flow.spec.js`, `e2e/_flows/advertisement-filter.flow.js`) and
-still need a deterministic-wait replacement — the rule itself remains the standard.
+Known violations of this rule, verified directly (2026-09-18): one `page.waitForTimeout()` call in
+`e2e/02-marketplace-authentication-flow.spec.js`, and 34 in `e2e/04-provider-profile-flow.spec.js`
+— each still needs a deterministic-wait replacement; the rule itself remains the standard.
+(`e2e/_flows/advertisement-filter.flow.js`, previously listed here, no longer has any.)
 
 ---
 

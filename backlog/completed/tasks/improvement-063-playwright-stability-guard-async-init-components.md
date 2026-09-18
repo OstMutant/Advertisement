@@ -46,3 +46,29 @@ most of which have no such async gap.
 - `playwright/CLAUDE.md` — existing Vaadin/Shadow-DOM Playwright conventions this would extend.
 - `.claude/rules.md` "No waitForTimeout in Playwright" (project memory) — this issue's fix is the
   correct alternative to a blind `waitForTimeout()` workaround for this specific class of race.
+
+## Research findings (2026-09-18)
+
+Verified directly against the current codebase before starting implementation:
+
+- A full search for `customElements.define`/`connectedCallback` across
+  `marketplace-app/src/main/frontend/` found exactly one match: `quill-editor.js`. No other
+  candidate exists today — `AttachmentGallery`
+  (`ui/views/components/attachment/AttachmentGallery.java`) is a plain server-side Vaadin `Div`
+  composite with no `@JsModule` and no client-side JS at all, so it was never actually affected by
+  this class of issue; its mention above as a second example was incorrect.
+- `quill-editor.js`'s `connectedCallback()` was read in full: label/container creation, the
+  `new Quill(container, {...})` construction, initial-value hydration, counter setup, and the
+  `text-change` listener attachment all execute synchronously — no `await`, `Promise`, or
+  `setTimeout` anywhere in the method. By the time `connectedCallback()` returns, the component's
+  full DOM structure and listeners are already in place. The premise this task was filed on
+  ("initializes asynchronously after the element lands in the DOM") does not hold for this file as
+  written today — there is no async gap in our own code for a Playwright interaction to race
+  against. (Quill's own internal library behavior was not investigated further, since the concern
+  this task raised was specifically about our own `connectedCallback` shape.)
+
+**Closed as invalid.** The specific risk this task was filed to guard against is not present in
+the current code, and no flaky failure of this kind has ever actually been observed (already noted
+as true at filing time). Worth reopening only if a genuine async-init gap is introduced later (a
+future component that awaits a resource before finishing setup) or a related flaky failure is
+actually observed.
