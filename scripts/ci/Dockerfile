@@ -10,7 +10,7 @@
 #   invoked directly).
 # Uses: eclipse-temurin:25-jdk base image; apt-get installs docker.io (DooD docker CLI against the
 #   mounted docker.sock), curl (entrypoint's tool downloads), python3 (pipeline-metrics.py), nodejs
-#   (Vaadin frontend build), ca-certificates.
+#   (Vaadin frontend build), shellcheck (the shellcheck DAG step), ca-certificates.
 # Env: ARG DAGU_VERSION (default 2.16.3, also re-exposed as ENV for the entrypoint script to read);
 #   ENV PATH (prepends /root/.ci-tools/bin), DAGU_HOME, DAGU_PORT, DAGU_AUTH_MODE (all fixed, not
 #   caller-overridable at build time).
@@ -21,7 +21,7 @@
 FROM eclipse-temurin:25-jdk
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      docker.io curl ca-certificates python3 nodejs \
+      docker.io curl ca-certificates python3 nodejs shellcheck \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

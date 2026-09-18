@@ -12,17 +12,17 @@
 #   already use (build-and-test.sh, deploy-and-run.sh, playwright/run.sh, sonar.sh).
 # Usage: bash scripts/ci/run.sh [flags]
 #   (no flags)               -- most extensive run: unit + integration + e2e + sonar +
-#                                archunit_metrics + lint + docs
+#                                archunit_metrics + lint + shellcheck + docs
 #   --unit                   -- run the unit stage
 #   --integration            -- run the integration stage (always applies the Testcontainers
 #                                sandbox workaround internally -- see DECISIONS.md)
 #   --e2e                    -- run the e2e stage
 #   --sonar                  -- run the sonar stage
 #   --all                    -- unit + integration + e2e (no sonar)
-#   --docs-only              -- skip unit/integration/e2e/sonar/archunit_metrics/lint entirely
-#                                (build then straight to pipeline_metrics/docs) -- the fastest
-#                                real path for testing the docs stage/sync_artifacts alone,
-#                                minutes not dozens of minutes
+#   --docs-only              -- skip unit/integration/e2e/sonar/archunit_metrics/lint/shellcheck
+#                                entirely (build then straight to pipeline_metrics/docs) -- the
+#                                fastest real path for testing the docs stage/sync_artifacts
+#                                alone, minutes not dozens of minutes
 #   --no-docs                -- skip the docs stage (regenerates architecture-model.json/
 #                                architecture-map.html inside the container -- see ci.yaml)
 #   --playwright-args <arg>  -- override the e2e stage's Playwright args (default
@@ -49,6 +49,9 @@
 #                                      generate-architecture-model.sh --with-archunit)
 #   --no-lint                        -- skip the ESLint stage (on by default -- delegates to
 #                                        playwright/run.sh --lint, cheap, no app/DB needed)
+#   --no-shellcheck                   -- skip the ShellCheck stage (on by default -- error severity
+#                                         only, see ci.yaml; shellcheck itself is baked into the
+#                                         ci-runner image, no other container involved)
 #   --sync-artifacts                 -- pull whatever architecture-metrics.json/
 #                                        pipeline-metrics.json/architecture-model.json/
 #                                        architecture-map.html/Playwright report/unit+integration
@@ -119,6 +122,7 @@ REBUILD=""
 REFRESH_TOOLS="false"
 ARCHUNIT_METRICS="true"
 LINT="true"
+SHELLCHECK="true"
 SYNC_ARTIFACTS_ONLY=""
 PLAYWRIGHT_ARGS="e2e --full --ux"
 ANY_STAGE_FLAG=""
@@ -256,7 +260,7 @@ for arg in "$@"; do
     --integration)      STAGE_INTEGRATION=1; ANY_STAGE_FLAG=1 ;;
     --e2e)               STAGE_E2E=1; ANY_STAGE_FLAG=1 ;;
     --sonar)              STAGE_SONAR=1; ANY_STAGE_FLAG=1 ;;
-    --docs-only)           ANY_STAGE_FLAG=1; ARCHUNIT_METRICS="false"; LINT="false" ;;
+    --docs-only)           ANY_STAGE_FLAG=1; ARCHUNIT_METRICS="false"; LINT="false"; SHELLCHECK="false" ;;
     --no-docs)             STAGE_DOCS="" ;;
     --all)                 STAGE_UNIT=1; STAGE_INTEGRATION=1; STAGE_E2E=1; ANY_STAGE_FLAG=1 ;;
     --no-keep-e2e-infra)   KEEP_INFRA="false" ;;
@@ -266,6 +270,7 @@ for arg in "$@"; do
     --refresh-tools)       REFRESH_TOOLS="true" ;;
     --no-archunit-metrics) ARCHUNIT_METRICS="false" ;;
     --no-lint)             LINT="false" ;;
+    --no-shellcheck)       SHELLCHECK="false" ;;
     --sync-artifacts)      SYNC_ARTIFACTS_ONLY=1 ;;
     --playwright-args)     NEXT=playwright-args ;;
     *)
@@ -483,6 +488,7 @@ DAGU_PARAMS=(
   "sonar=$(bool "$STAGE_SONAR")"
   "archunit_metrics=$ARCHUNIT_METRICS"
   "lint=$LINT"
+  "shellcheck=$SHELLCHECK"
   "docs=$(bool "$STAGE_DOCS")"
   "keep_e2e_infra=$KEEP_INFRA"
   "reset_e2e_db=$RESET_E2E_DB"

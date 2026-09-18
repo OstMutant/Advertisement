@@ -397,6 +397,38 @@ about) before fixing:
 
 All 5 files re-syntax-checked with `bash -n` after their edits.
 
+**Real regression found and fixed while verifying 3a-3d end-to-end, 2026-09-18:** Phase 3c's own
+`sed -i` shebang rewrite silently stripped the executable bit off-disk on every one of the 20
+files it touched (a `sed -i` side effect on this system — the temp-file-then-rename it does
+internally doesn't reliably preserve file mode). This first surfaced as a real, reproduced failure
+(`Permission denied`) when actually running `scripts/activity-monitor.sh -- scripts/ci.sh ...` —
+`activity-monitor.sh`'s own wrapping mechanism executes the target script directly (not via `bash
+<script>`), so it's the one caller that actually depends on the executable bit; every other
+documented usage in this repo already prefixes `bash`, which is why this went unnoticed until an
+actual end-to-end run was attempted. Investigating further: `git status`/`git diff` showed nothing
+wrong at all, because this repo's `core.fileMode` is `false` — `git ls-files -s` was needed to see
+the real tracked mode, which showed the block: all 20 files were tracked as `100644` in git, not
+just on disk, going back to *before this session even started* (confirmed via `git ls-tree` on the
+very first commit at conversation start) — a latent, pre-existing git-tracked-mode bug that
+`sed -i`'s disk-level side effect happened to expose for the first time, not something this
+session newly introduced by itself. Fixed via `git update-index --chmod=+x` (bypasses
+`core.fileMode`, unlike a plain `chmod` + `git add`) on all 20 files, verified `git ls-files -s`
+now reports `100755` for each. A repo-wide sweep (`git ls-files '*.sh'` cross-checked against
+tracked mode) found the identical latent bug in 15 more `.sh` files never touched this session
+(e.g. `integration-tests/run.sh`, `docs/architecture/scripts/generate-architecture-model.sh`,
+`.claude/nav/scripts/*.sh`) — currently harmless (nothing has stripped their on-disk bit), flagged
+to the user as a candidate for the same fix rather than silently expanded into this task's own
+scope. **Fixed on request the same session** — all 15 raised to `100755` via the identical
+`git update-index --chmod=+x` treatment. Repo-wide sweep (`git ls-files '*.sh'` cross-checked
+against tracked mode, every file) confirms zero `.sh` files remain at `100644` anywhere in the repo.
+
+**Full end-to-end re-verification after the fix:** a real `scripts/ci.sh --unit --no-docs
+--foreground` run (not a simulation) — confirmed `ci-runner` rebuilds successfully with
+`shellcheck` newly baked into its image, and the actual live Dagu run shows `lint` and
+`shellcheck` both passing (`✅ lint (23s)`, `✅ shellcheck (0s)`), `unit`/`archunit_metrics` also
+passing, `integration`/`e2e`/`sonar`/`docs` correctly skipped (not requested), and the run's own
+overall `CI run` step reporting success.
+
 **3c. Shebang consistency.**
 Verified: 19 scripts use `#!/bin/bash`, 6 use `#!/usr/bin/env bash`. Standardize on
 `#!/usr/bin/env bash` (portable — resolves via `PATH` rather than assuming `/bin/bash`'s exact
@@ -427,6 +459,23 @@ reproducible and the host stays clean. `apt-get install -y shellcheck` was run d
 sandbox during 3a's own investigation above purely to get a real diagnostic before touching code —
 a one-off, throwaway install for that investigation only, explicitly not the real implementation
 this phase needs (flagged by the user mid-investigation, not something to repeat unprompted).
+
+**Done 2026-09-18.** `shellcheck` added to `scripts/ci/Dockerfile`'s `apt-get install` line (baked
+into the `ci-runner` image itself — no other container to delegate to, unlike `lint`'s Node.js
+dependency living in `pw-runner`). New `shellcheck` step in `scripts/ci/dagu/ci.yaml`
+(`depends: build`, gated by a new `shellcheck` param, default `true`) runs
+`find scripts playwright docs/architecture/scripts -name '*.sh' ... | xargs shellcheck
+--severity=error`. **`--severity=error` only, per explicit user decision** — a warning/info/style
+finding (this repo currently has a handful, e.g. `build.sh`'s pre-existing SC2154/SC2010/SC2086,
+deliberately left untouched by 3a's own scope) never fails this gate, only a real
+correctness-shaped bug does. `scripts/ci/run.sh` gained a matching `--no-shellcheck` flag (mirrors
+`--no-lint`'s shape exactly); `--docs-only` now also skips it. `pipeline_metrics`'s `depends` list
+extended to include `shellcheck`.
+
+**Verified before wiring it in as a gate, not after:** ran the exact `find | xargs shellcheck
+--severity=error` command locally (with `shellcheck` installed ad hoc, same one-off install as 3a)
+against every `.sh` file this step will scan — real exit code `0` today, confirming the gate won't
+immediately fail on day one from pre-existing warning-level findings.
 
 ## Approach — Phase 4: Documentation — enforce `improvement-141`'s own rule against current docs
 
