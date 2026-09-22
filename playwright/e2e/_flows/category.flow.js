@@ -30,7 +30,7 @@ async function openReferenceDataTab(page) {
   await page.locator('.main-tabs vaadin-tab').filter({ hasText: /Reference Data|Довідникові дані/i }).click();
   // Sub-tabs retain their last selection across visibility toggles — reselect Categories explicitly.
   await page.locator('.reference-data-sub-tabs vaadin-tab').filter({ hasText: /Categories|Категорії/i }).click();
-  await page.locator('.taxon-management-view').waitFor({ timeout: 5000 });
+  await page.locator('.category-management-view').waitFor({ timeout: 5000 });
 }
 
 /**
@@ -48,8 +48,8 @@ async function openReferenceDataTab(page) {
  */
 async function runCreateCategoryFlow(page, expect, { nameEn, descriptionEn, nameUk, descriptionUk, screenshotPrefix }) {
   await openReferenceDataTab(page);
-  await page.locator('.taxon-add-button').click();
-  const overlay = page.locator('.taxon-overlay');
+  await page.locator('.category-add-button').click();
+  const overlay = page.locator('.category-overlay');
   await overlay.waitFor({ timeout: 5000 });
 
   const localeContents = overlay.locator('.taxon-locale-content');

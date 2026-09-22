@@ -17,7 +17,7 @@ import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import java.util.List;
 
 /**
- * Shared EN/UK locale-form mechanics reused by {@code TaxonFormOverlayModeHandler} and
+ * Shared EN/UK locale-form mechanics reused by {@code CategoryFormOverlayModeHandler} and
  * {@code CityFormOverlayModeHandler} -- composition, not inheritance, since the two handlers
  * differ in DTO type, save-path {@code TaxonType}, and audit/history wiring beyond what this
  * class covers.

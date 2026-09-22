@@ -29,8 +29,8 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class TaxonViewOverlayModeHandler extends AbstractViewOverlayModeHandler
-        implements Configurable<TaxonViewOverlayModeHandler, TaxonViewOverlayModeHandler.Parameters>, I18nParams {
+public class CategoryViewOverlayModeHandler extends AbstractViewOverlayModeHandler
+        implements Configurable<CategoryViewOverlayModeHandler, CategoryViewOverlayModeHandler.Parameters>, I18nParams {
 
     @Value
     @lombok.Builder
@@ -48,7 +48,7 @@ public class TaxonViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     private Parameters params;
 
     @Override
-    public TaxonViewOverlayModeHandler configure(Parameters p) {
+    public CategoryViewOverlayModeHandler configure(Parameters p) {
         this.params = p;
         return this;
     }
@@ -66,15 +66,15 @@ public class TaxonViewOverlayModeHandler extends AbstractViewOverlayModeHandler
             else if ("uk".equals(t.getLocale())) { nameUk = t.getName(); descUk = t.getDescription(); }
         }
 
-        Div cardHeader = new Div(VaadinIcon.TAG.create(), new Span(getValue(TAXON_OVERLAY_SECTION_LABEL)));
+        Div cardHeader = new Div(VaadinIcon.TAG.create(), new Span(getValue(CATEGORY_OVERLAY_SECTION_LABEL)));
         cardHeader.addClassName("overlay__view-card-header");
 
-        H4 enLabel = new H4(getValue(TAXON_OVERLAY_LOCALE_TAB_EN));
+        H4 enLabel = new H4(getValue(CATEGORY_OVERLAY_LOCALE_TAB_EN));
         enLabel.addClassName("taxon-locale-label");
         Div enContent = buildLocaleContent(nameEn, descEn);
         enContent.addClassName("taxon-locale-content");
 
-        H4 ukLabel = new H4(getValue(TAXON_OVERLAY_LOCALE_TAB_UK));
+        H4 ukLabel = new H4(getValue(CATEGORY_OVERLAY_LOCALE_TAB_UK));
         ukLabel.addClassName("taxon-locale-label");
         Div ukContent = buildLocaleContent(nameUk, descUk);
         ukContent.addClassName("taxon-locale-content");
@@ -99,8 +99,8 @@ public class TaxonViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
     @Override
     protected Div buildHeaderActions() {
-        UiPrimaryButton editButton = new UiPrimaryButton(getValue(TAXON_VIEW_BUTTON_EDIT));
-        UiIconButton closeButton = new UiIconButton(getValue(TAXON_OVERLAY_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
+        UiPrimaryButton editButton = new UiPrimaryButton(getValue(CATEGORY_VIEW_BUTTON_EDIT));
+        UiIconButton closeButton = new UiIconButton(getValue(CATEGORY_OVERLAY_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
         editButton.addClickListener(_  -> params.getOnEdit().run());
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.isPrivileged());

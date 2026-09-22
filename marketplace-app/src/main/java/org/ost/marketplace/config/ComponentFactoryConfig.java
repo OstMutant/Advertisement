@@ -4,7 +4,7 @@ import org.ost.marketplace.ui.dto.AdvertisementEditDto;
 import org.ost.marketplace.ui.dto.CityEditDto;
 import org.ost.marketplace.ui.dto.ProviderProfileEditDto;
 import org.ost.marketplace.ui.dto.SettingsEditDto;
-import org.ost.marketplace.ui.dto.TaxonEditDto;
+import org.ost.marketplace.ui.dto.CategoryEditDto;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.main.header.account.AccountNameFormModeHandler;
@@ -21,8 +21,8 @@ import org.ost.marketplace.ui.views.main.tabs.users.UserGridConfigurator;
 import org.ost.marketplace.ui.views.main.header.settings.SettingsFormModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityViewOverlayModeHandler;
-import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.TaxonFormOverlayModeHandler;
-import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.TaxonViewOverlayModeHandler;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CategoryFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CategoryViewOverlayModeHandler;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -47,8 +47,8 @@ public class ComponentFactoryConfig {
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<OverlayFormBinder<TaxonEditDto>, OverlayFormBinder.Parameters<TaxonEditDto>> taxonFormBinderFactory(
-            ObjectProvider<OverlayFormBinder<TaxonEditDto>> p) {
+    public UiComponentFactory<OverlayFormBinder<CategoryEditDto>, OverlayFormBinder.Parameters<CategoryEditDto>> categoryFormBinderFactory(
+            ObjectProvider<OverlayFormBinder<CategoryEditDto>> p) {
         return new UiComponentFactory<>(p);
     }
 
@@ -131,12 +131,12 @@ public class ComponentFactoryConfig {
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<TaxonFormOverlayModeHandler, TaxonFormOverlayModeHandler.Parameters> taxonFormOverlayModeHandlerFactory(ObjectProvider<TaxonFormOverlayModeHandler> p) {
+    public UiComponentFactory<CategoryFormOverlayModeHandler, CategoryFormOverlayModeHandler.Parameters> categoryFormOverlayModeHandlerFactory(ObjectProvider<CategoryFormOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<TaxonViewOverlayModeHandler, TaxonViewOverlayModeHandler.Parameters> taxonViewOverlayModeHandlerFactory(ObjectProvider<TaxonViewOverlayModeHandler> p) {
+    public UiComponentFactory<CategoryViewOverlayModeHandler, CategoryViewOverlayModeHandler.Parameters> categoryViewOverlayModeHandlerFactory(ObjectProvider<CategoryViewOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 

@@ -26,7 +26,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @UIScope
 @RequiredArgsConstructor
 @SuppressWarnings("java:S110")
-public class CityOverlay extends AbstractEntityOverlay<CityFormOverlayModeHandler> {
+public class CityOverlay extends AbstractEntityOverlay<CityFormOverlayModeHandler> implements TaxonManagementOverlay {
 
     private enum Mode { VIEW, CREATE, EDIT }
 
@@ -88,16 +88,19 @@ public class CityOverlay extends AbstractEntityOverlay<CityFormOverlayModeHandle
         }
     }
 
+    @Override
     public void openForView(@NonNull TaxonDto city, @NonNull Consumer<TaxonDto> onUpdated) {
         ensureInitialized();
         openSession(new OverlaySession(Mode.VIEW, city, onUpdated, () -> {}, false));
     }
 
+    @Override
     public void openForCreate(@NonNull Runnable onListChanged) {
         ensureInitialized();
         openSession(new OverlaySession(Mode.CREATE, null, _ -> {}, onListChanged, false));
     }
 
+    @Override
     public void openForEdit(@NonNull TaxonDto city, @NonNull Consumer<TaxonDto> onUpdated) {
         ensureInitialized();
         openSession(new OverlaySession(Mode.EDIT, city, onUpdated, () -> {}, false));

@@ -19,13 +19,13 @@
   overflow: auto;
 }
 
-.taxon-management-view, .city-management-view {
+.category-management-view, .city-management-view {
   width: 100%;
   padding: 1rem;
   box-sizing: border-box;
 }
 
-.taxon-add-button {
+.category-add-button {
   font-weight: 600;
   flex-shrink: 0;
 }

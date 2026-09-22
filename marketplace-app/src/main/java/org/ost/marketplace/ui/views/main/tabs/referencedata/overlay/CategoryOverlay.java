@@ -11,8 +11,8 @@ import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
 import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
-import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.TaxonFormOverlayModeHandler;
-import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.TaxonViewOverlayModeHandler;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CategoryFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CategoryViewOverlayModeHandler;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
 
@@ -26,7 +26,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @UIScope
 @RequiredArgsConstructor
 @SuppressWarnings("java:S110")
-public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHandler> {
+public class CategoryOverlay extends AbstractEntityOverlay<CategoryFormOverlayModeHandler> implements TaxonManagementOverlay {
 
     private enum Mode { VIEW, CREATE, EDIT }
 
@@ -43,13 +43,13 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
     }
 
     @Getter private final EntityOverlaySupport support;
-    private final UiComponentFactory<TaxonViewOverlayModeHandler, TaxonViewOverlayModeHandler.Parameters> viewModeHandlerFactory;
-    private final UiComponentFactory<TaxonFormOverlayModeHandler, TaxonFormOverlayModeHandler.Parameters> formModeHandlerFactory;
+    private final UiComponentFactory<CategoryViewOverlayModeHandler, CategoryViewOverlayModeHandler.Parameters> viewModeHandlerFactory;
+    private final UiComponentFactory<CategoryFormOverlayModeHandler, CategoryFormOverlayModeHandler.Parameters> formModeHandlerFactory;
     private final TaxonCatalogService                             taxonCatalogService;
 
     private OverlaySession session;
 
-    @Override protected String  getOverlayCssClass()   { return "taxon-overlay"; }
+    @Override protected String  getOverlayCssClass()   { return "category-overlay"; }
     @Override protected I18nKey getBreadcrumbLabelKey() { return MAIN_TAB_REFERENCE_DATA; }
 
     @Override protected boolean isEditMode()      { return session.mode() == Mode.EDIT; }
@@ -58,10 +58,10 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
     @Override
     protected SaveConfig saveConfig() {
         return new SaveConfig(
-                TAXON_OVERLAY_NOTIFICATION_SUCCESS,
-                TAXON_OVERLAY_NOTIFICATION_VALIDATION_FAILED,
-                TAXON_OVERLAY_NOTIFICATION_SAVE_ERROR,
-                TAXON_OVERLAY_NOTIFICATION_CONFLICT);
+                CATEGORY_OVERLAY_NOTIFICATION_SUCCESS,
+                CATEGORY_OVERLAY_NOTIFICATION_VALIDATION_FAILED,
+                CATEGORY_OVERLAY_NOTIFICATION_SAVE_ERROR,
+                CATEGORY_OVERLAY_NOTIFICATION_CONFLICT);
     }
 
     @Override
@@ -88,16 +88,19 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
         }
     }
 
+    @Override
     public void openForView(@NonNull TaxonDto taxon, @NonNull Consumer<TaxonDto> onUpdated) {
         ensureInitialized();
         openSession(new OverlaySession(Mode.VIEW, taxon, onUpdated, () -> {}, false));
     }
 
+    @Override
     public void openForCreate(@NonNull Runnable onListChanged) {
         ensureInitialized();
         openSession(new OverlaySession(Mode.CREATE, null, _ -> {}, onListChanged, false));
     }
 
+    @Override
     public void openForEdit(@NonNull TaxonDto taxon, @NonNull Consumer<TaxonDto> onUpdated) {
         ensureInitialized();
         openSession(new OverlaySession(Mode.EDIT, taxon, onUpdated, () -> {}, false));
@@ -116,17 +119,17 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
 
         OverlayModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerFactory.build(
-                    TaxonViewOverlayModeHandler.Parameters.builder()
+                    CategoryViewOverlayModeHandler.Parameters.builder()
                             .taxon(session.taxon())
                             .onEdit(this::switchToEdit)
                             .onClose(this::closeToList)
                             .build());
             case CREATE, EDIT -> {
-                TaxonFormOverlayModeHandler.Mode handlerMode = session.mode() == Mode.CREATE
-                        ? TaxonFormOverlayModeHandler.Mode.CREATE
-                        : TaxonFormOverlayModeHandler.Mode.EDIT;
+                CategoryFormOverlayModeHandler.Mode handlerMode = session.mode() == Mode.CREATE
+                        ? CategoryFormOverlayModeHandler.Mode.CREATE
+                        : CategoryFormOverlayModeHandler.Mode.EDIT;
                 currentFormHandler = formModeHandlerFactory.build(
-                        TaxonFormOverlayModeHandler.Parameters.builder()
+                        CategoryFormOverlayModeHandler.Parameters.builder()
                                 .taxon(session.taxon())
                                 .mode(handlerMode)
                                 .onSave(this::handleSave)
@@ -141,8 +144,8 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
 
         layout.getBreadcrumbCurrent().setText(switch (session.mode()) {
             case VIEW   -> i18n().get(OVERLAY_BREADCRUMB_VIEW);
-            case EDIT   -> i18n().get(TAXON_OVERLAY_TITLE_EDIT);
-            case CREATE -> i18n().get(TAXON_OVERLAY_TITLE_NEW);
+            case EDIT   -> i18n().get(CATEGORY_OVERLAY_TITLE_EDIT);
+            case CREATE -> i18n().get(CATEGORY_OVERLAY_TITLE_NEW);
         });
     }
 

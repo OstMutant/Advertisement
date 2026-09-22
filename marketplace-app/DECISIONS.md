@@ -2,6 +2,70 @@
 
 ---
 
+## ADR-085: `AbstractTaxonManagementView` — shared City/Category admin-screen logic behind two still-separate bean classes; `TaxonOverlay`/`TaxonManagementView`/`TaxonViewOverlayModeHandler`/`TaxonFormOverlayModeHandler`/`TaxonEditDto` renamed to `Category*`
+
+**Status:** Accepted
+
+**Context:** `CityManagementView`/`TaxonManagementView`, `CityOverlay`/`TaxonOverlay`,
+`CityViewOverlayModeHandler`/`TaxonViewOverlayModeHandler`, and
+`CityFormOverlayModeHandler`/`TaxonFormOverlayModeHandler` were four near-identical class pairs
+(~500+ duplicated lines total), differing only in `TaxonType.CATEGORY` vs `TaxonType.CITY`,
+i18n keys, and CSS class prefixes — the largest single duplication in the codebase (see
+`improvement-201` Part 2). This entry covers step 1: the management-view pair.
+
+**Decision:**
+1. New `AbstractTaxonManagementView` (`ui/views/main/tabs/referencedata/`) holds
+   `refresh()`/`buildRow()`/`updateRowInPlace()`/`buildRowActions()`/`confirmAndDelete()`/
+   `doRestore()`, following the same abstract-getter shape as the existing `AbstractEntityOverlay`
+   precedent (no constructor-injected fields on the abstract class itself, to avoid the Lombok
+   `@RequiredArgsConstructor` super-call conflict): `getTaxonCatalogService()`, `getSupport()`
+   (reuses `EntityOverlaySupport`, the same i18n+notification bundle `AbstractEntityOverlay`
+   already uses), `getAccess()`, `getTaxonType()`, `getCssPrefix()`, `getLabels()` (a `Labels`
+   record bundling the 12 i18n keys that actually differ per `TaxonType`, mirroring
+   `LocaleTranslationForm.Labels`'s existing shape), and
+   `<O extends Div & TaxonManagementOverlay> O getOverlay()` — an intersection-type generic method
+   chosen deliberately over a cast, matching this project's own established preference (see
+   ADR-082's "zero casts, zero `@SuppressWarnings("unchecked")`" and the `Div`-over-`FlexLayout`
+   choice earlier in this file, both explicitly picking a type that already satisfies the needed
+   interface over introducing a cast).
+2. New `TaxonManagementOverlay` interface (`ui/views/main/tabs/referencedata/overlay/`) —
+   `openForView`/`openForCreate`/`openForEdit` — the contract `CityOverlay`/`CategoryOverlay`
+   already had identically-shaped public methods for; both now `implements` it so the abstract
+   base can call through it without depending on either concrete overlay class.
+3. **Does not reopen ADR-065's rejection of a single parameterized `TaxonManagementView(TaxonType)`
+   bean** — `CategoryManagementView`/`CityManagementView` remain two distinct
+   `@SpringComponent @UIScope` singleton bean classes (each still hardcodes its own `TaxonType` via
+   `getTaxonType()`), matching ADR-065's own stated reason (two simultaneous tabs need two distinct
+   instances). This step only removes compile-time code duplication between those two still-separate
+   beans, a different axis from the rejected runtime-sharing alternative.
+4. **Renamed the concrete Category-specific classes** (`TaxonOverlay`, `TaxonManagementView`,
+   `TaxonViewOverlayModeHandler`, `TaxonFormOverlayModeHandler`, `TaxonEditDto` — each hardcoded to
+   `TaxonType.CATEGORY` since Category was the only taxon type before ADR-065 added City by analogy)
+   to `Category*`, reserving the bare "Taxon" name exclusively for the genuinely-generic shared
+   classes (`AbstractTaxonManagementView`, `TaxonManagementOverlay`) and the domain-level types that
+   correctly stay generic (`TaxonType`, `TaxonDto`, `TaxonCatalogService`, `EntityType.TAXON`).
+   Cascaded through: 33 `I18nKey` enum constants + their string values, both
+   `messages_en.properties`/`messages_uk.properties` (key names only, translated text unchanged),
+   the category-specific CSS classes in `taxon-view.css` (`category-overlay`,
+   `category-management-view`, `category-add-button`, `category-history-button` — the genuinely-
+   shared `taxon-locale-content`/`taxon-row-wrapper`/etc. CSS classes deliberately left unchanged,
+   per ADR-065's own reasoning for why City/Category need visually-identical-but-selector-distinct
+   classes), `ComponentFactoryConfig`'s bean method names, and Playwright selectors in
+   `03-marketplace-promotion-flow.spec.js`/`category.flow.js`. Internal variable/field/method names
+   still referencing `taxon` (`params.getTaxon()`, `getSavedTaxonId()`, the `OverlaySession`'s
+   `taxon` field) were deliberately left as-is — they correctly reference the underlying `TaxonDto`
+   domain type, the same reasoning City's own class already applies to its `city`-named fields for
+   the same `TaxonDto` type.
+
+**Consequences:**
+- `CityManagementView`/`CategoryManagementView` each now ~35 lines (was ~184).
+- Verified end-to-end: full reactor compiles; full Playwright `e2e --ux` suite (50/50, spec 06
+  skipped by design) passed twice — once after the abstraction, once after the rename — including
+  the City/Category create/edit/delete/restore/discard scenarios in spec 03.
+- `/review` (`deep-review-orchestrator`) found no SOLID violations and confirmed no missed or
+  incorrect renames; one KISS finding (the intersection-type generic `getOverlay()` signature)
+  reviewed and kept as-is, consistent with ADR-082's own cast-avoidance precedent.
+
 ## ADR-084: Verifying CSS on Vaadin Shadow DOM components — `getComputedStyle` is unreliable for paint properties, real diagnostic color swaps are required
 
 **Status:** Accepted
@@ -2270,7 +2334,9 @@ job in a different starter with no cross-starter ordering guarantee.
 
 ## ADR-065: F-02 city dictionary + geo filter — `TaxonType.CITY` reusing the existing taxon assignment mechanism, no schema change
 
-**Status:** Accepted
+**Status:** Accepted — item 5's "no parameterized `Taxon*`" rejection still holds; see ADR-085 for a
+later, narrower change (shared base class behind two still-separate bean classes) that does not
+reopen it.
 
 **Context:** Local service listings are geo-first ("плиточник у Луцьку" is a real query shape); without a city
 facet the catalog is unfilterable past one city. The issue's own research (see its `## Suggested

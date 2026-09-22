@@ -11,7 +11,7 @@ import lombok.Setter;
 @Builder
 @Getter
 @Setter
-public class TaxonEditDto implements EditDto {
+public class CategoryEditDto implements EditDto {
 
     private Long   id;
     private String nameEn;

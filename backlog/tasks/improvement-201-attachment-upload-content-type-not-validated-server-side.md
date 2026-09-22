@@ -202,6 +202,23 @@ management view (if one is ever added) gets the abstraction instead of a fifth h
    touches UI behavior directly on both domains simultaneously.
 7. Run `/code-review` (high effort) on the full diff before considering this done.
 
+### Part 2 — Progress (2026-09-22)
+
+**Step 1 done.** `AbstractTaxonManagementView` + `TaxonManagementOverlay` extracted, per ADR-085
+(`marketplace-app/DECISIONS.md`). `CityManagementView`/`CategoryManagementView` now ~35 lines each
+(was ~184). Verified: full reactor compiles, full Playwright `e2e --ux` (50/50, spec 06 skipped by
+design) passed twice. `/review` found no SOLID violations, no missed renames; one KISS finding
+(intersection-generic `getOverlay()`) kept as-is per ADR-082's own cast-avoidance precedent.
+
+Bundled with step 1: renamed the concrete Category-specific classes (`TaxonOverlay`→`CategoryOverlay`,
+`TaxonManagementView`→`CategoryManagementView`, `TaxonViewOverlayModeHandler`→
+`CategoryViewOverlayModeHandler`, `TaxonFormOverlayModeHandler`→`CategoryFormOverlayModeHandler`,
+`TaxonEditDto`→`CategoryEditDto`, cascaded through 33 i18n keys + properties + CSS + Playwright) —
+per user direction, since these were misleadingly named "Taxon" from before City existed. Confirmed
+this does not reopen ADR-065's rejected parameterized-view alternative (annotated there).
+
+Steps 2-4 (Overlay pair, ViewOverlayModeHandler pair, FormOverlayModeHandler pair) not yet started.
+
 ### Part 2 — Related
 
 - Found via an external code-review-style pass over marketplace-app, re-verified end-to-end

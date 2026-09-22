@@ -11,7 +11,7 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.UiComponentFactory;
-import org.ost.marketplace.ui.dto.TaxonEditDto;
+import org.ost.marketplace.ui.dto.CategoryEditDto;
 import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
@@ -41,8 +41,8 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<TaxonEditDto>
-        implements Configurable<TaxonFormOverlayModeHandler, TaxonFormOverlayModeHandler.Parameters>, I18nParams {
+public class CategoryFormOverlayModeHandler extends AbstractFormOverlayModeHandler<CategoryEditDto>
+        implements Configurable<CategoryFormOverlayModeHandler, CategoryFormOverlayModeHandler.Parameters>, I18nParams {
 
     public enum Mode { CREATE, EDIT }
 
@@ -62,17 +62,17 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
     private final TaxonCatalogService                                      taxonCatalogService;
     private final AuditQueryService                                         auditQueryService;
     private final NotificationService                                      notificationService;
-    private final UiComponentFactory<OverlayFormBinder<TaxonEditDto>, OverlayFormBinder.Parameters<TaxonEditDto>>      formBinderFactory;
+    private final UiComponentFactory<OverlayFormBinder<CategoryEditDto>, OverlayFormBinder.Parameters<CategoryEditDto>>      formBinderFactory;
     private final EntityActivityOverlay                                    entityActivityOverlay;
 
     private Parameters params;
     @Getter private Long savedTaxonId;
-    private LocaleTranslationForm<TaxonEditDto> localeForm;
+    private LocaleTranslationForm<CategoryEditDto> localeForm;
     private UiPrimaryButton   saveButton;
     private UiTertiaryButton  discardButton;
 
     @Override
-    public TaxonFormOverlayModeHandler configure(Parameters p) {
+    public CategoryFormOverlayModeHandler configure(Parameters p) {
         this.params = p;
         return this;
     }
@@ -80,35 +80,35 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
     @Override
     public void activate(OverlayLayout layout) {
         localeForm = new LocaleTranslationForm<>(
-                TAXON_OVERLAY_FIELD_NAME.toTestId(), TAXON_OVERLAY_FIELD_DESCRIPTION.toTestId(),
+                CATEGORY_OVERLAY_FIELD_NAME.toTestId(), CATEGORY_OVERLAY_FIELD_DESCRIPTION.toTestId(),
                 new LocaleTranslationForm.Labels(
-                        getValue(TAXON_OVERLAY_FIELD_NAME), getValue(TAXON_OVERLAY_FIELD_NAME_PLACEHOLDER),
-                        getValue(TAXON_OVERLAY_FIELD_DESCRIPTION), getValue(TAXON_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER),
-                        getValue(TAXON_OVERLAY_VALIDATION_NAME_REQUIRED), getValue(TAXON_OVERLAY_VALIDATION_NAME_LENGTH),
-                        getValue(TAXON_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED), getValue(TAXON_OVERLAY_VALIDATION_DESCRIPTION_LENGTH),
-                        getValue(TAXON_OVERLAY_LOCALE_TAB_EN), getValue(TAXON_OVERLAY_LOCALE_TAB_UK)),
-                new LocaleTranslationForm.Accessors<TaxonEditDto>(
-                        TaxonEditDto::getNameEn, TaxonEditDto::setNameEn,
-                        TaxonEditDto::getDescriptionEn, TaxonEditDto::setDescriptionEn,
+                        getValue(CATEGORY_OVERLAY_FIELD_NAME), getValue(CATEGORY_OVERLAY_FIELD_NAME_PLACEHOLDER),
+                        getValue(CATEGORY_OVERLAY_FIELD_DESCRIPTION), getValue(CATEGORY_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER),
+                        getValue(CATEGORY_OVERLAY_VALIDATION_NAME_REQUIRED), getValue(CATEGORY_OVERLAY_VALIDATION_NAME_LENGTH),
+                        getValue(CATEGORY_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED), getValue(CATEGORY_OVERLAY_VALIDATION_DESCRIPTION_LENGTH),
+                        getValue(CATEGORY_OVERLAY_LOCALE_TAB_EN), getValue(CATEGORY_OVERLAY_LOCALE_TAB_UK)),
+                new LocaleTranslationForm.Accessors<CategoryEditDto>(
+                        CategoryEditDto::getNameEn, CategoryEditDto::setNameEn,
+                        CategoryEditDto::getDescriptionEn, CategoryEditDto::setDescriptionEn,
                         TaxonSnapshotDto::nameEn, TaxonSnapshotDto::descriptionEn),
-                new LocaleTranslationForm.Accessors<TaxonEditDto>(
-                        TaxonEditDto::getNameUk, TaxonEditDto::setNameUk,
-                        TaxonEditDto::getDescriptionUk, TaxonEditDto::setDescriptionUk,
+                new LocaleTranslationForm.Accessors<CategoryEditDto>(
+                        CategoryEditDto::getNameUk, CategoryEditDto::setNameUk,
+                        CategoryEditDto::getDescriptionUk, CategoryEditDto::setDescriptionUk,
                         TaxonSnapshotDto::nameUk, TaxonSnapshotDto::descriptionUk));
 
-        saveButton = new UiPrimaryButton(getValue(TAXON_OVERLAY_BUTTON_SAVE));
+        saveButton = new UiPrimaryButton(getValue(CATEGORY_OVERLAY_BUTTON_SAVE));
         discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));
-        UiIconButton closeBtn = new UiIconButton(getValue(TAXON_OVERLAY_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
+        UiIconButton closeBtn = new UiIconButton(getValue(CATEGORY_OVERLAY_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
 
         wireSaveGuard(saveButton, params.getOnSave());
         discardButton.addClickListener(_ -> discardChanges());
         closeBtn.addClickListener(_ -> params.getOnCancel().run());
 
-        TaxonEditDto dto = buildDto();
+        CategoryEditDto dto = buildDto();
         buildBinder(dto);
         localeForm.wireValueChangeListeners(() -> updateButtons(binder.hasChanges()));
 
-        Div fieldsCard = localeForm.buildFieldsCard(VaadinIcon.TAG.create(), getValue(TAXON_OVERLAY_SECTION_LABEL));
+        Div fieldsCard = localeForm.buildFieldsCard(VaadinIcon.TAG.create(), getValue(CATEGORY_OVERLAY_SECTION_LABEL));
         Div editContent = new Div(fieldsCard);
         layout.setContent(editContent);
 
@@ -122,16 +122,16 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
     }
 
     private UiIconButton buildHistoryButton() {
-        UiIconButton historyBtn = new UiIconButton(getValue(TAXON_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
-        historyBtn.addClassName("taxon-history-button");
+        UiIconButton historyBtn = new UiIconButton(getValue(CATEGORY_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
+        historyBtn.addClassName("category-history-button");
         historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.TAXON, params.getTaxon().getId()))
                 .userId(access.getCurrentUserId())
                 .isPrivileged(access.isPrivileged())
                 .canOperate(access.isPrivileged())
                 .parentSteps(params.getBreadcrumbSteps())
-                .parentFormLabel(getValue(TAXON_OVERLAY_TITLE_EDIT))
-                .currentLabelKey(TAXON_ACTIVITY_BUTTON)
+                .parentFormLabel(getValue(CATEGORY_OVERLAY_TITLE_EDIT))
+                .currentLabelKey(CATEGORY_ACTIVITY_BUTTON)
                 .onRestoreRequested(this::handleRestoreFromActivity)
                 .build()));
         return historyBtn;
@@ -161,7 +161,7 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
     }
 
     public void discardChanges() {
-        TaxonEditDto fresh = buildDto();
+        CategoryEditDto fresh = buildDto();
         binder.reload(fresh, localeForm::copyLocaleFields);
         updateButtons(false);
     }
@@ -174,21 +174,21 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
         auditQueryService.getSnapshotContent(snapshotId, EntityType.TAXON, TaxonSnapshotDto.class)
                 .ifPresent(content -> {
                     TaxonSnapshotDto snapshot = content.snapshotData();
-                    TaxonEditDto dto = new TaxonEditDto();
+                    CategoryEditDto dto = new CategoryEditDto();
                     dto.setId(params.getTaxon().getId());
                     localeForm.restoreFromSnapshot(snapshot, dto);
                     loadRestored(dto);
                 });
     }
 
-    public void loadRestored(@NonNull TaxonEditDto restoredDto) {
+    public void loadRestored(@NonNull CategoryEditDto restoredDto) {
         binder.loadRestored(restoredDto, localeForm::copyLocaleFields);
         notificationService.success(FORM_RESTORE_BANNER);
         updateButtons(true);
     }
 
-    private TaxonEditDto buildDto() {
-        TaxonEditDto dto = new TaxonEditDto();
+    private CategoryEditDto buildDto() {
+        CategoryEditDto dto = new CategoryEditDto();
         Long id = params.getTaxon() != null ? params.getTaxon().getId() : savedTaxonId;
         if (id != null) {
             dto.setId(id);
@@ -206,10 +206,10 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
         return dto;
     }
 
-    private void buildBinder(TaxonEditDto dto) {
+    private void buildBinder(CategoryEditDto dto) {
         binder = formBinderFactory.build(
-                OverlayFormBinder.Parameters.<TaxonEditDto>builder()
-                        .clazz(TaxonEditDto.class)
+                OverlayFormBinder.Parameters.<CategoryEditDto>builder()
+                        .clazz(CategoryEditDto.class)
                         .dto(dto)
                         .build()
         );
