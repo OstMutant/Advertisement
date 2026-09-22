@@ -2653,3 +2653,38 @@ confirmed fully synchronous (no `await`/`Promise`/`setTimeout`) — no async gap
 Playwright interaction to race against, so the "ready" signal this task proposed has nothing to
 guard against today. No flaky failure of this kind was ever observed either. Full detail:
 `completed/tasks/improvement-063-playwright-stability-guard-async-init-components.md`.
+
+✅ Done (2026-09-22): improvement-035 confirmed already implemented — `improvement-073`'s Phase 4
+(2026-09-03) had already moved `06-seed-filter-sort-pagination.spec.js`'s seeding to the real
+service layer via REST (`seedUsersViaApi`/`seedTaxonsViaApi`/`seedAdvertisementsViaApi`), exactly
+this issue's revised "service layer, not raw SQL" fix — confirmed against the spec's current source,
+no remaining browser-UI seeding calls. Its unfinished `workers: 2` follow-up step carried forward
+into the new [improvement-198](../tasks/improvement-198-playwright-test-isolation-and-parallel-workers.md).
+Full detail: `completed/tasks/improvement-035-sql-seeding-for-playwright-spec-05.md`.
+
+✅ Done (2026-09-22): improvement-195 closed — real cross-cutting audit across Java/SOLID-DRY,
+JUnit, Playwright, Bash scripts, documentation, and CI/CD, all ten phases resolved. **Phase 0:**
+`docs/best-practices.md` created as the project-grounded reference. **Phase 1:** JUnit hygiene —
+removed a reflection-based test hack (`TimelineViewTest`, violated this project's own ADR-008) and
+a redundant `Thread.sleep` in `AttachmentRepositoryTest`. **Phase 2:** Playwright — YouTube
+live-dependency stub, ESLint gate (`eslint-plugin-playwright`), a real 126-vs-63 test-doubling bug
+found and fixed (`--lint`/`e2e` directory collision), a real assertion-swallowing bug fixed in
+`runApplyFilterFlow`. **Phase 3:** ShellCheck fixes, `set -euo pipefail` on 5 scripts (6 real
+behavior-change risks found and fixed), shebang standardization (20 files), a ShellCheck CI gate
+(`--severity=error` only, per explicit user decision), plus a repo-wide executable-bit regression
+found and fixed along the way (`git update-index --chmod=+x`, 35 files). **Phase 4:** removed 23
+`improvement-NNN` ticket citations from 6 `DECISIONS.md` files, added the reverse backlog→ADR
+reference wherever missing across 15 backlog files. **Phase 5:** security-scanning gap —
+**decided 2026-09-18 not to pick up**, remains tied to the already-open `improvement-028` hosted-CI
+deferral. **Phase 6:** extracted the duplicated failure-rate-limiter into `platform-commons`.
+**Phase 7:** Playwright test isolation — carved out to the new
+[improvement-198](../tasks/improvement-198-playwright-test-isolation-and-parallel-workers.md)
+(joined there with the `workers: 2` viability question). **Phase 8:** a real production bug found
+via Playwright verification — stale `<base href>` after client-side navigation causing `403`s on
+file uploads from a deep-linked advertisement/provider view; fixed via a new
+`BrowserHistoryUtil.pushStateWithBaseSync()`, replacing 5 raw `pushState` call sites. **Phase 9:**
+extracted duplicated category/city taxon-filter resolution (`AdvertisementService`/
+`ProviderProfileService`) into a `default` method on `TaxonPort` itself — `platform-commons/DECISIONS.md`
+ADR-032 records this as a narrow, bounded exception to platform-commons' "no business logic" rule;
+verified via a high-effort `/code-review` pass and a dedicated `Mockito.CALLS_REAL_METHODS` unit
+test. Full detail: `completed/tasks/improvement-195-best-practices-reference-and-audit-fixes.md`.

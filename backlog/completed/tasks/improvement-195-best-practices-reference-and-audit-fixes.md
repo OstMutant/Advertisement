@@ -624,24 +624,12 @@ original code never logged on the blocked path.
   `platform-commons/org.ost.platform.core.FailureRateLimiter` class and its Caffeine dependency
   don't violate this project's own module-boundary rules.
 
-## Approach — Phase 7: Playwright test isolation — open discussion, not decided, not scheduled
+## Approach — Phase 7: Playwright test isolation — carved out to its own task
 
-**Raised 2026-09-17, deliberately deferred — a discussion topic, not an implementation item.** While
-deciding Phase 2a's trace-config fix, the fact that `playwright.config.js` already runs
-`fullyParallel: false`/`workers: 1` specifically because "Vaadin + shared DB — parallel runs cause
-race conditions" (own code comment), combined with `playwright/e2e/README.md`'s own statement that
-"tests are serial and ordered — each spec depends on state left by the previous one," was flagged as
-worth a real conversation: this project's e2e suite does not follow the official Playwright "isolate
-tests by default" best practice (already listed as its own entry in
-[`docs/best-practices.md`](../../docs/best-practices.md)'s Playwright section), and that has a real
-consequence surfaced during this same task — a failed test cannot be safely retried (Phase 2a's
-`retries: 1` option was rejected specifically because a retry wouldn't start from a clean state).
-
-Not analyzed yet: whether this is worth changing (e.g. per-spec-file database reset, isolated
-browser contexts/storage state per test instead of per suite), what it would cost given the current
-Vaadin-session/shared-DB constraint, or whether the current serial-and-ordered design is a
-deliberate, acceptable tradeoff that should just be documented more prominently rather than changed.
-Pick this up as its own conversation when ready — do not start implementation from this entry alone.
+**Raised 2026-09-17, deliberately deferred — a discussion topic, not an implementation item.**
+Carved out 2026-09-22 into [improvement-198](improvement-198-playwright-test-isolation-and-parallel-workers.md)
+(joined there with the related, previously-unscheduled `workers: 2` viability question) rather than
+staying as an unscheduled entry in this now-otherwise-closed audit task.
 
 ## Approach — Phase 8: real bug found via Playwright verification — stale `<base href>` after client-side navigation
 
