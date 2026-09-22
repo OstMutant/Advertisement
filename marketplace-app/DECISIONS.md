@@ -69,19 +69,36 @@ pair.
    `buildFormHandler(TaxonDto, Mode, List<BreadcrumbStep>)`, `getTitleEdit()`, `getTitleNew()`.
    `TaxonManagementOverlay` is now `implements`ed once on `AbstractTaxonOverlay` itself instead of
    separately on each leaf. `CityOverlay`/`CategoryOverlay` shrink to ~60 lines each (was ~155).
+6. **Step 3:** new `AbstractTaxonViewOverlayModeHandler extends AbstractViewOverlayModeHandler
+   implements I18nParams` (`ui/views/main/tabs/referencedata/overlay/modes/`) absorbs
+   `buildPrimaryContent()`/`buildLocaleContent()`/`buildHeaderActions()` from
+   `CityViewOverlayModeHandler`/`CategoryViewOverlayModeHandler` — moved over verbatim apart from a
+   `Labels` record (`sectionLabel`/`localeTabEn`/`localeTabUk`/`viewButtonEdit`/
+   `overlayButtonCancel`, mirroring the same `Labels`-record shape already used in step 1's
+   `AbstractTaxonManagementView` and the pre-existing `LocaleTranslationForm`) plus abstract getters
+   for the other per-subclass pieces: `getTaxonCatalogService()`, `getAccess()`, `getEntityId()`,
+   `getOnEdit()`, `getOnClose()`. Each leaf's `Configurable<T,P>`/`Parameters` stays per-subclass
+   (differs only by the `city`/`taxon` field name) — deliberately not unified at this step, same
+   reasoning ADR-065 already gave for keeping City/Category as separate concrete types.
+   `CityViewOverlayModeHandler`/`CategoryViewOverlayModeHandler` shrink to ~50 lines each (was
+   ~110).
 
 **Consequences:**
 - `CityManagementView`/`CategoryManagementView` each now ~35 lines (was ~184);
-  `CityOverlay`/`CategoryOverlay` each now ~60 lines (was ~155).
+  `CityOverlay`/`CategoryOverlay` each now ~60 lines (was ~155);
+  `CityViewOverlayModeHandler`/`CategoryViewOverlayModeHandler` each now ~50 lines (was ~110).
 - Verified end-to-end: full reactor compiles; full Playwright `e2e --ux` suite (50/50, spec 06
-  skipped by design) passed three times — once per step, plus once after the rename — including
-  the City/Category create/edit/delete/restore/discard scenarios in spec 03.
-- `/review` (`deep-review-orchestrator`) found no SOLID violations across both steps and confirmed
-  no missed or incorrect renames; one KISS finding (the intersection-type generic `getOverlay()`
-  signature) reviewed and kept as-is, consistent with ADR-082's own cast-avoidance precedent. Step
-  2's review surfaced one pre-existing, unrelated finding (`proceed()`'s silent no-op when the
-  post-save refetch returns empty) — confirmed pre-existing via `git show` before this refactor,
-  not introduced by it; tracked separately in `improvement-201`, not fixed here.
+  skipped by design) passed five times across the three steps plus the rename — including
+  the City/Category create/edit/delete/restore/discard scenarios in spec 03. One step-3 run hit an
+  infra-level SIGKILL (exit 137, `pw-runner` container itself exited 0, no OOM) unrelated to the
+  code — confirmed via a clean retry.
+- `/review` (`deep-review-orchestrator`) found no SOLID violations across all three steps and
+  confirmed no missed or incorrect renames; one KISS finding (the intersection-type generic
+  `getOverlay()` signature) reviewed and kept as-is, consistent with ADR-082's own cast-avoidance
+  precedent. Step 2's review surfaced one pre-existing, unrelated finding (`proceed()`'s silent
+  no-op when the post-save refetch returns empty) — confirmed pre-existing via `git show` before
+  this refactor, not introduced by it; tracked separately in `improvement-201`, not fixed here.
+  Step 3's review found nothing to report.
 
 ## ADR-084: Verifying CSS on Vaadin Shadow DOM components — `getComputedStyle` is unreliable for paint properties, real diagnostic color swaps are required
 

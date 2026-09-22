@@ -228,7 +228,13 @@ this does not reopen ADR-065's rejected parameterized-view alternative (annotate
 
 One pre-existing, unrelated finding surfaced by step 2's review — see Part 5 below.
 
-Steps 3-4 (ViewOverlayModeHandler pair, FormOverlayModeHandler pair) not yet started.
+**Step 3 done.** `AbstractTaxonViewOverlayModeHandler` extracted per ADR-085 (updated).
+`CityViewOverlayModeHandler`/`CategoryViewOverlayModeHandler` now ~50 lines each (was ~110).
+Verified: full reactor compiles, full Playwright `e2e --ux` (50/50) passed — one run hit an
+infra-level SIGKILL (exit 137, unrelated to the code, confirmed via clean retry). `/review` found
+nothing to report.
+
+Step 4 (FormOverlayModeHandler pair) not yet started.
 
 ### Part 2 — Related
 
