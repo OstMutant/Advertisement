@@ -28,10 +28,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link AdvertisementService#getFiltered}/{@code count} resolve an optional category filter via
- * the private {@code resolveCategoryFilter()}, which used a nullable {@code Set<Long>} to encode
- * three states (no filter / match-nothing / match-these-ids). Covers the tri-state behavior
- * through the public entry points.
+ * Covers {@link AdvertisementService#getFiltered}/{@code count}'s delegation to
+ * {@link TaxonPort#resolveCategoryAndCityFilter} — the tri-state AND-combine logic itself (no
+ * filter / match-nothing / match-these-ids) is covered directly against the real default method in
+ * {@code TaxonPortResolveCategoryAndCityFilterTest}, not re-verified here.
  */
 @ExtendWith(MockitoExtension.class)
 class AdvertisementServiceCategoryFilterTest {
@@ -48,21 +48,22 @@ class AdvertisementServiceCategoryFilterTest {
     }
 
     @Test
-    void getFiltered_noCategoryFilterRequested_appliesNoRestriction() {
+    void getFiltered_taxonFilterResolvesToEmpty_appliesNoRestriction() {
         AdvertisementFilterDto filter = AdvertisementFilterDto.builder().categoryIds(null).build();
+        when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
+        when(taxonPort.resolveCategoryAndCityFilter(EntityType.ADVERTISEMENT, null, null)).thenReturn(Optional.empty());
         when(repository.findByFilter(eq(filter), any(Pageable.class), isNull())).thenReturn(List.of());
 
         newService().getFiltered(filter, 0, 10, Sort.unsorted());
 
         verify(repository).findByFilter(eq(filter), any(Pageable.class), isNull());
-        verify(taxonPortFactory, never()).findIfAvailable();
     }
 
     @Test
-    void getFiltered_categoryFilterMatchesNothing_returnsEmptyWithoutQueryingRepository() {
+    void getFiltered_taxonFilterResolvesToEmptySet_returnsEmptyWithoutQueryingRepository() {
         AdvertisementFilterDto filter = AdvertisementFilterDto.builder().categoryIds(Set.of(1L)).build();
         when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
-        when(taxonPort.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, Set.of(1L))).thenReturn(Set.of());
+        when(taxonPort.resolveCategoryAndCityFilter(EntityType.ADVERTISEMENT, Set.of(1L), null)).thenReturn(Optional.of(Set.of()));
 
         List<AdvertisementInfoDto> result = newService().getFiltered(filter, 0, 10, Sort.unsorted());
 
@@ -71,10 +72,10 @@ class AdvertisementServiceCategoryFilterTest {
     }
 
     @Test
-    void getFiltered_categoryFilterMatchesSome_appliesResolvedIds() {
+    void getFiltered_taxonFilterResolvesToIds_appliesResolvedIds() {
         AdvertisementFilterDto filter = AdvertisementFilterDto.builder().categoryIds(Set.of(1L)).build();
         when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
-        when(taxonPort.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, Set.of(1L))).thenReturn(Set.of(100L, 200L));
+        when(taxonPort.resolveCategoryAndCityFilter(EntityType.ADVERTISEMENT, Set.of(1L), null)).thenReturn(Optional.of(Set.of(100L, 200L)));
         when(repository.findByFilter(eq(filter), any(Pageable.class), eq(Set.of(100L, 200L)))).thenReturn(List.of());
 
         newService().getFiltered(filter, 0, 10, Sort.unsorted());
@@ -83,7 +84,7 @@ class AdvertisementServiceCategoryFilterTest {
     }
 
     @Test
-    void getFiltered_categoryFilterRequestedButTaxonStarterAbsent_appliesNoRestriction() {
+    void getFiltered_taxonStarterAbsent_appliesNoRestriction() {
         AdvertisementFilterDto filter = AdvertisementFilterDto.builder().categoryIds(Set.of(1L)).build();
         when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.empty());
         when(repository.findByFilter(eq(filter), any(Pageable.class), isNull())).thenReturn(List.of());
@@ -94,10 +95,10 @@ class AdvertisementServiceCategoryFilterTest {
     }
 
     @Test
-    void count_categoryFilterMatchesNothing_returnsZeroWithoutQueryingRepository() {
+    void count_taxonFilterResolvesToEmptySet_returnsZeroWithoutQueryingRepository() {
         AdvertisementFilterDto filter = AdvertisementFilterDto.builder().categoryIds(Set.of(1L)).build();
         when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
-        when(taxonPort.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, Set.of(1L))).thenReturn(Set.of());
+        when(taxonPort.resolveCategoryAndCityFilter(EntityType.ADVERTISEMENT, Set.of(1L), null)).thenReturn(Optional.of(Set.of()));
 
         int result = newService().count(filter);
 

@@ -732,27 +732,39 @@ classes, zero new inter-module dependencies (both `ComponentFactory` and `TaxonP
 in `platform-commons`), and matches an existing precedent — `AuditActivityEnrichHook` already uses
 a `default` method on a `platform-commons` SPI interface.
 
-**Not yet implemented — plan only, pending its own execution pass:**
-1. Add to `TaxonPort` (`platform-commons/src/main/java/org/ost/platform/taxon/spi/TaxonPort.java`):
-   a `default Optional<Set<Long>> resolveCategoryAndCityFilter(@NonNull EntityType entityType,
-   Set<Long> categoryIds, Long cityTaxonId)` (the AND-combine logic, unchanged) plus a `private
-   Optional<Set<Long>> resolveTaxonIdFilter(EntityType entityType, Set<Long> taxonIds)` helper
-   (delegates to the already-existing `findEntityIdsWithAnyTaxon`).
-2. `AdvertisementService`: delete all four private methods; replace both call sites with
+**Done (2026-09-18):**
+1. Added `default Optional<Set<Long>> resolveCategoryAndCityFilter(@NonNull EntityType entityType,
+   Set<Long> categoryIds, Long cityTaxonId)` plus a `private Optional<Set<Long>>
+   resolveTaxonIdFilter(EntityType entityType, Set<Long> taxonIds)` helper to `TaxonPort`
+   (`platform-commons/src/main/java/org/ost/platform/taxon/spi/TaxonPort.java`), delegating to the
+   already-existing `findEntityIdsWithAnyTaxon`.
+2. `AdvertisementService`: deleted all four private methods, replaced both call sites with a
+   `resolveTaxonFilter(filter)` wrapper delegating to
    `taxonPortFactory.findIfAvailable().flatMap(p -> p.resolveCategoryAndCityFilter(EntityType.ADVERTISEMENT, filter.getCategoryIds(), filter.getCityTaxonId()))`.
 3. `ProviderProfileService`: identical change, `EntityType.PROVIDER_PROFILE`.
-4. Move/adapt whichever existing unit tests cover this logic today (`AdvertisementServiceTest`/
-   `ProviderProfileServiceTest`) into one shared test for `TaxonPort`'s new default method (a fake/
-   stub `TaxonPort` implementation exercising only `findEntityIdsWithAnyTaxon`), plus a thin
-   per-service test confirming the delegation call itself.
-5. No new `DECISIONS.md` entry needed on top of this task's own record — this is a pure extraction
-   with no behavior change, self-evident from the code + this task's own record here.
+4. `AdvertisementServiceCategoryFilterTest`/`ProviderProfileServiceTest` rewritten to stub
+   `TaxonPort#resolveCategoryAndCityFilter` directly instead of `findEntityIdsWithAnyTaxon` — they
+   now cover only each service's own delegation, not the AND-combine logic itself. New
+   `TaxonPortResolveCategoryAndCityFilterTest` (`integration-tests/.../level1/taxon/`) covers the
+   default method's own AND-combine logic directly, no Spring context — a `Mockito.mock(TaxonPort.class,
+   CALLS_REAL_METHODS)` executes the real default-method body while only
+   `findEntityIdsWithAnyTaxon` needs stubbing (6 test cases, `Tests run: 6, Failures: 0, Errors: 0`).
+5. `platform-commons/DECISIONS.md` ADR-032 recorded: `TaxonPort.resolveCategoryAndCityFilter` as a
+   default method — a narrow, bounded exception to platform-commons' "no business logic" rule.
+   `.claude/rules/platform-commons.md` updated with a second, separate narrow-exception paragraph
+   documenting the general shape this ADR licenses (a `*Port` default method composing only that
+   same interface's own other abstract methods — no external calls, no state, no side effects).
+   `.claude/nav/adr-index.md` regenerated.
+6. High-effort `/code-review` run against the full Phase 9 diff (8 finder angles → dedup → 5
+   independent verifies): 1 CONFIRMED finding (the original `TaxonPortResolveCategoryAndCityFilterTest`
+   used a 14-method-`UnsupportedOperationException`-stub anonymous `TaxonPort` — fixed via
+   `CALLS_REAL_METHODS` per above), 2 REFUTED and dropped (a missing `@NonNull` — null is
+   semantically valid for `cityTaxonId`/`categoryIds`; inlining the `resolveTaxonFilter` wrapper —
+   contradicts this project's own "2+ reuse sites → extract" convention, since both
+   `getFiltered`/`count` call it).
 
-**Verification, once implemented:** existing `AdvertisementServiceTest`/`ProviderProfileServiceTest`
-filter-related tests should pass unchanged (same observable behavior); full `marketplace-app`/
-`advertisement-spring-boot-starter`/`provider-profile-spring-boot-starter` unit suite plus
-`ArchitectureRulesTest` (confirms the `default` method doesn't introduce any new module-boundary
-violation).
+**Verification:** `scripts/build-and-test.sh --no-unit --integration --integration-test
+TaxonPortResolveCategoryAndCityFilterTest` — `BUILD SUCCESS`, 6/6 passing.
 
 ## Expected benefit
 

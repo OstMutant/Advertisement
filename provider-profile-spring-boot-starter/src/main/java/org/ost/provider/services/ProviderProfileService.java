@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -38,7 +37,7 @@ public class ProviderProfileService {
     // ── Query & filter ───────────────────────────────────────────────────────
 
     public List<ProviderProfileDto> getFiltered(@Valid @NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort) {
-        Optional<Set<Long>> taxonFilter = resolveCategoryAndCityFilter(filter);
+        Optional<Set<Long>> taxonFilter = resolveTaxonFilter(filter);
         if (taxonFilter.filter(Set::isEmpty).isPresent()) {
             return List.of();
         }
@@ -46,39 +45,16 @@ public class ProviderProfileService {
     }
 
     public int count(@Valid @NonNull ProviderProfileFilterDto filter) {
-        Optional<Set<Long>> taxonFilter = resolveCategoryAndCityFilter(filter);
+        Optional<Set<Long>> taxonFilter = resolveTaxonFilter(filter);
         if (taxonFilter.filter(Set::isEmpty).isPresent()) {
             return 0;
         }
         return repository.countByFilter(filter, taxonFilter.orElse(null)).intValue();
     }
 
-    // AND-combines independently-resolved category/city constraints; empty() means no filter was requested.
-    private Optional<Set<Long>> resolveCategoryAndCityFilter(ProviderProfileFilterDto filter) {
-        Optional<Set<Long>> categoryConstraint = resolveCategoryFilter(filter);
-        Optional<Set<Long>> cityConstraint = resolveCityFilter(filter);
-        if (categoryConstraint.isEmpty()) return cityConstraint;
-        if (cityConstraint.isEmpty()) return categoryConstraint;
-        Set<Long> intersected = new HashSet<>(categoryConstraint.get());
-        intersected.retainAll(cityConstraint.get());
-        return Optional.of(intersected);
-    }
-
-    private Optional<Set<Long>> resolveCategoryFilter(ProviderProfileFilterDto filter) {
-        return resolveTaxonIdFilter(filter.getCategoryIds());
-    }
-
-    private Optional<Set<Long>> resolveCityFilter(ProviderProfileFilterDto filter) {
-        Long cityId = filter.getCityTaxonId();
-        return resolveTaxonIdFilter(cityId == null ? null : Set.of(cityId));
-    }
-
-    private Optional<Set<Long>> resolveTaxonIdFilter(Set<Long> taxonIds) {
-        if (taxonIds == null) {
-            return Optional.empty();
-        }
+    private Optional<Set<Long>> resolveTaxonFilter(ProviderProfileFilterDto filter) {
         return taxonPortFactory.findIfAvailable()
-                .map(p -> p.findEntityIdsWithAnyTaxon(EntityType.PROVIDER_PROFILE, taxonIds));
+                .flatMap(p -> p.resolveCategoryAndCityFilter(EntityType.PROVIDER_PROFILE, filter.getCategoryIds(), filter.getCityTaxonId()));
     }
 
     // ── CRUD ─────────────────────────────────────────────────────────────────

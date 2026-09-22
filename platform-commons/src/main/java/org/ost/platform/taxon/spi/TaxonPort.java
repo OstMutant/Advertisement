@@ -6,6 +6,7 @@ import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -54,6 +55,28 @@ public interface TaxonPort {
      */
     Set<Long> findEntityIdsWithAnyTaxon(@NonNull EntityType entityType,
                                         @NonNull Set<Long> taxonIds);
+
+    /**
+     * AND-combines an independently-resolved category-id filter and a single city-id filter into
+     * one entity-id constraint. Empty result means "no filter was requested" (never restricts);
+     * a present-but-empty set means the combined filter matches nothing.
+     */
+    default Optional<Set<Long>> resolveCategoryAndCityFilter(@NonNull EntityType entityType,
+                                                              Set<Long> categoryIds, Long cityTaxonId) {
+        Optional<Set<Long>> categoryConstraint = resolveTaxonIdFilter(entityType, categoryIds);
+        Optional<Set<Long>> cityConstraint = resolveTaxonIdFilter(entityType,
+                cityTaxonId == null ? null : Set.of(cityTaxonId));
+        if (categoryConstraint.isEmpty()) return cityConstraint;
+        if (cityConstraint.isEmpty()) return categoryConstraint;
+        Set<Long> intersected = new HashSet<>(categoryConstraint.get());
+        intersected.retainAll(cityConstraint.get());
+        return Optional.of(intersected);
+    }
+
+    private Optional<Set<Long>> resolveTaxonIdFilter(EntityType entityType, Set<Long> taxonIds) {
+        if (taxonIds == null) return Optional.empty();
+        return Optional.of(findEntityIdsWithAnyTaxon(entityType, taxonIds));
+    }
 
     // ── Management operations ───────────────────────────────────────────────
 

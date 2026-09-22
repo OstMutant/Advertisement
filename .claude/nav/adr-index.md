@@ -161,6 +161,9 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
 | ADR-004 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `*Hook` implementations that only need domain-port access move here; `pom.xml` gains all 6 starter dependencies directly, superseding ADR-001's "never depends on a starter jar" |
 | ADR-005 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern |
+| ADR-032 (platform-commons) | platform-commons | Accepted |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
+| ADR-032 (platform-commons) | advertisement-spring-boot-starter | Accepted |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
+| ADR-032 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
 | ADR-031 (platform-commons) | platform-commons | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
 | ADR-031 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
 | ADR-031 (platform-commons) | marketplace-orchestrator | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
