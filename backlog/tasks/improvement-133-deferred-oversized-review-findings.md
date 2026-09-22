@@ -383,3 +383,15 @@ combo-box repaint, a debounced field, an overlay transition) — replacing them 
 waits (`toBeVisible()`, `waitForSelector`, locator auto-waiting, network-idle, etc.) requires
 inspecting what each site is actually waiting for individually, not a blind global
 find-and-replace. Needs sizing (one pass vs. incremental) once picked up.
+
+### 23. `taxonFilter.filter(Set::isEmpty).isPresent()` duplicated within each service's own `getFiltered`/`count` (found via an external review prompt re-checking `improvement-195` Phase 9, 2026-09-22)
+
+`AdvertisementService` and `ProviderProfileService` each repeat the same one-line guard —
+`if (taxonFilter.filter(Set::isEmpty).isPresent()) { return List.of(); }` /
+`return 0;` — once in `getFiltered` and once in `count` (confirmed directly against current
+source: 4 copies total, 2 per service). Distinct from the cross-module `resolveCategoryAndCityFilter`
+duplication Phase 9 already extracted (that one spanned two starters; this one is same-class,
+2-line, single-method-body scale) — deferred rather than fixed inline because it's small enough
+that abstracting it (a shared helper, a wrapper type) could plausibly add more indirection than it
+removes; needs a real judgment call on whether extraction is worth it before touching either
+service, not a reflexive DRY pass.
