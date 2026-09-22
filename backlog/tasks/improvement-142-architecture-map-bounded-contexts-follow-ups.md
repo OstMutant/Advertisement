@@ -447,3 +447,5 @@ deleting commit lands.
   ADR-016 (why the Cytoscape+dagre rendering attempt was dropped), ADR-018 (restored via Mermaid's
   native engine), ADR-019 (domain/relationship data mechanized live) — full decision history behind
   this file's hand-maintained-to-live migration.
+- `docs/architecture/scripts/DECISIONS.md` ADR-020 — `05`-`08` retirement this issue's own
+  captured content traces back to.

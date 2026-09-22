@@ -495,6 +495,25 @@ Root `CLAUDE.md`/`.claude/rules.md` already states current-state docs must never
   editing already-Accepted ADR text, not new content, so accuracy after the rewrite matters more
   than speed.
 
+**Done 2026-09-22.** All 23 occurrences across the 6 files rewritten file by file, each before/after
+presented for approval first (one occurrence turned out missed on the first pass —
+`docs/architecture/scripts/DECISIONS.md`'s `--extract` mode entry under "Open goals" — caught and
+fixed on the final repo-wide sweep). Final `grep -rl "improvement-[0-9]" --include="DECISIONS.md"`
+across the whole repo returns nothing.
+
+**Follow-up requested mid-task, not in the original plan:** since removing a `DECISIONS.md` →
+backlog-ticket citation deletes the *inbound* pointer, the *outbound* direction (the backlog task
+citing the ADR it produced) was checked for all 23 removed citations and added wherever missing —
+backlog task files are historical and explicitly exempt from the ticket-citation ban, so this
+direction is the correct place for that traceability to live going forward. 15 of the underlying
+backlog files needed a new reference added (`improvement-181`→ADR-034, `improvement-142`→ADR-020,
+`improvement-147`→ADR-025, `improvement-136`→ADR-001/ADR-003, `improvement-124`→ADR-003/ADR-075,
+`improvement-169`/`171`/`111`/`172`→`.claude/DECISIONS.md` ADR-002, `improvement-183`→
+`integration-tests/DECISIONS.md` ADR-009, `improvement-152`→`scripts/ci/DECISIONS.md` ADR-008,
+`improvement-188`→ADR-084, `improvement-179`→ADR-075/ADR-076); 4 already had the correct reference
+in place (`improvement-170`→ADR-033, `improvement-144`→ADR-024, `improvement-193`→ADR-082,
+`improvement-037`→ADR-038 already covered the one real cross-reference that citation carried).
+
 **Not required, optional/lower-value:** standardizing every ADR to use a literal "Rejected
 alternatives" heading — verified only ~13% of ADRs use that exact heading, though many more discuss
 alternatives inline within "Context" (which is arguably fine, not obviously a defect). If picked up

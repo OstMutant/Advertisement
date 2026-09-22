@@ -1347,6 +1347,8 @@ bean is declared or consumed. Flagged here explicitly as a scope decision, not s
 - `improvement-073`, `improvement-111` — evidence checked that no real REST rollout is currently
   scheduled in this backlog; this task proceeds on flexibility/readability grounds, not an active
   REST requirement.
+- `marketplace-orchestrator/DECISIONS.md` ADR-001 (this extraction's own discovery/target-architecture
+  decision), ADR-003 (the BFF-purity contradiction this issue's guiding spec left uncaught).
 
 ## Operational notes
 - token_cost_review: 1232292 (8 parallel finder agents + 3 verifier agents, `/code-review --fix`)

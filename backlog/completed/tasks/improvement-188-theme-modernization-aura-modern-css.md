@@ -536,7 +536,8 @@ element proves nothing about its real rendering. Screenshot-based ground truth (
 high-contrast diagnostic color swap, not just checking the real subtle value) is the only reliable
 method for this class of `!important`. `highlight.css`'s rules target plain `<div>`/field-wrapper
 classes, not Vaadin custom elements directly, so this specific pitfall is less likely there, but
-should still be verified the same way rather than assumed.
+should still be verified the same way rather than assumed. Recorded as `marketplace-app/DECISIONS.md`
+ADR-084.
 
 **Correction (2026-09-17): real remaining count is 17, not 12 — an inaccuracy caught after
 committing (`460cfb85`), not amended, corrected here instead.** `highlight.css` has 12, but 5 more

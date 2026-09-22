@@ -6,7 +6,7 @@
 
 **Status:** Accepted
 
-**Context:** `improvement-188` Task D's `!important` reduction pass (42 of 43 pre-existing
+**Context:** A `!important` reduction pass (42 of 43 pre-existing
 declarations removed, 1 confirmed necessary and kept) needed to verify, per declaration, whether
 removing it changed real rendering. For plain elements (`html`/`body`, generic `<div>`s)
 `getComputedStyle` was fully reliable. For CSS applied directly to Vaadin custom elements (Shadow
@@ -53,9 +53,9 @@ CSS-transition timing artifact, not a real discrepancy, confirmed by reading the
 
 **Status:** Accepted
 
-**Context:** `improvement-188` Task C's goal was deriving `--app-accent-primary`'s 9 dependent
+**Context:** The goal was deriving `--app-accent-primary`'s 9 dependent
 tokens (plus its `-rgb` channel helper) from the one seed value, instead of 10 independently
-hand-picked hex values — the same class of drift risk ADR-038/`improvement-037` already hit once
+hand-picked hex values — the same class of drift risk ADR-038 already hit once
 for `--app-text-muted`. `color-mix(in srgb|oklab, var(--app-accent-primary) P%, black|white)` was
 tried first and checked against real math (both plain sRGB and perceptual OKLab space): it fits 7
 of the 9 tokens closely (error 0-12 out of 255 per channel), but cannot reproduce `-strong`
@@ -101,7 +101,7 @@ lightness change, and mixing toward an achromatic color (black/white) cannot exp
 **Context:** ADR-058 bounded `UiComponentFactory<T extends Configurable<T, ?>>` but explicitly left
 one cast unavoidable: `build(P params)` still cast `get()` to `Configurable<T, P>`, since
 `Configurable<T, ?>`'s own second type parameter is existential and can't be linked to the
-caller-supplied `P`. An external SOLID/DRY review (`improvement-193` item 6) flagged this remaining
+caller-supplied `P`. An external SOLID/DRY review flagged this remaining
 cast; verified it was real and genuinely not already closed by ADR-058, which only addressed the
 `T` bound.
 
@@ -3127,8 +3127,8 @@ batch is that same pattern applied to Provider Profile, not a new design.
 (anonymous browsing/filtering by kind/category/city, deep-link navigation + sitemap.xml + crawler
 meta tags, delete-from-catalog, `SUPPORT`-kind disabled-not-removed for a non-privileged actor
 already holding that kind) alongside its existing `AccountOverlay` tab coverage — no new spec file,
-per this repo's "extend before adding a new one" Playwright convention. `improvement-124`'s last
-open batch (public Providers catalog) is now closed. The `SitemapController`/browser-History
+per this repo's "extend before adding a new one" Playwright convention. This closes the last open
+batch of provider-profile work (public Providers catalog). The `SitemapController`/browser-History
 mechanics this ADR describes were both revised shortly after by ADR-076 — see that entry for the
 current shape.
 
@@ -3138,7 +3138,7 @@ current shape.
 
 **Status:** Accepted
 
-**Context:** Verifying `improvement-179`'s Providers catalog against real running code (not just
+**Context:** Verifying the Providers catalog against real running code (not just
 the plan) surfaced two real bugs, both directly caused by the pattern ADR-059/ADR-075 established
 for Advertisement being copied as-is for a second domain:
 1. ADR-059's own "Known limitation, deliberately not addressed" already predicted this: Vaadin's

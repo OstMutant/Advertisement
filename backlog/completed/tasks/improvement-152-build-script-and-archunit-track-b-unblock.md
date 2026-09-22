@@ -802,3 +802,5 @@ Method). Design only, no code written — tracked entirely in `improvement-157` 
   design; `build.sh` slots in as its new first step.
 - `scripts/CLAUDE.md` "Plain Unit Tests" / "Unit / Testcontainers Tests" sections — the two
   scripts' documented behavior Part A would update once implemented.
+- `scripts/ci/DECISIONS.md` ADR-008 — `entrypoint.sh`'s own `unit`/`integration` stage merge that
+  reuses this same `build-and-test.sh` reactor-install-once mechanism.

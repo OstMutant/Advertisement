@@ -213,3 +213,5 @@ the test's expected value to match the real, correct sanitizer output.
   `backlog/completed/tasks/improvement-073-rest-endpoint-infrastructure-test-seeding.md` (closed).
 - `.claude/nav/adr-index.md` — `docs/architecture/scripts` and `scripts/sonar` already solve this
   same class of problem for their own module lists.
+- `docs/architecture/scripts/DECISIONS.md` ADR-034 — the Database ERD's `remarks=`-marker
+  convention this same "no further hardcoded list" pattern was later applied to.

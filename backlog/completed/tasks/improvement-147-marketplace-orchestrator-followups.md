@@ -214,6 +214,8 @@ Attachment/Audit/User)?
 - `improvement-124` (F-04, Batch 124-C) — where the real second caller (`ProviderProfileSaveService`)
   is now planned; its own issue file section is the source of truth for that work, not this one.
 - `marketplace-orchestrator/DECISIONS.md` ADR-001, ADR-003.
+- `docs/architecture/scripts/DECISIONS.md` ADR-025 — the pre-existing, unconditional `UI ->
+  <starter>` edges this true-BFF migration's own completion will let get fixed with real evidence.
 - `scripts/architecture/generate-architecture-model.sh` lines 124-140 (domain discovery), 1031-1033
   (`UI calls` edge) — Bounded Contexts diagram gap.
 
