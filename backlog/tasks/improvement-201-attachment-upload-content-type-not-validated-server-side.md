@@ -1,13 +1,18 @@
-# improvement-201: Attachment upload content-type validation + City/Taxon vertical duplication
+# improvement-201: Attachment upload content-type validation + City/Taxon vertical duplication + two deferred findings
 
-**Type:** bug (Part 1) + improvement — DRY (Part 2), bundled per explicit user direction
+**Type:** bug (Part 1) + improvement — DRY (Part 2) + two unverified precedent/design findings
+(Parts 3-4), bundled per explicit user direction.
 **Module:** Part 1 — attachment-spring-boot-starter (AttachmentService, S3StorageService),
 marketplace-app (AttachmentGallery/AttachmentUploadButton — caller, not part of the fix itself).
-Part 2 — marketplace-app (ui/views/main/tabs/referencedata/, overlay/, overlay/modes/)
-**Priority:** 🔴 Top — placed above every other backlog item; Part 1 is a real, confirmed security
-gap, not tech debt. Filed 2026-09-22.
-**When:** independent, no blockers — highest priority in the entire backlog. The two parts are
-unrelated in scope and can land as separate PRs/passes within this one task file.
+Part 2 — marketplace-app (ui/views/main/tabs/referencedata/, overlay/, overlay/modes/). Part 3 —
+user-spring-boot-starter/marketplace-orchestrator (UserService.cleanup()). Part 4 —
+marketplace-orchestrator (ProviderProfileSaveService).
+**Priority:** 🔴 Top for Parts 1-2 — placed above every other backlog item; Part 1 is a real,
+confirmed security gap, not tech debt. Parts 3-4 unprioritized pending verification. Filed
+2026-09-22.
+**When:** independent, no blockers for Parts 1-2 — highest priority in the entire backlog. Parts
+3-4 not yet scoped/verified. All four parts are unrelated in scope and can land as separate
+PRs/passes within this one task file.
 
 ## Part 1: Attachment upload content-type is never validated server-side — stored-XSS-via-upload vector
 
@@ -217,7 +222,13 @@ Bundled with step 1: renamed the concrete Category-specific classes (`TaxonOverl
 per user direction, since these were misleadingly named "Taxon" from before City existed. Confirmed
 this does not reopen ADR-065's rejected parameterized-view alternative (annotated there).
 
-Steps 2-4 (Overlay pair, ViewOverlayModeHandler pair, FormOverlayModeHandler pair) not yet started.
+**Step 2 done.** `AbstractTaxonOverlay<H>` extracted per ADR-085 (updated). `CityOverlay`/
+`CategoryOverlay` now ~60 lines each (was ~155). Verified: full reactor compiles, full Playwright
+`e2e --ux` (50/50) passed. `/review` found no SOLID violations, no missed sharing opportunity.
+
+One pre-existing, unrelated finding surfaced by step 2's review — see Part 5 below.
+
+Steps 3-4 (ViewOverlayModeHandler pair, FormOverlayModeHandler pair) not yet started.
 
 ### Part 2 — Related
 
@@ -226,3 +237,69 @@ Steps 2-4 (Overlay pair, ViewOverlayModeHandler pair, FormOverlayModeHandler pai
 - `improvement-147` — the one existing, narrower finding about these two classes (Add button
   visibility), unrelated to this wholesale duplication.
 - `LocaleTranslationForm<T>` — existing precedent this task extends.
+
+---
+
+## Part 3: `UserService.cleanup()` — candidate to move to marketplace-orchestrator
+
+### Current state
+
+**Not yet independently verified against current source** — reported via an external
+code-review-style pass over `marketplace-app`, 2026-09-22: `UserService.cleanup()` was flagged as
+a precedent-shaped candidate for relocation to `marketplace-orchestrator`, on the same reasoning
+already applied to other cross-domain use-case logic in this codebase (see
+`.claude/rules/marketplace-orchestrator.md`'s ownership boundary). Needs a direct read of the
+method and its actual callers before sizing.
+
+### Approach
+
+1. Read `UserService.cleanup()`'s real implementation and every real caller.
+2. Confirm whether it composes more than one domain's own logic (the actual `marketplace-orchestrator`
+   ownership test) or is legitimately single-domain user-starter logic that only looks
+   orchestrator-shaped at a glance.
+3. Only then decide whether this is a real move or a false positive.
+
+---
+
+## Part 4: Generic exception crossing a module boundary in `ProviderProfileSaveService`
+
+### Current state
+
+**Not yet independently verified against current source** — reported via the same external review
+pass, 2026-09-22: a generic (non-domain-specific) exception type was flagged as crossing a module
+boundary out of `ProviderProfileSaveService` (`marketplace-orchestrator`), which this project's own
+conventions generally expect to be a typed/domain-specific exception at a public boundary. Needs a
+direct read of the actual throw site and its callers before sizing.
+
+### Approach
+
+1. Read the actual exception type and throw site in `ProviderProfileSaveService`.
+2. Confirm what currently catches/handles it on the other side of the module boundary, and whether
+   a generic type there is actually a real problem (loses information, forces broad catch blocks)
+   or an intentional simplification.
+3. Only then decide on a fix (a narrower typed exception, or leave as-is if the generic type is
+   deliberate and harmless).
+
+---
+
+## Part 5: `AbstractTaxonOverlay.proceed()` silently no-ops when the post-save refetch is empty
+
+### Current state
+
+Found via `/review` during Part 2 step 2, confirmed pre-existing via `git show` against pre-refactor
+`CityOverlay`/`CategoryOverlay` (not introduced by step 2 — moved over verbatim): `proceed()`
+(`AbstractTaxonOverlay.java`) does `if (fresh == null) return;` after `getTaxonCatalogService()
+.findById(savedId, ...)`. `AbstractEntityOverlay.handleSave()` only calls `proceed()` after a
+successful save and its own success notification already fired. If the refetch then returns empty,
+`proceed()` returns early without calling `onListChanged()`/`closeToList()` — the user sees
+"success" but the overlay stays open on a stale, already-disabled form with no way back to the list
+and no error shown. Diverges from the sibling `AdvertisementOverlay.proceed()`, which always
+closes/notifies regardless of a null refetch result in its non-EDIT branch.
+
+### Approach
+
+1. Confirm how likely/reachable this actually is (replication lag, id mismatch) before sizing.
+2. Decide the right fallback: notify + close, matching `AdvertisementOverlay`'s pattern, or a
+   dedicated error state.
+3. Apply to `AbstractTaxonOverlay` only — both City/Category get the fix in one place, the point of
+   Part 2's extraction.

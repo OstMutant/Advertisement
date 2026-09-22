@@ -2,7 +2,7 @@
 
 ---
 
-## ADR-085: `AbstractTaxonManagementView` — shared City/Category admin-screen logic behind two still-separate bean classes; `TaxonOverlay`/`TaxonManagementView`/`TaxonViewOverlayModeHandler`/`TaxonFormOverlayModeHandler`/`TaxonEditDto` renamed to `Category*`
+## ADR-085: `AbstractTaxonManagementView`/`AbstractTaxonOverlay` — shared City/Category admin-screen logic behind still-separate bean classes; `TaxonOverlay`/`TaxonManagementView`/`TaxonViewOverlayModeHandler`/`TaxonFormOverlayModeHandler`/`TaxonEditDto` renamed to `Category*`
 
 **Status:** Accepted
 
@@ -11,7 +11,8 @@
 `CityFormOverlayModeHandler`/`TaxonFormOverlayModeHandler` were four near-identical class pairs
 (~500+ duplicated lines total), differing only in `TaxonType.CATEGORY` vs `TaxonType.CITY`,
 i18n keys, and CSS class prefixes — the largest single duplication in the codebase (see
-`improvement-201` Part 2). This entry covers step 1: the management-view pair.
+`improvement-201` Part 2). This entry covers steps 1-2: the management-view pair and the overlay
+pair.
 
 **Decision:**
 1. New `AbstractTaxonManagementView` (`ui/views/main/tabs/referencedata/`) holds
@@ -56,15 +57,31 @@ i18n keys, and CSS class prefixes — the largest single duplication in the code
    `taxon` field) were deliberately left as-is — they correctly reference the underlying `TaxonDto`
    domain type, the same reasoning City's own class already applies to its `city`-named fields for
    the same `TaxonDto` type.
+5. **Step 2:** new `AbstractTaxonOverlay<H extends AbstractFormOverlayModeHandler<?>> extends
+   AbstractEntityOverlay<H>` (`ui/views/main/tabs/referencedata/overlay/`) absorbs
+   `CityOverlay`/`CategoryOverlay`'s entire open/switch/save-proceed lifecycle: the `Mode` enum and
+   `OverlaySession` record (its entity field renamed `city`/`taxon` → generic `entity`),
+   `openForView`/`openForCreate`/`openForEdit`/`openSession`, `isEditMode()`/`enteredFromView()`/
+   `afterDiscard()`/`switchToEdit()`, and the `proceed()`/`switchTo()` bodies — moved over verbatim
+   apart from routing through new abstract methods for what genuinely differs:
+   `getTaxonCatalogService()`, `getSavedEntityId()` (delegates to each form handler's own
+   differently-named accessor), `buildViewHandler(TaxonDto, Runnable, Runnable)`,
+   `buildFormHandler(TaxonDto, Mode, List<BreadcrumbStep>)`, `getTitleEdit()`, `getTitleNew()`.
+   `TaxonManagementOverlay` is now `implements`ed once on `AbstractTaxonOverlay` itself instead of
+   separately on each leaf. `CityOverlay`/`CategoryOverlay` shrink to ~60 lines each (was ~155).
 
 **Consequences:**
-- `CityManagementView`/`CategoryManagementView` each now ~35 lines (was ~184).
+- `CityManagementView`/`CategoryManagementView` each now ~35 lines (was ~184);
+  `CityOverlay`/`CategoryOverlay` each now ~60 lines (was ~155).
 - Verified end-to-end: full reactor compiles; full Playwright `e2e --ux` suite (50/50, spec 06
-  skipped by design) passed twice — once after the abstraction, once after the rename — including
+  skipped by design) passed three times — once per step, plus once after the rename — including
   the City/Category create/edit/delete/restore/discard scenarios in spec 03.
-- `/review` (`deep-review-orchestrator`) found no SOLID violations and confirmed no missed or
-  incorrect renames; one KISS finding (the intersection-type generic `getOverlay()` signature)
-  reviewed and kept as-is, consistent with ADR-082's own cast-avoidance precedent.
+- `/review` (`deep-review-orchestrator`) found no SOLID violations across both steps and confirmed
+  no missed or incorrect renames; one KISS finding (the intersection-type generic `getOverlay()`
+  signature) reviewed and kept as-is, consistent with ADR-082's own cast-avoidance precedent. Step
+  2's review surfaced one pre-existing, unrelated finding (`proceed()`'s silent no-op when the
+  post-save refetch returns empty) — confirmed pre-existing via `git show` before this refactor,
+  not introduced by it; tracked separately in `improvement-201`, not fixed here.
 
 ## ADR-084: Verifying CSS on Vaadin Shadow DOM components — `getComputedStyle` is unreliable for paint properties, real diagnostic color swaps are required
 
