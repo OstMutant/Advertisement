@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Description: root reactor pom, aggregates every module, defines shared dependencyManagement and build plugin versions. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
@@ -45,6 +46,7 @@
         <jsoup.version>1.23.2</jsoup.version>
         <springdoc-openapi.version>2.8.5</springdoc-openapi.version>
         <jacoco.version>0.8.15</jacoco.version>
+        <tika-core.version>4.0.0</tika-core.version>
     </properties>
 
     <dependencyManagement>
@@ -80,6 +82,11 @@
                 <groupId>commons-io</groupId>
                 <artifactId>commons-io</artifactId>
                 <version>2.22.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tika</groupId>
+                <artifactId>tika-core</artifactId>
+                <version>${tika-core.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.ost</groupId>

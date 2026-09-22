@@ -13,6 +13,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 
 | ADR | Module | Status | Verified | Title |
 |---|---|---|---|---|
+| ADR-015 (attachment-spring-boot-starter) | attachment-spring-boot-starter | Accepted |  | Server-side attachment content-type validation via Apache Tika |
 | ADR-001 (attachment-spring-boot-starter) | attachment-spring-boot-starter | Accepted |  | Attachment domain logic extracted from marketplace-app |
 | ADR-002 (attachment-spring-boot-starter) | attachment-spring-boot-starter | Accepted |  | S3 storage merged into this module; storage-s3-starter deleted |
 | ADR-003 (attachment-spring-boot-starter) | attachment-spring-boot-starter | Accepted |  | Decoupled from advertisement domain — generic over EntityType |
@@ -161,6 +162,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
 | ADR-004 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `*Hook` implementations that only need domain-port access move here; `pom.xml` gains all 6 starter dependencies directly, superseding ADR-001's "never depends on a starter jar" |
 | ADR-005 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern |
+| ADR-033 (platform-commons) | platform-commons | Accepted |  | `AttachmentAllowedContentTypes` — single shared whitelist for attachment content types |
 | ADR-032 (platform-commons) | platform-commons | Accepted |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
 | ADR-032 (platform-commons) | advertisement-spring-boot-starter | Accepted |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
 | ADR-032 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |

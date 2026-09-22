@@ -15,7 +15,7 @@ any of them. No business logic lives here — only the shapes other modules agre
   `AuditActivityEnrichHook`).
 - **`attachment.*`** — `attachment.spi` (`AttachmentPort`, `AttachmentAuditPort`), `attachment.dto`
   (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model`
-  (`AttachmentMediaContentType`).
+  (`AttachmentMediaContentType`, `AttachmentAllowedContentTypes`).
 - **`user.*`** — `user.spi` (`UserPort`/`UserAccountPort`/`UserAuthorizationPort`/
   `UserPreferencesPort` — one logical domain split across four narrow interfaces, plus
   `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`,

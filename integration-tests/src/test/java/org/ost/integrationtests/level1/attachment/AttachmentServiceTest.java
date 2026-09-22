@@ -15,6 +15,8 @@ import org.ost.platform.attachment.dto.TempAttachmentDto;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
 
+import java.io.ByteArrayInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -55,10 +57,31 @@ class AttachmentServiceTest {
     private AttachmentSnapshotService attachmentSnapshotService;
     @Mock
     private CurrentActorHook currentActorHook;
-    @Mock
-    private InputStream inputStream;
 
     private AttachmentService service;
+
+    // Real magic bytes -- AttachmentContentTypeValidator now sniffs actual content via Tika.
+    private static final byte[] JPEG_BYTES = {
+            (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00
+    };
+    private static final byte[] MP4_BYTES = {
+            0x00, 0x00, 0x00, 0x20, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm', 0x00, 0x00, 0x02, 0x00,
+            'i', 's', 'o', 'm', 'i', 's', 'o', '2', 'a', 'v', 'c', '1', 'm', 'p', '4', '1'
+    };
+
+    private static final class TrackingInputStream extends FilterInputStream {
+        private boolean closed = false;
+
+        private TrackingInputStream(byte[] bytes) {
+            super(new ByteArrayInputStream(bytes));
+        }
+
+        @Override
+        public void close() throws IOException {
+            closed = true;
+            super.close();
+        }
+    }
 
     @BeforeEach
     void setUp() {
@@ -122,42 +145,45 @@ class AttachmentServiceTest {
 
     @Test
     void upload_closesInputStreamAfterS3UploadSucceeds() throws IOException {
-        when(storageService.upload(anyString(), eq("photo.jpg"), eq(inputStream), eq(100L), eq("image/jpeg")))
+        TrackingInputStream stream = new TrackingInputStream(JPEG_BYTES);
+        when(storageService.upload(anyString(), eq("photo.jpg"), any(InputStream.class), eq((long) JPEG_BYTES.length), eq("image/jpeg")))
                 .thenReturn("final/photo.jpg");
         when(attachmentRepository.save(any())).thenReturn(Attachment.builder()
                 .id(1L).entityType(EntityType.ADVERTISEMENT).entityId(1L)
-                .url("final/photo.jpg").filename("photo.jpg").contentType("image/jpeg").size(100L)
+                .url("final/photo.jpg").filename("photo.jpg").contentType("image/jpeg").size((long) JPEG_BYTES.length)
                 .build());
         when(currentActorHook.getCurrentActorId()).thenReturn(Optional.of(1L));
 
-        service.upload(EntityType.ADVERTISEMENT, 1L, "photo.jpg", inputStream, 100L, "image/jpeg");
+        service.upload(EntityType.ADVERTISEMENT, 1L, "photo.jpg", stream, JPEG_BYTES.length, "image/jpeg");
 
-        verify(inputStream).close();
+        assertThat(stream.closed).isTrue();
     }
 
     @Test
     void upload_noCurrentActor_throwsInsteadOfSilentlySkippingSnapshot() {
-        when(storageService.upload(anyString(), eq("photo.jpg"), eq(inputStream), eq(100L), eq("image/jpeg")))
+        TrackingInputStream stream = new TrackingInputStream(JPEG_BYTES);
+        when(storageService.upload(anyString(), eq("photo.jpg"), any(InputStream.class), eq((long) JPEG_BYTES.length), eq("image/jpeg")))
                 .thenReturn("final/photo.jpg");
         when(attachmentRepository.save(any())).thenReturn(Attachment.builder()
                 .id(1L).entityType(EntityType.ADVERTISEMENT).entityId(1L)
-                .url("final/photo.jpg").filename("photo.jpg").contentType("image/jpeg").size(100L)
+                .url("final/photo.jpg").filename("photo.jpg").contentType("image/jpeg").size((long) JPEG_BYTES.length)
                 .build());
         when(currentActorHook.getCurrentActorId()).thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
-                service.upload(EntityType.ADVERTISEMENT, 1L, "photo.jpg", inputStream, 100L, "image/jpeg"))
+                service.upload(EntityType.ADVERTISEMENT, 1L, "photo.jpg", stream, JPEG_BYTES.length, "image/jpeg"))
                 .isInstanceOf(NoSuchElementException.class);
     }
 
     @Test
     void uploadTemp_closesInputStreamAfterS3UploadSucceeds() throws IOException {
-        when(storageService.upload(anyString(), eq("clip.mp4"), eq(inputStream), eq(200L), eq("video/mp4")))
+        TrackingInputStream stream = new TrackingInputStream(MP4_BYTES);
+        when(storageService.upload(anyString(), eq("clip.mp4"), any(InputStream.class), eq((long) MP4_BYTES.length), eq("video/mp4")))
                 .thenReturn("temp/session-1/clip.mp4");
 
-        service.uploadTemp("session-1", "clip.mp4", inputStream, 200L, "video/mp4");
+        service.uploadTemp("session-1", "clip.mp4", stream, MP4_BYTES.length, "video/mp4");
 
-        verify(inputStream).close();
+        assertThat(stream.closed).isTrue();
     }
 
     @Test

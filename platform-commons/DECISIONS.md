@@ -2,6 +2,23 @@
 
 ---
 
+## ADR-033: `AttachmentAllowedContentTypes` — single shared whitelist for attachment content types
+**Status:** Accepted
+
+**Context:** Closing the attachment-upload content-type security gap (see
+`attachment-spring-boot-starter/DECISIONS.md` ADR-015) needed the identical six-type whitelist
+(`image/jpeg`, `image/png`, `image/webp`, `image/gif`, `video/mp4`, `video/webm`) enforced on both
+the client-side upload picker (`AttachmentUploadButton`, marketplace-app) and the new server-side
+validator (`AttachmentContentTypeValidator`, attachment-spring-boot-starter) — the two modules
+cannot import each other's internal classes (see Module Import Rules).
+
+**Decision:** `AttachmentAllowedContentTypes.VALUES` (`attachment.model`) is the single canonical
+list; both sides reference it instead of each carrying its own hardcoded literal set. Its two video
+entries reference `AttachmentMediaContentType.MP4`/`.WEBM` rather than repeating those literals a
+third time.
+
+**Also affects:** attachment-spring-boot-starter
+
 ## ADR-032: `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons"
 
 **Status:** Accepted

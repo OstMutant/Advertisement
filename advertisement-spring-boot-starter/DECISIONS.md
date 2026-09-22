@@ -8,3 +8,4 @@ home file instead, then regenerate via `bash docs/architecture/scripts/generate-
 - [ADR-024 (marketplace-app)](../marketplace-app/DECISIONS.md) — Jsoup-based, defense-in-depth description length validation
 - [ADR-034 (marketplace-app)](../marketplace-app/DECISIONS.md) — No raw cross-starter SQL joins — bulk-lookup port + service-level enrichment; actor-reference columns follow Taxon's naming convention
 - [ADR-064 (marketplace-app)](../marketplace-app/DECISIONS.md) — `advertisement` → `user_information` hard FK coupling removed — last one between starters
+- [ADR-032 (platform-commons)](../platform-commons/DECISIONS.md) — `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons"

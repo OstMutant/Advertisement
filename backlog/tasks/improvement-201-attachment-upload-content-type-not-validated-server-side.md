@@ -11,6 +11,10 @@ unrelated in scope and can land as separate PRs/passes within this one task file
 
 ## Part 1: Attachment upload content-type is never validated server-side — stored-XSS-via-upload vector
 
+**Status: done (2026-09-22, autopilot run).** Full `scripts/ci.sh` pass (build/unit/integration/
+e2e 63-63/sonar/archunit/lint/shellcheck/docs) all green. File stays open in `backlog/tasks/` —
+Part 2 (below) is unrelated scope, not yet started.
+
 ## Current state
 
 Verified end-to-end against current code (2026-09-22): `event.getContentType()`
@@ -41,21 +45,98 @@ content, not merely a client-declared header.
 
 ## Approach
 
-1. Server-side whitelist: validate `contentType` against the real allowed set (the same list
-   `AttachmentUploadButton` already declares client-side: image/jpeg, image/png, image/webp,
-   image/gif, video/mp4, video/webm) before any call reaches `S3StorageService.upload()` — reject
-   with a clear error otherwise. Decide the right layer: `AttachmentService.upload()` (starter) is
-   the natural enforcement point, since it's the last shared chokepoint before S3.
-2. Consider whether the client-declared header alone is sufficient or whether actual content
-   sniffing (magic-byte detection via Java's `MimetypesFileTypeMap`/Apache Tika/similar) is needed
-   to prevent a mislabeled-but-malicious file from passing a header-only check — evaluate cost vs.
-   the actual threat model before deciding scope.
-3. Cover with tests: reject a disallowed/mismatched content type at the enforcement layer,
-   confirm the existing allowed types still upload successfully.
-4. Run `/code-review` (high effort) on the fix diff before Playwright verification — same
+Researched 2026-09-22: OWASP File Upload Cheat Sheet and current Java-ecosystem practice both
+converge on the same two-layer control — a declared-header whitelist as a cheap first gate, plus
+real magic-byte content sniffing as the actual security boundary (a header-only check trusts the
+attacker to self-report, which is no control at all). Apache Tika (`tika-core`) is the established
+library for the sniffing layer — actively maintained, no heavyweight transitive parsers needed
+when only `tika-core` (not `tika-parsers`) is pulled in. Plan below implements both layers.
+
+1. **Dependency:** add `tika-core` (magic-byte MIME detection) — root `pom.xml` gets a
+   `<tika-core.version>4.0.0</tika-core.version>` property plus a `dependencyManagement` entry for
+   `org.apache.tika:tika-core`; `attachment-spring-boot-starter/pom.xml` adds the dependency
+   itself (no version — managed).
+2. **Single-source whitelist:** new `org.ost.platform.attachment.model.AttachmentAllowedContentTypes`
+   in `platform-commons` — `public static final Set<String> VALUES = Set.of("image/jpeg",
+   "image/png", "image/webp", "image/gif", "video/mp4", "video/webm")`. Referenced by both
+   `AttachmentUploadButton.setAcceptedMimeTypes(...)` (marketplace-app, client-side hint) and the
+   server-side validator below (attachment-spring-boot-starter, the real gate) — one canonical list
+   instead of the current hardcoded duplicate, reachable by both modules without violating the
+   Module Import Rules (both sides only ever depend on platform-commons, never on each other).
+3. **New validator:** `AttachmentContentTypeValidator` in
+   `attachment-spring-boot-starter/.../org.ost.attachment.util` (same static-util shape as the
+   existing `AttachmentVideoUtil` in that package) — `static InputStream validate(InputStream
+   inputStream, String declaredContentType)`:
+   - reject (`IllegalArgumentException` — this starter's/`html-sanitizer-lib`'s established
+     convention for input-validation failures at a boundary) if `declaredContentType` is not in
+     `AttachmentAllowedContentTypes.VALUES`;
+   - wrap the stream in `TikaInputStream`, run `new Tika().detect(...)` against the real bytes
+     (mark/reset, no full re-read), reject the same way if the *detected* type is not in the same
+     whitelist — this is what catches a file whose declared header is an allowed type but whose
+     actual bytes are not (e.g. an HTML payload declared as `image/jpeg`);
+   - return the stream repositioned at the start, unchanged for the caller past this point.
+4. **Enforcement call sites:** `AttachmentService.upload()` **and** `AttachmentService.uploadTemp()`
+   in attachment-spring-boot-starter — both are directly reachable from
+   `AttachmentGallery.buildUploadHandler()` (marketplace-app) with the attacker-controlled
+   `event.getContentType()`, so both need the same guard before their existing
+   `storageService.upload(...)` call.
+5. **Tests:** new `AttachmentContentTypeValidatorTest` (attachment-spring-boot-starter's first unit
+   test — `integration-tests` stays reserved for Testcontainers-based repository tests per
+   `.claude/rules/integration-tests.md`, this validator needs neither DB nor S3). Cases: each
+   allowed type's real bytes pass; a disallowed declared type (e.g. `text/html`) is rejected; an
+   allowed declared type paired with mismatched/malicious actual bytes is rejected.
+6. **Record the decision:** `/record-decision` for `platform-commons` (new shared
+   `AttachmentAllowedContentTypes` constant) and for `attachment-spring-boot-starter` itself (new
+   `tika-core` dependency + the content-type validation layer — this starter does have its own
+   hand-authored `DECISIONS.md`, corrected after initially assuming otherwise) — required by this
+   project's own Definition of Done for an architectural change.
+7. Run `/code-review` (high effort) on the fix diff before Playwright verification — same
    discipline already used earlier this session for Phase 9's `TaxonPort` change.
-5. Full Playwright verification of the attachment upload flow after the fix lands, since this
+8. Full Playwright verification of the attachment upload flow after the fix lands, since this
    touches upload behavior directly.
+
+### Part 1 — Implementation notes (2026-09-22)
+
+Steps 1-5 done, autopilot run. One autonomous fix during implementation, worth recording since it
+changes step 3's signature from the plan above: `AttachmentContentTypeValidator.validate` takes a
+**`filename` parameter too** (`validate(InputStream, String filename, String declaredContentType)`),
+threaded through from `AttachmentService.upload()`/`uploadTemp()`'s existing `filename` argument.
+Reason, confirmed empirically against real `tika-core:4.0.0` behavior (not guessed): Tika's own
+`tika-mimetypes.xml` has no magic-byte-only pattern that resolves to literally `video/webm` (WebM
+is glob-only, `*.webm`, sub-class of `application/x-matroska`; a byte-only WebM upload detects as
+`application/x-matroska`, outside the whitelist) or reliably to `video/mp4` for the common `isom`
+major-brand case (Tika's own `video/mp4` magic pattern only matches literal `ftypmp41`/`ftypmp42`
+at offset 4; an `isom`-branded file falls back to the broader `video/quicktime` magic match).
+Without the filename hint, the security fix would have silently rejected the large share of
+real-world MP4/WebM uploads that don't happen to carry those exact bytes — a functional regression
+masquerading as a passing security check. Confirmed the filename hint doesn't weaken the actual
+security property: an HTML payload named `a.mp4`/`a.webm`/`a.jpeg` still detects as `text/html`
+(content magic wins over a lying extension) — verified directly against the same real Tika build
+before adopting this, not assumed.
+
+Steps 6-8 done. `/review` (`deep-review-orchestrator`) found and 2 findings were fixed directly
+(auto-report bucket, both CONFIRMED): (1) `AttachmentContentTypeValidator.validate()` leaked the
+caller's `InputStream` on every rejection path — fixed by having the validator itself close the
+stream before throwing, instead of relying on the caller's post-success `closeQuietly()`. (2) the
+two required `/record-decision` entries were missing — added as `attachment-spring-boot-starter`
+ADR-015 and `platform-commons` ADR-033 (correcting an earlier planning mistake: this starter does
+have its own hand-authored `DECISIONS.md`, step 6 above wrongly assumed otherwise). A third,
+medium-confidence finding (DRY: `video/mp4`/`video/webm` string literals duplicated between the
+new `AttachmentAllowedContentTypes` and the existing `AttachmentMediaContentType` enum) was left
+for human review rather than auto-applied — proposed separately for `improvement-133`'s deferred-
+findings bucket, not fixed here.
+
+Running the full verification pass (`scripts/ci.sh --sonar` first) surfaced a real regression the
+new validator caused: two pre-existing `integration-tests` files
+(`AttachmentServiceTest`/`AttachmentServiceTransactionTest`) fed fake placeholder byte payloads
+(`"data".getBytes()`, bare Mockito-mocked `InputStream`s) declared as `image/jpeg`/`video/mp4` —
+content the new Tika check now correctly rejects, and mock-identity mismatches once the validator
+started returning a wrapping stream instead of the original reference. Fixed both files to use
+real magic-byte fixtures and a `TrackingInputStream` test double (mirroring
+`AttachmentContentTypeValidatorTest`'s own) instead of asserting `close()` against the original
+mock reference. Confirmed via Sonar itself: the quality gate passed and flagged nothing in the new
+code — the failure was entirely these two pre-existing fixtures never having been updated for the
+new validation step.
 
 ### Part 1 — Related
 
