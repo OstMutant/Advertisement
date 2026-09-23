@@ -2,6 +2,53 @@
 
 ---
 
+## ADR-086: `AbstractEntityOverlay.applyFreshOrFallback` — defined fallback for a post-save refetch that races a concurrent delete; skip the refetch where a caller doesn't need fresh data
+
+**Status:** Accepted
+
+**Context:** Three save-flow call sites (`AbstractTaxonOverlay.proceed()`, `AdvertisementOverlay.proceed()`'s
+EDIT branch, `ProviderProfileFormOverlayModeHandler.save()`) each re-read the just-saved entity by
+id purely to hand fresh data to a caller (splice into a parent row, or track the DB-assigned
+`version` for the next save's optimistic-lock check), with no defined behavior when that re-read
+comes back empty — reachable via a narrow but real race (the row deleted by someone else between
+commit and this synchronous re-read). Found and sized as `improvement-201` Part 5:
+`AbstractTaxonOverlay`'s case left the overlay silently frozen on a stale, button-disabled form
+after a "success" toast — the user sees "Saved" but the overlay never closes, the list never
+refreshes, and the only way out is the overlay's own Close button. `AdvertisementOverlay`'s EDIT
+branch had the identical silent no-op. `ProviderProfileFormOverlayModeHandler`'s case was worse — a
+stale locally-tracked `version`/`id` causes a false-positive "someone else changed this" conflict
+(or a duplicate profile row for a brand-new profile) on the *next* save, with no visible symptom at
+the time of the original save at all.
+
+**Decision:**
+1. New `AbstractEntityOverlay.applyFreshOrFallback(Optional<T> fresh, Consumer<T> onFresh, Runnable
+   onMissing)` — runs `onFresh` when the refetch succeeded; otherwise logs a warning, shows a
+   generic `OVERLAY_POST_SAVE_REFRESH_FAILED` notification ("Saved, but the latest state couldn't
+   be reloaded — please reload the page"), and runs `onMissing` as the defined fallback, instead of
+   silently doing nothing. Used by `AbstractTaxonOverlay.proceed()`'s EDIT branch and
+   `AdvertisementOverlay.proceed()`'s EDIT branch, both falling back to `closeToList()` — the user
+   sees the warning and the overlay closes to the list instead of staying stuck.
+2. `AbstractTaxonOverlay.proceed()`'s CREATE branch skips the refetch entirely —
+   `session.onListChanged().run()` (which re-queries the whole list from the DB) makes the refetch
+   redundant, mirroring `AdvertisementOverlay`'s own CREATE branch, which already never attempted
+   one.
+3. `ProviderProfileFormOverlayModeHandler.save()` — no `AbstractEntityOverlay` fallback available
+   here (this class isn't one; `AccountOverlay`'s own `proceed()` has no branch for this section by
+   design, since the overlay intentionally stays open after any save). On an empty refetch: shows
+   the same notification and permanently hides Save/Discard for this form instance, rather than
+   letting it silently proceed with a stale `id`/`version` — the user must close and reopen to get a
+   fresh copy before editing again.
+
+**Rejected alternatives:** Fixing only `AdvertisementOverlay`'s CREATE-vs-EDIT inconsistency in
+isolation — rejected because the same root cause (undefined empty-refetch behavior) existed in 2
+other classes with 2 different failure shapes; a single shared helper plus the skip-when-unneeded
+insight covers all 3 without three divergent one-off fixes. Extending the refetch itself to be
+atomic with the save (e.g. having the `*Port.save()` call return the fresh entity directly) — out
+of scope, a larger `*Port` contract change affecting every domain, not just this narrow race's
+fallback behavior.
+
+---
+
 ## ADR-085: `AbstractTaxonManagementView`/`AbstractTaxonOverlay`/`AbstractTaxonViewOverlayModeHandler`/`AbstractTaxonFormOverlayModeHandler` — shared City/Category admin-screen logic behind still-separate bean classes; `TaxonOverlay`/`TaxonManagementView`/`TaxonViewOverlayModeHandler`/`TaxonFormOverlayModeHandler`/`TaxonEditDto` renamed to `Category*`
 
 **Status:** Accepted

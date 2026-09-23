@@ -10,8 +10,11 @@ import org.springframework.dao.OptimisticLockingFailureException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
 
 import static org.ost.marketplace.services.i18n.I18nKey.OVERLAY_BREADCRUMB_VIEW;
+import static org.ost.marketplace.services.i18n.I18nKey.OVERLAY_POST_SAVE_REFRESH_FAILED;
 
 @Slf4j
 @SuppressWarnings("java:S110")
@@ -35,6 +38,17 @@ public abstract class AbstractEntityOverlay<H extends AbstractFormOverlayModeHan
 
     protected final boolean hasUnsavedChanges() {
         return currentFormHandler != null && currentFormHandler.hasChanges();
+    }
+
+    /** Runs {@code onFresh} when present; otherwise the refetch raced a concurrent delete -- warns and runs {@code onMissing} instead of silently doing nothing. */
+    protected final <T> void applyFreshOrFallback(Optional<T> fresh, Consumer<T> onFresh, Runnable onMissing) {
+        if (fresh.isPresent()) {
+            onFresh.accept(fresh.get());
+        } else {
+            log.warn("Post-save refetch returned empty on {}", getClass().getSimpleName());
+            notification().error(OVERLAY_POST_SAVE_REFRESH_FAILED);
+            onMissing.run();
+        }
     }
 
     // Overridden by overlays with a View mode; Settings keeps the false defaults.

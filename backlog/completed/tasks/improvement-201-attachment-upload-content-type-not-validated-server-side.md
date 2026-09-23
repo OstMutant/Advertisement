@@ -8,10 +8,12 @@ Part 2 — marketplace-app (ui/views/main/tabs/referencedata/, overlay/, overlay
 user-spring-boot-starter/marketplace-orchestrator (UserService.cleanup()). Part 4 —
 marketplace-orchestrator (ProviderProfileSaveService).
 **Priority:** 🔴 Top for Parts 1-2 — placed above every other backlog item; Part 1 is a real,
-confirmed security gap, not tech debt. **Parts 1-2 done (2026-09-23).** Parts 3-5 unprioritized
-pending verification/decision. Filed 2026-09-22.
-**When:** Parts 1-2 done. Parts 3-5 not yet scoped/verified. All parts are unrelated in scope and
-landed/land as separate PRs/passes within this one task file.
+confirmed security gap, not tech debt. **Parts 1-3 done (2026-09-23).** Part 4 carved out into
+`improvement-202` (2026-09-23). Part 5 verified 2026-09-23 (root cause confirmed across 3 call
+sites), fix option not yet chosen — unprioritized pending that decision. Filed 2026-09-22.
+**When:** Parts 1-3 done, Part 4 moved to `improvement-202`. Part 5 sized, awaiting a fix-option
+decision before implementation. All parts are unrelated in scope and landed/land as separate
+PRs/passes within this one task file.
 
 ## Part 1: Attachment upload content-type is never validated server-side — stored-XSS-via-upload vector
 
@@ -260,14 +262,13 @@ One pre-existing, unrelated bug found along the way (Part 5 below).
 
 ## Part 3: `UserService.cleanup()` — candidate to move to marketplace-orchestrator
 
+**Status: done (2026-09-23).**
+
 ### Current state
 
-**Not yet independently verified against current source** — reported via an external
-code-review-style pass over `marketplace-app`, 2026-09-22: `UserService.cleanup()` was flagged as
-a precedent-shaped candidate for relocation to `marketplace-orchestrator`, on the same reasoning
-already applied to other cross-domain use-case logic in this codebase (see
-`.claude/rules/marketplace-orchestrator.md`'s ownership boundary). Needs a direct read of the
-method and its actual callers before sizing.
+Verified against current source, 2026-09-23: confirmed a real violation — `UserService.cleanup()`
+directly composed `AdvertisementPort`/`ProviderProfilePort` to decide which soft-deleted users were
+safe to purge, a domain starter orchestrating other domains.
 
 ### Approach
 
@@ -277,47 +278,150 @@ method and its actual callers before sizing.
    orchestrator-shaped at a glance.
 3. Only then decide whether this is a real move or a false positive.
 
+### Part 3 — Implementation notes (2026-09-23)
+
+`UserService` now exposes only single-domain primitives — `findIdsDeletedOlderThan(int)` and
+`purge(Set<Long>)`. New `UserCleanupService`/`UserPurgeEligibilityService`
+(`marketplace-orchestrator`) own the cross-domain referential-integrity decision and the scheduled
+job (moved from `UserAutoConfiguration` to `OrchestratorAutoConfiguration`).
+`.claude/rules/marketplace-orchestrator.md`'s "Not every cross-domain call moves here" section
+rewritten: the `UserService.cleanup()` exception is removed, replaced by the real underlying test
+(read-across-domain-to-decide moves here; fire-and-forget writes like `AuditPort.capture*()` stay
+in the starter). New `marketplace-orchestrator` ADR (`DECISIONS.md`) records the decision;
+`.claude/nav/adr-index.md` regenerated. `user-spring-boot-starter/README.md` corrected (was still
+describing the removed `cleanup()`/ownership-check/scheduler behavior).
+
+Verified: `marketplace-orchestrator` unit tests (`UserCleanupServiceTest` 4/4,
+`UserPurgeEligibilityServiceTest` 6/6), `ArchitectureRulesTest` 20/20, `integration-tests`
+`UserServiceTest` 8/8, full unit+integration suite green. `/review` (3 lenses) found one finding
+(stale `user-spring-boot-starter/README.md`), fixed directly. No Playwright — no UI code touched.
+Committed `2606a412`.
+
 ---
 
 ## Part 4: Generic exception crossing a module boundary in `ProviderProfileSaveService`
 
+**Status: carved out into [improvement-202](improvement-202-optimisticlockingfailureexception-decoupling.md) (2026-09-23).**
+
 ### Current state
 
-**Not yet independently verified against current source** — reported via the same external review
-pass, 2026-09-22: a generic (non-domain-specific) exception type was flagged as crossing a module
-boundary out of `ProviderProfileSaveService` (`marketplace-orchestrator`), which this project's own
-conventions generally expect to be a typed/domain-specific exception at a public boundary. Needs a
-direct read of the actual throw site and its callers before sizing.
+Verified against current source, 2026-09-23: real, not a false positive — but not unique to
+`ProviderProfileSaveService`. `OptimisticLockingFailureException` (Spring Data framework type) is
+used as the project-wide "stale write" signal across every domain, declared in `platform-commons`'s
+own `*Port` Javadoc contracts. Fixing only `ProviderProfileSaveService` in isolation would make
+the codebase *more* inconsistent, not less — the real fix is a single cross-cutting change (5
+throw sites, 3 Port contracts, 2 catch/handler sites), too large for this task's scope. Sized and
+moved to `improvement-202`, ranked Top per explicit user direction.
 
 ### Approach
 
-1. Read the actual exception type and throw site in `ProviderProfileSaveService`.
-2. Confirm what currently catches/handles it on the other side of the module boundary, and whether
-   a generic type there is actually a real problem (loses information, forces broad catch blocks)
-   or an intentional simplification.
-3. Only then decide on a fix (a narrower typed exception, or leave as-is if the generic type is
-   deliberate and harmless).
+See `improvement-202`.
 
 ---
 
-## Part 5: `AbstractTaxonOverlay.proceed()` silently no-ops when the post-save refetch is empty
+## Part 5: post-save refetch returning empty is silently mishandled in 3 places (Taxon, Advertisement, ProviderProfile)
 
 ### Current state
 
-Found via `/review` during Part 2 step 2, confirmed pre-existing via `git show` against pre-refactor
-`CityOverlay`/`CategoryOverlay` (not introduced by step 2 — moved over verbatim): `proceed()`
-(`AbstractTaxonOverlay.java`) does `if (fresh == null) return;` after `getTaxonCatalogService()
-.findById(savedId, ...)`. `AbstractEntityOverlay.handleSave()` only calls `proceed()` after a
-successful save and its own success notification already fired. If the refetch then returns empty,
-`proceed()` returns early without calling `onListChanged()`/`closeToList()` — the user sees
-"success" but the overlay stays open on a stale, already-disabled form with no way back to the list
-and no error shown. Diverges from the sibling `AdvertisementOverlay.proceed()`, which always
-closes/notifies regardless of a null refetch result in its non-EDIT branch.
+**Root cause, confirmed 2026-09-23 across all 3 concrete manifestations:** every `*Overlay`/
+`*FormOverlayModeHandler.save()` path that re-reads the just-saved entity by id right after commit
+(purely to hand fresh data to the caller) has no defined behavior for when that re-read comes back
+empty. Reachability is the same narrow race in all 3 cases — the just-written row would need to be
+deleted by someone else in the split-second between commit and this synchronous re-read (both on a
+single-instance Postgres via `JdbcClient`, no replica lag involved) — realistic for EDIT (two
+admins/moderators touching the same row) and essentially unreachable for CREATE (nobody else knows
+the new id yet), except where noted below. Each of the 3 call sites fails differently:
+
+1. **`AbstractTaxonOverlay.proceed()`** (`referencedata/overlay/AbstractTaxonOverlay.java:56-67`,
+   found via `/review` during Part 2 step 2, confirmed pre-existing via `git show` against
+   pre-refactor `CityOverlay`/`TaxonOverlay` — not introduced by the refactor). `if (fresh == null)
+   return;` after `getTaxonCatalogService().findById(savedId, Locale.ENGLISH)`. Since
+   `AbstractEntityOverlay.handleSave()` (`components/overlay/AbstractEntityOverlay.java:64-69`)
+   already fires the success notification and `currentFormHandler.afterSave(true)` (which disables
+   Save/Discard) *before* calling `proceed()`, a `null` refetch leaves the user looking at a
+   "success" toast over a frozen, button-disabled form with no error and no way back except the
+   overlay's own Close (X) — `onUpdated()`/`onListChanged()` never fire, so the parent list never
+   refreshes either.
+2. **`AdvertisementOverlay.proceed()`** (`advertisements/overlay/AdvertisementOverlay.java:84-95`)
+   — structurally the same silent no-op, but only in its EDIT branch (`if (fresh != null) {
+   ...onUpdated... }`, nothing in the `else`). Its own CREATE branch is actually more robust: it
+   never attempts a refetch at all, unconditionally calling `onListChanged()` +
+   `closeToList()` — this is the divergence originally noted when Part 5 was filed, though on
+   closer reading the divergence is specifically in the CREATE branch, not a blanket difference.
+3. **`ProviderProfileFormOverlayModeHandler.save()`** (`header/account/
+   ProviderProfileFormOverlayModeHandler.java:194-207`) — a different failure shape, since
+   `AccountOverlay.proceed()` has no branch for `Section.PROVIDER_PROFILE` at all (by design — the
+   whole overlay intentionally stays open after any section save, see its own code comment). The
+   refetch happens inside `save()` itself: `providerProfileSaveService.findById(id).ifPresent(saved
+   -> { dto.setId(...); dto.setVersion(...); })`. If empty, `dto`'s locally-tracked `version` (and,
+   for a brand-new profile, `id`) never gets updated to the real post-save value. Symptom: not a
+   frozen overlay (staying open is intended), but the **next** save attempt in the same session
+   sends the stale `version`, triggering a false-positive `OptimisticLockingFailureException` — a
+   "someone else changed this" conflict notification when nothing actually conflicted. For the
+   CREATE sub-case (new profile, `dto.getId()` was `null` before save) it's worse: `id` also stays
+   `null`, so the next Save attempt re-enters the `isNew` branch and could insert a second profile
+   row for the same user instead of updating the first.
+
+### Fix options (not yet chosen)
+
+- **Option A — local, per-class fallback.** In each of the 3 call sites, when the refetch comes
+  back empty: show a generic error/warning notification (reusing `saveConfig().conflict()`'s slot
+  where one exists) and force a safe, defined state instead of silently continuing — `closeToList()`
+  for `AbstractTaxonOverlay`/`AdvertisementOverlay`'s EDIT branch (matching `AdvertisementOverlay`'s
+  own CREATE-branch pattern of never trusting an uncertain post-state); for
+  `ProviderProfileFormOverlayModeHandler`, forcing a switch back to Provider Profile's own View mode
+  handler (which re-reads fresh from the DB in its own `activate()`) instead of letting the Edit
+  form keep a stale `dto`. Smallest, most surgical change; leaves 3 separate (if now-consistent)
+  fallback implementations.
+- **Option B — one shared helper on `AbstractEntityOverlay`.** Extract the "refetch came back empty"
+  decision into one reusable method (e.g. `handleMissingPostSaveEntity()`) that every subclass's
+  `proceed()`/`save()` calls into on the empty branch, so behavior is defined and consistent in one
+  place rather than re-derived 3 times. Larger surface (touches the shared base class), but removes
+  the risk of a 4th call site repeating the same unguarded assumption later.
+- **Option C — avoid the refetch where the caller doesn't actually need fresh data.** Mirrors
+  `AdvertisementOverlay`'s own CREATE branch: for cases where the caller only needs "trigger a
+  re-render," skip the refetch and its failure mode entirely rather than handling it after the fact.
+  Doesn't fully apply to `AbstractTaxonOverlay`'s EDIT branch or `ProviderProfileFormOverlayModeHandler`,
+  both of which genuinely need the fresh DB-assigned `version`/fields for correctness (splicing into
+  a parent row, or the next save's optimistic-lock check) — for those two, some fallback (Option A/B)
+  is still needed regardless.
+
+### How this can be tested
+
+**The actual race (a concurrent delete landing inside the single synchronous request, between
+commit and refetch) has no realistic automated reproduction today:**
+- No unit tests exist for any `*Overlay`/`*FormOverlayModeHandler` class in `marketplace-app` today
+  (confirmed via `find` — zero `*OverlayTest.java` files) — these are heavy Vaadin/Spring-UI-scoped
+  components, not the kind of class this codebase unit-tests directly.
+- `integration-tests` (the module that could inject a real concurrent delete via a second DB
+  connection mid-transaction) never depends on `marketplace-app` — the decision logic under test
+  here lives entirely in UI classes, out of that module's reach by design (see
+  `.claude/rules/integration-tests.md`).
+- Playwright automating two real concurrent browser sessions to land a delete inside another
+  session's single in-flight save request is not reliably reproducible without a dedicated
+  test-only timing hook (e.g. a debug breakpoint or an injected delay) — flaky by construction, not
+  a sound basis for a regression test.
+
+**What real coverage looks like, depending on which fix option is chosen:**
+- If the fix is written as a small, pure decision function (e.g. Option B's
+  `handleMissingPostSaveEntity()`, or an equivalent extracted per-class), that function itself can
+  get a plain JUnit test with no Vaadin/Spring context at all — call it with the "empty" case
+  directly (no mocking of the real race needed, since the function's contract is just "given no
+  fresh entity, do X") and assert the resulting notification/navigation call. This is the only
+  practically reachable automated coverage for this specific branch.
+- The happy-path (refetch succeeds) is already implicitly covered by Part 2's existing Playwright
+  runs (7 full `e2e --ux` passes, City/Category save flows) and by the pre-existing Advertisement/
+  Provider-Profile Playwright specs — a regression here would need a fresh full `e2e --ux` pass
+  after the fix lands, same as any other change to these overlays.
+- The empty-refetch branch itself stays outside Playwright's practical reach; verifying it is a
+  code-review-level check (confirm the new fallback path is reachable and behaves as designed by
+  reading the code), not an automated-test-level one — worth stating plainly rather than claiming
+  coverage that doesn't exist.
 
 ### Approach
 
-1. Confirm how likely/reachable this actually is (replication lag, id mismatch) before sizing.
-2. Decide the right fallback: notify + close, matching `AdvertisementOverlay`'s pattern, or a
-   dedicated error state.
-3. Apply to `AbstractTaxonOverlay` only — both City/Category get the fix in one place, the point of
-   Part 2's extraction.
+1. Choose a fix option (A/B/C above) — needs approval before implementation, not decided here.
+2. Apply to all 3 real call sites (`AbstractTaxonOverlay`, `AdvertisementOverlay`,
+   `ProviderProfileFormOverlayModeHandler`) in one pass, since they're the same root cause.
+3. Add the plain JUnit coverage described above for whichever decision logic ends up extracted.
+4. Full Playwright `e2e --ux` pass (all 3 overlays' save flows) after the fix lands.

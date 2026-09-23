@@ -11,6 +11,7 @@ import org.ost.platform.taxon.dto.TaxonDto;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_REFERENCE_DATA;
@@ -54,16 +55,17 @@ public abstract class AbstractTaxonOverlay<H extends AbstractTaxonFormOverlayMod
 
     @Override
     protected void proceed() {
-        Long savedId = currentFormHandler.getSavedEntityId();
-        TaxonDto fresh = savedId == null ? null : getTaxonCatalogService().findById(savedId, Locale.ENGLISH).orElse(null);
-        if (fresh == null) return;
-
-        session = session.withEntity(fresh);
-        if (session.mode() == Mode.EDIT) {
-            session.onUpdated().accept(fresh);
-        } else {
+        if (session.mode() != Mode.EDIT) {
+            // CREATE: onListChanged() re-queries the whole list from the DB anyway -- no refetch needed here.
             session.onListChanged().run();
+            return;
         }
+        Long savedId = currentFormHandler.getSavedEntityId();
+        Optional<TaxonDto> fresh = savedId == null ? Optional.empty()
+                : getTaxonCatalogService().findById(savedId, Locale.ENGLISH);
+        applyFreshOrFallback(fresh,
+                f -> { session = session.withEntity(f); session.onUpdated().accept(f); },
+                this::closeToList);
     }
 
     @Override

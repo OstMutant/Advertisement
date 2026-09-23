@@ -357,6 +357,9 @@ public enum I18nKey {
     // === Overlay Breadcrumb ===
     OVERLAY_BREADCRUMB_VIEW("overlay.breadcrumb.view"),
 
+    // === Overlay Post-Save Refetch ===
+    OVERLAY_POST_SAVE_REFRESH_FAILED("overlay.postSave.refreshFailed"),
+
     // === Form Restore ===
     FORM_RESTORE_BANNER("form.restore.banner"),
     FORM_DISCARD_CHANGES("form.discard.changes"),

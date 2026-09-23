@@ -19,6 +19,7 @@ import org.ost.marketplace.ui.views.utils.BrowserHistoryUtil;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -83,11 +84,9 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
     @Override
     protected void proceed() {
         if (session.mode() == Mode.EDIT) {
-            AdvertisementInfoDto fresh = currentFormHandler.getSavedInfoDto();
-            if (fresh != null) {
-                session = session.withAd(fresh);
-                session.onUpdated().accept(fresh);
-            }
+            applyFreshOrFallback(Optional.ofNullable(currentFormHandler.getSavedInfoDto()),
+                    f -> { session = session.withAd(f); session.onUpdated().accept(f); },
+                    this::closeToList);
         } else {
             session.onListChanged().run();
             closeToList();

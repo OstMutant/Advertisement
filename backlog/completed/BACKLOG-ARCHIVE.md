@@ -2688,3 +2688,24 @@ extracted duplicated category/city taxon-filter resolution (`AdvertisementServic
 ADR-032 records this as a narrow, bounded exception to platform-commons' "no business logic" rule;
 verified via a high-effort `/code-review` pass and a dedicated `Mockito.CALLS_REAL_METHODS` unit
 test. Full detail: `completed/tasks/improvement-195-best-practices-reference-and-audit-fixes.md`.
+
+✅ Done (2026-09-23): improvement-201 closed — five bundled findings, filed 2026-09-22. **Part 1:**
+confirmed stored-XSS-via-upload vector, attachment content-type never validated server-side — fixed
+via `AttachmentContentTypeValidator` (Tika magic-byte detection, filename-disambiguated) + a shared
+`AttachmentAllowedContentTypes` whitelist. **Part 2:** City/Taxon vertical, 4 near-identical class
+pairs (~700 duplicated lines) — extracted into `AbstractTaxonManagementView`/`AbstractTaxonOverlay`/
+`AbstractTaxonViewOverlayModeHandler`/`AbstractTaxonFormOverlayModeHandler`, extending the
+`AbstractEntityOverlay<H>`/`LocaleTranslationForm<T>` precedent; misleadingly-named `Taxon*`
+Category-specific classes renamed to `Category*`. **Part 3:** `UserService.cleanup()`'s cross-domain
+composition (`AdvertisementPort`/`ProviderProfilePort`) moved out of `user-spring-boot-starter` into
+new `marketplace-orchestrator` `UserCleanupService`/`UserPurgeEligibilityService`; the documented
+`.claude/rules/marketplace-orchestrator.md` exception for this case was removed and replaced with
+the real underlying read-vs-write test. **Part 4:** carved out into
+[improvement-202](../tasks/improvement-202-optimisticlockingfailureexception-decoupling.md) once
+sized — `OptimisticLockingFailureException` decoupling is a cross-cutting, 11-file change, too large
+for this task. **Part 5:** a post-save-refetch race (concurrent delete between commit and a
+synchronous re-read) was silently mishandled in 3 places (`AbstractTaxonOverlay`, `AdvertisementOverlay`
+EDIT branch, `ProviderProfileFormOverlayModeHandler`) — fixed via a shared
+`AbstractEntityOverlay.applyFreshOrFallback()` helper plus skipping the refetch entirely where a
+caller doesn't need fresh data; `marketplace-app/DECISIONS.md` ADR-086. Full detail:
+`completed/tasks/improvement-201-attachment-upload-content-type-not-validated-server-side.md`.
