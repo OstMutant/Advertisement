@@ -4,6 +4,8 @@ import lombok.NonNull;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserProfileDto;
 
+import java.util.Set;
+
 /**
  * Mutate side: save/delete a profile, register a new account, refresh the current user's security
  * context after an in-place edit. Implementation lives in user-spring-boot-starter.
@@ -17,4 +19,7 @@ public interface UserAccountPort {
     void register(@NonNull SignUpDto dto, @NonNull String clientIp);
 
     void refreshCurrentUserInContext(@NonNull Long userId);
+
+    /** Permanently deletes these accounts and their preferences -- caller has already confirmed none are still referenced elsewhere. */
+    void purge(@NonNull Set<Long> ids);
 }

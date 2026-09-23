@@ -2,6 +2,58 @@
 
 ---
 
+## ADR-008: `UserCleanupService`/`UserPurgeEligibilityService` — the scheduled retention-purge referential-integrity check moves here from `user-spring-boot-starter`
+
+**Status:** Accepted
+
+**Context:** `UserService.cleanup()` (`user-spring-boot-starter`) read from `AdvertisementPort`/
+`ProviderProfilePort` (`findOwnerIds`) to decide which soft-deleted, retention-expired accounts
+were still referenced elsewhere before permanently purging the rest — a starter directly composing
+two other domains' Ports, which `CLAUDE.md`'s guideline #2 ("a domain starter must not orchestrate
+another domain") forbids. This project's own `.claude/rules/marketplace-orchestrator.md` had
+previously carved out an explicit exception for exactly this case ("narrow, scheduled-job-scoped
+referential-integrity cooperation... not the 'assemble a read-model from several domains' pattern
+this module exists for") — re-examined and rejected: the distinguishing test this module actually
+applies elsewhere is whether a call *reads* another domain's data to *decide* what to do next, not
+how narrow or how often-scheduled the call is. `cleanup()` reads two other domains' data and
+branches on it — the same shape as every other use case already living here — so the "narrow job"
+framing didn't hold up against the module's own stated purpose. Compare the still-valid, genuinely
+different case: `UserService`/`UserPreferencesService`/`TaxonService` calling `AuditPort.capture*()`
+is a fire-and-forget write with no read-back and no decision made on the result — cross-cutting
+event reporting, not cross-domain composition.
+
+**Decision:**
+1. `UserPort` gained `Set<Long> findIdsDeletedOlderThan(int retentionDays)`; `UserAccountPort`
+   gained `void purge(@NonNull Set<Long> ids)` — both thin, single-domain operations, implemented in
+   `user-spring-boot-starter` exactly like every other `User*Port` method.
+2. New `UserPurgeEligibilityService` (`marketplace-orchestrator`) holds
+   `ComponentFactory<AdvertisementPort>`/`ComponentFactory<ProviderProfilePort>` (2 ports) —
+   `clearAdvertisementReferences(Set<Long>)` and `findStillReferencedIds(Set<Long>)`, replicating
+   `cleanup()`'s original per-domain `isStillOwner` logic verbatim.
+3. New `UserCleanupService` composes `UserPort`/`UserAccountPort` (direct, mandatory fields — not
+   counted by the ≤2-port rule, same shape as `UserDeleteService`'s `UserAccountPort`) with
+   `UserPurgeEligibilityService` as a plain collaborator, reproducing `cleanup()`'s original
+   orchestration. Its own `SchedulingConfigurer` bean (+ this module's own new `@EnableScheduling`)
+   lives in `OrchestratorAutoConfiguration`, using the same shared `CleanupProperties` every other
+   domain's cleanup scheduler already reads.
+4. `user-spring-boot-starter`'s `UserService`/`UserAutoConfiguration` lost `cleanup()`,
+   `isStillOwner()`, the `AdvertisementPort`/`ProviderProfilePort` `ComponentFactory` fields and
+   bean, and the scheduler bean/`@EnableScheduling` — the starter no longer references either domain
+   at all.
+5. `.claude/rules/marketplace-orchestrator.md`'s "Not every cross-domain call moves here" bullet
+   updated to drop the now-superseded `UserService.cleanup()` example and state the actual
+   read-vs-write distinguishing test explicitly, so a future similar case is judged the same way.
+
+**Consequences:**
+- `user-spring-boot-starter` no longer imports `AdvertisementPort`/`ProviderProfilePort` anywhere.
+- The 4 original `UserServiceTest` cleanup-scenario tests (`integration-tests`) moved to
+  `UserCleanupServiceTest`/`UserPurgeEligibilityServiceTest` (`marketplace-orchestrator`), mirroring
+  `UserDeleteServiceTest`'s existing Mockito-only style — same scenarios, same assertions, ported
+  onto the new class split.
+- No functional/behavioral change — verified end-to-end: reactor compiles,
+  `ArchitectureRulesTest`'s ≤2-port and no-persistence-access rules pass unmodified, full test suite
+  green.
+
 ## ADR-007: Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only
 
 **Status:** Accepted

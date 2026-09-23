@@ -54,6 +54,15 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   gallery step (unlike Advertisement) — provider profiles carry no media.
 - `UserDeleteService` — cascades a user's own dependent data (advertisements, provider profile)
   before deleting the account itself.
+- `UserCleanupService` — the scheduled retention-purge use case: finds soft-deleted accounts past
+  the retention window (`UserPort`) and permanently deletes whichever the `UserPurgeEligibilityService`
+  collaborator confirms aren't still referenced (`UserAccountPort`). Its own `SchedulingConfigurer`
+  bean lives in `OrchestratorAutoConfiguration`.
+- `UserPurgeEligibilityService` — `UserCleanupService`'s referential-integrity collaborator: clears
+  advertisement actor references and reports which candidate ids are still owned by an
+  advertisement or provider profile (`AdvertisementPort`/`ProviderProfilePort`, its own class for
+  testability/cohesion, same "extract a services.* collaborator" pattern the ≤2-port rule below
+  already prescribes for a use case needing more than 2 optional domain ports).
 - `AdvertisementReadService` — wraps `ComponentFactory<AdvertisementPort>`'s query methods
   (`findById`/`getFiltered`/`count`) so marketplace-app never holds a direct `AdvertisementPort`.
 - `ProviderProfileReadService` — the `ProviderProfilePort` equivalent of `AdvertisementReadService`,
@@ -185,9 +194,11 @@ inventing a second wiring approach for one module).
   advertisement-id set before `SqlFilterBuilder` builds the `WHERE` clause) stays inside the owning
   starter — it's part of executing the query itself, not display composition. `TaxonService`/
   `UserPreferencesService`/`UserService` calling `AuditPort.capture*()` (cross-cutting event
-  reporting) and `UserService.cleanup()` calling `AdvertisementPort`/`ProviderProfilePort.findOwnerIds()`
-  (narrow, scheduled-job-scoped referential-integrity cooperation) also stay in their starters —
-  neither is the "assemble a read-model from several domains" pattern this module exists for.
+  reporting — a fire-and-forget write with no read-back, no cross-domain decision-making) also
+  stays in its starter — this is not the "assemble a read-model from several domains" pattern this
+  module exists for. A use case that *reads* another domain's data to decide what to do next — even
+  a narrow, scheduled-job-scoped one, e.g. `UserCleanupService`'s retention-purge referential-
+  integrity check — is real cross-domain composition and belongs here, not in a starter.
 - **Hook implementations that only need domain-port access live here, in their own `spi/`
   package parallel to `services/`; ones that need UI-shell resources go through a forwarder SPI
   instead of pulling `marketplace-app` in as a dependency** — see the "Forwarder SPI pattern"
