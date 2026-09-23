@@ -8,12 +8,10 @@ Part 2 — marketplace-app (ui/views/main/tabs/referencedata/, overlay/, overlay
 user-spring-boot-starter/marketplace-orchestrator (UserService.cleanup()). Part 4 —
 marketplace-orchestrator (ProviderProfileSaveService).
 **Priority:** 🔴 Top for Parts 1-2 — placed above every other backlog item; Part 1 is a real,
-confirmed security gap, not tech debt. **Parts 1-3 done (2026-09-23).** Part 4 carved out into
-`improvement-202` (2026-09-23). Part 5 verified 2026-09-23 (root cause confirmed across 3 call
-sites), fix option not yet chosen — unprioritized pending that decision. Filed 2026-09-22.
-**When:** Parts 1-3 done, Part 4 moved to `improvement-202`. Part 5 sized, awaiting a fix-option
-decision before implementation. All parts are unrelated in scope and landed/land as separate
-PRs/passes within this one task file.
+confirmed security gap, not tech debt. **Parts 1-3 and 5 done (2026-09-23).** Part 4 carved out
+into `improvement-202` (2026-09-23). Filed 2026-09-22.
+**When:** All parts resolved — Parts 1-3/5 done, Part 4 moved to `improvement-202`. All parts were
+unrelated in scope and landed as separate PRs/passes within this one task file.
 
 ## Part 1: Attachment upload content-type is never validated server-side — stored-XSS-via-upload vector
 
@@ -425,3 +423,24 @@ commit and refetch) has no realistic automated reproduction today:**
    `ProviderProfileFormOverlayModeHandler`) in one pass, since they're the same root cause.
 3. Add the plain JUnit coverage described above for whichever decision logic ends up extracted.
 4. Full Playwright `e2e --ux` pass (all 3 overlays' save flows) after the fix lands.
+
+### Part 5 — Implementation notes (2026-09-23) — done
+
+Chose Option B + C's insight (per user direction): a shared `AbstractEntityOverlay
+.applyFreshOrFallback(Optional<T>, Consumer<T> onFresh, Runnable onMissing)` helper for the 2 cases
+that genuinely need fresh data (`AbstractTaxonOverlay`/`AdvertisementOverlay`'s EDIT branches, both
+falling back to `closeToList()` + a new `OVERLAY_POST_SAVE_REFRESH_FAILED` i18n notification), plus
+dropping the refetch entirely for `AbstractTaxonOverlay`'s CREATE branch (confirmed redundant —
+`onListChanged()` already re-queries the whole list from the DB). `ProviderProfileFormOverlayModeHandler`
+isn't an `AbstractEntityOverlay` subclass, so it gets its own inline fallback shape instead: on an
+empty refetch, show the same notification and permanently hide Save/Discard for that form instance
+(blocks the stale-`version`/duplicate-insert risk; user must close and reopen for fresh data).
+Recorded as `marketplace-app/DECISIONS.md` ADR-086; `.claude/nav/adr-index.md` regenerated (230
+entries).
+
+Verified: `scripts/build-and-test.sh --unit --no-integration` green (`ArchitectureRulesTest` 20/20,
+no new violation), full `scripts/deploy-and-run.sh --reset` + `scripts/playwright.sh e2e --full --ux`
+— 63/63 passed (one transient container-startup race on the first attempt, confirmed via `docker
+logs`/`docker ps` as infra timing unrelated to the code change, clean retry). No unit test covers
+the empty-refetch branch itself — confirmed not practically reachable per this task's own "How this
+can be tested" section above; verified by reading the new code instead.
