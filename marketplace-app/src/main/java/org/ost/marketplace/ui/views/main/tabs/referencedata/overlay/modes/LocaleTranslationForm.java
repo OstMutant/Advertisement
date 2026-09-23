@@ -13,8 +13,11 @@ import org.ost.marketplace.ui.views.components.fields.UiTextArea;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.platform.taxon.dto.TaxonSnapshotDto;
+import org.ost.platform.taxon.dto.TaxonTranslationDto;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Shared EN/UK locale-form mechanics reused by {@code CategoryFormOverlayModeHandler} and
@@ -92,6 +95,29 @@ class LocaleTranslationForm<T extends EditDto> {
         for (Field<T> f : fields) {
             f.setName().accept(dto, f.getSnapshotName().apply(snapshot));
             f.setDescription().accept(dto, f.getSnapshotDescription().apply(snapshot));
+        }
+    }
+
+    Map<Locale, TaxonTranslationDto> extractTranslations(T dto) {
+        Field<T> en = fields.get(0);
+        Field<T> uk = fields.get(1);
+        return Map.of(
+                Locale.ENGLISH, TaxonTranslationDto.builder().locale("en")
+                        .name(en.getName().apply(dto)).description(en.getDescription().apply(dto)).build(),
+                Locale.forLanguageTag("uk"), TaxonTranslationDto.builder().locale("uk")
+                        .name(uk.getName().apply(dto)).description(uk.getDescription().apply(dto)).build()
+        );
+    }
+
+    void applyTranslations(T dto, List<TaxonTranslationDto> translations) {
+        for (TaxonTranslationDto t : translations) {
+            if ("en".equals(t.getLocale())) {
+                fields.get(0).setName().accept(dto, t.getName());
+                fields.get(0).setDescription().accept(dto, t.getDescription());
+            } else if ("uk".equals(t.getLocale())) {
+                fields.get(1).setName().accept(dto, t.getName());
+                fields.get(1).setDescription().accept(dto, t.getDescription());
+            }
         }
     }
 

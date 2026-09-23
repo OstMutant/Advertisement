@@ -9,6 +9,7 @@ import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.AbstractTaxonFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityViewOverlayModeHandler;
 import org.ost.orchestrator.services.TaxonCatalogService;
@@ -25,7 +26,7 @@ public class CityOverlay extends AbstractTaxonOverlay<CityFormOverlayModeHandler
 
     @Getter private final EntityOverlaySupport support;
     private final UiComponentFactory<CityViewOverlayModeHandler, CityViewOverlayModeHandler.Parameters> viewModeHandlerFactory;
-    private final UiComponentFactory<CityFormOverlayModeHandler, CityFormOverlayModeHandler.Parameters> formModeHandlerFactory;
+    private final UiComponentFactory<CityFormOverlayModeHandler, AbstractTaxonFormOverlayModeHandler.Parameters> formModeHandlerFactory;
     @Getter private final TaxonCatalogService taxonCatalogService;
 
     @Override protected String  getOverlayCssClass() { return "city-overlay"; }
@@ -42,11 +43,6 @@ public class CityOverlay extends AbstractTaxonOverlay<CityFormOverlayModeHandler
     }
 
     @Override
-    protected Long getSavedEntityId() {
-        return currentFormHandler.getSavedCityId();
-    }
-
-    @Override
     protected OverlayModeHandler buildViewHandler(TaxonDto entity, Runnable onEdit, Runnable onClose) {
         return viewModeHandlerFactory.build(CityViewOverlayModeHandler.Parameters.builder()
                 .city(entity).onEdit(onEdit).onClose(onClose).build());
@@ -54,15 +50,7 @@ public class CityOverlay extends AbstractTaxonOverlay<CityFormOverlayModeHandler
 
     @Override
     protected CityFormOverlayModeHandler buildFormHandler(TaxonDto entity, Mode mode, List<BreadcrumbStep> breadcrumbSteps) {
-        CityFormOverlayModeHandler.Mode handlerMode = mode == Mode.CREATE
-                ? CityFormOverlayModeHandler.Mode.CREATE
-                : CityFormOverlayModeHandler.Mode.EDIT;
-        return formModeHandlerFactory.build(CityFormOverlayModeHandler.Parameters.builder()
-                .city(entity)
-                .mode(handlerMode)
-                .onSave(this::handleSave)
-                .onCancel(this::handleCancel)
-                .breadcrumbSteps(breadcrumbSteps)
-                .build());
+        return formModeHandlerFactory.build(new AbstractTaxonFormOverlayModeHandler.Parameters(
+                entity, toHandlerMode(mode), this::handleSave, this::handleCancel, breadcrumbSteps));
     }
 }

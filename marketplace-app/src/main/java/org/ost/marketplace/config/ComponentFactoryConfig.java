@@ -19,6 +19,7 @@ import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.Adver
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.UserGridConfigurator;
 import org.ost.marketplace.ui.views.main.header.settings.SettingsFormModeHandler;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.AbstractTaxonFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CategoryFormOverlayModeHandler;
@@ -131,7 +132,7 @@ public class ComponentFactoryConfig {
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<CategoryFormOverlayModeHandler, CategoryFormOverlayModeHandler.Parameters> categoryFormOverlayModeHandlerFactory(ObjectProvider<CategoryFormOverlayModeHandler> p) {
+    public UiComponentFactory<CategoryFormOverlayModeHandler, AbstractTaxonFormOverlayModeHandler.Parameters> categoryFormOverlayModeHandlerFactory(ObjectProvider<CategoryFormOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 
@@ -141,7 +142,7 @@ public class ComponentFactoryConfig {
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<CityFormOverlayModeHandler, CityFormOverlayModeHandler.Parameters> cityFormOverlayModeHandlerFactory(ObjectProvider<CityFormOverlayModeHandler> p) {
+    public UiComponentFactory<CityFormOverlayModeHandler, AbstractTaxonFormOverlayModeHandler.Parameters> cityFormOverlayModeHandlerFactory(ObjectProvider<CityFormOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 

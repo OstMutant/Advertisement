@@ -2,7 +2,7 @@
 
 ---
 
-## ADR-085: `AbstractTaxonManagementView`/`AbstractTaxonOverlay` — shared City/Category admin-screen logic behind still-separate bean classes; `TaxonOverlay`/`TaxonManagementView`/`TaxonViewOverlayModeHandler`/`TaxonFormOverlayModeHandler`/`TaxonEditDto` renamed to `Category*`
+## ADR-085: `AbstractTaxonManagementView`/`AbstractTaxonOverlay`/`AbstractTaxonViewOverlayModeHandler`/`AbstractTaxonFormOverlayModeHandler` — shared City/Category admin-screen logic behind still-separate bean classes; `TaxonOverlay`/`TaxonManagementView`/`TaxonViewOverlayModeHandler`/`TaxonFormOverlayModeHandler`/`TaxonEditDto` renamed to `Category*`
 
 **Status:** Accepted
 
@@ -11,8 +11,8 @@
 `CityFormOverlayModeHandler`/`TaxonFormOverlayModeHandler` were four near-identical class pairs
 (~500+ duplicated lines total), differing only in `TaxonType.CATEGORY` vs `TaxonType.CITY`,
 i18n keys, and CSS class prefixes — the largest single duplication in the codebase (see
-`improvement-201` Part 2). This entry covers steps 1-2: the management-view pair and the overlay
-pair.
+`improvement-201` Part 2). This entry covers all four steps: the management-view pair, the overlay
+pair, the view-mode-handler pair, and the form-mode-handler pair.
 
 **Decision:**
 1. New `AbstractTaxonManagementView` (`ui/views/main/tabs/referencedata/`) holds
@@ -82,22 +82,56 @@ pair.
    reasoning ADR-065 already gave for keeping City/Category as separate concrete types.
    `CityViewOverlayModeHandler`/`CategoryViewOverlayModeHandler` shrink to ~50 lines each (was
    ~110).
+7. **Step 4 (final):** new `AbstractTaxonFormOverlayModeHandler<T extends EditDto> extends
+   AbstractFormOverlayModeHandler<T> implements I18nParams` absorbs the richest remaining piece —
+   `activate()`/`save()`/`discardChanges()`/`afterSave()`/`handleRestoreFromActivity()`/
+   `loadRestored()`/`buildDto()`/`buildBinder()`/`updateButtons()` — from
+   `CityFormOverlayModeHandler`/`CategoryFormOverlayModeHandler`. `Parameters` (a plain record, not
+   the earlier `@Value`/`@Builder` shape) and a `Mode` enum (`CREATE`/`EDIT`, distinct from
+   `AbstractTaxonOverlay`'s own 3-value `Mode`) both moved onto the abstract base itself, same move
+   as step 2's `OverlaySession` — `entity` field genericized from `city`/`taxon`, both now `public`
+   since `CityOverlay`/`CategoryOverlay` (a different package, not a subclass) construct `Parameters`
+   directly. Twelve abstract methods cover what genuinely differs: 7 injected-service getters,
+   `getTaxonType()`, `getDtoClass()` (needed for `OverlayFormBinder.Parameters.clazz()` — generic
+   type erasure means `T.class` isn't otherwise reachable), `newDto()`, `buildLocaleForm()` (stays
+   per-leaf — `CityEditDto::getNameEn`/`CategoryEditDto::getNameEn` are genuinely different method
+   references), `getCssPrefix()` (mirrors step 1's identically-named method), `getLabels()` (a
+   5-key record: `sectionLabel`/`buttonSave`/`buttonCancel`/`titleEdit`/`activityButton` — the other
+   10 form-field keys stay inside each leaf's own `buildLocaleForm()`, already covered by
+   `LocaleTranslationForm.Labels`). `EditDto` gained `void setId(Long id);` (previously only
+   `getId()` via `Identifiable`) — confirmed safe, all 6 real implementers already have a
+   class-level Lombok `@Setter`. `LocaleTranslationForm<T>` (pre-existing) gained two generic
+   methods, `extractTranslations(T)`/`applyTranslations(T, List<TaxonTranslationDto>)`, so the
+   shared `save()`/`buildDto()` bodies read/write EN/UK name+description via `T`'s own accessor
+   lambdas already captured there, instead of concrete-DTO-typed calls. Connected simplification to
+   already-committed step 2 code: `AbstractTaxonOverlay<H>`'s bound narrowed from `H extends
+   AbstractFormOverlayModeHandler<?>` to `H extends AbstractTaxonFormOverlayModeHandler<?>`, and its
+   own `getSavedEntityId()` abstract method (each leaf delegating to a differently-named
+   `getSavedCityId()`/`getSavedTaxonId()`) deleted entirely — `proceed()` now calls
+   `currentFormHandler.getSavedEntityId()` directly, since both leaves now share one uniformly-named
+   implementation. `CityFormOverlayModeHandler`/`CategoryFormOverlayModeHandler` shrink to ~55 lines
+   each (was ~226).
 
 **Consequences:**
 - `CityManagementView`/`CategoryManagementView` each now ~35 lines (was ~184);
-  `CityOverlay`/`CategoryOverlay` each now ~60 lines (was ~155);
-  `CityViewOverlayModeHandler`/`CategoryViewOverlayModeHandler` each now ~50 lines (was ~110).
+  `CityOverlay`/`CategoryOverlay` each now ~55 lines (was ~155);
+  `CityViewOverlayModeHandler`/`CategoryViewOverlayModeHandler` each now ~50 lines (was ~110);
+  `CityFormOverlayModeHandler`/`CategoryFormOverlayModeHandler` each now ~55 lines (was ~226).
+  ~700 duplicated lines removed across the whole vertical.
 - Verified end-to-end: full reactor compiles; full Playwright `e2e --ux` suite (50/50, spec 06
-  skipped by design) passed five times across the three steps plus the rename — including
+  skipped by design) passed seven times across the four steps plus the rename — including
   the City/Category create/edit/delete/restore/discard scenarios in spec 03. One step-3 run hit an
   infra-level SIGKILL (exit 137, `pw-runner` container itself exited 0, no OOM) unrelated to the
   code — confirmed via a clean retry.
-- `/review` (`deep-review-orchestrator`) found no SOLID violations across all three steps and
+- `/review` (`deep-review-orchestrator`) found no SOLID violations across all four steps and
   confirmed no missed or incorrect renames; one KISS finding (the intersection-type generic
-  `getOverlay()` signature) reviewed and kept as-is, consistent with ADR-082's own cast-avoidance
-  precedent. Step 2's review surfaced one pre-existing, unrelated finding (`proceed()`'s silent
-  no-op when the post-save refetch returns empty) — confirmed pre-existing via `git show` before
-  this refactor, not introduced by it; tracked separately in `improvement-201`, not fixed here.
+  `getOverlay()` signature, step 1) reviewed and kept as-is, consistent with ADR-082's own
+  cast-avoidance precedent. Step 2's review surfaced one pre-existing, unrelated finding
+  (`proceed()`'s silent no-op when the post-save refetch returns empty) — confirmed pre-existing via
+  `git show` before this refactor, not introduced by it; tracked separately in `improvement-201`,
+  not fixed here. Step 4's review surfaced one small duplication (the `Mode`-translation ternary
+  still repeated in `CityOverlay`/`CategoryOverlay`'s `buildFormHandler()`) — fixed directly via a
+  shared `AbstractTaxonOverlay.toHandlerMode()` helper.
   Step 3's review found nothing to report.
 
 ## ADR-084: Verifying CSS on Vaadin Shadow DOM components — `getComputedStyle` is unreliable for paint properties, real diagnostic color swaps are required

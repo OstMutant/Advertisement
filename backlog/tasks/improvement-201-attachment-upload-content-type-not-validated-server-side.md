@@ -8,11 +8,10 @@ Part 2 — marketplace-app (ui/views/main/tabs/referencedata/, overlay/, overlay
 user-spring-boot-starter/marketplace-orchestrator (UserService.cleanup()). Part 4 —
 marketplace-orchestrator (ProviderProfileSaveService).
 **Priority:** 🔴 Top for Parts 1-2 — placed above every other backlog item; Part 1 is a real,
-confirmed security gap, not tech debt. Parts 3-4 unprioritized pending verification. Filed
-2026-09-22.
-**When:** independent, no blockers for Parts 1-2 — highest priority in the entire backlog. Parts
-3-4 not yet scoped/verified. All four parts are unrelated in scope and can land as separate
-PRs/passes within this one task file.
+confirmed security gap, not tech debt. **Parts 1-2 done (2026-09-23).** Parts 3-5 unprioritized
+pending verification/decision. Filed 2026-09-22.
+**When:** Parts 1-2 done. Parts 3-5 not yet scoped/verified. All parts are unrelated in scope and
+landed/land as separate PRs/passes within this one task file.
 
 ## Part 1: Attachment upload content-type is never validated server-side — stored-XSS-via-upload vector
 
@@ -234,7 +233,20 @@ Verified: full reactor compiles, full Playwright `e2e --ux` (50/50) passed — o
 infra-level SIGKILL (exit 137, unrelated to the code, confirmed via clean retry). `/review` found
 nothing to report.
 
-Step 4 (FormOverlayModeHandler pair) not yet started.
+**Step 4 done — Part 2 complete.** `AbstractTaxonFormOverlayModeHandler<T>` extracted per ADR-085
+(updated), the richest of the 4 pairs (save/discard/restore/history/binder).
+`CityFormOverlayModeHandler`/`CategoryFormOverlayModeHandler` now ~55 lines each (was ~226).
+Connected simplifications: `EditDto` gained `setId(Long)` (safe — all 6 implementers already have
+it via Lombok); `LocaleTranslationForm<T>` gained `extractTranslations()`/`applyTranslations()`;
+`AbstractTaxonOverlay`'s own `getSavedEntityId()` abstract method removed (uniform accessor now on
+the form handler itself). Verified: full reactor compiles, full Playwright `e2e --ux` (50/50)
+passed twice (once for the step, once after a small `/review`-driven polish). `/review` found no
+SOLID violations; one small duplication (Mode-translation ternary in both overlays'
+`buildFormHandler()`) fixed directly via a shared `toHandlerMode()` helper.
+
+**Part 2 totals:** ~700 duplicated lines removed across 4 class pairs. Full Playwright suite
+(50/50) passed 7 times across the whole part. Zero SOLID violations across all 4 `/review` passes.
+One pre-existing, unrelated bug found along the way (Part 5 below).
 
 ### Part 2 — Related
 

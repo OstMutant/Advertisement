@@ -9,6 +9,7 @@ import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.AbstractTaxonFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CategoryFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CategoryViewOverlayModeHandler;
 import org.ost.orchestrator.services.TaxonCatalogService;
@@ -25,7 +26,7 @@ public class CategoryOverlay extends AbstractTaxonOverlay<CategoryFormOverlayMod
 
     @Getter private final EntityOverlaySupport support;
     private final UiComponentFactory<CategoryViewOverlayModeHandler, CategoryViewOverlayModeHandler.Parameters> viewModeHandlerFactory;
-    private final UiComponentFactory<CategoryFormOverlayModeHandler, CategoryFormOverlayModeHandler.Parameters> formModeHandlerFactory;
+    private final UiComponentFactory<CategoryFormOverlayModeHandler, AbstractTaxonFormOverlayModeHandler.Parameters> formModeHandlerFactory;
     @Getter private final TaxonCatalogService taxonCatalogService;
 
     @Override protected String  getOverlayCssClass() { return "category-overlay"; }
@@ -42,11 +43,6 @@ public class CategoryOverlay extends AbstractTaxonOverlay<CategoryFormOverlayMod
     }
 
     @Override
-    protected Long getSavedEntityId() {
-        return currentFormHandler.getSavedTaxonId();
-    }
-
-    @Override
     protected OverlayModeHandler buildViewHandler(TaxonDto entity, Runnable onEdit, Runnable onClose) {
         return viewModeHandlerFactory.build(CategoryViewOverlayModeHandler.Parameters.builder()
                 .taxon(entity).onEdit(onEdit).onClose(onClose).build());
@@ -54,15 +50,7 @@ public class CategoryOverlay extends AbstractTaxonOverlay<CategoryFormOverlayMod
 
     @Override
     protected CategoryFormOverlayModeHandler buildFormHandler(TaxonDto entity, Mode mode, List<BreadcrumbStep> breadcrumbSteps) {
-        CategoryFormOverlayModeHandler.Mode handlerMode = mode == Mode.CREATE
-                ? CategoryFormOverlayModeHandler.Mode.CREATE
-                : CategoryFormOverlayModeHandler.Mode.EDIT;
-        return formModeHandlerFactory.build(CategoryFormOverlayModeHandler.Parameters.builder()
-                .taxon(entity)
-                .mode(handlerMode)
-                .onSave(this::handleSave)
-                .onCancel(this::handleCancel)
-                .breadcrumbSteps(breadcrumbSteps)
-                .build());
+        return formModeHandlerFactory.build(new AbstractTaxonFormOverlayModeHandler.Parameters(
+                entity, toHandlerMode(mode), this::handleSave, this::handleCancel, breadcrumbSteps));
     }
 }
