@@ -2,6 +2,7 @@ package org.ost.taxon.repository;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
@@ -63,7 +64,11 @@ public class TaxonRepository {
     private final JdbcClient          jdbcClient;
 
     public Taxon save(@NonNull Taxon taxon) {
-        return crud.save(taxon);
+        try {
+            return crud.save(taxon);
+        } catch (OptimisticLockingFailureException e) {
+            throw new StaleWriteException("Taxon " + taxon.getId() + " was modified by another session", e);
+        }
     }
 
     public Optional<Taxon> findById(@NonNull Long id) {
@@ -109,7 +114,7 @@ public class TaxonRepository {
                           .addValue("version",   version))
                   .update();
         if (updated == 0) {
-            throw new OptimisticLockingFailureException("Taxon " + id + " was modified by another session");
+            throw new StaleWriteException("Taxon " + id + " was modified by another session");
         }
     }
 

@@ -107,6 +107,7 @@ per-candidate verifiers, returning only the final findings to the main conversat
 - `.claude/skills/deep-review/references/diff-mode.md` — the existing, already-working prompt text
   this issue formalizes into real files (`SKILL.md`/`diff-mode.md` were left unmodified in the end
   — see "Implementation update" below).
+- `.claude/DECISIONS.md` ADR-002 — this issue's own resulting decision record.
 
 ## Implementation update (2026-08-25)
 

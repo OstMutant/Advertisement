@@ -32,7 +32,7 @@ public interface ProviderProfilePort {
     Long save(@NonNull ProviderProfileSaveDto dto, @NonNull Long targetUserId, @NonNull Long actingUserId, boolean actingUserIsPrivileged);
 
     /** {@code version} must be the value the caller last read; a stale value throws
-     *  OptimisticLockingFailureException. */
+     *  {@link org.ost.platform.core.StaleWriteException}. */
     void delete(@NonNull Long id, Long version);
 
     Set<Long> findExistingIds(@NonNull Set<Long> ids);

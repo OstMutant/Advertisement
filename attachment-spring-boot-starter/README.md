@@ -24,8 +24,10 @@ Every command/query enters through `DefaultAttachmentPort`/`AttachmentAuditPortI
 implementations of `AttachmentPort`/`AttachmentAuditPort` — both delegate every call, unchanged,
 to `AttachmentService`/`AttachmentSnapshotService`, the module's two business-logic classes.
 
-- **Upload:** `AttachmentPort.upload`/`uploadTemp` → `AttachmentService` calls `StorageService`
-  (`S3StorageService`) to write the object, then persists an `Attachment` row via
+- **Upload:** `AttachmentPort.upload`/`uploadTemp` → `AttachmentService` validates the declared and
+  magic-byte-detected content type via `AttachmentContentTypeValidator` (rejecting anything outside
+  `AttachmentAllowedContentTypes.VALUES`), then calls `StorageService` (`S3StorageService`) to write
+  the object, then persists an `Attachment` row via
   `AttachmentRepository`; a temp upload skips the row and is later promoted by
   `commitTempUploads`, which moves each non-embedded temp object into its entity's folder (an
   embedded-video temp entry keeps its original url unmoved) and saves the rows in one batch.
@@ -57,14 +59,16 @@ to `AttachmentService`/`AttachmentSnapshotService`, the module's two business-lo
 
 - `platform-commons` — `AttachmentPort`/`AttachmentAuditPort` (`attachment.spi`), `AttachmentItemDto`/
   `AttachmentMediaSummaryDto`/`TempAttachmentDto` (`attachment.dto`), `AttachmentMediaContentType`/
-  `YoutubeUtil` (`attachment.model`/`attachment.util`), plus the cross-domain `EntityType`/
-  `EntityRef`/`ChangeEntry` (`core.model`), `CleanupProperties` (`core.config`), `CurrentActorHook`
-  (`core.spi`), and `ComponentFactory`.
+  `AttachmentAllowedContentTypes`/`YoutubeUtil` (`attachment.model`/`attachment.util`), plus the
+  cross-domain `EntityType`/`EntityRef`/`ChangeEntry` (`core.model`), `CleanupProperties`
+  (`core.config`), `CurrentActorHook` (`core.spi`), and `ComponentFactory`.
 - Spring Boot (`spring-boot-starter`, `spring-boot-starter-data-jdbc`, `spring-boot-liquibase`) —
   the autoconfiguration/JDBC-repository/migration machinery `AttachmentAutoConfiguration` builds on.
 - AWS SDK S3 — the only storage backend implementation shipped (`S3StorageService`); `StorageService`
   itself stays storage-agnostic so a future backend can be swapped in without touching
   `AttachmentService`.
+- Apache Tika (`tika-core`) — magic-byte content-type detection backing
+  `AttachmentContentTypeValidator`.
 - No Maven dependency on any sibling starter (enforced by this module's own `maven-enforcer-plugin`
   `enforce-no-starter-to-starter-deps` rule) — the UI components that render attachments live in
   `marketplace-app` instead, reached only through `AttachmentPort`.

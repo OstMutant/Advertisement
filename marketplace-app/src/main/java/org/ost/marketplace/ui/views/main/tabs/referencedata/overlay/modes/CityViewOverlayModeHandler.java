@@ -1,10 +1,5 @@
 package org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes;
 
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.H4;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.NonNull;
@@ -13,24 +8,17 @@ import lombok.Value;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.Configurable;
-import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
-import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
-import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
-import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
-import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.springframework.context.annotation.Scope;
-
-import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class CityViewOverlayModeHandler extends AbstractViewOverlayModeHandler
-        implements Configurable<CityViewOverlayModeHandler, CityViewOverlayModeHandler.Parameters>, I18nParams {
+public class CityViewOverlayModeHandler extends AbstractTaxonViewOverlayModeHandler
+        implements Configurable<CityViewOverlayModeHandler, CityViewOverlayModeHandler.Parameters> {
 
     @Value
     @lombok.Builder
@@ -40,10 +28,15 @@ public class CityViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         @NonNull Runnable  onClose;
     }
 
+    private static final Labels LABELS = new Labels(
+            CITY_OVERLAY_SECTION_LABEL, CITY_OVERLAY_LOCALE_TAB_EN, CITY_OVERLAY_LOCALE_TAB_UK,
+            CITY_VIEW_BUTTON_EDIT, CITY_OVERLAY_BUTTON_CANCEL);
+
     @Getter
-    private final I18nService                       i18nService;
-    private final AccessEvaluator                   access;
-    private final TaxonCatalogService                taxonCatalogService;
+    private final I18nService         i18nService;
+    private final AccessEvaluator     access;
+    @Getter
+    private final TaxonCatalogService taxonCatalogService;
 
     private Parameters params;
 
@@ -53,57 +46,9 @@ public class CityViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         return this;
     }
 
-    @Override
-    protected Div buildPrimaryContent() {
-        List<TaxonTranslationDto> translations = taxonCatalogService.getTranslations(params.getCity().getId());
-
-        String nameEn = "";
-        String descEn = "";
-        String nameUk = "";
-        String descUk = "";
-        for (TaxonTranslationDto t : translations) {
-            if ("en".equals(t.getLocale())) { nameEn = t.getName(); descEn = t.getDescription(); }
-            else if ("uk".equals(t.getLocale())) { nameUk = t.getName(); descUk = t.getDescription(); }
-        }
-
-        Div cardHeader = new Div(VaadinIcon.TAG.create(), new Span(getValue(CITY_OVERLAY_SECTION_LABEL)));
-        cardHeader.addClassName("overlay__view-card-header");
-
-        H4 enLabel = new H4(getValue(CITY_OVERLAY_LOCALE_TAB_EN));
-        enLabel.addClassName("taxon-locale-label");
-        Div enContent = buildLocaleContent(nameEn, descEn);
-        enContent.addClassName("taxon-locale-content");
-
-        H4 ukLabel = new H4(getValue(CITY_OVERLAY_LOCALE_TAB_UK));
-        ukLabel.addClassName("taxon-locale-label");
-        Div ukContent = buildLocaleContent(nameUk, descUk);
-        ukContent.addClassName("taxon-locale-content");
-
-        Div card = new Div(cardHeader, enLabel, enContent, ukLabel, ukContent);
-        card.addClassName("overlay__form-fields-card");
-
-        Div body = new Div(card);
-        body.addClassName("overlay__view-body");
-        return body;
-    }
-
-    private Div buildLocaleContent(String name, String description) {
-        H2 nameHeading = new H2(name);
-        nameHeading.addClassName("taxon-view-name");
-
-        Span descSpan = new Span(description);
-        descSpan.addClassName("taxon-view-description");
-
-        return new Div(nameHeading, descSpan);
-    }
-
-    @Override
-    protected Div buildHeaderActions() {
-        UiPrimaryButton editButton = new UiPrimaryButton(getValue(CITY_VIEW_BUTTON_EDIT));
-        UiIconButton closeButton = new UiIconButton(getValue(CITY_OVERLAY_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
-        editButton.addClickListener(_  -> params.getOnEdit().run());
-        closeButton.addClickListener(_ -> params.getOnClose().run());
-        editButton.setVisible(access.isPrivileged());
-        return new Div(editButton, closeButton);
-    }
+    @Override protected AccessEvaluator getAccess()   { return access; }
+    @Override protected Long            getEntityId() { return params.getCity().getId(); }
+    @Override protected Runnable        getOnEdit()   { return params.getOnEdit(); }
+    @Override protected Runnable        getOnClose()  { return params.getOnClose(); }
+    @Override protected Labels          getLabels()   { return LABELS; }
 }

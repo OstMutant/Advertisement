@@ -1,15 +1,12 @@
 package org.ost.user.services;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.validation.Valid;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.providerprofile.spi.ProviderProfilePort;
+import org.ost.platform.core.FailureRateLimiter;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
@@ -40,13 +37,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
  * User domain business logic -- filtered queries, registration (first-user auto-admin promotion,
- * Caffeine-backed rate-limiting), profile updates, soft-delete, cross-domain retention cleanup, and
- * Spring Security principal construction/refresh.
+ * Caffeine-backed rate-limiting), profile updates, soft-delete, retention-purge candidate lookup
+ * and purge, and Spring Security principal construction/refresh.
  */
 @Slf4j
 @Service
@@ -56,18 +52,13 @@ public class UserService {
 
     private static final int MAX_REGISTER_ATTEMPTS = 5;
 
-    private final Cache<String, AtomicInteger> registerAttempts = Caffeine.newBuilder()
-            .expireAfterWrite(Duration.ofMinutes(15))
-            .maximumSize(10_000)
-            .build();
+    private final FailureRateLimiter registerLimiter = new FailureRateLimiter(MAX_REGISTER_ATTEMPTS, Duration.ofMinutes(15));
 
-    private final UserRepository                       repository;
-    private final UserPreferencesRepository             preferencesRepository;
-    private final PasswordEncoder                      passwordEncoder;
-    private final UserPreferencesService                preferencesService;
-    private final ComponentFactory<AuditPort>           auditPortFactory;
-    private final ComponentFactory<AdvertisementPort>   advertisementPortFactory;
-    private final ComponentFactory<ProviderProfilePort> providerProfilePortFactory;
+    private final UserRepository            repository;
+    private final UserPreferencesRepository preferencesRepository;
+    private final PasswordEncoder           passwordEncoder;
+    private final UserPreferencesService    preferencesService;
+    private final ComponentFactory<AuditPort> auditPortFactory;
 
     public List<UserDto> getFiltered(@Valid @NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort)).stream().map(User::toDto).toList();
@@ -104,49 +95,22 @@ public class UserService {
         return repository.findDeletedIds(ids.toArray(new Long[0]));
     }
 
-    public void cleanup(int retentionDays) {
-        List<Long> candidates = repository.findIdsDeletedOlderThan(retentionDays);
-        if (candidates.isEmpty()) return;
-
-        Set<Long> candidateIds = Set.copyOf(candidates);
-        advertisementPortFactory.ifAvailable(p -> p.clearActorReferences(candidateIds));
-        Set<Long> adOwnerIds = advertisementPortFactory.findIfAvailable()
-                .map(p -> p.findOwnerIds(candidateIds))
-                .orElse(Set.of());
-        Set<Long> providerProfileOwnerIds = providerProfilePortFactory.findIfAvailable()
-                .map(p -> p.findOwnerIds(candidateIds))
-                .orElse(Set.of());
-
-        int purged = 0;
-        for (Long id : candidates) {
-            if (isStillOwner(id, adOwnerIds, providerProfileOwnerIds)) {
-                continue;
-            }
-            preferencesRepository.deleteByActorId(id);
-            repository.deleteById(id);
-            purged++;
-        }
-        log.info("User cleanup finished: purged={}, skipped={}", purged, candidates.size() - purged);
+    public Set<Long> findIdsDeletedOlderThan(int retentionDays) {
+        return Set.copyOf(repository.findIdsDeletedOlderThan(retentionDays));
     }
 
-    private boolean isStillOwner(Long id, Set<Long> adOwnerIds, Set<Long> providerProfileOwnerIds) {
-        if (adOwnerIds.contains(id)) {
-            log.warn("Skipped purging user {} - still owns an advertisement, will retry next run", id);
-            return true;
+    @Transactional
+    public void purge(@NonNull Set<Long> ids) {
+        for (Long id : ids) {
+            preferencesRepository.deleteByActorId(id);
+            repository.deleteById(id);
         }
-        if (providerProfileOwnerIds.contains(id)) {
-            log.warn("Skipped purging user {} - still owns a provider profile, will retry next run", id);
-            return true;
-        }
-        return false;
+        log.info("User purge finished: purged={}", ids.size());
     }
 
     @Transactional
     public void register(@Valid @NonNull SignUpDto dto, @NonNull String clientIp) {
-        AtomicInteger attempts = registerAttempts.get(clientIp, _ -> new AtomicInteger(0));
-        if (attempts.get() >= MAX_REGISTER_ATTEMPTS) {
-            throw new IllegalStateException("Too many failed registration attempts, try again later");
-        }
+        registerLimiter.checkAllowed(clientIp, "Too many failed registration attempts, try again later");
         log.info("User register: email={}", dto.getEmail());
         boolean isFirstUser = repository.countByFilter(UserFilterDto.empty()).equals(0L);
         User newUser = User.builder()
@@ -159,7 +123,7 @@ public class UserService {
         try {
             saved = repository.save(newUser);
         } catch (DuplicateKeyException ex) {
-            attempts.incrementAndGet();
+            registerLimiter.recordFailure(clientIp);
             throw ex;
         }
         preferencesRepository.insertDefault(saved.getId());

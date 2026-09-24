@@ -61,6 +61,11 @@ import static org.mockito.Mockito.lenient;
 })
 class AttachmentServiceTransactionTest extends AbstractPostgresIntegrationTest {
 
+    // Real JPEG magic bytes -- AttachmentContentTypeValidator now rejects a fake placeholder payload.
+    private static final byte[] JPEG_BYTES = {
+            (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00
+    };
+
     @TestConfiguration
     @RepositoryTestAutoConfig
     @EnableJdbcAuditing
@@ -110,7 +115,7 @@ class AttachmentServiceTransactionTest extends AbstractPostgresIntegrationTest {
                 .when(attachmentSnapshotService).capture(any(), any(), any());
 
         assertThatThrownBy(() -> attachmentService.upload(EntityType.ADVERTISEMENT, 1L, "file.jpg",
-                new ByteArrayInputStream("data".getBytes()), 4, "image/jpeg"))
+                new ByteArrayInputStream(JPEG_BYTES), JPEG_BYTES.length, "image/jpeg"))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("audit capture failed");
 
@@ -121,7 +126,7 @@ class AttachmentServiceTransactionTest extends AbstractPostgresIntegrationTest {
     @Test
     void upload_success_persistsAttachmentRow() {
         AttachmentItemDto saved = attachmentService.upload(EntityType.ADVERTISEMENT, 2L, "file.jpg",
-                new ByteArrayInputStream("data".getBytes()), 4, "image/jpeg");
+                new ByteArrayInputStream(JPEG_BYTES), JPEG_BYTES.length, "image/jpeg");
 
         assertThat(saved.id()).isNotNull();
         List<Attachment> rows = attachmentRepository.getByEntityId(EntityType.ADVERTISEMENT, 2L);

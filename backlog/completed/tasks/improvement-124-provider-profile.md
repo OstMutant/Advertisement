@@ -745,9 +745,13 @@ entry (completed as ADR-071 in the same pass), and a stale `UserSettingsService`
 - `marketplace-app/DECISIONS.md` ADR-065 (city facet reuse), ADR-034 (actor enrichment pattern,
   and the `created_by`/`updated_by`/`deleted_by` actor-reference-column convention this issue's
   `actor_id` column follows), ADR-044 (settings-blob embedded version, superseded by this issue's
-  real `version` column).
+  real `version` column), ADR-075 (this issue's own public Providers catalog batch, closed out by
+  `improvement-179`).
 - `.claude/rules.md` "Form Handler Pattern" — `buildTabbedContent()` "do not duplicate" rule,
   directly relevant to the Part 2 generalization.
+- `marketplace-orchestrator/DECISIONS.md` ADR-003 — Batch 124-C (the
+  `TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService`
+  single-caller-collaborator question) landed here, unrelated to that ADR's own BFF-purity subject.
 
 ## Operational notes
 - token_cost_review: n/a

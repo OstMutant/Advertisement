@@ -13,6 +13,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 
 | ADR | Module | Status | Verified | Title |
 |---|---|---|---|---|
+| ADR-015 (attachment-spring-boot-starter) | attachment-spring-boot-starter | Accepted |  | Server-side attachment content-type validation via Apache Tika |
 | ADR-001 (attachment-spring-boot-starter) | attachment-spring-boot-starter | Accepted |  | Attachment domain logic extracted from marketplace-app |
 | ADR-002 (attachment-spring-boot-starter) | attachment-spring-boot-starter | Accepted |  | S3 storage merged into this module; storage-s3-starter deleted |
 | ADR-003 (attachment-spring-boot-starter) | attachment-spring-boot-starter | Accepted |  | Decoupled from advertisement domain — generic over EntityType |
@@ -79,6 +80,11 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-007 (integration-tests) | integration-tests | Accepted |  | `run.sh` auto-detects starter staleness instead of a manual skip-`-am` flag |
 | ADR-008 (integration-tests) | integration-tests | Accepted |  | Test package-private/private internal logic through its public entry point, never through a same-package trick or a widened production visibility |
 | ADR-010 (integration-tests) | integration-tests | Accepted |  | `@Tag("testcontainers")` on the shared base class + Surefire `excludedGroups`; `SharedEnvConfig` gains a testable overload |
+| ADR-086 (marketplace-app) | marketplace-app | Accepted |  | `AbstractEntityOverlay.applyFreshOrFallback` — defined fallback for a post-save refetch that races a concurrent delete; skip the refetch where a caller doesn't need fresh data |
+| ADR-085 (marketplace-app) | marketplace-app | Accepted |  | `AbstractTaxonManagementView`/`AbstractTaxonOverlay`/`AbstractTaxonViewOverlayModeHandler`/`AbstractTaxonFormOverlayModeHandler` — shared City/Category admin-screen logic behind still-separate bean classes; `TaxonOverlay`/`TaxonManagementView`/`TaxonViewOverlayModeHandler`/`TaxonFormOverlayModeHandler`/`TaxonEditDto` renamed to `Category*` |
+| ADR-084 (marketplace-app) | marketplace-app | Accepted |  | Verifying CSS on Vaadin Shadow DOM components — `getComputedStyle` is unreliable for paint properties, real diagnostic color swaps are required |
+| ADR-083 (marketplace-app) | marketplace-app | Accepted |  | Accent-color derivation via CSS Relative Color Syntax (`oklch(from ...)`/`rgb(from ...)`), not `color-mix()` |
+| ADR-082 (marketplace-app) | marketplace-app | Accepted |  | `UiComponentFactory<T>` gains a second type parameter `P`, closing the last unchecked cast ADR-058 left open |
 | ADR-081 (marketplace-app) | marketplace-app | Accepted |  | `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it |
 | ADR-081 (marketplace-app) | marketplace-rest-api | Accepted |  | `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it |
 | ADR-081 (marketplace-app) | taxon-spring-boot-starter | Accepted |  | `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it |
@@ -132,12 +138,12 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-051 (marketplace-app) | marketplace-app | Accepted — `UserDeleteService`, `UserActorNameService`, and `AuditDomainHookImpl` (described below as living in `marketplace-app`) all later relocated to `marketplace-orchestrator` (see ADR-073 and `marketplace-orchestrator/CLAUDE.md`); this decision's reasoning still applies to those classes in their new location. |  | User deletion — soft-delete, cascade to the user's own ads, retention purge, actor-name annotation |
 | ADR-052 (marketplace-app) | marketplace-app | Accepted |  | Leaf UI components converted from `@SpringComponent` prototype beans to plain classes |
 | ADR-057 (marketplace-app) | marketplace-app | Accepted |  | `AbstractViewOverlayModeHandler`'s secondary/tertiary-tab machinery removed — dead since the Timeline-tab extraction |
-| ADR-058 (marketplace-app) | marketplace-app | Accepted |  | `UiComponentFactory<T>` bounded to `T extends Configurable<T, ?>`; non-`Configurable` consumers migrated to plain `ComponentFactory<T>` |
+| ADR-058 (marketplace-app) | marketplace-app | Superseded by ADR-082 (item 1's "cast unavoidable" claim only; items 2-3 — ten-consumer migration, OverlayFormBinder four-beans split — remain current) |  | `UiComponentFactory<T>` bounded to `T extends Configurable<T, ?>`; non-`Configurable` consumers migrated to plain `ComponentFactory<T>` |
 | ADR-059 (marketplace-app) | marketplace-app | Accepted |  | F-01 deep links + Open Graph meta tags, Share button, sitemap.xml, and browser History sync |
 | ADR-063 (marketplace-app) | marketplace-app | Accepted |  | List stability after edit — splice-in-place instead of full refresh (Advertisement, User, Taxon) |
 | ADR-064 (marketplace-app) | marketplace-app | Accepted |  | `advertisement` → `user_information` hard FK coupling removed — last one between starters |
 | ADR-064 (marketplace-app) | advertisement-spring-boot-starter | Accepted |  | `advertisement` → `user_information` hard FK coupling removed — last one between starters |
-| ADR-065 (marketplace-app) | marketplace-app | Accepted |  | F-02 city dictionary + geo filter — `TaxonType.CITY` reusing the existing taxon assignment mechanism, no schema change |
+| ADR-065 (marketplace-app) | marketplace-app | Accepted — item 5's "no parameterized `Taxon*`" rejection still holds; see ADR-085 for a later, narrower change (shared base class behind two still-separate bean classes) that does not reopen it. |  | F-02 city dictionary + geo filter — `TaxonType.CITY` reusing the existing taxon assignment mechanism, no schema change |
 | ADR-066 (marketplace-app) | marketplace-app | Accepted |  | F-03 listing types (Offer/Request/Product) — new `ad_kind` column, `RadioButtonGroup` (first use in this codebase), multi-select filter |
 | ADR-067 (marketplace-app) | marketplace-app | Accepted, rolled out to all five domains (Settings, Advertisement, Taxon, City, User) |  | Activity/restore moved from an "Activity" tab to a stacked nested overlay |
 | ADR-068 (marketplace-app) | marketplace-app | Accepted — two later changes moved past what's described below: `AdvertisementPort .findById()`'s `Locale` parameter was subsequently removed again (category/city enrichment moved to read-time display composition in `marketplace-orchestrator`, which resolves locale itself); and `AdvertisementEnrichmentService` was renamed/relocated to `marketplace-orchestrator`'s `AdvertisementDisplayEnrichmentService` (see ADR-073). This entry's own reasoning for extracting enrichment out of `AdvertisementService` still holds — only the exact signature/location changed. |  | `findById()` locale fix + `AdvertisementEnrichmentService` extraction (Batch A) |
@@ -151,13 +157,19 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-075 (marketplace-app) | marketplace-orchestrator | Accepted |  | Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay |
 | ADR-076 (marketplace-app) | marketplace-app | Accepted |  | `OverlayNavigationRegistry` fans out browser History to every deep-linkable overlay; `SitemapController` thins to a `marketplace-orchestrator` `SitemapService` |
 | ADR-077 (marketplace-app) | marketplace-app | Accepted |  | Provider Profile catalog gains real date-range filters, mirroring Advertisement's exact mechanism |
+| ADR-009 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `StaleWriteException` replaces `OptimisticLockingFailureException` as the project-wide stale-write signal |
+| ADR-008 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `UserCleanupService`/`UserPurgeEligibilityService` — the scheduled retention-purge referential-integrity check moves here from `user-spring-boot-starter` |
 | ADR-007 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only |
-| ADR-006 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | Stale-id-during-concurrent-delete guard in `AdvertisementSaveService`/`ProviderProfileSaveService` |
+| ADR-006 (marketplace-orchestrator) | marketplace-orchestrator | Accepted — the exception type it throws is superseded by ADR-009 (`StaleWriteException` instead of `OptimisticLockingFailureException`); the guard placement/rationale itself stands |  | Stale-id-during-concurrent-delete guard in `AdvertisementSaveService`/`ProviderProfileSaveService` |
 | ADR-001 (marketplace-orchestrator) | marketplace-orchestrator | Accepted — the "never depends on a starter jar" consequence is superseded by ADR-004; the module-extraction decision itself stands |  | Extract a dedicated Application/BFF module instead of moving orchestration into marketplace-app |
 | ADR-002 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `AdvertisementSaveService`'s cascade-cleanup-on-delete folds into the same transaction, not a separate step |
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
 | ADR-004 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `*Hook` implementations that only need domain-port access move here; `pom.xml` gains all 6 starter dependencies directly, superseding ADR-001's "never depends on a starter jar" |
 | ADR-005 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern |
+| ADR-033 (platform-commons) | platform-commons | Accepted |  | `AttachmentAllowedContentTypes` — single shared whitelist for attachment content types |
+| ADR-032 (platform-commons) | platform-commons | Accepted |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
+| ADR-032 (platform-commons) | advertisement-spring-boot-starter | Accepted |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
+| ADR-032 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
 | ADR-031 (platform-commons) | platform-commons | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
 | ADR-031 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
 | ADR-031 (platform-commons) | marketplace-orchestrator | Accepted |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
@@ -190,8 +202,9 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-030 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
 | ADR-030 (platform-commons) | marketplace-orchestrator | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
 | ADR-030 (platform-commons) | marketplace-app | Accepted |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
+| ADR-004 (playwright) | playwright | Accepted |  | ESLint via eslint-plugin-playwright, delegated to pw-runner not ci-runner |
 | ADR-001 (playwright) | playwright | Accepted |  | data-testid convention for form field selectors |
-| ADR-002 (playwright) | playwright | Accepted |  | No waitForTimeout — wait on Vaadin state attributes |
+| ADR-002 (playwright) | playwright | Accepted **Verified:** 2026-09-18 |  | No waitForTimeout — wait on Vaadin state attributes |
 | ADR-003 (playwright) | playwright | Accepted |  | --ux flag controls screenshots |
 | ADR-001 (query-lib) | query-lib | Accepted |  | Renamed from query-starter to query-lib — plain Java library, no Spring autoconfiguration |
 | ADR-003 (query-lib) | query-lib | Accepted |  | API scope frozen — no DSL extensions |

@@ -67,23 +67,23 @@ async function openRefDataTab(page) {
   await page.locator('vaadin-tab').filter({ hasText: 'Reference Data' }).click();
   // Sub-tabs retain their last selection across visibility toggles — reselect Categories explicitly.
   await page.locator('.reference-data-sub-tabs vaadin-tab').filter({ hasText: /Categories|Категорії/i }).click();
-  await page.locator('.taxon-management-view').waitFor({ timeout: 8000 });
+  await page.locator('.category-management-view').waitFor({ timeout: 8000 });
 }
 
 async function waitForTaxonOverlay(page) {
-  await page.locator('.taxon-overlay.overlay--visible').waitFor({ timeout: 8000 });
+  await page.locator('.category-overlay.overlay--visible').waitFor({ timeout: 8000 });
 }
 
 async function closeTaxonOverlay(page) {
   await closeEntityActivity(page);
-  await page.locator('.taxon-overlay vaadin-button')
+  await page.locator('.category-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .click();
-  await page.locator('.taxon-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 8000 });
+  await page.locator('.category-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 8000 });
 }
 
 async function fillTaxonLocale(page, locale, name, desc) {
-  const overlay = page.locator('.taxon-overlay');
+  const overlay = page.locator('.category-overlay');
   const idx     = locale === 'EN' ? 0 : 1;
   const content = overlay.locator('.taxon-locale-content').nth(idx);
   await content.locator('vaadin-text-field input').fill(name);
@@ -91,11 +91,11 @@ async function fillTaxonLocale(page, locale, name, desc) {
 }
 
 async function createCategory(page, { nameEn, descEn, nameUk, descUk }) {
-  await page.locator('.taxon-add-button').click();
+  await page.locator('.category-add-button').click();
   await waitForTaxonOverlay(page);
   await fillTaxonLocale(page, 'EN', nameEn, descEn);
   await fillTaxonLocale(page, 'UK', nameUk, descUk);
-  await page.locator('.taxon-overlay vaadin-button').filter({ hasText: 'Save' }).click();
+  await page.locator('.category-overlay vaadin-button').filter({ hasText: 'Save' }).click();
   await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
   await closeNotification(page);
   await closeTaxonOverlay(page);
@@ -108,7 +108,7 @@ async function openTaxonEdit(page, name) {
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:pencil"]') })
     .click();
   await waitForTaxonOverlay(page);
-  await expect(page.locator('.taxon-overlay .overlay__breadcrumb-back')).toHaveCount(1, { timeout: 3000 });
+  await expect(page.locator('.category-overlay .overlay__breadcrumb-back')).toHaveCount(1, { timeout: 3000 });
 }
 
 // Section 3 helpers — city management (mirrors taxon helpers above, scoped to the Cities sub-tab)
@@ -295,10 +295,10 @@ test.describe('Promotion flow', () => {
     await screenshot(page, 'taxon-00-ref-data-tab');
 
     await test.step('discard in CREATE mode — fields clear, save button disabled', async () => {
-      await page.locator('.taxon-add-button').click();
+      await page.locator('.category-add-button').click();
       await waitForTaxonOverlay(page);
       await fillTaxonLocale(page, 'EN', 'Temp Name', 'Temp description long enough to be valid here');
-      const overlay    = page.locator('.taxon-overlay');
+      const overlay    = page.locator('.category-overlay');
       const saveBtn    = overlay.locator('vaadin-button').filter({ hasText: 'Save' });
       const discardBtn = overlay.locator('vaadin-button').filter({ hasText: 'Discard changes' });
       await expect(saveBtn).toBeEnabled({ timeout: 5000 });
@@ -312,11 +312,11 @@ test.describe('Promotion flow', () => {
     });
 
     await test.step('discard after CREATE save — fields revert to saved values, not empty', async () => {
-      await page.locator('.taxon-add-button').click();
+      await page.locator('.category-add-button').click();
       await waitForTaxonOverlay(page);
       await fillTaxonLocale(page, 'EN', 'TempCat', 'Temporary category for discard test');
       await fillTaxonLocale(page, 'UK', 'ТимчасCat', 'Тимчасова категорія для тесту');
-      const overlay    = page.locator('.taxon-overlay');
+      const overlay    = page.locator('.category-overlay');
       const saveBtn    = overlay.locator('vaadin-button').filter({ hasText: 'Save' });
       const discardBtn = overlay.locator('vaadin-button').filter({ hasText: 'Discard changes' });
       await saveBtn.click();
@@ -366,7 +366,7 @@ test.describe('Promotion flow', () => {
 
     await test.step('discard in EDIT mode — modified name reverts to original', async () => {
       await openTaxonEdit(page, CAT1.nameEn);
-      const overlay = page.locator('.taxon-overlay');
+      const overlay = page.locator('.category-overlay');
       await expect(overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input')).toHaveValue(CAT1.nameEn, { timeout: 5000 });
       await overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input').fill('Electronics MODIFIED');
       const saveBtn    = overlay.locator('vaadin-button').filter({ hasText: 'Save' });
@@ -382,7 +382,7 @@ test.describe('Promotion flow', () => {
 
     await test.step('edit Electronics name and save — activity shows v2 update row', async () => {
       await openTaxonEdit(page, CAT1.nameEn);
-      const overlay = page.locator('.taxon-overlay');
+      const overlay = page.locator('.category-overlay');
       await overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input').fill('Electronics v2');
       const saveBtn = overlay.locator('vaadin-button').filter({ hasText: 'Save' });
       await expect(saveBtn).toBeEnabled({ timeout: 5000 });
@@ -391,7 +391,7 @@ test.describe('Promotion flow', () => {
       await closeNotification(page);
       await screenshot(page, 'taxon-04-edit-saved');
 
-      const activityList = await openEntityActivity(page, '.taxon-history-button');
+      const activityList = await openEntityActivity(page, '.category-history-button');
       await expect(activityList.locator('.entity-activity-row')).toHaveCount(2, { timeout: 8000 });
       await expect(activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-action')).toContainText(/updated|оновлено/i);
       await expect(activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-version')).toContainText('v2');
@@ -400,7 +400,7 @@ test.describe('Promotion flow', () => {
     });
 
     await test.step('restore from activity v1 — form reverts to original name, save applies restore', async () => {
-      const overlay      = page.locator('.taxon-overlay');
+      const overlay      = page.locator('.category-overlay');
       const activityList = page.locator('.entity-activity-overlay .entity-activity-list');
       const v1Row        = activityList.locator('.entity-activity-row').nth(1);
       await v1Row.locator('.entity-activity-restore-btn').click();
@@ -423,13 +423,13 @@ test.describe('Promotion flow', () => {
     await test.step('outer breadcrumb link in nested history closes directly to list, even after View→Edit', async () => {
       await page.locator('.taxon-row-name', { hasText: CAT1.nameEn }).click();
       await waitForTaxonOverlay(page);
-      await page.locator('.taxon-overlay vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
-      await page.locator('.taxon-overlay .taxon-locale-content').nth(0).locator('vaadin-text-field input').waitFor({ timeout: 5000 });
-      await expect(page.locator('.taxon-overlay .overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
-      await openEntityActivity(page, '.taxon-history-button');
+      await page.locator('.category-overlay vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
+      await page.locator('.category-overlay .taxon-locale-content').nth(0).locator('vaadin-text-field input').waitFor({ timeout: 5000 });
+      await expect(page.locator('.category-overlay .overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
+      await openEntityActivity(page, '.category-history-button');
       await closeEntityActivity(page, 'outer');
       await expect(page.locator('.base-overlay.overlay--visible')).toHaveCount(0, { timeout: 5000 });
-      await expect(page.locator('.taxon-management-view')).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('.category-management-view')).toBeVisible({ timeout: 5000 });
       await screenshot(page, 'taxon-05b-outer-link-to-list');
     });
 
@@ -556,7 +556,7 @@ test.describe('Promotion flow', () => {
 
       // Open edit overlay → history overlay → verify deleted and restored events are present
       await openTaxonEdit(page, CAT1.nameEn);
-      const activityList = await openEntityActivity(page, '.taxon-history-button');
+      const activityList = await openEntityActivity(page, '.category-history-button');
       await expect(
         activityList.locator('.entity-activity-row')
           .filter({ has: page.locator('.entity-activity-action--deleted') })

@@ -1,7 +1,9 @@
+@layer components {
+
 /* ── Form card: blue top accent ──────────────────────────────────── */
 
 .overlay__form-fields-card {
-    border-top: 3px solid var(--app-accent-primary) !important;
+    border-top: 3px solid var(--app-accent-primary);
 }
 
 /* Header: stretches full-width over the card padding via negative margin */
@@ -71,7 +73,7 @@
 .overlay__form-fields-card vaadin-password-field:focus-within::part(input-field),
 .overlay__form-fields-card vaadin-integer-field:focus-within::part(input-field) {
     border-color: var(--app-accent-primary);
-    box-shadow: 0 0 0 3px rgba(var(--app-accent-primary-rgb), 0.12);
+    box-shadow: 0 0 0 3px rgb(from var(--app-accent-primary) r g b / 0.12);
     background-color: var(--app-surface-white);
 }
 
@@ -84,4 +86,6 @@
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--app-text-tertiary);
+}
+
 }

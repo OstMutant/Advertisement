@@ -1056,6 +1056,9 @@ why the first attempt to verify that didn't show any improvement.
 
 ## Related
 
+- `integration-tests/DECISIONS.md` ADR-009 — the 3-level test structure widening this issue's own
+  real end-to-end REST scenario tests needed.
+
 ## 15. `ProviderProfileApiController` should resolve `size` from settings too, mirroring the UI — ✅ Done (2026-09-11)
 
 **Found (2026-09-08):** `ProviderProfileApiController.list()` still takes a caller-supplied

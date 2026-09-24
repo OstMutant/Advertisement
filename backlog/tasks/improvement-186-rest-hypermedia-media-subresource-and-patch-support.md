@@ -182,6 +182,42 @@ its own real cost today:
   its own explicit go-ahead and — if approved — an ADR edit via `/record-decision` marking ADR-080's
   pagination portion superseded, not a silent side effect of doing the rest of this issue's items.
 
+### 4. `POST /api/api-keys`'s HTTP Basic auth bypasses the login rate limiter — credential brute-force gap
+
+Verified directly against current code, 2026-09-22, via `/review` over `marketplace-rest-api` plus
+independent re-verification: `ApiSecurityConfig.apiSecurityFilterChain()` wires
+`.httpBasic(Customizer.withDefaults())`, which authenticates straight against the shared
+`AuthenticationManager` bean (`UserAutoConfiguration`, `user-spring-boot-starter` —
+`DaoAuthenticationProvider` + `UserDetailsService` + `PasswordEncoder`, no rate limiting of its own).
+`AuthService.login()` (the Vaadin UI path) wraps the same `AuthenticationManager` with its own
+private `loginLimiter` (`FailureRateLimiter`, `MAX_LOGIN_ATTEMPTS = 5` / 15 min) — but that limiter
+lives entirely inside `AuthService`, never invoked by Spring Security's `httpBasic()` filter chain.
+Result: an identical email+password brute-force attempt that `AuthService.login()` blocks after 5
+tries is *unlimited* against `POST /api/api-keys`.
+
+**Not the same gap `improvement-196` already covers** — that task's own scope is *post-authentication*
+request-volume limiting (a `OncePerRequestFilter` registered *after* `ApiKeyAuthenticationFilter`,
+keyed on an already-resolved principal/key id), and its own Constraints section explicitly says "do
+not touch `AuthService.login()`". Neither addresses the credential-guessing step itself on the
+`httpBasic()` handshake — a Basic-auth failure never reaches any request-volume filter, since it's
+rejected with 401 by Spring Security before the filter chain's later stages run.
+
+**Approach (sketch, needs sizing before implementation):**
+- Reuse `FailureRateLimiter` (already used by `AuthService`/`UserService`, and the same class
+  `improvement-196` plans to reuse for its own, different limiter) rather than a third hand-rolled
+  counter.
+- Enforcement point: an `AuthenticationFailureHandler`/`AuthenticationEventPublisher` hook on the
+  `httpBasic()` chain (or a small filter ahead of it keyed on the request's `Authorization` header's
+  decoded username), checked before delegating to the `AuthenticationManager` — mirrors
+  `AuthService.login()`'s own check-before-attempt shape.
+- Key the counter on the attempted email (same key shape `AuthService.login()` already uses), not on
+  IP or principal — the attacker doesn't have a resolved principal yet, that's the point.
+- `429 Too Many Requests` response, consistent with the existing `TooManyAttemptsException` →
+  `ApiExceptionHandler` mapping.
+- Coordinate with `improvement-196`'s own item 2/3 enforcement-point work if both land in the same
+  pass, since both touch `ApiSecurityConfig`'s filter chain — decide ordering once both are actually
+  being implemented, not assumed here.
+
 ## Related
 
 - [improvement-183](../completed/tasks/improvement-183-rest-api-and-taxon-ui-follow-ups.md) item 9 — the original

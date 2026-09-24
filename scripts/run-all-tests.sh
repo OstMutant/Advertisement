@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Thin entry point -- delegates to scripts/run-all-tests/run.sh, where the real logic
 #   lives.

@@ -33,7 +33,7 @@
  * Env: PW_FULL -- when unset/falsy, the 'Max-content advertisement boundary' describe block is
  *   skipped entirely.
  * Input: ./_helpers (test, expect, screenshot, waitForOverlayClosed, closeOverlay,
- *   closeNotification, TEST_USERS, YT_URL, avatar, downloadPng), ./_flows/auth.flow,
+ *   closeNotification, TEST_USERS, YT_URL, avatar, stubYoutubeEmbed, downloadPng), ./_flows/auth.flow,
  *   ./_flows/advertisement.flow, ./_flows/delete.flow, ./_flows/entity-activity.flow,
  *   ./_flows/timeline.flow, ./_flows/attachment.flow, ./_flows/seed.flow, ./_flows/category.flow.
  * Outputs: Playwright HTML report entries (one per test/test.step), PNG screenshots attached to
@@ -43,7 +43,7 @@
  *   non-zero otherwise.
  * ──────────────────────────────────────────────────────────────────────────── */
 const fs = require('fs');
-const { test, expect, screenshot, waitForOverlayClosed, closeOverlay, closeNotification, TEST_USERS, YT_URL, avatar, downloadPng, assertAbsent, assertVerticalOrder } = require('./_helpers');
+const { test, expect, screenshot, waitForOverlayClosed, closeOverlay, closeNotification, TEST_USERS, YT_URL, avatar, stubYoutubeEmbed, downloadPng, assertAbsent, assertVerticalOrder } = require('./_helpers');
 
 async function waitForOverlay(page, timeout = 10000) {
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout });
@@ -79,6 +79,7 @@ test.describe('Advertisement flow', () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
+    await stubYoutubeEmbed(page);
     await page.goto('/');
   });
 
@@ -102,8 +103,7 @@ test.describe('Advertisement flow', () => {
       await page.locator('.attachment-lightbox').waitFor({ timeout: 5000 });
       const videoEl = page.locator('.attachment-lightbox video');
       await expect(videoEl).toBeVisible();
-      const src = await videoEl.getAttribute('src');
-      expect(src).toBeTruthy();
+      await expect(videoEl).toHaveAttribute('src', /.+/);
       await screenshot(page, 'adv-useren-create-attachment-lightbox');
       await page.locator('.attachment-lightbox .card-lightbox__close').click();
       await page.locator('.attachment-lightbox').waitFor({ state: 'detached', timeout: 5000 });
@@ -530,6 +530,7 @@ test.describe('Advertisement flow', () => {
     const card = cardByTitle(page, title);
     await card.first().waitFor({ timeout: 5000 });
     const adId = await card.first().getAttribute('data-ad-id');
+    // eslint-disable-next-line playwright/prefer-web-first-assertions -- the real string value is needed to build the URL below, not just an existence check
     expect(adId).toBeTruthy();
 
     await page.goto(`/ads/${adId}`);
@@ -629,6 +630,7 @@ test.describe('Max-content advertisement boundary', () => {
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
+    await stubYoutubeEmbed(page);
     await page.goto('/');
   });
 

@@ -8,6 +8,7 @@ import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
+import org.ost.attachment.util.AttachmentContentTypeValidator;
 import org.ost.attachment.util.AttachmentVideoUtil;
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
 import org.ost.platform.core.model.EntityType;
@@ -38,6 +39,8 @@ public class AttachmentService {
     private final AttachmentSnapshotService   attachmentSnapshotService;
     private final CurrentActorHook            currentActorHook;
 
+    // ── Query ────────────────────────────────────────────────────────────────
+
     public List<AttachmentItemDto> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
         return attachmentRepository.getByEntityId(entityType, entityId).stream().map(Attachment::toDto).toList();
     }
@@ -53,13 +56,21 @@ public class AttachmentService {
                 }));
     }
 
+    public List<AttachmentItemDto> getByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId,
+                                                       @NonNull String[] urls) {
+        return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls).stream().map(Attachment::toDto).toList();
+    }
+
+    // ── Permanent attachments ───────────────────────────────────────────────────
+
     @Transactional
     public AttachmentItemDto upload(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String filename,
                                     @NonNull InputStream inputStream, long contentLength, @NonNull String contentType) {
         log.info("Attachment upload: entityType={}, entityId={}, filename={}, size={}",
                 entityType, entityId, filename, contentLength);
-        String url = storageService.upload(folder(entityType, entityId), filename, inputStream, contentLength, contentType);
-        closeQuietly(inputStream);
+        InputStream validated = AttachmentContentTypeValidator.validate(inputStream, filename, contentType);
+        String url = storageService.upload(folder(entityType, entityId), filename, validated, contentLength, contentType);
+        closeQuietly(validated);
         try {
             Attachment saved = attachmentRepository.save(Attachment.builder()
                     .entityType(entityType)
@@ -85,6 +96,8 @@ public class AttachmentService {
         });
     }
 
+    // ── Video ────────────────────────────────────────────────────────────────
+
     public TempAttachmentDto addVideoTemp(@NonNull String url) {
         AttachmentVideoUtil.VideoDescriptor d = AttachmentVideoUtil.resolveVideoDescriptor(url);
         return new TempAttachmentDto(d.url(), d.filename(), d.contentType(), 0L);
@@ -102,21 +115,20 @@ public class AttachmentService {
         return saved.toDto();
     }
 
+    // ── Temp upload session ─────────────────────────────────────────────────────
+
     public TempAttachmentDto uploadTemp(@NonNull String tempSessionId, @NonNull String filename,
                                         @NonNull InputStream inputStream, long contentLength,
                                         @NonNull String contentType) {
-        String tempUrl = storageService.upload("temp/%s".formatted(tempSessionId), filename, inputStream, contentLength, contentType);
-        closeQuietly(inputStream);
+        InputStream validated = AttachmentContentTypeValidator.validate(inputStream, filename, contentType);
+        String tempUrl = storageService.upload("temp/%s".formatted(tempSessionId), filename, validated, contentLength, contentType);
+        closeQuietly(validated);
         return new TempAttachmentDto(tempUrl, filename, contentType, contentLength);
     }
 
     public void commitTempUploads(@NonNull EntityType entityType, @NonNull Long entityId,
                                   @NonNull List<TempAttachmentDto> temps) {
         commitTempUploadsQuiet(entityType, entityId, temps);
-        captureMediaChanges(entityType, entityId);
-    }
-
-    public void captureSnapshot(@NonNull EntityType entityType, @NonNull Long entityId) {
         captureMediaChanges(entityType, entityId);
     }
 
@@ -147,10 +159,17 @@ public class AttachmentService {
         }
     }
 
-    public List<AttachmentItemDto> getByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId,
-                                                       @NonNull String[] urls) {
-        return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls).stream().map(Attachment::toDto).toList();
+    public void discardTempUploads(@NonNull List<TempAttachmentDto> temps) {
+        temps.stream()
+             .filter(t -> !AttachmentMediaContentType.isEmbedded(t.contentType()))
+             .forEach(t -> storageService.delete(t.tempUrl()));
     }
+
+    public void captureSnapshot(@NonNull EntityType entityType, @NonNull Long entityId) {
+        captureMediaChanges(entityType, entityId);
+    }
+
+    // ── Lifecycle / restore ─────────────────────────────────────────────────────
 
     @Transactional
     public void restoreToUrls(@NonNull EntityType entityType, @NonNull Long entityId,
@@ -172,12 +191,6 @@ public class AttachmentService {
     public void softDeleteAll(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long actorId) {
         log.info("Attachment delete all: entityType={}, entityId={}", entityType, entityId);
         attachmentRepository.softDeleteAll(entityType, entityId, actorId);
-    }
-
-    public void discardTempUploads(@NonNull List<TempAttachmentDto> temps) {
-        temps.stream()
-             .filter(t -> !AttachmentMediaContentType.isEmbedded(t.contentType()))
-             .forEach(t -> storageService.delete(t.tempUrl()));
     }
 
     // ── internals ────────────────────────────────────────────────────────────

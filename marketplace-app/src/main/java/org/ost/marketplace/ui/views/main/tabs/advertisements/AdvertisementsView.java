@@ -49,7 +49,7 @@ public class AdvertisementsView extends VerticalLayout {
     private final transient AdvertisementReadService                   advertisementReadService;
     private final transient AdvertisementDisplayEnrichmentService      enrichmentService;
     private final transient AdvertisementOverlay                      overlay;
-    private final transient UiComponentFactory<AdvertisementCardView>   cardViewFactory;
+    private final transient UiComponentFactory<AdvertisementCardView, AdvertisementCardView.Parameters>   cardViewFactory;
     private final transient I18nService                               i18n;
     private final transient AccessEvaluator                           access;
     private final transient LocaleProvider                            localeProvider;

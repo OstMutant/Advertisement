@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Idempotent check-and-install for Docker CLI plugins this sandbox doesn't ship by
 #   default (buildx, compose v2) -- a normal Docker Desktop / docker-ce install already has both,

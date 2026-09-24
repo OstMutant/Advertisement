@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.services.auth.AuthService;
+import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.marketplace.ui.views.services.NotificationService;
@@ -81,7 +82,7 @@ public class LoginDialog extends BaseDialog implements I18nParams {
             } else {
                 notificationService.error(LOGIN_ERROR);
             }
-        } catch (IllegalStateException _) {
+        } catch (TooManyAttemptsException _) {
             notificationService.error(LOGIN_ERROR_TOO_MANY_ATTEMPTS);
         } catch (Exception ex) {
             log.error("Login failed unexpectedly", ex);

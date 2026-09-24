@@ -2,6 +2,306 @@
 
 ---
 
+## ADR-086: `AbstractEntityOverlay.applyFreshOrFallback` — defined fallback for a post-save refetch that races a concurrent delete; skip the refetch where a caller doesn't need fresh data
+
+**Status:** Accepted
+
+**Context:** Three save-flow call sites (`AbstractTaxonOverlay.proceed()`, `AdvertisementOverlay.proceed()`'s
+EDIT branch, `ProviderProfileFormOverlayModeHandler.save()`) each re-read the just-saved entity by
+id purely to hand fresh data to a caller (splice into a parent row, or track the DB-assigned
+`version` for the next save's optimistic-lock check), with no defined behavior when that re-read
+comes back empty — reachable via a narrow but real race (the row deleted by someone else between
+commit and this synchronous re-read). Found and sized as `improvement-201` Part 5:
+`AbstractTaxonOverlay`'s case left the overlay silently frozen on a stale, button-disabled form
+after a "success" toast — the user sees "Saved" but the overlay never closes, the list never
+refreshes, and the only way out is the overlay's own Close button. `AdvertisementOverlay`'s EDIT
+branch had the identical silent no-op. `ProviderProfileFormOverlayModeHandler`'s case was worse — a
+stale locally-tracked `version`/`id` causes a false-positive "someone else changed this" conflict
+(or a duplicate profile row for a brand-new profile) on the *next* save, with no visible symptom at
+the time of the original save at all.
+
+**Decision:**
+1. New `AbstractEntityOverlay.applyFreshOrFallback(Optional<T> fresh, Consumer<T> onFresh, Runnable
+   onMissing)` — runs `onFresh` when the refetch succeeded; otherwise logs a warning, shows a
+   generic `OVERLAY_POST_SAVE_REFRESH_FAILED` notification ("Saved, but the latest state couldn't
+   be reloaded — please reload the page"), and runs `onMissing` as the defined fallback, instead of
+   silently doing nothing. Used by `AbstractTaxonOverlay.proceed()`'s EDIT branch and
+   `AdvertisementOverlay.proceed()`'s EDIT branch, both falling back to `closeToList()` — the user
+   sees the warning and the overlay closes to the list instead of staying stuck.
+2. `AbstractTaxonOverlay.proceed()`'s CREATE branch skips the refetch entirely —
+   `session.onListChanged().run()` (which re-queries the whole list from the DB) makes the refetch
+   redundant, mirroring `AdvertisementOverlay`'s own CREATE branch, which already never attempted
+   one.
+3. `ProviderProfileFormOverlayModeHandler.save()` — no `AbstractEntityOverlay` fallback available
+   here (this class isn't one; `AccountOverlay`'s own `proceed()` has no branch for this section by
+   design, since the overlay intentionally stays open after any save). On an empty refetch: shows
+   the same notification and permanently hides Save/Discard for this form instance, rather than
+   letting it silently proceed with a stale `id`/`version` — the user must close and reopen to get a
+   fresh copy before editing again.
+
+**Rejected alternatives:** Fixing only `AdvertisementOverlay`'s CREATE-vs-EDIT inconsistency in
+isolation — rejected because the same root cause (undefined empty-refetch behavior) existed in 2
+other classes with 2 different failure shapes; a single shared helper plus the skip-when-unneeded
+insight covers all 3 without three divergent one-off fixes. Extending the refetch itself to be
+atomic with the save (e.g. having the `*Port.save()` call return the fresh entity directly) — out
+of scope, a larger `*Port` contract change affecting every domain, not just this narrow race's
+fallback behavior.
+
+---
+
+## ADR-085: `AbstractTaxonManagementView`/`AbstractTaxonOverlay`/`AbstractTaxonViewOverlayModeHandler`/`AbstractTaxonFormOverlayModeHandler` — shared City/Category admin-screen logic behind still-separate bean classes; `TaxonOverlay`/`TaxonManagementView`/`TaxonViewOverlayModeHandler`/`TaxonFormOverlayModeHandler`/`TaxonEditDto` renamed to `Category*`
+
+**Status:** Accepted
+
+**Context:** `CityManagementView`/`TaxonManagementView`, `CityOverlay`/`TaxonOverlay`,
+`CityViewOverlayModeHandler`/`TaxonViewOverlayModeHandler`, and
+`CityFormOverlayModeHandler`/`TaxonFormOverlayModeHandler` were four near-identical class pairs
+(~500+ duplicated lines total), differing only in `TaxonType.CATEGORY` vs `TaxonType.CITY`,
+i18n keys, and CSS class prefixes — the largest single duplication in the codebase (see
+`improvement-201` Part 2). This entry covers all four steps: the management-view pair, the overlay
+pair, the view-mode-handler pair, and the form-mode-handler pair.
+
+**Decision:**
+1. New `AbstractTaxonManagementView` (`ui/views/main/tabs/referencedata/`) holds
+   `refresh()`/`buildRow()`/`updateRowInPlace()`/`buildRowActions()`/`confirmAndDelete()`/
+   `doRestore()`, following the same abstract-getter shape as the existing `AbstractEntityOverlay`
+   precedent (no constructor-injected fields on the abstract class itself, to avoid the Lombok
+   `@RequiredArgsConstructor` super-call conflict): `getTaxonCatalogService()`, `getSupport()`
+   (reuses `EntityOverlaySupport`, the same i18n+notification bundle `AbstractEntityOverlay`
+   already uses), `getAccess()`, `getTaxonType()`, `getCssPrefix()`, `getLabels()` (a `Labels`
+   record bundling the 12 i18n keys that actually differ per `TaxonType`, mirroring
+   `LocaleTranslationForm.Labels`'s existing shape), and
+   `<O extends Div & TaxonManagementOverlay> O getOverlay()` — an intersection-type generic method
+   chosen deliberately over a cast, matching this project's own established preference (see
+   ADR-082's "zero casts, zero `@SuppressWarnings("unchecked")`" and the `Div`-over-`FlexLayout`
+   choice earlier in this file, both explicitly picking a type that already satisfies the needed
+   interface over introducing a cast).
+2. New `TaxonManagementOverlay` interface (`ui/views/main/tabs/referencedata/overlay/`) —
+   `openForView`/`openForCreate`/`openForEdit` — the contract `CityOverlay`/`CategoryOverlay`
+   already had identically-shaped public methods for; both now `implements` it so the abstract
+   base can call through it without depending on either concrete overlay class.
+3. **Does not reopen ADR-065's rejection of a single parameterized `TaxonManagementView(TaxonType)`
+   bean** — `CategoryManagementView`/`CityManagementView` remain two distinct
+   `@SpringComponent @UIScope` singleton bean classes (each still hardcodes its own `TaxonType` via
+   `getTaxonType()`), matching ADR-065's own stated reason (two simultaneous tabs need two distinct
+   instances). This step only removes compile-time code duplication between those two still-separate
+   beans, a different axis from the rejected runtime-sharing alternative.
+4. **Renamed the concrete Category-specific classes** (`TaxonOverlay`, `TaxonManagementView`,
+   `TaxonViewOverlayModeHandler`, `TaxonFormOverlayModeHandler`, `TaxonEditDto` — each hardcoded to
+   `TaxonType.CATEGORY` since Category was the only taxon type before ADR-065 added City by analogy)
+   to `Category*`, reserving the bare "Taxon" name exclusively for the genuinely-generic shared
+   classes (`AbstractTaxonManagementView`, `TaxonManagementOverlay`) and the domain-level types that
+   correctly stay generic (`TaxonType`, `TaxonDto`, `TaxonCatalogService`, `EntityType.TAXON`).
+   Cascaded through: 33 `I18nKey` enum constants + their string values, both
+   `messages_en.properties`/`messages_uk.properties` (key names only, translated text unchanged),
+   the category-specific CSS classes in `taxon-view.css` (`category-overlay`,
+   `category-management-view`, `category-add-button`, `category-history-button` — the genuinely-
+   shared `taxon-locale-content`/`taxon-row-wrapper`/etc. CSS classes deliberately left unchanged,
+   per ADR-065's own reasoning for why City/Category need visually-identical-but-selector-distinct
+   classes), `ComponentFactoryConfig`'s bean method names, and Playwright selectors in
+   `03-marketplace-promotion-flow.spec.js`/`category.flow.js`. Internal variable/field/method names
+   still referencing `taxon` (`params.getTaxon()`, `getSavedTaxonId()`, the `OverlaySession`'s
+   `taxon` field) were deliberately left as-is — they correctly reference the underlying `TaxonDto`
+   domain type, the same reasoning City's own class already applies to its `city`-named fields for
+   the same `TaxonDto` type.
+5. **Step 2:** new `AbstractTaxonOverlay<H extends AbstractFormOverlayModeHandler<?>> extends
+   AbstractEntityOverlay<H>` (`ui/views/main/tabs/referencedata/overlay/`) absorbs
+   `CityOverlay`/`CategoryOverlay`'s entire open/switch/save-proceed lifecycle: the `Mode` enum and
+   `OverlaySession` record (its entity field renamed `city`/`taxon` → generic `entity`),
+   `openForView`/`openForCreate`/`openForEdit`/`openSession`, `isEditMode()`/`enteredFromView()`/
+   `afterDiscard()`/`switchToEdit()`, and the `proceed()`/`switchTo()` bodies — moved over verbatim
+   apart from routing through new abstract methods for what genuinely differs:
+   `getTaxonCatalogService()`, `getSavedEntityId()` (delegates to each form handler's own
+   differently-named accessor), `buildViewHandler(TaxonDto, Runnable, Runnable)`,
+   `buildFormHandler(TaxonDto, Mode, List<BreadcrumbStep>)`, `getTitleEdit()`, `getTitleNew()`.
+   `TaxonManagementOverlay` is now `implements`ed once on `AbstractTaxonOverlay` itself instead of
+   separately on each leaf. `CityOverlay`/`CategoryOverlay` shrink to ~60 lines each (was ~155).
+6. **Step 3:** new `AbstractTaxonViewOverlayModeHandler extends AbstractViewOverlayModeHandler
+   implements I18nParams` (`ui/views/main/tabs/referencedata/overlay/modes/`) absorbs
+   `buildPrimaryContent()`/`buildLocaleContent()`/`buildHeaderActions()` from
+   `CityViewOverlayModeHandler`/`CategoryViewOverlayModeHandler` — moved over verbatim apart from a
+   `Labels` record (`sectionLabel`/`localeTabEn`/`localeTabUk`/`viewButtonEdit`/
+   `overlayButtonCancel`, mirroring the same `Labels`-record shape already used in step 1's
+   `AbstractTaxonManagementView` and the pre-existing `LocaleTranslationForm`) plus abstract getters
+   for the other per-subclass pieces: `getTaxonCatalogService()`, `getAccess()`, `getEntityId()`,
+   `getOnEdit()`, `getOnClose()`. Each leaf's `Configurable<T,P>`/`Parameters` stays per-subclass
+   (differs only by the `city`/`taxon` field name) — deliberately not unified at this step, same
+   reasoning ADR-065 already gave for keeping City/Category as separate concrete types.
+   `CityViewOverlayModeHandler`/`CategoryViewOverlayModeHandler` shrink to ~50 lines each (was
+   ~110).
+7. **Step 4 (final):** new `AbstractTaxonFormOverlayModeHandler<T extends EditDto> extends
+   AbstractFormOverlayModeHandler<T> implements I18nParams` absorbs the richest remaining piece —
+   `activate()`/`save()`/`discardChanges()`/`afterSave()`/`handleRestoreFromActivity()`/
+   `loadRestored()`/`buildDto()`/`buildBinder()`/`updateButtons()` — from
+   `CityFormOverlayModeHandler`/`CategoryFormOverlayModeHandler`. `Parameters` (a plain record, not
+   the earlier `@Value`/`@Builder` shape) and a `Mode` enum (`CREATE`/`EDIT`, distinct from
+   `AbstractTaxonOverlay`'s own 3-value `Mode`) both moved onto the abstract base itself, same move
+   as step 2's `OverlaySession` — `entity` field genericized from `city`/`taxon`, both now `public`
+   since `CityOverlay`/`CategoryOverlay` (a different package, not a subclass) construct `Parameters`
+   directly. Twelve abstract methods cover what genuinely differs: 7 injected-service getters,
+   `getTaxonType()`, `getDtoClass()` (needed for `OverlayFormBinder.Parameters.clazz()` — generic
+   type erasure means `T.class` isn't otherwise reachable), `newDto()`, `buildLocaleForm()` (stays
+   per-leaf — `CityEditDto::getNameEn`/`CategoryEditDto::getNameEn` are genuinely different method
+   references), `getCssPrefix()` (mirrors step 1's identically-named method), `getLabels()` (a
+   5-key record: `sectionLabel`/`buttonSave`/`buttonCancel`/`titleEdit`/`activityButton` — the other
+   10 form-field keys stay inside each leaf's own `buildLocaleForm()`, already covered by
+   `LocaleTranslationForm.Labels`). `EditDto` gained `void setId(Long id);` (previously only
+   `getId()` via `Identifiable`) — confirmed safe, all 6 real implementers already have a
+   class-level Lombok `@Setter`. `LocaleTranslationForm<T>` (pre-existing) gained two generic
+   methods, `extractTranslations(T)`/`applyTranslations(T, List<TaxonTranslationDto>)`, so the
+   shared `save()`/`buildDto()` bodies read/write EN/UK name+description via `T`'s own accessor
+   lambdas already captured there, instead of concrete-DTO-typed calls. Connected simplification to
+   already-committed step 2 code: `AbstractTaxonOverlay<H>`'s bound narrowed from `H extends
+   AbstractFormOverlayModeHandler<?>` to `H extends AbstractTaxonFormOverlayModeHandler<?>`, and its
+   own `getSavedEntityId()` abstract method (each leaf delegating to a differently-named
+   `getSavedCityId()`/`getSavedTaxonId()`) deleted entirely — `proceed()` now calls
+   `currentFormHandler.getSavedEntityId()` directly, since both leaves now share one uniformly-named
+   implementation. `CityFormOverlayModeHandler`/`CategoryFormOverlayModeHandler` shrink to ~55 lines
+   each (was ~226).
+
+**Consequences:**
+- `CityManagementView`/`CategoryManagementView` each now ~35 lines (was ~184);
+  `CityOverlay`/`CategoryOverlay` each now ~55 lines (was ~155);
+  `CityViewOverlayModeHandler`/`CategoryViewOverlayModeHandler` each now ~50 lines (was ~110);
+  `CityFormOverlayModeHandler`/`CategoryFormOverlayModeHandler` each now ~55 lines (was ~226).
+  ~700 duplicated lines removed across the whole vertical.
+- Verified end-to-end: full reactor compiles; full Playwright `e2e --ux` suite (50/50, spec 06
+  skipped by design) passed seven times across the four steps plus the rename — including
+  the City/Category create/edit/delete/restore/discard scenarios in spec 03. One step-3 run hit an
+  infra-level SIGKILL (exit 137, `pw-runner` container itself exited 0, no OOM) unrelated to the
+  code — confirmed via a clean retry.
+- `/review` (`deep-review-orchestrator`) found no SOLID violations across all four steps and
+  confirmed no missed or incorrect renames; one KISS finding (the intersection-type generic
+  `getOverlay()` signature, step 1) reviewed and kept as-is, consistent with ADR-082's own
+  cast-avoidance precedent. Step 2's review surfaced one pre-existing, unrelated finding
+  (`proceed()`'s silent no-op when the post-save refetch returns empty) — confirmed pre-existing via
+  `git show` before this refactor, not introduced by it; tracked separately in `improvement-201`,
+  not fixed here. Step 4's review surfaced one small duplication (the `Mode`-translation ternary
+  still repeated in `CityOverlay`/`CategoryOverlay`'s `buildFormHandler()`) — fixed directly via a
+  shared `AbstractTaxonOverlay.toHandlerMode()` helper.
+  Step 3's review found nothing to report.
+
+## ADR-084: Verifying CSS on Vaadin Shadow DOM components — `getComputedStyle` is unreliable for paint properties, real diagnostic color swaps are required
+
+**Status:** Accepted
+
+**Context:** A `!important` reduction pass (42 of 43 pre-existing
+declarations removed, 1 confirmed necessary and kept) needed to verify, per declaration, whether
+removing it changed real rendering. For plain elements (`html`/`body`, generic `<div>`s)
+`getComputedStyle` was fully reliable. For CSS applied directly to Vaadin custom elements (Shadow
+DOM web components: `vaadin-button`, `vaadin-text-field`, `vaadin-date-picker`), the same technique
+gave a false negative: a permanent computed-style check on `.card-lightbox__nav`'s
+`backgroundColor` failed identically whether `!important` was present, absent, or the whole file
+was fully unlayered — proving the check was structurally blind to this rule's real effect, not that
+a regression existed. Confirmed via a real diagnostic: forcing the same property to a bright,
+unmistakable value (`red`) with no `!important` produced a byte-identical cropped screenshot to the
+original translucent-white value — `background-color` set on this component's host never reaches
+whatever paints its actual visual, regardless of value. The same technique on `color` (an inherited
+property) showed the opposite: forcing it to `lime` produced a visibly green icon, confirming
+`color` does cross the shadow boundary. A different component (`vaadin-text-field`/`QueryTextField`)
+behaved differently again — `getComputedStyle` correctly reflected diagnostic `background-color`/
+`outline` changes made with no `!important` (an initial screenshot mismatch turned out to be a
+CSS-transition timing artifact, not a real discrepancy, confirmed by reading the value mid-transition).
+
+**Decision:**
+1. Never trust a plain `getComputedStyle` check alone to prove or disprove that a CSS rule visually
+   applies to a Vaadin custom element's host — it can return the CSS-cascade-correct value while the
+   component's shadow root paints something else entirely, independent of it.
+2. Before removing `!important` (or making any other cascade-order change) on a rule targeting a
+   Vaadin component's host, verify with a real diagnostic: temporarily force the property to an
+   unmistakable, high-contrast value with no `!important`, deploy, and check either (a) a precise
+   computed-style read, or (b) a cropped element screenshot taken after any CSS `transition` has
+   settled, comparing content or visually.
+3. `outline` is always safe to verify via `getComputedStyle` regardless of shadow DOM, since the CSS
+   spec draws it outside any element's own box, unaffected by shadow content painted inside. `color`
+   (inherited) reliably crosses the shadow boundary unless the component's own shadow template
+   overrides it internally. `background-color`/`box-shadow` painted on the host are the ones that
+   can silently fail to reach the real render — verify these per-component, never assume from
+   category alone.
+
+**Consequences:**
+- Two permanent Playwright assertions now exist as a byproduct in `01-marketplace-empty-flow.spec.js`
+  (body font-family; a query-block's `border-top-color` and a highlighted `QueryTextField`/
+  `QueryDateTimeField`'s class/outline state) — cheap regression coverage for properties that had
+  none before.
+- Any future CSS cleanup pass touching a Vaadin component's own class-based styling should budget
+  for this diagnostic-swap verification step, not assume a whole-suite pass (which only catches
+  functional/locator regressions, not silent visual no-ops) is sufficient.
+
+## ADR-083: Accent-color derivation via CSS Relative Color Syntax (`oklch(from ...)`/`rgb(from ...)`), not `color-mix()`
+
+**Status:** Accepted
+
+**Context:** The goal was deriving `--app-accent-primary`'s 9 dependent
+tokens (plus its `-rgb` channel helper) from the one seed value, instead of 10 independently
+hand-picked hex values — the same class of drift risk ADR-038 already hit once
+for `--app-text-muted`. `color-mix(in srgb|oklab, var(--app-accent-primary) P%, black|white)` was
+tried first and checked against real math (both plain sRGB and perceptual OKLab space): it fits 7
+of the 9 tokens closely (error 0-12 out of 255 per channel), but cannot reproduce `-strong`
+(`#1d4ed8`) or `-bold` (`#2563eb`) at all (error 27-37) — both carry a genuine hue shift, not just a
+lightness change, and mixing toward an achromatic color (black/white) cannot express a hue shift.
+
+**Decision:**
+1. Every derived token uses CSS Relative Color Syntax against the base instead:
+   `oklch(from var(--app-accent-primary) calc(l + ΔL) calc(c + ΔC) calc(h + ΔH))`, with `ΔL`/`ΔC`/`ΔH`
+   computed per token to exactly reproduce today's hex value. One mechanism for all 9 tokens, no
+   hand-picked exceptions.
+2. `--app-accent-primary-rgb` (a literal channel-triplet helper for `rgba(var(...), alpha)` call
+   sites) is removed entirely; its 7 call sites across 6 CSS files now use
+   `rgb(from var(--app-accent-primary) r g b / alpha)` — the same Relative Color Syntax mechanism.
+3. Browser support confirmed directly (caniuse, not assumed): 92.29% global, full support in
+   Chrome/Edge 131+, Safari 18+, Firefox 133+ since late 2024/early 2025 — same tier already
+   accepted for `color-mix()`/`oklch()`/`light-dark()` elsewhere in this task.
+4. Since the derivation is an exact fit by construction, no visual change resulted — confirmed via
+   the full Playwright `e2e --full --ux` suite (63/63) after fixing one pre-existing test literal
+   (`ROLE_COLOR.admin` in `playwright/e2e/_flows/user-management.flow.js`) that asserted the old
+   `rgb(29, 78, 216)` string; the browser now legitimately serializes the same color as
+   `oklch(0.488166 0.217197 264.381)` since that's the color function the token is declared in.
+
+**Consequences:**
+- Rebasing `--app-accent-primary` to a different hue/lightness in the future shifts the whole
+  9-token ladder relative to the new base automatically, instead of requiring 9 manual re-picks.
+- Any Playwright assertion on a computed color derived from an `oklch(from ...)`/`rgb(from ...)`
+  token must expect the browser's own serialization of that color function, not assume `rgb(...)`.
+- The gallery/violet accent groups are deliberately **not** touched by this decision — revisited
+  later based on this result.
+
+**Rejected alternatives:**
+- `color-mix(in srgb|oklab, ..., black|white)` — cannot express the hue shift `-strong`/`-bold`
+  need, would force 2 of 9 tokens to stay hand-picked exceptions, defeating the "one mechanism"
+  goal.
+
+---
+
+## ADR-082: `UiComponentFactory<T>` gains a second type parameter `P`, closing the last unchecked cast ADR-058 left open
+
+**Status:** Accepted
+
+**Context:** ADR-058 bounded `UiComponentFactory<T extends Configurable<T, ?>>` but explicitly left
+one cast unavoidable: `build(P params)` still cast `get()` to `Configurable<T, P>`, since
+`Configurable<T, ?>`'s own second type parameter is existential and can't be linked to the
+caller-supplied `P`. An external SOLID/DRY review flagged this remaining
+cast; verified it was real and genuinely not already closed by ADR-058, which only addressed the
+`T` bound.
+
+**Decision:**
+1. `UiComponentFactory<T extends Configurable<T, P>, P> extends ComponentFactory<T>` — a second
+   class-level type parameter `P`, linked to `T`'s own `Configurable<T, P>` bound. `build(P params)`
+   is now `return get().configure(params);` — zero casts, zero `@SuppressWarnings("unchecked")`.
+2. All 54 real declaration sites across 23 files in `marketplace-app` updated to the two-argument
+   form (`UiComponentFactory<Xxx, Xxx.Parameters>`), each verified against that class's own actual
+   `implements Configurable<T, P>` signature rather than assumed uniform — including the
+   `OverlayFormBinder<X>` generic case, which needs `OverlayFormBinder.Parameters<X>` (itself a
+   generic nested type), not the simple `Xxx.Parameters` pattern every other consumer uses.
+3. Confirmed via a real `--unit` build (`BUILD SUCCESS`, `ArchitectureRulesTest` passing) that this
+   change crosses no ArchUnit boundary rule.
+
+**Consequences:**
+- ADR-058's own recorded decision (item 1) is superseded by this entry — see ADR-058's own
+  `Status:` update.
+- Any future `Configurable<T, P>` consumer now declares `UiComponentFactory<T, P>` with both type
+  arguments explicit; a single-argument declaration no longer compiles.
+
 ## ADR-081: `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it
 
 **Status:** Accepted
@@ -1830,7 +2130,7 @@ i18n key (both locales).
 
 ## ADR-058: `UiComponentFactory<T>` bounded to `T extends Configurable<T, ?>`; non-`Configurable` consumers migrated to plain `ComponentFactory<T>`
 
-**Status:** Accepted
+**Status:** Superseded by ADR-082 (item 1's "cast unavoidable" claim only; items 2-3 — ten-consumer migration, OverlayFormBinder four-beans split — remain current)
 
 **Context:** `UiComponentFactory<T>.build(params)` cast `get()` to `Configurable<T, P>` under
 `@SuppressWarnings("unchecked")` because `UiComponentFactory<T>` had no compile-time guarantee `T`
@@ -2149,7 +2449,9 @@ job in a different starter with no cross-starter ordering guarantee.
 
 ## ADR-065: F-02 city dictionary + geo filter — `TaxonType.CITY` reusing the existing taxon assignment mechanism, no schema change
 
-**Status:** Accepted
+**Status:** Accepted — item 5's "no parameterized `Taxon*`" rejection still holds; see ADR-085 for a
+later, narrower change (shared base class behind two still-separate bean classes) that does not
+reopen it.
 
 **Context:** Local service listings are geo-first ("плиточник у Луцьку" is a real query shape); without a city
 facet the catalog is unfilterable past one city. The issue's own research (see its `## Suggested
@@ -3006,8 +3308,8 @@ batch is that same pattern applied to Provider Profile, not a new design.
 (anonymous browsing/filtering by kind/category/city, deep-link navigation + sitemap.xml + crawler
 meta tags, delete-from-catalog, `SUPPORT`-kind disabled-not-removed for a non-privileged actor
 already holding that kind) alongside its existing `AccountOverlay` tab coverage — no new spec file,
-per this repo's "extend before adding a new one" Playwright convention. `improvement-124`'s last
-open batch (public Providers catalog) is now closed. The `SitemapController`/browser-History
+per this repo's "extend before adding a new one" Playwright convention. This closes the last open
+batch of provider-profile work (public Providers catalog). The `SitemapController`/browser-History
 mechanics this ADR describes were both revised shortly after by ADR-076 — see that entry for the
 current shape.
 
@@ -3017,7 +3319,7 @@ current shape.
 
 **Status:** Accepted
 
-**Context:** Verifying `improvement-179`'s Providers catalog against real running code (not just
+**Context:** Verifying the Providers catalog against real running code (not just
 the plan) surfaced two real bugs, both directly caused by the pattern ADR-059/ADR-075 established
 for Advertisement being copied as-is for a second domain:
 1. ADR-059's own "Known limitation, deliberately not addressed" already predicted this: Vaadin's

@@ -58,7 +58,8 @@ codebase's actor-reference-column convention, e.g. `advertisement.created_by`)
   named for the restricted-column-set it represents, not "profile" — that word is reserved for
   F-04's provider-profile concept) — mapped to the same `user_information` table via its own
   `UserEditableFieldsCrudRepository`. Spring Data JDBC's native `@Version` handling applies (throws
-  `OptimisticLockingFailureException` on a version mismatch, same as `Advertisement`/`Taxon`), and
+  `OptimisticLockingFailureException` on a version mismatch, same as `Advertisement`/`Taxon`,
+  caught at the repository boundary and rethrown as `StaleWriteException`), and
   because `passwordHash`/`email` are not mapped properties on `UserEditableFields`, the generated
   `UPDATE` cannot touch them — this eliminates the class of bug where a profile edit accidentally
   forwards the wrong (or missing) value for a sensitive field, without relying on builder
@@ -73,7 +74,8 @@ codebase's actor-reference-column convention, e.g. `advertisement.created_by`)
   directly into that one column, the version round-trips through the same Jackson
   (de)serialization for free. The `UPDATE`'s `WHERE` clause checks
   `(settings->>'version')::bigint = :expectedVersion`; 0 affected rows throws
-  `OptimisticLockingFailureException`, same as `User.version`/`UserEditableFields` above.
+  `OptimisticLockingFailureException`, rethrown as `StaleWriteException` at the repository
+  boundary, same as `User.version`/`UserEditableFields` above.
   Deliberately does **not** reuse the row's shared `user_information.version` — that would couple
   a settings save to an unrelated profile-name edit in another tab. The original design and its
   later supersession — `settings`/`locale` now live in their own `user_preferences` table, not on

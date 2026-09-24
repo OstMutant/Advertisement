@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Runs INSIDE the build-and-test Docker container (JDK 25). Always builds
 #   the full reactor and refreshes marketplace-app's JAR in the shared volume, regardless of who
@@ -59,7 +59,7 @@
 #   through this script, not only via integration-tests/run.sh's own direct invocation.
 # Returns: 0 on success, non-zero on build/test failure.
 # ────────────────────────────────────────────────────────────────────────────
-set -e
+set -euo pipefail
 
 ROOT=/app
 
@@ -124,14 +124,14 @@ for module in $TARGET_CLASSES_MODULES; do
     continue
   fi
   if [ -d "$ROOT/$module/target/classes" ]; then
-    rm -rf "$TARGET_CLASSES_DIR/$module"
+    rm -rf "${TARGET_CLASSES_DIR:?}/${module:?module must be set}"
     mkdir -p "$TARGET_CLASSES_DIR/$module"
     cp -r "$ROOT/$module/target/classes/." "$TARGET_CLASSES_DIR/$module/"
   fi
 done
 
 if [ "$SKIP_VAADIN" != "true" ]; then
-  JAR=$(ls "$ROOT/marketplace-app/target/"*.jar 2>/dev/null | grep -v '\.original$' | head -1)
+  JAR=$(ls "$ROOT/marketplace-app/target/"*.jar 2>/dev/null | grep -v '\.original$' | head -1 || true)
   if [ -n "$JAR" ]; then
     cp "$JAR" "$ARTIFACT"
     echo "marketplace-app.jar refreshed in the shared volume."
@@ -217,7 +217,7 @@ print_unit_summary() {
   else
     echo "===== UNIT TESTS FAILED (exit $UNIT_EXIT) ====="
     echo "Failing tests, if any:"
-    grep -rl "FAILED\|ERROR" "$REPORTS_DIR"/surefire/*/*.txt 2>/dev/null | sed 's|.*/||'
+    grep -rl "FAILED\|ERROR" "$REPORTS_DIR"/surefire/*/*.txt 2>/dev/null | sed 's|.*/||' || true
   fi
 }
 
@@ -227,7 +227,7 @@ print_unit_summary() {
 # silently skipped, same override integration-tests/run.sh already applies.
 run_integration_tests() {
   # Ryuk is disabled here, so remove any Testcontainers container leaked by a prior crashed run.
-  if [ -n "$TESTCONTAINERS_RYUK_DISABLED" ]; then
+  if [ -n "${TESTCONTAINERS_RYUK_DISABLED:-}" ]; then
     docker ps -aq --filter "label=org.testcontainers=true" | xargs -r docker rm -f
   fi
 
@@ -295,7 +295,7 @@ print_integration_summary() {
   else
     echo "===== INTEGRATION TESTS FAILED (exit $INTEGRATION_EXIT) ====="
     echo "Failing tests, if any:"
-    grep -l "FAILED\|ERROR" "$REPORTS_DIR"/surefire/integration-tests/*.txt 2>/dev/null | sed 's|.*/||'
+    grep -l "FAILED\|ERROR" "$REPORTS_DIR"/surefire/integration-tests/*.txt 2>/dev/null | sed 's|.*/||' || true
   fi
 }
 

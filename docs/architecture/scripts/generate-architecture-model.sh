@@ -1355,7 +1355,7 @@ god_packages_json() {
 # comment style this can't parse (#, // only) or that simply has no header yet yields no entry, not
 # an error, so a new file with the convention shows up with no generator edit needed.
 script_headers_json() {
-  local dir="$1" files="$2"
+  local dir="$1" file_list="$2"
   python3 -c "
 import json, os, re, sys
 
@@ -1427,7 +1427,7 @@ for f in files:
         'returns': fields['Returns'],
     })
 print(json.dumps(out))
-" "$REPO_ROOT" "$dir" "$files"
+" "$REPO_ROOT" "$dir" "$file_list"
 }
 
 # Emits one SCRIPT_GROUP-shaped JSON object for directory "$1" (relative to REPO_ROOT), recursing
@@ -1871,6 +1871,7 @@ ci_metrics_json="null"
   echo "  \"allAdrs\": $(all_adrs_json),"
   echo "  \"rootReadme\": $(root_md_json_for "README.md"),"
   echo "  \"rootInfrastructure\": $(root_md_json_for "INFRASTRUCTURE.md"),"
+  echo "  \"rootBestPractices\": $(root_md_json_for "docs/best-practices.md"),"
   echo "  \"nodes\": ["
 
   first=true
@@ -1998,8 +1999,8 @@ ci_metrics_json="null"
   # for both open and completed lists. Not the full issue body (that would bloat the model the
   # same way embedding full ADR prose would, for content this tool doesn't otherwise need) -- click
   # shows the short description, a real link opens the actual file for the rest.
-  open_count=$(find "$REPO_ROOT/backlog/issues" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-  completed_count=$(find "$REPO_ROOT/backlog/completed/issues" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+  open_count=$(find "$REPO_ROOT/backlog/tasks" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+  completed_count=$(find "$REPO_ROOT/backlog/completed/tasks" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
   echo "    ,"
   echo "    {"
   echo "      \"id\": \"backlog\","
@@ -2011,8 +2012,8 @@ ci_metrics_json="null"
   echo "      \"evidence\": [{\"file\": \"backlog/BACKLOG.md\", \"line\": 1}],"
   echo "      \"open_issues\": $open_count,"
   echo "      \"completed_issues\": $completed_count,"
-  echo "      \"openIssues\": $(issue_list_json "$REPO_ROOT/backlog/issues" "backlog/issues"),"
-  echo "      \"completedIssues\": $(issue_list_json "$REPO_ROOT/backlog/completed/issues" "backlog/completed/issues"),"
+  echo "      \"openIssues\": $(issue_list_json "$REPO_ROOT/backlog/tasks" "backlog/tasks"),"
+  echo "      \"completedIssues\": $(issue_list_json "$REPO_ROOT/backlog/completed/tasks" "backlog/completed/tasks"),"
   echo "      \"edges\": {}"
   echo "    }"
 
@@ -2273,6 +2274,7 @@ function crumbLabelFor(v) {
     if (v.section === "sonar") return "Code Quality — SonarQube";
     if (v.section === "archunit") return "Code Quality — ArchUnit";
     if (v.section === "findings") return "Code Quality — Findings";
+    if (v.section === "practices") return "Code Quality — Best Practices";
     return "Code Quality";
   }
   if (v.screen === "diagrams") {
@@ -2860,6 +2862,10 @@ function renderCodeQuality() {
         <div class="card-title">🔍 Findings</div>
         <div class="card-desc">Architecture checks, largest files/packages, constructor-injection complexity</div>
       </div>
+      <div class="card" onclick="navigate({screen:'codequality',section:'practices'})">
+        <div class="card-title">📋 Best Practices</div>
+        <div class="card-desc">Project-grounded Java/JUnit/Playwright/Bash/CI checklist, sourced and checked against real code</div>
+      </div>
     </div>`;
     document.getElementById("content").innerHTML = html;
     return;
@@ -2922,6 +2928,10 @@ function renderCodeQuality() {
     html += renderLargestJavaFilesHtml();
     html += renderConstructorInjectionHtml();
     html += renderGodPackagesHtml();
+  } else if (view.section === "practices") {
+    html += `<h2 class="screen-title">Code Quality — Best Practices</h2>
+      <div class="screen-desc">A project-grounded checklist -- each practice sourced from an authoritative reference and checked against real code in this repo.</div>`;
+    html += `<section class="block">${mdBlockToHtml(MODEL.rootBestPractices || "", "")}<div class="empty-hint">Source: ${sourceLink("docs/best-practices.md")}</div></section>`;
   }
 
   document.getElementById("content").innerHTML = html;
@@ -3308,8 +3318,8 @@ function renderBacklog() {
   html += `<h2 class="screen-title">Backlog</h2>
     <div class="screen-desc">Per-issue titles in Track A — see ${sourceLink("backlog/BACKLOG.md")} for the ranked, priority view.</div>
     <div class="card-grid">
-      <div class="card ${backlogFilter === "open" ? "card-active" : ""}" onclick="setBacklogFilter('open')"><div class="card-title">${backlogNode.open_issues}</div><div class="card-desc">open issues (backlog/issues/)</div></div>
-      <div class="card ${backlogFilter === "completed" ? "card-active" : ""}" onclick="setBacklogFilter('completed')"><div class="card-title">${backlogNode.completed_issues}</div><div class="card-desc">completed issues (backlog/completed/issues/)</div></div>
+      <div class="card ${backlogFilter === "open" ? "card-active" : ""}" onclick="setBacklogFilter('open')"><div class="card-title">${backlogNode.open_issues}</div><div class="card-desc">open issues (backlog/tasks/)</div></div>
+      <div class="card ${backlogFilter === "completed" ? "card-active" : ""}" onclick="setBacklogFilter('completed')"><div class="card-title">${backlogNode.completed_issues}</div><div class="card-desc">completed issues (backlog/completed/tasks/)</div></div>
     </div>`;
   html += `<section class="block"><h3>${label} (${items.length})</h3>${renderIssueList(backlogFilter, items)}</section>`;
   document.getElementById("content").innerHTML = html;

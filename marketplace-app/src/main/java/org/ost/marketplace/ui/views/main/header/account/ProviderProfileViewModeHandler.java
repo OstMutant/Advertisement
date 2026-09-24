@@ -53,7 +53,7 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
     private final ProviderProfileSaveService providerProfileSaveService;
     private final AccessEvaluator            access;
     private final NotificationService        notificationService;
-    private final UiComponentFactory<EntityMetaPanel> metaPanelFactory;
+    private final UiComponentFactory<EntityMetaPanel, EntityMetaPanel.Parameters> metaPanelFactory;
     @Getter
     private final I18nService                i18nService;
 

@@ -2,6 +2,87 @@
 
 ---
 
+## ADR-009: `StaleWriteException` replaces `OptimisticLockingFailureException` as the project-wide stale-write signal
+
+**Status:** Accepted
+
+**Context:** `org.springframework.dao.OptimisticLockingFailureException` (a Spring Data framework
+type) was the de facto "stale write" signal across the whole reactor — declared in
+`platform-commons`'s own `*Port` Javadoc contracts, thrown both manually (4 raw-SQL affected-rows
+guards) and natively by Spring Data JDBC itself (5 more `*CrudRepository.save()` paths on
+`@Version`-annotated entities, with no `throw` statement of our own to edit), plus ADR-006's
+synthetic "row deleted mid-edit" guard in `AdvertisementSaveService`/`ProviderProfileSaveService`.
+A persistence-framework type leaking into the shared-kernel `*Port` contracts, and every layer
+built on top of them, rather than a project-owned type.
+
+**Decision:** Introduce `StaleWriteException` (unchecked) in `platform-commons`'s
+`org.ost.platform.core` package, alongside `TooManyAttemptsException`. Replace every real throw
+site: the 4 manual raw-SQL guards throw it directly; the 5 native Spring Data JDBC `.save()` paths
+catch `OptimisticLockingFailureException` at the repository boundary and rethrow
+`StaleWriteException` (cause preserved); the 2 orchestrator synthetic guards throw it directly.
+Update both catch sites (`AbstractEntityOverlay`'s UI conflict notification,
+`ApiExceptionHandler`'s HTTP 412 mapping) and the 3 `*Port` Javadoc references. Kept as a single
+type for both real-world scenarios (genuine `@Version` conflict vs. concurrent delete) — no
+distinguishing subtype/field, since no current consumer needs to tell them apart and both already
+produce the same UI/REST outcome; can be split later if a real need appears.
+
+**Rejected alternatives:** A distinguishing subtype/field per scenario now — rejected as
+speculative, no current caller reads the two cases differently.
+
+---
+
+## ADR-008: `UserCleanupService`/`UserPurgeEligibilityService` — the scheduled retention-purge referential-integrity check moves here from `user-spring-boot-starter`
+
+**Status:** Accepted
+
+**Context:** `UserService.cleanup()` (`user-spring-boot-starter`) read from `AdvertisementPort`/
+`ProviderProfilePort` (`findOwnerIds`) to decide which soft-deleted, retention-expired accounts
+were still referenced elsewhere before permanently purging the rest — a starter directly composing
+two other domains' Ports, which `CLAUDE.md`'s guideline #2 ("a domain starter must not orchestrate
+another domain") forbids. This project's own `.claude/rules/marketplace-orchestrator.md` had
+previously carved out an explicit exception for exactly this case ("narrow, scheduled-job-scoped
+referential-integrity cooperation... not the 'assemble a read-model from several domains' pattern
+this module exists for") — re-examined and rejected: the distinguishing test this module actually
+applies elsewhere is whether a call *reads* another domain's data to *decide* what to do next, not
+how narrow or how often-scheduled the call is. `cleanup()` reads two other domains' data and
+branches on it — the same shape as every other use case already living here — so the "narrow job"
+framing didn't hold up against the module's own stated purpose. Compare the still-valid, genuinely
+different case: `UserService`/`UserPreferencesService`/`TaxonService` calling `AuditPort.capture*()`
+is a fire-and-forget write with no read-back and no decision made on the result — cross-cutting
+event reporting, not cross-domain composition.
+
+**Decision:**
+1. `UserPort` gained `Set<Long> findIdsDeletedOlderThan(int retentionDays)`; `UserAccountPort`
+   gained `void purge(@NonNull Set<Long> ids)` — both thin, single-domain operations, implemented in
+   `user-spring-boot-starter` exactly like every other `User*Port` method.
+2. New `UserPurgeEligibilityService` (`marketplace-orchestrator`) holds
+   `ComponentFactory<AdvertisementPort>`/`ComponentFactory<ProviderProfilePort>` (2 ports) —
+   `clearAdvertisementReferences(Set<Long>)` and `findStillReferencedIds(Set<Long>)`, replicating
+   `cleanup()`'s original per-domain `isStillOwner` logic verbatim.
+3. New `UserCleanupService` composes `UserPort`/`UserAccountPort` (direct, mandatory fields — not
+   counted by the ≤2-port rule, same shape as `UserDeleteService`'s `UserAccountPort`) with
+   `UserPurgeEligibilityService` as a plain collaborator, reproducing `cleanup()`'s original
+   orchestration. Its own `SchedulingConfigurer` bean (+ this module's own new `@EnableScheduling`)
+   lives in `OrchestratorAutoConfiguration`, using the same shared `CleanupProperties` every other
+   domain's cleanup scheduler already reads.
+4. `user-spring-boot-starter`'s `UserService`/`UserAutoConfiguration` lost `cleanup()`,
+   `isStillOwner()`, the `AdvertisementPort`/`ProviderProfilePort` `ComponentFactory` fields and
+   bean, and the scheduler bean/`@EnableScheduling` — the starter no longer references either domain
+   at all.
+5. `.claude/rules/marketplace-orchestrator.md`'s "Not every cross-domain call moves here" bullet
+   updated to drop the now-superseded `UserService.cleanup()` example and state the actual
+   read-vs-write distinguishing test explicitly, so a future similar case is judged the same way.
+
+**Consequences:**
+- `user-spring-boot-starter` no longer imports `AdvertisementPort`/`ProviderProfilePort` anywhere.
+- The 4 original `UserServiceTest` cleanup-scenario tests (`integration-tests`) moved to
+  `UserCleanupServiceTest`/`UserPurgeEligibilityServiceTest` (`marketplace-orchestrator`), mirroring
+  `UserDeleteServiceTest`'s existing Mockito-only style — same scenarios, same assertions, ported
+  onto the new class split.
+- No functional/behavioral change — verified end-to-end: reactor compiles,
+  `ArchitectureRulesTest`'s ≤2-port and no-persistence-access rules pass unmodified, full test suite
+  green.
+
 ## ADR-007: Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only
 
 **Status:** Accepted
@@ -60,7 +141,8 @@ authorization gap above becomes real and needs its own fix.
 
 ## ADR-006: Stale-id-during-concurrent-delete guard in `AdvertisementSaveService`/`ProviderProfileSaveService`
 
-**Status:** Accepted
+**Status:** Accepted — the exception type it throws is superseded by ADR-009 (`StaleWriteException`
+instead of `OptimisticLockingFailureException`); the guard placement/rationale itself stands
 
 **Context:** Both `SaveService`s already read a `before` snapshot ahead of calling the port's
 `save()`, purely to build the audit diff. When an edit's target row was deleted between read and
@@ -110,10 +192,9 @@ Vaadin-entangled monolith.
 thin UI/application-shell adapter) and the domain starters. It owns application-level use-case
 composition; domain starters keep only their own bounded-context logic; `marketplace-app` calls
 orchestrator services instead of composing multiple domain Ports directly. Every real cross-domain
-call site in the repository was inventoried before deciding what moves — see the full discovery
-(Phase 0) and target-architecture (Phase 1) writeup preserved in
-`backlog/completed/tasks/improvement-136-marketplace-orchestrator-extraction.md` for the complete
-evidence trail, including the classes that were deliberately *not* moved and why.
+call site in the repository was inventoried before deciding what moves, including which classes
+were deliberately *not* moved and why — the full discovery and target-architecture evidence trail
+is preserved in this module's own git history.
 
 **Consequences:** Root `CLAUDE.md`'s "Architecture Guidelines" now describes three layers, not two.
 Two new ArchUnit rules (`orchestrator_classes_depend_on_at_most_two_domain_ports`,
@@ -159,9 +240,8 @@ resolution (a different, deliberately-not-moved concern — see `marketplace-orc
 ## ADR-003: `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception
 **Status:** Accepted
 
-**Context:** ADR-001 built this module as a composition layer, but its own guiding spec (preserved
-verbatim in `backlog/completed/tasks/improvement-136-marketplace-orchestrator-extraction.md`)
-contained an internal contradiction never caught during that extraction: the target diagram showed
+**Context:** ADR-001 built this module as a composition layer, but its own guiding spec contained
+an internal contradiction never caught during that extraction: the target diagram showed
 `Vaadin UI → marketplace-orchestrator → domain starters` with no direct UI-to-starter arrow at all,
 but the accompanying rule only banned `marketplace-app` from composing *multiple* domain Ports for
 one use case — implicitly allowing direct single-Port access, which is what actually got built. 25
@@ -217,12 +297,11 @@ classpath at once). Caught only by an actual `deploy.sh` + container boot, not b
 test — renamed to `AuditQueryService` and re-verified boot succeeds. Confirmed via a full grep sweep
 that no other new service name collides with an existing class elsewhere in the repo.
 
-**Trigger to revisit:** None currently open — Open Questions A/B/C from
-`backlog/completed/tasks/improvement-147-marketplace-orchestrator-followups.md` are all resolved
+**Trigger to revisit:** None currently open — the module's Open Questions A/B/C are all resolved
 (A: route presence-guards through the orchestrator; B: the `EntityExistenceService` exception; C:
 withdrawn, not a real design fork). The module's original single-caller-collaborator question
 (`TaxonAssignmentWriteService`/`AttachmentSnapshotReaderService`/`AttachmentSoftDeleteService`) moved
-to `backlog/tasks/improvement-124-provider-profile.md`'s Batch 124-C, unrelated to this ADR.
+to a later, unrelated provider-profile batch of work, not tracked further here.
 
 ---
 

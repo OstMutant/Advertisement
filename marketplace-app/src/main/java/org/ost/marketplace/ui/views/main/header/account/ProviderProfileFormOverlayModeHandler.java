@@ -79,7 +79,7 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
     private final I18nService                                               i18nService;
     private final LocaleProvider                                            localeProvider;
     private final NotificationService                                       notificationService;
-    private final UiComponentFactory<OverlayFormBinder<ProviderProfileEditDto>> formBinderFactory;
+    private final UiComponentFactory<OverlayFormBinder<ProviderProfileEditDto>, OverlayFormBinder.Parameters<ProviderProfileEditDto>> formBinderFactory;
     private final AuditQueryService                                         auditQueryService;
     private final EntityActivityOverlay                                     entityActivityOverlay;
     private final TaxonCatalogService                                       taxonCatalogService;
@@ -198,10 +198,15 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
                     new ProviderProfileSaveDto(dto.getId(), dto.getKind(), dto.getAbout(),
                             dto.getCategoryIds(), dto.getCityTaxonId(), dto.getVersion()),
                     params.getTargetUserId(), access.getCurrentUserId());
-            providerProfileSaveService.findById(id).ifPresent(saved -> {
+            providerProfileSaveService.findById(id).ifPresentOrElse(saved -> {
                 currentProfile = saved;
                 dto.setId(saved.getId());
                 dto.setVersion(saved.getVersion());
+            }, () -> {
+                // Refetch raced a concurrent delete -- block further saves instead of risking a stale id/version.
+                notificationService.error(OVERLAY_POST_SAVE_REFRESH_FAILED);
+                saveButton.setVisible(false);
+                discardButton.setVisible(false);
             });
         });
     }

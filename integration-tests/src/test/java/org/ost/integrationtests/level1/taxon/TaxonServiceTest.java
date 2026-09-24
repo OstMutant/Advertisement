@@ -15,11 +15,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 
 /**
  * Covers improvement-049 item 1: {@link TaxonService#update} forwarded {@code deletedAt} but not
@@ -82,6 +84,31 @@ class TaxonServiceTest extends AbstractPostgresIntegrationTest {
 
         assertThat(updated.getDeletedBy()).isNull();
         assertThat(updated.getDeletedAt()).isNull();
+    }
+
+    // Confirms real behavior rather than assuming it: Spring Data JDBC's @LastModifiedDate auditing
+    // does refresh updatedAt on update, including for this Lombok @Value (immutable) entity --
+    // confirmed directly via a repository-level save() with no manual updatedAt set at all. The
+    // real, separate bug this test caught: TaxonService.update() was discarding save()'s own
+    // return value (which carries the auditing-refreshed updatedAt/version) and returning the
+    // stale pre-save object instead.
+    @Test
+    void update_returnsAuditingRefreshedUpdatedAt_notTheStalePreSaveValue() {
+        Taxon taxon = taxonRepository.save(Taxon.builder()
+                .type(TaxonType.CATEGORY).code("auditing-refreshed-updated-at").build());
+        Instant insertedAt = taxon.getUpdatedAt();
+        assertThat(insertedAt).isNotNull();
+
+        Taxon updated = taxonService.update(taxon.getId(), validTranslations(), 99L, taxon.getVersion());
+
+        assertThat(updated.getUpdatedAt()).isNotNull().isAfter(insertedAt).isBeforeOrEqualTo(Instant.now());
+        Taxon afterUpdate = taxonRepository.findById(taxon.getId()).orElseThrow();
+        // Two independent reads of the same persisted timestamptz column can round-trip through
+        // the driver with sub-microsecond jitter (observed directly: a 1-microsecond mismatch on
+        // otherwise-identical values) -- assert closeness, not exact equality, for the same
+        // reason the earlier version of this test (exact equality) proved flaky under real load.
+        assertThat(afterUpdate.getUpdatedAt())
+                .isCloseTo(updated.getUpdatedAt(), within(1, java.time.temporal.ChronoUnit.MILLIS));
     }
 
     // ── validateTranslations (via create) ──────────────────────────────────────────

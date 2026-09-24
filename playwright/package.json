@@ -1,0 +1,8 @@
+{
+  "name": "playwright-e2e-lint",
+  "private": true,
+  "devDependencies": {
+    "eslint": "^10.10.0",
+    "eslint-plugin-playwright": "^2.12.0"
+  }
+}

@@ -1,9 +1,11 @@
+@layer components {
+
 /* ----------------------------------------------------------------- gallery */
 
 .attachment-gallery {
     background: var(--app-surface-white);
     border: 1px solid var(--app-border-default);
-    border-top: 3px solid var(--app-accent-gallery) !important;
+    border-top: 3px solid var(--app-accent-gallery);
     border-radius: 12px;
     padding: 20px 24px;
     display: flex;
@@ -28,15 +30,15 @@
 
 /* Accent color matching the AdKind badge -- see advertisement-card.css's badges (view mode only) */
 .attachment-gallery--offer {
-    border-top-color: var(--app-status-success-badge-text) !important;
+    border-top-color: var(--app-status-success-badge-text);
 }
 
 .attachment-gallery--request {
-    border-top-color: var(--app-status-info-text) !important;
+    border-top-color: var(--app-status-info-text);
 }
 
 .attachment-gallery--product {
-    border-top-color: var(--app-status-entity-advertisement-text) !important;
+    border-top-color: var(--app-status-entity-advertisement-text);
 }
 
 
@@ -177,4 +179,6 @@
     cursor: default;
     outline: none;
     box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+}
+
 }

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Daily-iteration test loop -- runs scripts/build-and-test.sh --unit --integration
 #   --skip-vaadin (whole reactor installed once, skipping the Vaadin frontend bundle neither test

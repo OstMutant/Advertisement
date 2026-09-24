@@ -39,4 +39,7 @@ public interface UserPort {
     Map<Long, String> findActorNames(@NonNull Collection<Long> ids);
 
     Map<Long, UserDto> findByIds(@NonNull Set<Long> ids);
+
+    /** Ids of soft-deleted accounts past the given retention window, candidates for a retention purge. */
+    Set<Long> findIdsDeletedOlderThan(int retentionDays);
 }

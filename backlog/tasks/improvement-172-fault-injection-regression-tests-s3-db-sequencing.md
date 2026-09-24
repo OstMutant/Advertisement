@@ -61,3 +61,6 @@ existing attachment integration tests already do for storage isolation):
   this gap while evaluating whether `data-integrity-reviewer` was worth keeping as an LLM lens.
 - `marketplace-app/DECISIONS.md` — ADR-047 (`AdvertisementSaveService`'s S3-before-commit
   ordering), ADR-051 (`UserDeleteService`).
+- `.claude/DECISIONS.md` ADR-002 — the drafted-then-deleted `data-integrity-reviewer` lens
+  referenced above is the same one this ADR records folding into these fault-injection tests
+  instead.

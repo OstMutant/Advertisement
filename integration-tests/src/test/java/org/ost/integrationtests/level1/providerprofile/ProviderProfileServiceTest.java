@@ -137,7 +137,7 @@ class ProviderProfileServiceTest {
         ProviderProfileService service = newService();
         TaxonPort taxonPort = mock(TaxonPort.class);
         when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
-        when(taxonPort.findEntityIdsWithAnyTaxon(EntityType.PROVIDER_PROFILE, Set.of(7L))).thenReturn(Set.of(10L, 20L));
+        when(taxonPort.resolveCategoryAndCityFilter(EntityType.PROVIDER_PROFILE, null, 7L)).thenReturn(Optional.of(Set.of(10L, 20L)));
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().cityTaxonId(7L).build();
         PageRequest pageable = PageRequest.of(0, 10, Sort.unsorted());
 
@@ -147,12 +147,11 @@ class ProviderProfileServiceTest {
     }
 
     @Test
-    void getFiltered_categoryAndCityFilters_intersectsBothResolvedIdSets() {
+    void getFiltered_categoryAndCityFilters_passesTaxonPortsResolvedIntersection() {
         ProviderProfileService service = newService();
         TaxonPort taxonPort = mock(TaxonPort.class);
         when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
-        when(taxonPort.findEntityIdsWithAnyTaxon(EntityType.PROVIDER_PROFILE, Set.of(1L))).thenReturn(Set.of(10L, 20L));
-        when(taxonPort.findEntityIdsWithAnyTaxon(EntityType.PROVIDER_PROFILE, Set.of(7L))).thenReturn(Set.of(20L, 30L));
+        when(taxonPort.resolveCategoryAndCityFilter(EntityType.PROVIDER_PROFILE, Set.of(1L), 7L)).thenReturn(Optional.of(Set.of(20L)));
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder()
                 .categoryIds(Set.of(1L)).cityTaxonId(7L).build();
         PageRequest pageable = PageRequest.of(0, 10, Sort.unsorted());

@@ -43,7 +43,7 @@ module's only business-logic class.
   `AdvertisementCrudRepository.save` (Spring Data JDBC, optimistic-locked on `version`).
 - **Delete:** `AdvertisementPort.delete(id, actingUserId, version)` → `AdvertisementService.delete`
   → `AdvertisementRepository.softDelete` issues a version-checked `UPDATE` setting `deleted_at`/
-  `deleted_by`, throwing `OptimisticLockingFailureException` when no row matches both id and
+  `deleted_by`, throwing `StaleWriteException` when no row matches both id and
   version.
 - **Scheduled cleanup:** `AdvertisementAutoConfiguration`'s `SchedulingConfigurer` fires a
   `CronTrigger` (from `CleanupProperties`) that calls `AdvertisementService.cleanup(retentionDays)`

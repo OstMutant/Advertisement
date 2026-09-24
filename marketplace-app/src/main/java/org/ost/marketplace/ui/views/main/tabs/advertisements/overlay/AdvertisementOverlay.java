@@ -1,6 +1,5 @@
 package org.ost.marketplace.ui.views.main.tabs.advertisements.overlay;
 
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
@@ -16,9 +15,11 @@ import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.services.OverlayNavigationRegistry;
+import org.ost.marketplace.ui.views.utils.BrowserHistoryUtil;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -48,8 +49,8 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
     private static final String AD_PATH_PREFIX = "ads/";
 
     @Getter private final EntityOverlaySupport  support;
-    private final UiComponentFactory<AdvertisementViewOverlayModeHandler> viewModeHandlerFactory;
-    private final UiComponentFactory<AdvertisementFormOverlayModeHandler> formModeHandlerFactory;
+    private final UiComponentFactory<AdvertisementViewOverlayModeHandler, AdvertisementViewOverlayModeHandler.Parameters> viewModeHandlerFactory;
+    private final UiComponentFactory<AdvertisementFormOverlayModeHandler, AdvertisementFormOverlayModeHandler.Parameters> formModeHandlerFactory;
     private final OverlayNavigationRegistry navigationRegistry;
 
     private OverlaySession session;
@@ -83,11 +84,9 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
     @Override
     protected void proceed() {
         if (session.mode() == Mode.EDIT) {
-            AdvertisementInfoDto fresh = currentFormHandler.getSavedInfoDto();
-            if (fresh != null) {
-                session = session.withAd(fresh);
-                session.onUpdated().accept(fresh);
-            }
+            applyFreshOrFallback(Optional.ofNullable(currentFormHandler.getSavedInfoDto()),
+                    f -> { session = session.withAd(f); session.onUpdated().accept(f); },
+                    this::closeToList);
         } else {
             session.onListChanged().run();
             closeToList();
@@ -107,7 +106,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
     public void openForView(AdvertisementInfoDto ad, Consumer<AdvertisementInfoDto> onUpdated, Runnable onClosed) {
         ensureInitialized();
         openSession(new OverlaySession(Mode.VIEW, ad, onUpdated, () -> {}, onClosed, false));
-        UI.getCurrent().getPage().getHistory().pushState(null, AD_PATH_PREFIX + ad.getId());
+        BrowserHistoryUtil.pushStateWithBaseSync(AD_PATH_PREFIX + ad.getId());
     }
 
     public void openForCreate(Runnable onListChanged, Runnable onClosed) {
@@ -166,7 +165,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
 
     @Override
     protected void closeToList() {
-        UI.getCurrent().getPage().getHistory().pushState(null, LIST_PATH);
+        BrowserHistoryUtil.pushStateWithBaseSync(LIST_PATH);
         session.onClosed().run();
         super.closeToList();
     }

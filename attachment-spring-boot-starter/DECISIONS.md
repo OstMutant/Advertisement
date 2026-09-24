@@ -2,6 +2,32 @@
 
 ---
 
+## ADR-015: Server-side attachment content-type validation via Apache Tika
+**Status:** Accepted
+
+**Context:** Attachment upload content-type was never validated server-side — `AttachmentService
+.upload()`/`uploadTemp()` passed the client-declared `Content-Type` straight through to
+`S3StorageService.upload()`, which writes it verbatim as S3 object metadata. Since attachments are
+fetched directly from their public S3 URL, an attacker could declare an arbitrary `Content-Type`
+(e.g. `text/html`) on a direct multipart POST — the only restriction anywhere was
+`AttachmentUploadButton`'s client-side `accept` attribute, trivially bypassed. A stored-XSS-via-
+upload vector.
+
+**Decision:** `AttachmentContentTypeValidator` (`org.ost.attachment.util`) enforces two checks
+before any upload reaches `S3StorageService`: the declared `Content-Type` must be in
+`AttachmentAllowedContentTypes.VALUES` (`platform-commons`, shared with the client-side picker —
+see `platform-commons/DECISIONS.md`), and the real bytes must independently resolve to an allowed
+type too, via Apache Tika (`tika-core`) magic-byte detection — this is what catches a file whose
+declared header is an allowed type but whose actual content is not (e.g. HTML mislabeled as
+`image/jpeg`). Detection is called with the original filename alongside the byte stream
+(`Tika#detect(InputStream, String)`), not bytes alone — confirmed directly that `tika-core`'s own
+magic patterns cannot resolve to `video/webm` (glob-only, no magic bytes registered for it) or to
+`video/mp4` for the common `isom`-branded case (its magic pattern only matches literal
+`mp41`/`mp42`) without the filename extension as a tiebreaker; verified the filename hint doesn't
+weaken the check since HTML content named `a.mp4`/`a.webm` still detects as `text/html` regardless.
+
+**Also affects:** platform-commons
+
 ## ADR-001: Attachment domain logic extracted from marketplace-app
 **Status:** Accepted
 

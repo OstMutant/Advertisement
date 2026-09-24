@@ -367,3 +367,31 @@ an unbounded id set) that `module-doc-standards`' own "Where comment rationale t
 actually goes" table says belongs in that module's `DECISIONS.md` — which doesn't have an entry for
 either yet. Needs a `/record-decision` pass to actually preserve the rationale, not just a one-line
 pointer with nothing on the other end.
+
+### 22. `04-provider-profile-flow.spec.js` has 34 `waitForTimeout(300)` calls, violating this project's own "no waitForTimeout" rule (found during improvement-195, 2026-09-18)
+
+`playwright/e2e/04-provider-profile-flow.spec.js` calls `page.waitForTimeout(300)` 34 times —
+confirmed by direct grep — a real, repo-wide violation of `.claude/rules.md`'s standing rule
+against `waitForTimeout` in Playwright specs. `improvement-195`'s own Related section had
+incorrectly claimed this was "already tracked" by `improvement-063`; checked directly, `063` never
+mentioned this file or this pattern at all (it was about an unrelated async-init "ready signal"
+concern, since closed as invalid) — this violation was never actually tracked anywhere, in any
+task or in this bucket, until now.
+
+Not fixed inline: 34 call sites, each presumably guarding a different UI-settling condition (a
+combo-box repaint, a debounced field, an overlay transition) — replacing them with real Playwright
+waits (`toBeVisible()`, `waitForSelector`, locator auto-waiting, network-idle, etc.) requires
+inspecting what each site is actually waiting for individually, not a blind global
+find-and-replace. Needs sizing (one pass vs. incremental) once picked up.
+
+### 23. `taxonFilter.filter(Set::isEmpty).isPresent()` duplicated within each service's own `getFiltered`/`count` (found via an external review prompt re-checking `improvement-195` Phase 9, 2026-09-22)
+
+`AdvertisementService` and `ProviderProfileService` each repeat the same one-line guard —
+`if (taxonFilter.filter(Set::isEmpty).isPresent()) { return List.of(); }` /
+`return 0;` — once in `getFiltered` and once in `count` (confirmed directly against current
+source: 4 copies total, 2 per service). Distinct from the cross-module `resolveCategoryAndCityFilter`
+duplication Phase 9 already extracted (that one spanned two starters; this one is same-class,
+2-line, single-method-body scale) — deferred rather than fixed inline because it's small enough
+that abstracting it (a shared helper, a wrapper type) could plausibly add more indirection than it
+removes; needs a real judgment call on whether extraction is worth it before touching either
+service, not a reflexive DRY pass.

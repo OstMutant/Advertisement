@@ -68,4 +68,9 @@ public class UserPortImpl implements UserPort {
     public Map<Long, UserDto> findByIds(@NonNull Set<Long> ids) {
         return userService.findByIds(ids);
     }
+
+    @Override
+    public Set<Long> findIdsDeletedOlderThan(int retentionDays) {
+        return userService.findIdsDeletedOlderThan(retentionDays);
+    }
 }

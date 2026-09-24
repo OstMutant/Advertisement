@@ -1,3 +1,5 @@
+@layer components {
+
 /* Reference Data container with sub-tabs */
 .reference-data-view {
   display: flex;
@@ -17,13 +19,13 @@
   overflow: auto;
 }
 
-.taxon-management-view, .city-management-view {
+.category-management-view, .city-management-view {
   width: 100%;
   padding: 1rem;
   box-sizing: border-box;
 }
 
-.taxon-add-button {
+.category-add-button {
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -88,9 +90,9 @@
 }
 
 .taxon-row-deleted {
-  color: var(--app-text-muted) !important;
-  text-decoration: line-through !important;
-  cursor: default !important;
+  color: var(--app-text-muted);
+  text-decoration: line-through;
+  cursor: default;
 }
 
 .taxon-deleted-badge {
@@ -187,4 +189,6 @@
   display: block;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
 }

@@ -9,6 +9,8 @@ import org.ost.user.services.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Set;
+
 /** Delegates every {@link UserAccountPort} method to {@code UserService} -- no business logic of its own. */
 @Service
 @RequiredArgsConstructor
@@ -38,5 +40,11 @@ public class UserAccountPortImpl implements UserAccountPort {
     @Override
     public void refreshCurrentUserInContext(@NonNull Long userId) {
         userService.refreshSecurityContext(userId);
+    }
+
+    @Override
+    @Transactional
+    public void purge(@NonNull Set<Long> ids) {
+        userService.purge(ids);
     }
 }

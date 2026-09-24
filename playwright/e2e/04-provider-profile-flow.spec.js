@@ -34,8 +34,9 @@
  *   (runOpenSettingsFlow, runCloseSettingsFlow), ./_flows/entity-activity.flow (openEntityActivity,
  *   closeEntityActivity), ./_flows/user-management.flow (runNavigateToUsersTabFlow,
  *   runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter), ./_flows/delete.flow
- *   (confirmDeleteDialog). Depends on spec 02 having signed up all TEST_USERS, and spec 03 having
- *   created the Electronics/Vehicles categories and Lviv/Kyiv cities.
+ *   (confirmDeleteDialog), ./_flows/category.flow (selectInMultiSelectComboBox). Depends on spec 02
+ *   having signed up all TEST_USERS, and spec 03 having created the Electronics/Vehicles categories
+ *   and Lviv/Kyiv cities.
  * Outputs: Playwright HTML report entries for each test. userEn's provider profile is deleted by
  *   the end of this file's own serial sequence; userUk, moderatorEn and adminUk each keep a saved
  *   provider profile (userUk: SUPPORT/Vehicles/Kyiv, moderatorEn: MASTER/Vehicles/Lviv, adminUk:
@@ -50,6 +51,7 @@ const { openEntityActivity, closeEntityActivity } = require('./_flows/entity-act
 const { runNavigateToUsersTabFlow, runOpenUserEditViaListFlow, runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter } = require('./_flows/user-management.flow');
 const { confirmDeleteDialog } = require('./_flows/delete.flow');
 const { verifyDateRangeFilters, waitForVaadin } = require('./_flows/filter.flow');
+const { selectInMultiSelectComboBox } = require('./_flows/category.flow');
 
 test.describe.configure({ mode: 'serial' });
 
@@ -64,9 +66,7 @@ async function fillAbout(page, text) {
 
 async function selectCategory(page, name) {
   const box = page.locator('.account-overlay vaadin-multi-select-combo-box');
-  await box.click();
-  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: name }).first().click();
-  await page.keyboard.press('Escape');
+  await selectInMultiSelectComboBox(page, box, name);
 }
 
 async function selectedCategoryNames(page) {
@@ -595,6 +595,7 @@ test.describe('Provider Profile flow', () => {
       .filter({ has: page.locator('.provider-profile-card-title', { hasText: TEST_USERS.userEn.name }) });
     await card.waitFor({ timeout: 5000 });
     const providerId = await card.getAttribute('data-provider-id');
+    // eslint-disable-next-line playwright/prefer-web-first-assertions -- the real string value is needed to build the URL below, not just an existence check
     expect(providerId).toBeTruthy();
 
     await page.goto(`/providers/${providerId}-userEn`);

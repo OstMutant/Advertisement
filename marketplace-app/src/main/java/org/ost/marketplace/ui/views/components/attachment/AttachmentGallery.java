@@ -44,7 +44,7 @@ public class AttachmentGallery extends Div {
     private final transient AttachmentMediaService                    attachmentMediaService;
     private final transient I18nService                               i18n;
     private final transient ComponentFactory<AttachmentThumbnail>   thumbnailFactory;
-    private final transient UiComponentFactory<AttachmentLightbox>    lightboxFactory;
+    private final transient UiComponentFactory<AttachmentLightbox, AttachmentLightbox.Parameters>    lightboxFactory;
 
     private Div              thumbnailsRow;
     private Span             emptyState;

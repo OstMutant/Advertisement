@@ -2,6 +2,71 @@
 
 ---
 
+## ADR-033: `AttachmentAllowedContentTypes` — single shared whitelist for attachment content types
+**Status:** Accepted
+
+**Context:** Closing the attachment-upload content-type security gap (see
+`attachment-spring-boot-starter/DECISIONS.md` ADR-015) needed the identical six-type whitelist
+(`image/jpeg`, `image/png`, `image/webp`, `image/gif`, `video/mp4`, `video/webm`) enforced on both
+the client-side upload picker (`AttachmentUploadButton`, marketplace-app) and the new server-side
+validator (`AttachmentContentTypeValidator`, attachment-spring-boot-starter) — the two modules
+cannot import each other's internal classes (see Module Import Rules).
+
+**Decision:** `AttachmentAllowedContentTypes.VALUES` (`attachment.model`) is the single canonical
+list; both sides reference it instead of each carrying its own hardcoded literal set. Its two video
+entries reference `AttachmentMediaContentType.MP4`/`.WEBM` rather than repeating those literals a
+third time.
+
+**Also affects:** attachment-spring-boot-starter
+
+## ADR-032: `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons"
+
+**Status:** Accepted
+
+**Also affects:** advertisement-spring-boot-starter, provider-profile-spring-boot-starter
+
+**Context:** `AdvertisementService` and `ProviderProfileService` each independently hand-rolled the
+identical ~25-line category/city taxon-filter AND-combine logic (four private methods, differing
+only by `EntityType` and filter DTO type). Extracting it required picking a home. Three
+alternatives were considered and rejected: a new plain class in `platform-commons` (workable, but
+adds ceremony a leaner option avoids); moving it into `marketplace-orchestrator` (architecturally
+wrong — the orchestrator already depends on both starters, so a starter depending back on it would
+invert the project's three-layer dependency direction); implementing it in
+`taxon-spring-boot-starter`'s own `TaxonPort` implementation (would force both starters into a hard
+compile-time dependency on a sibling starter's concrete class, violating "no direct imports between
+sibling modules" and breaking `TaxonPort`'s optional-degradation contract).
+
+A `default` method directly on `TaxonPort` was chosen instead — but this sits in tension with
+`platform-commons/CLAUDE.md`'s own governance table, which lists "Business logic of any kind" under
+NOT ALLOWED, and states for `*PortImpl` classes: "A port is not a facade that orchestrates — it is
+a thin adapter... All business logic belongs in the service." An independent `/code-review` pass
+flagged this tension directly (PLAUSIBLE verdict, not refuted): no other `*Port` interface in the
+repo has any default method, and the only other SPI default methods anywhere
+(`AuditActivityEnrichHook`) are trivial one-line no-op stubs, not composed logic — so this is a
+genuinely new shape, not an established pattern being reused.
+
+**Decision:** Accept the default method as a narrow, bounded exception, with the boundary stated
+explicitly here so it isn't discovered by inference: a `default` method on a `*Port` interface may
+compose logic when — and only when — every operation it performs is a call to that *same
+interface's own other abstract methods*, with no external service calls, no injected state of its
+own, and no side effects. `resolveCategoryAndCityFilter` qualifies: it calls only
+`findEntityIdsWithAnyTaxon` (already declared on `TaxonPort` itself) and combines the results with
+pure in-memory set operations. This is narrower than ADR-021's existing "pure derivation over a
+value type's own fields" exception (which explicitly excludes "anything that calls another
+service") — this one permits calling the interface's *own* other method, on the reasoning that
+composing a Port's own declared contract is closer to "a convenience view of the contract" than
+genuine cross-module orchestration.
+
+**Rejected alternatives:** see Context above (plain `platform-commons` class,
+`marketplace-orchestrator`, `taxon-spring-boot-starter` implementation).
+
+**Not a general license:** this exception does not extend to a default method that calls a
+*different* Port/service, holds mutable state, or has any side effect — that class of logic still
+belongs in an implementation class (`*PortImpl`/`Default*Port`) or a `*Service`, per the existing
+rule. `.claude/rules/platform-commons.md` states this same boundary directly, not just here.
+
+---
+
 ## ADR-031: Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list
 
 **Status:** Accepted

@@ -93,6 +93,8 @@ has not been chosen. Candidates identified so far, narrowest to broadest:
 - `backlog/tasks/improvement-160-certification-coverage-map.md` rows D1-2/D3-1 — independently
   tracked the same idea (named, reusable `.claude/agents/*.md` subagents; a nesting orchestrator
   Agent call) from the certification-coverage angle before this issue's own decision below.
+- `.claude/DECISIONS.md` ADR-002 — the `deep-review-orchestrator` decision this mission's
+  narrowest surviving candidate was picked up as.
 
 ## Decision (2026-08-25)
 

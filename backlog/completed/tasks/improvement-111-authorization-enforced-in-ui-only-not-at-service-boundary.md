@@ -293,6 +293,8 @@ method — see "Why this still closes the gap" above. No code was written agains
   review pass — leaving only non-REST callers (a `@Scheduled` job, an event listener) as the
   residual gap an ArchUnit rule can't close. Worth folding into whichever option is picked when
   this issue's trigger fires.
+- `.claude/DECISIONS.md` ADR-002 — the drafted-then-deleted `security-boundary-reviewer` lens
+  referenced above is the same one this ADR records folding into an `ArchitectureRulesTest` rule.
 
 ## Operational notes
 - token_cost_review: 855549 (8 `/code-review` finder-angle agents)

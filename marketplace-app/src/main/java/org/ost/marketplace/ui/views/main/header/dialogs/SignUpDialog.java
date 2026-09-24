@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.orchestrator.services.UserProfileService;
@@ -109,7 +110,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
             userProfileService.register(dto, request.getRemoteAddr());
             notificationService.success(SIGNUP_SUCCESS);
             close();
-        } catch (IllegalStateException _) {
+        } catch (TooManyAttemptsException _) {
             notificationService.error(SIGNUP_ERROR_TOO_MANY_ATTEMPTS);
         } catch (Exception ex) {
             log.error("Registration failed unexpectedly", ex);

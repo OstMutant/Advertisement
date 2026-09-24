@@ -11,8 +11,10 @@ Spring Security principal construction, exposed to the rest of the reactor as na
   `USER` — protected by a Caffeine-backed rate limit on repeated failures.
 - Profile updates, scoped by construction to a narrower set of columns than registration writes
   (see Data flow below for how).
-- Soft-delete plus a scheduled retention cleanup job that checks the deleted user isn't still an
-  advertisement or provider-profile owner before physically purging the row.
+- Soft-delete, plus `findIdsDeletedOlderThan`/`purge` as plain, single-domain retention-purge
+  primitives — the cross-domain "is this candidate still referenced elsewhere" check and the
+  scheduled job that calls these two methods both live in `marketplace-orchestrator`'s
+  `UserCleanupService`/`UserPurgeEligibilityService`.
 - Spring Security integration: `UserDetailsService`, a delegating `PasswordEncoder`,
   `AuthenticationManager`, and `UserPrincipal` (the `UserDetails` implementation loaded on login).
 - Per-actor settings (page sizes) and locale, stored separately from the account row, with
@@ -35,9 +37,9 @@ Each of the four `User*Port` interfaces has its own `*PortImpl` in `org.ost.user
   entity; a profile update instead goes through `UserRepository.updateProfile`, which saves the
   narrower `UserEditableFields` entity onto the same row, so that path's generated `UPDATE` can
   never carry `email`/`passwordHash`. A save, delete, or register also fires a best-effort
-  `AuditPort` capture; `cleanup()` additionally calls `AdvertisementPort`/`ProviderProfilePort` to
-  confirm a soft-deleted candidate isn't still an owner before purging it and its
-  `user_preferences` row.
+  `AuditPort` capture; `purge()` deletes the `user_preferences` row then the `user_information`
+  row directly, with no ownership check of its own — the caller has already confirmed the
+  candidate isn't referenced elsewhere.
 - **Preferences:** `UserPreferencesPortImpl` delegates to `UserPreferencesService`, which
   reads/writes `user_preferences` through `UserPreferencesRepository` (raw `JdbcClient`, no entity
   class — settings round-trip as a JSONB blob) and fires `UserSettingsChangedHook` plus an
@@ -67,9 +69,6 @@ actor-reference-column, no-FK convention instead.
 - `platform-commons` — `UserPort`/`UserAccountPort`/`UserAuthorizationPort`/`UserPreferencesPort`/
   `AuthenticatedPrincipal`/`UserSettingsChangedHook` and the `user.dto`/`user.model` types.
 - `query-lib` — `SqlFilterBuilder`, `OrderByBuilder` for `UserRepository`'s dynamic filter/sort.
-- `AdvertisementPort`/`ProviderProfilePort` (also `platform-commons`, injected via
-  `ComponentFactory`) — consulted only by `UserService.cleanup()`'s ownership check, never a
-  compile-time Maven dependency on either sibling starter.
 - Spring Boot Security/JDBC/Liquibase/Validation starters, plus Caffeine (rate-limit cache) and
   Jackson 3.x (`tools.jackson.core`, JSONB settings serialization).
 - No Maven dependency on any sibling `*-spring-boot-starter` — enforced by this module's own

@@ -1,20 +1,22 @@
 /* ── Header ──────────────────────────────────────────────────────────────────
  * Description: Flow helpers for the Category reference-data domain -- switching to the
- *   Reference Data / Categories tab, creating a category through its overlay form, selecting a
- *   category in the advertisement form's shadow-DOM combo box, and asserting category
- *   names/chips (including deleted/struck-through state) appear on a card, view overlay, or
- *   activity diff.
+ *   Reference Data / Categories tab, creating a category through its overlay form, selecting an
+ *   item in any vaadin-multi-select-combo-box via shadow-DOM traversal (also reused outside the
+ *   advertisement form, e.g. the provider-profile overlay's own category combo box), and
+ *   asserting category names/chips (including deleted/struck-through state) appear on a card,
+ *   view overlay, or activity diff.
  * Usage: None -- a library only, required by spec files (see Input).
  * Uses: ../_helpers (screenshot).
  * Env: None.
  * Input: required by 03-marketplace-promotion-flow.spec.js (selectCategoryInAdForm,
  *   assertViewOverlayHasDeletedCategory, assertActivityDiffHasStruckThroughCategory),
+ *   04-provider-profile-flow.spec.js (selectInMultiSelectComboBox),
  *   05-marketplace-advertisement-flow.spec.js (assertViewOverlayHasCategories),
  *   06-seed-filter-sort-pagination.spec.js (runCreateCategoryFlow); also required internally by
  *   advertisement.flow.js, city.flow.js, delete.flow.js, and seed.flow.js.
- * Outputs: exports openReferenceDataTab, runCreateCategoryFlow, selectCategoryInAdForm,
- *   assertCardHasCategories, assertViewOverlayHasCategories, assertViewOverlayHasDeletedCategory,
- *   assertActivityDiffHasStruckThroughCategory.
+ * Outputs: exports openReferenceDataTab, runCreateCategoryFlow, selectInMultiSelectComboBox,
+ *   selectCategoryInAdForm, assertCardHasCategories, assertViewOverlayHasCategories,
+ *   assertViewOverlayHasDeletedCategory, assertActivityDiffHasStruckThroughCategory.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
 const { screenshot } = require('../_helpers');
@@ -28,7 +30,7 @@ async function openReferenceDataTab(page) {
   await page.locator('.main-tabs vaadin-tab').filter({ hasText: /Reference Data|Довідникові дані/i }).click();
   // Sub-tabs retain their last selection across visibility toggles — reselect Categories explicitly.
   await page.locator('.reference-data-sub-tabs vaadin-tab').filter({ hasText: /Categories|Категорії/i }).click();
-  await page.locator('.taxon-management-view').waitFor({ timeout: 5000 });
+  await page.locator('.category-management-view').waitFor({ timeout: 5000 });
 }
 
 /**
@@ -46,8 +48,8 @@ async function openReferenceDataTab(page) {
  */
 async function runCreateCategoryFlow(page, expect, { nameEn, descriptionEn, nameUk, descriptionUk, screenshotPrefix }) {
   await openReferenceDataTab(page);
-  await page.locator('.taxon-add-button').click();
-  const overlay = page.locator('.taxon-overlay');
+  await page.locator('.category-add-button').click();
+  const overlay = page.locator('.category-overlay');
   await overlay.waitFor({ timeout: 5000 });
 
   const localeContents = overlay.locator('.taxon-locale-content');
@@ -83,15 +85,14 @@ async function waitForVaadinIdle(page) {
 }
 
 /**
- * Selects a category in the advertisement form's multi-select combo box, piercing shadow DOM and
- * scrolling the virtual list as needed to find the item by its exact label.
+ * Selects an item in any vaadin-multi-select-combo-box, piercing shadow DOM and scrolling the
+ * virtual list as needed to find the item by its exact label.
  * @param {import('@playwright/test').Page} page
- * @param {import('@playwright/test').Locator} overlay the advertisement overlay.
- * @param {string} categoryName exact category label to select.
+ * @param {import('@playwright/test').Locator} comboBox the vaadin-multi-select-combo-box itself.
+ * @param {string} itemLabel exact item label to select.
  * @returns {Promise<void>}
  */
-async function selectCategoryInAdForm(page, overlay, categoryName) {
-  const comboBox = overlay.locator('[data-testid="advertisement-overlay-field-categories"]');
+async function selectInMultiSelectComboBox(page, comboBox, itemLabel) {
   // Click input to open the dropdown — blurs title/description so Vaadin syncs their values
   // to the server before we interact with the combo box.
   await comboBox.locator('input').click();
@@ -184,13 +185,25 @@ async function selectCategoryInAdForm(page, overlay, categoryName) {
     }
     item.click();
     return { found: true };
-  }, categoryName);
+  }, itemLabel);
 
-  if (!result.found) throw new Error(`Category "${categoryName}" not found. DOM: ${result.debug}`);
+  if (!result.found) throw new Error(`Item "${itemLabel}" not found. DOM: ${result.debug}`);
   await waitForVaadinIdle(page);
   await page.keyboard.press('Escape');
   await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'hidden', timeout: 5000 });
   await waitForVaadinIdle(page);
+}
+
+/**
+ * Selects a category in the advertisement form's multi-select combo box.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Locator} overlay the advertisement overlay.
+ * @param {string} categoryName exact category label to select.
+ * @returns {Promise<void>}
+ */
+async function selectCategoryInAdForm(page, overlay, categoryName) {
+  const comboBox = overlay.locator('[data-testid="advertisement-overlay-field-categories"]');
+  await selectInMultiSelectComboBox(page, comboBox, categoryName);
 }
 
 /**
@@ -265,6 +278,7 @@ async function assertActivityDiffHasStruckThroughCategory(page, expect, changes,
 module.exports = {
   openReferenceDataTab,
   runCreateCategoryFlow,
+  selectInMultiSelectComboBox,
   selectCategoryInAdForm,
   assertCardHasCategories,
   assertViewOverlayHasCategories,

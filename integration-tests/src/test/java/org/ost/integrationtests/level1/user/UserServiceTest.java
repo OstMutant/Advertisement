@@ -6,11 +6,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.providerprofile.spi.ProviderProfilePort;
+import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
@@ -77,15 +76,7 @@ class UserServiceTest {
     @Mock
     private AuditPort auditPort;
 
-    @Mock
-    private AdvertisementPort advertisementPort;
-
-    @Mock
-    private ProviderProfilePort providerProfilePort;
-
     private ObjectProvider<AuditPort> auditPortProvider;
-    private ObjectProvider<AdvertisementPort> advertisementPortProvider;
-    private ObjectProvider<ProviderProfilePort> providerProfilePortProvider;
 
     private UserService userService;
 
@@ -93,12 +84,8 @@ class UserServiceTest {
     @SuppressWarnings("unchecked")
     void setUp() {
         auditPortProvider = mock(ObjectProvider.class);
-        advertisementPortProvider = mock(ObjectProvider.class);
-        providerProfilePortProvider = mock(ObjectProvider.class);
         ComponentFactory<AuditPort> auditPortFactory = new ComponentFactory<>(auditPortProvider);
-        ComponentFactory<AdvertisementPort> advertisementPortFactory = new ComponentFactory<>(advertisementPortProvider);
-        ComponentFactory<ProviderProfilePort> providerProfilePortFactory = new ComponentFactory<>(providerProfilePortProvider);
-        userService = new UserService(userRepository, preferencesRepository, passwordEncoder, preferencesService, auditPortFactory, advertisementPortFactory, providerProfilePortFactory);
+        userService = new UserService(userRepository, preferencesRepository, passwordEncoder, preferencesService, auditPortFactory);
         lenient().when(userRepository.countByFilter(UserFilterDto.empty())).thenReturn(5L);
         lenient().when(passwordEncoder.encode(org.mockito.ArgumentMatchers.anyString())).thenReturn("encoded");
     }
@@ -109,19 +96,6 @@ class UserServiceTest {
             consumer.accept(auditPort);
             return null;
         }).when(auditPortProvider).ifAvailable(any());
-    }
-
-    private void stubAdvertisementPortAvailable() {
-        lenient().when(advertisementPortProvider.getIfAvailable()).thenReturn(advertisementPort);
-        lenient().doAnswer(inv -> {
-            Consumer<AdvertisementPort> consumer = inv.getArgument(0);
-            consumer.accept(advertisementPort);
-            return null;
-        }).when(advertisementPortProvider).ifAvailable(any());
-    }
-
-    private void stubProviderProfilePortAvailable() {
-        lenient().when(providerProfilePortProvider.getIfAvailable()).thenReturn(providerProfilePort);
     }
 
     private static SignUpDto signUpDto(String email) {
@@ -159,7 +133,7 @@ class UserServiceTest {
     }
 
     @Test
-    void register_thresholdReached_throwsIllegalStateException_beforeAttemptingSave() {
+    void register_thresholdReached_throwsTooManyAttemptsException_beforeAttemptingSave() {
         stubSaveThrowsDuplicateKey();
 
         for (int i = 0; i < 5; i++) {
@@ -168,7 +142,7 @@ class UserServiceTest {
         }
 
         assertThatThrownBy(() -> userService.register(signUpDto("taken@example.com"), CLIENT_IP))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(TooManyAttemptsException.class);
         verify(userRepository, times(5)).save(any());
     }
 
@@ -192,7 +166,7 @@ class UserServiceTest {
                     .isInstanceOf(DuplicateKeyException.class);
         }
         assertThatThrownBy(() -> userService.register(signUpDto("taken@example.com"), CLIENT_IP))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(TooManyAttemptsException.class);
     }
 
     @Test
@@ -204,7 +178,7 @@ class UserServiceTest {
                     .isInstanceOf(DuplicateKeyException.class);
         }
         assertThatThrownBy(() -> userService.register(signUpDto("taken@example.com"), blockedIp))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(TooManyAttemptsException.class);
 
         // A different IP must not be affected by blockedIp's attempts.
         stubSaveSucceeds();
@@ -230,52 +204,19 @@ class UserServiceTest {
     }
 
     @Test
-    void cleanup_purgesAllEligibleRows() {
+    void findIdsDeletedOlderThan_returnsCandidateIds() {
         when(userRepository.findIdsDeletedOlderThan(90)).thenReturn(List.of(1L, 2L, 3L));
-        stubAdvertisementPortAvailable();
-        when(advertisementPort.findOwnerIds(Set.of(1L, 2L, 3L))).thenReturn(Set.of());
 
-        userService.cleanup(90);
-
-        verify(advertisementPort).clearActorReferences(Set.of(1L, 2L, 3L));
-        verify(userRepository).deleteById(1L);
-        verify(userRepository).deleteById(2L);
-        verify(userRepository).deleteById(3L);
+        assertThat(userService.findIdsDeletedOlderThan(90)).isEqualTo(Set.of(1L, 2L, 3L));
     }
 
     @Test
-    void cleanup_rowStillOwnsAdvertisement_skipsItButStillPurgesTheRest() {
-        when(userRepository.findIdsDeletedOlderThan(90)).thenReturn(List.of(1L, 2L, 3L));
-        stubAdvertisementPortAvailable();
-        when(advertisementPort.findOwnerIds(Set.of(1L, 2L, 3L))).thenReturn(Set.of(2L));
+    void purge_deletesEachIdsPreferencesAndRow() {
+        userService.purge(Set.of(1L, 2L));
 
-        userService.cleanup(90);
-
+        verify(preferencesRepository).deleteByActorId(1L);
         verify(userRepository).deleteById(1L);
-        verify(userRepository, never()).deleteById(2L);
-        verify(userRepository).deleteById(3L);
-    }
-
-    @Test
-    void cleanup_rowStillOwnsProviderProfile_skipsItButStillPurgesTheRest() {
-        when(userRepository.findIdsDeletedOlderThan(90)).thenReturn(List.of(1L, 2L, 3L));
-        stubProviderProfilePortAvailable();
-        when(providerProfilePort.findOwnerIds(Set.of(1L, 2L, 3L))).thenReturn(Set.of(2L));
-
-        userService.cleanup(90);
-
-        verify(userRepository).deleteById(1L);
-        verify(userRepository, never()).deleteById(2L);
-        verify(userRepository).deleteById(3L);
-    }
-
-    @Test
-    void cleanup_advertisementAndProviderProfilePortsAbsent_purgesAllCandidates() {
-        when(userRepository.findIdsDeletedOlderThan(90)).thenReturn(List.of(1L, 2L));
-
-        userService.cleanup(90);
-
-        verify(userRepository).deleteById(1L);
+        verify(preferencesRepository).deleteByActorId(2L);
         verify(userRepository).deleteById(2L);
     }
 }

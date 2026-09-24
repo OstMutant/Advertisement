@@ -1,3 +1,5 @@
+@layer components {
+
 /* ── Row layout ────────────────────────────────────────────────────── */
 
 .query-inline-row {
@@ -99,4 +101,6 @@
     margin-top:  4px;
     border-top:  1px solid var(--app-border-default);
     width:       100%;
+}
+
 }

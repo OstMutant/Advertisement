@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Ensures the local SonarQube server container is up (waiting through a
 #   DB_MIGRATION_NEEDED cycle if needed) and that the stored auth token authenticates against it,

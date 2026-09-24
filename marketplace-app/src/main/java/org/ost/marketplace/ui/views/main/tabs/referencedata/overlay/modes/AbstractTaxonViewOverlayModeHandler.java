@@ -5,57 +5,34 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.spring.annotation.SpringComponent;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
-import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.security.AccessEvaluator;
-import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.orchestrator.services.TaxonCatalogService;
-import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
-import org.springframework.context.annotation.Scope;
 
 import java.util.List;
 
-import static org.ost.marketplace.services.i18n.I18nKey.*;
+/** Shared view-mode rendering for a taxon-backed entity (locale card + edit/close header actions), parameterized by the concrete City/Category subclass's data source, labels, and callbacks. */
+public abstract class AbstractTaxonViewOverlayModeHandler extends AbstractViewOverlayModeHandler implements I18nParams {
 
-@SpringComponent
-@Scope("prototype")
-@RequiredArgsConstructor
-public class TaxonViewOverlayModeHandler extends AbstractViewOverlayModeHandler
-        implements Configurable<TaxonViewOverlayModeHandler, TaxonViewOverlayModeHandler.Parameters>, I18nParams {
+    /** The domain-specific i18n keys this handler needs -- everything else is shared across every taxon type. */
+    public record Labels(I18nKey sectionLabel, I18nKey localeTabEn, I18nKey localeTabUk,
+                          I18nKey viewButtonEdit, I18nKey overlayButtonCancel) {}
 
-    @Value
-    @lombok.Builder
-    public static class Parameters {
-        @NonNull TaxonDto  taxon;
-        @NonNull Runnable  onEdit;
-        @NonNull Runnable  onClose;
-    }
-
-    @Getter
-    private final I18nService                       i18nService;
-    private final AccessEvaluator                   access;
-    private final TaxonCatalogService                taxonCatalogService;
-
-    private Parameters params;
-
-    @Override
-    public TaxonViewOverlayModeHandler configure(Parameters p) {
-        this.params = p;
-        return this;
-    }
+    protected abstract TaxonCatalogService getTaxonCatalogService();
+    protected abstract AccessEvaluator     getAccess();
+    protected abstract Long                getEntityId();
+    protected abstract Runnable            getOnEdit();
+    protected abstract Runnable            getOnClose();
+    protected abstract Labels              getLabels();
 
     @Override
     protected Div buildPrimaryContent() {
-        List<TaxonTranslationDto> translations = taxonCatalogService.getTranslations(params.getTaxon().getId());
+        List<TaxonTranslationDto> translations = getTaxonCatalogService().getTranslations(getEntityId());
 
         String nameEn = "";
         String descEn = "";
@@ -66,15 +43,15 @@ public class TaxonViewOverlayModeHandler extends AbstractViewOverlayModeHandler
             else if ("uk".equals(t.getLocale())) { nameUk = t.getName(); descUk = t.getDescription(); }
         }
 
-        Div cardHeader = new Div(VaadinIcon.TAG.create(), new Span(getValue(TAXON_OVERLAY_SECTION_LABEL)));
+        Div cardHeader = new Div(VaadinIcon.TAG.create(), new Span(getValue(getLabels().sectionLabel())));
         cardHeader.addClassName("overlay__view-card-header");
 
-        H4 enLabel = new H4(getValue(TAXON_OVERLAY_LOCALE_TAB_EN));
+        H4 enLabel = new H4(getValue(getLabels().localeTabEn()));
         enLabel.addClassName("taxon-locale-label");
         Div enContent = buildLocaleContent(nameEn, descEn);
         enContent.addClassName("taxon-locale-content");
 
-        H4 ukLabel = new H4(getValue(TAXON_OVERLAY_LOCALE_TAB_UK));
+        H4 ukLabel = new H4(getValue(getLabels().localeTabUk()));
         ukLabel.addClassName("taxon-locale-label");
         Div ukContent = buildLocaleContent(nameUk, descUk);
         ukContent.addClassName("taxon-locale-content");
@@ -99,11 +76,11 @@ public class TaxonViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
     @Override
     protected Div buildHeaderActions() {
-        UiPrimaryButton editButton = new UiPrimaryButton(getValue(TAXON_VIEW_BUTTON_EDIT));
-        UiIconButton closeButton = new UiIconButton(getValue(TAXON_OVERLAY_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
-        editButton.addClickListener(_  -> params.getOnEdit().run());
-        closeButton.addClickListener(_ -> params.getOnClose().run());
-        editButton.setVisible(access.isPrivileged());
+        UiPrimaryButton editButton = new UiPrimaryButton(getValue(getLabels().viewButtonEdit()));
+        UiIconButton closeButton = new UiIconButton(getValue(getLabels().overlayButtonCancel()), VaadinIcon.CLOSE.create());
+        editButton.addClickListener(_  -> getOnEdit().run());
+        closeButton.addClickListener(_ -> getOnClose().run());
+        editButton.setVisible(getAccess().isPrivileged());
         return new Div(editButton, closeButton);
     }
 }

@@ -10,10 +10,13 @@ import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.services.AttachmentSnapshotService;
 import org.ost.attachment.services.StorageService;
+import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
 
+import java.io.ByteArrayInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -54,15 +57,51 @@ class AttachmentServiceTest {
     private AttachmentSnapshotService attachmentSnapshotService;
     @Mock
     private CurrentActorHook currentActorHook;
-    @Mock
-    private InputStream inputStream;
 
     private AttachmentService service;
+
+    // Real magic bytes -- AttachmentContentTypeValidator now sniffs actual content via Tika.
+    private static final byte[] JPEG_BYTES = {
+            (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00
+    };
+    private static final byte[] MP4_BYTES = {
+            0x00, 0x00, 0x00, 0x20, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm', 0x00, 0x00, 0x02, 0x00,
+            'i', 's', 'o', 'm', 'i', 's', 'o', '2', 'a', 'v', 'c', '1', 'm', 'p', '4', '1'
+    };
+
+    private static final class TrackingInputStream extends FilterInputStream {
+        private boolean closed = false;
+
+        private TrackingInputStream(byte[] bytes) {
+            super(new ByteArrayInputStream(bytes));
+        }
+
+        @Override
+        public void close() throws IOException {
+            closed = true;
+            super.close();
+        }
+    }
 
     @BeforeEach
     void setUp() {
         service = new AttachmentService(storageService, attachmentRepository,
                 attachmentSnapshotService, currentActorHook);
+    }
+
+    @Test
+    void getByEntityAndUrls_mapsRepositoryResultsToDtos() {
+        Attachment a = Attachment.builder()
+                .id(1L).entityType(EntityType.ADVERTISEMENT).entityId(1L)
+                .url("final/1.jpg").filename("1.jpg").contentType("image/jpeg").size(100L)
+                .build();
+        when(attachmentRepository.findByEntityAndUrls(EntityType.ADVERTISEMENT, 1L, new String[]{"final/1.jpg"}))
+                .thenReturn(List.of(a));
+
+        List<AttachmentItemDto> result = service.getByEntityAndUrls(EntityType.ADVERTISEMENT, 1L, new String[]{"final/1.jpg"});
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().url()).isEqualTo("final/1.jpg");
     }
 
     @Test
@@ -106,42 +145,65 @@ class AttachmentServiceTest {
 
     @Test
     void upload_closesInputStreamAfterS3UploadSucceeds() throws IOException {
-        when(storageService.upload(anyString(), eq("photo.jpg"), eq(inputStream), eq(100L), eq("image/jpeg")))
+        TrackingInputStream stream = new TrackingInputStream(JPEG_BYTES);
+        when(storageService.upload(anyString(), eq("photo.jpg"), any(InputStream.class), eq((long) JPEG_BYTES.length), eq("image/jpeg")))
                 .thenReturn("final/photo.jpg");
         when(attachmentRepository.save(any())).thenReturn(Attachment.builder()
                 .id(1L).entityType(EntityType.ADVERTISEMENT).entityId(1L)
-                .url("final/photo.jpg").filename("photo.jpg").contentType("image/jpeg").size(100L)
+                .url("final/photo.jpg").filename("photo.jpg").contentType("image/jpeg").size((long) JPEG_BYTES.length)
                 .build());
         when(currentActorHook.getCurrentActorId()).thenReturn(Optional.of(1L));
 
-        service.upload(EntityType.ADVERTISEMENT, 1L, "photo.jpg", inputStream, 100L, "image/jpeg");
+        service.upload(EntityType.ADVERTISEMENT, 1L, "photo.jpg", stream, JPEG_BYTES.length, "image/jpeg");
 
-        verify(inputStream).close();
+        assertThat(stream.closed).isTrue();
     }
 
     @Test
     void upload_noCurrentActor_throwsInsteadOfSilentlySkippingSnapshot() {
-        when(storageService.upload(anyString(), eq("photo.jpg"), eq(inputStream), eq(100L), eq("image/jpeg")))
+        TrackingInputStream stream = new TrackingInputStream(JPEG_BYTES);
+        when(storageService.upload(anyString(), eq("photo.jpg"), any(InputStream.class), eq((long) JPEG_BYTES.length), eq("image/jpeg")))
                 .thenReturn("final/photo.jpg");
         when(attachmentRepository.save(any())).thenReturn(Attachment.builder()
                 .id(1L).entityType(EntityType.ADVERTISEMENT).entityId(1L)
-                .url("final/photo.jpg").filename("photo.jpg").contentType("image/jpeg").size(100L)
+                .url("final/photo.jpg").filename("photo.jpg").contentType("image/jpeg").size((long) JPEG_BYTES.length)
                 .build());
         when(currentActorHook.getCurrentActorId()).thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
-                service.upload(EntityType.ADVERTISEMENT, 1L, "photo.jpg", inputStream, 100L, "image/jpeg"))
+                service.upload(EntityType.ADVERTISEMENT, 1L, "photo.jpg", stream, JPEG_BYTES.length, "image/jpeg"))
                 .isInstanceOf(NoSuchElementException.class);
     }
 
     @Test
     void uploadTemp_closesInputStreamAfterS3UploadSucceeds() throws IOException {
-        when(storageService.upload(anyString(), eq("clip.mp4"), eq(inputStream), eq(200L), eq("video/mp4")))
+        TrackingInputStream stream = new TrackingInputStream(MP4_BYTES);
+        when(storageService.upload(anyString(), eq("clip.mp4"), any(InputStream.class), eq((long) MP4_BYTES.length), eq("video/mp4")))
                 .thenReturn("temp/session-1/clip.mp4");
 
-        service.uploadTemp("session-1", "clip.mp4", inputStream, 200L, "video/mp4");
+        service.uploadTemp("session-1", "clip.mp4", stream, MP4_BYTES.length, "video/mp4");
 
-        verify(inputStream).close();
+        assertThat(stream.closed).isTrue();
+    }
+
+    @Test
+    void discardTempUploads_deletesNonEmbeddedAndSkipsEmbedded() {
+        TempAttachmentDto uploaded = new TempAttachmentDto("temp/clip.mp4", "clip.mp4", "video/mp4", 200);
+        TempAttachmentDto embedded = new TempAttachmentDto("https://youtube.com/watch?v=1", "video.mp4", "video/youtube", 0);
+
+        service.discardTempUploads(List.of(uploaded, embedded));
+
+        verify(storageService).delete("temp/clip.mp4");
+        verify(storageService, never()).delete("https://youtube.com/watch?v=1");
+    }
+
+    @Test
+    void captureSnapshot_capturesUsingCurrentActor() {
+        when(currentActorHook.getCurrentActorId()).thenReturn(Optional.of(1L));
+
+        service.captureSnapshot(EntityType.ADVERTISEMENT, 1L);
+
+        verify(attachmentSnapshotService).capture(EntityType.ADVERTISEMENT, 1L, 1L);
     }
 
     @Test

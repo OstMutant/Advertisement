@@ -92,7 +92,7 @@ vars are required — the sandbox-only `--sandbox` workarounds (also documented 
 | `taxon/TaxonServiceTest` | Testcontainers + `@SpringBootTest` | `TaxonService.update()` preserves `deletedBy` on an already soft-deleted taxon (Spring Data JDBC's full-row `UPDATE` was silently reverting it to `NULL`) |
 | `taxon/TaxonSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `TaxonSnapshotDto.diff()` — pure field-comparison logic, direct analogy with `AdvertisementSnapshotDtoTest` |
 | `taxon/TaxonAssignmentRepositoryTest` | Testcontainers + `@SpringBootTest` | `TaxonAssignmentRepository`'s many-to-many join table: idempotent `assign()` (`ON CONFLICT DO NOTHING`), `unassign()`/`deleteAllByEntity()` scoping, both directions of bulk lookup, both count variants |
-| `user/UserRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserRepository.updateProfile()` — optimistic locking, and that the narrower `UserProfileUpdate` entity structurally cannot touch `email`/`passwordHash` |
+| `user/UserRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserRepository.save()`/`updateProfile()` — optimistic locking, and that the narrower `UserProfileUpdate` entity structurally cannot touch `email`/`passwordHash` |
 | `user/UserServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `UserService.register()` rate-limiting: threshold blocks before save, duplicate-key failures count, successful registration does **not** reset the IP counter (asymmetry vs. login), different IPs tracked separately |
 | `user/SettingsSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `SettingsSnapshotDto.diff()` — pure field-comparison logic, direct analogy with `AdvertisementSnapshotDtoTest` |
 | `user/UserSettingsDtoTest` | Plain JUnit, no Spring, no DB | Confirms Jackson's builder-based deserialization correctly applies `UserSettingsDto`'s `@Builder.Default timelinePageSize`/`providerProfilesPageSize` for a JSON payload missing that key |
@@ -103,7 +103,7 @@ vars are required — the sandbox-only `--sandbox` workarounds (also documented 
 | `attachment/AttachmentSnapshotRepositoryTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | `AttachmentSnapshotRepository`'s URL-history round-trip (insert + `getPrevUrls`/`getUrlsById`) and `deleteOlderThan()`'s retention-window cutoff |
 | `attachment/AttachmentSnapshotServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentSnapshotService`'s filename resolution (real filename vs. URL-segment fallback when no matching attachment row exists) and independent resolution of duplicate original filenames across URLs |
 | `audit/AuditLogRepositoryTest` | Testcontainers + `@SpringBootTest` | `AuditLogRepository.findTimeline()`/`getSnapshotContent()`'s `version`-numbering subqueries get an `id` tiebreaker for same-`created_at` rows |
-| `providerprofile/ProviderProfileRepositoryTest` | Testcontainers + `@SpringBootTest` | Real SQL correctness for `ProviderProfileRepository` — filter (kind, cityTaxonId), sort, pagination, `findOwnerIds()`, optimistic-locked `delete()` — against real `provider-profile-spring-boot-starter` + `user-spring-boot-starter` autoconfiguration |
+| `providerprofile/ProviderProfileRepositoryTest` | Testcontainers + `@SpringBootTest` | Real SQL correctness for `ProviderProfileRepository` — filter (kind, cityTaxonId), sort, pagination, `findOwnerIds()`, optimistic-locked `save()`/`delete()` — against real `provider-profile-spring-boot-starter` + `user-spring-boot-starter` autoconfiguration |
 | `providerprofile/ProviderProfileServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `ProviderProfileService`'s HTML sanitization policy (mirrors `AdvertisementServiceHtmlSanitizationTest`), the `kind == SUPPORT` requires-privileged-actor authorization rule (accept/reject), and that a new profile's `actor_id` is taken from the `targetUserId` parameter, not the acting user, when an admin creates a profile on another user's behalf |
 | `providerprofile/ProviderProfileSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `ProviderProfileSnapshotDto.diff()` — pure field-comparison logic — plus a Jackson polymorphic round-trip (de)serialization test, the first of any `AuditableSnapshot` subtype to have one |
 | `SharedEnvConfigTest` | Plain JUnit, no Spring, no DB | `SharedEnvConfig.require()` walking up directories to find the repo-root `.env`, and its failure modes (no `.env` in range, key missing from an `.env` that does exist) |
@@ -126,11 +126,12 @@ autoconfiguration in one Spring context (satisfying `AdvertisementAutoConfigurat
 | Test | Verifies |
 |---|---|
 | `save_and_findAdvertisementById_returnsPersistedRow` | Save + find-by-id round-trip, including `createdBy`/`version` populated correctly |
+| `save_staleVersion_throwsStaleWriteException` | Optimistic locking rejects a `save()` update carrying a stale `version` (native Spring Data JDBC `@Version` check on `AdvertisementCrudRepository.save()`, caught and rethrown as `StaleWriteException`) |
 | `findByFilter_titleFilter_returnsOnlyMatchingRows` | `SqlFilterBuilder`'s title `ILIKE` filter matches only the intended rows |
 | `findByFilter_emptyFilter_returnsAllRows` | An empty filter returns every non-deleted row, no accidental narrowing |
 | `findByFilter_sortByTitle_ordersAscending` | `OrderByBuilder`'s sort-alias map produces a correct `ORDER BY` |
 | `findByFilter_pagination_respectsLimitAndOffset` | `PaginationSqlBuilder`'s `LIMIT`/`OFFSET` clause slices correctly across pages |
-| `softDelete_staleVersion_throwsOptimisticLockingFailureException` | Optimistic locking rejects a `softDelete()` call with a stale `version` |
+| `softDelete_staleVersion_throwsStaleWriteException` | Optimistic locking rejects a `softDelete()` call with a stale `version` |
 | `softDelete_currentVersion_succeedsAndExcludesRowFromFilter` | A correct-version `softDelete()` succeeds and the row disappears from subsequent filtered queries |
 
 ### `advertisement/AdvertisementSnapshotDtoTest`
@@ -154,6 +155,7 @@ comparison building `ChangeEntry.FieldChange` records.
 
 | Test | Verifies |
 |---|---|
+| `save_staleVersion_throwsStaleWriteException` | Optimistic locking rejects a `save()` update carrying a stale `version` (native Spring Data JDBC `@Version` check on `TaxonCrudRepository.save()`, caught and rethrown as `StaleWriteException`) |
 | `findByIds_includesSoftDeletedRows` | A soft-deleted taxon id is deliberately still returned by the bulk lookup — `findByIds()` has no `deleted_at` filter, by design (its only caller, `DefaultTaxonPort.indexById()`, needs deleted taxons visible; see `taxon-spring-boot-starter/CLAUDE.md`) |
 | `findByIds_returnsActiveRows` | Non-deleted rows come back correctly alongside the deleted ones |
 
@@ -174,7 +176,8 @@ can't produce.
 
 | Test | Verifies |
 |---|---|
-| `updateProfile_staleVersion_throwsOptimisticLockingFailureException` | Optimistic locking rejects a stale-`version` profile update |
+| `save_staleVersion_throwsStaleWriteException` | Optimistic locking rejects a `save()` update carrying a stale `version` (native Spring Data JDBC `@Version` check on `UserCrudRepository.save()`, caught and rethrown as `StaleWriteException`) |
+| `updateProfile_staleVersion_throwsStaleWriteException` | Optimistic locking rejects a stale-`version` profile update |
 | `updateProfile_currentVersion_succeedsAndUpdatesNameAndRole` | Correct-version update succeeds |
 | `updateProfile_cannotAlterEmailOrPasswordHash` | `UserProfileUpdate`'s narrower entity (no `email`/`passwordHash` mapped properties) structurally cannot touch those columns, even if attempted — see `user-spring-boot-starter/CLAUDE.md` |
 
@@ -255,7 +258,7 @@ Testcontainers + `@SpringBootTest`.
 | Test | Verifies |
 |---|---|
 | `save_freshUser_startsAtVersionZeroAndSucceeds` | A user with no prior settings row starts at `version` 0 |
-| `save_staleVersion_throwsOptimisticLockingFailureException` | A stale `version` embedded in the `settings` JSONB column is rejected |
+| `save_staleVersion_throwsStaleWriteException` | A stale `version` embedded in the `settings` JSONB column is rejected |
 | `save_currentVersion_succeedsAndIncrementsVersion` | A correct `version` succeeds and increments — same optimistic-locking shape as `User.version`, but scoped to the JSONB column, not a SQL column |
 
 ---

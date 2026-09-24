@@ -9,11 +9,11 @@ import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -53,7 +53,7 @@ public class AdvertisementSaveService {
             boolean isNew = dto.id() == null;
             AdvertisementInfoDto existing = isNew ? null : advertisementPortFactory.get().findById(dto.id()).orElse(null);
             if (!isNew && existing == null) {
-                throw new OptimisticLockingFailureException(
+                throw new StaleWriteException(
                         "Advertisement " + dto.id() + " was deleted before this edit could be saved");
             }
             if (!isNew) {

@@ -1,9 +1,11 @@
+@layer components {
+
 /* ── User view card ──────────────────────────────────────────────── */
 
 .user-view-card {
     background: var(--app-surface-white);
     border: 1px solid var(--app-border-default);
-    border-top: 3px solid var(--app-status-success-text) !important;
+    border-top: 3px solid var(--app-status-success-text);
     border-radius: 12px;
     padding: 20px 24px;
     display: flex;
@@ -15,15 +17,15 @@
 
 /* Accent border matching the role badge color -- see user-grid.css's role badge */
 .user-view-card--admin {
-    border-top-color: var(--app-accent-primary-strong) !important;
+    border-top-color: var(--app-accent-primary-strong);
 }
 
 .user-view-card--user {
-    border-top-color: var(--app-status-success-role-text) !important;
+    border-top-color: var(--app-status-success-role-text);
 }
 
 .user-view-card--moderator {
-    border-top-color: var(--app-status-moderator-text) !important;
+    border-top-color: var(--app-status-moderator-text);
 }
 
 .user-view-profile-row {
@@ -79,8 +81,8 @@
 }
 
 .user-view-meta-row .labeled-field {
-    flex-direction: column !important;
-    align-items: flex-start !important;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 2px;
 }
 
@@ -98,3 +100,5 @@
     font-weight: 500;
 }
 
+
+}

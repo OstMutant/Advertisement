@@ -69,7 +69,7 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient AdvertisementSaveService                    advertisementSaveService;
     private final transient AttachmentMediaService                       attachmentMediaService;
     private final transient ComponentFactory<AttachmentGalleryService> galleryServiceFactory;
-    private final transient UiComponentFactory<EntityMetaPanel>        metaPanelFactory;
+    private final transient UiComponentFactory<EntityMetaPanel, EntityMetaPanel.Parameters>        metaPanelFactory;
     private final transient AccessEvaluator                            access;
     private final transient AdvertisementOverlay                       overlay;
     private final transient AppLinkService                             appLinkService;

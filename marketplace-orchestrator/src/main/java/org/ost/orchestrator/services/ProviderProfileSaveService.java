@@ -6,12 +6,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.orchestrator.spi.CurrentLocaleHook;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
 import org.ost.platform.providerprofile.spi.ProviderProfilePort;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -44,7 +44,7 @@ public class ProviderProfileSaveService {
             boolean isNew = dto.id() == null;
             ProviderProfileSnapshotDto before = isNew ? null : buildCurrentSnapshot(dto.id());
             if (!isNew && before == null) {
-                throw new OptimisticLockingFailureException(
+                throw new StaleWriteException(
                         "Provider profile " + dto.id() + " was deleted before this edit could be saved");
             }
             authorizationService.requireCanOperate(actorId, targetUserId);

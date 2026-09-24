@@ -36,6 +36,7 @@
 # Playwright artifacts
 /playwright/screenshots/
 /playwright/pw-report/
+/playwright/node_modules/
 /docs/architecture/scripts/architecture-map-screenshots/
 
 # Integration test artifacts

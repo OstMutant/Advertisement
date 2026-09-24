@@ -60,3 +60,17 @@ duplication class of issue noted in `integration-tests/CLAUDE.md`).
 - `playwright/CLAUDE.md` — documents the current `--full` flag behavior this issue would change
   the internals of (external behavior — "seeds 50 users + 50 ads" — stays the same; only the
   mechanism changes from UI-driven to service-layer-driven).
+
+## Done (2026-09-22)
+
+Confirmed already implemented as part of `improvement-073`'s Phase 4 (2026-09-03):
+`06-seed-filter-sort-pagination.spec.js` seeds Test 1 (users) and Test 2 (advertisements +
+categories/cities) via `seedUsersViaApi`/`seedTaxonsViaApi`/`seedAdvertisementsViaApi`
+(`playwright/e2e/_flows/seed.flow.js`), calling the real service layer through
+`marketplace-rest-api` instead of driving the signup/creation UI — exactly this issue's revised
+"service layer, not raw SQL" fix. Confirmed no browser-UI seeding calls remain in the spec.
+
+Not carried over: the `workers: 2` follow-up step from this issue's "Suggested fix" — Playwright
+still runs `fullyParallel: false, workers: 1`. Whether parallelizing e2e workers is worth pursuing,
+now that seeding itself no longer requires the browser, is tracked as part of
+[improvement-198](../../backlog/tasks/improvement-198-playwright-test-isolation-and-parallel-workers.md).

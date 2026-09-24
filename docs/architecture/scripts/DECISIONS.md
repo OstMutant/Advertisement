@@ -58,8 +58,7 @@ table still couldn't be determined without a further, separate hardcoded assumpt
   listed in Context.
 - A future new no-FK reference column is captured automatically the moment its `remarks=` carries
   the marker — no further edit to `generate-architecture-model.sh` needed, closing off this
-  specific recurring class of hardcoded-list drift (see `backlog/completed/BACKLOG-ARCHIVE.md`'s
-  `improvement-181` for the broader pattern this instance belongs to).
+  specific recurring class of hardcoded-list drift.
 - `liquibase-schema-to-json.js` itself is unchanged — the derivation lives in `db_erd_json()`
   instead, since the parser's existing plain-array output shape has a second consumer
   (`MODULE_TABLES`'s own `run_node -e` extraction) that a shape change would have broken.
@@ -73,8 +72,8 @@ table still couldn't be determined without a further, separate hardcoded assumpt
 **Context:** ADR-010 gave "AI Tooling" a flat category (`scripts/ai`, since renamed
 `.claude/nav/scripts`) rendered as two hardcoded tables (Commands, Skills) plus a single flat
 `SCRIPT_GROUP` card for the scripts directory. `.claude/` itself (`commands/`, `nav/`, `rules/`,
-`skills/`) had no representation in the tool at all — its own file headers/READMEs (added under
-improvement-170) were unreachable through the UI. A first attempt to fix this added the
+`skills/`) had no representation in the tool at all — its own already-existing file
+headers/READMEs were unreachable through the UI. A first attempt to fix this added the
 Commands/Skills tables as-is plus a flat `.claude` tree, which surfaced two real duplication bugs:
 `renderScriptGroupSection()`'s `chipFiles` fallback rendered a second, context-free file list
 alongside a directory's own README even when that README already named and linked the same files
@@ -107,8 +106,8 @@ inert bracket text, not a clickable link.
    `SCRIPT_GROUP` README, ADR popup body), not new for this change alone.
 
 **Consequences:**
-- Every `.claude/` subdirectory's file headers/READMEs (added under improvement-170) are now
-  actually reachable through `architecture-map.html`, closing the gap ADR-010 left open.
+- Every `.claude/` subdirectory's file headers/READMEs are now actually reachable through
+  `architecture-map.html`, closing the gap ADR-010 left open.
 - A future tree/`SCRIPT_GROUP` directory that wants a rich, non-file-based summary (like the
   removed Commands/Skills tables) needs a deliberate design choice — README-as-canonical is now
   the default, not an automatic table.
@@ -1111,8 +1110,8 @@ acted on:
 4. Client JS: a new "Code Metrics" section on the Module page (Sonar + ArchUnit numbers together),
    and a new "Architecture Checks"/"Largest Java Files"/"Constructor Injection"/"Largest Packages"
    set of sections on the Module Dependencies page.
-5. `05`/`06`/`07`/`08` deleted in full via `git rm`, full content of all four captured in
-   `improvement-142` first (same "capture before delete" discipline as `bounded-contexts.md`).
+5. `05`/`06`/`07`/`08` deleted in full via `git rm`, full content of all four captured in a
+   tracked backlog task first (same "capture before delete" discipline as `bounded-contexts.md`).
    `07`'s 3 "Architectural Debt" TODO items moved into `backlog/BACKLOG.md` as real tracked notes,
    not just archived.
 6. `docs/architecture-map.html`/`docs/architecture-model.json` moved into `docs/architecture/`
@@ -1279,8 +1278,8 @@ issue, never renumbered) had no home either.
 
 **Status:** Accepted
 
-**Context:** User request (Part A of the original, much larger improvement-144 scope, revived
-here in a smaller shape than originally drafted): rather than each module's own page carrying a
+**Context:** User request (revived here in a smaller shape than originally drafted): rather than
+each module's own page carrying a
 "Code Metrics" section (`renderModuleCodeMetricsHtml()`), gather all SonarQube + ArchUnit data
 into one System-level card/screen, with a clear breakdown of which numbers came from which source,
 and stop repeating it per module.
@@ -1387,8 +1386,8 @@ actually implements that interface — not an unconditional loop over every star
 Orchestrator` (`calls`, real evidence: count of `marketplace-app` classes importing
 `org.ost.orchestrator.*`). The pre-existing `UI -> <starter>` edges (unconditional for every
 starter, not gated on real evidence) are deliberately left unchanged here — fixing those requires
-knowing which UI classes still hold a direct `*Port` after the true-BFF migration
-(`improvement-147`) actually lands; tracked there, not fixed speculatively ahead of that work.
+knowing which UI classes still hold a direct `*Port` after the true-BFF migration actually lands;
+not fixed speculatively ahead of that work.
 
 **Bug hit while implementing, fixed in the same change:** the new domain-discovery loop's
 `bc_kind="$(sed ... | grep -o ... | sed ...)"` line was missing its closing double-quote (an
@@ -1638,8 +1637,8 @@ convention; rolling it onto every other script in the repo is a separate, not-ye
 ADR-019 (domains/relationships derived live from real code) and ADR-025 (domain *discovery* itself
 made self-describing via each module's own `pom.xml`, not a second hardcoded list).
 
-~~AI-layer L3 (Rule/Intent) artifact~~ — done, see `md-to-decisions-json.js`'s `--extract` mode
-(improvement-145): reads `.claude/nav/adr-index.md` (via `.claude/nav/context-loading.md`'s guidance) to
+~~AI-layer L3 (Rule/Intent) artifact~~ — done, see `md-to-decisions-json.js`'s `--extract` mode:
+reads `.claude/nav/adr-index.md` (via `.claude/nav/context-loading.md`'s guidance) to
 find the relevant id(s), then extracts just those from the real `DECISIONS.md` on demand, exactly
 the source and shape this goal specified — not a filtered read of `architecture-model.json`.
 ~~Full ADR-embedding rollout to all modules with their own `DECISIONS.md`~~ — done, see ADR-007.

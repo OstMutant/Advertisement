@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: ci-runner's real ENTRYPOINT. Ensures buildx/compose/dagu are present in the
 #   ci-tools-cache named volume (downloading only whatever's missing, so a rebuilt image never
@@ -20,7 +20,7 @@
 # Returns: never returns under normal operation (exec'd into dagu start-all, which runs until the
 #   container is stopped); non-zero if a tool download fails (set -e).
 # ────────────────────────────────────────────────────────────────────────────
-set -e
+set -euo pipefail
 
 CI_TOOLS=/root/.ci-tools
 mkdir -p "$CI_TOOLS/bin" "$CI_TOOLS/cli-plugins" ~/.docker

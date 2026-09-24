@@ -19,7 +19,6 @@ const { screenshot } = require('../_helpers');
 async function switchLocale(page, expect, localeText, expectedTab) {
   await page.locator('.locale-combobox input').click();
   await page.locator('vaadin-combo-box-item').filter({ hasText: localeText }).first().click();
-  await page.waitForLoadState('networkidle').catch(() => {});
   await expect(page.locator('vaadin-tab').filter({ hasText: expectedTab }).first()).toBeVisible({ timeout: 8000 });
 }
 

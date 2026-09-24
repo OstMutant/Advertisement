@@ -217,9 +217,8 @@ class AttachmentRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void loadMediaStats_singleEntity_returnsEarliestActiveAttachmentAndCount() throws InterruptedException {
+    void loadMediaStats_singleEntity_returnsEarliestActiveAttachmentAndCount() {
         save(1L, "first.jpg");
-        Thread.sleep(10);
         save(1L, "second.jpg");
 
         AttachmentRepository.MediaStats stats = attachmentRepository.loadMediaStats(EntityType.ADVERTISEMENT, 1L);
@@ -237,9 +236,8 @@ class AttachmentRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void loadMediaStats_bulk_returnsPerEntityEarliestAttachmentAndCount() throws InterruptedException {
+    void loadMediaStats_bulk_returnsPerEntityEarliestAttachmentAndCount() {
         save(1L, "ad1-first.jpg");
-        Thread.sleep(10);
         save(1L, "ad1-second.jpg");
         save(2L, "ad2-only.jpg");
 

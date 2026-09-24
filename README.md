@@ -1,29 +1,97 @@
 # Advertisement Platform
 
-A production-oriented service marketplace, built as a hands-on playground for exploring backend
-and architectural trade-offs in a real, working system rather than a toy example.
+**Java 25 · Spring Boot 4.1 · Vaadin 25 · PostgreSQL · S3 · Playwright · Testcontainers**
 
-[Architecture](#architectural-principles) · [Module Docs](#module-layout) · [Testing Strategy](#testing-strategy)
+🚧 **Active development** — the product surface (features, UI) keeps changing; the engineering
+foundation underneath it (authorization model, SQL layer, testing strategy, backlog process) is
+stable and is the actual point of this project.
+
+**At a glance:** 7 bounded-context starters · 3 test layers, each with a distinct failure scope (unit /
+Testcontainers / Playwright) · 200+ backlog items, each resolved with a dated, root-cause write-up
+— not a vague TODO list.
+
+Built as a real, working system to demonstrate specific engineering patterns applied to actual
+features — not a toy example, and not (yet) a finished product:
+- explicit control over data flow and SQL — no ORM, no hidden query generation
+- composable abstractions without framework magic
+- clear responsibility boundaries between layers, enforced at both the UI and service level
+
+**Skim it (5 min):** [If you have 5 minutes](#if-you-have-5-minutes) · [Module map](#module-layout)
+**Go deep:** [Architecture](#architectural-principles) · [Testing Strategy](#testing-strategy) · [Backlog](backlog/BACKLOG.md)
+
+---
+
+## Quick Start
+
+```
+bash scripts/deploy-and-run.sh
+```
+
+Builds and starts the full stack (Postgres, MinIO/S3, the app). The app comes up at
+**http://localhost:8081** with an empty catalog — sign up to create an account; **on an empty
+installation, the first registered account is promoted to Admin**, no seed credentials needed. The REST
+API's interactive docs are at `http://localhost:8081/swagger-ui/index.html`. Full setup details
+(Docker Compose stack, env vars, running without Docker): [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
 ---
 
 ## What is it?
 
-A marketplace where users publish service/product listings, browse and filter a shared catalog,
-and administrators moderate everything through a full audit trail. Every module doubles as a
-demonstration of one specific engineering pattern — SPI-based module decoupling, immutable audit
-snapshots, optimistic concurrency, SQL without an ORM — applied to a real feature, not an isolated
-sample.
+A service marketplace: users publish listings, browse and filter a shared catalog, and
+administrators moderate everything through a full audit trail with field-level change history and
+restore. Built as a real, working system — not a toy example — the modules apply specific
+engineering patterns to real features: SPI-based module decoupling, immutable audit snapshots,
+optimistic concurrency, hand-written SQL with no ORM.
 
 ---
 
-## About
+## What can you do in it?
 
-This is not a finished product — there is no fixed public feature roadmap, and the product side
-keeps evolving. The engineering foundation underneath it is the actual point of the project:
-- explicit control over data flow and SQL
-- composable abstractions without framework magic
-- clear responsibility boundaries between layers
+- **Advertisements** — create/manage listings with rich HTML descriptions (sanitized
+  server-side), photos and video; browse the shared catalog with dynamic filter/sort/pagination
+  by category, city, and listing type; ownership checks, soft delete + restore, optimistic
+  locking.
+- **Users** — sign up (rate-limited), manage account settings (locale, page sizes), edit or
+  restore a profile; role-based access (Admin/Moderator/User).
+- **Taxonomy** — categories/tags with per-locale translations, soft-deletable, many-to-many
+  assignment to any entity type; admins manage categories and taxonomy directly.
+- **Attachments** — photo/video uploads to S3-compatible storage, YouTube embeds, media history
+  for restore.
+- **Audit trail** — versioned snapshots, field-level diffs, per-entity activity timeline, and
+  restore for supported domain entities (see "Architectural Principles" below for exactly which).
+- **i18n** — English/Ukrainian, enum-based translation keys (missing keys fail fast, never a
+  silent fallback).
+- **Deep links & rich previews** — share a listing link with a rich social-media preview (Open
+  Graph, JSON-LD) for social/search previews.
+- **External REST API** — a separate, non-Vaadin delivery channel over the same orchestrator,
+  API-key authenticated, with interactive Swagger docs.
+
+---
+
+## If you have 5 minutes
+
+- [`AuthorizationService`](marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/AuthorizationService.java) /
+  [`AccessEvaluator`](marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java) —
+  the authorization model.
+- [`SqlCondition`](query-lib/src/main/java/org/ost/query/filter/SqlCondition.java) /
+  [`OrderByBuilder`](query-lib/src/main/java/org/ost/query/sort/OrderByBuilder.java) in
+  `query-lib` — hand-written SQL filtering/sorting, no ORM.
+- [`backlog/BACKLOG.md`](backlog/BACKLOG.md) + any file under `backlog/tasks/` — technical debt is
+  tracked as real, dated, self-correcting entries, not a vague TODO list (see "Technical debt
+  tracking" below).
+- [`06-seed-filter-sort-pagination.spec.js`](playwright/e2e/06-seed-filter-sort-pagination.spec.js) —
+  one representative Playwright spec, real browser-driven flow.
+
+---
+
+## Technical debt tracking
+
+Every known gap, deferred decision, and follow-up is a dated entry in
+[`backlog/BACKLOG.md`](backlog/BACKLOG.md), ranked and cross-linked to a full write-up under
+`backlog/tasks/`. Resolved items move to `backlog/completed/tasks/` with their real outcome
+recorded — including cases where the original plan turned out wrong and was corrected in place.
+This is one of the project's more unusual artifacts: a running, honest record of what's actually
+still rough, not just what shipped.
 
 ---
 
@@ -32,13 +100,14 @@ keeps evolving. The engineering foundation underneath it is the actual point of 
 **Explicit over implicit** — No ORM, no JPA; all SQL is written manually via Spring JDBC, no
 hidden query generation or implicit persistence behavior.
 
-**Immutable data flow** — Entities and DTOs are immutable, no shared mutable state between
-layers. Every domain write is captured as an immutable, versioned snapshot, not a mutable log
-line — snapshots are diffed at read time into a field-level activity timeline, so "what changed"
-is always derived from real before/after state, never hand-maintained.
+**Immutable data flow** — Entities and DTOs are immutable value objects, so state doesn't leak
+across layers through shared references. Every Advertisement/ProviderProfile/Taxon/User write is
+captured as an immutable, versioned snapshot rather than a mutable log line — snapshots are diffed
+at read time into a field-level activity timeline, so "what changed" is derived from real
+before/after state instead of hand-maintained.
 
-**Optimistic concurrency** — `Advertisement`, `Taxon`, and `User` updates carry a `version`
-column; a stale write is rejected with `OptimisticLockingFailureException` instead of silently
+**Optimistic concurrency** — `Advertisement`, `Taxon`, `User`, and `ProviderProfile` updates carry
+a `version` column; a stale write is rejected with `StaleWriteException` instead of silently
 overwriting a concurrent change.
 
 **UI as a thin adapter** — Vaadin handles layout and interaction wiring only, no business logic
@@ -59,35 +128,62 @@ Playwright for full browser-driven end-to-end flows.
 
 ## Module Layout
 
+```mermaid
+flowchart LR
+    QL[query-lib] --> STARTERS
+    HSL[html-sanitizer-lib] --> STARTERS
+    PC[platform-commons] --> STARTERS[Domain starters]
+    STARTERS --> ORCH[marketplace-orchestrator]
+    ORCH --> APP[marketplace-app]
+    ORCH --> API[marketplace-rest-api]
+
+    subgraph STARTERS[" "]
+        direction TB
+        S1[audit-spring-boot-starter]
+        S2[attachment-spring-boot-starter]
+        S3[user-spring-boot-starter]
+        S4[advertisement-spring-boot-starter]
+        S5[taxon-spring-boot-starter]
+        S6[provider-profile-spring-boot-starter]
+        S7[apikey-spring-boot-starter]
+    end
 ```
-advertisement-parent
-├── query-lib                         — framework-agnostic SQL query-building library
-├── platform-commons                  — shared kernel: DTOs, domain events, SPI interfaces
-├── audit-spring-boot-starter         — audit subsystem: write side + read side
-├── attachment-spring-boot-starter    — photo/attachment module + S3 storage
-├── user-spring-boot-starter          — User domain + Spring Security integration
-├── advertisement-spring-boot-starter — Advertisement domain
-├── taxon-spring-boot-starter         — Taxonomy domain: categories, tags, classifiers
-├── provider-profile-spring-boot-starter — Provider profile domain (backend only, no UI yet)
-├── integration-tests                 — Testcontainers repository tests + fixtures (test-only)
-├── marketplace-orchestrator           — application/BFF layer: cross-domain use-case orchestration
-└── marketplace-app                   — Vaadin application (all UI)
-```
+
+`platform-commons`/`query-lib`/`html-sanitizer-lib` are the shared foundation every starter
+depends on; each domain starter owns one bounded context; `marketplace-orchestrator` composes
+cross-domain use cases for both delivery channels — `marketplace-app` (Vaadin UI) and
+`marketplace-rest-api` (external REST API). `integration-tests` (Testcontainers repository tests,
+test-only, not shown above) depends on every starter without any of them depending on it back.
+
+`platform-commons` holds contracts only — `*Port`/`*Hook` interfaces, DTOs, domain enums, snapshot
+types — never business logic or a Spring bean (enforced by its own module convention, see
+[`platform-commons/DECISIONS.md`](platform-commons/DECISIONS.md)). It's the one place every
+optional starter can be referenced from without a hard compile dependency on the starter itself.
+
+These boundaries aren't just documented convention —
+[`ArchitectureRulesTest`](marketplace-app/src/test/java/org/ost/marketplace/architecture/ArchitectureRulesTest.java)
+enforces them with ArchUnit on every build: no UI class may touch a repository, no starter may
+import Vaadin or a sibling starter's package, every `*Port`/`*Hook` interface must live in
+`platform-commons`, and no `marketplace-orchestrator` class may depend on more than two domain
+`*Port`s or touch `JdbcClient` directly. A boundary violation fails the build, not a code review.
 
 Per-module documentation:
 
 | Module | README | Decisions |
 |---|---|---|
 | query-lib | [README](query-lib/README.md) | [DECISIONS](query-lib/DECISIONS.md) |
-| platform-commons | — | [DECISIONS](platform-commons/DECISIONS.md) |
+| html-sanitizer-lib | [README](html-sanitizer-lib/README.md) | [DECISIONS](html-sanitizer-lib/DECISIONS.md) |
+| platform-commons | [README](platform-commons/README.md) | [DECISIONS](platform-commons/DECISIONS.md) |
 | audit-spring-boot-starter | [README](audit-spring-boot-starter/README.md) | [DECISIONS](audit-spring-boot-starter/DECISIONS.md) |
 | attachment-spring-boot-starter | [README](attachment-spring-boot-starter/README.md) | [DECISIONS](attachment-spring-boot-starter/DECISIONS.md) |
-| user-spring-boot-starter | [README](user-spring-boot-starter/README.md) | — |
-| advertisement-spring-boot-starter | [README](advertisement-spring-boot-starter/README.md) | — |
-| taxon-spring-boot-starter | — | [DECISIONS](taxon-spring-boot-starter/DECISIONS.md) |
-| provider-profile-spring-boot-starter | — | [DECISIONS](provider-profile-spring-boot-starter/DECISIONS.md) |
+| user-spring-boot-starter | [README](user-spring-boot-starter/README.md) | [DECISIONS](user-spring-boot-starter/DECISIONS.md) |
+| advertisement-spring-boot-starter | [README](advertisement-spring-boot-starter/README.md) | [DECISIONS](advertisement-spring-boot-starter/DECISIONS.md) |
+| taxon-spring-boot-starter | [README](taxon-spring-boot-starter/README.md) | [DECISIONS](taxon-spring-boot-starter/DECISIONS.md) |
+| provider-profile-spring-boot-starter | [README](provider-profile-spring-boot-starter/README.md) | [DECISIONS](provider-profile-spring-boot-starter/DECISIONS.md) |
+| apikey-spring-boot-starter | [README](apikey-spring-boot-starter/README.md) | [DECISIONS](apikey-spring-boot-starter/DECISIONS.md) |
 | integration-tests | [README](integration-tests/README.md) | [DECISIONS](integration-tests/DECISIONS.md) |
-| marketplace-orchestrator | — | [DECISIONS](marketplace-orchestrator/DECISIONS.md) |
+| marketplace-orchestrator | [README](marketplace-orchestrator/README.md) | [DECISIONS](marketplace-orchestrator/DECISIONS.md) |
+| marketplace-rest-api | [README](marketplace-rest-api/README.md) | [DECISIONS](marketplace-rest-api/DECISIONS.md) |
 | marketplace-app | [README](marketplace-app/README.md) | [DECISIONS](marketplace-app/DECISIONS.md) |
 | playwright | [README](playwright/README.md) | [DECISIONS](playwright/DECISIONS.md) |
 | scripts | [README](scripts/README.md) | [DECISIONS](scripts/DECISIONS.md) |
@@ -107,31 +203,9 @@ Per-module documentation:
 
 ---
 
-## Feature Highlights
-
-- **Advertisements** — create/manage listings with rich HTML descriptions (sanitized
-  server-side), photos and video; browse the shared catalog with dynamic filter/sort/pagination
-  by category, city, and listing type; ownership checks, soft delete + restore, optimistic
-  locking.
-- **Users** — sign up (rate-limited), manage account settings (locale, page sizes), edit or
-  restore a profile; role-based access (Admin/Moderator/User).
-- **Taxonomy** — categories/tags with per-locale translations, soft-deletable, many-to-many
-  assignment to any entity type; admins manage categories and taxonomy directly.
-- **Attachments** — photo/video uploads to S3-compatible storage, YouTube embeds, media history
-  for restore.
-- **Audit trail** — every domain write captured as a versioned snapshot; admins/moderators review
-  every change through a per-entity activity timeline with field-level diffs, restore prior
-  versions.
-- **i18n** — English/Ukrainian, enum-based translation keys (missing keys fail fast, never a
-  silent fallback).
-- **Deep links & rich previews** — share a listing link with a rich social-media preview (Open
-  Graph, JSON-LD) for social/search previews.
-
----
-
 ## Testing Strategy
 
-Three independent layers, each targeting a different failure mode:
+Three layers, each with a distinct failure scope:
 
 | Layer | Tool | What it catches |
 |---|---|---|
@@ -144,35 +218,24 @@ See [Module Layout](#module-layout) above for each layer's own README/DECISIONS,
 
 ---
 
-## Running & Infrastructure
-
-Quickstart: `bash scripts/deploy-and-run.sh`
-
-Full infrastructure details (Docker Compose stack, helper scripts, environment variables, AI dev
-workflow, running without Docker): see [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
-
----
-
 ## Roadmap
 
 Actively evolving on both sides: the engineering foundation keeps absorbing new patterns
-(the audit/attachment/taxon starters, Testcontainers-based integration tests, and the isolated
-local CI runner are all recent additions), and the product surface keeps growing on top of it.
-Architectural decisions may be revisited and implementations replaced — that's the point of
-treating this as a playground, not a frozen codebase.
+(the audit/attachment/taxon/provider-profile/apikey starters, the external REST API adapter,
+Testcontainers-based integration tests, and the isolated local CI runner are all recent
+additions), and the product surface keeps growing on top of it. Architectural decisions may be
+revisited and implementations replaced — that's the point of treating this as a playground, not a
+frozen codebase.
 
 Planned directions:
 - Extend rule-based validation capabilities
 - Improve composability of the generic filtering layer
-- Explore alternative API adapters (REST)
+- REST hypermedia (HATEOAS); broader `PATCH` support beyond the existing user-settings endpoint
+  (`PATCH /api/users/me/settings`)
 - Broaden the marketplace's public-facing feature set (provider profiles, richer discovery)
 
 ---
 
 ## Author's Note
 
-I value clarity over convenience.  
-I prefer explicitness over magic.  
-I build systems to be understood, not just used.
-
-Feedback and architectural discussions are welcome.
+Built to be understood, not just used. Feedback and architectural discussions are welcome.

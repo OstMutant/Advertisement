@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Full local deploy -- reuses scripts/build-and-test.sh's shared maven-cache jar by
 #   default: no Docker image is built at all, `java -jar` runs directly against the mounted
@@ -52,7 +52,7 @@
 #   scraping free text.
 # Returns: 0 on success, non-zero on build/startup failure.
 # ────────────────────────────────────────────────────────────────────────────
-set -e
+set -euo pipefail
 SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

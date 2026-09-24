@@ -15,7 +15,7 @@ import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.model.AdKind;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.ost.platform.core.StaleWriteException;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -249,7 +249,7 @@ class AdvertisementApiControllerTest {
     @Test
     void update_staleVersion_returns412() throws Exception {
         when(saveService.save(any(), eq(ACTOR_ID), any()))
-                .thenThrow(new OptimisticLockingFailureException("stale"));
+                .thenThrow(new StaleWriteException("stale"));
         String body = """
                 {"title":"Title","description":"Desc","adKind":"OFFER"}""";
 
@@ -288,7 +288,7 @@ class AdvertisementApiControllerTest {
 
     @Test
     void delete_staleVersion_returns412() throws Exception {
-        org.mockito.Mockito.doThrow(new OptimisticLockingFailureException("stale")).when(saveService).delete(1L, ACTOR_ID, 0L);
+        org.mockito.Mockito.doThrow(new StaleWriteException("stale")).when(saveService).delete(1L, ACTOR_ID, 0L);
 
         mockMvc.perform(delete("/api/advertisements/1").header("If-Match", "\"0\"")).andExpect(status().isPreconditionFailed());
     }

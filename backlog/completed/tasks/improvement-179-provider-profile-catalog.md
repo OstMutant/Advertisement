@@ -109,6 +109,9 @@ itself, since this is its last open batch.
   the same pattern as `improvement-175`/`improvement-178` for Batches B2/C.
 - See `.claude/nav/adr-index.md` for the ADR that originally established the OG/sitemap/deep-link
   pattern this issue mirrors (advertisement domain).
+- `marketplace-app/DECISIONS.md` ADR-075 (this issue's own public-catalog decision) and ADR-076
+  (the two real bugs found verifying it against running code, and the resulting
+  `OverlayNavigationRegistry`/`SitemapService` revision).
 
 ## Operational notes
 - token_cost_review: n/a

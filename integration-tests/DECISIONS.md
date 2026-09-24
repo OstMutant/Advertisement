@@ -36,8 +36,8 @@ mocks" character these tests are meant to have.
 ## ADR-009: Widen integration-tests scope to a 3-level test structure (starters / orchestrator / REST API)
 **Status:** Accepted
 
-**Context:** improvement-183 needs real end-to-end REST scenario tests (create user → issue API
-key → create several advertisements) exercising the full stack — REST controller →
+**Context:** Real end-to-end REST scenario tests (create user → issue API key → create several
+advertisements) are needed, exercising the full stack — REST controller →
 marketplace-orchestrator → domain starters → Postgres — not just a single starter's repository
 layer. `integration-tests` (ADR-001) was scoped to "repository tests only," one domain starter at
 a time; neither `marketplace-orchestrator` nor `marketplace-rest-api` were dependencies of this

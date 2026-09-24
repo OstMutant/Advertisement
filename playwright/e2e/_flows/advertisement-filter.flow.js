@@ -36,14 +36,21 @@ async function runFillTitleFilterFlow(page, text) {
 }
 
 /**
- * Clicks the query block's Apply button and waits for the filtered card list to render.
+ * Clicks the query block's Apply button and waits for the filtered result to render -- either at
+ * least one matching card (default), or an explicit zero-result pagination count when the filter
+ * is genuinely expected to match nothing.
  * @param {import('@playwright/test').Page} page
  * @param {import('@playwright/test').Expect} expect
+ * @param {boolean} [expectResults=true] set false only when the filter is expected to match zero ads.
  * @returns {Promise<void>}
  */
-async function runApplyFilterFlow(page, expect) {
+async function runApplyFilterFlow(page, expect, expectResults = true) {
   await page.locator('.advertisement-query-block vaadin-button[title*="Застосувати"], .advertisement-query-block vaadin-button[title*="Apply"]').first().click();
-  await expect(page.locator('.advertisement-card').first()).toBeVisible({ timeout: 8000 }).catch(() => {});
+  if (expectResults) {
+    await expect(page.locator('.advertisement-card').first()).toBeVisible({ timeout: 8000 });
+  } else {
+    await expect(page.locator('.pagination-count')).toContainText('0–0', { timeout: 8000 });
+  }
   await screenshot(page, 'filter-applied');
 }
 

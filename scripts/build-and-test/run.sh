@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Builds the whole reactor (every library module + marketplace-app's own JAR) into a
 #   container-isolated Maven repository, so later test suites find everything already fresh
@@ -98,7 +98,7 @@
 #   an AI agent reading raw script output to parse machine-readable status instead of scraping
 #   free text.
 # ────────────────────────────────────────────────────────────────────────────
-set -e
+set -euo pipefail
 SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -119,7 +119,7 @@ REBUILD_IMAGE=false
 # developer machine (not just an isolated AI sandbox) whenever this container's own nested
 # Testcontainers run needs docker.sock mounted in; --sandbox/--no-sandbox below can still override
 # either way.
-if [ -n "$GITHUB_ACTIONS" ]; then
+if [ -n "${GITHUB_ACTIONS:-}" ]; then
   SANDBOX=false
 else
   SANDBOX=true
@@ -198,8 +198,8 @@ fi
 
 # ── Sandbox-only Testcontainers workarounds, passed through only if already set ──
 SANDBOX_ENV=()
-[ -n "$TESTCONTAINERS_RYUK_DISABLED" ] && SANDBOX_ENV+=(-e "TESTCONTAINERS_RYUK_DISABLED=$TESTCONTAINERS_RYUK_DISABLED")
-[ -n "$INTEGRATION_TESTS_POSTGRES_FIXED_PORT" ] && SANDBOX_ENV+=(-e "INTEGRATION_TESTS_POSTGRES_FIXED_PORT=$INTEGRATION_TESTS_POSTGRES_FIXED_PORT")
+[ -n "${TESTCONTAINERS_RYUK_DISABLED:-}" ] && SANDBOX_ENV+=(-e "TESTCONTAINERS_RYUK_DISABLED=$TESTCONTAINERS_RYUK_DISABLED")
+[ -n "${INTEGRATION_TESTS_POSTGRES_FIXED_PORT:-}" ] && SANDBOX_ENV+=(-e "INTEGRATION_TESTS_POSTGRES_FIXED_PORT=$INTEGRATION_TESTS_POSTGRES_FIXED_PORT")
 
 # No mkdir -p here -- the later `docker cp` (see below) creates its destination directory itself,
 # so a raw bash `mkdir -p` this early against a WSL/Windows-drive host path was pure redundancy,

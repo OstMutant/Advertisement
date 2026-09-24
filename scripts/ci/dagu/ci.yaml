@@ -1,19 +1,19 @@
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: The "ci" DAG -- build (reactor compile+install) -> unit/integration/e2e/sonar/
-#   archunit_metrics in parallel -> pipeline_metrics -> docs. Loaded by Dagu's server
-#   (scripts/ci/docker-entrypoint.sh's `dagu start-all --dags scripts/ci/dagu`) and triggered
-#   either from Dagu's own web UI ("Start" button) or via `dagu start <this-file-path>` (a bare
-#   DAG name resolves against $DAGU_HOME/dags instead -- see DECISIONS.md).
+#   archunit_metrics/lint/shellcheck in parallel -> pipeline_metrics -> docs. Loaded by Dagu's
+#   server (scripts/ci/docker-entrypoint.sh's `dagu start-all --dags scripts/ci/dagu`) and
+#   triggered either from Dagu's own web UI ("Start" button) or via `dagu start <this-file-path>`
+#   (a bare DAG name resolves against $DAGU_HOME/dags instead -- see DECISIONS.md).
 # Usage: triggered via scripts/ci/run.sh, or the "Start" button on Dagu's web UI -- never edited
 #   to change a single run's behavior, use the params below instead.
-# Uses: bash, mvn (via build-and-test.sh), docker, python3 (pipeline-metrics.py).
+# Uses: bash, mvn (via build-and-test.sh), docker, python3 (pipeline-metrics.py), shellcheck.
 # Env: None read directly by this file -- each step's own `run:` block sets whatever env vars the
 #   script it calls needs.
-# Input: params (unit/integration/e2e/sonar/archunit_metrics/docs -- all boolean, gate the
-#   matching step via preconditions; keep_e2e_infra -- boolean, default true, skip e2e's stack
-#   teardown; reset_e2e_db -- boolean, default false, use a full --reset instead of e2e's default
-#   --reset-only-db before deploying (only needed when the DB schema itself changed); e2e_args --
-#   string, forwarded to playwright/run.sh).
+# Input: params (unit/integration/e2e/sonar/archunit_metrics/lint/shellcheck/docs -- all boolean,
+#   gate the matching step via preconditions; keep_e2e_infra -- boolean, default true, skip e2e's
+#   stack teardown; reset_e2e_db -- boolean, default false, use a full --reset instead of e2e's
+#   default --reset-only-db before deploying (only needed when the DB schema itself changed);
+#   e2e_args -- string, forwarded to playwright/run.sh).
 # Outputs: PASSED/FAILED per step in Dagu's own web UI and run history. With archunit_metrics
 #   enabled, refreshes scripts/build-and-test/reports/architecture-metrics.json.
 #   scripts/ci/reports/pipeline-metrics.json is refreshed unconditionally by the pipeline_metrics
@@ -44,6 +44,12 @@ params:
     type: boolean
     default: true
   - name: archunit_metrics
+    type: boolean
+    default: true
+  - name: lint
+    type: boolean
+    default: true
+  - name: shellcheck
     type: boolean
     default: true
   - name: docs
@@ -137,6 +143,34 @@ steps:
       - condition: "${params.archunit_metrics}"
         expected: "true"
 
+  # No app/DB needed at all -- delegates entirely to playwright/run.sh --lint, which manages its
+  # own pw-runner container (Node.js lives there, not in this ci-runner image).
+  - id: lint
+    depends: build
+    run: PW_CONTAINER=ci-pw-runner bash playwright/run.sh --lint
+    continue_on:
+      failure: true
+      skipped: true
+    preconditions:
+      - condition: "${params.lint}"
+        expected: "true"
+
+  # --severity=error only -- warning/info/style findings (this repo currently has a handful,
+  # e.g. SC2154/SC2010/SC2086) never fail this gate, only a real correctness-shaped bug does.
+  # shellcheck itself is baked into this image (scripts/ci/Dockerfile), unlike lint's Node.js
+  # dependency which lives in pw-runner -- no other container to delegate to here.
+  - id: shellcheck
+    depends: build
+    run: |
+      find scripts playwright docs/architecture/scripts -name '*.sh' -not -path '*/node_modules/*' -print0 \
+        | xargs -0 shellcheck --severity=error
+    continue_on:
+      failure: true
+      skipped: true
+    preconditions:
+      - condition: "${params.shellcheck}"
+        expected: "true"
+
   # Both this step's own output (scripts/ci/reports/pipeline-metrics.json) and
   # archunit_metrics' output (scripts/build-and-test/reports/architecture-metrics.json) exist only
   # inside this container's own filesystem at this point -- `docker cp` cannot pull them onto the
@@ -144,7 +178,7 @@ steps:
   # filesystem too, even with docker.sock mounted -- confirmed directly, not assumed). run.sh
   # copies both out from the real host side after this DAG run finishes instead.
   - id: pipeline_metrics
-    depends: [unit, integration, e2e, sonar, archunit_metrics]
+    depends: [unit, integration, e2e, sonar, archunit_metrics, lint, shellcheck]
     run: |
       mkdir -p scripts/ci/reports
       python3 scripts/ci/dagu/pipeline-metrics.py > scripts/ci/reports/pipeline-metrics.json

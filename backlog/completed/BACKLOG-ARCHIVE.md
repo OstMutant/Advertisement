@@ -2517,3 +2517,215 @@ enforced, not just compiles: a temporary real Vaadin dependency + reference inje
 failure), then fully reverted. Full Definition-of-Done run (`--unit --integration --sandbox`): 766
 tests across 103 classes, 0 failures/errors/skipped. Full detail:
 `completed/tasks/improvement-181-module-list-auto-discovery.md`.
+
+✅ Done (2026-09-15): improvement-189 closed — root `README.md` restructured for portfolio-first
+reading order (Quick Start → What is it? → What can you do in it? → If you have 5 minutes →
+Technical debt tracking → About → Architectural Principles → Module Layout → Key Technical
+Decisions → Testing Strategy → Roadmap → Author's Note), no technical claims changed. Real facts
+verified against the actually-running app before writing (port 8081, live `/swagger-ui/index.html`
++ `/v3/api-docs`, no seed/demo credentials — the real `UserService.register()` first-user-becomes-
+admin mechanism documented instead of an invented login), stale ASCII module tree (missing
+`apikey-spring-boot-starter`/`marketplace-rest-api`/`html-sanitizer-lib`) replaced with a Mermaid
+diagram, stale Roadmap REST-API line corrected. A user review round caught one real presentation
+issue (redundant closing "manifesto", overly categorical phrasing, product-before-engineering
+ordering) — all applied — and one false alarm (claimed dead `file:///`/`localhost:63342` links,
+confirmed via direct `grep` not to exist anywhere in the file; almost certainly the user's local
+IntelliJ Markdown-preview server rendering ordinary relative links as local absolute URLs in its
+own preview pane, not a defect in the committed file). Full detail:
+`completed/tasks/improvement-189-readme-portfolio-restructure.md`.
+
+✅ Done (2026-09-15): improvement-192 closed — evaluated an external "AGENTIC GOVERNANCE
+HARDENING" directive's 5 tasks against real code rather than trusting its own premise. Task D+E:
+read-only role/tool-scope audit of all 6 real `.claude/agents/*.md` files — 6/6 roles CONFIRMED
+narrow, 5/6 tool scopes cleanly JUSTIFIED, one prose-only-restriction pattern in `dagu-analyst`
+flagged as a follow-on note. Task A: the directive's "commit gate is prose-only" premise was false
+— `.claude/settings.json` already had a working `UserPromptSubmit`+`PreToolUse` hook pair; direct
+inspection found two real bypasses instead (substring-match evasion via `git -c`/`--git-dir`,
+unscoped global `/tmp/commit-approved` marker), fixed and applied. End-to-end testing before
+landing caught two more real bugs: a position-anchored regex that broke detection of
+`bash -c "git commit"` (dropped the anchor), and a pre-existing JSON-field-extraction bug that
+truncates on an embedded quote (reused this file's own already-correct nav-check sed pattern
+instead of inventing a new one) — verified via an 11-case synthetic test battery, all passing.
+A real "зроби коміт" from the user (commit `f73f222e`) then served as the live confirmation that
+Claude Code serializes hook prompt payloads as raw UTF-8, resolving an encoding risk the synthetic
+tests alone couldn't settle. Task B: verified `plansDirectory` is a real `settings.json` key but
+has a confirmed, apparently-still-unfixed GitHub bug (#19537) ignoring project-level config, and
+even working would only relocate the plan file, not make it match this project's
+`backlog/tasks/<n>.md` template — no clean integration, nothing applied, Task A stays primary.
+Task C: added an explicit ">3 parallel specialists → sequential waves" hard rule to
+`.claude/agents/review/deep-review-orchestrator.md`'s finder-lens dispatch (step 3) and
+per-candidate verification dispatch (step 4). Re-reading step 1's `all`/`everything` scope during
+this task surfaced a live instance of the same problem it doesn't cover by itself — roughly
+14 modules × 3 lenses ≈ 42 parallel calls in one response for a full-repo sweep — first left as a
+recommended follow-up, then actually fixed after direct feedback that flagging a real risk and
+archiving the task anyway doesn't add up: modules are now processed sequentially instead of all at
+once, capping real concurrency at ≤3 regardless of module count. Full detail:
+`completed/tasks/improvement-192-agentic-governance-hardening-commit-hook-review-waves-agent-audit.md`.
+A real-world regression was found and fixed the next day (2026-09-16): the English-only trigger
+narrowing left both Ukrainian phrases unanchored, causing a live false-positive approval (a
+planning sentence containing "закомітимо" armed the marker); fixed by anchoring every trigger form
+— Ukrainian and English alike — to essentially the whole message instead of matching anywhere,
+verified via a 7-case battery including the exact message that caused it. Addendum in the same
+completed task file.
+
+✅ Done (2026-09-15/16): improvement-190 closed — `.claude/` rule system self-consistency audit.
+Task 1 (mechanical glob check): built `.claude/nav/scripts/check-rule-path-globs.sh` — found and
+fixed two real bugs in the script itself while building it (a `find`-per-rule-file loop with an
+unguarded prune expression that walked into a stray `.claude/worktrees/` duplicate-repo leftover,
+causing a 120s timeout; an unguarded `grep` against `.claude/rules/README.md`'s missing `paths:`
+line crashing the script under `set -e`) before it ever produced a real result. Confirmed 8 of 16
+rule files have at least one unintended path match — a previously-undocumented `.claude/nav/scripts/`
+instance for `scripts.md`, plus 7 files matching their own module-named Surefire-report/log-artifact
+subdirectories under `scripts/build-and-test/reports/**`/`scripts/logs/**`. Checked whether an
+anchored-glob syntax exists to avoid this (real docs search) — none found; documented all instances
+in `.claude/rules/README.md`'s existing "Important" section instead of an unverified workaround,
+plus a new note on Claude Code's own documented "loads on Read, not Write" behavior. Added a
+standing trigger rule to `.claude/rules.md` (mirroring the ADR-index rule) so a future `paths:` edit
+gets re-checked in the same operation. Task 2 (semantic review pass): read all 15
+`.claude/rules/*.md` module files directly — no confirmed contradictions or dead rules found (this
+repo's prior `improvement-168` consolidation already left the rule set self-consistent); one
+apparent duplication pattern (a negative fact like "X does not exist" repeated across sibling
+files) turned out to be a deliberate, load-bearing choice given path-scoped conditional loading, not
+a defect. Full detail: `completed/tasks/improvement-190-claude-rules-self-consistency-audit.md`.
+
+✅ Done (2026-09-16): improvement-194 closed — `generate-architecture-model.sh` still hardcoded the
+renamed `backlog/issues/`/`backlog/completed/issues/` paths (now `backlog/tasks/`/
+`backlog/completed/tasks/`), aborting the `docs` CI stage silently on every run under
+`set -euo pipefail`. Found root-causing `improvement-193`'s own `bash scripts/ci.sh` run; confirmed
+unrelated to that task's diff via `git log`. Fixed all 6 hardcoded references (2 `find` calls, 2
+`issue_list_json` calls, 2 embedded HTML description strings). Verified directly: the generator now
+exits 0 and its regenerated `architecture-model.json` carries correct real counts (34 open / 174
+completed, matching a real `ls`). Full detail:
+`completed/tasks/improvement-194-architecture-model-generator-stale-backlog-issues-path.md`.
+
+✅ Done (2026-09-16): improvement-193 closed — external SOLID/DRY review batch, all 5 confirmed
+items (3-7) implemented: `ApiExceptionHandler` split into `TooManyAttemptsException`(429)/generic
+`IllegalStateException`(500) fallback (fixed a real live bug — an unrelated
+`UserPreferencesRepository` exception was mis-mapped to 429); `TaxonService.update()` no longer
+discards `save()`'s auditing-refreshed return value; `AttachmentService` regrouped into 6 labeled
+sections; `UiComponentFactory<T, P>` gains the second type parameter, closing the last unchecked
+cast ADR-058 left open (54 sites/23 files, ADR-082 recorded); new `LocaleTranslationForm<T>`
+composition helper deduplicates `CityFormOverlayModeHandler`/`TaxonFormOverlayModeHandler`'s
+near-exact EN/UK field logic. Full `bash scripts/ci.sh` verification found and resolved 3 further
+real issues along the way: a host-level OOM killed the CI watcher process mid-run (recovered by
+reattaching a lightweight poller to the still-alive Dagu run, no duplicate run triggered); a real
+Sonar new-code-coverage gate failure (79.8% vs 80%, traced to 3 genuinely untested `AttachmentService`
+methods the reorder surfaced — 3 new unit tests closed it to 87.7%); and 4 flaky-looking Playwright
+E2E failures, 3 confirmed as real host-memory-pressure flakiness (passed cleanly on retry, no code
+change) and 1 a genuine bug (`04-provider-profile-flow.spec.js`'s own fragile category-combo-box
+selector, fixed by generalizing `category.flow.js`'s `selectCategoryInAdForm` into a shared
+`selectInMultiSelectComboBox` — full `e2e --ux` re-run: 63/63 passed). The unrelated `docs`-stage
+generator bug found along the way was carved out and fixed separately as `improvement-194`. Full
+detail: `completed/tasks/improvement-193-external-review-batch-exception-taxon-attachment-uicomponentfactory-city-taxon.md`.
+
+✅ Done (2026-09-17): improvement-188 closed — theme modernization, all four tasks complete except
+dark mode (Task B), carved out to `improvement-039` after a failed implementation attempt and
+deprioritized pending a product decision on whether it's wanted at all. **Task 0**: Vaadin
+25.2.3→25.2.8 + 5 other dependency bumps, 2 real Maven Enforcer convergence conflicts found and
+fixed (a property alone isn't enough — needs an explicit `dependencyManagement` entry too),
+verified 766/766 backend + 63/63 Playwright. **Task A**: real Aura pilot via
+`@StyleSheet(Aura.STYLESHEET)` (the assumed `?theme=aura` runtime switch doesn't exist in Vaadin
+Flow), go/no-go delivered — lean "no", this app's own 57 `--app-*` tokens already dominate visible
+chrome; no future Aura migration forced, Lumo stays fully supported. **Task C**:
+`--app-accent-primary`'s 9 derived tokens + its `-rgb` helper converted to CSS Relative Color
+Syntax (`oklch(from ...)`/`rgb(from ...)`) instead of `color-mix()`, which can't express the hue
+shift 2 of the 9 tokens need — exact reproduction of prior hex values by construction, ADR-083.
+**Task D**: all 29 theme files migrated into `@layer components` (10 incremental checkpoints,
+escalating batch size once the process proved clean, per explicit user preference after the
+`improvement-039` autopilot incident); then all 43 pre-existing `!important` declarations
+individually reviewed — 42 confirmed removable and removed (mostly a repeated "the base rule's own
+`!important` was never necessary, forcing every modifier subclass to match it" pattern), 1
+confirmed necessary and kept (`styles.css`'s `html, body` font-family, losing to Lumo's own base
+typography without it). Found a real methodological trap along the way: `getComputedStyle` cannot
+reliably verify CSS applied to a Vaadin Shadow DOM component's paint properties (`background-color`
+never painted through on `vaadin-button` regardless of the CSS value or `!important`) — real ground
+truth needed a high-contrast diagnostic color swap plus either a precise computed-style read or a
+screenshot taken past any CSS transition; recorded as ADR-084. Two permanent Playwright assertions
+added as a byproduct. Full detail:
+`completed/tasks/improvement-188-theme-modernization-aura-modern-css.md`.
+
+✅ Done (2026-09-18): improvement-063 closed as invalid, not implemented — picked up for
+implementation, then found its own premise didn't hold against current code. A full search for
+`customElements.define`/`connectedCallback` under `marketplace-app/src/main/frontend/` found only
+one component, `quill-editor.js`; `AttachmentGallery`, the task's second named example, has no
+`@JsModule`/client-side JS at all. `quill-editor.js`'s `connectedCallback()` was read in full and
+confirmed fully synchronous (no `await`/`Promise`/`setTimeout`) — no async gap exists for a
+Playwright interaction to race against, so the "ready" signal this task proposed has nothing to
+guard against today. No flaky failure of this kind was ever observed either. Full detail:
+`completed/tasks/improvement-063-playwright-stability-guard-async-init-components.md`.
+
+✅ Done (2026-09-22): improvement-035 confirmed already implemented — `improvement-073`'s Phase 4
+(2026-09-03) had already moved `06-seed-filter-sort-pagination.spec.js`'s seeding to the real
+service layer via REST (`seedUsersViaApi`/`seedTaxonsViaApi`/`seedAdvertisementsViaApi`), exactly
+this issue's revised "service layer, not raw SQL" fix — confirmed against the spec's current source,
+no remaining browser-UI seeding calls. Its unfinished `workers: 2` follow-up step carried forward
+into the new [improvement-198](../tasks/improvement-198-playwright-test-isolation-and-parallel-workers.md).
+Full detail: `completed/tasks/improvement-035-sql-seeding-for-playwright-spec-05.md`.
+
+✅ Done (2026-09-22): improvement-195 closed — real cross-cutting audit across Java/SOLID-DRY,
+JUnit, Playwright, Bash scripts, documentation, and CI/CD, all ten phases resolved. **Phase 0:**
+`docs/best-practices.md` created as the project-grounded reference. **Phase 1:** JUnit hygiene —
+removed a reflection-based test hack (`TimelineViewTest`, violated this project's own ADR-008) and
+a redundant `Thread.sleep` in `AttachmentRepositoryTest`. **Phase 2:** Playwright — YouTube
+live-dependency stub, ESLint gate (`eslint-plugin-playwright`), a real 126-vs-63 test-doubling bug
+found and fixed (`--lint`/`e2e` directory collision), a real assertion-swallowing bug fixed in
+`runApplyFilterFlow`. **Phase 3:** ShellCheck fixes, `set -euo pipefail` on 5 scripts (6 real
+behavior-change risks found and fixed), shebang standardization (20 files), a ShellCheck CI gate
+(`--severity=error` only, per explicit user decision), plus a repo-wide executable-bit regression
+found and fixed along the way (`git update-index --chmod=+x`, 35 files). **Phase 4:** removed 23
+`improvement-NNN` ticket citations from 6 `DECISIONS.md` files, added the reverse backlog→ADR
+reference wherever missing across 15 backlog files. **Phase 5:** security-scanning gap —
+**decided 2026-09-18 not to pick up**, remains tied to the already-open `improvement-028` hosted-CI
+deferral. **Phase 6:** extracted the duplicated failure-rate-limiter into `platform-commons`.
+**Phase 7:** Playwright test isolation — carved out to the new
+[improvement-198](../tasks/improvement-198-playwright-test-isolation-and-parallel-workers.md)
+(joined there with the `workers: 2` viability question). **Phase 8:** a real production bug found
+via Playwright verification — stale `<base href>` after client-side navigation causing `403`s on
+file uploads from a deep-linked advertisement/provider view; fixed via a new
+`BrowserHistoryUtil.pushStateWithBaseSync()`, replacing 5 raw `pushState` call sites. **Phase 9:**
+extracted duplicated category/city taxon-filter resolution (`AdvertisementService`/
+`ProviderProfileService`) into a `default` method on `TaxonPort` itself — `platform-commons/DECISIONS.md`
+ADR-032 records this as a narrow, bounded exception to platform-commons' "no business logic" rule;
+verified via a high-effort `/code-review` pass and a dedicated `Mockito.CALLS_REAL_METHODS` unit
+test. Full detail: `completed/tasks/improvement-195-best-practices-reference-and-audit-fixes.md`.
+
+✅ Done (2026-09-23): improvement-201 closed — five bundled findings, filed 2026-09-22. **Part 1:**
+confirmed stored-XSS-via-upload vector, attachment content-type never validated server-side — fixed
+via `AttachmentContentTypeValidator` (Tika magic-byte detection, filename-disambiguated) + a shared
+`AttachmentAllowedContentTypes` whitelist. **Part 2:** City/Taxon vertical, 4 near-identical class
+pairs (~700 duplicated lines) — extracted into `AbstractTaxonManagementView`/`AbstractTaxonOverlay`/
+`AbstractTaxonViewOverlayModeHandler`/`AbstractTaxonFormOverlayModeHandler`, extending the
+`AbstractEntityOverlay<H>`/`LocaleTranslationForm<T>` precedent; misleadingly-named `Taxon*`
+Category-specific classes renamed to `Category*`. **Part 3:** `UserService.cleanup()`'s cross-domain
+composition (`AdvertisementPort`/`ProviderProfilePort`) moved out of `user-spring-boot-starter` into
+new `marketplace-orchestrator` `UserCleanupService`/`UserPurgeEligibilityService`; the documented
+`.claude/rules/marketplace-orchestrator.md` exception for this case was removed and replaced with
+the real underlying read-vs-write test. **Part 4:** carved out into
+[improvement-202](improvement-202-optimisticlockingfailureexception-decoupling.md) once
+sized — `OptimisticLockingFailureException` decoupling is a cross-cutting, 11-file change, too large
+for this task. **Part 5:** a post-save-refetch race (concurrent delete between commit and a
+synchronous re-read) was silently mishandled in 3 places (`AbstractTaxonOverlay`, `AdvertisementOverlay`
+EDIT branch, `ProviderProfileFormOverlayModeHandler`) — fixed via a shared
+`AbstractEntityOverlay.applyFreshOrFallback()` helper plus skipping the refetch entirely where a
+caller doesn't need fresh data; `marketplace-app/DECISIONS.md` ADR-086. Full detail:
+`completed/tasks/improvement-201-attachment-upload-content-type-not-validated-server-side.md`.
+
+✅ Done (2026-09-23): improvement-202 closed — `OptimisticLockingFailureException` (a Spring Data
+framework type) replaced project-wide by a project-owned `StaleWriteException`
+(`platform-commons/org.ost.platform.core`, alongside `TooManyAttemptsException`). Covered 9 real
+throw sites (4 manual raw-SQL guards, 5 native Spring Data JDBC `.save()` paths on `@Version`
+entities requiring a catch-and-rewrap since there was no `throw` of our own to edit), 2 catch sites
+(`AbstractEntityOverlay` UI, `ApiExceptionHandler` REST→412), 3 `*Port` Javadoc references, and 10
+existing tests; `marketplace-orchestrator/DECISIONS.md` ADR-009 records the decision (kept a single
+type for both real-world scenarios — genuine version conflict vs. concurrent delete — as YAGNI,
+annotating ADR-006 as superseded for the exception-type choice). Along the way, closed the Sonar
+new-code coverage gate blocking this task's own CI pass by adding real tests for pre-existing
+zero/low-coverage code from `improvement-201` that the gate's leak period was also counting:
+`I18nKey.java` (405 lines, genuinely 0% covered — confirmed via raw JaCoCo data — new `I18nKeyTest`
+covering its static mapping methods and key-uniqueness invariant) and `FailureRateLimiter.java`
+(zero prior test coverage of any kind — new `FailureRateLimiterTest`, `platform-commons`'s first
+test of any kind, needed adding `spring-boot-starter-test` to its `pom.xml`). Also found and
+documented a real discrepancy in this repo's own Sonar analysis pipeline (a file's raw JaCoCo XML
+showing 100% line coverage while Sonar's own dashboard/API reported 38.5%) — not chased further
+since it self-resolved once overall new-code coverage cleared the gate. Full detail:
+`completed/tasks/improvement-202-optimisticlockingfailureexception-decoupling.md`.

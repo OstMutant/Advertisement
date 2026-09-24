@@ -43,7 +43,7 @@ the module's only business-logic class.
   once either lookup returns none), then `ProviderProfileRepository.findByFilter`/`countByFilter`
   build the `WHERE`/`ORDER BY`/pagination clauses via `query-lib`'s `SqlFilterBuilder`/`OrderByBuilder`.
 - **Delete:** `delete(id, version)` → `ProviderProfileRepository.delete` runs a real
-  `DELETE ... WHERE id = :id AND version = :version`, throwing `OptimisticLockingFailureException`
+  `DELETE ... WHERE id = :id AND version = :version`, throwing `StaleWriteException`
   on a stale version — no soft-delete columns, no restore path.
 
 ## Schema

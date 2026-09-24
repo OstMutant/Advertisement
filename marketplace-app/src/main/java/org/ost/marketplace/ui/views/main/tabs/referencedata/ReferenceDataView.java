@@ -23,7 +23,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.REFERENCE_DATA_TAB_CITIE
 public class ReferenceDataView extends VerticalLayout {
 
     private final I18nService i18n;
-    private final TaxonManagementView taxonManagementView;
+    private final CategoryManagementView categoryManagementView;
     private final CityManagementView cityManagementView;
 
     @PostConstruct
@@ -39,12 +39,12 @@ public class ReferenceDataView extends VerticalLayout {
         subTabs.addClassName("reference-data-sub-tabs");
 
         Map<Tab, Component> tabsToPages = new HashMap<>();
-        tabsToPages.put(categoriesTab, taxonManagementView);
+        tabsToPages.put(categoriesTab, categoryManagementView);
         tabsToPages.put(citiesTab, cityManagementView);
 
         cityManagementView.setVisible(false);
 
-        Div pages = new Div(taxonManagementView, cityManagementView);
+        Div pages = new Div(categoryManagementView, cityManagementView);
         pages.setSizeFull();
         pages.addClassName("reference-data-pages");
 

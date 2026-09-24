@@ -463,7 +463,7 @@ rather than left for someone to discover the hard way.
 
 **Context:** `entrypoint.sh` ran `unit`/`integration` as two separate, sequential stages, each
 calling `scripts/unit-tests.sh`/`scripts/integration-tests.sh` directly. `scripts/build-and-test.sh`
-(improvement-152) now installs the whole reactor once and runs unit and integration tests as
+now installs the whole reactor once and runs unit and integration tests as
 parallel jobs internally, reaching feature parity with both standalone scripts (module/test
 selection, host-copied reports, PASSED/FAILED summaries, `--sandbox`). Keeping `entrypoint.sh` on
 the two standalone scripts would mean CI duplicates a full reactor install/compile cycle that

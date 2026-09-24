@@ -4,13 +4,13 @@
 
 **Status:** Accepted
 
-**Context:** `improvement-169` investigated a much larger "Hybrid Agentic Review Factory" proposal
-(a mechanical Semgrep/ArchUnit/SonarQube-MCP detection layer feeding a 4-lens reasoning layer) and
-rejected the mechanical layer outright — two of its proposed rules directly contradicted this
+**Context:** A much larger "Hybrid Agentic Review Factory" proposal (a mechanical
+Semgrep/ArchUnit/SonarQube-MCP detection layer feeding a 4-lens reasoning layer) was investigated
+and the mechanical layer rejected outright — two of its proposed rules directly contradicted this
 project's own documented architecture. The narrowest surviving candidate — formalizing
 `.claude/skills/deep-review/references/diff-mode.md`'s already-working 4-lens parallel-review
 pattern as real, named `.claude/agents/*.md` files instead of inline prompt text — was picked up
-as `improvement-171`.
+as this decision.
 
 **Decision:**
 1. Built `deep-review-orchestrator` as a self-contained coordinator subagent (no dependency on any
@@ -23,9 +23,9 @@ as `improvement-171`.
    YAGNI pull in opposite directions, so one lens weighing both in a single judgment avoids two
    lenses producing contradictory findings on the same code). `security-boundary-reviewer` and
    `data-integrity-reviewer` were drafted, then deleted before use — their real concerns turned out
-   to be better covered elsewhere: a targeted `ArchitectureRulesTest` rule for the security case
-   (folded into `improvement-111`), fault-injection integration tests for the data-integrity case
-   (split into `improvement-172`), both cheaper and more reliable than an LLM guessing at
+   to be better covered elsewhere: a targeted `ArchitectureRulesTest` rule for the security case,
+   fault-injection integration tests for the data-integrity case, both cheaper and more reliable
+   than an LLM guessing at
    diff-review time for already-identified risk classes.
 3. Inter-agent data format is structured JSON (`{"findings": [...]}`, content fields like `claim`/
    `failure_scenario` separated from metadata fields like `file`/`line`/`confidence`), not free
