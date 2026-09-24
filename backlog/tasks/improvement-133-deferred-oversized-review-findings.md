@@ -395,3 +395,20 @@ duplication Phase 9 already extracted (that one spanned two starters; this one i
 that abstracting it (a shared helper, a wrapper type) could plausibly add more indirection than it
 removes; needs a real judgment call on whether extraction is worth it before touching either
 service, not a reflexive DRY pass.
+
+### 24. `integration-tests`: no global HikariCP pool-size cap across `@SpringBootTest` contexts risks Postgres `max_connections` exhaustion (found during improvement-199 Checkpoint 1, 2026-09-24)
+
+Every distinct `@SpringBootTest(classes = {...})` signature in `integration-tests` gets its own
+cached Spring `ApplicationContext` with its own HikariCP pool (default `maximum-pool-size=10`, no
+override anywhere in the repo); Spring's `DefaultContextCache` keeps every distinct context alive
+for the rest of the `mvn test` run (default cache size 32, well above the ~18 distinct signatures
+today), so their connection pools accumulate rather than being released between test classes.
+Confirmed directly: adding `contact-spring-boot-starter`'s two new test classes (one more distinct
+context) was enough to push a full-suite run over Postgres's `max_connections`, failing the
+unrelated, pre-existing `ProviderProfileRepositoryTest` with `FATAL: sorry, too many clients
+already`. Scoped fix applied to the new contact tests only (`spring.datasource.hikari.maximum-pool-size=2`
+via `@TestPropertySource`, since they don't need concurrency) — the systemic gap (no cap for any
+of the other ~18 contexts) remains and can recur the next time a new starter's own repository test
+is added. Needs a design decision before sizing: a lower default pool size across the whole
+`RepositoryTestAutoConfig` allow-list vs. a per-context opt-in like the one used here vs. raising
+the Testcontainers Postgres image's own `max_connections`.

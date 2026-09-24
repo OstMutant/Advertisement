@@ -77,6 +77,11 @@
             <artifactId>apikey-spring-boot-starter</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>contact-spring-boot-starter</artifactId>
+        </dependency>
+
         <!-- Level 2/3 scenario tests (org.ost.integrationtests.orchestrator/.restapi) compose
              use cases and HTTP endpoints across multiple starters at once, unlike Level 1's
              single-starter repository tests. See .claude/rules/integration-tests.md. -->
