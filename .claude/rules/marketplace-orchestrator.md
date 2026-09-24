@@ -52,6 +52,15 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   `ProviderProfilePort.save()` as the row owner) and `actorId` (who performed the save, audit-only)
   — since an admin/moderator editing another user's profile makes the two diverge. No attachment
   gallery step (unlike Advertisement) — provider profiles carry no media.
+- `AdvertisementOwnerProfileLookupService` — resolves an advertisement's owner's provider profile
+  id (`AdvertisementPort` + `ProviderProfilePort`), `ContactService`'s own collaborator for the
+  ADVERTISEMENT-to-PROVIDER_PROFILE contact fallback, same "extract a services.* collaborator"
+  shape the ≤2-port rule below prescribes.
+- `ContactService` — wraps `ContactPort` (find/save/recordView/countViewsThisMonth/isAvailable)
+  plus `resolveContact()`'s fallback (an advertisement's own `contact_info` row if present, else
+  its owner's provider-profile row, via `AdvertisementOwnerProfileLookupService`). Not split into
+  Read/Save classes like Advertisement/ProviderProfile — `ContactPort.save()`/`recordView()` are
+  single-call delegations with no transactional composition to isolate.
 - `UserDeleteService` — cascades a user's own dependent data (advertisements, provider profile)
   before deleting the account itself.
 - `UserCleanupService` — the scheduled retention-purge use case: finds soft-deleted accounts past
@@ -156,9 +165,9 @@ inventing a second wiring approach for one module).
 
 ## Key constraints
 
-- **`pom.xml` declares all 6 starter `<dependency>` blocks** (`audit`/`attachment`/`user`/
-  `advertisement` at `compile` scope, `taxon`/`provider-profile` at `runtime` scope, preserving
-  their existing optional-module semantics unchanged) — this is the one module in the app that
+- **`pom.xml` declares all 8 starter `<dependency>` blocks** (`audit`/`attachment`/`user`/
+  `advertisement` at `compile` scope, `taxon`/`provider-profile`/`apikey`/`contact` at `runtime`
+  scope, preserving their existing optional-module semantics unchanged) — this is the one module in the app that
   pulls every starter JAR onto the runtime classpath, since `marketplace-app` no longer declares
   them itself (`marketplace-app/pom.xml` depends only on `platform-commons` +
   `marketplace-orchestrator`, so `Module Dependencies`/`Bounded Contexts` show the same converged

@@ -340,9 +340,16 @@ after the previous one is done and confirmed working (build/tests green).
     the new contact tests' own pool (`spring.datasource.hikari.maximum-pool-size=2`, via
     `@TestPropertySource` — these tests don't need concurrency) rather than touching the shared
     `RepositoryTestSupport` allow-list. Full suite green after: 251/251 tests, `BUILD SUCCESS`.
-- **Checkpoint 2 — advertisement override + orchestrator fallback resolution (Plan's Step 2):**
-  fallback-resolution use-case service in `marketplace-orchestrator` composing `ContactPort` +
-  `AdvertisementPort` + `ProviderProfilePort`; unit tests for the service.
+- **Checkpoint 2 — advertisement override + orchestrator fallback resolution (Plan's Step 2) — DONE 2026-09-24:**
+  Split into two classes to respect the ≤2-domain-port-per-class rule (`ArchitectureRulesTest`):
+  `AdvertisementOwnerProfileLookupService` (`AdvertisementPort` + `ProviderProfilePort`, resolves an
+  ad's owner's provider profile id) and `ContactService` (`ContactPort` + the lookup service as a
+  plain collaborator — find/save/recordView/countViewsThisMonth/isAvailable, plus
+  `resolveContact()`'s fallback: an ad's own `contact_info` row if present, else its owner's
+  profile row). `contact-spring-boot-starter` added as `marketplace-orchestrator`'s 8th
+  `<dependency>` (runtime scope, mirrors `taxon`/`provider-profile`/`apikey`). Mockito unit tests:
+  `AdvertisementOwnerProfileLookupServiceTest` (4 tests), `ContactServiceTest` (8 tests) — both
+  green, full reactor `BUILD SUCCESS`.
 - **Checkpoint 3 — provider-profile form + own-profile counters:**
   `ProviderProfileFormOverlayModeHandler` binder fields (phone/telegram/viber), format validation
   (E.164 for phone/viber, Telegram username regex), `ProviderProfileViewModeHandler.buildProfileCard()`
