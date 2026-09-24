@@ -2,7 +2,22 @@
 
 **Java 25 · Spring Boot 4.1 · Vaadin 25 · PostgreSQL · S3 · Playwright · Testcontainers**
 
-[Architecture](#architectural-principles) · [Module Docs](#module-layout) · [Testing Strategy](#testing-strategy)
+🚧 **Active development** — the product surface (features, UI) keeps changing; the engineering
+foundation underneath it (authorization model, SQL layer, testing strategy, backlog process) is
+stable and is the actual point of this project.
+
+**At a glance:** 9 bounded-context modules · 3 independent test layers (unit / Testcontainers /
+Playwright) · 200+ backlog items, each resolved with a dated, root-cause write-up — not a vague
+TODO list.
+
+Built as a real, working system to demonstrate specific engineering patterns applied to actual
+features — not a toy example, and not (yet) a finished product:
+- explicit control over data flow and SQL — no ORM, no hidden query generation
+- composable abstractions without framework magic
+- clear responsibility boundaries between layers, enforced at both the UI and service level
+
+**Skim it (5 min):** [If you have 5 minutes](#if-you-have-5-minutes) · [Module map](#module-layout)
+**Go deep:** [Architecture](#architectural-principles) · [Testing Strategy](#testing-strategy) · [Backlog](backlog/BACKLOG.md)
 
 ---
 
@@ -78,16 +93,6 @@ Every known gap, deferred decision, and follow-up is a dated entry in
 recorded — including cases where the original plan turned out wrong and was corrected in place.
 This is one of the project's more unusual artifacts: a running, honest record of what's actually
 still rough, not just what shipped.
-
----
-
-## About
-
-This is not a finished product — there is no fixed public feature roadmap, and the product side
-keeps evolving. The engineering foundation underneath it is the actual point of the project:
-- explicit control over data flow and SQL
-- composable abstractions without framework magic
-- clear responsibility boundaries between layers
 
 ---
 
