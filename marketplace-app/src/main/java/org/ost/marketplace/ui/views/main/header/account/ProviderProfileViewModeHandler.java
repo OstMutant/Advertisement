@@ -20,11 +20,17 @@ import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHa
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.orchestrator.services.ContactAccessService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
+import org.ost.platform.contact.dto.ContactViewCountDto;
+import org.ost.platform.contact.model.ContactChannel;
+import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -54,6 +60,7 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
     private final AccessEvaluator            access;
     private final NotificationService        notificationService;
     private final UiComponentFactory<EntityMetaPanel, EntityMetaPanel.Parameters> metaPanelFactory;
+    private final ContactAccessService       contactService;
     @Getter
     private final I18nService                i18nService;
 
@@ -102,8 +109,33 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
                     "provider-profile-city-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
         }
         card.add(kindBadge);
+        if (contactService.isAvailable()) {
+            card.add(buildContactViewsBlock(profile.getId()));
+        }
         card.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));
         return card;
+    }
+
+    private Div buildContactViewsBlock(Long profileId) {
+        Map<ContactChannel, Long> counts = contactService.countViewsThisMonth(EntityType.PROVIDER_PROFILE, profileId).stream()
+                .collect(Collectors.toMap(ContactViewCountDto::channel, ContactViewCountDto::count));
+
+        Div block = new Div();
+        block.addClassName("provider-profile-contact-views");
+        Span label = new Span(getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_LABEL));
+        label.addClassName("provider-profile-contact-views-label");
+        block.add(label);
+        block.add(buildContactViewRow("provider-profile-contact-views-phone", getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_PHONE), counts.getOrDefault(ContactChannel.PHONE, 0L)));
+        block.add(buildContactViewRow("provider-profile-contact-views-telegram", getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_TELEGRAM), counts.getOrDefault(ContactChannel.TELEGRAM, 0L)));
+        block.add(buildContactViewRow("provider-profile-contact-views-viber", getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_VIBER), counts.getOrDefault(ContactChannel.VIBER, 0L)));
+        return block;
+    }
+
+    private static Div buildContactViewRow(String cssClass, String label, long count) {
+        Div row = new Div();
+        row.addClassName(cssClass);
+        row.add(new Span(label + ": " + count));
+        return row;
     }
 
     private static void buildChipRow(Div card, List<String> names, String rowCssClass, String chipCssClass, String ariaLabel) {

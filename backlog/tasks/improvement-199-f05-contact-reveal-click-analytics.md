@@ -343,23 +343,43 @@ after the previous one is done and confirmed working (build/tests green).
 - **Checkpoint 2 — advertisement override + orchestrator fallback resolution (Plan's Step 2) — DONE 2026-09-24:**
   Split into two classes to respect the ≤2-domain-port-per-class rule (`ArchitectureRulesTest`):
   `AdvertisementOwnerProfileLookupService` (`AdvertisementPort` + `ProviderProfilePort`, resolves an
-  ad's owner's provider profile id) and `ContactService` (`ContactPort` + the lookup service as a
+  ad's owner's provider profile id) and `ContactAccessService` (`ContactPort` + the lookup service as a
   plain collaborator — find/save/recordView/countViewsThisMonth/isAvailable, plus
   `resolveContact()`'s fallback: an ad's own `contact_info` row if present, else its owner's
   profile row). `contact-spring-boot-starter` added as `marketplace-orchestrator`'s 8th
   `<dependency>` (runtime scope, mirrors `taxon`/`provider-profile`/`apikey`). Mockito unit tests:
   `AdvertisementOwnerProfileLookupServiceTest` (4 tests), `ContactServiceTest` (8 tests) — both
   green, full reactor `BUILD SUCCESS`.
-- **Checkpoint 3 — provider-profile form + own-profile counters:**
-  `ProviderProfileFormOverlayModeHandler` binder fields (phone/telegram/viber), format validation
-  (E.164 for phone/viber, Telegram username regex), `ProviderProfileViewModeHandler.buildProfileCard()`
-  per-channel counters.
+- **Checkpoint 3 — provider-profile form + own-profile counters — DONE 2026-09-24:**
+  `ProviderProfileEditDto` gains `phone`/`telegram`/`viber` (mapped manually, not via MapStruct —
+  contact data isn't part of `ProviderProfileDto`). `ProviderProfileFormOverlayModeHandler` binds
+  the 3 new `UiTextField`s with E.164/Telegram-username regex validators
+  (`ContactInfoDto.PHONE_PATTERN`/`TELEGRAM_PATTERN`); `save()` upserts the profile's `contact_info`
+  row via the new orchestrator service after the profile itself saves.
+  `ProviderProfileViewModeHandler.buildProfileCard()` renders a "Contact views (this month)" block
+  with independent Phone/Telegram/Viber counters. New i18n keys (fields, validation messages, view
+  labels) in both `messages_en.properties`/`messages_uk.properties`.
+  Found and fixed a real bug during deploy: the new orchestrator service was originally named
+  `ContactService`, colliding with `contact-spring-boot-starter`'s own internal
+  `org.ost.contact.services.ContactService` bean (same default Spring bean name from two different
+  packages) — app failed to start with `ConflictingBeanDefinitionException`. Renamed to
+  `ContactAccessService`, matching the module's own convention that orchestrator-level services
+  never reuse a starter's bare `<Domain>Service` name (`ProviderProfileSaveService`/`ReadService`,
+  never bare `ProviderProfileService`).
+  Verified live: extended `playwright/e2e/04-provider-profile-flow.spec.js`'s first test with two
+  `test.step`s (invalid-format rejection + valid save; view-mode counters render 0/0/0) rather than
+  waiting for Checkpoint 6 — full `e2e --ux` suite green afterward (50 passed, 13 skipped as usual
+  for `06-seed-*` without `--full`, 0 failed), screenshots confirmed both the filled form and the
+  counters block render correctly.
 - **Checkpoint 4 — `ContactRevealPanel` + wiring into advertisement/provider-profile detail overlays.**
 - **Checkpoint 5 — audit integration:** `ProviderProfileSnapshotDto` (and the advertisement
   equivalent) gain `phone`/`telegram`/`viber` in `diff()`/`allFields()`, fetched via `ContactPort`
   at snapshot-capture time in the save services.
-- **Checkpoint 6 — Playwright coverage** for reveal, counters, and the audit-timeline entry (extend
-  existing scenarios per "Test coverage" above).
+- **Checkpoint 6 — Playwright coverage** for reveal and the audit-timeline entry (extend existing
+  scenarios per "Test coverage" above). Provider-profile contact-field validation/save and the
+  view-mode counters block are already covered (pulled forward into Checkpoint 3's own live
+  verification, see above) — remaining scope is the `ContactRevealPanel` reveal interaction
+  (Checkpoint 4) and the audit-diff entry (Checkpoint 5).
 
 ## Related
 

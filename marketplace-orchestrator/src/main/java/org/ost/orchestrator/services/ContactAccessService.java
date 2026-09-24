@@ -16,7 +16,7 @@ import java.util.Optional;
 /** Wraps {@link ContactPort} for marketplace-app, adding the ADVERTISEMENT-to-owner's-PROVIDER_PROFILE contact fallback via {@link AdvertisementOwnerProfileLookupService}. */
 @Service
 @RequiredArgsConstructor
-public class ContactService {
+public class ContactAccessService {
 
     private final ComponentFactory<ContactPort> contactPortFactory;
     private final AdvertisementOwnerProfileLookupService advertisementOwnerProfileLookupService;

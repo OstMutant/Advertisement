@@ -53,10 +53,10 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   — since an admin/moderator editing another user's profile makes the two diverge. No attachment
   gallery step (unlike Advertisement) — provider profiles carry no media.
 - `AdvertisementOwnerProfileLookupService` — resolves an advertisement's owner's provider profile
-  id (`AdvertisementPort` + `ProviderProfilePort`), `ContactService`'s own collaborator for the
+  id (`AdvertisementPort` + `ProviderProfilePort`), `ContactAccessService`'s own collaborator for the
   ADVERTISEMENT-to-PROVIDER_PROFILE contact fallback, same "extract a services.* collaborator"
   shape the ≤2-port rule below prescribes.
-- `ContactService` — wraps `ContactPort` (find/save/recordView/countViewsThisMonth/isAvailable)
+- `ContactAccessService` — wraps `ContactPort` (find/save/recordView/countViewsThisMonth/isAvailable)
   plus `resolveContact()`'s fallback (an advertisement's own `contact_info` row if present, else
   its owner's provider-profile row, via `AdvertisementOwnerProfileLookupService`). Not split into
   Read/Save classes like Advertisement/ProviderProfile — `ContactPort.save()`/`recordView()` are

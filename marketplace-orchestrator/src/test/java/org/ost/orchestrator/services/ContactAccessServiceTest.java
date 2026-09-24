@@ -22,7 +22,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Plain Mockito unit test for {@link ContactService}, focused on {@link ContactService#resolveContact}'s fallback branching. */
+/** Plain Mockito unit test for {@link ContactAccessService}, focused on {@link ContactAccessService#resolveContact}'s fallback branching. */
 @ExtendWith(MockitoExtension.class)
 class ContactServiceTest {
 
@@ -30,7 +30,7 @@ class ContactServiceTest {
     @Mock private ContactPort contactPort;
     @Mock private AdvertisementOwnerProfileLookupService advertisementOwnerProfileLookupService;
 
-    private ContactService service;
+    private ContactAccessService service;
 
     private static final ContactInfoDto AD_OWN_CONTACT = new ContactInfoDto(
             1L, EntityType.ADVERTISEMENT, 10L, "+380501111111", null, null, null, 0L);
@@ -39,7 +39,7 @@ class ContactServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ContactService(contactPortFactory, advertisementOwnerProfileLookupService);
+        service = new ContactAccessService(contactPortFactory, advertisementOwnerProfileLookupService);
         lenient().when(contactPortFactory.findIfAvailable()).thenReturn(Optional.of(contactPort));
         lenient().doAnswer(inv -> {
             Consumer<ContactPort> consumer = inv.getArgument(0);

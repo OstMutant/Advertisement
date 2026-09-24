@@ -1,10 +1,14 @@
 /* ── Header ──────────────────────────────────────────────────────────────────
  * Description: Provider Profile e2e coverage -- both the AccountOverlay self-service/admin tab
- *   (create/edit/moderator-readonly/admin-on-behalf, kind/about/categories/city fields) and the
+ *   (create/edit/moderator-readonly/admin-on-behalf, kind/about/categories/city/phone/telegram/
+ *   viber fields, per-channel contact-views-this-month counters) and the
  *   public Providers catalog (anonymous browsing/filtering, deep link + sitemap.xml + crawler meta
  *   tags, delete from the catalog card, SUPPORT-kind disabled-not-removed for a non-privileged
  *   actor already holding that kind). Per test:
- *   - "userEn creates provider profile" / "userEn edits provider profile" / "moderatorEn views
+ *   - "userEn creates provider profile": also covers contact fields -- invalid phone/telegram/viber
+ *     format rejected on save, valid E.164 phone/viber and Telegram username accepted, and the
+ *     view-mode "Contact views (this month)" counters block showing 0/0/0 after creation.
+ *   - "userEn edits provider profile" / "moderatorEn views
  *     userEn's account" / "adminEn creates and edits userUk's provider profile via the Users grid":
  *     unchanged AccountOverlay tab coverage, see individual test names for detail.
  *   - "anonymous visitor browses the public Providers catalog": first seeds two more profiles
@@ -93,7 +97,7 @@ test.describe('Provider Profile flow', () => {
     await page.close();
   });
 
-  test('userEn creates provider profile — empty state before, Create button, kind/about/category/city filled, view mode shows kind badge/about/category chip/city chip after save', async () => {
+  test('userEn creates provider profile — empty state before, Create button, kind/about/category/city filled, contact fields validation and save, view mode shows kind badge/about/category chip/city chip/contact views counters after save', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
     await runOpenSettingsFlow(page);
@@ -109,6 +113,24 @@ test.describe('Provider Profile flow', () => {
     await fillAbout(page, 'Professional electronics repair and installation services.');
     await selectCategory(page, 'Electronics');
     await selectCity(page, 'Lviv');
+
+    const phoneField = page.locator('.account-overlay vaadin-text-field[data-testid="provider-profile-phone-field"] input');
+    const telegramField = page.locator('.account-overlay vaadin-text-field[data-testid="provider-profile-telegram-field"] input');
+    const viberField = page.locator('.account-overlay vaadin-text-field[data-testid="provider-profile-viber-field"] input');
+
+    await test.step('contact fields — invalid phone/telegram/viber format rejected on save, valid E.164 phone/viber and Telegram username accepted', async () => {
+      await phoneField.fill('not-a-phone');
+      await telegramField.fill('a');
+      await viberField.fill('123');
+      await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Save' }).click();
+      await expect(page.locator('vaadin-notification-container')).toContainText('Validation failed', { timeout: 5000 });
+      await closeNotification(page);
+      await screenshot(page, 'provider-profile-contact-validation-error');
+
+      await phoneField.fill('+380501234567');
+      await telegramField.fill('electro_master');
+      await viberField.fill('+380509876543');
+    });
     await screenshot(page, 'provider-profile-create-filled');
 
     await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Save' }).click();
@@ -122,6 +144,15 @@ test.describe('Provider Profile flow', () => {
     await expect(page.locator('.account-overlay .provider-profile-category-chip')).toContainText('Electronics');
     await expect(page.locator('.account-overlay .provider-profile-city-chip')).toContainText('Lviv');
     await screenshot(page, 'provider-profile-view-after-create');
+
+    await test.step('contact views counters — Phone/Telegram/Viber all show 0 this month (no reveals happened yet)', async () => {
+      const counters = page.locator('.account-overlay .provider-profile-contact-views');
+      await expect(counters).toBeVisible({ timeout: 5000 });
+      await expect(counters.locator('.provider-profile-contact-views-phone')).toContainText('0');
+      await expect(counters.locator('.provider-profile-contact-views-telegram')).toContainText('0');
+      await expect(counters.locator('.provider-profile-contact-views-viber')).toContainText('0');
+      await screenshot(page, 'provider-profile-contact-views-counters');
+    });
 
     await test.step('account-tab view — every field renders in the expected top-to-bottom order', async () => {
       await assertVerticalOrder(page, expect, page.locator('.account-overlay .overlay__view-card'), [
