@@ -156,7 +156,40 @@ directly rather than deferred, per explicit user direction (2026-09-23):
 
 Result: `new_coverage` rose from 74.9% → 76.3% (this task's own repository/service tests) → 85.2%
 (after the 3 fixes above) — Sonar quality gate now **passes** (`new_coverage: 85.2%` ≥ 80%,
-`new_violations: 0`, `new_duplicated_lines_density: 1.11%` ≤ 3%), confirmed via `scripts/ci.sh
---sonar --foreground`. Full unflagged `scripts/ci.sh --foreground` (unit + integration + e2e +
-sonar + archunit + lint + shellcheck + docs together) triggered as the final Definition-of-Done
-confirmation — result pending at time of writing, see final report.
+`new_violations: 0`, `new_duplicated_lines_density: 1.11%` ≤ 3%). Full unflagged `scripts/ci.sh
+--foreground` (unit + integration + e2e + sonar + archunit + lint + shellcheck + docs together) ran
+green — every stage passed, no failures.
+
+## Operational notes
+- token_cost_review: 96799 (deep-review-orchestrator, current-diff scope)
+- token_cost_research: 62126 + 43068 + 55414 + 12639601(duration_ms, not tokens — see below) = n/a exact sum, see Agent calls below for per-call figures
+- token_cost_verification: n/a (no dedicated verification-purpose Agent call; verification was direct script runs, see Script/command runs below)
+- review_signal_ratio: 0/0 (deep-review-orchestrator found no findings across all 3 lenses)
+- context_loading_task_type: Architectural change (new project-owned exception type crossing platform-commons/starters/orchestrator/app/rest-api)
+- context_loading_consulted: yes
+- context_loading_matched: yes
+- flows_situation: architectural decision needing an ADR; Sonar quality-gate failure needing root-cause diagnosis
+- flows_chosen: /record-decision; direct dagu-analyst/sonar-analyst Agent dispatches + manual SonarQube REST API queries
+- flows_matched: yes (record-decision matched flows.md exactly; the Sonar-gate diagnosis had no single dedicated flow entry, composed dagu-analyst + sonar-analyst + direct API calls)
+
+### Agent calls
+- Code review of current diff | subagent_type=deep-review-orchestrator | tokens=96799 | tool_uses=30 | duration_s=172 | mode=background | batch=solo
+- Dagu CI run status check (1st sonar-only run) | subagent_type=dagu-analyst | tokens=55414 | tool_uses=7 | duration_s=13 | mode=background | batch=solo
+- Sonar failure detail (2nd full run) | subagent_type=dagu-analyst | tokens=62126 | tool_uses=11 | duration_s=12640 | mode=background | batch=solo
+- Find uncovered new-code lines | subagent_type=sonar-analyst | tokens=43068 | tool_uses=7 | duration_s=201 | mode=background | batch=solo
+
+### Script/command runs
+- scripts/build-and-test.sh --unit --integration --sandbox (1st, repo tests, pre-fix) | duration_s=276 | mode=background | result=fail (stale-version test bug, fixed same run)
+- scripts/build-and-test.sh --unit --integration --sandbox (2nd, after test fix) | duration_s=256 | mode=background | result=pass
+- scripts/ci.sh --sonar (1st, sonar-only) | duration_s=~831 (per Dagu step) | mode=background | result=fail (new_coverage 74.9%)
+- scripts/ci.sh --foreground (1st, full run) | duration_s=~1400 | mode=background | result=partial (sonar failed 76.3%, all other stages passed)
+- scripts/build-and-test.sh --unit-test AttachmentContentTypeValidatorTest --no-integration | duration_s=175 | mode=background | result=pass
+- scripts/ci.sh --sonar --foreground (2nd, after Attachment fix) | duration_s=~394 | mode=background | result=fail (new_coverage unchanged 76.3% — root cause: raw JaCoCo showed 100%, Sonar API misreported; separately, I18nKey/FailureRateLimiter still genuinely uncovered)
+- scripts/build-and-test.sh --unit --integration --sandbox (3rd, after I18nKey/FailureRateLimiter tests) | duration_s=237 | mode=background | result=pass
+- scripts/ci.sh --sonar --foreground (3rd, final sonar check) | duration_s=~331 | mode=background | result=pass (new_coverage 85.2%)
+- scripts/ci.sh --foreground (2nd, final full run) | duration_s=~1400 | mode=background | result=pass (every stage green)
+
+### Review angle yield
+- dry-kiss-yagni | survived=0 | total_candidates=0 | tokens=unknown (not separately reported by coordinator)
+- solid | survived=0 | total_candidates=0 | tokens=97510
+- precedent | survived=0 | total_candidates=0 | tokens=102776
