@@ -316,6 +316,44 @@ equivalent) — not a standalone "contact_info changed" `EntityType` of its own.
 Still open: whether `contact-spring-boot-starter` needs `integration-tests` coverage added
 alongside the other starters (it will, per the existing convention — not yet spelled out here).
 
+## Implementation checkpoints (drafted 2026-09-24 — execution order, none started yet)
+
+Each checkpoint below is one approve-then-implement unit; the next checkpoint is proposed only
+after the previous one is done and confirmed working (build/tests green).
+
+- **Checkpoint 1 — contract + module skeleton (Plan's Step 1) — DONE 2026-09-24:**
+  - `platform-commons`: `contact.model.ContactChannel` enum (`PHONE`, `TELEGRAM`, `VIBER`),
+    `contact.dto.ContactInfoDto` + `contact.dto.ContactViewCountDto` records
+    (`@FieldNameConstants`), `contact.spi.ContactPort` interface.
+  - New module `contact-spring-boot-starter`, registered in root `pom.xml`: `pom.xml`,
+    `ContactInfo`/`ContactView` entities, `ContactInfoCrudRepository`/`ContactRepository`
+    (`JdbcClient` for `contact_view` inserts + per-channel monthly count query), Liquibase
+    changelog (`contact_info` + `contact_view`, `remarks` on every column per root `CLAUDE.md`
+    guideline 6), `ContactAutoConfiguration`, `ContactPortImpl`.
+  - Module `README.md` (via `module-readme-standards` skill) + `contact-spring-boot-starter/DECISIONS.md`
+    ADR-001 (new module, generic over owning entity) via `/record-decision`.
+  - `integration-tests`: `ContactRepositoryTest` (6 tests) + `ContactServiceTest` (2 tests),
+    `TestDataCleaner.cleanAll` updated. Found and fixed a pre-existing systemic issue while
+    verifying: the full suite's ~18 distinct `@SpringBootTest` contexts have no HikariCP pool-size
+    cap, and adding one more context (mine) tipped Postgres over its `max_connections` limit
+    (`ProviderProfileRepositoryTest` failed with "too many clients already"). Fixed by capping only
+    the new contact tests' own pool (`spring.datasource.hikari.maximum-pool-size=2`, via
+    `@TestPropertySource` — these tests don't need concurrency) rather than touching the shared
+    `RepositoryTestSupport` allow-list. Full suite green after: 251/251 tests, `BUILD SUCCESS`.
+- **Checkpoint 2 — advertisement override + orchestrator fallback resolution (Plan's Step 2):**
+  fallback-resolution use-case service in `marketplace-orchestrator` composing `ContactPort` +
+  `AdvertisementPort` + `ProviderProfilePort`; unit tests for the service.
+- **Checkpoint 3 — provider-profile form + own-profile counters:**
+  `ProviderProfileFormOverlayModeHandler` binder fields (phone/telegram/viber), format validation
+  (E.164 for phone/viber, Telegram username regex), `ProviderProfileViewModeHandler.buildProfileCard()`
+  per-channel counters.
+- **Checkpoint 4 — `ContactRevealPanel` + wiring into advertisement/provider-profile detail overlays.**
+- **Checkpoint 5 — audit integration:** `ProviderProfileSnapshotDto` (and the advertisement
+  equivalent) gain `phone`/`telegram`/`viber` in `diff()`/`allFields()`, fetched via `ContactPort`
+  at snapshot-capture time in the save services.
+- **Checkpoint 6 — Playwright coverage** for reveal, counters, and the audit-timeline entry (extend
+  existing scenarios per "Test coverage" above).
+
 ## Related
 
 - `private/features/F-05-contact-reveal.md` — full feature spec (goal, user story, scope, tech

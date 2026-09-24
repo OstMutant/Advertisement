@@ -31,6 +31,7 @@
         <module>taxon-spring-boot-starter</module>
         <module>provider-profile-spring-boot-starter</module>
         <module>apikey-spring-boot-starter</module>
+        <module>contact-spring-boot-starter</module>
         <module>marketplace-orchestrator</module>
         <module>marketplace-rest-api</module>
         <module>marketplace-app</module>
@@ -136,6 +137,11 @@
             <dependency>
                 <groupId>org.ost</groupId>
                 <artifactId>apikey-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.ost</groupId>
+                <artifactId>contact-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
