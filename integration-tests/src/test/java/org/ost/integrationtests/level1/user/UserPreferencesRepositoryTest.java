@@ -15,7 +15,7 @@ import org.ost.user.repository.UserRepository;
 import org.ost.user.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.ost.platform.core.StaleWriteException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
@@ -134,7 +134,7 @@ class UserPreferencesRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void saveSettings_staleVersion_throwsOptimisticLockingFailureException() {
+    void saveSettings_staleVersion_throwsStaleWriteException() {
         Long actorId = createTestUserWithPreferences();
         UserSettingsDto initial = preferencesRepository.loadSettings(actorId);
 
@@ -142,7 +142,7 @@ class UserPreferencesRepositoryTest extends AbstractPostgresIntegrationTest {
 
         // Stale version 0 simulates a second browser tab that read before the first tab's save landed.
         assertThatThrownBy(() -> preferencesRepository.saveSettings(actorId, initial.toBuilder().timelinePageSize(40).build()))
-                .isInstanceOf(OptimisticLockingFailureException.class);
+                .isInstanceOf(StaleWriteException.class);
 
         UserSettingsDto reloaded = preferencesRepository.loadSettings(actorId);
         assertThat(reloaded.getAdsPageSize()).isEqualTo(30);

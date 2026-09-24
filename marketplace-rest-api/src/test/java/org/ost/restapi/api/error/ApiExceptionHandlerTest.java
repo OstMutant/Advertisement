@@ -2,9 +2,9 @@ package org.ost.restapi.api.error;
 
 import org.junit.jupiter.api.Test;
 import org.ost.orchestrator.services.AccessDeniedException;
+import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
 import org.springframework.core.MethodParameter;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,8 +29,8 @@ class ApiExceptionHandlerTest {
     }
 
     @Test
-    void handleOptimisticLocking_returnsGenericMessage() {
-        ErrorResponse response = handler.handleOptimisticLocking(new OptimisticLockingFailureException("stale"));
+    void handleStaleWrite_returnsGenericMessage() {
+        ErrorResponse response = handler.handleStaleWrite(new StaleWriteException("stale"));
 
         assertThat(response.message()).isNotBlank();
     }

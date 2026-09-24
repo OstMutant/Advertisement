@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.model.ProviderKind;
+import org.ost.platform.core.StaleWriteException;
 import org.ost.provider.entity.ProviderProfile;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
@@ -62,7 +63,13 @@ public class ProviderProfileRepository {
     private final JdbcClient jdbcClient;
     private final ProviderProfileCrudRepository crud;
 
-    public ProviderProfile save(@NonNull ProviderProfile profile) { return crud.save(profile); }
+    public ProviderProfile save(@NonNull ProviderProfile profile) {
+        try {
+            return crud.save(profile);
+        } catch (OptimisticLockingFailureException e) {
+            throw new StaleWriteException("ProviderProfile " + profile.getId() + " was modified by another session", e);
+        }
+    }
     public Optional<ProviderProfile> findById(@NonNull Long id)   { return crud.findById(id); }
 
     public Optional<ProviderProfileDto> findProviderProfileById(@NonNull Long id) {
@@ -114,7 +121,7 @@ public class ProviderProfileRepository {
                         .addValue("version", version))
                 .update();
         if (updated == 0) {
-            throw new OptimisticLockingFailureException("ProviderProfile " + id + " was modified by another session");
+            throw new StaleWriteException("ProviderProfile " + id + " was modified by another session");
         }
     }
 

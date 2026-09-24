@@ -17,7 +17,7 @@ import org.ost.user.entity.User;
 import org.ost.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.ost.platform.core.StaleWriteException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -219,11 +219,36 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void delete_staleVersion_throwsOptimisticLockingFailureException() {
+    void save_staleVersion_throwsStaleWriteException() {
+        ProviderProfile saved = save(actorId, ProviderKind.MASTER);
+        providerProfileRepository.save(ProviderProfile.builder()
+                .id(saved.getId())
+                .actorId(saved.getActorId())
+                .kind(saved.getKind())
+                .about("First update")
+                .createdAt(saved.getCreatedAt())
+                .version(saved.getVersion())
+                .build());
+
+        ProviderProfile staleUpdate = ProviderProfile.builder()
+                .id(saved.getId())
+                .actorId(saved.getActorId())
+                .kind(saved.getKind())
+                .about("Stale update")
+                .createdAt(saved.getCreatedAt())
+                .version(saved.getVersion())
+                .build();
+
+        assertThatThrownBy(() -> providerProfileRepository.save(staleUpdate))
+                .isInstanceOf(StaleWriteException.class);
+    }
+
+    @Test
+    void delete_staleVersion_throwsStaleWriteException() {
         ProviderProfile saved = save(actorId, ProviderKind.MASTER);
 
         assertThatThrownBy(() -> providerProfileRepository.delete(saved.getId(), saved.getVersion() + 1))
-                .isInstanceOf(OptimisticLockingFailureException.class);
+                .isInstanceOf(StaleWriteException.class);
     }
 
     @Test

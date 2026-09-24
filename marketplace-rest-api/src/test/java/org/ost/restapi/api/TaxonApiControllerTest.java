@@ -11,7 +11,7 @@ import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.ost.platform.core.StaleWriteException;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -150,7 +150,7 @@ class TaxonApiControllerTest {
 
     @Test
     void update_staleVersion_returns412() throws Exception {
-        doThrow(new OptimisticLockingFailureException("stale")).when(taxonCatalogService)
+        doThrow(new StaleWriteException("stale")).when(taxonCatalogService)
                 .update(eq(1L), any(), eq(ACTOR_ID), eq(0L));
         String body = """
                 {"translations":[{"locale":"en","name":"Plumbing","description":"Plumbing services"}]}""";

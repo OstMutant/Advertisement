@@ -103,7 +103,7 @@ activity timeline, so "what changed" is derived from real before/after state ins
 hand-maintained.
 
 **Optimistic concurrency** — `Advertisement`, `Taxon`, and `User` updates carry a `version`
-column; a stale write is rejected with `OptimisticLockingFailureException` instead of silently
+column; a stale write is rejected with `StaleWriteException` instead of silently
 overwriting a concurrent change.
 
 **UI as a thin adapter** — Vaadin handles layout and interaction wiring only, no business logic

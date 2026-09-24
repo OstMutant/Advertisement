@@ -4,9 +4,9 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -75,7 +75,7 @@ public class UserPreferencesRepository {
                         .addValue("expectedVersion", settings.getVersion()))
                 .update();
         if (updated == 0) {
-            throw new OptimisticLockingFailureException(
+            throw new StaleWriteException(
                     "Settings for actorId=" + actorId + " were modified concurrently");
         }
     }

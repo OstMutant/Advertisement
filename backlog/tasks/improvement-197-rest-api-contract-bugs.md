@@ -45,7 +45,7 @@ WHERE id = :id AND version = :version
 When the bound `:version` parameter is Java `null`, this renders as SQL `version = NULL` — which is
 never `TRUE` in standard SQL (`NULL` comparisons evaluate to `UNKNOWN`), so `WHERE` never matches,
 `updated == 0` unconditionally, and the method unconditionally throws
-`OptimisticLockingFailureException` → mapped to `412 Precondition Failed` by `ApiExceptionHandler`.
+`StaleWriteException` → mapped to `412 Precondition Failed` by `ApiExceptionHandler`.
 The same `version`-column `UPDATE ... WHERE version = :version` shape is used for the corresponding
 update path too, and equivalently for `provider-profile-spring-boot-starter`/
 `taxon-spring-boot-starter`'s own repositories (not yet individually re-verified line-by-line —
@@ -58,7 +58,7 @@ DELETE /api/advertisements/1  (no If-Match header — allowed per Swagger's requ
 → ETagUtil.parseIfMatch(null) → null
 → AdvertisementRepository.softDelete(1, actorId, null)
 → SQL: ... WHERE id = 1 AND version = NULL   -- never matches, by SQL semantics
-→ updated == 0 → OptimisticLockingFailureException
+→ updated == 0 → StaleWriteException
 → 412 Precondition Failed, even though nobody else touched the resource
 ```
 

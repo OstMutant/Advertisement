@@ -14,7 +14,7 @@ import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.ost.platform.core.StaleWriteException;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -183,7 +183,7 @@ class ProviderProfileApiControllerTest {
 
     @Test
     void update_staleVersion_returns412() throws Exception {
-        when(saveService.save(any(), eq(ACTOR_ID), eq(ACTOR_ID))).thenThrow(new OptimisticLockingFailureException("stale"));
+        when(saveService.save(any(), eq(ACTOR_ID), eq(ACTOR_ID))).thenThrow(new StaleWriteException("stale"));
         String body = """
                 {"kind":"MASTER"}""";
 

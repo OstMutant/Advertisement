@@ -2,6 +2,7 @@ package org.ost.user.repository;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
@@ -14,6 +15,7 @@ import org.ost.query.sort.PaginationSqlBuilder;
 import org.ost.query.sort.SortField;
 import org.ost.user.entity.User;
 import org.ost.user.entity.UserEditableFields;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -71,7 +73,13 @@ public class UserRepository {
     private final UserCrudRepository crud;
     private final UserEditableFieldsCrudRepository editableFieldsCrud;
 
-    public User save(@NonNull User user)                { return crud.save(user); }
+    public User save(@NonNull User user) {
+        try {
+            return crud.save(user);
+        } catch (OptimisticLockingFailureException e) {
+            throw new StaleWriteException("User " + user.getId() + " was modified by another session", e);
+        }
+    }
     public Optional<User> findById(@NonNull Long id)    { return crud.findById(id); }
     public void deleteById(@NonNull Long id)            { crud.deleteById(id); }
 
@@ -127,12 +135,16 @@ public class UserRepository {
     }
 
     public void updateProfile(@NonNull UserProfileDto dto) {
-        editableFieldsCrud.save(UserEditableFields.builder()
-                .id(dto.id())
-                .name(dto.name())
-                .role(dto.role())
-                .version(dto.version())
-                .build());
+        try {
+            editableFieldsCrud.save(UserEditableFields.builder()
+                    .id(dto.id())
+                    .name(dto.name())
+                    .role(dto.role())
+                    .version(dto.version())
+                    .build());
+        } catch (OptimisticLockingFailureException e) {
+            throw new StaleWriteException("User " + dto.id() + " was modified by another session", e);
+        }
     }
 
     public List<Long> findExistingIds(@NonNull Long[] ids) {

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.support.RepositoryTestSupport;
 import org.ost.integrationtests.support.TestDataCleaner;
+import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.taxon.config.TaxonAutoConfiguration;
 import org.ost.taxon.entities.Taxon;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * {@link TaxonRepository#findByIds} returns soft-deleted rows too (reversed 2026-07-21,
@@ -54,6 +56,31 @@ class TaxonRepositoryTest extends AbstractPostgresIntegrationTest {
 
     private Taxon save(String code) {
         return taxonRepository.save(Taxon.builder().type(TaxonType.CATEGORY).code(code).build());
+    }
+
+    @Test
+    void save_staleVersion_throwsStaleWriteException() {
+        Taxon saved = save("original-code");
+        taxonRepository.save(Taxon.builder()
+                .id(saved.getId())
+                .type(saved.getType())
+                .code("first-update")
+                .createdAt(saved.getCreatedAt())
+                .createdBy(saved.getCreatedBy())
+                .version(saved.getVersion())
+                .build());
+
+        Taxon staleUpdate = Taxon.builder()
+                .id(saved.getId())
+                .type(saved.getType())
+                .code("stale-update")
+                .createdAt(saved.getCreatedAt())
+                .createdBy(saved.getCreatedBy())
+                .version(saved.getVersion())
+                .build();
+
+        assertThatThrownBy(() -> taxonRepository.save(staleUpdate))
+                .isInstanceOf(StaleWriteException.class);
     }
 
     @Test

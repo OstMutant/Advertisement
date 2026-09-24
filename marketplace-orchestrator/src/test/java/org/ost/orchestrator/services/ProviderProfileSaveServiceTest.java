@@ -16,7 +16,7 @@ import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
 import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.providerprofile.spi.ProviderProfilePort;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.ost.platform.core.StaleWriteException;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -32,7 +32,7 @@ import static org.mockito.Mockito.*;
 
 /**
  * {@link ProviderProfileSaveService#save} orchestrates the create/update transaction: it decides
- * {@code captureCreation} vs {@code captureUpdate} and throws {@link OptimisticLockingFailureException}
+ * {@code captureCreation} vs {@code captureUpdate} and throws {@link StaleWriteException}
  * when the profile was concurrently deleted mid-edit ({@code before == null} for a non-new dto).
  */
 @ExtendWith(MockitoExtension.class)
@@ -136,7 +136,7 @@ class ProviderProfileSaveServiceTest {
         when(providerProfilePort.findById(profileId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.save(dto, ACTOR_ID, ACTOR_ID))
-                .isInstanceOf(OptimisticLockingFailureException.class);
+                .isInstanceOf(StaleWriteException.class);
         verify(providerProfilePort, never()).save(any(), any(), any(), anyBoolean());
     }
 

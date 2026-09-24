@@ -17,7 +17,7 @@ import org.ost.user.entity.User;
 import org.ost.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.ost.platform.core.StaleWriteException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -245,11 +245,38 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void softDelete_staleVersion_throwsOptimisticLockingFailureException() {
+    void save_staleVersion_throwsStaleWriteException() {
+        Advertisement saved = save("Original", "d");
+        advertisementRepository.save(Advertisement.builder()
+                .id(saved.getId())
+                .title("First update")
+                .description(saved.getDescription())
+                .adKind(saved.getAdKind())
+                .createdAt(saved.getCreatedAt())
+                .createdBy(saved.getCreatedBy())
+                .version(saved.getVersion())
+                .build());
+
+        Advertisement staleUpdate = Advertisement.builder()
+                .id(saved.getId())
+                .title("Stale update")
+                .description(saved.getDescription())
+                .adKind(saved.getAdKind())
+                .createdAt(saved.getCreatedAt())
+                .createdBy(saved.getCreatedBy())
+                .version(saved.getVersion())
+                .build();
+
+        assertThatThrownBy(() -> advertisementRepository.save(staleUpdate))
+                .isInstanceOf(StaleWriteException.class);
+    }
+
+    @Test
+    void softDelete_staleVersion_throwsStaleWriteException() {
         Advertisement saved = save("To be deleted", "d");
 
         assertThatThrownBy(() -> advertisementRepository.softDelete(saved.getId(), actorId, saved.getVersion() + 1))
-                .isInstanceOf(OptimisticLockingFailureException.class);
+                .isInstanceOf(StaleWriteException.class);
     }
 
     @Test

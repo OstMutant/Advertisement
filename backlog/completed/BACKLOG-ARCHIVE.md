@@ -2701,7 +2701,7 @@ composition (`AdvertisementPort`/`ProviderProfilePort`) moved out of `user-sprin
 new `marketplace-orchestrator` `UserCleanupService`/`UserPurgeEligibilityService`; the documented
 `.claude/rules/marketplace-orchestrator.md` exception for this case was removed and replaced with
 the real underlying read-vs-write test. **Part 4:** carved out into
-[improvement-202](../tasks/improvement-202-optimisticlockingfailureexception-decoupling.md) once
+[improvement-202](improvement-202-optimisticlockingfailureexception-decoupling.md) once
 sized — `OptimisticLockingFailureException` decoupling is a cross-cutting, 11-file change, too large
 for this task. **Part 5:** a post-save-refetch race (concurrent delete between commit and a
 synchronous re-read) was silently mishandled in 3 places (`AbstractTaxonOverlay`, `AdvertisementOverlay`
@@ -2709,3 +2709,23 @@ EDIT branch, `ProviderProfileFormOverlayModeHandler`) — fixed via a shared
 `AbstractEntityOverlay.applyFreshOrFallback()` helper plus skipping the refetch entirely where a
 caller doesn't need fresh data; `marketplace-app/DECISIONS.md` ADR-086. Full detail:
 `completed/tasks/improvement-201-attachment-upload-content-type-not-validated-server-side.md`.
+
+✅ Done (2026-09-23): improvement-202 closed — `OptimisticLockingFailureException` (a Spring Data
+framework type) replaced project-wide by a project-owned `StaleWriteException`
+(`platform-commons/org.ost.platform.core`, alongside `TooManyAttemptsException`). Covered 9 real
+throw sites (4 manual raw-SQL guards, 5 native Spring Data JDBC `.save()` paths on `@Version`
+entities requiring a catch-and-rewrap since there was no `throw` of our own to edit), 2 catch sites
+(`AbstractEntityOverlay` UI, `ApiExceptionHandler` REST→412), 3 `*Port` Javadoc references, and 10
+existing tests; `marketplace-orchestrator/DECISIONS.md` ADR-009 records the decision (kept a single
+type for both real-world scenarios — genuine version conflict vs. concurrent delete — as YAGNI,
+annotating ADR-006 as superseded for the exception-type choice). Along the way, closed the Sonar
+new-code coverage gate blocking this task's own CI pass by adding real tests for pre-existing
+zero/low-coverage code from `improvement-201` that the gate's leak period was also counting:
+`I18nKey.java` (405 lines, genuinely 0% covered — confirmed via raw JaCoCo data — new `I18nKeyTest`
+covering its static mapping methods and key-uniqueness invariant) and `FailureRateLimiter.java`
+(zero prior test coverage of any kind — new `FailureRateLimiterTest`, `platform-commons`'s first
+test of any kind, needed adding `spring-boot-starter-test` to its `pom.xml`). Also found and
+documented a real discrepancy in this repo's own Sonar analysis pipeline (a file's raw JaCoCo XML
+showing 100% line coverage while Sonar's own dashboard/API reported 38.5%) — not chased further
+since it self-resolved once overall new-code coverage cleared the gate. Full detail:
+`completed/tasks/improvement-202-optimisticlockingfailureexception-decoupling.md`.

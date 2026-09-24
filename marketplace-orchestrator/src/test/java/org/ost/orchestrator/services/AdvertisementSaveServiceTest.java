@@ -15,7 +15,7 @@ import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.ost.platform.core.StaleWriteException;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -159,7 +159,7 @@ class AdvertisementSaveServiceTest {
         when(advertisementPort.findById(adId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.save(dto, ACTOR_ID, ref -> null))
-                .isInstanceOf(OptimisticLockingFailureException.class);
+                .isInstanceOf(StaleWriteException.class);
         verify(advertisementPort, never()).save(any());
     }
 

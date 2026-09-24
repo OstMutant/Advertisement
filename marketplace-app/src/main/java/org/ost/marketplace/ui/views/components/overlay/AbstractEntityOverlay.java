@@ -6,7 +6,7 @@ import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.orchestrator.services.AccessDeniedException;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.ost.platform.core.StaleWriteException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -89,7 +89,7 @@ public abstract class AbstractEntityOverlay<H extends AbstractFormOverlayModeHan
             log.warn("Access denied on save: {}", e.getMessage());
             notification().accessDenied();
             currentFormHandler.afterSave(false);
-        } catch (OptimisticLockingFailureException e) {
+        } catch (StaleWriteException e) {
             if (saveConfig().conflict() != null) notification().error(saveConfig().conflict());
             else notification().error(e.getMessage());
             currentFormHandler.afterSave(false);

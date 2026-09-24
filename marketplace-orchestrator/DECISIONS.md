@@ -2,6 +2,35 @@
 
 ---
 
+## ADR-009: `StaleWriteException` replaces `OptimisticLockingFailureException` as the project-wide stale-write signal
+
+**Status:** Accepted
+
+**Context:** `org.springframework.dao.OptimisticLockingFailureException` (a Spring Data framework
+type) was the de facto "stale write" signal across the whole reactor — declared in
+`platform-commons`'s own `*Port` Javadoc contracts, thrown both manually (4 raw-SQL affected-rows
+guards) and natively by Spring Data JDBC itself (5 more `*CrudRepository.save()` paths on
+`@Version`-annotated entities, with no `throw` statement of our own to edit), plus ADR-006's
+synthetic "row deleted mid-edit" guard in `AdvertisementSaveService`/`ProviderProfileSaveService`.
+A persistence-framework type leaking into the shared-kernel `*Port` contracts, and every layer
+built on top of them, rather than a project-owned type.
+
+**Decision:** Introduce `StaleWriteException` (unchecked) in `platform-commons`'s
+`org.ost.platform.core` package, alongside `TooManyAttemptsException`. Replace every real throw
+site: the 4 manual raw-SQL guards throw it directly; the 5 native Spring Data JDBC `.save()` paths
+catch `OptimisticLockingFailureException` at the repository boundary and rethrow
+`StaleWriteException` (cause preserved); the 2 orchestrator synthetic guards throw it directly.
+Update both catch sites (`AbstractEntityOverlay`'s UI conflict notification,
+`ApiExceptionHandler`'s HTTP 412 mapping) and the 3 `*Port` Javadoc references. Kept as a single
+type for both real-world scenarios (genuine `@Version` conflict vs. concurrent delete) — no
+distinguishing subtype/field, since no current consumer needs to tell them apart and both already
+produce the same UI/REST outcome; can be split later if a real need appears.
+
+**Rejected alternatives:** A distinguishing subtype/field per scenario now — rejected as
+speculative, no current caller reads the two cases differently.
+
+---
+
 ## ADR-008: `UserCleanupService`/`UserPurgeEligibilityService` — the scheduled retention-purge referential-integrity check moves here from `user-spring-boot-starter`
 
 **Status:** Accepted
@@ -112,7 +141,8 @@ authorization gap above becomes real and needs its own fix.
 
 ## ADR-006: Stale-id-during-concurrent-delete guard in `AdvertisementSaveService`/`ProviderProfileSaveService`
 
-**Status:** Accepted
+**Status:** Accepted — the exception type it throws is superseded by ADR-009 (`StaleWriteException`
+instead of `OptimisticLockingFailureException`); the guard placement/rationale itself stands
 
 **Context:** Both `SaveService`s already read a `before` snapshot ahead of calling the port's
 `save()`, purely to build the audit diff. When an edit's target row was deleted between read and

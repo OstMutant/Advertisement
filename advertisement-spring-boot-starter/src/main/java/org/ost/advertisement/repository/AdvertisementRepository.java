@@ -6,6 +6,7 @@ import org.ost.advertisement.entity.Advertisement;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.model.AdKind;
+import org.ost.platform.core.StaleWriteException;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
@@ -59,7 +60,13 @@ public class AdvertisementRepository {
     private final JdbcClient jdbcClient;
     private final AdvertisementCrudRepository crud;
 
-    public Advertisement save(@NonNull Advertisement ad)      { return crud.save(ad); }
+    public Advertisement save(@NonNull Advertisement ad) {
+        try {
+            return crud.save(ad);
+        } catch (OptimisticLockingFailureException e) {
+            throw new StaleWriteException("Advertisement " + ad.getId() + " was modified by another session", e);
+        }
+    }
     public Optional<Advertisement> findById(@NonNull Long id) { return crud.findById(id); }
 
     public Optional<AdvertisementInfoDto> findAdvertisementById(@NonNull Long id) {
@@ -128,7 +135,7 @@ public class AdvertisementRepository {
                           .addValue("version",   version))
                   .update();
         if (updated == 0) {
-            throw new OptimisticLockingFailureException("Advertisement " + id + " was modified by another session");
+            throw new StaleWriteException("Advertisement " + id + " was modified by another session");
         }
     }
 

@@ -98,7 +98,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
-| Top | 🔴 | 202 | improvement-202 — `OptimisticLockingFailureException` (a Spring Data framework type) is the de facto cross-cutting "stale write" signal used everywhere: declared in `platform-commons`'s own `*Port` Javadoc contracts, thrown from 4 starter repositories plus 2 `marketplace-orchestrator` save services, caught by both `marketplace-app` and `marketplace-rest-api`. Carved out of `improvement-201` Part 4 once sized for real work; user-requested Top placement, 2026-09-23 |
 | Top | 🟡 | 199 | improvement-199 — F-05 contact reveal + click analytics, plus F-11a request board free MVP (private product roadmap Phase 2): structured phone/Telegram/Viber contact block with a counted click-to-reveal interaction, an append-only `contact_view` event table, a per-master view counter, and a dedicated request-board framing over the already-shipped `AdKind.REQUEST` filter — the platform's core demand-signal metric per `private/roadmap.md`. Next unblocked item in the roadmap (F-04 already shipped); user-requested Top placement, 2026-09-22 |
 | Top | 🟡 | 200 | improvement-200 — F-06 reviews & ratings (private product roadmap Phase 3): new `review-spring-boot-starter` (rating + text review, moderation, master response), denormalized aggregate rating on provider profile, review list/star UI. This project's stated "moat" vs the Facebook group — persistent reputation, the #1 trust signal. Sequenced after F-05/F-11a (`improvement-199`) per roadmap order; user-requested Top placement, 2026-09-22 |
 | Top | 🟡 | 186 | improvement-186 — REST API hypermedia (HATEOAS/HAL) action-discovery, an advertisement media sub-resource (POST/GET/DELETE), project-wide `PATCH` support via `JsonNullable`, and a 4th item: `POST /api/api-keys`'s HTTP Basic auth bypasses the login rate limiter entirely (verified 2026-09-22, distinct from `improvement-196`'s post-auth request-volume scope) — carved out of `improvement-183` item 9 once that one ask grew into three independently-sizable pieces; design fully worked out, ready, but the largest single piece of work in this list — sequenced after the smaller/quicker items above |
@@ -109,12 +108,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
-
-### Top priority — improvement-202
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-202](tasks/improvement-202-optimisticlockingfailureexception-decoupling.md) | New (carved out of `improvement-201` Part 4 once sized for real work, filed 2026-09-23; user-requested Top placement, 2026-09-23) | `org.springframework.dao.OptimisticLockingFailureException` is used as the project's cross-cutting "stale write" signal, declared in `platform-commons`'s own `*Port` Javadoc contracts (`AdvertisementPort`/`ProviderProfilePort`/`TaxonPort`), thrown from 4 domain starters' repositories plus 2 `marketplace-orchestrator` save services (one real `@Version` conflict, one synthetic concurrent-delete guard — see `marketplace-orchestrator/DECISIONS.md` ADR-006), and caught in both `marketplace-app` (UI) and `marketplace-rest-api` (REST, mapped to HTTP 412). Fix: introduce a project-owned type (e.g. `StaleWriteException` in `platform-commons`, alongside the existing `TooManyAttemptsException` precedent) and replace all throw/catch sites. Architectural-purity benefit only — no user-facing or external-API-contract change. See the issue file for the full honest cost/benefit weighing |
 
 ### Top priority — improvement-199
 

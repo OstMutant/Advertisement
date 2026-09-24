@@ -8,6 +8,7 @@ import java.io.ByteArrayInputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,6 +84,39 @@ class AttachmentContentTypeValidatorTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("does not match its declared type");
         assertThat(stream.closed).isTrue();
+    }
+
+    @Test
+    void validate_streamReadFailure_throwsUncheckedIOException() {
+        assertThatThrownBy(() -> AttachmentContentTypeValidator.validate(new ThrowingInputStream(), "photo.jpg", "image/jpeg"))
+                .isInstanceOf(UncheckedIOException.class)
+                .hasMessageContaining("Failed to inspect attachment content");
+    }
+
+    @Test
+    void validate_disallowedDeclaredType_closeFailure_stillThrowsIllegalArgumentException() {
+        CloseFailingInputStream stream = new CloseFailingInputStream(HTML_BYTES);
+        assertThatThrownBy(() -> AttachmentContentTypeValidator.validate(stream, "page.html", "text/html"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported attachment content type");
+    }
+
+    private static final class ThrowingInputStream extends InputStream {
+        @Override
+        public int read() throws IOException {
+            throw new IOException("boom");
+        }
+    }
+
+    private static final class CloseFailingInputStream extends FilterInputStream {
+        private CloseFailingInputStream(byte[] bytes) {
+            super(new ByteArrayInputStream(bytes));
+        }
+
+        @Override
+        public void close() throws IOException {
+            throw new IOException("close failed");
+        }
     }
 
     private static final class TrackingInputStream extends FilterInputStream {

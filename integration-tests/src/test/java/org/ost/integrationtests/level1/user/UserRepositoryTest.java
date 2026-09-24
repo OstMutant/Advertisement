@@ -14,7 +14,7 @@ import org.ost.user.entity.User;
 import org.ost.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.ost.platform.core.StaleWriteException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -72,14 +72,41 @@ class UserRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void updateProfile_staleVersion_throwsOptimisticLockingFailureException() {
+    void save_staleVersion_throwsStaleWriteException() {
+        User saved = save("Original Name", "user-" + UUID.randomUUID() + "@example.com", "hash-1", Role.USER);
+        userRepository.save(User.builder()
+                .id(saved.getId())
+                .name("First update")
+                .email(saved.getEmail())
+                .passwordHash(saved.getPasswordHash())
+                .role(saved.getRole())
+                .createdAt(saved.getCreatedAt())
+                .version(saved.getVersion())
+                .build());
+
+        User staleUpdate = User.builder()
+                .id(saved.getId())
+                .name("Stale update")
+                .email(saved.getEmail())
+                .passwordHash(saved.getPasswordHash())
+                .role(saved.getRole())
+                .createdAt(saved.getCreatedAt())
+                .version(saved.getVersion())
+                .build();
+
+        assertThatThrownBy(() -> userRepository.save(staleUpdate))
+                .isInstanceOf(StaleWriteException.class);
+    }
+
+    @Test
+    void updateProfile_staleVersion_throwsStaleWriteException() {
         User saved = save("Original Name", "user-" + UUID.randomUUID() + "@example.com", "hash-1", Role.USER);
 
         UserProfileDto staleUpdate = new UserProfileDto(saved.getId(), "New Name", Role.MODERATOR,
                 saved.getVersion() + 1);
 
         assertThatThrownBy(() -> userRepository.updateProfile(staleUpdate))
-                .isInstanceOf(OptimisticLockingFailureException.class);
+                .isInstanceOf(StaleWriteException.class);
     }
 
     @Test
