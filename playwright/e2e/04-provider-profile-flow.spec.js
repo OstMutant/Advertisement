@@ -23,7 +23,9 @@
  *     (NEUTRAL issues no ORDER BY at all, so its row order is Postgres physical storage order, not
  *     a documented contract -- not asserted).
  *   - "userEn opens a provider deep link": direct navigation to /providers/:id -> catalog overlay
- *     opens -> share button copies link -> sitemap.xml lists it -> crawler-facing og:type=profile/
+ *     opens -> contact reveal panel (phone reveals in place, Telegram click opens its t.me deep
+ *     link in a new tab, each records a contact_view) -> share button copies link -> sitemap.xml
+ *     lists it -> crawler-facing og:type=profile/
  *     JSON-LD ProfilePage -> card click updates URL -> browser Back closes overlay.
  *   - "userEn deletes their own provider profile from the public catalog": delete confirm dialog ->
  *     card removed -> AccountOverlay Provider Profile tab shows the empty state again.
@@ -617,7 +619,7 @@ test.describe('Provider Profile flow', () => {
     });
   });
 
-  test('userEn opens a provider deep link — direct navigation to /providers/:id opens the catalog overlay, share button copies link, sitemap.xml lists it', async () => {
+  test('userEn opens a provider deep link — direct navigation to /providers/:id opens the catalog overlay, contact reveal panel (phone reveal, Telegram deep link), share button copies link, sitemap.xml lists it', async () => {
     await page.goto('/');
     await page.locator('vaadin-tab').filter({ hasText: 'Providers' }).click();
     await page.waitForTimeout(300);
@@ -642,8 +644,29 @@ test.describe('Provider Profile flow', () => {
         '.provider-profile-categories-chips',
         '.provider-profile-city-chips',
         '.provider-profile-kind-badge',
+        '.contact-reveal-panel',
         '.entity-meta',
       ], 'provider-catalog-overlay-field-order');
+    });
+
+    await test.step('contact reveal panel — phone reveals in place, Telegram opens its deep link, each records a view', async () => {
+      const panel = overlay.locator('.contact-reveal-panel');
+      await expect(panel.locator('.contact-reveal-phone')).toBeVisible({ timeout: 5000 });
+      await expect(panel.locator('.contact-reveal-telegram')).toBeVisible();
+      await expect(panel.locator('.contact-reveal-viber')).toBeVisible();
+      await screenshot(page, 'provider-catalog-contact-reveal-panel');
+
+      await panel.locator('.contact-reveal-phone vaadin-button').click();
+      await expect(panel.locator('.contact-reveal-phone-value')).toHaveText('+380501234567', { timeout: 5000 });
+      await screenshot(page, 'provider-catalog-contact-reveal-phone-revealed');
+
+      const [telegramTab] = await Promise.all([
+        page.context().waitForEvent('page'),
+        panel.locator('.contact-reveal-telegram vaadin-button').click(),
+      ]);
+      await telegramTab.waitForLoadState('domcontentloaded').catch(() => {});
+      expect(telegramTab.url()).toContain('t.me/electro_master');
+      await telegramTab.close();
     });
 
     await test.step('share button — copies link to clipboard, shows confirmation notification', async () => {

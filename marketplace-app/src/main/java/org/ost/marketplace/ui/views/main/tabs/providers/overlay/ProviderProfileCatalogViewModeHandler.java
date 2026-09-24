@@ -13,6 +13,7 @@ import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.ContactRevealPanel;
 import org.ost.marketplace.ui.views.components.EntityMetaPanel;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
@@ -24,6 +25,7 @@ import org.ost.marketplace.ui.views.utils.HtmlExcerptUtil;
 import org.ost.marketplace.ui.views.utils.ShareUtil;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
 import org.ost.orchestrator.services.TaxonLookupService;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.taxon.dto.TaxonDto;
@@ -63,6 +65,7 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
     private final AppLinkService             appLinkService;
     private final NotificationService        notificationService;
     private final UiComponentFactory<EntityMetaPanel, EntityMetaPanel.Parameters> metaPanelFactory;
+    private final UiComponentFactory<ContactRevealPanel, ContactRevealPanel.Parameters> contactRevealPanelFactory;
 
     private Parameters params;
 
@@ -96,6 +99,9 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         buildChipRow(textCard, taxons, TaxonType.CITY, "provider-profile-city-chips",
                 "provider-profile-city-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
         textCard.add(kindBadge);
+        textCard.add(contactRevealPanelFactory.build(ContactRevealPanel.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
+                .build()));
         textCard.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));
 
         return new Div(textCard);

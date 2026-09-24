@@ -371,15 +371,45 @@ after the previous one is done and confirmed working (build/tests green).
   waiting for Checkpoint 6 — full `e2e --ux` suite green afterward (50 passed, 13 skipped as usual
   for `06-seed-*` without `--full`, 0 failed), screenshots confirmed both the filled form and the
   counters block render correctly.
-- **Checkpoint 4 — `ContactRevealPanel` + wiring into advertisement/provider-profile detail overlays.**
+- **Checkpoint 4 — `ContactRevealPanel` + wiring into advertisement/provider-profile detail overlays — DONE 2026-09-24:**
+  New `ContactRevealPanel` (`ui/views/components/`, Configurable prototype), vertical stack of
+  per-channel rows, rendered only for channels the resolved contact actually has. Phone reveals
+  the number in place (button replaced by a span); Telegram/Viber immediately open their deep link
+  (`https://t.me/{username}`, `viber://chat?number={number}`) via `UI.getCurrent().getPage().open()`.
+  Every click records a `contact_view` row through `ContactAccessService.recordView()`. Rate
+  limiting added (surfaced as a scope gap during planning, not originally itemized in any
+  checkpoint): new singleton `marketplace-app/services/security/ContactRevealRateLimiter`, reusing
+  `FailureRateLimiter` as-is (30 reveals / 15 min, keyed by client IP + viewer id when
+  authenticated — same key shape as `AuthService.login()`'s own limiter). Wired into
+  `AdvertisementViewOverlayModeHandler.buildPrimaryContent()` (after the gallery, before the meta
+  panel) and `ProviderProfileCatalogViewModeHandler.buildPrimaryContent()` (after the kind badge,
+  before the meta panel); new `ComponentFactoryConfig` factory bean.
+  Found and fixed a real bug during verification: `scripts/deploy-and-run/reset-clean.sql` (used by
+  `--reset-only-db`) never listed `contact_info`/`contact_view` in its `TRUNCATE ... RESTART
+  IDENTITY` — Checkpoint 1 added the `TestDataCleaner.cleanAll` fix for `integration-tests`'s own
+  Testcontainers cleanup but missed this separate dev/Playwright-loop reset script. Leftover
+  `contact_info` rows plus `provider_profile`'s restarted id sequence collided (`entity_id` reused
+  across runs), silently switching a same-`(entityType,entityId)` upsert into an INSERT with an
+  explicit stale `id` — Spring Data JDBC decides insert-vs-update by whether `@Version` is null,
+  not `@Id`, so a "new" save with a stale matched `id` hit `contact_info_pkey` head-on. Fixed by
+  adding both tables to the script's `TRUNCATE` list.
+  Verified live: extended `04-provider-profile-flow.spec.js`'s deep-link test with a new
+  `test.step` (all 3 rows render, phone reveals in place, Telegram click opens a new tab to the
+  right `t.me` URL — Viber intentionally not click-verified, to avoid custom-URI-scheme flakiness
+  in headless Chromium) — full `e2e --ux` green after the fix (50 passed, 0 failed). Advertisement-
+  side wiring compiles and renders without error but has no live click-through coverage yet (no ad
+  in the current seed data resolves a non-empty contact via the fallback) — left for Checkpoint 6's
+  own dedicated fixture setup.
 - **Checkpoint 5 — audit integration:** `ProviderProfileSnapshotDto` (and the advertisement
   equivalent) gain `phone`/`telegram`/`viber` in `diff()`/`allFields()`, fetched via `ContactPort`
   at snapshot-capture time in the save services.
 - **Checkpoint 6 — Playwright coverage** for reveal and the audit-timeline entry (extend existing
-  scenarios per "Test coverage" above). Provider-profile contact-field validation/save and the
-  view-mode counters block are already covered (pulled forward into Checkpoint 3's own live
-  verification, see above) — remaining scope is the `ContactRevealPanel` reveal interaction
-  (Checkpoint 4) and the audit-diff entry (Checkpoint 5).
+  scenarios per "Test coverage" above). Provider-profile contact-field validation/save, the
+  view-mode counters block, and the provider-profile-side `ContactRevealPanel` interaction
+  (phone reveal + Telegram deep link) are already covered (pulled forward into Checkpoints 3/4's
+  own live verification, see above) — remaining scope is the advertisement-side reveal interaction
+  (needs its own fixture: an ad whose owner has a saved contact, or an ad-level override) and the
+  audit-diff entry (Checkpoint 5).
 
 ## Related
 

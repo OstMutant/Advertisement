@@ -489,7 +489,13 @@ public enum I18nKey {
     CITY_VIEW_TOOLTIP_RESTORE("city.view.tooltip.restore"),
     CITY_VIEW_DELETED_LABEL("city.view.deleted.label"),
     CITY_VIEW_EMPTY("city.view.empty"),
-    CITY_VIEW_BUTTON_EDIT("city.view.button.edit");
+    CITY_VIEW_BUTTON_EDIT("city.view.button.edit"),
+
+    // === Contact Reveal ===
+    CONTACT_REVEAL_BUTTON_SHOW_PHONE("contactReveal.button.showPhone"),
+    CONTACT_REVEAL_BUTTON_TELEGRAM("contactReveal.button.telegram"),
+    CONTACT_REVEAL_BUTTON_VIBER("contactReveal.button.viber"),
+    CONTACT_REVEAL_NOTIFICATION_RATE_LIMITED("contactReveal.notification.rateLimited");
 
     private final String key;
 
