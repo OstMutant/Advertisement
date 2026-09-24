@@ -6,9 +6,9 @@
 foundation underneath it (authorization model, SQL layer, testing strategy, backlog process) is
 stable and is the actual point of this project.
 
-**At a glance:** 9 bounded-context modules · 3 independent test layers (unit / Testcontainers /
-Playwright) · 200+ backlog items, each resolved with a dated, root-cause write-up — not a vague
-TODO list.
+**At a glance:** 7 bounded-context starters · 3 test layers, each with a distinct failure scope (unit /
+Testcontainers / Playwright) · 200+ backlog items, each resolved with a dated, root-cause write-up
+— not a vague TODO list.
 
 Built as a real, working system to demonstrate specific engineering patterns applied to actual
 features — not a toy example, and not (yet) a finished product:
@@ -28,8 +28,8 @@ bash scripts/deploy-and-run.sh
 ```
 
 Builds and starts the full stack (Postgres, MinIO/S3, the app). The app comes up at
-**http://localhost:8081** with an empty catalog — sign up to create an account; the **first
-account ever registered is automatically promoted to Admin**, no seed credentials needed. The REST
+**http://localhost:8081** with an empty catalog — sign up to create an account; **on an empty
+installation, the first registered account is promoted to Admin**, no seed credentials needed. The REST
 API's interactive docs are at `http://localhost:8081/swagger-ui/index.html`. Full setup details
 (Docker Compose stack, env vars, running without Docker): [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
@@ -39,9 +39,9 @@ API's interactive docs are at `http://localhost:8081/swagger-ui/index.html`. Ful
 
 A service marketplace: users publish listings, browse and filter a shared catalog, and
 administrators moderate everything through a full audit trail with field-level change history and
-restore. Built as a real, working system — not a toy example — so every module also demonstrates
-one specific engineering pattern applied to an actual feature: SPI-based module decoupling,
-immutable audit snapshots, optimistic concurrency, hand-written SQL with no ORM.
+restore. Built as a real, working system — not a toy example — the modules apply specific
+engineering patterns to real features: SPI-based module decoupling, immutable audit snapshots,
+optimistic concurrency, hand-written SQL with no ORM.
 
 ---
 
@@ -57,9 +57,8 @@ immutable audit snapshots, optimistic concurrency, hand-written SQL with no ORM.
   assignment to any entity type; admins manage categories and taxonomy directly.
 - **Attachments** — photo/video uploads to S3-compatible storage, YouTube embeds, media history
   for restore.
-- **Audit trail** — every domain write captured as a versioned snapshot; admins/moderators review
-  every change through a per-entity activity timeline with field-level diffs, restore prior
-  versions.
+- **Audit trail** — versioned snapshots, field-level diffs, per-entity activity timeline, and
+  restore for supported domain entities (see "Architectural Principles" below for exactly which).
 - **i18n** — English/Ukrainian, enum-based translation keys (missing keys fail fast, never a
   silent fallback).
 - **Deep links & rich previews** — share a listing link with a rich social-media preview (Open
@@ -102,13 +101,13 @@ still rough, not just what shipped.
 hidden query generation or implicit persistence behavior.
 
 **Immutable data flow** — Entities and DTOs are immutable value objects, so state doesn't leak
-across layers through shared references. Every domain write is captured as an immutable, versioned
-snapshot rather than a mutable log line — snapshots are diffed at read time into a field-level
-activity timeline, so "what changed" is derived from real before/after state instead of
-hand-maintained.
+across layers through shared references. Every Advertisement/ProviderProfile/Taxon/User write is
+captured as an immutable, versioned snapshot rather than a mutable log line — snapshots are diffed
+at read time into a field-level activity timeline, so "what changed" is derived from real
+before/after state instead of hand-maintained.
 
-**Optimistic concurrency** — `Advertisement`, `Taxon`, and `User` updates carry a `version`
-column; a stale write is rejected with `StaleWriteException` instead of silently
+**Optimistic concurrency** — `Advertisement`, `Taxon`, `User`, and `ProviderProfile` updates carry
+a `version` column; a stale write is rejected with `StaleWriteException` instead of silently
 overwriting a concurrent change.
 
 **UI as a thin adapter** — Vaadin handles layout and interaction wiring only, no business logic
@@ -156,22 +155,34 @@ cross-domain use cases for both delivery channels — `marketplace-app` (Vaadin 
 `marketplace-rest-api` (external REST API). `integration-tests` (Testcontainers repository tests,
 test-only, not shown above) depends on every starter without any of them depending on it back.
 
+`platform-commons` holds contracts only — `*Port`/`*Hook` interfaces, DTOs, domain enums, snapshot
+types — never business logic or a Spring bean (enforced by its own module convention, see
+[`platform-commons/DECISIONS.md`](platform-commons/DECISIONS.md)). It's the one place every
+optional starter can be referenced from without a hard compile dependency on the starter itself.
+
+These boundaries aren't just documented convention —
+[`ArchitectureRulesTest`](marketplace-app/src/test/java/org/ost/marketplace/architecture/ArchitectureRulesTest.java)
+enforces them with ArchUnit on every build: no UI class may touch a repository, no starter may
+import Vaadin or a sibling starter's package, every `*Port`/`*Hook` interface must live in
+`platform-commons`, and no `marketplace-orchestrator` class may depend on more than two domain
+`*Port`s or touch `JdbcClient` directly. A boundary violation fails the build, not a code review.
+
 Per-module documentation:
 
 | Module | README | Decisions |
 |---|---|---|
 | query-lib | [README](query-lib/README.md) | [DECISIONS](query-lib/DECISIONS.md) |
 | html-sanitizer-lib | [README](html-sanitizer-lib/README.md) | [DECISIONS](html-sanitizer-lib/DECISIONS.md) |
-| platform-commons | — | [DECISIONS](platform-commons/DECISIONS.md) |
+| platform-commons | [README](platform-commons/README.md) | [DECISIONS](platform-commons/DECISIONS.md) |
 | audit-spring-boot-starter | [README](audit-spring-boot-starter/README.md) | [DECISIONS](audit-spring-boot-starter/DECISIONS.md) |
 | attachment-spring-boot-starter | [README](attachment-spring-boot-starter/README.md) | [DECISIONS](attachment-spring-boot-starter/DECISIONS.md) |
-| user-spring-boot-starter | [README](user-spring-boot-starter/README.md) | — |
-| advertisement-spring-boot-starter | [README](advertisement-spring-boot-starter/README.md) | — |
-| taxon-spring-boot-starter | — | [DECISIONS](taxon-spring-boot-starter/DECISIONS.md) |
-| provider-profile-spring-boot-starter | — | [DECISIONS](provider-profile-spring-boot-starter/DECISIONS.md) |
+| user-spring-boot-starter | [README](user-spring-boot-starter/README.md) | [DECISIONS](user-spring-boot-starter/DECISIONS.md) |
+| advertisement-spring-boot-starter | [README](advertisement-spring-boot-starter/README.md) | [DECISIONS](advertisement-spring-boot-starter/DECISIONS.md) |
+| taxon-spring-boot-starter | [README](taxon-spring-boot-starter/README.md) | [DECISIONS](taxon-spring-boot-starter/DECISIONS.md) |
+| provider-profile-spring-boot-starter | [README](provider-profile-spring-boot-starter/README.md) | [DECISIONS](provider-profile-spring-boot-starter/DECISIONS.md) |
 | apikey-spring-boot-starter | [README](apikey-spring-boot-starter/README.md) | [DECISIONS](apikey-spring-boot-starter/DECISIONS.md) |
 | integration-tests | [README](integration-tests/README.md) | [DECISIONS](integration-tests/DECISIONS.md) |
-| marketplace-orchestrator | — | [DECISIONS](marketplace-orchestrator/DECISIONS.md) |
+| marketplace-orchestrator | [README](marketplace-orchestrator/README.md) | [DECISIONS](marketplace-orchestrator/DECISIONS.md) |
 | marketplace-rest-api | [README](marketplace-rest-api/README.md) | [DECISIONS](marketplace-rest-api/DECISIONS.md) |
 | marketplace-app | [README](marketplace-app/README.md) | [DECISIONS](marketplace-app/DECISIONS.md) |
 | playwright | [README](playwright/README.md) | [DECISIONS](playwright/DECISIONS.md) |
@@ -194,7 +205,7 @@ Per-module documentation:
 
 ## Testing Strategy
 
-Three independent layers, each targeting a different failure mode:
+Three layers, each with a distinct failure scope:
 
 | Layer | Tool | What it catches |
 |---|---|---|
@@ -219,7 +230,8 @@ frozen codebase.
 Planned directions:
 - Extend rule-based validation capabilities
 - Improve composability of the generic filtering layer
-- REST hypermedia (HATEOAS) and `PATCH` support for the external API
+- REST hypermedia (HATEOAS); broader `PATCH` support beyond the existing user-settings endpoint
+  (`PATCH /api/users/me/settings`)
 - Broaden the marketplace's public-facing feature set (provider profiles, richer discovery)
 
 ---
