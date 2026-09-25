@@ -84,6 +84,11 @@ public class ProvidersView extends VerticalLayout {
         refresh();
     }
 
+    // MainView calls this on every tab select -- tabs only toggle visibility, never re-fetch on their own.
+    public void refreshOnTabSelect() {
+        refresh();
+    }
+
     public boolean openPendingDeepLinkIfAny() {
         PendingProviderProfileDeepLink pending = VaadinSession.getCurrent().getAttribute(PendingProviderProfileDeepLink.class);
         if (pending == null) return false;

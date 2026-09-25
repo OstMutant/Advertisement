@@ -25,6 +25,7 @@ public class ContactView {
     Long entityId;
     ContactChannel channel;
     Long viewerId;
+    String revealedValue;
 
     @CreatedDate
     Instant createdAt;

@@ -39,12 +39,17 @@ public class ContactService {
     }
 
     @Transactional
-    public void recordView(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull ContactChannel channel, Long viewerId) {
-        repository.recordView(entityType, entityId, channel, viewerId);
+    public void recordView(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull ContactChannel channel, Long viewerId, String revealedValue) {
+        repository.recordView(entityType, entityId, channel, viewerId, revealedValue);
     }
 
     public List<ContactViewCountDto> countViewsThisMonth(@NonNull EntityType entityType, @NonNull Long entityId) {
         return repository.countViewsThisMonth(entityType, entityId);
+    }
+
+    @Transactional
+    public void delete(@NonNull EntityType entityType, @NonNull Long entityId) {
+        repository.deleteByEntity(entityType, entityId);
     }
 
     private static ContactInfo buildEntity(ContactInfoDto dto, ContactInfo before) {

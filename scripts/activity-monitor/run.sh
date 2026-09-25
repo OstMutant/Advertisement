@@ -694,6 +694,9 @@ main() {
   RAW_LOG="$WORK_DIR/raw.log"
   : > "$RAW_LOG"
 
+  # Own stdout, not $RAW_LOG -- lets a redirected caller grep the real path instead of deriving it.
+  echo "activity-monitor: tree=$WORK_DIR/tree.txt"
+
   local profile="${profile_override:-${SCRIPT_PROFILE_MAP[$script_name]:-generic}}"
   CURRENT_SCRIPT_NAME="$script_name"
   load_profile "$profile"

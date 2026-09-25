@@ -40,14 +40,18 @@ public class ContactAccessService {
         return contactPortFactory.get().save(dto);
     }
 
-    public void recordView(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull ContactChannel channel, Long viewerId) {
-        contactPortFactory.ifAvailable(port -> port.recordView(entityType, entityId, channel, viewerId));
+    public void recordView(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull ContactChannel channel, Long viewerId, String revealedValue) {
+        contactPortFactory.ifAvailable(port -> port.recordView(entityType, entityId, channel, viewerId, revealedValue));
     }
 
     public List<ContactViewCountDto> countViewsThisMonth(@NonNull EntityType entityType, @NonNull Long entityId) {
         return contactPortFactory.findIfAvailable()
                 .map(port -> port.countViewsThisMonth(entityType, entityId))
                 .orElse(List.of());
+    }
+
+    public void delete(@NonNull EntityType entityType, @NonNull Long entityId) {
+        contactPortFactory.ifAvailable(port -> port.delete(entityType, entityId));
     }
 
     public boolean isAvailable() {

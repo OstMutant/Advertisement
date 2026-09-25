@@ -90,18 +90,34 @@ class ContactServiceTest {
 
     @Test
     void recordView_delegatesToPort() {
-        service.recordView(EntityType.ADVERTISEMENT, 10L, ContactChannel.PHONE, 5L);
+        service.recordView(EntityType.ADVERTISEMENT, 10L, ContactChannel.PHONE, 5L, "+380501111111");
 
-        verify(contactPort).recordView(EntityType.ADVERTISEMENT, 10L, ContactChannel.PHONE, 5L);
+        verify(contactPort).recordView(EntityType.ADVERTISEMENT, 10L, ContactChannel.PHONE, 5L, "+380501111111");
     }
 
     @Test
     void recordView_contactStarterAbsent_doesNothing() {
         doNothing().when(contactPortFactory).ifAvailable(any()); // overrides setUp()'s "always invoke" stub -- ObjectProvider-absent shape.
 
-        service.recordView(EntityType.ADVERTISEMENT, 10L, ContactChannel.PHONE, 5L);
+        service.recordView(EntityType.ADVERTISEMENT, 10L, ContactChannel.PHONE, 5L, "+380501111111");
 
-        verify(contactPort, never()).recordView(any(), any(), any(), any());
+        verify(contactPort, never()).recordView(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void delete_delegatesToPort() {
+        service.delete(EntityType.PROVIDER_PROFILE, 99L);
+
+        verify(contactPort).delete(EntityType.PROVIDER_PROFILE, 99L);
+    }
+
+    @Test
+    void delete_contactStarterAbsent_doesNothing() {
+        doNothing().when(contactPortFactory).ifAvailable(any());
+
+        service.delete(EntityType.PROVIDER_PROFILE, 99L);
+
+        verify(contactPort, never()).delete(any(), any());
     }
 
     @Test

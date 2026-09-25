@@ -132,9 +132,9 @@ class ContactRepositoryTest extends AbstractPostgresIntegrationTest {
     void recordView_and_countViewsThisMonth_countsPerChannelIndependently() {
         Long entityId = newEntityId();
 
-        contactRepository.recordView(EntityType.PROVIDER_PROFILE, entityId, ContactChannel.PHONE, 42L);
-        contactRepository.recordView(EntityType.PROVIDER_PROFILE, entityId, ContactChannel.PHONE, null);
-        contactRepository.recordView(EntityType.PROVIDER_PROFILE, entityId, ContactChannel.TELEGRAM, 42L);
+        contactRepository.recordView(EntityType.PROVIDER_PROFILE, entityId, ContactChannel.PHONE, 42L, "+380501234567");
+        contactRepository.recordView(EntityType.PROVIDER_PROFILE, entityId, ContactChannel.PHONE, null, "+380501234567");
+        contactRepository.recordView(EntityType.PROVIDER_PROFILE, entityId, ContactChannel.TELEGRAM, 42L, "mastername");
 
         List<ContactViewCountDto> counts = contactRepository.countViewsThisMonth(EntityType.PROVIDER_PROFILE, entityId);
 
@@ -146,5 +146,25 @@ class ContactRepositoryTest extends AbstractPostgresIntegrationTest {
     @Test
     void countViewsThisMonth_noViews_returnsEmptyList() {
         assertThat(contactRepository.countViewsThisMonth(EntityType.PROVIDER_PROFILE, newEntityId())).isEmpty();
+    }
+
+    @Test
+    void deleteByEntity_removesContactInfo_leavesOtherEntityUntouched() {
+        Long deletedId = newEntityId();
+        Long keptId = newEntityId();
+        contactRepository.save(ContactInfo.builder()
+                .entityType(EntityType.PROVIDER_PROFILE).entityId(deletedId).phone("+380501234567").build());
+        contactRepository.save(ContactInfo.builder()
+                .entityType(EntityType.PROVIDER_PROFILE).entityId(keptId).phone("+380509999999").build());
+
+        contactRepository.deleteByEntity(EntityType.PROVIDER_PROFILE, deletedId);
+
+        assertThat(contactRepository.findByEntity(EntityType.PROVIDER_PROFILE, deletedId)).isEmpty();
+        assertThat(contactRepository.findByEntity(EntityType.PROVIDER_PROFILE, keptId)).isPresent();
+    }
+
+    @Test
+    void deleteByEntity_noRow_doesNotThrow() {
+        contactRepository.deleteByEntity(EntityType.PROVIDER_PROFILE, newEntityId());
     }
 }

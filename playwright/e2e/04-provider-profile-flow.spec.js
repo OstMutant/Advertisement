@@ -54,7 +54,7 @@
  * Returns: exit code from the Playwright test runner -- 0 when every test in this file passes,
  *   non-zero otherwise.
  * ──────────────────────────────────────────────────────────────────────────── */
-const { test, expect, screenshot, closeNotification, closeOverlay, TEST_USERS, assertAbsent, assertVerticalOrder } = require('./_helpers');
+const { test, expect, screenshot, closeNotification, closeOverlay, TEST_USERS, assertAbsent, assertVerticalOrder, waitForOverlayClosed } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runOpenSettingsFlow, runCloseSettingsFlow } = require('./_flows/audit.flow');
 const { openEntityActivity, closeEntityActivity } = require('./_flows/entity-activity.flow');
@@ -143,20 +143,18 @@ test.describe('Provider Profile flow', () => {
     await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
     await closeNotification(page);
 
-    // Save keeps the form open -- Cancel switches to View (safe: nothing unsaved to lose).
-    await page.locator('.account-overlay vaadin-button[title="Cancel"]').click();
-    await page.waitForTimeout(300);
+    // Save now switches straight to View -- no Cancel click needed (Tabs never re-fires a click on an already-selected tab).
     await expect(page.locator('.account-overlay .provider-profile-kind-badge')).toContainText('MASTER', { timeout: 5000 });
     await expect(page.locator('.account-overlay .provider-profile-category-chip')).toContainText('Electronics');
     await expect(page.locator('.account-overlay .provider-profile-city-chip')).toContainText('Lviv');
     await screenshot(page, 'provider-profile-view-after-create');
 
-    await test.step('contact views counters — Phone/Telegram/Viber all show 0 this month (no reveals happened yet)', async () => {
+    await test.step('contact views counters — Phone/Telegram/Viber show the saved value and a 0 click count (no reveals happened yet)', async () => {
       const counters = page.locator('.account-overlay .provider-profile-contact-views');
       await expect(counters).toBeVisible({ timeout: 5000 });
-      await expect(counters.locator('.provider-profile-contact-views-phone')).toContainText('0');
-      await expect(counters.locator('.provider-profile-contact-views-telegram')).toContainText('0');
-      await expect(counters.locator('.provider-profile-contact-views-viber')).toContainText('0');
+      await expect(counters.locator('.provider-profile-contact-views-phone')).toContainText('+380501234567 (0)');
+      await expect(counters.locator('.provider-profile-contact-views-telegram')).toContainText('electro_master (0)');
+      await expect(counters.locator('.provider-profile-contact-views-viber')).toContainText('+380509876543 (0)');
       await screenshot(page, 'provider-profile-contact-views-counters');
     });
 
@@ -172,6 +170,15 @@ test.describe('Provider Profile flow', () => {
     });
 
     await runCloseSettingsFlow(page);
+
+    await test.step('Providers tab reflects the just-created profile without a page reload', async () => {
+      await page.locator('vaadin-tab').filter({ hasText: 'Providers' }).click();
+      await page.waitForTimeout(300);
+      const container = page.locator('.provider-profile-container');
+      await expect(container.locator('.provider-profile-card').filter({ hasText: 'MASTER' })).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'providers-tab-live-refresh-after-create');
+    });
+
     await runLogoutFlow(page, expect);
   });
 
@@ -188,8 +195,7 @@ test.describe('Provider Profile flow', () => {
     await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Save' }).click();
     await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
     await closeNotification(page);
-    await page.locator('.account-overlay vaadin-button[title="Cancel"]').click();
-    await page.waitForTimeout(300);
+    // Save now switches straight to View -- no Cancel click needed.
 
     await test.step('account-tab view — chip rows absent, reduced field order intact', async () => {
       const viewCard = page.locator('.account-overlay .overlay__view-card');
@@ -242,12 +248,9 @@ test.describe('Provider Profile flow', () => {
     await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
     await closeNotification(page);
 
-    // Save keeps the form open -- the just-saved values stay in the fields, no reload needed.
-    await expect(page.locator('.account-overlay vaadin-radio-button').filter({ hasText: 'SHOP' })).toHaveJSProperty('checked', true, { timeout: 5000 });
-    await expect(async () => {
-      const names = await selectedCategoryNames(page);
-      expect(names.sort()).toEqual(['Electronics', 'Vehicles']);
-    }).toPass({ timeout: 5000 });
+    // Save now switches straight to View -- assert the rendered chips/badge instead of raw form fields.
+    await expect(page.locator('.account-overlay .provider-profile-kind-badge')).toContainText('SHOP', { timeout: 5000 });
+    await expect(page.locator('.account-overlay .provider-profile-category-chip')).toContainText(['Electronics', 'Vehicles']);
     await screenshot(page, 'provider-profile-edit-after-save');
 
     const activityList = await openEntityActivity(page, '.provider-profile-history-button');
@@ -256,6 +259,8 @@ test.describe('Provider Profile flow', () => {
 
     await test.step('phone-only edit — records its own activity entry showing just the Phone field changed', async () => {
       await closeEntityActivity(page, 'parent');
+      await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Edit' }).click();
+      await page.waitForTimeout(300);
       const phoneField = page.locator('.account-overlay vaadin-text-field[data-testid="provider-profile-phone-field"] input');
       await phoneField.fill('+380507654321');
       await phoneField.blur(); // TextField syncs on blur, not per keystroke -- no other field to blur into here
@@ -275,6 +280,25 @@ test.describe('Provider Profile flow', () => {
     await closeEntityActivity(page, 'outer');
     await expect(page.locator('.base-overlay.overlay--visible')).toHaveCount(0, { timeout: 5000 });
     await screenshot(page, 'provider-profile-outer-breadcrumb-closed');
+
+    await test.step('advertisement create form — read-only contact preview pulled from own provider profile', async () => {
+      await page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first().click();
+      await page.waitForTimeout(300);
+      await page.locator('.add-advertisement-button').click();
+      const overlay = page.locator('.advertisement-overlay');
+      await overlay.waitFor({ timeout: 5000 });
+
+      const preview = overlay.locator('.advertisement-contact-preview');
+      await expect(preview).toBeVisible({ timeout: 5000 });
+      await expect(preview.locator('.advertisement-contact-preview-phone')).toContainText('+380507654321');
+      await expect(preview.locator('.advertisement-contact-preview-telegram')).toContainText('electro_master');
+      await expect(preview.locator('.advertisement-contact-preview-viber')).toContainText('+380509876543');
+      await expect(preview.locator('.advertisement-contact-preview-phone')).toHaveAttribute('title', /profile/i);
+      await screenshot(page, 'advertisement-create-contact-preview');
+
+      await overlay.locator('vaadin-button').filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') }).first().click();
+      await waitForOverlayClosed(page);
+    });
 
     await runLogoutFlow(page, expect);
   });
@@ -331,8 +355,7 @@ test.describe('Provider Profile flow', () => {
     await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
     await closeNotification(page);
 
-    await page.locator('.account-overlay vaadin-button[title="Cancel"]').click();
-    await page.waitForTimeout(300);
+    // Save now switches straight to View -- no Cancel click needed.
     await expect(page.locator('.account-overlay .provider-profile-kind-badge')).toContainText('SUPPORT', { timeout: 5000 });
     await expect(page.locator('.account-overlay .provider-profile-city-chip')).toContainText('Kyiv');
     await screenshot(page, 'provider-profile-admin-via-grid-view');
@@ -370,8 +393,7 @@ test.describe('Provider Profile flow', () => {
       await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Save' }).click();
       await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
       await closeNotification(page);
-      await page.locator('.account-overlay vaadin-button[title="Cancel"]').click();
-      await page.waitForTimeout(300);
+      // Save now switches straight to View -- no Cancel click needed.
       await runCloseSettingsFlow(page);
       await runLogoutFlow(page, expect);
 
@@ -392,8 +414,7 @@ test.describe('Provider Profile flow', () => {
       await page.locator('.account-overlay vaadin-button').filter({ hasText: /save|зберегти/i }).click();
       await expect(page.locator('vaadin-notification-container')).toContainText(/provider profile saved|профіль провайдера збережено/i, { timeout: 5000 });
       await closeNotification(page);
-      await page.locator('.account-overlay vaadin-button[title="Cancel"], .account-overlay vaadin-button[title="Скасувати"]').click();
-      await page.waitForTimeout(300);
+      // Save now switches straight to View -- no Cancel click needed.
       await runCloseSettingsFlow(page);
       await runLogoutFlow(page, expect);
 
@@ -410,8 +431,7 @@ test.describe('Provider Profile flow', () => {
       await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Save' }).click();
       await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
       await closeNotification(page);
-      await page.locator('.account-overlay vaadin-button[title="Cancel"]').click();
-      await page.waitForTimeout(300);
+      // Save now switches straight to View -- no Cancel click needed.
       await runCloseSettingsFlow(page);
       await runLogoutFlow(page, expect);
     });

@@ -115,6 +115,7 @@ public class ProviderProfileSaveService {
                 taxonAssignmentWriteService.clear(EntityType.PROVIDER_PROFILE, id);
             }
             providerProfilePortFactory.get().delete(id, version);
+            contactAccessService.delete(EntityType.PROVIDER_PROFILE, id);
             if (snapshot != null) {
                 auditPortFactory.ifAvailable(p -> p.captureDeletion(id, snapshot, actorId));
             }

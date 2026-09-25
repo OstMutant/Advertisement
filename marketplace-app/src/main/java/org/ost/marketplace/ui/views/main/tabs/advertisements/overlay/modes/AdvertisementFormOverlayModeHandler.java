@@ -20,8 +20,11 @@ import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
 import org.ost.orchestrator.services.AdvertisementReadService;
 import org.ost.orchestrator.services.AttachmentMediaService;
 import org.ost.orchestrator.services.AuditQueryService;
+import org.ost.orchestrator.services.ContactAccessService;
+import org.ost.orchestrator.services.ProviderProfileSaveService;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
+import org.ost.platform.contact.dto.ContactInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
@@ -96,6 +99,8 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private final TaxonCatalogService                                          taxonCatalogService;
     private final LocaleProvider                                               localeProvider;
     private final AdvertisementDisplayEnrichmentService                        enrichmentService;
+    private final ContactAccessService                                         contactAccessService;
+    private final ProviderProfileSaveService                                   providerProfileSaveService;
 
     private QuillEditor descriptionField;
     private UiTextField titleField;
@@ -184,6 +189,8 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             fieldsCard.add(cityComboBox);
         }
         fieldsCard.add(adKindField);
+        Div contactPreview = isCreate ? buildContactPreviewBlockForCurrentActor() : buildContactPreviewBlock(params.getAd().getId());
+        if (contactPreview != null) fieldsCard.add(contactPreview);
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div content = new Div(fieldsCard);
@@ -222,6 +229,47 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
         updateButtons(false);
         layout.setContent(content);
+    }
+
+    // A not-yet-saved ad has no id to resolve the fallback from -- during Create, the eventual
+    // owner is always the current actor, so read straight from their own provider profile instead.
+    private Div buildContactPreviewBlockForCurrentActor() {
+        if (!providerProfileSaveService.isAvailable()) return null;
+        ContactInfoDto contact = providerProfileSaveService.findByActorId(access.getCurrentUserId())
+                .flatMap(profile -> contactAccessService.find(EntityType.PROVIDER_PROFILE, profile.getId()))
+                .orElse(null);
+        return buildContactPreviewBlock(contact);
+    }
+
+    private Div buildContactPreviewBlock(Long adId) {
+        return buildContactPreviewBlock(contactAccessService.resolveContact(EntityType.ADVERTISEMENT, adId).orElse(null));
+    }
+
+    private Div buildContactPreviewBlock(ContactInfoDto contact) {
+        if (contact == null) return null;
+
+        Div block = new Div();
+        block.addClassName("advertisement-contact-preview");
+        Span label = new Span(getValue(ADVERTISEMENT_OVERLAY_CONTACT_PREVIEW_LABEL));
+        label.addClassName("advertisement-contact-preview-label");
+        block.add(label);
+        String hint = getValue(ADVERTISEMENT_OVERLAY_CONTACT_PREVIEW_HINT);
+        if (!isBlank(contact.phone())) block.add(buildContactPreviewRow("advertisement-contact-preview-phone", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_PHONE), contact.phone(), hint));
+        if (!isBlank(contact.telegram())) block.add(buildContactPreviewRow("advertisement-contact-preview-telegram", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_TELEGRAM), contact.telegram(), hint));
+        if (!isBlank(contact.viber())) block.add(buildContactPreviewRow("advertisement-contact-preview-viber", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_VIBER), contact.viber(), hint));
+        return block;
+    }
+
+    private static Div buildContactPreviewRow(String cssClass, String label, String value, String hint) {
+        Div row = new Div();
+        row.addClassName(cssClass);
+        row.getElement().setAttribute("title", hint);
+        row.add(new Span(label + ": " + value));
+        return row;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private UiIconButton buildHistoryButton() {

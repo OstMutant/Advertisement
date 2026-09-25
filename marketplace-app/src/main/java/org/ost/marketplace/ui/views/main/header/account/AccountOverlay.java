@@ -99,10 +99,14 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
 
     @Override
     protected void proceed() {
-        // stays open after save, same as the SettingsOverlay it replaces -- nothing to close
+        // Name/Settings stay open after save -- nothing to close, same as the SettingsOverlay Name/Settings replaced.
         if (session.section() == Section.NAME && session.nameMode() == NameMode.EDIT) {
             UserDto fresh = ((AccountNameFormModeHandler) currentFormHandler).getSavedUser();
             if (fresh != null) session.onUpdated().accept(fresh);
+        } else if (session.section() == Section.PROVIDER_PROFILE && session.providerProfileMode() == ProviderProfileMode.EDIT) {
+            // Provider Profile switches to View after save -- its own Tabs entry never re-fires a click on an already-selected tab.
+            session = session.toProviderProfileView();
+            switchTo();
         }
     }
 
@@ -205,6 +209,7 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
                                 .onDeleted(this::switchTo)
                                 .onClose(this::closeToList)
                                 .tabBar(tabs)
+                                .breadcrumbSteps(breadcrumbSteps)
                                 .build());
                 case EDIT -> {
                     currentFormHandler = providerProfileHandlerFactory.build(

@@ -446,6 +446,184 @@ after the previous one is done and confirmed working (build/tests green).
   verification, see above). Only remaining: the **advertisement-side** `ContactRevealPanel` click-
   through (needs its own fixture — an ad whose owner has a saved contact, since no advertisement in
   the current seed data resolves a non-empty contact via the fallback).
+- **Checkpoint 7 — data-hygiene + reveal-UX gaps found via manual testing on a real clean deploy,
+  2026-09-25 — DONE 2026-09-25:**
+  - **Confirmed bug — orphaned `contact_info` on profile delete:** `ProviderProfileSaveService.delete()`
+    only calls `providerProfilePortFactory.get().delete(id, version)` — the profile's own
+    `contact_info` row is never removed (no FK, `entity_type`+`entity_id` convention, so nothing
+    cascades). Verified directly via `psql` after a full clean Playwright run: a `contact_info` row
+    for a since-deleted `provider_profile` id survives as a permanent orphan. Fix: `delete()` (or
+    `ContactAccessService`) must also delete the entity's `contact_info` row in the same
+    transaction. Open question: also delete its `contact_view` history, or keep it for historical
+    stats even after the profile is gone? Leaning toward keeping `contact_view` (append-only event
+    log, same as `audit_log` never deletes on entity removal) and only deleting `contact_info`
+    itself — needs confirmation before implementing.
+  - **Confirmed gap — `contact_view` doesn't snapshot the revealed value:** the table records only
+    `entity_type/entity_id/channel/viewer_id/created_at`, never the actual phone/telegram/viber
+    value shown at reveal time. If the owner later changes their number, all historical and new
+    clicks collapse into the same `(entity_id, channel)` bucket with no way to tell which clicks
+    happened against which number. Fix direction: add a `revealed_value` column to `contact_view`,
+    populated by `ContactAccessService.recordView()`/`ContactService` at insert time from the same
+    `ContactInfoDto` the panel just resolved — needs a concrete column design + migration before
+    implementing.
+  - **Reveal-panel one-time-click behavior — confirmed as-designed, not a bug (user decision
+    2026-09-25):** `ContactRevealPanel`'s public panel intentionally shows no click count next to
+    the revealed value (counts stay owner-only, in `ProviderProfileViewModeHandler`'s own "Contact
+    views" block) and the phone button intentionally stays a one-time reveal per panel render (no
+    re-click without reopening the overlay, which already re-fetches fresh data — traced the real
+    `discardChanges()`→`afterDiscard()`→`switchTo()` path, no caching found). No code change here.
+  - **Testing gap acknowledged:** none of the above are caught by the current Playwright suite —
+    the green `--full --ux` run doesn't exercise delete-then-inspect-orphan or a number change
+    followed by re-inspecting `contact_view`. New/extended specs needed once the two real fixes
+    below land.
+
+  **Decisions (2026-09-25):** delete only `contact_info` on profile delete, keep `contact_view`
+  history (same append-only precedent as `audit_log`). Reveal-panel UX (count visibility, one-time
+  click) confirmed as-is, no change. Remaining real scope: (A) cascade-delete `contact_info` on
+  profile delete, (B) add a `revealed_value` snapshot column to `contact_view`.
+
+  **Plan (A) — cascade-delete `contact_info` on profile delete:**
+  - `ContactPort`/`ContactAccessService` gains a `delete(EntityType, Long entityId)` method
+    (delegates to a new `ContactRepository`/`ContactInfoCrudRepository` delete-by-entity call).
+  - `ProviderProfileSaveService.delete()` calls it, in the same try block, after the port delete
+    succeeds — same transaction boundary as the profile delete itself.
+
+  **Plan (B) — snapshot the revealed value on each `contact_view` insert:**
+  - New Liquibase changeset (`contact-spring-boot-starter`'s own changelog) adding
+    `contact_view.revealed_value VARCHAR(64)` (nullable — historical rows before this migration
+    have none), `remarks` stating it's the phone/telegram/viber value actually shown at reveal
+    time, so historical clicks stay attributable to the number that was live then.
+  - `ContactView` entity gains the field; `ContactPort.recordView(...)`/`ContactAccessService
+    .recordView(...)` gain a `revealedValue` parameter.
+  - `ContactRevealPanel`'s two call sites (`buildPhoneRow`/`buildDeepLinkRow`) pass the actual
+    resolved value (`contact.phone()`/`contact.telegram()`/`contact.viber()`) through.
+
+  **Test coverage for both:** `integration-tests` repository-level coverage
+  (`ContactRepositoryTest`) for the cascade-delete and the new column; Playwright — extend
+  `04-provider-profile-flow.spec.js`'s existing delete test to assert no orphan row remains (or a
+  new backend-only check if Playwright can't inspect the DB directly), and extend the phone-reveal
+  `test.step` to assert `revealed_value` is populated.
+
+  **Implemented and verified 2026-09-25:** both fixes landed. `ContactPort.delete(EntityType, Long)`
+  + `ContactRepository.deleteByEntity`/`ContactService.delete`/`ContactPortImpl.delete`
+  (contact-spring-boot-starter), `ContactAccessService.delete` (marketplace-orchestrator), wired
+  into `ProviderProfileSaveService.delete()` right after the port delete. New Liquibase changeset
+  `02-contact-view-revealed-value.xml` adds `contact_view.revealed_value VARCHAR(64)`;
+  `ContactPort.recordView(...)`/the full call chain down to `ContactRevealPanel`'s two call sites
+  now carry the actually-revealed value. Full `build-and-test.sh --unit --integration` green: unit
+  78/78 (`marketplace-app`), `ContactAccessServiceTest` 10/10, `ProviderProfileSaveServiceTest`
+  14/14; integration 257/257 including new `ContactRepositoryTest` 8/8 and
+  `ContactServiceTest` (starter-level) 3/3.
+  Verified live end-to-end: clean redeploy (`--reset-only-db`) + full `e2e --ux` Playwright run
+  (50 passed, 0 failed, 13 skipped — spec 06 not run without `--full`). Direct `psql` inspection
+  after the run confirmed both fixes against real data: `contact_info` has zero
+  `PROVIDER_PROFILE`-type rows left after the suite's own create-then-delete flow (no orphan);
+  `contact_view` retained 2 historical rows (a phone reveal and a telegram reveal) for that
+  since-deleted profile, each with `revealed_value` correctly populated
+  (`+380507654321`/`electro_master`) — confirms both the cascade-delete and the value-snapshot
+  fix, and that view history survives the profile's own deletion as decided. No new Playwright
+  spec needed — neither fix has a UI-visible signal to assert (per the earlier product decisions:
+  reveal counts stay owner-only, revealed value is never shown in the panel itself).
+
+- **Checkpoint 8 — owner-view UX gaps found via manual testing on the live env, 2026-09-25 — DONE
+  2026-09-25:** three further real gaps, found after Checkpoint 7 shipped:
+  1. **`ProviderProfileViewModeHandler.buildContactViewsBlock()` shows only the click count, never
+     the value itself** ("Phone: 0" instead of "Phone: +380... (0)") — owner has no way to see
+     their own saved number next to its reveal count in the private view. Fix: fetch
+     `contactService.find(...)` in this method, render `"<value> (<count>)"` per channel, skip a
+     channel row entirely when its value is null (mirrors `ContactRevealPanel`'s own
+     hidden-when-empty rule).
+  2. **`AccountOverlay.proceed()` is a no-op for `PROVIDER_PROFILE` — confirmed root cause of the
+     "profile tab doesn't update" complaint:** the form deliberately stays open in Edit after Save
+     (comment: "same as SettingsOverlay"), but Vaadin's `Tabs` component never re-fires a
+     `SelectedChangeEvent` for a click on the already-selected tab — so after creating/editing a
+     profile, clicking the still-selected "Provider Profile" tab does visibly nothing, reading as
+     "nothing updated." Fix (deliberate reversal of the earlier "stays open" decision, provider-
+     profile-only — Name/Settings keep their own current behavior): add a `PROVIDER_PROFILE`+`EDIT`
+     branch to `proceed()` that switches to View mode after a successful save, same transition
+     `afterDiscard()`/close-X already uses (fresh `findByActorId`/`countViewsThisMonth`, confirmed
+     no caching in that path during the Checkpoint 7 investigation).
+  3. **No read-only contact preview in the advertisement Edit form** — an ad's own contact is
+     always resolved via fallback to the owner's profile (Checkpoint 2), shown only in the ad's own
+     View via `ContactRevealPanel`; the Edit form shows nothing at all, so an owner editing their ad
+     has no visibility into what contact will display. Scope, confirmed with user: **Edit mode
+     only** (View stays exactly as-is, `ContactRevealPanel` unchanged) — a read-only
+     phone/telegram/viber block in `AdvertisementFormOverlayModeHandler`, resolved via
+     `ContactAccessService.resolveContact(ADVERTISEMENT, adId)`, each field carrying a `title`
+     attribute (native browser tooltip) noting it's pulled from the profile. Hidden entirely when
+     the fallback resolves nothing (no profile, or profile has no contact set).
+
+  **Implemented and verified 2026-09-25.** (1) `ProviderProfileViewModeHandler.buildContactViewsBlock()`
+  now fetches `contactService.find(...)` and renders `"<value> (<count>)"` per channel, skipping
+  a channel row entirely when unset. (2) `AccountOverlay.proceed()` gained a `PROVIDER_PROFILE`+
+  `EDIT` branch switching to View after a successful save (deliberate reversal of the earlier
+  "stays open" design, provider-profile-only) — this exposed a second real gap along the way:
+  `ProviderProfileViewModeHandler` had no history button at all (only the Edit form did), so
+  landing in View right after Save would have hidden history access. Fixed by adding the same
+  `buildHistoryButton()` pattern to the View handler too (`canOperate(false)` — View-mode history
+  is read-only; restoring a past revision still goes through the Edit form's own history button,
+  which can actually load the restored data into the binder), plumbing `breadcrumbSteps` through
+  `ProviderProfileViewModeHandler.Parameters` from `AccountOverlay.switchTo()`. (3) New read-only
+  contact-preview block in `AdvertisementFormOverlayModeHandler.activate()` (Edit mode only, hidden
+  on create since a not-yet-saved ad has no id to resolve a fallback from), two new i18n keys
+  (`advertisement.overlay.contactPreview.label/hint`).
+
+  Fixed 6 call sites in `04-provider-profile-flow.spec.js` that assumed the old "Save keeps the
+  form open, Cancel switches to View" behavior (raw form-field assertions right after Save, or an
+  unconditional Cancel click that no longer has a button to find) — updated to assert the rendered
+  View content directly. Full `build-and-test.sh --unit --no-integration` green (78/78
+  `marketplace-app`, 20/20 ArchUnit) both before and after the spec fixes; live-verified via clean
+  redeploy + full `e2e --ux` (50 passed, 0 failed, 13 skipped) twice — once catching the spec
+  breakage from item (2)'s behavior change, once fully green after fixing it.
+
+- **Checkpoint 9 — two more real gaps found via manual testing after Checkpoint 8 shipped,
+  2026-09-25 — DONE 2026-09-25:**
+  1. **Contact preview was hidden on advertisement Create, not just Edit — a scoping mistake I made
+     without confirming with the user.** Checkpoint 8's read-only contact block was gated on
+     `!isCreate` on the reasoning that a not-yet-saved ad has no id to resolve
+     `ContactAccessService.resolveContact(ADVERTISEMENT, adId)` from. That reasoning is correct but
+     incomplete: during Create, the eventual owner is always the current actor, so the block should
+     instead resolve straight from the current actor's own provider profile. Fix:
+     `AdvertisementFormOverlayModeHandler` gained `ProviderProfileSaveService`;
+     `buildContactPreviewBlockForCurrentActor()` (Create path) does
+     `providerProfileSaveService.findByActorId(currentUserId)` →
+     `contactAccessService.find(PROVIDER_PROFILE, profileId)`, guarded by
+     `providerProfileSaveService.isAvailable()`. `buildContactPreviewBlock(Long adId)` (Edit path,
+     unchanged logic) and the new Create path both funnel into one shared
+     `buildContactPreviewBlock(ContactInfoDto)` rendering method.
+  2. **`ProvidersView` (the public "Providers" tab) never refreshes on tab switch — a systemic gap
+     in `MainView`'s tab-switching mechanism, not specific to this feature.** `MainView`'s
+     `tabs.addSelectedChangeListener` only toggles `.setVisible(true/false)` between the 5 top-level
+     tab views (Advertisements/Providers/Users/Timeline/Reference Data) — none of them re-fetch on
+     becoming visible. This never surfaced before because every other cross-view create/edit path
+     (e.g. creating an advertisement) opens its overlay *from* the same view it needs to refresh, so
+     that view's own `onSaved`/`onListChanged` callback already triggers its own `refresh()`. A
+     provider profile is created via `AccountOverlay` (opened from `HeaderBar`, structurally
+     decoupled from `ProvidersView`), so there was no path back to `ProvidersView`'s own `refresh()`
+     at all — confirmed: switching to the Providers tab after saving a profile in Settings showed
+     stale (pre-save) data until a full page reload. Fix, scoped to the concretely reported tab
+     only (the same latent gap likely exists for Users/Timeline/Reference Data too — flagged, not
+     fixed here, since none of those were reported and fixing every tab is a larger, unrequested
+     scope): `ProvidersView` gained a `public void refreshOnTabSelect()` one-line wrapper around its
+     existing private `refresh()` (keeping `refresh()` itself private per the standing View Pattern
+     rule); `MainView`'s selected-change listener now calls it whenever the newly-selected tab is
+     the Providers tab.
+  **Implemented and verified 2026-09-25.** New Playwright coverage, both in
+  `04-provider-profile-flow.spec.js` (userEn already has a live profile+contact at this exact
+  point in the file's serial sequence, before its later deletion): a
+  `'advertisement create form — read-only contact preview pulled from own provider profile'`
+  test.step (opens Create, asserts `.advertisement-contact-preview` shows the current
+  phone/telegram/viber values and a `title` tooltip, closes without saving) and a
+  `'Providers tab reflects the just-created profile without a page reload'` test.step (switches to
+  the Providers tab directly after closing the Settings overlay, no `page.goto`, asserts the new
+  MASTER card is visible). Found and fixed one bug in my own new test during verification: the
+  Create form's close-X button doesn't remove `.advertisement-overlay` from the DOM (same
+  `.overlay--visible` class-toggle shape `AccountOverlay` uses), so the initial
+  `toHaveCount(0)` assertion never resolved — fixed to `waitForOverlayClosed(page)`, the existing
+  shared helper already built for exactly this. Full `build-and-test.sh --unit --no-integration`
+  green (78/78) before redeploy; live-verified via clean redeploy + full `e2e --ux` (50 passed, 0
+  failed, 13 skipped) — one real failure caught and fixed on the first attempt (the test bug above),
+  fully green on the second.
 
 ## Related
 

@@ -262,6 +262,7 @@ class ProviderProfileSaveServiceTest {
 
         verify(providerProfilePort).delete(profileId, version);
         verify(taxonAssignmentWriteService).clear(EntityType.PROVIDER_PROFILE, profileId);
+        verify(contactAccessService).delete(EntityType.PROVIDER_PROFILE, profileId);
         ArgumentCaptor<AuditableSnapshot> snapshotCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
         verify(auditPort).captureDeletion(eq(profileId), snapshotCaptor.capture(), eq(ACTOR_ID));
         assertThat(((ProviderProfileSnapshotDto) snapshotCaptor.getValue()).about()).isEqualTo("Deleted about");

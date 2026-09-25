@@ -67,9 +67,9 @@ public class ContactRevealPanel extends Div
 
         if (!isBlank(contact.phone())) add(buildPhoneRow(contact.phone()));
         if (!isBlank(contact.telegram())) add(buildDeepLinkRow("contact-reveal-telegram", VaadinIcon.PAPERPLANE,
-                getValue(CONTACT_REVEAL_BUTTON_TELEGRAM), ContactChannel.TELEGRAM, "https://t.me/" + contact.telegram()));
+                getValue(CONTACT_REVEAL_BUTTON_TELEGRAM), ContactChannel.TELEGRAM, "https://t.me/" + contact.telegram(), contact.telegram()));
         if (!isBlank(contact.viber())) add(buildDeepLinkRow("contact-reveal-viber", VaadinIcon.MOBILE,
-                getValue(CONTACT_REVEAL_BUTTON_VIBER), ContactChannel.VIBER, "viber://chat?number=" + contact.viber()));
+                getValue(CONTACT_REVEAL_BUTTON_VIBER), ContactChannel.VIBER, "viber://chat?number=" + contact.viber(), contact.viber()));
 
         setVisible(getComponentCount() > 0);
         return this;
@@ -83,7 +83,7 @@ public class ContactRevealPanel extends Div
         var button = new Button(getValue(CONTACT_REVEAL_BUTTON_SHOW_PHONE), VaadinIcon.PHONE.create());
         button.addClickListener(_ -> {
             if (!checkAllowed()) return;
-            contactAccessService.recordView(params.getEntityRef().entityType(), params.getEntityRef().entityId(), ContactChannel.PHONE, access.getCurrentUserId());
+            contactAccessService.recordView(params.getEntityRef().entityType(), params.getEntityRef().entityId(), ContactChannel.PHONE, access.getCurrentUserId(), phone);
             Span revealed = new Span(phone);
             revealed.addClassName("contact-reveal-phone-value");
             row.removeAll();
@@ -93,7 +93,7 @@ public class ContactRevealPanel extends Div
         return row;
     }
 
-    private Div buildDeepLinkRow(String cssClass, VaadinIcon icon, String label, ContactChannel channel, String deepLinkUrl) {
+    private Div buildDeepLinkRow(String cssClass, VaadinIcon icon, String label, ContactChannel channel, String deepLinkUrl, String revealedValue) {
         Div row = new Div();
         row.addClassName("contact-reveal-row");
         row.addClassName(cssClass);
@@ -101,7 +101,7 @@ public class ContactRevealPanel extends Div
         var button = new Button(label, icon.create());
         button.addClickListener(_ -> {
             if (!checkAllowed()) return;
-            contactAccessService.recordView(params.getEntityRef().entityType(), params.getEntityRef().entityId(), channel, access.getCurrentUserId());
+            contactAccessService.recordView(params.getEntityRef().entityType(), params.getEntityRef().entityId(), channel, access.getCurrentUserId(), revealedValue);
             UI.getCurrent().getPage().open(deepLinkUrl, "_blank");
         });
         row.add(button);

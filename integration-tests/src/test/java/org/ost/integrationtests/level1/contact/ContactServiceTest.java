@@ -60,4 +60,13 @@ class ContactServiceTest extends AbstractPostgresIntegrationTest {
                 null, EntityType.PROVIDER_PROFILE, 1L, "not-a-phone", null, null, null, null)))
                 .isInstanceOf(ConstraintViolationException.class);
     }
+
+    @Test
+    void delete_removesContactInfoRow() {
+        contactService.save(new ContactInfoDto(null, EntityType.PROVIDER_PROFILE, 2L, "+380501111111", null, null, null, null));
+
+        contactService.delete(EntityType.PROVIDER_PROFILE, 2L);
+
+        assertThat(contactService.find(EntityType.PROVIDER_PROFILE, 2L)).isEmpty();
+    }
 }

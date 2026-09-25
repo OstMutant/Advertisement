@@ -114,7 +114,9 @@ public class MainView extends VerticalLayout {
 
         tabs.addSelectedChangeListener(_ -> {
             tabsToPages.values().forEach(page -> page.setVisible(false));
-            tabsToPages.get(tabs.getSelectedTab()).setVisible(true);
+            Component selected = tabsToPages.get(tabs.getSelectedTab());
+            selected.setVisible(true);
+            if (selected == providersView) providersView.refreshOnTabSelect();
         });
 
         headerBar.addClassName("main-header");

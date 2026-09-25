@@ -63,13 +63,22 @@ public class ContactRepository {
                 .optional();
     }
 
-    public void recordView(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull ContactChannel channel, Long viewerId) {
+    public void recordView(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull ContactChannel channel, Long viewerId, String revealedValue) {
         viewCrud.save(ContactView.builder()
                 .entityType(entityType)
                 .entityId(entityId)
                 .channel(channel)
                 .viewerId(viewerId)
+                .revealedValue(revealedValue)
                 .build());
+    }
+
+    public void deleteByEntity(@NonNull EntityType entityType, @NonNull Long entityId) {
+        jdbcClient.sql("DELETE FROM contact_info WHERE entity_type = :entityType AND entity_id = :entityId")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("entityType", entityType.name())
+                        .addValue("entityId", entityId))
+                .update();
     }
 
     public List<ContactViewCountDto> countViewsThisMonth(@NonNull EntityType entityType, @NonNull Long entityId) {

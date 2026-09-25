@@ -23,9 +23,12 @@ public interface ContactPort {
      *  {@link org.ost.platform.core.StaleWriteException}. */
     ContactInfoDto save(@NonNull ContactInfoDto dto);
 
-    /** Records one reveal/click event. {@code viewerId} is null for anonymous reveals. */
-    void recordView(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull ContactChannel channel, Long viewerId);
+    /** Records one reveal/click event. {@code viewerId} is null for anonymous reveals; {@code revealedValue} is the phone/telegram/viber value actually shown, so historical clicks stay attributable after the owner later changes it. */
+    void recordView(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull ContactChannel channel, Long viewerId, String revealedValue);
 
     /** Per-channel reveal counts for the current calendar month. Channels with zero reveals are omitted. */
     List<ContactViewCountDto> countViewsThisMonth(@NonNull EntityType entityType, @NonNull Long entityId);
+
+    /** Deletes the {@code contact_info} row for this entity, if any. {@code contact_view} history is never deleted -- same append-only precedent as {@code audit_log}. */
+    void delete(@NonNull EntityType entityType, @NonNull Long entityId);
 }

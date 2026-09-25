@@ -36,12 +36,18 @@ public class ContactPortImpl implements ContactPort {
 
     @Override
     @Transactional
-    public void recordView(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull ContactChannel channel, Long viewerId) {
-        service.recordView(entityType, entityId, channel, viewerId);
+    public void recordView(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull ContactChannel channel, Long viewerId, String revealedValue) {
+        service.recordView(entityType, entityId, channel, viewerId, revealedValue);
     }
 
     @Override
     public List<ContactViewCountDto> countViewsThisMonth(@NonNull EntityType entityType, @NonNull Long entityId) {
         return service.countViewsThisMonth(entityType, entityId);
+    }
+
+    @Override
+    @Transactional
+    public void delete(@NonNull EntityType entityType, @NonNull Long entityId) {
+        service.delete(entityType, entityId);
     }
 }
