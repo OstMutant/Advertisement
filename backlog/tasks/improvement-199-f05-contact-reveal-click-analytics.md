@@ -107,10 +107,16 @@ through a `ContactPort` (`platform-commons/contact/spi`) composed by `marketplac
   mode), backed by `ContactPort` via `marketplace-orchestrator` — not a new field on
   `ProviderProfileDto` itself.
 
-### Step 2 — advertisement override + click resolution, still fully decoupled
+### Step 2 — advertisement click resolution, still fully decoupled
 
-- Advertisement's optional per-listing contact override is just another `contact_info` row with
-  `entity_type = ADVERTISEMENT` — no new column on the `advertisement` table itself.
+**Superseded 2026-09-25 (Checkpoint 5):** the "ad's own per-listing `contact_info` override"
+concept below is dropped — no UI to write an `ADVERTISEMENT`-level `contact_info` row was ever
+built or is planned; ads only ever read the fallback-resolved contact. `ContactPort`/
+`ContactAccessService` stay entity-generic (nothing prevents an `ADVERTISEMENT` row existing), but
+nothing in this app writes one. Left below only for history.
+
+- ~~Advertisement's optional per-listing contact override is just another `contact_info` row with
+  `entity_type = ADVERTISEMENT` — no new column on the `advertisement` table itself.~~
 - Fallback resolution ("ad's own `contact_info` row if present, else the ad owner's
   `provider_profile` row") lives in `marketplace-orchestrator` only — a small use-case service
   composing `ContactPort` + `AdvertisementPort` + `ProviderProfilePort` as needed (the ad-owner →
@@ -400,16 +406,46 @@ after the previous one is done and confirmed working (build/tests green).
   side wiring compiles and renders without error but has no live click-through coverage yet (no ad
   in the current seed data resolves a non-empty contact via the fallback) — left for Checkpoint 6's
   own dedicated fixture setup.
-- **Checkpoint 5 — audit integration:** `ProviderProfileSnapshotDto` (and the advertisement
-  equivalent) gain `phone`/`telegram`/`viber` in `diff()`/`allFields()`, fetched via `ContactPort`
-  at snapshot-capture time in the save services.
-- **Checkpoint 6 — Playwright coverage** for reveal and the audit-timeline entry (extend existing
-  scenarios per "Test coverage" above). Provider-profile contact-field validation/save, the
-  view-mode counters block, and the provider-profile-side `ContactRevealPanel` interaction
-  (phone reveal + Telegram deep link) are already covered (pulled forward into Checkpoints 3/4's
-  own live verification, see above) — remaining scope is the advertisement-side reveal interaction
-  (needs its own fixture: an ad whose owner has a saved contact, or an ad-level override) and the
-  audit-diff entry (Checkpoint 5).
+- **Checkpoint 5 — audit integration — DONE 2026-09-25 — provider-profile only, advertisement scope
+  dropped:** user clarified mid-task: advertisements never get their own editable `contact_info` —
+  no per-listing contact-override UI was ever built (Checkpoint 3 only touched the provider-profile
+  form) and none is planned; ads only ever *read* the fallback-resolved contact (Checkpoints 2/4).
+  So the original Plan's Step 2 "advertisement override" concept is dropped, and this checkpoint is
+  provider-profile-only.
+  `ProviderProfileSnapshotDto` gains `phone`/`telegram`/`viber` in the record + `diff()`/`allFields()`
+  (kept the old 4-arg and added a 7-arg delegating constructor, `SCHEMA_VERSION` unchanged per
+  ADR-024's own reasoning — an addition, not a rename/type change).
+  Restructured the save flow to match the already-established `categoryIds`/`cityTaxonId` precedent
+  (ADR-030, platform-commons): contact_info previously saved as a *separate* UI-layer step
+  (`ProviderProfileFormOverlayModeHandler.saveContact()`, Checkpoint 3) *after* the audit snapshot
+  was captured, meaning any snapshot would have shown stale contact data. Moved the write inside
+  `ProviderProfileSaveService.save()`'s own transaction instead — `ProviderProfileSaveDto` gains
+  `phone`/`telegram`/`viber`, `ContactAccessService` added as a plain collaborator (doesn't count
+  against the module's ≤2-domain-port rule, same as `TaxonAssignmentWriteService`), contact
+  upserted right after the profile itself, "after" snapshot built from the just-saved values.
+  `ProviderProfileFormOverlayModeHandler.saveContact()`/`currentContact` field removed entirely;
+  `ProviderProfileEditDto`'s phone/telegram/viber bindings gained `.withNullRepresentation("")` so a
+  blank field commits `null` (not `""`, which `@Pattern` would reject) to the SaveDto.
+  Also fixed to keep `PUT /api/provider-profiles/{id}` (marketplace-rest-api) from silently
+  clearing UI-set contacts: added the same 3 fields to `ProviderProfileWriteRequest` (full-replace
+  semantics, matching every other field on that endpoint) instead of hardcoding `null`.
+  Verified live: extended "userEn edits provider profile" with a phone-only-edit `test.step` —
+  confirms the SAME `ProviderProfileSnapshotDto`/audit entry carries the diff (no separate
+  "contact_info changed" entity type), and that unrelated fields (Category/City/Telegram/Viber)
+  render as plain current-state values with no `→` arrow when unchanged. Full `e2e --ux` green
+  (50 passed, 0 failed) after fixing two of my own test bugs found along the way: a missing
+  `.blur()` before expecting Save to re-enable (Vaadin's TextField syncs on blur, not per
+  keystroke — Playwright won't click an already-disabled button to trigger it), and a wrong
+  assumption that the changes block only lists changed fields (it lists every field, arrow-diffing
+  only the ones that actually changed) which broke the later "deep link" reveal test's hardcoded
+  phone assertion (now points at the post-edit value).
+- **Checkpoint 6 — Playwright coverage, remaining scope narrowed to one item:** provider-profile
+  contact-field validation/save, the view-mode counters block, the provider-profile-side
+  `ContactRevealPanel` interaction (phone reveal + Telegram deep link), and the contact-field
+  audit-diff entry are all already covered (pulled forward into Checkpoints 3/4/5's own live
+  verification, see above). Only remaining: the **advertisement-side** `ContactRevealPanel` click-
+  through (needs its own fixture — an ad whose owner has a saved contact, since no advertisement in
+  the current seed data resolves a non-empty contact via the fallback).
 
 ## Related
 

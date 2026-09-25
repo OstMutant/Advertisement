@@ -24,6 +24,9 @@ public record ProviderProfileSnapshotDto(
         String about,
         List<Long> categoryIds,
         Long cityTaxonId,
+        String phone,
+        String telegram,
+        String viber,
         int schemaVersion
 ) implements AuditableSnapshot {
 
@@ -33,8 +36,14 @@ public record ProviderProfileSnapshotDto(
         categoryIds = categoryIds != null ? List.copyOf(categoryIds.stream().sorted().toList()) : List.of();
     }
 
+    // Pre-existing shape, kept for callers that don't set contact fields.
     public ProviderProfileSnapshotDto(ProviderKind kind, String about, List<Long> categoryIds, Long cityTaxonId) {
-        this(kind, about, categoryIds, cityTaxonId, SCHEMA_VERSION);
+        this(kind, about, categoryIds, cityTaxonId, null, null, null, SCHEMA_VERSION);
+    }
+
+    public ProviderProfileSnapshotDto(ProviderKind kind, String about, List<Long> categoryIds, Long cityTaxonId,
+                                       String phone, String telegram, String viber) {
+        this(kind, about, categoryIds, cityTaxonId, phone, telegram, viber, SCHEMA_VERSION);
     }
 
     @Override
@@ -55,6 +64,9 @@ public record ProviderProfileSnapshotDto(
         Long prevCityId = prev != null ? prev.cityTaxonId() : null;
         if (!Objects.equals(prevCityId, cityTaxonId()))
             changes.add(new FieldChange(Fields.cityTaxonId, idToString(prevCityId), idToString(cityTaxonId())));
+        diffField(changes, Fields.phone,    field(prev, ProviderProfileSnapshotDto::phone),    phone());
+        diffField(changes, Fields.telegram, field(prev, ProviderProfileSnapshotDto::telegram), telegram());
+        diffField(changes, Fields.viber,    field(prev, ProviderProfileSnapshotDto::viber),    viber());
         return changes;
     }
 
@@ -64,7 +76,10 @@ public record ProviderProfileSnapshotDto(
                 new FieldChange(Fields.kind,        null, typeToString(kind())),
                 new FieldChange(Fields.about,       null, about()),
                 new FieldChange(Fields.categoryIds, null, idsToString(categoryIds())),
-                new FieldChange(Fields.cityTaxonId, null, idToString(cityTaxonId())));
+                new FieldChange(Fields.cityTaxonId, null, idToString(cityTaxonId())),
+                new FieldChange(Fields.phone,       null, phone()),
+                new FieldChange(Fields.telegram,    null, telegram()),
+                new FieldChange(Fields.viber,       null, viber()));
     }
 
     private static String idsToString(List<Long> ids) {

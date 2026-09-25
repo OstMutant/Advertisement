@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.spi.CurrentLocaleHook;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
+import org.ost.platform.contact.dto.ContactInfoDto;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
@@ -46,6 +47,7 @@ class ProviderProfileSaveServiceTest {
     @Mock private ProviderProfilePort providerProfilePort;
     @Mock private AuditPort auditPort;
     @Mock private TaxonAssignmentWriteService taxonAssignmentWriteService;
+    @Mock private ContactAccessService contactAccessService;
     @Mock private ProviderProfileDisplayEnrichmentService displayEnrichmentService;
     @Mock private CurrentLocaleHook currentLocaleHook;
     @Mock private SitemapService sitemapService;
@@ -56,7 +58,7 @@ class ProviderProfileSaveServiceTest {
     @BeforeEach
     void setUp() {
         service = new ProviderProfileSaveService(tx, providerProfilePortFactory, auditPortFactory,
-                taxonAssignmentWriteService, displayEnrichmentService, currentLocaleHook, sitemapService, authorizationService);
+                taxonAssignmentWriteService, contactAccessService, displayEnrichmentService, currentLocaleHook, sitemapService, authorizationService);
         lenient().when(tx.execute(this.<Long>callback())).thenAnswer(inv -> {
             TransactionCallback<Long> callback = inv.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));
@@ -70,6 +72,7 @@ class ProviderProfileSaveServiceTest {
         lenient().when(currentLocaleHook.getCurrentLocale()).thenReturn(Locale.ENGLISH);
         lenient().when(displayEnrichmentService.enrichWithCategoryAndCity(any(), any()))
                 .thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(contactAccessService.find(any(), any())).thenReturn(Optional.empty());
     }
 
     @SuppressWarnings("unchecked")
@@ -88,7 +91,7 @@ class ProviderProfileSaveServiceTest {
 
     @Test
     void save_newProfile_capturesCreationNotUpdate() {
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", Set.of(1L, 2L), 5L, null);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", Set.of(1L, 2L), 5L, null, null, null, null);
         when(providerProfilePort.save(dto, ACTOR_ID, ACTOR_ID, false)).thenReturn(100L);
         when(providerProfilePort.findById(100L)).thenReturn(Optional.of(
                 ProviderProfileDto.builder().id(100L).kind(ProviderKind.MASTER).about("About")
@@ -110,7 +113,7 @@ class ProviderProfileSaveServiceTest {
     @Test
     void save_existingProfile_capturesUpdateWithAfter() {
         Long profileId = 42L;
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(profileId, ProviderKind.SHOP, "New about", Set.of(3L), 7L, 1L);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(profileId, ProviderKind.SHOP, "New about", Set.of(3L), 7L, null, null, null, 1L);
         ProviderProfileDto before = ProviderProfileDto.builder().id(profileId).kind(ProviderKind.MASTER).about("Old about").build();
         ProviderProfileDto after = ProviderProfileDto.builder().id(profileId).kind(ProviderKind.SHOP).about("New about")
                 .categoryIds(Set.of(3L)).cityTaxonId(7L).build();
@@ -129,9 +132,69 @@ class ProviderProfileSaveServiceTest {
     }
 
     @Test
+    void save_withContactFieldsAndNoExistingContact_upsertsAsNewRowAndIncludesInAfterSnapshot() {
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", Set.of(), null,
+                "+380501234567", "electro_master", null, null);
+        when(providerProfilePort.save(dto, ACTOR_ID, ACTOR_ID, false)).thenReturn(100L);
+        when(providerProfilePort.findById(100L)).thenReturn(Optional.of(
+                ProviderProfileDto.builder().id(100L).kind(ProviderKind.MASTER).about("About").build()));
+        when(contactAccessService.save(any())).thenReturn(new ContactInfoDto(
+                1L, EntityType.PROVIDER_PROFILE, 100L, "+380501234567", "electro_master", null, null, 0L));
+        stubAvailable(auditPortFactory, auditPort);
+
+        service.save(dto, ACTOR_ID, ACTOR_ID);
+
+        ArgumentCaptor<ContactInfoDto> contactCaptor = ArgumentCaptor.forClass(ContactInfoDto.class);
+        verify(contactAccessService).save(contactCaptor.capture());
+        assertThat(contactCaptor.getValue().id()).isNull();
+        assertThat(contactCaptor.getValue().phone()).isEqualTo("+380501234567");
+        ArgumentCaptor<AuditableSnapshot> afterCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
+        verify(auditPort).captureCreation(eq(100L), afterCaptor.capture(), eq(ACTOR_ID));
+        ProviderProfileSnapshotDto after = (ProviderProfileSnapshotDto) afterCaptor.getValue();
+        assertThat(after.phone()).isEqualTo("+380501234567");
+        assertThat(after.telegram()).isEqualTo("electro_master");
+    }
+
+    @Test
+    void save_noContactFieldsAndNoExistingContact_neverCallsContactSave() {
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", Set.of(), null,
+                null, null, null, null);
+        when(providerProfilePort.save(dto, ACTOR_ID, ACTOR_ID, false)).thenReturn(100L);
+        when(providerProfilePort.findById(100L)).thenReturn(Optional.of(
+                ProviderProfileDto.builder().id(100L).kind(ProviderKind.MASTER).about("About").build()));
+        stubAvailable(auditPortFactory, auditPort);
+
+        service.save(dto, ACTOR_ID, ACTOR_ID);
+
+        verify(contactAccessService, never()).save(any());
+    }
+
+    @Test
+    void save_existingContact_upsertsWithExistingIdAndVersion() {
+        Long profileId = 42L;
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(profileId, ProviderKind.SHOP, "New about", Set.of(), null,
+                "+380509999999", null, null, 1L);
+        when(providerProfilePort.findById(profileId)).thenReturn(
+                Optional.of(ProviderProfileDto.builder().id(profileId).kind(ProviderKind.MASTER).about("Old about").build()),
+                Optional.of(ProviderProfileDto.builder().id(profileId).kind(ProviderKind.SHOP).about("New about").build()));
+        when(providerProfilePort.save(dto, ACTOR_ID, ACTOR_ID, false)).thenReturn(profileId);
+        when(contactAccessService.find(EntityType.PROVIDER_PROFILE, profileId)).thenReturn(Optional.of(
+                new ContactInfoDto(7L, EntityType.PROVIDER_PROFILE, profileId, "+380501111111", null, null, null, 3L)));
+        stubAvailable(auditPortFactory, auditPort);
+
+        service.save(dto, ACTOR_ID, ACTOR_ID);
+
+        ArgumentCaptor<ContactInfoDto> contactCaptor = ArgumentCaptor.forClass(ContactInfoDto.class);
+        verify(contactAccessService).save(contactCaptor.capture());
+        assertThat(contactCaptor.getValue().id()).isEqualTo(7L);
+        assertThat(contactCaptor.getValue().version()).isEqualTo(3L);
+        assertThat(contactCaptor.getValue().phone()).isEqualTo("+380509999999");
+    }
+
+    @Test
     void save_existingProfileConcurrentlyDeleted_throwsOptimisticLockingFailure() {
         Long profileId = 42L;
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(profileId, ProviderKind.SHOP, "New about", Set.of(), null, 1L);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(profileId, ProviderKind.SHOP, "New about", Set.of(), null, null, null, null, 1L);
 
         when(providerProfilePort.findById(profileId)).thenReturn(Optional.empty());
 
@@ -142,7 +205,7 @@ class ProviderProfileSaveServiceTest {
 
     @Test
     void save_optionalAuditPortAbsent_completesWithoutException() {
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", null, null, null);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", null, null, null, null, null, null);
         when(providerProfilePort.save(dto, ACTOR_ID, ACTOR_ID, false)).thenReturn(1L);
         when(providerProfilePort.findById(1L)).thenReturn(Optional.of(
                 ProviderProfileDto.builder().id(1L).kind(ProviderKind.MASTER).about("About").build()));
@@ -155,7 +218,7 @@ class ProviderProfileSaveServiceTest {
 
     @Test
     void save_supportKindByPrivilegedActor_passesPrivilegedFlagThrough() {
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.SUPPORT, "About", null, null, null);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.SUPPORT, "About", null, null, null, null, null, null);
         when(authorizationService.isPrivileged(ACTOR_ID)).thenReturn(true);
         when(providerProfilePort.save(dto, ACTOR_ID, ACTOR_ID, true)).thenReturn(1L);
         when(providerProfilePort.findById(1L)).thenReturn(Optional.of(
@@ -170,7 +233,7 @@ class ProviderProfileSaveServiceTest {
     @Test
     void save_deniedByAuthorization_throwsAndNeverSaves() {
         Long targetUserId = 77L;
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", null, null, null);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", null, null, null, null, null, null);
         doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanOperate(ACTOR_ID, targetUserId);
 
         assertThatThrownBy(() -> service.save(dto, targetUserId, ACTOR_ID))

@@ -50,7 +50,7 @@ class ProviderProfileServiceTest {
     @Test
     void save_supportKind_notPrivileged_throwsIllegalStateException() {
         ProviderProfileService service = newService();
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.SUPPORT, "About", null, null, null);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.SUPPORT, "About", null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.save(dto, 1L, 1L, false))
                 .isInstanceOf(IllegalStateException.class)
@@ -62,7 +62,7 @@ class ProviderProfileServiceTest {
         ProviderProfileService service = newService();
         when(repository.save(any()))
                 .thenReturn(ProviderProfile.builder().id(1L).build());
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.SUPPORT, "About", null, null, null);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.SUPPORT, "About", null, null, null, null, null, null);
 
         Long id = service.save(dto, 1L, 1L, true);
 
@@ -74,7 +74,7 @@ class ProviderProfileServiceTest {
         ProviderProfileService service = newService();
         when(repository.save(any()))
                 .thenReturn(ProviderProfile.builder().id(1L).build());
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", null, null, null);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", null, null, null, null, null, null);
 
         Long id = service.save(dto, 1L, 1L, false);
 
@@ -87,7 +87,7 @@ class ProviderProfileServiceTest {
         ArgumentCaptor<ProviderProfile> captor = ArgumentCaptor.forClass(ProviderProfile.class);
         when(repository.save(captor.capture())).thenReturn(ProviderProfile.builder().id(1L).build());
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(
-                null, ProviderKind.MASTER, "<script>alert(1)</script><b>Bold</b>", null, null, null);
+                null, ProviderKind.MASTER, "<script>alert(1)</script><b>Bold</b>", null, null, null, null, null, null);
 
         service.save(dto, 1L, 1L, false);
 
@@ -100,7 +100,7 @@ class ProviderProfileServiceTest {
     void save_aboutExceedsVisibleTextMaxLength_throws() {
         ProviderProfileService service = newService();
         String tooLong = "a".repeat(ProviderProfileSaveDto.ABOUT_MAX_LENGTH + 1);
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, tooLong, null, null, null);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, tooLong, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.save(dto, 1L, 1L, false))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -113,7 +113,7 @@ class ProviderProfileServiceTest {
         ArgumentCaptor<ProviderProfile> captor = ArgumentCaptor.forClass(ProviderProfile.class);
         when(repository.save(captor.capture())).thenReturn(ProviderProfile.builder().id(1L).build());
         String exactlyMax = "a".repeat(ProviderProfileSaveDto.ABOUT_MAX_LENGTH);
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, exactlyMax, null, null, null);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, exactlyMax, null, null, null, null, null, null);
 
         service.save(dto, 1L, 1L, false);
 
@@ -125,7 +125,7 @@ class ProviderProfileServiceTest {
         ProviderProfileService service = newService();
         ArgumentCaptor<ProviderProfile> captor = ArgumentCaptor.forClass(ProviderProfile.class);
         when(repository.save(captor.capture())).thenReturn(ProviderProfile.builder().id(1L).build());
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", null, null, null);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", null, null, null, null, null, null);
 
         service.save(dto, 42L, 99L, false);
 

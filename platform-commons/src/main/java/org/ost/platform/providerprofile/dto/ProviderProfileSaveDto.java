@@ -1,7 +1,9 @@
 package org.ost.platform.providerprofile.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import org.ost.platform.contact.dto.ContactInfoDto;
 import org.ost.platform.providerprofile.model.ProviderKind;
 
 import java.util.Set;
@@ -12,6 +14,9 @@ public record ProviderProfileSaveDto(
         @Size(max = ABOUT_RAW_MAX_LENGTH) String about,
         @Size(max = CATEGORY_MAX_COUNT) Set<Long> categoryIds,
         Long cityTaxonId,
+        @Pattern(regexp = ContactInfoDto.PHONE_PATTERN) String phone,
+        @Pattern(regexp = ContactInfoDto.TELEGRAM_PATTERN) String telegram,
+        @Pattern(regexp = ContactInfoDto.PHONE_PATTERN) String viber,
         Long version
 ) {
     public static final int ABOUT_MAX_LENGTH     = 2000;

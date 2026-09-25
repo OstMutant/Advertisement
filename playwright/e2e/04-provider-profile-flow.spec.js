@@ -8,7 +8,11 @@
  *   - "userEn creates provider profile": also covers contact fields -- invalid phone/telegram/viber
  *     format rejected on save, valid E.164 phone/viber and Telegram username accepted, and the
  *     view-mode "Contact views (this month)" counters block showing 0/0/0 after creation.
- *   - "userEn edits provider profile" / "moderatorEn views
+ *   - "userEn edits provider profile": also covers a phone-only edit (kind/about/categories/city
+ *     untouched) recording its own activity entry showing just the Phone field changed, proving
+ *     contact fields are captured in the same ProviderProfileSnapshotDto as the profile's own
+ *     fields, not a separate audit entity.
+ *   - "moderatorEn views
  *     userEn's account" / "adminEn creates and edits userUk's provider profile via the Users grid":
  *     unchanged AccountOverlay tab coverage, see individual test names for detail.
  *   - "anonymous visitor browses the public Providers catalog": first seeds two more profiles
@@ -210,7 +214,7 @@ test.describe('Provider Profile flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('userEn edits provider profile — previously-saved kind/about/categories/city pre-filled on re-edit, second category added, activity diff, history button, outer breadcrumb closes to list', async () => {
+  test('userEn edits provider profile — previously-saved kind/about/categories/city pre-filled on re-edit, second category added, activity diff, phone-only edit records its own activity entry, history button, outer breadcrumb closes to list', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
     await runOpenSettingsFlow(page);
@@ -249,6 +253,24 @@ test.describe('Provider Profile flow', () => {
     const activityList = await openEntityActivity(page, '.provider-profile-history-button');
     await expect(activityList.locator('.entity-activity-row')).toHaveCount(2, { timeout: 5000 });
     await screenshot(page, 'provider-profile-activity-diff');
+
+    await test.step('phone-only edit — records its own activity entry showing just the Phone field changed', async () => {
+      await closeEntityActivity(page, 'parent');
+      const phoneField = page.locator('.account-overlay vaadin-text-field[data-testid="provider-profile-phone-field"] input');
+      await phoneField.fill('+380507654321');
+      await phoneField.blur(); // TextField syncs on blur, not per keystroke -- no other field to blur into here
+      await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Save' }).click();
+      await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
+      await closeNotification(page);
+
+      const phoneActivityList = await openEntityActivity(page, '.provider-profile-history-button');
+      await expect(phoneActivityList.locator('.entity-activity-row')).toHaveCount(3, { timeout: 5000 });
+      // The row shows every field's current value; only actually-changed fields get the "old → new" arrow.
+      const latestChanges = phoneActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
+      await expect(latestChanges).toContainText('Phone: +380501234567 → +380507654321');
+      await expect(latestChanges).not.toContainText(/Category:[^•]*→/);
+      await screenshot(page, 'provider-profile-activity-diff-phone-only');
+    });
 
     await closeEntityActivity(page, 'outer');
     await expect(page.locator('.base-overlay.overlay--visible')).toHaveCount(0, { timeout: 5000 });
@@ -657,7 +679,8 @@ test.describe('Provider Profile flow', () => {
       await screenshot(page, 'provider-catalog-contact-reveal-panel');
 
       await panel.locator('.contact-reveal-phone vaadin-button').click();
-      await expect(panel.locator('.contact-reveal-phone-value')).toHaveText('+380501234567', { timeout: 5000 });
+      // Phone was changed to +380507654321 by the earlier phone-only-edit activity test in this same file.
+      await expect(panel.locator('.contact-reveal-phone-value')).toHaveText('+380507654321', { timeout: 5000 });
       await screenshot(page, 'provider-catalog-contact-reveal-phone-revealed');
 
       const [telegramTab] = await Promise.all([
