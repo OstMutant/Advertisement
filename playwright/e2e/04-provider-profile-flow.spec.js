@@ -11,7 +11,11 @@
  *   - "userEn edits provider profile": also covers a phone-only edit (kind/about/categories/city
  *     untouched) recording its own activity entry showing just the Phone field changed, proving
  *     contact fields are captured in the same ProviderProfileSnapshotDto as the profile's own
- *     fields, not a separate audit entity.
+ *     fields, not a separate audit entity; a read-only contact preview in the advertisement Create
+ *     form (pulled from the current actor's own profile); and, on a real saved ad, the
+ *     advertisement-side ContactRevealPanel click-through (phone reveal, Telegram deep link)
+ *     resolving the same contact via the ad-to-owner-profile fallback -- the ad is deleted again
+ *     at the end of this step so it doesn't affect later specs' ad counts.
  *   - "moderatorEn views
  *     userEn's account" / "adminEn creates and edits userUk's provider profile via the Users grid":
  *     unchanged AccountOverlay tab coverage, see individual test names for detail.
@@ -44,7 +48,8 @@
  *   (runOpenSettingsFlow, runCloseSettingsFlow), ./_flows/entity-activity.flow (openEntityActivity,
  *   closeEntityActivity), ./_flows/user-management.flow (runNavigateToUsersTabFlow,
  *   runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter), ./_flows/delete.flow
- *   (confirmDeleteDialog), ./_flows/category.flow (selectInMultiSelectComboBox). Depends on spec 02
+ *   (confirmDeleteDialog), ./_flows/category.flow (selectInMultiSelectComboBox), ./_flows/advertisement.flow
+ *   (openCardOverlay). Depends on spec 02
  *   having signed up all TEST_USERS, and spec 03 having created the Electronics/Vehicles categories
  *   and Lviv/Kyiv cities.
  * Outputs: Playwright HTML report entries for each test. userEn's provider profile is deleted by
@@ -60,6 +65,7 @@ const { runOpenSettingsFlow, runCloseSettingsFlow } = require('./_flows/audit.fl
 const { openEntityActivity, closeEntityActivity } = require('./_flows/entity-activity.flow');
 const { runNavigateToUsersTabFlow, runOpenUserEditViaListFlow, runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter } = require('./_flows/user-management.flow');
 const { confirmDeleteDialog } = require('./_flows/delete.flow');
+const { openCardOverlay } = require('./_flows/advertisement.flow');
 const { verifyDateRangeFilters, waitForVaadin } = require('./_flows/filter.flow');
 const { selectInMultiSelectComboBox } = require('./_flows/category.flow');
 
@@ -298,6 +304,44 @@ test.describe('Provider Profile flow', () => {
 
       await overlay.locator('vaadin-button').filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') }).first().click();
       await waitForOverlayClosed(page);
+    });
+
+    await test.step('advertisement view — ContactRevealPanel click-through resolves the owner\'s provider profile contact via fallback', async () => {
+      const adTitle = 'Contact Reveal Fixture Ad';
+      await page.locator('.add-advertisement-button').click();
+      const createOverlay = page.locator('.advertisement-overlay');
+      await createOverlay.waitFor({ timeout: 5000 });
+      await createOverlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(adTitle);
+      await createOverlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill('Fixture ad for the advertisement-side contact reveal test.');
+      await createOverlay.locator('vaadin-button').filter({ hasText: 'Save' }).click();
+      await expect(page.locator('vaadin-notification-container')).toContainText('Advertisement saved', { timeout: 5000 });
+      await closeNotification(page);
+
+      const card = page.locator('.advertisement-card').filter({ has: page.locator('.advertisement-title', { hasText: adTitle }) }).first();
+      const overlay = await openCardOverlay(page, card, 'contact-reveal-fixture');
+
+      const panel = overlay.locator('.contact-reveal-panel');
+      await expect(panel.locator('.contact-reveal-phone')).toBeVisible({ timeout: 5000 });
+      await expect(panel.locator('.contact-reveal-telegram')).toBeVisible();
+      await expect(panel.locator('.contact-reveal-viber')).toBeVisible();
+      await screenshot(page, 'advertisement-contact-reveal-panel');
+
+      await panel.locator('.contact-reveal-phone vaadin-button').click();
+      await expect(panel.locator('.contact-reveal-phone-value')).toHaveText('+380507654321', { timeout: 5000 });
+      await screenshot(page, 'advertisement-contact-reveal-phone-revealed');
+
+      const [telegramTab] = await Promise.all([
+        page.context().waitForEvent('page'),
+        panel.locator('.contact-reveal-telegram vaadin-button').click(),
+      ]);
+      await telegramTab.waitForLoadState('domcontentloaded').catch(() => {});
+      expect(telegramTab.url()).toContain('t.me/electro_master');
+      await telegramTab.close();
+
+      await closeOverlay(page);
+      await card.locator('.advertisement-delete').click();
+      await confirmDeleteDialog(page);
+      await expect(page.locator('.advertisement-card').filter({ has: page.locator('.advertisement-title', { hasText: adTitle }) })).toHaveCount(0, { timeout: 5000 });
     });
 
     await runLogoutFlow(page, expect);

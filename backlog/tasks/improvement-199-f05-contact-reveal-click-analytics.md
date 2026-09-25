@@ -439,13 +439,20 @@ after the previous one is done and confirmed working (build/tests green).
   assumption that the changes block only lists changed fields (it lists every field, arrow-diffing
   only the ones that actually changed) which broke the later "deep link" reveal test's hardcoded
   phone assertion (now points at the post-edit value).
-- **Checkpoint 6 — Playwright coverage, remaining scope narrowed to one item:** provider-profile
-  contact-field validation/save, the view-mode counters block, the provider-profile-side
-  `ContactRevealPanel` interaction (phone reveal + Telegram deep link), and the contact-field
-  audit-diff entry are all already covered (pulled forward into Checkpoints 3/4/5's own live
-  verification, see above). Only remaining: the **advertisement-side** `ContactRevealPanel` click-
-  through (needs its own fixture — an ad whose owner has a saved contact, since no advertisement in
-  the current seed data resolves a non-empty contact via the fallback).
+- **Checkpoint 6 — Playwright coverage — DONE 2026-09-25:** provider-profile contact-field
+  validation/save, the view-mode counters block, the provider-profile-side `ContactRevealPanel`
+  interaction (phone reveal + Telegram deep link), and the contact-field audit-diff entry are all
+  covered (pulled forward into Checkpoints 3/4/5's own live verification). The last remaining item,
+  the **advertisement-side** `ContactRevealPanel` click-through, is now covered too: a new
+  `test.step` in `04-provider-profile-flow.spec.js`'s "userEn edits provider profile" test creates a
+  real ad (userEn still has a live phone/telegram/viber at this exact point in the file's serial
+  sequence), opens its View overlay, clicks the phone reveal (asserts `+380507654321`) and the
+  Telegram button (asserts the opened tab's URL contains `t.me/electro_master`) — confirming the
+  panel resolves the contact via the ad-to-owner-profile fallback, not just the profile's own page
+  — then deletes the ad so it doesn't affect later specs' ad counts. No Java changes needed (the
+  underlying feature was already fully implemented in Checkpoint 4); verified live via the already-
+  running app, no redeploy needed — full `e2e --ux` green on the first attempt (50 passed, 0
+  failed, 13 skipped, 9.4m).
 - **Checkpoint 7 — data-hygiene + reveal-UX gaps found via manual testing on a real clean deploy,
   2026-09-25 — DONE 2026-09-25:**
   - **Confirmed bug — orphaned `contact_info` on profile delete:** `ProviderProfileSaveService.delete()`
