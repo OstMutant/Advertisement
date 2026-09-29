@@ -34,6 +34,13 @@
  *     the icon's aria-label at every state and the real four-card order at the DESC/ASC states
  *     (NEUTRAL issues no ORDER BY at all, so its row order is Postgres physical storage order, not
  *     a documented contract -- not asserted).
+ *   - "provider catalog Edit button": adminEn edits userUk's profile from the card's own Edit
+ *     button, and moderatorEn's from the opened card overlay's Edit button -- both switch
+ *     ProviderProfileCatalogOverlay into its own internal Edit mode (mirrors AdvertisementOverlay's
+ *     single-purpose View/Edit overlay shape, reusing ProviderProfileFormOverlayModeHandler
+ *     wholesale, no duplicated form and no unrelated Name/Settings tabs), then back to View in the
+ *     same overlay on save. Also confirms userEn (non-privileged, non-owner) sees no Edit button on
+ *     someone else's card/overlay but still sees it on their own.
  *   - "userEn opens a provider deep link": direct navigation to /providers/:id -> catalog overlay
  *     opens -> contact reveal panel (phone reveals in place, Telegram click opens its t.me deep
  *     link in a new tab, each records a contact_view) -> share button copies link -> sitemap.xml
@@ -77,11 +84,10 @@ test.describe.configure({ mode: 'serial' });
 
 async function openProviderProfileTab(page) {
   await page.locator('.account-overlay .account-overlay-tabs vaadin-tab').filter({ hasText: /provider profile|профіль провайдера/i }).click();
-  await page.waitForTimeout(300);
 }
 
-async function fillAbout(page, text) {
-  await page.locator('.account-overlay .overlay__description-rich-editor .ql-editor').fill(text);
+async function fillAbout(page, text, scope = '.account-overlay') {
+  await page.locator(`${scope} .overlay__description-rich-editor .ql-editor`).fill(text);
 }
 
 async function selectCategory(page, name) {
@@ -123,7 +129,6 @@ test.describe('Provider Profile flow', () => {
     await screenshot(page, 'provider-profile-empty-state');
 
     await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Create Profile' }).click();
-    await page.waitForTimeout(300);
 
     await page.locator('.account-overlay vaadin-radio-button').filter({ hasText: 'MASTER' }).first().click();
     await fillAbout(page, 'Professional electronics repair and installation services.');
@@ -183,7 +188,6 @@ test.describe('Provider Profile flow', () => {
 
     await test.step('Providers tab reflects the just-created profile without a page reload', async () => {
       await page.locator('vaadin-tab').filter({ hasText: 'Providers' }).click();
-      await page.waitForTimeout(300);
       const container = page.locator('.provider-profile-container');
       await expect(container.locator('.provider-profile-card').filter({ hasText: 'MASTER' })).toBeVisible({ timeout: 5000 });
       await screenshot(page, 'providers-tab-live-refresh-after-create');
@@ -199,7 +203,6 @@ test.describe('Provider Profile flow', () => {
     // Providers tab selected BEFORE Settings opens -- Settings is a modal overlay, not a tab, so
     // closing it never fires tabs' own selection-change event; the tab must still refresh anyway.
     await page.locator('vaadin-tab').filter({ hasText: 'Providers' }).click();
-    await page.waitForTimeout(300);
     await expect(page.locator('.provider-profile-container .provider-profile-card')
       .filter({ hasText: TEST_USERS.moderatorEn.name })).toHaveCount(0, { timeout: 5000 });
 
@@ -207,7 +210,6 @@ test.describe('Provider Profile flow', () => {
     await openProviderProfileTab(page);
 
     await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Create Profile' }).click();
-    await page.waitForTimeout(300);
     await page.locator('.account-overlay vaadin-radio-button').filter({ hasText: 'MASTER' }).first().click();
     await fillAbout(page, 'Minimal profile: kind and about only, no category, no city.');
     await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Save' }).click();
@@ -259,7 +261,6 @@ test.describe('Provider Profile flow', () => {
     await expect(page.locator('.account-overlay .provider-profile-category-chip')).toContainText('Electronics', { timeout: 5000 });
 
     await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Edit' }).click();
-    await page.waitForTimeout(300);
 
     // The regression check: the combo box must show the previously-saved category, not empty.
     await expect(async () => {
@@ -289,7 +290,6 @@ test.describe('Provider Profile flow', () => {
     await test.step('phone-only edit — records its own activity entry showing just the Phone field changed', async () => {
       await closeEntityActivity(page, 'parent');
       await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Edit' }).click();
-      await page.waitForTimeout(300);
       const phoneField = page.locator('.account-overlay vaadin-text-field[data-testid="provider-profile-phone-field"] input');
       await phoneField.fill('+380507654321');
       await phoneField.blur(); // TextField syncs on blur, not per keystroke -- no other field to blur into here
@@ -312,7 +312,6 @@ test.describe('Provider Profile flow', () => {
 
     await test.step('advertisement create form — read-only contact preview pulled from own provider profile', async () => {
       await page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first().click();
-      await page.waitForTimeout(300);
       await page.locator('.add-advertisement-button').click();
       const overlay = page.locator('.advertisement-overlay');
       await overlay.waitFor({ timeout: 5000 });
@@ -382,7 +381,6 @@ test.describe('Provider Profile flow', () => {
 
     // Settings tab — no Save/Discard, page-size field read-only.
     await page.locator('.account-overlay .account-overlay-tabs vaadin-tab').filter({ hasText: 'Settings' }).click();
-    await page.waitForTimeout(300);
     await expect(page.locator('.account-overlay vaadin-button').filter({ hasText: 'Save' })).toHaveCount(0, { timeout: 5000 });
     await expect(page.locator('.account-overlay vaadin-button').filter({ hasText: 'Discard changes' })).toHaveCount(0, { timeout: 5000 });
     await expect(page.locator('.account-overlay vaadin-integer-field').first()).toHaveJSProperty('readonly', true, { timeout: 5000 });
@@ -411,7 +409,6 @@ test.describe('Provider Profile flow', () => {
     await expect(page.locator('.account-overlay .provider-profile-view-empty-text')).toBeVisible({ timeout: 5000 });
 
     await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Create Profile' }).click();
-    await page.waitForTimeout(300);
     // SUPPORT is only offered to a privileged actor -- exercises that branch, untouched elsewhere in this file.
     await page.locator('.account-overlay vaadin-radio-button').filter({ hasText: 'SUPPORT' }).first().click();
     await fillAbout(page, 'Admin-managed support profile for userUk.');
@@ -429,7 +426,6 @@ test.describe('Provider Profile flow', () => {
 
     // Re-edit through this same grid-entry path -- the pre-fill regression fix applies here too.
     await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Edit' }).click();
-    await page.waitForTimeout(300);
     await expect(async () => {
       const names = await selectedCategoryNames(page);
       expect(names).toContain('Vehicles');
@@ -439,7 +435,6 @@ test.describe('Provider Profile flow', () => {
     // Cancel from Provider Profile Edit routes back to View first (same overlay stays open,
     // same as afterDiscard()'s design) -- closeUserOverlay only fully exits from View.
     await page.locator('.account-overlay vaadin-button[title="Cancel"]').click();
-    await page.waitForTimeout(300);
     await closeUserOverlay(page);
     await clearUserFilter(page);
     await runLogoutFlow(page, expect);
@@ -452,7 +447,6 @@ test.describe('Provider Profile flow', () => {
       await runOpenSettingsFlow(page);
       await openProviderProfileTab(page);
       await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Create Profile' }).click();
-      await page.waitForTimeout(300);
       await page.locator('.account-overlay vaadin-radio-button').filter({ hasText: 'MASTER' }).first().click();
       await fillAbout(page, 'Master craftsman offering on-site vehicle repair.');
       await selectCategory(page, 'Vehicles');
@@ -473,7 +467,6 @@ test.describe('Provider Profile flow', () => {
       await runOpenSettingsFlow(page);
       await openProviderProfileTab(page);
       await page.locator('.account-overlay vaadin-button').filter({ hasText: /create profile|створити профіль/i }).click();
-      await page.waitForTimeout(300);
       await page.locator('.account-overlay vaadin-radio-button').filter({ hasText: /shop|магазин/i }).first().click();
       await fillAbout(page, 'Retail shop for electronics and accessories.');
       await selectCategory(page, 'Electronics');
@@ -493,7 +486,6 @@ test.describe('Provider Profile flow', () => {
       await runOpenSettingsFlow(page);
       await openProviderProfileTab(page);
       await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Edit' }).click();
-      await page.waitForTimeout(300);
       await fillAbout(page, 'Master craftsman offering on-site vehicle repair, now also on weekends.');
       await page.locator('.account-overlay vaadin-button').filter({ hasText: 'Save' }).click();
       await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
@@ -505,7 +497,6 @@ test.describe('Provider Profile flow', () => {
 
     await page.goto('/');
     await page.locator('vaadin-tab').filter({ hasText: 'Providers' }).click();
-    await page.waitForTimeout(300);
 
     const container = page.locator('.provider-profile-container');
     await expect(container.locator('.provider-profile-card')).toHaveCount(4, { timeout: 10000 });
@@ -535,39 +526,33 @@ test.describe('Provider Profile flow', () => {
       await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: 'Shop' }).first().click();
       await page.keyboard.press('Escape');
       await page.locator('.query-action-block vaadin-button[title*="Apply"]').click();
-      await page.waitForTimeout(300);
       await expect(container.locator('.provider-profile-card')).toHaveCount(2, { timeout: 10000 });
       await expect(container.locator('.provider-profile-kind-badge--shop')).toHaveCount(2);
       await screenshot(page, 'provider-catalog-filter-kind-shop');
 
       await page.locator('.query-action-block vaadin-button[title*="Clear"]').click();
-      await page.waitForTimeout(300);
       await expect(container.locator('.provider-profile-card')).toHaveCount(4, { timeout: 10000 });
 
       await page.locator('.provider-profile-query-block').locator('vaadin-multi-select-combo-box[data-testid="provider-profile-filter-kind"]').click();
       await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: 'Support' }).first().click();
       await page.keyboard.press('Escape');
       await page.locator('.query-action-block vaadin-button[title*="Apply"]').click();
-      await page.waitForTimeout(300);
       await expect(container.locator('.provider-profile-card')).toHaveCount(1, { timeout: 10000 });
       await expect(container.locator('.provider-profile-kind-badge--support')).toBeVisible();
       await screenshot(page, 'provider-catalog-filter-kind-support');
 
       await page.locator('.query-action-block vaadin-button[title*="Clear"]').click();
-      await page.waitForTimeout(300);
       await expect(container.locator('.provider-profile-card')).toHaveCount(4, { timeout: 10000 });
 
       await page.locator('.provider-profile-query-block').locator('vaadin-multi-select-combo-box[data-testid="provider-profile-filter-kind"]').click();
       await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: 'Master' }).first().click();
       await page.keyboard.press('Escape');
       await page.locator('.query-action-block vaadin-button[title*="Apply"]').click();
-      await page.waitForTimeout(300);
       await expect(container.locator('.provider-profile-card')).toHaveCount(1, { timeout: 10000 });
       await expect(container.locator('.provider-profile-kind-badge--master')).toBeVisible();
       await screenshot(page, 'provider-catalog-filter-kind-master');
 
       await page.locator('.query-action-block vaadin-button[title*="Clear"]').click();
-      await page.waitForTimeout(300);
       await expect(container.locator('.provider-profile-card')).toHaveCount(4, { timeout: 10000 });
     });
 
@@ -576,7 +561,6 @@ test.describe('Provider Profile flow', () => {
       await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: 'Vehicles' }).first().click();
       await page.keyboard.press('Escape');
       await page.locator('.query-action-block vaadin-button[title*="Apply"]').click();
-      await page.waitForTimeout(300);
       // userEn's own "edits provider profile" test earlier in this file adds Vehicles on top of
       // its original Electronics (never replacing it), so userEn also matches this filter.
       await expect(container.locator('.provider-profile-card')).toHaveCount(3, { timeout: 10000 });
@@ -586,20 +570,17 @@ test.describe('Provider Profile flow', () => {
       await screenshot(page, 'provider-catalog-filter-category-vehicles');
 
       await page.locator('.query-action-block vaadin-button[title*="Clear"]').click();
-      await page.waitForTimeout(300);
       await expect(container.locator('.provider-profile-card')).toHaveCount(4, { timeout: 10000 });
 
       await page.locator('.provider-profile-query-block').locator('[data-testid="provider-profile-filter-categories"]').click();
       await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: 'Electronics' }).first().click();
       await page.keyboard.press('Escape');
       await page.locator('.query-action-block vaadin-button[title*="Apply"]').click();
-      await page.waitForTimeout(300);
       await expect(container.locator('.provider-profile-card')).toHaveCount(2, { timeout: 10000 });
       await expect(container.locator('.provider-profile-kind-badge--shop')).toHaveCount(2);
       await screenshot(page, 'provider-catalog-filter-category-electronics');
 
       await page.locator('.query-action-block vaadin-button[title*="Clear"]').click();
-      await page.waitForTimeout(300);
       await expect(container.locator('.provider-profile-card')).toHaveCount(4, { timeout: 10000 });
     });
 
@@ -607,14 +588,12 @@ test.describe('Provider Profile flow', () => {
     await page.locator('.provider-profile-query-block').locator('vaadin-combo-box[data-testid="provider-profile-filter-city"] input').fill('Kyiv');
     await page.locator('vaadin-combo-box-item').filter({ hasText: 'Kyiv' }).first().click();
     await page.locator('.query-action-block vaadin-button[title*="Apply"]').click();
-    await page.waitForTimeout(300);
     await expect(container.locator('.provider-profile-card')).toHaveCount(2, { timeout: 10000 });
     await expect(container.locator('.provider-profile-kind-badge--support')).toBeVisible();
     await expect(container.locator('.provider-profile-kind-badge--shop')).toBeVisible();
     await screenshot(page, 'provider-catalog-filter-city-kyiv');
 
     await page.locator('.query-action-block vaadin-button[title*="Clear"]').click();
-    await page.waitForTimeout(300);
     await expect(container.locator('.provider-profile-card')).toHaveCount(4, { timeout: 10000 });
 
     const cardOrder = () => container.locator('.provider-profile-card').evaluateAll(
@@ -728,10 +707,86 @@ test.describe('Provider Profile flow', () => {
     });
   });
 
+  test('provider catalog Edit button — privileged actor edits someone else\'s profile from the card and from the overlay, both switch this same overlay into its own Edit mode (no unrelated Name/Settings tabs, mirrors AdvertisementOverlay); non-privileged non-owner sees no Edit button', async () => {
+    await runFillLoginFormFlow(page, TEST_USERS.adminEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+    await page.locator('vaadin-tab').filter({ hasText: 'Providers' }).click();
+
+    await test.step('card Edit button — adminEn edits userUk\'s profile straight from the card, opens directly in Edit mode', async () => {
+      const card = page.locator('.provider-profile-card--support')
+        .filter({ has: page.locator('.provider-profile-card-title', { hasText: TEST_USERS.userUk.name }) });
+      await card.waitFor({ timeout: 5000 });
+      await card.locator('.provider-profile-edit').click();
+
+      const overlay = page.locator('.provider-profile-catalog-overlay');
+      await overlay.waitFor({ timeout: 5000 });
+      // Single-purpose overlay -- no Name/Settings tabs, unlike the old AccountOverlay-based flow.
+      await assertAbsent(expect, overlay, '.account-overlay-tabs');
+      await fillAbout(page, 'Edited by adminEn from the public catalog card.', '.provider-profile-catalog-overlay');
+      await overlay.locator('vaadin-button').filter({ hasText: 'Save' }).click();
+      await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
+      await closeNotification(page);
+
+      // Save switches this same overlay straight back to View, same as AdvertisementOverlay.
+      await expect(overlay.locator('.overlay__view-description')).toContainText('Edited by adminEn from the public catalog card.', { timeout: 5000 });
+      await screenshot(page, 'providers-catalog-card-edit');
+      await closeOverlay(page);
+
+      await expect(card.locator('.provider-profile-card-about')).toContainText('Edited by adminEn from the public catalog card.', { timeout: 5000 });
+    });
+
+    await test.step('overlay Edit button — adminEn edits moderatorEn\'s profile from the opened card overlay, no separate overlay to jump to', async () => {
+      const card = page.locator('.provider-profile-card--master')
+        .filter({ has: page.locator('.provider-profile-card-title', { hasText: TEST_USERS.moderatorEn.name }) });
+      await card.waitFor({ timeout: 5000 });
+      await card.click();
+      const overlay = page.locator('.provider-profile-catalog-overlay');
+      await overlay.waitFor({ timeout: 5000 });
+
+      await overlay.locator('.overlay__view-edit').click();
+      await assertAbsent(expect, overlay, '.account-overlay-tabs');
+      await fillAbout(page, 'Edited by adminEn from the catalog overlay.', '.provider-profile-catalog-overlay');
+      await overlay.locator('vaadin-button').filter({ hasText: 'Save' }).click();
+      await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
+      await closeNotification(page);
+
+      await expect(overlay.locator('.overlay__view-description')).toContainText('Edited by adminEn from the catalog overlay.', { timeout: 5000 });
+      await screenshot(page, 'providers-catalog-overlay-edit');
+      await closeOverlay(page);
+
+      await expect(card.locator('.provider-profile-card-about')).toContainText('Edited by adminEn from the catalog overlay.', { timeout: 5000 });
+    });
+
+    await runLogoutFlow(page, expect);
+
+    await test.step('non-privileged non-owner — no Edit button on someone else\'s card or overlay, own card still has it', async () => {
+      await runFillLoginFormFlow(page, TEST_USERS.userEn);
+      await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
+      await page.locator('vaadin-tab').filter({ hasText: 'Providers' }).click();
+
+      const othersCard = page.locator('.provider-profile-card--support')
+        .filter({ has: page.locator('.provider-profile-card-title', { hasText: TEST_USERS.userUk.name }) });
+      await othersCard.waitFor({ timeout: 5000 });
+      await assertAbsent(expect, othersCard, '.provider-profile-edit');
+
+      await othersCard.click();
+      const catalogOverlay = page.locator('.provider-profile-catalog-overlay');
+      await catalogOverlay.waitFor({ timeout: 5000 });
+      await assertAbsent(expect, catalogOverlay, '.overlay__view-edit');
+      await closeOverlay(page);
+
+      const ownCard = page.locator('.provider-profile-card--shop')
+        .filter({ has: page.locator('.provider-profile-card-title', { hasText: TEST_USERS.userEn.name }) });
+      await expect(ownCard.locator('.provider-profile-edit')).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'providers-catalog-non-owner-no-edit');
+    });
+
+    await runLogoutFlow(page, expect);
+  });
+
   test('userEn opens a provider deep link — direct navigation to /providers/:id opens the catalog overlay, contact reveal panel (phone reveal, Telegram deep link), share button copies link, sitemap.xml lists it', async () => {
     await page.goto('/');
     await page.locator('vaadin-tab').filter({ hasText: 'Providers' }).click();
-    await page.waitForTimeout(300);
 
     const card = page.locator('.provider-profile-card--shop')
       .filter({ has: page.locator('.provider-profile-card-title', { hasText: TEST_USERS.userEn.name }) });
@@ -823,7 +878,6 @@ test.describe('Provider Profile flow', () => {
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
     await page.locator('vaadin-tab').filter({ hasText: 'Providers' }).click();
-    await page.waitForTimeout(300);
 
     const card = page.locator('.provider-profile-card--shop')
       .filter({ has: page.locator('.provider-profile-card-title', { hasText: TEST_USERS.userEn.name }) });
@@ -858,7 +912,6 @@ test.describe('Provider Profile flow', () => {
     // confirm SUPPORT stays selectable-as-is (disabled, not removed) so the Binder can still
     // represent the actor's real current value.
     await page.locator('.account-overlay vaadin-button').filter({ hasText: /edit|редагувати/i }).click();
-    await page.waitForTimeout(300);
 
     await expect(page.locator('.account-overlay vaadin-radio-button').filter({ hasText: 'MASTER' })).toHaveCount(1, { timeout: 5000 });
     await expect(page.locator('.account-overlay vaadin-radio-button').filter({ hasText: 'SHOP' })).toHaveCount(1, { timeout: 5000 });
@@ -870,7 +923,6 @@ test.describe('Provider Profile flow', () => {
     await screenshot(page, 'provider-catalog-support-disabled-not-offered');
 
     await page.locator('.account-overlay vaadin-button[title="Cancel"], .account-overlay vaadin-button[title="Скасувати"]').click();
-    await page.waitForTimeout(300);
     await runCloseSettingsFlow(page);
     await runLogoutFlow(page, expect);
   });

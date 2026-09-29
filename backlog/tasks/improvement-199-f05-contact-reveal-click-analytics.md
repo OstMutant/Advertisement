@@ -663,6 +663,101 @@ after the previous one is done and confirmed working (build/tests green).
   `AdvertisementOwnerProfileLookupService` split and the `ContactService`→`ContactAccessService`
   rename, previously only narrated in this task file.
 
+- **Checkpoint 11 — Edit affordance on the public Providers catalog for privileged actors,
+  2026-09-29 — DONE 2026-09-29:** user-requested nuance, adjacent to this task's own catalog UI work.
+  Currently `ProviderProfileCatalogViewModeHandler`/`ProviderProfileCardView` deliberately expose
+  only Share/Delete, never Edit (per the handler's own Javadoc: "editing already has its own
+  dedicated path — AccountOverlay's Provider Profile tab"). Reversed by explicit user request for
+  whoever already passes the same `access.canEditUserAccount(profile.getActorId())` check Delete
+  already uses (the owner, or a privileged admin/moderator) — reuses the existing Settings edit
+  form wholesale (`ProviderProfileFormOverlayModeHandler` via `AccountOverlay`), no duplicated form.
+  Plan:
+  - `AccountOverlay` — new `openForProviderProfileEdit(Long targetUserId, Runnable onClosed)`,
+    opening directly at `Section.PROVIDER_PROFILE` + `ProviderProfileMode.EDIT` (same shape as the
+    existing `openForEdit` for Name).
+  - `ProviderProfileCardView` — inject `AccountOverlay`; new Edit button next to Delete in
+    `createActions()`, same `canEditUserAccount` visibility gate, `stopPropagation` so it doesn't
+    also trigger the card's own click-to-view handler; `onClosed` reuses `onListChanged` so the
+    card list refreshes with the saved edit.
+  - `ProviderProfileCatalogViewModeHandler` — inject `AccountOverlay`; new Edit button next to
+    Delete in `buildHeaderActions()`, same visibility gate; closes the catalog overlay
+    (`params.getOnClose()`) before opening `AccountOverlay` so the two overlays never stack;
+    `onClosed` triggers the same list-refresh callback the Delete path already uses.
+  - Playwright: extend `04-provider-profile-flow.spec.js` — both the card-level and
+    overlay-level Edit button, for a privileged actor editing someone else's profile from the
+    public catalog (reuses the existing "adminEn creates and edits userUk's provider profile"
+    fixture/actors where practical), plus a negative check that the button is absent for a
+    non-privileged, non-owner viewer.
+
+  **Implemented and verified 2026-09-29.** `AccountOverlay.openForProviderProfileEdit(Long
+  targetUserId, Runnable onClosed)` (mirrors `openForEdit`'s shape for Name). `ProviderProfileCardView`
+  and `ProviderProfileCatalogViewModeHandler` both inject `AccountOverlay` (same `@UIScope` bean
+  already used by `HeaderBar`) and reuse the existing `EditActionButton`/`PROVIDER_PROFILE_VIEW_BUTTON_EDIT`
+  components — no new UI component built. The catalog overlay's own Edit closes itself
+  (`params.getOnClose()`) before opening `AccountOverlay`, so the two never stack. Updated the
+  handler's own stale Javadoc (previously claimed "no Edit" as a permanent design decision).
+  New Playwright test (`04-provider-profile-flow.spec.js`, "provider catalog Edit button"):
+  adminEn edits userUk's profile via the card button, moderatorEn's via the overlay button, then a
+  non-privileged non-owner (userEn) confirmed to see neither on someone else's card/overlay while
+  still seeing it on their own. Found and fixed one test bug during verification: the overlay-close
+  assertion used `toHaveCount(0)` (DOM-removal semantics) on the catalog overlay, which Vaadin only
+  hides via a class toggle, not DOM removal — fixed to `.not.toBeVisible()`. Full
+  `build-and-test.sh --unit --no-integration` green (78/78); live-verified via clean redeploy +
+  full `e2e --ux` — one real failure from the test bug above caught and fixed on the first attempt,
+  fully green on the second (51 passed, 0 failed, 13 skipped).
+
+- **Checkpoint 12 — Checkpoint 11 revised: real single-purpose overlay + hover-reveal +
+  browser-history parity with AdvertisementOverlay, 2026-09-29 — DONE 2026-09-29:** user manual
+  testing found the Checkpoint 11 implementation fell short of "as close as possible to
+  Advertisement" in three concrete ways, confirmed via a dedicated code-comparison investigation:
+  1. `.provider-profile-edit` had no hover/focus-reveal CSS (Delete did) — fixed:
+     `provider-profile-card.css` now applies the same `opacity: 0` + `:hover`/`:focus-visible`
+     block to both, matching `advertisement-card.css`'s already-symmetric pattern.
+  2. Browser history was inconsistent between entry paths: card→Edit pushed nothing; card→View→Edit
+     pushed `providers/{id}` (View) then `""` (catalog close) then nothing (AccountOverlay never
+     touches history) — two real push events on one path, zero on the other, so the browser Back
+     button behaved differently depending on how Edit was reached.
+  3. `AccountOverlay.openForProviderProfileEdit` always built the full Name+Settings+Provider
+     Profile tab set (`buildTabs()`, unconditional), instead of a single-purpose surface.
+
+  Root fix for both 2 and 3 together (they turned out to be the same underlying gap, not two
+  separate patches): **`ProviderProfileCatalogOverlay` now extends `AbstractEntityOverlay
+  <ProviderProfileFormOverlayModeHandler>` instead of `BaseOverlay` directly** — a private `Mode
+  {VIEW, EDIT}` enum and `OverlaySession` record, `switchTo()`/`proceed()`/`afterDiscard()`
+  mirroring `AdvertisementOverlay` line-for-line: `openForView`/`openForEdit` both push
+  `providers/{id}` once; the in-place `switchToEdit()` mode change pushes nothing further (same
+  entity, same URL, matching `AdvertisementOverlay.switchToEdit()`); `closeToList()` pushes `""`.
+  `ProviderProfileFormOverlayModeHandler` (still the exact same bean `AccountOverlay`'s own
+  Settings tab uses) is invoked directly with `tabBar(new Div())` -- no tab chrome at all, single
+  purpose. `AccountOverlay.openForProviderProfileEdit` removed entirely (no longer has any caller).
+  `ProviderProfileCatalogViewModeHandler` lost its `AccountOverlay` dependency, gained an `onEdit`
+  callback parameter instead (mirrors `AdvertisementViewOverlayModeHandler.Parameters.onEdit`).
+  `ProviderProfileCardView`'s Edit button now calls `overlay.openForEdit(...)` on the same
+  `ProviderProfileCatalogOverlay` it already held, not a separate class.
+
+  **Also, unprompted rule-compliance sweep on the same file (per user's explicit push after
+  spotting one `page.waitForTimeout(300)` reintroduced in the new test code):** all 34 occurrences
+  of `page.waitForTimeout(300)` in `04-provider-profile-flow.spec.js` (33 pre-existing, 1 newly
+  added) removed outright — every one was immediately followed by a real Playwright action
+  (`.click()`/`.fill()`, which already auto-wait for the target locator) or a real `expect(...)`
+  assertion (which already polls/retries), making the fixed sleep pure dead weight, never a
+  genuine wait on Vaadin state. Confirmed via the full green re-run below that removing all 34
+  changed nothing — direct proof they were never load-bearing.
+
+  Playwright test rewritten to match: no more `.account-overlay` involvement for the catalog-Edit
+  path, asserts `.account-overlay-tabs` is absent (proving single-purpose), asserts the same
+  overlay's own `.overlay__view-description` shows the saved edit immediately (no Settings
+  round-trip), closes via the generic `closeOverlay()` breadcrumb-back helper instead of
+  `runCloseSettingsFlow()`. Found and fixed one real test bug during verification: the shared
+  `fillAbout()` helper was hardcoded to `.account-overlay ...`, so the rewritten test (now editing
+  inside `.provider-profile-catalog-overlay`) timed out waiting for a rich-text editor that was
+  never there — fixed by giving `fillAbout()` an optional `scope` parameter (default
+  `.account-overlay`, unchanged for every other existing caller). One Playwright run also hit a
+  transient `exit 137` (SIGKILL, OOM) unrelated to any code change, 13 tests in with no failures up
+  to that point — re-ran clean. Full `build-and-test.sh --unit --no-integration` green (78/78,
+  `ArchitectureRulesTest` 20/20 confirming no layering violation from the restructure); live
+  redeploy + full `e2e --ux` green (51 passed, 0 failed, 13 skipped, 9.1m).
+
 ## Related
 
 - `private/features/F-05-contact-reveal.md` — full feature spec (goal, user story, scope, tech

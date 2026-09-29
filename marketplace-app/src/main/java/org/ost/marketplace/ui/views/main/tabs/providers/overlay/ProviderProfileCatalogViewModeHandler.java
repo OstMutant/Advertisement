@@ -37,10 +37,10 @@ import java.util.List;
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 /**
- * Read-only view of a provider profile inside the public Providers catalog. Never enters an edit
- * mode -- editing a provider profile already has its own dedicated path (AccountOverlay's
- * Provider Profile tab) -- so this handler exposes Share and Delete actions only, no Edit and no
- * history button.
+ * Read-only view of a provider profile inside the public Providers catalog -- {@code onEdit}
+ * switches the owning {@code ProviderProfileCatalogOverlay} to its own Edit mode (same overlay,
+ * no separate class to jump to), so this handler itself never renders a form of its own; no
+ * history button either.
  */
 @SpringComponent
 @Scope("prototype")
@@ -52,6 +52,7 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
     @lombok.Builder
     public static class Parameters {
         @NonNull ProviderProfileDto profile;
+        @NonNull Runnable           onEdit;
         @NonNull Runnable           onDeleted;
         @NonNull Runnable           onClose;
     }
@@ -136,6 +137,11 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         shareButton.addClickListener(_ -> ShareUtil.share(shareButton, appLinkService.providerProfileUrl(profile.getId()),
                 HtmlExcerptUtil.plainText(profile.getAbout()), () -> notificationService.success(PROVIDERS_CARD_NOTIFICATION_LINK_COPIED)));
 
+        UiIconButton editButton = new UiIconButton(getValue(PROVIDER_PROFILE_VIEW_BUTTON_EDIT), VaadinIcon.EDIT.create());
+        editButton.addClassName("overlay__view-edit");
+        editButton.addClickListener(_ -> params.getOnEdit().run());
+        editButton.setVisible(access.canEditUserAccount(profile.getActorId()));
+
         UiIconButton deleteButton = new UiIconButton(getValue(PROVIDERS_CATALOG_OVERLAY_DELETE), VaadinIcon.TRASH.create());
         deleteButton.addClassName("overlay__view-delete");
         deleteButton.addClickListener(_ -> confirmAndDelete(profile));
@@ -144,7 +150,7 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         UiIconButton closeButton = new UiIconButton(getValue(MAIN_TAB_PROVIDERS), VaadinIcon.CLOSE.create());
         closeButton.addClickListener(_ -> params.getOnClose().run());
 
-        return new Div(shareButton, deleteButton, closeButton);
+        return new Div(shareButton, editButton, deleteButton, closeButton);
     }
 
     private void confirmAndDelete(ProviderProfileDto profile) {
