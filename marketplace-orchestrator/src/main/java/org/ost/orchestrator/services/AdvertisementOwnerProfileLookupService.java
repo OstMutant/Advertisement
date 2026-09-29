@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
-/** Resolves an advertisement's owner's provider profile id -- {@link ContactService}'s collaborator for the ADVERTISEMENT-to-PROVIDER_PROFILE contact fallback. */
+/** Resolves an advertisement's owner's provider profile id -- {@link ContactAccessService}'s collaborator for the ADVERTISEMENT-to-PROVIDER_PROFILE contact fallback. */
 @Service
 @RequiredArgsConstructor
 public class AdvertisementOwnerProfileLookupService {

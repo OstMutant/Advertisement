@@ -254,9 +254,14 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         label.addClassName("advertisement-contact-preview-label");
         block.add(label);
         String hint = getValue(ADVERTISEMENT_OVERLAY_CONTACT_PREVIEW_HINT);
-        if (!isBlank(contact.phone())) block.add(buildContactPreviewRow("advertisement-contact-preview-phone", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_PHONE), contact.phone(), hint));
-        if (!isBlank(contact.telegram())) block.add(buildContactPreviewRow("advertisement-contact-preview-telegram", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_TELEGRAM), contact.telegram(), hint));
-        if (!isBlank(contact.viber())) block.add(buildContactPreviewRow("advertisement-contact-preview-viber", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_VIBER), contact.viber(), hint));
+        for (var entry : contact.presentChannels()) {
+            String value = entry.getValue();
+            switch (entry.getKey()) {
+                case PHONE -> block.add(buildContactPreviewRow("advertisement-contact-preview-phone", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_PHONE), value, hint));
+                case TELEGRAM -> block.add(buildContactPreviewRow("advertisement-contact-preview-telegram", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_TELEGRAM), value, hint));
+                case VIBER -> block.add(buildContactPreviewRow("advertisement-contact-preview-viber", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_VIBER), value, hint));
+            }
+        }
         return block;
     }
 
@@ -266,10 +271,6 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         row.getElement().setAttribute("title", hint);
         row.add(new Span(label + ": " + value));
         return row;
-    }
-
-    private static boolean isBlank(String value) {
-        return value == null || value.isBlank();
     }
 
     private UiIconButton buildHistoryButton() {

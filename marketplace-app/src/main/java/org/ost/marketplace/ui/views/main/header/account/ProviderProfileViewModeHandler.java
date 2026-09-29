@@ -134,14 +134,16 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
         Span label = new Span(getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_LABEL));
         label.addClassName("provider-profile-contact-views-label");
         block.add(label);
-        if (contact != null && !isBlank(contact.phone())) {
-            block.add(buildContactViewRow("provider-profile-contact-views-phone", getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_PHONE), contact.phone(), counts.getOrDefault(ContactChannel.PHONE, 0L)));
-        }
-        if (contact != null && !isBlank(contact.telegram())) {
-            block.add(buildContactViewRow("provider-profile-contact-views-telegram", getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_TELEGRAM), contact.telegram(), counts.getOrDefault(ContactChannel.TELEGRAM, 0L)));
-        }
-        if (contact != null && !isBlank(contact.viber())) {
-            block.add(buildContactViewRow("provider-profile-contact-views-viber", getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_VIBER), contact.viber(), counts.getOrDefault(ContactChannel.VIBER, 0L)));
+        if (contact != null) {
+            for (var entry : contact.presentChannels()) {
+                ContactChannel channel = entry.getKey();
+                String value = entry.getValue();
+                switch (channel) {
+                    case PHONE -> block.add(buildContactViewRow("provider-profile-contact-views-phone", getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_PHONE), value, counts.getOrDefault(channel, 0L)));
+                    case TELEGRAM -> block.add(buildContactViewRow("provider-profile-contact-views-telegram", getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_TELEGRAM), value, counts.getOrDefault(channel, 0L)));
+                    case VIBER -> block.add(buildContactViewRow("provider-profile-contact-views-viber", getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_VIBER), value, counts.getOrDefault(channel, 0L)));
+                }
+            }
         }
         return block;
     }
@@ -151,10 +153,6 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
         row.addClassName(cssClass);
         row.add(new Span(label + ": " + value + " (" + count + ")"));
         return row;
-    }
-
-    private static boolean isBlank(String value) {
-        return value == null || value.isBlank();
     }
 
     private static void buildChipRow(Div card, List<String> names, String rowCssClass, String chipCssClass, String ariaLabel) {

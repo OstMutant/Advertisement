@@ -65,11 +65,16 @@ public class ContactRevealPanel extends Div
         ContactInfoDto contact = contactAccessService.resolveContact(p.getEntityRef().entityType(), p.getEntityRef().entityId()).orElse(null);
         if (contact == null) return this;
 
-        if (!isBlank(contact.phone())) add(buildPhoneRow(contact.phone()));
-        if (!isBlank(contact.telegram())) add(buildDeepLinkRow("contact-reveal-telegram", VaadinIcon.PAPERPLANE,
-                getValue(CONTACT_REVEAL_BUTTON_TELEGRAM), ContactChannel.TELEGRAM, "https://t.me/" + contact.telegram(), contact.telegram()));
-        if (!isBlank(contact.viber())) add(buildDeepLinkRow("contact-reveal-viber", VaadinIcon.MOBILE,
-                getValue(CONTACT_REVEAL_BUTTON_VIBER), ContactChannel.VIBER, "viber://chat?number=" + contact.viber(), contact.viber()));
+        for (var entry : contact.presentChannels()) {
+            String value = entry.getValue();
+            switch (entry.getKey()) {
+                case PHONE -> add(buildPhoneRow(value));
+                case TELEGRAM -> add(buildDeepLinkRow("contact-reveal-telegram", VaadinIcon.PAPERPLANE,
+                        getValue(CONTACT_REVEAL_BUTTON_TELEGRAM), ContactChannel.TELEGRAM, "https://t.me/" + value, value));
+                case VIBER -> add(buildDeepLinkRow("contact-reveal-viber", VaadinIcon.MOBILE,
+                        getValue(CONTACT_REVEAL_BUTTON_VIBER), ContactChannel.VIBER, "viber://chat?number=" + value, value));
+            }
+        }
 
         setVisible(getComponentCount() > 0);
         return this;
@@ -116,9 +121,5 @@ public class ContactRevealPanel extends Div
             notificationService.error(CONTACT_REVEAL_NOTIFICATION_RATE_LIMITED);
             return false;
         }
-    }
-
-    private static boolean isBlank(String value) {
-        return value == null || value.isBlank();
     }
 }

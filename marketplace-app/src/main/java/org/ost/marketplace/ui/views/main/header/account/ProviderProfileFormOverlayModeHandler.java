@@ -147,11 +147,7 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
                 ? mapper.toProviderProfileEdit(currentProfile)
                 : ProviderProfileEditDto.builder().kind(ProviderKind.MASTER).build();
         if (currentProfile != null) {
-            contactService.find(EntityType.PROVIDER_PROFILE, currentProfile.getId()).ifPresent(contact -> {
-                dto.setPhone(contact.phone());
-                dto.setTelegram(contact.telegram());
-                dto.setViber(contact.viber());
-            });
+            applyContactFields(dto, currentProfile.getId());
         }
         buildBinder(dto, availableCategories, availableCities);
 
@@ -271,13 +267,17 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
         }
         providerProfileSaveService.findById(currentProfile.getId()).ifPresent(fresh -> {
             ProviderProfileEditDto dto = mapper.toProviderProfileEdit(fresh);
-            contactService.find(EntityType.PROVIDER_PROFILE, fresh.getId()).ifPresent(contact -> {
-                dto.setPhone(contact.phone());
-                dto.setTelegram(contact.telegram());
-                dto.setViber(contact.viber());
-            });
+            applyContactFields(dto, fresh.getId());
             binder.reload(dto, this::copyEditFields);
             updateButtons(false);
+        });
+    }
+
+    private void applyContactFields(ProviderProfileEditDto dto, Long profileId) {
+        contactService.find(EntityType.PROVIDER_PROFILE, profileId).ifPresent(contact -> {
+            dto.setPhone(contact.phone());
+            dto.setTelegram(contact.telegram());
+            dto.setViber(contact.viber());
         });
     }
 
