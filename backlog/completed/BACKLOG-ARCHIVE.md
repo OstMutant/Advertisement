@@ -2729,3 +2729,27 @@ documented a real discrepancy in this repo's own Sonar analysis pipeline (a file
 showing 100% line coverage while Sonar's own dashboard/API reported 38.5%) — not chased further
 since it self-resolved once overall new-code coverage cleared the gate. Full detail:
 `completed/tasks/improvement-202-optimisticlockingfailureexception-decoupling.md`.
+
+✅ Done (2026-09-29): improvement-199 closed — F-05 contact reveal + click analytics (private
+product roadmap Phase 2). New `contact-spring-boot-starter` (`contact_info`/`contact_view` tables,
+no FK, generic over `PROVIDER_PROFILE`/`ADVERTISEMENT`), `ContactPort` SPI, orchestrator-level
+fallback resolution (an ad's contact falls back to its owner's provider-profile contact via
+`ContactAccessService`/`AdvertisementOwnerProfileLookupService`), `ContactRevealPanel` UI component
+with per-channel click-to-reveal + rate limiting. 12 checkpoints total, several real bugs found via
+live manual testing and fixed: cascade-deleting `contact_info` (not `contact_view` history) on
+profile delete; snapshotting the revealed value on each `contact_view` row so click history stays
+attributable after a number change; Provider Profile switching straight to View after Save; a
+read-only contact preview in the advertisement form (create and edit); a `ProvidersView` tab
+not refreshing on Settings close when that tab was already selected (Settings is a modal overlay,
+not a tab, so no tab-selection event ever fires); and, after an explicit user ask to match
+`AdvertisementOverlay`'s UX exactly, `ProviderProfileCatalogOverlay` rebuilt to extend
+`AbstractEntityOverlay` with a real internal Edit mode (hover-reveal Edit button, single browser-
+history push per entity regardless of entry path, no unrelated Name/Settings tab chrome) instead of
+delegating edits to `AccountOverlay`. A `deep-review-orchestrator` pass on the full diff found and
+fixed two DRY violations (`ContactInfoDto.presentChannels()` added to kill a triple-duplicated
+per-channel rendering loop) and one stale Javadoc `{@link}`; `marketplace-orchestrator/DECISIONS.md`
+ADR-010 records the `ContactAccessService` split/rename. Also fixed a real
+`scripts/activity-monitor/run.sh` gap along the way (it never printed its own resolved `tree.txt`
+path) and, per a standing rule sweep, removed all 34 `page.waitForTimeout(300)` calls from
+`04-provider-profile-flow.spec.js` (redundant given Playwright's own auto-waiting). Full detail:
+`completed/tasks/improvement-199-f05-contact-reveal-click-analytics.md`.

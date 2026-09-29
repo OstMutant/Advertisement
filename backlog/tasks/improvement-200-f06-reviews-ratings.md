@@ -5,10 +5,9 @@
 own Liquibase changelog), `provider-profile-spring-boot-starter` (aggregate rating/count
 denormalized onto profile), `marketplace-app` (review list, star rating UI, review form overlay,
 moderation admin UI)
-**Priority:** 🟡 Top — active roadmap item, sequenced after F-05/F-11a (`improvement-199`) per
-`private/roadmap.md`'s Phase 2→3 order; user-requested Top placement, 2026-09-22
-**When:** blocked on `improvement-199` landing first (Phase 2 before Phase 3, per roadmap order)
-— depends only on F-04 (provider profile), already shipped (`improvement-124`)
+**Priority:** 🟡 Top — active roadmap item, next unblocked item in `private/roadmap.md`'s Phase 2→3
+order now that `improvement-199` (F-05) shipped 2026-09-29; user-requested Top placement, 2026-09-22
+**When:** unblocked — depends only on F-04 (provider profile), already shipped (`improvement-124`)
 
 ## Current state
 
