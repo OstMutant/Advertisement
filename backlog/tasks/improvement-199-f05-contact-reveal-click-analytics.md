@@ -632,6 +632,37 @@ after the previous one is done and confirmed working (build/tests green).
   failed, 13 skipped) — one real failure caught and fixed on the first attempt (the test bug above),
   fully green on the second.
 
+- **Checkpoint 10 — Providers-tab refresh fix had a real gap of its own, found via manual testing
+  2026-09-29 — DONE 2026-09-29:** the Checkpoint 9 fix only refreshed `ProvidersView` when
+  *switching TO* the Providers tab (`tabs.addSelectedChangeListener`). Settings is a modal overlay,
+  not a tab — if the user was **already** on the Providers tab, opened Settings, created a profile,
+  and closed Settings without ever switching tabs, no selection-change event ever fired, so the tab
+  stayed stale. Confirmed live by the user reproducing it directly. Root cause:
+  `AccountOverlay.openForSettings(Long targetUserId)` hardcoded its `onClosed` callback to a no-op,
+  so nothing could react to Settings actually closing.
+  Fix: `openForSettings` now takes a real `@NonNull Runnable onClosed`; `HeaderBar` gained a
+  `setOnSettingsClosed(Runnable)` setter (its Settings button passes the stored callback into
+  `openForSettings`); `MainView.init()` wires a callback that refreshes `ProvidersView` if it's the
+  currently-selected tab, regardless of whether a tab switch ever happens.
+  New Playwright coverage in `04-provider-profile-flow.spec.js`'s "moderatorEn creates a minimal
+  provider profile" test: clicks the Providers tab *first* (before ever opening Settings), confirms
+  moderatorEn's card is absent, creates the profile via Settings, closes Settings with **no further
+  tab click**, and confirms the card is now visible — the scenario the original Checkpoint 9 test
+  didn't cover (that one only tested switching tabs in the other direction).
+  Verified live: `build-and-test.sh --unit --no-integration` green (78/78), clean redeploy + full
+  `e2e --ux` green (50 passed, 0 failed, 13 skipped) on the first attempt.
+  **Also found during this same pass (code review, deep-review-orchestrator, 2026-09-29):** two
+  DRY findings (duplicated contact-loading block in `ProviderProfileFormOverlayModeHandler`,
+  triple-duplicated per-channel row rendering across `ContactRevealPanel`/
+  `ProviderProfileViewModeHandler`/`AdvertisementFormOverlayModeHandler`) and one stale Javadoc
+  `{@link}` in `AdvertisementOwnerProfileLookupService` — all fixed; `ContactInfoDto` gained
+  `presentChannels()` (a pure derivation over its own fields, platform-commons' existing narrow
+  DTO-behavior exception) to kill the triple duplication without forcing each class's genuinely
+  different per-row rendering into a shared shape. Recorded as
+  `marketplace-orchestrator/DECISIONS.md` ADR-010: the `ContactAccessService`/
+  `AdvertisementOwnerProfileLookupService` split and the `ContactService`→`ContactAccessService`
+  rename, previously only narrated in this task file.
+
 ## Related
 
 - `private/features/F-05-contact-reveal.md` — full feature spec (goal, user story, scope, tech

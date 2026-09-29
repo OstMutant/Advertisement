@@ -16,6 +16,10 @@
  *     advertisement-side ContactRevealPanel click-through (phone reveal, Telegram deep link)
  *     resolving the same contact via the ad-to-owner-profile fallback -- the ad is deleted again
  *     at the end of this step so it doesn't affect later specs' ad counts.
+ *   - "moderatorEn creates a minimal provider profile": also covers the Providers tab refreshing
+ *     on Settings close when that tab was already selected before Settings ever opened -- Settings
+ *     is a modal overlay, not a tab, so closing it never fires the tabs' own selection-change
+ *     event, unlike the plain tab-switch case covered in the first test.
  *   - "moderatorEn views
  *     userEn's account" / "adminEn creates and edits userUk's provider profile via the Users grid":
  *     unchanged AccountOverlay tab coverage, see individual test names for detail.
@@ -191,6 +195,14 @@ test.describe('Provider Profile flow', () => {
   test('moderatorEn creates a minimal provider profile — no category, no city: those chip rows are absent, field order stays header -> about -> kind badge -> meta on the account view, then deleted', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.moderatorEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.moderatorEn);
+
+    // Providers tab selected BEFORE Settings opens -- Settings is a modal overlay, not a tab, so
+    // closing it never fires tabs' own selection-change event; the tab must still refresh anyway.
+    await page.locator('vaadin-tab').filter({ hasText: 'Providers' }).click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('.provider-profile-container .provider-profile-card')
+      .filter({ hasText: TEST_USERS.moderatorEn.name })).toHaveCount(0, { timeout: 5000 });
+
     await runOpenSettingsFlow(page);
     await openProviderProfileTab(page);
 
@@ -202,6 +214,17 @@ test.describe('Provider Profile flow', () => {
     await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
     await closeNotification(page);
     // Save now switches straight to View -- no Cancel click needed.
+
+    await test.step('Providers tab (already selected, never switched to) refreshes on Settings close', async () => {
+      await runCloseSettingsFlow(page);
+      // No tab click here -- Providers was already the selected/visible tab the whole time.
+      await expect(page.locator('.provider-profile-container .provider-profile-card')
+        .filter({ hasText: TEST_USERS.moderatorEn.name })).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'providers-tab-refresh-after-settings-close-no-tab-switch');
+    });
+
+    await runOpenSettingsFlow(page);
+    await openProviderProfileTab(page);
 
     await test.step('account-tab view — chip rows absent, reduced field order intact', async () => {
       const viewCard = page.locator('.account-overlay .overlay__view-card');

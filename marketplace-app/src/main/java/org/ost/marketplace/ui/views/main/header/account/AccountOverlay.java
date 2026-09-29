@@ -5,6 +5,7 @@ import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
@@ -140,9 +141,9 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
 
     /** Opens directly on the Settings tab -- used by {@code HeaderBar}'s own Settings button
      *  (mirrors the deleted {@code SettingsOverlay}'s own entry point). */
-    public void openForSettings(Long targetUserId) {
+    public void openForSettings(Long targetUserId, @NonNull Runnable onClosed) {
         ensureInitialized();
-        session = new OverlaySession(Section.SETTINGS, NameMode.VIEW, ProviderProfileMode.VIEW, false, targetUserId, _ -> { }, () -> { });
+        session = new OverlaySession(Section.SETTINGS, NameMode.VIEW, ProviderProfileMode.VIEW, false, targetUserId, _ -> { }, onClosed);
         launchSession(this::switchTo);
     }
 

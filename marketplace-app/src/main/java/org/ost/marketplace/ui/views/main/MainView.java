@@ -119,6 +119,11 @@ public class MainView extends VerticalLayout {
             if (selected == providersView) providersView.refreshOnTabSelect();
         });
 
+        // Settings is a modal overlay, not a tab -- closing it never fires tabs' own selection-change event.
+        headerBar.setOnSettingsClosed(() -> {
+            if (tabsToPages.get(tabs.getSelectedTab()) == providersView) providersView.refreshOnTabSelect();
+        });
+
         headerBar.addClassName("main-header");
         add(headerBar, tabs, pages);
 
