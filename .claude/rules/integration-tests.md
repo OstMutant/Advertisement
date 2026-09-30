@@ -185,17 +185,19 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
   workarounds for this specific claude-dev environment's Docker networking limitations (dynamic
   Testcontainers ports aren't reachable here, only statically-published ones). Unset on a normal
   developer machine — Testcontainers' defaults just work there. See `scripts/CLAUDE.md`.
-- **`run.sh` auto-detects starter staleness — no manual flag needed.** `integration-tests`
-  depends on `platform-commons`/`advertisement`/`user`/`taxon`/`audit`/`attachment`/
-  `provider-profile-spring-boot-starter` as real compiled JARs from `~/.m2`, not source, so
-  Maven's `-am` ("also-make") reactor rebuild is only actually needed when one of those changed.
-  By default `run.sh` compares each of those modules' newest
-  `.java` file against its installed `~/.m2` JAR's mtime; if any source is newer (or the JAR is
-  missing), it runs a targeted `mvn install -DskipTests` for just those modules first, then always
-  tests via `mvn -pl integration-tests test` (no `-am`) — measured ~1:47-3:35 total for a single
-  test class when nothing needed reinstalling, vs. 3-7 min walking the full 9-module reactor every
-  time (~100s of "nothing to compile" Maven plugin overhead even when nothing changed). Confirmed
-  the detection actually triggers a reinstall when a starter file changes, not just when nothing
-  changed. `run.sh --no-check` bypasses the check entirely (test against whatever's in `~/.m2`
-  right now, even if stale — for deliberately reproducing behavior against an older build, not for
-  normal iteration). See `.claude/nav/adr-index.md`.
+- **`run.sh` auto-detects staleness for every real dependency — no manual flag needed.**
+  `integration-tests` depends on every `org.ost` module listed in its own `pom.xml`
+  `<dependency>` entries (`platform-commons`, every domain starter, `marketplace-orchestrator`,
+  `marketplace-rest-api`) as real compiled JARs from `~/.m2`, not source, so Maven's `-am`
+  ("also-make") reactor rebuild is only actually needed when one of those changed. By default
+  `run.sh` derives that module list directly from `integration-tests/pom.xml`'s own dependencies
+  (not a hand-maintained or heuristic-filtered list — self-maintaining as new dependencies are
+  added), then compares each module's newest `.java` file against its installed `~/.m2` JAR's
+  mtime; if any source is newer (or the JAR is missing), it runs a targeted `mvn install
+  -DskipTests` for just those modules first, then always tests via `mvn -pl integration-tests
+  test` (no `-am`) — measured ~1:47-3:35 total for a single test class when nothing needed
+  reinstalling, vs. 3-7 min walking the full reactor every time (~100s of "nothing to compile"
+  Maven plugin overhead even when nothing changed). `run.sh --no-check` bypasses the check
+  entirely (test against whatever's in `~/.m2` right now, even if stale — for deliberately
+  reproducing behavior against an older build, not for normal iteration). See
+  `.claude/nav/adr-index.md`.

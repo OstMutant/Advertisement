@@ -30,12 +30,13 @@
 # integration-tests/CLAUDE.md.
 #
 # Automatic staleness check (default, no flag needed — see .claude/nav/adr-index.md):
-# integration-tests depends on platform-commons/advertisement-/user-/taxon-/audit-spring-boot-starter
-# as real compiled JARs from ~/.m2, not source. Before testing, this script compares each of those
-# modules' newest .java file against its installed JAR's mtime; if any source is newer (or the JAR
-# is missing entirely), it runs a targeted `mvn install -DskipTests` for just those modules first.
-# Otherwise it skips straight to `mvn -pl integration-tests test` — no full 9-module reactor walk,
-# no risk of silently testing against a stale JAR either way. `--no-check` above bypasses this.
+# integration-tests depends on every org.ost module listed in its own pom.xml <dependency> entries
+# (platform-commons, every domain starter, marketplace-orchestrator, marketplace-rest-api) as real
+# compiled JARs from ~/.m2, not source. Before testing, this script compares each of those modules'
+# newest .java file against its installed JAR's mtime; if any source is newer (or the JAR is
+# missing entirely), it runs a targeted `mvn install -DskipTests` for just those modules first.
+# Otherwise it skips straight to `mvn -pl integration-tests test` — no full reactor walk, no risk
+# of silently testing against a stale JAR either way. `--no-check` above bypasses this.
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPORT_DIR="$ROOT/integration-tests/reports"
@@ -100,16 +101,18 @@ if [ -n "$NO_CHECK" ]; then
   echo "Applying --no-check: skipping the staleness check — testing against whatever is already" \
        "in ~/.m2, even if stale."
 else
-  # Module list derived from root pom.xml (keep only modules with no own src/test/java content,
-  # excluding integration-tests itself) instead of hand-maintained -- the complementary set to
-  # build.sh's own UNIT_MODULES derivation, same source, same "does src/test/java/**/*.java exist"
-  # predicate inverted -- see improvement-181.
-  STARTER_MODULES=$(sed -n '/<modules>/,/<\/modules>/p' "$ROOT/pom.xml" \
-    | grep -oE '<module>[^<]+</module>' | sed -E 's#</?module>##g' \
-    | grep -v '^integration-tests$' \
-    | while read -r m; do
-        [ -z "$(find "$ROOT/$m/src/test/java" -name '*.java' 2>/dev/null | head -1)" ] && echo "$m"
-      done | paste -sd' ')
+  # Module list derived directly from integration-tests/pom.xml's own real <dependency> entries
+  # (every org.ost artifact it actually compiles against) instead of the old "no own
+  # src/test/java" heuristic -- that heuristic wrongly excluded marketplace-orchestrator/
+  # marketplace-rest-api (both have their own unit tests AND are real compile-scope dependencies
+  # of this module's Level 3 tests), so a source change in either never triggered a reinstall here
+  # and silently left ~/.m2 stale against everything else. Reading the real dependency list is
+  # also self-maintaining -- any future dependency integration-tests/pom.xml adds is watched
+  # automatically, no separate exception list to keep in sync.
+  STARTER_MODULES=$(awk '/<groupId>org\.ost<\/groupId>/{getline; print}' "$ROOT/integration-tests/pom.xml" \
+    | sed -E 's#.*<artifactId>([^<]+)</artifactId>.*#\1#' \
+    | grep -vE '^(advertisement-parent|integration-tests)$' \
+    | sort -u | paste -sd' ')
   NEEDS_INSTALL=""
   for m in $STARTER_MODULES; do
     JAR="$(find "$HOME/.m2/repository/org/ost/$m" -name '*.jar' 2>/dev/null | head -1)"

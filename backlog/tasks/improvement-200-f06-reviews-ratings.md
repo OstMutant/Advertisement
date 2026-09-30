@@ -233,6 +233,49 @@ feedback-specific):**
    `""`; `feedback-spring-boot-starter/DECISIONS.md` auto-generated as a pointer file in the same
    run (no cross-referencing ADRs yet, as expected).
 
+## CI verification & new-module registration gaps (2026-09-30)
+
+Ran `bash scripts/ci.sh --foreground` (full pipeline) to verify the two Phase 1 UI refinements
+(`StarRatingField`, `feedback-panel.css`) plus the architecture-map fixes above. Found and fixed 3
+more instances of the same root-cause pattern already seen above: a place that lists sibling
+starters/modules by name, where `contact-spring-boot-starter` was added by hand but
+`feedback-spring-boot-starter` was missed.
+
+1. ✅ `integration-tests/src/main/java/org/ost/integrationtests/support/Level3ScenarioTest.java` —
+   fixed `@SpringBootTest(classes = {...})` missing `FeedbackAutoConfiguration.class` (had
+   `ContactAutoConfiguration.class`). Broke `ApplicationContext` bootstrap for all 8 Level-3 REST
+   API scenario tests (`NoSuchBeanDefinitionException` for `ComponentFactory<FeedbackPort>`, since
+   `OrchestratorAutoConfiguration`'s `FeedbackAccessService` needs it). Verified via
+   `integration-tests/run.sh --sandbox AdvertisementAuthorizationScenarioTest` — passed.
+2. ✅ `integration-tests/run.sh`'s staleness-check (`STARTER_MODULES`) — was derived from "modules
+   with no own `src/test/java`", which wrongly excluded `marketplace-orchestrator`/
+   `marketplace-rest-api` (both have their own tests AND are real compile dependencies of this
+   module's Level 3 tests) — a source change in either never triggered a host `~/.m2` reinstall.
+   Confirmed directly: `marketplace-orchestrator`'s installed jar was 3 weeks stale
+   (`TaxonCatalogService` referencing a since-renamed `TaxonFilterDto`), causing
+   `ClassNotFoundException` independent of the fix above. Fixed: module list now derived directly
+   from `integration-tests/pom.xml`'s own `<dependency>` entries (self-maintaining). Also updated
+   `.claude/rules/integration-tests.md`'s matching description. Verified via a second
+   `run.sh --sandbox` invocation — auto-reinstalled `marketplace-orchestrator`, test passed.
+3. ✅ `scripts/deploy-and-run/reset-clean.sql` (used by `--reset-only-db` before every e2e run) —
+   `TRUNCATE TABLE` listed `contact_view`/`contact_info` but not `feedback`/`feedback_aggregate`.
+   Caused a real E2E failure in this same CI run: leftover feedback data from earlier manual
+   testing made `04-provider-profile-flow.spec.js`'s "adminEn leaves a review" test find a non-empty
+   panel where it expected `.feedback-empty`. Fixed: added both tables to the `TRUNCATE` list.
+
+**Full CI run result (`ci-20260930T193848Z-585158-41632295`, 27m52s):** build/lint/shellcheck/
+unit/integration/archunit_metrics/docs all ✅. **e2e: 60/64 passed**, 1 failed (root-caused to
+finding 3 above, now fixed but not yet re-verified with a fresh full run), 3 didn't run (serial
+spec dependency on the failed one). **sonar: failed only on the pre-existing Quality Gate**
+(New Coverage 63.7%<80% + the known `HeaderBar.java` S1450 — both already tracked in
+`improvement-203`) — no new test failures in the sonar stage itself once findings 1-2 above were
+fixed (it had failed on the same `integration` cascade before those fixes).
+
+**Re-verified (2026-09-30, `ci-20260930T200934Z-617685-2219019323`, 28m10s):** confirms finding
+3's fix — **e2e: 64/64 passed**, including the previously-failing "adminEn leaves a review"
+test.step. build/lint/shellcheck/unit/integration/archunit_metrics/docs all ✅ again. sonar still
+❌, same pre-existing Quality Gate only (not a new failure) — expected, not investigated further.
+
 ## Related
 
 - `private/features/F-06-reviews-ratings.md` — full feature spec (goal, user story, scope, tech
