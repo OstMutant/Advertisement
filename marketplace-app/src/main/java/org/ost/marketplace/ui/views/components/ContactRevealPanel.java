@@ -47,8 +47,6 @@ public class ContactRevealPanel extends Div
     @Getter
     private final I18nService              i18nService;
 
-    private Parameters params;
-
     @Override
     @PostConstruct
     public ContactRevealPanel init() {
@@ -58,20 +56,20 @@ public class ContactRevealPanel extends Div
 
     @Override
     public ContactRevealPanel configure(Parameters p) {
-        this.params = p;
         removeAll();
         setVisible(false);
 
-        ContactInfoDto contact = contactAccessService.resolveContact(p.getEntityRef().entityType(), p.getEntityRef().entityId()).orElse(null);
+        EntityRef entityRef = p.getEntityRef();
+        ContactInfoDto contact = contactAccessService.resolveContact(entityRef.entityType(), entityRef.entityId()).orElse(null);
         if (contact == null) return this;
 
         for (var entry : contact.presentChannels()) {
             String value = entry.getValue();
             switch (entry.getKey()) {
-                case PHONE -> add(buildPhoneRow(value));
-                case TELEGRAM -> add(buildDeepLinkRow("contact-reveal-telegram", VaadinIcon.PAPERPLANE,
+                case PHONE -> add(buildPhoneRow(entityRef, value));
+                case TELEGRAM -> add(buildDeepLinkRow(entityRef, "contact-reveal-telegram", VaadinIcon.PAPERPLANE,
                         getValue(CONTACT_REVEAL_BUTTON_TELEGRAM), ContactChannel.TELEGRAM, "https://t.me/" + value, value));
-                case VIBER -> add(buildDeepLinkRow("contact-reveal-viber", VaadinIcon.MOBILE,
+                case VIBER -> add(buildDeepLinkRow(entityRef, "contact-reveal-viber", VaadinIcon.MOBILE,
                         getValue(CONTACT_REVEAL_BUTTON_VIBER), ContactChannel.VIBER, "viber://chat?number=" + value, value));
             }
         }
@@ -80,7 +78,7 @@ public class ContactRevealPanel extends Div
         return this;
     }
 
-    private Div buildPhoneRow(String phone) {
+    private Div buildPhoneRow(EntityRef entityRef, String phone) {
         Div row = new Div();
         row.addClassName("contact-reveal-row");
         row.addClassName("contact-reveal-phone");
@@ -88,7 +86,7 @@ public class ContactRevealPanel extends Div
         var button = new Button(getValue(CONTACT_REVEAL_BUTTON_SHOW_PHONE), VaadinIcon.PHONE.create());
         button.addClickListener(_ -> {
             if (!checkAllowed()) return;
-            contactAccessService.recordView(params.getEntityRef().entityType(), params.getEntityRef().entityId(), ContactChannel.PHONE, access.getCurrentUserId(), phone);
+            contactAccessService.recordView(entityRef.entityType(), entityRef.entityId(), ContactChannel.PHONE, access.getCurrentUserId(), phone);
             Span revealed = new Span(phone);
             revealed.addClassName("contact-reveal-phone-value");
             row.removeAll();
@@ -98,7 +96,7 @@ public class ContactRevealPanel extends Div
         return row;
     }
 
-    private Div buildDeepLinkRow(String cssClass, VaadinIcon icon, String label, ContactChannel channel, String deepLinkUrl, String revealedValue) {
+    private Div buildDeepLinkRow(EntityRef entityRef, String cssClass, VaadinIcon icon, String label, ContactChannel channel, String deepLinkUrl, String revealedValue) {
         Div row = new Div();
         row.addClassName("contact-reveal-row");
         row.addClassName(cssClass);
@@ -106,7 +104,7 @@ public class ContactRevealPanel extends Div
         var button = new Button(label, icon.create());
         button.addClickListener(_ -> {
             if (!checkAllowed()) return;
-            contactAccessService.recordView(params.getEntityRef().entityType(), params.getEntityRef().entityId(), channel, access.getCurrentUserId(), revealedValue);
+            contactAccessService.recordView(entityRef.entityType(), entityRef.entityId(), channel, access.getCurrentUserId(), revealedValue);
             UI.getCurrent().getPage().open(deepLinkUrl, "_blank");
         });
         row.add(button);
@@ -117,7 +115,7 @@ public class ContactRevealPanel extends Div
         try {
             rateLimiter.checkAndRecord(access.getCurrentUserId());
             return true;
-        } catch (TooManyAttemptsException ex) {
+        } catch (TooManyAttemptsException _) {
             notificationService.error(CONTACT_REVEAL_NOTIFICATION_RATE_LIMITED);
             return false;
         }

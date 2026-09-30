@@ -137,24 +137,9 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         descriptionField.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-description");
 
         List<TaxonDto> availableCategories = taxonCatalogService.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale());
-        if (!availableCategories.isEmpty()) {
-            categoryComboBox = new MultiSelectComboBox<>();
-            categoryComboBox.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
-            categoryComboBox.setItemLabelGenerator(TaxonDto::getName);
-            categoryComboBox.setItems(availableCategories);
-            categoryComboBox.getElement().setProperty("maxSelectedItemsCount", 10);
-            categoryComboBox.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-categories");
-        }
-
+        categoryComboBox = buildCategoryComboBox(availableCategories);
         List<TaxonDto> availableCities = taxonCatalogService.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale());
-        if (!availableCities.isEmpty()) {
-            cityComboBox = new ComboBox<>();
-            cityComboBox.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_CITY));
-            cityComboBox.setItemLabelGenerator(TaxonDto::getName);
-            cityComboBox.setItems(availableCities);
-            cityComboBox.setClearButtonVisible(true);
-            cityComboBox.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-city");
-        }
+        cityComboBox = buildCityComboBox(availableCities);
 
         adKindField = new RadioButtonGroup<>();
         adKindField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_AD_KIND));
@@ -167,6 +152,38 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                 : mapper.toAdvertisementEdit(params.getAd());
         buildBinder(dto, availableCategories, availableCities);
 
+        wireChangeListeners();
+
+        Div content = buildContent(isCreate);
+        buildHeaderActions(layout, isCreate);
+
+        updateButtons(false);
+        layout.setContent(content);
+    }
+
+    private MultiSelectComboBox<TaxonDto> buildCategoryComboBox(List<TaxonDto> availableCategories) {
+        if (availableCategories.isEmpty()) return null;
+        MultiSelectComboBox<TaxonDto> box = new MultiSelectComboBox<>();
+        box.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
+        box.setItemLabelGenerator(TaxonDto::getName);
+        box.setItems(availableCategories);
+        box.getElement().setProperty("maxSelectedItemsCount", 10);
+        box.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-categories");
+        return box;
+    }
+
+    private ComboBox<TaxonDto> buildCityComboBox(List<TaxonDto> availableCities) {
+        if (availableCities.isEmpty()) return null;
+        ComboBox<TaxonDto> box = new ComboBox<>();
+        box.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_CITY));
+        box.setItemLabelGenerator(TaxonDto::getName);
+        box.setItems(availableCities);
+        box.setClearButtonVisible(true);
+        box.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-city");
+        return box;
+    }
+
+    private void wireChangeListeners() {
         titleField.setValueChangeMode(ValueChangeMode.EAGER);
         titleField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         descriptionField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
@@ -177,7 +194,9 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         if (cityComboBox != null) {
             cityComboBox.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         }
+    }
 
+    private Div buildContent(boolean isCreate) {
         Div cardHeader = new Div(VaadinIcon.FORM.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC)));
         cardHeader.addClassName("overlay__form-card-header");
 
@@ -209,7 +228,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                     Objects.requireNonNullElse(ad.getCreatedByUserName(), "—"),
                     ad.getCreatedByUserEmail(), ad.getCreatedAt(), ad.getUpdatedAt())));
         }
+        return content;
+    }
 
+    private void buildHeaderActions(OverlayLayout layout, boolean isCreate) {
         saveButton = new UiPrimaryButton(getValue(ADVERTISEMENT_OVERLAY_BUTTON_SAVE));
         UiIconButton closeBtn = new UiIconButton(getValue(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
 
@@ -226,9 +248,6 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         }
         headerActions.add(closeBtn);
         layout.setHeaderActions(headerActions);
-
-        updateButtons(false);
-        layout.setContent(content);
     }
 
     // A not-yet-saved ad has no id to resolve the fallback from -- during Create, the eventual

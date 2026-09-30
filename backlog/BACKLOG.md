@@ -98,6 +98,7 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
+| Top | 🟡 | 203 | improvement-203 — running collection bucket for things noticed *during implementation* of another task that are real but out of that task's own approved scope (a pre-existing issue in an unrelated file, a SonarQube false-positive needing its own separate server-side-transition approval, a small spotted inconsistency). Distinct from improvement-133 (findings too large to size, 🔵 low urgency) — this one is Top so entries get triaged quickly. First entry: `HeaderBar.java`'s likely-false-positive `java:S1450` Sonar flag, found during improvement-200 Phase 1, 2026-09-30 |
 | Top | 🟡 | 200 | improvement-200 — F-06 reviews & ratings (private product roadmap Phase 3): new self-contained `feedback-spring-boot-starter` (rating + text feedback entry on any `EntityRef` — provider profile or advertisement — plus an unbounded threaded comment tree, moderation), own `feedback_aggregate` table (no denormalization onto other starters). This project's stated "moat" vs the Facebook group — persistent reputation, the #1 trust signal. `improvement-199` (F-05, Phase 2) shipped 2026-09-29, so this is now the next unblocked item in roadmap order; user-requested Top placement, 2026-09-22 |
 | Top | 🟡 | 186 | improvement-186 — REST API hypermedia (HATEOAS/HAL) action-discovery, an advertisement media sub-resource (POST/GET/DELETE), project-wide `PATCH` support via `JsonNullable`, and a 4th item: `POST /api/api-keys`'s HTTP Basic auth bypasses the login rate limiter entirely (verified 2026-09-22, distinct from `improvement-196`'s post-auth request-volume scope) — carved out of `improvement-183` item 9 once that one ask grew into three independently-sizable pieces; design fully worked out, ready, but the largest single piece of work in this list — sequenced after the smaller/quicker items above |
 | Top | 🟡 | 138 | improvement-138 — "Architecture Control Plane". **Track A completed 2026-08-04**, its full execution history archived to `completed/tasks/improvement-138-architecture-control-plane-track-a.md` on 2026-08-28. This issue's live scope is now **Track B** (ArchUnit contract/test model + AI-token-savings hypothesis, not started) plus **`improvement-135`'s absorbed items 3/5** (does the existing hand-authored `.claude/nav/` layer earn its cost — mechanism built, empirical answer pending real accumulated data; governing rule — no new `.claude/nav/*`-shaped content, including Track B, until that data shows a gap). `improvement-135` had nothing else still-open and is now closed (see `completed/BACKLOG-ARCHIVE.md`). **Self-gated — do not start until that data exists**, listed last in Top for this reason |
@@ -107,6 +108,12 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
+
+### Top priority — improvement-203
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-203](tasks/improvement-203-out-of-scope-implementation-findings.md) | New (running collection bucket, filed 2026-09-30) | Catches things noticed *during implementation* of another task that are real but out of that task's own approved scope — distinct from `improvement-133` (findings too large to size, 🔵 low urgency); this one stays Top so entries get triaged quickly rather than rotting. First entry: `HeaderBar.java`'s likely-false-positive `java:S1450` Sonar flag (needs its own separate server-side-transition approval), found during `improvement-200` Phase 1. See the issue file for the running list |
 
 ### Top priority — improvement-200
 
