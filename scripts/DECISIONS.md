@@ -2,6 +2,45 @@
 
 ---
 
+## ADR-015: `--in-container` mode — sync reliability (no `exec`, container-internal directory restoration, OverlayFS `sync` before copy-out)
+
+**Status:** Accepted
+
+**Context:** `--in-container` (ADR-014's engine, undocumented decision of its own) runs a wrapped
+script inside a disposable `dev-shell` container via `scripts/utils/ensure-dev-shell.sh`/
+`sync-source.sh`, so a script's live state survives regardless of which shell triggered it. Three
+real, confirmed bugs made this unreliable: (1) `run.sh` used `exec docker exec ...` to invoke the
+inner run, which replaced the host process entirely and never returned control to copy results
+back out; (2) `sync_source_into`'s wipe-and-`git ls-files`-recreate never restores gitignored
+output directories (`scripts/logs/`, `playwright/pw-report/`, ...) since git tracks no files
+there, and `docker cp` can create only one missing leaf directory, not a multi-level missing
+path — silently dropping any script output written two or more levels under a freshly-wiped
+root; (3) OverlayFS (`dev-shell`'s container filesystem) can leave a just-written file's data in
+dirty pages not yet visible to a separate `docker cp` read issued immediately after the writing
+process exits — confirmed via two real runs where `docker cp` for one path silently returned
+nothing while an adjacent, near-identical `docker cp` in the same function succeeded.
+
+**Decision:** (1) `run.sh`'s `--in-container` branch drops `exec`, captures the inner `docker
+exec`'s real exit code, and calls a new `sync_artifacts_from_dev_shell`
+(`scripts/utils/sync-artifacts-from-dev-shell.sh`) before returning it — mirrors
+`scripts/ci/run.sh`'s own `sync_artifacts()` for the same class of problem. (2) `sync_source_into`
+now also runs a container-internal `docker exec "$container" mkdir -p .../scripts/logs
+.../playwright/pw-report ...` right after the wipe+extract — a container-internal `mkdir`, not a
+raw host-side one, so the WSL-bind-mount-unsafe finding does not apply. (3) `run.sh` runs `docker
+exec dev-shell sync` between the inner run finishing and the copy-out step, forcing OverlayFS to
+flush before `docker cp` reads.
+
+**Rejected alternative:** wrapping each `docker cp` in a blind retry loop — would mask the symptom
+without addressing why a fresh read can race a completed write; `sync` is the documented,
+deterministic primitive for this exact class of problem.
+
+**Consequences:** `--in-container` now reliably returns both the HTML/log artifacts and
+`tree.txt`/`raw.log` to the host after every run, confirmed via two real end-to-end runs (both
+`pw-report/index.html` and `scripts/logs/playwright/run.log` landing automatically, no manual
+`docker cp`).
+
+---
+
 ## ADR-014: Activity Monitor — token-efficient step-checklist narration wrapping backgrounded scripts, chained ahead of the agent's own Monitor tool
 
 **Status:** Accepted

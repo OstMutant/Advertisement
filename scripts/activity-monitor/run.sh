@@ -189,6 +189,7 @@ declare -A STEP_REASON=()       # step id -> short failure/warn reason, empty wh
 declare -A STEP_POINTER=()      # step id -> where to look for detail, empty when ok
 declare -A STEP_COMPLETED_AT=() # step id -> epoch seconds, set once a step reaches ok/error/warn
 WRAPPER_START_TIME=0            # epoch seconds, set in main() right before spawning the command
+WRAPPER_END_TIME=0              # epoch seconds, set in main() once the wrapped command exits; 0 while still running
 LAST_ACTIVITY_AT=0              # epoch seconds of the last time raw.log actually grew
 LAST_ACTIVITY=""                # most recent free-text narration line (generic-profile fallback only)
 CONTEXT_LINE=""                 # one persistent header line (e.g. a run id) set via an AGENTIC_CONTEXT: marker
@@ -472,7 +473,25 @@ render_tree() {
 
   [[ -n "$LAST_ACTIVITY" ]] && out+="[${TS_LAST_ACTIVITY:-$(timestamp)}] ${LAST_ACTIVITY}"$'\n'
   [[ -n "$CONTEXT_LINE" ]] && out="${CONTEXT_LINE}"$'\n'"${out}"
+  out="$(render_run_summary_line)"$'\n'"${out}"
   printf '%s' "$out"
+}
+
+# Wall-clock start/end header line -- distinct from each step's own relative duration, so a reader
+# (human or Monitor) can tell whether a given tree.txt/raw.log is from the run just watched or a
+# stale one left over from earlier, without cross-checking file mtimes by hand.
+render_run_summary_line() {
+  local started_str
+  started_str="$(date -d "@$WRAPPER_START_TIME" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
+  if (( WRAPPER_END_TIME > 0 )); then
+    local finished_str
+    finished_str="$(date -d "@$WRAPPER_END_TIME" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
+    printf '🕐 Started %s · Finished %s (%s)' "$started_str" "$finished_str" \
+      "$(format_duration $(( WRAPPER_END_TIME - WRAPPER_START_TIME )))"
+  else
+    printf '🕐 Started %s · running %s' "$started_str" \
+      "$(format_duration $(( $(date +%s) - WRAPPER_START_TIME )))"
+  fi
 }
 
 flush_tree() {
@@ -655,6 +674,7 @@ main() {
   if [[ -n "$in_container" ]]; then
     source "$SELF_DIR/../utils/ensure-dev-shell.sh"
     source "$SELF_DIR/../utils/sync-source.sh"
+    source "$SELF_DIR/../utils/sync-artifacts-from-dev-shell.sh"
 
     if ! ensure_dev_shell; then
       echo "ERROR: failed to start the dev-shell container (see error above)" >&2
@@ -673,7 +693,19 @@ main() {
     [[ -n "$profile_override" ]] && inner_args+=(--profile "$profile_override")
     inner_args+=(-- "${cmd[@]}")
 
-    exec docker exec "${docker_exec_flags[@]}" dev-shell bash scripts/activity-monitor.sh "${inner_args[@]}"
+    # Not `exec` -- dev-shell is disposable (self-terminates when idle, see ensure-dev-shell.sh)
+    # and has no bind mount back to the host (sync-source.sh's sync is one-way, host->container),
+    # so whatever the wrapped script wrote (Playwright's HTML report, build/sonar logs, ...) needs
+    # pulling out here, after the inner run finishes, while dev-shell is still guaranteed to be up
+    # -- an `exec` would replace this process entirely and never reach that step.
+    docker exec "${docker_exec_flags[@]}" dev-shell bash scripts/activity-monitor.sh "${inner_args[@]}"
+    local in_container_exit=$?
+    # OverlayFS (dev-shell's container filesystem) can leave a just-written file's data in dirty
+    # pages not yet visible to a separate `docker cp` read immediately after -- an explicit sync
+    # forces the flush before the copy-out below reads the same filesystem.
+    docker exec dev-shell sync
+    sync_artifacts_from_dev_shell
+    return "$in_container_exit"
   fi
 
   # Identify the wrapped script for profile lookup/naming. This project's own convention invokes
@@ -734,6 +766,7 @@ main() {
 
   wait "$cmd_pid"
   local exit_code=$?
+  WRAPPER_END_TIME="$(date +%s)"
 
   local cur_size
   cur_size="$(wc -c < "$RAW_LOG" 2>/dev/null || echo 0)"
