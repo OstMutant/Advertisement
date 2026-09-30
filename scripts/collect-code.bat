@@ -183,8 +183,8 @@ if "%CLAUDE_ONLY%"=="1" (
     call :CheckRootFile "scripts\deploy-and-run\docker-compose.minio.yml"
     call :CheckRootFile "lombok.config"
     call :CheckRootFile "scripts\deploy-and-run\reset-clean.sql"
-    call :CheckRootFile ".claude\skills\doc-standards\SKILL.md"
-    call :CheckRootFile ".claude\skills\deep-review\SKILL.md"
+    call :CheckRootFile ".claude\skills\module-doc-standards\SKILL.md"
+    call :CheckRootFile ".claude\agents\review\deep-review-orchestrator.md"
 )
 
 :: Clean up the temporary file
