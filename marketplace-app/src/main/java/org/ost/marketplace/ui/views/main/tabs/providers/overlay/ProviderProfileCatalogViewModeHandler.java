@@ -15,6 +15,7 @@ import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.ContactRevealPanel;
 import org.ost.marketplace.ui.views.components.EntityMetaPanel;
+import org.ost.marketplace.ui.views.components.FeedbackPanel;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.providers.ProviderProfileDeleteUtil;
@@ -67,6 +68,7 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
     private final NotificationService        notificationService;
     private final UiComponentFactory<EntityMetaPanel, EntityMetaPanel.Parameters> metaPanelFactory;
     private final UiComponentFactory<ContactRevealPanel, ContactRevealPanel.Parameters> contactRevealPanelFactory;
+    private final UiComponentFactory<FeedbackPanel, FeedbackPanel.Parameters> feedbackPanelFactory;
 
     private Parameters params;
 
@@ -101,6 +103,9 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
                 "provider-profile-city-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
         textCard.add(kindBadge);
         textCard.add(contactRevealPanelFactory.build(ContactRevealPanel.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
+                .build()));
+        textCard.add(feedbackPanelFactory.build(FeedbackPanel.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
                 .build()));
         textCard.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));

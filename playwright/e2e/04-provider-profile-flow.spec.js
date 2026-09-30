@@ -743,6 +743,23 @@ test.describe('Provider Profile flow', () => {
       const overlay = page.locator('.provider-profile-catalog-overlay');
       await overlay.waitFor({ timeout: 5000 });
 
+      await test.step('feedback panel — logged-in adminEn leaves a review on moderatorEn\'s profile, list entry and header aggregate update immediately', async () => {
+        const feedbackPanel = overlay.locator('.feedback-panel');
+        await expect(feedbackPanel.locator('.feedback-empty')).toBeVisible({ timeout: 5000 });
+
+        await feedbackPanel.getByRole('radio', { name: '★★★★', exact: true }).click();
+        await feedbackPanel.locator('[data-testid="feedback-form-field-text"] textarea').fill('Great master, highly recommend!');
+        await feedbackPanel.locator('.feedback-form-submit').click();
+        await page.locator('vaadin-notification-card').filter({ hasText: /thanks for your review/i }).first().waitFor({ timeout: 5000 });
+        await closeNotification(page);
+
+        const entry = feedbackPanel.locator('.feedback-entry').first();
+        await expect(entry.locator('.feedback-entry-rating')).toHaveText('★★★★☆', { timeout: 5000 });
+        await expect(entry.locator('.feedback-entry-text')).toContainText('Great master, highly recommend!');
+        await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('1 reviews, avg 4.0');
+        await screenshot(page, 'provider-catalog-feedback-panel-submitted');
+      });
+
       await overlay.locator('.overlay__view-edit').click();
       await assertAbsent(expect, overlay, '.account-overlay-tabs');
       await fillAbout(page, 'Edited by adminEn from the catalog overlay.', '.provider-profile-catalog-overlay');
@@ -809,6 +826,7 @@ test.describe('Provider Profile flow', () => {
         '.provider-profile-city-chips',
         '.provider-profile-kind-badge',
         '.contact-reveal-panel',
+        '.feedback-panel',
         '.entity-meta',
       ], 'provider-catalog-overlay-field-order');
     });
@@ -832,6 +850,14 @@ test.describe('Provider Profile flow', () => {
       await telegramTab.waitForLoadState('domcontentloaded').catch(() => {});
       expect(telegramTab.url()).toContain('t.me/electro_master');
       await telegramTab.close();
+    });
+
+    await test.step('feedback panel — anonymous visitor sees the empty list but no leave-a-review form', async () => {
+      const feedbackPanel = overlay.locator('.feedback-panel');
+      await expect(feedbackPanel.locator('.feedback-empty')).toBeVisible({ timeout: 5000 });
+      await expect(feedbackPanel.locator('.feedback-header-count')).toHaveCount(0);
+      await assertAbsent(expect, feedbackPanel, '.feedback-form-submit');
+      await screenshot(page, 'provider-catalog-feedback-panel-empty');
     });
 
     await test.step('share button — copies link to clipboard, shows confirmation notification', async () => {

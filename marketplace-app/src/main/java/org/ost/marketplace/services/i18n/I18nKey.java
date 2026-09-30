@@ -500,7 +500,16 @@ public enum I18nKey {
     CONTACT_REVEAL_BUTTON_SHOW_PHONE("contactReveal.button.showPhone"),
     CONTACT_REVEAL_BUTTON_TELEGRAM("contactReveal.button.telegram"),
     CONTACT_REVEAL_BUTTON_VIBER("contactReveal.button.viber"),
-    CONTACT_REVEAL_NOTIFICATION_RATE_LIMITED("contactReveal.notification.rateLimited");
+    CONTACT_REVEAL_NOTIFICATION_RATE_LIMITED("contactReveal.notification.rateLimited"),
+
+    // === Feedback ===
+    FEEDBACK_SECTION_LABEL("feedback.section.label"),
+    FEEDBACK_AGGREGATE_COUNT("feedback.aggregate.count"),
+    FEEDBACK_EMPTY("feedback.empty"),
+    FEEDBACK_FORM_BUTTON_SUBMIT("feedback.form.button.submit"),
+    FEEDBACK_FORM_FIELD_RATING("feedback.form.field.rating"),
+    FEEDBACK_FORM_FIELD_TEXT("feedback.form.field.text"),
+    FEEDBACK_NOTIFICATION_SAVED("feedback.notification.saved");
 
     private final String key;
 

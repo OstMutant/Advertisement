@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="01-feedback-schema" author="ostap">
+        <validCheckSum>ANY</validCheckSum>
+
+        <!-- ── feedback ─────────────────────────────────────────────────────── -->
+        <createTable tableName="feedback"
+                      remarks="A registered user's rating+text feedback entry on an owning entity (PROVIDER_PROFILE or ADVERTISEMENT). No DB-level FK to provider_profile/advertisement, same entity_type+entity_id convention audit_log/contact_info already use -- resolved only via FeedbackPort, never a SQL join. At most one row per (author_id, entity_type, entity_id), editable within a 48h window from creation.">
+            <column name="id" type="BIGSERIAL" remarks="Auto-increment">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="author_id" type="BIGINT" remarks="Author of the entry. References user_information(id), no FK">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE or ADVERTISEMENT). No FK -- resolved via FeedbackPort, not a join">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_id" type="BIGINT" remarks="ID of the owning entity. References provider_profile(id) or advertisement(id) depending on entity_type, no FK">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rating" type="SMALLINT" remarks="1-5 star rating">
+                <constraints nullable="false"/>
+            </column>
+            <column name="feedback_text" type="VARCHAR(20000)" remarks="Sanitized HTML (OWASP HTML Sanitizer)"/>
+            <column name="moderation_status" type="VARCHAR(20)" defaultValue="NEW" remarks="FeedbackModerationStatus -- NEW is visible by default, HIDDEN is pending/rejected admin moderation">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Creation timestamp, also the start of the 48h edit window">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" remarks="Last edit, if any"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0" remarks="Optimistic-lock counter (@Version, native CrudRepository.save())">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_feedback_author_entity" tableName="feedback" unique="true">
+            <column name="author_id"/>
+            <column name="entity_type"/>
+            <column name="entity_id"/>
+        </createIndex>
+        <createIndex indexName="idx_feedback_entity" tableName="feedback">
+            <column name="entity_type"/>
+            <column name="entity_id"/>
+        </createIndex>
+
+        <!-- ── feedback_aggregate ───────────────────────────────────────────── -->
+        <createTable tableName="feedback_aggregate"
+                      remarks="Denormalized avg_rating/review_count for one owning entity, recomputed transactionally on every feedback write -- lives entirely inside this starter, same self-contained shape as contact_info, never a column on provider_profile/advertisement.">
+            <column name="id" type="BIGSERIAL" remarks="Auto-increment">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE or ADVERTISEMENT). No FK -- resolved via FeedbackPort, not a join">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_id" type="BIGINT" remarks="ID of the owning entity. References provider_profile(id) or advertisement(id) depending on entity_type, no FK">
+                <constraints nullable="false"/>
+            </column>
+            <column name="avg_rating" type="NUMERIC(2,1)" defaultValueNumeric="0" remarks="Mean of feedback.rating across all entries for this entity">
+                <constraints nullable="false"/>
+            </column>
+            <column name="review_count" type="INTEGER" defaultValueNumeric="0" remarks="Count of feedback entries for this entity">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" remarks="Last recompute timestamp"/>
+        </createTable>
+
+        <createIndex indexName="idx_feedback_aggregate_entity" tableName="feedback_aggregate" unique="true">
+            <column name="entity_type"/>
+            <column name="entity_id"/>
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>
