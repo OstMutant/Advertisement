@@ -191,6 +191,48 @@ per-starter aggregate table over a cross-starter Hook`, referencing this task an
 (Phase 4), rate limiting (Phase 5). UI wiring, originally deferred to a separate follow-up, was
 completed the same day (2026-09-30) — see the Phases section above.
 
+## Architecture-map verification (2026-09-30)
+
+Checked whether new modules (`feedback-spring-boot-starter`, and `contact-spring-boot-starter` as
+a comparison point since it's also recent) are correctly, dynamically picked up by
+`docs/architecture/scripts/generate-architecture-model.sh` across every diagram.
+
+**Confirmed fully dynamic, no gap:** Module Dependencies, Bounded Contexts domain grouping
+(`<architecture.boundedContext>` pom.xml property), Database ERD (`db/*/changes/*.xml` discovery
+off the `<modules>` list), and the per-module Entities/Key Services/Contracts page (`@Table`/
+`*Service.java`/`implements *Port` scans) — verified directly against the real generated
+`docs/architecture/data/architecture-model.json`, `feedback-spring-boot-starter`'s data is present
+and correct in all four.
+
+**Found 2 real gaps, both also affecting `contact-spring-boot-starter` (pre-existing, not
+feedback-specific):**
+1. ✅ (2026-09-30) `SPI_SUBSYSTEM_ORDER`/`SPI_SUBSYSTEM_LABEL` in `generate-architecture-model.sh`
+   (~line 841) was a hardcoded bash array, not derived from real source — `FeedbackPort`/
+   `ContactPort` existed in the generated JSON's `spiMap.details`/`nodes` but never rendered on any
+   SPI Map tab or in the markdown export, since every render path iterated this fixed list.
+   Confirmed precedent: `apikey` had to be added by hand the same way when that module was
+   introduced. **Fixed:** subsystem set is now discovered live from
+   `platform-commons/src/main/java/org/ost/platform/*/spi/*.java` package names
+   (`SPI_SUBSYSTEM_DISCOVERED`); the original 8 entries became `SPI_SUBSYSTEM_PREFERRED_ORDER`
+   (still controls display order/gets a curated `SPI_SUBSYSTEM_LABEL` override), any newly
+   discovered subsystem is auto-appended with a generated fallback label via
+   `spi_subsystem_label_for()` (`Title-Case + " Subsystem"`) when no override exists. Verified:
+   regenerated `architecture-model.json` now has `subsystemOrder: [..., "contact", "feedback"]`
+   with labels `"Contact Subsystem"`/`"Feedback Subsystem"`, and the HTML page renders both tabs.
+2. ✅ (2026-09-30) Root `CLAUDE.md` never had `contact-spring-boot-starter`/
+   `feedback-spring-boot-starter` added to: the "Module Layout" ASCII tree (root cause of the
+   generated Module page showing an empty description for `feedback-spring-boot-starter` —
+   `MODULE_DESCRIPTION` parses exactly this tree, nothing else), the `platform-commons` Package
+   Layout bullet list (`contact.*`/`feedback.*` missing next to `core.*`/`audit.*`/etc.), and the
+   "Architectural Decisions Log" file list (`contact-spring-boot-starter/DECISIONS.md` exists with
+   real content but wasn't listed; also fixed a pre-existing "three modules" miscount in that same
+   note paragraph — 5 modules were already named there before this change, now 6 with
+   `feedback-spring-boot-starter` added). **Fixed:** hand-added the missing lines (deliberately
+   hand-maintained canonical content per "one fact, one canonical home", not generator-derivable).
+   Verified: regenerated JSON now shows real one-line descriptions for both modules instead of
+   `""`; `feedback-spring-boot-starter/DECISIONS.md` auto-generated as a pointer file in the same
+   run (no cross-referencing ADRs yet, as expected).
+
 ## Related
 
 - `private/features/F-06-reviews-ratings.md` — full feature spec (goal, user story, scope, tech

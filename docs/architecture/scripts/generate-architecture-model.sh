@@ -835,10 +835,35 @@ issue_list_json() {
 # All four diagrams (Module Dependencies/SPI Map/Database ERD/Bounded Contexts) render live --
 # no markdown source is parsed for the Diagrams list anymore.
 # ── SPI Map subsystem order/labels -- declared before diagram_groups_json below since the SPI Map
-# group now has one diagram per subsystem (7 tabs instead of one 71-node canvas -- user reported
-# the single flat graph was too cluttered to read). Reused again inside spi_map_json() further
-# down instead of a second, separately-maintained local copy.
-declare -a SPI_SUBSYSTEM_ORDER=(audit attachment user apikey advertisement taxon providerprofile core)
+# group now has one diagram per subsystem (one tab per subsystem instead of one cluttered flat
+# canvas). Reused again inside spi_map_json() further down instead of a second, separately-
+# maintained local copy.
+# Discovered live from platform-commons' own spi/ package tree -- a new domain's spi/ package
+# (org/ost/platform/<x>/spi/*.java) gets its own tab automatically, no edit needed here. Previously
+# a fully hardcoded list that silently dropped any subsystem not manually added to it (confirmed:
+# both "contact" and "feedback" were missing before this fix, with real ContactPort/FeedbackPort
+# data already present in spiMap.details/nodes but unreachable from any tab or the markdown export
+# -- see docs/architecture/scripts/DECISIONS.md and this task's own verification notes).
+mapfile -t SPI_SUBSYSTEM_DISCOVERED < <(
+  for spi_f in "$REPO_ROOT"/platform-commons/src/main/java/org/ost/platform/*/spi/*.java; do
+    [ -f "$spi_f" ] || continue
+    sed -n 's/^package *org\.ost\.platform\.\([a-z]*\)\.spi;.*/\1/p' "$spi_f"
+  done | sort -u
+)
+# Preferred display order for subsystems we curate a specific position/label for; anything
+# discovered above but not listed here is appended at the end automatically, so a new subsystem
+# still gets its own tab (with an auto-generated label, see spi_subsystem_label_for below) instead
+# of silently disappearing.
+declare -a SPI_SUBSYSTEM_PREFERRED_ORDER=(audit attachment user apikey advertisement taxon providerprofile core)
+declare -a SPI_SUBSYSTEM_ORDER=()
+for spi_s in "${SPI_SUBSYSTEM_PREFERRED_ORDER[@]}"; do
+  for spi_d in "${SPI_SUBSYSTEM_DISCOVERED[@]}"; do [ "$spi_s" = "$spi_d" ] && SPI_SUBSYSTEM_ORDER+=("$spi_s"); done
+done
+for spi_d in "${SPI_SUBSYSTEM_DISCOVERED[@]}"; do
+  spi_found=false
+  for spi_s in "${SPI_SUBSYSTEM_ORDER[@]}"; do [ "$spi_s" = "$spi_d" ] && spi_found=true; done
+  $spi_found || SPI_SUBSYSTEM_ORDER+=("$spi_d")
+done
 declare -A SPI_SUBSYSTEM_LABEL=(
   [audit]="Audit Subsystem"
   [attachment]="Attachment Subsystem"
@@ -849,13 +874,25 @@ declare -A SPI_SUBSYSTEM_LABEL=(
   [providerprofile]="Provider Profile Subsystem"
   [core]="Core / Platform"
 )
+# Fallback for any subsystem discovered above with no explicit override: Title-Case the key + "
+# Subsystem" (e.g. "feedback" -> "Feedback Subsystem"). Add a real SPI_SUBSYSTEM_LABEL entry
+# whenever this generic fallback reads awkwardly (multi-word/abbreviated names, same as
+# "providerprofile"/"apikey"/"taxon"/"core" already need above).
+spi_subsystem_label_for() {
+  local s="$1"
+  if [ -n "${SPI_SUBSYSTEM_LABEL[$s]:-}" ]; then
+    echo "${SPI_SUBSYSTEM_LABEL[$s]}"
+  else
+    echo "$(tr '[:lower:]' '[:upper:]' <<< "${s:0:1}")${s:1} Subsystem"
+  fi
+}
 
 spi_map_diagrams_json() {
   local out="" first=true s
   for s in "${SPI_SUBSYSTEM_ORDER[@]}"; do
     $first || out="$out,"
     first=false
-    out="$out{\"title\": \"$(json_escape "${SPI_SUBSYSTEM_LABEL[$s]}")\", \"source\": \"\", \"subsystem\": \"$(json_escape "$s")\"}"
+    out="$out{\"title\": \"$(json_escape "$(spi_subsystem_label_for "$s")")\", \"source\": \"\", \"subsystem\": \"$(json_escape "$s")\"}"
   done
   echo "$out"
 }
@@ -1058,7 +1095,7 @@ for caller in edges.get('callers', []):
     $first_s || labels_json="$labels_json, "
     $first_s || notes_json="$notes_json, "
     first_s=false
-    labels_json="$labels_json\"$s\": \"$(json_escape "${SPI_SUBSYSTEM_LABEL[$s]}")\""
+    labels_json="$labels_json\"$s\": \"$(json_escape "$(spi_subsystem_label_for "$s")")\""
     notes_json="$notes_json\"$s\": \"$(json_escape "${SPI_SUBSYSTEM_NOTE[$s]:-}")\""
   done
   echo "{"
