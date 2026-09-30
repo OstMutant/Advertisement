@@ -747,7 +747,7 @@ test.describe('Provider Profile flow', () => {
         const feedbackPanel = overlay.locator('.feedback-panel');
         await expect(feedbackPanel.locator('.feedback-empty')).toBeVisible({ timeout: 5000 });
 
-        await feedbackPanel.getByRole('radio', { name: '★★★★', exact: true }).click();
+        await feedbackPanel.locator('.star-rating-field [data-rating="4"]').click();
         await feedbackPanel.locator('[data-testid="feedback-form-field-text"] textarea').fill('Great master, highly recommend!');
         await feedbackPanel.locator('.feedback-form-submit').click();
         await page.locator('vaadin-notification-card').filter({ hasText: /thanks for your review/i }).first().waitFor({ timeout: 5000 });
@@ -756,7 +756,8 @@ test.describe('Provider Profile flow', () => {
         const entry = feedbackPanel.locator('.feedback-entry').first();
         await expect(entry.locator('.feedback-entry-rating')).toHaveText('★★★★☆', { timeout: 5000 });
         await expect(entry.locator('.feedback-entry-text')).toContainText('Great master, highly recommend!');
-        await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('1 reviews, avg 4.0');
+        await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1 reviews)');
+        await expect(feedbackPanel.locator('.feedback-header-avg')).toContainText('4.0');
         await screenshot(page, 'provider-catalog-feedback-panel-submitted');
       });
 

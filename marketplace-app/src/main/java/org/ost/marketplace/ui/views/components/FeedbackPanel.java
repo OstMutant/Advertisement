@@ -3,7 +3,6 @@ package org.ost.marketplace.ui.views.components;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
@@ -14,6 +13,7 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.Initialization;
+import org.ost.marketplace.ui.views.components.fields.StarRatingField;
 import org.ost.marketplace.ui.views.components.fields.UiTextArea;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.services.NotificationService;
@@ -94,9 +94,14 @@ public class FeedbackPanel extends Div
         label.addClassName("feedback-header-label");
         headerContainer.add(label);
         if (aggregate.reviewCount() > 0) {
-            Span count = new Span(getValue(FEEDBACK_AGGREGATE_COUNT, aggregate.reviewCount(), "%.1f".formatted(aggregate.avgRating())));
+            int rounded = (int) Math.round(aggregate.avgRating());
+            Span stars = new Span("★".repeat(rounded) + "☆".repeat(5 - rounded));
+            stars.addClassName("feedback-header-stars");
+            Span avg = new Span("%.1f".formatted(aggregate.avgRating()));
+            avg.addClassName("feedback-header-avg");
+            Span count = new Span(getValue(FEEDBACK_AGGREGATE_COUNT, aggregate.reviewCount()));
             count.addClassName("feedback-header-count");
-            headerContainer.add(count);
+            headerContainer.add(stars, avg, count);
         }
     }
 
@@ -131,10 +136,10 @@ public class FeedbackPanel extends Div
         Div form = new Div();
         form.addClassName("feedback-form");
 
-        RadioButtonGroup<Integer> ratingField = new RadioButtonGroup<>();
-        ratingField.setLabel(getValue(FEEDBACK_FORM_FIELD_RATING));
-        ratingField.setItems(1, 2, 3, 4, 5);
-        ratingField.setItemLabelGenerator(n -> "★".repeat(n));
+        Span ratingLabel = new Span(getValue(FEEDBACK_FORM_FIELD_RATING));
+        ratingLabel.addClassName("feedback-form-rating-label");
+
+        StarRatingField ratingField = new StarRatingField();
         ratingField.setValue(5);
         ratingField.addClassName("feedback-form-rating");
 
@@ -152,7 +157,7 @@ public class FeedbackPanel extends Div
             refresh(entityRef);
         });
 
-        form.add(ratingField, textField, submit);
+        form.add(ratingLabel, ratingField, textField, submit);
         return form;
     }
 }
