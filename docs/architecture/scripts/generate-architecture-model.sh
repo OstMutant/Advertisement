@@ -232,7 +232,7 @@ DB_ERD_CHANGELOG_FILES=()
 for erd_mod in "${MODULES[@]}"; do
   while IFS= read -r erd_file; do
     [ -z "$erd_file" ] && continue
-    grep -q '<createTable' "$erd_file" && DB_ERD_CHANGELOG_FILES+=("${erd_file#"$REPO_ROOT/"}")
+    grep -q '<createTable\|<setColumnRemarks' "$erd_file" && DB_ERD_CHANGELOG_FILES+=("${erd_file#"$REPO_ROOT/"}")
   done < <(find "$REPO_ROOT/$erd_mod/src/main/resources/db" -mindepth 3 -maxdepth 3 -name "*.xml" 2>/dev/null | sort)
 done
 
@@ -1113,12 +1113,14 @@ for caller in edges.get('callers', []):
 # the sibling SPI Javadoc convention above). Real FKs (taxon_translation/taxon_assignment -> taxon,
 # user_information's self-referential deleted_by) come live from liquibase-schema-to-json.js.
 # Conceptual (no real SQL-level FK) relationships come from two sources:
-#  1. Derived, in db_erd_json() below, from any column whose own remarks= carries the fixed marker
-#     "References <table>(<column>), no FK" (module-doc-standards' Liquibase remarks convention --
-#     every actor-reference/no-FK column in this codebase's changelogs already carries it).
-#  2. What that marker can't express -- a generic entity_type/entity_id column pair, whose real
-#     target table is a runtime data value, not a schema fact -- stays a small hand-preserved list
-#     below.
+#  1. Derived, in db_erd_json() below, from any column whose own remarks= carries one of two fixed
+#     markers (module-doc-standards' Liquibase remarks convention -- every no-FK column in this
+#     codebase's changelogs already carries one): a single-target marker "References <table>
+#     (<column>), no FK", or a two-target marker "References <tableA>(<column>) or <tableB>
+#     (<column>) depending on <discriminator>, no FK" for a polymorphic entity_type/entity_id pair
+#     whose real target is a runtime value, not a schema fact -- the latter derives two edges, one
+#     per possible target.
+#  2. What neither marker can express -- stays a small hand-preserved list below.
 db_erd_conceptual_relationships_json() {
   cat <<'EOF'
 [
@@ -1140,10 +1142,18 @@ db_erd_json() {
     process.stdin.on("data", c => d += c);
     process.stdin.on("end", () => {
       const curated = JSON.parse(process.argv[1]);
-      const re = /References\s+(\w+)\(([\w,]+)\),\s*no FK/i;
+      const singleRe = /References\s+(\w+)\(([\w,]+)\),\s*no FK/i;
+      const polyRe = /References\s+(\w+)\((\w+)\)\s+or\s+(\w+)\((\w+)\)\s+depending on \w+,\s*no FK/i;
       const derived = [];
       JSON.parse(d).forEach(t => t.columns.forEach(c => {
-        const m = re.exec(c.remarks || "");
+        const remarks = c.remarks || "";
+        const poly = polyRe.exec(remarks);
+        if (poly) {
+          derived.push({ from: poly[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
+          derived.push({ from: poly[3].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
+          return;
+        }
+        const m = singleRe.exec(remarks);
         if (m) derived.push({ from: m[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
       }));
       process.stdout.write(JSON.stringify([...derived, ...curated]));

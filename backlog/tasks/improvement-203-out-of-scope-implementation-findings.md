@@ -63,6 +63,18 @@ sibling card) was made and then explicitly reverted at the user's request before
 filed — confirmed via `git diff` that the revert left only the legitimate `FeedbackPanel` wiring
 diff behind, no leftover fragments.
 
+### 3. Database ERD silently drops `<addColumn>` migrations (found during an architecture-map audit of `feedback`/`contact-spring-boot-starter`, 2026-10-01)
+
+`contact-spring-boot-starter/src/main/resources/db/contact-changelog/changes/02-contact-view-revealed-value.xml` adds `contact_view.revealed_value` via `<addColumn>`. This column is completely absent from both the generated JSON and the rendered ERD diagram, for two compounding reasons: `DB_ERD_CHANGELOG_FILES`'s discovery filter in `docs/architecture/scripts/generate-architecture-model.sh` (lines 228-237) only includes files matching `<createTable` — a file containing only `<addColumn>` never enters the file list passed to the parser at all; and even if it were passed, `docs/architecture/scripts/liquibase-schema-to-json.js` has no `<addColumn>` handling whatsoever (only `createTable`, `addForeignKeyConstraint`, `createIndex`, `addPrimaryKey`, and a narrow raw-`<sql>` regex pass are implemented). Currently the only `<addColumn>` changelog in the repo, so the gap is isolated to one column today, but the mechanism is entirely missing — any future `addColumn` migration on any table hits the same gap.
+
+Not resolved inline: found during a read-only architecture-map audit, not an implementation task with its own approved scope to fix generator code in.
+
+### 4. `minio/minio:latest` — MinIO Community Edition is archived upstream, no more security patches (found during a general infra check, 2026-10-01)
+
+`scripts/deploy-and-run/docker-compose.minio.yml:20` and `scripts/deploy-and-run/run.sh:196,214` both pin `minio/minio:latest`. MinIO's Community Edition GitHub repo was archived (locked, read-only) on 2026-04-25 after a maintenance wind-down (license changed Apache 2.0 → AGPLv3 in 2025-05, Admin GUI removed 2025-02, Docker Hub publishing stopped 2025-10) — the vendor is steering users to the paid AIStor product instead; confirmed directly via web search, not just the external claim that prompted this (see [TuxCare](https://tuxcare.com/blog/minio-els/), [itsfoss](https://itsfoss.com/news/minio-moves-away-from-open-source/)). No further upstream security fixes will land on the community codebase ever again. Garage (Deuxfleurs) is the most-commonly-recommended lightweight S3-compatible replacement (actively maintained, v2.3.0 released 2026-04-16, same S3 API so `attachment-spring-boot-starter`'s `StorageService` wouldn't need code changes, just a different endpoint) — but it's AGPLv3-licensed and lacks bucket versioning/lifecycle policies/erasure coding, which should be checked against this project's actual usage before committing to the swap.
+
+Not resolved inline: an infra/storage-backend swap needs its own sizing and isn't something to fold into unrelated implementation work; not urgent (the already-pulled image keeps working, this is a forward-looking risk, not an active break) but shouldn't be forgotten either.
+
 ## Related
 
 - `backlog/tasks/improvement-133-deferred-oversized-review-findings.md` — sibling bucket, for

@@ -138,4 +138,23 @@ function parseFile(repoRoot, absFile) {
 const [, , repoRoot, ...files] = process.argv;
 const allTables = [];
 for (const f of files) allTables.push(...parseFile(repoRoot, f));
+
+// Apply setColumnRemarks updates from all files after all tables have been parsed
+for (const f of files) {
+  const xml = fs.readFileSync(f, "utf8");
+  const rmkRe = /<setColumnRemarks\s+([^>]*)\/>/g;
+  let rmk;
+  while ((rmk = rmkRe.exec(xml))) {
+    const a = rmk[1];
+    const tableName = attr(a, "tableName");
+    const columnName = attr(a, "columnName");
+    const remarks = attr(a, "remarks") || "";
+    const t = allTables.find(x => x.name === tableName);
+    if (t) {
+      const col = t.columns.find(x => x.name === columnName);
+      if (col) col.remarks = remarks;
+    }
+  }
+}
+
 process.stdout.write(JSON.stringify(allTables));
