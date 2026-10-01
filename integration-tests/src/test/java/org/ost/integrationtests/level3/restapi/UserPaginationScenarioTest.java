@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -123,9 +124,9 @@ class UserPaginationScenarioTest extends AbstractRestApiScenarioTest {
     @Test
     void sortByEachField_bothDirections() throws Exception {
         RegisteredUser admin = registerUserAndIssueApiKey("Admin");
-        registerNamed("Charlie", "charlie-sort");
-        registerNamed("Alpha", "alpha-sort");
-        registerNamed("Bravo", "bravo-sort");
+        long charlieId = JsonScenarioUtils.extractId(registerNamed("Charlie", "charlie-sort"));
+        long alphaId = JsonScenarioUtils.extractId(registerNamed("Alpha", "alpha-sort"));
+        long bravoId = JsonScenarioUtils.extractId(registerNamed("Bravo", "bravo-sort"));
 
         mockMvc.perform(get("/api/users").header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey())
                         .param("roles", "USER").param("sort", "name,asc"))
@@ -144,11 +145,18 @@ class UserPaginationScenarioTest extends AbstractRestApiScenarioTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("Alpha"));
 
+        Map<Long, String> nameById = Map.of(charlieId, "Charlie", alphaId, "Alpha", bravoId, "Bravo");
+        List<Long> sortIds = List.of(charlieId, alphaId, bravoId);
+        Map<Long, Instant> createdAtById = TimestampObservations.read(jdbcClient, "user_information", "created_at", sortIds);
+        List<String> expectedCreatedAtAsc = sortIds.stream()
+                .sorted(Comparator.comparing(createdAtById::get))
+                .map(nameById::get).toList();
+
         mockMvc.perform(get("/api/users").header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey())
                         .param("roles", "USER").param("sort", "createdAt,asc"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Charlie"))
-                .andExpect(jsonPath("$[2].name").value("Bravo"));
+                .andExpect(jsonPath("$[0].name").value(expectedCreatedAtAsc.get(0)))
+                .andExpect(jsonPath("$[2].name").value(expectedCreatedAtAsc.get(2)));
 
         mockMvc.perform(get("/api/users").header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey())
                         .param("sort", "id,asc").param("roles", "ADMIN"))
