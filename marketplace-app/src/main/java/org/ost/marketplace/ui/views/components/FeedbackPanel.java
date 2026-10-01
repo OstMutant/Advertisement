@@ -24,6 +24,8 @@ import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
 import org.springframework.context.annotation.Scope;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -35,7 +37,8 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 public class FeedbackPanel extends Div
         implements Configurable<FeedbackPanel, FeedbackPanel.Parameters>, Initialization<FeedbackPanel>, I18nParams {
 
-    private static final int PAGE_SIZE = 20;
+    private static final int      PAGE_SIZE   = 20;
+    private static final Duration EDIT_WINDOW = Duration.ofHours(48);
 
     @Value
     @lombok.Builder
@@ -51,6 +54,10 @@ public class FeedbackPanel extends Div
 
     private Div headerContainer;
     private Div listContainer;
+    private StarRatingField ratingField;
+    private UiTextArea textField;
+    private Long editingFeedbackId;
+    private Long editingFeedbackVersion;
 
     @Override
     @PostConstruct
@@ -117,7 +124,7 @@ public class FeedbackPanel extends Div
         entries.forEach(entry -> listContainer.add(buildEntryRow(entry)));
     }
 
-    private static Div buildEntryRow(FeedbackDto entry) {
+    private Div buildEntryRow(FeedbackDto entry) {
         Div row = new Div();
         row.addClassName("feedback-entry");
 
@@ -129,6 +136,22 @@ public class FeedbackPanel extends Div
         text.getElement().setProperty("innerHTML", entry.feedbackText());
 
         row.add(stars, text);
+
+        boolean editable = access.isLoggedIn()
+                && entry.authorId().equals(access.getCurrentUserId())
+                && Instant.now().isBefore(entry.createdAt().plus(EDIT_WINDOW));
+        if (editable) {
+            Button editButton = new Button(getValue(FEEDBACK_FORM_BUTTON_EDIT));
+            editButton.addClassName("feedback-entry-edit");
+            editButton.addClickListener(_ -> {
+                ratingField.setValue(entry.rating());
+                textField.setValue(entry.feedbackText());
+                editingFeedbackId = entry.id();
+                editingFeedbackVersion = entry.version();
+                getElement().executeJs("this.scrollIntoView({behavior: 'smooth', block: 'center'})");
+            });
+            row.add(editButton);
+        }
         return row;
     }
 
@@ -139,20 +162,22 @@ public class FeedbackPanel extends Div
         Span ratingLabel = new Span(getValue(FEEDBACK_FORM_FIELD_RATING));
         ratingLabel.addClassName("feedback-form-rating-label");
 
-        StarRatingField ratingField = new StarRatingField();
+        ratingField = new StarRatingField();
         ratingField.setValue(5);
         ratingField.addClassName("feedback-form-rating");
 
-        UiTextArea textField = new UiTextArea(getValue(FEEDBACK_FORM_FIELD_TEXT), null, FeedbackSaveDto.TEXT_MAX_LENGTH, true, "feedback-form-field-text");
+        textField = new UiTextArea(getValue(FEEDBACK_FORM_FIELD_TEXT), null, FeedbackSaveDto.TEXT_MAX_LENGTH, true, "feedback-form-field-text");
 
         Button submit = new Button(getValue(FEEDBACK_FORM_BUTTON_SUBMIT));
         submit.addClassName("feedback-form-submit");
         submit.addClickListener(_ -> {
             if (ratingField.getValue() == null || textField.getValue() == null || textField.getValue().isBlank()) return;
-            feedbackAccessService.save(new FeedbackSaveDto(null, entityRef.entityType(), entityRef.entityId(),
-                    access.getCurrentUserId(), ratingField.getValue(), textField.getValue(), null));
+            feedbackAccessService.save(new FeedbackSaveDto(editingFeedbackId, entityRef.entityType(), entityRef.entityId(),
+                    access.getCurrentUserId(), ratingField.getValue(), textField.getValue(), editingFeedbackVersion));
             textField.clear();
             ratingField.setValue(5);
+            editingFeedbackId = null;
+            editingFeedbackVersion = null;
             notificationService.success(FEEDBACK_NOTIFICATION_SAVED);
             refresh(entityRef);
         });

@@ -507,6 +507,7 @@ public enum I18nKey {
     FEEDBACK_AGGREGATE_COUNT("feedback.aggregate.count"),
     FEEDBACK_EMPTY("feedback.empty"),
     FEEDBACK_FORM_BUTTON_SUBMIT("feedback.form.button.submit"),
+    FEEDBACK_FORM_BUTTON_EDIT("feedback.form.button.edit"),
     FEEDBACK_FORM_FIELD_RATING("feedback.form.field.rating"),
     FEEDBACK_FORM_FIELD_TEXT("feedback.form.field.text"),
     FEEDBACK_NOTIFICATION_SAVED("feedback.notification.saved");

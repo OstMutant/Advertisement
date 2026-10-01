@@ -743,7 +743,7 @@ test.describe('Provider Profile flow', () => {
       const overlay = page.locator('.provider-profile-catalog-overlay');
       await overlay.waitFor({ timeout: 5000 });
 
-      await test.step('feedback panel — logged-in adminEn leaves a review on moderatorEn\'s profile, list entry and header aggregate update immediately', async () => {
+      await test.step('feedback panel — logged-in adminEn leaves a review on moderatorEn\'s profile then edits it in place, list entry and header aggregate update immediately', async () => {
         const feedbackPanel = overlay.locator('.feedback-panel');
         await expect(feedbackPanel.locator('.feedback-empty')).toBeVisible({ timeout: 5000 });
 
@@ -759,6 +759,25 @@ test.describe('Provider Profile flow', () => {
         await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1 reviews)');
         await expect(feedbackPanel.locator('.feedback-header-avg')).toContainText('4.0');
         await screenshot(page, 'provider-catalog-feedback-panel-submitted');
+
+        const editButton = entry.locator('.feedback-entry-edit');
+        await expect(editButton).toBeVisible({ timeout: 5000 });
+        await editButton.click();
+
+        const textArea = feedbackPanel.locator('[data-testid="feedback-form-field-text"] textarea');
+        await expect(textArea).toHaveValue('Great master, highly recommend!', { timeout: 5000 });
+
+        await feedbackPanel.locator('.star-rating-field [data-rating="5"]').click();
+        await textArea.fill('Updated: even better than I thought!');
+        await feedbackPanel.locator('.feedback-form-submit').click();
+        await page.locator('vaadin-notification-card').filter({ hasText: /thanks for your review/i }).first().waitFor({ timeout: 5000 });
+        await closeNotification(page);
+
+        await expect(entry.locator('.feedback-entry-rating')).toHaveText('★★★★★', { timeout: 5000 });
+        await expect(entry.locator('.feedback-entry-text')).toContainText('Updated: even better than I thought!');
+        await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1 reviews)');
+        await expect(feedbackPanel.locator('.feedback-header-avg')).toContainText('5.0');
+        await screenshot(page, 'provider-catalog-feedback-panel-edited');
       });
 
       await overlay.locator('.overlay__view-edit').click();

@@ -44,6 +44,10 @@
     color: var(--app-status-warning-accent);
 }
 
+.feedback-entry-edit {
+    margin-top: 6px;
+}
+
 .feedback-empty {
     color: var(--app-text-muted);
     font-style: italic;

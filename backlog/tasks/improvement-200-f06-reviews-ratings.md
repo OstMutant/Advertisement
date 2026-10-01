@@ -83,14 +83,14 @@ Full spec: `private/features/F-06-reviews-ratings.md`. Summary:
    integration-tests (`FeedbackRepositoryTest`/`FeedbackServiceTest`) and a Playwright
    test.step in `04-provider-profile-flow.spec.js` (anonymous-visitor empty state + logged-in
    submission, list/header refresh).
-   **Pending refinements (agreed 2026-09-30, not yet implemented):**
-   - `FeedbackPanel.buildForm()`'s rating field is currently a `RadioButtonGroup<Integer>` with
+   **Pending refinements (agreed 2026-09-30):**
+   - ✅ (2026-09-30) `FeedbackPanel.buildForm()`'s rating field is currently a `RadioButtonGroup<Integer>` with
      star-text item labels — works functionally (click a star label = assign that rating) but
      renders as a visible radio-button list, not a clean star row. Replace with a new
      `StarRatingField` component (`marketplace-app/ui/views/components/fields/`, alongside
      `UiTextArea`) — 5 clickable `VaadinIcon.STAR`/`STAR_O` icons, click sets the value and fills
      stars 1..N, no visible radio circles.
-   - `FeedbackPanel.buildHeader()`'s two `Span`s (section label + `"{count} reviews, avg
+   - ✅ (2026-09-30) `FeedbackPanel.buildHeader()`'s two `Span`s (section label + `"{count} reviews, avg
      {rating}"`) have no CSS at all — render jammed together with no spacing (e.g. "Reviews1
      reviews, avg 5.0"). Same root cause as the card-separation finding in `improvement-203` item
      2 (no dedicated stylesheet for `.feedback-*`/`.contact-reveal-*` classes). Fix: new
@@ -100,6 +100,19 @@ Full spec: `private/features/F-06-reviews-ratings.md`. Summary:
      (12 reviews)"), matching the `"★".repeat(n)` pattern `buildEntryRow` already uses; adjust the
      `feedback.aggregate.count` i18n message shape to fit (count text separate from the
      stars/number, not one combined sentence).
+   - ✅ (2026-10-01) `FeedbackPanel.buildEntryRow()` renders every entry as static text with no "Edit" action —
+     the own-author's entry needs an Edit button that opens `buildForm()` pre-filled with the
+     existing `rating`/`feedbackText`, submits via `save()` with the existing feedback `id` (not
+     `null`), and is hidden/disabled once the 48h edit window (`FeedbackService`'s existing
+     server-side check) has closed. Extend the existing `04-provider-profile-flow.spec.js`
+     test.step (not a new spec/scenario) to also cover editing.
+   - ✅ (2026-10-01) UI copy currently says "review"/"відгук" throughout (`feedback.section.label`,
+     `feedback.aggregate.count`, `feedback.empty`, `feedback.form.button.submit`,
+     `feedback.form.field.text`, `feedback.notification.saved`) — user-requested wording change
+     (2026-10-01) to "Feedback"/"Фідбек" instead. Update
+     `marketplace-app/src/main/resources/i18n/messages_en.properties` (lines 497-503) and
+     `messages_uk.properties` (lines 498-504); `feedback.form.field.rating` ("Rating"/"Оцінка")
+     is unaffected, it never said "review". No code/class/table renaming — property values only.
 2. ⬜ Extend to advertisements (`entity_type=ADVERTISEMENT`, UI in
    `AdvertisementViewOverlayModeHandler`).
 3. ⬜ Comment tree (`feedback_comment`, `WITH RECURSIVE`, expand/collapse UI, inline reply, any
