@@ -38,6 +38,15 @@ code) and the server-side transition needs its own separate, explicit approval p
 approval for that specific call" — general approval to "fix Sonar findings" already covered the
 other 3 issues found in the same scan (all applied directly), but not this one.
 
+**Also found, same rule, same reason not resolved inline (2026-10-01):** `FeedbackPanel.java:57-58`
+— `ratingField`/`textField` flagged by the same `java:S1450` rule, same likely-false-positive
+shape. `buildForm()` creates these as live Vaadin components (`StarRatingField`/`UiTextArea`)
+already attached to the DOM; `buildEntryRow()`'s Edit-button click handler reaches into the same
+instances (`ratingField.setValue(entry.rating())`, `textField.setValue(entry.feedbackText())`) to
+pre-fill the on-screen form for editing an existing entry, not a fresh one. A local variable
+scoped to `buildForm()` would be unreachable from `buildEntryRow()`, so the Edit button couldn't
+update what's actually rendered — the field promotion is deliberate, not an oversight.
+
 ### 2. `ContactRevealPanel`/`FeedbackPanel` (and provider-profile account-tab's own contact block) all render nested in the same flat card — no visual card-per-section separation (found during improvement-200 Phase 1 UI wiring, 2026-09-30)
 
 `.overlay__view-card` (`advertisement-overlay.css`) is one flex column (`gap: 12px`) — every
@@ -74,6 +83,16 @@ Not resolved inline: found during a read-only architecture-map audit, not an imp
 `scripts/deploy-and-run/docker-compose.minio.yml:20` and `scripts/deploy-and-run/run.sh:196,214` both pin `minio/minio:latest`. MinIO's Community Edition GitHub repo was archived (locked, read-only) on 2026-04-25 after a maintenance wind-down (license changed Apache 2.0 → AGPLv3 in 2025-05, Admin GUI removed 2025-02, Docker Hub publishing stopped 2025-10) — the vendor is steering users to the paid AIStor product instead; confirmed directly via web search, not just the external claim that prompted this (see [TuxCare](https://tuxcare.com/blog/minio-els/), [itsfoss](https://itsfoss.com/news/minio-moves-away-from-open-source/)). No further upstream security fixes will land on the community codebase ever again. Garage (Deuxfleurs) is the most-commonly-recommended lightweight S3-compatible replacement (actively maintained, v2.3.0 released 2026-04-16, same S3 API so `attachment-spring-boot-starter`'s `StorageService` wouldn't need code changes, just a different endpoint) — but it's AGPLv3-licensed and lacks bucket versioning/lifecycle policies/erasure coding, which should be checked against this project's actual usage before committing to the swap.
 
 Not resolved inline: an infra/storage-backend swap needs its own sizing and isn't something to fold into unrelated implementation work; not urgent (the already-pulled image keeps working, this is a forward-looking risk, not an active break) but shouldn't be forgotten either.
+
+### 5. `deploy-and-run.sh` has no "stop, don't restart" mode — manual cleanup falls back to raw `docker rm -f` (found during a resource-contention incident, 2026-10-01)
+
+`deploy-and-run.sh`'s flags are `--restart-infra` (restarts), `--reset` (wipes DB/MinIO volumes, then relaunches), `--reset-only-db` (truncates, still running) — every one of them ends with the stack running again. No flag just stops the stack and leaves it stopped. DB/MinIO are docker-compose-managed (`scripts/deploy-and-run/docker-compose.db.yml`/`docker-compose.minio.yml`), so `docker compose --project-directory . -f <those files> down` is the correct, convention-matching way to stop them (mirrors the `up -d` command root `CLAUDE.md` already documents) — but the app container itself is started via a raw `docker run` inside `run.sh`, not compose, so it has no script-level stop path at all; neither does anything else started the same way (e.g. `playwright/run.sh`'s own `pw-runner`).
+
+**Concrete scenario this would solve:** today's session ran `scripts/ci.sh` (its own isolated stack) and a local `deploy-and-run.sh`/`playwright.sh` pass (the normal dev stack) at the same time, on a 4-CPU/9.7GB sandbox already low on free memory (swap in active use) — real OOM kills (exit 137) resulted. There was no single command to free the normal dev stack's resources without either (a) leaving it running (do nothing) or (b) `--reset` (destroys DB/MinIO data, heavier than just "I don't need this running right now"). Cleanup ended up as manual, ad-hoc `docker rm -f <container names>` instead of a project script, which is exactly what `.claude/rules.md`'s "always use project scripts" rule exists to prevent. The same gap applies any time CI and local dev work need to run back-to-back rather than simultaneously, or before a resource-heavy Playwright `--full --ux` pass.
+
+**Approach options:** (a) add a `--stop`/`--down` flag to `deploy-and-run.sh` that runs `docker compose ... down` for DB/MinIO and `docker rm -f` for the app container, no relaunch; (b) short of a new flag, at least document `docker compose ... down` as the sanctioned manual pattern for DB/MinIO in `scripts.md` (today it documents `up -d` but says nothing about tearing down), leaving the app container's raw `docker rm -f` as an accepted, explicitly-named exception rather than silent/undocumented.
+
+Not resolved inline: new flag design + testing is tooling work outside any current implementation task's own approved scope.
 
 ## Related
 
