@@ -106,9 +106,15 @@ dynamically-assigned-port problem regardless of host machine.
 ## Can I develop and run the app/tests myself while this runs?
 
 Yes — genuinely, not just "probably fine":
-- Maven dependency caching uses `ci-m2-cache`, a Docker-managed named volume mounted only inside
-  the container — completely separate from your own `~/.m2`. No shared state, no race.
-  `integration-tests` always spins up its own ephemeral Postgres via Testcontainers regardless.
+- The `build`/`unit`/`integration` steps' own Maven builds run through `scripts/build-and-test.sh`,
+  which — via `ci-runner`'s Docker-outside-of-Docker access to the host socket — spins up a
+  separate nested build container mounted at the same `maven-cache` named Docker volume your own
+  direct `deploy-and-run.sh`/`build-and-test.sh` runs use, not the `ci-m2-cache` volume mounted
+  into `ci-runner` itself (these steps never actually touch that one). This is genuinely safe to
+  run concurrently: `scripts/build-and-test/build.sh` takes a lock file inside `/root/.m2` itself
+  to serialize concurrent `mvn` invocations against that shared volume, so two builds queue rather
+  than race or corrupt each other's cache. `integration-tests` always spins up its own ephemeral
+  Postgres via Testcontainers regardless.
 - The e2e stage's `ci-*` stack (see "Isolation" above) never touches the persistent dev stack's
   containers, ports, network, or database.
 

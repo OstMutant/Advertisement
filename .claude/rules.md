@@ -230,6 +230,26 @@ unconditional rather than triggered by first noticing a choice exists.
 > real file's header rewritten to the new convention) — just don't pair each one with what it used
 > to look like.
 
+> ## ⛔ Well-specified mechanical implementation work defaults to a Haiku-model agent
+> Once a change is fully specified — exact files, exact edits, exact resulting behavior, no open
+> design decisions left — prefer dispatching it to a Haiku-model `Agent` call instead of writing
+> the code directly in the main thread or reaching for a stronger model. Do the investigation,
+> design, and exact technical plan yourself first (per the Approval Rule's technical layer); only
+> the mechanical "apply this exact change" step is delegated. When a step still requires judgment
+> calls, ambiguity resolution, or the exact diff can't be stated up front, implement it directly
+> (or use a stronger model) instead — Haiku executes an already-fully-decided plan, it doesn't
+> decide one.
+>
+> **Why:** a Haiku-model agent is cheaper and faster, and the Approval Rule already requires a
+> fully fleshed-out technical plan before any execution — once that plan exists in full, applying
+> it is mechanical and doesn't need a stronger model's judgment.
+>
+> **How to apply:** after presenting and getting approval for a technical-layer plan with exact
+> file paths and exact changes, dispatch via `Agent` with `model: "haiku"` and a fully
+> self-contained prompt (a fresh agent has no conversation context) — never `subagent_type: "fork"`
+> for this (forks always inherit the parent model, ignoring any model override). Verify the result
+> afterward — review the actual diff, run the relevant tests — same as any other agent's output.
+
 ## Approval Rule
 **Every action must be approved by the user before execution — no exceptions.**
 
