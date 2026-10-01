@@ -148,6 +148,31 @@ test.describe('Advertisement flow', () => {
       await closeOverlay(page);
     });
 
+    await test.step('feedback panel — userEn leaves a review on their own advertisement, list entry and header aggregate update immediately', async () => {
+      const card = page.locator('.advertisement-card')
+        .filter({ has: page.locator('.advertisement-title', { hasText: CREATE.enAd.title }) }).first();
+      await card.click();
+      await waitForOverlay(page);
+
+      const feedbackPanel = page.locator('.advertisement-overlay .feedback-panel');
+      await expect(feedbackPanel.locator('.feedback-empty')).toBeVisible({ timeout: 5000 });
+
+      await feedbackPanel.locator('.star-rating-field [data-rating="5"]').click();
+      await feedbackPanel.locator('[data-testid="feedback-form-field-text"] textarea').fill('Great listing, exactly as described!');
+      await feedbackPanel.locator('.feedback-form-submit').click();
+      await page.locator('vaadin-notification-card').filter({ hasText: /thanks for your feedback/i }).first().waitFor({ timeout: 5000 });
+      await closeNotification(page);
+
+      const entry = feedbackPanel.locator('.feedback-entry').first();
+      await expect(entry.locator('.feedback-entry-rating')).toHaveText('★★★★★', { timeout: 5000 });
+      await expect(entry.locator('.feedback-entry-text')).toContainText('Great listing, exactly as described!');
+      await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1 feedback entries)');
+      await expect(feedbackPanel.locator('.feedback-header-avg')).toContainText('5.0');
+      await screenshot(page, 'adv-useren-feedback-panel-submitted');
+
+      await closeOverlay(page);
+    });
+
     await runLogoutFlow(page, expect);
   });
 

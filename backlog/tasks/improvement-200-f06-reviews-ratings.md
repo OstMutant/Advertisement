@@ -113,7 +113,7 @@ Full spec: `private/features/F-06-reviews-ratings.md`. Summary:
      `marketplace-app/src/main/resources/i18n/messages_en.properties` (lines 497-503) and
      `messages_uk.properties` (lines 498-504); `feedback.form.field.rating` ("Rating"/"Оцінка")
      is unaffected, it never said "review". No code/class/table renaming — property values only.
-2. ⬜ Extend to advertisements (`entity_type=ADVERTISEMENT`, UI in
+2. ✅ **Done 2026-10-01** Extend to advertisements (`entity_type=ADVERTISEMENT`, UI in
    `AdvertisementViewOverlayModeHandler`).
 3. ⬜ Comment tree (`feedback_comment`, `WITH RECURSIVE`, expand/collapse UI, inline reply, any
    registered user, unbounded depth).
