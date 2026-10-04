@@ -19,9 +19,10 @@ sync_artifacts_from_dev_shell() {
   local root
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-  mkdir -p "$root/scripts/logs/playwright" "$root/playwright/pw-report" \
-    "$root/scripts/build-and-test/reports" "$root/scripts/logs/build-and-test" \
-    "$root/scripts/sonar/report" "$root/scripts/logs/sonar"
+  # No `mkdir -p` here -- a raw host-side mkdir against a WSL/Windows-drive path can fail with
+  # "Permission denied" (the same docker-desktop-bind-mounts issue already fixed this way in
+  # build-and-test/run.sh/run-all-tests/run.sh/playwright/run.sh). `docker cp` creates its
+  # destination's own missing leaf directory itself and is daemon-mediated, not subject to that bug.
 
   # activity-monitor's own tree.txt/raw.log/history.tsv for whichever script(s) ran inside
   # dev-shell -- the same paths Monitor/--render/--watch read on a local (non-container) run, so a
