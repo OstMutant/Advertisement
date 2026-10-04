@@ -14,6 +14,7 @@ import org.ost.marketplace.ui.views.main.header.account.ProviderProfileViewModeH
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementCardView;
 import org.ost.marketplace.ui.views.main.tabs.providers.ProviderProfileCardView;
 import org.ost.marketplace.ui.views.main.tabs.providers.overlay.ProviderProfileCatalogViewModeHandler;
+import org.ost.marketplace.ui.views.components.CommentTreePanel;
 import org.ost.marketplace.ui.views.components.ContactRevealPanel;
 import org.ost.marketplace.ui.views.components.EntityMetaPanel;
 import org.ost.marketplace.ui.views.components.FeedbackPanel;
@@ -90,6 +91,11 @@ public class ComponentFactoryConfig {
 
     @Bean @ConditionalOnMissingBean
     public UiComponentFactory<FeedbackPanel, FeedbackPanel.Parameters> feedbackPanelFactory(ObjectProvider<FeedbackPanel> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<CommentTreePanel, CommentTreePanel.Parameters> commentTreePanelFactory(ObjectProvider<CommentTreePanel> p) {
         return new UiComponentFactory<>(p);
     }
 

@@ -98,6 +98,7 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
+| Top | 🟡 | 205 | improvement-205 — second, equally-isolated Docker dev container (`opencode-dev`) mirroring the existing `claude-dev` pattern, so the user can drive the same `/app` project with the open-source `opencode` CLI (npm `opencode-ai`) and other model providers (Google AI Studio/Gemini, OpenRouter, etc. via models.dev). Includes renaming `Dockerfile.ai` → `Dockerfile.claude` first. User-requested Top placement, 2026-10-02 |
 | Top | 🟡 | 203 | improvement-203 — running collection bucket for things noticed *during implementation* of another task that are real but out of that task's own approved scope (a pre-existing issue in an unrelated file, a SonarQube false-positive needing its own separate server-side-transition approval, a small spotted inconsistency). Distinct from improvement-133 (findings too large to size, 🔵 low urgency) — this one is Top so entries get triaged quickly. First entry: `HeaderBar.java`'s likely-false-positive `java:S1450` Sonar flag, found during improvement-200 Phase 1, 2026-09-30 |
 | Top | 🟡 | 200 | improvement-200 — F-06 reviews & ratings (private product roadmap Phase 3): new self-contained `feedback-spring-boot-starter` (rating + text feedback entry on any `EntityRef` — provider profile or advertisement — plus an unbounded threaded comment tree, moderation), own `feedback_aggregate` table (no denormalization onto other starters). This project's stated "moat" vs the Facebook group — persistent reputation, the #1 trust signal. `improvement-199` (F-05, Phase 2) shipped 2026-09-29, so this is now the next unblocked item in roadmap order; user-requested Top placement, 2026-09-22 |
 | Top | 🟡 | 186 | improvement-186 — REST API hypermedia (HATEOAS/HAL) action-discovery, an advertisement media sub-resource (POST/GET/DELETE), project-wide `PATCH` support via `JsonNullable`, and a 4th item: `POST /api/api-keys`'s HTTP Basic auth bypasses the login rate limiter entirely (verified 2026-09-22, distinct from `improvement-196`'s post-auth request-volume scope) — carved out of `improvement-183` item 9 once that one ask grew into three independently-sizable pieces; design fully worked out, ready, but the largest single piece of work in this list — sequenced after the smaller/quicker items above |
@@ -109,6 +110,12 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
+
+### Top priority — improvement-205
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-205](tasks/improvement-205-opencode-dev-container.md) | New (user request, filed 2026-10-02; user-requested Top placement, 2026-10-02) | A second, equally-isolated Docker dev container (`opencode-dev`) mirroring the existing `claude-dev` pattern, so the user can drive the same `/app` project with the open-source `opencode` CLI (npm `opencode-ai`) and other model providers (Google AI Studio/Gemini, OpenRouter, etc. via models.dev). Includes renaming `Dockerfile.ai` → `Dockerfile.claude` first. Design fully worked out (mirrors `claude.bat`/`Dockerfile.ai` file-for-file, XDG data/config split handled via two env vars into one per-login mount) — see the issue file |
 
 ### Top priority — improvement-203
 

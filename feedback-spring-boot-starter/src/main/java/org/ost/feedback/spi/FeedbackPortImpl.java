@@ -5,6 +5,9 @@ import lombok.RequiredArgsConstructor;
 import org.ost.feedback.services.FeedbackService;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
+import org.ost.platform.feedback.dto.FeedbackCommentDto;
+import org.ost.platform.feedback.dto.FeedbackCommentReactionSaveDto;
+import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
 import org.ost.platform.feedback.spi.FeedbackPort;
@@ -41,5 +44,28 @@ public class FeedbackPortImpl implements FeedbackPort {
     @Override
     public FeedbackAggregateDto getAggregate(@NonNull EntityType entityType, @NonNull Long entityId) {
         return service.getAggregate(entityType, entityId);
+    }
+
+    @Override
+    public List<FeedbackCommentDto> findCommentsByFeedback(@NonNull Long feedbackId, Long viewerId) {
+        return service.findCommentsByFeedback(feedbackId, viewerId);
+    }
+
+    @Override
+    @Transactional
+    public FeedbackCommentDto saveComment(@NonNull FeedbackCommentSaveDto dto) {
+        return service.saveComment(dto);
+    }
+
+    @Override
+    @Transactional
+    public void saveReaction(@NonNull FeedbackCommentReactionSaveDto dto) {
+        service.saveReaction(dto);
+    }
+
+    @Override
+    @Transactional
+    public void deleteComment(@NonNull Long commentId) {
+        service.deleteComment(commentId);
     }
 }

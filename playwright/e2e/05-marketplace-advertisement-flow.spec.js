@@ -157,6 +157,7 @@ test.describe('Advertisement flow', () => {
       const feedbackPanel = page.locator('.advertisement-overlay .feedback-panel');
       await expect(feedbackPanel.locator('.feedback-empty')).toBeVisible({ timeout: 5000 });
 
+      await feedbackPanel.locator('.feedback-add-button').click();
       await feedbackPanel.locator('.star-rating-field [data-rating="5"]').click();
       await feedbackPanel.locator('[data-testid="feedback-form-field-text"] textarea').fill('Great listing, exactly as described!');
       await feedbackPanel.locator('.feedback-form-submit').click();

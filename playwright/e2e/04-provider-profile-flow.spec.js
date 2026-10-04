@@ -70,7 +70,7 @@
  * Returns: exit code from the Playwright test runner -- 0 when every test in this file passes,
  *   non-zero otherwise.
  * ──────────────────────────────────────────────────────────────────────────── */
-const { test, expect, screenshot, closeNotification, closeOverlay, TEST_USERS, assertAbsent, assertVerticalOrder, waitForOverlayClosed } = require('./_helpers');
+const { test, expect, screenshot, closeNotification, closeOverlay, TEST_USERS, assertAbsent, assertVerticalOrder, waitForOverlayClosed, assertRightAligned } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runOpenSettingsFlow, runCloseSettingsFlow } = require('./_flows/audit.flow');
 const { openEntityActivity, closeEntityActivity } = require('./_flows/entity-activity.flow');
@@ -747,6 +747,7 @@ test.describe('Provider Profile flow', () => {
         const feedbackPanel = overlay.locator('.feedback-panel');
         await expect(feedbackPanel.locator('.feedback-empty')).toBeVisible({ timeout: 5000 });
 
+        await feedbackPanel.locator('.feedback-add-trigger .feedback-add-button').click();
         await feedbackPanel.locator('.star-rating-field [data-rating="4"]').click();
         await feedbackPanel.locator('[data-testid="feedback-form-field-text"] textarea').fill('Great master, highly recommend!');
         await feedbackPanel.locator('.feedback-form-submit').click();
@@ -760,16 +761,16 @@ test.describe('Provider Profile flow', () => {
         await expect(feedbackPanel.locator('.feedback-header-avg')).toContainText('4.0');
         await screenshot(page, 'provider-catalog-feedback-panel-submitted');
 
-        const editButton = entry.locator('.feedback-entry-edit');
+        const editButton = entry.locator('.feedback-entry-edit-icon');
         await expect(editButton).toBeVisible({ timeout: 5000 });
         await editButton.click();
 
-        const textArea = feedbackPanel.locator('[data-testid="feedback-form-field-text"] textarea');
-        await expect(textArea).toHaveValue('Great master, highly recommend!', { timeout: 5000 });
+        const inlineTextArea = entry.locator('[data-testid="feedback-entry-edit-field-text"] textarea');
+        await expect(inlineTextArea).toHaveValue('Great master, highly recommend!', { timeout: 5000 });
 
-        await feedbackPanel.locator('.star-rating-field [data-rating="5"]').click();
-        await textArea.fill('Updated: even better than I thought!');
-        await feedbackPanel.locator('.feedback-form-submit').click();
+        await entry.locator('.feedback-entry-edit-rating [data-rating="5"]').click();
+        await inlineTextArea.fill('Updated: even better than I thought!');
+        await entry.locator('.feedback-entry-save-icon').click();
         await page.locator('vaadin-notification-card').filter({ hasText: /thanks for your feedback/i }).first().waitFor({ timeout: 5000 });
         await closeNotification(page);
 
@@ -778,6 +779,115 @@ test.describe('Provider Profile flow', () => {
         await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1 feedback entries)');
         await expect(feedbackPanel.locator('.feedback-header-avg')).toContainText('5.0');
         await screenshot(page, 'provider-catalog-feedback-panel-edited');
+      });
+
+      await test.step('comment tree — adminEn replies to their own feedback entry, replies to that reply (nested, expanded by default), edits a comment, reacts and toggles it off, deletes a leaf comment and a comment with replies (confirm dialog)', async () => {
+        const feedbackPanel = overlay.locator('.feedback-panel');
+        const commentTree = feedbackPanel.locator('.comment-tree-panel').first();
+
+        await assertRightAligned(expect, feedbackPanel.locator('.feedback-entry-header-actions').first(), feedbackPanel.locator('.feedback-entry-header').first());
+        await commentTree.locator('.comment-reply-form-slot .comment-reply-trigger vaadin-button').first().click();
+        await commentTree.locator('[data-testid="comment-reply-field-text"] textarea').fill('First-level reply from adminEn.');
+        await commentTree.locator('.comment-save-icon').first().click();
+        await expect(commentTree.locator('.comment-node').filter({ hasText: 'First-level reply from adminEn.' })).toBeVisible({ timeout: 5000 });
+        await screenshot(page, 'provider-catalog-comment-tree-top-level-reply');
+
+        const findTopLevelNode = () => commentTree.locator('.comment-node').filter({ hasText: 'First-level reply' }).first();
+
+        await findTopLevelNode().locator('> .comment-reply-form-slot .comment-reply-trigger vaadin-button').click();
+        await findTopLevelNode().locator('> .comment-reply-form-slot [data-testid="comment-reply-field-text"] textarea').fill('Nested reply under the first-level reply.');
+        await findTopLevelNode().locator('> .comment-reply-form-slot .comment-inline-form .comment-save-icon').click();
+
+        const toggle = findTopLevelNode().locator('> .comment-header .comment-toggle-icon');
+        const toggleCount = findTopLevelNode().locator('> .comment-header .comment-toggle-count');
+        await expect(toggle).toBeVisible({ timeout: 5000 });
+        await expect(toggleCount).toHaveText('1');
+        const childrenContainer = findTopLevelNode().locator('> .comment-children');
+        // A newly-added reply auto-expands its parent -- no extra click needed to see what was just saved.
+        await expect(childrenContainer).toBeVisible({ timeout: 5000 });
+        await expect(childrenContainer.locator('.comment-node').filter({ hasText: 'Nested reply under the first-level reply.' })).toBeVisible();
+        await screenshot(page, 'provider-catalog-comment-tree-nested-reply-expanded');
+        await toggle.click();
+        await expect(childrenContainer).toBeHidden({ timeout: 5000 });
+        await toggle.click();
+        await expect(childrenContainer).toBeVisible({ timeout: 5000 });
+
+        await findTopLevelNode().locator('> .comment-header .comment-edit-icon').click();
+        const editField = findTopLevelNode().locator('> .comment-edit-form-slot [data-testid="comment-edit-field-text"] textarea');
+        await expect(editField).toBeVisible({ timeout: 5000 });
+        await expect(editField).toHaveValue('First-level reply from adminEn.', { timeout: 5000 });
+        await editField.fill('First-level reply, edited by adminEn.');
+
+        const overlayContent = overlay.locator('.overlay__content');
+        const canScroll = await overlayContent.evaluate(el => el.scrollHeight - el.clientHeight > 30);
+        if (canScroll) {
+          await overlayContent.evaluate(el => { el.scrollTop = Math.min(150, el.scrollHeight - el.clientHeight); });
+        }
+        const scrollBefore = await overlayContent.evaluate(el => el.scrollTop);
+        await findTopLevelNode().locator('> .comment-edit-form-slot .comment-inline-form .comment-save-icon').click();
+        await expect(commentTree.locator('.comment-node').first().locator('> .comment-text-container .comment-text')).toContainText('First-level reply, edited by adminEn.', { timeout: 5000 });
+        if (canScroll) {
+          const scrollAfter = await overlayContent.evaluate(el => el.scrollTop);
+          expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThanOrEqual(5);
+        }
+        await screenshot(page, 'provider-catalog-comment-tree-edited');
+
+        // Expand state now persists across reload() -- once a node is expanded, it stays expanded
+        // through any subsequent reply/edit/delete/reaction anywhere in the tree, with no need to
+        // re-click the toggle after each action (and no jump back to collapsed in between).
+        const topLevelNode = commentTree.locator('.comment-node').first();
+        const childrenContainerAfterEdit = topLevelNode.locator('> .comment-children');
+        await expect(childrenContainerAfterEdit).toBeVisible({ timeout: 5000 });
+        const nestedNode = childrenContainerAfterEdit.locator('.comment-node').filter({ hasText: 'Nested reply under the first-level reply.' }).first();
+        const upReactionWrapper = nestedNode.locator('.comment-reaction-wrapper').first();
+        await expect(upReactionWrapper.locator('.comment-reaction-count')).toHaveText('0', { timeout: 5000 });
+        await upReactionWrapper.locator('.comment-reaction-button').click();
+        await expect(upReactionWrapper.locator('.comment-reaction-count')).toHaveText('1', { timeout: 5000 });
+        await expect(childrenContainerAfterEdit).toBeVisible({ timeout: 5000 });
+        await expect(upReactionWrapper.locator('.comment-reaction-button')).toHaveClass(/comment-reaction-button-active/);
+        await screenshot(page, 'provider-catalog-comment-tree-reaction-active');
+        await upReactionWrapper.locator('.comment-reaction-button').click();
+        await expect(upReactionWrapper.locator('.comment-reaction-count')).toHaveText('0', { timeout: 5000 });
+        await expect(childrenContainerAfterEdit).toBeVisible({ timeout: 5000 });
+        await expect(upReactionWrapper.locator('.comment-reaction-button')).not.toHaveClass(/comment-reaction-button-active/);
+
+        await topLevelNode.locator('> .comment-header .comment-delete-icon').click();
+        await confirmDeleteDialog(page);
+        await expect(topLevelNode.locator('> .comment-text-container .comment-deleted-text')).toHaveText('[deleted]', { timeout: 5000 });
+        await expect(childrenContainerAfterEdit.locator('.comment-node').filter({ hasText: 'Nested reply under the first-level reply.' })).toBeVisible({ timeout: 5000 });
+        await screenshot(page, 'provider-catalog-comment-tree-tombstoned');
+
+        await nestedNode.locator('.comment-delete-icon').click();
+        await confirmDeleteDialog(page);
+        await expect(commentTree.locator('.comment-node').filter({ hasText: 'Nested reply under the first-level reply.' })).toHaveCount(0, { timeout: 5000 });
+        await screenshot(page, 'provider-catalog-comment-tree-leaf-deleted');
+
+        // Deleting the last reply under a tombstoned parent prunes the now-dangling parent too --
+        // it had already been tombstoned above, and just lost its only remaining child.
+        await expect(commentTree.locator('.comment-node').filter({ hasText: 'First-level reply' })).toHaveCount(0, { timeout: 5000 });
+      });
+
+      await test.step('Close button — open a reply composer, type draft text, click Close, verify trigger re-appears with no draft text on reopen', async () => {
+        const feedbackPanel = overlay.locator('.feedback-panel');
+        const commentTree = feedbackPanel.locator('.comment-tree-panel').first();
+
+        await commentTree.locator('.comment-reply-form-slot .comment-reply-trigger vaadin-button').first().click();
+        const replyTextarea = commentTree.locator('.comment-reply-form-slot [data-testid="comment-reply-field-text"] textarea').first();
+        await expect(replyTextarea).toBeVisible({ timeout: 5000 });
+        await replyTextarea.fill('Draft text that should be discarded on Close.');
+
+        const closeButtons = commentTree.locator('.comment-close-icon');
+        await expect(closeButtons.first()).toBeVisible({ timeout: 5000 });
+        await closeButtons.first().click();
+
+        await expect(commentTree.locator('.comment-reply-form-slot .comment-reply-trigger vaadin-button')).toBeVisible({ timeout: 5000 });
+        await commentTree.locator('.comment-reply-form-slot .comment-reply-trigger vaadin-button').first().click();
+        const newTextarea = commentTree.locator('.comment-reply-form-slot [data-testid="comment-reply-field-text"] textarea').first();
+        await expect(newTextarea).toHaveValue('', { timeout: 5000 });
+        await newTextarea.fill('New reply text for reopen test.');
+        await commentTree.locator('.comment-save-icon').first().click();
+        await expect(commentTree.locator('.comment-node').filter({ hasText: 'New reply text for reopen test.' })).toBeVisible({ timeout: 5000 });
+        await screenshot(page, 'provider-catalog-comment-tree-close-button');
       });
 
       await overlay.locator('.overlay__view-edit').click();

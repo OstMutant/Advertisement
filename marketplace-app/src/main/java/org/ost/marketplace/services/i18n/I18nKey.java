@@ -507,10 +507,22 @@ public enum I18nKey {
     FEEDBACK_AGGREGATE_COUNT("feedback.aggregate.count"),
     FEEDBACK_EMPTY("feedback.empty"),
     FEEDBACK_FORM_BUTTON_SUBMIT("feedback.form.button.submit"),
+    FEEDBACK_FORM_BUTTON_ADD("feedback.form.button.add"),
     FEEDBACK_FORM_BUTTON_EDIT("feedback.form.button.edit"),
+    FEEDBACK_FORM_BUTTON_DISCARD("feedback.form.button.discard"),
+    FEEDBACK_FORM_BUTTON_CLOSE("feedback.form.button.close"),
     FEEDBACK_FORM_FIELD_RATING("feedback.form.field.rating"),
     FEEDBACK_FORM_FIELD_TEXT("feedback.form.field.text"),
-    FEEDBACK_NOTIFICATION_SAVED("feedback.notification.saved");
+    FEEDBACK_NOTIFICATION_SAVED("feedback.notification.saved"),
+    FEEDBACK_COMMENT_FIELD_TEXT("feedback.comment.field.text"),
+    FEEDBACK_COMMENT_SHOW_REPLIES("feedback.comment.show_replies"),
+    FEEDBACK_COMMENT_HIDE_REPLIES("feedback.comment.hide_replies"),
+    FEEDBACK_COMMENT_DELETED_TEXT("feedback.comment.deleted"),
+    FEEDBACK_COMMENT_BUTTON_REPLY("feedback.comment.button.reply"),
+    FEEDBACK_COMMENT_CONFIRM_DELETE_TITLE("feedback.comment.confirm.delete.title"),
+    FEEDBACK_COMMENT_CONFIRM_DELETE_TEXT("feedback.comment.confirm.delete.text"),
+    FEEDBACK_COMMENT_CONFIRM_DELETE_BUTTON("feedback.comment.confirm.delete.button"),
+    FEEDBACK_COMMENT_CONFIRM_CANCEL_BUTTON("feedback.comment.confirm.cancel.button");
 
     private final String key;
 
