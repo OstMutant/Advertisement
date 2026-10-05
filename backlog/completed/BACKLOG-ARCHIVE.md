@@ -2753,3 +2753,20 @@ ADR-010 records the `ContactAccessService` split/rename. Also fixed a real
 path) and, per a standing rule sweep, removed all 34 `page.waitForTimeout(300)` calls from
 `04-provider-profile-flow.spec.js` (redundant given Playwright's own auto-waiting). Full detail:
 `completed/tasks/improvement-199-f05-contact-reveal-click-analytics.md`.
+
+✅ Done (2026-10-05): improvement-205 closed — a second, equally-isolated Docker dev container
+(`opencode-dev`) mirroring the existing `claude-dev` pattern, for the open-source `opencode` CLI
+against other model providers (Google AI Studio/Gemini, Groq, OpenRouter, etc. via models.dev).
+`Dockerfile.ai` renamed to `Dockerfile.claude` first (clears the way for a correspondingly-named
+`Dockerfile.opencode` sibling), rippling through `scripts/claude.bat`, `INFRASTRUCTURE.md`,
+`.claude/nav/flows.md`, `.claude/skills/app-readme-standards/SKILL.md`, and
+`scripts/collect-code.bat` (the last one also needed `Dockerfile.opencode` itself added once that
+new file existed — found and fixed in the same task). New `scripts/opencode.bat` mirrors
+`claude.bat`'s reuse/`--recreate`/`--update` ergonomics, handling opencode's two-directory XDG
+split (data + config) via one per-login host folder and two env vars instead of two separate
+mounts. `INFRASTRUCTURE.md`'s "AI Development Environment" section split into `### Claude Code`/
+`### opencode` subsections. Provider setup itself done interactively by the user inside the running
+container — Google AI Studio connected successfully (`gemini-3.6-flash`, after `gemini-2.5-flash`/
+`gemini-3.8-flash` turned out deprecated/overloaded for new users); OpenAI skipped (no free API
+tier) in favor of Groq's free `openai/gpt-oss-120b` as a future alternative, not yet connected.
+Full detail: `completed/tasks/improvement-205-opencode-dev-container.md`.

@@ -11,6 +11,8 @@ This project is built and maintained with [Claude Code](https://claude.com/claud
 active part of the engineering process. Claude runs inside its own Docker container, isolated
 from the host — normally the first thing to bring up.
 
+### Claude Code
+
 | | |
 |---|---|
 | Container | `claude-dev` |
@@ -26,6 +28,29 @@ scripts\claude.bat your.email@gmail.com --recreate REM force a fresh container
 Chat history and project context are shared across accounts (same mounted project directory);
 only the auth config folder is per-account, so switching accounts on rate limits keeps the
 conversation going.
+
+### opencode
+
+A second, equally isolated container, `opencode-dev`, runs the open-source
+[opencode](https://opencode.ai) CLI against the same mounted project directory — for work with
+other model providers (Google AI Studio/Gemini, Groq, OpenRouter, etc., per
+[models.dev](https://models.dev)'s provider list).
+
+| | |
+|---|---|
+| Container | `opencode-dev` |
+| Image | `opencode-j25-dev` (built from [`Dockerfile.opencode`](Dockerfile.opencode)) |
+| Mounts | project directory, a per-login config folder (covering opencode's own XDG data/config directories), the host's Maven cache (`~/.m2`), the Docker socket |
+
+```bat
+scripts\opencode.bat your.email@gmail.com            REM start (or reuse) the container
+scripts\opencode.bat your.email@gmail.com --update   REM rebuild the image from Dockerfile.opencode first
+scripts\opencode.bat your.email@gmail.com --recreate REM force a fresh container
+```
+
+Provider credentials are set up interactively on first use via `opencode auth login` inside the
+container; the per-login config folder keeps credentials isolated across accounts the same way
+`.claude-config-<login>` does for Claude.
 
 Once inside, Claude drives every other block on this page via the scripts under `scripts/` and
 the slash commands under `.claude/commands/` — see

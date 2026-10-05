@@ -45,22 +45,20 @@ ergonomics the user already has for `claude-dev`.
 
 Mirror `claude.bat`/`Dockerfile.ai` exactly, file-for-file, rather than inventing a new structure:
 
-1. **Rename `Dockerfile.ai` → `Dockerfile.claude`** (explicit user request, done first so the new
-   `Dockerfile.opencode` sits next to a correspondingly-named sibling, not an oddly-named `.ai`
-   one). Update its own header's `Usage:` line (`docker build -f Dockerfile.ai ...` →
-   `-f Dockerfile.claude`) and every other reference to the old filename:
-   `scripts/claude.bat`'s `docker build -f Dockerfile.ai -t claude-j25-dev .` line,
-   `INFRASTRUCTURE.md`'s `[Dockerfile.ai](Dockerfile.ai)` link, `.claude/nav/flows.md`,
+1. ✅ **Done 2026-10-05** **Rename `Dockerfile.ai` → `Dockerfile.claude`** (explicit user request,
+   done first so the new `Dockerfile.opencode` sits next to a correspondingly-named sibling, not
+   an oddly-named `.ai` one). Updated its own header's `Usage:` line and every other reference to
+   the old filename: `scripts/claude.bat`, `INFRASTRUCTURE.md`'s link, `.claude/nav/flows.md`,
    `.claude/skills/app-readme-standards/SKILL.md`, `scripts/collect-code.bat`.
-2. **New `Dockerfile.opencode`** — same base image and apt/Node.js install block as
-   `Dockerfile.claude`, `npm install -g opencode-ai` instead of `@anthropic-ai/claude-code`,
-   `ENTRYPOINT ["opencode"]` instead of `["claude"]`. Node 20 satisfies opencode's own `>=18`
-   requirement, no version bump needed. Same header-comment convention
-   (Description/Usage/Uses/Env/Input/Outputs/Returns) as the file it mirrors.
-3. **New `scripts/opencode.bat`** — copy of `claude.bat`'s structure: container name
-   `opencode-dev`, image `opencode-j25-dev`, builds from `-f Dockerfile.opencode`, mounts
-   `%CD%:/app` (same project), `%USERPROFILE%\.m2:/root/.m2`, Docker socket, `--network host`,
-   `-it --rm`. Per-login state: **one** host folder
+2. ✅ **Done 2026-10-05** **New `Dockerfile.opencode`** — same base image and apt/Node.js install
+   block as `Dockerfile.claude`, `npm install -g opencode-ai` instead of
+   `@anthropic-ai/claude-code`, `ENTRYPOINT ["opencode"]` instead of `["claude"]`. Node 20
+   satisfies opencode's own `>=18` requirement, no version bump needed. Same header-comment
+   convention (Description/Usage/Uses/Env/Input/Outputs/Returns) as the file it mirrors.
+3. ✅ **Done 2026-10-05** **New `scripts/opencode.bat`** — copy of `claude.bat`'s structure:
+   container name `opencode-dev`, image `opencode-j25-dev`, builds from `-f Dockerfile.opencode`,
+   mounts `%CD%:/app` (same project), `%USERPROFILE%\.m2:/root/.m2`, Docker socket,
+   `--network host`, `-it --rm`. Per-login state: **one** host folder
    (`%USERPROFILE%\.opencode-config-<login>`, created if missing, same as `claude.bat`'s own
    `CONFIG_DIR` step) mounted at `/root/.opencode-home`, plus two env vars pointing opencode's own
    two XDG directories at subpaths inside that one mount — avoids a two-separate-mounts split
@@ -72,12 +70,21 @@ Mirror `claude.bat`/`Dockerfile.ai` exactly, file-for-file, rather than inventin
    ```
    Same reuse-via-`docker exec`-unless-`--recreate` logic, same `--update` rebuild flag, as
    `claude.bat`.
-4. **`INFRASTRUCTURE.md`** — add a second Container/Image/Mounts block for `opencode-dev` right
-   after the existing `claude-dev` one, same table format, update the renamed `Dockerfile.claude`
-   link in the existing block at the same time.
-5. Provider/model setup itself (`opencode auth login`, choosing Google AI Studio/Gemini,
-   OpenRouter, or any other models.dev-listed provider) is an interactive first-run step the user
-   does themselves inside the running container — not something this task hardcodes.
+4. ✅ **Done 2026-10-05** **`INFRASTRUCTURE.md`** — added a second `### opencode` subsection with
+   its own Container/Image/Mounts table right after the existing `### Claude Code` one (both now
+   split out under "AI Development Environment", which previously had no subheadings since it
+   only ever covered one CLI).
+5. ✅ **Done 2026-10-05** Provider/model setup (`opencode auth login`) done by the user themselves
+   inside the running container — connected Google AI Studio (Gemini, model `gemini-3.6-flash`
+   after `gemini-2.5-flash`/`gemini-3.8-flash` proved deprecated/overloaded for new users). OpenAI
+   skipped — platform.openai.com has no free tier, needs a funded billing account; Groq identified
+   as the free alternative for OpenAI's own open-weight models (`openai/gpt-oss-120b`) but not
+   actually connected during this task.
+
+**Found and fixed along the way (2026-10-05):** `scripts/collect-code.bat` also needed
+`Dockerfile.opencode` added to its fixed extensionless-root-file list (line 105) and its
+`CheckRootFile` summary (line 179-180) — the same category of file as `Dockerfile.claude`, missed
+on the first pass since the new file didn't exist yet when the rename step touched that script.
 
 **Verified, no gap:** Node ≥18 (image ships Node 20); `-it` present for the TTY opencode's
 interactive auth/TUI needs; `--network host` already grants the outbound internet access
@@ -90,3 +97,22 @@ in-repo pattern, not a new design.
 
 - `INFRASTRUCTURE.md`'s "AI Development Environment" section — existing `claude-dev` precedent.
 - `Dockerfile.ai` / `scripts/claude.bat` — the files being mirrored (and partly renamed).
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a
+- context_loading_task_type: n/a
+- context_loading_consulted: no
+- context_loading_matched: n/a
+- flows_situation: mirror an existing Docker dev-container pattern for a second CLI, mechanical file rename + two new files + two doc edits
+- flows_chosen: direct Edit/Write, dispatched to Haiku-model `Agent` calls per the "well-specified mechanical work" rule once each step's exact content was approved; `app-readme-standards` skill consulted before the `INFRASTRUCTURE.md` edit
+- flows_matched: yes
+
+### Agent calls
+- rename Dockerfile.ai->Dockerfile.claude + fix 6 referencing files | subagent_type=haiku | tokens=56097 | tool_uses=19 | duration_s=92 | mode=background | batch=solo
+- create Dockerfile.opencode | subagent_type=haiku | tokens=39054 | tool_uses=2 | duration_s=19 | mode=background | batch=solo
+- create scripts/opencode.bat | subagent_type=haiku | tokens=48099 | tool_uses=3 | duration_s=24 | mode=background | batch=solo
+- fix scripts/collect-code.bat (add Dockerfile.opencode) | subagent_type=haiku | tokens=48179 | tool_uses=4 | duration_s=12 | mode=background | batch=solo
+- add opencode-dev block to INFRASTRUCTURE.md | subagent_type=haiku | tokens=42648 | tool_uses=3 | duration_s=19 | mode=background | batch=solo
