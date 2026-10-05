@@ -8,14 +8,14 @@ REM   the rest of this file always did. Reuses the existing claude-dev container
 REM   `docker exec` if one is already running; --recreate forces a fresh container instead.
 REM Usage: scripts\claude.bat your.email@gmail.com [--update] [--recreate] [claude args...]
 REM   your.email@gmail.com   required -- derives an isolated per-login auth config folder
-REM   --update                rebuild the claude-j25-dev image from Dockerfile.ai before starting
+REM   --update                rebuild the claude-j25-dev image from Dockerfile.claude before starting
 REM   --recreate              force-remove and recreate claude-dev even if already running --
 REM                           default behavior reuses a running container instead
 REM   [claude args...]        forwarded to the claude entrypoint (a new process either way)
 REM Uses: docker.
 REM Env: USERPROFILE (Windows) -- used to derive the isolated per-login config folder path, not
 REM   set by this script itself.
-REM Input: Dockerfile.ai (only with --update).
+REM Input: Dockerfile.claude (only with --update).
 REM Outputs: running claude-dev container (new or reused); with --update, rebuilds the
 REM   claude-j25-dev image; creates %USERPROFILE%\.claude-config-<login> if missing.
 REM Returns: 0 on success; non-zero if no login argument was given, or --update's Docker build
@@ -55,7 +55,7 @@ if "%DO_UPDATE%"=="1" (
     echo ===================================================
     echo   Rebuilding claude-j25-dev image...
     echo ===================================================
-    docker build -f Dockerfile.ai -t claude-j25-dev .
+    docker build -f Dockerfile.claude -t claude-j25-dev .
     if errorlevel 1 (
         echo Error: Docker build failed.
         exit /b 1

@@ -63,7 +63,7 @@ rather than trusting what the file currently says, since it has already drifted 
 commands table missing two real commands). No generator script does this automatically; staying
 current is this procedure, run by whoever (human or Claude) is editing the file.
 
-1. Read `scripts/claude.bat` + `Dockerfile.ai` for the AI dev container's current name, image,
+1. Read `scripts/claude.bat` + `Dockerfile.claude` for the AI dev container's current name, image,
    network mode, and mounts — feeds section 1.
 2. Read `scripts/deploy-and-run/docker-compose.db.yml`, `docker-compose.minio.yml`,
    `docker-compose.app.yml`, `scripts/sonar/docker-compose.sonar.yml`, and `scripts/ci/run.sh` for

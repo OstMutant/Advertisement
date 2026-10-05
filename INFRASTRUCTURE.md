@@ -14,12 +14,12 @@ from the host — normally the first thing to bring up.
 | | |
 |---|---|
 | Container | `claude-dev` |
-| Image | `claude-j25-dev` (built from [`Dockerfile.ai`](Dockerfile.ai)) |
+| Image | `claude-j25-dev` (built from [`Dockerfile.claude`](Dockerfile.claude)) |
 | Mounts | project directory, a per-login `.claude` auth config folder, the host's Maven cache (`~/.m2`), the Docker socket |
 
 ```bat
 scripts\claude.bat your.email@gmail.com            REM start (or reuse) the container
-scripts\claude.bat your.email@gmail.com --update   REM rebuild the image from Dockerfile.ai first
+scripts\claude.bat your.email@gmail.com --update   REM rebuild the image from Dockerfile.claude first
 scripts\claude.bat your.email@gmail.com --recreate REM force a fresh container
 ```
 

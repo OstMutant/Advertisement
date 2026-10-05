@@ -102,7 +102,7 @@ if "%CLAUDE_ONLY%"=="0" (
     REM 3. Add specific root-level files -- only ones with no extension already covered by a
     REM FindFiles pattern above -- README.md/CLAUDE.md/mvn.bat/docker-compose*.yml are already
     REM collected via *.md/*.bat/*.yml, so listing them again here would duplicate their content.
-    for %%F in (Dockerfile Dockerfile.ai lombok.config mvnw mvnw.cmd .env) do (
+    for %%F in (Dockerfile Dockerfile.claude lombok.config mvnw mvnw.cmd .env) do (
         if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
     )
 )
@@ -176,7 +176,7 @@ if "%CLAUDE_ONLY%"=="1" (
     call :CheckRootFile "README.md"
     call :CheckRootFile "CLAUDE.md"
     call :CheckRootFile "Dockerfile"
-    call :CheckRootFile "Dockerfile.ai"
+    call :CheckRootFile "Dockerfile.claude"
     call :CheckRootFile ".env"
     call :CheckRootFile "scripts\deploy-and-run\docker-compose.app.yml"
     call :CheckRootFile "scripts\deploy-and-run\docker-compose.db.yml"
