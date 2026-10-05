@@ -139,8 +139,22 @@ Full spec: `private/features/F-06-reviews-ratings.md`. Summary:
      delete line 802 — lines 804-807 already correctly re-check for the same node *after* clicking
      the toggle (container visible), which is the only point Vaadin actually syncs that DOM to the
      client.
-4. ⬜ Moderation (flag/report on feedback + comment, admin UI, audit for moderation actions only).
-5. ⬜ Anti-fraud + hardening (rate limiting, orphan cleanup).
+4. ✅ **Done 2026-10-05** Moderation (flag/report on feedback + comment, admin UI, audit for
+   moderation actions only) — see "Implementation Plan — Phase 4" and the two "Phase 4 follow-up"
+   rounds below for full scope and status.
+5. ⬜ Anti-fraud + hardening (rate limiting, orphan cleanup, comment nesting depth cap — see
+   "Comment nesting depth cap" below). Orphan cleanup specifically needs a design decision before
+   sizing (no existing entity-existence-based cleanup mechanism anywhere in the codebase to reuse,
+   despite the spec's own claim otherwise) — deferred, tracked as
+   `backlog/tasks/improvement-133-deferred-oversized-review-findings.md` entry 25, not sized here.
+   Also found while scoping this phase: zero existing test
+   coverage anywhere (`FeedbackServiceTest`, Playwright) for `FeedbackSaveDto.TEXT_MAX_LENGTH`/
+   `FeedbackCommentSaveDto.TEXT_MAX_LENGTH` (2000 visible chars) or the raw
+   `TEXT_RAW_MAX_LENGTH` (20,000) caps — neither the client-side `maxLength` field behavior nor the
+   server-side `@Size` rejection is verified today. Add as part of this phase's own hardening scope:
+   an integration test asserting `saveComment`/`save` reject text beyond `TEXT_RAW_MAX_LENGTH` via
+   the DTO's `@Size` validation, and a Playwright check that the feedback/comment text field's
+   client-side `maxLength` attribute matches the constant.
 6. ⬜ **`FeedbackPanel` as its own separate sibling card**, not flat-stacked inside the same card
    as `ContactRevealPanel`/description/meta — already found and fully specified in
    `improvement-203` item 2 (`ContactRevealPanel`/`FeedbackPanel`... no visual card-per-section
@@ -1744,6 +1758,81 @@ failed, 13 skipped**. Two new Playwright assertions added to the existing modera
 on the real browser run. Visually confirmed via the `moderation-comment-reported-and-hidden`
 screenshot: a single reply arrow remains (no duplicate), and the flag/report icon renders greyed
 out rather than vanishing.
+
+## Comment nesting depth cap — new requirement (2026-10-05)
+
+User requested a hard cap on reply nesting: a feedback entry's comment tree may go **3 levels
+deep, no more** (confirmed semantics: level 1 = a direct comment on the feedback entry itself,
+level 2 = a reply to a level-1 comment, level 3 = a reply to a level-2 comment — a level-3 comment
+gets no Reply affordance at all, since that would create a level-4 comment). Today the tree is
+explicitly unbounded (`private/features/F-06-reviews-ratings.md`'s own "any registered user may
+reply to a feedback entry or to another reply — no per-entry response cap" / "unbounded depth").
+Not implemented yet — pending approval.
+
+**Fix plan (UI hide + server-side enforcement — the server-side check is also explicitly wanted now
+for future reuse by `marketplace-rest-api`, which bypasses the Vaadin UI entirely):**
+
+- `CommentTreePanel.java`: new constant `private static final int MAX_DEPTH = 3;`. In
+  `buildNode(comment, byParent, depth)`, the existing `replyFormSlot` construction (currently
+  always adds either `buildReplyTrigger(comment.id())` or an open `buildReplyComposer(comment.id())`)
+  only adds that content when `depth < MAX_DEPTH`; at `depth == MAX_DEPTH`, `replyFormSlot` stays
+  empty (no trigger, no composer) — this comment cannot be replied to. The top-level "write a
+  comment" trigger (`topLevelReplySlot`, replying directly to the feedback entry — always creates a
+  level-1 comment) is unaffected, no change needed there.
+- `FeedbackService.java` (`feedback-spring-boot-starter`) — `saveComment()`: when
+  `dto.id() == null && dto.parentCommentId() != null` (a brand-new reply, not a top-level comment
+  and not an edit), compute the parent's depth by walking the `parentCommentId` chain via the
+  existing `repository.findCommentViewById(...)` (small loop, at most `MAX_DEPTH` round-trips — no
+  new SQL/repository method needed) and reject (`IllegalStateException`, same style as the existing
+  "Cannot flag your own feedback entry" check) if the parent's own depth already equals
+  `MAX_DEPTH`. Editing an existing comment (`dto.id() != null`) reuses `existing.parentCommentId()`
+  unchanged, so it never needs this check. No new UI-facing error message/i18n key for the Vaadin
+  side — the Reply trigger is already hidden there, so this path is unreachable through normal UI
+  use; the REST API surface (future, `marketplace-rest-api`) will be the first real caller able to
+  hit this exception directly.
+- Test coverage: `FeedbackServiceTest` — new case building a 3-level chain (feedback → comment A →
+  reply B → reply C) and asserting `saveComment` with `parentCommentId = C.id()` throws
+  `IllegalStateException`, plus a case confirming a reply to B (still depth 2) succeeds normally.
+  Playwright (`04-provider-profile-flow.spec.js`): extend the existing nested-reply flow — assert
+  a level-3 comment's `.comment-reply-form-slot` has no trigger/composer content.
+
+## Feedback-entry list pagination — new requirement (2026-10-05)
+
+`FeedbackPanel.refreshList()` always calls `feedbackAccessService.findForEntity(entityType,
+entityId, 0, PAGE_SIZE)` — hardcoded page 0, `PAGE_SIZE = 20`, no way to reach entry 21+. The
+Port/Service/repository chain already supports real pagination end-to-end
+(`findForEntity(EntityType, Long, int page, int size)`); only the UI side is unpaginated. Wanted:
+a pagination control under the feedback-entries list (not the comment trees — those stay
+full-tree, no change there), reusing the project's existing `PaginationBar` component (already
+used by `AdvertisementsView`/`UserView`/`ProvidersView`/`TimelineView`) rather than building a new
+pager.
+
+**Fix plan:**
+
+- `FeedbackPanel.java`: new constructor-injected field `private final PaginationBar
+  paginationBar;` (prototype-scoped bean, same direct-injection pattern the four existing Views
+  already use — no `SettingsPaginationBinding` registration, since that ties page size to a
+  per-user grid setting in `UserSettingsDto` that has no feedback-list equivalent and isn't being
+  added here; `PaginationBar`'s own default page size is used as-is).
+- `configure(Parameters p)`: call `paginationBar.resetToFirstPage()` right after the `!available`
+  early-return check, before `refresh(entityRef)` — so reopening this panel for a different entity
+  never starts on a stale page left over from a previously-viewed entity. Add `paginationBar` to
+  the DOM between `listContainer` and `formContainer`: `add(headerContainer); add(listContainer);
+  add(paginationBar); buildFormContainer(entityRef); add(formContainer);`. Also wire
+  `paginationBar.setPageChangeListener(_ -> refreshList(entityRef));` here (captures `entityRef` in
+  the closure, same as the rest of `configure()`'s listener wiring already does).
+- `refreshHeader(EntityRef entityRef)`: after the existing `FeedbackAggregateDto aggregate = ...`
+  fetch, add `paginationBar.setTotalCount(aggregate.reviewCount());` — `reviewCount` is already the
+  exact total `findForEntity` paginates over, no new count query needed.
+- `refreshList(EntityRef entityRef)`: change the hardcoded `0` to `paginationBar.getCurrentPage()`
+  in the `findForEntity(...)` call.
+- Always-visible bar, no show/hide toggle — matches `AdvertisementsView`'s own convention
+  (`PaginationBar.setTotalCount`'s existing button-disable logic already makes prev/next inert on a
+  single page, no separate visibility rule needed).
+- Playwright (`04-provider-profile-flow.spec.js`): extend an existing feedback-list flow (or add a
+  step) that creates more than `PAGE_SIZE` feedback entries on one entity and asserts page
+  navigation — if this is expensive to seed per-test, scope it against spec 06's existing bulk-seed
+  infrastructure rather than creating 21+ entries one at a time inside this flow.
 
 ## Related
 
