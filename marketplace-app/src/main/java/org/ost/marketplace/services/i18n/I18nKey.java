@@ -318,6 +318,8 @@ public enum I18nKey {
     ENTITY_TYPE_USER_SETTINGS("entityType.userSettings"),
     ENTITY_TYPE_TAXON("entityType.taxon"),
     ENTITY_TYPE_PROVIDER_PROFILE("entityType.providerProfile"),
+    ENTITY_TYPE_FEEDBACK("entityType.feedback"),
+    ENTITY_TYPE_FEEDBACK_COMMENT("entityType.feedbackComment"),
 
     // === Timeline Filter ===
     TIMELINE_FILTER_ENTITY_TYPE("timeline.filter.entityType"),
@@ -517,12 +519,35 @@ public enum I18nKey {
     FEEDBACK_COMMENT_FIELD_TEXT("feedback.comment.field.text"),
     FEEDBACK_COMMENT_SHOW_REPLIES("feedback.comment.show_replies"),
     FEEDBACK_COMMENT_HIDE_REPLIES("feedback.comment.hide_replies"),
+    FEEDBACK_CENSORED_TEXT("feedback.censored"),
     FEEDBACK_COMMENT_DELETED_TEXT("feedback.comment.deleted"),
+    FEEDBACK_COMMENT_CENSORED_TEXT("feedback.comment.censored"),
     FEEDBACK_COMMENT_BUTTON_REPLY("feedback.comment.button.reply"),
     FEEDBACK_COMMENT_CONFIRM_DELETE_TITLE("feedback.comment.confirm.delete.title"),
     FEEDBACK_COMMENT_CONFIRM_DELETE_TEXT("feedback.comment.confirm.delete.text"),
     FEEDBACK_COMMENT_CONFIRM_DELETE_BUTTON("feedback.comment.confirm.delete.button"),
-    FEEDBACK_COMMENT_CONFIRM_CANCEL_BUTTON("feedback.comment.confirm.cancel.button");
+    FEEDBACK_COMMENT_CONFIRM_CANCEL_BUTTON("feedback.comment.confirm.cancel.button"),
+
+    // === Feedback Reporting & Moderation ===
+    FEEDBACK_BUTTON_REPORT("feedback.button.report"),
+    FEEDBACK_CONFIRM_REPORT_TITLE("feedback.confirm.report.title"),
+    FEEDBACK_CONFIRM_REPORT_TEXT("feedback.confirm.report.text"),
+    FEEDBACK_CONFIRM_REPORT_BUTTON("feedback.confirm.report.button"),
+    FEEDBACK_CONFIRM_REPORT_CANCEL_BUTTON("feedback.confirm.report.cancelButton"),
+    FEEDBACK_NOTIFICATION_REPORTED("feedback.notification.reported"),
+    MAIN_TAB_MODERATION("mainTab.moderation"),
+    MODERATION_SECTION_FEEDBACK("moderation.section.feedback"),
+    MODERATION_SECTION_COMMENTS("moderation.section.comments"),
+    MODERATION_EMPTY("moderation.empty"),
+    MODERATION_BUTTON_APPROVE("moderation.button.approve"),
+    MODERATION_BUTTON_REJECT("moderation.button.reject"),
+    MODERATION_CONFIRM_REJECT_TITLE("moderation.confirm.reject.title"),
+    MODERATION_CONFIRM_REJECT_TEXT("moderation.confirm.reject.text"),
+    MODERATION_CONFIRM_REJECT_BUTTON("moderation.confirm.reject.button"),
+    MODERATION_CONFIRM_REJECT_CANCEL_BUTTON("moderation.confirm.reject.cancelButton"),
+    MODERATION_NOTIFICATION_APPROVED("moderation.notification.approved"),
+    MODERATION_NOTIFICATION_REJECTED("moderation.notification.rejected"),
+    MODERATION_NOTIFICATION_ERROR("moderation.notification.error");
 
     private final String key;
 
@@ -560,6 +585,8 @@ public enum I18nKey {
             case USER_SETTINGS -> ENTITY_TYPE_USER_SETTINGS;
             case TAXON         -> ENTITY_TYPE_TAXON;
             case PROVIDER_PROFILE -> ENTITY_TYPE_PROVIDER_PROFILE;
+            case FEEDBACK -> ENTITY_TYPE_FEEDBACK;
+            case FEEDBACK_COMMENT -> ENTITY_TYPE_FEEDBACK_COMMENT;
         };
     }
 

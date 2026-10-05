@@ -1433,6 +1433,318 @@ other user-reported items in the same Haiku pass:
 `mvn` compile green, real deploy + full `e2e --ux` run **51 passed, 0 failed, 13 skipped**, no
 regressions.
 
+## Implementation Plan — Phase 4 (2026-10-04, moderation)
+
+Scope: flag/report on a feedback entry or a comment (any logged-in non-owner), a new admin-only
+"Moderation" tab listing hidden items with Approve/Reject, audit entries for moderation actions
+only. Researched against current (2026) content-moderation UX practice before designing (sources:
+getstream.io moderation-dashboard docs, several GitHub moderation-queue issue threads, Higher
+Logic's moderation-queue support docs) — oldest-first queue, item shows content+author+age, hide
+is reversible (Approve) while delete is a separate, confirmed, irreversible action, each
+transition gets an audited actor+timestamp. No new table needed — `feedback_content.moderation_status`
+(`NEW`/`HIDDEN`, already shipped in Phase 3) already covers both feedback and comment rows, since
+both already go through this shared table.
+
+**`platform-commons` additions:**
+- `org.ost.platform.core.model.EntityType`: add `FEEDBACK`, `FEEDBACK_COMMENT` (needed so a
+  moderation action can be audited via the existing `EntityRef`-keyed `AuditPort`, same as every
+  other domain's own create/update/delete already is).
+- `org.ost.platform.feedback.dto.FeedbackSnapshotDto` (new) — `implements AuditableSnapshot`,
+  mirrors `AdvertisementSnapshotDto`'s shape: a `moderationStatus` field, `diff(AuditableSnapshot
+  previous)` comparing just that one field (`NEW`↔`HIDDEN`). `FeedbackCommentSnapshotDto` (new) —
+  same shape for comments.
+- `FeedbackPort` additions: `void flagFeedback(@NonNull Long feedbackId)`, `void
+  flagComment(@NonNull Long commentId)`, `void approveFeedback(@NonNull Long feedbackId)`, `void
+  approveComment(@NonNull Long commentId)`, `void rejectFeedback(@NonNull Long feedbackId)` (hard
+  delete, admin-only — see below), `void rejectComment(@NonNull Long commentId)` (hard delete,
+  reuses the existing `deleteCommentHard`/`pruneDanglingTombstones` machinery), `List<FeedbackDto>
+  findHiddenFeedback(Pageable)`, `List<FeedbackCommentDto> findHiddenComments(Pageable)`.
+
+**`feedback-spring-boot-starter` additions:**
+- `FeedbackRepository`: `updateModerationStatus(contentId, FeedbackModerationStatus)` (one shared
+  `UPDATE feedback_content SET moderation_status = :status WHERE id = :contentId`, reused by both
+  flag and approve on either a feedback or a comment's own `content_id`); `findHiddenFeedback
+  (pageable)` / `findHiddenComments(pageable)` (same join shape as the existing `findByEntity`/
+  `findCommentsByFeedback` queries, `WHERE c.moderation_status = 'HIDDEN'`, oldest-first per the
+  researched convention — `ORDER BY c.created_at ASC`, the opposite of every other read path in
+  this starter which is newest-first); `deleteFeedbackHard(feedbackId, contentId)` (new — no
+  existing method deletes a whole feedback entry today; cascades explicitly in one
+  `@Transactional` service method: every `feedback_comment` row for this `feedback_id` and each
+  one's own `feedback_content`/`feedback_comment_reaction` rows first — reusing the comment
+  starter's own existing per-comment hard-delete SQL in a loop — then `feedback_rating`,
+  `feedback_content`, `feedback` itself, then `upsertAggregate` to recompute the now-one-fewer
+  count).
+- `FeedbackService`: `flagFeedback`/`flagComment` → `updateModerationStatus(..., HIDDEN)`;
+  `approveFeedback`/`approveComment` → `updateModerationStatus(..., NEW)`; `rejectFeedback` →
+  `deleteFeedbackHard` + `upsertAggregate`; `rejectComment` → existing `deleteComment`'s hard-delete
+  branch, callable directly regardless of whether the comment currently has children (admin
+  override — a moderator rejecting an abusive comment shouldn't be blocked by the same
+  "tombstone if it has replies" rule a regular author's own self-delete follows); `findHiddenFeedback`/
+  `findHiddenComments` → thin pass-throughs mapping to the existing `FeedbackDto`/`FeedbackCommentDto`
+  shapes (no new external DTO needed for the read side).
+- `FeedbackPortImpl`: pure delegation for all of the above, unchanged pattern.
+
+**`marketplace-orchestrator` additions (`FeedbackAccessService`):**
+- Pass-through `flagFeedback`/`flagComment`/`approveFeedback`/`approveComment`.
+- `rejectFeedback(Long feedbackId)` / `rejectComment(Long commentId)`: load the snapshot
+  (`FeedbackSnapshotDto`/`FeedbackCommentSnapshotDto`) before deleting, call
+  `feedbackPortFactory.ifAvailable(p -> p.rejectFeedback(feedbackId))`, then
+  `auditPortFactory.ifAvailable(p -> p.captureDeletion(feedbackId, snapshot, actorId))` — same
+  `ComponentFactory<AuditPort>`-via-`.ifAvailable(...)` pattern `AdvertisementSaveService` already
+  uses, `EntityType.FEEDBACK`/`FEEDBACK_COMMENT` plus the new snapshot DTOs make this a direct
+  mirror, no new audit-side code needed. Same `captureUpdate(...)` shape for approve/flag (before/
+  after snapshot = `moderationStatus` field only).
+- Still within the ≤2-domain-port-per-class rule (`FeedbackPort` + `AuditPort`, same as
+  `AdvertisementSaveService`'s own `AdvertisementPort`+`AuditPort` pair).
+
+**`marketplace-app` additions:**
+- `FeedbackPanel.buildEntryRow()` / `CommentTreePanel.buildActionsRow()`: new `UiIconButton`
+  (`VaadinIcon.FLAG`, new i18n key `FEEDBACK_BUTTON_REPORT`/`feedback.button.report` =
+  "Report"/"Поскаржитись"), visible when `access.isLoggedIn() && !ownEntry` (mirrors the existing
+  `editable`/`ownComment` boolean gate already computed in both methods, just inverted +
+  login-gated instead of ownership-gated), wrapped in the existing `ConfirmActionDialog` pattern
+  (new i18n keys `FEEDBACK_CONFIRM_REPORT_TITLE`/`_TEXT`/`_BUTTON`/`_CANCEL_BUTTON`, mirroring the
+  existing `FEEDBACK_COMMENT_CONFIRM_DELETE_*` naming), `onConfirm` calls
+  `feedbackAccessService.flagFeedback(...)`/`flagComment(...)` then `refresh(entityRef)`/`reload()`
+  — the flagged item then simply disappears from this viewer's own list on the next refresh (no
+  client-side "hidden, pending review" placeholder needed — an already-hidden item was never
+  queried back from `findForEntity`/`findCommentsByFeedback`, both of which should gain a `WHERE
+  moderation_status = 'NEW'` filter as part of this phase, since today they return every row
+  regardless of status — this is the actual visibility-enforcement half of "flag → hidden",
+  currently entirely missing).
+- New `org.ost.marketplace.ui.views.main.tabs.moderation` package (mirrors `tabs.providers`/
+  `tabs.users`): `ModerationView` — two `Grid`s (feedback entries, comments; mirrors
+  `UserView`'s/`AdvertisementsView`'s own Grid-building structure), each row: author name
+  (resolved same as everywhere else via `UserActorNameService`), text snippet, created date, a
+  context link/button opening the owning entity's overlay (reuse the existing deep-link
+  navigation), Approve icon button, Reject icon button (wrapped in `ConfirmActionDialog` — this one
+  is irreversible). No filter/sort bar needed for v1 (queues are expected to stay small — "start
+  permissive, tighten with volume" per the spec) — a plain oldest-first list is enough, matching
+  the researched convention directly.
+- `MainView.java`: new conditionally-added tab (same `if (access.isModeratorOrAdmin()) { ... }`
+  guard shape already wrapping `usersTab`/`timelineTab`), new i18n key `MAIN_TAB_MODERATION`.
+
+**Test plan:**
+- `integration-tests` (`FeedbackServiceTest`): flag hides an entry from `findForEntity`/
+  `findCommentsByFeedback` but it still exists in `findHiddenFeedback`/`findHiddenComments`;
+  approve reverses it; reject hard-deletes (feedback case: cascades through its whole comment
+  tree, verify zero rows remain in all four tables for that `feedback_id`); a non-owner can flag,
+  the owner's own flag attempt on their own entry is rejected (service-level check, not just a
+  UI-level hidden button — defense in depth, same reasoning the edit-window check already gets).
+- Playwright (extend the existing `04-provider-profile-flow.spec.js` comment-tree test.step, not a
+  new spec file per this project's own "prefer updating existing tests" convention): userUk
+  reports adminEn's feedback entry and a comment → both disappear from userUk's own view →
+  adminEn (logged in separately, not the moderator) still can't see them either → moderatorEn (or
+  adminEn-as-admin) opens the new Moderation tab → sees both queued, oldest-first → Approve the
+  feedback entry → reappears in the public view → Reject the comment → confirm dialog → gone
+  permanently, confirmed via the existing tree not containing it anymore.
+
+**Out of scope for this phase (per the spec's own Phase 5):** rate limiting, orphan cleanup on
+entity deletion (already exists as a separate standing cleanup-service pattern, unrelated to
+moderation specifically).
+
+**Status (backend layer): ✅ Implemented and test-verified (2026-10-04).** `platform-commons`,
+`feedback-spring-boot-starter`, `marketplace-orchestrator` all landed — `mvn` compile green, full
+`--unit --integration` run **292 passed, 0 failed**, including 8 new moderation tests. UI layer
+(`marketplace-app`) not yet started.
+
+Real bugs found and fixed during implementation/verification, not in the original plan:
+- Two exhaustive-`switch` compile breaks elsewhere in the codebase caused by adding
+  `EntityType.FEEDBACK`/`FEEDBACK_COMMENT` (`EntityExistenceService` had no case for them — added a
+  no-op case, since neither is ever existence-checked through that service; `I18nKey.forEntityType`
+  had no case either — added `ENTITY_TYPE_FEEDBACK`/`ENTITY_TYPE_FEEDBACK_COMMENT` i18n keys +
+  translations).
+- `findByEntity`/`findCommentsByFeedback` never actually filtered by `moderation_status` — flagging
+  something hid nothing. Added `WHERE c.moderation_status = 'NEW'` to both (the comment-tree query's
+  outer `SELECT` only, not the recursive CTE itself).
+- `flagFeedback`/`flagComment` had no owner-check at all — any author could've had their own content
+  stay fully visible regardless, since nothing stopped a self-flag from being silently accepted (or
+  conversely, nothing *required* one — the gap was that nothing prevented an author from flagging
+  their own entry, which isn't a real moderation signal). Added an `actorId` parameter + an
+  `IllegalStateException` guard matching the existing edit-window check's error style.
+- `rejectComment`/`rejectFeedback`'s cascade delete tried to delete a parent `feedback_comment` row
+  before its own children, hitting the real `fk_feedback_comment_parent` FK (no cascade configured)
+  the instant a rejected comment/feedback had any replies — confirmed via an actual
+  `DataIntegrityViolationException` from a real Postgres in the first test run, not a guess. Fixed
+  both with a children-first (post-order) recursive delete.
+- The `moderation_status = 'NEW'` filter above (added earlier in this same pass) then broke
+  `deleteFeedbackHard`'s OWN internal use of `findCommentsByFeedback` — a hidden comment inside a
+  rejected feedback's tree would be silently skipped by the now-filtered query, leaving its row
+  behind to violate the feedback-level FK a moment later. Added a separate, unfiltered
+  `findAllCommentsByFeedbackIncludingHidden` for this cascade-only use, with a dedicated regression
+  test (`rejectFeedback_cascadesEvenWhenTreeContainsHiddenComment`).
+
+**Status (UI layer): ✅ Implemented and browser-verified (2026-10-04).** `marketplace-app` additions
+landed: report button (`.feedback-report-icon`/`.comment-report-icon`, login+not-own-content gated)
+on both `FeedbackPanel` and `CommentTreePanel`; new `ModerationView` (two grids, oldest-first,
+Approve/Reject) and its conditional "Moderation" tab in `MainView`, gated on
+`FeedbackAccessService.isAvailable()` and `access.canView()`. New Playwright test
+(`04-provider-profile-flow.spec.js`) covering the full flow: report hides from the public view,
+Moderation tab lists both, approve restores, reject permanently deletes. `mvn` compile green, real
+deploy + full `e2e --ux` run **52 passed, 0 failed, 13 skipped**.
+
+Real bugs found and fixed during this verification pass, not in the original plan:
+- `ModerationView`'s own grids never refreshed after the view's initial construction — a
+  `@UIScope` singleton's `@PostConstruct init()` runs once at session start, long before the user
+  ever visits the tab; `MainView`'s tab-switch listener only ever called this for `ProvidersView`.
+  Added the same `refreshOnTabSelect()` wrapper `ProvidersView` already has, wired into
+  `MainView`'s listener.
+- A confirmed, documented class of Vaadin Grid bug
+  ([flow#16116](https://github.com/vaadin/flow/issues/16116)): `refresh()` unconditionally rebuilt
+  *both* grids on every single action, so approving a feedback entry also regenerated every
+  `addComponentColumn` button in the unrelated comment grid — detaching a button the test (and a
+  real user double-clicking quickly) was about to click. Split into independent
+  `refreshFeedbackGrid()`/`refreshCommentGrid()`, each action now only touches its own grid.
+
+## Phase 4 follow-up — real-usage UX feedback (2026-10-05)
+
+Hands-on use of the moderation feature surfaced 2 design problems plus 1 unrelated regression.
+Not implemented yet — pending approval.
+
+1. **Reject (hard-delete) shouldn't exist in the moderation UI.** Approve/restore is enough —
+   there's no actual need for an admin-initiated permanent delete in v1.
+2. **A flagged item should show as a "[censored]"-style placeholder in place, not disappear from
+   the list entirely.** Today, flagging a feedback entry removes the whole entry — and since
+   `CommentTreePanel` only renders alongside its own still-listed feedback entry, that also makes
+   its entire comment thread vanish from the public view, not just the flagged entry itself. The
+   same applies to flagging a single comment — it disappears instead of showing a placeholder, the
+   same way an author's own tombstoned (`[deleted]`) comment already does today. Both
+   `FeedbackDto`/`FeedbackCommentDto` already carry `moderationStatus` — no new DTO field needed,
+   just different rendering + un-filtering the public read queries.
+3. **Regression: editing a feedback entry re-collapses every comment tree on the page**, reverting
+   the already-shipped "expand/draft state survives unrelated reloads" behavior. Root cause: a
+   previously-disclosed, accepted limitation from an earlier round
+   ("`FeedbackPanel.refreshList()` calls `commentTreePanelFactory.build(...)` fresh for every
+   feedback entry whenever the feedback list itself refreshes... discarding all expand-state for
+   all of them, not just the one entry being edited") — flagged then as out of scope, now reported
+   as actually wanted.
+
+**Fix plan (not yet implemented, pending approval):**
+
+- `FeedbackRepository.java`: remove `AND c.moderation_status = 'NEW'` from `findByEntity`'s WHERE
+  clause and remove `WHERE c.moderation_status = 'NEW'` from `findCommentsByFeedback`'s outer
+  `SELECT` (added in the previous round specifically to hide flagged items — reversed here now
+  that hiding is replaced by in-place censoring). `findHiddenFeedback`/`findHiddenComments` (the
+  admin queue's own queries) are unaffected — those stay filtered to `HIDDEN` only, unrelated to
+  this change.
+- New i18n keys (mirroring `FEEDBACK_COMMENT_DELETED_TEXT`'s existing "[deleted]" pattern):
+  `FEEDBACK_CENSORED_TEXT`/`feedback.censored` = "[censored]"/"[цензуровано]",
+  `FEEDBACK_COMMENT_CENSORED_TEXT`/`feedback.comment.censored` = "[censored]"/"[цензуровано]".
+- `FeedbackPanel.buildEntryRow()`: when `entry.moderationStatus() ==
+  FeedbackModerationStatus.HIDDEN`, render the censored placeholder instead of the star rating +
+  `feedbackText` (same minimal substitution `CommentTreePanel.renderCommentText()` already does
+  for a tombstoned comment); hide the Report button for an already-censored entry (nothing useful
+  to re-report).
+- `CommentTreePanel.renderCommentText()`/`buildNode()`: add a second, independent check alongside
+  the existing `tombstoned` one — `censored = comment.moderationStatus() ==
+  FeedbackModerationStatus.HIDDEN` (a censored comment still has real `commentText`, unlike a
+  tombstoned one) — render the censored placeholder when true; hide that comment's own Report
+  button too.
+- `ModerationView.java`: remove the Reject button and `confirmRejectFeedback`/
+  `confirmRejectComment` methods entirely from both grids — Approve-only. Leave
+  `FeedbackAccessService.rejectFeedback`/`rejectComment` and the rest of the backend reject
+  capability as-is (already built and tested, just no longer wired to this UI).
+- `FeedbackPanel.java`: new `Map<Long, CommentTreePanel> commentTreePanelsByFeedbackId` field.
+  `refreshList()` reuses an existing cached instance (calling `.configure(...)` again on it, which
+  preserves its own `expandedCommentIds`/draft-text instance state) instead of always building a
+  brand-new one via the factory — only builds+caches a new instance the first time a given feedback
+  id is encountered. Prune cache entries whose feedback id is no longer present in the current
+  `entries` list (keeps the map from growing unbounded across many edit/create cycles over a long
+  session).
+- Playwright: update the existing moderation test.step — a flagged item now stays visible with
+  "[censored]" text instead of disappearing (`toContainText`/`toHaveText` on the censored string
+  instead of `toHaveCount(0)`); remove the Reject-button interaction entirely (Approve-only now);
+  add a step confirming a feedback-entry edit doesn't collapse an already-expanded comment thread
+  elsewhere in the same panel.
+
+**Status: ✅ Implemented and browser-verified (2026-10-05).** All 3 items landed
+(`FeedbackRepository.java`, `FeedbackPanel.java`, `CommentTreePanel.java`, `ModerationView.java`,
+2 new i18n keys), `mvn` compile green, `FeedbackServiceTest` 24/24 (292/292 across the full
+unit+integration suite), real deploy + full `e2e --ux` run **52 passed, 0 failed, 13 skipped**.
+Three real bugs found and fixed only during this verification pass:
+- Two integration tests asserted the now-superseded hide-on-flag behavior
+  (`flagFeedback_hidesFromPublicListing_visibleInHiddenQueue`/
+  `flagComment_hidesFromTree_visibleInHiddenQueue`, both asserting `isEmpty()` after flagging) —
+  renamed/rewritten to `flagFeedback_staysListedWithHiddenStatus_alsoVisibleInHiddenQueue`/
+  `flagComment_staysInTreeWithHiddenStatus_alsoVisibleInHiddenQueue`, asserting the item stays
+  listed with `HIDDEN` status and is also visible in the admin queue.
+- Playwright's `reportableCommentNode`/`reportableEntry` locators were built via
+  `.filter({ hasText: 'Reportable comment/feedback text.' })`, which stopped matching the instant
+  that exact text was replaced by "[censored]" — the two post-censoring assertions were rewritten
+  to query through the stable `commentTree`/`feedbackPanel` locators directly instead of the
+  now-stale filtered sub-locator.
+- The test's own `page.reload()` (used to defeat an earlier, separately-fixed grid-staleness issue)
+  resets `CommentTreePanel`'s in-memory `expandedCommentIds` to empty on the fresh session; per
+  Vaadin's documented behavior, an invisible component's descendant DOM never reaches the client —
+  so the final post-approval comment-text assertion failed with "element(s) not found" until a
+  `.feedback-entry-header-actions .comment-toggle-icon` click was added right before it to
+  re-expand the tree.
+
+## Phase 4 follow-up round 2 — real-usage UX feedback after round 1 (2026-10-05)
+
+Hands-on use of the censored-in-place UI surfaced 2 more layout problems. Not implemented yet —
+pending approval.
+
+1. **Reply button renders twice per comment.** `CommentTreePanel.buildActionsRow()` (lines
+   272-288) adds a `replyButton` into the header's `.comment-actions-controls` group (next to
+   thumbs-up/down, Edit, Delete) — but `buildNode()` (lines 204-211) already builds a dedicated
+   `.comment-reply-form-slot` directly under the comment, containing its own reply trigger
+   (`buildReplyTrigger(comment.id())`) where the actual reply composer opens. Both control the
+   identical `openReplyComposerFor`/`replyFormSlot` state — functionally redundant, visually a
+   duplicate "reply" arrow icon (confirmed via the `moderation-feedback-and-comment-created`
+   screenshot from the round-1 Playwright run: two reply arrows stacked, one inline with the
+   thumbs-up/down/edit/trash row, one alone directly below it). Wanted: keep only the bottom
+   slot's own trigger — the one next to where the reply text is actually typed; remove the
+   duplicate from the header row.
+2. **The action row visibly narrows when a comment is deleted or censored.** Confirmed via two
+   existing screenshots:
+   - `provider-catalog-comment-tree-tombstoned` — a tombstoned (`[deleted]`, has children) comment's
+     `.comment-actions` row has an empty `reactions` div and an empty `controls` div (every one of
+     reply/report/edit/delete is gated by `!tombstoned`), yet `.comment-actions-divider` still
+     renders unconditionally between them — a stray 1px line floating next to nothing.
+   - `moderation-comment-reported-and-hidden` — once a comment is flagged, `canReport` becomes
+     `false` (`comment.moderationStatus() == FeedbackModerationStatus.NEW` no longer holds), so the
+     Report icon disappears from `controls` entirely, narrowing the row by one icon the instant the
+     report succeeds.
+   User chose the **"disable, don't hide"** option: the Report icon stays visible (not removed)
+   once a comment/feedback entry is censored, just disabled — so reporting doesn't visibly change
+   the row's width/contents. Combined with always suppressing the leftover divider when a side is
+   genuinely empty (the tombstoned/no-children case), the row's visual weight stays stable across
+   both triggers reported.
+
+**Fix plan (not yet implemented, pending approval):**
+
+- `CommentTreePanel.buildActionsRow()`: remove the `replyButton` block entirely (the
+  `if (!tombstoned && access.isLoggedIn()) { ... controls.add(replyButton); }` lines) — the bottom
+  `replyFormSlot` trigger (unchanged) becomes the only reply entry point per comment.
+- `CommentTreePanel.buildActionsRow()`: split `canReport` into two checks — `canSeeReport`
+  (`!tombstoned && access.isLoggedIn() && !comment.authorId().equals(access.getCurrentUserId())`,
+  without the moderation-status condition) gates whether the Report button is added to `controls`
+  at all; `canReport` (`canSeeReport && comment.moderationStatus() ==
+  FeedbackModerationStatus.NEW`) now only controls `reportButton.setEnabled(canReport)` — the
+  button renders whenever `canSeeReport`, just disabled once already `HIDDEN`.
+- `FeedbackPanel.buildEntryRow()`: same split for the feedback-entry-level Report button —
+  `canSeeReport`/`canReport` mirroring the comment-level change, button disabled (not removed)
+  once `entry.moderationStatus() == FeedbackModerationStatus.HIDDEN`.
+- `CommentTreePanel.buildActionsRow()`: before `actions.add(reactions, divider, controls)`, only
+  add `divider` when both `reactions.getComponentCount() > 0` and `controls.getComponentCount() >
+  0` — suppresses the stray floating line for a tombstoned comment with no children's-worth of
+  controls.
+- Playwright: update the moderation test.step — after reporting, assert the Report icon is present
+  but disabled (not absent) on both the comment and the feedback entry; the duplicate-reply-icon
+  removal needs no new assertion (no test currently asserts a *count* of reply icons).
+
+**Status: ✅ Implemented and browser-verified (2026-10-05).** Both items landed in
+`CommentTreePanel.java`/`FeedbackPanel.java` (duplicate header Reply button removed;
+`canSeeReport`/`canReport` split so the Report icon stays visible-but-disabled instead of
+disappearing; the stray `.comment-actions-divider` is now only added when both `reactions` and
+`controls` have content), `mvn` compile green, real deploy + full `e2e --ux` run **52 passed, 0
+failed, 13 skipped**. Two new Playwright assertions added to the existing moderation test.step
+(Report icon visible+disabled on both the comment and the feedback entry after reporting) passed
+on the real browser run. Visually confirmed via the `moderation-comment-reported-and-hidden`
+screenshot: a single reply arrow remains (no duplicate), and the flag/report icon renders greyed
+out rather than vanishing.
+
 ## Related
 
 - `private/features/F-06-reviews-ratings.md` — full feature spec (goal, user story, scope, tech

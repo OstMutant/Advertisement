@@ -11,10 +11,12 @@ import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
 import org.ost.platform.feedback.spi.FeedbackPort;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 /** Pure delegation to {@link FeedbackService} -- no business logic of its own, per this project's
  *  {@code *PortImpl} convention. */
@@ -67,5 +69,61 @@ public class FeedbackPortImpl implements FeedbackPort {
     @Transactional
     public void deleteComment(@NonNull Long commentId) {
         service.deleteComment(commentId);
+    }
+
+    @Override
+    @Transactional
+    public void flagFeedback(@NonNull Long feedbackId, @NonNull Long actorId) {
+        service.flagFeedback(feedbackId, actorId);
+    }
+
+    @Override
+    @Transactional
+    public void flagComment(@NonNull Long commentId, @NonNull Long actorId) {
+        service.flagComment(commentId, actorId);
+    }
+
+    @Override
+    @Transactional
+    public void approveFeedback(@NonNull Long feedbackId) {
+        service.approveFeedback(feedbackId);
+    }
+
+    @Override
+    @Transactional
+    public void approveComment(@NonNull Long commentId) {
+        service.approveComment(commentId);
+    }
+
+    @Override
+    @Transactional
+    public void rejectFeedback(@NonNull Long feedbackId) {
+        service.rejectFeedback(feedbackId);
+    }
+
+    @Override
+    @Transactional
+    public void rejectComment(@NonNull Long commentId) {
+        service.rejectComment(commentId);
+    }
+
+    @Override
+    public List<FeedbackDto> findHiddenFeedback(@NonNull Pageable pageable) {
+        return service.findHiddenFeedback(pageable);
+    }
+
+    @Override
+    public List<FeedbackCommentDto> findHiddenComments(@NonNull Pageable pageable) {
+        return service.findHiddenComments(pageable);
+    }
+
+    @Override
+    public Optional<FeedbackDto> findFeedbackById(@NonNull Long feedbackId) {
+        return service.findFeedbackById(feedbackId);
+    }
+
+    @Override
+    public Optional<FeedbackCommentDto> findCommentById(@NonNull Long commentId) {
+        return service.findCommentById(commentId);
     }
 }

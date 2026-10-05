@@ -15,6 +15,7 @@ import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.Initialization;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
+import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.fields.StarRatingField;
 import org.ost.marketplace.ui.views.components.fields.UiTextArea;
 import org.ost.marketplace.ui.views.rules.I18nParams;
@@ -24,15 +25,37 @@ import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
+import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.ost.marketplace.services.i18n.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_BUTTON_REPORT;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_CENSORED_TEXT;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_COMMENT_HIDE_REPLIES;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_COMMENT_SHOW_REPLIES;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_CONFIRM_REPORT_BUTTON;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_CONFIRM_REPORT_CANCEL_BUTTON;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_CONFIRM_REPORT_TEXT;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_CONFIRM_REPORT_TITLE;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_EMPTY;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_BUTTON_ADD;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_BUTTON_CLOSE;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_BUTTON_DISCARD;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_BUTTON_EDIT;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_BUTTON_SUBMIT;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_FIELD_RATING;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_FIELD_TEXT;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_AGGREGATE_COUNT;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_NOTIFICATION_REPORTED;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_NOTIFICATION_SAVED;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_SECTION_LABEL;
 
 /** Rating+text feedback list and submission form for one owning entity -- hidden entirely when {@code feedback-spring-boot-starter} is absent. */
 @SpringComponent
@@ -63,6 +86,7 @@ public class FeedbackPanel extends Div
     private boolean hasOwnEntry;
     private Div formContainer;
     private boolean addFormOpen = false;
+    private final Map<Long, CommentTreePanel> commentTreePanelsByFeedbackId = new HashMap<>();
 
     @Override
     @PostConstruct
@@ -165,8 +189,13 @@ public class FeedbackPanel extends Div
         }
         authorNamesById = feedbackAccessService.resolveAuthorNames(
                 entries.stream().map(FeedbackDto::authorId).collect(Collectors.toSet()));
+        Set<Long> currentFeedbackIds = entries.stream().map(FeedbackDto::id).collect(Collectors.toSet());
+        commentTreePanelsByFeedbackId.keySet().removeIf(id -> !currentFeedbackIds.contains(id));
+
         entries.forEach(entry -> {
-            CommentTreePanel commentTreePanel = commentTreePanelFactory.build(new CommentTreePanel.Parameters(entry.id()));
+            CommentTreePanel commentTreePanel = commentTreePanelsByFeedbackId.computeIfAbsent(entry.id(),
+                    id -> commentTreePanelFactory.build(new CommentTreePanel.Parameters(id)));
+            commentTreePanel.configure(new CommentTreePanel.Parameters(entry.id()));
             listContainer.add(buildEntryRow(entityRef, entry, commentTreePanel));
             listContainer.add(commentTreePanel);
         });
@@ -185,14 +214,20 @@ public class FeedbackPanel extends Div
         editContainer.addClassName("feedback-entry-edit");
         editContainer.setVisible(false);
 
-        Span stars = new Span("★".repeat(entry.rating()) + "☆".repeat(5 - entry.rating()));
-        stars.addClassName("feedback-entry-rating");
+        if (entry.moderationStatus() == FeedbackModerationStatus.HIDDEN) {
+            Span censored = new Span(getValue(FEEDBACK_CENSORED_TEXT));
+            censored.addClassName("feedback-entry-censored-text");
+            viewContainer.add(censored);
+        } else {
+            Span stars = new Span("★".repeat(entry.rating()) + "☆".repeat(5 - entry.rating()));
+            stars.addClassName("feedback-entry-rating");
 
-        Div text = new Div();
-        text.addClassName("feedback-entry-text");
-        text.getElement().setProperty("innerHTML", entry.feedbackText());
+            Div text = new Div();
+            text.addClassName("feedback-entry-text");
+            text.getElement().setProperty("innerHTML", entry.feedbackText());
 
-        viewContainer.add(stars, text);
+            viewContainer.add(stars, text);
+        }
 
         Div header = new Div();
         header.addClassName("feedback-entry-header");
@@ -258,6 +293,26 @@ public class FeedbackPanel extends Div
 
         refreshCommentToggle(headerActions, commentTreePanel);
         commentTreePanel.setOnChanged(() -> refreshCommentToggle(headerActions, commentTreePanel));
+
+        boolean canSeeReport = access.isLoggedIn() && !entry.authorId().equals(access.getCurrentUserId());
+        boolean canReport = canSeeReport && entry.moderationStatus() == FeedbackModerationStatus.NEW;
+        if (canSeeReport) {
+            UiIconButton reportButton = new UiIconButton(getValue(FEEDBACK_BUTTON_REPORT), VaadinIcon.FLAG.create());
+            reportButton.addClassName("feedback-report-icon");
+            reportButton.setEnabled(canReport);
+            reportButton.addClickListener(_ -> new ConfirmActionDialog(
+                    getValue(FEEDBACK_CONFIRM_REPORT_TITLE),
+                    getValue(FEEDBACK_CONFIRM_REPORT_TEXT),
+                    getValue(FEEDBACK_CONFIRM_REPORT_BUTTON),
+                    getValue(FEEDBACK_CONFIRM_REPORT_CANCEL_BUTTON),
+                    () -> {
+                        feedbackAccessService.flagFeedback(entry.id(), access.getCurrentUserId());
+                        notificationService.success(FEEDBACK_NOTIFICATION_REPORTED);
+                        refresh(entityRef);
+                    }
+            ).open());
+            headerActions.add(reportButton);
+        }
 
         header.add(headerActions);
         row.add(header);

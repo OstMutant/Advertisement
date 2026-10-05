@@ -1082,4 +1082,107 @@ test.describe('Provider Profile flow', () => {
     await runCloseSettingsFlow(page);
     await runLogoutFlow(page, expect);
   });
+
+  test('moderatorEn reports and moderates userEn\'s feedback and comment on userUk\'s profile — report hides immediately, moderation queue lists both, approve restores feedback, reject permanently deletes comment', async () => {
+    await runFillLoginFormFlow(page, TEST_USERS.userEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
+    await page.locator('vaadin-tab').filter({ hasText: /providers/i }).click();
+    const userUkCard = page.locator('.provider-profile-card').filter({ has: page.locator('.provider-profile-card-title', { hasText: TEST_USERS.userUk.name }) });
+    await userUkCard.waitFor({ timeout: 5000 });
+    await userUkCard.click();
+    const overlay = page.locator('.provider-profile-catalog-overlay');
+    await overlay.waitFor({ timeout: 5000 });
+
+    const feedbackPanel = overlay.locator('.feedback-panel');
+    await feedbackPanel.locator('.feedback-add-trigger .feedback-add-button').click();
+    await feedbackPanel.locator('.star-rating-field [data-rating="3"]').click();
+    await feedbackPanel.locator('[data-testid="feedback-form-field-text"] textarea').fill('Reportable feedback text.');
+    await feedbackPanel.locator('.feedback-form-submit').click();
+    await page.locator('vaadin-notification-card').filter({ hasText: /thanks for your feedback/i }).first().waitFor({ timeout: 5000 });
+    await closeNotification(page);
+
+    const commentTree = feedbackPanel.locator('.comment-tree-panel').first();
+    await commentTree.locator('.comment-reply-form-slot .comment-reply-trigger vaadin-button').first().click();
+    await commentTree.locator('[data-testid="comment-reply-field-text"] textarea').fill('Reportable comment text.');
+    await commentTree.locator('.comment-save-icon').first().click();
+    await expect(commentTree.locator('.comment-node').filter({ hasText: 'Reportable comment text.' })).toBeVisible({ timeout: 5000 });
+    await screenshot(page, 'moderation-feedback-and-comment-created');
+
+    await closeOverlay(page);
+    await runLogoutFlow(page, expect);
+
+    await runFillLoginFormFlow(page, TEST_USERS.moderatorEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.moderatorEn);
+    await page.locator('vaadin-tab').filter({ hasText: /providers/i }).click();
+    await userUkCard.waitFor({ timeout: 5000 });
+    await userUkCard.click();
+    await overlay.waitFor({ timeout: 5000 });
+
+    // Report the comment before the feedback entry -- reporting the entry first would hide the whole block, including the comment.
+    await feedbackPanel.locator('.feedback-entry-header-actions .comment-toggle-icon').click();
+
+    const reportableCommentNode = commentTree.locator('.comment-node').filter({ hasText: 'Reportable comment text.' }).first();
+    await reportableCommentNode.locator('.comment-report-icon').click();
+    await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
+    await page.evaluate(() => {
+      const dialog = document.querySelector('vaadin-dialog[opened]');
+      [...dialog.querySelectorAll('vaadin-button')].find(b => /^Report$|^Поскаржитися$/u.test(b.textContent?.trim()))?.click();
+    });
+    await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+    await expect(commentTree.locator('.comment-censored-text')).toHaveText('[censored]', { timeout: 5000 });
+    await expect(commentTree.locator('.comment-report-icon')).toBeVisible({ timeout: 5000 });
+    await expect(commentTree.locator('.comment-report-icon')).toBeDisabled({ timeout: 5000 });
+    await screenshot(page, 'moderation-comment-reported-and-hidden');
+
+    const reportableEntry = feedbackPanel.locator('.feedback-entry').filter({ hasText: 'Reportable feedback text.' });
+    await reportableEntry.locator('.feedback-report-icon').click();
+    await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
+    await page.evaluate(() => {
+      const dialog = document.querySelector('vaadin-dialog[opened]');
+      [...dialog.querySelectorAll('vaadin-button')].find(b => /^Report$|^Поскаржитися$/u.test(b.textContent?.trim()))?.click();
+    });
+    await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+    await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
+    await closeNotification(page);
+    await expect(feedbackPanel.locator('.feedback-entry-censored-text')).toHaveText('[censored]', { timeout: 5000 });
+    await expect(feedbackPanel.locator('.feedback-report-icon')).toBeVisible({ timeout: 5000 });
+    await expect(feedbackPanel.locator('.feedback-report-icon')).toBeDisabled({ timeout: 5000 });
+    await screenshot(page, 'moderation-both-reported-and-hidden');
+
+    await closeOverlay(page);
+
+    await page.locator('vaadin-tab').filter({ hasText: /moderation/i }).click();
+    const feedbackGrid = page.locator('.moderation-feedback-grid');
+    const commentGrid = page.locator('.moderation-comment-grid');
+    await expect(feedbackGrid.locator('vaadin-grid-cell-content').filter({ hasText: 'Reportable feedback text.' })).toBeVisible({ timeout: 5000 });
+    await expect(commentGrid.locator('vaadin-grid-cell-content').filter({ hasText: 'Reportable comment text.' })).toBeVisible({ timeout: 5000 });
+    await screenshot(page, 'moderation-queue-shows-both');
+
+    // Only one row expected per grid here, so no row-scoping needed (same convention as user-management.flow.js).
+    await feedbackGrid.locator('.moderation-approve-icon').click();
+    await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
+    await closeNotification(page);
+
+    await commentGrid.locator('.moderation-approve-icon').click();
+    await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
+    await closeNotification(page);
+
+    await page.reload();
+    await page.locator('vaadin-tab').filter({ hasText: /moderation/i }).click();
+
+    await expect(feedbackGrid.locator('vaadin-grid-cell-content').filter({ hasText: 'Reportable feedback text.' })).toHaveCount(0, { timeout: 5000 });
+    await expect(commentGrid.locator('vaadin-grid-cell-content').filter({ hasText: 'Reportable comment text.' })).toHaveCount(0, { timeout: 5000 });
+    await screenshot(page, 'moderation-approved-and-rejected');
+
+    await page.locator('vaadin-tab').filter({ hasText: /providers/i }).click();
+    await userUkCard.waitFor({ timeout: 5000 });
+    await userUkCard.click();
+    await overlay.waitFor({ timeout: 5000 });
+    await expect(feedbackPanel.locator('.feedback-entry').filter({ hasText: 'Reportable feedback text.' })).toBeVisible({ timeout: 5000 });
+    await feedbackPanel.locator('.feedback-entry-header-actions .comment-toggle-icon').click();
+    await expect(reportableCommentNode.locator('.comment-text')).toHaveText('Reportable comment text.', { timeout: 5000 });
+
+    await closeOverlay(page);
+    await runLogoutFlow(page, expect);
+  });
 });

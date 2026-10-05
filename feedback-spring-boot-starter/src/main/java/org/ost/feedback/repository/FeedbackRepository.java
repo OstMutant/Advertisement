@@ -19,7 +19,9 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** Bespoke {@code JdbcClient} queries across all 5 feedback tables; trivial CRUD delegates to the {@code *CrudRepository}s. */
 @Repository
@@ -229,6 +231,29 @@ public class FeedbackRepository {
                 .list();
     }
 
+    /** Same tree as {@link #findCommentsByFeedback}, but unfiltered by moderation status -- for cascade-delete, which must account for every row regardless of visibility, not display. */
+    public List<FeedbackCommentView> findAllCommentsByFeedbackIncludingHidden(@NonNull Long feedbackId) {
+        return jdbcClient.sql("""
+                        WITH RECURSIVE tree AS (
+                            SELECT id, feedback_id, parent_comment_id, author_id, content_id, ARRAY[id] AS path
+                            FROM feedback_comment
+                            WHERE feedback_id = :feedbackId AND parent_comment_id IS NULL
+                            UNION ALL
+                            SELECT fc.id, fc.feedback_id, fc.parent_comment_id, fc.author_id, fc.content_id, tree.path || fc.id
+                            FROM feedback_comment fc
+                            JOIN tree ON fc.parent_comment_id = tree.id
+                        )
+                        SELECT tree.id, tree.feedback_id, tree.parent_comment_id, tree.author_id, tree.content_id,
+                               c.content_text, c.moderation_status, c.created_at, c.updated_at, c.version
+                        FROM tree
+                        JOIN feedback_content c ON c.id = tree.content_id
+                        ORDER BY tree.path
+                        """)
+                .paramSource(new MapSqlParameterSource().addValue("feedbackId", feedbackId))
+                .query(COMMENT_VIEW_ROW_MAPPER)
+                .list();
+    }
+
     public List<FeedbackCommentReactionView> findReactionsByComments(@NonNull List<Long> commentIds) {
         return jdbcClient.sql("""
                         SELECT feedback_comment_id, user_id, reaction_type
@@ -317,5 +342,69 @@ public class FeedbackRepository {
         jdbcClient.sql("UPDATE feedback_content SET content_text = NULL WHERE id = :contentId")
                 .paramSource(new MapSqlParameterSource().addValue("contentId", contentId))
                 .update();
+    }
+
+    /** Sets {@code moderation_status} on the shared content row -- same column backs both feedback entries and comments. */
+    public void updateModerationStatus(@NonNull Long contentId, @NonNull FeedbackModerationStatus status) {
+        jdbcClient.sql("UPDATE feedback_content SET moderation_status = :status WHERE id = :contentId")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("contentId", contentId)
+                        .addValue("status", status.name()))
+                .update();
+    }
+
+    /** Hidden feedback entries awaiting moderation review, oldest first. */
+    public List<FeedbackView> findHiddenFeedback(@NonNull Pageable pageable) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        String pageClause = PaginationSqlBuilder.pageLimit(params, pageable);
+        return jdbcClient.sql(VIEW_SELECT + " WHERE c.moderation_status = 'HIDDEN' ORDER BY c.created_at ASC" + pageClause)
+                .paramSource(params)
+                .query(VIEW_ROW_MAPPER)
+                .list();
+    }
+
+    /** Hidden comments awaiting moderation review, oldest first, across all feedback entries. */
+    public List<FeedbackCommentView> findHiddenComments(@NonNull Pageable pageable) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        String pageClause = PaginationSqlBuilder.pageLimit(params, pageable);
+        return jdbcClient.sql("""
+                        SELECT fc.id, fc.feedback_id, fc.parent_comment_id, fc.author_id, fc.content_id,
+                               c.content_text, c.moderation_status, c.created_at, c.updated_at, c.version
+                        FROM feedback_comment fc
+                        JOIN feedback_content c ON c.id = fc.content_id
+                        WHERE c.moderation_status = 'HIDDEN'
+                        ORDER BY c.created_at ASC
+                        """ + pageClause)
+                .paramSource(params)
+                .query(COMMENT_VIEW_ROW_MAPPER)
+                .list();
+    }
+
+    /** Cascades a feedback entry's own hard delete across its comment tree, ratings, and content row -- no FK cascade configured. */
+    public void deleteFeedbackHard(@NonNull Long feedbackId, @NonNull Long contentId) {
+        List<FeedbackCommentView> comments = findAllCommentsByFeedbackIncludingHidden(feedbackId);
+        Map<Long, List<FeedbackCommentView>> byParent = comments.stream()
+                .filter(c -> c.parentCommentId() != null)
+                .collect(Collectors.groupingBy(FeedbackCommentView::parentCommentId));
+        comments.stream()
+                .filter(c -> c.parentCommentId() == null)
+                .forEach(topLevel -> deleteCommentSubtree(topLevel, byParent));
+        jdbcClient.sql("DELETE FROM feedback_rating WHERE feedback_id = :feedbackId")
+                .paramSource(new MapSqlParameterSource().addValue("feedbackId", feedbackId))
+                .update();
+        jdbcClient.sql("DELETE FROM feedback WHERE id = :feedbackId")
+                .paramSource(new MapSqlParameterSource().addValue("feedbackId", feedbackId))
+                .update();
+        jdbcClient.sql("DELETE FROM feedback_content WHERE id = :contentId")
+                .paramSource(new MapSqlParameterSource().addValue("contentId", contentId))
+                .update();
+    }
+
+    /** Deletes a comment and all its descendants children-first, so no child ever violates the parent FK when its own parent is deleted. */
+    private void deleteCommentSubtree(FeedbackCommentView comment, Map<Long, List<FeedbackCommentView>> byParent) {
+        for (FeedbackCommentView child : byParent.getOrDefault(comment.id(), List.of())) {
+            deleteCommentSubtree(child, byParent);
+        }
+        deleteCommentHard(comment.id(), comment.contentId());
     }
 }

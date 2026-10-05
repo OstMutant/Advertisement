@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** CRUD for feedback entries and their comment tree, sanitization/edit-window enforcement, and aggregate reads/writes. */
 @Slf4j
@@ -105,6 +106,10 @@ public class FeedbackService {
                 .orElseGet(() -> new FeedbackAggregateDto(entityType, entityId, 0, 0));
     }
 
+    public Optional<FeedbackDto> findFeedbackById(@NonNull Long feedbackId) {
+        return repository.findViewById(feedbackId).map(FeedbackService::toDto);
+    }
+
     // ── Comments ─────────────────────────────────────────────────────────────
 
     public List<FeedbackCommentDto> findCommentsByFeedback(@NonNull Long feedbackId, Long viewerId) {
@@ -112,6 +117,11 @@ public class FeedbackService {
         List<Long> commentIds = views.stream().map(FeedbackCommentView::id).toList();
         Map<Long, Map<String, List<Long>>> reactionsByComment = groupReactions(repository.findReactionsByComments(commentIds));
         return views.stream().map(view -> toCommentDto(view, reactionsByComment, viewerId)).toList();
+    }
+
+    public Optional<FeedbackCommentDto> findCommentById(@NonNull Long commentId) {
+        return repository.findCommentViewById(commentId)
+                .map(view -> toCommentDto(view, groupReactions(repository.findReactionsByComments(List.of(commentId))), null));
     }
 
     @Transactional
@@ -175,6 +185,87 @@ public class FeedbackService {
         } else {
             repository.tombstoneComment(existing.contentId());
         }
+    }
+
+    // ── Moderation ───────────────────────────────────────────────────────────
+
+    @Transactional
+    public void flagFeedback(@NonNull Long feedbackId, @NonNull Long actorId) {
+        FeedbackDto feedback = findFeedbackById(feedbackId)
+                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
+        if (feedback.authorId().equals(actorId)) {
+            throw new IllegalStateException("Cannot flag your own feedback entry");
+        }
+        FeedbackView existing = repository.findViewById(feedbackId)
+                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
+        repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.HIDDEN);
+    }
+
+    @Transactional
+    public void flagComment(@NonNull Long commentId, @NonNull Long actorId) {
+        FeedbackCommentDto comment = findCommentById(commentId)
+                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+        if (comment.authorId().equals(actorId)) {
+            throw new IllegalStateException("Cannot flag your own comment");
+        }
+        FeedbackCommentView existing = repository.findCommentViewById(commentId)
+                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+        repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.HIDDEN);
+    }
+
+    @Transactional
+    public void approveFeedback(@NonNull Long feedbackId) {
+        FeedbackView existing = repository.findViewById(feedbackId)
+                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
+        repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.NEW);
+    }
+
+    @Transactional
+    public void approveComment(@NonNull Long commentId) {
+        FeedbackCommentView existing = repository.findCommentViewById(commentId)
+                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+        repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.NEW);
+    }
+
+    @Transactional
+    public void rejectFeedback(@NonNull Long feedbackId) {
+        FeedbackView existing = repository.findViewById(feedbackId)
+                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
+        repository.deleteFeedbackHard(feedbackId, existing.contentId());
+        repository.upsertAggregate(existing.entityType(), existing.entityId());
+    }
+
+    /** Always hard-deletes, unlike {@link #deleteComment}, since an admin reject is not windowed and must not be blocked by replies. */
+    @Transactional
+    public void rejectComment(@NonNull Long commentId) {
+        FeedbackCommentView existing = repository.findCommentViewById(commentId)
+                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+        List<FeedbackCommentView> tree = repository.findCommentsByFeedback(existing.feedbackId());
+        Map<Long, List<FeedbackCommentView>> byParent = tree.stream()
+                .filter(c -> c.parentCommentId() != null)
+                .collect(Collectors.groupingBy(FeedbackCommentView::parentCommentId));
+        deleteDescendantsThenSelf(commentId, existing.contentId(), byParent);
+        pruneDanglingTombstones(existing.parentCommentId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<FeedbackDto> findHiddenFeedback(@NonNull Pageable pageable) {
+        return repository.findHiddenFeedback(pageable).stream().map(FeedbackService::toDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FeedbackCommentDto> findHiddenComments(@NonNull Pageable pageable) {
+        List<FeedbackCommentView> views = repository.findHiddenComments(pageable);
+        List<Long> commentIds = views.stream().map(FeedbackCommentView::id).toList();
+        Map<Long, Map<String, List<Long>>> reactionsByComment = groupReactions(repository.findReactionsByComments(commentIds));
+        return views.stream().map(view -> toCommentDto(view, reactionsByComment, null)).toList();
+    }
+
+    private void deleteDescendantsThenSelf(Long commentId, Long contentId, Map<Long, List<FeedbackCommentView>> byParent) {
+        for (FeedbackCommentView child : byParent.getOrDefault(commentId, List.of())) {
+            deleteDescendantsThenSelf(child.id(), child.contentId(), byParent);
+        }
+        repository.deleteCommentHard(commentId, contentId);
     }
 
     /** Walks up the parent chain, hard-deleting any ancestor that is itself tombstoned and now has

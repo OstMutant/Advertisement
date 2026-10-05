@@ -36,6 +36,7 @@ public class EntityExistenceService {
             case PROVIDER_PROFILE    -> providerProfilePortFactory.findIfAvailable()
                     .map(p -> p.findExistingIds(entityIds))
                     .orElse(Set.of());
+            case FEEDBACK, FEEDBACK_COMMENT -> Set.of();
         };
     }
 }

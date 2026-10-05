@@ -15,10 +15,12 @@ import org.ost.platform.feedback.dto.FeedbackCommentReactionSaveDto;
 import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
+import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import org.ost.platform.feedback.model.FeedbackReactionType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.TestPropertySource;
@@ -281,5 +283,136 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
                         """)
                 .paramSource(new MapSqlParameterSource().addValue("createdAt", Timestamp.from(createdAt)).addValue("id", commentId))
                 .update();
+    }
+
+    @Test
+    void flagFeedback_staysListedWithHiddenStatus_alsoVisibleInHiddenQueue() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+
+        feedbackService.flagFeedback(feedback.id(), 2L);
+
+        List<FeedbackDto> listed = feedbackService.findForEntity(EntityType.PROVIDER_PROFILE, entityId, 0, 10);
+        assertThat(listed).hasSize(1);
+        assertThat(listed.get(0).moderationStatus()).isEqualTo(FeedbackModerationStatus.HIDDEN);
+        List<FeedbackDto> hidden = feedbackService.findHiddenFeedback(PageRequest.of(0, 20));
+        assertThat(hidden).hasSize(1);
+        assertThat(hidden.get(0).id()).isEqualTo(feedback.id());
+    }
+
+    @Test
+    void flagFeedback_byOwnAuthor_throwsIllegalStateException() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+
+        assertThatThrownBy(() -> feedbackService.flagFeedback(feedback.id(), 1L))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void approveFeedback_reversesHiddenStatus_reappearsInPublicListing() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        feedbackService.flagFeedback(feedback.id(), 2L);
+
+        feedbackService.approveFeedback(feedback.id());
+
+        List<FeedbackDto> visible = feedbackService.findForEntity(EntityType.PROVIDER_PROFILE, entityId, 0, 10);
+        assertThat(visible).hasSize(1);
+        assertThat(visible.get(0).id()).isEqualTo(feedback.id());
+        assertThat(feedbackService.findHiddenFeedback(PageRequest.of(0, 20))).isEmpty();
+    }
+
+    @Test
+    void rejectFeedback_hardDeletesEntireCommentTree() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackCommentDto topLevelComment = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "Top-level comment.", null));
+        feedbackService.saveComment(new FeedbackCommentSaveDto(null, feedback.id(), topLevelComment.id(), 3L, "Nested reply.", null));
+
+        feedbackService.rejectFeedback(feedback.id());
+
+        assertThat(feedbackService.findForEntity(EntityType.PROVIDER_PROFILE, entityId, 0, 10)).isEmpty();
+        Integer feedbackCount = jdbcClient.sql("SELECT COUNT(*) FROM feedback WHERE id = :id")
+                .paramSource(new MapSqlParameterSource().addValue("id", feedback.id()))
+                .query(Integer.class)
+                .single();
+        Integer feedbackCommentCount = jdbcClient.sql("SELECT COUNT(*) FROM feedback_comment WHERE feedback_id = :feedbackId")
+                .paramSource(new MapSqlParameterSource().addValue("feedbackId", feedback.id()))
+                .query(Integer.class)
+                .single();
+        Integer feedbackRatingCount = jdbcClient.sql("SELECT COUNT(*) FROM feedback_rating WHERE feedback_id = :feedbackId")
+                .paramSource(new MapSqlParameterSource().addValue("feedbackId", feedback.id()))
+                .query(Integer.class)
+                .single();
+        assertThat(feedbackCount).isZero();
+        assertThat(feedbackCommentCount).isZero();
+        assertThat(feedbackRatingCount).isZero();
+    }
+
+    @Test
+    void rejectFeedback_cascadesEvenWhenTreeContainsHiddenComment() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackCommentDto topLevelComment = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "Top-level comment.", null));
+        feedbackService.flagComment(topLevelComment.id(), 3L);
+
+        feedbackService.rejectFeedback(feedback.id());
+
+        assertThat(feedbackService.findForEntity(EntityType.PROVIDER_PROFILE, entityId, 0, 10)).isEmpty();
+        Integer commentCount = jdbcClient.sql("SELECT COUNT(*) FROM feedback_comment WHERE feedback_id = :feedbackId")
+                .paramSource(new MapSqlParameterSource().addValue("feedbackId", feedback.id()))
+                .query(Integer.class)
+                .single();
+        assertThat(commentCount).isZero();
+    }
+
+    @Test
+    void flagComment_staysInTreeWithHiddenStatus_alsoVisibleInHiddenQueue() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackCommentDto comment = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "A comment.", null));
+
+        feedbackService.flagComment(comment.id(), 3L);
+
+        List<FeedbackCommentDto> tree = feedbackService.findCommentsByFeedback(feedback.id(), null);
+        assertThat(tree).hasSize(1);
+        assertThat(tree.get(0).moderationStatus()).isEqualTo(FeedbackModerationStatus.HIDDEN);
+        List<FeedbackCommentDto> hidden = feedbackService.findHiddenComments(PageRequest.of(0, 20));
+        assertThat(hidden).hasSize(1);
+        assertThat(hidden.get(0).id()).isEqualTo(comment.id());
+    }
+
+    @Test
+    void flagComment_byOwnAuthor_throwsIllegalStateException() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackCommentDto comment = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "A comment.", null));
+
+        assertThatThrownBy(() -> feedbackService.flagComment(comment.id(), 2L))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void rejectComment_hardDeletesRegardlessOfChildren() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackCommentDto topLevelComment = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "Parent comment.", null));
+        feedbackService.saveComment(new FeedbackCommentSaveDto(null, feedback.id(), topLevelComment.id(), 3L, "Child reply.", null));
+
+        feedbackService.rejectComment(topLevelComment.id());
+
+        List<FeedbackCommentDto> tree = feedbackService.findCommentsByFeedback(feedback.id(), null);
+        assertThat(tree).isEmpty();
+        Integer commentCount = jdbcClient.sql("SELECT COUNT(*) FROM feedback_comment WHERE id = :id")
+                .paramSource(new MapSqlParameterSource().addValue("id", topLevelComment.id()))
+                .query(Integer.class)
+                .single();
+        assertThat(commentCount).isZero();
     }
 }
