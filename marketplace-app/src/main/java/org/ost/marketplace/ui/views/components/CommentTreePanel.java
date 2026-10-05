@@ -204,10 +204,12 @@ public class CommentTreePanel extends Div
         Div replyFormSlot = new Div();
         replyFormSlot.addClassName("comment-reply-form-slot");
         replyFormSlot.getStyle().set("margin-left", ((depth + 1) * 20) + "px");
-        if (openReplyComposerFor.contains(comment.id())) {
-            replyFormSlot.add(buildReplyComposer(comment.id()));
-        } else {
-            replyFormSlot.add(buildReplyTrigger(comment.id()));
+        if (depth < FeedbackCommentSaveDto.MAX_DEPTH) {
+            if (openReplyComposerFor.contains(comment.id())) {
+                replyFormSlot.add(buildReplyComposer(comment.id()));
+            } else {
+                replyFormSlot.add(buildReplyTrigger(comment.id()));
+            }
         }
 
         List<FeedbackCommentDto> children = byParent.getOrDefault(comment.id(), List.of());

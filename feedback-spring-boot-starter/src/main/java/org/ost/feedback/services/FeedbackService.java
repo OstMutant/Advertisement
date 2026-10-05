@@ -11,6 +11,7 @@ import org.ost.feedback.repository.FeedbackRepository;
 import org.ost.feedback.repository.FeedbackRepository.FeedbackCommentReactionView;
 import org.ost.feedback.repository.FeedbackRepository.FeedbackCommentView;
 import org.ost.feedback.repository.FeedbackRepository.FeedbackView;
+import org.ost.platform.core.FailureRateLimiter;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
 import org.ost.platform.feedback.dto.FeedbackCommentDto;
@@ -43,8 +44,12 @@ import java.util.stream.Collectors;
 public class FeedbackService {
 
     private static final Duration EDIT_WINDOW = Duration.ofHours(48);
+    private static final int MAX_FEEDBACK_PER_DAY = 10;
+    private static final int MAX_COMMENTS_PER_DAY = 30;
 
     private final FeedbackRepository repository;
+    private final FailureRateLimiter feedbackRateLimiter = new FailureRateLimiter(MAX_FEEDBACK_PER_DAY, Duration.ofDays(1));
+    private final FailureRateLimiter commentRateLimiter  = new FailureRateLimiter(MAX_COMMENTS_PER_DAY, Duration.ofDays(1));
 
     // ── Feedback ─────────────────────────────────────────────────────────────
 
@@ -82,6 +87,7 @@ public class FeedbackService {
                     .contentId(contentId)
                     .build();
         } else {
+            feedbackRateLimiter.checkAllowed(dto.authorId().toString(), "Too many feedback entries submitted today, try again tomorrow");
             FeedbackContent content = repository.saveContent(FeedbackContent.builder()
                     .contentText(sanitizedText)
                     .moderationStatus(FeedbackModerationStatus.NEW)
@@ -93,6 +99,7 @@ public class FeedbackService {
                     .authorId(dto.authorId())
                     .contentId(contentId)
                     .build());
+            feedbackRateLimiter.recordFailure(dto.authorId().toString());
         }
         repository.upsertRating(saved.getId(), dto.rating());
         repository.upsertAggregate(dto.entityType(), dto.entityId());
@@ -147,6 +154,10 @@ public class FeedbackService {
                     .parentCommentId(existing.parentCommentId())
                     .build();
         } else {
+            if (dto.parentCommentId() != null && computeCommentDepth(dto.parentCommentId()) >= FeedbackCommentSaveDto.MAX_DEPTH) {
+                throw new IllegalStateException("Maximum comment nesting depth reached");
+            }
+            commentRateLimiter.checkAllowed(dto.authorId().toString(), "Too many comments submitted today, try again tomorrow");
             FeedbackContent content = repository.saveContent(FeedbackContent.builder()
                     .contentText(sanitizedText)
                     .moderationStatus(FeedbackModerationStatus.NEW)
@@ -157,6 +168,7 @@ public class FeedbackService {
                     .feedbackId(dto.feedbackId())
                     .parentCommentId(dto.parentCommentId())
                     .build());
+            commentRateLimiter.recordFailure(dto.authorId().toString());
         }
         FeedbackCommentView savedView = repository.findCommentViewById(saved.getId())
                 .orElseThrow(() -> new IllegalStateException("FeedbackComment " + saved.getId() + " not found after save"));
@@ -289,6 +301,21 @@ public class FeedbackService {
         if (createdAt != null && Instant.now().isAfter(createdAt.plus(EDIT_WINDOW))) {
             throw new IllegalStateException("Edit window has closed");
         }
+    }
+
+    private int computeCommentDepth(Long commentId) {
+        int depth = 1;
+        FeedbackCommentView current = repository.findCommentViewById(commentId)
+                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+        Long parentId = current.parentCommentId();
+        while (parentId != null) {
+            depth++;
+            final Long currentParentId = parentId;
+            current = repository.findCommentViewById(currentParentId)
+                    .orElseThrow(() -> new IllegalStateException("FeedbackComment " + currentParentId + " not found"));
+            parentId = current.parentCommentId();
+        }
+        return depth;
     }
 
     private static Map<Long, Map<String, List<Long>>> groupReactions(List<FeedbackCommentReactionView> reactions) {

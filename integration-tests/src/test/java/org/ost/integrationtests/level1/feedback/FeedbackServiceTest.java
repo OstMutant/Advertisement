@@ -8,6 +8,7 @@ import org.ost.feedback.services.FeedbackService;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.support.RepositoryTestSupport;
 import org.ost.integrationtests.support.TestDataCleaner;
+import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
 import org.ost.platform.feedback.dto.FeedbackCommentDto;
@@ -44,6 +45,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
 
     private static final AtomicLong ENTITY_ID_SEQ = new AtomicLong(1);
+    private static final AtomicLong AUTHOR_ID_SEQ = new AtomicLong(10000);
 
     @Autowired
     private FeedbackService feedbackService;
@@ -60,6 +62,10 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
         return ENTITY_ID_SEQ.incrementAndGet();
     }
 
+    private static Long newAuthorId() {
+        return AUTHOR_ID_SEQ.incrementAndGet();
+    }
+
     private static FeedbackSaveDto newSaveDto(Long id, Long authorId, Long entityId, int rating, String text, Long version) {
         return new FeedbackSaveDto(id, EntityType.PROVIDER_PROFILE, entityId, authorId, rating, text, version);
     }
@@ -68,7 +74,7 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     void save_sanitizesHtmlAndRecomputesAggregate() {
         Long entityId = newEntityId();
 
-        FeedbackDto saved = feedbackService.save(newSaveDto(null, 1L, entityId, 5,
+        FeedbackDto saved = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5,
                 "<script>alert(1)</script>Great <b>master</b>!", null));
 
         assertThat(saved.feedbackText()).doesNotContain("<script>").contains("<b>master</b>");
@@ -80,9 +86,10 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void save_secondCallSameAuthorEntity_updatesExistingRowInPlace() {
         Long entityId = newEntityId();
-        FeedbackDto first = feedbackService.save(newSaveDto(null, 1L, entityId, 3, "Decent.", null));
+        Long authorId = newAuthorId();
+        FeedbackDto first = feedbackService.save(newSaveDto(null, authorId, entityId, 3, "Decent.", null));
 
-        FeedbackDto second = feedbackService.save(newSaveDto(first.id(), 1L, entityId, 4, "Actually pretty good.", first.version()));
+        FeedbackDto second = feedbackService.save(newSaveDto(first.id(), authorId, entityId, 4, "Actually pretty good.", first.version()));
 
         assertThat(second.id()).isEqualTo(first.id());
         assertThat(second.rating()).isEqualTo(4);
@@ -92,22 +99,22 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void save_pastEditWindow_throwsIllegalStateException() {
         Long entityId = newEntityId();
-        FeedbackDto first = feedbackService.save(newSaveDto(null, 1L, entityId, 3, "Decent.", null));
+        FeedbackDto first = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 3, "Decent.", null));
         backdateContentCreatedAt(first.id(), Instant.now().minus(49, ChronoUnit.HOURS));
 
-        assertThatThrownBy(() -> feedbackService.save(newSaveDto(first.id(), 1L, entityId, 5, "Edit attempt.", first.version())))
+        assertThatThrownBy(() -> feedbackService.save(newSaveDto(first.id(), newAuthorId(), entityId, 5, "Edit attempt.", first.version())))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void save_ratingOutOfRange_throwsConstraintViolationException() {
-        assertThatThrownBy(() -> feedbackService.save(newSaveDto(null, 1L, newEntityId(), 6, "Too high.", null)))
+        assertThatThrownBy(() -> feedbackService.save(newSaveDto(null, newAuthorId(), newEntityId(), 6, "Too high.", null)))
                 .isInstanceOf(ConstraintViolationException.class);
     }
 
     @Test
     void save_blankText_throwsConstraintViolationException() {
-        assertThatThrownBy(() -> feedbackService.save(newSaveDto(null, 1L, newEntityId(), 4, "   ", null)))
+        assertThatThrownBy(() -> feedbackService.save(newSaveDto(null, newAuthorId(), newEntityId(), 4, "   ", null)))
                 .isInstanceOf(ConstraintViolationException.class);
     }
 
@@ -115,8 +122,8 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     void findForEntity_returnsEntriesForThatEntityOnly() {
         Long entityId = newEntityId();
         Long otherEntityId = newEntityId();
-        feedbackService.save(newSaveDto(null, 1L, entityId, 5, "For this profile.", null));
-        feedbackService.save(newSaveDto(null, 1L, otherEntityId, 2, "For a different profile.", null));
+        feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "For this profile.", null));
+        feedbackService.save(newSaveDto(null, newAuthorId(), otherEntityId, 2, "For a different profile.", null));
 
         List<FeedbackDto> found = feedbackService.findForEntity(EntityType.PROVIDER_PROFILE, entityId, 0, 10);
 
@@ -135,20 +142,21 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void findCommentsByFeedback_returnsTreeWithReactionsFoldedIn() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
 
         FeedbackCommentDto reply = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "A reply.", null));
-        feedbackService.saveComment(new FeedbackCommentSaveDto(null, feedback.id(), reply.id(), 3L, "A nested reply.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "A reply.", null));
+        feedbackService.saveComment(new FeedbackCommentSaveDto(null, feedback.id(), reply.id(), newAuthorId(), "A nested reply.", null));
 
-        feedbackService.saveReaction(new FeedbackCommentReactionSaveDto(reply.id(), 4L, FeedbackReactionType.UP));
+        Long reactorId = newAuthorId();
+        feedbackService.saveReaction(new FeedbackCommentReactionSaveDto(reply.id(), reactorId, FeedbackReactionType.UP));
 
-        List<FeedbackCommentDto> tree = feedbackService.findCommentsByFeedback(feedback.id(), 4L);
+        List<FeedbackCommentDto> tree = feedbackService.findCommentsByFeedback(feedback.id(), reactorId);
 
         assertThat(tree).hasSize(2);
         FeedbackCommentDto topLevel = tree.stream().filter(c -> c.parentCommentId() == null).findFirst().orElseThrow();
         assertThat(topLevel.commentText()).isEqualTo("A reply.");
-        assertThat(topLevel.reactorIdsByType().get("UP")).containsExactly(4L);
+        assertThat(topLevel.reactorIdsByType().get("UP")).containsExactly(reactorId);
         assertThat(topLevel.myReaction()).isEqualTo("UP");
 
         FeedbackCommentDto nested = tree.stream().filter(c -> c.parentCommentId() != null).findFirst().orElseThrow();
@@ -159,12 +167,12 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void saveComment_editWithinWindow_updatesText() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto comment = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "Original text.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "Original text.", null));
 
         FeedbackCommentDto updated = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(comment.id(), feedback.id(), null, 2L, "Updated text.", comment.version()));
+                new FeedbackCommentSaveDto(comment.id(), feedback.id(), null, newAuthorId(), "Updated text.", comment.version()));
 
         assertThat(updated.id()).isEqualTo(comment.id());
         assertThat(updated.commentText()).isEqualTo("Updated text.");
@@ -173,34 +181,35 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void saveComment_pastEditWindow_throwsIllegalStateException() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto comment = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "Original text.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "Original text.", null));
         backdateCommentContentCreatedAt(comment.id(), Instant.now().minus(49, ChronoUnit.HOURS));
 
         assertThatThrownBy(() -> feedbackService.saveComment(
-                new FeedbackCommentSaveDto(comment.id(), feedback.id(), null, 2L, "Edit attempt.", comment.version())))
+                new FeedbackCommentSaveDto(comment.id(), feedback.id(), null, newAuthorId(), "Edit attempt.", comment.version())))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void saveReaction_voteThenSameType_unvotes() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto comment = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "A comment.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "A comment.", null));
 
-        feedbackService.saveReaction(new FeedbackCommentReactionSaveDto(comment.id(), 3L, FeedbackReactionType.UP));
-        List<FeedbackCommentDto> afterVote = feedbackService.findCommentsByFeedback(feedback.id(), 3L);
-        assertThat(afterVote.get(0).reactorIdsByType().get("UP")).containsExactly(3L);
+        Long reactorId = newAuthorId();
+        feedbackService.saveReaction(new FeedbackCommentReactionSaveDto(comment.id(), reactorId, FeedbackReactionType.UP));
+        List<FeedbackCommentDto> afterVote = feedbackService.findCommentsByFeedback(feedback.id(), reactorId);
+        assertThat(afterVote.get(0).reactorIdsByType().get("UP")).containsExactly(reactorId);
 
-        feedbackService.saveReaction(new FeedbackCommentReactionSaveDto(comment.id(), 3L, FeedbackReactionType.DOWN));
-        List<FeedbackCommentDto> afterChange = feedbackService.findCommentsByFeedback(feedback.id(), 3L);
+        feedbackService.saveReaction(new FeedbackCommentReactionSaveDto(comment.id(), reactorId, FeedbackReactionType.DOWN));
+        List<FeedbackCommentDto> afterChange = feedbackService.findCommentsByFeedback(feedback.id(), reactorId);
         assertThat(afterChange.get(0).reactorIdsByType().getOrDefault("UP", List.of())).isEmpty();
-        assertThat(afterChange.get(0).reactorIdsByType().get("DOWN")).containsExactly(3L);
+        assertThat(afterChange.get(0).reactorIdsByType().get("DOWN")).containsExactly(reactorId);
 
-        feedbackService.saveReaction(new FeedbackCommentReactionSaveDto(comment.id(), 3L, FeedbackReactionType.DOWN));
-        List<FeedbackCommentDto> afterUnvote = feedbackService.findCommentsByFeedback(feedback.id(), 3L);
+        feedbackService.saveReaction(new FeedbackCommentReactionSaveDto(comment.id(), reactorId, FeedbackReactionType.DOWN));
+        List<FeedbackCommentDto> afterUnvote = feedbackService.findCommentsByFeedback(feedback.id(), reactorId);
         assertThat(afterUnvote.get(0).reactorIdsByType().getOrDefault("DOWN", List.of())).isEmpty();
         assertThat(afterUnvote.get(0).myReaction()).isNull();
     }
@@ -208,9 +217,9 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void deleteComment_leafComment_removesItEntirely() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto leaf = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "A leaf comment.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "A leaf comment.", null));
 
         feedbackService.deleteComment(leaf.id());
 
@@ -220,11 +229,11 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void deleteComment_commentWithReplies_tombstonesButKeepsChildren() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto parent = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "Parent comment.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "Parent comment.", null));
         FeedbackCommentDto child = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), parent.id(), 3L, "Child reply.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), parent.id(), newAuthorId(), "Child reply.", null));
 
         feedbackService.deleteComment(parent.id());
 
@@ -239,11 +248,11 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void deleteComment_lastChildOfTombstonedParent_prunesParentToo() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto parent = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "Parent comment.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "Parent comment.", null));
         FeedbackCommentDto child = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), parent.id(), 3L, "Child reply.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), parent.id(), newAuthorId(), "Child reply.", null));
 
         feedbackService.deleteComment(parent.id());
         List<FeedbackCommentDto> afterParentDelete = feedbackService.findCommentsByFeedback(feedback.id(), null);
@@ -258,9 +267,9 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void deleteComment_pastEditWindow_throwsIllegalStateException() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto comment = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "A comment.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "A comment.", null));
         backdateCommentContentCreatedAt(comment.id(), Instant.now().minus(49, ChronoUnit.HOURS));
 
         assertThatThrownBy(() -> feedbackService.deleteComment(comment.id()))
@@ -288,7 +297,7 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void flagFeedback_staysListedWithHiddenStatus_alsoVisibleInHiddenQueue() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
 
         feedbackService.flagFeedback(feedback.id(), 2L);
 
@@ -303,16 +312,17 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void flagFeedback_byOwnAuthor_throwsIllegalStateException() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        Long authorId = newAuthorId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, authorId, entityId, 5, "Root feedback.", null));
 
-        assertThatThrownBy(() -> feedbackService.flagFeedback(feedback.id(), 1L))
+        assertThatThrownBy(() -> feedbackService.flagFeedback(feedback.id(), authorId))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void approveFeedback_reversesHiddenStatus_reappearsInPublicListing() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         feedbackService.flagFeedback(feedback.id(), 2L);
 
         feedbackService.approveFeedback(feedback.id());
@@ -326,10 +336,10 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void rejectFeedback_hardDeletesEntireCommentTree() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto topLevelComment = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "Top-level comment.", null));
-        feedbackService.saveComment(new FeedbackCommentSaveDto(null, feedback.id(), topLevelComment.id(), 3L, "Nested reply.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "Top-level comment.", null));
+        feedbackService.saveComment(new FeedbackCommentSaveDto(null, feedback.id(), topLevelComment.id(), newAuthorId(), "Nested reply.", null));
 
         feedbackService.rejectFeedback(feedback.id());
 
@@ -354,9 +364,9 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void rejectFeedback_cascadesEvenWhenTreeContainsHiddenComment() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto topLevelComment = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "Top-level comment.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "Top-level comment.", null));
         feedbackService.flagComment(topLevelComment.id(), 3L);
 
         feedbackService.rejectFeedback(feedback.id());
@@ -372,9 +382,9 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void flagComment_staysInTreeWithHiddenStatus_alsoVisibleInHiddenQueue() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto comment = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "A comment.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "A comment.", null));
 
         feedbackService.flagComment(comment.id(), 3L);
 
@@ -389,21 +399,22 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void flagComment_byOwnAuthor_throwsIllegalStateException() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
+        Long commentAuthorId = newAuthorId();
         FeedbackCommentDto comment = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "A comment.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, commentAuthorId, "A comment.", null));
 
-        assertThatThrownBy(() -> feedbackService.flagComment(comment.id(), 2L))
+        assertThatThrownBy(() -> feedbackService.flagComment(comment.id(), commentAuthorId))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void rejectComment_hardDeletesRegardlessOfChildren() {
         Long entityId = newEntityId();
-        FeedbackDto feedback = feedbackService.save(newSaveDto(null, 1L, entityId, 5, "Root feedback.", null));
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto topLevelComment = feedbackService.saveComment(
-                new FeedbackCommentSaveDto(null, feedback.id(), null, 2L, "Parent comment.", null));
-        feedbackService.saveComment(new FeedbackCommentSaveDto(null, feedback.id(), topLevelComment.id(), 3L, "Child reply.", null));
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "Parent comment.", null));
+        feedbackService.saveComment(new FeedbackCommentSaveDto(null, feedback.id(), topLevelComment.id(), newAuthorId(), "Child reply.", null));
 
         feedbackService.rejectComment(topLevelComment.id());
 
@@ -414,5 +425,93 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
                 .query(Integer.class)
                 .single();
         assertThat(commentCount).isZero();
+    }
+
+    @Test
+    void saveComment_exceedsMaxNestingDepth_throwsIllegalStateException() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
+        FeedbackCommentDto levelOne = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "Level 1.", null));
+        FeedbackCommentDto levelTwo = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), levelOne.id(), newAuthorId(), "Level 2.", null));
+        FeedbackCommentDto levelThree = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), levelTwo.id(), newAuthorId(), "Level 3.", null));
+
+        assertThatThrownBy(() -> feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), levelThree.id(), newAuthorId(), "Level 4 attempt.", null)))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void saveComment_replyAtMaxDepthMinusOne_succeeds() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
+        FeedbackCommentDto levelOne = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), "Level 1.", null));
+        FeedbackCommentDto levelTwo = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), levelOne.id(), newAuthorId(), "Level 2.", null));
+
+        FeedbackCommentDto levelThree = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), levelTwo.id(), newAuthorId(), "Level 3.", null));
+
+        assertThat(levelThree.parentCommentId()).isEqualTo(levelTwo.id());
+    }
+
+    @Test
+    void save_exceedsDailyLimit_throwsTooManyAttemptsException() {
+        Long authorId = newAuthorId();
+        for (int i = 0; i < 10; i++) {
+            feedbackService.save(newSaveDto(null, authorId, newEntityId(), 5, "Entry " + i + ".", null));
+        }
+
+        assertThatThrownBy(() -> feedbackService.save(newSaveDto(null, authorId, newEntityId(), 5, "One too many.", null)))
+                .isInstanceOf(TooManyAttemptsException.class);
+    }
+
+    @Test
+    void save_editingExistingEntry_doesNotCountAgainstDailyLimit() {
+        Long authorId = newAuthorId();
+        Long entityId = newEntityId();
+        FeedbackDto entry = feedbackService.save(newSaveDto(null, authorId, entityId, 3, "Initial.", null));
+
+        for (int i = 0; i < 15; i++) {
+            entry = feedbackService.save(newSaveDto(entry.id(), authorId, entityId, 4, "Edit " + i + ".", entry.version()));
+        }
+
+        assertThat(entry.feedbackText()).isEqualTo("Edit 14.");
+    }
+
+    @Test
+    void saveComment_exceedsDailyLimit_throwsTooManyAttemptsException() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
+        Long authorId = newAuthorId();
+        for (int i = 0; i < 30; i++) {
+            feedbackService.saveComment(new FeedbackCommentSaveDto(null, feedback.id(), null, authorId, "Comment " + i + ".", null));
+        }
+
+        assertThatThrownBy(() -> feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), null, authorId, "One too many.", null)))
+                .isInstanceOf(TooManyAttemptsException.class);
+    }
+
+    @Test
+    void save_textBeyondRawMaxLength_throwsConstraintViolationException() {
+        String tooLong = "a".repeat(FeedbackSaveDto.TEXT_RAW_MAX_LENGTH + 1);
+
+        assertThatThrownBy(() -> feedbackService.save(newSaveDto(null, newAuthorId(), newEntityId(), 4, tooLong, null)))
+                .isInstanceOf(ConstraintViolationException.class);
+    }
+
+    @Test
+    void saveComment_textBeyondRawMaxLength_throwsConstraintViolationException() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
+        String tooLong = "a".repeat(FeedbackCommentSaveDto.TEXT_RAW_MAX_LENGTH + 1);
+
+        assertThatThrownBy(() -> feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), null, newAuthorId(), tooLong, null)))
+                .isInstanceOf(ConstraintViolationException.class);
     }
 }

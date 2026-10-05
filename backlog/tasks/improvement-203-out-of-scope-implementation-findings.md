@@ -47,31 +47,6 @@ pre-fill the on-screen form for editing an existing entry, not a fresh one. A lo
 scoped to `buildForm()` would be unreachable from `buildEntryRow()`, so the Edit button couldn't
 update what's actually rendered — the field promotion is deliberate, not an oversight.
 
-### 2. `ContactRevealPanel`/`FeedbackPanel` (and provider-profile account-tab's own contact block) all render nested in the same flat card — no visual card-per-section separation (found during improvement-200 Phase 1 UI wiring, 2026-09-30)
-
-`.overlay__view-card` (`advertisement-overlay.css`) is one flex column (`gap: 12px`) — every
-child (title/description/chips/badge/`ContactRevealPanel`/`FeedbackPanel`/meta) renders as a flat
-stack inside the same single white card, no border/background distinguishing one section from
-another. `.contact-reveal-panel` has zero CSS rules of its own. The same pattern also exists in
-`ProviderProfileViewModeHandler` (`AccountOverlay`'s "Provider Profile" tab) — its own
-`buildContactViewsBlock(...)` is likewise just `card.add(...)`'d into the one shared card, not a
-separate section.
-
-**Wanted instead:** each section (contact, feedback, and any future similar block) as its own
-genuinely separate sibling card — full `.overlay__view-card`-shaped treatment (own white
-background, border, top accent, shadow, radius), stacked with a gap between them — not a nested
-sub-box inside the description card. Applies symmetrically everywhere `ContactRevealPanel`/
-`FeedbackPanel` (or `ProviderProfileViewModeHandler`'s own contact block) are used:
-`ProviderProfileCatalogViewModeHandler`, `AdvertisementViewOverlayModeHandler`,
-`ProviderProfileViewModeHandler`.
-
-Not resolved inline: user explicitly deferred this until every phase of `improvement-200` itself
-is implemented first, rather than context-switching into a UI/CSS restructuring pass mid-Phase-1.
-A first implementation attempt (a nested `.overlay__view-subcard` sub-box, not the wanted separate
-sibling card) was made and then explicitly reverted at the user's request before this entry was
-filed — confirmed via `git diff` that the revert left only the legitimate `FeedbackPanel` wiring
-diff behind, no leftover fragments.
-
 ### 3. Database ERD silently drops `<addColumn>` migrations (found during an architecture-map audit of `feedback`/`contact-spring-boot-starter`, 2026-10-01)
 
 `contact-spring-boot-starter/src/main/resources/db/contact-changelog/changes/02-contact-view-revealed-value.xml` adds `contact_view.revealed_value` via `<addColumn>`. This column is completely absent from both the generated JSON and the rendered ERD diagram, for two compounding reasons: `DB_ERD_CHANGELOG_FILES`'s discovery filter in `docs/architecture/scripts/generate-architecture-model.sh` (lines 228-237) only includes files matching `<createTable` — a file containing only `<addColumn>` never enters the file list passed to the parser at all; and even if it were passed, `docs/architecture/scripts/liquibase-schema-to-json.js` has no `<addColumn>` handling whatsoever (only `createTable`, `addForeignKeyConstraint`, `createIndex`, `addPrimaryKey`, and a narrow raw-`<sql>` regex pass are implemented). Currently the only `<addColumn>` changelog in the repo, so the gap is isolated to one column today, but the mechanism is entirely missing — any future `addColumn` migration on any table hits the same gap.
@@ -93,6 +68,48 @@ Not resolved inline: an infra/storage-backend swap needs its own sizing and isn'
 **Approach options:** (a) add a `--stop`/`--down` flag to `deploy-and-run.sh` that runs `docker compose ... down` for DB/MinIO and `docker rm -f` for the app container, no relaunch; (b) short of a new flag, at least document `docker compose ... down` as the sanctioned manual pattern for DB/MinIO in `scripts.md` (today it documents `up -d` but says nothing about tearing down), leaving the app container's raw `docker rm -f` as an accepted, explicitly-named exception rather than silent/undocumented.
 
 Not resolved inline: new flag design + testing is tooling work outside any current implementation task's own approved scope.
+
+### 6. `FeedbackPanel`'s feedback-entry list has no pagination (moved from `improvement-200`, 2026-10-05)
+
+`FeedbackPanel.refreshList()` always calls `feedbackAccessService.findForEntity(entityType,
+entityId, 0, PAGE_SIZE)` — hardcoded page 0, `PAGE_SIZE = 20`, no way to reach entry 21+. The
+Port/Service/repository chain already supports real pagination end-to-end
+(`findForEntity(EntityType, Long, int page, int size)`); only the UI side is unpaginated. Wanted:
+a pagination control under the feedback-entries list (not the comment trees — those stay
+full-tree, no change there), reusing the project's existing `PaginationBar` component (already
+used by `AdvertisementsView`/`UserView`/`ProvidersView`/`TimelineView`) rather than building a new
+pager.
+
+**Fix plan:**
+
+- `FeedbackPanel.java`: new constructor-injected field `private final PaginationBar
+  paginationBar;` (prototype-scoped bean, same direct-injection pattern the four existing Views
+  already use — no `SettingsPaginationBinding` registration, since that ties page size to a
+  per-user grid setting in `UserSettingsDto` that has no feedback-list equivalent and isn't being
+  added here; `PaginationBar`'s own default page size is used as-is).
+- `configure(Parameters p)`: call `paginationBar.resetToFirstPage()` right after the `!available`
+  early-return check, before `refresh(entityRef)` — so reopening this panel for a different entity
+  never starts on a stale page left over from a previously-viewed entity. Add `paginationBar` to
+  the DOM between `listContainer` and `formContainer`: `add(headerContainer); add(listContainer);
+  add(paginationBar); buildFormContainer(entityRef); add(formContainer);`. Also wire
+  `paginationBar.setPageChangeListener(_ -> refreshList(entityRef));` here (captures `entityRef` in
+  the closure, same as the rest of `configure()`'s listener wiring already does).
+- `refreshHeader(EntityRef entityRef)`: after the existing `FeedbackAggregateDto aggregate = ...`
+  fetch, add `paginationBar.setTotalCount(aggregate.reviewCount());` — `reviewCount` is already the
+  exact total `findForEntity` paginates over, no new count query needed.
+- `refreshList(EntityRef entityRef)`: change the hardcoded `0` to `paginationBar.getCurrentPage()`
+  in the `findForEntity(...)` call.
+- Always-visible bar, no show/hide toggle — matches `AdvertisementsView`'s own convention
+  (`PaginationBar.setTotalCount`'s existing button-disable logic already makes prev/next inert on a
+  single page, no separate visibility rule needed).
+- Playwright (`04-provider-profile-flow.spec.js`): extend an existing feedback-list flow (or add a
+  step) that creates more than `PAGE_SIZE` feedback entries on one entity and asserts page
+  navigation — if this is expensive to seed per-test, scope it against spec 06's existing bulk-seed
+  infrastructure rather than creating 21+ entries one at a time inside this flow.
+
+Not resolved inline: moved here from `improvement-200` at user request, 2026-10-05, once that
+task's own phases were otherwise done — a UI-only addition unrelated to the rest of this bucket's
+findings, grouped here just to keep `improvement-200` itself closable.
 
 ## Related
 

@@ -2770,3 +2770,25 @@ container — Google AI Studio connected successfully (`gemini-3.6-flash`, after
 `gemini-3.8-flash` turned out deprecated/overloaded for new users); OpenAI skipped (no free API
 tier) in favor of Groq's free `openai/gpt-oss-120b` as a future alternative, not yet connected.
 Full detail: `completed/tasks/improvement-205-opencode-dev-container.md`.
+
+✅ Done (2026-10-05): improvement-200 closed — F-06 reviews & ratings (private product roadmap
+Phase 3). New self-contained `feedback-spring-boot-starter` (`feedback_content`/`feedback`/
+`feedback_rating`/`feedback_comment`/`feedback_comment_reaction`/`feedback_aggregate` tables,
+`FeedbackPort` SPI, no denormalization onto `provider_profile`/`advertisement`, mirrors the
+`contact-spring-boot-starter` precedent): rating + sanitized text on any `EntityRef` (provider
+profile or advertisement), one entry per author per entity with a 48h edit window, an unbounded
+`WITH RECURSIVE` comment tree later capped at 3 levels deep, reactions, moderation (flag/report,
+admin queue, in-place `[censored]` rendering, audit on moderation actions only), and anti-fraud
+hardening (per-author daily rate limits on new entries/comments via the existing
+`FailureRateLimiter`, same-file verifier fusion not needed here since this is product code not
+review tooling). Phased over many rounds of real-usage UX fixes (icon-driven inline editing,
+draft/expand-state persistence across reloads, scroll-position preservation through tree rebuilds,
+depth-cap enforcement both client- and server-side) — see the completed task file for the full
+round-by-round history. Final phase: `ContactRevealPanel`/`FeedbackPanel` (and
+`ProviderProfileViewModeHandler`'s own contact-views block) moved from flat-stacked-in-one-card to
+genuine sibling `.overlay__view-card` cards, reusing existing CSS with no new rules — verified via
+a real deploy + full `e2e --ux` run (52/65 passed, 0 failed, 13 skipped) after an initial cold-start
+false failure was ruled out by a clean re-run on the warmed app. The one remaining open item
+(feedback-list pagination) was moved to `improvement-203` entry 6 rather than block closing this
+task, since it's a small, independent UI addition unrelated to the rest of F-06's own scope. Full
+detail: `completed/tasks/improvement-200-f06-reviews-ratings.md`.

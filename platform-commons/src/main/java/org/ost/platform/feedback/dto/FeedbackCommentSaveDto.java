@@ -17,4 +17,5 @@ public record FeedbackCommentSaveDto(
 ) {
     public static final int TEXT_MAX_LENGTH     = 2000;
     public static final int TEXT_RAW_MAX_LENGTH = 20_000;
+    public static final int MAX_DEPTH = 3; // level 1 = direct comment on the feedback entry, level 3 = deepest allowed reply
 }

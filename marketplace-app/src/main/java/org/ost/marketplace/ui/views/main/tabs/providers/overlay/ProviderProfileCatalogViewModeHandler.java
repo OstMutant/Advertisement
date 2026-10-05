@@ -102,15 +102,21 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         buildChipRow(textCard, taxons, TaxonType.CITY, "provider-profile-city-chips",
                 "provider-profile-city-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
         textCard.add(kindBadge);
-        textCard.add(contactRevealPanelFactory.build(ContactRevealPanel.Parameters.builder()
-                .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
-                .build()));
-        textCard.add(feedbackPanelFactory.build(FeedbackPanel.Parameters.builder()
-                .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
-                .build()));
-        textCard.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));
 
-        return new Div(textCard);
+        ContactRevealPanel contactPanel = contactRevealPanelFactory.build(ContactRevealPanel.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
+                .build());
+        contactPanel.addClassName("overlay__view-card");
+
+        FeedbackPanel feedbackPanel = feedbackPanelFactory.build(FeedbackPanel.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
+                .build());
+        feedbackPanel.addClassName("overlay__view-card");
+
+        Div viewBody = new Div(textCard, contactPanel, feedbackPanel,
+                metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));
+        viewBody.addClassName("overlay__view-body");
+        return viewBody;
     }
 
     private static void buildChipRow(Div textCard, List<TaxonDto> taxons, TaxonType type,

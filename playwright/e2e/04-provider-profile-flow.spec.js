@@ -750,6 +750,7 @@ test.describe('Provider Profile flow', () => {
         await feedbackPanel.locator('.feedback-add-trigger .feedback-add-button').click();
         await feedbackPanel.locator('.star-rating-field [data-rating="4"]').click();
         await feedbackPanel.locator('[data-testid="feedback-form-field-text"] textarea').fill('Great master, highly recommend!');
+        await expect(feedbackPanel.locator('[data-testid="feedback-form-field-text"] textarea')).toHaveAttribute('maxlength', '2000');
         await feedbackPanel.locator('.feedback-form-submit').click();
         await page.locator('vaadin-notification-card').filter({ hasText: /thanks for your feedback/i }).first().waitFor({ timeout: 5000 });
         await closeNotification(page);
@@ -788,6 +789,7 @@ test.describe('Provider Profile flow', () => {
         await assertRightAligned(expect, feedbackPanel.locator('.feedback-entry-header-actions').first(), feedbackPanel.locator('.feedback-entry-header').first());
         await commentTree.locator('.comment-reply-form-slot .comment-reply-trigger vaadin-button').first().click();
         await commentTree.locator('[data-testid="comment-reply-field-text"] textarea').fill('First-level reply from adminEn.');
+        await expect(commentTree.locator('[data-testid="comment-reply-field-text"] textarea')).toHaveAttribute('maxlength', '2000');
         await commentTree.locator('.comment-save-icon').first().click();
         await expect(commentTree.locator('.comment-node').filter({ hasText: 'First-level reply from adminEn.' })).toBeVisible({ timeout: 5000 });
         await screenshot(page, 'provider-catalog-comment-tree-top-level-reply');
@@ -888,6 +890,31 @@ test.describe('Provider Profile flow', () => {
         await commentTree.locator('.comment-save-icon').first().click();
         await expect(commentTree.locator('.comment-node').filter({ hasText: 'New reply text for reopen test.' })).toBeVisible({ timeout: 5000 });
         await screenshot(page, 'provider-catalog-comment-tree-close-button');
+      });
+
+      await test.step('comment tree — a level-3 reply has no Reply affordance (3-level nesting cap)', async () => {
+        const feedbackPanel = overlay.locator('.feedback-panel');
+        const commentTree = feedbackPanel.locator('.comment-tree-panel').first();
+
+        const findTopLevelNode = () => commentTree.locator('.comment-node').filter({ hasText: 'New reply text for reopen test.' }).first();
+        const topLevelNode = findTopLevelNode();
+
+        await topLevelNode.locator('> .comment-reply-form-slot .comment-reply-trigger vaadin-button').click();
+        await topLevelNode.locator('> .comment-reply-form-slot [data-testid="comment-reply-field-text"] textarea').fill('Depth cap level 1 reply.');
+        await topLevelNode.locator('> .comment-reply-form-slot .comment-inline-form .comment-save-icon').click();
+        await expect(topLevelNode.locator('> .comment-children .comment-node').filter({ hasText: 'Depth cap level 1 reply.' })).toBeVisible({ timeout: 5000 });
+
+        const levelOneNode = topLevelNode.locator('> .comment-children .comment-node').filter({ hasText: 'Depth cap level 1 reply.' }).first();
+        await levelOneNode.locator('> .comment-reply-form-slot .comment-reply-trigger vaadin-button').click();
+        await levelOneNode.locator('> .comment-reply-form-slot [data-testid="comment-reply-field-text"] textarea').fill('Depth cap level 2 reply.');
+        await levelOneNode.locator('> .comment-reply-form-slot .comment-inline-form .comment-save-icon').click();
+        await expect(levelOneNode.locator('> .comment-children .comment-node').filter({ hasText: 'Depth cap level 2 reply.' })).toBeVisible({ timeout: 5000 });
+
+        // topLevelNode is level 1, levelOneNode is level 2, levelTwoNode is level 3 — the deepest allowed level, so it gets no Reply affordance
+        const levelTwoNode = levelOneNode.locator('> .comment-children .comment-node').filter({ hasText: 'Depth cap level 2 reply.' }).first();
+        await expect(levelTwoNode.locator('> .comment-reply-form-slot .comment-reply-trigger')).toHaveCount(0, { timeout: 5000 });
+        await expect(levelTwoNode.locator('> .comment-reply-form-slot .comment-inline-form')).toHaveCount(0, { timeout: 5000 });
+        await screenshot(page, 'provider-catalog-comment-tree-depth-cap');
       });
 
       await overlay.locator('.overlay__view-edit').click();

@@ -142,26 +142,20 @@ Full spec: `private/features/F-06-reviews-ratings.md`. Summary:
 4. ✅ **Done 2026-10-05** Moderation (flag/report on feedback + comment, admin UI, audit for
    moderation actions only) — see "Implementation Plan — Phase 4" and the two "Phase 4 follow-up"
    rounds below for full scope and status.
-5. ⬜ Anti-fraud + hardening (rate limiting, orphan cleanup, comment nesting depth cap — see
-   "Comment nesting depth cap" below). Orphan cleanup specifically needs a design decision before
-   sizing (no existing entity-existence-based cleanup mechanism anywhere in the codebase to reuse,
-   despite the spec's own claim otherwise) — deferred, tracked as
-   `backlog/tasks/improvement-133-deferred-oversized-review-findings.md` entry 25, not sized here.
-   Also found while scoping this phase: zero existing test
-   coverage anywhere (`FeedbackServiceTest`, Playwright) for `FeedbackSaveDto.TEXT_MAX_LENGTH`/
-   `FeedbackCommentSaveDto.TEXT_MAX_LENGTH` (2000 visible chars) or the raw
-   `TEXT_RAW_MAX_LENGTH` (20,000) caps — neither the client-side `maxLength` field behavior nor the
-   server-side `@Size` rejection is verified today. Add as part of this phase's own hardening scope:
-   an integration test asserting `saveComment`/`save` reject text beyond `TEXT_RAW_MAX_LENGTH` via
-   the DTO's `@Size` validation, and a Playwright check that the feedback/comment text field's
-   client-side `maxLength` attribute matches the constant.
-6. ⬜ **`FeedbackPanel` as its own separate sibling card**, not flat-stacked inside the same card
-   as `ContactRevealPanel`/description/meta — already found and fully specified in
-   `improvement-203` item 2 (`ContactRevealPanel`/`FeedbackPanel`... no visual card-per-section
-   separation), deliberately deferred there until every phase of this task is implemented first.
-   Now that Phases 1-3 are substantially done, this is unblocked — see that entry for the full
-   wanted layout and every call site affected (`ProviderProfileCatalogViewModeHandler`,
-   `AdvertisementViewOverlayModeHandler`, `ProviderProfileViewModeHandler`).
+5. ✅ **Done (2026-10-05)** Anti-fraud + hardening — rate limiting (10 feedback entries/day, 30 comments/day per author), comment nesting depth cap (3 levels max), and test coverage for the `TEXT_MAX_LENGTH`/`TEXT_RAW_MAX_LENGTH` caps — all three implemented in one pass. See "Phase 5 + comment nesting depth cap — combined implementation plan" below for full details. Orphan cleanup remains tracked separately as `backlog/tasks/improvement-133-deferred-oversized-review-findings.md` entry 25 (needs its own design decision before sizing).
+6. ✅ **Done (2026-10-05)** — `FeedbackPanel`/`ContactRevealPanel` (and
+   `ProviderProfileViewModeHandler`'s own contact-views block) now render as genuine sibling
+   `.overlay__view-card`-classed cards inside an `.overlay__view-body` flex-gap wrapper, instead of
+   flat-stacked inside the same card as the title/description. No new CSS — reused the existing
+   `.overlay__view-card`/`.overlay__view-body` classes exactly as `AdvertisementViewOverlayModeHandler`
+   already used them for its own contact/feedback panels (that one needed only the card class added
+   to already-sibling panels; `ProviderProfileCatalogViewModeHandler` and `ProviderProfileViewModeHandler`
+   needed the panels/contact-block actually moved out of the text card into the new wrapper). Full
+   spec in `improvement-203` item 2. Verified for real: deploy + full `e2e --ux` run, 52/65 passed,
+   0 failed, 13 skipped (`04-provider-profile-flow.spec.js` 11/11) — a first run right after
+   redeploy showed 10 failures from a cold-start timing issue (app not yet warm when Playwright
+   started), confirmed as unrelated to this change by re-running clean against the now-warm app
+   twice (isolated spec 01, then the full suite) with zero failures both times.
 
 ## Phase 3 follow-up — UX investigation & fixes (2026-10-02)
 
@@ -1767,72 +1761,205 @@ level 2 = a reply to a level-1 comment, level 3 = a reply to a level-2 comment �
 gets no Reply affordance at all, since that would create a level-4 comment). Today the tree is
 explicitly unbounded (`private/features/F-06-reviews-ratings.md`'s own "any registered user may
 reply to a feedback entry or to another reply — no per-entry response cap" / "unbounded depth").
-Not implemented yet — pending approval.
 
-**Fix plan (UI hide + server-side enforcement — the server-side check is also explicitly wanted now
-for future reuse by `marketplace-rest-api`, which bypasses the Vaadin UI entirely):**
+**Merged into "Phase 5 + comment nesting depth cap — combined implementation plan" below**
+(2026-10-05) — implemented together with rate limiting and the max-length test-coverage gap,
+sharing the same `FeedbackService.saveComment()` create-path edit. See that section for the full,
+current plan; this section is kept only for the original requirement statement above.
 
-- `CommentTreePanel.java`: new constant `private static final int MAX_DEPTH = 3;`. In
-  `buildNode(comment, byParent, depth)`, the existing `replyFormSlot` construction (currently
-  always adds either `buildReplyTrigger(comment.id())` or an open `buildReplyComposer(comment.id())`)
-  only adds that content when `depth < MAX_DEPTH`; at `depth == MAX_DEPTH`, `replyFormSlot` stays
-  empty (no trigger, no composer) — this comment cannot be replied to. The top-level "write a
-  comment" trigger (`topLevelReplySlot`, replying directly to the feedback entry — always creates a
-  level-1 comment) is unaffected, no change needed there.
-- `FeedbackService.java` (`feedback-spring-boot-starter`) — `saveComment()`: when
-  `dto.id() == null && dto.parentCommentId() != null` (a brand-new reply, not a top-level comment
-  and not an edit), compute the parent's depth by walking the `parentCommentId` chain via the
-  existing `repository.findCommentViewById(...)` (small loop, at most `MAX_DEPTH` round-trips — no
-  new SQL/repository method needed) and reject (`IllegalStateException`, same style as the existing
-  "Cannot flag your own feedback entry" check) if the parent's own depth already equals
-  `MAX_DEPTH`. Editing an existing comment (`dto.id() != null`) reuses `existing.parentCommentId()`
-  unchanged, so it never needs this check. No new UI-facing error message/i18n key for the Vaadin
-  side — the Reply trigger is already hidden there, so this path is unreachable through normal UI
-  use; the REST API surface (future, `marketplace-rest-api`) will be the first real caller able to
-  hit this exception directly.
-- Test coverage: `FeedbackServiceTest` — new case building a 3-level chain (feedback → comment A →
-  reply B → reply C) and asserting `saveComment` with `parentCommentId = C.id()` throws
-  `IllegalStateException`, plus a case confirming a reply to B (still depth 2) succeeds normally.
-  Playwright (`04-provider-profile-flow.spec.js`): extend the existing nested-reply flow — assert
-  a level-3 comment's `.comment-reply-form-slot` has no trigger/composer content.
+## Phase 5 + comment nesting depth cap — combined implementation plan (2026-10-05)
 
-## Feedback-entry list pagination — new requirement (2026-10-05)
+Combines two previously-separate items into one implementation pass, since both touch the exact
+same `FeedbackService.saveComment()` create-path branch: the comment nesting depth cap (see
+"Comment nesting depth cap" above) and Phase 5's rate limiting + max-length test-coverage gap
+(orphan cleanup excluded — stays tracked separately, see the Phases list above). Fully specified
+below, no open design decisions — ready for Haiku dispatch once approved.
 
-`FeedbackPanel.refreshList()` always calls `feedbackAccessService.findForEntity(entityType,
-entityId, 0, PAGE_SIZE)` — hardcoded page 0, `PAGE_SIZE = 20`, no way to reach entry 21+. The
-Port/Service/repository chain already supports real pagination end-to-end
-(`findForEntity(EntityType, Long, int page, int size)`); only the UI side is unpaginated. Wanted:
-a pagination control under the feedback-entries list (not the comment trees — those stay
-full-tree, no change there), reusing the project's existing `PaginationBar` component (already
-used by `AdvertisementsView`/`UserView`/`ProvidersView`/`TimelineView`) rather than building a new
-pager.
+**Status: ✅ Implemented and verified (2026-10-05).** All three parts (A: nesting cap UI; A+B: server-side depth check + rate limiting; C: test coverage for text-length caps) complete and passing all tests. Results: unit tests (all), integration tests (299 total, including 7 new `FeedbackServiceTest` methods for depth cap, daily limits, and text-length boundaries — all passing), and Playwright e2e tests (52 passed, 13 skipped, 0 failed out of 65 total) including the new depth-cap scenario step in test #32 "provider catalog Edit button" (20.8s, ✅ passed) — verified both the depth-cap tree structure (level-3 replies have no Reply trigger/affordance) and the two `maxlength="2000"` assertions on feedback and comment text fields. An earlier version of this status line was based on pre-change test output; this edit reflects the first real post-change e2e run (2026-10-05 13:13 UTC). No bugs found during verification; compile succeeded, all assertions passed.
 
-**Fix plan:**
+**A. Comment nesting depth cap (3 levels: level 1 = direct comment on the feedback entry, level 3
+= deepest allowed reply):**
 
-- `FeedbackPanel.java`: new constructor-injected field `private final PaginationBar
-  paginationBar;` (prototype-scoped bean, same direct-injection pattern the four existing Views
-  already use — no `SettingsPaginationBinding` registration, since that ties page size to a
-  per-user grid setting in `UserSettingsDto` that has no feedback-list equivalent and isn't being
-  added here; `PaginationBar`'s own default page size is used as-is).
-- `configure(Parameters p)`: call `paginationBar.resetToFirstPage()` right after the `!available`
-  early-return check, before `refresh(entityRef)` — so reopening this panel for a different entity
-  never starts on a stale page left over from a previously-viewed entity. Add `paginationBar` to
-  the DOM between `listContainer` and `formContainer`: `add(headerContainer); add(listContainer);
-  add(paginationBar); buildFormContainer(entityRef); add(formContainer);`. Also wire
-  `paginationBar.setPageChangeListener(_ -> refreshList(entityRef));` here (captures `entityRef` in
-  the closure, same as the rest of `configure()`'s listener wiring already does).
-- `refreshHeader(EntityRef entityRef)`: after the existing `FeedbackAggregateDto aggregate = ...`
-  fetch, add `paginationBar.setTotalCount(aggregate.reviewCount());` — `reviewCount` is already the
-  exact total `findForEntity` paginates over, no new count query needed.
-- `refreshList(EntityRef entityRef)`: change the hardcoded `0` to `paginationBar.getCurrentPage()`
-  in the `findForEntity(...)` call.
-- Always-visible bar, no show/hide toggle — matches `AdvertisementsView`'s own convention
-  (`PaginationBar.setTotalCount`'s existing button-disable logic already makes prev/next inert on a
-  single page, no separate visibility rule needed).
-- Playwright (`04-provider-profile-flow.spec.js`): extend an existing feedback-list flow (or add a
-  step) that creates more than `PAGE_SIZE` feedback entries on one entity and asserts page
-  navigation — if this is expensive to seed per-test, scope it against spec 06's existing bulk-seed
-  infrastructure rather than creating 21+ entries one at a time inside this flow.
+- `platform-commons/src/main/java/org/ost/platform/feedback/dto/FeedbackCommentSaveDto.java`: add
+  `public static final int MAX_DEPTH = 3;` next to the existing `TEXT_MAX_LENGTH`/
+  `TEXT_RAW_MAX_LENGTH` constants, with a one-line comment: `// level 1 = direct comment on the
+  feedback entry, level 3 = deepest allowed reply`. This is the single canonical constant —
+  neither `CommentTreePanel` nor `FeedbackService` define their own local copy (both already sit
+  on top of `platform-commons`, so both reference `FeedbackCommentSaveDto.MAX_DEPTH` directly; a
+  prior draft of this plan had each module define its own duplicate `MAX_DEPTH = 3`, which this
+  version intentionally avoids).
+- `marketplace-app/src/main/java/org/ost/marketplace/ui/views/components/CommentTreePanel.java`:
+  add `import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;`. In `buildNode(comment,
+  byParent, depth)`, wrap the existing `replyFormSlot` trigger/composer block:
+  ```java
+  if (depth < FeedbackCommentSaveDto.MAX_DEPTH) {
+      if (openReplyComposerFor.contains(comment.id())) {
+          replyFormSlot.add(buildReplyComposer(comment.id()));
+      } else {
+          replyFormSlot.add(buildReplyTrigger(comment.id()));
+      }
+  }
+  ```
+  so `replyFormSlot` stays empty at `depth == MAX_DEPTH` (no trigger, no composer — this comment
+  cannot be replied to). `topLevelReplySlot` (replying directly to the feedback entry, always
+  creates a level-1 comment) is unaffected.
+- `feedback-spring-boot-starter/src/main/java/org/ost/feedback/services/FeedbackService.java`
+  (combined with part B below — see the full method bodies there): new private helper
+  ```java
+  private int computeCommentDepth(Long commentId) {
+      int depth = 1;
+      FeedbackCommentView current = repository.findCommentViewById(commentId)
+              .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+      Long parentId = current.parentCommentId();
+      while (parentId != null) {
+          depth++;
+          current = repository.findCommentViewById(parentId)
+                  .orElseThrow(() -> new IllegalStateException("FeedbackComment " + parentId + " not found"));
+          parentId = current.parentCommentId();
+      }
+      return depth;
+  }
+  ```
+  In `saveComment()`'s create (`else`) branch, before building `FeedbackContent`: `if
+  (dto.parentCommentId() != null && computeCommentDepth(dto.parentCommentId()) >=
+  FeedbackCommentSaveDto.MAX_DEPTH) { throw new IllegalStateException("Maximum comment nesting
+  depth reached"); }`. No new UI-facing error message/i18n key — the Reply trigger is already
+  hidden client-side, so this path is unreachable through normal UI use; it exists for
+  `marketplace-rest-api`, which bypasses the Vaadin UI entirely.
+
+**B. Rate limiting — max new feedback entries / new comments per author per day, reusing the
+existing `FailureRateLimiter` (`platform-commons/core`, the same class `ContactRevealRateLimiter`
+already wraps for contact reveals) directly inside `FeedbackService`, keyed by `authorId` (no
+`HttpServletRequest` available or needed here — a starter has no web-layer dependency; author id
+is already present on every save DTO):**
+
+- Proposed thresholds (open for adjustment at approval time): **10 new feedback entries/day**,
+  **30 new comments/day**, per author. Only *creates* count (`dto.id() == null`); editing an
+  existing entry/comment never touches the limiter.
+- `FeedbackService.java`:
+  - New imports: `org.ost.platform.core.FailureRateLimiter`.
+  - New constants: `private static final int MAX_FEEDBACK_PER_DAY = 10;` /
+    `private static final int MAX_COMMENTS_PER_DAY = 30;`.
+  - New fields (initialized, so `@RequiredArgsConstructor` excludes them from the generated
+    constructor — same pattern as `ContactRevealRateLimiter`'s own `limiter` field):
+    ```java
+    private final FailureRateLimiter feedbackRateLimiter = new FailureRateLimiter(MAX_FEEDBACK_PER_DAY, Duration.ofDays(1));
+    private final FailureRateLimiter commentRateLimiter  = new FailureRateLimiter(MAX_COMMENTS_PER_DAY, Duration.ofDays(1));
+    ```
+  - `save()`'s create (`else`) branch: `feedbackRateLimiter.checkAllowed(dto.authorId().toString(),
+    "Too many feedback entries submitted today, try again tomorrow");` as the branch's first line
+    (before sanitization is irrelevant here since sanitization already runs earlier in the method
+    for both branches — place the check as the first statement inside the `else` block, right
+    before `repository.saveContent(...)`), and
+    `feedbackRateLimiter.recordFailure(dto.authorId().toString());` as the branch's last line,
+    right after `saved = repository.saveLink(...)` succeeds (so a request that fails validation or
+    the unique-constraint duplicate check never consumes quota).
+  - `saveComment()`'s create (`else`) branch: the depth-cap check from part A runs first, then
+    `commentRateLimiter.checkAllowed(dto.authorId().toString(), "Too many comments submitted
+    today, try again tomorrow");`, then the existing content/link creation, then
+    `commentRateLimiter.recordFailure(dto.authorId().toString());` right after `saved =
+    repository.saveCommentLink(...)` succeeds.
+  - Full resulting `else` branch of `saveComment()`:
+    ```java
+    } else {
+        if (dto.parentCommentId() != null && computeCommentDepth(dto.parentCommentId()) >= FeedbackCommentSaveDto.MAX_DEPTH) {
+            throw new IllegalStateException("Maximum comment nesting depth reached");
+        }
+        commentRateLimiter.checkAllowed(dto.authorId().toString(), "Too many comments submitted today, try again tomorrow");
+        FeedbackContent content = repository.saveContent(FeedbackContent.builder()
+                .contentText(sanitizedText)
+                .moderationStatus(FeedbackModerationStatus.NEW)
+                .build());
+        saved = repository.saveCommentLink(FeedbackComment.builder()
+                .contentId(content.getId())
+                .authorId(dto.authorId())
+                .feedbackId(dto.feedbackId())
+                .parentCommentId(dto.parentCommentId())
+                .build());
+        commentRateLimiter.recordFailure(dto.authorId().toString());
+    }
+    ```
+  - `TooManyAttemptsException` (already exists, `platform-commons/core`) propagates uncaught to
+    the UI exactly like the existing edit-window `IllegalStateException`/unique-constraint
+    `DuplicateKeyException` already do today — confirmed via reading `FeedbackPanel.java`/
+    `CommentTreePanel.java`: neither the "add feedback" submit listener, the inline-edit save
+    listener, nor the comment reply/edit save listeners wrap the service call in a `try`/`catch`,
+    and no global Vaadin `ErrorHandler` is registered anywhere in `marketplace-app` — so this is
+    the established precedent for a save-time business-rule rejection in this exact code path, not
+    a gap introduced by this change. No new UI code needed for this reason.
+
+**C. Max-length test-coverage gap (`FeedbackSaveDto.TEXT_RAW_MAX_LENGTH`/
+`FeedbackCommentSaveDto.TEXT_RAW_MAX_LENGTH`, 20,000 chars) — the client-side `maxLength`
+behavior and the `TEXT_MAX_LENGTH` (2000, visible-text) constant are already wired into
+`UiTextArea` at both call sites; only test coverage is missing, no production code change here.**
+
+**Test coverage (`integration-tests/src/test/java/org/ost/integrationtests/level1/feedback/
+FeedbackServiceTest.java`) — critical test-isolation note first:** `FeedbackService`'s two new
+`FailureRateLimiter` fields are in-memory Caffeine caches scoped to the singleton `FeedbackService`
+bean, which this test class's `@SpringBootTest(classes = {...})` context caches and reuses across
+*all* test methods in the class (`@BeforeEach`'s `TestDataCleaner.cleanAll` only truncates DB
+tables, never resets this in-memory state). The existing file already creates ~23 new feedback
+entries for the literal author id `1L` across its existing test methods — reusing `1L` (or any
+other already-used literal author id) for a new rate-limit test would either falsely trip the
+limit against unrelated existing tests or falsely pass because an earlier test already consumed
+part of the quota. **Every new test below must use a fresh author id never referenced by any
+existing test method**, via a new helper:
+```java
+private static final AtomicLong AUTHOR_ID_SEQ = new AtomicLong(1000);
+private static Long newAuthorId() { return AUTHOR_ID_SEQ.incrementAndGet(); }
+```
+(mirrors the existing `newEntityId()`/`ENTITY_ID_SEQ` helper immediately above it). Every test
+below that isn't specifically exercising the shared-quota scenario calls `newAuthorId()` for each
+distinct actor instead of reusing a literal int.
+
+New test methods, appended after the existing `rejectComment_hardDeletesRegardlessOfChildren`:
+- `saveComment_exceedsMaxNestingDepth_throwsIllegalStateException` — build a 3-level chain
+  (feedback → level 1 → level 2 → level 3, each a distinct fresh `newAuthorId()`), then assert
+  `saveComment` with `parentCommentId = level3.id()` throws `IllegalStateException`.
+- `saveComment_replyAtMaxDepthMinusOne_succeeds` — same chain up to level 2, assert a reply to
+  level 2 (landing at level 3) succeeds and its `parentCommentId()` matches.
+- `save_exceedsDailyLimit_throwsTooManyAttemptsException` — one fresh `authorId`, loop `save(null,
+  authorId, newEntityId(), ...)` 10 times (one distinct entity per call, since the unique
+  `(author, entity_type, entity_id)` constraint would otherwise block repeats for the same
+  entity), then assert the 11th call throws `org.ost.platform.core.TooManyAttemptsException`
+  (new import).
+- `save_editingExistingEntry_doesNotCountAgainstDailyLimit` — one fresh `authorId`, one `save` to
+  create, then 15 edit calls (`dto.id()` present) on that same entry — assert no exception and the
+  final text matches the last edit (confirms edits never consume the create-only quota).
+- `saveComment_exceedsDailyLimit_throwsTooManyAttemptsException` — one feedback entry (its own
+  fresh author), one fresh `commentAuthorId`, loop `saveComment` 30 times with `parentCommentId =
+  null`, then assert the 31st throws `TooManyAttemptsException`.
+- `save_textBeyondRawMaxLength_throwsConstraintViolationException` — `"a".repeat(FeedbackSaveDto
+  .TEXT_RAW_MAX_LENGTH + 1)`, assert `save` throws `ConstraintViolationException`.
+- `saveComment_textBeyondRawMaxLength_throwsConstraintViolationException` — same, with
+  `FeedbackCommentSaveDto.TEXT_RAW_MAX_LENGTH + 1` as `commentText`, against a freshly-created
+  feedback entry.
+
+**Playwright (`playwright/e2e/04-provider-profile-flow.spec.js`):**
+- New `test.step` added directly after the existing `'comment tree — ...'` step (around line 868,
+  inside the same `describe`/test the existing feedback/comment-tree steps already share) —
+  separate from that step rather than extending it, to avoid disturbing its existing delete/cleanup
+  assertions: build a fresh 3-level reply chain the same way the existing nested-reply step does
+  (`.comment-reply-form-slot .comment-reply-trigger vaadin-button` → fill
+  `[data-testid="comment-reply-field-text"] textarea` → `.comment-save-icon`, repeated one level
+  deeper each time), then assert the level-3 node's own `.comment-reply-form-slot` has no visible
+  trigger/composer content (`toHaveCount(0)` on its child locators, scoped via `>` to that specific
+  node the same way the existing nested-reply step already scopes `findTopLevelNode()`).
+- One assertion line added inside the existing `'feedback panel — logged-in adminEn leaves a
+  review...'` step (around line 752, right after that step fills
+  `[data-testid="feedback-form-field-text"] textarea`):
+  `await expect(feedbackPanel.locator('[data-testid="feedback-form-field-text"] textarea'
+  )).toHaveAttribute('maxlength', '2000');`.
+- One assertion line added inside the existing `'comment tree — ...'` step (around line 790, right
+  after it fills `[data-testid="comment-reply-field-text"] textarea`):
+  `await expect(commentTree.locator('[data-testid="comment-reply-field-text"] textarea'
+  )).toHaveAttribute('maxlength', '2000');`.
+
+**Verification:** `bash scripts/build-and-test.sh --unit --integration --sandbox`, then
+`bash scripts/playwright.sh e2e --full --ux` (UI-visible behavior changed).
+
+**ADR:** not expected to need one — reuses the existing `FailureRateLimiter`/`TooManyAttemptsException`
+precedent as-is, no new architectural shape.
 
 ## Related
 
@@ -1842,3 +1969,5 @@ pager.
 - `improvement-199` — F-05/F-11a, sequenced immediately before this per roadmap order.
 - improvement-124 (completed) — F-04 provider profile, one of the two dependencies this feature
   builds on (advertisement domain is the other, both already shipped).
+- `improvement-203` entry 6 — feedback-entry list pagination, moved there 2026-10-05 (UI-only
+  addition, unrelated to this task's own remaining scope).

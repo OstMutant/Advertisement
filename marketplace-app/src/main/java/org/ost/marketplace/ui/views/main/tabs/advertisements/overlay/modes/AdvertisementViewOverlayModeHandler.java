@@ -107,12 +107,17 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
             gallery.addClassName("attachment-gallery--" + params.getAd().getAdKind().name().toLowerCase());
             viewBody.add(gallery);
         }
-        viewBody.add(contactRevealPanelFactory.build(ContactRevealPanel.Parameters.builder()
+        ContactRevealPanel contactPanel = contactRevealPanelFactory.build(ContactRevealPanel.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))
-                .build()));
-        viewBody.add(feedbackPanelFactory.build(FeedbackPanel.Parameters.builder()
+                .build());
+        contactPanel.addClassName("overlay__view-card");
+        viewBody.add(contactPanel);
+
+        FeedbackPanel feedbackPanel = feedbackPanelFactory.build(FeedbackPanel.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))
-                .build()));
+                .build());
+        feedbackPanel.addClassName("overlay__view-card");
+        viewBody.add(feedbackPanel);
 
         AdvertisementInfoDto ad = params.getAd();
         viewBody.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(

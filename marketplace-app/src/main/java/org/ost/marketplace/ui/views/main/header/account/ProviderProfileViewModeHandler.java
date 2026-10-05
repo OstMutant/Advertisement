@@ -91,7 +91,14 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
         Div card = profile == null ? buildEmptyCard(cardHeader) : buildProfileCard(cardHeader, profile);
         card.addClassName("overlay__view-card");
 
-        return new Div(params.getTabBar(), card);
+        Div body = new Div(params.getTabBar(), card);
+        body.addClassName("overlay__view-body");
+        if (profile != null && contactService.isAvailable()) {
+            Div contactCard = buildContactViewsBlock(profile.getId());
+            contactCard.addClassName("overlay__view-card");
+            body.add(contactCard);
+        }
+        return body;
     }
 
     private Div buildEmptyCard(Div cardHeader) {
@@ -117,9 +124,6 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
                     "provider-profile-city-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
         }
         card.add(kindBadge);
-        if (contactService.isAvailable()) {
-            card.add(buildContactViewsBlock(profile.getId()));
-        }
         card.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));
         return card;
     }
