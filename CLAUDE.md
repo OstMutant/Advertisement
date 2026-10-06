@@ -29,6 +29,8 @@ advertisement-parent (root pom)
 ├── taxon-spring-boot-starter         — Taxonomy domain: taxon/category/tag management, TaxonPort (auto-configured starter)
 ├── provider-profile-spring-boot-starter — Provider profile domain: MASTER/SHOP/SUPPORT catalog entries, ProviderProfilePort (auto-configured starter)
 ├── apikey-spring-boot-starter         — API-key credential domain: entity, hasher, ApiKeyPortImpl (auto-configured starter)
+├── contact-spring-boot-starter        — Contact domain: phone/deep-link reveal for any EntityRef-owning entity, ContactPortImpl (auto-configured starter)
+├── feedback-spring-boot-starter       — Feedback domain: rating+text feedback and its aggregate for any EntityRef-owning entity, FeedbackPortImpl (auto-configured starter)
 ├── integration-tests                 — Testcontainers repository tests + fixtures for every starter (test-only, never shipped)
 ├── marketplace-orchestrator           — application/BFF layer: cross-domain use-case orchestration between marketplace-app and the domain starters
 ├── marketplace-rest-api               — external REST API adapter: non-Vaadin HTTP delivery channel over marketplace-orchestrator, sibling to marketplace-app
@@ -50,6 +52,8 @@ advertisement-parent (root pom)
 - `advertisement.*` — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto` (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`, `AdvertisementSnapshotDto`), `advertisement.model` (`AdKind`)
 - `taxon.*` — `taxon.spi` (`TaxonPort`), `taxon.dto` (`TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`), `taxon.model` (`TaxonType`)
 - `providerprofile.*` — `providerprofile.spi` (`ProviderProfilePort`), `providerprofile.dto` (`ProviderProfileDto`, `ProviderProfileSaveDto`, `ProviderProfileFilterDto`, `ProviderProfileSnapshotDto`), `providerprofile.model` (`ProviderKind`)
+- `contact.*` — `contact.spi` (`ContactPort`), `contact.dto` (`ContactInfoDto`, `ContactViewCountDto`), `contact.model` (`ContactChannel`)
+- `feedback.*` — `feedback.spi` (`FeedbackPort`), `feedback.dto` (`FeedbackDto`, `FeedbackSaveDto`, `FeedbackAggregateDto`), `feedback.model` (`FeedbackModerationStatus`)
 
 → Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: `.claude/rules/platform-commons.md`
 
@@ -193,16 +197,18 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/docs/architecture/scripts/DECISIONS.md`
 - `/app/integration-tests/DECISIONS.md`
 - `/app/taxon-spring-boot-starter/DECISIONS.md`
+- `/app/contact-spring-boot-starter/DECISIONS.md`
 - `/app/marketplace-orchestrator/DECISIONS.md`
 - `/app/.claude/DECISIONS.md`
 
 Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`,
-`provider-profile-spring-boot-starter`, `apikey-spring-boot-starter`, and `marketplace-rest-api`
+`provider-profile-spring-boot-starter`, `apikey-spring-boot-starter`, `marketplace-rest-api`, and
+`feedback-spring-boot-starter`
 have no hand-authored `DECISIONS.md` of their own — their
 key decisions are recorded in `marketplace-app/DECISIONS.md` and `platform-commons/DECISIONS.md`
-instead. Each of these three modules has a generated, pointer-only `DECISIONS.md`
+instead. Each of these six modules has a generated, pointer-only `DECISIONS.md`
 (`bash docs/architecture/scripts/generate-architecture-model.sh`) listing whichever ADRs cross-reference it via
-the home ADR's own `**Also affects:**` tag — never hand-edit these three files directly.
+the home ADR's own `**Also affects:**` tag — never hand-edit these six files directly.
 
 → ADR discovery index (generated, one line per decision across every `DECISIONS.md`):
 `.claude/nav/adr-index.md` — see `.claude/nav/README.md` for the full AI-navigation layer.

@@ -181,6 +181,9 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
                 case ProviderProfileSnapshotDto.Fields.about       -> I18nKey.CHANGES_FIELD_ABOUT;
                 case ProviderProfileSnapshotDto.Fields.categoryIds -> I18nKey.CHANGES_FIELD_CATEGORY;
                 case ProviderProfileSnapshotDto.Fields.cityTaxonId -> I18nKey.CHANGES_FIELD_CITY;
+                case ProviderProfileSnapshotDto.Fields.phone       -> I18nKey.CHANGES_FIELD_PHONE;
+                case ProviderProfileSnapshotDto.Fields.telegram    -> I18nKey.CHANGES_FIELD_TELEGRAM;
+                case ProviderProfileSnapshotDto.Fields.viber       -> I18nKey.CHANGES_FIELD_VIBER;
                 default                                            -> null;
             };
             default -> null;

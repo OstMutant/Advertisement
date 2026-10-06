@@ -22,5 +22,9 @@ public class ProviderProfileEditDto implements EditDto {
     private Set<Long> categoryIds;
     private Long      cityTaxonId;
 
+    private String phone;
+    private String telegram;
+    private String viber;
+
     private Long version;
 }

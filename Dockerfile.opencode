@@ -1,0 +1,31 @@
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: AI developer container -- runs the opencode CLI itself, for working on this
+#   Java 25 project. Supports switching between multiple opencode logins on the same mounted
+#   project directory (chat history/context preserved, only the auth config differs per login)
+#   -- see scripts/opencode.bat.
+# Usage: docker build -f Dockerfile.opencode -t opencode-j25-dev . -- run from the repo root; built
+#   automatically by scripts/opencode.bat, rarely invoked directly.
+# Uses: eclipse-temurin:25-jdk-jammy base image, apt (curl/git/maven/postgresql-client/docker.io),
+#   Node.js 20 + npm (opencode-ai).
+# Env: None declared in this file -- account-specific auth config is mounted at `docker run` time
+#   by scripts/opencode.bat, not read from a build-time ENV.
+# Input: None -- installs tools only, does not COPY repo source.
+# Outputs: an interactive container image with the `opencode` CLI as its entrypoint, working
+#   directory /app (repo mounted here at `docker run` time).
+# Returns: N/A -- entrypoint is an interactive CLI, not a build/test command with its own exit code.
+# ────────────────────────────────────────────────────────────────────────────
+
+FROM eclipse-temurin:25-jdk-jammy
+
+# Install Node.js (for opencode CLI), Maven (for testing) and Git
+RUN apt-get update && apt-get install -y curl git maven postgresql-client docker.io \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g opencode-ai \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Set the working directory where the local code will be mounted
+WORKDIR /app
+
+# Run opencode CLI as the main container process
+ENTRYPOINT ["opencode"]

@@ -14,17 +14,28 @@ import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.EntityMetaPanel;
+import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
+import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.orchestrator.services.AuditQueryService;
+import org.ost.orchestrator.services.ContactAccessService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
+import org.ost.platform.contact.dto.ContactInfoDto;
+import org.ost.platform.contact.dto.ContactViewCountDto;
+import org.ost.platform.contact.model.ContactChannel;
+import org.ost.platform.core.model.EntityRef;
+import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -48,12 +59,16 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
         @NonNull Runnable onDeleted;
         @NonNull Runnable onClose;
         @NonNull Component tabBar;
+        @NonNull List<BreadcrumbStep> breadcrumbSteps;
     }
 
     private final ProviderProfileSaveService providerProfileSaveService;
     private final AccessEvaluator            access;
     private final NotificationService        notificationService;
     private final UiComponentFactory<EntityMetaPanel, EntityMetaPanel.Parameters> metaPanelFactory;
+    private final ContactAccessService       contactService;
+    private final AuditQueryService          auditQueryService;
+    private final EntityActivityOverlay      entityActivityOverlay;
     @Getter
     private final I18nService                i18nService;
 
@@ -76,7 +91,14 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
         Div card = profile == null ? buildEmptyCard(cardHeader) : buildProfileCard(cardHeader, profile);
         card.addClassName("overlay__view-card");
 
-        return new Div(params.getTabBar(), card);
+        Div body = new Div(params.getTabBar(), card);
+        body.addClassName("overlay__view-body");
+        if (profile != null && contactService.isAvailable()) {
+            Div contactCard = buildContactViewsBlock(profile.getId());
+            contactCard.addClassName("overlay__view-card");
+            body.add(contactCard);
+        }
+        return body;
     }
 
     private Div buildEmptyCard(Div cardHeader) {
@@ -104,6 +126,37 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
         card.add(kindBadge);
         card.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));
         return card;
+    }
+
+    private Div buildContactViewsBlock(Long profileId) {
+        Map<ContactChannel, Long> counts = contactService.countViewsThisMonth(EntityType.PROVIDER_PROFILE, profileId).stream()
+                .collect(Collectors.toMap(ContactViewCountDto::channel, ContactViewCountDto::count));
+        ContactInfoDto contact = contactService.find(EntityType.PROVIDER_PROFILE, profileId).orElse(null);
+
+        Div block = new Div();
+        block.addClassName("provider-profile-contact-views");
+        Span label = new Span(getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_LABEL));
+        label.addClassName("provider-profile-contact-views-label");
+        block.add(label);
+        if (contact != null) {
+            for (var entry : contact.presentChannels()) {
+                ContactChannel channel = entry.getKey();
+                String value = entry.getValue();
+                switch (channel) {
+                    case PHONE -> block.add(buildContactViewRow("provider-profile-contact-views-phone", getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_PHONE), value, counts.getOrDefault(channel, 0L)));
+                    case TELEGRAM -> block.add(buildContactViewRow("provider-profile-contact-views-telegram", getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_TELEGRAM), value, counts.getOrDefault(channel, 0L)));
+                    case VIBER -> block.add(buildContactViewRow("provider-profile-contact-views-viber", getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_VIBER), value, counts.getOrDefault(channel, 0L)));
+                }
+            }
+        }
+        return block;
+    }
+
+    private static Div buildContactViewRow(String cssClass, String label, String value, long count) {
+        Div row = new Div();
+        row.addClassName(cssClass);
+        row.add(new Span(label + ": " + value + " (" + count + ")"));
+        return row;
     }
 
     private static void buildChipRow(Div card, List<String> names, String rowCssClass, String chipCssClass, String ariaLabel) {
@@ -138,6 +191,9 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
 
         Div actions = new Div(editButton);
         if (profile != null) {
+            if (auditQueryService.isAvailable()) {
+                actions.add(buildHistoryButton());
+            }
             UiIconButton deleteButton = new UiIconButton(getValue(PROVIDER_PROFILE_VIEW_BUTTON_DELETE), VaadinIcon.TRASH.create());
             deleteButton.addClassName("provider-profile-delete-button");
             deleteButton.addClickListener(_ -> confirmAndDelete(profile));
@@ -146,6 +202,24 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
         }
         actions.add(closeButton);
         return actions;
+    }
+
+    // canOperate(false) -- View mode shows history read-only; restoring a past revision still goes
+    // through the Edit form's own history button, which can actually load the restored data.
+    private UiIconButton buildHistoryButton() {
+        UiIconButton historyBtn = new UiIconButton(getValue(PROVIDER_PROFILE_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
+        historyBtn.addClassName("provider-profile-history-button");
+        historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
+                .userId(access.getCurrentUserId())
+                .isPrivileged(access.isPrivileged())
+                .canOperate(false)
+                .parentSteps(params.getBreadcrumbSteps())
+                .parentFormLabel(getValue(PROVIDER_PROFILE_OVERLAY_SECTION_LABEL))
+                .currentLabelKey(PROVIDER_PROFILE_ACTIVITY_BUTTON)
+                .onRestoreRequested(_ -> { })
+                .build()));
+        return historyBtn;
     }
 
     private void confirmAndDelete(ProviderProfileDto profile) {

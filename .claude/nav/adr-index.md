@@ -47,6 +47,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-024 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted (done 2026-06-26) |  | captureRestore() — dedicated method for restore audit events |
 | ADR-002 (.claude) | .claude | Accepted |  | Formalize `/deep-review`'s reasoning layer as real, isolated `.claude/agents/*.md` subagents |
 | ADR-001 (.claude) | .claude | Accepted |  | Split module-specific AI guidance into path-scoped `.claude/rules/*.md`; deduplicate memory against canonical rules |
+| ADR-001 (contact-spring-boot-starter) | contact-spring-boot-starter | Accepted |  | New contact-spring-boot-starter module owns contact_info/contact_view, generic over owning entity |
 | ADR-034 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | Database ERD's no-FK point relationships derived from a `remarks=` marker convention, not a hand-curated list |
 | ADR-033 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | "AI Tooling" generalized into a `.claude`-rooted tree, same mechanism as "Scripts"; README becomes the sole canonical file list, chip-row is last-resort only |
 | ADR-001 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | Generated ADR index over `DECISIONS.md`, mechanical fields only, no per-entry authoring |
@@ -157,6 +158,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-075 (marketplace-app) | marketplace-orchestrator | Accepted |  | Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay |
 | ADR-076 (marketplace-app) | marketplace-app | Accepted |  | `OverlayNavigationRegistry` fans out browser History to every deep-linkable overlay; `SitemapController` thins to a `marketplace-orchestrator` `SitemapService` |
 | ADR-077 (marketplace-app) | marketplace-app | Accepted |  | Provider Profile catalog gains real date-range filters, mirroring Advertisement's exact mechanism |
+| ADR-010 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename |
 | ADR-009 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `StaleWriteException` replaces `OptimisticLockingFailureException` as the project-wide stale-write signal |
 | ADR-008 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `UserCleanupService`/`UserPurgeEligibilityService` — the scheduled retention-purge referential-integrity check moves here from `user-spring-boot-starter` |
 | ADR-007 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only |
@@ -166,6 +168,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
 | ADR-004 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `*Hook` implementations that only need domain-port access move here; `pom.xml` gains all 6 starter dependencies directly, superseding ADR-001's "never depends on a starter jar" |
 | ADR-005 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern |
+| ADR-034 (platform-commons) | platform-commons | Accepted |  | `feedback-spring-boot-starter` reuses `EntityRef` and stays self-contained — no Hook, no columns on `provider_profile`/`advertisement` |
 | ADR-033 (platform-commons) | platform-commons | Accepted |  | `AttachmentAllowedContentTypes` — single shared whitelist for attachment content types |
 | ADR-032 (platform-commons) | platform-commons | Accepted |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
 | ADR-032 (platform-commons) | advertisement-spring-boot-starter | Accepted |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
@@ -224,6 +227,7 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 | ADR-008 (scripts/ci) | scripts/ci | Accepted |  | `unit`/`integration` stages merged into one `build_and_test` stage |
 | ADR-009 (scripts/ci) | scripts/ci | Accepted |  | `progress.txt` polling replaced by a persistent Dagu server; three problems only found by running it for real |
 | ADR-010 (scripts/ci) | scripts/ci | Accepted |  | CI pipeline metrics + ArchUnit export as DAG steps; three more real bugs; a genuine build-speed fix along the way |
+| ADR-015 (scripts) | scripts | Accepted |  | `--in-container` mode — sync reliability (no `exec`, container-internal directory restoration, OverlayFS `sync` before copy-out) |
 | ADR-014 (scripts) | scripts | Accepted |  | Activity Monitor — token-efficient step-checklist narration wrapping backgrounded scripts, chained ahead of the agent's own Monitor tool |
 | ADR-013 (scripts) | scripts | Accepted |  | Agentic JSON output envelope (AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK) for script results |
 | ADR-001 (scripts) | scripts | Accepted |  | All operations via project scripts — no raw commands |
@@ -247,4 +251,4 @@ modules too — one extra row per affected module, same ADR, same file). Blank i
 
 ## Known gaps
 
-- `advertisement-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `apikey-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `marketplace-rest-api/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `provider-profile-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `user-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n
+- `advertisement-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `apikey-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `feedback-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `marketplace-rest-api/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `provider-profile-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n- `user-spring-boot-starter/DECISIONS.md` — no `## ADR-NNN:` heading found (non-standard format); not indexed\n

@@ -9,12 +9,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.ProviderProfileDisplayEnrichmentService;
 import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
 import org.ost.orchestrator.services.UserProfileService;
+import org.ost.platform.contact.dto.ContactInfoDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
@@ -76,13 +78,17 @@ public class ProviderProfileApiController {
               "kind": "MASTER",
               "about": "Experienced plumber",
               "categoryIds": [1],
-              "cityTaxonId": 5
+              "cityTaxonId": 5,
+              "phone": "+380501234567",
+              "telegram": "plumber_master",
+              "viber": "+380501234567"
             }""")))
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
     public ProviderProfileDto create(@AuthenticationPrincipal Long actorId, @RequestBody @Valid ProviderProfileWriteRequest request) {
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, request.kind(), request.about(), request.categoryIds(), request.cityTaxonId(), null);
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, request.kind(), request.about(), request.categoryIds(), request.cityTaxonId(),
+                request.phone(), request.telegram(), request.viber(), null);
         Long id = saveService.save(dto, actorId, actorId);
         return enrich(readService.findById(id).orElseThrow(), DEFAULT_LOCALE);
     }
@@ -110,20 +116,24 @@ public class ProviderProfileApiController {
         return ETagUtil.withVersion(ResponseEntity.ok(), profile.getVersion()).body(profile);
     }
 
-    @Operation(summary = "Update a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile.")
+    @Operation(summary = "Update a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile. Full replace, same as the other fields -- omitting phone/telegram/viber clears them.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "kind": "MASTER",
               "about": "Experienced plumber, now also water heaters",
               "categoryIds": [1],
-              "cityTaxonId": 5
+              "cityTaxonId": 5,
+              "phone": "+380501234567",
+              "telegram": "plumber_master",
+              "viber": "+380501234567"
             }""")))
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public ProviderProfileDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
             @RequestBody @Valid ProviderProfileWriteRequest request,
             @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
-        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(id, request.kind(), request.about(), request.categoryIds(), request.cityTaxonId(), ETagUtil.parseIfMatch(ifMatch));
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(id, request.kind(), request.about(), request.categoryIds(), request.cityTaxonId(),
+                request.phone(), request.telegram(), request.viber(), ETagUtil.parseIfMatch(ifMatch));
         Long savedId = saveService.save(dto, actorId, actorId);
         return enrich(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
     }
@@ -147,7 +157,10 @@ public class ProviderProfileApiController {
             @NotNull ProviderKind kind,
             @Size(max = ProviderProfileSaveDto.ABOUT_RAW_MAX_LENGTH) String about,
             @Size(max = ProviderProfileSaveDto.CATEGORY_MAX_COUNT) Set<Long> categoryIds,
-            Long cityTaxonId
+            Long cityTaxonId,
+            @Pattern(regexp = ContactInfoDto.PHONE_PATTERN) String phone,
+            @Pattern(regexp = ContactInfoDto.TELEGRAM_PATTERN) String telegram,
+            @Pattern(regexp = ContactInfoDto.PHONE_PATTERN) String viber
     ) {
     }
 }

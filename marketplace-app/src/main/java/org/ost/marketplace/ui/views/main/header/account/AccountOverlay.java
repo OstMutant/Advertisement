@@ -5,6 +5,7 @@ import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
@@ -99,10 +100,14 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
 
     @Override
     protected void proceed() {
-        // stays open after save, same as the SettingsOverlay it replaces -- nothing to close
+        // Name/Settings stay open after save -- nothing to close, same as the SettingsOverlay Name/Settings replaced.
         if (session.section() == Section.NAME && session.nameMode() == NameMode.EDIT) {
             UserDto fresh = ((AccountNameFormModeHandler) currentFormHandler).getSavedUser();
             if (fresh != null) session.onUpdated().accept(fresh);
+        } else if (session.section() == Section.PROVIDER_PROFILE && session.providerProfileMode() == ProviderProfileMode.EDIT) {
+            // Provider Profile switches to View after save -- its own Tabs entry never re-fires a click on an already-selected tab.
+            session = session.toProviderProfileView();
+            switchTo();
         }
     }
 
@@ -136,9 +141,9 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
 
     /** Opens directly on the Settings tab -- used by {@code HeaderBar}'s own Settings button
      *  (mirrors the deleted {@code SettingsOverlay}'s own entry point). */
-    public void openForSettings(Long targetUserId) {
+    public void openForSettings(Long targetUserId, @NonNull Runnable onClosed) {
         ensureInitialized();
-        session = new OverlaySession(Section.SETTINGS, NameMode.VIEW, ProviderProfileMode.VIEW, false, targetUserId, _ -> { }, () -> { });
+        session = new OverlaySession(Section.SETTINGS, NameMode.VIEW, ProviderProfileMode.VIEW, false, targetUserId, _ -> { }, onClosed);
         launchSession(this::switchTo);
     }
 
@@ -205,6 +210,7 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
                                 .onDeleted(this::switchTo)
                                 .onClose(this::closeToList)
                                 .tabBar(tabs)
+                                .breadcrumbSteps(breadcrumbSteps)
                                 .build());
                 case EDIT -> {
                     currentFormHandler = providerProfileHandlerFactory.build(

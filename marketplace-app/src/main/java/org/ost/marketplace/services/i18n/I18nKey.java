@@ -86,6 +86,8 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_FIELD_AD_KIND("advertisement.overlay.field.adKind"),
     ADVERTISEMENT_OVERLAY_SECTION_BASIC("advertisement.overlay.section.basic"),
     ADVERTISEMENT_OVERLAY_SECTION_VIEW("advertisement.overlay.section.view"),
+    ADVERTISEMENT_OVERLAY_CONTACT_PREVIEW_LABEL("advertisement.overlay.contactPreview.label"),
+    ADVERTISEMENT_OVERLAY_CONTACT_PREVIEW_HINT("advertisement.overlay.contactPreview.hint"),
     ADVERTISEMENT_OVERLAY_BUTTON_SAVE("advertisement.overlay.button.save"),
     ADVERTISEMENT_OVERLAY_BUTTON_CANCEL("advertisement.overlay.button.cancel"),
 
@@ -97,6 +99,9 @@ public enum I18nKey {
     // === Provider Profile Overlay (AccountOverlay tab) ===
     PROVIDER_PROFILE_OVERLAY_VALIDATION_KIND_REQUIRED("providerProfile.overlay.validation.kind.required"),
     PROVIDER_PROFILE_OVERLAY_VALIDATION_ABOUT_LENGTH("providerProfile.overlay.validation.about.length"),
+    PROVIDER_PROFILE_OVERLAY_VALIDATION_PHONE_FORMAT("providerProfile.overlay.validation.phone.format"),
+    PROVIDER_PROFILE_OVERLAY_VALIDATION_TELEGRAM_FORMAT("providerProfile.overlay.validation.telegram.format"),
+    PROVIDER_PROFILE_OVERLAY_VALIDATION_VIBER_FORMAT("providerProfile.overlay.validation.viber.format"),
     PROVIDER_PROFILE_OVERLAY_NOTIFICATION_SUCCESS("providerProfile.overlay.notification.success"),
     PROVIDER_PROFILE_OVERLAY_NOTIFICATION_VALIDATION_FAILED("providerProfile.overlay.notification.validation.failed"),
     PROVIDER_PROFILE_OVERLAY_NOTIFICATION_SAVE_ERROR("providerProfile.overlay.notification.save.error"),
@@ -105,6 +110,9 @@ public enum I18nKey {
     PROVIDER_PROFILE_OVERLAY_FIELD_ABOUT("providerProfile.overlay.field.about"),
     PROVIDER_PROFILE_OVERLAY_FIELD_CATEGORIES("providerProfile.overlay.field.categories"),
     PROVIDER_PROFILE_OVERLAY_FIELD_CITY("providerProfile.overlay.field.city"),
+    PROVIDER_PROFILE_OVERLAY_FIELD_PHONE("providerProfile.overlay.field.phone"),
+    PROVIDER_PROFILE_OVERLAY_FIELD_TELEGRAM("providerProfile.overlay.field.telegram"),
+    PROVIDER_PROFILE_OVERLAY_FIELD_VIBER("providerProfile.overlay.field.viber"),
     PROVIDER_PROFILE_OVERLAY_SECTION_LABEL("providerProfile.overlay.section.label"),
     PROVIDER_PROFILE_OVERLAY_BUTTON_SAVE("providerProfile.overlay.button.save"),
     PROVIDER_PROFILE_OVERLAY_BUTTON_CANCEL("providerProfile.overlay.button.cancel"),
@@ -119,6 +127,10 @@ public enum I18nKey {
     PROVIDER_PROFILE_VIEW_CONFIRM_CANCEL_BUTTON("providerProfile.view.confirm.cancel.button"),
     PROVIDER_PROFILE_VIEW_NOTIFICATION_DELETED("providerProfile.view.notification.deleted"),
     PROVIDER_PROFILE_VIEW_NOTIFICATION_DELETE_ERROR("providerProfile.view.notification.delete.error"),
+    PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_LABEL("providerProfile.view.contactViews.label"),
+    PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_PHONE("providerProfile.view.contactViews.phone"),
+    PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_TELEGRAM("providerProfile.view.contactViews.telegram"),
+    PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_VIBER("providerProfile.view.contactViews.viber"),
     ACCOUNT_OVERLAY_TAB_NAME("account.overlay.tab.name"),
     ACCOUNT_OVERLAY_TAB_SETTINGS("account.overlay.tab.settings"),
     ACCOUNT_OVERLAY_TAB_PROVIDER_PROFILE("account.overlay.tab.providerProfile"),
@@ -306,6 +318,8 @@ public enum I18nKey {
     ENTITY_TYPE_USER_SETTINGS("entityType.userSettings"),
     ENTITY_TYPE_TAXON("entityType.taxon"),
     ENTITY_TYPE_PROVIDER_PROFILE("entityType.providerProfile"),
+    ENTITY_TYPE_FEEDBACK("entityType.feedback"),
+    ENTITY_TYPE_FEEDBACK_COMMENT("entityType.feedbackComment"),
 
     // === Timeline Filter ===
     TIMELINE_FILTER_ENTITY_TYPE("timeline.filter.entityType"),
@@ -396,6 +410,9 @@ public enum I18nKey {
     CHANGES_FIELD_DESCRIPTION_UK("changes.field.descriptionUk"),
     CHANGES_FIELD_KIND("changes.field.kind"),
     CHANGES_FIELD_ABOUT("changes.field.about"),
+    CHANGES_FIELD_PHONE("changes.field.phone"),
+    CHANGES_FIELD_TELEGRAM("changes.field.telegram"),
+    CHANGES_FIELD_VIBER("changes.field.viber"),
     CHANGES_SETTING_ADS_PAGE_SIZE("audit.changes.setting.adsPageSize"),
     CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize"),
     CHANGES_SETTING_TIMELINE_PAGE_SIZE("audit.changes.setting.timelinePageSize"),
@@ -479,7 +496,58 @@ public enum I18nKey {
     CITY_VIEW_TOOLTIP_RESTORE("city.view.tooltip.restore"),
     CITY_VIEW_DELETED_LABEL("city.view.deleted.label"),
     CITY_VIEW_EMPTY("city.view.empty"),
-    CITY_VIEW_BUTTON_EDIT("city.view.button.edit");
+    CITY_VIEW_BUTTON_EDIT("city.view.button.edit"),
+
+    // === Contact Reveal ===
+    CONTACT_REVEAL_BUTTON_SHOW_PHONE("contactReveal.button.showPhone"),
+    CONTACT_REVEAL_BUTTON_TELEGRAM("contactReveal.button.telegram"),
+    CONTACT_REVEAL_BUTTON_VIBER("contactReveal.button.viber"),
+    CONTACT_REVEAL_NOTIFICATION_RATE_LIMITED("contactReveal.notification.rateLimited"),
+
+    // === Feedback ===
+    FEEDBACK_SECTION_LABEL("feedback.section.label"),
+    FEEDBACK_AGGREGATE_COUNT("feedback.aggregate.count"),
+    FEEDBACK_EMPTY("feedback.empty"),
+    FEEDBACK_FORM_BUTTON_SUBMIT("feedback.form.button.submit"),
+    FEEDBACK_FORM_BUTTON_ADD("feedback.form.button.add"),
+    FEEDBACK_FORM_BUTTON_EDIT("feedback.form.button.edit"),
+    FEEDBACK_FORM_BUTTON_DISCARD("feedback.form.button.discard"),
+    FEEDBACK_FORM_BUTTON_CLOSE("feedback.form.button.close"),
+    FEEDBACK_FORM_FIELD_RATING("feedback.form.field.rating"),
+    FEEDBACK_FORM_FIELD_TEXT("feedback.form.field.text"),
+    FEEDBACK_NOTIFICATION_SAVED("feedback.notification.saved"),
+    FEEDBACK_COMMENT_FIELD_TEXT("feedback.comment.field.text"),
+    FEEDBACK_COMMENT_SHOW_REPLIES("feedback.comment.show_replies"),
+    FEEDBACK_COMMENT_HIDE_REPLIES("feedback.comment.hide_replies"),
+    FEEDBACK_CENSORED_TEXT("feedback.censored"),
+    FEEDBACK_COMMENT_DELETED_TEXT("feedback.comment.deleted"),
+    FEEDBACK_COMMENT_CENSORED_TEXT("feedback.comment.censored"),
+    FEEDBACK_COMMENT_BUTTON_REPLY("feedback.comment.button.reply"),
+    FEEDBACK_COMMENT_CONFIRM_DELETE_TITLE("feedback.comment.confirm.delete.title"),
+    FEEDBACK_COMMENT_CONFIRM_DELETE_TEXT("feedback.comment.confirm.delete.text"),
+    FEEDBACK_COMMENT_CONFIRM_DELETE_BUTTON("feedback.comment.confirm.delete.button"),
+    FEEDBACK_COMMENT_CONFIRM_CANCEL_BUTTON("feedback.comment.confirm.cancel.button"),
+
+    // === Feedback Reporting & Moderation ===
+    FEEDBACK_BUTTON_REPORT("feedback.button.report"),
+    FEEDBACK_CONFIRM_REPORT_TITLE("feedback.confirm.report.title"),
+    FEEDBACK_CONFIRM_REPORT_TEXT("feedback.confirm.report.text"),
+    FEEDBACK_CONFIRM_REPORT_BUTTON("feedback.confirm.report.button"),
+    FEEDBACK_CONFIRM_REPORT_CANCEL_BUTTON("feedback.confirm.report.cancelButton"),
+    FEEDBACK_NOTIFICATION_REPORTED("feedback.notification.reported"),
+    MAIN_TAB_MODERATION("mainTab.moderation"),
+    MODERATION_SECTION_FEEDBACK("moderation.section.feedback"),
+    MODERATION_SECTION_COMMENTS("moderation.section.comments"),
+    MODERATION_EMPTY("moderation.empty"),
+    MODERATION_BUTTON_APPROVE("moderation.button.approve"),
+    MODERATION_BUTTON_REJECT("moderation.button.reject"),
+    MODERATION_CONFIRM_REJECT_TITLE("moderation.confirm.reject.title"),
+    MODERATION_CONFIRM_REJECT_TEXT("moderation.confirm.reject.text"),
+    MODERATION_CONFIRM_REJECT_BUTTON("moderation.confirm.reject.button"),
+    MODERATION_CONFIRM_REJECT_CANCEL_BUTTON("moderation.confirm.reject.cancelButton"),
+    MODERATION_NOTIFICATION_APPROVED("moderation.notification.approved"),
+    MODERATION_NOTIFICATION_REJECTED("moderation.notification.rejected"),
+    MODERATION_NOTIFICATION_ERROR("moderation.notification.error");
 
     private final String key;
 
@@ -517,6 +585,8 @@ public enum I18nKey {
             case USER_SETTINGS -> ENTITY_TYPE_USER_SETTINGS;
             case TAXON         -> ENTITY_TYPE_TAXON;
             case PROVIDER_PROFILE -> ENTITY_TYPE_PROVIDER_PROFILE;
+            case FEEDBACK -> ENTITY_TYPE_FEEDBACK;
+            case FEEDBACK_COMMENT -> ENTITY_TYPE_FEEDBACK_COMMENT;
         };
     }
 

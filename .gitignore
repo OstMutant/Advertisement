@@ -19,6 +19,8 @@
 /marketplace-orchestrator/target/
 /apikey-spring-boot-starter/target/
 /marketplace-rest-api/target/
+/feedback-spring-boot-starter/target/
+/contact-spring-boot-starter/target/
 
 # Vaadin frontend generated files
 /marketplace-app/src/main/frontend/generated/

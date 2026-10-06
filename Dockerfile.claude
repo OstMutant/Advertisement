@@ -3,7 +3,7 @@
 #   Java 25 project. Supports switching between multiple Claude accounts on the same mounted
 #   project directory (chat history/context preserved, only the auth config differs per account)
 #   -- see scripts/claude.bat.
-# Usage: docker build -f Dockerfile.ai -t claude-j25-dev . -- run from the repo root; built
+# Usage: docker build -f Dockerfile.claude -t claude-j25-dev . -- run from the repo root; built
 #   automatically by scripts/claude.bat, rarely invoked directly.
 # Uses: eclipse-temurin:25-jdk-jammy base image, apt (curl/git/maven/postgresql-client/docker.io),
 #   Node.js 20 + npm (@anthropic-ai/claude-code).

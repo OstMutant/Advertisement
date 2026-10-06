@@ -2729,3 +2729,66 @@ documented a real discrepancy in this repo's own Sonar analysis pipeline (a file
 showing 100% line coverage while Sonar's own dashboard/API reported 38.5%) — not chased further
 since it self-resolved once overall new-code coverage cleared the gate. Full detail:
 `completed/tasks/improvement-202-optimisticlockingfailureexception-decoupling.md`.
+
+✅ Done (2026-09-29): improvement-199 closed — F-05 contact reveal + click analytics (private
+product roadmap Phase 2). New `contact-spring-boot-starter` (`contact_info`/`contact_view` tables,
+no FK, generic over `PROVIDER_PROFILE`/`ADVERTISEMENT`), `ContactPort` SPI, orchestrator-level
+fallback resolution (an ad's contact falls back to its owner's provider-profile contact via
+`ContactAccessService`/`AdvertisementOwnerProfileLookupService`), `ContactRevealPanel` UI component
+with per-channel click-to-reveal + rate limiting. 12 checkpoints total, several real bugs found via
+live manual testing and fixed: cascade-deleting `contact_info` (not `contact_view` history) on
+profile delete; snapshotting the revealed value on each `contact_view` row so click history stays
+attributable after a number change; Provider Profile switching straight to View after Save; a
+read-only contact preview in the advertisement form (create and edit); a `ProvidersView` tab
+not refreshing on Settings close when that tab was already selected (Settings is a modal overlay,
+not a tab, so no tab-selection event ever fires); and, after an explicit user ask to match
+`AdvertisementOverlay`'s UX exactly, `ProviderProfileCatalogOverlay` rebuilt to extend
+`AbstractEntityOverlay` with a real internal Edit mode (hover-reveal Edit button, single browser-
+history push per entity regardless of entry path, no unrelated Name/Settings tab chrome) instead of
+delegating edits to `AccountOverlay`. A `deep-review-orchestrator` pass on the full diff found and
+fixed two DRY violations (`ContactInfoDto.presentChannels()` added to kill a triple-duplicated
+per-channel rendering loop) and one stale Javadoc `{@link}`; `marketplace-orchestrator/DECISIONS.md`
+ADR-010 records the `ContactAccessService` split/rename. Also fixed a real
+`scripts/activity-monitor/run.sh` gap along the way (it never printed its own resolved `tree.txt`
+path) and, per a standing rule sweep, removed all 34 `page.waitForTimeout(300)` calls from
+`04-provider-profile-flow.spec.js` (redundant given Playwright's own auto-waiting). Full detail:
+`completed/tasks/improvement-199-f05-contact-reveal-click-analytics.md`.
+
+✅ Done (2026-10-05): improvement-205 closed — a second, equally-isolated Docker dev container
+(`opencode-dev`) mirroring the existing `claude-dev` pattern, for the open-source `opencode` CLI
+against other model providers (Google AI Studio/Gemini, Groq, OpenRouter, etc. via models.dev).
+`Dockerfile.ai` renamed to `Dockerfile.claude` first (clears the way for a correspondingly-named
+`Dockerfile.opencode` sibling), rippling through `scripts/claude.bat`, `INFRASTRUCTURE.md`,
+`.claude/nav/flows.md`, `.claude/skills/app-readme-standards/SKILL.md`, and
+`scripts/collect-code.bat` (the last one also needed `Dockerfile.opencode` itself added once that
+new file existed — found and fixed in the same task). New `scripts/opencode.bat` mirrors
+`claude.bat`'s reuse/`--recreate`/`--update` ergonomics, handling opencode's two-directory XDG
+split (data + config) via one per-login host folder and two env vars instead of two separate
+mounts. `INFRASTRUCTURE.md`'s "AI Development Environment" section split into `### Claude Code`/
+`### opencode` subsections. Provider setup itself done interactively by the user inside the running
+container — Google AI Studio connected successfully (`gemini-3.6-flash`, after `gemini-2.5-flash`/
+`gemini-3.8-flash` turned out deprecated/overloaded for new users); OpenAI skipped (no free API
+tier) in favor of Groq's free `openai/gpt-oss-120b` as a future alternative, not yet connected.
+Full detail: `completed/tasks/improvement-205-opencode-dev-container.md`.
+
+✅ Done (2026-10-05): improvement-200 closed — F-06 reviews & ratings (private product roadmap
+Phase 3). New self-contained `feedback-spring-boot-starter` (`feedback_content`/`feedback`/
+`feedback_rating`/`feedback_comment`/`feedback_comment_reaction`/`feedback_aggregate` tables,
+`FeedbackPort` SPI, no denormalization onto `provider_profile`/`advertisement`, mirrors the
+`contact-spring-boot-starter` precedent): rating + sanitized text on any `EntityRef` (provider
+profile or advertisement), one entry per author per entity with a 48h edit window, an unbounded
+`WITH RECURSIVE` comment tree later capped at 3 levels deep, reactions, moderation (flag/report,
+admin queue, in-place `[censored]` rendering, audit on moderation actions only), and anti-fraud
+hardening (per-author daily rate limits on new entries/comments via the existing
+`FailureRateLimiter`, same-file verifier fusion not needed here since this is product code not
+review tooling). Phased over many rounds of real-usage UX fixes (icon-driven inline editing,
+draft/expand-state persistence across reloads, scroll-position preservation through tree rebuilds,
+depth-cap enforcement both client- and server-side) — see the completed task file for the full
+round-by-round history. Final phase: `ContactRevealPanel`/`FeedbackPanel` (and
+`ProviderProfileViewModeHandler`'s own contact-views block) moved from flat-stacked-in-one-card to
+genuine sibling `.overlay__view-card` cards, reusing existing CSS with no new rules — verified via
+a real deploy + full `e2e --ux` run (52/65 passed, 0 failed, 13 skipped) after an initial cold-start
+false failure was ruled out by a clean re-run on the warmed app. The one remaining open item
+(feedback-list pagination) was moved to `improvement-203` entry 6 rather than block closing this
+task, since it's a small, independent UI addition unrelated to the rest of F-06's own scope. Full
+detail: `completed/tasks/improvement-200-f06-reviews-ratings.md`.

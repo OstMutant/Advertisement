@@ -13,7 +13,9 @@ import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.ContactRevealPanel;
 import org.ost.marketplace.ui.views.components.EntityMetaPanel;
+import org.ost.marketplace.ui.views.components.FeedbackPanel;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.providers.ProviderProfileDeleteUtil;
@@ -24,6 +26,7 @@ import org.ost.marketplace.ui.views.utils.HtmlExcerptUtil;
 import org.ost.marketplace.ui.views.utils.ShareUtil;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
 import org.ost.orchestrator.services.TaxonLookupService;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.taxon.dto.TaxonDto;
@@ -35,10 +38,10 @@ import java.util.List;
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 /**
- * Read-only view of a provider profile inside the public Providers catalog. Never enters an edit
- * mode -- editing a provider profile already has its own dedicated path (AccountOverlay's
- * Provider Profile tab) -- so this handler exposes Share and Delete actions only, no Edit and no
- * history button.
+ * Read-only view of a provider profile inside the public Providers catalog -- {@code onEdit}
+ * switches the owning {@code ProviderProfileCatalogOverlay} to its own Edit mode (same overlay,
+ * no separate class to jump to), so this handler itself never renders a form of its own; no
+ * history button either.
  */
 @SpringComponent
 @Scope("prototype")
@@ -50,6 +53,7 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
     @lombok.Builder
     public static class Parameters {
         @NonNull ProviderProfileDto profile;
+        @NonNull Runnable           onEdit;
         @NonNull Runnable           onDeleted;
         @NonNull Runnable           onClose;
     }
@@ -63,6 +67,8 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
     private final AppLinkService             appLinkService;
     private final NotificationService        notificationService;
     private final UiComponentFactory<EntityMetaPanel, EntityMetaPanel.Parameters> metaPanelFactory;
+    private final UiComponentFactory<ContactRevealPanel, ContactRevealPanel.Parameters> contactRevealPanelFactory;
+    private final UiComponentFactory<FeedbackPanel, FeedbackPanel.Parameters> feedbackPanelFactory;
 
     private Parameters params;
 
@@ -96,9 +102,21 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         buildChipRow(textCard, taxons, TaxonType.CITY, "provider-profile-city-chips",
                 "provider-profile-city-chip", getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
         textCard.add(kindBadge);
-        textCard.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));
 
-        return new Div(textCard);
+        ContactRevealPanel contactPanel = contactRevealPanelFactory.build(ContactRevealPanel.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
+                .build());
+        contactPanel.addClassName("overlay__view-card");
+
+        FeedbackPanel feedbackPanel = feedbackPanelFactory.build(FeedbackPanel.Parameters.builder()
+                .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
+                .build());
+        feedbackPanel.addClassName("overlay__view-card");
+
+        Div viewBody = new Div(textCard, contactPanel, feedbackPanel,
+                metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));
+        viewBody.addClassName("overlay__view-body");
+        return viewBody;
     }
 
     private static void buildChipRow(Div textCard, List<TaxonDto> taxons, TaxonType type,
@@ -130,6 +148,11 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         shareButton.addClickListener(_ -> ShareUtil.share(shareButton, appLinkService.providerProfileUrl(profile.getId()),
                 HtmlExcerptUtil.plainText(profile.getAbout()), () -> notificationService.success(PROVIDERS_CARD_NOTIFICATION_LINK_COPIED)));
 
+        UiIconButton editButton = new UiIconButton(getValue(PROVIDER_PROFILE_VIEW_BUTTON_EDIT), VaadinIcon.EDIT.create());
+        editButton.addClassName("overlay__view-edit");
+        editButton.addClickListener(_ -> params.getOnEdit().run());
+        editButton.setVisible(access.canEditUserAccount(profile.getActorId()));
+
         UiIconButton deleteButton = new UiIconButton(getValue(PROVIDERS_CATALOG_OVERLAY_DELETE), VaadinIcon.TRASH.create());
         deleteButton.addClassName("overlay__view-delete");
         deleteButton.addClickListener(_ -> confirmAndDelete(profile));
@@ -138,7 +161,7 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         UiIconButton closeButton = new UiIconButton(getValue(MAIN_TAB_PROVIDERS), VaadinIcon.CLOSE.create());
         closeButton.addClickListener(_ -> params.getOnClose().run());
 
-        return new Div(shareButton, deleteButton, closeButton);
+        return new Div(shareButton, editButton, deleteButton, closeButton);
     }
 
     private void confirmAndDelete(ProviderProfileDto profile) {

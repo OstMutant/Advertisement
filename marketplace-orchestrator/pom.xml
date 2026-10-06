@@ -56,6 +56,16 @@
             <artifactId>apikey-spring-boot-starter</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>contact-spring-boot-starter</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>feedback-spring-boot-starter</artifactId>
+            <scope>runtime</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

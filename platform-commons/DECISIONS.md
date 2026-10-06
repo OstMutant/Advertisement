@@ -2,6 +2,42 @@
 
 ---
 
+## ADR-034: `feedback-spring-boot-starter` reuses `EntityRef` and stays self-contained — no Hook, no columns on `provider_profile`/`advertisement`
+
+**Status:** Accepted
+
+**Context:** F-06 (reviews & ratings) needed a rating+text feedback entry attachable to either a
+`PROVIDER_PROFILE` or an `ADVERTISEMENT`. An earlier draft of the design denormalized the
+aggregate avg-rating/count directly onto `provider_profile`/`advertisement` (one column each),
+updated through a new Hook (`feedback-starter` → `marketplace-orchestrator` →
+`ProviderProfilePort`/`AdvertisementPort`), on the reasoning that a rating shown on every card in a
+paginated search-result grid would otherwise need a live `AVG`/`COUNT` per row. That requirement
+was dropped (ratings only ever render on the entity's own single-record detail view, never on a
+card or search row), which removed the reason for cross-starter denormalization entirely.
+
+**Decision:** `feedback-spring-boot-starter` attaches to its owning entity via the same generic
+`entity_type`+`entity_id` convention `audit_log`/`contact_info` already use (`EntityRef(EntityType,
+Long)`, `core.model`) — no DB-level FK, resolved only through `FeedbackPort`. Its denormalized
+rating aggregate (`feedback_aggregate`: `avg_rating`, `review_count`) lives in a table inside this
+same starter, recomputed and upserted in the same transaction as every feedback write — mirroring
+`contact-spring-boot-starter`'s `contact_info`/`contact_view` precedent exactly. No column is added
+to `provider_profile` or `advertisement`, and no Hook exists for this starter at all: any future
+consumer (e.g. a card wanting to show the aggregate) reads it through `FeedbackPort.getAggregate`,
+the same way `ContactRevealPanel` already reads through `ContactPort`.
+
+**Rejected alternative:** Hook-routed denormalization onto `provider_profile`/`advertisement`'s own
+tables (the earlier draft) — rejected once the "not on cards" requirement removed its only
+justification; it would have added a new `*Hook`, two schema migrations in unrelated starters, and
+cross-starter transactional coordination for no remaining benefit over a single self-contained
+aggregate table.
+
+**Consequences:** `feedback-spring-boot-starter` is fully independent — it can be added or removed
+from the classpath without any other starter's schema or code changing. A future reviewable entity
+type (e.g. adding feedback to a new domain) only needs a new `EntityType` value and no schema
+change to this starter at all.
+
+---
+
 ## ADR-033: `AttachmentAllowedContentTypes` — single shared whitelist for attachment content types
 **Status:** Accepted
 

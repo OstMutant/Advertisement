@@ -395,3 +395,42 @@ duplication Phase 9 already extracted (that one spanned two starters; this one i
 that abstracting it (a shared helper, a wrapper type) could plausibly add more indirection than it
 removes; needs a real judgment call on whether extraction is worth it before touching either
 service, not a reflexive DRY pass.
+
+### 24. `integration-tests`: no global HikariCP pool-size cap across `@SpringBootTest` contexts risks Postgres `max_connections` exhaustion (found during improvement-199 Checkpoint 1, 2026-09-24)
+
+Every distinct `@SpringBootTest(classes = {...})` signature in `integration-tests` gets its own
+cached Spring `ApplicationContext` with its own HikariCP pool (default `maximum-pool-size=10`, no
+override anywhere in the repo); Spring's `DefaultContextCache` keeps every distinct context alive
+for the rest of the `mvn test` run (default cache size 32, well above the ~18 distinct signatures
+today), so their connection pools accumulate rather than being released between test classes.
+Confirmed directly: adding `contact-spring-boot-starter`'s two new test classes (one more distinct
+context) was enough to push a full-suite run over Postgres's `max_connections`, failing the
+unrelated, pre-existing `ProviderProfileRepositoryTest` with `FATAL: sorry, too many clients
+already`. Scoped fix applied to the new contact tests only (`spring.datasource.hikari.maximum-pool-size=2`
+via `@TestPropertySource`, since they don't need concurrency) — the systemic gap (no cap for any
+of the other ~18 contexts) remains and can recur the next time a new starter's own repository test
+is added. Needs a design decision before sizing: a lower default pool size across the whole
+`RepositoryTestAutoConfig` allow-list vs. a per-context opt-in like the one used here vs. raising
+the Testcontainers Postgres image's own `max_connections`.
+
+### 25. No existing mechanism for entity-existence-based orphan cleanup, needed by `improvement-200` Phase 5 (found 2026-10-05)
+
+`improvement-200`'s own spec (`private/features/F-06-reviews-ratings.md`) claims orphan cleanup for
+`feedback`/`feedback_comment`/`feedback_aggregate` rows (no real FK to their owning
+advertisement/provider-profile, since `entity_type`+`entity_id` targets whichever table the
+`EntityType` names) is "handled by the existing cleanup-service scheduled-job pattern" — checked
+directly, and no such pattern actually exists. `AuditCleanupService`/`AttachmentCleanupService`
+(the only two existing `*CleanupService` classes) are both pure time/retention-based (delete rows
+older than `CleanupProperties.retentionDays()`), not existence-based — neither checks whether a
+referenced entity still exists. The one class that actually answers "does entity X of type Y still
+exist" is `EntityExistenceService` (`marketplace-orchestrator`), today only used by the audit
+timeline's display logic, never by any cleanup job. Structurally, `feedback-spring-boot-starter`
+(or any starter) cannot call it directly — `EntityExistenceService`'s cross-port routing across
+`AdvertisementPort`/`ProviderProfilePort`/`UserPort`/`TaxonPort` is itself orchestrator-layer logic,
+and starters must not depend on `marketplace-orchestrator` (module import rules). The same
+`entity_type`/`entity_id`-without-FK orphan risk already exists in `contact-spring-boot-starter`
+today with zero cleanup mechanism of any kind — this is not feedback-specific. Needs a design
+decision before sizing: a new orchestrator-level scheduled job (first of its kind — every existing
+cleanup job lives entirely inside its own starter) that calls `EntityExistenceService` per
+`EntityType` and deletes orphaned rows via each affected starter's own Port, vs. some other shape
+not yet considered.

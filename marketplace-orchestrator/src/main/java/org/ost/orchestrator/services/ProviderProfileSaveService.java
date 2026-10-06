@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.orchestrator.spi.CurrentLocaleHook;
 import org.ost.platform.audit.spi.AuditPort;
+import org.ost.platform.contact.dto.ContactInfoDto;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.model.EntityType;
@@ -21,9 +22,10 @@ import java.util.Set;
 
 /**
  * Application-level use case: save/delete a provider profile in one transaction, including its
- * category/city assignment, audit capture, and owner-or-privileged authorization. 2 direct domain
- * ports (ProviderProfile + Audit) plus the shared {@link TaxonAssignmentWriteService} collaborator
- * -- see marketplace-orchestrator/CLAUDE.md's "≤2 domain *Port types per class" constraint.
+ * category/city assignment, contact-info upsert, audit capture, and owner-or-privileged
+ * authorization. 2 direct domain ports (ProviderProfile + Audit) plus the shared
+ * {@link TaxonAssignmentWriteService}/{@link ContactAccessService} collaborators -- see
+ * marketplace-orchestrator/CLAUDE.md's "≤2 domain *Port types per class" constraint.
  */
 @Slf4j
 @Service
@@ -34,6 +36,7 @@ public class ProviderProfileSaveService {
     private final ComponentFactory<ProviderProfilePort>  providerProfilePortFactory;
     private final ComponentFactory<AuditPort>             auditPortFactory;
     private final TaxonAssignmentWriteService              taxonAssignmentWriteService;
+    private final ContactAccessService                     contactAccessService;
     private final ProviderProfileDisplayEnrichmentService  displayEnrichmentService;
     private final CurrentLocaleHook                        currentLocaleHook;
     private final SitemapService                           sitemapService;
@@ -62,10 +65,15 @@ public class ProviderProfileSaveService {
             taxonAssignmentWriteService.replace(EntityType.PROVIDER_PROFILE, id,
                     TaxonAssignmentWriteService.unionAssignmentIds(catIds, dto.cityTaxonId()));
 
+            ContactInfoDto contact = saveContact(id, dto);
+
             ProviderProfileDto saved = displayEnrichmentService.enrichWithCategoryAndCity(
                     providerProfilePortFactory.get().findById(id).orElseThrow(), currentLocaleHook.getCurrentLocale());
             ProviderProfileSnapshotDto after = new ProviderProfileSnapshotDto(
-                    saved.getKind(), saved.getAbout(), sortedList(saved.getCategoryIds()), saved.getCityTaxonId());
+                    saved.getKind(), saved.getAbout(), sortedList(saved.getCategoryIds()), saved.getCityTaxonId(),
+                    contact != null ? contact.phone() : null,
+                    contact != null ? contact.telegram() : null,
+                    contact != null ? contact.viber() : null);
 
             captureAudit(isNew, id, after, actorId);
             log.info("ProviderProfile save transaction complete: id={}, isNew={}, categories={}",
@@ -107,6 +115,7 @@ public class ProviderProfileSaveService {
                 taxonAssignmentWriteService.clear(EntityType.PROVIDER_PROFILE, id);
             }
             providerProfilePortFactory.get().delete(id, version);
+            contactAccessService.delete(EntityType.PROVIDER_PROFILE, id);
             if (snapshot != null) {
                 auditPortFactory.ifAvailable(p -> p.captureDeletion(id, snapshot, actorId));
             }
@@ -126,7 +135,23 @@ public class ProviderProfileSaveService {
     }
 
     private ProviderProfileSnapshotDto toSnapshot(@NonNull ProviderProfileDto p) {
-        return new ProviderProfileSnapshotDto(p.getKind(), p.getAbout(), sortedList(p.getCategoryIds()), p.getCityTaxonId());
+        Optional<ContactInfoDto> contact = contactAccessService.find(EntityType.PROVIDER_PROFILE, p.getId());
+        return new ProviderProfileSnapshotDto(p.getKind(), p.getAbout(), sortedList(p.getCategoryIds()), p.getCityTaxonId(),
+                contact.map(ContactInfoDto::phone).orElse(null),
+                contact.map(ContactInfoDto::telegram).orElse(null),
+                contact.map(ContactInfoDto::viber).orElse(null));
+    }
+
+    /** Upserts contact_info as part of the same transaction, keyed fresh by (entityType, entityId) -- returns null (skips the write) when neither an existing row nor any new field value exists. */
+    private ContactInfoDto saveContact(@NonNull Long profileId, @NonNull ProviderProfileSaveDto dto) {
+        Optional<ContactInfoDto> existing = contactAccessService.find(EntityType.PROVIDER_PROFILE, profileId);
+        boolean anyFieldSet = dto.phone() != null || dto.telegram() != null || dto.viber() != null;
+        if (existing.isEmpty() && !anyFieldSet) return null;
+        return contactAccessService.save(new ContactInfoDto(
+                existing.map(ContactInfoDto::id).orElse(null),
+                EntityType.PROVIDER_PROFILE, profileId,
+                dto.phone(), dto.telegram(), dto.viber(),
+                null, existing.map(ContactInfoDto::version).orElse(null)));
     }
 
     private static List<Long> sortedList(Set<Long> ids) {

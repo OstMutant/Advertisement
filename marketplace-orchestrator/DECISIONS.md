@@ -2,6 +2,34 @@
 
 ---
 
+## ADR-010: `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename
+
+**Status:** Accepted
+
+**Context:** The advertisement-to-owner-profile contact fallback (an ad's own `contact_info` row
+if present, else its owner's provider-profile row) needs `ContactPort` plus, to resolve an ad's
+owner, `AdvertisementPort` + `ProviderProfilePort` — three domain ports for one use case, over
+this module's own ≤2-domain-port-per-class rule. The first version of this service was also named
+`ContactService`, which collided with `contact-spring-boot-starter`'s own internal
+`org.ost.contact.services.ContactService` (same default Spring bean name from two different
+packages), failing the app at startup with `ConflictingBeanDefinitionException`.
+
+**Decision:**
+1. Split into two classes, mirroring ADR-008's own "extract a `services.*` collaborator" shape:
+   `AdvertisementOwnerProfileLookupService` (`AdvertisementPort` + `ProviderProfilePort`, resolves
+   an ad's owner's provider profile id) and `ContactAccessService` (`ContactPort` + the lookup
+   service as a plain collaborator — find/save/recordView/countViewsThisMonth/delete/isAvailable,
+   plus `resolveContact()`'s fallback). The lookup service, held as a plain collaborator field,
+   doesn't count against the ≤2-port rule — same shape `TaxonAssignmentWriteService` already has
+   for other save services.
+2. Named the resulting service `ContactAccessService`, not the bare `ContactService` a first pass
+   used — matching this module's own established convention that an orchestrator-level service
+   never reuses a starter's bare `<Domain>Service` name (`ProviderProfileSaveService`/
+   `ReadService`, never bare `ProviderProfileService`), and avoiding the real
+   `ConflictingBeanDefinitionException` the bare name triggered.
+
+---
+
 ## ADR-009: `StaleWriteException` replaces `OptimisticLockingFailureException` as the project-wide stale-write signal
 
 **Status:** Accepted

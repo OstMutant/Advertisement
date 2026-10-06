@@ -14,9 +14,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.jsoup.Jsoup;
 import org.ost.orchestrator.services.AuditQueryService;
+import org.ost.orchestrator.services.ContactAccessService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
+import org.ost.platform.contact.dto.ContactInfoDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
@@ -31,6 +33,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.QuillEditor;
+import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.BreadcrumbStep;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
@@ -83,6 +86,7 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
     private final AuditQueryService                                         auditQueryService;
     private final EntityActivityOverlay                                     entityActivityOverlay;
     private final TaxonCatalogService                                       taxonCatalogService;
+    private final ContactAccessService                                      contactService;
 
     private Parameters params;
     private ProviderProfileDto currentProfile;
@@ -90,6 +94,9 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
     private QuillEditor                    aboutField;
     private MultiSelectComboBox<TaxonDto>  categoryComboBox;
     private ComboBox<TaxonDto>             cityComboBox;
+    private UiTextField phoneField;
+    private UiTextField telegramField;
+    private UiTextField viberField;
     private UiPrimaryButton  saveButton;
     private UiTertiaryButton discardButton;
 
@@ -132,25 +139,39 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
         cityComboBox.setItems(availableCities);
         cityComboBox.setClearButtonVisible(true);
 
+        phoneField = new UiTextField(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_PHONE), "+380 XX XXX XX XX", 32, false, "provider-profile-phone-field");
+        telegramField = new UiTextField(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_TELEGRAM), "@username", 64, false, "provider-profile-telegram-field");
+        viberField = new UiTextField(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_VIBER), "+380 XX XXX XX XX", 32, false, "provider-profile-viber-field");
+
         ProviderProfileEditDto dto = currentProfile != null
                 ? mapper.toProviderProfileEdit(currentProfile)
                 : ProviderProfileEditDto.builder().kind(ProviderKind.MASTER).build();
+        if (currentProfile != null) {
+            applyContactFields(dto, currentProfile.getId());
+        }
         buildBinder(dto, availableCategories, availableCities);
 
         kindField.setReadOnly(!canEdit);
         aboutField.setReadOnly(!canEdit);
         categoryComboBox.setReadOnly(!canEdit);
         cityComboBox.setReadOnly(!canEdit);
+        phoneField.setReadOnly(!canEdit);
+        telegramField.setReadOnly(!canEdit);
+        viberField.setReadOnly(!canEdit);
 
         kindField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         aboutField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         categoryComboBox.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         cityComboBox.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        phoneField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        telegramField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        viberField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
 
         Div cardHeader = new Div(VaadinIcon.BRIEFCASE.create(), new Span(getValue(PROVIDER_PROFILE_OVERLAY_SECTION_LABEL)));
         cardHeader.addClassName("overlay__form-card-header");
 
-        Div fieldsCard = new Div(cardHeader, kindField, aboutField, categoryComboBox, cityComboBox);
+        Div fieldsCard = new Div(cardHeader, kindField, aboutField, categoryComboBox, cityComboBox,
+                phoneField, telegramField, viberField);
         fieldsCard.addClassName("overlay__form-fields-card");
 
         layout.setContent(new Div(params.getTabBar(), fieldsCard));
@@ -196,7 +217,8 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
             if (!providerProfileSaveService.isAvailable()) return;
             Long id = providerProfileSaveService.save(
                     new ProviderProfileSaveDto(dto.getId(), dto.getKind(), dto.getAbout(),
-                            dto.getCategoryIds(), dto.getCityTaxonId(), dto.getVersion()),
+                            dto.getCategoryIds(), dto.getCityTaxonId(),
+                            dto.getPhone(), dto.getTelegram(), dto.getViber(), dto.getVersion()),
                     params.getTargetUserId(), access.getCurrentUserId());
             providerProfileSaveService.findById(id).ifPresentOrElse(saved -> {
                 currentProfile = saved;
@@ -227,6 +249,9 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
                             .about(snapshot.about())
                             .categoryIds(snapshot.categoryIds() != null ? new HashSet<>(snapshot.categoryIds()) : new HashSet<>())
                             .cityTaxonId(snapshot.cityTaxonId())
+                            .phone(snapshot.phone())
+                            .telegram(snapshot.telegram())
+                            .viber(snapshot.viber())
                             .version(currentProfile.getVersion())
                             .build();
                     loadRestored(dto);
@@ -242,8 +267,17 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
         }
         providerProfileSaveService.findById(currentProfile.getId()).ifPresent(fresh -> {
             ProviderProfileEditDto dto = mapper.toProviderProfileEdit(fresh);
+            applyContactFields(dto, fresh.getId());
             binder.reload(dto, this::copyEditFields);
             updateButtons(false);
+        });
+    }
+
+    private void applyContactFields(ProviderProfileEditDto dto, Long profileId) {
+        contactService.find(EntityType.PROVIDER_PROFILE, profileId).ifPresent(contact -> {
+            dto.setPhone(contact.phone());
+            dto.setTelegram(contact.telegram());
+            dto.setViber(contact.viber());
         });
     }
 
@@ -252,6 +286,9 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
         tgt.setAbout(src.getAbout());
         tgt.setCategoryIds(src.getCategoryIds());
         tgt.setCityTaxonId(src.getCityTaxonId());
+        tgt.setPhone(src.getPhone());
+        tgt.setTelegram(src.getTelegram());
+        tgt.setViber(src.getViber());
     }
 
     @Override
@@ -293,6 +330,18 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
                                 .filter(t -> t.getId().equals(id))
                                 .findFirst().orElse(null))
                 .bind(ProviderProfileEditDto::getCityTaxonId, ProviderProfileEditDto::setCityTaxonId);
+        binder.getBinder().forField(phoneField)
+                .withNullRepresentation("")
+                .withValidator(v -> v == null || v.matches(ContactInfoDto.PHONE_PATTERN), getValue(PROVIDER_PROFILE_OVERLAY_VALIDATION_PHONE_FORMAT))
+                .bind(ProviderProfileEditDto::getPhone, ProviderProfileEditDto::setPhone);
+        binder.getBinder().forField(telegramField)
+                .withNullRepresentation("")
+                .withValidator(v -> v == null || v.matches(ContactInfoDto.TELEGRAM_PATTERN), getValue(PROVIDER_PROFILE_OVERLAY_VALIDATION_TELEGRAM_FORMAT))
+                .bind(ProviderProfileEditDto::getTelegram, ProviderProfileEditDto::setTelegram);
+        binder.getBinder().forField(viberField)
+                .withNullRepresentation("")
+                .withValidator(v -> v == null || v.matches(ContactInfoDto.PHONE_PATTERN), getValue(PROVIDER_PROFILE_OVERLAY_VALIDATION_VIBER_FORMAT))
+                .bind(ProviderProfileEditDto::getViber, ProviderProfileEditDto::setViber);
         binder.readInitialValues();
     }
 }
