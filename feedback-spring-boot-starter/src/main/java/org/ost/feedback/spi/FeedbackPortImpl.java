@@ -6,7 +6,6 @@ import org.ost.feedback.services.FeedbackService;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
 import org.ost.platform.feedback.dto.FeedbackCommentDto;
-import org.ost.platform.feedback.dto.FeedbackCommentReactionSaveDto;
 import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
@@ -49,8 +48,8 @@ public class FeedbackPortImpl implements FeedbackPort {
     }
 
     @Override
-    public List<FeedbackCommentDto> findCommentsByFeedback(@NonNull Long feedbackId, Long viewerId) {
-        return service.findCommentsByFeedback(feedbackId, viewerId);
+    public Optional<FeedbackCommentDto> findCommentByFeedback(@NonNull Long feedbackId) {
+        return service.findCommentByFeedback(feedbackId);
     }
 
     @Override
@@ -61,26 +60,20 @@ public class FeedbackPortImpl implements FeedbackPort {
 
     @Override
     @Transactional
-    public void saveReaction(@NonNull FeedbackCommentReactionSaveDto dto) {
-        service.saveReaction(dto);
-    }
-
-    @Override
-    @Transactional
     public void deleteComment(@NonNull Long commentId) {
         service.deleteComment(commentId);
     }
 
     @Override
     @Transactional
-    public void flagFeedback(@NonNull Long feedbackId, @NonNull Long actorId) {
-        service.flagFeedback(feedbackId, actorId);
+    public void flagFeedback(@NonNull Long feedbackId, @NonNull Long actorId, @NonNull String reason) {
+        service.flagFeedback(feedbackId, actorId, reason);
     }
 
     @Override
     @Transactional
-    public void flagComment(@NonNull Long commentId, @NonNull Long actorId) {
-        service.flagComment(commentId, actorId);
+    public void flagComment(@NonNull Long commentId, @NonNull Long actorId, @NonNull String reason) {
+        service.flagComment(commentId, actorId, reason);
     }
 
     @Override

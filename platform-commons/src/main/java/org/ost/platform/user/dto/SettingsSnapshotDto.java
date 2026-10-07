@@ -21,13 +21,14 @@ public record SettingsSnapshotDto(
         int usersPageSize,
         int timelinePageSize,
         int providerProfilesPageSize,
+        int feedbackPageSize,
         int schemaVersion
 ) implements AuditableSnapshot {
 
     public static final int SCHEMA_VERSION = 1;
 
-    public SettingsSnapshotDto(int adsPageSize, int usersPageSize, int timelinePageSize, int providerProfilesPageSize) {
-        this(adsPageSize, usersPageSize, timelinePageSize, providerProfilesPageSize, SCHEMA_VERSION);
+    public SettingsSnapshotDto(int adsPageSize, int usersPageSize, int timelinePageSize, int providerProfilesPageSize, int feedbackPageSize) {
+        this(adsPageSize, usersPageSize, timelinePageSize, providerProfilesPageSize, feedbackPageSize, SCHEMA_VERSION);
     }
 
     @Override
@@ -44,6 +45,7 @@ public record SettingsSnapshotDto(
         diffField(changes, Fields.usersPageSize,            field(prev, SettingsSnapshotDto::usersPageSize),            usersPageSize());
         diffField(changes, Fields.timelinePageSize,         field(prev, SettingsSnapshotDto::timelinePageSize),         timelinePageSize());
         diffField(changes, Fields.providerProfilesPageSize, field(prev, SettingsSnapshotDto::providerProfilesPageSize), providerProfilesPageSize());
+        diffField(changes, Fields.feedbackPageSize,         field(prev, SettingsSnapshotDto::feedbackPageSize),         feedbackPageSize());
         return changes;
     }
 
@@ -53,6 +55,7 @@ public record SettingsSnapshotDto(
                 new FieldChange(Fields.adsPageSize,              null, String.valueOf(adsPageSize())),
                 new FieldChange(Fields.usersPageSize,            null, String.valueOf(usersPageSize())),
                 new FieldChange(Fields.timelinePageSize,         null, String.valueOf(timelinePageSize())),
-                new FieldChange(Fields.providerProfilesPageSize, null, String.valueOf(providerProfilesPageSize())));
+                new FieldChange(Fields.providerProfilesPageSize, null, String.valueOf(providerProfilesPageSize())),
+                new FieldChange(Fields.feedbackPageSize,         null, String.valueOf(feedbackPageSize())));
     }
 }

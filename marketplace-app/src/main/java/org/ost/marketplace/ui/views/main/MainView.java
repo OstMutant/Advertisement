@@ -34,6 +34,7 @@ import org.ost.orchestrator.services.TaxonCatalogService;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_ADVERTISEMENTS;
@@ -86,14 +87,16 @@ public class MainView extends VerticalLayout {
         tabsToPages.put(advertisementTab, advertisementsView);
         pendingDeepLinkCheckers.put(advertisementTab, advertisementsView::openPendingDeepLinkIfAny);
 
+        Tab providersTab = null;
         if (providerProfileReadService.isAvailable()) {
-            Tab providersTab = new Tab(i18n.get(MAIN_TAB_PROVIDERS));
+            providersTab = new Tab(i18n.get(MAIN_TAB_PROVIDERS));
             tabs.add(providersTab);
             pages.add(providersView);
             tabsToPages.put(providersTab, providersView);
             pendingDeepLinkCheckers.put(providersTab, providersView::openPendingDeepLinkIfAny);
             providersView.setVisible(false);
         }
+        final Tab providersTabForModeration = providersTab;
 
         if (access.canView()) {
             Tab usersTab = new Tab(i18n.get(MAIN_TAB_USERS));
@@ -114,6 +117,15 @@ public class MainView extends VerticalLayout {
                 pages.add(moderationView);
                 tabsToPages.put(moderationTab, moderationView);
                 moderationView.setVisible(false);
+
+                if (providersTabForModeration != null) {
+                    Tab finalProvidersTab = providersTabForModeration;
+                    moderationView.setOnOpenProviderProfile(providerId -> {
+                        Tab previousTab = tabs.getSelectedTab();
+                        tabs.setSelectedTab(finalProvidersTab);
+                        providersView.openProfileOverlay(providerId, () -> tabs.setSelectedTab(previousTab));
+                    });
+                }
             }
 
             if (taxonCatalogService.isAvailable()) {

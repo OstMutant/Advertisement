@@ -33,6 +33,11 @@ public class AuthorizationService {
         return authorizationPort.isOwner(user, ownerId);
     }
 
+    /** Service-boundary overload -- resolves the actor, then delegates to {@link #isOwner(UserDto, Long)}. */
+    public boolean isOwner(@NonNull Long actingUserId, @NonNull Long ownerId) {
+        return actorLookupService.findById(actingUserId).map(u -> isOwner(u, ownerId)).orElse(false);
+    }
+
     // ── Rule composition (UserDto in hand -- the single source of truth for each rule) ────────
 
     /** True if actor is admin, moderator, or owns ownerId. ownerId == null reduces this to

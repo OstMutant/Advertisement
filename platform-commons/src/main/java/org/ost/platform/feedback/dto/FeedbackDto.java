@@ -17,6 +17,7 @@ public record FeedbackDto(
         int rating,
         @NonNull String feedbackText,
         @NonNull FeedbackModerationStatus moderationStatus,
+        String moderationReason,
         @NonNull Instant createdAt,
         Instant updatedAt,
         @NonNull Long version

@@ -2,7 +2,7 @@
 TRUNCATE TABLE taxon_assignment, taxon_translation, taxon,
                attachment_snapshot, attachment, audit_log, advertisement,
                provider_profile, contact_view, contact_info,
-               feedback_comment_reaction, feedback_comment, feedback_rating,
+               feedback_comment, feedback_rating,
                feedback, feedback_aggregate, feedback_content,
                user_preferences, user_information
     RESTART IDENTITY CASCADE;

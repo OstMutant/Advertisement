@@ -22,7 +22,6 @@ import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryServi
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.ContactRevealPanel;
 import org.ost.marketplace.ui.views.components.EntityMetaPanel;
-import org.ost.marketplace.ui.views.components.FeedbackPanel;
 import org.ost.marketplace.ui.views.services.AppLinkService;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.utils.ShareUtil;
@@ -66,7 +65,6 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     private final AppLinkService                                    appLinkService;
     private final NotificationService                               notificationService;
     private final UiComponentFactory<ContactRevealPanel, ContactRevealPanel.Parameters> contactRevealPanelFactory;
-    private final UiComponentFactory<FeedbackPanel, FeedbackPanel.Parameters> feedbackPanelFactory;
 
     private Parameters params;
 
@@ -112,12 +110,6 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
                 .build());
         contactPanel.addClassName("overlay__view-card");
         viewBody.add(contactPanel);
-
-        FeedbackPanel feedbackPanel = feedbackPanelFactory.build(FeedbackPanel.Parameters.builder()
-                .entityRef(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))
-                .build());
-        feedbackPanel.addClassName("overlay__view-card");
-        viewBody.add(feedbackPanel);
 
         AdvertisementInfoDto ad = params.getAd();
         viewBody.add(metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(

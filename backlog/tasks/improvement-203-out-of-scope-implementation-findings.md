@@ -80,13 +80,18 @@ full-tree, no change there), reusing the project's existing `PaginationBar` comp
 used by `AdvertisementsView`/`UserView`/`ProvidersView`/`TimelineView`) rather than building a new
 pager.
 
-**Fix plan:**
+**Fix plan (revised 2026-10-06 — newest-first order + real per-user page-size setting, like the
+existing grid views):**
 
+- Feedback entries must list newest first (confirm/adjust `findForEntity`'s current `ORDER BY` so
+  the newest entry is always at the top of page 1 — exact SQL change TBD at implementation time).
 - `FeedbackPanel.java`: new constructor-injected field `private final PaginationBar
   paginationBar;` (prototype-scoped bean, same direct-injection pattern the four existing Views
-  already use — no `SettingsPaginationBinding` registration, since that ties page size to a
-  per-user grid setting in `UserSettingsDto` that has no feedback-list equivalent and isn't being
-  added here; `PaginationBar`'s own default page size is used as-is).
+  already use) — **with** a real `SettingsPaginationBinding` registration, matching
+  `AdvertisementsView`/`UserView`/`ProvidersView`/`TimelineView`'s own pattern, not the bare
+  default page size. Needs a feedback-list page-size field added to `UserSettingsDto`/
+  `SettingsSnapshotDto` (exact field name/plumbing TBD at implementation time, mirroring how the
+  existing grid-page-size setting is wired end-to-end).
 - `configure(Parameters p)`: call `paginationBar.resetToFirstPage()` right after the `!available`
   early-return check, before `refresh(entityRef)` — so reopening this panel for a different entity
   never starts on a stale page left over from a previously-viewed entity. Add `paginationBar` to
@@ -111,7 +116,571 @@ Not resolved inline: moved here from `improvement-200` at user request, 2026-10-
 task's own phases were otherwise done — a UI-only addition unrelated to the rest of this bucket's
 findings, grouped here just to keep `improvement-200` itself closable.
 
+### 7. Feedback scope trim — remove from advertisements, collapse comment-tree to a single owner-reply on provider profiles (research-backed decision, revised 2026-10-06)
+
+Web research (OLX/eBay/Facebook Marketplace/Vinted/Depop, real sources) confirmed this project's
+own instinct: reviews belong on the **seller/provider profile**, not on individual **one-off
+listings** — the listing-vs-profile split correlates with repeatable-product platforms (Etsy/
+Amazon/Airbnb, where the same listing is bought/booked by many people, review-on-item makes sense)
+vs one-off-item platforms (OLX/eBay-classifieds/Vinted/Depop/Facebook Marketplace, where an item
+sells once and disappears — review lives on the seller, shown as a compact badge/link on the
+listing, not a separate review widget). Separately, the existing unbounded-then-capped-at-3-level
+comment tree (reactions, tombstoning, moderation queue for comments) has no real-world precedent —
+every major review system checked (Google Business, Yelp, TripAdvisor, App Store/Play Store, eBay
+feedback) allows the reviewed party exactly **one reply**, never a multi-level public thread.
+
+**Decided (2026-10-06, revised same day after further discussion):**
+- **Advertisements lose feedback entirely** — remove `FeedbackPanel` from
+  `AdvertisementViewOverlayModeHandler.java` (keep `ContactRevealPanel` — that already *is* the
+  "message seller" mechanism these platforms use instead of per-listing reviews). The ~2 existing
+  dev-only `feedback` rows with `entity_type='ADVERTISEMENT'` get a proper Liquibase data-cleanup
+  changeset (cascading through `feedback_content`/`feedback_rating`/`feedback_comment`/
+  `feedback_comment_reaction` in the same FK-safe order `FeedbackService.deleteFeedbackHard()`
+  already uses) — no precedent for a pure-data `<delete>` changeset in this repo yet, but leaving
+  orphaned `entity_type` rows forever is worse. This is a data-destructive step — gets its own
+  explicit confirmation before running, even though the row count is trivial dev data.
+- **Feedback entries: unchanged from today** — any registered user leaves one (edit window
+  already enforced), only the original author edits it.
+- **Report/flag on feedback: kept, and upgraded with a reason.** Today's `flagFeedback` has no
+  text input at all — the reporter just clicks, the moderator sees zero context on *why*. New: a
+  popup dialog with a description field + Apply/Cancel, built on the **existing**
+  `BaseDialog`/`DialogLayout` scaffolding `ConfirmActionDialog` already uses (`addFormContent` for
+  a `UiTextArea` in place of the static `Paragraph`, `getFooter()` for the two buttons) — no new
+  dialog base class. `flagFeedback(feedbackId, actorId, reason)` gains the `reason` parameter,
+  stored on `feedback_content` (see schema note below). This is a real gap-fix, not scope creep —
+  every real platform checked (Facebook, YouTube, Google) asks for a reason when reporting.
+- **Comment on a feedback entry: corrected model — the reviewed party replies to their own
+  review, not platform staff.** Only the **provider-profile owner being reviewed** may leave the
+  one comment on a feedback entry about them (not any registered user, not an admin/moderator) —
+  this is the real eBay/Google-Business "owner responds" pattern, a closer match to precedent than
+  an earlier same-day draft of this entry that had admin/moderator write it. Only that same owner
+  may edit (within the existing 48h window) or delete their own comment — **no one else can edit
+  or delete it, including admins** (this supersedes an earlier same-day draft's "or any ADMIN"
+  edit-override idea and its own open question about bypassing the edit window — both dropped,
+  there is no override). Report/flag stays available on the comment too (any other user can report
+  it, same reason-popup pattern as feedback). Admin/moderator power over a comment is limited to
+  **hide-as-censored only** — no edit, no delete — exactly the same `moderation_status` mechanism
+  `feedback` itself already uses, just never an edit/delete override.
+- **Schema simplification, not just a UI cap:** `feedback_comment.parent_comment_id` (always NULL
+  under the new model) gets dropped entirely, replaced by a `UNIQUE` constraint on `feedback_id`
+  (the database itself enforces "at most one comment," no manual check needed). Removes a real
+  class of now-dead code: `computeCommentDepth`, `pruneDanglingTombstones`,
+  `deleteDescendantsThenSelf`, the `WITH RECURSIVE` query, the entire `feedback_comment_reaction`
+  table/UI (reactions only made sense for a public thread, not one owner reply), and likely
+  `CommentTreePanel.java` itself — replaced by a much smaller single-reply component. Today's
+  `improvement-200` Phase 5 depth-cap work becomes moot under this model and gets removed, not
+  kept dormant. New: `feedback_content.moderation_reason` (nullable text) — the report popup's
+  description, stored on the same shared content row `moderation_status` already lives on (one
+  column serves both feedback and comment reports, no new table needed for the reason text).
+- **Moderation view: one grid, not two, with a type discriminator.** A new
+  `ModerationQueueItemDto` (enum `type` — `FEEDBACK`/`COMMENT`, content text, `moderation_reason`,
+  reporter/author display name) — built by merging `findHiddenFeedback`/`findHiddenComments` at
+  the service layer, **not** a new persistence table; the enum is a presentation-level
+  discriminator over the two existing read paths. `ModerationView` renders one
+  `Grid<ModerationQueueItemDto>` instead of two separate grids, columns: Type, Content, Author,
+  Reason, Reported, Action (Approve only, rendered as an icon button — `UiIconButton`, matching
+  the project's existing icon-button convention, not a text button). No separate "View" column — the Author cell itself is
+  the deep link (via the existing `AppLinkService`, same mechanism the share button already uses)
+  to where the content actually lives (the provider-profile/advertisement overlay in context), not
+  to the author's own account page. No emoji/decorative icons anywhere in this grid — `Type` is a
+  plain text badge, the Author link is styled as a link (not marked with a link glyph), consistent
+  with the rest of the app's admin grids.
+
+Real refactor spanning backend (`feedback-spring-boot-starter`, `platform-commons`,
+`marketplace-orchestrator`), UI (`marketplace-app`), a Liquibase changelog change, and Playwright/
+integration-test surgery — sized like a dedicated task, but user explicitly chose to keep it in
+this bucket rather than file a new numbered task, 2026-10-06. File-by-file plan below, written
+2026-10-06 against the real current code (verified via direct read, not assumed) — split into
+phases, each a self-contained, fully-specified unit suitable for a single `Haiku`-model `Agent`
+dispatch. Verify (build + relevant tests) after each phase before starting the next — do not batch
+all phases into one autonomous run.
+
+**Phase A — schema (Liquibase, `feedback-spring-boot-starter`) — revised 2026-10-06: no prod DB
+exists yet, so no additive/data-cleanup changesets are needed.** Edit
+`feedback-spring-boot-starter/src/main/resources/db/feedback-changelog/changes/01-feedback-schema.xml`
+directly to its final target shape (dev DB already has the feedback tables dropped and the
+`01-feedback-schema` row removed from `databasechangelog`, so the next app start re-applies this
+file from scratch):
+- Remove the `feedback_comment.parent_comment_id` column from the table definition.
+- Remove the `feedback_comment_reaction` table definition entirely.
+- Add a `UNIQUE` constraint on `feedback_comment.feedback_id` (DB now enforces "at most one
+  comment per feedback" — no manual check needed in service code).
+- Add `feedback_content.moderation_reason` — `TEXT`, nullable, `remarks="Moderator-facing reason
+  text captured from the report popup when a user flags a feedback entry or its reply; null until
+  the first report."`
+No second changeset file, no `<delete>` cleanup changeset — the old advertisement-feedback dev
+rows are already gone along with the rest of the dropped tables.
+
+**Done (2026-10-06):** `01-feedback-schema.xml` rewritten to this final shape via a Haiku agent
+dispatch, verified line-by-line against the plan above.
+
+**Done (2026-10-06), backend+orchestrator (revised phase grouping):** entities, repository,
+`platform-commons` feedback contracts, `FeedbackService`, `FeedbackPortImpl`, and
+`FeedbackAccessService` (orchestrator) rewritten together via a Haiku agent dispatch, for the
+single-reply model (no reactions, no comment tree, `moderationReason` threaded through,
+`findCommentByFeedback` replacing the recursive comment-tree query). Verified via a real
+`scripts/build-and-test.sh --no-unit --no-integration` run, not just the agent's own report:
+`platform-commons`/`feedback-spring-boot-starter`/`marketplace-orchestrator`/`marketplace-rest-api`
+all compile clean. `integration-tests` (`FeedbackRepositoryTest`/`FeedbackServiceTest`) and
+`marketplace-app` (`CommentTreePanel`/`FeedbackPanel`) are now red, as explicitly expected — they
+still reference the removed reaction/comment-tree APIs and get fixed in their own later phases
+(UI, then integration tests, then Playwright), not this one.
+
+**Done (2026-10-06), UI + remaining orchestrator pieces:** `ReportReasonDialog`, `FeedbackReplyPanel`
+(new), `FeedbackCommentWriteService` (new orchestrator owner-check service), `AuthorizationService.isOwner(Long,Long)`
+overload, `AccessEvaluator.isStrictOwner`, `ModerationQueueItemDto`/`ModerationQueueItemType` (new
+platform-commons DTO+enum), `FeedbackAccessService.findModerationQueue`, rewritten `FeedbackPanel`
+(pagination via `PaginationBar`+`SettingsPaginationBinding`+new `UserSettingsDto.feedbackPageSize`/
+`SettingsSnapshotDto.feedbackPageSize`, newest-first already backend-sorted), rewritten `ModerationView`
+(single merged grid), `CommentTreePanel` deleted, `FeedbackPanel` removed from
+`AdvertisementViewOverlayModeHandler`, `ownerUserId` wired into `ProviderProfileCatalogViewModeHandler`,
+`ComponentFactoryConfig` bean swap, i18n keys/translations (EN+UK) updated — all via two Haiku agent
+dispatches (one bug found and fixed in between: `ModerationQueueItemDto` is a Lombok `@Value` class,
+not a record, so `.getX()` getters are required, not `.x()` — the first dispatch used record-style
+accessors on it). Verified via two real `scripts/build-and-test.sh --no-unit --no-integration` runs
+(not just the agent's own report) plus a manual line-by-line read of every touched `marketplace-app`
+file: `platform-commons`/`feedback-spring-boot-starter`/`user-spring-boot-starter`/
+`marketplace-orchestrator`/`marketplace-rest-api` all compile clean. `marketplace-app` itself could
+not get a real compiler pass in this session — `build-and-test.sh` always builds the whole reactor
+with no per-module skip, and the reactor stops at the still-red `integration-tests` (Phase 5) before
+reaching `marketplace-app` in build order; manual review found no issues, but real compiler
+confirmation for `marketplace-app` is still outstanding until Phase 5 lands.
+
+**Done (2026-10-06), Playwright e2e:** `04-provider-profile-flow.spec.js` and
+`05-marketplace-advertisement-flow.spec.js` rewritten for the single-reply model: the old
+multi-level comment-tree/reaction/depth-cap test steps replaced with owner-only reply visibility
+(non-owner sees no trigger), one-reply-only enforcement (trigger/composer disappear once a reply
+exists), owner edit/delete within the window, and a report-with-reason popup; the moderation test
+rewritten around the merged single `.moderation-grid` with a working author deep link; the
+advertisement-side feedback-submission test replaced with an assertion that `.feedback-panel` is
+gone. Three real bugs found and fixed via the real `deploy-and-run.sh --reset` + `playwright.sh e2e
+--ux` loop (not assumed from code reading alone): (1) a `ModerationQueueItemDto` accessor mismatch
+(`@Value` class getters vs. record-style calls — caught at compile time); (2) `userUk`'s UI locale
+is Ukrainian, so a bilingual tab-label regex was needed where the original test only matched
+English; (3) the real root cause of the stubborn report-dialog hang — the dialog's `page.evaluate()`
+-driven native `.click()` (required for an existing Vaadin-dialog rendering quirk) doesn't trigger
+the browser's natural focus-blur sequence a real mouse click would, so the just-typed reason text
+never synced to the server before the confirm handler's own `isBlank()` guard read it; fixed with
+an explicit `press('Tab')` blur before the click. **Final verified result: BUILD SUCCESS across the
+whole reactor, 306/306 integration tests, 52/52 Playwright e2e tests — the single-reply feedback
+refactor (entry 7) is complete.**
+
+**Found and fixed (2026-10-06), separate from entry 7's own scope but surfaced by it:**
+`scripts/deploy-and-run/reset-clean.sql`'s single multi-table `TRUNCATE` statement still listed the
+dropped `feedback_comment_reaction` table. Since a multi-table `TRUNCATE` is atomic, the whole
+statement failed whenever this script's fast-path ran (`playwright.sh`'s own "Database has data"
+auto-truncate, not `deploy-and-run.sh --reset`'s full volume wipe) — leaving every table
+untruncated and causing a cascade of unrelated-looking failures (stale users/data from a prior run)
+across the whole e2e suite. Caught only because the user ran `playwright.sh e2e --full --ux`
+directly against an already-populated database (a path this session's own verification never
+exercised, since every verification run here used a full `--reset` instead). Fixed by removing the
+dropped table from the `TRUNCATE` list. Re-verified end-to-end after the fix: full `--reset` +
+`playwright.sh e2e --full --ux` — **65/65 passed** (includes spec 06's 60-user/60-ad seed, not run
+in the earlier 52/52 verification).
+
+**Phase 8 — UI polish round (2026-10-06, real user review of the running app — done 2026-10-07):**
+
+**A. "Add feedback" trigger — reposition + restyle.** `FeedbackPanel.configure()`: reorder
+`add(headerContainer)` → `buildFormContainer(entityRef); add(formContainer);` → `add(listContainer);
+add(paginationBar);` (currently formContainer is added last, after pagination). `buildAddTrigger()`:
+replace the icon-only `UiIconButton` with a `UiPrimaryButton` (icon + visible text "Add feedback"),
+same convention as `AdvertisementsView.buildAddButton()`'s `add-advertisement-button`.
+
+**B. ModerationView — cards instead of a Grid, plus cross-tab navigation.**
+- Replace `Grid<ModerationQueueItemDto>` with one `Div`-per-row card, styled like `.feedback-entry`
+  (reuse the same background/padding/border-radius), each field on its own labeled line: a NEW
+  top-of-card "Reported profile" row (always first, linking to the `entityId` profile being
+  reported about), then Type, Content (stars + text when `rating != null`), Author (link only if
+  the author owns a provider profile, else plain text), Reason, Reported (timestamp), Action
+  (Approve icon button).
+- `ProviderProfileReadService`: add `findByActorId(Long actorId)` wrapper (mechanical, same shape
+  as its existing `findById`) — `ModerationView` calls this per-row to resolve the author's own
+  profile id (for the Author link) and `findById(entityId)` for the "Reported profile" row's
+  display name. No `FeedbackAccessService`/DTO change needed — this resolution happens entirely in
+  `ModerationView` via the already-established multi-orchestrator-service UI composition pattern
+  (not a `*Port`, so the orchestrator's 2-port limit doesn't apply).
+- Cross-tab navigation (approved design, mirrors `headerBar.setOnSettingsClosed`'s existing
+  callback-injection shape):
+  - `ModerationView`: new field `private Consumer<Long> onOpenProviderProfile;` + public
+    `setOnOpenProviderProfile(Consumer<Long>)` setter. Both the "Reported profile" link and the
+    "Author" link (when present) call `onOpenProviderProfile.accept(id)` on click instead of doing
+    any navigation themselves.
+  - `ProvidersView`: new public `openProfileOverlay(Long providerId, Runnable onClose)` —
+    generalizes `openPendingDeepLinkIfAny()`'s body (`providerProfileReadService.findById(id).map(this::enrichSingle).map(profile -> { overlay.openForView(profile, this::refresh, onClose); return true; })`)
+    into a reusable method both the pending-deep-link path and this new path call.
+  - `MainView.init()`: inside the `if (feedbackAccessService.isAvailable())` block where
+    `moderationTab`/`moderationView` are already in scope (and `providersTab`/`providersView` are
+    in scope from the outer `if (providerProfileReadService.isAvailable())` block), wire:
+    `moderationView.setOnOpenProviderProfile(id -> { Tab previousTab = tabs.getSelectedTab();
+    tabs.setSelectedTab(providersTab); providersView.openProfileOverlay(id, () ->
+    tabs.setSelectedTab(previousTab)); });` — only reachable when both tabs exist, matching the
+    existing nested-`if` structure.
+
+**C. Discard (X) button — two-step smart logic for edit flows only.**
+`FeedbackPanel.buildEntryRow`'s `discardButton` and `FeedbackReplyPanel.buildComposer`'s
+`cancelButton` (when `existing != null`, i.e. editing, not adding): first click reverts the
+draft field(s) to the saved value if they currently differ; a second click (fields already match
+the saved value) closes edit mode back to view mode instead of just re-reverting a no-op. Add-flow
+composers (`existing == null`) are unchanged — already close immediately on first click.
+
+**D. Reply visual styling — match `.feedback-entry` minus stars, indent to show nesting.**
+New/updated CSS in `feedback-panel.css`:
+- `.feedback-reply-node` — same background-color/padding/border-radius as `.feedback-entry`, no
+  star-related styling.
+- `.feedback-reply-panel` (or the node itself) gets a left margin/indent so it visually reads as
+  "reply to the feedback entry above it."
+- `.feedback-reply-actions` — right-aligned (`justify-content: flex-end` or `margin-left: auto`
+  per entry's own `.feedback-entry-header-actions` convention), not left-flowing as currently.
+- `.feedback-reply-composer` (the edit/add form state) — no left indent, full width, so the form
+  itself doesn't visually inherit the reply's indent.
+- Fix the censored-state + report-button vertical misalignment for the reply's hidden state.
+
+**E. "1–2 of 2 records" — confirmed NOT a bug.** Verified directly against the dev DB: two real,
+distinct `feedback` rows exist on that profile (ids 3 and 5, different `author_id`s), both from the
+user's own manual testing. Pagination is displaying them correctly — no code change needed here.
+
+**F. Dead CSS cleanup (surfaced opportunistically, not separately requested).** `feedback-panel.css`'s
+`.comment-*` rules (`.comment-tree-panel`, `.comment-node`, `.comment-author`, `.comment-text`,
+`.comment-deleted-text`, `.comment-actions*`, `.comment-reply-*`, `.comment-edit-icon`,
+`.comment-delete-icon`, `.comment-toggle-*`, `.comment-reaction-*`, `.comment-header`,
+`.comment-inline-form*`, `.comment-close-icon`) are dead now that `CommentTreePanel.java` is
+deleted — remove them in the same pass.
+
+**Done (2026-10-07), items A/C/D/E/F:** `FeedbackPanel`/`FeedbackReplyPanel` reorder + restyle,
+two-step smart discard/cancel logic, reply indent/right-aligned-actions CSS, dead `.comment-*` CSS
+removed. Verified directly against the dev DB that "1-2 of 2 records" (item E) reflects two real,
+distinct rows, not a bug.
+
+**Done (2026-10-07), item B (Moderation cards + cross-tab navigation):** `ModerationView` rewritten
+from a two-`Grid` layout to a card-based layout (`.moderation-card` per item), with a new
+`setOnOpenProviderProfile(Consumer<Long>)` callback-injection setter (mirrors `MainView`'s existing
+`headerBar.setOnSettingsClosed` forwarder pattern) wired in `MainView.init()` so a profile-link
+click switches to the Providers tab and opens that profile's overlay, returning to Moderation on
+close. `ProvidersView` gained a public `openProfileOverlay(Long, Runnable)`, generalized from
+`openPendingDeepLinkIfAny()`'s existing body. `AuthorizationService.isOwner(Long, Long)` id-taking
+overload and `ProviderProfileReadService.findByActorId(Long)` wrapper added to support this and the
+earlier owner-only-reply logic.
+
+Real bug found and fixed during Playwright re-verification, not caught by compile or unit tests:
+the "Reported profile" card link rendered as an empty, invisible `<span>`
+(`.moderation-profile-link`) because `buildReportedProfileValue` read `profile.getActorName()`
+directly off the raw `ProviderProfileReadService.findById()` result — `ProviderProfileRepository`'s
+`ROW_MAPPER` never selects `actor_name` at all; that field is only ever populated by a separate
+`ProviderProfileDisplayEnrichmentService.enrichWithActor()` step (the same pattern `ProvidersView`
+already uses). Fixed by chaining `.map(enrichmentService::enrichWithActor)` before reading
+`actorName`. Also added the CSS rules for `.moderation-list`/`.moderation-card`/
+`.moderation-field-row`/`.moderation-field-label`/`.moderation-profile-link`/`.moderation-actions`,
+entirely absent from `feedback-panel.css` until this fix (a second, independent gap from the same
+Haiku dispatch, surfaced and fixed in the same pass rather than left for later).
+
+**Final verified result:** `build-and-test.sh --unit --no-integration` — 355/355 unit tests;
+`deploy-and-run.sh --reset-only-db` — clean deploy; `playwright.sh e2e --ux` — **52/65 passed, 13
+skipped (spec 06 seed, expected without `--full`), 0 failed**, including the moderation test's
+"working author link" assertion. Phase 8 (entry 7's post-deployment UI polish round) is complete.
+
+Minor remaining nuances noted during this review are deliberately out of scope here — to be filed
+as a separate task.
+
+---
+
+**Phase 9 — second round of real-app review (2026-10-07), plan only, not yet implemented.**
+
+**G. Moderation card layout — left-alignment + scroll background.** Cards currently render via
+`buildFieldRow`'s flat `label + value` `Div` with no column alignment (`.moderation-field-row` is
+`display:flex; gap:6px; align-items:baseline`), so every value sits immediately after its own
+label's natural width, producing a ragged left edge once several rows with different label lengths
+stack — fixable by giving `.moderation-field-label` a fixed `min-width` large enough for the
+longest label ("Reported profile:") and keeping `.moderation-field-row` as a two-column flex. The
+scroll-background issue (gray card background turns white while scrolling with many items) has no
+confirmed root cause yet — each `.moderation-card` carries its own `background-color` via
+`.feedback-entry`, and the `12px` gap between cards (`.moderation-list`'s `gap`) already shows the
+plain page background between cards even without scrolling, so the most likely explanation is
+simply that this gap becomes visually obvious only once there are enough cards to scroll — but this
+needs a real Playwright screenshot of a populated, scrolled Moderation tab before committing to a
+fix, per this repo's own rule against re-diagnosing a purely visual question from code alone.
+**Status: ready for the alignment fix; needs one screenshot before the scroll-background fix.**
+
+**H. Moderation pagination + its own Settings page-size field.** `FeedbackAccessService.findModerationQueue`
+currently fetches up to 50 of each hidden-feedback/hidden-comment type, merges, sorts, and returns
+the whole list — no real paging. Since moderation-queue size is bounded by how much gets reported
+(not a catalog-scale dataset), the right fix is in-memory paging of the already-merged, already-sorted
+list — no new SQL/count query needed: `findModerationQueue(int page, int size)` merges+sorts the
+full hidden set (dropping the `Pageable` cap on the two sub-fetches, or raising it to a safe high
+bound), then returns `items.subList(...)` for the requested page while the caller uses `items.size()`
+as the total count. `ModerationView` wires a `PaginationBar` + `SettingsPaginationBinding` exactly
+like `FeedbackPanel` already does, bound to a **new** `moderationPageSize` setting
+(`UserSettingsDto`/`SettingsSnapshotDto`/`SettingsEditDto`, same shape as the existing 5 page-size
+fields — this is the "add it directly in `01-user-schema.xml`'s JSONB `defaultValue` literal, no
+migration" case, since the column is JSONB and we're pre-prod). New `IntegerField` +
+`SETTINGS_MODERATION_PAGE_SIZE_LABEL` i18n key in `SettingsFormModeHandler`, gated the same way
+`usersPageSize`/`timelinePageSize` already are (`privileged`-only — Moderation is MODERATOR/ADMIN
+only, same gate `access.canView()` already expresses for those two). **Status: ready to implement.**
+
+**H2. `feedbackPageSize` is already wired end-to-end (`FeedbackPanel` already binds it via
+`SettingsPaginationBinding`) but has no Settings UI field at all** — confirmed by reading
+`SettingsFormModeHandler`/`SettingsEditDto`: both only carry `adsPageSize`/`usersPageSize`/
+`timelinePageSize`/`providerProfilesPageSize`, missing `feedbackPageSize` entirely. Add it the same
+way as the other 4 (ungated — feedback is visible to every logged-in user, same as ads/provider
+profiles). **Status: ready to implement, mechanical, same shape as H's new field.**
+
+**I. Moderation queue default sort — newest-first, reversing an earlier explicit decision.**
+`findModerationQueue` currently sorts `Comparator.comparing(ModerationQueueItemDto::getCreatedAt)`
+(oldest-first) — a deliberate choice recorded in `ModerationView`'s own class javadoc ("oldest-first
+merged queue"). Flipping the default to newest-first is a real reversal of that earlier decision,
+not a bugfix — needs explicit confirmation before implementing, and the superseded ADR entry
+updated via `/record-decision` once done (not a fresh, unrelated ADR). **Confirmed (2026-10-07): intentional reversal, approved.** Change `Comparator.comparing(...)` to
+`.reversed()`, update `ModerationView`'s class javadoc, and update the superseded ADR entry via
+`/record-decision` (not a fresh, unrelated one) once implemented. **Status: ready to implement.**
+
+**J. Moderation tab restructured to mirror AdvertisementsView (QueryBlock-based filter/sort bar,
+Grid-like chrome) — raised as "maybe," not committed.** This is materially bigger than G/H/I: it
+means replacing the current bespoke card-list+plain-pagination shape with the full `QueryBlock`/
+`QueryStatusBar`/`FilterMeta`/`SortMeta` infrastructure `AdvertisementsView`/`UserView` use, which
+in turn means a real `ModerationQueueItemDto` filter/sort contract (type, date range, reason text)
+at the orchestrator level, not just a UI reshuffle. Given the explicit "maybe," this should be
+scoped and approved as its own follow-up rather than folded into this phase — **recommend filing
+a separate backlog task for it instead of expanding Phase 9's scope, once I/H above (the smaller,
+related asks) are done and you've seen how the simpler pagination+sort addition already feels.**
+
+**K. New moderator action — "permanently confirm as a genuine violation," icon button.** Two
+real, already-distinct code paths exist today and need a decision between them, not an assumption:
+- **Option 1 (recommended, zero schema change):** wire the *already fully implemented, currently
+  unused-by-any-UI* `FeedbackAccessService.rejectFeedback`/`rejectComment` (hard-delete, full
+  `FeedbackPort`→`FeedbackPortImpl`→`FeedbackService.rejectFeedback`/`rejectComment` chain already
+  exists end-to-end, confirmed by reading the code) as a second icon button next to Approve in
+  `ModerationView`'s action row. The content and its row are permanently removed; this already
+  matches "a moderator's confirmed judgment that it's genuinely wrong," since a soft "confirmed
+  but still censored forever" state doesn't exist anywhere else in this schema today.
+- **Option 2 (schema change required):** introduce a third `FeedbackModerationStatus` value (e.g.
+  `CONFIRMED_HIDDEN`) so the content survives forever in its current "censored" placeholder state
+  (visible to the public page as `[hidden]`, same as today's `HIDDEN`) but drops out of the
+  Moderation queue — needs a `01-feedback-schema.xml` edit (enum column is `VARCHAR(20)`, no schema
+  change needed for the value itself, but `FeedbackModerationStatus` enum, `findHiddenFeedback`/
+  `findHiddenComments`'s `WHERE moderation_status = 'HIDDEN'` filter, and the queue-removal logic
+  all need updating) plus a new `FeedbackService.confirmFeedbackViolation`/`confirmCommentViolation`
+  method distinct from `approveFeedback`/`approveComment`.
+**Confirmed (2026-10-07): Option 2, approved.** New `FeedbackModerationStatus.CONFIRMED_HIDDEN`
+value — content stays rendered as the existing censored placeholder forever (same code path as
+today's `HIDDEN`), but the item is excluded from `findHiddenFeedback`/`findHiddenComments`'s
+`moderation_status = 'HIDDEN'` queue filter (so it drops out of the Moderation queue once
+confirmed) and therefore out of `findModerationQueue`. New `FeedbackService.confirmFeedbackViolation`/
+`confirmCommentViolation` methods (parallel to `approveFeedback`/`approveComment`, setting
+`CONFIRMED_HIDDEN` instead of `NEW`), exposed through `FeedbackPort`/`FeedbackPortImpl`/
+`FeedbackAccessService`, with a new icon button in `ModerationView`'s action row next to Approve.
+No `01-feedback-schema.xml` edit needed for the column itself (`moderation_status` is already
+`VARCHAR(20)`, room for a longer enum name) — only the enum class, the two repository query
+filters, and the new service/Port/UI methods. **Status: ready to implement.**
+
+**L. Feedback/reply icon-button positioning — one consistent vertical column everywhere.**
+Confirmed by reading both files: `FeedbackPanel.buildEntryRow`'s View-mode icons (Edit, Report) sit
+horizontally inside the header row (`.feedback-entry-header-actions`), while its Edit-mode icons
+(Save, Discard) already sit in a vertical, bordered side column (`.feedback-entry-edit-actions`).
+`FeedbackReplyPanel.buildReplyNode`'s View-mode icons (Edit, Delete, Report) sit horizontally,
+right-aligned below the text (`.feedback-reply-actions`), while its composer icons (Save, Cancel)
+are entirely unstyled (`.feedback-reply-composer-actions` has no CSS rule at all, so they default-stack
+vertically with no border/padding). Unify all four into one shared CSS class (e.g.
+`.entity-actions-column`, carrying `.feedback-entry-edit-actions`'s existing
+`display:flex; flex-direction:column; gap:4px; border-left:1px solid var(--app-border-default);
+padding-left:8px; justify-content:center;`), and restructure both components' DOM so content and
+its action column sit side-by-side as two flex children of the row/node — not content-with-icons-
+inline or icons-below-content as today. Remove the four now-dead bespoke action-row CSS rules this
+replaces. **Status: ready to implement — fully specified, no open design question, good Haiku
+candidate.**
+
+**Review:** after all of Phase 9 lands, run a `/review` pass — but only after `improvement-206` is
+implemented, per your explicit instruction; noted here now, not scheduled yet.
+
+**Done (2026-10-06), integration-tests:** `FeedbackRepositoryTest`/`FeedbackServiceTest` rewritten
+for the single-reply model (removed reaction/depth/tombstone tests, added `findCommentByFeedback`/
+`flagContent`-with-reason coverage; fixed a real behavioral conflict the first pass missed — the
+daily-rate-limit test used to create 30 comments on one feedback entry, which now violates the new
+`feedback_comment.feedback_id` unique constraint, so it was redesigned to spread across 30 distinct
+feedback entries instead); `SettingsSnapshotDtoTest` updated for the 5th `feedbackPageSize` field;
+`TestDataCleaner.cleanAll` no longer references the dropped `feedback_comment_reaction` table; new
+`level2/orchestrator/FeedbackCommentWriteServiceTest` (first-ever Level 2 test, scaffolded per
+`integration-tests/CLAUDE.md`'s "only once a concrete test needs it" rule) covers the owner-check,
+one-reply-only enforcement, and "no admin override" — one real bug found and fixed along the way
+(`OrchestratorAutoConfiguration`'s package-wide `@ComponentScan` pulled in unrelated services with
+unmet bean dependencies; fixed by listing only the exact service classes this test needs, plus a
+local stub `UiLabelHook` bean for `UserActorNameService`'s transitive dependency). Verified via a
+real `scripts/build-and-test.sh --no-unit --integration` run (two iterations — first caught the
+Spring-context bug above): **BUILD SUCCESS across the whole 17-module reactor**, including
+`marketplace-app` (first real compiler confirmation for it this session) — **306/306 integration
+tests pass, 0 failures, 0 errors**.
+
+**Phase B — entities & repository (`feedback-spring-boot-starter`).**
+- `org.ost.feedback.entities.FeedbackComment` — remove `parentCommentId` field.
+- Delete `org.ost.feedback.entities.FeedbackCommentReaction` entirely.
+- `org.ost.feedback.entities.FeedbackContent` — add `moderationReason` (`String`) field.
+- `FeedbackRepository.java`:
+  - Remove `FeedbackCommentReactionView` record, `findReactionsByComments`, `findReactionType`,
+    `upsertReaction`, `deleteReaction`, `countChildren`, `deleteCommentSubtree` (lines ~328-410
+    region per the investigation).
+  - Replace the `WITH RECURSIVE tree` query in `findCommentsByFeedback` (lines ~213-232) with a
+    plain `findCommentByFeedback(Long feedbackId)` returning `Optional<FeedbackCommentView>` (at
+    most one row now that the UNIQUE constraint exists) — drop `FeedbackCommentView.parentCommentId`.
+  - `findAllCommentsByFeedbackIncludingHidden` (lines ~236-255, used only by `deleteFeedbackHard`'s
+    cascade) — same simplification, at most one row.
+  - `deleteCommentHard` — drop the reaction-delete step (table is gone).
+  - `saveContent`/`updateModerationStatus` — thread `moderationReason` through (new param).
+  - `findHiddenFeedback`/`findHiddenComments` — select `moderation_reason` too, so the DTOs built
+    from these rows carry it.
+
+**Phase C — platform-commons `feedback.*` contracts.**
+- `FeedbackPort.java` — remove `saveReaction`; change `flagFeedback(Long feedbackId, Long actorId)`
+  to `flagFeedback(Long feedbackId, Long actorId, String reason)`; same for `flagComment`.
+- `FeedbackDto.java` — add `String moderationReason`.
+- `FeedbackCommentDto.java` — remove `parentCommentId`, `reactorIdsByType`, `myReaction`; add
+  `String moderationReason`.
+- `FeedbackCommentSaveDto.java` — remove `parentCommentId` field and the `MAX_DEPTH` constant.
+- Delete `FeedbackCommentReactionSaveDto.java`.
+- Delete `org.ost.platform.feedback.model.FeedbackReactionType` (confirmed only 3 other
+  referencing files, all touched in this same refactor — `CommentTreePanel.java` being deleted in
+  Phase E, `FeedbackServiceTest.java` updated in Phase G, `FeedbackCommentReactionSaveDto.java`
+  deleted above).
+- `FeedbackCommentSnapshotDto.java` — add `moderationReason` alongside the existing
+  `moderationStatus` field, so the audit trail captures the report reason too (currently only
+  tracks status).
+- New `ModerationQueueItemDto.java` (`org.ost.platform.feedback.dto`), `@Value @Builder
+  @FieldNameConstants`: `type` (new enum `ModerationQueueItemType{FEEDBACK,COMMENT}`, same
+  package), `Long id`, `Long entityId` (the `PROVIDER_PROFILE` id the content is attached to — for
+  building the deep link), `String contentText`, `Integer rating` (nullable, FEEDBACK rows only),
+  `String moderationReason`, `Long authorId`, `String authorName`, `Instant createdAt`.
+
+**Phase D — `FeedbackService.java` + `FeedbackAccessService.java` (orchestrator).**
+- `FeedbackService.saveComment` — remove the `computeCommentDepth` check (depth no longer exists);
+  add an authorization check that `actorId` equals the `actorId` (owner) of the `ProviderProfile`
+  the parent feedback's `entityId` points to (needs a `ProviderProfilePort.findById` call — confirm
+  at implementation time whether `FeedbackService` is allowed to depend on `ProviderProfilePort`
+  directly, or whether this check must move up to `FeedbackAccessService` in the orchestrator,
+  since a starter must not depend on a sibling starter's port — **this is a real open design
+  question, resolve it before writing code, don't guess**). Remove `saveReaction`, `groupReactions`,
+  `deleteDescendantsThenSelf`, `pruneDanglingTombstones`, `computeCommentDepth`.
+- `deleteComment` — drop the tombstone-vs-hard-delete branch (`countChildren` is gone); always hard
+  delete, same owner+edit-window check as today.
+- `flagFeedback`/`flagComment` — add `reason` param, pass through to
+  `FeedbackRepository.updateModerationStatus`/`saveContent`.
+- `FeedbackAccessService.java` (orchestrator) — add `findModerationQueue(Pageable)`: call
+  `feedbackPort.findHiddenFeedback`/`findHiddenComments`, map each to `ModerationQueueItemDto`
+  (type discriminator), merge+sort by `createdAt` ascending (oldest-first, per the already-agreed
+  grid order), return one `List`. Update `flagFeedback`/`flagComment` call sites for the new
+  `reason` param.
+
+**Phase E — UI (`marketplace-app`).**
+- New `ui/views/components/dialogs/ReportReasonDialog.java` — modeled on
+  `ConfirmActionDialog.java`: constructor `(String title, String reasonFieldLabel, String
+  confirmLabel, String cancelLabel, Consumer<String> onConfirm)`, `DialogLayout.addFormContent`
+  gets a `UiTextArea` instead of `ConfirmActionDialog`'s static `Paragraph`, `getFooter()` gets the
+  same two-button layout, Apply calls `onConfirm.accept(textArea.getValue())`.
+- `FeedbackPanel.java` — replace the `ConfirmActionDialog` report flow (line ~303) with
+  `ReportReasonDialog`, wiring to the new `flagFeedback(id, actorId, reason)` signature. Replace
+  the `commentTreePanelFactory`-built `CommentTreePanel` with the new `FeedbackReplyPanel` (below).
+- Delete `CommentTreePanel.java` entirely.
+- New `ui/views/components/FeedbackReplyPanel.java` — single-comment display (or empty state),
+  reply form shown only when `currentUserId == providerProfile.actorId()` and no comment exists
+  yet, edit/delete controls shown only to that same owner within the existing edit window, a report
+  button (via `ReportReasonDialog`) visible to any other viewer when a comment exists. No reaction
+  buttons, no recursion, no depth handling.
+- `AdvertisementViewOverlayModeHandler.java` — remove the `feedbackPanel`/`feedbackPanelFactory`
+  field, its construction, and its placement in the view body; keep `ContactRevealPanel` untouched.
+- `ProviderProfileCatalogViewModeHandler.java` — update `FeedbackPanel` wiring only insofar as it
+  now embeds `FeedbackReplyPanel` instead of `CommentTreePanel` (the panel itself already has
+  access to the `ProviderProfileDto` being viewed, so the owner-check in `FeedbackReplyPanel` needs
+  that DTO passed in — confirm the exact constructor/parameter plumbing when implementing, since
+  `FeedbackPanel`'s current constructor doesn't carry a `ProviderProfileDto` reference yet per the
+  investigation).
+- `ModerationView.java` — replace `feedbackGrid`+`commentGrid` with one
+  `Grid<ModerationQueueItemDto>`, columns Type (plain text/badge from the enum), Content (text
+  excerpt + star rating when `type==FEEDBACK` and `rating!=null`), Author (rendered as an `Anchor`
+  with `href` from `AppLinkService.providerProfileUrl(entityId)`, `target="_blank"`, text =
+  `authorName` — no separate View column), Reason (`moderationReason`), Reported (`createdAt`,
+  oldest first), Action (Approve-only `UiIconButton`, same as today). Backing call switches from
+  two `findHiddenFeedback`/`findHiddenComments` calls to the new
+  `feedbackAccessService.findModerationQueue(pageable)`. Remove the now-dead
+  `MODERATION_BUTTON_REJECT`/`MODERATION_CONFIRM_REJECT_*` i18n keys from `I18nKey.java` (confirmed
+  unused by the UI even today) — only if this phase also confirms `rejectFeedback`/`rejectComment`
+  service methods have no other caller; if they do, leave the i18n keys and service methods alone,
+  this phase only touches the grid.
+
+**Phase F — integration tests (`integration-tests`).**
+- `FeedbackServiceTest.java` (31 tests) / `FeedbackRepositoryTest.java` (13 tests) — remove every
+  test covering: comment depth/`MAX_DEPTH`, reactions (`saveReaction`/`FeedbackReactionType`),
+  tombstoning/`deleteDescendantsThenSelf`/`pruneDanglingTombstones`, multi-reply-per-feedback.
+  Add tests for: only the profile owner can `saveComment`; a second `saveComment` on the same
+  feedback fails (UNIQUE constraint / explicit check); `flagFeedback`/`flagComment` persist
+  `reason` and it's readable back via `findHiddenFeedback`/`findHiddenComments`; hide-as-censored
+  still works with no edit/delete override for admins.
+
+**Phase G — Playwright (`playwright/e2e/`).**
+- `04-provider-profile-flow.spec.js` lines ~746-918 — replace the nested reply/edit/reaction/
+  delete/3-level-depth-cap test.steps with: owner-only reply box visibility, one reply allowed
+  (second attempt blocked/hidden), owner edit/delete within window, report-with-reason popup
+  (assert the reason text field + Apply/Cancel), non-owner cannot see a reply box.
+- Lines ~1113-1214 (moderation test) — update to the single merged grid: report a feedback and a
+  comment (each via the new reason popup), open `ModerationView`, assert both rows appear in the
+  one grid with their reason text and a working Author link, approve both, re-verify visible again.
+- `05-marketplace-advertisement-flow.spec.js` lines ~151-176 — remove the feedback-submission test
+  block entirely (advertisements no longer have a `FeedbackPanel`); assert only `ContactRevealPanel`
+  is present where the feedback panel used to be.
+
+Open design question flagged above (Phase D) must be resolved — with the user, not assumed — before
+any Phase D/E code is written: does the "is this actor the provider-profile owner" check live in
+`FeedbackService` (via a new direct dependency on `ProviderProfilePort`, which would be a new
+cross-starter dependency needing its own approval) or in `FeedbackAccessService` in the
+orchestrator (consistent with the existing "starters don't depend on sibling starters" rule, using
+its already-present `ComponentFactory<ProviderProfilePort>` — but `FeedbackAccessService` is
+currently capped at 2 `*Port` dependencies per the architecture rule, and already uses
+`FeedbackPort`+`AuditPort`, so adding a third needs either an exception or splitting into a new
+use-case service).
+
+### Handoff for a Haiku execution agent (entry 7, phases B-G) — plan only, no code changed yet
+
+**State before starting:** `01-feedback-schema.xml` is at its committed (`HEAD`) version, i.e. the old schema with `parent_comment_id` and `feedback_comment_reaction`. The target-schema rewrite still has to be done as part of phase A. Dev DB `experiments`: feedback tables dropped and the `01-feedback-schema` row removed from `databasechangelog`, so the next app start re-applies the file. Nothing is committed.
+
+**Decided design (approved):** only the reviewed provider-profile owner writes the one reply. Owner check lives in a new orchestrator service `marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/FeedbackCommentWriteService.java`, NOT in `FeedbackService` (starter must not depend on `ProviderProfilePort`) and NOT in `FeedbackAccessService` (would hold 3 `*Port` deps, ArchUnit limit is 2). It depends on: `FeedbackAccessService`, `ProviderProfileReadService.findById(entityId)` (owner = `actorId`), `ActorLookupService`, `AuthorizationService`. `saveComment` uses strict ownership (`AuthorizationService.isOwner`, never `canOperate` — admins do not reply). `editComment`/`deleteComment` require the comment author within the 48h window. Add overload `isOwner(Long actingUserId, Long ownerId)` to `AuthorizationService` following the existing `canOperate(Long, Long)` pattern.
+
+**Phase B — entities and repository (`feedback-spring-boot-starter`, package `org.ost.feedback.entity` and `org.ost.feedback.repository`)**
+- Delete `entity/FeedbackCommentReaction.java`.
+- `entity/FeedbackComment.java`: remove field `parentCommentId`.
+- `entity/FeedbackContent.java`: add `String moderationReason`.
+- `repository/FeedbackRepository.java`: remove reaction methods (`findReactionsByComments`, `findReactionType`, `upsertReaction`, `deleteReaction`, `FeedbackCommentReactionView`), `countChildren`, `deleteCommentSubtree`; replace the `WITH RECURSIVE` comment query with a single-reply lookup; drop `parentCommentId` from views; thread `moderationReason` through `saveContent`/`updateModerationStatus`; select `moderation_reason` in `findHiddenFeedback`/`findHiddenComments`.
+
+**Phase C — contracts (`platform-commons`, package `org.ost.platform.feedback`)**
+- `spi/FeedbackPort.java`: remove `saveReaction`; `flagFeedback(Long, Long, String reason)` and `flagComment(Long, Long, String reason)`.
+- `dto/FeedbackDto.java`, `dto/FeedbackCommentDto.java`: add `moderationReason`; remove `parentCommentId`, `reactorIdsByType`, `myReaction` from the comment DTO.
+- `dto/FeedbackCommentSaveDto.java`: remove `parentCommentId` and `MAX_DEPTH`.
+- `dto/FeedbackCommentSnapshotDto.java`: add `moderationReason` next to `moderationStatus`.
+- Delete `dto/FeedbackCommentReactionSaveDto.java` and `model/FeedbackReactionType.java`.
+- New `dto/ModerationQueueItemDto.java` (`@Value @Builder @FieldNameConstants`): `ModerationQueueItemType type`, `Long id`, `Long entityId`, `String contentText`, `Integer rating` (nullable), `String moderationReason`, `Long authorId`, `String authorName`, `Instant createdAt`. New enum `ModerationQueueItemType { FEEDBACK, COMMENT }` in the same package.
+
+**Phase D — orchestrator (`marketplace-orchestrator`)**
+- `services/FeedbackCommentWriteService.java`: as described above.
+- `services/FeedbackAccessService.java`: remove `saveReaction`; pass `reason` through `flagFeedback`/`flagComment`; add `findModerationQueue(Pageable)` merging `findHiddenFeedback` and `findHiddenComments` into `ModerationQueueItemDto`, sorted by `createdAt` ascending.
+- `services/AuthorizationService.java`: add `isOwner(Long, Long)`.
+- `FeedbackService.java` (starter): keep one-reply check, remove `saveReaction`, `groupReactions`, `deleteDescendantsThenSelf`, `pruneDanglingTombstones`, `computeCommentDepth`; `deleteComment` always hard-deletes.
+
+**Phase E — UI (`marketplace-app`)**
+- New `ui/views/components/dialogs/ReportReasonDialog.java`, modeled on `ConfirmActionDialog.java`: text area for the reason, Apply/Cancel, calls `onConfirm` with the entered text.
+- New `ui/views/components/FeedbackReplyPanel.java`: shows the single reply or empty state; reply form only when current user is the profile owner and no reply exists; edit/delete only for the author within 48h; report button (via `ReportReasonDialog`) for other viewers.
+- Delete `ui/views/components/CommentTreePanel.java`.
+- `FeedbackPanel.java`: use `ReportReasonDialog` for reports; embed `FeedbackReplyPanel`.
+- `AdvertisementViewOverlayModeHandler.java`: remove the `FeedbackPanel` field, construction, and placement; keep `ContactRevealPanel`.
+- `ui/views/main/tabs/moderation/ModerationView.java`: one `Grid<ModerationQueueItemDto>` (Type, Content, Author as link via `AppLinkService.providerProfileUrl(entityId)`, Reason, Reported, Action = Approve icon button). No emoji.
+
+**Phase F — integration tests (`integration-tests`, `level1/feedback`)**
+- `FeedbackServiceTest.java`, `FeedbackRepositoryTest.java`: remove tests for depth, reactions, tombstones, multiple replies per feedback.
+- Add: non-owner cannot save reply; a second reply on the same feedback is rejected; `flagFeedback`/`flagComment` persist and return `reason`; admin cannot edit or delete a reply.
+
+**Phase G — Playwright (`playwright/e2e/`)**
+- `04-provider-profile-flow.spec.js` (about lines 746-918 nested reply/edit/reaction/depth test; about lines 1113-1214 moderation test): replace with owner-only reply, single-reply limit, report-with-reason popup, merged moderation grid.
+- `05-marketplace-advertisement-flow.spec.js` (about lines 151-176): remove the feedback block; assert `ContactRevealPanel` is present.
+
+**Rules for the executing agent:** verify build and tests after each phase before starting the next; do not commit; do not change `01-feedback-schema.xml` again; record the single-reply decision via `/record-decision` after phase D; follow the rules in `.claude/rules.md` and the module `CLAUDE.md` files for each touched module.
+
 ## Related
 
 - `backlog/tasks/improvement-133-deferred-oversized-review-findings.md` — sibling bucket, for
   findings too large to size immediately rather than simply out of scope.
+- `backlog/completed/tasks/improvement-200-f06-reviews-ratings.md` — the original F-06 feature
+  this entry trims back; its own Phase 3 (comment-tree schema) and Phase 5 (depth-cap/rate-limit)
+  history explains what this entry removes and why those were reasonable at the time.

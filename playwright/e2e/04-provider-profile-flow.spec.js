@@ -707,7 +707,7 @@ test.describe('Provider Profile flow', () => {
     });
   });
 
-  test('provider catalog Edit button — privileged actor edits someone else\'s profile from the card and from the overlay, both switch this same overlay into its own Edit mode (no unrelated Name/Settings tabs, mirrors AdvertisementOverlay); non-privileged non-owner sees no Edit button', async () => {
+  test('provider catalog Edit button — privileged actor edits someone else\'s profile from the card and from the overlay, both switch this same overlay into its own Edit mode (no unrelated Name/Settings tabs, mirrors AdvertisementOverlay); feedback reply is owner-only (non-owner sees no trigger, owner writes/edits/deletes the single reply); non-privileged non-owner sees no Edit button', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await page.locator('vaadin-tab').filter({ hasText: 'Providers' }).click();
@@ -782,139 +782,14 @@ test.describe('Provider Profile flow', () => {
         await screenshot(page, 'provider-catalog-feedback-panel-edited');
       });
 
-      await test.step('comment tree — adminEn replies to their own feedback entry, replies to that reply (nested, expanded by default), edits a comment, reacts and toggles it off, deletes a leaf comment and a comment with replies (confirm dialog)', async () => {
+      await test.step('reply panel — non-owner (adminEn) sees no reply trigger on moderatorEn\'s own feedback entry', async () => {
         const feedbackPanel = overlay.locator('.feedback-panel');
-        const commentTree = feedbackPanel.locator('.comment-tree-panel').first();
-
         await assertRightAligned(expect, feedbackPanel.locator('.feedback-entry-header-actions').first(), feedbackPanel.locator('.feedback-entry-header').first());
-        await commentTree.locator('.comment-reply-form-slot .comment-reply-trigger vaadin-button').first().click();
-        await commentTree.locator('[data-testid="comment-reply-field-text"] textarea').fill('First-level reply from adminEn.');
-        await expect(commentTree.locator('[data-testid="comment-reply-field-text"] textarea')).toHaveAttribute('maxlength', '2000');
-        await commentTree.locator('.comment-save-icon').first().click();
-        await expect(commentTree.locator('.comment-node').filter({ hasText: 'First-level reply from adminEn.' })).toBeVisible({ timeout: 5000 });
-        await screenshot(page, 'provider-catalog-comment-tree-top-level-reply');
 
-        const findTopLevelNode = () => commentTree.locator('.comment-node').filter({ hasText: 'First-level reply' }).first();
-
-        await findTopLevelNode().locator('> .comment-reply-form-slot .comment-reply-trigger vaadin-button').click();
-        await findTopLevelNode().locator('> .comment-reply-form-slot [data-testid="comment-reply-field-text"] textarea').fill('Nested reply under the first-level reply.');
-        await findTopLevelNode().locator('> .comment-reply-form-slot .comment-inline-form .comment-save-icon').click();
-
-        const toggle = findTopLevelNode().locator('> .comment-header .comment-toggle-icon');
-        const toggleCount = findTopLevelNode().locator('> .comment-header .comment-toggle-count');
-        await expect(toggle).toBeVisible({ timeout: 5000 });
-        await expect(toggleCount).toHaveText('1');
-        const childrenContainer = findTopLevelNode().locator('> .comment-children');
-        // A newly-added reply auto-expands its parent -- no extra click needed to see what was just saved.
-        await expect(childrenContainer).toBeVisible({ timeout: 5000 });
-        await expect(childrenContainer.locator('.comment-node').filter({ hasText: 'Nested reply under the first-level reply.' })).toBeVisible();
-        await screenshot(page, 'provider-catalog-comment-tree-nested-reply-expanded');
-        await toggle.click();
-        await expect(childrenContainer).toBeHidden({ timeout: 5000 });
-        await toggle.click();
-        await expect(childrenContainer).toBeVisible({ timeout: 5000 });
-
-        await findTopLevelNode().locator('> .comment-header .comment-edit-icon').click();
-        const editField = findTopLevelNode().locator('> .comment-edit-form-slot [data-testid="comment-edit-field-text"] textarea');
-        await expect(editField).toBeVisible({ timeout: 5000 });
-        await expect(editField).toHaveValue('First-level reply from adminEn.', { timeout: 5000 });
-        await editField.fill('First-level reply, edited by adminEn.');
-
-        const overlayContent = overlay.locator('.overlay__content');
-        const canScroll = await overlayContent.evaluate(el => el.scrollHeight - el.clientHeight > 30);
-        if (canScroll) {
-          await overlayContent.evaluate(el => { el.scrollTop = Math.min(150, el.scrollHeight - el.clientHeight); });
-        }
-        const scrollBefore = await overlayContent.evaluate(el => el.scrollTop);
-        await findTopLevelNode().locator('> .comment-edit-form-slot .comment-inline-form .comment-save-icon').click();
-        await expect(commentTree.locator('.comment-node').first().locator('> .comment-text-container .comment-text')).toContainText('First-level reply, edited by adminEn.', { timeout: 5000 });
-        if (canScroll) {
-          const scrollAfter = await overlayContent.evaluate(el => el.scrollTop);
-          expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThanOrEqual(5);
-        }
-        await screenshot(page, 'provider-catalog-comment-tree-edited');
-
-        // Expand state now persists across reload() -- once a node is expanded, it stays expanded
-        // through any subsequent reply/edit/delete/reaction anywhere in the tree, with no need to
-        // re-click the toggle after each action (and no jump back to collapsed in between).
-        const topLevelNode = commentTree.locator('.comment-node').first();
-        const childrenContainerAfterEdit = topLevelNode.locator('> .comment-children');
-        await expect(childrenContainerAfterEdit).toBeVisible({ timeout: 5000 });
-        const nestedNode = childrenContainerAfterEdit.locator('.comment-node').filter({ hasText: 'Nested reply under the first-level reply.' }).first();
-        const upReactionWrapper = nestedNode.locator('.comment-reaction-wrapper').first();
-        await expect(upReactionWrapper.locator('.comment-reaction-count')).toHaveText('0', { timeout: 5000 });
-        await upReactionWrapper.locator('.comment-reaction-button').click();
-        await expect(upReactionWrapper.locator('.comment-reaction-count')).toHaveText('1', { timeout: 5000 });
-        await expect(childrenContainerAfterEdit).toBeVisible({ timeout: 5000 });
-        await expect(upReactionWrapper.locator('.comment-reaction-button')).toHaveClass(/comment-reaction-button-active/);
-        await screenshot(page, 'provider-catalog-comment-tree-reaction-active');
-        await upReactionWrapper.locator('.comment-reaction-button').click();
-        await expect(upReactionWrapper.locator('.comment-reaction-count')).toHaveText('0', { timeout: 5000 });
-        await expect(childrenContainerAfterEdit).toBeVisible({ timeout: 5000 });
-        await expect(upReactionWrapper.locator('.comment-reaction-button')).not.toHaveClass(/comment-reaction-button-active/);
-
-        await topLevelNode.locator('> .comment-header .comment-delete-icon').click();
-        await confirmDeleteDialog(page);
-        await expect(topLevelNode.locator('> .comment-text-container .comment-deleted-text')).toHaveText('[deleted]', { timeout: 5000 });
-        await expect(childrenContainerAfterEdit.locator('.comment-node').filter({ hasText: 'Nested reply under the first-level reply.' })).toBeVisible({ timeout: 5000 });
-        await screenshot(page, 'provider-catalog-comment-tree-tombstoned');
-
-        await nestedNode.locator('.comment-delete-icon').click();
-        await confirmDeleteDialog(page);
-        await expect(commentTree.locator('.comment-node').filter({ hasText: 'Nested reply under the first-level reply.' })).toHaveCount(0, { timeout: 5000 });
-        await screenshot(page, 'provider-catalog-comment-tree-leaf-deleted');
-
-        // Deleting the last reply under a tombstoned parent prunes the now-dangling parent too --
-        // it had already been tombstoned above, and just lost its only remaining child.
-        await expect(commentTree.locator('.comment-node').filter({ hasText: 'First-level reply' })).toHaveCount(0, { timeout: 5000 });
-      });
-
-      await test.step('Close button — open a reply composer, type draft text, click Close, verify trigger re-appears with no draft text on reopen', async () => {
-        const feedbackPanel = overlay.locator('.feedback-panel');
-        const commentTree = feedbackPanel.locator('.comment-tree-panel').first();
-
-        await commentTree.locator('.comment-reply-form-slot .comment-reply-trigger vaadin-button').first().click();
-        const replyTextarea = commentTree.locator('.comment-reply-form-slot [data-testid="comment-reply-field-text"] textarea').first();
-        await expect(replyTextarea).toBeVisible({ timeout: 5000 });
-        await replyTextarea.fill('Draft text that should be discarded on Close.');
-
-        const closeButtons = commentTree.locator('.comment-close-icon');
-        await expect(closeButtons.first()).toBeVisible({ timeout: 5000 });
-        await closeButtons.first().click();
-
-        await expect(commentTree.locator('.comment-reply-form-slot .comment-reply-trigger vaadin-button')).toBeVisible({ timeout: 5000 });
-        await commentTree.locator('.comment-reply-form-slot .comment-reply-trigger vaadin-button').first().click();
-        const newTextarea = commentTree.locator('.comment-reply-form-slot [data-testid="comment-reply-field-text"] textarea').first();
-        await expect(newTextarea).toHaveValue('', { timeout: 5000 });
-        await newTextarea.fill('New reply text for reopen test.');
-        await commentTree.locator('.comment-save-icon').first().click();
-        await expect(commentTree.locator('.comment-node').filter({ hasText: 'New reply text for reopen test.' })).toBeVisible({ timeout: 5000 });
-        await screenshot(page, 'provider-catalog-comment-tree-close-button');
-      });
-
-      await test.step('comment tree — a level-3 reply has no Reply affordance (3-level nesting cap)', async () => {
-        const feedbackPanel = overlay.locator('.feedback-panel');
-        const commentTree = feedbackPanel.locator('.comment-tree-panel').first();
-
-        const findTopLevelNode = () => commentTree.locator('.comment-node').filter({ hasText: 'New reply text for reopen test.' }).first();
-        const topLevelNode = findTopLevelNode();
-
-        await topLevelNode.locator('> .comment-reply-form-slot .comment-reply-trigger vaadin-button').click();
-        await topLevelNode.locator('> .comment-reply-form-slot [data-testid="comment-reply-field-text"] textarea').fill('Depth cap level 1 reply.');
-        await topLevelNode.locator('> .comment-reply-form-slot .comment-inline-form .comment-save-icon').click();
-        await expect(topLevelNode.locator('> .comment-children .comment-node').filter({ hasText: 'Depth cap level 1 reply.' })).toBeVisible({ timeout: 5000 });
-
-        const levelOneNode = topLevelNode.locator('> .comment-children .comment-node').filter({ hasText: 'Depth cap level 1 reply.' }).first();
-        await levelOneNode.locator('> .comment-reply-form-slot .comment-reply-trigger vaadin-button').click();
-        await levelOneNode.locator('> .comment-reply-form-slot [data-testid="comment-reply-field-text"] textarea').fill('Depth cap level 2 reply.');
-        await levelOneNode.locator('> .comment-reply-form-slot .comment-inline-form .comment-save-icon').click();
-        await expect(levelOneNode.locator('> .comment-children .comment-node').filter({ hasText: 'Depth cap level 2 reply.' })).toBeVisible({ timeout: 5000 });
-
-        // topLevelNode is level 1, levelOneNode is level 2, levelTwoNode is level 3 — the deepest allowed level, so it gets no Reply affordance
-        const levelTwoNode = levelOneNode.locator('> .comment-children .comment-node').filter({ hasText: 'Depth cap level 2 reply.' }).first();
-        await expect(levelTwoNode.locator('> .comment-reply-form-slot .comment-reply-trigger')).toHaveCount(0, { timeout: 5000 });
-        await expect(levelTwoNode.locator('> .comment-reply-form-slot .comment-inline-form')).toHaveCount(0, { timeout: 5000 });
-        await screenshot(page, 'provider-catalog-comment-tree-depth-cap');
+        const replyPanel = feedbackPanel.locator('.feedback-reply-panel').first();
+        await assertAbsent(expect, replyPanel, '.feedback-reply-trigger');
+        await assertAbsent(expect, replyPanel, '.feedback-reply-composer');
+        await screenshot(page, 'provider-catalog-reply-panel-non-owner-no-trigger');
       });
 
       await overlay.locator('.overlay__view-edit').click();
@@ -932,6 +807,51 @@ test.describe('Provider Profile flow', () => {
     });
 
     await runLogoutFlow(page, expect);
+
+    await test.step('reply lifecycle — moderatorEn (the reviewed profile\'s own owner) writes the single reply to adminEn\'s feedback entry, edits it, a second attempt shows no trigger, then deletes it', async () => {
+      await runFillLoginFormFlow(page, TEST_USERS.moderatorEn);
+      await runSubmitLoginFlow(page, expect, TEST_USERS.moderatorEn);
+      await page.locator('vaadin-tab').filter({ hasText: 'Providers' }).click();
+
+      const ownCard = page.locator('.provider-profile-card--master')
+        .filter({ has: page.locator('.provider-profile-card-title', { hasText: TEST_USERS.moderatorEn.name }) });
+      await ownCard.waitFor({ timeout: 5000 });
+      await ownCard.click();
+      const ownOverlay = page.locator('.provider-profile-catalog-overlay');
+      await ownOverlay.waitFor({ timeout: 5000 });
+
+      const feedbackPanel = ownOverlay.locator('.feedback-panel');
+      const replyPanel = feedbackPanel.locator('.feedback-reply-panel').first();
+
+      await replyPanel.locator('.feedback-reply-trigger vaadin-button').click();
+      const replyField = replyPanel.locator('[data-testid="feedback-reply-field-text"] textarea');
+      await replyField.fill('Thanks for the kind words!');
+      await expect(replyField).toHaveAttribute('maxlength', '2000');
+      await replyPanel.locator('.feedback-reply-save-icon').click();
+      await expect(replyPanel.locator('.feedback-reply-text')).toContainText('Thanks for the kind words!', { timeout: 5000 });
+      await screenshot(page, 'provider-catalog-reply-panel-owner-replied');
+
+      // Once a reply exists, the composer/trigger are both gone -- the only way to leave another one.
+      await assertAbsent(expect, replyPanel, '.feedback-reply-trigger');
+      await assertAbsent(expect, replyPanel, '.feedback-reply-composer');
+
+      await replyPanel.locator('.feedback-reply-edit-icon').click();
+      const editField = replyPanel.locator('[data-testid="feedback-reply-field-text"] textarea');
+      await expect(editField).toHaveValue('Thanks for the kind words!', { timeout: 5000 });
+      await editField.fill('Thanks for the kind words, edited!');
+      await replyPanel.locator('.feedback-reply-save-icon').click();
+      await expect(replyPanel.locator('.feedback-reply-text')).toContainText('Thanks for the kind words, edited!', { timeout: 5000 });
+      await screenshot(page, 'provider-catalog-reply-panel-owner-edited');
+
+      await replyPanel.locator('.feedback-reply-delete-icon').click();
+      await confirmDeleteDialog(page);
+      await expect(replyPanel.locator('.feedback-reply-node')).toHaveCount(0, { timeout: 5000 });
+      await expect(replyPanel.locator('.feedback-reply-trigger')).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'provider-catalog-reply-panel-owner-deleted');
+
+      await closeOverlay(page);
+      await runLogoutFlow(page, expect);
+    });
 
     await test.step('non-privileged non-owner — no Edit button on someone else\'s card or overlay, own card still has it', async () => {
       await runFillLoginFormFlow(page, TEST_USERS.userEn);
@@ -1110,7 +1030,7 @@ test.describe('Provider Profile flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('moderatorEn reports and moderates userEn\'s feedback and comment on userUk\'s profile — report hides immediately, moderation queue lists both, approve restores feedback, reject permanently deletes comment', async () => {
+  test('moderatorEn reports and moderates userEn\'s feedback and userUk\'s reply on userUk\'s own profile — report-with-reason popup, merged moderation queue lists both with a working author link, approve restores both', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
     await page.locator('vaadin-tab').filter({ hasText: /providers/i }).click();
@@ -1127,13 +1047,27 @@ test.describe('Provider Profile flow', () => {
     await feedbackPanel.locator('.feedback-form-submit').click();
     await page.locator('vaadin-notification-card').filter({ hasText: /thanks for your feedback/i }).first().waitFor({ timeout: 5000 });
     await closeNotification(page);
+    await screenshot(page, 'moderation-feedback-created');
 
-    const commentTree = feedbackPanel.locator('.comment-tree-panel').first();
-    await commentTree.locator('.comment-reply-form-slot .comment-reply-trigger vaadin-button').first().click();
-    await commentTree.locator('[data-testid="comment-reply-field-text"] textarea').fill('Reportable comment text.');
-    await commentTree.locator('.comment-save-icon').first().click();
-    await expect(commentTree.locator('.comment-node').filter({ hasText: 'Reportable comment text.' })).toBeVisible({ timeout: 5000 });
-    await screenshot(page, 'moderation-feedback-and-comment-created');
+    await closeOverlay(page);
+    await runLogoutFlow(page, expect);
+
+    // Only userUk (the reviewed profile's own owner) may write the single reply now.
+    // userUk's UI locale is Ukrainian (persisted from an earlier spec), so the main tab's label
+    // reads "Постачальники", not "Providers" -- match both.
+    await runFillLoginFormFlow(page, TEST_USERS.userUk);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.userUk);
+    await page.locator('vaadin-tab').filter({ hasText: /providers|постачальники/i }).click();
+    await userUkCard.waitFor({ timeout: 5000 });
+    await userUkCard.click();
+    await overlay.waitFor({ timeout: 5000 });
+
+    const replyPanel = feedbackPanel.locator('.feedback-reply-panel').first();
+    await replyPanel.locator('.feedback-reply-trigger vaadin-button').click();
+    await replyPanel.locator('[data-testid="feedback-reply-field-text"] textarea').fill('Reportable reply text.');
+    await replyPanel.locator('.feedback-reply-save-icon').click();
+    await expect(replyPanel.locator('.feedback-reply-text')).toContainText('Reportable reply text.', { timeout: 5000 });
+    await screenshot(page, 'moderation-feedback-and-reply-created');
 
     await closeOverlay(page);
     await runLogoutFlow(page, expect);
@@ -1145,69 +1079,75 @@ test.describe('Provider Profile flow', () => {
     await userUkCard.click();
     await overlay.waitFor({ timeout: 5000 });
 
-    // Report the comment before the feedback entry -- reporting the entry first would hide the whole block, including the comment.
-    await feedbackPanel.locator('.feedback-entry-header-actions .comment-toggle-icon').click();
+    const reportDialogSubmit = async (reasonText) => {
+      await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
+      const reasonTextarea = page.locator('vaadin-dialog[opened] [data-testid="report-reason-field-text"] textarea');
+      await reasonTextarea.fill(reasonText);
+      // A native JS .click() (below) doesn't blur the textarea the way a real mouse click would --
+      // blur explicitly first so the typed value syncs to the server before the handler reads it.
+      await reasonTextarea.press('Tab');
+      await page.evaluate(() => {
+        const dialog = document.querySelector('vaadin-dialog[opened]');
+        [...dialog.querySelectorAll('vaadin-button')].find(b => /^Report$|^Поскаржитися$/u.test(b.textContent?.trim()))?.click();
+      });
+      await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+    };
 
-    const reportableCommentNode = commentTree.locator('.comment-node').filter({ hasText: 'Reportable comment text.' }).first();
-    await reportableCommentNode.locator('.comment-report-icon').click();
-    await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
-    await page.evaluate(() => {
-      const dialog = document.querySelector('vaadin-dialog[opened]');
-      [...dialog.querySelectorAll('vaadin-button')].find(b => /^Report$|^Поскаржитися$/u.test(b.textContent?.trim()))?.click();
-    });
-    await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
-    await expect(commentTree.locator('.comment-censored-text')).toHaveText('[censored]', { timeout: 5000 });
-    await expect(commentTree.locator('.comment-report-icon')).toBeVisible({ timeout: 5000 });
-    await expect(commentTree.locator('.comment-report-icon')).toBeDisabled({ timeout: 5000 });
-    await screenshot(page, 'moderation-comment-reported-and-hidden');
+    await replyPanel.locator('.feedback-reply-report-icon').click();
+    await reportDialogSubmit('Rude reply.');
+    await expect(replyPanel.locator('.feedback-reply-censored-text')).toHaveText('[censored]', { timeout: 5000 });
+    await expect(replyPanel.locator('.feedback-reply-report-icon')).toBeDisabled({ timeout: 5000 });
+    await screenshot(page, 'moderation-reply-reported-and-hidden');
 
     const reportableEntry = feedbackPanel.locator('.feedback-entry').filter({ hasText: 'Reportable feedback text.' });
     await reportableEntry.locator('.feedback-report-icon').click();
-    await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
-    await page.evaluate(() => {
-      const dialog = document.querySelector('vaadin-dialog[opened]');
-      [...dialog.querySelectorAll('vaadin-button')].find(b => /^Report$|^Поскаржитися$/u.test(b.textContent?.trim()))?.click();
-    });
-    await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+    await reportDialogSubmit('Fake review.');
     await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
     await closeNotification(page);
     await expect(feedbackPanel.locator('.feedback-entry-censored-text')).toHaveText('[censored]', { timeout: 5000 });
-    await expect(feedbackPanel.locator('.feedback-report-icon')).toBeVisible({ timeout: 5000 });
     await expect(feedbackPanel.locator('.feedback-report-icon')).toBeDisabled({ timeout: 5000 });
     await screenshot(page, 'moderation-both-reported-and-hidden');
 
     await closeOverlay(page);
 
     await page.locator('vaadin-tab').filter({ hasText: /moderation/i }).click();
-    const feedbackGrid = page.locator('.moderation-feedback-grid');
-    const commentGrid = page.locator('.moderation-comment-grid');
-    await expect(feedbackGrid.locator('vaadin-grid-cell-content').filter({ hasText: 'Reportable feedback text.' })).toBeVisible({ timeout: 5000 });
-    await expect(commentGrid.locator('vaadin-grid-cell-content').filter({ hasText: 'Reportable comment text.' })).toBeVisible({ timeout: 5000 });
-    await screenshot(page, 'moderation-queue-shows-both');
+    const list = page.locator('.moderation-list');
+    const feedbackCard = list.locator('.moderation-card').filter({ hasText: 'Reportable feedback text.' });
+    const replyCard = list.locator('.moderation-card').filter({ hasText: 'Reportable reply text.' });
+    await expect(feedbackCard).toBeVisible({ timeout: 5000 });
+    await expect(replyCard).toBeVisible({ timeout: 5000 });
+    await expect(list.locator('.moderation-card').filter({ hasText: 'Fake review.' })).toBeVisible({ timeout: 5000 });
+    await expect(list.locator('.moderation-card').filter({ hasText: 'Rude reply.' })).toBeVisible({ timeout: 5000 });
+    await screenshot(page, 'moderation-queue-shows-both-merged');
 
-    // Only one row expected per grid here, so no row-scoping needed (same convention as user-management.flow.js).
-    await feedbackGrid.locator('.moderation-approve-icon').click();
+    // Clicking a card's profile link opens the overlay in place (switches to Providers tab); closing it returns to Moderation.
+    await feedbackCard.locator('.moderation-profile-link').first().click();
+    await overlay.waitFor({ timeout: 5000 });
+    await closeOverlay(page);
+    await expect(page.locator('.moderation-view-layout')).toBeVisible({ timeout: 5000 });
+    await screenshot(page, 'moderation-profile-link-opens-and-returns');
+
+    await feedbackCard.locator('.moderation-approve-icon').click();
     await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
     await closeNotification(page);
 
-    await commentGrid.locator('.moderation-approve-icon').click();
+    await replyCard.locator('.moderation-approve-icon').click();
     await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
     await closeNotification(page);
 
     await page.reload();
     await page.locator('vaadin-tab').filter({ hasText: /moderation/i }).click();
 
-    await expect(feedbackGrid.locator('vaadin-grid-cell-content').filter({ hasText: 'Reportable feedback text.' })).toHaveCount(0, { timeout: 5000 });
-    await expect(commentGrid.locator('vaadin-grid-cell-content').filter({ hasText: 'Reportable comment text.' })).toHaveCount(0, { timeout: 5000 });
-    await screenshot(page, 'moderation-approved-and-rejected');
+    await expect(page.locator('.moderation-list .moderation-card').filter({ hasText: 'Reportable feedback text.' })).toHaveCount(0, { timeout: 5000 });
+    await expect(page.locator('.moderation-list .moderation-card').filter({ hasText: 'Reportable reply text.' })).toHaveCount(0, { timeout: 5000 });
+    await screenshot(page, 'moderation-both-approved');
 
     await page.locator('vaadin-tab').filter({ hasText: /providers/i }).click();
     await userUkCard.waitFor({ timeout: 5000 });
     await userUkCard.click();
     await overlay.waitFor({ timeout: 5000 });
     await expect(feedbackPanel.locator('.feedback-entry').filter({ hasText: 'Reportable feedback text.' })).toBeVisible({ timeout: 5000 });
-    await feedbackPanel.locator('.feedback-entry-header-actions .comment-toggle-icon').click();
-    await expect(reportableCommentNode.locator('.comment-text')).toHaveText('Reportable comment text.', { timeout: 5000 });
+    await expect(replyPanel.locator('.feedback-reply-text')).toContainText('Reportable reply text.', { timeout: 5000 });
 
     await closeOverlay(page);
     await runLogoutFlow(page, expect);

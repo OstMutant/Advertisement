@@ -7,19 +7,24 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
 import org.ost.platform.feedback.dto.FeedbackCommentDto;
-import org.ost.platform.feedback.dto.FeedbackCommentReactionSaveDto;
 import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackCommentSnapshotDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
 import org.ost.platform.feedback.dto.FeedbackSnapshotDto;
+import org.ost.platform.feedback.dto.ModerationQueueItemDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
+import org.ost.platform.feedback.model.ModerationQueueItemType;
 import org.ost.platform.feedback.spi.FeedbackPort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /** Wraps {@link FeedbackPort} for marketplace-app, degrading gracefully when feedback-spring-boot-starter is absent. */
@@ -51,18 +56,20 @@ public class FeedbackAccessService {
         return feedbackPortFactory.findIfAvailable().isPresent();
     }
 
-    public List<FeedbackCommentDto> findCommentsByFeedback(@NonNull Long feedbackId, Long viewerId) {
-        return feedbackPortFactory.findIfAvailable()
-                .map(port -> port.findCommentsByFeedback(feedbackId, viewerId))
-                .orElse(List.of());
+    public Optional<FeedbackDto> findFeedbackById(@NonNull Long feedbackId) {
+        return feedbackPortFactory.findIfAvailable().flatMap(port -> port.findFeedbackById(feedbackId));
+    }
+
+    public Optional<FeedbackCommentDto> findCommentByFeedback(@NonNull Long feedbackId) {
+        return feedbackPortFactory.findIfAvailable().flatMap(port -> port.findCommentByFeedback(feedbackId));
+    }
+
+    public Optional<FeedbackCommentDto> findCommentById(@NonNull Long commentId) {
+        return feedbackPortFactory.findIfAvailable().flatMap(port -> port.findCommentById(commentId));
     }
 
     public FeedbackCommentDto saveComment(@NonNull FeedbackCommentSaveDto dto) {
         return feedbackPortFactory.get().saveComment(dto);
-    }
-
-    public void saveReaction(@NonNull FeedbackCommentReactionSaveDto dto) {
-        feedbackPortFactory.get().saveReaction(dto);
     }
 
     public void deleteComment(@NonNull Long commentId) {
@@ -85,30 +92,70 @@ public class FeedbackAccessService {
                 .orElse(List.of());
     }
 
-    public void flagFeedback(@NonNull Long feedbackId, @NonNull Long actorId) {
-        feedbackPortFactory.get().flagFeedback(feedbackId, actorId);
-        auditPortFactory.ifAvailable(p -> p.captureUpdate(feedbackId, new FeedbackSnapshotDto(FeedbackModerationStatus.HIDDEN), actorId));
+    /** Merges hidden feedback entries and hidden replies into one oldest-first moderation queue. */
+    public List<ModerationQueueItemDto> findModerationQueue(@NonNull Pageable pageable) {
+        List<FeedbackDto> hiddenFeedback = findHiddenFeedback(pageable);
+        List<FeedbackCommentDto> hiddenComments = findHiddenComments(pageable);
+
+        Set<Long> authorIds = new HashSet<>();
+        hiddenFeedback.forEach(f -> authorIds.add(f.authorId()));
+        hiddenComments.forEach(c -> authorIds.add(c.authorId()));
+        Map<Long, String> names = authorIds.isEmpty() ? Map.of() : resolveAuthorNames(authorIds);
+
+        List<ModerationQueueItemDto> items = new ArrayList<>();
+        hiddenFeedback.forEach(f -> items.add(ModerationQueueItemDto.builder()
+                .type(ModerationQueueItemType.FEEDBACK)
+                .id(f.id())
+                .entityId(f.entityId())
+                .contentText(f.feedbackText())
+                .rating(f.rating())
+                .moderationReason(f.moderationReason())
+                .authorId(f.authorId())
+                .authorName(names.getOrDefault(f.authorId(), String.valueOf(f.authorId())))
+                .createdAt(f.createdAt())
+                .build()));
+        hiddenComments.forEach(c -> {
+            Long entityId = findFeedbackById(c.feedbackId()).map(FeedbackDto::entityId).orElse(null);
+            items.add(ModerationQueueItemDto.builder()
+                    .type(ModerationQueueItemType.COMMENT)
+                    .id(c.id())
+                    .entityId(entityId)
+                    .contentText(c.commentText())
+                    .rating(null)
+                    .moderationReason(c.moderationReason())
+                    .authorId(c.authorId())
+                    .authorName(names.getOrDefault(c.authorId(), String.valueOf(c.authorId())))
+                    .createdAt(c.createdAt())
+                    .build());
+        });
+        items.sort(Comparator.comparing(ModerationQueueItemDto::getCreatedAt));
+        return items;
     }
 
-    public void flagComment(@NonNull Long commentId, @NonNull Long actorId) {
-        feedbackPortFactory.get().flagComment(commentId, actorId);
-        auditPortFactory.ifAvailable(p -> p.captureUpdate(commentId, new FeedbackCommentSnapshotDto(FeedbackModerationStatus.HIDDEN), actorId));
+    public void flagFeedback(@NonNull Long feedbackId, @NonNull Long actorId, @NonNull String reason) {
+        feedbackPortFactory.get().flagFeedback(feedbackId, actorId, reason);
+        auditPortFactory.ifAvailable(p -> p.captureUpdate(feedbackId, new FeedbackSnapshotDto(FeedbackModerationStatus.HIDDEN, reason), actorId));
+    }
+
+    public void flagComment(@NonNull Long commentId, @NonNull Long actorId, @NonNull String reason) {
+        feedbackPortFactory.get().flagComment(commentId, actorId, reason);
+        auditPortFactory.ifAvailable(p -> p.captureUpdate(commentId, new FeedbackCommentSnapshotDto(FeedbackModerationStatus.HIDDEN, reason), actorId));
     }
 
     public void approveFeedback(@NonNull Long feedbackId, @NonNull Long actorId) {
         feedbackPortFactory.get().approveFeedback(feedbackId);
-        auditPortFactory.ifAvailable(p -> p.captureUpdate(feedbackId, new FeedbackSnapshotDto(FeedbackModerationStatus.NEW), actorId));
+        auditPortFactory.ifAvailable(p -> p.captureUpdate(feedbackId, new FeedbackSnapshotDto(FeedbackModerationStatus.NEW, null), actorId));
     }
 
     public void approveComment(@NonNull Long commentId, @NonNull Long actorId) {
         feedbackPortFactory.get().approveComment(commentId);
-        auditPortFactory.ifAvailable(p -> p.captureUpdate(commentId, new FeedbackCommentSnapshotDto(FeedbackModerationStatus.NEW), actorId));
+        auditPortFactory.ifAvailable(p -> p.captureUpdate(commentId, new FeedbackCommentSnapshotDto(FeedbackModerationStatus.NEW, null), actorId));
     }
 
     public void rejectFeedback(@NonNull Long feedbackId, @NonNull Long actorId) {
         FeedbackDto existing = feedbackPortFactory.get().findFeedbackById(feedbackId)
                 .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
-        FeedbackSnapshotDto snapshot = new FeedbackSnapshotDto(existing.moderationStatus());
+        FeedbackSnapshotDto snapshot = new FeedbackSnapshotDto(existing.moderationStatus(), existing.moderationReason());
         feedbackPortFactory.get().rejectFeedback(feedbackId);
         auditPortFactory.ifAvailable(p -> p.captureDeletion(feedbackId, snapshot, actorId));
     }
@@ -116,7 +163,7 @@ public class FeedbackAccessService {
     public void rejectComment(@NonNull Long commentId, @NonNull Long actorId) {
         FeedbackCommentDto existing = feedbackPortFactory.get().findCommentById(commentId)
                 .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
-        FeedbackCommentSnapshotDto snapshot = new FeedbackCommentSnapshotDto(existing.moderationStatus());
+        FeedbackCommentSnapshotDto snapshot = new FeedbackCommentSnapshotDto(existing.moderationStatus(), existing.moderationReason());
         feedbackPortFactory.get().rejectComment(commentId);
         auditPortFactory.ifAvailable(p -> p.captureDeletion(commentId, snapshot, actorId));
     }

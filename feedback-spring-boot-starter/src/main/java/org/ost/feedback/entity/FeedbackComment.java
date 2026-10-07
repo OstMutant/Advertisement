@@ -6,7 +6,7 @@ import lombok.experimental.FieldNameConstants;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-/** A reply to a feedback entry or to another comment -- identity never changes after creation. */
+/** The single reply to a feedback entry -- identity never changes after creation. */
 @Value
 @Builder
 @FieldNameConstants
@@ -19,5 +19,4 @@ public class FeedbackComment {
     Long contentId;
     Long authorId;
     Long feedbackId;
-    Long parentCommentId;
 }

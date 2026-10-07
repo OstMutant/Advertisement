@@ -7,7 +7,6 @@ import org.ost.feedback.entity.Feedback;
 import org.ost.feedback.entity.FeedbackComment;
 import org.ost.feedback.entity.FeedbackContent;
 import org.ost.feedback.repository.FeedbackRepository;
-import org.ost.feedback.repository.FeedbackRepository.FeedbackCommentReactionView;
 import org.ost.feedback.repository.FeedbackRepository.FeedbackCommentView;
 import org.ost.feedback.repository.FeedbackRepository.FeedbackView;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
@@ -74,8 +73,8 @@ class FeedbackRepositoryTest extends AbstractPostgresIntegrationTest {
         return saved;
     }
 
-    /** Creates a comment (content + comment link), mirroring {@code FeedbackService.saveComment} on create. */
-    private FeedbackComment createComment(Long feedbackId, Long parentCommentId, Long authorId, String text) {
+    /** Creates the single reply to a feedback entry, mirroring {@code FeedbackService.saveComment} on create. */
+    private FeedbackComment createComment(Long feedbackId, Long authorId, String text) {
         FeedbackContent content = feedbackRepository.saveContent(FeedbackContent.builder()
                 .contentText(text)
                 .moderationStatus(FeedbackModerationStatus.NEW)
@@ -84,7 +83,6 @@ class FeedbackRepositoryTest extends AbstractPostgresIntegrationTest {
                 .contentId(content.getId())
                 .authorId(authorId)
                 .feedbackId(feedbackId)
-                .parentCommentId(parentCommentId)
                 .build());
     }
 
@@ -174,58 +172,37 @@ class FeedbackRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void findCommentsByFeedback_ordersDepthFirstBySiblingAcrossThreeLevels() {
+    void findCommentByFeedback_returnsTheSingleReply() {
         Long entityId = newEntityId();
         Feedback feedback = createFeedback(1L, EntityType.PROVIDER_PROFILE, entityId, 5, "Root feedback.");
 
-        FeedbackComment replyA = createComment(feedback.getId(), null, 2L, "Reply A (top-level).");
-        FeedbackComment replyB = createComment(feedback.getId(), null, 3L, "Reply B (top-level).");
-        FeedbackComment replyA1 = createComment(feedback.getId(), replyA.getId(), 4L, "Reply A.1 (nested under A).");
-        createComment(feedback.getId(), replyA1.getId(), 5L, "Reply A.1.1 (nested under A.1).");
-        createComment(feedback.getId(), replyB.getId(), 6L, "Reply B.1 (nested under B).");
+        createComment(feedback.getId(), 2L, "The one reply.");
 
-        List<FeedbackCommentView> tree = feedbackRepository.findCommentsByFeedback(feedback.getId());
+        Optional<FeedbackCommentView> found = feedbackRepository.findCommentByFeedback(feedback.getId());
 
-        assertThat(tree).hasSize(5);
-        assertThat(tree.stream().map(FeedbackCommentView::commentText)).containsExactly(
-                "Reply A (top-level).",
-                "Reply A.1 (nested under A).",
-                "Reply A.1.1 (nested under A.1).",
-                "Reply B (top-level).",
-                "Reply B.1 (nested under B).");
+        assertThat(found).isPresent();
+        assertThat(found.get().commentText()).isEqualTo("The one reply.");
+        assertThat(found.get().authorId()).isEqualTo(2L);
     }
 
     @Test
-    void reaction_vote_changeType_thenUnvote_roundTrips() {
+    void findCommentByFeedback_noReply_returnsEmpty() {
         Long entityId = newEntityId();
         Feedback feedback = createFeedback(1L, EntityType.PROVIDER_PROFILE, entityId, 5, "Root feedback.");
-        FeedbackComment comment = createComment(feedback.getId(), null, 2L, "A comment.");
 
-        feedbackRepository.upsertReaction(comment.getId(), 3L, "UP");
-        assertThat(feedbackRepository.findReactionType(comment.getId(), 3L)).contains("UP");
-
-        feedbackRepository.upsertReaction(comment.getId(), 3L, "DOWN");
-        assertThat(feedbackRepository.findReactionType(comment.getId(), 3L)).contains("DOWN");
-        List<FeedbackCommentReactionView> afterChange = feedbackRepository.findReactionsByComments(List.of(comment.getId()));
-        assertThat(afterChange).hasSize(1);
-        assertThat(afterChange.get(0).reactionType()).isEqualTo("DOWN");
-
-        feedbackRepository.deleteReaction(comment.getId(), 3L);
-        assertThat(feedbackRepository.findReactionType(comment.getId(), 3L)).isEmpty();
-        assertThat(feedbackRepository.findReactionsByComments(List.of(comment.getId()))).isEmpty();
+        assertThat(feedbackRepository.findCommentByFeedback(feedback.getId())).isEmpty();
     }
 
     @Test
-    void deleteCommentHard_leafComment_removesRowAndItsContent() {
+    void deleteCommentHard_removesRowAndItsContent() {
         Long entityId = newEntityId();
         Feedback feedback = createFeedback(1L, EntityType.PROVIDER_PROFILE, entityId, 5, "Root feedback.");
-        FeedbackComment leaf = createComment(feedback.getId(), null, 2L, "A leaf comment.");
-        Long contentId = leaf.getContentId();
+        FeedbackComment reply = createComment(feedback.getId(), 2L, "A reply.");
+        Long contentId = reply.getContentId();
 
-        assertThat(feedbackRepository.countChildren(leaf.getId())).isZero();
-        feedbackRepository.deleteCommentHard(leaf.getId(), contentId);
+        feedbackRepository.deleteCommentHard(reply.getId(), contentId);
 
-        assertThat(feedbackRepository.findCommentViewById(leaf.getId())).isEmpty();
+        assertThat(feedbackRepository.findCommentViewById(reply.getId())).isEmpty();
         assertThat(jdbcClient.sql("SELECT COUNT(*) FROM feedback_content WHERE id = :id")
                 .paramSource(new MapSqlParameterSource().addValue("id", contentId))
                 .query(Integer.class)
@@ -233,31 +210,43 @@ class FeedbackRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void tombstoneComment_commentWithReplies_setsTextNullButKeepsRowAndChildren() {
+    void flagContent_setsHiddenStatusAndRecordsReason() {
         Long entityId = newEntityId();
         Feedback feedback = createFeedback(1L, EntityType.PROVIDER_PROFILE, entityId, 5, "Root feedback.");
-        FeedbackComment parent = createComment(feedback.getId(), null, 2L, "Parent comment.");
-        FeedbackComment child = createComment(feedback.getId(), parent.getId(), 3L, "Child reply.");
 
-        assertThat(feedbackRepository.countChildren(parent.getId())).isEqualTo(1);
-        feedbackRepository.tombstoneComment(parent.getContentId());
+        feedbackRepository.flagContent(feedback.getContentId(), "Spam content.");
 
-        Optional<FeedbackCommentView> parentView = feedbackRepository.findCommentViewById(parent.getId());
-        assertThat(parentView).isPresent();
-        assertThat(parentView.get().commentText()).isNull();
-        assertThat(feedbackRepository.findCommentViewById(child.getId())).isPresent();
+        Optional<FeedbackView> found = feedbackRepository.findViewById(feedback.getId());
+        assertThat(found).isPresent();
+        assertThat(found.get().moderationStatus()).isEqualTo(FeedbackModerationStatus.HIDDEN);
+        assertThat(found.get().moderationReason()).isEqualTo("Spam content.");
     }
 
     @Test
     void findCommentViewById_pastEditWindow_contentStillReadable_callerEnforcesWindow() {
         Long entityId = newEntityId();
         Feedback feedback = createFeedback(1L, EntityType.PROVIDER_PROFILE, entityId, 5, "Root feedback.");
-        FeedbackComment comment = createComment(feedback.getId(), null, 2L, "A comment.");
+        FeedbackComment comment = createComment(feedback.getId(), 2L, "A comment.");
         backdateContentCreatedAt(comment.getContentId(), Instant.now().minus(49, ChronoUnit.HOURS));
 
         Optional<FeedbackCommentView> view = feedbackRepository.findCommentViewById(comment.getId());
 
         assertThat(view).isPresent();
         assertThat(view.get().createdAt()).isBefore(Instant.now().minus(48, ChronoUnit.HOURS));
+    }
+
+    @Test
+    void deleteFeedbackHard_cascadesThroughItsReply() {
+        Long entityId = newEntityId();
+        Feedback feedback = createFeedback(1L, EntityType.PROVIDER_PROFILE, entityId, 5, "Root feedback.");
+        createComment(feedback.getId(), 2L, "A reply.");
+
+        feedbackRepository.deleteFeedbackHard(feedback.getId(), feedback.getContentId());
+
+        Integer feedbackCommentCount = jdbcClient.sql("SELECT COUNT(*) FROM feedback_comment WHERE feedback_id = :feedbackId")
+                .paramSource(new MapSqlParameterSource().addValue("feedbackId", feedback.getId()))
+                .query(Integer.class)
+                .single();
+        assertThat(feedbackCommentCount).isZero();
     }
 }

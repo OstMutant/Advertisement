@@ -19,13 +19,14 @@ import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 @FieldNameConstants
 public record FeedbackSnapshotDto(
         FeedbackModerationStatus moderationStatus,
+        String moderationReason,
         int schemaVersion
 ) implements AuditableSnapshot {
 
     public static final int SCHEMA_VERSION = 1;
 
-    public FeedbackSnapshotDto(FeedbackModerationStatus moderationStatus) {
-        this(moderationStatus, SCHEMA_VERSION);
+    public FeedbackSnapshotDto(FeedbackModerationStatus moderationStatus, String moderationReason) {
+        this(moderationStatus, moderationReason, SCHEMA_VERSION);
     }
 
     @Override
@@ -39,12 +40,15 @@ public record FeedbackSnapshotDto(
         FeedbackSnapshotDto prev = previous instanceof FeedbackSnapshotDto p ? p : null;
         List<ChangeEntry> changes = new ArrayList<>();
         diffField(changes, Fields.moderationStatus, typeToString(field(prev, FeedbackSnapshotDto::moderationStatus)), typeToString(moderationStatus()));
+        diffField(changes, Fields.moderationReason, field(prev, FeedbackSnapshotDto::moderationReason), moderationReason());
         return changes;
     }
 
     @Override
     public List<ChangeEntry.FieldChange> allFields() {
-        return List.of(new FieldChange(Fields.moderationStatus, null, typeToString(moderationStatus())));
+        return List.of(
+                new FieldChange(Fields.moderationStatus, null, typeToString(moderationStatus())),
+                new FieldChange(Fields.moderationReason, null, moderationReason()));
     }
 
     private static String typeToString(FeedbackModerationStatus status) {

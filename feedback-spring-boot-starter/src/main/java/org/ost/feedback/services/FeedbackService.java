@@ -8,14 +8,12 @@ import org.ost.feedback.entity.Feedback;
 import org.ost.feedback.entity.FeedbackComment;
 import org.ost.feedback.entity.FeedbackContent;
 import org.ost.feedback.repository.FeedbackRepository;
-import org.ost.feedback.repository.FeedbackRepository.FeedbackCommentReactionView;
 import org.ost.feedback.repository.FeedbackRepository.FeedbackCommentView;
 import org.ost.feedback.repository.FeedbackRepository.FeedbackView;
 import org.ost.platform.core.FailureRateLimiter;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
 import org.ost.platform.feedback.dto.FeedbackCommentDto;
-import org.ost.platform.feedback.dto.FeedbackCommentReactionSaveDto;
 import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
@@ -29,14 +27,10 @@ import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
-/** CRUD for feedback entries and their comment tree, sanitization/edit-window enforcement, and aggregate reads/writes. */
+/** CRUD for feedback entries and their single reply, sanitization/edit-window enforcement, and aggregate reads/writes. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -75,6 +69,7 @@ public class FeedbackService {
                     .id(existing.contentId())
                     .contentText(sanitizedText)
                     .moderationStatus(existing.moderationStatus())
+                    .moderationReason(existing.moderationReason())
                     .createdAt(existing.createdAt())
                     .version(dto.version())
                     .build());
@@ -117,18 +112,14 @@ public class FeedbackService {
         return repository.findViewById(feedbackId).map(FeedbackService::toDto);
     }
 
-    // ── Comments ─────────────────────────────────────────────────────────────
+    // ── Comment (single reply) ──────────────────────────────────────────────
 
-    public List<FeedbackCommentDto> findCommentsByFeedback(@NonNull Long feedbackId, Long viewerId) {
-        List<FeedbackCommentView> views = repository.findCommentsByFeedback(feedbackId);
-        List<Long> commentIds = views.stream().map(FeedbackCommentView::id).toList();
-        Map<Long, Map<String, List<Long>>> reactionsByComment = groupReactions(repository.findReactionsByComments(commentIds));
-        return views.stream().map(view -> toCommentDto(view, reactionsByComment, viewerId)).toList();
+    public Optional<FeedbackCommentDto> findCommentByFeedback(@NonNull Long feedbackId) {
+        return repository.findCommentByFeedback(feedbackId).map(FeedbackService::toCommentDto);
     }
 
     public Optional<FeedbackCommentDto> findCommentById(@NonNull Long commentId) {
-        return repository.findCommentViewById(commentId)
-                .map(view -> toCommentDto(view, groupReactions(repository.findReactionsByComments(List.of(commentId))), null));
+        return repository.findCommentViewById(commentId).map(FeedbackService::toCommentDto);
     }
 
     @Transactional
@@ -143,6 +134,7 @@ public class FeedbackService {
                     .id(existing.contentId())
                     .contentText(sanitizedText)
                     .moderationStatus(existing.moderationStatus())
+                    .moderationReason(existing.moderationReason())
                     .createdAt(existing.createdAt())
                     .version(dto.version())
                     .build());
@@ -151,12 +143,8 @@ public class FeedbackService {
                     .contentId(existing.contentId())
                     .authorId(existing.authorId())
                     .feedbackId(existing.feedbackId())
-                    .parentCommentId(existing.parentCommentId())
                     .build();
         } else {
-            if (dto.parentCommentId() != null && computeCommentDepth(dto.parentCommentId()) >= FeedbackCommentSaveDto.MAX_DEPTH) {
-                throw new IllegalStateException("Maximum comment nesting depth reached");
-            }
             commentRateLimiter.checkAllowed(dto.authorId().toString(), "Too many comments submitted today, try again tomorrow");
             FeedbackContent content = repository.saveContent(FeedbackContent.builder()
                     .contentText(sanitizedText)
@@ -166,24 +154,12 @@ public class FeedbackService {
                     .contentId(content.getId())
                     .authorId(dto.authorId())
                     .feedbackId(dto.feedbackId())
-                    .parentCommentId(dto.parentCommentId())
                     .build());
             commentRateLimiter.recordFailure(dto.authorId().toString());
         }
         FeedbackCommentView savedView = repository.findCommentViewById(saved.getId())
                 .orElseThrow(() -> new IllegalStateException("FeedbackComment " + saved.getId() + " not found after save"));
-        Map<Long, Map<String, List<Long>>> reactions = groupReactions(repository.findReactionsByComments(List.of(saved.getId())));
-        return toCommentDto(savedView, reactions, dto.authorId());
-    }
-
-    @Transactional
-    public void saveReaction(@NonNull @Valid FeedbackCommentReactionSaveDto dto) {
-        Optional<String> existing = repository.findReactionType(dto.feedbackCommentId(), dto.userId());
-        if (existing.isPresent() && existing.get().equals(dto.reactionType().name())) {
-            repository.deleteReaction(dto.feedbackCommentId(), dto.userId());
-        } else {
-            repository.upsertReaction(dto.feedbackCommentId(), dto.userId(), dto.reactionType().name());
-        }
+        return toCommentDto(savedView);
     }
 
     @Transactional
@@ -191,18 +167,13 @@ public class FeedbackService {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
                 .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
         checkWithinEditWindow(existing.createdAt());
-        if (repository.countChildren(commentId) == 0) {
-            repository.deleteCommentHard(commentId, existing.contentId());
-            pruneDanglingTombstones(existing.parentCommentId());
-        } else {
-            repository.tombstoneComment(existing.contentId());
-        }
+        repository.deleteCommentHard(commentId, existing.contentId());
     }
 
     // ── Moderation ───────────────────────────────────────────────────────────
 
     @Transactional
-    public void flagFeedback(@NonNull Long feedbackId, @NonNull Long actorId) {
+    public void flagFeedback(@NonNull Long feedbackId, @NonNull Long actorId, @NonNull String reason) {
         FeedbackDto feedback = findFeedbackById(feedbackId)
                 .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
         if (feedback.authorId().equals(actorId)) {
@@ -210,11 +181,11 @@ public class FeedbackService {
         }
         FeedbackView existing = repository.findViewById(feedbackId)
                 .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
-        repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.HIDDEN);
+        repository.flagContent(existing.contentId(), reason);
     }
 
     @Transactional
-    public void flagComment(@NonNull Long commentId, @NonNull Long actorId) {
+    public void flagComment(@NonNull Long commentId, @NonNull Long actorId, @NonNull String reason) {
         FeedbackCommentDto comment = findCommentById(commentId)
                 .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
         if (comment.authorId().equals(actorId)) {
@@ -222,7 +193,7 @@ public class FeedbackService {
         }
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
                 .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
-        repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.HIDDEN);
+        repository.flagContent(existing.contentId(), reason);
     }
 
     @Transactional
@@ -247,17 +218,12 @@ public class FeedbackService {
         repository.upsertAggregate(existing.entityType(), existing.entityId());
     }
 
-    /** Always hard-deletes, unlike {@link #deleteComment}, since an admin reject is not windowed and must not be blocked by replies. */
+    /** Admin reject bypasses the edit window {@link #deleteComment} enforces. */
     @Transactional
     public void rejectComment(@NonNull Long commentId) {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
                 .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
-        List<FeedbackCommentView> tree = repository.findCommentsByFeedback(existing.feedbackId());
-        Map<Long, List<FeedbackCommentView>> byParent = tree.stream()
-                .filter(c -> c.parentCommentId() != null)
-                .collect(Collectors.groupingBy(FeedbackCommentView::parentCommentId));
-        deleteDescendantsThenSelf(commentId, existing.contentId(), byParent);
-        pruneDanglingTombstones(existing.parentCommentId());
+        repository.deleteCommentHard(commentId, existing.contentId());
     }
 
     @Transactional(readOnly = true)
@@ -267,32 +233,7 @@ public class FeedbackService {
 
     @Transactional(readOnly = true)
     public List<FeedbackCommentDto> findHiddenComments(@NonNull Pageable pageable) {
-        List<FeedbackCommentView> views = repository.findHiddenComments(pageable);
-        List<Long> commentIds = views.stream().map(FeedbackCommentView::id).toList();
-        Map<Long, Map<String, List<Long>>> reactionsByComment = groupReactions(repository.findReactionsByComments(commentIds));
-        return views.stream().map(view -> toCommentDto(view, reactionsByComment, null)).toList();
-    }
-
-    private void deleteDescendantsThenSelf(Long commentId, Long contentId, Map<Long, List<FeedbackCommentView>> byParent) {
-        for (FeedbackCommentView child : byParent.getOrDefault(commentId, List.of())) {
-            deleteDescendantsThenSelf(child.id(), child.contentId(), byParent);
-        }
-        repository.deleteCommentHard(commentId, contentId);
-    }
-
-    /** Walks up the parent chain, hard-deleting any ancestor that is itself tombstoned and now has
-     *  zero children left -- otherwise a tombstone whose last reply was removed lingers forever
-     *  with nothing left for it to thread together. */
-    private void pruneDanglingTombstones(Long parentCommentId) {
-        Long current = parentCommentId;
-        while (current != null) {
-            FeedbackCommentView parent = repository.findCommentViewById(current).orElse(null);
-            if (parent == null || parent.commentText() != null || repository.countChildren(current) > 0) {
-                return;
-            }
-            repository.deleteCommentHard(current, parent.contentId());
-            current = parent.parentCommentId();
-        }
+        return repository.findHiddenComments(pageable).stream().map(FeedbackService::toCommentDto).toList();
     }
 
     // ── Shared helpers ───────────────────────────────────────────────────────
@@ -303,46 +244,15 @@ public class FeedbackService {
         }
     }
 
-    private int computeCommentDepth(Long commentId) {
-        int depth = 1;
-        FeedbackCommentView current = repository.findCommentViewById(commentId)
-                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
-        Long parentId = current.parentCommentId();
-        while (parentId != null) {
-            depth++;
-            final Long currentParentId = parentId;
-            current = repository.findCommentViewById(currentParentId)
-                    .orElseThrow(() -> new IllegalStateException("FeedbackComment " + currentParentId + " not found"));
-            parentId = current.parentCommentId();
-        }
-        return depth;
-    }
-
-    private static Map<Long, Map<String, List<Long>>> groupReactions(List<FeedbackCommentReactionView> reactions) {
-        Map<Long, Map<String, List<Long>>> result = new HashMap<>();
-        for (FeedbackCommentReactionView reaction : reactions) {
-            result.computeIfAbsent(reaction.feedbackCommentId(), _ -> new HashMap<>())
-                    .computeIfAbsent(reaction.reactionType(), _ -> new ArrayList<>())
-                    .add(reaction.userId());
-        }
-        return result;
-    }
-
     private static FeedbackDto toDto(FeedbackView view) {
         return new FeedbackDto(view.id(), view.entityType(), view.entityId(), view.authorId(),
-                view.rating(), view.feedbackText(), view.moderationStatus(),
+                view.rating(), view.feedbackText(), view.moderationStatus(), view.moderationReason(),
                 view.createdAt(), view.updatedAt(), view.version());
     }
 
-    private static FeedbackCommentDto toCommentDto(FeedbackCommentView view, Map<Long, Map<String, List<Long>>> reactionsByComment, Long viewerId) {
-        Map<String, List<Long>> reactorIdsByType = reactionsByComment.getOrDefault(view.id(), Map.of());
-        String myReaction = viewerId == null ? null : reactorIdsByType.entrySet().stream()
-                .filter(entry -> entry.getValue().contains(viewerId))
-                .map(Map.Entry::getKey)
-                .findFirst()
-                .orElse(null);
-        return new FeedbackCommentDto(view.id(), view.feedbackId(), view.parentCommentId(), view.authorId(),
-                view.commentText(), view.moderationStatus(), view.createdAt(), view.updatedAt(), view.version(),
-                reactorIdsByType, myReaction);
+    private static FeedbackCommentDto toCommentDto(FeedbackCommentView view) {
+        return new FeedbackCommentDto(view.id(), view.feedbackId(), view.authorId(),
+                view.commentText(), view.moderationStatus(), view.moderationReason(),
+                view.createdAt(), view.updatedAt(), view.version());
     }
 }

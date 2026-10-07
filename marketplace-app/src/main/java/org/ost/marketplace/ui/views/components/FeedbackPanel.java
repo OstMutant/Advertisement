@@ -15,17 +15,20 @@ import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.Initialization;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
-import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
+import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
+import org.ost.marketplace.ui.views.components.dialogs.ReportReasonDialog;
 import org.ost.marketplace.ui.views.components.fields.StarRatingField;
 import org.ost.marketplace.ui.views.components.fields.UiTextArea;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
 import org.ost.orchestrator.services.FeedbackAccessService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
+import org.ost.platform.user.dto.UserSettingsDto;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Duration;
@@ -33,16 +36,15 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_AGGREGATE_COUNT;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_BUTTON_REPORT;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_CENSORED_TEXT;
-import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_COMMENT_HIDE_REPLIES;
-import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_COMMENT_SHOW_REPLIES;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_CONFIRM_REPORT_BUTTON;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_CONFIRM_REPORT_CANCEL_BUTTON;
-import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_CONFIRM_REPORT_TEXT;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_CONFIRM_REPORT_TITLE;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_EMPTY;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_BUTTON_ADD;
@@ -52,33 +54,35 @@ import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_BUTTON_EDI
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_BUTTON_SUBMIT;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_FIELD_RATING;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_FIELD_TEXT;
-import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_AGGREGATE_COUNT;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_NOTIFICATION_REPORTED;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_NOTIFICATION_SAVED;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_REPORT_REASON_LABEL;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_SECTION_LABEL;
 
-/** Rating+text feedback list and submission form for one owning entity -- hidden entirely when {@code feedback-spring-boot-starter} is absent. */
+/** Rating+text feedback list and submission form for one provider profile -- hidden entirely when {@code feedback-spring-boot-starter} is absent. */
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
 public class FeedbackPanel extends Div
         implements Configurable<FeedbackPanel, FeedbackPanel.Parameters>, Initialization<FeedbackPanel>, I18nParams {
 
-    private static final int      PAGE_SIZE   = 20;
     private static final Duration EDIT_WINDOW = Duration.ofHours(48);
 
     @Value
     @lombok.Builder
     public static class Parameters {
         @NonNull EntityRef entityRef;
+        @NonNull Long       ownerUserId;
     }
 
-    private final FeedbackAccessService feedbackAccessService;
-    private final AccessEvaluator       access;
-    private final NotificationService   notificationService;
-    private final UiComponentFactory<CommentTreePanel, CommentTreePanel.Parameters> commentTreePanelFactory;
+    private final FeedbackAccessService     feedbackAccessService;
+    private final AccessEvaluator           access;
+    private final NotificationService       notificationService;
+    private final PaginationBar             paginationBar;
+    private final SettingsPaginationBinding settingsPaginationBinding;
+    private final UiComponentFactory<FeedbackReplyPanel, FeedbackReplyPanel.Parameters> feedbackReplyPanelFactory;
     @Getter
-    private final I18nService           i18nService;
+    private final I18nService               i18nService;
 
     private Div headerContainer;
     private Div listContainer;
@@ -86,7 +90,8 @@ public class FeedbackPanel extends Div
     private boolean hasOwnEntry;
     private Div formContainer;
     private boolean addFormOpen = false;
-    private final Map<Long, CommentTreePanel> commentTreePanelsByFeedbackId = new HashMap<>();
+    private Long ownerUserId;
+    private final Map<Long, FeedbackReplyPanel> replyPanelsByFeedbackId = new HashMap<>();
 
     @Override
     @PostConstruct
@@ -103,15 +108,22 @@ public class FeedbackPanel extends Div
         if (!available) return this;
 
         EntityRef entityRef = p.getEntityRef();
+        ownerUserId = p.getOwnerUserId();
+        paginationBar.resetToFirstPage();
 
         headerContainer = new Div();
         headerContainer.addClassName("feedback-header");
         add(headerContainer);
+        buildFormContainer(entityRef);
+        add(formContainer);
         listContainer = new Div();
         listContainer.addClassName("feedback-list");
         add(listContainer);
-        buildFormContainer(entityRef);
-        add(formContainer);
+        add(paginationBar);
+
+        paginationBar.setPageChangeListener(_ -> refreshList(entityRef));
+        settingsPaginationBinding.register(paginationBar, UserSettingsDto::getFeedbackPageSize, () -> refreshList(entityRef));
+
         refresh(entityRef);
         return this;
     }
@@ -129,7 +141,7 @@ public class FeedbackPanel extends Div
     private Div buildAddTrigger(EntityRef entityRef) {
         Div trigger = new Div();
         trigger.addClassName("feedback-add-trigger");
-        UiIconButton triggerButton = new UiIconButton(getValue(FEEDBACK_FORM_BUTTON_ADD), VaadinIcon.PLUS.create());
+        UiPrimaryButton triggerButton = new UiPrimaryButton(getValue(FEEDBACK_FORM_BUTTON_ADD), VaadinIcon.PLUS.create());
         triggerButton.addClassName("feedback-add-button");
         triggerButton.addClickListener(_ -> {
             addFormOpen = true;
@@ -164,6 +176,7 @@ public class FeedbackPanel extends Div
         Span label = new Span(getValue(FEEDBACK_SECTION_LABEL));
         label.addClassName("feedback-header-label");
         headerContainer.add(label);
+        paginationBar.setTotalCount(aggregate.reviewCount());
         if (aggregate.reviewCount() > 0) {
             int rounded = (int) Math.round(aggregate.avgRating());
             Span stars = new Span("★".repeat(rounded) + "☆".repeat(5 - rounded));
@@ -178,7 +191,8 @@ public class FeedbackPanel extends Div
 
     private void refreshList(EntityRef entityRef) {
         listContainer.removeAll();
-        List<FeedbackDto> entries = feedbackAccessService.findForEntity(entityRef.entityType(), entityRef.entityId(), 0, PAGE_SIZE);
+        List<FeedbackDto> entries = feedbackAccessService.findForEntity(entityRef.entityType(), entityRef.entityId(),
+                paginationBar.getCurrentPage(), paginationBar.getPageSize());
         hasOwnEntry = access.isLoggedIn()
                 && entries.stream().anyMatch(entry -> entry.authorId().equals(access.getCurrentUserId()));
         if (entries.isEmpty()) {
@@ -190,18 +204,18 @@ public class FeedbackPanel extends Div
         authorNamesById = feedbackAccessService.resolveAuthorNames(
                 entries.stream().map(FeedbackDto::authorId).collect(Collectors.toSet()));
         Set<Long> currentFeedbackIds = entries.stream().map(FeedbackDto::id).collect(Collectors.toSet());
-        commentTreePanelsByFeedbackId.keySet().removeIf(id -> !currentFeedbackIds.contains(id));
+        replyPanelsByFeedbackId.keySet().removeIf(id -> !currentFeedbackIds.contains(id));
 
         entries.forEach(entry -> {
-            CommentTreePanel commentTreePanel = commentTreePanelsByFeedbackId.computeIfAbsent(entry.id(),
-                    id -> commentTreePanelFactory.build(new CommentTreePanel.Parameters(id)));
-            commentTreePanel.configure(new CommentTreePanel.Parameters(entry.id()));
-            listContainer.add(buildEntryRow(entityRef, entry, commentTreePanel));
-            listContainer.add(commentTreePanel);
+            FeedbackReplyPanel replyPanel = replyPanelsByFeedbackId.computeIfAbsent(entry.id(),
+                    id -> feedbackReplyPanelFactory.build(new FeedbackReplyPanel.Parameters(id, ownerUserId)));
+            replyPanel.configure(new FeedbackReplyPanel.Parameters(entry.id(), ownerUserId));
+            listContainer.add(buildEntryRow(entityRef, entry));
+            listContainer.add(replyPanel);
         });
     }
 
-    private Div buildEntryRow(EntityRef entityRef, FeedbackDto entry, CommentTreePanel commentTreePanel) {
+    private Div buildEntryRow(EntityRef entityRef, FeedbackDto entry) {
         Div row = new Div();
         row.addClassName("feedback-entry");
 
@@ -260,8 +274,15 @@ public class FeedbackPanel extends Div
             UiIconButton discardButton = new UiIconButton(getValue(FEEDBACK_FORM_BUTTON_DISCARD), VaadinIcon.CLOSE_SMALL.create());
             discardButton.addClassName("feedback-entry-discard-icon");
             discardButton.addClickListener(_ -> {
-                editRatingField.setValue(entry.rating());
-                editTextField.setValue(entry.feedbackText());
+                boolean unchanged = Objects.equals(editRatingField.getValue(), entry.rating())
+                        && Objects.equals(editTextField.getValue(), entry.feedbackText());
+                if (unchanged) {
+                    viewContainer.setVisible(true);
+                    editContainer.setVisible(false);
+                } else {
+                    editRatingField.setValue(entry.rating());
+                    editTextField.setValue(entry.feedbackText());
+                }
             });
 
             Div editFields = new Div();
@@ -291,22 +312,19 @@ public class FeedbackPanel extends Div
             headerActions.add(editButton);
         }
 
-        refreshCommentToggle(headerActions, commentTreePanel);
-        commentTreePanel.setOnChanged(() -> refreshCommentToggle(headerActions, commentTreePanel));
-
         boolean canSeeReport = access.isLoggedIn() && !entry.authorId().equals(access.getCurrentUserId());
         boolean canReport = canSeeReport && entry.moderationStatus() == FeedbackModerationStatus.NEW;
         if (canSeeReport) {
             UiIconButton reportButton = new UiIconButton(getValue(FEEDBACK_BUTTON_REPORT), VaadinIcon.FLAG.create());
             reportButton.addClassName("feedback-report-icon");
             reportButton.setEnabled(canReport);
-            reportButton.addClickListener(_ -> new ConfirmActionDialog(
+            reportButton.addClickListener(_ -> new ReportReasonDialog(
                     getValue(FEEDBACK_CONFIRM_REPORT_TITLE),
-                    getValue(FEEDBACK_CONFIRM_REPORT_TEXT),
+                    getValue(FEEDBACK_REPORT_REASON_LABEL),
                     getValue(FEEDBACK_CONFIRM_REPORT_BUTTON),
                     getValue(FEEDBACK_CONFIRM_REPORT_CANCEL_BUTTON),
-                    () -> {
-                        feedbackAccessService.flagFeedback(entry.id(), access.getCurrentUserId());
+                    reason -> {
+                        feedbackAccessService.flagFeedback(entry.id(), access.getCurrentUserId(), reason);
                         notificationService.success(FEEDBACK_NOTIFICATION_REPORTED);
                         refresh(entityRef);
                     }
@@ -319,29 +337,6 @@ public class FeedbackPanel extends Div
         row.add(viewContainer);
         row.add(editContainer);
         return row;
-    }
-
-    private void refreshCommentToggle(Div headerActions, CommentTreePanel commentTreePanel) {
-        headerActions.getChildren()
-                .filter(c -> c.hasClassName("comment-toggle-icon"))
-                .toList()
-                .forEach(headerActions::remove);
-        if (commentTreePanel.getTopLevelCommentCount() > 0) {
-            boolean expanded = commentTreePanel.isTopLevelCommentsExpanded();
-            UiIconButton toggleButton = new UiIconButton(
-                    getValue(expanded ? FEEDBACK_COMMENT_HIDE_REPLIES : FEEDBACK_COMMENT_SHOW_REPLIES, commentTreePanel.getTopLevelCommentCount()),
-                    (expanded ? VaadinIcon.CHEVRON_UP : VaadinIcon.CHEVRON_DOWN).create());
-            toggleButton.addClassName("comment-toggle-icon");
-            toggleButton.addClickListener(_ -> {
-                commentTreePanel.toggleTopLevelComments();
-                boolean nowExpanded = commentTreePanel.isTopLevelCommentsExpanded();
-                String label = getValue(nowExpanded ? FEEDBACK_COMMENT_HIDE_REPLIES : FEEDBACK_COMMENT_SHOW_REPLIES, commentTreePanel.getTopLevelCommentCount());
-                toggleButton.getElement().setAttribute("title", label);
-                toggleButton.getElement().setAttribute("aria-label", label);
-                toggleButton.setIcon((nowExpanded ? VaadinIcon.CHEVRON_UP : VaadinIcon.CHEVRON_DOWN).create());
-            });
-            headerActions.add(toggleButton);
-        }
     }
 
     private Div buildForm(EntityRef entityRef) {

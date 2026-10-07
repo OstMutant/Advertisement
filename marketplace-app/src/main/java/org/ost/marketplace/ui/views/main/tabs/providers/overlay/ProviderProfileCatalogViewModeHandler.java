@@ -110,6 +110,7 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
 
         FeedbackPanel feedbackPanel = feedbackPanelFactory.build(FeedbackPanel.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
+                .ownerUserId(profile.getActorId())
                 .build());
         feedbackPanel.addClassName("overlay__view-card");
 

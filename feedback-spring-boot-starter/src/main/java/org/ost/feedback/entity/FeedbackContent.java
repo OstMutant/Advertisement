@@ -12,7 +12,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 
-/** Shared text+moderation+edit-tracking atom reused by both a feedback entry and a comment. */
+/** Shared text+moderation+edit-tracking atom reused by both a feedback entry and its reply. */
 @Value
 @Builder
 @FieldNameConstants
@@ -24,6 +24,7 @@ public class FeedbackContent {
 
     String contentText;
     FeedbackModerationStatus moderationStatus;
+    String moderationReason;
 
     @CreatedDate
     Instant createdAt;

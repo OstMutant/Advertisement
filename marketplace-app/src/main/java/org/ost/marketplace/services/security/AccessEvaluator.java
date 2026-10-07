@@ -46,6 +46,13 @@ public class AccessEvaluator {
         return currentUser().map(u -> authorizationService.canOperate(u, ownerUserId)).orElse(false);
     }
 
+    /** Strict ownership only -- no admin/moderator override, unlike {@link #canOperate}. Used
+     *  where the rule itself excludes privileged bypass (e.g. only the reviewed provider
+     *  profile's owner may reply to its own feedback). */
+    public boolean isStrictOwner(Long ownerUserId) {
+        return currentUser().map(u -> authorizationService.isOwner(u, ownerUserId)).orElse(false);
+    }
+
     /** Self, admin, or moderator may open the account (view its Name/Settings/Provider Profile tabs). */
     public boolean canViewUserAccount(Long targetUserId) {
         return canOperate(targetUserId);
