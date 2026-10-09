@@ -15,8 +15,9 @@ const { openEntityActivity, closeEntityActivity, restoreFromEntityActivity } = r
 
 /**
  * Opens the Settings overlay, sets all three page size fields, and saves. Field order in the DOM
- * is ads(0), providerProfiles(1), users(2) -- the ungated fields (ads, providerProfiles) come
- * before the privileged-only ones (users, timeline).
+ * is ads(0), providerProfiles(1), feedback(2), users(3), timeline(4), moderation(5) -- the ungated
+ * fields (ads, providerProfiles, feedback) come before the privileged-only ones (users, timeline,
+ * moderation).
  * @param {import('@playwright/test').Page} page
  * @param {number} adsSize advertisements page size.
  * @param {number} providerProfilesSize provider profiles page size.
@@ -28,7 +29,7 @@ async function changePageSizes(page, adsSize, providerProfilesSize, usersSize) {
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
   const adsInput      = page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input');
   const providersInput = page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input');
-  const usersInput    = page.locator('.settings-overlay-content vaadin-integer-field').nth(2).locator('input');
+  const usersInput    = page.locator('.settings-overlay-content vaadin-integer-field').nth(3).locator('input');
   await adsInput.click({ clickCount: 3 });
   await adsInput.fill(String(adsSize));
   await providersInput.click({ clickCount: 3 });
@@ -87,7 +88,7 @@ async function getPageSizes(page) {
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
   const adsPageSize              = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input').inputValue(), 10);
   const providerProfilesPageSize = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input').inputValue(), 10);
-  const usersPageSize            = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(2).locator('input').inputValue(), 10);
+  const usersPageSize            = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(3).locator('input').inputValue(), 10);
   await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
   return { adsPageSize, providerProfilesPageSize, usersPageSize };

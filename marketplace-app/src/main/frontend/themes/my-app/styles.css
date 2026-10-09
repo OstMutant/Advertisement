@@ -144,6 +144,8 @@
 html, body {
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
     background-color: var(--app-surface-page);
+    min-height: 100%;
+    overscroll-behavior-y: none;
 }
 
 /* Global utility classes */

@@ -19,17 +19,21 @@ import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.platform.feedback.dto.ModerationQueueItemDto;
 import org.ost.platform.feedback.model.ModerationQueueItemType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
-import org.springframework.data.domain.PageRequest;
+import org.ost.marketplace.ui.views.components.PaginationBar;
+import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
+import org.ost.platform.user.dto.UserSettingsDto;
 
 import java.util.List;
 import java.util.function.Consumer;
 
 import static org.ost.marketplace.services.i18n.I18nKey.MODERATION_BUTTON_APPROVE;
+import static org.ost.marketplace.services.i18n.I18nKey.MODERATION_BUTTON_CONFIRM_VIOLATION;
 import static org.ost.marketplace.services.i18n.I18nKey.MODERATION_EMPTY;
 import static org.ost.marketplace.services.i18n.I18nKey.MODERATION_NOTIFICATION_APPROVED;
+import static org.ost.marketplace.services.i18n.I18nKey.MODERATION_NOTIFICATION_CONFIRMED;
 import static org.ost.marketplace.services.i18n.I18nKey.MODERATION_NOTIFICATION_ERROR;
 
-/** The Moderation tab -- oldest-first merged queue of flagged feedback entries and replies, visible only to MODERATOR/ADMIN. Rendered as cards (not a Grid) since field content is too long for grid cells. */
+/** The Moderation tab -- newest-first merged queue of flagged feedback entries and replies, visible only to MODERATOR/ADMIN. Rendered as cards (not a Grid) since field content is too long for grid cells. */
 @Slf4j
 @SpringComponent
 @UIScope
@@ -42,6 +46,8 @@ public class ModerationView extends VerticalLayout {
     private final transient NotificationService                notificationService;
     private final transient ProviderProfileReadService         providerProfileReadService;
     private final transient ProviderProfileDisplayEnrichmentService enrichmentService;
+    private final transient PaginationBar                      paginationBar;
+    private final transient SettingsPaginationBinding           settingsPaginationBinding;
 
     private Div listContainer;
     private Span emptyStateLabel;
@@ -59,11 +65,14 @@ public class ModerationView extends VerticalLayout {
         emptyStateLabel.addClassName("moderation-empty-label");
         emptyStateLabel.setVisible(false);
 
-        VerticalLayout contentWrapper = new VerticalLayout(listContainer, emptyStateLabel);
+        VerticalLayout contentWrapper = new VerticalLayout(listContainer, emptyStateLabel, paginationBar);
         contentWrapper.setPadding(false);
         contentWrapper.setSpacing(false);
         contentWrapper.setWidthFull();
         add(contentWrapper);
+
+        paginationBar.setPageChangeListener(_ -> refresh());
+        settingsPaginationBinding.register(paginationBar, UserSettingsDto::getModerationPageSize, this::refresh);
 
         refresh();
     }
@@ -80,15 +89,18 @@ public class ModerationView extends VerticalLayout {
 
     private void refresh() {
         try {
-            List<ModerationQueueItemDto> items = feedbackAccessService.findModerationQueue(PageRequest.of(0, 50));
+            FeedbackAccessService.ModerationQueuePage result =
+                    feedbackAccessService.findModerationQueue(paginationBar.getCurrentPage(), paginationBar.getPageSize());
             listContainer.removeAll();
-            items.forEach(item -> listContainer.add(buildCard(item)));
-            emptyStateLabel.setVisible(items.isEmpty());
+            result.items().forEach(item -> listContainer.add(buildCard(item)));
+            emptyStateLabel.setVisible(result.items().isEmpty());
+            paginationBar.setTotalCount(result.totalCount());
         } catch (Exception ex) {
             log.error("Failed to refresh moderation queue", ex);
             notificationService.error(MODERATION_NOTIFICATION_ERROR, ex.getMessage());
             listContainer.removeAll();
             emptyStateLabel.setVisible(true);
+            paginationBar.setTotalCount(0);
         }
     }
 
@@ -150,7 +162,11 @@ public class ModerationView extends VerticalLayout {
         approveButton.addClassName("moderation-approve-icon");
         approveButton.addClickListener(_ -> approve(item));
 
-        Div actions = new Div(approveButton);
+        UiIconButton confirmButton = new UiIconButton(i18n.get(MODERATION_BUTTON_CONFIRM_VIOLATION), VaadinIcon.BAN.create());
+        confirmButton.addClassName("moderation-confirm-violation-icon");
+        confirmButton.addClickListener(_ -> confirmViolation(item));
+
+        Div actions = new Div(approveButton, confirmButton);
         actions.addClassName("moderation-actions");
         return actions;
     }
@@ -166,6 +182,21 @@ public class ModerationView extends VerticalLayout {
             refresh();
         } catch (Exception ex) {
             log.error("Error approving moderation queue item id={} type={}", item.getId(), item.getType(), ex);
+            notificationService.error(MODERATION_NOTIFICATION_ERROR, ex.getMessage());
+        }
+    }
+
+    private void confirmViolation(ModerationQueueItemDto item) {
+        try {
+            if (item.getType() == ModerationQueueItemType.FEEDBACK) {
+                feedbackAccessService.confirmFeedbackViolation(item.getId(), access.getCurrentUserId());
+            } else {
+                feedbackAccessService.confirmCommentViolation(item.getId(), access.getCurrentUserId());
+            }
+            notificationService.success(MODERATION_NOTIFICATION_CONFIRMED);
+            refresh();
+        } catch (Exception ex) {
+            log.error("Error confirming moderation queue item id={} type={}", item.getId(), item.getType(), ex);
             notificationService.error(MODERATION_NOTIFICATION_ERROR, ex.getMessage());
         }
     }

@@ -107,6 +107,20 @@ async function selectCity(page, name) {
   await page.locator('vaadin-combo-box-item').filter({ hasText: name }).first().click();
 }
 
+async function reportDialogSubmit(page, reasonText) {
+  await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
+  const reasonTextarea = page.locator('vaadin-dialog[opened] [data-testid="report-reason-field-text"] textarea');
+  await reasonTextarea.fill(reasonText);
+  // A native JS .click() (below) doesn't blur the textarea the way a real mouse click would --
+  // blur explicitly first so the typed value syncs to the server before the handler reads it.
+  await reasonTextarea.press('Tab');
+  await page.evaluate(() => {
+    const dialog = document.querySelector('vaadin-dialog[opened]');
+    [...dialog.querySelectorAll('vaadin-button')].find(b => /^Report$|^Поскаржитися$/u.test(b.textContent?.trim()))?.click();
+  });
+  await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+}
+
 test.describe('Provider Profile flow', () => {
   let page;
 
@@ -784,7 +798,7 @@ test.describe('Provider Profile flow', () => {
 
       await test.step('reply panel — non-owner (adminEn) sees no reply trigger on moderatorEn\'s own feedback entry', async () => {
         const feedbackPanel = overlay.locator('.feedback-panel');
-        await assertRightAligned(expect, feedbackPanel.locator('.feedback-entry-header-actions').first(), feedbackPanel.locator('.feedback-entry-header').first());
+        await assertRightAligned(expect, feedbackPanel.locator('.entity-actions-column').first(), feedbackPanel.locator('.feedback-entry-row').first(), 20);
 
         const replyPanel = feedbackPanel.locator('.feedback-reply-panel').first();
         await assertAbsent(expect, replyPanel, '.feedback-reply-trigger');
@@ -838,6 +852,7 @@ test.describe('Provider Profile flow', () => {
       await replyPanel.locator('.feedback-reply-edit-icon').click();
       const editField = replyPanel.locator('[data-testid="feedback-reply-field-text"] textarea');
       await expect(editField).toHaveValue('Thanks for the kind words!', { timeout: 5000 });
+      await screenshot(page, 'provider-catalog-reply-panel-owner-editing');
       await editField.fill('Thanks for the kind words, edited!');
       await replyPanel.locator('.feedback-reply-save-icon').click();
       await expect(replyPanel.locator('.feedback-reply-text')).toContainText('Thanks for the kind words, edited!', { timeout: 5000 });
@@ -1079,29 +1094,15 @@ test.describe('Provider Profile flow', () => {
     await userUkCard.click();
     await overlay.waitFor({ timeout: 5000 });
 
-    const reportDialogSubmit = async (reasonText) => {
-      await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
-      const reasonTextarea = page.locator('vaadin-dialog[opened] [data-testid="report-reason-field-text"] textarea');
-      await reasonTextarea.fill(reasonText);
-      // A native JS .click() (below) doesn't blur the textarea the way a real mouse click would --
-      // blur explicitly first so the typed value syncs to the server before the handler reads it.
-      await reasonTextarea.press('Tab');
-      await page.evaluate(() => {
-        const dialog = document.querySelector('vaadin-dialog[opened]');
-        [...dialog.querySelectorAll('vaadin-button')].find(b => /^Report$|^Поскаржитися$/u.test(b.textContent?.trim()))?.click();
-      });
-      await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
-    };
-
     await replyPanel.locator('.feedback-reply-report-icon').click();
-    await reportDialogSubmit('Rude reply.');
+    await reportDialogSubmit(page, 'Rude reply.');
     await expect(replyPanel.locator('.feedback-reply-censored-text')).toHaveText('[censored]', { timeout: 5000 });
     await expect(replyPanel.locator('.feedback-reply-report-icon')).toBeDisabled({ timeout: 5000 });
     await screenshot(page, 'moderation-reply-reported-and-hidden');
 
     const reportableEntry = feedbackPanel.locator('.feedback-entry').filter({ hasText: 'Reportable feedback text.' });
     await reportableEntry.locator('.feedback-report-icon').click();
-    await reportDialogSubmit('Fake review.');
+    await reportDialogSubmit(page, 'Fake review.');
     await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
     await closeNotification(page);
     await expect(feedbackPanel.locator('.feedback-entry-censored-text')).toHaveText('[censored]', { timeout: 5000 });
@@ -1150,6 +1151,112 @@ test.describe('Provider Profile flow', () => {
     await expect(replyPanel.locator('.feedback-reply-text')).toContainText('Reportable reply text.', { timeout: 5000 });
 
     await closeOverlay(page);
+    await runLogoutFlow(page, expect);
+  });
+
+  test('moderatorEn views a 7-item moderation queue on userUk\'s profile — 4 reviewers\' feedback plus userUk\'s 4 replies, one reporter flags 7 of the 8 items, scrollable card list renders consistently, pagination count reflects the real total', async () => {
+    const userUkCard = page.locator('.provider-profile-card').filter({ has: page.locator('.provider-profile-card-title', { hasText: TEST_USERS.userUk.name }) });
+    const reviewers = [TEST_USERS.moderatorEn, TEST_USERS.moderatorUk, TEST_USERS.adminEn, TEST_USERS.adminUk];
+    const feedbackTexts = reviewers.map((_, i) => `Scroll test feedback ${i + 1}.`);
+
+    // ── 4 distinct reviewers each leave one feedback entry on userUk's profile ──────────────
+    for (let i = 0; i < reviewers.length; i++) {
+      await runFillLoginFormFlow(page, reviewers[i]);
+      // adminUk's TEST_USERS locale metadata says 'uk' but the real rendered UI is still English
+      // (same documented quirk as elsewhere in this file) -- override explicitly for that one actor.
+      await runSubmitLoginFlow(page, expect, reviewers[i], reviewers[i] === TEST_USERS.adminUk ? 'en' : reviewers[i].locale);
+      await page.locator('vaadin-tab').filter({ hasText: /providers|постачальники/i }).click();
+      await userUkCard.waitFor({ timeout: 5000 });
+      await userUkCard.click();
+      const overlay = page.locator('.provider-profile-catalog-overlay');
+      await overlay.waitFor({ timeout: 5000 });
+      const feedbackPanel = overlay.locator('.feedback-panel');
+      await feedbackPanel.locator('.feedback-add-trigger .feedback-add-button').click();
+      await feedbackPanel.locator(`.star-rating-field [data-rating="${(i % 5) + 1}"]`).click();
+      await feedbackPanel.locator('[data-testid="feedback-form-field-text"] textarea').fill(feedbackTexts[i]);
+      await feedbackPanel.locator('.feedback-form-submit').click();
+      await expect(feedbackPanel.locator('.feedback-entry').filter({ hasText: feedbackTexts[i] })).toBeVisible({ timeout: 10000 });
+      await closeNotification(page);
+      await closeOverlay(page);
+      await runLogoutFlow(page, expect);
+    }
+
+    // ── userUk (the owner) replies to all 4 feedback entries -- DOM order is newest-first, so
+    // reply panel index 0 pairs with the most-recently-submitted feedback (adminUk's, submitted
+    // last in the loop above), descending through to index 3 (moderatorEn's, submitted first) ──
+    await runFillLoginFormFlow(page, TEST_USERS.userUk);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.userUk);
+    await page.locator('vaadin-tab').filter({ hasText: /providers|постачальники/i }).click();
+    await userUkCard.waitFor({ timeout: 5000 });
+    await userUkCard.click();
+    const ownerOverlay = page.locator('.provider-profile-catalog-overlay');
+    await ownerOverlay.waitFor({ timeout: 5000 });
+    const ownerFeedbackPanel = ownerOverlay.locator('.feedback-panel');
+    for (let i = 0; i < reviewers.length; i++) {
+      const replyPanel = ownerFeedbackPanel.locator('.feedback-reply-panel').nth(i);
+      await replyPanel.locator('.feedback-reply-trigger vaadin-button').click();
+      await replyPanel.locator('[data-testid="feedback-reply-field-text"] textarea').fill(`Scroll test reply ${i + 1}.`);
+      await replyPanel.locator('.feedback-reply-save-icon').click();
+      await expect(replyPanel.locator('.feedback-reply-text')).toContainText(`Scroll test reply ${i + 1}.`, { timeout: 5000 });
+    }
+    await ownerOverlay.locator('.overlay__content').evaluate(el => el.scrollTo(0, el.scrollHeight));
+    await screenshot(page, 'provider-catalog-feedback-panel-scrolled-many-items');
+    await closeOverlay(page);
+    await runLogoutFlow(page, expect);
+
+    // ── adminEn (one of the 4 reviewers) flags the other 3 reviewers' feedback entries (not their
+    // own) plus all 4 of userUk's replies -- 7 flagged items total ──────────────────────────────
+    await runFillLoginFormFlow(page, TEST_USERS.adminEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+    await page.locator('vaadin-tab').filter({ hasText: /providers|постачальники/i }).click();
+    await userUkCard.waitFor({ timeout: 5000 });
+    await userUkCard.click();
+    const reporterOverlay = page.locator('.provider-profile-catalog-overlay');
+    await reporterOverlay.waitFor({ timeout: 5000 });
+    const reporterFeedbackPanel = reporterOverlay.locator('.feedback-panel');
+
+    const otherReviewerTexts = feedbackTexts.filter(t => t !== 'Scroll test feedback 3.');
+    for (const text of otherReviewerTexts) {
+      const entry = reporterFeedbackPanel.locator('.feedback-entry').filter({ hasText: text });
+      await entry.locator('.feedback-report-icon').click();
+      await reportDialogSubmit(page, `Flagged: ${text}`);
+      await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
+      await closeNotification(page);
+    }
+    for (let i = 0; i < reviewers.length; i++) {
+      const replyPanel = reporterFeedbackPanel.locator('.feedback-reply-panel').nth(i);
+      await replyPanel.locator('.feedback-reply-report-icon').click();
+      await reportDialogSubmit(page, `Flagged reply ${i + 1}.`);
+    }
+    await closeOverlay(page);
+    await runLogoutFlow(page, expect);
+
+    // ── moderatorEn views the Moderation queue: 7 items visible, scrollable list, pagination
+    // count reflects the real total ──────────────────────────────────────────────────────────
+    await runFillLoginFormFlow(page, TEST_USERS.moderatorEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.moderatorEn);
+    await page.locator('vaadin-tab').filter({ hasText: /moderation/i }).click();
+    const list = page.locator('.moderation-list');
+    for (const text of otherReviewerTexts) {
+      await expect(list.locator('.moderation-card').filter({ hasText: text })).toBeVisible({ timeout: 5000 });
+    }
+    for (let i = 1; i <= reviewers.length; i++) {
+      await expect(list.locator('.moderation-card').filter({ hasText: `Scroll test reply ${i}.` })).toBeVisible({ timeout: 5000 });
+    }
+    await expect(page.locator('.moderation-view-layout .pagination-count')).toContainText('7', { timeout: 5000 });
+    await list.evaluate(el => el.scrollIntoView({ block: 'end' }));
+    await screenshot(page, 'moderation-queue-scrolled-many-items');
+
+    // ── cleanup: approve every visible card so the queue is empty again for later specs ─────────
+    let remaining = await list.locator('.moderation-approve-icon').count();
+    while (remaining > 0) {
+      await list.locator('.moderation-approve-icon').first().click();
+      await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
+      await closeNotification(page);
+      remaining = await list.locator('.moderation-approve-icon').count();
+    }
+    await expect(list.locator('.moderation-card')).toHaveCount(0, { timeout: 5000 });
+
     await runLogoutFlow(page, expect);
   });
 });

@@ -71,6 +71,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private IntegerField     usersPageSizeField;
     private IntegerField     timelinePageSizeField;
     private IntegerField     providerProfilesPageSizeField;
+    private IntegerField     feedbackPageSizeField;
+    private IntegerField     moderationPageSizeField;
     private UiPrimaryButton  saveButton;
     private UiTertiaryButton discardButton;
 
@@ -89,6 +91,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .usersPageSize(current.getUsersPageSize())
                 .timelinePageSize(current.getTimelinePageSize())
                 .providerProfilesPageSize(current.getProviderProfilesPageSize())
+                .feedbackPageSize(current.getFeedbackPageSize())
+                .moderationPageSize(current.getModerationPageSize())
                 .version(current.getVersion())
                 .build();
 
@@ -108,22 +112,26 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         buildBinder(dto);
         adsPageSizeField.setReadOnly(!canEdit);
         providerProfilesPageSizeField.setReadOnly(!canEdit);
+        feedbackPageSizeField.setReadOnly(!canEdit);
         boolean privileged = access.canView();
         adsPageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         providerProfilesPageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        feedbackPageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         if (privileged) {
             usersPageSizeField.setReadOnly(!canEdit);
             timelinePageSizeField.setReadOnly(!canEdit);
+            moderationPageSizeField.setReadOnly(!canEdit);
             usersPageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
             timelinePageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+            moderationPageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         }
 
         Div cardHeader = new Div(VaadinIcon.COG.create(), new Span(getValue(SETTINGS_SECTION_TITLE)));
         cardHeader.addClassName("overlay__form-card-header");
 
         Div fieldsCard = privileged
-                ? new Div(cardHeader, adsPageSizeField, providerProfilesPageSizeField, usersPageSizeField, timelinePageSizeField)
-                : new Div(cardHeader, adsPageSizeField, providerProfilesPageSizeField);
+                ? new Div(cardHeader, adsPageSizeField, providerProfilesPageSizeField, feedbackPageSizeField, usersPageSizeField, timelinePageSizeField, moderationPageSizeField)
+                : new Div(cardHeader, adsPageSizeField, providerProfilesPageSizeField, feedbackPageSizeField);
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div settingsContent = new Div(params.getTabBar(), fieldsCard);
@@ -161,6 +169,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .usersPageSize(dto.getUsersPageSize() != null ? dto.getUsersPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .timelinePageSize(dto.getTimelinePageSize() != null ? dto.getTimelinePageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .providerProfilesPageSize(dto.getProviderProfilesPageSize() != null ? dto.getProviderProfilesPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
+                .feedbackPageSize(dto.getFeedbackPageSize() != null ? dto.getFeedbackPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
+                .moderationPageSize(dto.getModerationPageSize() != null ? dto.getModerationPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .version(dto.getVersion())
                 .build()));
     }
@@ -178,6 +188,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                         .usersPageSize(fresh.getUsersPageSize())
                         .timelinePageSize(fresh.getTimelinePageSize())
                         .providerProfilesPageSize(fresh.getProviderProfilesPageSize())
+                        .feedbackPageSize(fresh.getFeedbackPageSize())
+                        .moderationPageSize(fresh.getModerationPageSize())
                         .version(fresh.getVersion())
                         .build(),
                 (src, tgt) -> {
@@ -185,6 +197,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                     tgt.setUsersPageSize(src.getUsersPageSize());
                     tgt.setTimelinePageSize(src.getTimelinePageSize());
                     tgt.setProviderProfilesPageSize(src.getProviderProfilesPageSize());
+                    tgt.setFeedbackPageSize(src.getFeedbackPageSize());
+                    tgt.setModerationPageSize(src.getModerationPageSize());
                     tgt.setVersion(src.getVersion());
                 });
         updateButtons(false);
@@ -197,6 +211,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                         .usersPageSize(c.snapshotData().usersPageSize())
                         .timelinePageSize(c.snapshotData().timelinePageSize())
                         .providerProfilesPageSize(c.snapshotData().providerProfilesPageSize())
+                        .feedbackPageSize(c.snapshotData().feedbackPageSize())
+                        .moderationPageSize(c.snapshotData().moderationPageSize())
                         // Restore only stages values into the form -- the eventual save()
                         // still checks against the current DB version, never the snapshot's
                         // (snapshots don't carry one; they predate optimistic locking here).
@@ -213,6 +229,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                         .usersPageSize(restored.getUsersPageSize())
                         .timelinePageSize(restored.getTimelinePageSize())
                         .providerProfilesPageSize(restored.getProviderProfilesPageSize())
+                        .feedbackPageSize(restored.getFeedbackPageSize())
+                        .moderationPageSize(restored.getModerationPageSize())
                         .version(restored.getVersion())
                         .build(),
                 (src, tgt) -> {
@@ -220,6 +238,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                     tgt.setUsersPageSize(src.getUsersPageSize());
                     tgt.setTimelinePageSize(src.getTimelinePageSize());
                     tgt.setProviderProfilesPageSize(src.getProviderProfilesPageSize());
+                    tgt.setFeedbackPageSize(src.getFeedbackPageSize());
+                    tgt.setModerationPageSize(src.getModerationPageSize());
                     tgt.setVersion(src.getVersion());
                 });
         updateButtons(true);
@@ -264,10 +284,28 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         providerProfilesPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
         providerProfilesPageSizeField.setWidthFull();
 
+        feedbackPageSizeField = new IntegerField(getValue(SETTINGS_FEEDBACK_PAGE_SIZE_LABEL));
+        feedbackPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
+        feedbackPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
+        feedbackPageSizeField.setStep(1);
+        feedbackPageSizeField.setStepButtonsVisible(true);
+        feedbackPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
+        feedbackPageSizeField.setWidthFull();
+
+        moderationPageSizeField = new IntegerField(getValue(SETTINGS_MODERATION_PAGE_SIZE_LABEL));
+        moderationPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
+        moderationPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
+        moderationPageSizeField.setStep(1);
+        moderationPageSizeField.setStepButtonsVisible(true);
+        moderationPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
+        moderationPageSizeField.setWidthFull();
+
         bindPageSizeField(adsPageSizeField,               SettingsEditDto::getAdsPageSize,               SettingsEditDto::setAdsPageSize);
         bindPageSizeField(usersPageSizeField,             SettingsEditDto::getUsersPageSize,             SettingsEditDto::setUsersPageSize);
         bindPageSizeField(timelinePageSizeField,          SettingsEditDto::getTimelinePageSize,          SettingsEditDto::setTimelinePageSize);
         bindPageSizeField(providerProfilesPageSizeField,  SettingsEditDto::getProviderProfilesPageSize,  SettingsEditDto::setProviderProfilesPageSize);
+        bindPageSizeField(feedbackPageSizeField,          SettingsEditDto::getFeedbackPageSize,          SettingsEditDto::setFeedbackPageSize);
+        bindPageSizeField(moderationPageSizeField,        SettingsEditDto::getModerationPageSize,        SettingsEditDto::setModerationPageSize);
         binder.readInitialValues();
     }
 

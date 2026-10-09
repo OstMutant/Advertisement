@@ -218,17 +218,21 @@ public class FeedbackPanel extends Div
     private Div buildEntryRow(EntityRef entityRef, FeedbackDto entry) {
         Div row = new Div();
         row.addClassName("feedback-entry");
+        row.addClassName("feedback-entry-row");
 
         boolean editable = access.isLoggedIn()
                 && entry.authorId().equals(access.getCurrentUserId())
                 && Instant.now().isBefore(entry.createdAt().plus(EDIT_WINDOW));
+
+        Div contentColumn = new Div();
+        contentColumn.addClassName("feedback-entry-content");
 
         Div viewContainer = new Div();
         Div editContainer = new Div();
         editContainer.addClassName("feedback-entry-edit");
         editContainer.setVisible(false);
 
-        if (entry.moderationStatus() == FeedbackModerationStatus.HIDDEN) {
+        if (entry.moderationStatus().isHidden()) {
             Span censored = new Span(getValue(FEEDBACK_CENSORED_TEXT));
             censored.addClassName("feedback-entry-censored-text");
             viewContainer.add(censored);
@@ -249,8 +253,11 @@ public class FeedbackPanel extends Div
         author.addClassName("feedback-entry-author");
         header.add(author);
 
-        Div headerActions = new Div();
-        headerActions.addClassName("feedback-entry-header-actions");
+        Div viewActions = new Div();
+        viewActions.addClassName("entity-actions-column");
+        Div editActions = new Div();
+        editActions.addClassName("entity-actions-column");
+        editActions.setVisible(false);
 
         if (editable) {
             StarRatingField editRatingField = new StarRatingField();
@@ -279,6 +286,8 @@ public class FeedbackPanel extends Div
                 if (unchanged) {
                     viewContainer.setVisible(true);
                     editContainer.setVisible(false);
+                    viewActions.setVisible(true);
+                    editActions.setVisible(false);
                 } else {
                     editRatingField.setValue(entry.rating());
                     editTextField.setValue(entry.feedbackText());
@@ -289,11 +298,8 @@ public class FeedbackPanel extends Div
             editFields.addClassName("feedback-entry-edit-fields");
             editFields.add(editRatingField, editTextField);
 
-            Div editActions = new Div();
-            editActions.addClassName("feedback-entry-edit-actions");
             editActions.add(saveButton, discardButton);
-
-            editContainer.add(editFields, editActions);
+            editContainer.add(editFields);
 
             UiIconButton editButton = new UiIconButton(getValue(FEEDBACK_FORM_BUTTON_EDIT), VaadinIcon.EDIT.create());
             editButton.addClassName("feedback-entry-edit-icon");
@@ -302,14 +308,18 @@ public class FeedbackPanel extends Div
                 if (opening) {
                     viewContainer.setVisible(false);
                     editContainer.setVisible(true);
+                    viewActions.setVisible(false);
+                    editActions.setVisible(true);
                 } else {
                     editRatingField.setValue(entry.rating());
                     editTextField.setValue(entry.feedbackText());
                     viewContainer.setVisible(true);
                     editContainer.setVisible(false);
+                    viewActions.setVisible(true);
+                    editActions.setVisible(false);
                 }
             });
-            headerActions.add(editButton);
+            viewActions.add(editButton);
         }
 
         boolean canSeeReport = access.isLoggedIn() && !entry.authorId().equals(access.getCurrentUserId());
@@ -329,13 +339,11 @@ public class FeedbackPanel extends Div
                         refresh(entityRef);
                     }
             ).open());
-            headerActions.add(reportButton);
+            viewActions.add(reportButton);
         }
 
-        header.add(headerActions);
-        row.add(header);
-        row.add(viewContainer);
-        row.add(editContainer);
+        contentColumn.add(header, viewContainer, editContainer);
+        row.add(contentColumn, viewActions, editActions);
         return row;
     }
 

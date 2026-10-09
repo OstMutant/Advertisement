@@ -36,6 +36,11 @@ public class FailureRateLimiter {
         attempts.get(key, _ -> new AtomicInteger(0)).incrementAndGet();
     }
 
+    /** Same counter as {@link #recordFailure}, under a name that fits a non-failure quota use (e.g. a daily submission cap). */
+    public void recordAttempt(@NonNull String key) {
+        recordFailure(key);
+    }
+
     /** Resets key's counter — only for a caller with a reset-on-success flow (e.g. login); not every caller needs it. */
     public void clear(@NonNull String key) {
         attempts.invalidate(key);

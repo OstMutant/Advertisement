@@ -184,7 +184,9 @@ public class FeedbackRepository {
                         SELECT :entityType, :entityId, COALESCE(AVG(r.rating), 0), COUNT(*), NOW()
                         FROM feedback f
                         JOIN feedback_rating r ON r.feedback_id = f.id
+                        JOIN feedback_content fc ON fc.id = f.content_id
                         WHERE f.entity_type = :entityType AND f.entity_id = :entityId
+                          AND fc.moderation_status = 'NEW'
                         ON CONFLICT (entity_type, entity_id) DO UPDATE
                         SET avg_rating = EXCLUDED.avg_rating, review_count = EXCLUDED.review_count, updated_at = EXCLUDED.updated_at
                         """)

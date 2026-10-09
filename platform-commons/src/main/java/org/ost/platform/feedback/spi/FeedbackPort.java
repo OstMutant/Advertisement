@@ -51,6 +51,12 @@ public interface FeedbackPort {
     /** Restores a flagged reply to visible. */
     void approveComment(@NonNull Long commentId);
 
+    /** Permanently confirms a flagged feedback entry as a genuine violation -- stays censored forever, excluded from the moderation queue. */
+    void confirmFeedbackViolation(@NonNull Long feedbackId);
+
+    /** Permanently confirms a flagged reply as a genuine violation -- stays censored forever, excluded from the moderation queue. */
+    void confirmCommentViolation(@NonNull Long commentId);
+
     /** Permanently removes a feedback entry and its own reply, if any. */
     void rejectFeedback(@NonNull Long feedbackId);
 

@@ -34,6 +34,10 @@ public class UserSettingsDto {
     @Builder.Default
     int feedbackPageSize = PageSizeLimits.DEFAULT_PAGE_SIZE;
 
+    @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE)
+    @Builder.Default
+    int moderationPageSize = PageSizeLimits.DEFAULT_PAGE_SIZE;
+
     long version;
 
     @Builder.Default
@@ -46,6 +50,7 @@ public class UserSettingsDto {
                 .timelinePageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
                 .providerProfilesPageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
                 .feedbackPageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
+                .moderationPageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
                 .version(0)
                 .build();
     }

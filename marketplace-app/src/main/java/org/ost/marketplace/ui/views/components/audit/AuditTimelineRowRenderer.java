@@ -174,6 +174,8 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
                 case SettingsSnapshotDto.Fields.usersPageSize            -> I18nKey.CHANGES_SETTING_USERS_PAGE_SIZE;
                 case SettingsSnapshotDto.Fields.timelinePageSize         -> I18nKey.CHANGES_SETTING_TIMELINE_PAGE_SIZE;
                 case SettingsSnapshotDto.Fields.providerProfilesPageSize -> I18nKey.CHANGES_SETTING_PROVIDER_PROFILES_PAGE_SIZE;
+                case SettingsSnapshotDto.Fields.feedbackPageSize         -> I18nKey.CHANGES_SETTING_FEEDBACK_PAGE_SIZE;
+                case SettingsSnapshotDto.Fields.moderationPageSize       -> I18nKey.CHANGES_SETTING_MODERATION_PAGE_SIZE;
                 default                                                  -> null;
             };
             case PROVIDER_PROFILE -> switch (rawFieldKey) {

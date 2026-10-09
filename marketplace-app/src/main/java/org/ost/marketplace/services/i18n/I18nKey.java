@@ -384,6 +384,8 @@ public enum I18nKey {
     SETTINGS_USERS_PAGE_SIZE_LABEL("settings.usersPageSize.label"),
     SETTINGS_TIMELINE_PAGE_SIZE_LABEL("settings.timelinePageSize.label"),
     SETTINGS_PROVIDER_PROFILES_PAGE_SIZE_LABEL("settings.providerProfilesPageSize.label"),
+    SETTINGS_FEEDBACK_PAGE_SIZE_LABEL("settings.feedbackPageSize.label"),
+    SETTINGS_MODERATION_PAGE_SIZE_LABEL("settings.moderationPageSize.label"),
     SETTINGS_SAVE_BUTTON("settings.save.button"),
     SETTINGS_SAVED_SUCCESS("settings.saved.success"),
     SETTINGS_PAGE_SIZE_RANGE("settings.page.size.range"),
@@ -417,6 +419,8 @@ public enum I18nKey {
     CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize"),
     CHANGES_SETTING_TIMELINE_PAGE_SIZE("audit.changes.setting.timelinePageSize"),
     CHANGES_SETTING_PROVIDER_PROFILES_PAGE_SIZE("audit.changes.setting.providerProfilesPageSize"),
+    CHANGES_SETTING_FEEDBACK_PAGE_SIZE("audit.changes.setting.feedbackPageSize"),
+    CHANGES_SETTING_MODERATION_PAGE_SIZE("audit.changes.setting.moderationPageSize"),
 
     // === Reference Data tab ===
     REFERENCE_DATA_TAB_CATEGORIES("reference.data.tab.categories"),
@@ -535,13 +539,9 @@ public enum I18nKey {
     MAIN_TAB_MODERATION("mainTab.moderation"),
     MODERATION_EMPTY("moderation.empty"),
     MODERATION_BUTTON_APPROVE("moderation.button.approve"),
-    MODERATION_BUTTON_REJECT("moderation.button.reject"),
-    MODERATION_CONFIRM_REJECT_TITLE("moderation.confirm.reject.title"),
-    MODERATION_CONFIRM_REJECT_TEXT("moderation.confirm.reject.text"),
-    MODERATION_CONFIRM_REJECT_BUTTON("moderation.confirm.reject.button"),
-    MODERATION_CONFIRM_REJECT_CANCEL_BUTTON("moderation.confirm.reject.cancelButton"),
+    MODERATION_BUTTON_CONFIRM_VIOLATION("moderation.button.confirmViolation"),
     MODERATION_NOTIFICATION_APPROVED("moderation.notification.approved"),
-    MODERATION_NOTIFICATION_REJECTED("moderation.notification.rejected"),
+    MODERATION_NOTIFICATION_CONFIRMED("moderation.notification.confirmed"),
     MODERATION_NOTIFICATION_ERROR("moderation.notification.error");
 
     private final String key;

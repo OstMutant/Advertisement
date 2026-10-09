@@ -167,6 +167,35 @@ class FeedbackRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void upsertAggregate_excludesHiddenFeedback() {
+        Long entityId = newEntityId();
+        Feedback visible = createFeedback(1L, EntityType.PROVIDER_PROFILE, entityId, 4, "Visible.");
+        Feedback hidden = createFeedback(2L, EntityType.PROVIDER_PROFILE, entityId, 1, "Hidden.");
+        feedbackRepository.flagContent(hidden.getContentId(), "Spam.");
+
+        feedbackRepository.upsertAggregate(EntityType.PROVIDER_PROFILE, entityId);
+
+        assertThat(feedbackRepository.getAggregate(EntityType.PROVIDER_PROFILE, entityId)).hasValueSatisfying(agg -> {
+            assertThat(agg.getReviewCount()).isEqualTo(1);
+            assertThat(agg.getAvgRating()).isEqualTo(4.0);
+        });
+    }
+
+    @Test
+    void upsertAggregate_allHidden_producesZeroReviewCountRow() {
+        Long entityId = newEntityId();
+        Feedback feedback = createFeedback(1L, EntityType.PROVIDER_PROFILE, entityId, 5, "Only entry.");
+        feedbackRepository.flagContent(feedback.getContentId(), "Spam.");
+
+        feedbackRepository.upsertAggregate(EntityType.PROVIDER_PROFILE, entityId);
+
+        assertThat(feedbackRepository.getAggregate(EntityType.PROVIDER_PROFILE, entityId)).hasValueSatisfying(agg -> {
+            assertThat(agg.getReviewCount()).isZero();
+            assertThat(agg.getAvgRating()).isZero();
+        });
+    }
+
+    @Test
     void getAggregate_noFeedback_returnsEmpty() {
         assertThat(feedbackRepository.getAggregate(EntityType.PROVIDER_PROFILE, newEntityId())).isEmpty();
     }

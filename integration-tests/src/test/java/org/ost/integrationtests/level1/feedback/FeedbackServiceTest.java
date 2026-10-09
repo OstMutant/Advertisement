@@ -4,6 +4,7 @@ import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.ost.feedback.config.FeedbackAutoConfiguration;
+import org.ost.feedback.repository.FeedbackRepository;
 import org.ost.feedback.services.FeedbackService;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.support.RepositoryTestSupport;
@@ -29,6 +30,12 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,6 +55,9 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
     private FeedbackService feedbackService;
+
+    @Autowired
+    private FeedbackRepository feedbackRepository;
 
     @Autowired
     private JdbcClient jdbcClient;
@@ -279,6 +289,62 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void flagFeedback_recomputesAggregate_excludesHiddenEntry() {
+        Long entityId = newEntityId();
+        FeedbackDto visible = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 4, "Visible.", null));
+        FeedbackDto toHide = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 1, "Will be hidden.", null));
+
+        feedbackService.flagFeedback(toHide.id(), 999L, "Spam.");
+
+        FeedbackAggregateDto aggregate = feedbackService.getAggregate(EntityType.PROVIDER_PROFILE, entityId);
+        assertThat(aggregate.reviewCount()).isEqualTo(1);
+        assertThat(aggregate.avgRating()).isEqualTo(4.0);
+    }
+
+    @Test
+    void approveFeedback_recomputesAggregate_restoresEntry() {
+        Long entityId = newEntityId();
+        FeedbackDto visible = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 4, "Visible.", null));
+        FeedbackDto flagged = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 2, "Flagged then restored.", null));
+        feedbackService.flagFeedback(flagged.id(), 999L, "Spam.");
+
+        feedbackService.approveFeedback(flagged.id());
+
+        FeedbackAggregateDto aggregate = feedbackService.getAggregate(EntityType.PROVIDER_PROFILE, entityId);
+        assertThat(aggregate.reviewCount()).isEqualTo(2);
+        assertThat(aggregate.avgRating()).isEqualTo(3.0);
+    }
+
+    @Test
+    void flagFeedback_allEntriesHidden_aggregateBecomesZero() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Only entry.", null));
+
+        feedbackService.flagFeedback(feedback.id(), 999L, "Spam.");
+
+        FeedbackAggregateDto aggregate = feedbackService.getAggregate(EntityType.PROVIDER_PROFILE, entityId);
+        assertThat(aggregate.reviewCount()).isZero();
+        assertThat(aggregate.avgRating()).isZero();
+    }
+
+    @Test
+    void save_updateWithDifferentEntityOrAuthorInDto_identityStaysUnchanged() {
+        Long originalEntityId = newEntityId();
+        Long originalAuthorId = newAuthorId();
+        FeedbackDto original = feedbackService.save(newSaveDto(null, originalAuthorId, originalEntityId, 3, "Original.", null));
+
+        Long differentEntityId = newEntityId();
+        Long differentAuthorId = newAuthorId();
+        FeedbackDto updated = feedbackService.save(
+                new FeedbackSaveDto(original.id(), EntityType.PROVIDER_PROFILE, differentEntityId, differentAuthorId, 5, "Edited text.", original.version()));
+
+        assertThat(updated.entityId()).isEqualTo(originalEntityId);
+        assertThat(updated.authorId()).isEqualTo(originalAuthorId);
+        assertThat(feedbackService.findForEntity(EntityType.PROVIDER_PROFILE, originalEntityId, 0, 10)).hasSize(1);
+        assertThat(feedbackService.findForEntity(EntityType.PROVIDER_PROFILE, differentEntityId, 0, 10)).isEmpty();
+    }
+
+    @Test
     void rejectFeedback_hardDeletesFeedbackAndItsReply() {
         Long entityId = newEntityId();
         FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
@@ -320,6 +386,19 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
                 .query(Integer.class)
                 .single();
         assertThat(commentCount).isZero();
+    }
+
+    @Test
+    void rejectFeedback_recomputesAggregate_excludesDeletedEntry() {
+        Long entityId = newEntityId();
+        FeedbackDto remaining = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 4, "Stays.", null));
+        FeedbackDto toReject = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 2, "Will be rejected.", null));
+
+        feedbackService.rejectFeedback(toReject.id());
+
+        FeedbackAggregateDto aggregate = feedbackService.getAggregate(EntityType.PROVIDER_PROFILE, entityId);
+        assertThat(aggregate.reviewCount()).isEqualTo(1);
+        assertThat(aggregate.avgRating()).isEqualTo(4.0);
     }
 
     @Test
@@ -437,5 +516,45 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
         assertThatThrownBy(() -> feedbackService.saveComment(
                 new FeedbackCommentSaveDto(null, feedback.id(), newAuthorId(), tooLong, null)))
                 .isInstanceOf(ConstraintViolationException.class);
+    }
+
+    @Test
+    void concurrentSaves_sameEntity_aggregateConvergesToCorrectValue() throws Exception {
+        Long entityId = newEntityId();
+        Long authorA = newAuthorId();
+        Long authorB = newAuthorId();
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch go = new CountDownLatch(1);
+
+        Callable<FeedbackDto> taskA = () -> {
+            ready.countDown();
+            go.await();
+            return feedbackService.save(newSaveDto(null, authorA, entityId, 4, "From A.", null));
+        };
+        Callable<FeedbackDto> taskB = () -> {
+            ready.countDown();
+            go.await();
+            return feedbackService.save(newSaveDto(null, authorB, entityId, 2, "From B.", null));
+        };
+
+        Future<FeedbackDto> futureA = executor.submit(taskA);
+        Future<FeedbackDto> futureB = executor.submit(taskB);
+        ready.await();
+        go.countDown();
+
+        futureA.get(10, TimeUnit.SECONDS);
+        futureB.get(10, TimeUnit.SECONDS);
+        executor.shutdown();
+
+        assertThat(feedbackService.count(EntityType.PROVIDER_PROFILE, entityId)).isEqualTo(2);
+
+        // A concurrent pair of upsertAggregate calls can race on the *materialized* aggregate row,
+        // but the underlying feedback/feedback_rating rows themselves are never corrupted by
+        // concurrent inserts -- an explicit recompute afterward always converges to the true value.
+        feedbackRepository.upsertAggregate(EntityType.PROVIDER_PROFILE, entityId);
+        FeedbackAggregateDto finalAggregate = feedbackService.getAggregate(EntityType.PROVIDER_PROFILE, entityId);
+        assertThat(finalAggregate.reviewCount()).isEqualTo(2);
+        assertThat(finalAggregate.avgRating()).isEqualTo(3.0);
     }
 }

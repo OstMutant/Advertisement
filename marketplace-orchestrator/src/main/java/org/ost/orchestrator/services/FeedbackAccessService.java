@@ -16,6 +16,7 @@ import org.ost.platform.feedback.dto.ModerationQueueItemDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import org.ost.platform.feedback.model.ModerationQueueItemType;
 import org.ost.platform.feedback.spi.FeedbackPort;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -92,10 +93,21 @@ public class FeedbackAccessService {
                 .orElse(List.of());
     }
 
-    /** Merges hidden feedback entries and hidden replies into one oldest-first moderation queue. */
-    public List<ModerationQueueItemDto> findModerationQueue(@NonNull Pageable pageable) {
-        List<FeedbackDto> hiddenFeedback = findHiddenFeedback(pageable);
-        List<FeedbackCommentDto> hiddenComments = findHiddenComments(pageable);
+    private static final int MAX_QUEUE_FETCH = 1000;
+
+    /** One page of the merged, newest-first moderation queue, plus its true total count -- paged in memory since queue size is bounded by real reports, not catalog scale. */
+    public record ModerationQueuePage(List<ModerationQueueItemDto> items, int totalCount) {}
+
+    public ModerationQueuePage findModerationQueue(int page, int size) {
+        List<ModerationQueueItemDto> all = buildFullModerationQueue();
+        int fromIndex = Math.min(page * size, all.size());
+        int toIndex = Math.min(fromIndex + size, all.size());
+        return new ModerationQueuePage(all.subList(fromIndex, toIndex), all.size());
+    }
+
+    private List<ModerationQueueItemDto> buildFullModerationQueue() {
+        List<FeedbackDto> hiddenFeedback = findHiddenFeedback(PageRequest.of(0, MAX_QUEUE_FETCH));
+        List<FeedbackCommentDto> hiddenComments = findHiddenComments(PageRequest.of(0, MAX_QUEUE_FETCH));
 
         Set<Long> authorIds = new HashSet<>();
         hiddenFeedback.forEach(f -> authorIds.add(f.authorId()));
@@ -128,7 +140,7 @@ public class FeedbackAccessService {
                     .createdAt(c.createdAt())
                     .build());
         });
-        items.sort(Comparator.comparing(ModerationQueueItemDto::getCreatedAt));
+        items.sort(Comparator.comparing(ModerationQueueItemDto::getCreatedAt).reversed());
         return items;
     }
 
@@ -150,6 +162,16 @@ public class FeedbackAccessService {
     public void approveComment(@NonNull Long commentId, @NonNull Long actorId) {
         feedbackPortFactory.get().approveComment(commentId);
         auditPortFactory.ifAvailable(p -> p.captureUpdate(commentId, new FeedbackCommentSnapshotDto(FeedbackModerationStatus.NEW, null), actorId));
+    }
+
+    public void confirmFeedbackViolation(@NonNull Long feedbackId, @NonNull Long actorId) {
+        feedbackPortFactory.get().confirmFeedbackViolation(feedbackId);
+        auditPortFactory.ifAvailable(p -> p.captureUpdate(feedbackId, new FeedbackSnapshotDto(FeedbackModerationStatus.CONFIRMED_HIDDEN, null), actorId));
+    }
+
+    public void confirmCommentViolation(@NonNull Long commentId, @NonNull Long actorId) {
+        feedbackPortFactory.get().confirmCommentViolation(commentId);
+        auditPortFactory.ifAvailable(p -> p.captureUpdate(commentId, new FeedbackCommentSnapshotDto(FeedbackModerationStatus.CONFIRMED_HIDDEN, null), actorId));
     }
 
     public void rejectFeedback(@NonNull Long feedbackId, @NonNull Long actorId) {

@@ -90,6 +90,18 @@ public class FeedbackPortImpl implements FeedbackPort {
 
     @Override
     @Transactional
+    public void confirmFeedbackViolation(@NonNull Long feedbackId) {
+        service.confirmFeedbackViolation(feedbackId);
+    }
+
+    @Override
+    @Transactional
+    public void confirmCommentViolation(@NonNull Long commentId) {
+        service.confirmCommentViolation(commentId);
+    }
+
+    @Override
+    @Transactional
     public void rejectFeedback(@NonNull Long feedbackId) {
         service.rejectFeedback(feedbackId);
     }

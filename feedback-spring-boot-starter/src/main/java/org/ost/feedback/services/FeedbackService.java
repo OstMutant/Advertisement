@@ -61,6 +61,8 @@ public class FeedbackService {
         String sanitizedText = HtmlSanitizer.sanitize(dto.feedbackText(), FeedbackSaveDto.TEXT_MAX_LENGTH);
         Feedback saved;
         Long contentId;
+        EntityType effectiveEntityType;
+        Long effectiveEntityId;
         if (dto.id() != null) {
             FeedbackView existing = repository.findViewById(dto.id())
                     .orElseThrow(() -> new IllegalStateException("Feedback " + dto.id() + " not found"));
@@ -74,11 +76,13 @@ public class FeedbackService {
                     .version(dto.version())
                     .build());
             contentId = content.getId();
+            effectiveEntityType = existing.entityType();
+            effectiveEntityId = existing.entityId();
             saved = Feedback.builder()
                     .id(existing.id())
-                    .entityType(dto.entityType())
-                    .entityId(dto.entityId())
-                    .authorId(dto.authorId())
+                    .entityType(existing.entityType())
+                    .entityId(existing.entityId())
+                    .authorId(existing.authorId())
                     .contentId(contentId)
                     .build();
         } else {
@@ -88,16 +92,18 @@ public class FeedbackService {
                     .moderationStatus(FeedbackModerationStatus.NEW)
                     .build());
             contentId = content.getId();
+            effectiveEntityType = dto.entityType();
+            effectiveEntityId = dto.entityId();
             saved = repository.saveLink(Feedback.builder()
                     .entityType(dto.entityType())
                     .entityId(dto.entityId())
                     .authorId(dto.authorId())
                     .contentId(contentId)
                     .build());
-            feedbackRateLimiter.recordFailure(dto.authorId().toString());
+            feedbackRateLimiter.recordAttempt(dto.authorId().toString());
         }
         repository.upsertRating(saved.getId(), dto.rating());
-        repository.upsertAggregate(dto.entityType(), dto.entityId());
+        repository.upsertAggregate(effectiveEntityType, effectiveEntityId);
         return toDto(repository.findViewById(saved.getId())
                 .orElseThrow(() -> new IllegalStateException("Feedback " + saved.getId() + " not found after save")));
     }
@@ -155,7 +161,7 @@ public class FeedbackService {
                     .authorId(dto.authorId())
                     .feedbackId(dto.feedbackId())
                     .build());
-            commentRateLimiter.recordFailure(dto.authorId().toString());
+            commentRateLimiter.recordAttempt(dto.authorId().toString());
         }
         FeedbackCommentView savedView = repository.findCommentViewById(saved.getId())
                 .orElseThrow(() -> new IllegalStateException("FeedbackComment " + saved.getId() + " not found after save"));
@@ -182,6 +188,7 @@ public class FeedbackService {
         FeedbackView existing = repository.findViewById(feedbackId)
                 .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
         repository.flagContent(existing.contentId(), reason);
+        repository.upsertAggregate(existing.entityType(), existing.entityId());
     }
 
     @Transactional
@@ -201,6 +208,7 @@ public class FeedbackService {
         FeedbackView existing = repository.findViewById(feedbackId)
                 .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
         repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.NEW);
+        repository.upsertAggregate(existing.entityType(), existing.entityId());
     }
 
     @Transactional
@@ -208,6 +216,20 @@ public class FeedbackService {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
                 .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
         repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.NEW);
+    }
+
+    @Transactional
+    public void confirmFeedbackViolation(@NonNull Long feedbackId) {
+        FeedbackView existing = repository.findViewById(feedbackId)
+                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
+        repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.CONFIRMED_HIDDEN);
+    }
+
+    @Transactional
+    public void confirmCommentViolation(@NonNull Long commentId) {
+        FeedbackCommentView existing = repository.findCommentViewById(commentId)
+                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+        repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.CONFIRMED_HIDDEN);
     }
 
     @Transactional

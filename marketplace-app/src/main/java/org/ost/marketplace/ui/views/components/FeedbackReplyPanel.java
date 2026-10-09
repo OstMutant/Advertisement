@@ -140,10 +140,13 @@ public class FeedbackReplyPanel extends Div
         });
 
         Div actions = new Div();
-        actions.addClassName("feedback-reply-composer-actions");
+        actions.addClassName("entity-actions-column");
         actions.add(saveButton, cancelButton);
 
-        composer.add(textField, actions);
+        Div fieldsWrapper = new Div(textField);
+        fieldsWrapper.addClassName("feedback-reply-composer-fields");
+
+        composer.add(fieldsWrapper, actions);
         return composer;
     }
 
@@ -158,7 +161,7 @@ public class FeedbackReplyPanel extends Div
 
         Div textContainer = new Div();
         textContainer.addClassName("feedback-reply-text-container");
-        if (comment.moderationStatus() == FeedbackModerationStatus.HIDDEN) {
+        if (comment.moderationStatus().isHidden()) {
             Span censored = new Span(getValue(FEEDBACK_COMMENT_CENSORED_TEXT));
             censored.addClassName("feedback-reply-censored-text");
             textContainer.add(censored);
@@ -174,7 +177,7 @@ public class FeedbackReplyPanel extends Div
         boolean canReport = access.isLoggedIn() && !comment.authorId().equals(access.getCurrentUserId());
 
         Div actions = new Div();
-        actions.addClassName("feedback-reply-actions");
+        actions.addClassName("entity-actions-column");
 
         if (isAuthor) {
             UiIconButton editButton = new UiIconButton(getValue(FEEDBACK_FORM_BUTTON_EDIT), VaadinIcon.EDIT.create());

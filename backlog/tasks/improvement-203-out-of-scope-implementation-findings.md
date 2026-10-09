@@ -398,7 +398,13 @@ plain page background between cards even without scrolling, so the most likely e
 simply that this gap becomes visually obvious only once there are enough cards to scroll — but this
 needs a real Playwright screenshot of a populated, scrolled Moderation tab before committing to a
 fix, per this repo's own rule against re-diagnosing a purely visual question from code alone.
-**Status: ready for the alignment fix; needs one screenshot before the scroll-background fix.**
+**Done (2026-10-07):** `.moderation-field-label`'s `min-width` raised from 120px to 150px (the
+longest label, "Reported profile:", didn't reliably fit at 120px bold, causing ragged alignment).
+The scroll-background concern was resolved by direct visual evidence rather than guesswork: a new
+Playwright test (`04-provider-profile-flow.spec.js`, "moderatorEn views a 7-item moderation
+queue...") seeds 7 real flagged items and screenshots the scrolled card list
+(`moderation-queue-scrolled-many-items`) — the real screenshot shows consistent card backgrounds
+with no white gap; the 12px list gap was never a bug, confirming the original hypothesis. **Status: done.**
 
 **H. Moderation pagination + its own Settings page-size field.** `FeedbackAccessService.findModerationQueue`
 currently fetches up to 50 of each hidden-feedback/hidden-comment type, merges, sorts, and returns
@@ -432,15 +438,8 @@ updated via `/record-decision` once done (not a fresh, unrelated ADR). **Confirm
 `.reversed()`, update `ModerationView`'s class javadoc, and update the superseded ADR entry via
 `/record-decision` (not a fresh, unrelated one) once implemented. **Status: ready to implement.**
 
-**J. Moderation tab restructured to mirror AdvertisementsView (QueryBlock-based filter/sort bar,
-Grid-like chrome) — raised as "maybe," not committed.** This is materially bigger than G/H/I: it
-means replacing the current bespoke card-list+plain-pagination shape with the full `QueryBlock`/
-`QueryStatusBar`/`FilterMeta`/`SortMeta` infrastructure `AdvertisementsView`/`UserView` use, which
-in turn means a real `ModerationQueueItemDto` filter/sort contract (type, date range, reason text)
-at the orchestrator level, not just a UI reshuffle. Given the explicit "maybe," this should be
-scoped and approved as its own follow-up rather than folded into this phase — **recommend filing
-a separate backlog task for it instead of expanding Phase 9's scope, once I/H above (the smaller,
-related asks) are done and you've seen how the simpler pagination+sort addition already feels.**
+**J moved out of Phase 9 — see "Phase 10" below, its own section of this same task file (kept here,
+not a separate backlog task, per your explicit instruction).**
 
 **K. New moderator action — "permanently confirm as a genuine violation," icon button.** Two
 real, already-distinct code paths exist today and need a decision between them, not an assumption:
@@ -489,6 +488,230 @@ candidate.**
 
 **Review:** after all of Phase 9 lands, run a `/review` pass — but only after `improvement-206` is
 implemented, per your explicit instruction; noted here now, not scheduled yet.
+
+**Done (2026-10-07), Phase 9 (H/H2/I/K/L/G) + Phase 11 (M/N/O/P/Q/R/S) — all implemented and
+verified, dispatched via Haiku agents throughout, each independently re-verified against real
+diffs/build output, never trusted from agent self-report alone:**
+- **H/H2:** `moderationPageSize` (new, privileged-gated) and `feedbackPageSize` (existing field,
+  previously missing its own UI control) added end-to-end — `UserSettingsDto`, `SettingsSnapshotDto`
+  (6th field + audit diff/allFields entries), `SettingsEditDto`, `SettingsFormModeHandler` (both new
+  `IntegerField`s wired through activate/save/discardChanges/handleRestoreFromActivity/loadRestored/
+  buildBinder), `UserPreferencesService.toSettingsSnapshot`. `FeedbackAccessService.findModerationQueue`
+  restructured into a `ModerationQueuePage` record (items + true total count) with in-memory paging
+  over a `buildFullModerationQueue()` helper (no SQL/count-query complexity needed — queue size is
+  bounded by real reports). `ModerationView` wired with a real `PaginationBar` +
+  `SettingsPaginationBinding`. A second, independently-found adjacent gap fixed in the same pass:
+  `AuditTimelineRowRenderer`'s `USER_SETTINGS` field-label switch was missing cases for both
+  `feedbackPageSize` and the new `moderationPageSize` (would have rendered unlabeled in the audit
+  timeline) — added both, plus their `CHANGES_SETTING_*` i18n keys.
+- **I:** Moderation queue default sort flipped from oldest-first to newest-first (confirmed
+  intentional reversal) — `Comparator...reversed()`, class/method javadoc updated.
+- **K:** New `FeedbackModerationStatus.CONFIRMED_HIDDEN` value + `isHidden()` helper (both `HIDDEN`
+  and `CONFIRMED_HIDDEN` render the same censored placeholder); new
+  `confirmFeedbackViolation`/`confirmCommentViolation` methods through
+  `FeedbackService`→`FeedbackPort`/`FeedbackPortImpl`→`FeedbackAccessService` (with the same
+  audit-capture convention every other moderation action already uses); new "Confirm violation"
+  button in `ModerationView` next to Approve. A real, previously-undiscovered dead-code finding
+  surfaced and fixed in the same pass (user-approved before touching): 6 unused i18n keys
+  (`MODERATION_BUTTON_REJECT`/`MODERATION_CONFIRM_REJECT_*`/`MODERATION_NOTIFICATION_REJECTED`) for
+  a "Reject" button that had full i18n scaffolding but was never wired to any UI — confirmed via
+  grep, removed.
+- **L:** Feedback/reply icon buttons unified into one shared vertical column
+  (`.entity-actions-column`, same visual treatment everywhere) instead of the previous
+  inconsistent mix (view-mode icons inline in the header row, edit-mode icons in their own bordered
+  column, reply icons right-aligned below text, composer icons unstyled). `FeedbackPanel`/
+  `FeedbackReplyPanel` DOM restructured; four now-dead CSS rules removed.
+- **M/N:** `FeedbackRepository.upsertAggregate`'s SQL now joins `feedback_content` and filters
+  `moderation_status = 'NEW'` — hidden/flagged feedback no longer inflates the public aggregate.
+  `flagFeedback`/`approveFeedback` now call `upsertAggregate` (previously only `rejectFeedback` did,
+  leaving the aggregate stale after every flag/approve).
+- **O:** `FeedbackService.save()`'s update branch now takes `entityType`/`entityId`/`authorId` from
+  the existing record, not the incoming DTO — an update call can no longer move a feedback entry to
+  a different entity or reassign its author (confirmed unreachable today — zero feedback endpoints
+  exist in `marketplace-rest-api` — but a real service-layer invariant fix regardless).
+- **P:** `FeedbackComment` update identity verified already correct — no fix needed.
+- **Q:** `FailureRateLimiter.recordFailure()` was being called after *successful* feedback/comment
+  submissions to track a daily quota — semantically backwards. Added a neutrally-named
+  `recordAttempt()` alias (delegates to the same counter), switched `FeedbackService`'s two
+  call sites to it; `AuthService`/`UserService`/`ContactRevealRateLimiter`'s correct
+  `recordFailure()` usages left untouched.
+- **R:** 7 new regression tests added (`FeedbackRepositoryTest` x2, `FeedbackServiceTest` x5)
+  covering aggregate exclusion/recompute/zero-state and the identity-hijack fix.
+- **S:** Concurrency test added (`concurrentSaves_sameEntity_aggregateConvergesToCorrectValue`) —
+  two threads racing `save()` on the same entity, asserting the aggregate converges to the correct
+  value after an explicit recompute (the materialized aggregate row can legitimately race
+  transiently; the underlying `feedback`/`feedback_rating` rows themselves never get corrupted).
+- **Real Playwright bugs found and fixed along the way** (via real `playwright.sh` runs, not
+  assumed): `audit.flow.js`'s `runVerifySettingsAfterSignupFlow` had a stale field count
+  (`toHaveCount(privileged ? 4 : 2)`, now `6 : 3`) that cascaded into failing most of the rest of
+  the suite (specs are serial — one early failure skips downstream setup); `settings.flow.js`'s
+  `changePageSizes`/`getPageSizes` read the `users` field at the wrong index (2, now 3) after
+  `feedback` was inserted before it; `04-provider-profile-flow.spec.js`'s existing
+  `assertRightAligned` call referenced a CSS class L's own redesign removed
+  (`.feedback-entry-header-actions`, now `.entity-actions-column`/`.feedback-entry-row` with an
+  explicit 20px tolerance for the card's own real, intentional 16px padding); the new scroll-test
+  itself needed three of its own fixes before going green — a reviewer
+  (`userEn`) who already had a leftover entry on the target profile from an earlier test (redesigned
+  to use 4 fresh reviewers instead of 5), a race between a transient "thanks for your feedback"
+  toast and Playwright's own polling (fixed by asserting the persisted entry instead of the toast),
+  and `adminUk`'s already-documented TEST_USERS-locale-vs-real-UI-locale quirk (same fix pattern
+  already established elsewhere in the same file) plus an unscoped `.pagination-count` locator
+  matching the Advertisements tab's own pagination bar too (scoped to `.moderation-view-layout`).
+
+**Final verified result:** `build-and-test.sh --unit --no-integration` — 355/355 unit tests;
+`build-and-test.sh --no-unit --integration` — 315/315 integration tests; `deploy-and-run.sh
+--reset-only-db` — clean deploy; `playwright.sh e2e --ux` — **53/66 passed, 13 skipped (spec 06
+seed, expected without `--full`), 0 failed**. Phase 9 and Phase 11 are both complete. Phase 10 (J)
+remains open, deliberately deferred per your own instruction.
+
+---
+
+**Phase 10 — Moderation tab restructured to mirror AdvertisementsView (2026-10-07), plan only, not
+yet implemented, scoped deliberately after Phase 9 (per your instruction: see how H/I's simpler
+pagination+sort addition feels first).**
+
+Replace the current bespoke card-list+plain-pagination shape with the same `QueryBlock`/
+`QueryStatusBar`/`FilterMeta`/`SortMeta` infrastructure `AdvertisementsView`/`UserView` already use,
+so Moderation gains real filter/sort controls (type, date range, reason text) instead of only a
+hardcoded sort direction. This needs, at minimum:
+- A real `ModerationQueueFilterDto` (type/date-range/reason-text) and corresponding `*FilterMeta`
+  (`Fields.*` constants, no raw strings — per this repo's own Query Layer Pattern) at the
+  `marketplace-orchestrator` level, since filtering a merged, two-source (`feedback`+
+  `feedback_comment`) result set can't reuse either domain's existing `SqlFilterBuilder` as-is.
+- A `*SortMeta` exposing at least created-date asc/desc (replacing H/I's single hardcoded
+  direction with a real user-facing toggle) and whichever other columns the card view actually
+  shows (type, author).
+- Deciding whether the result stays card-based (just adding `QueryBlock`+`QueryStatusBar` chrome
+  above the existing `.moderation-card` list) or moves to an actual `Grid<ModerationQueueItemDto>`
+  — Phase 8 deliberately moved away from a `Grid` because "field content is too long for grid
+  cells" (see `ModerationView`'s own class javadoc); reintroducing `QueryBlock`/`QueryStatusBar`
+  does not require reversing that specific decision, the two are separable.
+- Re-deciding how H's in-memory-pagination approach interacts with real filtering — filtering
+  before paging still works against the same merged in-memory list, just adds a filter predicate
+  before the `subList` slice, so this doesn't invalidate H's design, only extends it.
+
+**Status: plan only — not scoped to exact files/methods yet (needs its own technical-layer pass
+once picked up), deliberately sequenced after Phase 9 so H/I's simpler addition can be evaluated
+first.**
+
+---
+
+**Phase 11 — Feedback aggregate/identity runtime-consistency fixes (2026-10-07), plan only, not
+yet implemented. Backend-only, independent of Phase 9/10 (those are UI). Every item below was
+verified directly against the current code before being added here — not assumed from a spec.**
+
+**M. Public aggregate counts HIDDEN feedback — confirmed real bug.**
+`FeedbackRepository.upsertAggregate()` joins only `feedback`+`feedback_rating`, with no
+`feedback_content`/`moderation_status` filter at all — a moderator hiding a feedback entry today has
+zero effect on its entity's public `avg_rating`/`review_count`. Fix: add the join + filter —
+```sql
+INSERT INTO feedback_aggregate (entity_type, entity_id, avg_rating, review_count, updated_at)
+SELECT :entityType, :entityId, COALESCE(AVG(r.rating), 0), COUNT(*), NOW()
+FROM feedback f
+JOIN feedback_rating r ON r.feedback_id = f.id
+JOIN feedback_content fc ON fc.id = f.content_id
+WHERE f.entity_type = :entityType AND f.entity_id = :entityId
+  AND fc.moderation_status = 'NEW'
+ON CONFLICT (entity_type, entity_id) DO UPDATE
+SET avg_rating = EXCLUDED.avg_rating, review_count = EXCLUDED.review_count, updated_at = EXCLUDED.updated_at
+```
+A bare aggregate `SELECT` with no `GROUP BY` always returns exactly one row even when the `WHERE`
+matches nothing (`COUNT(*)=0`, `AVG→NULL→COALESCE→0`), so "all feedback hidden" already naturally
+upserts a correct `0/0` row with just this change — no extra branch needed. **Status: ready to
+implement.**
+
+**N. Aggregate not recomputed after flag/approve — confirmed real bug.**
+`FeedbackService.flagFeedback`/`approveFeedback` (lines 176-185, 199-204) never call
+`repository.upsertAggregate(...)` — only `rejectFeedback` does today. Fix: add one call to each,
+reusing the `FeedbackView existing` already read in both methods (already carries `entityType()`/
+`entityId()`, no extra query needed):
+```java
+repository.flagContent(existing.contentId(), reason);
+repository.upsertAggregate(existing.entityType(), existing.entityId());
+```
+```java
+repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.NEW);
+repository.upsertAggregate(existing.entityType(), existing.entityId());
+```
+`flagComment`/`approveComment` need **no** equivalent call — a reply carries no rating, so comment
+moderation never affects `feedback_aggregate` in the first place; confirmed by reading
+`FeedbackCommentView`'s fields (no `entityType`/`entityId`, only `feedbackId`). **Status: ready to
+implement.**
+
+**O. `FeedbackService.save()` update path can hijack identity — confirmed real weakness, low
+current severity.** The update branch (`dto.id() != null`) builds `saved` from `dto.entityType()`/
+`dto.entityId()`/`dto.authorId()` instead of the `existing` record just read — so nothing at the
+service layer stops an update call from moving a feedback entry to a different entity or
+reassigning its author, if a caller ever passed different values. Confirmed currently unreachable
+in practice: `marketplace-rest-api` exposes zero feedback endpoints (grepped, zero matches) and the
+only real caller, `FeedbackPanel`'s edit flow, always sends the same `entityRef`/author back
+unchanged — so this is a latent defense-in-depth gap, not a live bug. Fix: use `existing`'s values
+for the identity fields, and use those same values (not `dto`'s) for the `upsertAggregate` call that
+follows:
+```java
+saved = Feedback.builder()
+        .id(existing.id())
+        .entityType(existing.entityType())
+        .entityId(existing.entityId())
+        .authorId(existing.authorId())
+        .contentId(contentId)
+        .build();
+```
+`dto.entityType()`/`dto.entityId()`/`dto.authorId()` become write-ignored on update (API shape
+unchanged, no new validation exception introduced — simplest fix matching "don't break the API
+unnecessarily"). **Status: ready to implement.**
+
+**P. `FeedbackComment` update identity — verified already correct, no fix needed.**
+`saveComment()`'s update branch already builds `saved` from `existing.id()`/`existing.contentId()`/
+`existing.authorId()`/`existing.feedbackId()`, not from `dto` — confirmed by reading the code.
+**Status: no action.**
+
+**Q. `FailureRateLimiter.recordFailure()` misused to count successful feedback/comment submissions
+— confirmed, low priority.** `FeedbackService.save()`/`saveComment()` call `recordFailure()` after
+a *successful* create to track the daily-submission quota — functionally correct (the counter is
+generic under the hood) but semantically backwards, and `recordFailure` is also used correctly
+elsewhere (`AuthService`, `UserService` — real login/registration failures), so renaming the method
+itself would misname those correct call sites. Confirmed-safe local fix: add a second, neutrally-named
+method to `FailureRateLimiter` —
+```java
+/** Same counter as {@link #recordFailure}, under a name that fits a non-failure quota use (e.g. a daily submission cap). */
+public void recordAttempt(@NonNull String key) {
+    recordFailure(key);
+}
+```
+and switch `FeedbackService`'s two call sites to `recordAttempt`. Purely additive, zero risk to the
+3 existing correct callers. **Status: ready to implement.**
+
+**R. Tests to add/update** (`integration-tests` module, `level1/feedback/`):
+- Aggregate: single NEW (count=1, avg=rating); NEW+HIDDEN (only NEW counted); NEW→HIDDEN (count
+  drops); HIDDEN→NEW via approve (count rises); delete removes it from the aggregate; all-HIDDEN
+  yields a `0/0` row, not a missing one; mixed ratings average correctly.
+- Identity: update preserves `authorId`/`entityType`/`entityId` even if the `FeedbackSaveDto` passed
+  to `save()` carries different values for them.
+- Moderation: `flagFeedback`/`approveFeedback`/`rejectFeedback` each leave the aggregate consistent
+  with the resulting visible-feedback set.
+- Regression-only (no new behavior, just confirms P stays true): comment update still preserves its
+  own identity; single-reply invariant still enforced.
+
+**S. Concurrency test — optional, attempt only if it reproduces cleanly.** Two concurrent
+`save()`/moderation-transition calls against the same entity via `integration-tests`' real
+Testcontainers Postgres; assert the resulting aggregate matches *some* valid end state (not a
+specific interleaving) — `upsertAggregate`'s own `ON CONFLICT ... DO UPDATE` plus each write running
+in its own `@Transactional` method already gives read-committed-level protection against a
+corrupted row (never a negative count or an average outside the actual rating range), so this is a
+confirmation test, not expected to uncover a new bug. If it does reveal a real race, fix it with the
+smallest local change (e.g. a `SELECT ... FOR UPDATE` on the aggregate row); if it can't be
+reproduced reliably in this environment, say so plainly rather than inventing a speculative fix.
+
+**Explicitly out of scope for this phase** (per your own constraint list): moving Feedback across
+modules, merging `FeedbackContent`/`FeedbackRating`/`FeedbackComment`, deleting any
+repository/service, JPA migration, replacing Spring Data JDBC, rewriting `FeedbackPanel`, threaded
+comments, a new moderation or authorization architecture, schema changes beyond what M/N/O/Q
+actually require (none of them need one), or any unrelated refactor.
+
+**Status: plan only, ready to implement — M/N/O/Q/P are each independently small and verified; R's
+test list is the acceptance gate; S is exploratory and may conclude "not reproducible" without that
+being a failure of the phase.**
 
 **Done (2026-10-06), integration-tests:** `FeedbackRepositoryTest`/`FeedbackServiceTest` rewritten
 for the single-reply model (removed reaction/depth/tombstone tests, added `findCommentByFeedback`/
