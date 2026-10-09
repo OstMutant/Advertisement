@@ -276,6 +276,26 @@ public class FeedbackRepository {
                 .list();
     }
 
+    /** Feedback entries already confirmed as a genuine violation, oldest first. */
+    public List<FeedbackView> findConfirmedViolationFeedback(@NonNull Pageable pageable) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        String pageClause = PaginationSqlBuilder.pageLimit(params, pageable);
+        return jdbcClient.sql(VIEW_SELECT + " WHERE c.moderation_status = 'CONFIRMED_HIDDEN' ORDER BY c.created_at ASC" + pageClause)
+                .paramSource(params)
+                .query(VIEW_ROW_MAPPER)
+                .list();
+    }
+
+    /** Replies already confirmed as a genuine violation, oldest first, across all feedback entries. */
+    public List<FeedbackCommentView> findConfirmedViolationComments(@NonNull Pageable pageable) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        String pageClause = PaginationSqlBuilder.pageLimit(params, pageable);
+        return jdbcClient.sql(COMMENT_VIEW_SELECT + " WHERE c.moderation_status = 'CONFIRMED_HIDDEN' ORDER BY c.created_at ASC" + pageClause)
+                .paramSource(params)
+                .query(COMMENT_VIEW_ROW_MAPPER)
+                .list();
+    }
+
     /** Cascades a feedback entry's own hard delete across its reply, rating, and content row -- no FK cascade configured. */
     public void deleteFeedbackHard(@NonNull Long feedbackId, @NonNull Long contentId) {
         findCommentByFeedback(feedbackId).ifPresent(comment -> deleteCommentHard(comment.id(), comment.contentId()));

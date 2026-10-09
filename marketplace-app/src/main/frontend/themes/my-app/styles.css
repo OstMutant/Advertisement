@@ -24,6 +24,8 @@
 @import url("./user-overlay.css");
 @import url("./provider-profile-overlay.css");
 @import url("./provider-profile-query-block.css");
+@import url("./moderation-query-block.css");
+@import url("./moderation-view.css");
 @import url("./providers-view.css");
 @import url("./provider-profile-card.css");
 @import url("./forms.css");

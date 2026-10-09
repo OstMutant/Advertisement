@@ -258,6 +258,16 @@ public class FeedbackService {
         return repository.findHiddenComments(pageable).stream().map(FeedbackService::toCommentDto).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<FeedbackDto> findConfirmedViolationFeedback(@NonNull Pageable pageable) {
+        return repository.findConfirmedViolationFeedback(pageable).stream().map(FeedbackService::toDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FeedbackCommentDto> findConfirmedViolationComments(@NonNull Pageable pageable) {
+        return repository.findConfirmedViolationComments(pageable).stream().map(FeedbackService::toCommentDto).toList();
+    }
+
     // ── Shared helpers ───────────────────────────────────────────────────────
 
     private static void checkWithinEditWindow(Instant createdAt) {

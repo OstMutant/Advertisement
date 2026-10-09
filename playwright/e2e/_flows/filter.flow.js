@@ -161,12 +161,20 @@ async function fillNumber(page, blockSelector, labelText, minVal, maxVal) {
  * @param {import('@playwright/test').Page} page
  * @param {string} blockSelector
  * @param {string} role
+ * @param {string} [testId] when a block has more than one multi-select combo (e.g. Moderation's
+ *   Type and Status fields), scopes the selector to `[data-testid="${testId}"]` instead of the
+ *   bare tag -- same disambiguation `fillCategory`/`fillAdKind` already use.
  * @returns {Promise<void>}
  */
-async function fillRole(page, blockSelector, role) {
-  const combo = page.locator(`${blockSelector} vaadin-multi-select-combo-box`);
+async function fillRole(page, blockSelector, role, testId) {
+  const scopedSelector = testId ? `${blockSelector} [data-testid="${testId}"]` : `${blockSelector} vaadin-multi-select-combo-box`;
+  const combo = page.locator(scopedSelector);
   await combo.locator('input').click();
-  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'visible', timeout: 5000 });
+  // :visible (not just .first()) -- a block with 2+ multi-select combos (e.g. Moderation's Type
+  // and Status) leaves each one's own overlay element in the DOM in a hidden state once closed, so
+  // a bare .first() can keep resolving to an earlier field's stale closed overlay instead of the
+  // one actually opened just now.
+  await page.locator('vaadin-multi-select-combo-box-overlay:visible').first().waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.type(role);
   // Same race as fillCategory -- wait for a matching item to actually render before selecting it.
   await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: role }).first()
@@ -174,10 +182,10 @@ async function fillRole(page, blockSelector, role) {
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await page.evaluate((sel) => {
-    const combo = document.querySelector(sel + ' vaadin-multi-select-combo-box');
+    const combo = document.querySelector(sel);
     if (combo) combo.opened = false;
-  }, blockSelector);
-  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'hidden', timeout: 5000 });
+  }, scopedSelector);
+  await page.locator('vaadin-multi-select-combo-box-overlay:visible').first().waitFor({ state: 'hidden', timeout: 5000 });
 }
 
 /**

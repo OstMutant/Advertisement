@@ -3,6 +3,7 @@ package org.ost.platform.feedback.dto;
 import lombok.Builder;
 import lombok.Value;
 import lombok.experimental.FieldNameConstants;
+import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import org.ost.platform.feedback.model.ModerationQueueItemType;
 
 import java.time.Instant;
@@ -23,4 +24,5 @@ public class ModerationQueueItemDto {
     Long authorId;
     String authorName;
     Instant createdAt;
+    FeedbackModerationStatus moderationStatus;
 }

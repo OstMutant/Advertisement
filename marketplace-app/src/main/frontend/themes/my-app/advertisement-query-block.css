@@ -32,7 +32,15 @@
 .user-query-block vaadin-integer-field::part(input-field),
 .timeline-query-block vaadin-multi-select-combo-box::part(input-field),
 .timeline-query-block vaadin-date-picker::part(input-field),
-.timeline-query-block vaadin-time-picker::part(input-field) {
+.timeline-query-block vaadin-time-picker::part(input-field),
+.provider-profile-query-block vaadin-date-picker::part(input-field),
+.provider-profile-query-block vaadin-time-picker::part(input-field),
+.provider-profile-query-block vaadin-combo-box::part(input-field),
+.provider-profile-query-block vaadin-multi-select-combo-box::part(input-field),
+.moderation-query-block vaadin-text-field::part(input-field),
+.moderation-query-block vaadin-date-picker::part(input-field),
+.moderation-query-block vaadin-time-picker::part(input-field),
+.moderation-query-block vaadin-multi-select-combo-box::part(input-field) {
     background:    var(--app-surface-white);
     border:        1.5px solid var(--app-accent-primary-bg);
     border-radius: 8px;
@@ -53,7 +61,15 @@
 .user-query-block vaadin-number-field:focus-within::part(input-field),
 .timeline-query-block vaadin-multi-select-combo-box:focus-within::part(input-field),
 .timeline-query-block vaadin-date-picker:focus-within::part(input-field),
-.timeline-query-block vaadin-time-picker:focus-within::part(input-field) {
+.timeline-query-block vaadin-time-picker:focus-within::part(input-field),
+.provider-profile-query-block vaadin-date-picker:focus-within::part(input-field),
+.provider-profile-query-block vaadin-time-picker:focus-within::part(input-field),
+.provider-profile-query-block vaadin-combo-box:focus-within::part(input-field),
+.provider-profile-query-block vaadin-multi-select-combo-box:focus-within::part(input-field),
+.moderation-query-block vaadin-text-field:focus-within::part(input-field),
+.moderation-query-block vaadin-date-picker:focus-within::part(input-field),
+.moderation-query-block vaadin-time-picker:focus-within::part(input-field),
+.moderation-query-block vaadin-multi-select-combo-box:focus-within::part(input-field) {
     border-color: var(--app-accent-primary);
     box-shadow:   0 0 0 3px rgb(from var(--app-accent-primary) r g b / 0.12);
 }

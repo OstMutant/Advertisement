@@ -542,7 +542,22 @@ public enum I18nKey {
     MODERATION_BUTTON_CONFIRM_VIOLATION("moderation.button.confirmViolation"),
     MODERATION_NOTIFICATION_APPROVED("moderation.notification.approved"),
     MODERATION_NOTIFICATION_CONFIRMED("moderation.notification.confirmed"),
-    MODERATION_NOTIFICATION_ERROR("moderation.notification.error");
+    MODERATION_NOTIFICATION_ERROR("moderation.notification.error"),
+
+    // === Moderation Filter ===
+    MODERATION_FILTER_TYPE("moderation.filter.type"),
+    MODERATION_FILTER_AUTHOR_PLACEHOLDER("moderation.filter.author.placeholder"),
+    MODERATION_FILTER_REASON("moderation.filter.reason"),
+    MODERATION_FILTER_STATUS("moderation.filter.status"),
+    MODERATION_FILTER_DATE_CREATED_START("moderation.filter.date.created.start"),
+    MODERATION_FILTER_DATE_CREATED_END("moderation.filter.date.created.end"),
+    MODERATION_FILTER_TIME_CREATED_START("moderation.filter.time.created.start"),
+    MODERATION_FILTER_TIME_CREATED_END("moderation.filter.time.created.end"),
+
+    // === Moderation Sort ===
+    MODERATION_SORT_CREATED_AT("moderation.sort.createdAt"),
+    MODERATION_SORT_AUTHOR("moderation.sort.author"),
+    MODERATION_SORT_TYPE("moderation.sort.type");
 
     private final String key;
 

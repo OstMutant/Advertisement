@@ -12,12 +12,14 @@ import org.ost.platform.feedback.dto.FeedbackCommentSnapshotDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
 import org.ost.platform.feedback.dto.FeedbackSnapshotDto;
+import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
 import org.ost.platform.feedback.dto.ModerationQueueItemDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import org.ost.platform.feedback.model.ModerationQueueItemType;
 import org.ost.platform.feedback.spi.FeedbackPort;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -93,25 +95,72 @@ public class FeedbackAccessService {
                 .orElse(List.of());
     }
 
+    public List<FeedbackDto> findConfirmedViolationFeedback(@NonNull Pageable pageable) {
+        return feedbackPortFactory.findIfAvailable()
+                .map(port -> port.findConfirmedViolationFeedback(pageable))
+                .orElse(List.of());
+    }
+
+    public List<FeedbackCommentDto> findConfirmedViolationComments(@NonNull Pageable pageable) {
+        return feedbackPortFactory.findIfAvailable()
+                .map(port -> port.findConfirmedViolationComments(pageable))
+                .orElse(List.of());
+    }
+
     private static final int MAX_QUEUE_FETCH = 1000;
 
-    /** One page of the merged, newest-first moderation queue, plus its true total count -- paged in memory since queue size is bounded by real reports, not catalog scale. */
+    /** One page of the merged moderation queue, filtered and sorted per request, plus its true total count -- paged in memory since queue size is bounded by real reports, not catalog scale. */
     public record ModerationQueuePage(List<ModerationQueueItemDto> items, int totalCount) {}
 
-    public ModerationQueuePage findModerationQueue(int page, int size) {
-        List<ModerationQueueItemDto> all = buildFullModerationQueue();
+    public ModerationQueuePage findModerationQueue(@NonNull ModerationQueueFilterDto filter, @NonNull Sort sort, int page, int size) {
+        List<ModerationQueueItemDto> all = buildFullModerationQueue().stream()
+                .filter(item -> matchesFilter(item, filter))
+                .sorted(resolveComparator(sort))
+                .toList();
         int fromIndex = Math.min(page * size, all.size());
         int toIndex = Math.min(fromIndex + size, all.size());
         return new ModerationQueuePage(all.subList(fromIndex, toIndex), all.size());
     }
 
+    private boolean matchesFilter(ModerationQueueItemDto item, ModerationQueueFilterDto filter) {
+        if (filter.getTypes() != null && !filter.getTypes().contains(item.getType())) return false;
+        if (filter.getCreatedAtStart() != null && item.getCreatedAt().isBefore(filter.getCreatedAtStart())) return false;
+        if (filter.getCreatedAtEnd() != null && item.getCreatedAt().isAfter(filter.getCreatedAtEnd())) return false;
+        if (filter.getAuthorName() != null && !containsIgnoreCase(item.getAuthorName(), filter.getAuthorName())) return false;
+        if (filter.getReasonText() != null && !containsIgnoreCase(item.getModerationReason(), filter.getReasonText())) return false;
+        if (filter.getStatuses() == null || filter.getStatuses().isEmpty()) {
+            if (item.getModerationStatus() != FeedbackModerationStatus.HIDDEN) return false;
+        } else if (!filter.getStatuses().contains(item.getModerationStatus())) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean containsIgnoreCase(String haystack, String needle) {
+        return haystack != null && haystack.toLowerCase().contains(needle.toLowerCase());
+    }
+
+    private Comparator<ModerationQueueItemDto> resolveComparator(Sort sort) {
+        Sort.Order order = sort.get().findFirst().orElse(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt));
+        Comparator<ModerationQueueItemDto> comparator = switch (order.getProperty()) {
+            case ModerationQueueItemDto.Fields.authorName -> Comparator.comparing(ModerationQueueItemDto::getAuthorName, String.CASE_INSENSITIVE_ORDER);
+            case ModerationQueueItemDto.Fields.type -> Comparator.comparing(i -> i.getType().name());
+            default -> Comparator.comparing(ModerationQueueItemDto::getCreatedAt);
+        };
+        return order.isDescending() ? comparator.reversed() : comparator;
+    }
+
     private List<ModerationQueueItemDto> buildFullModerationQueue() {
         List<FeedbackDto> hiddenFeedback = findHiddenFeedback(PageRequest.of(0, MAX_QUEUE_FETCH));
         List<FeedbackCommentDto> hiddenComments = findHiddenComments(PageRequest.of(0, MAX_QUEUE_FETCH));
+        List<FeedbackDto> confirmedFeedback = findConfirmedViolationFeedback(PageRequest.of(0, MAX_QUEUE_FETCH));
+        List<FeedbackCommentDto> confirmedComments = findConfirmedViolationComments(PageRequest.of(0, MAX_QUEUE_FETCH));
 
         Set<Long> authorIds = new HashSet<>();
         hiddenFeedback.forEach(f -> authorIds.add(f.authorId()));
         hiddenComments.forEach(c -> authorIds.add(c.authorId()));
+        confirmedFeedback.forEach(f -> authorIds.add(f.authorId()));
+        confirmedComments.forEach(c -> authorIds.add(c.authorId()));
         Map<Long, String> names = authorIds.isEmpty() ? Map.of() : resolveAuthorNames(authorIds);
 
         List<ModerationQueueItemDto> items = new ArrayList<>();
@@ -125,6 +174,7 @@ public class FeedbackAccessService {
                 .authorId(f.authorId())
                 .authorName(names.getOrDefault(f.authorId(), String.valueOf(f.authorId())))
                 .createdAt(f.createdAt())
+                .moderationStatus(FeedbackModerationStatus.HIDDEN)
                 .build()));
         hiddenComments.forEach(c -> {
             Long entityId = findFeedbackById(c.feedbackId()).map(FeedbackDto::entityId).orElse(null);
@@ -138,9 +188,36 @@ public class FeedbackAccessService {
                     .authorId(c.authorId())
                     .authorName(names.getOrDefault(c.authorId(), String.valueOf(c.authorId())))
                     .createdAt(c.createdAt())
+                    .moderationStatus(FeedbackModerationStatus.HIDDEN)
                     .build());
         });
-        items.sort(Comparator.comparing(ModerationQueueItemDto::getCreatedAt).reversed());
+        confirmedFeedback.forEach(f -> items.add(ModerationQueueItemDto.builder()
+                .type(ModerationQueueItemType.FEEDBACK)
+                .id(f.id())
+                .entityId(f.entityId())
+                .contentText(f.feedbackText())
+                .rating(f.rating())
+                .moderationReason(f.moderationReason())
+                .authorId(f.authorId())
+                .authorName(names.getOrDefault(f.authorId(), String.valueOf(f.authorId())))
+                .createdAt(f.createdAt())
+                .moderationStatus(FeedbackModerationStatus.CONFIRMED_HIDDEN)
+                .build()));
+        confirmedComments.forEach(c -> {
+            Long entityId = findFeedbackById(c.feedbackId()).map(FeedbackDto::entityId).orElse(null);
+            items.add(ModerationQueueItemDto.builder()
+                    .type(ModerationQueueItemType.COMMENT)
+                    .id(c.id())
+                    .entityId(entityId)
+                    .contentText(c.commentText())
+                    .rating(null)
+                    .moderationReason(c.moderationReason())
+                    .authorId(c.authorId())
+                    .authorName(names.getOrDefault(c.authorId(), String.valueOf(c.authorId())))
+                    .createdAt(c.createdAt())
+                    .moderationStatus(FeedbackModerationStatus.CONFIRMED_HIDDEN)
+                    .build());
+        });
         return items;
     }
 

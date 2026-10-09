@@ -434,3 +434,47 @@ decision before sizing: a new orchestrator-level scheduled job (first of its kin
 cleanup job lives entirely inside its own starter) that calls `EntityExistenceService` per
 `EntityType` and deletes orphaned rows via each affected starter's own Port, vs. some other shape
 not yet considered.
+
+### 26. Unverified "background changes on scroll" report — root cause not confirmed, couldn't reproduce (found during improvement-203 manual testing, 2026-10-09)
+
+User reported that on every tab, scrolling down past where visible content ends shows a background
+color change. Investigated directly via real pixel evidence where possible: confirmed via a real
+screenshot that advertisement/provider-profile cards use a pure white background
+(`--app-surface-white`) against a slightly different page background (`--app-surface-page`), and
+confirmed `.provider-profile-query-block` was missing its card styling entirely (fixed separately,
+unrelated to this report once the user clarified the complaint was specifically about that). Ruled
+out: no JS scroll listener exists anywhere in the frontend source (grepped); no CSS `transition`
+property is tied to scroll position. Tried and reverted: making `--app-surface-page` equal to
+`--app-surface-white` (user rejected — "makes everything plain", wanted original colors kept).
+Applied and kept: `overscroll-behavior-y: none` plus `min-height: 100%` on `html, body` — the
+standard, zero-visual-impact prevention for the native browser/OS "rubber-band" bounce effect at
+the end of scrollable content, which is the most likely remaining explanation given everything else
+was ruled out — but this was never actually confirmed to fix the user's real complaint, since the
+sandboxed headless Linux Chromium environment used for all Playwright verification in this session
+cannot render OS-level overscroll bounce at all (confirmed: it's a trackpad/macOS/Safari-class
+effect, not reproducible via static screenshots regardless of scroll position). A same-session
+lead not pursued further: Playwright's WebKit browser channel renders its own scroll/bounce
+behavior independent of the OS compositor and might reproduce this even headless on Linux — the
+official `mcr.microsoft.com/playwright` image this repo already uses ships WebKit alongside
+Chromium, but `playwright.config.js` has no `projects` entry selecting it, and building a
+real repro (real scroll gesture via `mouse.wheel()`, multi-frame screenshot capture, comparing
+pixel colors frame-by-frame) was not attempted. Needs, before this can be verified either way: a
+WebKit-based diagnostic script (not part of the main spec suite), or direct user confirmation
+(screen recording, or exact OS/browser/input-device details) of whether the applied
+`overscroll-behavior-y` fix actually resolved what they were seeing.
+
+### 27. One Playwright test extended via `test.setTimeout()` instead of being split into smaller tests (found during improvement-203, 2026-10-09)
+
+A new scroll/pagination scenario in `04-provider-profile-flow.spec.js` legitimately needs 7+ full
+login/logout cycles (4 reviewers leaving feedback, the owner replying to all 4, a reporter flagging
+7 items, a moderator reviewing the queue) in one `test(...)` block, pushing it over the default 60s
+per-test budget under normal environment load. Fixed by raising that one test's own budget via
+`test.setTimeout(3 * 60 * 1000)`, matching an existing precedent already used elsewhere in the
+suite (`06-seed-filter-sort-pagination.spec.js`) for similarly long scenarios — not a violation of
+this project's "no `waitForTimeout()`" rule (that rule targets fixed in-test sleeps, a different
+mechanism from a test's own overall time budget). Left unexplored: whether splitting this scenario
+into several smaller, independent tests (e.g. one for the feedback/reply setup, one for the
+flagging, one for the moderation-queue view) would be the more maintainable fix instead of
+accommodating a long test with a longer clock — each smaller test would stay within the default
+budget on its own and isolate failures to a narrower step, at the cost of re-doing the login setup
+per test instead of sharing it across one continuous scenario.

@@ -42,9 +42,9 @@ const TAB_LABELS = {
  * @returns {Promise<void>}
  */
 async function runSubmitLoginFlow(page, expect, user, locale = user.locale) {
-  // Pair the wait with the click -- login triggers a full page reload, and waiting after the fact races it.
+  // waitForURL is more reliable than waitForLoadState here -- it confirms the real post-login navigation instead of racing a stale "already loaded" state on the pre-login page.
   await Promise.all([
-    page.waitForLoadState('load'),
+    page.waitForURL(() => true, { waitUntil: 'load' }),
     page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).last().click(),
   ]);
   await expect(page.locator('.header-settings-button')).toBeVisible({ timeout: 15000 });

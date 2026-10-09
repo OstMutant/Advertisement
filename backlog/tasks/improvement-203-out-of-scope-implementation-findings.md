@@ -590,9 +590,104 @@ hardcoded sort direction. This needs, at minimum:
   before paging still works against the same merged in-memory list, just adds a filter predicate
   before the `subList` slice, so this doesn't invalidate H's design, only extends it.
 
-**Status: plan only — not scoped to exact files/methods yet (needs its own technical-layer pass
-once picked up), deliberately sequenced after Phase 9 so H/I's simpler addition can be evaluated
-first.**
+**Status: scoped to exact files/methods below (2026-10-09) — resolves all 3 open decisions from
+the plan above, researched directly against the existing `AdvertisementsView`/`AdvertisementQueryBlock`/
+`AdvertisementFilterMeta`/`AdvertisementSortMeta`/`AdvertisementQueryConfig` reference pattern.**
+
+**Decision 1 — filtering mechanism:** the merged queue is already bounded in-memory
+(`MAX_QUEUE_FETCH = 1000` in `FeedbackAccessService`), so filtering stays a plain Java predicate
+over the already-merged `List<ModerationQueueItemDto>` — no new `SqlFilterBuilder`, no SQL-level
+push-down into `feedback`/`feedback_comment`. This extends H's existing in-memory
+pagination design rather than replacing it.
+
+**Decision 2 — sort columns:** `createdAt` (default, desc — matches current behavior),
+`authorName`, `type` — all three already exist as `ModerationQueueItemDto.Fields.*` constants
+(`@FieldNameConstants` already present on that DTO).
+
+**Decision 3 — card vs Grid:** stays card-based. Only `QueryBlock`/`QueryStatusBar` chrome is added
+above the existing `.moderation-card` list; Phase 8's Grid-rejection decision is untouched.
+
+**Exact files:**
+
+1. **New DTO** — `platform-commons/src/main/java/org/ost/platform/feedback/dto/ModerationQueueFilterDto.java`:
+   `@FieldNameConstants @Data @AllArgsConstructor @NoArgsConstructor @Builder(toBuilder = true)
+   @ValidRange(start = "createdAtStart", end = "createdAtEnd", message = "...")` — fields:
+   `Set<ModerationQueueItemType> types`, `Instant createdAtStart`, `Instant createdAtEnd`,
+   `String reasonText` (substring match). Static `empty()` factory, matching `AdvertisementFilterDto`.
+
+2. **New mapper** — `marketplace-app/.../ui/mappers/ModerationQueueFilterMapper.java`: MapStruct
+   `@Mapper(componentModel = "spring")` implementing `FilterMapper<ModerationQueueFilterDto>`
+   (`update`/`copy`), exact shape of `AdvertisementFilterMapper`.
+
+3. **New FilterMeta** — `marketplace-app/.../ui/views/main/tabs/moderation/query/ModerationQueueFilterMeta.java`:
+   `TYPES` (`FilterFieldMeta<Set<ModerationQueueItemType>, ModerationQueueFilterDto, Set<ModerationQueueItemType>>`),
+   `CREATED_AT_START`/`CREATED_AT_END` (with `ValidationPredicates.range(...)`, same pattern as
+   `AdvertisementFilterMeta.CREATED_AT_START`/`_END`), `REASON_TEXT` (`FilterFieldMeta<String, ..., String>`,
+   `nullIfBlank` setter like `AdvertisementFilterMeta.TITLE`).
+
+4. **New SortMeta** — `marketplace-app/.../ui/views/main/tabs/moderation/query/ModerationQueueSortMeta.java`:
+   `CREATED_AT = SortFieldMeta.of(ModerationQueueItemDto.Fields.createdAt, MODERATION_SORT_CREATED_AT)`,
+   `AUTHOR_NAME = SortFieldMeta.of(ModerationQueueItemDto.Fields.authorName, MODERATION_SORT_AUTHOR)`,
+   `TYPE = SortFieldMeta.of(ModerationQueueItemDto.Fields.type, MODERATION_SORT_TYPE)`.
+
+5. **New QueryBlock** — `marketplace-app/.../ui/views/main/tabs/moderation/query/ModerationQueryBlock.java`:
+   extends `QueryBlock<ModerationQueueFilterDto>`, `addClassName("moderation-query-block")`, three
+   `filterRow(...)` calls mirroring `AdvertisementQueryBlock.initLayout()`: a
+   `MultiSelectComboBox<ModerationQueueItemType>` row (items = `ModerationQueueItemType.values()`)
+   bound to `ModerationQueueSortMeta.TYPE`/`ModerationQueueFilterMeta.TYPES`, a `QueryDateTimeField`
+   pair row bound to `ModerationQueueSortMeta.CREATED_AT`/`ModerationQueueFilterMeta.CREATED_AT_START`/`_END`,
+   and a `QueryTextField` row bound to `ModerationQueueFilterMeta.REASON_TEXT` (no matching
+   SortMeta — same shape as `AdvertisementFilterMeta.CATEGORY_IDS`'s filter-only row).
+
+6. **New QueryConfig** — `marketplace-app/.../ui/views/main/tabs/moderation/query/ModerationQueryConfig.java`:
+   `@Bean FilterProcessor<ModerationQueueFilterDto> moderationFilterProcessor(...)`,
+   `@Bean("moderationSortProcessor") SortProcessor moderationSortProcessor()` default
+   `Sort.by(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt))`, `@Bean QueryStatusBar<ModerationQueueFilterDto>
+   moderationQueryStatusBar(...)` — exact shape of `AdvertisementQueryConfig`.
+
+7. **`FeedbackAccessService.findModerationQueue`** (`marketplace-orchestrator`) — signature changes
+   from `(int page, int size)` to `(ModerationQueueFilterDto filter, Sort sort, int page, int size)`.
+   `buildFullModerationQueue()` stays as-is (still fetches + merges + author-name-resolves); the new
+   method applies a filter predicate (types/date-range/reason-text, all null-safe — a null/empty
+   filter field matches everything) then a `Comparator<ModerationQueueItemDto>` resolved from `sort`
+   (a small `switch` on `sort.get().findFirst()`'s property name — `authorName`/`type`/default
+   `createdAt` — mirroring `OrderByBuilder`'s aliasMap concept but in-memory, since this merged
+   result has no SQL to delegate to) before the existing `subList` pagination slice. Replaces the
+   current hardcoded `.sort(Comparator.comparing(...).reversed())` call in `buildFullModerationQueue`.
+
+8. **`ModerationView.java`** (`marketplace-app`) — restructured `init()`/`refresh()` to the
+   `AdvertisementsView` shape: inject `QueryStatusBar<ModerationQueueFilterDto> queryStatusBar`,
+   add `queryStatusBar` + `queryStatusBar.getQueryBlock()` above `listContainer` in the
+   `contentWrapper`, wire `queryStatusBar.getQueryBlock().addEventListener(() -> { paginationBar.resetToFirstPage(); refresh(); })`,
+   `refresh()` reads `filter`/`sort` off the query block and passes them into
+   `feedbackAccessService.findModerationQueue(filter, sort, page, size)`, `finally { queryStatusBar.update(); }`.
+
+9. **i18n** — new `I18nKey` entries (`MODERATION_FILTER_TYPE`, `MODERATION_FILTER_REASON_PLACEHOLDER`,
+   `MODERATION_FILTER_DATE_CREATED_START`/`_END` + matching `_TIME_` variants, `MODERATION_SORT_CREATED_AT`,
+   `MODERATION_SORT_AUTHOR`, `MODERATION_SORT_TYPE`) plus `messages_en.properties`/`messages_uk.properties`
+   entries for each.
+
+10. **CSS** — add `.moderation-query-block` to `advertisement-query-block.css`'s shared card-container
+    rule and its Vaadin-field-override selector lists (both base and `:focus-within` groups), same
+    pattern as the `.provider-profile-query-block` fix already applied this session.
+
+**Not in scope for this phase:** no change to `ModerationQueueItemDto` itself, no change to the
+card rendering (`buildCard`/`buildFieldRow`/etc.), no SQL/repository changes in
+`feedback-spring-boot-starter` (filtering stays entirely in-memory at the orchestrator level).
+
+**Done (2026-10-09).** All 10 items implemented exactly as scoped above (via two parallel Haiku
+agents given exact file contents/diffs), plus Playwright coverage extending the existing 7-item
+moderation queue test (`04-provider-profile-flow.spec.js`) with type/author/reason filter
+assertions against the already-built data. One design deviation found during implementation and
+applied: `AUTHOR_NAME` needed its own filter field (`authorName`, text, substring match) to pair
+with its sort icon -- `QueryBlock`'s sort+filter row API always pairs a `SortFieldMeta` with a
+matching `FilterFieldMeta`, so a sortable column needs a filter field of its own; `REASON_TEXT`
+stays filter-only (no sort), matching the `AdvertisementFilterMeta.CATEGORY_IDS` precedent.
+**Verified:** `build-and-test.sh --unit --integration --sandbox` (3m46s) and
+`deploy-and-run.sh --reset-only-db` both green; `playwright.sh e2e --ux` — 53/66 passed, 13
+skipped (spec 06 seed, expected without `--full`), 0 failed. Phase 10 (J) is complete -- Phases
+8/9/10/11 (the real-app-review implementation work) are all done; the numbered findings elsewhere
+in this file (1, 3-7, etc.) remain open per their own individual status.
 
 ---
 
@@ -899,6 +994,136 @@ use-case service).
 - `05-marketplace-advertisement-flow.spec.js` (about lines 151-176): remove the feedback block; assert `ContactRevealPanel` is present.
 
 **Rules for the executing agent:** verify build and tests after each phase before starting the next; do not commit; do not change `01-feedback-schema.xml` again; record the single-reply decision via `/record-decision` after phase D; follow the rules in `.claude/rules.md` and the module `CLAUDE.md` files for each touched module.
+
+---
+
+**Phase 12 — Moderation: confirmed-violation status filter, card design symmetry, real
+pagination Playwright coverage (2026-10-09), scoped to exact files/methods below, not yet
+implemented.** Three findings from real-app review after Phase 10 shipped:
+
+**12a. Status filter (default view excludes already-decided items).** Today `findHiddenFeedback`/
+`findHiddenComments` (`FeedbackRepository.java:260-277`) hardcode `moderation_status = 'HIDDEN'` —
+once a moderator calls `confirmFeedbackViolation`/`confirmCommentViolation`, the item's status
+becomes `CONFIRMED_HIDDEN` and it permanently vanishes from the queue's source data, unreachable by
+any filter. Need a way to see already-confirmed items too, while the *default* view (no filter
+selected) keeps showing only pending (`HIDDEN`) ones needing a decision.
+
+- `feedback-spring-boot-starter/.../repository/FeedbackRepository.java`: add
+  `findConfirmedViolationFeedback(Pageable)`/`findConfirmedViolationComments(Pageable)`, exact same
+  shape as the existing `findHiddenFeedback`/`findHiddenComments` but `WHERE c.moderation_status =
+  'CONFIRMED_HIDDEN'`. The existing two methods are untouched (other callers/integration tests
+  depend on their current HIDDEN-only contract).
+- `FeedbackService.java`/`FeedbackPort.java`/`FeedbackPortImpl.java`: add matching
+  delegation methods, same pattern as the existing `findHiddenFeedback`/`findHiddenComments` trio.
+- `platform-commons/.../dto/ModerationQueueItemDto.java`: add a `FeedbackModerationStatus
+  moderationStatus` field.
+- `platform-commons/.../dto/ModerationQueueFilterDto.java`: add a nullable `Set<FeedbackModerationStatus>
+  statuses` field (no `@Builder.Default` — see next point for why).
+- `FeedbackAccessService.java`: new `findConfirmedViolationFeedback`/`findConfirmedViolationComments`
+  wrapper methods (mirroring the existing `findHiddenFeedback`/`findHiddenComments` wrappers);
+  `buildFullModerationQueue()` also merges these two new sources, tagging each built
+  `ModerationQueueItemDto` with the real status (`HIDDEN` or `CONFIRMED_HIDDEN`) depending on which
+  source it came from; `matchesFilter()` gets: `statuses == null || statuses.isEmpty()` → default
+  to `item.getModerationStatus() == HIDDEN` only (the desired default), otherwise
+  `statuses.contains(item.getModerationStatus())`. This default lives in the service's filter logic,
+  not as an invisible non-empty `@Builder.Default` on the DTO — confirmed by reading
+  `FilterProcessor.java` that no existing filter field's initial UI value is ever pre-populated from
+  a non-empty default (`clearFilter()` calls `AbstractField::clear()` on the widget directly,
+  independent of what the DTO default holds) — baking a hidden non-empty default into the DTO would
+  make the Status combo visually show "no selection" while silently filtering, which is the
+  "invisible default" trap; special-casing empty-means-pending in the service keeps the UI and the
+  real behavior honestly in sync.
+- New `ModerationQueueFilterMeta.STATUSES` (`Set<FeedbackModerationStatus>`, filter-only, no sort —
+  same shape as `REASON_TEXT`), new `MultiSelectComboBox<FeedbackModerationStatus>` row in
+  `ModerationQueryBlock.java` with items restricted to `{HIDDEN, CONFIRMED_HIDDEN}` (never `NEW` —
+  `NEW` items never enter this queue's source data at all, so offering it as a selectable option
+  would always yield zero results).
+- `ModerationView.buildCard()`: add a "Status" field row (same `buildFieldRow` pattern as the
+  existing rows) showing `item.getModerationStatus().name()` raw, consistent with how the existing
+  "Type" row already shows `item.getType().name()` raw (no translation layer for either enum yet).
+- i18n: `MODERATION_FILTER_STATUS` ("Status...").
+- Not changed: the Approve/Confirm-violation action buttons stay available on every card
+  regardless of its current status (clicking "Confirm violation" again on an already-confirmed item
+  is a harmless no-op; clicking "Approve" on one lets a moderator reverse a wrong confirmation) —
+  flagged here for visibility, not acted on unless you want it changed.
+
+**12b. Card design symmetry with Advertisement/ProviderProfile cards.** Confirmed via direct CSS
+comparison: `.advertisement-card`/`.provider-profile-card` (both in their own `*-card.css`) share
+identical chrome (`background: var(--app-surface-white)`, `border: 1px solid
+var(--app-border-default)`, `border-radius: 12px`, `padding: 16px`, two-layer `box-shadow`, hover
+lift) inside a centered `max-width: 900px; margin: 0 auto` content wrapper with `padding: 16px` on
+the card-list container. `.moderation-card` (`feedback-panel.css:193-197`) currently has none of
+this — just `display:flex; flex-direction:column; gap:6px`, and `ModerationView.java`'s
+`contentWrapper` has no CSS class at all, so there's no centering wrapper for Moderation to begin
+with.
+- `ModerationView.java`: add `contentWrapper.addClassName("moderation-content-wrapper");`.
+- New CSS (own file, `moderation-view.css`, mirroring `advertisements-view.css`/`providers-view.css`):
+  `.moderation-view-layout` (flex column, `padding: 1rem`), `.moderation-content-wrapper`
+  (`max-width: 900px; margin: 0 auto; width: 100%`).
+- `feedback-panel.css`: `.moderation-list` gets `padding: 16px; box-sizing: border-box; width: 100%`
+  added (matching `.advertisement-container`/`.provider-profile-container`); `.moderation-card`
+  gets the same `background`/`border`/`border-radius`/`padding`/`box-shadow`/`transition` as
+  `.advertisement-card`, plus a `:hover` rule bumping the shadow/border-color — but deliberately
+  **without** `cursor: pointer` or the `translateY(-2px)` hover-lift, since (unlike ad/provider
+  cards) a moderation card isn't a click target that opens an overlay; flagging this one
+  intentional deviation for your awareness rather than silently matching 100%.
+
+**12c. Real Playwright pagination coverage for the Moderation tab.** Confirmed: the only existing
+assertion (`04-provider-profile-flow.spec.js`, the 7-item moderation queue test) is a single static
+read of `.pagination-count` text ("7") — no test ever clicks Next/Prev/First/Last or asserts page
+content actually changes. Default `moderationPageSize` is 20, so the 7 built items never span
+multiple pages today.
+- `playwright/e2e/_flows/settings.flow.js`: extend `changePageSizes(page, adsSize,
+  providerProfilesSize, usersSize, moderationSize)` with a new optional 4th param (reads/writes the
+  `vaadin-integer-field` at DOM index 5 — confirmed via `SettingsFormModeHandler.java:133`'s field
+  order: ads=0, providerProfiles=1, feedback=2, users=3, timeline=4, moderation=5 — skips the write
+  when `moderationSize === undefined`, so the existing 3-arg call site in
+  `06-seed-filter-sort-pagination.spec.js:431` keeps working unchanged); extend `getPageSizes` to
+  also read and return `moderationPageSize` the same way.
+- `04-provider-profile-flow.spec.js`: add `const { changePageSizes, getPageSizes } =
+  require('./_flows/settings.flow');` and `goToNextPage, goToPrevPage, goToFirstPage, goToLastPage`
+  to the existing `filter.flow` require line. In the 7-item moderation test, after the existing
+  filter assertions (type/author/reason) restore the list to 7 items: read current page sizes via
+  `getPageSizes()`, call `changePageSizes(page, ads, providers, users, 3)` to force 3 pages (3/3/1
+  items), assert `.moderation-card` count and `.pagination-count` text at each of
+  page 1/2/3, click Prev back to page 2, First back to page 1, Last to page 3, then restore the
+  captured original `moderationPageSize` via `changePageSizes(...)` again before the existing
+  approve-all cleanup loop runs (cleanup assumes all 7 fit on one page, matching the restored
+  default).
+
+**Done (2026-10-09).** All of 12a/12b/12c implemented exactly as scoped above (two parallel Haiku
+agents given exact file contents/diffs, same pattern as Phase 10). Three real bugs surfaced during
+verification, each found via real evidence (screenshots/error logs, not guessed) and fixed directly:
+1. `fillRole()`'s generic `vaadin-multi-select-combo-box` selector became ambiguous once the new
+   Status filter added a second multi-select combo to the same block -- fixed by adding an optional
+   `testId` param to `fillRole()` (same disambiguation `fillCategory`/`fillAdKind` already use).
+2. `changePageSizes()` never closes the Settings overlay after Save (06's own page-size test relies
+   on that to open History right after) -- the new pagination test needed its own explicit close
+   step via `.overlay__breadcrumb-back`, added locally rather than changing the shared helper.
+3. The pagination test's own navigation sequence clicked "First"/"Last" while already on the
+   boundary page where those buttons are disabled (`PageSizeLimits.MIN_PAGE_SIZE = 5`, so the test
+   also had to use 5+2 items-per-page instead of the originally-planned 3+3+1) -- fixed by
+   reordering the sequence so each button is only ever clicked from a page where it's genuinely
+   enabled.
+**Verified:** `build-and-test.sh --unit --integration --sandbox` and `deploy-and-run.sh
+--reset-only-db` both green (unaffected by the Playwright-only fixes above, not rerun a second
+time); `playwright.sh e2e --ux` -- 53/66 passed, 13 skipped (spec 06 seed, expected without
+`--full`), 0 failed. Phase 12 is complete.
+
+**Follow-up (2026-10-09):** the "Confirm violation" icon button is now hidden on cards already in
+`CONFIRMED_HIDDEN` status (`ModerationView.buildActionRow`), leaving only "Approve". Playwright
+coverage extended in the same 7-item test: confirms one item, asserts its action button is gone,
+asserts it drops out of the default (status-unfiltered) view, asserts the Status filter brings it
+back with the right status text, approves it back. One more real test-helper bug found and fixed
+during this verification: `fillRole()`'s overlay-visibility wait used a bare `.first()` over
+`vaadin-multi-select-combo-box-overlay`, which in a block with 2+ such combos (Type and the new
+Status field) could match an earlier field's already-closed, stale overlay element instead of the
+one just opened -- fixed by scoping to `:visible`. Re-verified: `playwright.sh e2e --ux` -- 53/66
+passed, 0 failed.
+
+Status: done.
+
+---
 
 ## Related
 

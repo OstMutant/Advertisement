@@ -24,18 +24,23 @@ const { openEntityActivity, closeEntityActivity, restoreFromEntityActivity } = r
  * @param {number} usersSize users page size.
  * @returns {Promise<void>}
  */
-async function changePageSizes(page, adsSize, providerProfilesSize, usersSize) {
+async function changePageSizes(page, adsSize, providerProfilesSize, usersSize, moderationSize) {
   await page.locator('.header-settings-button').click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
-  const adsInput      = page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input');
-  const providersInput = page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input');
-  const usersInput    = page.locator('.settings-overlay-content vaadin-integer-field').nth(3).locator('input');
+  const adsInput        = page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input');
+  const providersInput  = page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input');
+  const usersInput      = page.locator('.settings-overlay-content vaadin-integer-field').nth(3).locator('input');
+  const moderationInput = page.locator('.settings-overlay-content vaadin-integer-field').nth(5).locator('input');
   await adsInput.click({ clickCount: 3 });
   await adsInput.fill(String(adsSize));
   await providersInput.click({ clickCount: 3 });
   await providersInput.fill(String(providerProfilesSize));
   await usersInput.click({ clickCount: 3 });
   await usersInput.fill(String(usersSize));
+  if (moderationSize !== undefined) {
+    await moderationInput.click({ clickCount: 3 });
+    await moderationInput.fill(String(moderationSize));
+  }
   await page.locator('.base-overlay.overlay--visible vaadin-button')
     .filter({ hasText: /зберегти|save/i }).click();
 }
@@ -89,9 +94,10 @@ async function getPageSizes(page) {
   const adsPageSize              = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input').inputValue(), 10);
   const providerProfilesPageSize = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input').inputValue(), 10);
   const usersPageSize            = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(3).locator('input').inputValue(), 10);
+  const moderationPageSize       = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(5).locator('input').inputValue(), 10);
   await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
-  return { adsPageSize, providerProfilesPageSize, usersPageSize };
+  return { adsPageSize, providerProfilesPageSize, usersPageSize, moderationPageSize };
 }
 
 module.exports = { changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes };

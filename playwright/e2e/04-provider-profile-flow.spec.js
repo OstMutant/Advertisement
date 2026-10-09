@@ -77,7 +77,8 @@ const { openEntityActivity, closeEntityActivity } = require('./_flows/entity-act
 const { runNavigateToUsersTabFlow, runOpenUserEditViaListFlow, runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter } = require('./_flows/user-management.flow');
 const { confirmDeleteDialog } = require('./_flows/delete.flow');
 const { openCardOverlay } = require('./_flows/advertisement.flow');
-const { verifyDateRangeFilters, waitForVaadin } = require('./_flows/filter.flow');
+const { verifyDateRangeFilters, waitForVaadin, openQueryPanel, applyFilter, clearFilter, fillText, fillRole, goToNextPage, goToPrevPage, goToFirstPage, goToLastPage } = require('./_flows/filter.flow');
+const { changePageSizes, getPageSizes } = require('./_flows/settings.flow');
 const { selectInMultiSelectComboBox } = require('./_flows/category.flow');
 
 test.describe.configure({ mode: 'serial' });
@@ -1154,7 +1155,8 @@ test.describe('Provider Profile flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('moderatorEn views a 7-item moderation queue on userUk\'s profile — 4 reviewers\' feedback plus userUk\'s 4 replies, one reporter flags 7 of the 8 items, scrollable card list renders consistently, pagination count reflects the real total', async () => {
+  test('moderatorEn views a 7-item moderation queue on userUk\'s profile — 4 reviewers\' feedback plus userUk\'s 4 replies, one reporter flags 7 of the 8 items, scrollable card list renders consistently, pagination count reflects the real total, type/author/reason/status filters, real pagination, confirming a violation hides its own action button and the status filter surfaces it again', async () => {
+    test.setTimeout(3 * 60 * 1000);
     const userUkCard = page.locator('.provider-profile-card').filter({ has: page.locator('.provider-profile-card-title', { hasText: TEST_USERS.userUk.name }) });
     const reviewers = [TEST_USERS.moderatorEn, TEST_USERS.moderatorUk, TEST_USERS.adminEn, TEST_USERS.adminUk];
     const feedbackTexts = reviewers.map((_, i) => `Scroll test feedback ${i + 1}.`);
@@ -1244,8 +1246,102 @@ test.describe('Provider Profile flow', () => {
       await expect(list.locator('.moderation-card').filter({ hasText: `Scroll test reply ${i}.` })).toBeVisible({ timeout: 5000 });
     }
     await expect(page.locator('.moderation-view-layout .pagination-count')).toContainText('7', { timeout: 5000 });
+
+    // ── filter controls: type, author, reason text -- against the already-built 7-item queue ──
+    const MOD_BLOCK = '.moderation-query-block';
+    await openQueryPanel(page, MOD_BLOCK);
+
+    await fillRole(page, MOD_BLOCK, 'COMMENT', 'moderation-filter-type');
+    await applyFilter(page, MOD_BLOCK);
+    await expect(list.locator('.moderation-card')).toHaveCount(4, { timeout: 8000 });
+    await screenshot(page, 'moderation-filter-type-comment');
+    await clearFilter(page, MOD_BLOCK);
+
+    await fillText(page, MOD_BLOCK, 'Author', TEST_USERS.userUk.name);
+    await applyFilter(page, MOD_BLOCK);
+    await expect(list.locator('.moderation-card')).toHaveCount(4, { timeout: 8000 });
+    await screenshot(page, 'moderation-filter-author');
+    await clearFilter(page, MOD_BLOCK);
+
+    await fillText(page, MOD_BLOCK, 'Reason', 'reply');
+    await applyFilter(page, MOD_BLOCK);
+    await expect(list.locator('.moderation-card')).toHaveCount(4, { timeout: 8000 });
+    await screenshot(page, 'moderation-filter-reason');
+    await clearFilter(page, MOD_BLOCK);
+
+    await expect(list.locator('.moderation-card')).toHaveCount(7, { timeout: 8000 });
+
+    // ── pagination: real multi-page navigation using the minimum allowed page size (5 -- below
+    // PageSizeLimits.MIN_PAGE_SIZE is rejected, so 5+2 is the smallest real split for 7 items) ──
+    const { adsPageSize, providerProfilesPageSize, usersPageSize, moderationPageSize: moderationDefault } = await getPageSizes(page);
+    await changePageSizes(page, adsPageSize, providerProfilesPageSize, usersPageSize, 5);
+    // changePageSizes only clicks Save -- it deliberately doesn't close Settings (06's own page-size
+    // test relies on that to open History from it right after), so close it explicitly here.
+    await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
+    await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
+
+    await expect(list.locator('.moderation-card')).toHaveCount(5, { timeout: 8000 });
+    await expect(page.locator('.moderation-view-layout .pagination-count')).toContainText('1–5 of 7', { timeout: 5000 });
+    await screenshot(page, 'moderation-pagination-page1');
+
+    await goToNextPage(page);
+    await expect(list.locator('.moderation-card')).toHaveCount(2, { timeout: 8000 });
+    await expect(page.locator('.moderation-view-layout .pagination-count')).toContainText('6–7 of 7', { timeout: 5000 });
+    await screenshot(page, 'moderation-pagination-page2');
+
+    await goToPrevPage(page);
+    await expect(list.locator('.moderation-card')).toHaveCount(5, { timeout: 8000 });
+
+    // "First"/"Last" are only enabled from a non-boundary page -- go forward once more before
+    // testing each, so neither click ever targets an already-disabled button.
+    await goToNextPage(page);
+    await expect(list.locator('.moderation-card')).toHaveCount(2, { timeout: 8000 });
+
+    await goToFirstPage(page);
+    await expect(list.locator('.moderation-card')).toHaveCount(5, { timeout: 8000 });
+
+    await goToLastPage(page);
+    await expect(list.locator('.moderation-card')).toHaveCount(2, { timeout: 8000 });
+    await screenshot(page, 'moderation-pagination-last-page');
+
+    await goToFirstPage(page);
+    await expect(list.locator('.moderation-card')).toHaveCount(5, { timeout: 8000 });
+
+    await changePageSizes(page, adsPageSize, providerProfilesPageSize, usersPageSize, moderationDefault);
+    await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
+    await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
+    // Already on page 1 from the goToFirstPage above, and restoring the default page size (20)
+    // means all 7 items now fit on that single page -- "First" would be disabled, no navigation needed.
+    await expect(list.locator('.moderation-card')).toHaveCount(7, { timeout: 8000 });
+
     await list.evaluate(el => el.scrollIntoView({ block: 'end' }));
     await screenshot(page, 'moderation-queue-scrolled-many-items');
+
+    // ── status transition: confirming a violation hides its own Confirm-violation button, drops it
+    // out of the default (status-unfiltered) view, and the Status filter brings it back ───────────
+    const statusTarget = list.locator('.moderation-card').filter({ hasText: 'Scroll test feedback 1.' });
+    await expect(statusTarget.locator('.moderation-confirm-violation-icon')).toBeVisible({ timeout: 5000 });
+    await statusTarget.locator('.moderation-confirm-violation-icon').click();
+    await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
+    await closeNotification(page);
+
+    await expect(list.locator('.moderation-card')).toHaveCount(6, { timeout: 8000 });
+    await screenshot(page, 'moderation-confirmed-item-hidden-by-default');
+
+    await fillRole(page, MOD_BLOCK, 'CONFIRMED_HIDDEN', 'moderation-filter-status');
+    await applyFilter(page, MOD_BLOCK);
+    await expect(list.locator('.moderation-card')).toHaveCount(1, { timeout: 8000 });
+    const confirmedCard = list.locator('.moderation-card').filter({ hasText: 'Scroll test feedback 1.' });
+    await expect(confirmedCard).toContainText('CONFIRMED_HIDDEN');
+    await expect(confirmedCard.locator('.moderation-confirm-violation-icon')).toHaveCount(0);
+    await expect(confirmedCard.locator('.moderation-approve-icon')).toBeVisible();
+    await screenshot(page, 'moderation-confirmed-item-status-filter');
+
+    await confirmedCard.locator('.moderation-approve-icon').click();
+    await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
+    await closeNotification(page);
+    await clearFilter(page, MOD_BLOCK);
+    await expect(list.locator('.moderation-card')).toHaveCount(6, { timeout: 8000 });
 
     // ── cleanup: approve every visible card so the queue is empty again for later specs ─────────
     let remaining = await list.locator('.moderation-approve-icon').count();

@@ -16,7 +16,12 @@ import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.orchestrator.services.FeedbackAccessService;
 import org.ost.orchestrator.services.ProviderProfileDisplayEnrichmentService;
 import org.ost.orchestrator.services.ProviderProfileReadService;
+import org.ost.marketplace.ui.query.QueryBlock;
+import org.ost.marketplace.ui.query.QueryStatusBar;
+import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
 import org.ost.platform.feedback.dto.ModerationQueueItemDto;
+import org.springframework.data.domain.Sort;
+import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import org.ost.platform.feedback.model.ModerationQueueItemType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.marketplace.ui.views.components.PaginationBar;
@@ -47,6 +52,7 @@ public class ModerationView extends VerticalLayout {
     private final transient ProviderProfileReadService         providerProfileReadService;
     private final transient ProviderProfileDisplayEnrichmentService enrichmentService;
     private final transient PaginationBar                      paginationBar;
+    private final transient QueryStatusBar<ModerationQueueFilterDto> queryStatusBar;
     private final transient SettingsPaginationBinding           settingsPaginationBinding;
 
     private Div listContainer;
@@ -65,11 +71,19 @@ public class ModerationView extends VerticalLayout {
         emptyStateLabel.addClassName("moderation-empty-label");
         emptyStateLabel.setVisible(false);
 
-        VerticalLayout contentWrapper = new VerticalLayout(listContainer, emptyStateLabel, paginationBar);
+        VerticalLayout contentWrapper = new VerticalLayout(
+                queryStatusBar, queryStatusBar.getQueryBlock(), listContainer, emptyStateLabel, paginationBar
+        );
         contentWrapper.setPadding(false);
         contentWrapper.setSpacing(false);
         contentWrapper.setWidthFull();
+        contentWrapper.addClassName("moderation-content-wrapper");
         add(contentWrapper);
+
+        queryStatusBar.getQueryBlock().addEventListener(() -> {
+            paginationBar.resetToFirstPage();
+            refresh();
+        });
 
         paginationBar.setPageChangeListener(_ -> refresh());
         settingsPaginationBinding.register(paginationBar, UserSettingsDto::getModerationPageSize, this::refresh);
@@ -89,8 +103,11 @@ public class ModerationView extends VerticalLayout {
 
     private void refresh() {
         try {
+            QueryBlock<ModerationQueueFilterDto> queryBlock = queryStatusBar.getQueryBlock();
+            ModerationQueueFilterDto filter = queryBlock.getFilterProcessor().getOriginalFilter();
+            Sort sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
             FeedbackAccessService.ModerationQueuePage result =
-                    feedbackAccessService.findModerationQueue(paginationBar.getCurrentPage(), paginationBar.getPageSize());
+                    feedbackAccessService.findModerationQueue(filter, sort, paginationBar.getCurrentPage(), paginationBar.getPageSize());
             listContainer.removeAll();
             result.items().forEach(item -> listContainer.add(buildCard(item)));
             emptyStateLabel.setVisible(result.items().isEmpty());
@@ -101,6 +118,8 @@ public class ModerationView extends VerticalLayout {
             listContainer.removeAll();
             emptyStateLabel.setVisible(true);
             paginationBar.setTotalCount(0);
+        } finally {
+            queryStatusBar.update();
         }
     }
 
@@ -111,6 +130,7 @@ public class ModerationView extends VerticalLayout {
 
         card.add(buildFieldRow("Reported profile", buildReportedProfileValue(item)));
         card.add(buildFieldRow("Type", new Span(item.getType().name())));
+        card.add(buildFieldRow("Status", new Span(item.getModerationStatus().name())));
         card.add(buildFieldRow("Content", buildContentValue(item)));
         card.add(buildFieldRow("Author", buildAuthorValue(item)));
         card.add(buildFieldRow("Reason", new Span(item.getModerationReason())));
@@ -166,7 +186,9 @@ public class ModerationView extends VerticalLayout {
         confirmButton.addClassName("moderation-confirm-violation-icon");
         confirmButton.addClickListener(_ -> confirmViolation(item));
 
-        Div actions = new Div(approveButton, confirmButton);
+        Div actions = item.getModerationStatus() == FeedbackModerationStatus.CONFIRMED_HIDDEN
+                ? new Div(approveButton)
+                : new Div(approveButton, confirmButton);
         actions.addClassName("moderation-actions");
         return actions;
     }

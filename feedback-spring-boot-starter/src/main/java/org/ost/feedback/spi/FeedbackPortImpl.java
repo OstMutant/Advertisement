@@ -123,6 +123,16 @@ public class FeedbackPortImpl implements FeedbackPort {
     }
 
     @Override
+    public List<FeedbackDto> findConfirmedViolationFeedback(@NonNull Pageable pageable) {
+        return service.findConfirmedViolationFeedback(pageable);
+    }
+
+    @Override
+    public List<FeedbackCommentDto> findConfirmedViolationComments(@NonNull Pageable pageable) {
+        return service.findConfirmedViolationComments(pageable);
+    }
+
+    @Override
     public Optional<FeedbackDto> findFeedbackById(@NonNull Long feedbackId) {
         return service.findFeedbackById(feedbackId);
     }

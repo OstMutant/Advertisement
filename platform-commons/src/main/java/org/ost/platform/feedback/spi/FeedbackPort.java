@@ -51,10 +51,10 @@ public interface FeedbackPort {
     /** Restores a flagged reply to visible. */
     void approveComment(@NonNull Long commentId);
 
-    /** Permanently confirms a flagged feedback entry as a genuine violation -- stays censored forever, excluded from the moderation queue. */
+    /** Permanently confirms a flagged feedback entry as a genuine violation -- stays censored forever, excluded from the moderation queue's default pending view (still reachable via an explicit status filter). */
     void confirmFeedbackViolation(@NonNull Long feedbackId);
 
-    /** Permanently confirms a flagged reply as a genuine violation -- stays censored forever, excluded from the moderation queue. */
+    /** Permanently confirms a flagged reply as a genuine violation -- stays censored forever, excluded from the moderation queue's default pending view (still reachable via an explicit status filter). */
     void confirmCommentViolation(@NonNull Long commentId);
 
     /** Permanently removes a feedback entry and its own reply, if any. */
@@ -68,6 +68,12 @@ public interface FeedbackPort {
 
     /** Hidden replies awaiting moderation review, oldest first. */
     List<FeedbackCommentDto> findHiddenComments(@NonNull Pageable pageable);
+
+    /** Feedback entries already confirmed as a genuine violation, oldest first. */
+    List<FeedbackDto> findConfirmedViolationFeedback(@NonNull Pageable pageable);
+
+    /** Replies already confirmed as a genuine violation, oldest first. */
+    List<FeedbackCommentDto> findConfirmedViolationComments(@NonNull Pageable pageable);
 
     /** Single feedback entry by its own id, for moderation-action audit snapshots. */
     Optional<FeedbackDto> findFeedbackById(@NonNull Long feedbackId);
