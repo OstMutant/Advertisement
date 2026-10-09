@@ -3,7 +3,7 @@ package org.ost.marketplace.ui.mappers;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
 import org.ost.marketplace.ui.query.filter.FilterMapper;
-import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
+import org.ost.orchestrator.dto.ModerationQueueFilterDto;
 
 @Mapper(componentModel = "spring")
 public interface ModerationQueueFilterMapper extends FilterMapper<ModerationQueueFilterDto> {

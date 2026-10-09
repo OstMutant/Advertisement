@@ -1123,6 +1123,13 @@ passed, 0 failed.
 
 Status: done.
 
+**Remaining before this task itself can be considered fully closed (2026-10-09):** a `/review`
+pass and a `/sync-docs` pass still need to run over everything this task changed across the
+feedback/comment/moderation redesign (entry 7's schema/contract rewrite plus Phases 8-12) — neither
+has happened yet. Per your explicit instruction, `improvement-206` (cost optimization for the
+`/review`/`/sync-docs` subagent fan-out) must be implemented **first**, before either pass runs on
+this task's own changes.
+
 ---
 
 ## Related

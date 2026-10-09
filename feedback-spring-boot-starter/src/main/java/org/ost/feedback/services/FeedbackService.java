@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 /** CRUD for feedback entries and their single reply, sanitization/edit-window enforcement, and aggregate reads/writes. */
 @Slf4j
@@ -49,7 +50,7 @@ public class FeedbackService {
 
     public List<FeedbackDto> findForEntity(@NonNull EntityType entityType, @NonNull Long entityId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return repository.findByEntity(entityType, entityId, pageable).stream().map(FeedbackService::toDto).toList();
+        return toDtoPage(repository.findByEntity(entityType, entityId, pageable), FeedbackService::toDto);
     }
 
     public int count(@NonNull EntityType entityType, @NonNull Long entityId) {
@@ -250,22 +251,26 @@ public class FeedbackService {
 
     @Transactional(readOnly = true)
     public List<FeedbackDto> findHiddenFeedback(@NonNull Pageable pageable) {
-        return repository.findHiddenFeedback(pageable).stream().map(FeedbackService::toDto).toList();
+        return toDtoPage(repository.findHiddenFeedback(pageable), FeedbackService::toDto);
     }
 
     @Transactional(readOnly = true)
     public List<FeedbackCommentDto> findHiddenComments(@NonNull Pageable pageable) {
-        return repository.findHiddenComments(pageable).stream().map(FeedbackService::toCommentDto).toList();
+        return toDtoPage(repository.findHiddenComments(pageable), FeedbackService::toCommentDto);
     }
 
     @Transactional(readOnly = true)
     public List<FeedbackDto> findConfirmedViolationFeedback(@NonNull Pageable pageable) {
-        return repository.findConfirmedViolationFeedback(pageable).stream().map(FeedbackService::toDto).toList();
+        return toDtoPage(repository.findConfirmedViolationFeedback(pageable), FeedbackService::toDto);
     }
 
     @Transactional(readOnly = true)
     public List<FeedbackCommentDto> findConfirmedViolationComments(@NonNull Pageable pageable) {
-        return repository.findConfirmedViolationComments(pageable).stream().map(FeedbackService::toCommentDto).toList();
+        return toDtoPage(repository.findConfirmedViolationComments(pageable), FeedbackService::toCommentDto);
+    }
+
+    private static <R, D> List<D> toDtoPage(List<R> rows, Function<R, D> mapper) {
+        return rows.stream().map(mapper).toList();
     }
 
     // ── Shared helpers ───────────────────────────────────────────────────────

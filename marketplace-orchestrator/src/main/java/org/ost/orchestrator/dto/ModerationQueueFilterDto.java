@@ -1,4 +1,4 @@
-package org.ost.platform.feedback.dto;
+package org.ost.orchestrator.dto;
 
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.FieldNameConstants;
 import org.ost.platform.core.validation.ValidRange;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
-import org.ost.platform.feedback.model.ModerationQueueItemType;
 
 import java.time.Instant;
 import java.util.Set;

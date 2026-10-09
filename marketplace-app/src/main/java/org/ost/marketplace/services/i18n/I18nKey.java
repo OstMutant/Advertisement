@@ -557,7 +557,16 @@ public enum I18nKey {
     // === Moderation Sort ===
     MODERATION_SORT_CREATED_AT("moderation.sort.createdAt"),
     MODERATION_SORT_AUTHOR("moderation.sort.author"),
-    MODERATION_SORT_TYPE("moderation.sort.type");
+    MODERATION_SORT_TYPE("moderation.sort.type"),
+
+    // === Moderation Field Labels ===
+    MODERATION_FIELD_REPORTED_PROFILE("moderation.field.reportedProfile"),
+    MODERATION_FIELD_TYPE("moderation.field.type"),
+    MODERATION_FIELD_STATUS("moderation.field.status"),
+    MODERATION_FIELD_CONTENT("moderation.field.content"),
+    MODERATION_FIELD_AUTHOR("moderation.field.author"),
+    MODERATION_FIELD_REASON("moderation.field.reason"),
+    MODERATION_FIELD_REPORTED("moderation.field.reported");
 
     private final String key;
 

@@ -3,7 +3,7 @@ package org.ost.marketplace.ui.views.main.tabs.moderation.query;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.marketplace.ui.query.sort.SortFieldMeta;
-import org.ost.platform.feedback.dto.ModerationQueueItemDto;
+import org.ost.orchestrator.dto.ModerationQueueItemDto;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 

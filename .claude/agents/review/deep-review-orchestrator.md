@@ -73,25 +73,36 @@ raised it, so nothing is lost by merging.
 
 ## 4. Validate every candidate
 
-For each candidate in the merged `findings` array, dispatch a fresh, separate
-verification subagent via `Agent`. These are independent tasks — emit every `Agent` call for this
-step in a single response, not one at a time across separate turns; a sequential dispatch here adds
-latency for nothing.
+Group the merged `findings` array by target file: every candidate whose `locations[0].file` (or any
+entry in `locations`, for a multi-location finding) matches the same path joins one group. For each
+group, dispatch **one** fresh, separate verification subagent via `Agent`, with `model: "haiku"` —
+this is a fully-specified, bounded, mechanical task (open the file, confirm the claim is literally
+there, return a verdict), the exact shape `.claude/rules.md`'s own standing rule reserves for Haiku
+dispatch. Same-file fusion avoids N separate verifiers each re-reading that file from scratch when
+2+ candidates land in it. These are independent tasks — emit every `Agent` call for this step in a
+single response, not one at a time across separate turns; a sequential dispatch here adds latency
+for nothing.
 
-**Wave threshold (hard rule, not a suggestion):** if the merged `findings` array has more than 3
-candidates, do not dispatch all of their verifiers in one response — split into sequential waves of
-at most 3 concurrent dispatches instead. This is the step most likely to actually cross the
-threshold in practice (any review surfacing more than 3 real candidates), unlike step 3's
+**Wave threshold (hard rule, not a suggestion):** if the number of file-groups exceeds 3, do not
+dispatch all of their verifiers in one response — split into sequential waves of at most 3
+concurrent dispatches instead. This is the step most likely to actually cross the threshold in
+practice (any review surfacing findings across more than 3 distinct files), unlike step 3's
 currently-fixed 3-lens count.
 
-Pass each one that one finding's full `locations` array plus `claim`, plus
-this instruction:
+Pass each verifier every candidate in its group (each one's full `locations` array plus `claim`),
+plus this instruction:
 
-> Open the real, current file at every path/line in `locations` (there may be 2+, for a
-> duplication finding spanning multiple spots) and confirm this finding is actually there at all
-> of them — not "plausible", actually present. Return JSON only:
-> `{"verdict": "confirmed", "notes": "..."}` if every location holds up,
-> `{"verdict": "rejected", "notes": "<why not, and which location failed>"}` otherwise.
+> For each claim below, open the real, current file at every path/line in its own `locations`
+> (there may be 2+, for a duplication finding spanning multiple spots) and confirm it is actually
+> there at all of them — not "plausible", actually present. When a claim's `locations` array has
+> exactly one entry and the claim is self-contained at that line, read only ±30 lines around it
+> (`Read`'s `offset`/`limit`) instead of the whole file — when it has 2+ entries, or concerns the
+> file's overall structure/organization, read the whole file instead (a narrow window is a known
+> cause of missed false negatives when the judgment depends on surrounding context). Return JSON
+> only, one verdict per claim:
+> `{"verdicts": [{"claim": "...", "verdict": "confirmed", "notes": "..."}, ...]}` —
+> `"rejected"` with `"notes"` stating why not and which location failed, for any claim that doesn't
+> hold up.
 
 Drop every candidate whose verdict is `rejected`, silently, never softened into a caveat.
 
@@ -191,7 +202,9 @@ completion result. Fill:
 
 A short summary — what was checked (the resolved scope), what's new (auto-report bucket), what
 overlapped with an existing task, any doc/code mismatch found, and a separate "needs human
-review" list for every medium/low-confidence survivor from step 7 — followed by:
+review" list for every medium/low-confidence survivor from step 7. If step 4 actually dispatched
+any verifiers, state explicitly that step-4 verification ran on Haiku per improvement-206 (`model:
+"haiku"`) — skip this line entirely if step 4 never ran (zero survivors from step 3). Followed by:
 - step 8's ```json `ReportFindings` payload block, with "Call ReportFindings with the JSON above."
 - for each finding prepared in step 9: its full filename + file content + Operational notes block,
   each in its own fenced block, with "Present this to the user and, once approved, write it to

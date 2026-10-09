@@ -12,10 +12,10 @@ import org.ost.platform.feedback.dto.FeedbackCommentSnapshotDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
 import org.ost.platform.feedback.dto.FeedbackSnapshotDto;
-import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
-import org.ost.platform.feedback.dto.ModerationQueueItemDto;
+import org.ost.orchestrator.dto.ModerationQueueFilterDto;
+import org.ost.orchestrator.dto.ModerationQueueItemDto;
+import org.ost.orchestrator.dto.ModerationQueueItemType;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
-import org.ost.platform.feedback.model.ModerationQueueItemType;
 import org.ost.platform.feedback.spi.FeedbackPort;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -164,61 +164,42 @@ public class FeedbackAccessService {
         Map<Long, String> names = authorIds.isEmpty() ? Map.of() : resolveAuthorNames(authorIds);
 
         List<ModerationQueueItemDto> items = new ArrayList<>();
-        hiddenFeedback.forEach(f -> items.add(ModerationQueueItemDto.builder()
-                .type(ModerationQueueItemType.FEEDBACK)
-                .id(f.id())
-                .entityId(f.entityId())
-                .contentText(f.feedbackText())
-                .rating(f.rating())
-                .moderationReason(f.moderationReason())
-                .authorId(f.authorId())
-                .authorName(names.getOrDefault(f.authorId(), String.valueOf(f.authorId())))
-                .createdAt(f.createdAt())
-                .moderationStatus(FeedbackModerationStatus.HIDDEN)
-                .build()));
-        hiddenComments.forEach(c -> {
-            Long entityId = findFeedbackById(c.feedbackId()).map(FeedbackDto::entityId).orElse(null);
-            items.add(ModerationQueueItemDto.builder()
-                    .type(ModerationQueueItemType.COMMENT)
-                    .id(c.id())
-                    .entityId(entityId)
-                    .contentText(c.commentText())
-                    .rating(null)
-                    .moderationReason(c.moderationReason())
-                    .authorId(c.authorId())
-                    .authorName(names.getOrDefault(c.authorId(), String.valueOf(c.authorId())))
-                    .createdAt(c.createdAt())
-                    .moderationStatus(FeedbackModerationStatus.HIDDEN)
-                    .build());
-        });
-        confirmedFeedback.forEach(f -> items.add(ModerationQueueItemDto.builder()
-                .type(ModerationQueueItemType.FEEDBACK)
-                .id(f.id())
-                .entityId(f.entityId())
-                .contentText(f.feedbackText())
-                .rating(f.rating())
-                .moderationReason(f.moderationReason())
-                .authorId(f.authorId())
-                .authorName(names.getOrDefault(f.authorId(), String.valueOf(f.authorId())))
-                .createdAt(f.createdAt())
-                .moderationStatus(FeedbackModerationStatus.CONFIRMED_HIDDEN)
-                .build()));
-        confirmedComments.forEach(c -> {
-            Long entityId = findFeedbackById(c.feedbackId()).map(FeedbackDto::entityId).orElse(null);
-            items.add(ModerationQueueItemDto.builder()
-                    .type(ModerationQueueItemType.COMMENT)
-                    .id(c.id())
-                    .entityId(entityId)
-                    .contentText(c.commentText())
-                    .rating(null)
-                    .moderationReason(c.moderationReason())
-                    .authorId(c.authorId())
-                    .authorName(names.getOrDefault(c.authorId(), String.valueOf(c.authorId())))
-                    .createdAt(c.createdAt())
-                    .moderationStatus(FeedbackModerationStatus.CONFIRMED_HIDDEN)
-                    .build());
-        });
+        hiddenFeedback.forEach(f -> items.add(toQueueItem(f, names, FeedbackModerationStatus.HIDDEN)));
+        hiddenComments.forEach(c -> items.add(toQueueItem(c, names, FeedbackModerationStatus.HIDDEN)));
+        confirmedFeedback.forEach(f -> items.add(toQueueItem(f, names, FeedbackModerationStatus.CONFIRMED_HIDDEN)));
+        confirmedComments.forEach(c -> items.add(toQueueItem(c, names, FeedbackModerationStatus.CONFIRMED_HIDDEN)));
         return items;
+    }
+
+    private ModerationQueueItemDto toQueueItem(FeedbackDto f, Map<Long, String> names, FeedbackModerationStatus status) {
+        return ModerationQueueItemDto.builder()
+                .type(ModerationQueueItemType.FEEDBACK)
+                .id(f.id())
+                .entityId(f.entityId())
+                .contentText(f.feedbackText())
+                .rating(f.rating())
+                .moderationReason(f.moderationReason())
+                .authorId(f.authorId())
+                .authorName(names.getOrDefault(f.authorId(), String.valueOf(f.authorId())))
+                .createdAt(f.createdAt())
+                .moderationStatus(status)
+                .build();
+    }
+
+    private ModerationQueueItemDto toQueueItem(FeedbackCommentDto c, Map<Long, String> names, FeedbackModerationStatus status) {
+        Long entityId = findFeedbackById(c.feedbackId()).map(FeedbackDto::entityId).orElse(null);
+        return ModerationQueueItemDto.builder()
+                .type(ModerationQueueItemType.COMMENT)
+                .id(c.id())
+                .entityId(entityId)
+                .contentText(c.commentText())
+                .rating(null)
+                .moderationReason(c.moderationReason())
+                .authorId(c.authorId())
+                .authorName(names.getOrDefault(c.authorId(), String.valueOf(c.authorId())))
+                .createdAt(c.createdAt())
+                .moderationStatus(status)
+                .build();
     }
 
     public void flagFeedback(@NonNull Long feedbackId, @NonNull Long actorId, @NonNull String reason) {

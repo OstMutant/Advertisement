@@ -256,44 +256,44 @@ public class FeedbackRepository {
                 .update();
     }
 
-    /** Hidden feedback entries awaiting moderation review, oldest first. */
-    public List<FeedbackView> findHiddenFeedback(@NonNull Pageable pageable) {
+    private List<FeedbackView> findFeedbackByStatus(FeedbackModerationStatus status, Pageable pageable) {
         MapSqlParameterSource params = new MapSqlParameterSource();
         String pageClause = PaginationSqlBuilder.pageLimit(params, pageable);
-        return jdbcClient.sql(VIEW_SELECT + " WHERE c.moderation_status = 'HIDDEN' ORDER BY c.created_at ASC" + pageClause)
+        params.addValue("status", status.name());
+        return jdbcClient.sql(VIEW_SELECT + " WHERE c.moderation_status = :status ORDER BY c.created_at ASC" + pageClause)
                 .paramSource(params)
                 .query(VIEW_ROW_MAPPER)
                 .list();
+    }
+
+    private List<FeedbackCommentView> findCommentsByStatus(FeedbackModerationStatus status, Pageable pageable) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        String pageClause = PaginationSqlBuilder.pageLimit(params, pageable);
+        params.addValue("status", status.name());
+        return jdbcClient.sql(COMMENT_VIEW_SELECT + " WHERE c.moderation_status = :status ORDER BY c.created_at ASC" + pageClause)
+                .paramSource(params)
+                .query(COMMENT_VIEW_ROW_MAPPER)
+                .list();
+    }
+
+    /** Hidden feedback entries awaiting moderation review, oldest first. */
+    public List<FeedbackView> findHiddenFeedback(@NonNull Pageable pageable) {
+        return findFeedbackByStatus(FeedbackModerationStatus.HIDDEN, pageable);
     }
 
     /** Hidden comments awaiting moderation review, oldest first, across all feedback entries. */
     public List<FeedbackCommentView> findHiddenComments(@NonNull Pageable pageable) {
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        String pageClause = PaginationSqlBuilder.pageLimit(params, pageable);
-        return jdbcClient.sql(COMMENT_VIEW_SELECT + " WHERE c.moderation_status = 'HIDDEN' ORDER BY c.created_at ASC" + pageClause)
-                .paramSource(params)
-                .query(COMMENT_VIEW_ROW_MAPPER)
-                .list();
+        return findCommentsByStatus(FeedbackModerationStatus.HIDDEN, pageable);
     }
 
     /** Feedback entries already confirmed as a genuine violation, oldest first. */
     public List<FeedbackView> findConfirmedViolationFeedback(@NonNull Pageable pageable) {
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        String pageClause = PaginationSqlBuilder.pageLimit(params, pageable);
-        return jdbcClient.sql(VIEW_SELECT + " WHERE c.moderation_status = 'CONFIRMED_HIDDEN' ORDER BY c.created_at ASC" + pageClause)
-                .paramSource(params)
-                .query(VIEW_ROW_MAPPER)
-                .list();
+        return findFeedbackByStatus(FeedbackModerationStatus.CONFIRMED_HIDDEN, pageable);
     }
 
     /** Replies already confirmed as a genuine violation, oldest first, across all feedback entries. */
     public List<FeedbackCommentView> findConfirmedViolationComments(@NonNull Pageable pageable) {
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        String pageClause = PaginationSqlBuilder.pageLimit(params, pageable);
-        return jdbcClient.sql(COMMENT_VIEW_SELECT + " WHERE c.moderation_status = 'CONFIRMED_HIDDEN' ORDER BY c.created_at ASC" + pageClause)
-                .paramSource(params)
-                .query(COMMENT_VIEW_ROW_MAPPER)
-                .list();
+        return findCommentsByStatus(FeedbackModerationStatus.CONFIRMED_HIDDEN, pageable);
     }
 
     /** Cascades a feedback entry's own hard delete across its reply, rating, and content row -- no FK cascade configured. */

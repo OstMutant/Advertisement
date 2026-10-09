@@ -166,6 +166,15 @@ to already work for free.
    check-in needed before starting steps 2-4 (same-file fusion, scoped reads, the model-flag
    edit); step 5's validation runs are the actual gate before calling this "done".
 
+**Implemented (2026-10-09):** items 2/3/4/6 applied to `deep-review-orchestrator.md`'s step 4
+(same-file fusion grouping, conditional ±30-line scoped reads, `model: "haiku"` on verifier
+dispatches, step 10's Haiku-visibility line) and items 8/9 applied to `sync-docs.md` (new Step
+A0.5 regenerating `architecture-model.json` before Step A1, Step A2's first-pass-source paragraph
+pointing at it). Item 1 (cache investigation) was already resolved earlier. **Item 5's validation
+is still outstanding** — the actual gate before this task is fully "done" — scheduled to happen via
+the real `/review` pass this change now unblocks on `improvement-203`'s own feedback/comment/
+moderation redesign.
+
 ### `/sync-docs --full-audit` — a different, also-real lever (new, 2026-10-05 research finding)
 
 The user asked whether some form of pre-built index ("RAG file") could help the `/sync-docs

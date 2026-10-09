@@ -195,6 +195,12 @@ Run `bash .claude/nav/scripts/generate-adr-index.sh` and check whether it change
 (`git diff --stat .claude/nav/adr-index.md`) — if so, a `DECISIONS.md` entry was added/changed since
 the index was last regenerated. Include this in the Step A5 report regardless of outcome.
 
+### Step A0.5 — Regenerate the architecture model
+
+Run `bash docs/architecture/scripts/generate-architecture-model.sh` so Step A2's checks below read
+a freshly-regenerated `docs/architecture/data/architecture-model.json`, not a possibly-stale one
+left over from whenever it last ran. Include this in the Step A5 report regardless of outcome.
+
 ### Step A1 — Enumerate targets
 
 `find . -maxdepth 3 -iname "DECISIONS.md" -o -maxdepth 3 -iname "README.md"` — `maxdepth 3`, not
@@ -225,6 +231,16 @@ discipline as everything else in this mode. This is the widest-volume part of a 
 count; Step A3's parallelization guidance below covers how to split it.
 
 ### Step A2 — Verify every claim, not just changed ones
+
+**First-pass source, where it applies:** for ADR id/title existence, README content, and
+entity/key-service/contract/table existence-and-description claims, check
+`docs/architecture/data/architecture-model.json`'s matching module node first (it carries each
+module's current `readme` text, every `intent`, and `entities`/`keyServices`/`contracts`/`tables`
+each with a real `file` path and description) — fall back to direct grep/`Read` only for what the
+JSON doesn't cover. This does **not** help with (keep doing these exactly as today, raw-file-based):
+Javadoc prose-accuracy judgment, infra/tooling file header checks (scripts/config files aren't in
+this JSON), or ADR structural-hygiene checks (numbering gaps, `Status:` vocabulary consistency — a
+cross-entry check, not a per-fact lookup).
 
 For each `DECISIONS.md`, check every ADR entry:
 - If it names a specific class, method, field, config value, CSS class, or file path — grep/read

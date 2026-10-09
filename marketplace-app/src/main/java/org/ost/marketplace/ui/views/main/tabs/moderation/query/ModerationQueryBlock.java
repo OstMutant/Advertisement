@@ -13,9 +13,9 @@ import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
 import org.ost.marketplace.ui.query.filter.FilterProcessor;
 import org.ost.marketplace.ui.query.sort.SortProcessor;
-import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
+import org.ost.orchestrator.dto.ModerationQueueFilterDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
-import org.ost.platform.feedback.model.ModerationQueueItemType;
+import org.ost.orchestrator.dto.ModerationQueueItemType;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
