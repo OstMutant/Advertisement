@@ -478,3 +478,18 @@ flagging, one for the moderation-queue view) would be the more maintainable fix 
 accommodating a long test with a longer clock — each smaller test would stay within the default
 budget on its own and isolate failures to a narrower step, at the cost of re-doing the login setup
 per test instead of sharing it across one continuous scenario.
+
+### 28. `feedback-spring-boot-starter`'s `01-feedback-schema` changeset mutated in place across 3 commits instead of adding new changesets (found during improvement-203 CI verification, 2026-10-10)
+
+`feedback-spring-boot-starter/src/main/resources/db/feedback-changelog/changes/01-feedback-schema.xml`
+has a single `changeSet id="01-feedback-schema"` whose body was edited three times across
+history (Phase 1 creating `feedback`/`feedback_aggregate`, Phase 3 adding `feedback_comment`, the
+comment-tree-collapse redesign adding `feedback_content`/`feedback_rating`) instead of each change
+getting its own new changeset file. On any Postgres volume that already ran this changeset before
+a later edit landed, Liquibase silently updates the stored checksum without re-executing the
+changeset body, permanently missing the newer tables with no startup error — surfaced as `relation
+"feedback_content" does not exist` against the CI e2e stack's long-lived volume. Resolved for that
+one case via `scripts/ci.sh --reset-e2e-db` (full volume wipe, picks up the current full schema).
+Not fixed at the source (splitting the missing tables into proper new changeset files) — the app
+has no real deployed/persisted environment yet where this would matter, so retrofitting immutable
+changesets for a hypothetical future prod deploy isn't worth doing now.
