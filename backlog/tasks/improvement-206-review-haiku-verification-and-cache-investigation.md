@@ -175,6 +175,21 @@ is still outstanding** — the actual gate before this task is fully "done" — 
 the real `/review` pass this change now unblocks on `improvement-203`'s own feedback/comment/
 moderation redesign.
 
+**Item 5 validation — first real run (2026-10-09), `/review` on `git diff 2f04bab5..HEAD` (69
+files, ~5200 lines, the full feedback/comment/moderation redesign):** confirms the change actually
+took effect, not just a dry inspection of the edited instruction file. Step 3's three finder lenses
+raised 5 candidates (380843 tokens combined, untouched by this task as designed). Step 4 grouped
+them into 4 file-based verifier dispatches and ran all four with `model: "haiku"` as intended;
+`review_signal_ratio` came out **2/5** (3 of the 5 were dropped at step 6's backlog cross-check as
+already-deliberate, already-documented design decisions from `improvement-203`'s own planning
+notes, not real bugs — a healthy sign the pipeline itself works, separate from this task's own
+cost question). One real anomaly worth flagging, not yet explained: one of the four Haiku verifier
+dispatches took ~27 minutes to return despite being a well-specified, bounded task — well outside
+the 16-240s range the other three verifiers/finders took; worth watching on future runs to see if
+it recurs before concluding whether it's a one-off or a real pattern. This is the first data point,
+not yet a before/after comparison (no equivalent pre-change run of this exact scope exists to
+compare against) — still directionally confirms items 2/3/4 work as designed in a real run.
+
 ### `/sync-docs --full-audit` — a different, also-real lever (new, 2026-10-05 research finding)
 
 The user asked whether some form of pre-built index ("RAG file") could help the `/sync-docs
@@ -235,6 +250,17 @@ over.
     `--full-audit` run noting, informally, how much of Step A2's claim-checking the JSON actually
     resolved vs. how much still fell back to raw grep/Read — same "note it, don't guess" discipline
     as item 5 above, just for this command instead.
+11. **Apply `model: "haiku"` to Step A3's research-agent dispatches in `sync-docs.md`, new
+    2026-10-09 finding** — the same lever items 2-4 already apply to `/review`'s step 4, not yet
+    considered for `/sync-docs` despite the "Related" section below already calling Step A3 "a
+    structurally similar parallel-research-agent shape." Step A3's agents do bounded, mechanical
+    verification (open a claim's source location, confirm or classify it
+    VALID/STALE/SUPERSEDED/MISSING/DONE-GOAL-NOT-MARKED) with no open design decisions — the exact
+    shape `.claude/rules.md`'s Haiku-default rule targets. Javadoc prose-accuracy judgment (does
+    this method's Javadoc still describe its actual body) stays on Haiku too — it's still a bounded
+    classification task, not open-ended judgment, the same reasoning `/review` step 4 already
+    established for confirmed/rejected verdicts. No separate validation round planned beyond the
+    next real `--full-audit` run, same "note it, don't guess" discipline as items 5/10 above.
 
 ## Related
 

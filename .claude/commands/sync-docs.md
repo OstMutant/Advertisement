@@ -297,7 +297,15 @@ grained split, not one agent for the whole repo's Java source. Each agent writes
 all of them directly in the coordinating context defeats the point of parallelizing in the first
 place. The coordinator reads/greps from each scratchpad file when compiling Step A4's fix list and
 Step A6's report, instead of accumulating every agent's full output in its own conversation
-context. No agent edits anything itself; the calling context reviews each scratchpad and applies
+context.
+
+Dispatch every one of these research agents with `model: "haiku"` — each one's job (open a claim's
+source location, confirm or classify it VALID/STALE/SUPERSEDED/MISSING/DONE-GOAL-NOT-MARKED) is a
+bounded, mechanical verification task with no open design decisions, the same shape
+`.claude/rules.md`'s own standing rule already reserves for Haiku dispatch. This includes Javadoc
+prose-accuracy judgment (does a method's Javadoc still describe its actual body) — still a bounded
+classification task, not open-ended judgment. No agent
+edits anything itself; the calling context reviews each scratchpad and applies
 fixes afterward, the same way a normal code-review pass would.
 
 ### Step A4 — Apply fixes

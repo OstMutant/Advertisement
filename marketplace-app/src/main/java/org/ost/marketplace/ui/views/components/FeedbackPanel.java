@@ -260,66 +260,7 @@ public class FeedbackPanel extends Div
         editActions.setVisible(false);
 
         if (editable) {
-            StarRatingField editRatingField = new StarRatingField();
-            editRatingField.setValue(entry.rating());
-            editRatingField.addClassName("feedback-entry-edit-rating");
-
-            UiTextArea editTextField = new UiTextArea(getValue(FEEDBACK_FORM_FIELD_TEXT), null,
-                    FeedbackSaveDto.TEXT_MAX_LENGTH, true, "feedback-entry-edit-field-text");
-            editTextField.setValue(entry.feedbackText());
-
-            UiIconButton saveButton = new UiIconButton(getValue(FEEDBACK_FORM_BUTTON_SUBMIT), VaadinIcon.CHECK.create());
-            saveButton.addClassName("feedback-entry-save-icon");
-            saveButton.addClickListener(_ -> {
-                if (editRatingField.getValue() == null || editTextField.getValue() == null || editTextField.getValue().isBlank()) return;
-                feedbackAccessService.save(new FeedbackSaveDto(entry.id(), entityRef.entityType(), entityRef.entityId(),
-                        access.getCurrentUserId(), editRatingField.getValue(), editTextField.getValue(), entry.version()));
-                notificationService.success(FEEDBACK_NOTIFICATION_SAVED);
-                refresh(entityRef);
-            });
-
-            UiIconButton discardButton = new UiIconButton(getValue(FEEDBACK_FORM_BUTTON_DISCARD), VaadinIcon.CLOSE_SMALL.create());
-            discardButton.addClassName("feedback-entry-discard-icon");
-            discardButton.addClickListener(_ -> {
-                boolean unchanged = Objects.equals(editRatingField.getValue(), entry.rating())
-                        && Objects.equals(editTextField.getValue(), entry.feedbackText());
-                if (unchanged) {
-                    viewContainer.setVisible(true);
-                    editContainer.setVisible(false);
-                    viewActions.setVisible(true);
-                    editActions.setVisible(false);
-                } else {
-                    editRatingField.setValue(entry.rating());
-                    editTextField.setValue(entry.feedbackText());
-                }
-            });
-
-            Div editFields = new Div();
-            editFields.addClassName("feedback-entry-edit-fields");
-            editFields.add(editRatingField, editTextField);
-
-            editActions.add(saveButton, discardButton);
-            editContainer.add(editFields);
-
-            UiIconButton editButton = new UiIconButton(getValue(FEEDBACK_FORM_BUTTON_EDIT), VaadinIcon.EDIT.create());
-            editButton.addClassName("feedback-entry-edit-icon");
-            editButton.addClickListener(_ -> {
-                boolean opening = !editContainer.isVisible();
-                if (opening) {
-                    viewContainer.setVisible(false);
-                    editContainer.setVisible(true);
-                    viewActions.setVisible(false);
-                    editActions.setVisible(true);
-                } else {
-                    editRatingField.setValue(entry.rating());
-                    editTextField.setValue(entry.feedbackText());
-                    viewContainer.setVisible(true);
-                    editContainer.setVisible(false);
-                    viewActions.setVisible(true);
-                    editActions.setVisible(false);
-                }
-            });
-            viewActions.add(editButton);
+            buildEditControls(entityRef, entry, viewContainer, editContainer, viewActions, editActions);
         }
 
         boolean canSeeReport = access.isLoggedIn() && !entry.authorId().equals(access.getCurrentUserId());
@@ -345,6 +286,69 @@ public class FeedbackPanel extends Div
         contentColumn.add(header, viewContainer, editContainer);
         row.add(contentColumn, viewActions, editActions);
         return row;
+    }
+
+    private void buildEditControls(EntityRef entityRef, FeedbackDto entry, Div viewContainer, Div editContainer, Div viewActions, Div editActions) {
+        StarRatingField editRatingField = new StarRatingField();
+        editRatingField.setValue(entry.rating());
+        editRatingField.addClassName("feedback-entry-edit-rating");
+
+        UiTextArea editTextField = new UiTextArea(getValue(FEEDBACK_FORM_FIELD_TEXT), null,
+                FeedbackSaveDto.TEXT_MAX_LENGTH, true, "feedback-entry-edit-field-text");
+        editTextField.setValue(entry.feedbackText());
+
+        UiIconButton saveButton = new UiIconButton(getValue(FEEDBACK_FORM_BUTTON_SUBMIT), VaadinIcon.CHECK.create());
+        saveButton.addClassName("feedback-entry-save-icon");
+        saveButton.addClickListener(_ -> {
+            if (editRatingField.getValue() == null || editTextField.getValue() == null || editTextField.getValue().isBlank()) return;
+            feedbackAccessService.save(new FeedbackSaveDto(entry.id(), entityRef.entityType(), entityRef.entityId(),
+                    access.getCurrentUserId(), editRatingField.getValue(), editTextField.getValue(), entry.version()));
+            notificationService.success(FEEDBACK_NOTIFICATION_SAVED);
+            refresh(entityRef);
+        });
+
+        UiIconButton discardButton = new UiIconButton(getValue(FEEDBACK_FORM_BUTTON_DISCARD), VaadinIcon.CLOSE_SMALL.create());
+        discardButton.addClassName("feedback-entry-discard-icon");
+        discardButton.addClickListener(_ -> {
+            boolean unchanged = Objects.equals(editRatingField.getValue(), entry.rating())
+                    && Objects.equals(editTextField.getValue(), entry.feedbackText());
+            if (unchanged) {
+                viewContainer.setVisible(true);
+                editContainer.setVisible(false);
+                viewActions.setVisible(true);
+                editActions.setVisible(false);
+            } else {
+                editRatingField.setValue(entry.rating());
+                editTextField.setValue(entry.feedbackText());
+            }
+        });
+
+        Div editFields = new Div();
+        editFields.addClassName("feedback-entry-edit-fields");
+        editFields.add(editRatingField, editTextField);
+
+        editActions.add(saveButton, discardButton);
+        editContainer.add(editFields);
+
+        UiIconButton editButton = new UiIconButton(getValue(FEEDBACK_FORM_BUTTON_EDIT), VaadinIcon.EDIT.create());
+        editButton.addClassName("feedback-entry-edit-icon");
+        editButton.addClickListener(_ -> {
+            boolean opening = !editContainer.isVisible();
+            if (opening) {
+                viewContainer.setVisible(false);
+                editContainer.setVisible(true);
+                viewActions.setVisible(false);
+                editActions.setVisible(true);
+            } else {
+                editRatingField.setValue(entry.rating());
+                editTextField.setValue(entry.feedbackText());
+                viewContainer.setVisible(true);
+                editContainer.setVisible(false);
+                viewActions.setVisible(true);
+                editActions.setVisible(false);
+            }
+        });
+        viewActions.add(editButton);
     }
 
     private Div buildForm(EntityRef entityRef) {

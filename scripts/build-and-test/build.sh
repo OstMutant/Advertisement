@@ -238,6 +238,8 @@ run_integration_tests() {
     INTEGRATION_TEST_FLAG="-Dtest=${INTEGRATION_TEST_ARG} -Dsurefire.failIfNoSpecifiedTests=false"
   fi
 
+  # JaCoCo's append-mode default would otherwise mix in a stale exec file from reused container state.
+  rm -f "$ROOT/integration-tests/target/jacoco.exec"
   ./mvnw -pl integration-tests test -Dsurefire.excludedGroups= $INTEGRATION_TEST_FLAG > /tmp/integration-tests.log 2>&1
   INTEGRATION_EXIT=$?
 
@@ -269,13 +271,24 @@ run_integration_tests() {
   JACOCO_VERSION=$(grep -m1 '<jacoco.version>' "$ROOT/pom.xml" | sed -E 's#.*<jacoco.version>([^<]+)</jacoco.version>.*#\1#')
   JACOCO_CLI_JAR="/root/.m2/repository/org/jacoco/org.jacoco.cli/$JACOCO_VERSION/org.jacoco.cli-$JACOCO_VERSION-nodeps.jar"
   [ -f "$JACOCO_CLI_JAR" ] || ./mvnw -q dependency:get -Dartifact=org.jacoco:org.jacoco.cli:"$JACOCO_VERSION":jar:nodeps
-  # Same module set integration-tests/pom.xml itself declares as <dependency> -- the only modules
-  # this run's jacoco.exec can hold hits for. query-lib/marketplace-app get their own correct
-  # jacoco.xml from run_unit_tests() already, so they're deliberately not repeated here.
-  JACOCO_AGGREGATE_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter audit-spring-boot-starter attachment-spring-boot-starter provider-profile-spring-boot-starter apikey-spring-boot-starter marketplace-orchestrator marketplace-rest-api"
+  # Same module set integration-tests/pom.xml declares as <dependency> -- derived from its own
+  # <dependencies> block (every org.ost artifactId) so this can't go stale like a hand-copied list.
+  JACOCO_AGGREGATE_MODULES=$(python3 -c "
+import re
+with open('$ROOT/integration-tests/pom.xml') as f:
+    pom = f.read()
+deps_block = re.search(r'<dependencies>(.*?)</dependencies>', pom, re.S).group(1)
+deps = re.findall(r'<dependency>\s*<groupId>org\.ost</groupId>\s*<artifactId>([^<]+)</artifactId>', deps_block)
+print(' '.join(deps))
+")
+  # Reads each dependency's installed .m2 jar, not its sibling target/classes -- the parallel unit
+  # job's own compile can still be in flight when this runs, but the jar is already guaranteed to
+  # exist (integration-tests itself depends on it to even resolve).
+  PROJECT_VERSION=$(grep -A2 '<artifactId>advertisement-parent</artifactId>' "$ROOT/pom.xml" | grep -m1 '<version>' | sed -E 's#.*<version>([^<]+)</version>.*#\1#')
   CLI_REPORT_ARGS=()
   for m in $JACOCO_AGGREGATE_MODULES; do
-    [ -d "$ROOT/$m/target/classes" ] && CLI_REPORT_ARGS+=(--classfiles "$ROOT/$m/target/classes")
+    MODULE_JAR="/root/.m2/repository/org/ost/$m/$PROJECT_VERSION/$m-$PROJECT_VERSION.jar"
+    [ -f "$MODULE_JAR" ] && CLI_REPORT_ARGS+=(--classfiles "$MODULE_JAR")
     [ -d "$ROOT/$m/src/main/java" ] && CLI_REPORT_ARGS+=(--sourcefiles "$ROOT/$m/src/main/java")
   done
   if [ -f "$JACOCO_CLI_JAR" ] && [ -f "$ROOT/integration-tests/target/jacoco.exec" ]; then

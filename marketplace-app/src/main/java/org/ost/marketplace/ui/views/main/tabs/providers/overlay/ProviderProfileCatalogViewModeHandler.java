@@ -49,6 +49,8 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayModeHandler
         implements Configurable<ProviderProfileCatalogViewModeHandler, ProviderProfileCatalogViewModeHandler.Parameters>, I18nParams {
 
+    private static final String OVERLAY_VIEW_CARD = "overlay__view-card";
+
     @Value
     @lombok.Builder
     public static class Parameters {
@@ -94,7 +96,7 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         about.getElement().setProperty("innerHTML", profile.getAbout() != null ? profile.getAbout() : "");
 
         Div textCard = new Div(cardHeader, about);
-        textCard.addClassName("overlay__view-card");
+        textCard.addClassName(OVERLAY_VIEW_CARD);
 
         var taxons = taxonLookupService.getForEntity(EntityType.PROVIDER_PROFILE, profile.getId(), localeProvider.getCurrentLocale());
         buildChipRow(textCard, taxons, TaxonType.CATEGORY, "provider-profile-categories-chips",
@@ -106,13 +108,13 @@ public class ProviderProfileCatalogViewModeHandler extends AbstractViewOverlayMo
         ContactRevealPanel contactPanel = contactRevealPanelFactory.build(ContactRevealPanel.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
                 .build());
-        contactPanel.addClassName("overlay__view-card");
+        contactPanel.addClassName(OVERLAY_VIEW_CARD);
 
         FeedbackPanel feedbackPanel = feedbackPanelFactory.build(FeedbackPanel.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
                 .ownerUserId(profile.getActorId())
                 .build());
-        feedbackPanel.addClassName("overlay__view-card");
+        feedbackPanel.addClassName(OVERLAY_VIEW_CARD);
 
         Div viewBody = new Div(textCard, contactPanel, feedbackPanel,
                 metaPanelFactory.build(EntityMetaPanel.Parameters.overlay(profile.getCreatedAt(), profile.getUpdatedAt())));

@@ -26,6 +26,8 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @SuppressWarnings("java:S2065") // Vaadin Component is Serializable; transient excludes non-serializable Spring proxies
 public class ModerationQueryBlock extends QueryBlock<ModerationQueueFilterDto> {
 
+    private static final String DATA_TESTID = "data-testid";
+
     @Getter
     private final transient FilterProcessor<ModerationQueueFilterDto> filterProcessor;
     @Getter
@@ -47,7 +49,7 @@ public class ModerationQueryBlock extends QueryBlock<ModerationQueueFilterDto> {
         MultiSelectComboBox<ModerationQueueItemType> typeField = new MultiSelectComboBox<>();
         typeField.setPlaceholder(i18nService.get(MODERATION_FILTER_TYPE));
         typeField.setItems(ModerationQueueItemType.values());
-        typeField.getElement().setAttribute("data-testid", "moderation-filter-type");
+        typeField.getElement().setAttribute(DATA_TESTID, "moderation-filter-type");
         filterRow(i18nService, i18nService.get(MODERATION_SORT_TYPE), typeField,
                 ModerationQueueSortMeta.TYPE, ModerationQueueFilterMeta.TYPES);
 
@@ -64,20 +66,20 @@ public class ModerationQueryBlock extends QueryBlock<ModerationQueueFilterDto> {
 
         // Author row
         QueryTextField authorField = new QueryTextField(i18nService.get(MODERATION_FILTER_AUTHOR_PLACEHOLDER));
-        authorField.getElement().setAttribute("data-testid", "moderation-filter-author");
+        authorField.getElement().setAttribute(DATA_TESTID, "moderation-filter-author");
         filterRow(i18nService, i18nService.get(MODERATION_SORT_AUTHOR), authorField,
                 ModerationQueueSortMeta.AUTHOR_NAME, ModerationQueueFilterMeta.AUTHOR_NAME);
 
         // Reason row (filter-only, no sort)
         QueryTextField reasonField = new QueryTextField(i18nService.get(MODERATION_FILTER_REASON));
-        reasonField.getElement().setAttribute("data-testid", "moderation-filter-reason");
+        reasonField.getElement().setAttribute(DATA_TESTID, "moderation-filter-reason");
         filterRow(i18nService.get(MODERATION_FILTER_REASON), reasonField, ModerationQueueFilterMeta.REASON_TEXT);
 
         // Status row (filter-only, no sort) -- HIDDEN (pending) and CONFIRMED_HIDDEN only; NEW never appears in this queue's source data
         MultiSelectComboBox<FeedbackModerationStatus> statusField = new MultiSelectComboBox<>();
         statusField.setPlaceholder(i18nService.get(MODERATION_FILTER_STATUS));
         statusField.setItems(FeedbackModerationStatus.HIDDEN, FeedbackModerationStatus.CONFIRMED_HIDDEN);
-        statusField.getElement().setAttribute("data-testid", "moderation-filter-status");
+        statusField.getElement().setAttribute(DATA_TESTID, "moderation-filter-status");
         filterRow(i18nService.get(MODERATION_FILTER_STATUS), statusField, ModerationQueueFilterMeta.STATUSES);
 
         add(queryActionBlock);

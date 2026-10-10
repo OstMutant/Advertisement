@@ -64,6 +64,7 @@ public class ModerationView extends VerticalLayout {
 
     private Div listContainer;
     private Span emptyStateLabel;
+    @SuppressWarnings("java:S1450")
     private transient Consumer<Long> onOpenProviderProfile;
 
     @PostConstruct

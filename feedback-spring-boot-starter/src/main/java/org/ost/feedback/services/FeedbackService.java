@@ -46,6 +46,10 @@ public class FeedbackService {
     private final FailureRateLimiter feedbackRateLimiter = new FailureRateLimiter(MAX_FEEDBACK_PER_DAY, Duration.ofDays(1));
     private final FailureRateLimiter commentRateLimiter  = new FailureRateLimiter(MAX_COMMENTS_PER_DAY, Duration.ofDays(1));
 
+    private static final String FEEDBACK_PREFIX = "Feedback ";
+    private static final String FEEDBACK_COMMENT_PREFIX = "FeedbackComment ";
+    private static final String NOT_FOUND_SUFFIX = " not found";
+
     // ── Feedback ─────────────────────────────────────────────────────────────
 
     public List<FeedbackDto> findForEntity(@NonNull EntityType entityType, @NonNull Long entityId, int page, int size) {
@@ -66,7 +70,7 @@ public class FeedbackService {
         Long effectiveEntityId;
         if (dto.id() != null) {
             FeedbackView existing = repository.findViewById(dto.id())
-                    .orElseThrow(() -> new IllegalStateException("Feedback " + dto.id() + " not found"));
+                    .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + dto.id() + NOT_FOUND_SUFFIX));
             checkWithinEditWindow(existing.createdAt());
             FeedbackContent content = repository.saveContent(FeedbackContent.builder()
                     .id(existing.contentId())
@@ -106,7 +110,7 @@ public class FeedbackService {
         repository.upsertRating(saved.getId(), dto.rating());
         repository.upsertAggregate(effectiveEntityType, effectiveEntityId);
         return toDto(repository.findViewById(saved.getId())
-                .orElseThrow(() -> new IllegalStateException("Feedback " + saved.getId() + " not found after save")));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + saved.getId() + NOT_FOUND_SUFFIX + " after save")));
     }
 
     public FeedbackAggregateDto getAggregate(@NonNull EntityType entityType, @NonNull Long entityId) {
@@ -135,7 +139,7 @@ public class FeedbackService {
         FeedbackComment saved;
         if (dto.id() != null) {
             FeedbackCommentView existing = repository.findCommentViewById(dto.id())
-                    .orElseThrow(() -> new IllegalStateException("FeedbackComment " + dto.id() + " not found"));
+                    .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + dto.id() + NOT_FOUND_SUFFIX));
             checkWithinEditWindow(existing.createdAt());
             repository.saveContent(FeedbackContent.builder()
                     .id(existing.contentId())
@@ -165,14 +169,14 @@ public class FeedbackService {
             commentRateLimiter.recordAttempt(dto.authorId().toString());
         }
         FeedbackCommentView savedView = repository.findCommentViewById(saved.getId())
-                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + saved.getId() + " not found after save"));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + saved.getId() + NOT_FOUND_SUFFIX + " after save"));
         return toCommentDto(savedView);
     }
 
     @Transactional
     public void deleteComment(@NonNull Long commentId) {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
-                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
         checkWithinEditWindow(existing.createdAt());
         repository.deleteCommentHard(commentId, existing.contentId());
     }
@@ -182,12 +186,12 @@ public class FeedbackService {
     @Transactional
     public void flagFeedback(@NonNull Long feedbackId, @NonNull Long actorId, @NonNull String reason) {
         FeedbackDto feedback = findFeedbackById(feedbackId)
-                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
         if (feedback.authorId().equals(actorId)) {
             throw new IllegalStateException("Cannot flag your own feedback entry");
         }
         FeedbackView existing = repository.findViewById(feedbackId)
-                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
         repository.flagContent(existing.contentId(), reason);
         repository.upsertAggregate(existing.entityType(), existing.entityId());
     }
@@ -195,19 +199,19 @@ public class FeedbackService {
     @Transactional
     public void flagComment(@NonNull Long commentId, @NonNull Long actorId, @NonNull String reason) {
         FeedbackCommentDto comment = findCommentById(commentId)
-                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
         if (comment.authorId().equals(actorId)) {
             throw new IllegalStateException("Cannot flag your own comment");
         }
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
-                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
         repository.flagContent(existing.contentId(), reason);
     }
 
     @Transactional
     public void approveFeedback(@NonNull Long feedbackId) {
         FeedbackView existing = repository.findViewById(feedbackId)
-                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
         repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.NEW);
         repository.upsertAggregate(existing.entityType(), existing.entityId());
     }
@@ -215,28 +219,28 @@ public class FeedbackService {
     @Transactional
     public void approveComment(@NonNull Long commentId) {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
-                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
         repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.NEW);
     }
 
     @Transactional
     public void confirmFeedbackViolation(@NonNull Long feedbackId) {
         FeedbackView existing = repository.findViewById(feedbackId)
-                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
         repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.CONFIRMED_HIDDEN);
     }
 
     @Transactional
     public void confirmCommentViolation(@NonNull Long commentId) {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
-                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
         repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.CONFIRMED_HIDDEN);
     }
 
     @Transactional
     public void rejectFeedback(@NonNull Long feedbackId) {
         FeedbackView existing = repository.findViewById(feedbackId)
-                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
         repository.deleteFeedbackHard(feedbackId, existing.contentId());
         repository.upsertAggregate(existing.entityType(), existing.entityId());
     }
@@ -245,7 +249,7 @@ public class FeedbackService {
     @Transactional
     public void rejectComment(@NonNull Long commentId) {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
-                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
         repository.deleteCommentHard(commentId, existing.contentId());
     }
 

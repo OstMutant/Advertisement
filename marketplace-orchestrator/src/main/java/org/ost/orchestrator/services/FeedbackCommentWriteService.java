@@ -23,6 +23,8 @@ public class FeedbackCommentWriteService {
     private final ProviderProfileReadService providerProfileReadService;
     private final AuthorizationService       authorizationService;
 
+    private static final String NOT_FOUND_SUFFIX = " not found";
+
     public FeedbackCommentDto saveComment(@NonNull FeedbackCommentSaveDto dto) {
         if (dto.id() == null) {
             requireOwner(dto.feedbackId(), dto.authorId());
@@ -39,12 +41,12 @@ public class FeedbackCommentWriteService {
 
     private void requireOwner(Long feedbackId, Long actingUserId) {
         FeedbackDto feedback = feedbackAccessService.findFeedbackById(feedbackId)
-                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
+                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + NOT_FOUND_SUFFIX));
         if (feedback.entityType() != EntityType.PROVIDER_PROFILE) {
             throw new AccessDeniedException("Feedback " + feedbackId + " is not attached to a provider profile");
         }
         ProviderProfileDto profile = providerProfileReadService.findById(feedback.entityId())
-                .orElseThrow(() -> new IllegalStateException("ProviderProfile " + feedback.entityId() + " not found"));
+                .orElseThrow(() -> new IllegalStateException("ProviderProfile " + feedback.entityId() + NOT_FOUND_SUFFIX));
         if (!authorizationService.isOwner(actingUserId, profile.getActorId())) {
             throw new AccessDeniedException("User " + actingUserId + " is not the owner of provider profile " + profile.getActorId());
         }
@@ -52,7 +54,7 @@ public class FeedbackCommentWriteService {
 
     private void requireCommentAuthor(Long commentId, Long actingUserId) {
         FeedbackCommentDto comment = feedbackAccessService.findCommentById(commentId)
-                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + NOT_FOUND_SUFFIX));
         if (!comment.authorId().equals(actingUserId)) {
             throw new AccessDeniedException("User " + actingUserId + " is not the author of comment " + commentId);
         }

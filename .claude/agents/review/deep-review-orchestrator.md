@@ -203,8 +203,8 @@ completion result. Fill:
 A short summary — what was checked (the resolved scope), what's new (auto-report bucket), what
 overlapped with an existing task, any doc/code mismatch found, and a separate "needs human
 review" list for every medium/low-confidence survivor from step 7. If step 4 actually dispatched
-any verifiers, state explicitly that step-4 verification ran on Haiku per improvement-206 (`model:
-"haiku"`) — skip this line entirely if step 4 never ran (zero survivors from step 3). Followed by:
+any verifiers, state explicitly that step-4 verification ran on Haiku (`model: "haiku"`) — skip
+this line entirely if step 4 never ran (zero survivors from step 3). Followed by:
 - step 8's ```json `ReportFindings` payload block, with "Call ReportFindings with the JSON above."
 - for each finding prepared in step 9: its full filename + file content + Operational notes block,
   each in its own fenced block, with "Present this to the user and, once approved, write it to

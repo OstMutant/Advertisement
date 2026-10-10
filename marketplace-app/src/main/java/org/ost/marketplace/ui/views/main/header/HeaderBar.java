@@ -36,6 +36,7 @@ public class HeaderBar extends HorizontalLayout {
     private final transient I18nService          i18n;
     private final transient AuthContextService   authContextService;
 
+    @SuppressWarnings("java:S1450")
     private Runnable onSettingsClosed = () -> { };
 
     public void setOnSettingsClosed(Runnable onSettingsClosed) {
