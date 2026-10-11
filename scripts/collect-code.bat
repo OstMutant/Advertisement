@@ -2,7 +2,8 @@
 REM ---------------------------------------------------------------------------
 REM Description: Collects every source file across the whole project (by extension --
 REM   .java/.css/.yml/.properties/.xml/.sql/.imports/.bat/.json/.js/.sh/.md/.html, plus fixed
-REM   root files and .claude/ rules/commands/skills) into a single all-code.txt, with a table of
+REM   root files and every .claude/ operating-context file -- rules.md, DECISIONS.md, and every
+REM   rules/commands/skills/agents/nav *.md) into a single all-code.txt, with a table of
 REM   contents and a per-extension summary -- useful for AI analysis. --claude-only skips the
 REM   whole-project scan and bundles just the Claude-facing operating context instead.
 REM Usage: scripts\collect-code.bat [--claude-only]
@@ -107,15 +108,25 @@ if "%CLAUDE_ONLY%"=="0" (
     )
 )
 
-:: 3b. Add .claude/ rules, commands, and skills (excluded from FindFiles by pattern) -- runs in
-:: both modes, since it's exactly what --claude-only mode needs too.
-for %%F in (.claude\rules.md) do (
+:: 3b. Add .claude/ rules, commands, skills, path-scoped rules, agents, and nav docs (all
+:: excluded from FindFiles by pattern) -- runs in both modes, since it's exactly what
+:: --claude-only mode needs too.
+for %%F in (.claude\rules.md .claude\DECISIONS.md) do (
     if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
 for /f "delims=" %%A in ('dir /S /B ".claude\commands\*.md" 2^>nul') do (
     echo %%A >> "%FILE_LIST%"
 )
 for /f "delims=" %%A in ('dir /S /B ".claude\skills\*.md" 2^>nul') do (
+    echo %%A >> "%FILE_LIST%"
+)
+for /f "delims=" %%A in ('dir /S /B ".claude\rules\*.md" 2^>nul') do (
+    echo %%A >> "%FILE_LIST%"
+)
+for /f "delims=" %%A in ('dir /S /B ".claude\agents\*.md" 2^>nul') do (
+    echo %%A >> "%FILE_LIST%"
+)
+for /f "delims=" %%A in ('dir /S /B ".claude\nav\*.md" 2^>nul') do (
     echo %%A >> "%FILE_LIST%"
 )
 
