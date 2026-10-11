@@ -1123,12 +1123,14 @@ passed, 0 failed.
 
 Status: done.
 
-**Remaining before this task itself can be considered fully closed (2026-10-09):** a `/review`
-pass and a `/sync-docs` pass still need to run over everything this task changed across the
-feedback/comment/moderation redesign (entry 7's schema/contract rewrite plus Phases 8-12) — neither
-has happened yet. Per your explicit instruction, `improvement-206` (cost optimization for the
-`/review`/`/sync-docs` subagent fan-out) must be implemented **first**, before either pass runs on
-this task's own changes.
+**Remaining before this task itself can be considered fully closed (updated 2026-10-11):**
+`improvement-206` (cost optimization for the `/review`/`/sync-docs` subagent fan-out) is
+implemented. The `/review` pass over the feedback/comment/moderation redesign (entry 7's
+schema/contract rewrite plus Phases 8-12) ran and every finding was fixed and committed
+(platform-commons→orchestrator DTO relocation, i18n labels, repository/service dedup, 7 Sonar
+code-smell fixes, a 3-layer JaCoCo coverage-aggregation bug in `build.sh`, 2 confirmed `S1450`
+false positives suppressed in code, and new test coverage closing `new_coverage` from 62.4% to
+82.0%). Only the `/sync-docs` pass still hasn't run.
 
 ---
 
