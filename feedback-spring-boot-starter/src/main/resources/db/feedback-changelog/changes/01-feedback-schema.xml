@@ -37,10 +37,10 @@
             <column name="author_id" type="BIGINT" remarks="Author of the entry. References user_information(id), no FK">
                 <constraints nullable="false"/>
             </column>
-            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE or ADVERTISEMENT). No FK -- resolved via FeedbackPort, not a join">
+            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE). No FK -- resolved via FeedbackPort, not a join. No SQL-level CHECK constraint restricts this column -- ADVERTISEMENT was a supported target when this schema was designed, enforced only by the application no longer offering an ADVERTISEMENT feedback entry point.">
                 <constraints nullable="false"/>
             </column>
-            <column name="entity_id" type="BIGINT" remarks="ID of the owning entity. References provider_profile(id) or advertisement(id) depending on entity_type, no FK">
+            <column name="entity_id" type="BIGINT" remarks="ID of the owning entity. References provider_profile(id), no FK">
                 <constraints nullable="false"/>
             </column>
             <column name="content_id" type="BIGINT" remarks="FK to feedback_content -- this entry's text+moderation+edit-tracking state">
@@ -103,10 +103,10 @@
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE or ADVERTISEMENT). No FK -- resolved via FeedbackPort, not a join">
+            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE). No FK -- resolved via FeedbackPort, not a join. No SQL-level CHECK constraint restricts this column -- ADVERTISEMENT was a supported target when this schema was designed, enforced only by the application no longer offering an ADVERTISEMENT feedback entry point.">
                 <constraints nullable="false"/>
             </column>
-            <column name="entity_id" type="BIGINT" remarks="ID of the owning entity. References provider_profile(id) or advertisement(id) depending on entity_type, no FK">
+            <column name="entity_id" type="BIGINT" remarks="ID of the owning entity. References provider_profile(id), no FK">
                 <constraints nullable="false"/>
             </column>
             <column name="avg_rating" type="NUMERIC(2,1)" defaultValueNumeric="0" remarks="Mean of feedback_rating.rating across all entries for this entity">

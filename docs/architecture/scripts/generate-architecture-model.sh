@@ -531,7 +531,7 @@ adr_intent_for_module() {
   local module="$1"
   if [ -f "$ADR_INDEX" ]; then
     awk -F' \\| ' -v m="$module" '
-      /^\| ADR-/ && $2 == m { sub(/^\| /, "", $1); sub(/ *\|$/, "", $5); print $1 "\x1f" $5 }
+      /^\| ADR-/ && $2 == m { sub(/^\| /, "", $1); sub(/ *\|$/, "", $6); print $1 "\x1f" $6 }
     ' "$ADR_INDEX"
   fi
 }
@@ -541,17 +541,17 @@ adr_intent_for_module() {
 # keeps only each ADR's home-module row, skipping the extra "Also affects" cross-reference rows
 # that table carries (same id string repeated once per affected module) so an ADR is counted once.
 all_adrs_json() {
-  local items_json="" first_i=true id module status title home
+  local items_json="" first_i=true id module status referenced title home
   if [ -f "$ADR_INDEX" ]; then
-    while IFS=$'\x1f' read -r id module status title; do
+    while IFS=$'\x1f' read -r id module status referenced title; do
       [ -z "$id" ] && continue
       home="$(echo "$id" | sed -n 's/^ADR-[0-9]\+ (\(.*\))$/\1/p')"
       [ -z "$home" ] && home="$module"
       [ "$module" != "$home" ] && continue
       $first_i || items_json="$items_json,"$'\n'
       first_i=false
-      items_json="$items_json    {\"id\": \"$(json_escape "$id")\", \"module\": \"$(json_escape "$home")\", \"status\": \"$(json_escape "$status")\", \"title\": \"$(json_escape "$title")\"}"
-    done < <(awk -F' \\| ' '/^\| ADR-/ { sub(/^\| /, "", $1); sub(/ *\|$/, "", $5); print $1 "\x1f" $2 "\x1f" $3 "\x1f" $5 }' "$ADR_INDEX")
+      items_json="$items_json    {\"id\": \"$(json_escape "$id")\", \"module\": \"$(json_escape "$home")\", \"status\": \"$(json_escape "$status")\", \"referenced\": ${referenced:-0}, \"title\": \"$(json_escape "$title")\"}"
+    done < <(awk -F' \\| ' '/^\| ADR-/ { sub(/^\| /, "", $1); sub(/ *\|$/, "", $6); print $1 "\x1f" $2 "\x1f" $3 "\x1f" $5 "\x1f" $6 }' "$ADR_INDEX")
   fi
   echo "[$items_json"$'\n'"  ]"
 }
@@ -1113,19 +1113,17 @@ for caller in edges.get('callers', []):
 # the sibling SPI Javadoc convention above). Real FKs (taxon_translation/taxon_assignment -> taxon,
 # user_information's self-referential deleted_by) come live from liquibase-schema-to-json.js.
 # Conceptual (no real SQL-level FK) relationships come from two sources:
-#  1. Derived, in db_erd_json() below, from any column whose own remarks= carries one of two fixed
-#     markers (module-doc-standards' Liquibase remarks convention -- every no-FK column in this
-#     codebase's changelogs already carries one): a single-target marker "References <table>
-#     (<column>), no FK", or a two-target marker "References <tableA>(<column>) or <tableB>
-#     (<column>) depending on <discriminator>, no FK" for a polymorphic entity_type/entity_id pair
-#     whose real target is a runtime value, not a schema fact -- the latter derives two edges, one
-#     per possible target.
+#  1. Derived, in db_erd_json() below, from any column whose own remarks= carries the fixed marker
+#     (module-doc-standards' Liquibase remarks convention -- every no-FK column in this codebase's
+#     changelogs already carries one): a single-target marker "References <table>(<column>), no
+#     FK", or an N-target marker "References <tableA>(<column>) or <tableB>(<column>) [or
+#     <tableC>(<column>) ...] depending on <discriminator>, no FK" for a polymorphic
+#     entity_type/entity_id pair whose real target is a runtime value, not a schema fact -- derives
+#     one edge per listed target, any count.
 #  2. What neither marker can express -- stays a small hand-preserved list below.
 db_erd_conceptual_relationships_json() {
   cat <<'EOF'
 [
-  {"from": "ADVERTISEMENT", "to": "ATTACHMENT", "label": "owns (entity_type/entity_id, generic, no FK)"},
-  {"from": "ADVERTISEMENT", "to": "TAXON_ASSIGNMENT", "label": "categorized_by (entity_type/entity_id, generic, no FK)"},
   {"from": "ATTACHMENT", "to": "ATTACHMENT_SNAPSHOT", "label": "has_snapshots (entity_type/entity_id, no FK)"}
 ]
 EOF
@@ -1142,19 +1140,17 @@ db_erd_json() {
     process.stdin.on("data", c => d += c);
     process.stdin.on("end", () => {
       const curated = JSON.parse(process.argv[1]);
-      const singleRe = /References\s+(\w+)\(([\w,]+)\),\s*no FK/i;
-      const polyRe = /References\s+(\w+)\((\w+)\)\s+or\s+(\w+)\((\w+)\)\s+depending on \w+,\s*no FK/i;
+      const refRe = /References\s+((?:\w+\(\w+\)\s*(?:or\s+)?)+)(?:depending on \w+\s*)?,\s*no FK/i;
       const derived = [];
       JSON.parse(d).forEach(t => t.columns.forEach(c => {
         const remarks = c.remarks || "";
-        const poly = polyRe.exec(remarks);
-        if (poly) {
-          derived.push({ from: poly[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
-          derived.push({ from: poly[3].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
-          return;
+        const m = refRe.exec(remarks);
+        if (!m) return;
+        const targetRe = /(\w+)\(\w+\)/g;
+        let tm;
+        while ((tm = targetRe.exec(m[1])) !== null) {
+          derived.push({ from: tm[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
         }
-        const m = singleRe.exec(remarks);
-        if (m) derived.push({ from: m[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
       }));
       process.stdout.write(JSON.stringify([...derived, ...curated]));
     });
@@ -4346,6 +4342,9 @@ function renderAdrs() {
     groups[groupIndex[a.module]].items.push(a);
   });
   groups.forEach(grp => {
+    // Most-referenced first within each module -- surfaces which ADRs are actually
+    // load-bearing instead of the file-appearance order adr-index.md happens to carry.
+    grp.items.sort((a, b) => (b.referenced || 0) - (a.referenced || 0));
     // Only a real MODULE node has a Module-detail page to link to -- SCRIPT_GROUP entries
     // (docs/architecture/scripts, scripts/ci, etc.) stay plain text, no dead/wrong-feeling navigation.
     const grpNode = byId[grp.module];
@@ -4353,9 +4352,9 @@ function renderAdrs() {
       ? `<a class="module-link" onclick="navigate({screen:'module', id:'${esc(grp.module)}'})">${esc(grp.module)}</a>`
       : esc(grp.module);
     html += `<section class="block"><h3>${grpHeading} (${grp.items.length}) ${sourceLink(grp.module + "/DECISIONS.md")}</h3>
-      <table class="simple"><thead><tr><th>ADR</th><th>Status</th><th>Title</th></tr></thead><tbody>`;
+      <table class="simple"><thead><tr><th>ADR</th><th>Status</th><th style="width:70px">Referenced</th><th>Title</th></tr></thead><tbody>`;
     grp.items.forEach(a => {
-      html += `<tr><td><a onclick="openAdrPopupForAdr('${esc(a.id)}', '${esc(a.module)}', '${esc(a.title)}', '${esc(a.status)}')">${esc(a.id)}</a></td><td>${esc(a.status)}</td><td>${esc(a.title)}</td></tr>`;
+      html += `<tr><td><a onclick="openAdrPopupForAdr('${esc(a.id)}', '${esc(a.module)}', '${esc(a.title)}', '${esc(a.status)}')">${esc(a.id)}</a></td><td>${esc(a.status)}</td><td>${a.referenced || 0}</td><td>${esc(a.title)}</td></tr>`;
     });
     html += `</tbody></table></section>`;
   });

@@ -1,7 +1,7 @@
 # Database connection for development (Local). ${VAR:default} placeholders resolve against the
 # repo-root .env when a script sources it (e.g. deploy-dev.sh, run-local.bat); the defaults here
 # are the same values .env ships, purely a safety net so an IDE dev run (which doesn't source
-# .env) still works unmodified. See improvement-044.
+# .env) still works unmodified.
 spring:
   datasource:
     url: jdbc:postgresql://localhost:${DB_PORT:5432}/${DB_NAME:experiments}

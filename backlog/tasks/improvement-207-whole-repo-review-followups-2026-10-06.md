@@ -262,6 +262,200 @@ After (only the first clause changes): `remarks="One row per actor, created eage
 Before: `remarks="Optimistic-lock counter"`
 After: `remarks="Sequential per-entity history counter, incremented on every insert via MAX(version)+1 -- not a real optimistic-lock check (this table is append-only, never updated)."`
 
+**B3 (user-reported, 2026-10-13).** File:
+`feedback-spring-boot-starter/src/main/resources/db/feedback-changelog/changes/01-feedback-schema.xml`,
+4 remarks across 2 tables (`feedback` lines 40/43, `feedback_aggregate` lines 106/109). Root cause
+confirmed via `git log -S'Feedback' -- .../AdvertisementViewOverlayModeHandler.java`: commit
+`3af741bf` ("Removes feedback from advertisements entirely") deleted `FeedbackPanel` from the
+advertisement overlay, but never touched this changelog — the `entity_type`/`entity_id` remarks
+still say "PROVIDER_PROFILE or ADVERTISEMENT", which is what `generate-architecture-model.sh`'s
+`db_erd_json()` parses live (via its `polyRe` two-target regex) into the now-stale
+`ADVERTISEMENT -> FEEDBACK` edge on the Database ERD screen — the generator is working correctly,
+the remark is just stale. No SQL-level `CHECK` constraint exists on this column (confirmed: plain
+`VARCHAR(30)`), so this is a docs-only remark fix, no migration/changeset needed (same
+`<validCheckSum>ANY</validCheckSum>` changeSet B1/B2 already edit in place).
+
+1. `feedback.entity_type` (line 40). Before:
+   `remarks="Owning entity type (EntityType: PROVIDER_PROFILE or ADVERTISEMENT). No FK -- resolved via FeedbackPort, not a join"`
+   After:
+   `remarks="Owning entity type (EntityType: PROVIDER_PROFILE). No FK -- resolved via FeedbackPort, not a join. No SQL-level CHECK constraint restricts this column -- ADVERTISEMENT was a supported target when this schema was designed, enforced only by the application no longer offering an ADVERTISEMENT feedback entry point."`
+2. `feedback.entity_id` (line 43). Before:
+   `remarks="ID of the owning entity. References provider_profile(id) or advertisement(id) depending on entity_type, no FK"`
+   After:
+   `remarks="ID of the owning entity. References provider_profile(id), no FK"`
+3. `feedback_aggregate.entity_type` (line 106) — same before/after as item 1.
+4. `feedback_aggregate.entity_id` (line 109) — same before/after as item 2.
+
+**Verification after dispatch:** regenerate `architecture-model.json`/`architecture-map.html`
+(`bash docs/architecture/scripts/generate-architecture-model.sh`), confirm `dbErd.conceptualRelationships`
+no longer contains an `ADVERTISEMENT -> FEEDBACK`/`ADVERTISEMENT -> FEEDBACK_AGGREGATE` edge
+(the narrowed remark drops the `polyRe` two-target match down to `singleRe`'s single-target
+`PROVIDER_PROFILE -> FEEDBACK` edge automatically — no generator script change needed, this is a
+pure data fix). **Separately worth flagging, not part of this item:** `platform-commons/DECISIONS.md`
+ADR-034 ("reviews & ratings...attachable to either PROVIDER_PROFILE or ADVERTISEMENT") is now
+equally stale for the same reason — out of scope here since it's an ADR annotation, not a remark;
+flag for a separate `/record-decision` pass.
+
+**B4 (user-reported, 2026-10-13, Haiku-eligible) — the "no-FK marker" convention only supports 2
+targets, so 3 tables' polymorphic columns silently never got dynamic edges at all; generalize it so
+this can't recur.** Same investigation as B3, widened: `attachment`/`attachment_snapshot`,
+`taxon_assignment`, and `audit_log`'s `entity_type`/`entity_id` remarks were never written in the
+parseable `References X(col) [or Y(col) depending on Z], no FK` convention at all (plain prose
+instead, e.g. `"Entity type (e.g., 'ADVERTISEMENT')"`) — confirmed via direct `grep`. Two of the
+three (`attachment`→`ADVERTISEMENT`, `taxon_assignment`→`ADVERTISEMENT` only) were partially
+hand-compensated in `db_erd_conceptual_relationships_json()`'s small curated list; one
+(`audit_log`) was never compensated at all, so **zero** `* -> AUDIT_LOG` edges exist on the diagram
+today despite `audit_log` tracking every `EntityType` value. The curated-list compensation for
+`taxon_assignment` is also itself incomplete — confirmed via
+`ProviderProfileDisplayEnrichmentService.java:32,39` calling
+`taxonLookupService.getForEntities(EntityType.PROVIDER_PROFILE, ...)` — `PROVIDER_PROFILE ->
+TAXON_ASSIGNMENT` is real and missing. Root cause of why this keeps recurring, confirmed by
+re-reading `.claude/skills/module-doc-standards/SKILL.md`'s own "No-FK reference columns" section
+(lines ~180-184): it currently states outright that a generic `entity_type`/`entity_id` pair
+"cannot use this marker at all" and must go in the hand-curated list — which was true when only a
+2-target regex existed, but is the actual instruction steering every future contributor (or an
+unattended Haiku dispatch) straight back into the same trap. Fixing the regex and the remarks
+without also correcting this sentence would leave the next new polymorphic table to repeat exactly
+this history.
+
+1. File: `docs/architecture/scripts/generate-architecture-model.sh`, inside `db_erd_json()`'s
+   embedded Node script (~lines 1140-1161, repeated here for Haiku: patch the whole
+   `run_node -e '...'` block passed as the 4th argument to the existing `run_node` call —
+   `relationships_json="$(echo "$tables_json" | run_node -e '...' "$curated_json")"`).
+   Before (inside the JS block, replacing both `singleRe` and `polyRe`):
+   ```js
+       const curated = JSON.parse(process.argv[1]);
+       const singleRe = /References\s+(\w+)\(([\w,]+)\),\s*no FK/i;
+       const polyRe = /References\s+(\w+)\((\w+)\)\s+or\s+(\w+)\((\w+)\)\s+depending on \w+,\s*no FK/i;
+       const derived = [];
+       JSON.parse(d).forEach(t => t.columns.forEach(c => {
+         const remarks = c.remarks || "";
+         const poly = polyRe.exec(remarks);
+         if (poly) {
+           derived.push({ from: poly[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
+           derived.push({ from: poly[3].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
+           return;
+         }
+         const m = singleRe.exec(remarks);
+         if (m) derived.push({ from: m[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
+       }));
+   ```
+   After (one unified regex, N targets instead of a hardcoded 1-or-2; verified directly in Node
+   against single/2-target/7-target sample remarks, all three parse correctly):
+   ```js
+       const curated = JSON.parse(process.argv[1]);
+       const refRe = /References\s+((?:\w+\(\w+\)\s*(?:or\s+)?)+)(?:depending on \w+\s*)?,\s*no FK/i;
+       const derived = [];
+       JSON.parse(d).forEach(t => t.columns.forEach(c => {
+         const remarks = c.remarks || "";
+         const m = refRe.exec(remarks);
+         if (!m) return;
+         const targetRe = /(\w+)\(\w+\)/g;
+         let tm;
+         while ((tm = targetRe.exec(m[1])) !== null) {
+           derived.push({ from: tm[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
+         }
+       }));
+   ```
+
+2. File: `docs/architecture/scripts/generate-architecture-model.sh`, header comment above
+   `db_erd_conceptual_relationships_json()` (~lines 1115-1123) — update to stop saying "two-target
+   marker" / describing a 2-target-only limit, since item 1 removes it. Replace the sentence
+   `"a two-target marker \"References <tableA>(<column>) or <tableB>(<column>) depending on
+   <discriminator>, no FK\" for a polymorphic entity_type/entity_id pair whose real target is a
+   runtime value, not a schema fact -- the latter derives two edges, one per possible target."`
+   with: `"an N-target marker \"References <tableA>(<column>) or <tableB>(<column>) [or
+   <tableC>(<column>) ...] depending on <discriminator>, no FK\" for a polymorphic
+   entity_type/entity_id pair whose real target is a runtime value, not a schema fact -- derives
+   one edge per listed target, any count."`
+
+3. File:
+   `attachment-spring-boot-starter/src/main/resources/db/attachment-changelog/changes/01-attachment-schema.xml`.
+   - `attachment.entity_id` (line 20). Before: `remarks="ID of owner entity"`. After:
+     `remarks="ID of owner entity. References advertisement(id), no FK"`.
+   - `attachment_snapshot.entity_id` (line 59). Before: `remarks="ID of owner entity"`. After:
+     `remarks="ID of owner entity. References advertisement(id), no FK"`.
+
+4. File: `taxon-spring-boot-starter/src/main/resources/db/taxon-changelog/changes/001-taxon.xml`.
+   `taxon_assignment.entity_id` (line 81). Before:
+   `remarks="ID of the entity being classified"`. After:
+   `remarks="ID of the entity being classified. References advertisement(id) or provider_profile(id) depending on entity_type, no FK"`.
+
+5. File: `audit-spring-boot-starter/src/main/resources/db/audit-changelog/changes/01-audit-schema.xml`.
+   `audit_log.entity_id` (line 20). Before: `remarks="ID of audited entity"`. After:
+   `remarks="ID of audited entity. References advertisement(id) or user_information(id) or user_preferences(id) or taxon(id) or provider_profile(id) or feedback(id) or feedback_comment(id) depending on entity_type, no FK"`
+   (all 7 confirmed via each `*SnapshotDto` in `platform-commons` plus real `AuditPort.capture*()`
+   call sites in every starter — `advertisement`/`user_information`/`user_preferences`/`taxon`/
+   `provider_profile`/`feedback`/`feedback_comment` are the real table names, verified via each
+   changelog's own `createTable tableName=`).
+
+6. File: `docs/architecture/scripts/generate-architecture-model.sh`, `db_erd_conceptual_relationships_json()`
+   (~lines 1124-1132) — remove the 2 entries now produced dynamically by items 3-4 above (keep the
+   3rd, genuinely not column-derivable).
+   Before:
+   ```bash
+   db_erd_conceptual_relationships_json() {
+     cat <<'EOF'
+   [
+     {"from": "ADVERTISEMENT", "to": "ATTACHMENT", "label": "owns (entity_type/entity_id, generic, no FK)"},
+     {"from": "ADVERTISEMENT", "to": "TAXON_ASSIGNMENT", "label": "categorized_by (entity_type/entity_id, generic, no FK)"},
+     {"from": "ATTACHMENT", "to": "ATTACHMENT_SNAPSHOT", "label": "has_snapshots (entity_type/entity_id, no FK)"}
+   ]
+   EOF
+   }
+   ```
+   After:
+   ```bash
+   db_erd_conceptual_relationships_json() {
+     cat <<'EOF'
+   [
+     {"from": "ATTACHMENT", "to": "ATTACHMENT_SNAPSHOT", "label": "has_snapshots (entity_type/entity_id, no FK)"}
+   ]
+   EOF
+   }
+   ```
+
+7. File: `.claude/skills/module-doc-standards/SKILL.md`, "No-FK reference columns" section,
+   paragraph starting "This applies only to a column referencing one specific, statically-known
+   table" (~lines 180-184) — **this is the actual root cause of recurrence**: it currently tells
+   every future contributor a polymorphic column "cannot use this marker at all," which was true
+   under the old 2-target-only regex and is exactly what steered `attachment`/`taxon_assignment`/
+   `audit_log` into permanent hand-maintenance. Correct it so the next new polymorphic table is
+   written correctly from day one instead of repeating this.
+   Before:
+   ```
+   This applies only to a column referencing one specific, statically-known table. A generic
+   `entity_type`/`entity_id` column pair (its real target table is a runtime data value, not a schema
+   fact -- `attachment`, `taxon_assignment`, `audit_log`) cannot use this marker at all, since there is
+   no single `<table>` to name; those relationships stay a small hand-preserved list inside
+   `db_erd_conceptual_relationships_json()` itself, with a comment there explaining why.
+   ```
+   After:
+   ```
+   A generic `entity_type`/`entity_id` column pair (its real target table is a runtime data value,
+   not a schema fact) uses the same marker, extended to list every real target the application code
+   actually uses, joined by `or`, naming the discriminator column:
+
+   ```
+   References <tableA>(<column>) or <tableB>(<column>) [or <tableC>(<column>) ...] depending on <discriminator-column>, no FK
+   ```
+
+   Verify the real target list against actual code (e.g. every `AuditableSnapshot` implementation's
+   own `EntityType`, every `*Port`/`*LookupService` call site for that domain) — never guess or
+   leave a target out because it seems unlikely; an incomplete list silently drops that edge from
+   the live diagram the same way a missing marker does. Only a relationship that isn't expressible
+   as a column-to-column reference at all (e.g. two sibling tables that both separately reference
+   the same owning entity, with no direct link between the two tables themselves) stays in the
+   small hand-preserved list inside `db_erd_conceptual_relationships_json()`, with a comment there
+   explaining why it can't be a marker.
+   ```
+
+**Verification after dispatch:** regenerate `architecture-model.json`/`architecture-map.html`,
+confirm `dbErd.conceptualRelationships` now includes `PROVIDER_PROFILE -> TAXON_ASSIGNMENT` and all
+7 `* -> AUDIT_LOG` edges, still includes `ADVERTISEMENT -> ATTACHMENT`/`ADVERTISEMENT ->
+TAXON_ASSIGNMENT` (now derived, not curated) and `ADVERTISEMENT -> ATTACHMENT_SNAPSHOT` (new, from
+item 3's second remark), and has no duplicate edges.
+
 **Confirmed NOT stale, no action:** `user_information.version` remark ("checked manually in
 `UserRepository.updateProfile()`") — accurate, matches real hand-rolled-SQL bypass of
 `@Version`/`CrudRepository.save()`.
@@ -559,8 +753,29 @@ real overlay calls the `(List<BreadcrumbStep>)` overload directly). Delete it fr
   the RowMapper-registration-style sub-point, not this one).
 - The inconclusive taxon "seed entries" remark — needs a second, cleaner verification pass first.
 
-**Status: fully drafted, nothing dispatched, no code touched.** Next step is explicit per-phase
-(or per-item) approval before any Haiku dispatch launches.
+**Status (2026-10-13): Phases A-E were implemented via `/autopilot`, verified item-by-item against
+real diffs, then the Java portion was fully reverted (`git checkout --` on every modified `.java`
+file) at explicit user request. Current real state — only the non-Java portion survives:**
+
+- **Done and still in the working tree:** B1-B4 (Liquibase `remarks=` fixes in
+  `user`/`attachment`/`feedback`/`taxon`/`audit` schemas; the no-FK marker regex generalized to
+  N targets in `generate-architecture-model.sh`; the matching `module-doc-standards/SKILL.md`
+  section rewrite) and C4's `application-dev.yml`/`application-prod.yml` ticket-number removal
+  (non-Java half only).
+- **Reverted, not done:** A1-A3, C1-C3, C5-C6, D1-D12, E1-E5, and C4's Java-file half (the 7
+  ticket-number removals in `.java` files). None of this code exists in the working tree anymore —
+  re-implementing any of it is a fresh, separately-approved task, not a resume.
+- **Separately fixed this session, outside the original A-E scope:** Phase F's F5 item
+  (`generate-architecture-model.sh`'s `adr_intent_for_module()`/`all_adrs_json()`/`renderAdrs()`
+  were still reading the pre-F4 5-column `adr-index.md` layout, showing the `Referenced` count
+  digit instead of the real ADR title — F5 was documented as already decided but its code fix had
+  never actually been applied until now) plus one follow-up UI nit (the `Referenced` column's
+  `<th>` width, not previously specified in the plan).
+- A regression was found and fixed during the (now-reverted) Java implementation: A2's new
+  `AuthorizationService` constructor field on `FeedbackAccessService` broke
+  `FeedbackAccessServiceTest`'s `@SpringBootTest` context. That fix no longer exists either, since
+  the Java revert removed A2 itself — noted here only for the historical record of what the
+  original implementation pass found.
 
 ## Why change
 
@@ -632,6 +847,143 @@ immediately with no output. Fixed by wrapping each grep that can legitimately ma
 `{ grep ... || true; }`. Verified: ran the script against a throwaway output path first (exit 0,
 237 entries, `Referenced` column present and defaulting to `0`), then against the real
 `.claude/nav/adr-index.md` — regenerated clean.
+
+**F5. System › ADRs screen doesn't surface F4's `Referenced` count — and F4 itself already broke
+this screen's title column (confirmed live, 2026-10-13, Haiku-eligible, exact diff below).**
+`.claude/nav/adr-index.md`'s table is `| ADR | Module | Status | Verified | Referenced | Title |`
+(6 columns, since F4 inserted `Referenced` as column 5). Two consumers in
+`docs/architecture/scripts/generate-architecture-model.sh` still hardcode the pre-F4 5-column
+layout and read column 5 as the title — confirmed directly by running the real `awk` command
+against a real row: column 5 now yields `"0"` (the Referenced count), not the title. This means
+every ADR's title shown via these two code paths is **currently wrong** (silently replaced by a
+digit), not just missing the new column — a real regression introduced by F4, not a pre-existing
+gap.
+
+1. File: `docs/architecture/scripts/generate-architecture-model.sh:530-537`, function
+   `adr_intent_for_module()`.
+   Before:
+   ```bash
+   adr_intent_for_module() {
+     local module="$1"
+     if [ -f "$ADR_INDEX" ]; then
+       awk -F' \\| ' -v m="$module" '
+         /^\| ADR-/ && $2 == m { sub(/^\| /, "", $1); sub(/ *\|$/, "", $5); print $1 "\x1f" $5 }
+       ' "$ADR_INDEX"
+     fi
+   }
+   ```
+   After (title is column 6, not 5):
+   ```bash
+   adr_intent_for_module() {
+     local module="$1"
+     if [ -f "$ADR_INDEX" ]; then
+       awk -F' \\| ' -v m="$module" '
+         /^\| ADR-/ && $2 == m { sub(/^\| /, "", $1); sub(/ *\|$/, "", $6); print $1 "\x1f" $6 }
+       ' "$ADR_INDEX"
+     fi
+   }
+   ```
+
+2. File: `docs/architecture/scripts/generate-architecture-model.sh:543-557`, function
+   `all_adrs_json()`.
+   Before:
+   ```bash
+   all_adrs_json() {
+     local items_json="" first_i=true id module status title home
+     if [ -f "$ADR_INDEX" ]; then
+       while IFS=$'\x1f' read -r id module status title; do
+         [ -z "$id" ] && continue
+         home="$(echo "$id" | sed -n 's/^ADR-[0-9]\+ (\(.*\))$/\1/p')"
+         [ -z "$home" ] && home="$module"
+         [ "$module" != "$home" ] && continue
+         $first_i || items_json="$items_json,"$'\n'
+         first_i=false
+         items_json="$items_json    {\"id\": \"$(json_escape "$id")\", \"module\": \"$(json_escape "$home")\", \"status\": \"$(json_escape "$status")\", \"title\": \"$(json_escape "$title")\"}"
+       done < <(awk -F' \\| ' '/^\| ADR-/ { sub(/^\| /, "", $1); sub(/ *\|$/, "", $5); print $1 "\x1f" $2 "\x1f" $3 "\x1f" $5 }' "$ADR_INDEX")
+     fi
+     echo "[$items_json"$'\n'"  ]"
+   }
+   ```
+   After (reads column 5 as `referenced`, column 6 as `title`; emits a new `"referenced"` JSON
+   field as a bare number, not a quoted string):
+   ```bash
+   all_adrs_json() {
+     local items_json="" first_i=true id module status referenced title home
+     if [ -f "$ADR_INDEX" ]; then
+       while IFS=$'\x1f' read -r id module status referenced title; do
+         [ -z "$id" ] && continue
+         home="$(echo "$id" | sed -n 's/^ADR-[0-9]\+ (\(.*\))$/\1/p')"
+         [ -z "$home" ] && home="$module"
+         [ "$module" != "$home" ] && continue
+         $first_i || items_json="$items_json,"$'\n'
+         first_i=false
+         items_json="$items_json    {\"id\": \"$(json_escape "$id")\", \"module\": \"$(json_escape "$home")\", \"status\": \"$(json_escape "$status")\", \"referenced\": ${referenced:-0}, \"title\": \"$(json_escape "$title")\"}"
+       done < <(awk -F' \\| ' '/^\| ADR-/ { sub(/^\| /, "", $1); sub(/ *\|$/, "", $6); print $1 "\x1f" $2 "\x1f" $3 "\x1f" $5 "\x1f" $6 }' "$ADR_INDEX")
+     fi
+     echo "[$items_json"$'\n'"  ]"
+   }
+   ```
+
+3. File: `docs/architecture/scripts/generate-architecture-model.sh`, function `renderAdrs()`
+   (frontend JS embedded in the same file, ~lines 4342-4361) — add a sort step and a `Referenced`
+   column.
+   Before:
+   ```js
+     const groups = [];
+     const groupIndex = {};
+     filtered.forEach(a => {
+       if (!(a.module in groupIndex)) { groupIndex[a.module] = groups.length; groups.push({ module: a.module, items: [] }); }
+       groups[groupIndex[a.module]].items.push(a);
+     });
+     groups.forEach(grp => {
+       // Only a real MODULE node has a Module-detail page to link to -- SCRIPT_GROUP entries
+       // (docs/architecture/scripts, scripts/ci, etc.) stay plain text, no dead/wrong-feeling navigation.
+       const grpNode = byId[grp.module];
+       const grpHeading = grpNode && grpNode.type === "MODULE"
+         ? `<a class="module-link" onclick="navigate({screen:'module', id:'${esc(grp.module)}'})">${esc(grp.module)}</a>`
+         : esc(grp.module);
+       html += `<section class="block"><h3>${grpHeading} (${grp.items.length}) ${sourceLink(grp.module + "/DECISIONS.md")}</h3>
+         <table class="simple"><thead><tr><th>ADR</th><th>Status</th><th>Title</th></tr></thead><tbody>`;
+       grp.items.forEach(a => {
+         html += `<tr><td><a onclick="openAdrPopupForAdr('${esc(a.id)}', '${esc(a.module)}', '${esc(a.title)}', '${esc(a.status)}')">${esc(a.id)}</a></td><td>${esc(a.status)}</td><td>${esc(a.title)}</td></tr>`;
+       });
+       html += `</tbody></table></section>`;
+     });
+   ```
+   After:
+   ```js
+     const groups = [];
+     const groupIndex = {};
+     filtered.forEach(a => {
+       if (!(a.module in groupIndex)) { groupIndex[a.module] = groups.length; groups.push({ module: a.module, items: [] }); }
+       groups[groupIndex[a.module]].items.push(a);
+     });
+     groups.forEach(grp => {
+       // Most-referenced first within each module -- surfaces which ADRs are actually
+       // load-bearing instead of the file-appearance order adr-index.md happens to carry.
+       grp.items.sort((a, b) => (b.referenced || 0) - (a.referenced || 0));
+       // Only a real MODULE node has a Module-detail page to link to -- SCRIPT_GROUP entries
+       // (docs/architecture/scripts, scripts/ci, etc.) stay plain text, no dead/wrong-feeling navigation.
+       const grpNode = byId[grp.module];
+       const grpHeading = grpNode && grpNode.type === "MODULE"
+         ? `<a class="module-link" onclick="navigate({screen:'module', id:'${esc(grp.module)}'})">${esc(grp.module)}</a>`
+         : esc(grp.module);
+       html += `<section class="block"><h3>${grpHeading} (${grp.items.length}) ${sourceLink(grp.module + "/DECISIONS.md")}</h3>
+         <table class="simple"><thead><tr><th>ADR</th><th>Status</th><th>Referenced</th><th>Title</th></tr></thead><tbody>`;
+       grp.items.forEach(a => {
+         html += `<tr><td><a onclick="openAdrPopupForAdr('${esc(a.id)}', '${esc(a.module)}', '${esc(a.title)}', '${esc(a.status)}')">${esc(a.id)}</a></td><td>${esc(a.status)}</td><td>${a.referenced || 0}</td><td>${esc(a.title)}</td></tr>`;
+       });
+       html += `</tbody></table></section>`;
+     });
+   ```
+
+**Verification after dispatch:** regenerate against a throwaway output path first
+(`bash docs/architecture/scripts/generate-architecture-model.sh /tmp/check.json` or equivalent per
+that script's own usage), confirm `allAdrs[].title` now holds real titles (not digits) and a new
+`referenced` integer field is present, then regenerate the real
+`docs/architecture/data/architecture-model.json`/`architecture-map.html` and spot-check the
+System › ADRs screen in a browser (per-module rows now sorted most-referenced-first, Referenced
+column visible).
 
 ## Related
 

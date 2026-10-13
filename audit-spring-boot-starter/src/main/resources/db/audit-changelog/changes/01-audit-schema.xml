@@ -17,7 +17,7 @@
             <column name="entity_type" type="VARCHAR(50)" remarks="Type of audited entity (from EntityType enum)">
                 <constraints nullable="false"/>
             </column>
-            <column name="entity_id" type="BIGINT" remarks="ID of audited entity">
+            <column name="entity_id" type="BIGINT" remarks="ID of audited entity. References advertisement(id) or user_information(id) or user_preferences(id) or taxon(id) or provider_profile(id) or feedback(id) or feedback_comment(id) depending on entity_type, no FK">
                 <constraints nullable="false"/>
             </column>
             <column name="action_type" type="VARCHAR(50)" remarks="Action (CREATED, UPDATED, DELETED, RESTORED)">

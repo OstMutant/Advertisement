@@ -251,15 +251,32 @@ unconditional rather than triggered by first noticing a choice exists.
 > afterward — review the actual diff, run the relevant tests — same as any other agent's output.
 
 ## Approval Rule
-**Every action must be approved by the user before execution — no exceptions.**
+**Every action must be approved by the user before execution — no exceptions.** This covers every
+file-touching edit, every `Skill`/slash-command invocation, and every `Agent` dispatch (a code
+review, a script run, any subagent call) — not just multi-step technical plans — including a
+corrective action that merely fixes a mistake inside an already-approved step; a corrective fix
+states its own plain-language + technical layer and waits for its own confirmation, same as any
+other action.
 
 Before doing anything, present the plan in two layers, in this order:
 
 1. **Plain-language layer (first):** why this is being done and what the outcome will be, in
    words a non-technical reader could follow — no file paths, no method signatures yet.
-2. **Technical layer (after):** the exact instruction you would give yourself to execute the
-   action — full file paths, exact changes (method signatures, SQL, config values, field names),
-   any side-effects or follow-up steps.
+2. **Technical layer (after):** stated as this literal template, every field labeled exactly as
+   shown:
+   - **Summary:** the exact instruction you would give yourself to execute the action — full file
+     paths, exact changes (method signatures, SQL, config values, field names), any side-effects
+     or follow-up steps.
+   - **Agent:** yes/no — whether this action is dispatched to an `Agent` call at all.
+   - **Model:** the model name (e.g. `haiku`, `sonnet`) if Agent is yes; `—` if Agent is no.
+     Default to `Agent: yes` with `Model: haiku` whenever the standing Haiku-dispatch rule below
+     is satisfied (the change is fully specified — exact files, exact edits, exact resulting
+     behavior, no open design decisions left). Direct execution is the exception, chosen only when
+     that same rule's own exception applies — the step still requires judgment calls, ambiguity
+     resolution, or the exact diff can't be stated up front — never merely because the change
+     feels small or because the content happens to already be in context.
+   - **Input:** the file(s)/current state the action reads or starts from.
+   - **Result:** what the file(s) will contain/look like afterward.
 
 Present both layers, then **STOP and wait for explicit confirmation** before executing.
 
@@ -275,11 +292,16 @@ message is a directive rather than a direct answer to that exact question, treat
 not granted; ask the specific question again if needed.
 
 Example format:
-> Plain-language: "The activity tab shows the wrong reviewer, so admins can't tell who actually
-> approved a change. Fixing it so the correct reviewer's name always shows."
+> **Plain-language:** The activity tab shows the wrong reviewer, so admins can't tell who actually
+> approved a change. Fixing it so the correct reviewer's name always shows.
 >
-> Technical: "Edit `/full/path/File.java`: replace method `getMediaActivity(Long userId)` with
-> `merge(Long userId, List<ActivityItemDto> baseItems)` — do it?"
+> **Summary:** Edit `/full/path/File.java`: replace method `getMediaActivity(Long userId)` with
+> `merge(Long userId, List<ActivityItemDto> baseItems)`.
+> **Agent:** yes
+> **Model:** haiku
+> **Input:** current `getMediaActivity(Long userId)` method body in `/full/path/File.java`.
+> **Result:** method renamed to `merge(Long userId, List<ActivityItemDto> baseItems)` with the new
+> parameter folded in — do it?
 
 Wait for explicit confirmation before making any change.
 

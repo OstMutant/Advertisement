@@ -177,11 +177,22 @@ references `taxon`). The rest of the `remarks=` text still carries whatever real
 explanation root `CLAUDE.md`'s "Database Changes" guideline already requires — the marker is an
 addition to that text, never a replacement for it.
 
-This applies only to a column referencing one specific, statically-known table. A generic
-`entity_type`/`entity_id` column pair (its real target table is a runtime data value, not a schema
-fact — `attachment`, `taxon_assignment`, `audit_log`) cannot use this marker at all, since there is
-no single `<table>` to name; those relationships stay a small hand-preserved list inside
-`db_erd_conceptual_relationships_json()` itself, with a comment there explaining why.
+A generic `entity_type`/`entity_id` column pair (its real target table is a runtime data value,
+not a schema fact) uses the same marker, extended to list every real target the application code
+actually uses, joined by `or`, naming the discriminator column:
+
+```
+References <tableA>(<column>) or <tableB>(<column>) [or <tableC>(<column>) ...] depending on <discriminator-column>, no FK
+```
+
+Verify the real target list against actual code (e.g. every `AuditableSnapshot` implementation's
+own `EntityType`, every `*Port`/`*LookupService` call site for that domain) — never guess or
+leave a target out because it seems unlikely; an incomplete list silently drops that edge from
+the live diagram the same way a missing marker does. Only a relationship that isn't expressible
+as a column-to-column reference at all (e.g. two sibling tables that both separately reference
+the same owning entity, with no direct link between the two tables themselves) stays in the
+small hand-preserved list inside `db_erd_conceptual_relationships_json()`, with a comment there
+explaining why it can't be a marker.
 
 ## Where comment rationale that got trimmed actually goes
 
