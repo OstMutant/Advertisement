@@ -40,6 +40,23 @@ Steps:
      mention with no trace in the task file. This is the entire point of `/autopilot` — per the
      user's own framing, "questions that come up along the way, resolve them yourself, having
      studied the problem in detail and looked at similar things in the code."
+   - **Apply the standing Haiku-dispatch rule to each unit of step 1's plan individually — no
+     count or size threshold, same criterion as everywhere else in this project.** For each
+     file-level fix/edit the plan calls for, ask only: is the exact before/after already known,
+     with no open judgment call left (not just "apply the existing pattern here")? If yes,
+     dispatch it to Haiku per `.claude/rules.md`'s standing rule — this applies even to a single
+     such unit, not just when there happen to be several. If the plan is one cohesive design
+     requiring continuous judgment across files (the common case — most single-feature
+     `/autopilot` runs), implement directly instead; drafting a fully-specified prompt for
+     something that still needs judgment just moves the judgment into the prompt, with no savings.
+     - When multiple fully-specified units exist, group dispatches by file/module the same way
+       `deep-review-orchestrator`'s step 4 does (same-file fusion) — one Haiku call per
+       independent cluster, not one per line; this is a batching optimization, not a gate on
+       whether to dispatch at all.
+     - Each dispatch prompt must be fully self-contained (a fresh agent has no context): exact
+       file path, exact current code to replace, exact new code.
+     - Verify every dispatch's actual diff yourself before moving on — this run is unattended, so
+       a bad Haiku edit has no one else to catch it before the next step compiles/tests against it.
    - Do NOT stop to ask about routine follow-up steps that were implicitly part of the approved
      plan: running tests, redeploying, rerunning Playwright after a fix, writing the ADR, moving
      the task to `completed/`. Chain them straight through.

@@ -1,5 +1,80 @@
 # `.claude/` — Architectural Decisions
 
+## ADR-003: `/autopilot` step 2 and `/sync-docs` diff-mode apply the standing per-unit Haiku-dispatch rule, with rework-rate metrics to validate it
+
+**Status:** Accepted
+
+**Context:** `/review`'s step-4 verification and `/sync-docs --full-audit`'s Step A3 research
+agents already dispatch on `model: "haiku"`, but neither `/autopilot`'s own implementation phase
+(step 2) nor `/sync-docs`'s default diff-mode had any Haiku-dispatch guidance at all — step 2
+always implements directly on the inherited model, and diff-mode's Javadoc/pom.xml/infra-header
+checks (the same mechanical per-file shape full-audit's Step A3 already proved cheap to
+parallelize) were never split out. An earlier draft of this decision gated both behind an invented
+numeric threshold (3+ independent units for autopilot, 8+ files for sync-docs) — re-checking
+against this project's own standing "Well-specified mechanical implementation work defaults to a
+Haiku-model agent" rule (`.claude/rules.md`) found that rule carries no count or size threshold at
+all: it applies per-unit, to even a single fully-specified change, as soon as the exact before/after
+is known with no open judgment call. The invented thresholds contradicted that existing rule rather
+than extending it, so they were dropped before this ADR was finalized. No real operational data
+existed yet either way for the general case (checked `backlog/completed/tasks/` for prior
+`## Operational notes` blocks from autopilot runs — none exist, the convention is too new) —
+settling the threshold question with real evidence, rather than an invented number, is exactly
+what this decision's own new metrics (below) are for.
+
+**Decision:**
+1. `/autopilot` step 2 applies the standing Haiku-dispatch rule to each unit of step 1's plan
+   individually, with no count or size gate: if a given file-level fix's exact before/after is
+   already known with no open judgment call, it's dispatched to Haiku — true even for a single
+   such unit. When multiple exist, group dispatches by file/module (same-file fusion, mirroring
+   `deep-review-orchestrator`'s step 4) as a batching optimization, never as a precondition for
+   using Haiku at all. A single cohesive design requiring continuous judgment across files (the
+   common single-feature `/autopilot` case) is still implemented directly — that case was never
+   Haiku-eligible under the standing rule either, threshold or not.
+2. `/sync-docs` diff-mode applies the same per-file dispatch, no file-count gate — mirrors Full
+   Audit Mode's own Step A3, which likewise never gated its own Haiku dispatch on volume.
+3. Three new fields added to `.claude/rules.md`'s standing `## Operational notes` block —
+   `haiku_decomposition_used`, `haiku_decomposition_dispatch_count`,
+   `haiku_decomposition_rework_needed` — so real evidence accumulates over time on whether
+   per-unit dispatch (no threshold) is actually safe in practice (a high rework rate would be
+   evidence *for* reintroducing a real, data-backed threshold) rather than relying on intuition or
+   an invented number. Aggregated by `/sync-docs --full-audit`'s existing Step A5, same as
+   `review_signal_ratio`.
+
+**Rejected alternatives:** An invented numeric threshold (3+ units / 8+ files) gating whether Haiku
+gets used at all — rejected because it contradicted the existing standing Haiku-dispatch rule's
+own, already-settled criterion (fully specified → Haiku, no threshold), and because no real data
+justified picking those specific numbers over any other. If a real threshold turns out to be
+warranted, this decision's own new metrics are what should justify it later — not another guess.
+
+## ADR-004: Per-task ADR usage tracking, aggregated into a reference count on the generated ADR index
+
+**Status:** Accepted
+
+**Context:** `.claude/nav/adr-index.md` already tracks each ADR's existence, module, status, and
+an opportunistically-stamped `Verified:` date — but nothing tracks whether an ADR is actually
+*used*: consulted or followed during real implementation work. Over time this makes it impossible
+to tell which ADRs are load-bearing (frequently consulted, worth keeping precise and current) from
+ones nobody has looked at since they were written (candidates for archiving, or at least lower
+priority for the `Verified:` stamping effort). Measuring this needed a source of real per-task
+data, the same philosophy already established for `review_signal_ratio`/`flows_matched`/
+`context_loading_matched` — recorded honestly per run, aggregated later, not guessed.
+
+**Decision:**
+1. New field in `.claude/rules.md`'s standing `## Operational notes` block: `adrs_referenced:
+   <ADR-NNN (module), ADR-MMM (module), ... or n/a>` — every ADR actually consulted or followed
+   during that task, in the exact `ADR-NNN (module)` key shape `adr-index.md`'s own first column
+   already uses (so the two join without reformatting).
+2. `.claude/nav/scripts/generate-adr-index.sh` gains a pre-pass that scans every
+   `adrs_referenced:` line across `backlog/tasks/*.md` and `backlog/completed/tasks/*.md`, tallies
+   a reference count per `ADR-NNN (module)` key, and threads it into the generated table as a new
+   `Referenced` column (defaulting to 0 for any ADR never cited this way) — mechanical, generated,
+   never hand-edited, same discipline as every other column in this file.
+
+**Rejected alternatives:** A hand-maintained counter line inside each `DECISIONS.md` entry itself
+(e.g. `**Referenced:** N`) — rejected because it would need mechanical editing of up to 16
+different files every time any ADR gets referenced anywhere, fragile and against this file's own
+"generated, not hand-edited" precedent for aggregate ADR facts.
+
 ## ADR-002: Formalize `/deep-review`'s reasoning layer as real, isolated `.claude/agents/*.md` subagents
 
 **Status:** Accepted

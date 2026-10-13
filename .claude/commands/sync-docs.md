@@ -60,6 +60,15 @@ Use this mapping table:
 
 Print which targets are affected before proceeding.
 
+**Dispatch Step 4's Javadoc/header checks to Haiku per file/module, same standing rule as
+everywhere else — no file-count threshold.** Each changed file's Javadoc/pom.xml/infra-header
+check (Step 4's relevant rows) is a fully-specified mechanical verification once the target lines
+are known, so it goes to a `model: "haiku"` dispatch per `.claude/rules.md`'s standing rule, the
+same lever Full Audit Mode's own Step A3 already uses — this applies even to a single changed
+file, not only once there are many. When there are several, group dispatches by module/file-count
+(same-file fusion) purely as a batching optimization, not as a precondition for using Haiku at
+all.
+
 ---
 
 ## Step 3 — Read actual source
@@ -335,6 +344,10 @@ full-audit and aggregate mechanically (parse the `key: value` lines directly, th
   tasks — sum and average, `n/a` entries excluded from the average, not treated as zero.
 - `context_loading_matched` yes/no/n/a tally, grouped by `context_loading_task_type`.
 - `flows_matched` yes/no/n/a tally.
+- `haiku_decomposition_used` yes/no tally, and `haiku_decomposition_rework_needed`'s aggregate
+  rework rate (sum corrections / sum total dispatches, excluding `n/a`) — real evidence for
+  whether autopilot step 2's and this command's own diff-mode Haiku-dispatch criteria are safe to
+  keep, per `.claude/rules.md`'s own explanation of that field.
 Feed the result into `.claude/nav/`'s own governing rule — no new navigation content until this data
 shows the existing layer earns its cost: this is real evidence for or against expanding/trimming
 the navigation layer, not a synthetic exercise. If too
