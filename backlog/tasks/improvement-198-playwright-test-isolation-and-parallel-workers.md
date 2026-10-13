@@ -2,8 +2,14 @@
 
 **Type:** improvement — test architecture, investigation
 **Module:** `playwright/` (`playwright.config.js`, `playwright/e2e/README.md`, all specs)
-**Priority:** 🔵 larger tech-debt — no live bug, needs a design decision before any implementation
-**When:** independent, no blockers
+**Priority:** 🟡 Top — promoted from "Nice to have" 2026-10-13 (user-reported real pain: full-suite
+runtime is now a genuine complaint, not just hypothetical tech-debt)
+**When:** before `improvement-191` — 191 is the next Top task most coupled to the existing spec
+suite (hand-reviewed visual QA across many specs/screenshots) and is itself still self-gated on
+`improvement-129`, giving a safe window to resolve this task's own design question first; no
+dependency on `improvement-207`/`186`/`204`/`138`. Still needs its own design-decision conversation
+(serial-vs-isolated, see "Approach" below) before any implementation — promotion to Top schedules
+*when* that conversation happens, not a decision on its outcome
 
 ## Current state
 
@@ -22,6 +28,17 @@ seeding (`06-seed-filter-sort-pagination.spec.js`) from browser-UI-driven to RES
 closing `improvement-035`. That removes a real chunk of per-run browser load from the suite, but
 does not by itself remove the shared-DB constraint the `workers: 1` comment names — the two are
 related but distinct questions.
+
+**Verified 2026-10-13 — two concrete facts for whoever picks this up:**
+- `playwright/e2e/_flows/` has no `provider-profile.flow.js` or `feedback.flow.js`. Provider-profile
+  and feedback coverage is inline inside `04-provider-profile-flow.spec.js` (~89 KB) and
+  `05-marketplace-advertisement-flow.spec.js` (~48 KB) — any future split into independent specs
+  has to extract these flows out of two already-large spec files first, not just reorder existing
+  flow modules.
+- `playwright/run.sh` has no `--workers` passthrough today — its own arg parser only recognizes
+  `--ux`/`--full`/`--lint`/`--grep`, anything else is treated as the scenario name. Testing question
+  2 below for real means either invoking `npx playwright test --workers=2` directly inside
+  `pw-runner` or adding a `--workers` flag to `run.sh` first.
 
 ## Why change
 
