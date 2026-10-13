@@ -6,8 +6,7 @@ import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.model.ProviderKind;
 
-/** Single consolidated enum of every translation key across the app, rather than per-feature
- *  enums, so {@link I18nService#get} has one type to accept. */
+/** Single consolidated enum of all translation keys in the app for type-safe i18n access. */
 @RequiredArgsConstructor
 public enum I18nKey {
     // === Common ===

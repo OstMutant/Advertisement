@@ -2792,3 +2792,34 @@ false failure was ruled out by a clean re-run on the warmed app. The one remaini
 (feedback-list pagination) was moved to `improvement-203` entry 6 rather than block closing this
 task, since it's a small, independent UI addition unrelated to the rest of F-06's own scope. Full
 detail: `completed/tasks/improvement-200-f06-reviews-ratings.md`.
+
+✅ Done (2026-10-13): improvement-206 closed — `/review`'s step-4 per-finding verification
+subagents, and `/sync-docs --full-audit`'s Step A3 research agents, now dispatch on
+`model: "haiku"` instead of the inherited top-level model (a flat 3x price cut on both, per the
+standing well-specified-mechanical-work-defaults-to-Haiku rule). Same-file verifier fusion and
+conditional ±30-line scoped reads also landed in `deep-review-orchestrator.md`'s step 4. Cache-
+sharing across sibling/parent-child subagent dispatches was investigated and confirmed to
+structurally not work in this harness (parallel dispatches can't read a cache only the first
+streamed response makes readable) — not a viable lever, dropped. One real validation run
+(2026-10-09, `/review` on the feedback/comment/moderation redesign) confirmed the pipeline works
+end to end under the change; the plan's own gate wanted 2-3 runs, but the user accepted this single
+data point as sufficient to close the task rather than running a second pass. Full detail:
+`completed/tasks/improvement-206-review-haiku-verification-and-cache-investigation.md`.
+
+✅ Done (2026-10-13): improvement-203 closed — the running out-of-scope-findings bucket's last
+open thread (entry 7, the feedback/comment/moderation redesign spanning Phases 7-12) finished:
+`/review` ran over the whole redesign and every finding was fixed and committed, then `/sync-docs`
+(diff mode against `origin/main`, 176 files) synced documentation with it. Found and fixed real
+drift along the way: two brand-new modules (`contact-spring-boot-starter`,
+`feedback-spring-boot-starter`) had their own `README.md`/`DECISIONS.md` but no
+`.claude/rules/<module>.md` of their own and no pointer line in root `CLAUDE.md` — both created;
+`feedback-spring-boot-starter/README.md`'s stale "Phase 1 backend-only" claim corrected;
+`.claude/rules/marketplace-orchestrator.md`'s stale starter-dependency count (8 → 9) and missing
+`FeedbackAccessService`/`FeedbackCommentWriteService` entries fixed. Seven parallel `model: "haiku"`
+dispatches audited Javadoc/pom.xml/infra headers across 101 Java files plus ~20 infra/Playwright
+files — fixed ~30 missing class-level Javadoc blocks, one ticket-number citation removed from a
+test class, several stale infra/Playwright headers. One real bug introduced by a dispatch (a
+duplicated `fillRole()` function in `playwright/e2e/_flows/filter.flow.js`) was caught during
+verification and fixed before it could land. `build-and-test.sh --unit` — BUILD SUCCESS, 78/78
+tests; ADR index and `architecture-model.json`/`architecture-map.html` regenerated clean. Full
+detail: `completed/tasks/improvement-203-out-of-scope-implementation-findings.md`.

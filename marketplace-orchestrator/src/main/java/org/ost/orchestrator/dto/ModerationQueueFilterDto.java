@@ -12,6 +12,7 @@ import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import java.time.Instant;
 import java.util.Set;
 
+/** Filter parameters for the merged feedback/comment moderation queue. */
 @FieldNameConstants
 @Data
 @AllArgsConstructor

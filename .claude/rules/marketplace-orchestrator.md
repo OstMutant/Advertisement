@@ -61,6 +61,19 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   its owner's provider-profile row, via `AdvertisementOwnerProfileLookupService`). Not split into
   Read/Save classes like Advertisement/ProviderProfile — `ContactPort.save()`/`recordView()` are
   single-call delegations with no transactional composition to isolate.
+- `FeedbackAccessService` — wraps `FeedbackPort` + `AuditPort` (the ≤2-port limit): feedback/reply
+  CRUD, moderation transitions (flag/approve/confirm-violation/reject, each paired with an audit
+  capture), and `findModerationQueue(filter, sort, page, size)` — merges the hidden +
+  confirmed-violation feedback/comment sources into one in-memory-filtered, in-memory-sorted,
+  in-memory-paged `ModerationQueuePage` (queue size is bounded by real reports, not catalog scale,
+  so no SQL-level filter/sort/page is needed).
+- `FeedbackCommentWriteService` — the owner-check collaborator for the single reply: only the
+  reviewed `PROVIDER_PROFILE`'s own owner may create it (`FeedbackAccessService` +
+  `ProviderProfileReadService` + `AuthorizationService.isOwner`), only the comment's own author may
+  edit/delete it. Lives here rather than in `feedback-spring-boot-starter` (a starter must not
+  depend on `ProviderProfilePort`) or inside `FeedbackAccessService` itself (a third `*Port`
+  dependency there would exceed the ≤2-port limit) — same "extract a `services.*` collaborator"
+  shape as `AdvertisementOwnerProfileLookupService` above.
 - `UserDeleteService` — cascades a user's own dependent data (advertisements, provider profile)
   before deleting the account itself.
 - `UserCleanupService` — the scheduled retention-purge use case: finds soft-deleted accounts past
@@ -165,9 +178,9 @@ inventing a second wiring approach for one module).
 
 ## Key constraints
 
-- **`pom.xml` declares all 8 starter `<dependency>` blocks** (`audit`/`attachment`/`user`/
-  `advertisement` at `compile` scope, `taxon`/`provider-profile`/`apikey`/`contact` at `runtime`
-  scope, preserving their existing optional-module semantics unchanged) — this is the one module in the app that
+- **`pom.xml` declares all 9 starter `<dependency>` blocks** (`audit`/`attachment`/`user`/
+  `advertisement` at `compile` scope, `taxon`/`provider-profile`/`apikey`/`contact`/`feedback` at
+  `runtime` scope, preserving their existing optional-module semantics unchanged) — this is the one module in the app that
   pulls every starter JAR onto the runtime classpath, since `marketplace-app` no longer declares
   them itself (`marketplace-app/pom.xml` depends only on `platform-commons` +
   `marketplace-orchestrator`, so `Module Dependencies`/`Bounded Contexts` show the same converged

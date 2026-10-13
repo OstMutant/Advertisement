@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
+# ── Header ──────────────────────────────────────────────────────────────────
 # Description: Copies known report/log output paths from the dev-shell container's own /app back
 #   onto the host after a scripts/activity-monitor.sh --in-container run finishes -- dev-shell has
-#   no bind mount to the host (see sync-source.sh's own header: sync is host->container only), so
-#   anything a wrapped script (playwright.sh, build-and-test.sh, sonar.sh, ...) writes stays inside
-#   dev-shell's own disposable filesystem unless pulled out explicitly here. Mirrors
-#   scripts/ci/run.sh's own sync_artifacts() (the same problem, solved there for ci-runner) --
-#   best-effort per path, since a given run only ever produces a subset of these.
+#   no bind mount to the host, so anything a wrapped script writes stays inside dev-shell's own
+#   disposable filesystem unless pulled out explicitly here. Best-effort per path, since a given
+#   run only ever produces a subset of these outputs.
 # Usage: source this file, then call: sync_artifacts_from_dev_shell
-# Uses: docker
-# Input: dev-shell's own /app/scripts/logs/*, /app/playwright/pw-report/,
+# Uses: docker.
+# Env: None.
+# Input: dev-shell container's own /app/scripts/logs/, /app/playwright/pw-report/,
 #   /app/scripts/build-and-test/reports/, /app/scripts/sonar/report/, /app/tmp/activity-monitor/.
-# Outputs: the same paths, host-side, created if missing; errors suppressed per path (a script that
-#   didn't run never produced its own output, that's expected, not a failure).
+# Outputs: the same paths, host-side, created if missing; errors suppressed per path (best-effort).
 # Returns: 0 always -- best-effort by design, matching scripts/ci/run.sh's own sync_artifacts().
+# ────────────────────────────────────────────────────────────────────────────
 
 sync_artifacts_from_dev_shell() {
   local container="dev-shell"

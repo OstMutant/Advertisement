@@ -29,6 +29,8 @@ touched.
 - [`apikey-spring-boot-starter.md`](apikey-spring-boot-starter.md) — `apikey-spring-boot-starter/**`
 - [`attachment-spring-boot-starter.md`](attachment-spring-boot-starter.md) — `attachment-spring-boot-starter/**`
 - [`audit-spring-boot-starter.md`](audit-spring-boot-starter.md) — `audit-spring-boot-starter/**`
+- [`contact-spring-boot-starter.md`](contact-spring-boot-starter.md) — `contact-spring-boot-starter/**`
+- [`feedback-spring-boot-starter.md`](feedback-spring-boot-starter.md) — `feedback-spring-boot-starter/**`
 - [`html-sanitizer-lib.md`](html-sanitizer-lib.md) — `html-sanitizer-lib/**`
 - [`integration-tests.md`](integration-tests.md) — `integration-tests/**`
 - [`marketplace-app.md`](marketplace-app.md) — `marketplace-app/**`
@@ -53,13 +55,14 @@ that an unrelated directory elsewhere in the repo sharing the same path segment 
 unintended load.
 
 A full mechanical sweep (`bash .claude/nav/scripts/check-rule-path-globs.sh`) confirmed this isn't
-an isolated case — 8 of the 16 rule files here have at least one unintended match today:
+an isolated case — 10 of the 19 rule files here have at least one unintended match today:
 `scripts.md` also matches `.claude/nav/scripts/` (a second, previously-undocumented instance,
-alongside the `docs/architecture/scripts/` one above); `html-sanitizer-lib.md`,
-`integration-tests.md`, `marketplace-app.md`, `marketplace-orchestrator.md`,
-`marketplace-rest-api.md`, `playwright.md`, and `query-lib.md` all also match their own
-module-named subdirectories under `scripts/build-and-test/reports/**/surefire/` (per-module
-Surefire report output) and, for `integration-tests`/`playwright`, under `scripts/logs/` too. No
+alongside the `docs/architecture/scripts/` one above); `attachment-spring-boot-starter.md`,
+`html-sanitizer-lib.md`, `integration-tests.md`, `marketplace-app.md`,
+`marketplace-orchestrator.md`, `marketplace-rest-api.md`, `platform-commons.md`, `playwright.md`,
+and `query-lib.md` all also match their own module-named subdirectories under
+`scripts/build-and-test/reports/**/surefire/` (per-module Surefire report output) and, for
+`integration-tests`/`playwright`, under `scripts/logs/` too. No
 anchored-glob syntax to avoid this is currently known to exist for the `paths:` field — the
 official docs' own examples (e.g. `src/**/*` described as "all files under `src/`") imply
 root-relative matching is the intent, but the actually-observed behavior in this installed version

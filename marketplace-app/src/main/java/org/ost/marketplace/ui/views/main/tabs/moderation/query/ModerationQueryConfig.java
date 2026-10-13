@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort;
 
+/** Spring configuration for moderation query filter/sort processors and status bar. */
 @Configuration
 @RequiredArgsConstructor
 public class ModerationQueryConfig {

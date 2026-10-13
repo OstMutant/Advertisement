@@ -33,8 +33,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Central registry of {@code UiComponentFactory<T, T.Parameters>} beans, one {@code @Bean} per
- *  {@code Configurable} prototype UI type. */
+/** Central registry of Spring-managed prototype UI component factory beans. */
 @Configuration
 public class ComponentFactoryConfig {
 

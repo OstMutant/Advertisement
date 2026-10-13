@@ -65,6 +65,7 @@ import java.util.stream.Collectors;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+/** Advertisement edit form with title/description/category/city/media fields. */
 @Uses(Upload.class)
 @SpringComponent
 @Scope("prototype")

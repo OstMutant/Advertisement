@@ -8,6 +8,7 @@ import org.ost.marketplace.ui.views.components.fields.UiTextArea;
 
 import java.util.function.Consumer;
 
+/** Dialog to collect a reason text before reporting a feedback entry or comment. */
 public final class ReportReasonDialog extends BaseDialog {
 
     public ReportReasonDialog(@NonNull String title, @NonNull String reasonFieldLabel,

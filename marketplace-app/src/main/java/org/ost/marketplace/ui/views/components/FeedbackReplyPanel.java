@@ -46,7 +46,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_FORM_BUTTON_SUB
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_REPORT_REASON_LABEL;
 import static org.ost.marketplace.services.i18n.I18nKey.USER_VIEW_BUTTON_DELETE;
 
-/** The single reply to a feedback entry -- written only by the reviewed entity's owner, edited/deleted only by that same author within the edit window, reportable by any other viewer. */
+/** The optional reply to a feedback entry, editable only by its author within a time window. */
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor

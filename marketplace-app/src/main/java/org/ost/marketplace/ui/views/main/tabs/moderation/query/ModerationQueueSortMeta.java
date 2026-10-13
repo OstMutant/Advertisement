@@ -7,6 +7,7 @@ import org.ost.orchestrator.dto.ModerationQueueItemDto;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+/** Metadata definitions for moderation queue sort fields. */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ModerationQueueSortMeta {
 

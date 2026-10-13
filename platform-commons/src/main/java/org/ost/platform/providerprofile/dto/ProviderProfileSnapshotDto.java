@@ -17,6 +17,7 @@ import static org.ost.platform.audit.api.AuditableSnapshot.diffField;
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
+/** Audit snapshot for a provider profile, capturing changes to kind, about, categories, city, and contact channels. */
 @JsonTypeName("provider_profile")
 @FieldNameConstants
 public record ProviderProfileSnapshotDto(

@@ -4,6 +4,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 
+/** 1-5 star rating selector rendered as clickable Vaadin icons. */
 public class StarRatingField extends Div {
 
     private static final int STAR_COUNT = 5;

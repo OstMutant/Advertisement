@@ -31,11 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
-/**
- * {@link ProviderProfileSaveService#save} orchestrates the create/update transaction: it decides
- * {@code captureCreation} vs {@code captureUpdate} and throws {@link StaleWriteException}
- * when the profile was concurrently deleted mid-edit ({@code before == null} for a non-new dto).
- */
+/** Unit tests for {@link ProviderProfileSaveService}, covering transaction composition and concurrency. */
 @ExtendWith(MockitoExtension.class)
 class ProviderProfileSaveServiceTest {
 

@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+/** Query block for moderation queue filtering and sorting. */
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor

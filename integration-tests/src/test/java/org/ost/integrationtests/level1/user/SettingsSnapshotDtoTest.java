@@ -9,11 +9,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Covers improvement-045 item 8: plain unit test for {@link SettingsSnapshotDto#diff}, by direct
- * analogy with {@code AdvertisementSnapshotDtoTest} — no Spring context, no DB, pure field
- * comparison with zero side effects.
- */
+/** Plain unit test (no Spring context, no DB) — {@link SettingsSnapshotDto#diff} is pure field comparison with zero side effects. */
 class SettingsSnapshotDtoTest {
 
     @Test

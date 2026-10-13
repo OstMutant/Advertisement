@@ -8,6 +8,7 @@ import org.ost.platform.providerprofile.model.ProviderKind;
 
 import java.util.Set;
 
+/** Create/update input for a provider profile — kind, about, categories, city, and contact channels. */
 public record ProviderProfileSaveDto(
         Long id,
         @NotNull ProviderKind kind,

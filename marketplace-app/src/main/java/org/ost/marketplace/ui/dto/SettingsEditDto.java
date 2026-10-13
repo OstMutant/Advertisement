@@ -2,6 +2,7 @@ package org.ost.marketplace.ui.dto;
 
 import lombok.*;
 
+/** Mutable DTO for user settings form binding to Vaadin Binder. */
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

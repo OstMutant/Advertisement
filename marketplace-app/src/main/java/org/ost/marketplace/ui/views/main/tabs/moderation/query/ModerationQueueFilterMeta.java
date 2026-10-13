@@ -18,6 +18,7 @@ import static org.ost.orchestrator.dto.ModerationQueueFilterDto.Fields.*;
 import static org.ost.marketplace.ui.views.utils.SupportUtil.nullIfBlank;
 import static org.ost.marketplace.ui.query.utils.TimeZoneUtil.toInstant;
 
+/** Metadata definitions for moderation queue filter fields. */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ModerationQueueFilterMeta {
 

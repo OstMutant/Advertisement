@@ -14,6 +14,7 @@ import static org.ost.platform.audit.api.AuditableSnapshot.diffField;
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
+/** Audit snapshot for user settings, capturing changes to all page-size preferences. */
 @JsonTypeName("user_settings")
 @FieldNameConstants
 public record SettingsSnapshotDto(

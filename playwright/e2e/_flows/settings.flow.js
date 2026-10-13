@@ -1,12 +1,13 @@
 /* ── Header ──────────────────────────────────────────────────────────────────
- * Description: Flow helpers for the Settings overlay -- changing/reading pagination page sizes,
- *   and a thin Settings-specific wrapper around the shared entity-activity history overlay helpers.
+ * Description: Flow helpers for the Settings overlay -- changing/reading pagination page sizes
+ *   with optional moderation-queue-size parameter, and a thin Settings-specific wrapper around
+ *   the shared entity-activity history overlay helpers.
  * Usage: None -- a library only, required by spec files (see Input).
  * Uses: @playwright/test (expect), ./entity-activity.flow (openEntityActivity, closeEntityActivity,
  *   restoreFromEntityActivity).
  * Env: None.
- * Input: required directly by 06-seed-filter-sort-pagination.spec.js, and indirectly by every
- *   other spec that goes through ./audit.flow, which requires this file internally.
+ * Input: required directly by 06-seed-filter-sort-pagination.spec.js and 04-provider-profile-
+ *   flow.spec.js, and indirectly by every spec that goes through ./audit.flow.
  * Outputs: exports changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -14,14 +15,15 @@ const { expect } = require('@playwright/test');
 const { openEntityActivity, closeEntityActivity, restoreFromEntityActivity } = require('./entity-activity.flow');
 
 /**
- * Opens the Settings overlay, sets all three page size fields, and saves. Field order in the DOM
- * is ads(0), providerProfiles(1), feedback(2), users(3), timeline(4), moderation(5) -- the ungated
+ * Opens the Settings overlay, sets page size fields, and saves. Field order in the DOM is
+ * ads(0), providerProfiles(1), feedback(2), users(3), timeline(4), moderation(5) -- the ungated
  * fields (ads, providerProfiles, feedback) come before the privileged-only ones (users, timeline,
- * moderation).
+ * moderation). All parameters optional (only specified ones are filled).
  * @param {import('@playwright/test').Page} page
- * @param {number} adsSize advertisements page size.
- * @param {number} providerProfilesSize provider profiles page size.
- * @param {number} usersSize users page size.
+ * @param {number} [adsSize] advertisements page size.
+ * @param {number} [providerProfilesSize] provider profiles page size.
+ * @param {number} [usersSize] users page size.
+ * @param {number} [moderationSize] moderation queue page size (privileged actors only).
  * @returns {Promise<void>}
  */
 async function changePageSizes(page, adsSize, providerProfilesSize, usersSize, moderationSize) {

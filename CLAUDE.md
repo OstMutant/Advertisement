@@ -71,6 +71,10 @@ advertisement-parent (root pom)
 
 → API-key credential domain (owned classes): `.claude/rules/apikey-spring-boot-starter.md`
 
+→ Contact domain (phone/deep-link reveal, owned classes): `.claude/rules/contact-spring-boot-starter.md`
+
+→ Feedback domain (rating+text feedback, owned classes): `.claude/rules/feedback-spring-boot-starter.md`
+
 → Application/BFF orchestration layer (cross-domain use cases, owned classes): `.claude/rules/marketplace-orchestrator.md`
 
 → External REST API adapter (owned classes): `.claude/rules/marketplace-rest-api.md`

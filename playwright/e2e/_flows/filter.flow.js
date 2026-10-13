@@ -1,14 +1,15 @@
 /* ── Header ──────────────────────────────────────────────────────────────────
  * Description: Shared query-bar helpers for the filter/sort/pagination panels used by both the
  *   advertisement and user list views -- opening the panel, applying/clearing filters,
- *   waiting for Vaadin server round-trips, filling every filter field type (text, number, role,
- *   category, city, ad-kind, date range), sort-icon cycling, pagination navigation, and higher-
- *   level verification helpers that assert a full sort/date-range/pagination scenario end to end.
+ *   waiting for Vaadin server round-trips, filling every filter field type (text, number, role
+ *   with optional testId for disambiguation when a block has multiple combos, category, city,
+ *   ad-kind, date range), sort-icon cycling, pagination navigation, and higher-level verification
+ *   helpers that assert a full sort/date-range/pagination scenario end to end.
  * Usage: None -- a library only, required by spec files (see Input).
  * Uses: @playwright/test (expect), ../_helpers (screenshot).
  * Env: None.
- * Input: required directly by 06-seed-filter-sort-pagination.spec.js, and indirectly by every
- *   other spec that goes through ./timeline.flow, which requires this file internally.
+ * Input: required directly by 06-seed-filter-sort-pagination.spec.js, indirectly by
+ *   01-marketplace-empty-flow.spec.js, and by every spec that goes through ./timeline.flow.
  * Outputs: exports openQueryPanel, applyFilter, clearFilter, waitForVaadin,
  *   clickSort, resetDefaultSorts, fillText, fillNumber, fillRole, fillCategory, fillCity,
  *   fillAdKind, setDateRange, getRow, getTotalCount, goToNextPage, goToPrevPage, goToFirstPage,

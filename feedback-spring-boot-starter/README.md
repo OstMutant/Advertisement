@@ -17,9 +17,9 @@ owning it would mean the other reaching across the sibling-starter boundary (`.c
 - `feedback_aggregate` — `avg_rating`/`review_count` recomputed and upserted in the same
   transaction as every feedback write (`FeedbackRepository.upsertAggregate`); no column is added
   to `provider_profile`/`advertisement` for this.
-- **SPI implementation:** `FeedbackPort` (`platform-commons`) — Phase 1 is backend-only; no
-  caller exists yet outside this module's own tests. Intended for consumption by
-  `marketplace-orchestrator`/`marketplace-app` once UI wiring lands in a later phase.
+- **SPI implementation:** `FeedbackPort` (`platform-commons`), consumed by
+  `marketplace-orchestrator`'s `FeedbackAccessService`/`FeedbackCommentWriteService`, in turn
+  wired into `marketplace-app`'s `FeedbackPanel`/`FeedbackReplyPanel`/`ModerationView`.
 
 ## Data flow
 

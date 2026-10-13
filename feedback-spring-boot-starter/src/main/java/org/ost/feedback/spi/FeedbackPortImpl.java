@@ -17,8 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
-/** Pure delegation to {@link FeedbackService} -- no business logic of its own, per this project's
- *  {@code *PortImpl} convention. */
+/** Pure delegation to {@link FeedbackService} -- no business logic of its own, per this project's {@code *PortImpl} convention. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

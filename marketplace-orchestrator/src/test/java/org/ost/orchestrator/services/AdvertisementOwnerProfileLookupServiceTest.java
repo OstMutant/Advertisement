@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
-/** Plain Mockito unit test for {@link AdvertisementOwnerProfileLookupService}. */
+/** Unit tests for {@link AdvertisementOwnerProfileLookupService}. */
 @ExtendWith(MockitoExtension.class)
 class AdvertisementOwnerProfileLookupServiceTest {
 

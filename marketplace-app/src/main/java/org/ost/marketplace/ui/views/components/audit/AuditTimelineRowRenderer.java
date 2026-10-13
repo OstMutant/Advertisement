@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-/** {@link #labelFor} is the single canonical field-name-to-label mapping for the audit timeline. */
+/** Renders audit timeline rows with entity/action/time/field-change labels. */
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor

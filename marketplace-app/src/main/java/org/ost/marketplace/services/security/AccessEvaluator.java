@@ -8,9 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
-/** Resolves the current session user, then delegates every authorization/ownership rule to
- *  {@link AuthorizationService} -- the single source of truth each rule is composed in, shared
- *  with this module's own id-based service-boundary checks. */
+/** Evaluates access permissions for the current user by delegating to AuthorizationService. */
 @Component
 @RequiredArgsConstructor
 public class AccessEvaluator {

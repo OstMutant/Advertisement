@@ -10,8 +10,7 @@ import java.util.Set;
 @Builder
 @Getter
 @Setter
-/** Mutable form-binding DTO for the Provider Profile edit form -- Vaadin's {@code Binder}
- *  needs setters. */
+/** Mutable DTO for Provider Profile form binding to Vaadin Binder. */
 public class ProviderProfileEditDto implements EditDto {
 
     private Long id;

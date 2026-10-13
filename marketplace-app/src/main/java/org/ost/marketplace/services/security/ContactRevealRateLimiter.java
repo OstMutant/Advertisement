@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 
-/** Rate-limits contact-reveal clicks, keyed by client IP (+ viewer id when authenticated, since NAT/shared proxies put many real users behind one IP). */
+/** Rate-limits contact-reveal clicks by client IP and authenticated viewer ID. */
 @Service
 @RequiredArgsConstructor
 public class ContactRevealRateLimiter {

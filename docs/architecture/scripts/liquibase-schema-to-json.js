@@ -1,18 +1,20 @@
 #!/usr/bin/env node
-// Description: Parses real Liquibase changelog XML into structured table/column JSON for the
-//   live Database ERD -- no hand-maintained schema markdown.
-// Uses: Node.js (no external dependencies -- plain string/regex parsing, no XML library).
-// Input: one or more Liquibase changelog XML files (createTable/column/constraints,
-//   addForeignKeyConstraint, createIndex, addPrimaryKey, and a narrow regex pass over raw <sql>
-//   for CHECK constraints and non-Liquibase-native indexes), passed as CLI args.
-// Output: one JSON object `{ "tables": [...] }` printed to stdout, consumed by
-//   generate-architecture-model.sh's db_erd_json().
-//
-// Single source of truth: column/table descriptions live in each changelog's own `remarks=`
-// attribute (see platform-commons/CLAUDE.md's sibling convention for *.spi Javadoc, and root
-// CLAUDE.md's "Database Changes" guideline) -- never duplicated here or in a separate markdown.
-//
-// Usage: node liquibase-schema-to-json.js <repoRoot> <file1> [file2 ...]
+/* ── Header ──────────────────────────────────────────────────────────────────
+ * Description: Parses real Liquibase changelog XML files into structured
+ *   table/column JSON for the live Database ERD (no hand-maintained schema markdown).
+ *   Column/table descriptions live in each changelog's own remarks= attribute
+ *   (single source of truth -- see root CLAUDE.md's "Database Changes" guideline).
+ * Usage: node liquibase-schema-to-json.js <repoRoot> <file1> [file2 ...]
+ *   <repoRoot>  absolute path to repo root (used to make file paths relative)
+ *   <file1...>  one or more Liquibase changelog XML files
+ * Uses: Node.js (no external dependencies -- plain string/regex parsing, no XML library).
+ * Env: None.
+ * Input: Liquibase changelog XML (createTable/column/constraints, addForeignKeyConstraint,
+ *   createIndex, addPrimaryKey, and raw <sql> parsed for CHECK constraints/non-native indexes).
+ * Outputs: one JSON object `{ "tables": [...] }` printed to stdout, consumed by
+ *   generate-architecture-model.sh's db_erd_json().
+ * Returns: 0 on success; non-zero if any file cannot be read or XML parsing fails.
+ * ──────────────────────────────────────────────────────────────────────────── */
 
 const fs = require("fs");
 const path = require("path");

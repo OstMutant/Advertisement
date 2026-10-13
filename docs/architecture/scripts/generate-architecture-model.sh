@@ -1,30 +1,30 @@
 #!/usr/bin/env bash
+# ── Header ──────────────────────────────────────────────────────────────────
 # Description: Regenerates .claude/nav/adr-index.md first (a generated file this script then reads),
 #   then generates architecture-model.json and architecture-map.html -- the live, browsable
 #   architecture control plane -- from real repo state, no hand-maintained markdown. Regenerating
 #   the ADR index here keeps a single "regenerate the architecture docs" run from leaving it stale.
-# Uses: bash (invokes .claude/nav/scripts/generate-adr-index.sh first, to refresh the ADR index),
-#   node (invokes liquibase-schema-to-json.js always, and
-#   .claude/nav/scripts/md-to-decisions-json.js only when --with-adr-details is passed, as
-#   subprocesses), python3 (only when --with-sonar/--with-archunit are passed).
-# Input: pom.xml, real Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
+#   Generates architecture-model.json from already-structured, non-code sources only (no ArchUnit,
+#   no bytecode analysis) -- module/command/skill/agent graph nodes from pom.xml/config sources,
+#   cross-checked against flows.md, with ADRs folded into each module's intent[] list.
+# Usage: bash docs/architecture/scripts/generate-architecture-model.sh [--with-adr-details] [--with-sonar] [--with-archunit]
+#   (no flags)         regenerate architecture-model.json and architecture-map.html from repo state
+#   --with-adr-details embed full ADR text in the architecture-map.html (slower, larger output)
+#   --with-sonar       include SonarQube quality metrics (requires server running)
+#   --with-archunit    include ArchUnit module-coupling analysis (runs ArchitectureMetricsExport)
+# Uses: bash, node (liquibase-schema-to-json.js, .claude/nav/scripts/generate-adr-index.sh, md-to-decisions-json.js),
+#   python3 (only with --with-sonar/--with-archunit).
+# Env: None.
+# Input: pom.xml, Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
 #   .claude/nav/adr-index.md, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents,
-#   backlog/, root CLAUDE.md, .claude/rules/*.md (each file's own 5th line for its one-line module
-#   description, plus any <!-- #arch-embed:KEY --> ... <!-- /#arch-embed --> marked section,
-#   embedded live into the generated HTML).
-# Output: .claude/nav/adr-index.md (regenerated first, in place) + docs/architecture/data/
-#   architecture-model.json + docs/architecture/architecture-map.html + docs/architecture/data/
-#   arch-embed-index.md. The .json and .html are written atomically (built into temp siblings,
-#   moved into place only on full success) so an interrupted run never leaves a partial or empty
-#   committed file.
-#
-# Generates architecture-model.json (Track A of the architecture control plane) from
-# already-structured, non-code sources only -- no ArchUnit, no bytecode analysis. Node types:
-# MODULE (from pom.xml reactor + per-module pom.xml dependencies), COMMAND/SKILL (from
-# .claude/commands, .claude/skills, cross-checked against .claude/nav/flows.md), AGENT (from
-# .claude/agents), and one BACKLOG summary node. Per-ADR/per-issue graph nodes are deliberately not built -- the issue/ADR count
-# would blow past a "tens of nodes, not thousands" budget -- ADRs are folded into each module's
-# own `intent[]` list instead, reusing adr-index.md rather than reparsing every DECISIONS.md.
+#   backlog/, root CLAUDE.md, .claude/rules/*.md (including html/markdown embedded sections marked
+#   with <!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->).
+# Outputs: .claude/nav/adr-index.md (regenerated in place), docs/architecture/data/architecture-model.json,
+#   docs/architecture/architecture-map.html, docs/architecture/data/arch-embed-index.md. JSON/HTML
+#   built to temp siblings and moved into place only on full success (atomic -- interrupted runs
+#   never leave partial/empty files).
+# Returns: 0 on success, non-zero if any generation step fails.
+# ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"

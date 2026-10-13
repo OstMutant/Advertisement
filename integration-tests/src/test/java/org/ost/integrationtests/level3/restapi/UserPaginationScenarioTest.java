@@ -22,12 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Level 3 scenario: the full spectrum of {@code GET /api/users} filter/sort/pagination requests
- * against real data -- every field {@link org.ost.marketplace.ui.views.main.tabs.users.query.UserFilterMeta}/
- * {@code UserSortMeta} also exposes in the UI's own query bar. The first-ever registered user in a
- * clean DB becomes ADMIN ({@code UserService.register()}), so that key drives every privileged read.
- */
+/** Level 3 scenario: full REST API filter/sort/pagination spectrum for users — every field exposed in the UI query bar tested end-to-end. */
 @Level3ScenarioTest
 class UserPaginationScenarioTest extends AbstractRestApiScenarioTest {
 

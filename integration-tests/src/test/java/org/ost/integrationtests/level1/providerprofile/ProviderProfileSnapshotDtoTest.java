@@ -14,13 +14,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Plain-unit-test exemplar (no Spring context, no DB) for {@link ProviderProfileSnapshotDto}'s
- * {@code diff()}/{@code allFields()} logic, plus a Jackson polymorphic round-trip (de)serialization
- * test — none of the 4 pre-existing {@link AuditableSnapshot} subtypes has one of these, so this
- * closes that gap for the new subtype rather than assuming {@code JacksonConfig
- * .registerAuditSnapshotSubtypes()} wiring is correct.
- */
+/** Plain unit test (no Spring context, no DB) — {@link ProviderProfileSnapshotDto#diff} is pure field comparison; also tests Jackson polymorphic (de)serialization. */
 class ProviderProfileSnapshotDtoTest {
 
     @Test

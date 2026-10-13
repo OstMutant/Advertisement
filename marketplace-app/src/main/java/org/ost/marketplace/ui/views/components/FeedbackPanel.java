@@ -59,7 +59,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_NOTIFICATION_SA
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_REPORT_REASON_LABEL;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_SECTION_LABEL;
 
-/** Rating+text feedback list and submission form for one provider profile -- hidden entirely when {@code feedback-spring-boot-starter} is absent. */
+/** Rating and text feedback list with submission form, hidden when feedback starter is absent. */
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor

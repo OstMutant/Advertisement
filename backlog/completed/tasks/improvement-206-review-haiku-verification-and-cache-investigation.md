@@ -190,6 +190,15 @@ it recurs before concluding whether it's a one-off or a real pattern. This is th
 not yet a before/after comparison (no equivalent pre-change run of this exact scope exists to
 compare against) — still directionally confirms items 2/3/4 work as designed in a real run.
 
+**Closed (2026-10-13):** the plan called for 2-3 real `/review` runs before trusting this as the
+new default; only the one run above exists. User decided the single data point is accepted as
+sufficient evidence to close this task now, rather than running a second validation pass — items
+1-11 are all implemented and the one real run already confirms the pipeline works end to end under
+the change (same-file fusion grouped the candidates, Haiku ran the verifiers, the Haiku-visibility
+line showed in the report). The ~27-minute single-dispatch anomaly noted above was never
+re-observed or explained — flagged here for whoever next runs `/review` with Haiku-model
+verifiers, in case it recurs.
+
 ### `/sync-docs --full-audit` — a different, also-real lever (new, 2026-10-05 research finding)
 
 The user asked whether some form of pre-built index ("RAG file") could help the `/sync-docs

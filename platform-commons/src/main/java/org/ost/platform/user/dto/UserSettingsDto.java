@@ -8,6 +8,7 @@ import lombok.experimental.FieldNameConstants;
 import org.ost.platform.user.model.PageSizeLimits;
 import tools.jackson.databind.annotation.JsonDeserialize;
 
+/** User pagination preferences — page size overrides for each list view, persisted per user. */
 @Value
 @Builder(toBuilder = true)
 @FieldNameConstants

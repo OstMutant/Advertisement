@@ -1132,6 +1132,105 @@ code-smell fixes, a 3-layer JaCoCo coverage-aggregation bug in `build.sh`, 2 con
 false positives suppressed in code, and new test coverage closing `new_coverage` from 62.4% to
 82.0%). Only the `/sync-docs` pass still hasn't run.
 
+**`/sync-docs` run plan (2026-10-13), diff mode against `origin/main` (176 files changed, 101
+`*.java`, 5 `pom.xml`) — not yet executed, this is the plan.**
+
+Real gap found while mapping targets: `contact-spring-boot-starter` and
+`feedback-spring-boot-starter` are both brand-new modules in this diff (neither existed in
+`origin/main`) — both already carry their own `README.md`/`DECISIONS.md`, but **neither has a
+`.claude/rules/<module>.md` file, and root `CLAUDE.md` has no `→ ... .claude/rules/...` pointer
+line for either**, unlike every other domain starter. This is exactly the class of drift Step 2's
+mapping table targets (`*.java`/`pom.xml` changes → `.claude/rules/<module>.md` per changed
+module).
+
+Plan:
+1. **Judgment-heavy items, done directly (not delegated):**
+   - Draft and create `.claude/rules/contact-spring-boot-starter.md` and
+     `.claude/rules/feedback-spring-boot-starter.md`, modeled on an existing sibling starter's
+     rules file shape (e.g. `apikey-spring-boot-starter.md`'s size/structure).
+   - Add the matching `→ ... .claude/rules/contact-spring-boot-starter.md` /
+     `→ ... .claude/rules/feedback-spring-boot-starter.md` pointer lines to root `CLAUDE.md`
+     alongside the other domain pointers.
+   - Audit touched `DECISIONS.md` files for ADR hygiene (realized goals marked done, superseded
+     entries updated): `contact-spring-boot-starter/DECISIONS.md`, `integration-tests/DECISIONS.md`,
+     `marketplace-orchestrator/DECISIONS.md`, `platform-commons/DECISIONS.md`, `scripts/DECISIONS.md`
+     — all five already touched within this diff's own commits; verify they're not left mid-edit.
+   - Check root `INFRASTRUCTURE.md` against the touched `scripts/**`/`Dockerfile.*` files for drift.
+   - Spot-check `.claude/rules/integration-tests.md` and `.claude/rules/marketplace-orchestrator.md`
+     (both already edited within this diff) for accuracy against the new code.
+2. **Mechanical items, dispatched to `model: "haiku"` Agent calls per the standing Haiku-dispatch
+   rule (user confirmed: "використовуючи хайку де можливо") — module-doc-standards Javadoc/pom.xml
+   header checks, grouped to keep each dispatch's file count comparable:**
+   - G1: `contact-spring-boot-starter` (8 `*.java`) + `feedback-spring-boot-starter` (12 `*.java`)
+     + their 2 `pom.xml` + their 2 `README.md` (accuracy-only check).
+   - G2: `marketplace-orchestrator` (14 `*.java` + its `pom.xml`) + `marketplace-rest-api` (1
+     `*.java`) + `user-spring-boot-starter` (1 `*.java`).
+   - G3: `platform-commons` (19 `*.java`).
+   - G4: `integration-tests` (16 `*.java` + its `pom.xml` + `run.sh` infra header).
+   - G5: `marketplace-app` (30 `*.java`).
+   - G6 (infra-doc-standards): `Dockerfile.claude`, `Dockerfile.opencode`,
+     `docs/architecture/scripts/generate-architecture-model.sh`,
+     `docs/architecture/scripts/liquibase-schema-to-json.js`, `scripts/activity-monitor/run.sh`,
+     `scripts/build-and-test/Dockerfile`, `scripts/build-and-test/build.sh`, `scripts/claude.bat`,
+     `scripts/collect-code.bat`, `scripts/deploy-and-run/reset-clean.sql`, `scripts/opencode.bat`,
+     `scripts/sonar/sonar-project.properties`, `scripts/utils/sync-artifacts-from-dev-shell.sh`,
+     `scripts/utils/sync-source.sh`.
+   - G7 (playwright.md convention): `playwright/e2e/04-provider-profile-flow.spec.js`,
+     `playwright/e2e/05-marketplace-advertisement-flow.spec.js`,
+     `playwright/e2e/_flows/audit.flow.js`, `auth.flow.js`, `filter.flow.js`, `settings.flow.js`.
+   Each dispatch reports MISSING/STALE/VALID per file; findings get applied directly afterward
+   (same as any other agent's output — verified, not trusted blindly).
+3. **Last step, always:** regenerate `.claude/nav/adr-index.md`
+   (`bash .claude/nav/scripts/generate-adr-index.sh`) and
+   `docs/architecture/data/architecture-model.json`/`architecture-map.html`
+   (`bash docs/architecture/scripts/generate-architecture-model.sh`), after every file above is
+   updated, so neither regenerates from stale input.
+4. Report: which files were updated, which new files created, any violations found.
+
+**Done (2026-10-13).** All steps executed. New files:
+`.claude/rules/contact-spring-boot-starter.md`, `.claude/rules/feedback-spring-boot-starter.md`
+(neither existed despite both modules already having their own `README.md`/`DECISIONS.md`). Root
+`CLAUDE.md` gained their pointer lines; `.claude/rules/README.md`'s file index and its
+unintended-path-match count (8/16 -> 10/19, two newly-discovered instances —
+`attachment-spring-boot-starter.md`/`platform-commons.md` also match new `scripts/build-and-test/
+reports/{diag-coverage,diag-coverage2}/surefire/` dirs from this session's own coverage debugging
+runs) were updated. `feedback-spring-boot-starter/README.md`'s stale "Phase 1 backend-only, no
+caller yet" claim was fixed (the module has been fully wired into `marketplace-orchestrator`/
+`marketplace-app` for several phases now). `.claude/rules/marketplace-orchestrator.md` had two real
+gaps: its "all 8 starter dependency blocks" count was stale (pom.xml has 9 — `feedback-spring-boot-starter`
+was missing from the list entirely), and its "What it owns" section never mentioned
+`FeedbackAccessService`/`FeedbackCommentWriteService` despite both being real, substantial classes
+in this module — both fixed.
+
+7 parallel `model: "haiku"` dispatches (G1-G7, matching the plan above) audited Javadoc/pom.xml/
+infra headers across 101 Java files + ~20 infra/Playwright files: found and fixed ~30 MISSING
+class-level Javadoc blocks (`SettingsEditDto`, `ModerationQueueFilterMapper`, `ReportReasonDialog`,
+`StarRatingField`, and ~15 more in `marketplace-app` alone), 1 real ticket-number citation removed
+from a test class's Javadoc (`ProviderProfileServiceTest`), several stale infra headers
+(`generate-architecture-model.sh`/`liquibase-schema-to-json.js` missing the `# ── Header ──`
+delimiter bounds and several fields; `filter.flow.js`/`settings.flow.js` headers not updated for
+new `testId`/`moderationSize` parameters added during Phase 9-12 work). One real bug introduced by
+a dispatch and caught during verification: the G7 agent duplicated `fillRole()` in `filter.flow.js`
+instead of recognizing the existing, already-correctly-documented implementation further down the
+file — fixed by deleting the duplicate (confirmed via `node --check` afterward). One standards
+violation self-caught during verification: two infra-header trims (`sync-source.sh`/
+`sync-artifacts-from-dev-shell.sh`) dropped a real non-obvious operational fact
+(`infra-doc-standards`' own "non-obvious operational side effects belong in the header" rule) —
+restored the `docker cp`-leaf-directory-limitation sentence in `sync-source.sh`.
+
+A broader mechanical sweep (grep for duplicate method signatures across every touched `*.java`
+file) found no further duplication bugs — all other apparent "duplicates" were legitimate
+overloads/record constructors, verified individually.
+
+**Verified:** `bash scripts/build-and-test.sh --unit --no-integration` — BUILD SUCCESS, 78/78 unit
+tests pass. `bash .claude/nav/scripts/generate-adr-index.sh` — already current (0 diff, the new
+ADR-001/ADR-010/ADR-034/ADR-015 entries were already indexed from earlier commits).
+`bash docs/architecture/scripts/generate-architecture-model.sh` — regenerated clean, diff reflects
+the two new rules files and the `marketplace-orchestrator.md` fixes.
+
+**improvement-203 is now fully closed** — entry 7 and all its phases are done, `/review` ran and
+every finding was fixed, and this `/sync-docs` pass is complete.
+
 ---
 
 ## Related

@@ -39,6 +39,7 @@ import java.util.Objects;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+/** Advertisement detail view with title, description, media, and contact reveal. */
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor

@@ -22,7 +22,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Plain Mockito unit test for {@link ContactAccessService}, focused on {@link ContactAccessService#resolveContact}'s fallback branching. */
+/** Unit tests for {@link ContactAccessService}, focused on the ADVERTISEMENT-to-PROVIDER_PROFILE fallback. */
 @ExtendWith(MockitoExtension.class)
 class ContactServiceTest {
 

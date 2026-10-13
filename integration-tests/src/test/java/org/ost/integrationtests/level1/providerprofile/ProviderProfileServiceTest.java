@@ -29,12 +29,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Mockito-based (no Spring context, no Testcontainers) tests for {@link ProviderProfileService} —
- * the SUPPORT-privilege authorization rule, the HTML sanitization policy for {@code about}
- * (mirroring {@code AdvertisementServiceHtmlSanitizationTest}'s shape), and the category/city
- * query-time filter resolution via {@code TaxonPort}.
- */
+/** Mockito-based (no Spring context, no Testcontainers) tests for {@link ProviderProfileService} — SUPPORT-privilege auth, HTML sanitization, and TaxonPort filter resolution. */
 @ExtendWith(MockitoExtension.class)
 class ProviderProfileServiceTest {
 

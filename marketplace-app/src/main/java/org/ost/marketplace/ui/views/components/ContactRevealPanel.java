@@ -27,7 +27,7 @@ import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
-/** Public contact-reveal card -- phone reveals in place, Telegram/Viber open their deep link immediately, each channel independently recording a {@code contact_view} row. Hidden entirely when the resolved contact has no channel set. */
+/** Reveals contact details (phone in-place, Telegram/Viber via deep link) and records view counts. */
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor

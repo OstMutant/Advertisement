@@ -15,6 +15,7 @@ import static org.ost.platform.audit.api.AuditableSnapshot.diffField;
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
+/** Audit snapshot for a feedback reply, capturing moderation status and reason changes. */
 @JsonTypeName("feedbackComment")
 @FieldNameConstants
 public record FeedbackCommentSnapshotDto(
