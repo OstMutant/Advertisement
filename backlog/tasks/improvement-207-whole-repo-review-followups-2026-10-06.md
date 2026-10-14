@@ -1091,6 +1091,31 @@ use in the SQL concatenation, the two dead static imports, and the now-unused
   raw build log by hand (not trusted from the agent's own summary alone).
 - Ready to commit — awaiting explicit commit instruction per the standing git-workflow rule.
 
+**Committed as `e355bfee`** (D2-D12, 2 code-review fixes, 1 test regression fix — 16 files).
+
+**Status (2026-10-14, later same day): C6 done — the last remaining item in this task.**
+`AuditLogRepository`'s two `@Component`-annotated nested RowMapper classes (`ProjectionMapper`,
+`SnapshotContentMapper`) replaced with `private final RowMapper<T>` instance-field lambdas,
+reusing the outer class's own `objectMapper`/`log` fields directly instead of a second injected
+copy. Two new private helpers (`instant`, `parseSnapshot`) replace the deleted classes' own static
+methods; `getLastSnapshot`'s call site updated to `.map(this::parseSnapshot)`. Unused
+`org.jetbrains.annotations.NotNull`/`org.springframework.stereotype.Component` imports removed
+(confirmed unused elsewhere in the file). `@RequiredArgsConstructor`'s generated constructor
+shrinks from 4 params to 2 (`objectMapper`, `jdbcClient`) — confirmed via repo-wide grep that
+nothing constructs this class directly (Spring DI only). Implemented via a `model: "haiku"`
+dispatch (fully specified), full file diff verified by hand against the plan — matches exactly.
+Verified via: compile-only build (`BUILD SUCCESS`), a targeted `AuditLogRepositoryTest` run
+(8/8 passed), and — given this file is shared audit infrastructure used by every domain — a full
+`--unit --integration --sandbox` re-run afterward: unit 298/298, integration 346/346, `BUILD
+SUCCESS`, independently re-confirmed against the raw Maven log by hand (the dispatched agent's own
+summary had an arithmetic error in its integration total, 317 instead of the real 346 — caught by
+cross-checking the log directly rather than trusting the agent's self-reported count).
+
+**All items in this task (Phase A-F, 26 confirmed review findings, the follow-up `/code-review`
+pass, and the pre-commit test regression) are now done.** Only remaining housekeeping: move this
+file to `backlog/completed/tasks/`, remove its `BACKLOG.md` row, add a `BACKLOG-ARCHIVE.md` entry,
+and commit C6 — all per the standing Task Lifecycle rule, pending explicit user instruction.
+
 ## Why change
 
 Three of three spot-checked items (across 3 different modules/categories) confirmed true on direct
