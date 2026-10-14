@@ -11,6 +11,7 @@ import org.ost.orchestrator.dto.ModerationQueueFilterDto;
 import org.ost.orchestrator.dto.ModerationQueueItemDto;
 import org.ost.orchestrator.dto.ModerationQueueItemType;
 import org.ost.orchestrator.services.ActorLookupService;
+import org.ost.orchestrator.services.AuthorizationService;
 import org.ost.orchestrator.services.FeedbackAccessService;
 import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.orchestrator.services.UserActorNameService;
@@ -24,6 +25,7 @@ import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import org.ost.platform.providerprofile.model.ProviderKind;
+import org.ost.platform.user.model.Role;
 import org.ost.provider.config.ProviderProfileAutoConfiguration;
 import org.ost.provider.entity.ProviderProfile;
 import org.ost.provider.repository.ProviderProfileRepository;
@@ -60,6 +62,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         RepositoryTestSupport.class,
         ValidationAutoConfiguration.class,
         ActorLookupService.class,
+        AuthorizationService.class,
         UserActorNameService.class,
         ProviderProfileReadService.class,
         FeedbackAccessService.class,
@@ -117,6 +120,10 @@ class FeedbackAccessServiceTest extends AbstractPostgresIntegrationTest {
 
     private Long newUser(String name) {
         return UserTestFixtures.createTestUser(userRepository, name, name.toLowerCase() + "-" + UUID.randomUUID() + "@example.com").getId();
+    }
+
+    private Long newModerator(String name) {
+        return UserTestFixtures.createTestUser(userRepository, name, name.toLowerCase() + "-" + UUID.randomUUID() + "@example.com", Role.MODERATOR).getId();
     }
 
     private Long newProviderProfile(Long ownerId) {
@@ -182,7 +189,7 @@ class FeedbackAccessServiceTest extends AbstractPostgresIntegrationTest {
         Long authorId = newUser("Author2");
         Long ownerId = newUser("Owner2");
         Long profileId = newProviderProfile(ownerId);
-        Long actorId = newUser("Moderator2");
+        Long actorId = newModerator("Moderator2");
 
         FeedbackDto feedback = feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, profileId, authorId, 1, "Bad", null));
         FeedbackCommentDto comment = feedbackAccessService.saveComment(new FeedbackCommentSaveDto(null, feedback.id(), ownerId, "Reply", null));
@@ -269,7 +276,7 @@ class FeedbackAccessServiceTest extends AbstractPostgresIntegrationTest {
         Long authorId = newUser("Author4");
         Long ownerId = newUser("Owner4");
         Long profileId = newProviderProfile(ownerId);
-        Long actorId = newUser("Moderator4");
+        Long actorId = newModerator("Moderator4");
         FeedbackDto feedback = feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, profileId, authorId, 1, "Bad", null));
         FeedbackCommentDto comment = feedbackAccessService.saveComment(new FeedbackCommentSaveDto(null, feedback.id(), ownerId, "Reply", null));
 

@@ -31,6 +31,7 @@ import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.audit.EntityActivityOverlay;
+import org.ost.marketplace.ui.views.utils.BeforeUnloadUtil;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.core.Configurable;
@@ -323,5 +324,6 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private void updateButtons(boolean hasChanges) {
         saveButton.setEnabled(hasChanges);
         discardButton.setEnabled(hasChanges);
+        BeforeUnloadUtil.sync(hasChanges);
     }
 }

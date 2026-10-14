@@ -493,3 +493,28 @@ one case via `scripts/ci.sh --reset-e2e-db` (full volume wipe, picks up the curr
 Not fixed at the source (splitting the missing tables into proper new changeset files) — the app
 has no real deployed/persisted environment yet where this would matter, so retrofitting immutable
 changesets for a hypothetical future prod deploy isn't worth doing now.
+
+### 29. `updateButtons()` body byte-identical across 5 `*FormModeHandler`/`*FormOverlayModeHandler` classes (found during improvement-207 code-review re-verification, 2026-10-13)
+
+`SettingsFormModeHandler`, `AccountNameFormModeHandler`, `ProviderProfileFormOverlayModeHandler`,
+`AdvertisementFormOverlayModeHandler`, and `AbstractTaxonFormOverlayModeHandler` each carry the
+same 3-line `updateButtons(boolean hasChanges)` body (`saveButton.setEnabled`,
+`discardButton.setEnabled`, `BeforeUnloadUtil.sync`) — pre-existing in 4 of the 5 before this
+session, extended to the 5th (`SettingsFormModeHandler`) to match the established pattern rather
+than introduced by it. Their shared base, `AbstractFormOverlayModeHandler`, has no
+`saveButton`/`discardButton` fields today to anchor a hoisted shared method. Not fixed inline:
+hoisting this requires touching the shared base class plus all 5 subclasses, outside the scope of
+the bug fix (a missing `BeforeUnloadUtil.sync` call) that surfaced it. Needs a design decision
+(add `saveButton`/`discardButton` fields to the base class, or a template-method hook) before
+sizing.
+
+### 30. `BeforeUnloadUtil.sync()` called with no dedup on every field-level change across all `*FormModeHandler` classes (found during improvement-207 code-review re-verification, 2026-10-13)
+
+`BeforeUnloadUtil.sync(boolean)` does an unconditional `ui.getPage().executeJs(...)` client
+round-trip every call, with no memoization of the last-synced value — every one of the 5 handler
+classes in entry 29 above calls it this way, so a form with N observed fields can trigger N
+redundant JS round-trips for what is really one boolean flip. Pre-existing across every sibling
+handler, not introduced by this session's fix. Not fixed inline: deduping requires either a
+stateful check inside `BeforeUnloadUtil` itself (shared static utility, no instance state today)
+or at each of the 5+ call sites — a design decision on where the dedup state lives, not a
+mechanical one-file fix.

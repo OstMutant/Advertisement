@@ -38,6 +38,7 @@ public class FeedbackAccessService {
     private final ComponentFactory<FeedbackPort> feedbackPortFactory;
     private final ComponentFactory<AuditPort>    auditPortFactory;
     private final UserActorNameService           userActorNameService;
+    private final AuthorizationService           authorizationService;
 
     public List<FeedbackDto> findForEntity(@NonNull EntityType entityType, @NonNull Long entityId, int page, int size) {
         return feedbackPortFactory.findIfAvailable()
@@ -213,26 +214,31 @@ public class FeedbackAccessService {
     }
 
     public void approveFeedback(@NonNull Long feedbackId, @NonNull Long actorId) {
+        authorizationService.requireIsPrivileged(actorId);
         feedbackPortFactory.get().approveFeedback(feedbackId);
         auditPortFactory.ifAvailable(p -> p.captureUpdate(feedbackId, new FeedbackSnapshotDto(FeedbackModerationStatus.NEW, null), actorId));
     }
 
     public void approveComment(@NonNull Long commentId, @NonNull Long actorId) {
+        authorizationService.requireIsPrivileged(actorId);
         feedbackPortFactory.get().approveComment(commentId);
         auditPortFactory.ifAvailable(p -> p.captureUpdate(commentId, new FeedbackCommentSnapshotDto(FeedbackModerationStatus.NEW, null), actorId));
     }
 
     public void confirmFeedbackViolation(@NonNull Long feedbackId, @NonNull Long actorId) {
+        authorizationService.requireIsPrivileged(actorId);
         feedbackPortFactory.get().confirmFeedbackViolation(feedbackId);
         auditPortFactory.ifAvailable(p -> p.captureUpdate(feedbackId, new FeedbackSnapshotDto(FeedbackModerationStatus.CONFIRMED_HIDDEN, null), actorId));
     }
 
     public void confirmCommentViolation(@NonNull Long commentId, @NonNull Long actorId) {
+        authorizationService.requireIsPrivileged(actorId);
         feedbackPortFactory.get().confirmCommentViolation(commentId);
         auditPortFactory.ifAvailable(p -> p.captureUpdate(commentId, new FeedbackCommentSnapshotDto(FeedbackModerationStatus.CONFIRMED_HIDDEN, null), actorId));
     }
 
     public void rejectFeedback(@NonNull Long feedbackId, @NonNull Long actorId) {
+        authorizationService.requireIsPrivileged(actorId);
         FeedbackDto existing = feedbackPortFactory.get().findFeedbackById(feedbackId)
                 .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
         FeedbackSnapshotDto snapshot = new FeedbackSnapshotDto(existing.moderationStatus(), existing.moderationReason());
@@ -241,6 +247,7 @@ public class FeedbackAccessService {
     }
 
     public void rejectComment(@NonNull Long commentId, @NonNull Long actorId) {
+        authorizationService.requireIsPrivileged(actorId);
         FeedbackCommentDto existing = feedbackPortFactory.get().findCommentById(commentId)
                 .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
         FeedbackCommentSnapshotDto snapshot = new FeedbackCommentSnapshotDto(existing.moderationStatus(), existing.moderationReason());
