@@ -72,8 +72,7 @@ public class TaxonService {
                 .updatedBy(actorId)
                 .version(version)
                 .build();
-        // save()'s own return value carries the auditing-refreshed updatedAt/version -- the
-        // pre-save "updated" object does not, so it must not be what this method returns.
+        // Must return save()'s own result, not the pre-save "updated" object -- only save()'s return carries the auditing-refreshed updatedAt/version.
         Taxon saved = taxonRepository.save(updated);
         translationRepository.saveAll(id, toEntities(id, translations));
         TaxonSnapshotDto afterSnapshot = buildSnapshotFromData(translations);

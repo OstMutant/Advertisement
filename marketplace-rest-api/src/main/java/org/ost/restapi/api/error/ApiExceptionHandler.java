@@ -46,8 +46,7 @@ public class ApiExceptionHandler {
         return new ErrorResponse(ex.getMessage());
     }
 
-    // Reaching here means a genuine unexpected-state bug, not a rate-limit signal -- the
-    // rate limiters throw TooManyAttemptsException specifically, handled above.
+    // Reaching here is a genuine unexpected-state bug, not a rate-limit signal -- those throw TooManyAttemptsException, handled above.
     @ExceptionHandler(IllegalStateException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleIllegalState(IllegalStateException ex) {

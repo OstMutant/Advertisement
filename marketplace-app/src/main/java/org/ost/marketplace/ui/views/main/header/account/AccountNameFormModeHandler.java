@@ -50,8 +50,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
  * {@link AccountNameViewModeHandler}'s Edit button, itself only visible when
  * {@link AccessEvaluator#canEditUserAccount} is true, so this handler can assume edit rights on
  * the name itself. The role field is gated separately and more narrowly by
- * {@link AccessEvaluator#canEditRole}, never by self, even an admin's own role
- * (see {@code improvement-178}).
+ * {@link AccessEvaluator#canEditRole}, never by self, even an admin's own role.
  */
 @SpringComponent
 @Scope("prototype")

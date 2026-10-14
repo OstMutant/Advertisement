@@ -3,22 +3,20 @@ package org.ost.marketplace.ui.views.services;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
 import org.springframework.context.annotation.ScopedProxyMode;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.orchestrator.services.CurrentUserService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
 import java.util.Optional;
 
+@Slf4j
 @SpringComponent
 @Scope(value = "vaadin-ui", proxyMode = ScopedProxyMode.TARGET_CLASS)
 @RequiredArgsConstructor
 public class VaadinLocaleProvider implements LocaleProvider {
-
-    private static final Logger log = LoggerFactory.getLogger(VaadinLocaleProvider.class);
 
     private final CurrentUserService currentUserService;
 

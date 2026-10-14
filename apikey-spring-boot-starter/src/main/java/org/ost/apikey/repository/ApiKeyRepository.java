@@ -20,6 +20,7 @@ import java.util.Optional;
 @Slf4j
 @Repository
 @RequiredArgsConstructor
+@SuppressWarnings("java:S1192")
 public class ApiKeyRepository {
 
     private static final String PARAM_ACTOR_ID = "actorId";

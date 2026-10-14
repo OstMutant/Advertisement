@@ -3,18 +3,16 @@ package org.ost.marketplace.services.auth;
 import org.ost.orchestrator.spi.CurrentUserHook;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.spi.AuthenticatedPrincipal;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
+@Slf4j
 @Service
 public class AuthContextService implements CurrentUserHook {
-
-    private static final Logger log = LoggerFactory.getLogger(AuthContextService.class);
 
     @Override
     public Optional<UserDto> getCurrentUser() {

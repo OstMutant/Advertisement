@@ -43,7 +43,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
  * {@code AccountOverlay}'s Provider Profile section, View mode -- the default entry point,
  * mirroring the Advertisement/Taxon/City domains' own View/Edit split. Shows an empty state with
  * a Create action when the actor has no profile yet; the Edit/Create button is visible only per
- * {@link AccessEvaluator#canEditUserAccount} (see {@code improvement-178}).
+ * {@link AccessEvaluator#canEditUserAccount}.
  */
 @SpringComponent
 @Scope("prototype")

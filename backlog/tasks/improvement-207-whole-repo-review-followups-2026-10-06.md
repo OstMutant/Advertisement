@@ -189,7 +189,8 @@ scope once execution starts.
 
 ### Phase A — real bugs/gaps (highest priority)
 
-**A1. `SettingsFormModeHandler.updateButtons()` missing `BeforeUnloadUtil.sync()`.**
+**A1. `SettingsFormModeHandler.updateButtons()` missing `BeforeUnloadUtil.sync()`.** **Done
+2026-10-14, commit `fb6c3949`.**
 File: `marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/header/settings/SettingsFormModeHandler.java`.
 Add `import org.ost.marketplace.ui.views.utils.BeforeUnloadUtil;`. In `updateButtons` (~line 323):
 ```java
@@ -202,6 +203,8 @@ private void updateButtons(boolean hasChanges) {
 Exact precedent: `AccountNameFormModeHandler.java:211-215`. Fully mechanical, zero ambiguity.
 
 **A2. `FeedbackAccessService` moderation methods missing `AuthorizationService.requireIsPrivileged`.**
+**Done 2026-10-14, commit `fb6c3949`** (plus the `FeedbackAccessServiceTest` regression fix this
+time, see Status below).
 File: `marketplace-orchestrator/src/main/java/org/ost/orchestrator/services/FeedbackAccessService.java`
 (already `@RequiredArgsConstructor` — adding a field is enough, no constructor edit). Add field:
 ```java
@@ -222,6 +225,9 @@ whose entire body (including the gallery commit) already runs inside one
 `TransactionTemplate`-bounded `tx.execute(...)` block — every JDBC call on that thread joins the
 same transaction automatically, no `@Transactional` needed on `AttachmentMediaService` itself.
 `ProviderProfileSaveService` has no gallery step at all (no second call path).
+
+**Superseded 2026-10-14 — option (c) below was applied, then reverted; see "Status (2026-10-14)"
+below for why and the final decision (revert, no ADR).**
 
 **Decided (2026-10-13): option (c)** — add one Javadoc line to `AttachmentMediaService`
 documenting the implicit transactional guarantee, so a future caller that doesn't route through a
@@ -462,18 +468,18 @@ item 3's second remark), and has no duplicate edges.
 
 ### Phase C — precedent/style cleanup (mechanical, Haiku-eligible)
 
-**C1.** File: `attachment-spring-boot-starter/.../services/AttachmentSnapshotService.java`. Add
+**C1. Done 2026-10-14.** File: `attachment-spring-boot-starter/.../services/AttachmentSnapshotService.java`. Add
 `import lombok.NonNull;`. Add `@NonNull` to: `capture(@NonNull EntityType, @NonNull Long entityId, Long actorId)`
 (actorId stays nullable), `captureAndGetId(@NonNull EntityType, @NonNull Long, Long actorId)`,
 `getUrlsBySnapshotId(@NonNull Long snapshotId)`, `getLatestSnapshotId(@NonNull EntityType, @NonNull Long)`,
 `getMediaStateForSnapshot(@NonNull EntityType, @NonNull Long, @NonNull Long)`,
 `getChangesBySnapshotId(@NonNull Long)`.
 
-**C2.** File: `apikey-spring-boot-starter/.../repository/ApiKeyRepository.java:20`. Add
+**C2. Done 2026-10-14.** File: `apikey-spring-boot-starter/.../repository/ApiKeyRepository.java:20`. Add
 `@SuppressWarnings("java:S1192")` directly above `public class ApiKeyRepository`, after
 `@RequiredArgsConstructor` (matching every sibling repository's stacking order).
 
-**C3.** Two files — remove hand-written SLF4J logger, add Lombok `@Slf4j`:
+**C3. Done 2026-10-14.** Two files — remove hand-written SLF4J logger, add Lombok `@Slf4j`:
 - `marketplace-app/.../services/auth/AuthContextService.java`: remove `import org.slf4j.Logger;`,
   `import org.slf4j.LoggerFactory;`, and the `private static final Logger log = ...` field; add
   `import lombok.extern.slf4j.Slf4j;` + `@Slf4j` above `@Service`. Existing `log.warn(...)` call
@@ -482,8 +488,9 @@ item 3's second remark), and has no duplicate edges.
   original review guessed**): same transform; `@Slf4j` above `@SpringComponent`. 3 existing
   `log.warn(...)` call sites stay untouched.
 
-**C4.** 7 ticket-number citations — drop the ticket clause, keep the rest of each sentence
-(no unique technical content lost in any of them):
+**C4. Java-file half done 2026-10-14** (items 1-4, 7 below; items 5-6, the `.yml` half, were
+already done earlier). 7 ticket-number citations — drop the ticket clause, keep the rest of each
+sentence (no unique technical content lost in any of them):
 1. `AccountOverlay.java:30` — remove `" (see {@code improvement-178})"`.
 2. `AccountNameFormModeHandler.java:54` — remove `" (see {@code improvement-178})"`.
 3. `AccountNameViewModeHandler.java:33` — remove `" (see {@code improvement-178})"`.
@@ -496,7 +503,7 @@ item 3's second remark), and has no duplicate edges.
    independently re-confirmed during drafting (budget ran out); apply the same "drop the ticket
    clause, keep the rest" pattern once the exact current text is confirmed.
 
-**C5.** 3 remaining multi-line comments, trim to one line:
+**C5. Done 2026-10-14.** 3 remaining multi-line comments, trim to one line:
 - `query-lib/.../filter/SqlCondition.java:35-37` — `query-lib/DECISIONS.md` ADR already covers this
   exact rationale (titled around `SqlCondition.like()`'s escaping order). Replace with:
   `// Escapes LIKE metacharacters before wrapping, backslash first -- see .claude/nav/adr-index.md.`
@@ -776,6 +783,49 @@ file) at explicit user request. Current real state — only the non-Java portion
   `FeedbackAccessServiceTest`'s `@SpringBootTest` context. That fix no longer exists either, since
   the Java revert removed A2 itself — noted here only for the historical record of what the
   original implementation pass found.
+
+**Status (2026-10-14): Phase A implemented for real this time, committed, verified via
+`/code-review` + a real `build-and-test.sh` integration run — not reverted.**
+
+- **Done, committed (`fb6c3949`):** A1 (`BeforeUnloadUtil.sync()` added to
+  `SettingsFormModeHandler.updateButtons()`) and A2 (`AuthorizationService.requireIsPrivileged`
+  added to `FeedbackAccessService`'s 6 moderation methods). The same regression noted above
+  recurred and was fixed for real this time: `FeedbackAccessServiceTest`'s `@SpringBootTest`
+  context was missing `AuthorizationService.class`, and its "moderator" test actors were hardcoded
+  `Role.USER` — both fixed (`UserTestFixtures` gained a `Role`-taking overload; the test now uses a
+  `newModerator()` helper for the two actors that actually exercise a guarded method). Verified via
+  `bash scripts/build-and-test.sh --no-unit --integration-test FeedbackAccessServiceTest`: `Tests
+  run: 8, Failures: 0, Errors: 0, Skipped: 0`, re-run twice with the same result.
+- **A3 — re-attempted, reverted again, different reason this time.** The originally-planned
+  Javadoc addition (documenting `AttachmentMediaService`'s implicit transactional guarantee) was
+  applied, then caught by an 8-angle `/code-review` pass as a genuine violation of `.claude/rules.md`'s
+  "one line or none" rule (CONFIRMED by independent verification: the addition stacked a third,
+  separate logical point onto the class's existing 2-sentence Javadoc). Decided: revert to the
+  original Javadoc entirely (not an ADR — the fact doesn't clear `/record-decision`'s worthiness
+  gate) rather than attempt a compliant rewording, since any version documenting this fact as a
+  new, separate point would repeat the same violation regardless of brevity.
+- **Two new review findings deferred, not fixed inline:** `#29`/`#30` in
+  `backlog/tasks/improvement-133-deferred-oversized-review-findings.md` — `updateButtons()` body
+  duplicated across 5 `*FormModeHandler` classes, and `BeforeUnloadUtil.sync()` has no dedup —
+  both pre-existing before this session's A1 fix, out of scope for a same-session mechanical fix.
+- **One finding reviewed and declined:** `requireIsPrivileged(actorId)` is now repeated verbatim
+  6 times in `FeedbackAccessService` — a `/code-review` candidate, verified PLAUSIBLE, but judged
+  not worth a helper method for a single-line call (YAGNI — "three similar lines is better than a
+  premature abstraction"). No action taken; revisit only if the call grows a second line.
+- **Remaining, still not done:** C1-C3, C5-C6, D1-D12, E1-E5, and C4's Java-file half — unchanged
+  from the 2026-10-13 status above.
+
+**Status (2026-10-14, later same day): C1-C5 implemented via a Haiku dispatch (12 files), verified
+diff-by-diff against the exact plan, one formatting nit fixed by hand (an over-long merged line in
+`AccountOverlay.java`'s Javadoc after a clause removal, rewrapped to match surrounding line
+width).** Independently reviewed via `/code-review` (8 finder angles, 2 candidates raised by the
+altitude angle — both about `@NonNull` missing on *private* helper methods in
+`AttachmentSnapshotService` — both REFUTED on verification: the project's own `@NonNull` rule is
+explicitly scoped to public method parameters only). Verified via
+`bash scripts/build-and-test.sh --unit --integration --sandbox`: unit 78/78 passed (including
+`ArchitectureRulesTest` 20/20), integration 346/346 passed, build SUCCESS.
+
+- **Remaining, still not done:** C6, D1-D12, E1-E5.
 
 ## Why change
 

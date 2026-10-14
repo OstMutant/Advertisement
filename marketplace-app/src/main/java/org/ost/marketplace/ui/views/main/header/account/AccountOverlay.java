@@ -26,9 +26,9 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 /**
  * Replaces {@code SettingsOverlay} -- unified Name/Settings/Provider Profile account view for
- * both self-service and admin/moderator viewing another user's account (see
- * {@code improvement-178}). Reuses {@code AbstractEntityOverlay}'s existing single-active-handler
- * pattern with a 3-value {@code Section} switched via a {@code Tabs} component; Name and Provider
+ * both self-service and admin/moderator viewing another user's account. Reuses
+ * {@code AbstractEntityOverlay}'s existing single-active-handler pattern with a 3-value
+ * {@code Section} switched via a {@code Tabs} component; Name and Provider
  * Profile each keep their own {@code NameMode}/{@code ProviderProfileMode} {@code VIEW,EDIT}
  * sub-state, mirroring the Advertisement/Taxon/City domains' own View/Edit split -- Edit button
  * visible only for self/admin per {@link org.ost.marketplace.services.security.AccessEvaluator#canEditUserAccount}.

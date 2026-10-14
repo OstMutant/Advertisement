@@ -1,5 +1,6 @@
 package org.ost.attachment.services;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
@@ -32,12 +33,12 @@ public class AttachmentSnapshotService {
     private final AttachmentSnapshotRepository attachmentSnapshotRepository;
 
     @Transactional
-    public void capture(EntityType entityType, Long entityId, Long actorId) {
+    public void capture(@NonNull EntityType entityType, @NonNull Long entityId, Long actorId) {
         captureAndGetId(entityType, entityId, actorId);
     }
 
     @Transactional
-    public Optional<Long> captureAndGetId(EntityType entityType, Long entityId, Long actorId) {
+    public Optional<Long> captureAndGetId(@NonNull EntityType entityType, @NonNull Long entityId, Long actorId) {
         log.info("Attachment snapshot capture: entityType={}, entityId={}", entityType, entityId);
         List<String> currentUrls = attachmentRepository.getActiveUrls(entityType, entityId);
         Optional<List<String>> prevOpt = attachmentSnapshotRepository.getPrevUrls(entityType, entityId);
@@ -55,17 +56,17 @@ public class AttachmentSnapshotService {
         return attachmentSnapshotRepository.findLatestId(entityType, entityId);
     }
 
-    public String[] getUrlsBySnapshotId(Long snapshotId) {
+    public String[] getUrlsBySnapshotId(@NonNull Long snapshotId) {
         return attachmentSnapshotRepository.getUrlsById(snapshotId)
                 .map(l -> l.toArray(new String[0]))
                 .orElse(new String[0]);
     }
 
-    public Long getLatestSnapshotId(EntityType entityType, Long entityId) {
+    public Long getLatestSnapshotId(@NonNull EntityType entityType, @NonNull Long entityId) {
         return attachmentSnapshotRepository.findLatestId(entityType, entityId).orElse(null);
     }
 
-    public String getMediaStateForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
+    public String getMediaStateForSnapshot(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long snapshotId) {
         return attachmentSnapshotRepository.getUrlsById(snapshotId)
                 .map(urls -> {
                     Map<String, String> urlToFilename = resolveFilenames(entityType, entityId, urls);
@@ -74,7 +75,7 @@ public class AttachmentSnapshotService {
                 .orElse("");
     }
 
-    public List<ChangeEntry> getChangesBySnapshotId(Long attachmentSnapshotId) {
+    public List<ChangeEntry> getChangesBySnapshotId(@NonNull Long attachmentSnapshotId) {
         return attachmentSnapshotRepository.findChangesById(attachmentSnapshotId)
                 .map(AttachmentSnapshotService::toChangeEntries)
                 .orElse(List.of());
