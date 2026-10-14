@@ -34,26 +34,33 @@ public class AttachmentSnapshotService {
 
     @Transactional
     public void capture(@NonNull EntityType entityType, @NonNull Long entityId, Long actorId) {
-        captureAndGetId(entityType, entityId, actorId);
+        insertSnapshot(entityType, entityId, actorId);
     }
 
     @Transactional
     public Optional<Long> captureAndGetId(@NonNull EntityType entityType, @NonNull Long entityId, Long actorId) {
+        if (!insertSnapshot(entityType, entityId, actorId)) {
+            return Optional.empty();
+        }
+        return attachmentSnapshotRepository.findLatestId(entityType, entityId);
+    }
+
+    private boolean insertSnapshot(@NonNull EntityType entityType, @NonNull Long entityId, Long actorId) {
         log.info("Attachment snapshot capture: entityType={}, entityId={}", entityType, entityId);
         List<String> currentUrls = attachmentRepository.getActiveUrls(entityType, entityId);
         Optional<List<String>> prevOpt = attachmentSnapshotRepository.getPrevUrls(entityType, entityId);
         if (prevOpt.isEmpty()) {
-            if (currentUrls.isEmpty()) return Optional.empty();
+            if (currentUrls.isEmpty()) return false;
             Map<String, String> urlToFilename = resolveFilenames(entityType, entityId, currentUrls);
             List<String> currNames = currentUrls.stream().map(u -> filename(u, urlToFilename)).toList();
             attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]),
                     List.of(new AttachmentMediaChange(null, currNames)), actorId);
-            return attachmentSnapshotRepository.findLatestId(entityType, entityId);
+            return true;
         }
         AttachmentMediaChange diff = buildDiff(entityType, entityId, prevOpt.get(), currentUrls);
-        if (diff == null) return Optional.empty();
+        if (diff == null) return false;
         attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]), List.of(diff), actorId);
-        return attachmentSnapshotRepository.findLatestId(entityType, entityId);
+        return true;
     }
 
     public String[] getUrlsBySnapshotId(@NonNull Long snapshotId) {

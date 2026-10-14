@@ -827,6 +827,40 @@ explicitly scoped to public method parameters only). Verified via
 
 - **Remaining, still not done:** C6, D1-D12, E1-E5.
 
+**Status (2026-10-14, later same day): E1-E5 implemented via a Haiku dispatch (5 files), diffs
+verified against the exact plan — no discrepancies found.**
+
+- **Done:** E1 (`TaxonFilter`/`TaxonRepository`/`DefaultTaxonPort`), E2 (`AttachmentSnapshotService`
+  3-method split), E3 (`QueryStatusBar.Labels.defaults()`, 5 `*QueryConfig` call sites), E4
+  (`EntityOverlaySupport` unused overload), E5 (`AbstractEntityOverlay` unused no-arg method).
+- **Follow-up by hand (user request):** `TaxonFilter` got a static `of(boolean showDeleted)`
+  factory back (not the removed `of(String name, boolean)` — just the no-name shape), to keep the
+  same static-factory-style construction as `active()`/`all()`; `DefaultTaxonPort.java:112` now
+  calls `TaxonFilter.of(includeDeleted)` instead of `new TaxonFilter(includeDeleted)`.
+- **Feature idea considered and declined for now (user request, 2026-10-14):** restoring
+  search-by-translated-name as a real feature on the taxon catalog admin screen
+  (`AbstractTaxonManagementView`) — this is what E1's removed `LEFT JOIN taxon_translation`/
+  `TaxonFilter.name` filter was originally for, confirmed dead (zero real callers). Checked the
+  actual UI first: that screen has no grid/pagination/search infrastructure at all today — it's a
+  flat `Div` list loading every active+deleted row unpaged
+  (`listAllByType(..., Pageable.unpaged())`), so reviving the dropped SQL join alone wouldn't be
+  enough; a real search feature needs new UI (text field + list rebuild), not just the join.
+  Declined for now given the admin reference-data catalog (categories/cities) is typically small.
+  Worth searching for this entry if the catalog ever grows large enough that a flat
+  unpaginated list becomes unwieldy — the removed SQL shape (`LEFT JOIN taxon_translation tt ON
+  tt.taxon_id = t.id AND tt.locale = 'en'` + `SqlBoundFilter.of(name, "tt.name", (m, f) ->
+  like(m, f.name()))`) is preserved in this task's own git history (`TaxonRepository.java`,
+  `TaxonFilter.java`) as a starting point, not lost.
+- **Remaining, still not done:** C6, D1-D12.
+
+**Follow-up fix (2026-10-14, caught by `/review` on the uncommitted diff):** the Haiku dispatch's
+E1 edit didn't fully match its own written plan — left behind an empty, dead
+`FILTER = new SqlFilterBuilder<>(List.of())` constant (still called at line 78 to concatenate an
+empty string) plus two now-unused static imports (`SqlCondition.like`, `TaxonFilter.Fields.*`) in
+`TaxonRepository.java`. Fixed by hand: deleted the `FILTER` constant, the `dynamic` variable and its
+use in the SQL concatenation, the two dead static imports, and the now-unused
+`SqlBoundFilter`/`SqlFilterBuilder` imports.
+
 ## Why change
 
 Three of three spot-checked items (across 3 different modules/categories) confirmed true on direct

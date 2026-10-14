@@ -39,13 +39,6 @@ public class TimelineQueryConfig {
     @Bean
     @Scope("prototype")
     public QueryStatusBar<AuditTimelineFilterDto> timelineQueryStatusBar(TimelineQueryBlock queryBlock) {
-        return new QueryStatusBar<>(i18nService, queryBlock, new QueryStatusBar.Labels(
-                I18nKey.QUERY_STATUS_FILTERS_NONE,
-                I18nKey.QUERY_STATUS_FILTERS_PREFIX,
-                I18nKey.QUERY_STATUS_SORT_NONE,
-                I18nKey.QUERY_STATUS_SORT_PREFIX,
-                I18nKey.SORT_DIRECTION_ASC,
-                I18nKey.SORT_DIRECTION_DESC
-        ));
+        return new QueryStatusBar<>(i18nService, queryBlock, QueryStatusBar.Labels.defaults());
     }
 }

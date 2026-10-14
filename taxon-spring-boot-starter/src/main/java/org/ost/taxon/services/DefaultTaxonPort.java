@@ -109,7 +109,7 @@ public class DefaultTaxonPort implements TaxonPort {
 
     @Override
     public List<TaxonDto> listAllByType(@NonNull TaxonType type, @NonNull Locale locale, boolean includeDeleted) {
-        List<Taxon> taxa = taxonService.listByType(type, TaxonFilter.of(null, includeDeleted), Pageable.unpaged(Sort.by("id")));
+        List<Taxon> taxa = taxonService.listByType(type, TaxonFilter.of(includeDeleted), Pageable.unpaged(Sort.by("id")));
         if (taxa.isEmpty()) {
             return List.of();
         }
