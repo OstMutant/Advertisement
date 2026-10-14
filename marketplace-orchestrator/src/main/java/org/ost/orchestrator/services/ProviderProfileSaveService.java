@@ -67,8 +67,7 @@ public class ProviderProfileSaveService {
 
             ContactInfoDto contact = saveContact(id, dto);
 
-            ProviderProfileDto saved = displayEnrichmentService.enrichWithCategoryAndCity(
-                    providerProfilePortFactory.get().findById(id).orElseThrow(), currentLocaleHook.getCurrentLocale());
+            ProviderProfileDto saved = findById(id).orElseThrow();
             ProviderProfileSnapshotDto after = new ProviderProfileSnapshotDto(
                     saved.getKind(), saved.getAbout(), sortedList(saved.getCategoryIds()), saved.getCityTaxonId(),
                     contact != null ? contact.phone() : null,
@@ -96,14 +95,16 @@ public class ProviderProfileSaveService {
         return providerProfilePortFactory.findIfAvailable().isPresent();
     }
 
+    private ProviderProfileDto enrich(ProviderProfileDto p) {
+        return displayEnrichmentService.enrichWithCategoryAndCity(p, currentLocaleHook.getCurrentLocale());
+    }
+
     public Optional<ProviderProfileDto> findById(@NonNull Long id) {
-        return providerProfilePortFactory.get().findById(id)
-                .map(p -> displayEnrichmentService.enrichWithCategoryAndCity(p, currentLocaleHook.getCurrentLocale()));
+        return providerProfilePortFactory.get().findById(id).map(this::enrich);
     }
 
     public Optional<ProviderProfileDto> findByActorId(@NonNull Long actorId) {
-        return providerProfilePortFactory.get().findByActorId(actorId)
-                .map(p -> displayEnrichmentService.enrichWithCategoryAndCity(p, currentLocaleHook.getCurrentLocale()));
+        return providerProfilePortFactory.get().findByActorId(actorId).map(this::enrich);
     }
 
     public void delete(@NonNull Long id, @NonNull Long actorId, Long version) {
@@ -129,9 +130,7 @@ public class ProviderProfileSaveService {
     }
 
     private ProviderProfileDto fetchEnriched(@NonNull Long entityId) {
-        return providerProfilePortFactory.get().findById(entityId)
-                .map(dto -> displayEnrichmentService.enrichWithCategoryAndCity(dto, currentLocaleHook.getCurrentLocale()))
-                .orElse(null);
+        return findById(entityId).orElse(null);
     }
 
     private ProviderProfileSnapshotDto toSnapshot(@NonNull ProviderProfileDto p) {

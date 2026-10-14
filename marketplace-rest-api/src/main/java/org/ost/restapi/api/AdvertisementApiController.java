@@ -88,7 +88,7 @@ public class AdvertisementApiController {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(null, request.title(), request.description(),
                 request.adKind(), request.categoryIds(), request.cityTaxonId(), null);
         Long id = saveService.save(dto, actorId, ref -> null);
-        return enrich(readService.findById(id).orElseThrow(), DEFAULT_LOCALE);
+        return enrichmentService.enrichSingle(readService.findById(id).orElseThrow(), DEFAULT_LOCALE);
     }
 
     @Operation(summary = "List/filter/sort advertisements", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
@@ -111,7 +111,7 @@ public class AdvertisementApiController {
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
     public ResponseEntity<AdvertisementInfoDto> getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
-        AdvertisementInfoDto ad = enrich(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
+        AdvertisementInfoDto ad = enrichmentService.enrichSingle(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
         return ETagUtil.withVersion(ResponseEntity.ok(), ad.getVersion()).body(ad);
     }
 
@@ -132,13 +132,7 @@ public class AdvertisementApiController {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(id, request.title(), request.description(),
                 request.adKind(), request.categoryIds(), request.cityTaxonId(), ETagUtil.parseIfMatch(ifMatch));
         Long savedId = saveService.save(dto, actorId, ref -> null);
-        return enrich(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
-    }
-
-    private AdvertisementInfoDto enrich(AdvertisementInfoDto ad, Locale locale) {
-        ad = enrichmentService.enrichWithCategoryAndCity(ad, locale);
-        ad = enrichmentService.enrichWithActor(ad);
-        return enrichmentService.enrichWithMedia(ad);
+        return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
     }
 
     @Operation(summary = "Delete an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")

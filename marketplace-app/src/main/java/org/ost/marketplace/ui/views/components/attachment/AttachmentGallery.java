@@ -195,17 +195,7 @@ public class AttachmentGallery extends Div {
     }
 
     public void discardTempUploads() {
-        if (pendingSnapshotRestore) {
-            pendingSnapshotRestore = false;
-            if (!tempUploads.isEmpty()) {
-                attachmentMediaService.discardTempUploads(tempUploads);
-                tempUploads.clear();
-                tempFileSet.clear();
-            }
-            pendingDeletions.clear();
-            refresh();
-            return;
-        }
+        pendingSnapshotRestore = false;
         if (!tempUploads.isEmpty()) {
             attachmentMediaService.discardTempUploads(tempUploads);
             tempUploads.clear();

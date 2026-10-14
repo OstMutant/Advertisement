@@ -185,26 +185,22 @@ public class FeedbackService {
 
     @Transactional
     public void flagFeedback(@NonNull Long feedbackId, @NonNull Long actorId, @NonNull String reason) {
-        FeedbackDto feedback = findFeedbackById(feedbackId)
-                .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
-        if (feedback.authorId().equals(actorId)) {
-            throw new IllegalStateException("Cannot flag your own feedback entry");
-        }
         FeedbackView existing = repository.findViewById(feedbackId)
                 .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
+        if (existing.authorId().equals(actorId)) {
+            throw new IllegalStateException("Cannot flag your own feedback entry");
+        }
         repository.flagContent(existing.contentId(), reason);
         repository.upsertAggregate(existing.entityType(), existing.entityId());
     }
 
     @Transactional
     public void flagComment(@NonNull Long commentId, @NonNull Long actorId, @NonNull String reason) {
-        FeedbackCommentDto comment = findCommentById(commentId)
-                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
-        if (comment.authorId().equals(actorId)) {
-            throw new IllegalStateException("Cannot flag your own comment");
-        }
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
                 .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
+        if (existing.authorId().equals(actorId)) {
+            throw new IllegalStateException("Cannot flag your own comment");
+        }
         repository.flagContent(existing.contentId(), reason);
     }
 

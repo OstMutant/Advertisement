@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.ost.platform.audit.api.AuditableSnapshot.diffField;
+import static org.ost.platform.audit.api.AuditableSnapshot.enumName;
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
@@ -40,7 +41,7 @@ public record FeedbackSnapshotDto(
     public List<ChangeEntry> diff(AuditableSnapshot previous) {
         FeedbackSnapshotDto prev = previous instanceof FeedbackSnapshotDto p ? p : null;
         List<ChangeEntry> changes = new ArrayList<>();
-        diffField(changes, Fields.moderationStatus, typeToString(field(prev, FeedbackSnapshotDto::moderationStatus)), typeToString(moderationStatus()));
+        diffField(changes, Fields.moderationStatus, field(prev, FeedbackSnapshotDto::moderationStatus), moderationStatus());
         diffField(changes, Fields.moderationReason, field(prev, FeedbackSnapshotDto::moderationReason), moderationReason());
         return changes;
     }
@@ -48,11 +49,7 @@ public record FeedbackSnapshotDto(
     @Override
     public List<ChangeEntry.FieldChange> allFields() {
         return List.of(
-                new FieldChange(Fields.moderationStatus, null, typeToString(moderationStatus())),
+                new FieldChange(Fields.moderationStatus, null, enumName(moderationStatus())),
                 new FieldChange(Fields.moderationReason, null, moderationReason()));
-    }
-
-    private static String typeToString(FeedbackModerationStatus status) {
-        return status == null ? "" : status.name();
     }
 }

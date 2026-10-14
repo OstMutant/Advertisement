@@ -86,16 +86,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     @Override
     public void activate(OverlayLayout layout) {
         UserSettingsDto current = userProfileService.loadSettings(params.getUserId());
-        SettingsEditDto dto = SettingsEditDto.builder()
-                .id(params.getUserId())
-                .adsPageSize(current.getAdsPageSize())
-                .usersPageSize(current.getUsersPageSize())
-                .timelinePageSize(current.getTimelinePageSize())
-                .providerProfilesPageSize(current.getProviderProfilesPageSize())
-                .feedbackPageSize(current.getFeedbackPageSize())
-                .moderationPageSize(current.getModerationPageSize())
-                .version(current.getVersion())
-                .build();
+        SettingsEditDto dto = toEditDto(params.getUserId(), current);
 
         // Settings has no View mode to gate an Edit button on, unlike Name/Provider Profile.
         boolean canEdit = access.canEditUserAccount(params.getUserId());
@@ -182,26 +173,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
     public void discardChanges() {
         UserSettingsDto fresh = userProfileService.loadSettings(params.getUserId());
-        binder.reload(
-                SettingsEditDto.builder()
-                        .id(params.getUserId())
-                        .adsPageSize(fresh.getAdsPageSize())
-                        .usersPageSize(fresh.getUsersPageSize())
-                        .timelinePageSize(fresh.getTimelinePageSize())
-                        .providerProfilesPageSize(fresh.getProviderProfilesPageSize())
-                        .feedbackPageSize(fresh.getFeedbackPageSize())
-                        .moderationPageSize(fresh.getModerationPageSize())
-                        .version(fresh.getVersion())
-                        .build(),
-                (src, tgt) -> {
-                    tgt.setAdsPageSize(src.getAdsPageSize());
-                    tgt.setUsersPageSize(src.getUsersPageSize());
-                    tgt.setTimelinePageSize(src.getTimelinePageSize());
-                    tgt.setProviderProfilesPageSize(src.getProviderProfilesPageSize());
-                    tgt.setFeedbackPageSize(src.getFeedbackPageSize());
-                    tgt.setModerationPageSize(src.getModerationPageSize());
-                    tgt.setVersion(src.getVersion());
-                });
+        binder.reload(toEditDto(params.getUserId(), fresh), SettingsFormModeHandler::copySettings);
         updateButtons(false);
     }
 
@@ -223,27 +195,23 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     }
 
     private void loadRestored(UserSettingsDto restored) {
-        binder.loadRestored(
-                SettingsEditDto.builder()
-                        .id(params.getUserId())
-                        .adsPageSize(restored.getAdsPageSize())
-                        .usersPageSize(restored.getUsersPageSize())
-                        .timelinePageSize(restored.getTimelinePageSize())
-                        .providerProfilesPageSize(restored.getProviderProfilesPageSize())
-                        .feedbackPageSize(restored.getFeedbackPageSize())
-                        .moderationPageSize(restored.getModerationPageSize())
-                        .version(restored.getVersion())
-                        .build(),
-                (src, tgt) -> {
-                    tgt.setAdsPageSize(src.getAdsPageSize());
-                    tgt.setUsersPageSize(src.getUsersPageSize());
-                    tgt.setTimelinePageSize(src.getTimelinePageSize());
-                    tgt.setProviderProfilesPageSize(src.getProviderProfilesPageSize());
-                    tgt.setFeedbackPageSize(src.getFeedbackPageSize());
-                    tgt.setModerationPageSize(src.getModerationPageSize());
-                    tgt.setVersion(src.getVersion());
-                });
+        binder.loadRestored(toEditDto(params.getUserId(), restored), SettingsFormModeHandler::copySettings);
         updateButtons(true);
+    }
+
+    private static SettingsEditDto toEditDto(Long userId, UserSettingsDto source) {
+        return SettingsEditDto.builder().id(userId)
+                .adsPageSize(source.getAdsPageSize()).usersPageSize(source.getUsersPageSize())
+                .timelinePageSize(source.getTimelinePageSize()).providerProfilesPageSize(source.getProviderProfilesPageSize())
+                .feedbackPageSize(source.getFeedbackPageSize()).moderationPageSize(source.getModerationPageSize())
+                .version(source.getVersion()).build();
+    }
+
+    private static void copySettings(SettingsEditDto src, SettingsEditDto tgt) {
+        tgt.setAdsPageSize(src.getAdsPageSize()); tgt.setUsersPageSize(src.getUsersPageSize());
+        tgt.setTimelinePageSize(src.getTimelinePageSize()); tgt.setProviderProfilesPageSize(src.getProviderProfilesPageSize());
+        tgt.setFeedbackPageSize(src.getFeedbackPageSize()); tgt.setModerationPageSize(src.getModerationPageSize());
+        tgt.setVersion(src.getVersion());
     }
 
     private void buildBinder(SettingsEditDto dto) {
@@ -253,53 +221,12 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                         .dto(dto)
                         .build());
 
-        adsPageSizeField = new IntegerField(getValue(SETTINGS_ADS_PAGE_SIZE_LABEL));
-        adsPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
-        adsPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
-        adsPageSizeField.setStep(1);
-        adsPageSizeField.setStepButtonsVisible(true);
-        adsPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
-        adsPageSizeField.setWidthFull();
-
-        usersPageSizeField = new IntegerField(getValue(SETTINGS_USERS_PAGE_SIZE_LABEL));
-        usersPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
-        usersPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
-        usersPageSizeField.setStep(1);
-        usersPageSizeField.setStepButtonsVisible(true);
-        usersPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
-        usersPageSizeField.setWidthFull();
-
-        timelinePageSizeField = new IntegerField(getValue(SETTINGS_TIMELINE_PAGE_SIZE_LABEL));
-        timelinePageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
-        timelinePageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
-        timelinePageSizeField.setStep(1);
-        timelinePageSizeField.setStepButtonsVisible(true);
-        timelinePageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
-        timelinePageSizeField.setWidthFull();
-
-        providerProfilesPageSizeField = new IntegerField(getValue(SETTINGS_PROVIDER_PROFILES_PAGE_SIZE_LABEL));
-        providerProfilesPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
-        providerProfilesPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
-        providerProfilesPageSizeField.setStep(1);
-        providerProfilesPageSizeField.setStepButtonsVisible(true);
-        providerProfilesPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
-        providerProfilesPageSizeField.setWidthFull();
-
-        feedbackPageSizeField = new IntegerField(getValue(SETTINGS_FEEDBACK_PAGE_SIZE_LABEL));
-        feedbackPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
-        feedbackPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
-        feedbackPageSizeField.setStep(1);
-        feedbackPageSizeField.setStepButtonsVisible(true);
-        feedbackPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
-        feedbackPageSizeField.setWidthFull();
-
-        moderationPageSizeField = new IntegerField(getValue(SETTINGS_MODERATION_PAGE_SIZE_LABEL));
-        moderationPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
-        moderationPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
-        moderationPageSizeField.setStep(1);
-        moderationPageSizeField.setStepButtonsVisible(true);
-        moderationPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
-        moderationPageSizeField.setWidthFull();
+        adsPageSizeField               = newPageSizeField(getValue(SETTINGS_ADS_PAGE_SIZE_LABEL));
+        usersPageSizeField             = newPageSizeField(getValue(SETTINGS_USERS_PAGE_SIZE_LABEL));
+        timelinePageSizeField          = newPageSizeField(getValue(SETTINGS_TIMELINE_PAGE_SIZE_LABEL));
+        providerProfilesPageSizeField  = newPageSizeField(getValue(SETTINGS_PROVIDER_PROFILES_PAGE_SIZE_LABEL));
+        feedbackPageSizeField          = newPageSizeField(getValue(SETTINGS_FEEDBACK_PAGE_SIZE_LABEL));
+        moderationPageSizeField        = newPageSizeField(getValue(SETTINGS_MODERATION_PAGE_SIZE_LABEL));
 
         bindPageSizeField(adsPageSizeField,               SettingsEditDto::getAdsPageSize,               SettingsEditDto::setAdsPageSize);
         bindPageSizeField(usersPageSizeField,             SettingsEditDto::getUsersPageSize,             SettingsEditDto::setUsersPageSize);
@@ -319,6 +246,14 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                         v -> v >= PaginationDefaults.MIN_PAGE_SIZE && v <= PaginationDefaults.MAX_PAGE_SIZE,
                         getValue(SETTINGS_PAGE_SIZE_RANGE))
                 .bind(getter, setter);
+    }
+
+    private static IntegerField newPageSizeField(String label) {
+        IntegerField field = new IntegerField(label);
+        field.setMin(PaginationDefaults.MIN_PAGE_SIZE); field.setMax(PaginationDefaults.MAX_PAGE_SIZE);
+        field.setStep(1); field.setStepButtonsVisible(true);
+        field.setValueChangeMode(ValueChangeMode.EAGER); field.setWidthFull();
+        return field;
     }
 
     private void updateButtons(boolean hasChanges) {

@@ -57,6 +57,9 @@ public class AdvertisementRepository {
             SqlBoundFilter.of(adKinds,        "a.ad_kind",      (m, v) -> inSet(m, v.getAdKinds()))
     ));
 
+    private static final String ADVERTISEMENT_SELECT =
+            "SELECT a.id, a.title, a.description, a.ad_kind, a.created_at, a.updated_at, a.created_by, a.version FROM advertisement a";
+
     private final JdbcClient jdbcClient;
     private final AdvertisementCrudRepository crud;
 
@@ -70,21 +73,13 @@ public class AdvertisementRepository {
     public Optional<Advertisement> findById(@NonNull Long id) { return crud.findById(id); }
 
     public Optional<AdvertisementInfoDto> findAdvertisementById(@NonNull Long id) {
-        return jdbcClient.sql("""
-                        SELECT a.id, a.title, a.description, a.ad_kind, a.created_at, a.updated_at, a.created_by, a.version
-                        FROM advertisement a
-                        WHERE a.id = :id AND a.deleted_at IS NULL
-                        """)
+        return jdbcClient.sql(ADVERTISEMENT_SELECT + " WHERE a.id = :id AND a.deleted_at IS NULL")
                 .paramSource(new MapSqlParameterSource("id", id))
                 .query(ROW_MAPPER).optional();
     }
 
     public List<AdvertisementInfoDto> findByCreator(@NonNull Long userId) {
-        return jdbcClient.sql("""
-                        SELECT a.id, a.title, a.description, a.ad_kind, a.created_at, a.updated_at, a.created_by, a.version
-                        FROM advertisement a
-                        WHERE a.created_by = :userId AND a.deleted_at IS NULL
-                        """)
+        return jdbcClient.sql(ADVERTISEMENT_SELECT + " WHERE a.created_by = :userId AND a.deleted_at IS NULL")
                 .paramSource(new MapSqlParameterSource("userId", userId))
                 .query(ROW_MAPPER).list();
     }
@@ -102,10 +97,7 @@ public class AdvertisementRepository {
                                                     Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();
         String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_FIELDS);
-        String sql = ("""
-                        SELECT a.id, a.title, a.description, a.ad_kind, a.created_at, a.updated_at, a.created_by, a.version
-                        FROM advertisement a
-                        WHERE a.deleted_at IS NULL%s%s%s%s""")
+        String sql = (ADVERTISEMENT_SELECT + " WHERE a.deleted_at IS NULL%s%s%s%s")
                 .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }

@@ -63,6 +63,7 @@ class AdvertisementApiControllerTest {
         lenient().when(enrichmentService.enrichWithCategoryAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithActor(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithMedia(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(enrichmentService.enrichSingle(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithCategoriesAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithActorInfo(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithMediaSummary(any())).thenAnswer(inv -> inv.getArgument(0));

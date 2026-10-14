@@ -78,11 +78,7 @@ public class DefaultTaxonPort implements TaxonPort {
 
     @Override
     public List<TaxonDto> getAllByType(@NonNull TaxonType type, @NonNull Locale locale) {
-        List<Taxon> taxa = taxonService.listByType(type, TaxonFilter.active(), Pageable.unpaged(Sort.by("id")));
-        if (taxa.isEmpty()) {
-            return List.of();
-        }
-        return resolveDtos(taxa.stream().map(Taxon::getId).toList(), locale, false);
+        return listAllByType(type, locale, false);
     }
 
     @Override

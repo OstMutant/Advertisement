@@ -903,6 +903,164 @@ plan itself) — `FeedbackEditPolicy` single-constant refactor, 6 files, verifie
 
 - **Remaining, still not done:** C6, D2-D12.
 
+**Status (2026-10-14, later same day): D2 done** — `flagFeedback`/`flagComment` in
+`feedback-spring-boot-starter/.../services/FeedbackService.java` each now do a single
+`repository.findViewById`/`findCommentViewById` lookup, reading `authorId` off the already-fetched
+View instead of a separate DTO lookup. Implemented via a `model: "haiku"` dispatch (fully specified,
+no judgment calls), diff verified by hand against the exact plan — matches exactly.
+`findFeedbackById`/`findCommentById` kept (still public API, used outside this file). No tests run
+per explicit user request.
+
+- **Remaining, still not done:** C6, D3-D12.
+
+**Status (2026-10-14, later same day): D3 done** — `DefaultTaxonPort.getAllByType` now delegates to
+`listAllByType(type, locale, false)` instead of its own fetch + `resolveDtos` (extra `findByIds`
+round-trip). Implemented via a `model: "haiku"` dispatch (fully specified), diff verified by hand —
+matches plan exactly. `resolveDtos`/`buildDtoLookup` kept (still used by `getForEntity`). No tests
+run per explicit user request.
+
+- **Remaining, still not done:** C6, D4-D12.
+
+**Status (2026-10-14, later same day): D4 done** — `AdvertisementApiController`'s private `enrich()`
+deleted, its 3 call sites (`create`/`getById`/`update`) now call
+`enrichmentService.enrichSingle(ad, locale)` directly. Implemented via a `model: "haiku"` dispatch
+(fully specified), diff verified by hand — matches plan exactly. No tests run per explicit user
+request.
+
+- **Remaining, still not done:** C6, D5-D12.
+
+**Status (2026-10-14, later same day): D5 done** — `AdvertisementSaveService.buildCurrentSnapshot`
+now uses `CategoryAndCitySplit.of(assignments)` instead of hand-rolled
+`TaxonType.CATEGORY`/`TaxonType.CITY` filtering; unused `TaxonType` import removed. Implemented via
+a `model: "haiku"` dispatch (fully specified), diff verified by hand — matches plan exactly. No
+tests run per explicit user request.
+
+- **Remaining, still not done:** C6, D6-D12.
+
+**Status (2026-10-14, later same day): D6 done** — `ProviderProfileSaveService` gained one private
+`enrich(Optional<ProviderProfileDto>)` helper; `findById`/`findByActorId`/`fetchEnriched` now
+delegate to it, and `save()` now calls `findById(id).orElseThrow()` instead of its own direct
+`providerProfilePortFactory.get().findById(id)` + enrich call. `enrichWithCategoryAndCity` now
+appears exactly once in the file (confirmed via grep). Implemented via a `model: "haiku"` dispatch
+(fully specified), diff verified by hand — matches plan exactly. No tests run per explicit user
+request.
+
+- **Remaining, still not done:** C6, D7-D12.
+
+**Status (2026-10-14, later same day): D7 done** — `AuditLogRepository` gained a
+`private static final String NUMBERED_SELECT` constant holding the shared window-function SELECT
+(`ROW_NUMBER()`/`LAG()` over `audit_log`); `findRows`/`findTimeline` both splice it in, keeping each
+method's own `WHERE`/closing clause local. Implemented via a `model: "haiku"` dispatch (fully
+specified), diff verified by hand — matches plan exactly. Verified via a full reactor compile-only
+run (`bash scripts/build-and-test.sh`, no `--unit`/`--integration` flags — build stage only, no
+tests): `BUILD SUCCESS`, no errors, confirmed via background run + Monitor per the standing
+scripts.md discipline (a raw `mvn` attempt failed first on an unrelated local Maven-version
+mismatch, 3.6.3 vs the enforced 3.9+ minimum — not a real build error). No tests run per explicit
+user request.
+
+- **Remaining, still not done:** C6, D8-D12.
+
+**Status (2026-10-14, later same day): D8 done** — `AuditableSnapshot` gained a shared
+`diffField(List<ChangeEntry>, String, Enum<?>, Enum<?>)` overload; the 4 snapshot DTOs
+(`AdvertisementSnapshotDto`/`ProviderProfileSnapshotDto`/`FeedbackSnapshotDto`/
+`FeedbackCommentSnapshotDto`) each lost their private `typeToString(enum)`, their `diff()` call
+sites now pass the raw enum values, and their `allFields()` now inline `x() == null ? "" : x().name()`
+for the one remaining non-`diffField` call site. Implemented via a `model: "haiku"` dispatch (fully
+specified), diff verified by hand against all 5 files — matches plan exactly. Verified via a real
+compile-only reactor build (`bash scripts/build-and-test.sh --no-unit --no-integration`):
+`BUILD SUCCESS`. **Process correction, logged for future runs:** `build-and-test.sh` with
+*no* flags does NOT mean compile-only — `build-and-test.properties` defaults both `unit=`/
+`integration=` to `true`, so a bare invocation runs the full test suite. D7's earlier "compile-only"
+verification was actually a full test run that happened to pass; this task's own standing
+instruction to skip tests only holds when `--no-unit --no-integration` is passed explicitly. An
+in-progress unintended full-test build triggered during this item's own verification was stopped
+and removed (`docker stop`/`docker rm advertisement-build-only`) once caught.
+
+- **Remaining, still not done:** C6, D9-D12.
+
+**Status (2026-10-14, later same day): D9 done** — `AdvertisementRepository` gained a
+`private static final String ADVERTISEMENT_SELECT` constant; `findAdvertisementById`/
+`findByCreator`/`findByFilter` all splice it in, keeping each method's own `WHERE`/trailing clause
+local. Implemented via a `model: "haiku"` dispatch (fully specified), diff verified by hand —
+matches plan exactly. Verified via compile-only reactor build (`--no-unit --no-integration`, run in
+foreground): `BUILD SUCCESS`. No tests run per explicit user request.
+
+- **Remaining, still not done:** C6, D10-D12.
+
+**Status (2026-10-14, later same day): D10 done** — `SettingsFormModeHandler` gained 2 private
+static helpers, `toEditDto(Long, UserSettingsDto)` and `copySettings(SettingsEditDto, SettingsEditDto)`;
+`activate()`/`discardChanges()`/`loadRestored()` now call them instead of repeating the 7-field
+builder chain / 7-setter copy lambda. Implemented via a `model: "haiku"` dispatch (fully specified),
+diff verified by hand — matches plan exactly. Verified via compile-only reactor build
+(`--no-unit --no-integration`, foreground): `BUILD SUCCESS`. No tests run per explicit user request.
+
+- **Remaining, still not done:** C6, D11-D12.
+
+**Status (2026-10-14, later same day): D11 done** — `SettingsFormModeHandler` gained a private
+static `newPageSizeField(String label)` helper (construction-step counterpart to the existing
+`bindPageSizeField` binding-step helper); the 6 identical `IntegerField` construction blocks in
+`buildBinder()` are now single-line calls. Implemented via a `model: "haiku"` dispatch (fully
+specified), diff verified by hand — matches plan exactly. Verified via compile-only reactor build
+(`--no-unit --no-integration`): one run hit a transient OOM kill (exit 137, unrelated to the code —
+confirmed via the script's own `errorCategory: transient, isRetryable: true`), a clean retry gave
+`BUILD SUCCESS`. No tests run per explicit user request.
+
+- **Remaining, still not done:** C6, D12.
+
+**Status (2026-10-14, later same day): D12 done** — `AttachmentGallery.discardTempUploads()` now
+has one execution path instead of two identical branches; `pendingSnapshotRestore = false` runs
+unconditionally (safe no-op when already `false`), shared cleanup logic runs once. Implemented via
+a `model: "haiku"` dispatch (fully specified), diff verified by hand — matches plan exactly.
+Verified via compile-only reactor build (`--no-unit --no-integration`, foreground): `BUILD
+SUCCESS`. No tests run per explicit user request.
+
+- **Remaining, still not done:** C6 only (the audit-RowMapper refactor — real refactor, not a
+  one-liner; see its own plan above for why it needs more careful review than the rest of this
+  phase).
+
+**Status (2026-10-14, later same day): `/code-review` ran against the full D2-D12 uncommitted diff
+(high effort, 8 finder angles + 7 verifiers) — 2 CONFIRMED findings, both fixed.**
+
+- **Finding 1 (CONFIRMED):** `ProviderProfileSaveService`'s new `enrich(Optional<ProviderProfileDto>)`
+  helper violated `.claude/rules.md`'s "No `Optional` parameters" rule (no scoping exception for
+  `private` methods, confirmed by contrast with the adjacent `@NonNull` rule which *does* say
+  "public" explicitly; no other private method in the repo takes `Optional<...>` as a parameter).
+  Fixed per user's own preferred shape (keep the helper, don't inline it 2x): `enrich` now takes/
+  returns a plain `ProviderProfileDto`; `findById`/`findByActorId` call `.map(this::enrich)` instead
+  of passing the `Optional` into the helper.
+- **Finding 2 (CONFIRMED):** `AuditableSnapshot.diffField(List, String, Enum<?>, Enum<?>)` inlined
+  its own copy of `enumName`'s null-check logic instead of calling it — same null-safe
+  `.name()`-or-`""` conversion existed in two places 4 lines apart. Fixed: `diffField(Enum,Enum)`
+  now calls `enumName(prev)`/`enumName(curr)` directly.
+- **5 other candidates raised by the 8 finder angles, all REFUTED on independent verification** (not
+  real): `ProviderProfileSaveService.save()`'s `findById(id).orElseThrow()` doing "extra"
+  re-enrichment work (REFUTED — both old and new code already did the exact same enrichment call;
+  `categoryIds`/`cityTaxonId` are never populated by the raw port call, confirmed via
+  `ProviderProfileRepository.ROW_MAPPER` and the starter's own `CLAUDE.md` stating `findById()`
+  "return[s] raw (unenriched)" DTOs); `FeedbackService.flagFeedback`/`flagComment`'s single-lookup
+  refactor changing which rows are reachable (REFUTED — `findFeedbackById`/`findCommentById` were
+  pure wrappers around the exact same `findViewById`/`findCommentViewById` query, no second query
+  path ever existed); `AuditLogRepository.findRows`/`findTimeline` mixing `+` concatenation and
+  `.formatted()` as a style inconsistency (REFUTED — `findRows` has zero `%s` placeholders, so
+  `.formatted()` would serve no purpose there; `findTimeline` genuinely needs it for `FILTER.build()`/
+  `orderBy`); missing `@NonNull` on the 2 new `AuditableSnapshot` static helpers (REFUTED — matches
+  the pre-existing, unannotated convention every other static helper in this exact interface already
+  follows; `enumName`'s parameter is by-design nullable, returns `""` rather than failing fast); a
+  `diffField(Enum,Enum)` overload-ambiguity concern (REFUTED on basic Java type-system grounds —
+  `Enum<?>` is unrelated to the `String`/`Integer` overloads, no ambiguity possible).
+- Both fixes implemented via a `model: "haiku"` dispatch (fully specified after user's own direction
+  on finding 1's preferred shape), diffs verified by hand against both files — match plan exactly.
+  Verified via compile-only reactor build (`--no-unit --no-integration`, foreground): `BUILD
+  SUCCESS`. No tests run per standing session instruction.
+
+**Follow-up (2026-10-14, user-spotted, same day as D8):** the `x() == null ? "" : x().name()`
+ternary D8 inlined into all 4 DTOs' `allFields()` was itself a repeated pattern. Added
+`AuditableSnapshot.enumName(Enum<?>)` (same static-helper style as `field()`/`diffField()`); all 4
+`allFields()` call sites now call `enumName(x())` instead of repeating the ternary. Implemented via
+a `model: "haiku"` dispatch (fully specified), diff verified by hand against all 5 files — matches
+plan exactly. Verified via compile-only reactor build (`--no-unit --no-integration`, run in
+foreground this time to avoid the earlier background-notification timing issue): `BUILD SUCCESS`.
+
 **Follow-up fix (2026-10-14, caught by `/review` on the uncommitted diff):** the Haiku dispatch's
 E1 edit didn't fully match its own written plan — left behind an empty, dead
 `FILTER = new SqlFilterBuilder<>(List.of())` constant (still called at line 78 to concatenate an
@@ -910,6 +1068,28 @@ empty string) plus two now-unused static imports (`SqlCondition.like`, `TaxonFil
 `TaxonRepository.java`. Fixed by hand: deleted the `FILTER` constant, the `dynamic` variable and its
 use in the SQL concatenation, the two dead static imports, and the now-unused
 `SqlBoundFilter`/`SqlFilterBuilder` imports.
+
+**Status (2026-10-14, later same day): Full pre-commit `--unit --integration --sandbox` test run
+(the actual Definition-of-Done gate, not compile-only) found and fixed one real regression.**
+
+- First full run: `BUILD FAILURE` — `marketplace-rest-api`'s `AdvertisementApiControllerTest` had
+  2 failures (`create_validBody_savesThenReturnsFreshCopy`, `getById_found_returnsIt`). Root cause:
+  D4's change (private `enrich()` → `enrichmentService.enrichSingle(ad, locale)`) was never
+  matched by this test's `@BeforeEach` mock setup, which only stubbed the 3 old sub-methods
+  (`enrichWithCategoryAndCity`/`enrichWithActor`/`enrichWithMedia`) individually — the new
+  `enrichSingle(any(), any())` call was never stubbed, so the Mockito mock returned `null`,
+  causing a `NullPointerException` in `getById` and an empty response body in `create`. Production
+  code was correct throughout — this was a stale test mock, not a real bug.
+- Fixed: added `lenient().when(enrichmentService.enrichSingle(any(), any())).thenAnswer(inv ->
+  inv.getArgument(0));` to the same `@BeforeEach`, matching the file's own existing stub style.
+  Verified via a targeted re-run (`--unit-test AdvertisementApiControllerTest`): 21/21 passed.
+- Full suite re-run after the fix: `BUILD SUCCESS`. Unit 298/298 passed across every module
+  (`query-lib` 43, `html-sanitizer-lib` 6, `platform-commons` 4, `attachment-spring-boot-starter`
+  10, `marketplace-orchestrator` 143, `marketplace-rest-api` 92 — incl. `AdvertisementApiControllerTest`
+  21/21, `marketplace-app` 78). Integration 346/346 passed across every level-1/2/3 suite. Both runs
+  dispatched via `model: "haiku"` (fully specified), independently cross-checked against the real
+  raw build log by hand (not trusted from the agent's own summary alone).
+- Ready to commit — awaiting explicit commit instruction per the standing git-workflow rule.
 
 ## Why change
 

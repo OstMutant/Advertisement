@@ -64,6 +64,15 @@ public class AuditLogRepository {
             SqlBoundFilter.of(toDate,      "al.created_at",  (m, v) -> before(m, v.getToDate()))
     ));
 
+    private static final String NUMBERED_SELECT = """
+            SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
+                   snapshot_data::text                                                       AS snapshot_data,
+                   ROW_NUMBER() OVER (PARTITION BY entity_type, entity_id ORDER BY id)       AS version,
+                   LAG(id)                  OVER (PARTITION BY entity_type, entity_id ORDER BY id) AS prev_id,
+                   LAG(snapshot_data::text) OVER (PARTITION BY entity_type, entity_id ORDER BY id) AS prev_snapshot_data
+            FROM audit_log
+            """;
+
     @Qualifier("auditObjectMapper") private final ObjectMapper objectMapper;
     private final JdbcClient                                   jdbcClient;
     private final ProjectionMapper                             projectionMapper;
@@ -94,21 +103,15 @@ public class AuditLogRepository {
     // ── Read — generic rows ───────────────────────────────────────────────────
 
     public List<AuditLogProjection> findRows(@NonNull EntityType entityType, @NonNull Long entityId, Long filterActorId, int limit) {
-        return jdbcClient.sql("""
-                        WITH numbered AS (
-                            SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
-                                   snapshot_data::text                                                       AS snapshot_data,
-                                   ROW_NUMBER() OVER (PARTITION BY entity_type, entity_id ORDER BY id)       AS version,
-                                   LAG(id)                  OVER (PARTITION BY entity_type, entity_id ORDER BY id) AS prev_id,
-                                   LAG(snapshot_data::text) OVER (PARTITION BY entity_type, entity_id ORDER BY id) AS prev_snapshot_data
-                            FROM audit_log
-                            WHERE entity_type = :entityType AND entity_id = :entityId
-                        )
-                        SELECT * FROM numbered
-                        WHERE CAST(:filterActorId AS BIGINT) IS NULL OR actor_id = :filterActorId
-                        ORDER BY id DESC
-                        LIMIT :limit
-                        """)
+        String sql = "WITH numbered AS (\n" + NUMBERED_SELECT + """
+                        WHERE entity_type = :entityType AND entity_id = :entityId
+                    )
+                    SELECT * FROM numbered
+                    WHERE CAST(:filterActorId AS BIGINT) IS NULL OR actor_id = :filterActorId
+                    ORDER BY id DESC
+                    LIMIT :limit
+                    """;
+        return jdbcClient.sql(sql)
                          .paramSource(new MapSqlParameterSource()
                                  .addValue("entityType",    entityType.name())
                                  .addValue("entityId",      entityId)
@@ -123,20 +126,12 @@ public class AuditLogRepository {
                 .addValue("limit",  size)
                 .addValue("offset", (long) page * size);
         String orderBy = OrderByBuilder.build(sort, SORT_FIELDS);
-        String sql = """
-                        WITH numbered AS (
-                            SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
-                                   snapshot_data::text                                                       AS snapshot_data,
-                                   ROW_NUMBER() OVER (PARTITION BY entity_type, entity_id ORDER BY id)       AS version,
-                                   LAG(id)                  OVER (PARTITION BY entity_type, entity_id ORDER BY id) AS prev_id,
-                                   LAG(snapshot_data::text) OVER (PARTITION BY entity_type, entity_id ORDER BY id) AS prev_snapshot_data
-                            FROM audit_log
-                        )
+        String sql = ("WITH numbered AS (\n" + NUMBERED_SELECT + ")\n" + """
                         SELECT * FROM numbered al
                         WHERE 1=1%s
                         %s
                         LIMIT :limit OFFSET :offset
-                        """.formatted(FILTER.build(params, filter, " AND "), orderBy);
+                        """).formatted(FILTER.build(params, filter, " AND "), orderBy);
         return jdbcClient.sql(sql).paramSource(params).query(projectionMapper).list();
     }
 
