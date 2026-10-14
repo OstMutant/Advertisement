@@ -24,8 +24,6 @@ import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import org.springframework.context.annotation.Scope;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -52,8 +50,6 @@ import static org.ost.marketplace.services.i18n.I18nKey.USER_VIEW_BUTTON_DELETE;
 @RequiredArgsConstructor
 public class FeedbackReplyPanel extends Div
         implements Configurable<FeedbackReplyPanel, FeedbackReplyPanel.Parameters>, Initialization<FeedbackReplyPanel>, I18nParams {
-
-    private static final Duration EDIT_WINDOW = Duration.ofHours(48);
 
     public record Parameters(@NonNull Long feedbackId, @NonNull Long ownerUserId) {
     }
@@ -173,7 +169,7 @@ public class FeedbackReplyPanel extends Div
         }
 
         boolean isAuthor = access.isStrictOwner(ownerUserId)
-                && Instant.now().isBefore(comment.createdAt().plus(EDIT_WINDOW));
+                && comment.isEditable();
         boolean canReport = access.isLoggedIn() && !comment.authorId().equals(access.getCurrentUserId());
 
         Div actions = new Div();

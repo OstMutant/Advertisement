@@ -565,25 +565,70 @@ existing `@Slf4j` already covers the moved `log.warn` call, no new annotation ne
 
 ### Phase D — DRY duplication fixes (module by module)
 
-**D1 (Row 7) — 48h edit window, 3 places.** Less mechanical than the rest of this phase — a real
-design call, not copy-paste; review before dispatching. `FeedbackService`'s own
-`Duration.ofHours(48)` is the authoritative server-side check and stays. Add a derived method to
-the 2 platform-commons DTOs (matches the established "pure derivation over the type's own fields"
-exception in `platform-commons/CLAUDE.md`):
+**D1 (Row 7) — 48h edit window, 3 places. Revised plan (2026-10-14): a true single
+cross-module constant, not 2-of-3.** Original plan (kept above for history) assumed
+platform-commons can't share a literal with the starter, so it only deduplicated the 2 UI panels
+against their own DTO and left the literal `48` duplicated 3x (`FeedbackService` +
+both DTOs). Re-checked against this exact codebase's own precedent —
+`platform-commons/.../user/model/PageSizeLimits.java` (a plain `static final`-int holder, used by
+`platform-commons`'s own `UserSettingsDto` for `@Min`/`@Max` validation *and* by
+`marketplace-orchestrator`'s `UserProfileService` *and* `marketplace-rest-api`'s
+`UserApiController` — ≥2 real cross-module consumers, the same shape this case has). Since
+`feedback-spring-boot-starter` already has a Maven dependency on `platform-commons` (confirmed via
+its own `pom.xml`), the starter can reference a constant platform-commons defines — the dependency
+only forbids the reverse direction. Mirrors that pattern exactly:
+
+New file: `platform-commons/src/main/java/org/ost/platform/feedback/model/FeedbackEditPolicy.java`:
 ```java
-// FeedbackDto.java and FeedbackCommentDto.java, same addition in both:
-private static final Duration EDIT_WINDOW = Duration.ofHours(48);
-public boolean isEditable() {
-    return Instant.now().isBefore(createdAt.plus(EDIT_WINDOW));
+package org.ost.platform.feedback.model;
+
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+
+import java.time.Duration;
+
+/** Shared edit-window policy for feedback entries and their single reply. */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public class FeedbackEditPolicy {
+
+    public static final Duration MAX_EDIT_AGE = Duration.ofHours(48);
 }
 ```
-`FeedbackPanel.java`: delete the `EDIT_WINDOW` constant + its now-unused `Duration` import; change
+`FeedbackDto.java`/`FeedbackCommentDto.java` — add:
+```java
+public boolean isEditable() {
+    return Instant.now().isBefore(createdAt.plus(FeedbackEditPolicy.MAX_EDIT_AGE));
+}
+```
+`FeedbackService.java:41` — delete its own `private static final Duration EDIT_WINDOW = Duration.ofHours(48);`;
+`checkWithinEditWindow` (~line 283) uses `FeedbackEditPolicy.MAX_EDIT_AGE` instead.
+`FeedbackPanel.java`: delete the `EDIT_WINDOW` constant + its now-unused `Duration`/`Instant`
+imports (confirmed neither is used elsewhere in the file); change
 `Instant.now().isBefore(entry.createdAt().plus(EDIT_WINDOW))` → `entry.isEditable()`.
-`FeedbackReplyPanel.java`: same transform, `comment.isEditable()` (keep its `Instant` import if
-used elsewhere in the file — check before removing). Honest framing for the report: this removes 2
-of 3 duplicate re-derivations, not a single cross-module source of truth (the literal `48` still
-exists in `FeedbackService` + both DTOs, since platform-commons can't depend on the starter) —
-state this plainly, don't overclaim a full fix.
+`FeedbackReplyPanel.java`: same transform, `comment.isEditable()`, same import cleanup (confirmed
+neither `Duration` nor `Instant` used elsewhere in that file either).
+
+**Done 2026-10-14.** All 6 files implemented exactly per the revised plan above: new
+`FeedbackEditPolicy.java` written directly; `FeedbackDto.java`/`FeedbackCommentDto.java`/
+`FeedbackService.java` edited directly; `FeedbackPanel.java`/`FeedbackReplyPanel.java` dispatched
+to a `model: "haiku"` agent (fully-specified, no judgment calls left) and verified diff-by-diff
+against the plan — both import-usage assumptions held true, no unexpected additional usage found.
+Confirmed via `grep -rn "MAX_EDIT_AGE"` across `marketplace-app`/`feedback-spring-boot-starter`/
+`platform-commons`: exactly one literal `Duration.ofHours(48)` remains in the whole repository
+(`FeedbackEditPolicy.MAX_EDIT_AGE`), all 4 other sites reference it. The constant was renamed from
+its originally-planned `EDIT_WINDOW` to `MAX_EDIT_AGE` per user request (2026-10-14) for a more
+informative name — every reference in this section above reflects the final, real name.
+Result: exactly one `Duration.ofHours(48)` literal in the whole repository.
+
+**Verified 2026-10-14:** `bash scripts/build-and-test.sh --unit --integration` — unit 78/78
+passed (`ArchitectureRulesTest` 20/20, module boundaries intact), integration 346/346 passed
+including every Feedback-module test (`FeedbackServiceTest` 34/34, `FeedbackRepositoryTest` 15/15,
+`FeedbackSnapshotDtoTest` 8/8, `FeedbackCommentSnapshotDtoTest` 8/8), build SUCCESS. A `/review`
+pass over the full uncommitted diff (3 finder angles + Haiku verification) raised 2 CONFIRMED
+findings, both resolved: the stale `EDIT_WINDOW` references in this file's own D1 section (fixed
+above) and the approval-hook/Approval-Rule tension (logged as F6 below, option (a) accepted,
+no code change). Nothing left uncommitted from a correctness standpoint — still awaiting an
+explicit commit instruction per the standing git-workflow rule.
 
 **D2 (Row 8) — double row-lookup in `flagFeedback`/`flagComment`.**
 File: `feedback-spring-boot-starter/.../services/FeedbackService.java`. Both `FeedbackView`/
@@ -853,6 +898,11 @@ verified against the exact plan — no discrepancies found.**
   `TaxonFilter.java`) as a starting point, not lost.
 - **Remaining, still not done:** C6, D1-D12.
 
+**Status (2026-10-14, later same day): D1 done** (see its own "Done" note above, under the D1
+plan itself) — `FeedbackEditPolicy` single-constant refactor, 6 files, verified diff-by-diff.
+
+- **Remaining, still not done:** C6, D2-D12.
+
 **Follow-up fix (2026-10-14, caught by `/review` on the uncommitted diff):** the Haiku dispatch's
 E1 edit didn't fully match its own written plan — left behind an empty, dead
 `FILTER = new SqlFilterBuilder<>(List.of())` constant (still called at line 78 to concatenate an
@@ -1068,6 +1118,23 @@ that script's own usage), confirm `allAdrs[].title` now holds real titles (not d
 `docs/architecture/data/architecture-model.json`/`architecture-map.html` and spot-check the
 System › ADRs screen in a browser (per-module rows now sorted most-referenced-first, Referenced
 column visible).
+
+**F6. Approval-marker hook mechanic (2026-10-14) — known tradeoff, accepted as-is, not fixed.** A
+`/review` pass over this session's own uncommitted changes flagged that the new
+`UserPromptSubmit`/`PreToolUse` approval-marker hook pair (added earlier this session to
+`.claude/settings.json`, documented in `.claude/rules.md`'s Approval Rule section) arms its
+blanket-allow marker on any affirmative/directive-sounding message (e.g. "роби", "proceed") with no
+check that a plan was actually presented first — a real, confirmed contradiction with the Approval
+Rule's own adjacent text ("a directive-sounding instruction... is not itself a literal answer to a
+literal question that was already asked"). Three options were considered: (a) accept the tradeoff
+as-is, since the convenience of not re-prompting for every tool call in an already-approved stretch
+of work outweighs the edge case of a stray matching word arming the marker without a real pending
+plan; (b) narrow the hook's trigger so it only arms when the assistant's immediately-preceding
+message actually ended in a question (not mechanically detectable from a `UserPromptSubmit` hook,
+which only sees the new prompt, not prior assistant output); (c) soften `rules.md`'s wording so it
+doesn't claim a guarantee the hook can't actually provide. **Decided: option (a)** — keep the hook
+exactly as built, no code/text change. Logged here rather than as a separate backlog task, per
+explicit user instruction.
 
 ## Related
 

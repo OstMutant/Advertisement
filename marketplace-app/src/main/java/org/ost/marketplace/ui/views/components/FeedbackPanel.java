@@ -31,8 +31,6 @@ import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.springframework.context.annotation.Scope;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,8 +63,6 @@ import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_SECTION_LABEL;
 @RequiredArgsConstructor
 public class FeedbackPanel extends Div
         implements Configurable<FeedbackPanel, FeedbackPanel.Parameters>, Initialization<FeedbackPanel>, I18nParams {
-
-    private static final Duration EDIT_WINDOW = Duration.ofHours(48);
 
     @Value
     @lombok.Builder
@@ -222,7 +218,7 @@ public class FeedbackPanel extends Div
 
         boolean editable = access.isLoggedIn()
                 && entry.authorId().equals(access.getCurrentUserId())
-                && Instant.now().isBefore(entry.createdAt().plus(EDIT_WINDOW));
+                && entry.isEditable();
 
         Div contentColumn = new Div();
         contentColumn.addClassName("feedback-entry-content");

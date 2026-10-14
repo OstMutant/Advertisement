@@ -305,6 +305,16 @@ Example format:
 
 Wait for explicit confirmation before making any change.
 
+**Hook-level enforcement mechanic:** `.claude/settings.json`'s `PreToolUse` hook on
+`Write|Edit|NotebookEdit|Agent|Skill` treats an affirmative reply to a presented plan as valid for
+every subsequent matching tool call until the user's next message that doesn't itself read as an
+approval — a `UserPromptSubmit` hook sets a session-scoped marker on an affirmative-sounding
+message and clears it on anything else, and the `PreToolUse` hook allows without re-prompting
+while that marker is present. This changes only the mechanical re-prompt at the tool-permission
+layer, not the obligation above: each sub-change still needs its own plan presented and its own
+literal question asked before acting — the hook merely stops forcing a second confirmation click
+for actions that are already part of an approved answer.
+
 A broad, already-approved task does not exempt each distinct sub-change within it from its own
 concrete plan — scope-level approval is not a blanket pass to skip the technical-layer detail for
 each piece. State the exact file/method/behavior for each sub-change before asking to proceed with

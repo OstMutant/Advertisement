@@ -17,6 +17,7 @@ import org.ost.platform.feedback.dto.FeedbackCommentDto;
 import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
+import org.ost.platform.feedback.model.FeedbackEditPolicy;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import org.ost.sanitizer.HtmlSanitizer;
 import org.springframework.data.domain.PageRequest;
@@ -38,7 +39,6 @@ import java.util.function.Function;
 @Validated
 public class FeedbackService {
 
-    private static final Duration EDIT_WINDOW = Duration.ofHours(48);
     private static final int MAX_FEEDBACK_PER_DAY = 10;
     private static final int MAX_COMMENTS_PER_DAY = 30;
 
@@ -280,7 +280,7 @@ public class FeedbackService {
     // ── Shared helpers ───────────────────────────────────────────────────────
 
     private static void checkWithinEditWindow(Instant createdAt) {
-        if (createdAt != null && Instant.now().isAfter(createdAt.plus(EDIT_WINDOW))) {
+        if (createdAt != null && Instant.now().isAfter(createdAt.plus(FeedbackEditPolicy.MAX_EDIT_AGE))) {
             throw new IllegalStateException("Edit window has closed");
         }
     }
