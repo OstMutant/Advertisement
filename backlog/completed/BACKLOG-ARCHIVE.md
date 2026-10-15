@@ -2838,3 +2838,15 @@ unit 298/298, integration 346/346, BUILD SUCCESS. Also produced, along the way: 
 ADR-003/ADR-004 (Haiku-dispatch rule applied to `/autopilot`/`/sync-docs`, per-task ADR-usage
 tracking) and a fix to `generate-architecture-model.sh`'s ADR-index column-shift regression (F5).
 Full detail: `completed/tasks/improvement-207-whole-repo-review-followups-2026-10-06.md`.
+
+✅ Done (2026-10-15): improvement-208 closed — 4 independently-approved phases on
+`FeedbackAccessService`/`FeedbackService`/moderation queue: (1) negative tests for all 6
+moderation role-check guards, (2) moderation write + audit capture made atomic via
+`TransactionTemplate`, (3) 3 user-facing business rules retyped onto
+`SelfActionNotAllowedException`/`EditWindowClosedException`, (4) moderation queue redesigned from
+in-memory merge/filter/sort/page to SQL-level (UNION ALL CTE, real JOIN fixing the N+1,
+`FeedbackPort.findModerationQueue`/`countModerationQueue`) — recorded as
+`marketplace-orchestrator/DECISIONS.md` ADR-011. A `/review` pass caught and fixed 3 issues (stale
+Javadoc, unsupported author-sort test, a reintroduced 1000-match cap) before commit. Full
+`--unit --integration --sandbox` gate: 738/738. Commit 66695664. Full detail:
+`completed/tasks/improvement-208-feedback-module-followups.md`.
