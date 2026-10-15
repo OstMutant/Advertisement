@@ -101,6 +101,20 @@ approval cycle).
 
 ### Phase 2 — make moderation write + audit atomic
 
+**Done (2026-10-15).** Added `TransactionTemplate tx` field to `FeedbackAccessService`, wrapped
+all 8 moderation methods' bodies in `tx.executeWithoutResult(...)` (guards stay before the
+transaction opens). Confirmed `FeedbackPortImpl`'s write methods and `DefaultAuditPort.capture*`
+are plain `@Transactional` (default REQUIRED propagation) so they join the outer transaction.
+Added `@MockitoBean AuditPort` + 2 rollback tests to `FeedbackAccessServiceTest.java` (the test's
+`@SpringBootTest` context had no `AuditPort` bean at all before this — the audit branch was a
+silent no-op in every prior test). Both new tests were run **first against the unfixed code** and
+failed as expected (`approveFeedback` test: status read back as `NEW` instead of `HIDDEN`;
+`rejectFeedback` test: row found deleted instead of still present) — proving the bug was real.
+After the fix: targeted run 17/17 green. One cleanup needed after the agent's first pass: a
+duplicate `import TransactionTemplate` line (harmless but sloppy) was found via `git diff` review
+and removed; re-ran the targeted test afterward to confirm still 17/17 green. Not yet committed —
+full `--unit --integration --sandbox` gate not yet run.
+
 - Inject `TransactionTemplate` the same way `AdvertisementSaveService` does, and wrap the port call
   plus the audit capture of each of the 8 moderation methods in `tx.executeWithoutResult`. Keep
   `requireIsPrivileged` **before** the transaction opens (fail fast, no transaction for a denied

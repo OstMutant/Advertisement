@@ -20,6 +20,7 @@ import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.orchestrator.services.UserActorNameService;
 import org.ost.orchestrator.spi.UiLabelHook;
 import org.ost.platform.advertisement.model.AdKind;
+import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
 import org.ost.platform.feedback.dto.FeedbackCommentDto;
@@ -27,6 +28,7 @@ import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.user.model.Role;
 import org.ost.provider.config.ProviderProfileAutoConfiguration;
@@ -53,6 +55,8 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 
 /**
  * Level 2: {@link FeedbackAccessService}'s own public API -- the merged moderation queue
@@ -105,6 +109,9 @@ class FeedbackAccessServiceTest extends AbstractPostgresIntegrationTest {
             };
         }
     }
+
+    @MockitoBean
+    private AuditPort auditPort;
 
     @Autowired
     private FeedbackAccessService feedbackAccessService;
@@ -347,5 +354,41 @@ class FeedbackAccessServiceTest extends AbstractPostgresIntegrationTest {
 
         assertThat(feedbackAccessService.findFeedbackById(feedback.id())).isPresent();
         assertThat(feedbackAccessService.findFeedbackById(feedback.id()).orElseThrow().moderationStatus()).isEqualTo(FeedbackModerationStatus.HIDDEN);
+    }
+
+    @Test
+    void approveFeedback_auditCaptureThrows_rollsBackModerationStatus() {
+        Long authorId = newUser("Author7");
+        Long ownerId = newUser("Owner7");
+        Long profileId = newProviderProfile(ownerId);
+        Long actorId = newModerator("Moderator7");
+        FeedbackDto feedback = feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, profileId, authorId, 1, "Bad", null));
+        feedbackAccessService.flagFeedback(feedback.id(), actorId, "Spam");
+
+        doThrow(new RuntimeException("audit capture failed")).when(auditPort).captureUpdate(any(), any(), any());
+
+        assertThatThrownBy(() -> feedbackAccessService.approveFeedback(feedback.id(), actorId))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("audit capture failed");
+
+        FeedbackDto reread = feedbackAccessService.findFeedbackById(feedback.id()).orElseThrow();
+        assertThat(reread.moderationStatus()).isEqualTo(FeedbackModerationStatus.HIDDEN);
+    }
+
+    @Test
+    void rejectFeedback_auditCaptureThrows_rollsBackDeletion() {
+        Long authorId = newUser("Author8");
+        Long ownerId = newUser("Owner8");
+        Long profileId = newProviderProfile(ownerId);
+        Long actorId = newModerator("Moderator8");
+        FeedbackDto feedback = feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, profileId, authorId, 1, "Bad", null));
+
+        doThrow(new RuntimeException("audit capture failed")).when(auditPort).captureDeletion(any(), any(), any());
+
+        assertThatThrownBy(() -> feedbackAccessService.rejectFeedback(feedback.id(), actorId))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("audit capture failed");
+
+        assertThat(feedbackAccessService.findFeedbackById(feedback.id())).isPresent();
     }
 }
