@@ -2,6 +2,8 @@ package org.ost.integrationtests.level2.orchestrator;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.ost.feedback.config.FeedbackAutoConfiguration;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.UserTestFixtures;
@@ -10,6 +12,7 @@ import org.ost.integrationtests.support.TestDataCleaner;
 import org.ost.orchestrator.dto.ModerationQueueFilterDto;
 import org.ost.orchestrator.dto.ModerationQueueItemDto;
 import org.ost.orchestrator.dto.ModerationQueueItemType;
+import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.ActorLookupService;
 import org.ost.orchestrator.services.AuthorizationService;
 import org.ost.orchestrator.services.FeedbackAccessService;
@@ -46,8 +49,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Level 2: {@link FeedbackAccessService}'s own public API -- the merged moderation queue
@@ -285,5 +290,62 @@ class FeedbackAccessServiceTest extends AbstractPostgresIntegrationTest {
 
         feedbackAccessService.rejectFeedback(feedback.id(), actorId);
         assertThat(feedbackAccessService.findFeedbackById(feedback.id())).isEmpty();
+    }
+
+    private enum GuardedModerationOperation {
+        APPROVE_FEEDBACK, APPROVE_COMMENT, CONFIRM_FEEDBACK_VIOLATION, CONFIRM_COMMENT_VIOLATION, REJECT_FEEDBACK, REJECT_COMMENT
+    }
+
+    private static Stream<GuardedModerationOperation> guardedModerationOperations() {
+        return Stream.of(GuardedModerationOperation.values());
+    }
+
+    private void invokeGuardedOperation(GuardedModerationOperation operation, Long feedbackId, Long commentId, Long actorId) {
+        switch (operation) {
+            case APPROVE_FEEDBACK -> feedbackAccessService.approveFeedback(feedbackId, actorId);
+            case APPROVE_COMMENT -> feedbackAccessService.approveComment(commentId, actorId);
+            case CONFIRM_FEEDBACK_VIOLATION -> feedbackAccessService.confirmFeedbackViolation(feedbackId, actorId);
+            case CONFIRM_COMMENT_VIOLATION -> feedbackAccessService.confirmCommentViolation(commentId, actorId);
+            case REJECT_FEEDBACK -> feedbackAccessService.rejectFeedback(feedbackId, actorId);
+            case REJECT_COMMENT -> feedbackAccessService.rejectComment(commentId, actorId);
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("guardedModerationOperations")
+    void guardedModerationMethod_actorNotPrivileged_throwsAccessDeniedException_stateUnchanged(GuardedModerationOperation operation) {
+        Long authorId = newUser("Author5");
+        Long ownerId = newUser("Owner5");
+        Long profileId = newProviderProfile(ownerId);
+        Long nonPrivilegedActorId = newUser("NonPrivileged");
+        FeedbackDto feedback = feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, profileId, authorId, 1, "Bad", null));
+        FeedbackCommentDto comment = feedbackAccessService.saveComment(new FeedbackCommentSaveDto(null, feedback.id(), ownerId, "Reply", null));
+        feedbackAccessService.flagFeedback(feedback.id(), nonPrivilegedActorId, "Spam");
+        feedbackAccessService.flagComment(comment.id(), nonPrivilegedActorId, "Rude");
+
+        FeedbackModerationStatus feedbackStatusBefore = feedbackAccessService.findFeedbackById(feedback.id()).orElseThrow().moderationStatus();
+        FeedbackModerationStatus commentStatusBefore = feedbackAccessService.findCommentById(comment.id()).orElseThrow().moderationStatus();
+
+        assertThatThrownBy(() -> invokeGuardedOperation(operation, feedback.id(), comment.id(), nonPrivilegedActorId))
+                .isInstanceOf(AccessDeniedException.class);
+
+        assertThat(feedbackAccessService.findFeedbackById(feedback.id())).isPresent();
+        assertThat(feedbackAccessService.findFeedbackById(feedback.id()).orElseThrow().moderationStatus()).isEqualTo(feedbackStatusBefore);
+        assertThat(feedbackAccessService.findCommentById(comment.id())).isPresent();
+        assertThat(feedbackAccessService.findCommentById(comment.id()).orElseThrow().moderationStatus()).isEqualTo(commentStatusBefore);
+    }
+
+    @Test
+    void flagFeedback_byPlainUser_succeeds() {
+        Long authorId = newUser("Author6");
+        Long ownerId = newUser("Owner6");
+        Long profileId = newProviderProfile(ownerId);
+        Long plainUserId = newUser("PlainFlagger");
+        FeedbackDto feedback = feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, profileId, authorId, 1, "Bad", null));
+
+        feedbackAccessService.flagFeedback(feedback.id(), plainUserId, "Spam");
+
+        assertThat(feedbackAccessService.findFeedbackById(feedback.id())).isPresent();
+        assertThat(feedbackAccessService.findFeedbackById(feedback.id()).orElseThrow().moderationStatus()).isEqualTo(FeedbackModerationStatus.HIDDEN);
     }
 }
