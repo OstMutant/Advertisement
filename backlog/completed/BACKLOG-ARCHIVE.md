@@ -2823,3 +2823,18 @@ duplicated `fillRole()` function in `playwright/e2e/_flows/filter.flow.js`) was 
 verification and fixed before it could land. `build-and-test.sh --unit` — BUILD SUCCESS, 78/78
 tests; ADR index and `architecture-model.json`/`architecture-map.html` regenerated clean. Full
 detail: `completed/tasks/improvement-203-out-of-scope-implementation-findings.md`.
+
+✅ Done (2026-10-14): improvement-207 closed — whole-repo `/review all` follow-ups (26 confirmed
+findings across Phases A-F) fully implemented: Settings unsaved-changes bug, feedback-moderation
+authorization gap, stale Liquibase remarks + N-target no-FK marker generalization, precedent
+cleanup (@NonNull/@Slf4j/ticket-number removal), 12 DRY/dedup fixes (shared SQL SELECT fragments,
+shared enum-diff helper, double-lookup/duplicate-branch removal, builder/copy helpers), YAGNI
+dead-code removal, and the AuditLogRepository RowMapper-to-instance-lambda refactor. A `/code-review`
+pass over the full D2-D12 diff caught 2 real issues (an Optional-as-parameter rule violation, a
+diffField/enumName logic duplication) — both fixed; 5 other candidates REFUTED on verification.
+The full pre-commit `--unit --integration --sandbox` run caught one real regression (a stale test
+mock in `AdvertisementApiControllerTest`, unrelated to production code) — fixed. Final state:
+unit 298/298, integration 346/346, BUILD SUCCESS. Also produced, along the way: `.claude/DECISIONS.md`
+ADR-003/ADR-004 (Haiku-dispatch rule applied to `/autopilot`/`/sync-docs`, per-task ADR-usage
+tracking) and a fix to `generate-architecture-model.sh`'s ADR-index column-shift regression (F5).
+Full detail: `completed/tasks/improvement-207-whole-repo-review-followups-2026-10-06.md`.
