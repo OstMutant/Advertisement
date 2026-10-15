@@ -136,6 +136,42 @@ full `--unit --integration --sandbox` gate not yet run.
 
 ### Phase 3 — typed exceptions in `FeedbackService`
 
+**Done (2026-10-15).** Scoped to the 3 business-rule throws only (confirmed via `/review`-style
+investigation that the 11 not-found cases already degrade gracefully today via `ModerationView`'s
+existing generic catch — typing them would have been typing without a behavior change, so skipped
+per YAGNI). Added `SelfActionNotAllowedException`/`EditWindowClosedException` to `platform-commons`
+(`org.ost.platform.core`, mirroring `TooManyAttemptsException`'s shape). Changed exactly the 3
+throw-sites in `FeedbackService.java`; the other 13 `IllegalStateException` throws untouched.
+Renamed + retyped the 5 matching assertions in `FeedbackServiceTest`. Added 2 i18n keys (enum +
+both locale files). Investigated how these exceptions reach the UI today: "cannot flag your own
+X" is already unreachable through the rendered UI (report button is disabled/hidden for one's own
+content in both panels) so no dedicated UI message was added for it — confirmed via real code read,
+not assumed; "edit window closed" **is** genuinely reachable (client-side `isEditable()` check at
+render time vs. server check at submit time can diverge across a long-open form) and got real
+try/catch + a dedicated i18n message at all 3 affected call sites. Also discovered and fixed, as
+part of this work, that 5 UI call sites across `FeedbackPanel`/`FeedbackReplyPanel` had **no
+exception handling at all** before this change (would crash into Vaadin's default unhandled-
+exception behavior) — now all 5 have at least a generic catch-all with a localized error message.
+No REST mappings added (feedback isn't exposed via REST yet, per plan). No Playwright test added —
+48h edit-window boundary isn't practically triggerable through real browser interaction; covered at
+the integration-test level instead. Full `--unit --integration --sandbox` gate: 730/730, including
+`ArchitectureRulesTest` 20/20.
+
+**Follow-up (`/review` + DRY cleanup, 2026-10-15).** `/review` on this diff raised 2 medium-
+confidence findings (neither auto-reported): (1) the 5 UI call sites' try/catch shape was
+duplicated — fixed by extracting `FeedbackErrorHandlingUtil.runCatchingFeedbackErrors(...)`
+(mirrors `ProviderProfileDeleteUtil`'s shape, lives next to its 2 consumers in
+`ui/views/components/`), reducing all 5 call sites to one-line wrapper calls and removing the
+now-dead `EditWindowClosedException`/`FEEDBACK_NOTIFICATION_*` imports from both panel files. (2) a
+proposal to add a shared marker type across `TooManyAttemptsException`/`SelfActionNotAllowedException`/
+`EditWindowClosedException` for generic "any business-rule exception" handling — **not done**:
+verified the review's own premise was factually wrong (all three already extend `RuntimeException`
+directly, not `IllegalStateException` as claimed), and confirmed zero current call sites would
+actually use such a marker (every one already falls back to `catch(Exception)`, which already
+covers this) — adding it now would be typing with no behavior change, same YAGNI reasoning as
+skipping the not-found types above. Full `--unit --integration --sandbox` gate re-run after the
+DRY fix: 730/730. Not yet committed.
+
 Design first, present for approval before implementing:
 
 - Decide names and placement in `platform-commons` (`org.ost.platform.core`, next to

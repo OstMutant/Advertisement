@@ -10,7 +10,9 @@ import org.ost.feedback.entity.FeedbackContent;
 import org.ost.feedback.repository.FeedbackRepository;
 import org.ost.feedback.repository.FeedbackRepository.FeedbackCommentView;
 import org.ost.feedback.repository.FeedbackRepository.FeedbackView;
+import org.ost.platform.core.EditWindowClosedException;
 import org.ost.platform.core.FailureRateLimiter;
+import org.ost.platform.core.SelfActionNotAllowedException;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
 import org.ost.platform.feedback.dto.FeedbackCommentDto;
@@ -188,7 +190,7 @@ public class FeedbackService {
         FeedbackView existing = repository.findViewById(feedbackId)
                 .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
         if (existing.authorId().equals(actorId)) {
-            throw new IllegalStateException("Cannot flag your own feedback entry");
+            throw new SelfActionNotAllowedException("Cannot flag your own feedback entry");
         }
         repository.flagContent(existing.contentId(), reason);
         repository.upsertAggregate(existing.entityType(), existing.entityId());
@@ -199,7 +201,7 @@ public class FeedbackService {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
                 .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
         if (existing.authorId().equals(actorId)) {
-            throw new IllegalStateException("Cannot flag your own comment");
+            throw new SelfActionNotAllowedException("Cannot flag your own comment");
         }
         repository.flagContent(existing.contentId(), reason);
     }
@@ -277,7 +279,7 @@ public class FeedbackService {
 
     private static void checkWithinEditWindow(Instant createdAt) {
         if (createdAt != null && Instant.now().isAfter(createdAt.plus(FeedbackEditPolicy.MAX_EDIT_AGE))) {
-            throw new IllegalStateException("Edit window has closed");
+            throw new EditWindowClosedException("Edit window has closed");
         }
     }
 

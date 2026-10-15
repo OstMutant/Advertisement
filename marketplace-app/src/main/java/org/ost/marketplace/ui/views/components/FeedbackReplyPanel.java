@@ -17,6 +17,7 @@ import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.dialogs.ReportReasonDialog;
 import org.ost.marketplace.ui.views.components.fields.UiTextArea;
 import org.ost.marketplace.ui.views.rules.I18nParams;
+import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.orchestrator.services.FeedbackAccessService;
 import org.ost.orchestrator.services.FeedbackCommentWriteService;
 import org.ost.platform.feedback.dto.FeedbackCommentDto;
@@ -57,6 +58,7 @@ public class FeedbackReplyPanel extends Div
     private final FeedbackAccessService       feedbackAccessService;
     private final FeedbackCommentWriteService feedbackCommentWriteService;
     private final AccessEvaluator             access;
+    private final NotificationService         notificationService;
     @Getter
     private final I18nService                 i18nService;
 
@@ -116,10 +118,12 @@ public class FeedbackReplyPanel extends Div
             Long id = existing != null ? existing.id() : null;
             Long version = existing != null ? existing.version() : null;
             Long authorId = existing != null ? existing.authorId() : access.getCurrentUserId();
-            feedbackCommentWriteService.saveComment(new FeedbackCommentSaveDto(id, feedbackId, authorId, textField.getValue(), version));
-            composerOpen = false;
-            draftText = "";
-            reload();
+            FeedbackErrorHandlingUtil.runCatchingFeedbackErrors(notificationService, () -> {
+                feedbackCommentWriteService.saveComment(new FeedbackCommentSaveDto(id, feedbackId, authorId, textField.getValue(), version));
+                composerOpen = false;
+                draftText = "";
+                reload();
+            });
         });
 
         UiIconButton cancelButton = new UiIconButton(getValue(FEEDBACK_FORM_BUTTON_DISCARD), VaadinIcon.CLOSE_SMALL.create());
@@ -191,10 +195,10 @@ public class FeedbackReplyPanel extends Div
                     getValue(FEEDBACK_COMMENT_CONFIRM_DELETE_TEXT),
                     getValue(FEEDBACK_COMMENT_CONFIRM_DELETE_BUTTON),
                     getValue(FEEDBACK_COMMENT_CONFIRM_CANCEL_BUTTON),
-                    () -> {
+                    () -> FeedbackErrorHandlingUtil.runCatchingFeedbackErrors(notificationService, () -> {
                         feedbackCommentWriteService.deleteComment(comment.id(), access.getCurrentUserId());
                         reload();
-                    }
+                    })
             ).open());
             actions.add(deleteButton);
         }
@@ -208,10 +212,10 @@ public class FeedbackReplyPanel extends Div
                     getValue(FEEDBACK_REPORT_REASON_LABEL),
                     getValue(FEEDBACK_CONFIRM_REPORT_BUTTON),
                     getValue(FEEDBACK_CONFIRM_REPORT_CANCEL_BUTTON),
-                    reason -> {
+                    reason -> FeedbackErrorHandlingUtil.runCatchingFeedbackErrors(notificationService, () -> {
                         feedbackAccessService.flagComment(comment.id(), access.getCurrentUserId(), reason);
                         reload();
-                    }
+                    })
             ).open());
             actions.add(reportButton);
         }

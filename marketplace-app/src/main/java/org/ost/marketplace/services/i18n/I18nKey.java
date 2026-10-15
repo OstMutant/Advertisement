@@ -535,6 +535,8 @@ public enum I18nKey {
     FEEDBACK_CONFIRM_REPORT_BUTTON("feedback.confirm.report.button"),
     FEEDBACK_CONFIRM_REPORT_CANCEL_BUTTON("feedback.confirm.report.cancelButton"),
     FEEDBACK_NOTIFICATION_REPORTED("feedback.notification.reported"),
+    FEEDBACK_NOTIFICATION_EDIT_WINDOW_CLOSED("feedback.notification.editWindowClosed"),
+    FEEDBACK_NOTIFICATION_SAVE_ERROR("feedback.notification.saveError"),
     MAIN_TAB_MODERATION("mainTab.moderation"),
     MODERATION_EMPTY("moderation.empty"),
     MODERATION_BUTTON_APPROVE("moderation.button.approve"),

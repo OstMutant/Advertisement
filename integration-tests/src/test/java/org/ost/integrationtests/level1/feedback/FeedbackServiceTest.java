@@ -9,6 +9,8 @@ import org.ost.feedback.services.FeedbackService;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.support.RepositoryTestSupport;
 import org.ost.integrationtests.support.TestDataCleaner;
+import org.ost.platform.core.EditWindowClosedException;
+import org.ost.platform.core.SelfActionNotAllowedException;
 import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
@@ -106,13 +108,13 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void save_pastEditWindow_throwsIllegalStateException() {
+    void save_pastEditWindow_throwsEditWindowClosedException() {
         Long entityId = newEntityId();
         FeedbackDto first = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 3, "Decent.", null));
         backdateContentCreatedAt(first.id(), Instant.now().minus(49, ChronoUnit.HOURS));
 
         assertThatThrownBy(() -> feedbackService.save(newSaveDto(first.id(), newAuthorId(), entityId, 5, "Edit attempt.", first.version())))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(EditWindowClosedException.class);
     }
 
     @Test
@@ -183,7 +185,7 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void saveComment_pastEditWindow_throwsIllegalStateException() {
+    void saveComment_pastEditWindow_throwsEditWindowClosedException() {
         Long entityId = newEntityId();
         FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto comment = feedbackService.saveComment(
@@ -192,7 +194,7 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
 
         assertThatThrownBy(() -> feedbackService.saveComment(
                 new FeedbackCommentSaveDto(comment.id(), feedback.id(), comment.authorId(), "Edit attempt.", comment.version())))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(EditWindowClosedException.class);
     }
 
     @Test
@@ -208,7 +210,7 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void deleteComment_pastEditWindow_throwsIllegalStateException() {
+    void deleteComment_pastEditWindow_throwsEditWindowClosedException() {
         Long entityId = newEntityId();
         FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         FeedbackCommentDto comment = feedbackService.saveComment(
@@ -216,7 +218,7 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
         backdateCommentContentCreatedAt(comment.id(), Instant.now().minus(49, ChronoUnit.HOURS));
 
         assertThatThrownBy(() -> feedbackService.deleteComment(comment.id()))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(EditWindowClosedException.class);
     }
 
     private void backdateContentCreatedAt(Long feedbackId, Instant createdAt) {
@@ -265,13 +267,13 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void flagFeedback_byOwnAuthor_throwsIllegalStateException() {
+    void flagFeedback_byOwnAuthor_throwsSelfActionNotAllowedException() {
         Long entityId = newEntityId();
         Long authorId = newAuthorId();
         FeedbackDto feedback = feedbackService.save(newSaveDto(null, authorId, entityId, 5, "Root feedback.", null));
 
         assertThatThrownBy(() -> feedbackService.flagFeedback(feedback.id(), authorId, "My own entry."))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(SelfActionNotAllowedException.class);
     }
 
     @Test
@@ -433,7 +435,7 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void flagComment_byOwnAuthor_throwsIllegalStateException() {
+    void flagComment_byOwnAuthor_throwsSelfActionNotAllowedException() {
         Long entityId = newEntityId();
         FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         Long commentAuthorId = newAuthorId();
@@ -441,7 +443,7 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
                 new FeedbackCommentSaveDto(null, feedback.id(), commentAuthorId, "A comment.", null));
 
         assertThatThrownBy(() -> feedbackService.flagComment(comment.id(), commentAuthorId, "My own reply."))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(SelfActionNotAllowedException.class);
     }
 
     @Test

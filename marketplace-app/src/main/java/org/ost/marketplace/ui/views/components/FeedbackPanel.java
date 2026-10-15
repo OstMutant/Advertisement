@@ -270,11 +270,11 @@ public class FeedbackPanel extends Div
                     getValue(FEEDBACK_REPORT_REASON_LABEL),
                     getValue(FEEDBACK_CONFIRM_REPORT_BUTTON),
                     getValue(FEEDBACK_CONFIRM_REPORT_CANCEL_BUTTON),
-                    reason -> {
+                    reason -> FeedbackErrorHandlingUtil.runCatchingFeedbackErrors(notificationService, () -> {
                         feedbackAccessService.flagFeedback(entry.id(), access.getCurrentUserId(), reason);
                         notificationService.success(FEEDBACK_NOTIFICATION_REPORTED);
                         refresh(entityRef);
-                    }
+                    })
             ).open());
             viewActions.add(reportButton);
         }
@@ -297,10 +297,12 @@ public class FeedbackPanel extends Div
         saveButton.addClassName("feedback-entry-save-icon");
         saveButton.addClickListener(_ -> {
             if (editRatingField.getValue() == null || editTextField.getValue() == null || editTextField.getValue().isBlank()) return;
-            feedbackAccessService.save(new FeedbackSaveDto(entry.id(), entityRef.entityType(), entityRef.entityId(),
-                    access.getCurrentUserId(), editRatingField.getValue(), editTextField.getValue(), entry.version()));
-            notificationService.success(FEEDBACK_NOTIFICATION_SAVED);
-            refresh(entityRef);
+            FeedbackErrorHandlingUtil.runCatchingFeedbackErrors(notificationService, () -> {
+                feedbackAccessService.save(new FeedbackSaveDto(entry.id(), entityRef.entityType(), entityRef.entityId(),
+                        access.getCurrentUserId(), editRatingField.getValue(), editTextField.getValue(), entry.version()));
+                notificationService.success(FEEDBACK_NOTIFICATION_SAVED);
+                refresh(entityRef);
+            });
         });
 
         UiIconButton discardButton = new UiIconButton(getValue(FEEDBACK_FORM_BUTTON_DISCARD), VaadinIcon.CLOSE_SMALL.create());
