@@ -163,6 +163,7 @@ necessarily that it's unused.
 | ADR-075 (marketplace-app) | marketplace-orchestrator | Accepted |  | 0 | Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay |
 | ADR-076 (marketplace-app) | marketplace-app | Accepted |  | 0 | `OverlayNavigationRegistry` fans out browser History to every deep-linkable overlay; `SitemapController` thins to a `marketplace-orchestrator` `SitemapService` |
 | ADR-077 (marketplace-app) | marketplace-app | Accepted |  | 0 | Provider Profile catalog gains real date-range filters, mirroring Advertisement's exact mechanism |
+| ADR-011 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | 0 | Moderation queue implemented with SQL-level filter, sort, and pagination |
 | ADR-010 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | 0 | `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename |
 | ADR-009 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | 0 | `StaleWriteException` replaces `OptimisticLockingFailureException` as the project-wide stale-write signal |
 | ADR-008 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | 0 | `UserCleanupService`/`UserPurgeEligibilityService` — the scheduled retention-purge referential-integrity check moves here from `user-spring-boot-starter` |

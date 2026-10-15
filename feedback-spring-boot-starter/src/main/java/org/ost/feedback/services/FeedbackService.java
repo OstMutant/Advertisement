@@ -10,6 +10,7 @@ import org.ost.feedback.entity.FeedbackContent;
 import org.ost.feedback.repository.FeedbackRepository;
 import org.ost.feedback.repository.FeedbackRepository.FeedbackCommentView;
 import org.ost.feedback.repository.FeedbackRepository.FeedbackView;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.EditWindowClosedException;
 import org.ost.platform.core.FailureRateLimiter;
 import org.ost.platform.core.SelfActionNotAllowedException;
@@ -19,19 +20,28 @@ import org.ost.platform.feedback.dto.FeedbackCommentDto;
 import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
+import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
+import org.ost.platform.feedback.dto.ModerationQueueItemDto;
 import org.ost.platform.feedback.model.FeedbackEditPolicy;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
+import org.ost.platform.feedback.model.ModerationQueueItemType;
+import org.ost.platform.user.dto.UserDto;
+import org.ost.platform.user.dto.UserFilterDto;
+import org.ost.platform.user.spi.UserPort;
 import org.ost.sanitizer.HtmlSanitizer;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 
 /** CRUD for feedback entries and their single reply, sanitization/edit-window enforcement, and aggregate reads/writes. */
@@ -43,8 +53,10 @@ public class FeedbackService {
 
     private static final int MAX_FEEDBACK_PER_DAY = 10;
     private static final int MAX_COMMENTS_PER_DAY = 30;
+    private static final int AUTHOR_SEARCH_PAGE_SIZE = 500;
 
     private final FeedbackRepository repository;
+    private final ComponentFactory<UserPort> userPortFactory;
     private final FailureRateLimiter feedbackRateLimiter = new FailureRateLimiter(MAX_FEEDBACK_PER_DAY, Duration.ofDays(1));
     private final FailureRateLimiter commentRateLimiter  = new FailureRateLimiter(MAX_COMMENTS_PER_DAY, Duration.ofDays(1));
 
@@ -269,6 +281,56 @@ public class FeedbackService {
     @Transactional(readOnly = true)
     public List<FeedbackCommentDto> findConfirmedViolationComments(@NonNull Pageable pageable) {
         return toDtoPage(repository.findConfirmedViolationComments(pageable), FeedbackService::toCommentDto);
+    }
+
+    public List<ModerationQueueItemDto> findModerationQueue(@NonNull ModerationQueueFilterDto filter, @NonNull Sort sort, int page, int size) {
+        Optional<Set<Long>> authorIdsFilter = resolveAuthorIdsFilter(filter.getAuthorName());
+        if (authorIdsFilter.filter(Set::isEmpty).isPresent()) {
+            return List.of();
+        }
+        return repository.findModerationQueuePage(filter, sort, PageRequest.of(page, size, sort), authorIdsFilter.orElse(null))
+                .stream().map(FeedbackService::toQueueItemDto).toList();
+    }
+
+    public int countModerationQueue(@NonNull ModerationQueueFilterDto filter) {
+        Optional<Set<Long>> authorIdsFilter = resolveAuthorIdsFilter(filter.getAuthorName());
+        if (authorIdsFilter.filter(Set::isEmpty).isPresent()) {
+            return 0;
+        }
+        return (int) repository.countModerationQueue(filter, authorIdsFilter.orElse(null));
+    }
+
+    /** Mirrors {@code AdvertisementService.resolveTaxonFilter}'s Optional semantics: empty Optional means "no filter requested" (unrestricted), a present-but-possibly-empty Set means "filter requested, these are the matches". Pages through all matches rather than capping at one page, so a broad name search never silently drops genuine matches. */
+    private Optional<Set<Long>> resolveAuthorIdsFilter(String authorName) {
+        if (authorName == null || authorName.isBlank()) return Optional.empty();
+        return userPortFactory.findIfAvailable().map(p -> resolveAllMatchingAuthorIds(p, authorName));
+    }
+
+    private static Set<Long> resolveAllMatchingAuthorIds(UserPort userPort, String authorName) {
+        Set<Long> ids = new HashSet<>();
+        int page = 0;
+        List<UserDto> batch;
+        do {
+            batch = userPort.getFiltered(UserFilterDto.builder().name(authorName).build(), page, AUTHOR_SEARCH_PAGE_SIZE, Sort.unsorted());
+            batch.forEach(u -> ids.add(u.id()));
+            page++;
+        } while (batch.size() == AUTHOR_SEARCH_PAGE_SIZE);
+        return ids;
+    }
+
+    private static ModerationQueueItemDto toQueueItemDto(FeedbackRepository.ModerationQueueRow row) {
+        return ModerationQueueItemDto.builder()
+                .type(ModerationQueueItemType.valueOf(row.itemType()))
+                .id(row.id())
+                .entityId(row.entityId())
+                .contentText(row.contentText())
+                .rating(row.rating())
+                .moderationReason(row.moderationReason())
+                .authorId(row.authorId())
+                .authorName(null)
+                .createdAt(row.createdAt())
+                .moderationStatus(row.moderationStatus())
+                .build();
     }
 
     private static <R, D> List<D> toDtoPage(List<R> rows, Function<R, D> mapper) {

@@ -2,6 +2,30 @@
 
 ---
 
+## ADR-011: Moderation queue implemented with SQL-level filter, sort, and pagination
+
+**Status:** Accepted
+
+**Context:** `FeedbackAccessService.findModerationQueue` merges/filters/sorts/pages entirely in
+memory, with a `MAX_QUEUE_FETCH=1000` cap per source query and an N+1 per-comment lookup for
+`entityId`. Every other catalog view (e.g. `AdvertisementRepository.findByFilter`) does this at
+the SQL level via `SqlFilterBuilder`/`OrderByBuilder`/`Pageable`.
+
+**Decision:** Moderation queue now uses the same SQL-level pattern. `FeedbackRepository` runs one
+`UNION ALL` CTE (feedback + comment rows, discriminated by `item_type`), resolving each comment's
+`entity_id` via a real `JOIN feedback` in the query itself — no per-comment query. `FeedbackPort`
+gained `findModerationQueue`/`countModerationQueue`, mirroring `AdvertisementPort.getFiltered`/
+`count`. `FeedbackAccessService` is now a thin delegate, resolving display `authorName`s only for
+the current page. `FeedbackService` gained an optional `ComponentFactory<UserPort>` field to
+resolve the `authorName` filter into a `Set<Long>` before querying — `feedback-spring-boot-starter`'s
+first cross-domain Port dependency, legal because it depends on the Port **interface**
+(`platform-commons`), not the starter **module** (banned by this starter's own Maven enforcer
+rule), the same distinction `AdvertisementService.resolveTaxonFilter` already relies on.
+`authorName` is no longer a sort option, matching the existing convention that no `*SortMeta` in
+this app sorts by a cross-domain display field.
+
+---
+
 ## ADR-010: `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename
 
 **Status:** Accepted

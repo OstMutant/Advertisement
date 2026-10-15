@@ -9,9 +9,9 @@ import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.UserTestFixtures;
 import org.ost.integrationtests.support.RepositoryTestSupport;
 import org.ost.integrationtests.support.TestDataCleaner;
-import org.ost.orchestrator.dto.ModerationQueueFilterDto;
-import org.ost.orchestrator.dto.ModerationQueueItemDto;
-import org.ost.orchestrator.dto.ModerationQueueItemType;
+import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
+import org.ost.platform.feedback.dto.ModerationQueueItemDto;
+import org.ost.platform.feedback.model.ModerationQueueItemType;
 import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.ActorLookupService;
 import org.ost.orchestrator.services.AuthorizationService;
@@ -222,10 +222,6 @@ class FeedbackAccessServiceTest extends AbstractPostgresIntegrationTest {
                 ModerationQueueFilterDto.builder().types(Set.of(ModerationQueueItemType.COMMENT)).build(),
                 Sort.by(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt)), 0, 20);
         assertThat(commentOnly.totalCount()).isEqualTo(1);
-
-        FeedbackAccessService.ModerationQueuePage sortedByAuthor = feedbackAccessService.findModerationQueue(
-                ModerationQueueFilterDto.empty(), Sort.by(Sort.Order.asc(ModerationQueueItemDto.Fields.authorName)), 0, 20);
-        assertThat(sortedByAuthor.items()).hasSize(2);
 
         FeedbackAccessService.ModerationQueuePage sortedByType = feedbackAccessService.findModerationQueue(
                 ModerationQueueFilterDto.empty(), Sort.by(Sort.Order.asc(ModerationQueueItemDto.Fields.type)), 0, 20);

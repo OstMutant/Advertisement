@@ -7,7 +7,10 @@ import org.ost.platform.feedback.dto.FeedbackCommentDto;
 import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
+import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
+import org.ost.platform.feedback.dto.ModerationQueueItemDto;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Optional;
@@ -80,4 +83,10 @@ public interface FeedbackPort {
 
     /** Single reply by its own id, for moderation-action audit snapshots. */
     Optional<FeedbackCommentDto> findCommentById(@NonNull Long commentId);
+
+    /** One page of the merged, SQL-filtered/sorted/paged moderation queue (hidden + confirmed-violation feedback and replies). */
+    List<ModerationQueueItemDto> findModerationQueue(@NonNull ModerationQueueFilterDto filter, @NonNull Sort sort, int page, int size);
+
+    /** True total count matching the same filter as {@link #findModerationQueue}, independent of page/size. */
+    int countModerationQueue(@NonNull ModerationQueueFilterDto filter);
 }

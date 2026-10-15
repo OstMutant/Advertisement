@@ -13,9 +13,9 @@ import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
 import org.ost.marketplace.ui.query.filter.FilterProcessor;
 import org.ost.marketplace.ui.query.sort.SortProcessor;
-import org.ost.orchestrator.dto.ModerationQueueFilterDto;
+import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
-import org.ost.orchestrator.dto.ModerationQueueItemType;
+import org.ost.platform.feedback.model.ModerationQueueItemType;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -65,11 +65,10 @@ public class ModerationQueryBlock extends QueryBlock<ModerationQueueFilterDto> {
                 ModerationQueueSortMeta.CREATED_AT,
                 ModerationQueueFilterMeta.CREATED_AT_START, ModerationQueueFilterMeta.CREATED_AT_END);
 
-        // Author row
+        // Author row (filter-only, no sort -- cross-domain display field, never sortable here, same convention as every other *SortMeta* in this app)
         QueryTextField authorField = new QueryTextField(i18nService.get(MODERATION_FILTER_AUTHOR_PLACEHOLDER));
         authorField.getElement().setAttribute(DATA_TESTID, "moderation-filter-author");
-        filterRow(i18nService, i18nService.get(MODERATION_SORT_AUTHOR), authorField,
-                ModerationQueueSortMeta.AUTHOR_NAME, ModerationQueueFilterMeta.AUTHOR_NAME);
+        filterRow(i18nService.get(MODERATION_FILTER_AUTHOR_PLACEHOLDER), authorField, ModerationQueueFilterMeta.AUTHOR_NAME);
 
         // Reason row (filter-only, no sort)
         QueryTextField reasonField = new QueryTextField(i18nService.get(MODERATION_FILTER_REASON));

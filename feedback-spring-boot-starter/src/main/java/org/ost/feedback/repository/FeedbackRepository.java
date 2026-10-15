@@ -8,18 +8,29 @@ import org.ost.feedback.entity.FeedbackComment;
 import org.ost.feedback.entity.FeedbackContent;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
+import org.ost.platform.feedback.dto.ModerationQueueItemDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
+import org.ost.query.filter.SqlBoundFilter;
+import org.ost.query.filter.SqlCondition;
+import org.ost.query.filter.SqlFilterBuilder;
+import org.ost.query.filter.SqlFilterMapping;
+import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
+import org.ost.query.sort.SortField;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /** Bespoke {@code JdbcClient} queries across all 5 feedback tables; trivial CRUD delegates to the {@code *CrudRepository}s. */
 @Repository
@@ -59,6 +70,20 @@ public class FeedbackRepository {
     ) {
     }
 
+    /** One row of the merged moderation queue's own SQL projection -- 'FEEDBACK'/'COMMENT' discriminated, author name NOT resolved here (that's display composition, done by the caller). */
+    public record ModerationQueueRow(
+            String itemType,
+            Long id,
+            Long entityId,
+            String contentText,
+            Integer rating,
+            String moderationReason,
+            Long authorId,
+            Instant createdAt,
+            FeedbackModerationStatus moderationStatus
+    ) {
+    }
+
     private static final RowMapper<FeedbackView> VIEW_ROW_MAPPER = (rs, _) -> new FeedbackView(
             rs.getObject("id", Long.class),
             EntityType.valueOf(rs.getString("entity_type")),
@@ -85,6 +110,17 @@ public class FeedbackRepository {
             rs.getTimestamp("updated_at") != null ? rs.getTimestamp("updated_at").toInstant() : null,
             rs.getObject("version", Long.class));
 
+    private static final RowMapper<ModerationQueueRow> MODERATION_QUEUE_ROW_MAPPER = (rs, _) -> new ModerationQueueRow(
+            rs.getString("item_type"),
+            rs.getObject("id", Long.class),
+            rs.getObject("entity_id", Long.class),
+            rs.getString("content_text"),
+            rs.getObject("rating", Integer.class),
+            rs.getString("moderation_reason"),
+            rs.getObject("author_id", Long.class),
+            rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toInstant() : null,
+            FeedbackModerationStatus.valueOf(rs.getString("moderation_status")));
+
     private static final RowMapper<FeedbackAggregate> AGGREGATE_ROW_MAPPER = (rs, _) -> FeedbackAggregate.builder()
             .id(rs.getObject("id", Long.class))
             .entityType(EntityType.valueOf(rs.getString("entity_type")))
@@ -108,6 +144,56 @@ public class FeedbackRepository {
             FROM feedback_comment fc
             JOIN feedback_content c ON c.id = fc.content_id
             """;
+
+    // 'FEEDBACK' branch joins feedback_rating for its own rating; 'COMMENT' branch joins feedback
+    // (aliased ff) ONLY to resolve entity_id here in SQL -- this JOIN is the actual N+1 fix (previously
+    // one findFeedbackById() call per comment, from the orchestrator layer).
+    private static final String MODERATION_QUEUE_CTE = """
+            WITH moderation_queue AS (
+                SELECT 'FEEDBACK' AS item_type, f.id, f.entity_id, c.content_text, r.rating,
+                       c.moderation_reason, f.author_id, c.created_at, c.moderation_status
+                FROM feedback f
+                JOIN feedback_content c ON c.id = f.content_id
+                JOIN feedback_rating r ON r.feedback_id = f.id
+                UNION ALL
+                SELECT 'COMMENT' AS item_type, fc.id, ff.entity_id, c.content_text, NULL::smallint AS rating,
+                       c.moderation_reason, fc.author_id, c.created_at, c.moderation_status
+                FROM feedback_comment fc
+                JOIN feedback_content c ON c.id = fc.content_id
+                JOIN feedback ff ON ff.id = fc.feedback_id
+            )
+            """;
+
+    private static final SqlFilterBuilder<ModerationQueueFilterDto> MODERATION_QUEUE_FILTER = new SqlFilterBuilder<>(List.of(
+            SqlBoundFilter.of(ModerationQueueFilterDto.Fields.types, "item_type",
+                    (m, v) -> SqlCondition.inSet(m, v.getTypes())),
+            SqlBoundFilter.of(ModerationQueueFilterDto.Fields.reasonText, "moderation_reason",
+                    (m, v) -> SqlCondition.like(m, v.getReasonText())),
+            SqlBoundFilter.of(ModerationQueueFilterDto.Fields.createdAtStart, "created_at",
+                    (m, v) -> SqlCondition.after(m, v.getCreatedAtStart())),
+            SqlBoundFilter.of(ModerationQueueFilterDto.Fields.createdAtEnd, "created_at",
+                    (m, v) -> SqlCondition.before(m, v.getCreatedAtEnd()))
+    ));
+
+    private static final SqlFilterMapping AUTHOR_IDS_MAPPING = new SqlFilterMapping() {
+        @Override public String filterProperty() { return "authorIds"; }
+        @Override public String sqlExpression() { return "author_id"; }
+    };
+
+    private static final SqlFilterMapping STATUSES_MAPPING = new SqlFilterMapping() {
+        @Override public String filterProperty() { return "statuses"; }
+        @Override public String sqlExpression() { return "moderation_status"; }
+    };
+
+    // Tiebreaker must be (item_type, id) together, never id alone -- id is NOT globally unique
+    // across this UNION ALL (feedback and feedback_comment each have their own independent
+    // sequence), unlike every other *SortMeta in this app which sorts a single real table.
+    private static final List<SortField> MODERATION_QUEUE_SORT_FIELDS = List.of(
+            SortField.of(ModerationQueueItemDto.Fields.createdAt, "created_at", Sort.Direction.DESC,
+                    SortField.of("itemType", "item_type"), SortField.of("rowId", "id")),
+            SortField.of(ModerationQueueItemDto.Fields.type, "item_type",
+                    SortField.of(ModerationQueueItemDto.Fields.createdAt, "created_at"), SortField.of("rowId", "id"))
+    );
 
     private final JdbcClient jdbcClient;
     private final FeedbackCrudRepository feedbackCrud;
@@ -308,5 +394,44 @@ public class FeedbackRepository {
         jdbcClient.sql("DELETE FROM feedback_content WHERE id = :contentId")
                 .paramSource(new MapSqlParameterSource().addValue("contentId", contentId))
                 .update();
+    }
+
+    private String buildModerationQueueWhere(MapSqlParameterSource params, ModerationQueueFilterDto filter, Set<Long> authorIds) {
+        StringBuilder where = new StringBuilder(" WHERE ");
+        if (filter.getStatuses() == null || filter.getStatuses().isEmpty()) {
+            params.addValue("hiddenStatus", FeedbackModerationStatus.HIDDEN.name());
+            where.append("moderation_status = :hiddenStatus");
+        } else {
+            SqlCondition<Collection<String>> statusCondition = SqlCondition.inSet(STATUSES_MAPPING, filter.getStatuses());
+            params.addValue(statusCondition.filterProperty(), statusCondition.value());
+            where.append(statusCondition.getConditionClause());
+        }
+        where.append(MODERATION_QUEUE_FILTER.build(params, filter, " AND "));
+        SqlCondition<Long[]> authorCondition = SqlCondition.anyOf(AUTHOR_IDS_MAPPING, authorIds);
+        if (authorCondition != null) {
+            params.addValue(authorCondition.filterProperty(), authorCondition.value());
+            where.append(" AND ").append(authorCondition.getConditionClause());
+        }
+        return where.toString();
+    }
+
+    public List<ModerationQueueRow> findModerationQueuePage(@NonNull ModerationQueueFilterDto filter, @NonNull Sort sort, @NonNull Pageable pageable, Set<Long> authorIds) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        String where = buildModerationQueueWhere(params, filter, authorIds);
+        String orderBy = OrderByBuilder.build(sort, MODERATION_QUEUE_SORT_FIELDS);
+        String limitOffset = PaginationSqlBuilder.pageLimit(params, pageable);
+        return jdbcClient.sql(MODERATION_QUEUE_CTE + "SELECT * FROM moderation_queue" + where + orderBy + limitOffset)
+                .paramSource(params)
+                .query(MODERATION_QUEUE_ROW_MAPPER)
+                .list();
+    }
+
+    public long countModerationQueue(@NonNull ModerationQueueFilterDto filter, Set<Long> authorIds) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        String where = buildModerationQueueWhere(params, filter, authorIds);
+        return jdbcClient.sql(MODERATION_QUEUE_CTE + "SELECT COUNT(*) FROM moderation_queue" + where)
+                .paramSource(params)
+                .query(Long.class)
+                .single();
     }
 }

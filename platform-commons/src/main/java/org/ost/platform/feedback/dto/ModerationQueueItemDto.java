@@ -1,16 +1,17 @@
-package org.ost.orchestrator.dto;
+package org.ost.platform.feedback.dto;
 
 import lombok.Builder;
 import lombok.Value;
 import lombok.experimental.FieldNameConstants;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
+import org.ost.platform.feedback.model.ModerationQueueItemType;
 
 import java.time.Instant;
 
 /** One row in the merged, oldest-first moderation queue -- a presentation-level discriminated
  *  union over hidden feedback entries and hidden replies, not a new persistence table. */
 @Value
-@Builder
+@Builder(toBuilder = true)
 @FieldNameConstants
 public class ModerationQueueItemDto {
 

@@ -9,8 +9,11 @@ import org.ost.platform.feedback.dto.FeedbackCommentDto;
 import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
+import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
+import org.ost.platform.feedback.dto.ModerationQueueItemDto;
 import org.ost.platform.feedback.spi.FeedbackPort;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -139,5 +142,15 @@ public class FeedbackPortImpl implements FeedbackPort {
     @Override
     public Optional<FeedbackCommentDto> findCommentById(@NonNull Long commentId) {
         return service.findCommentById(commentId);
+    }
+
+    @Override
+    public List<ModerationQueueItemDto> findModerationQueue(@NonNull ModerationQueueFilterDto filter, @NonNull Sort sort, int page, int size) {
+        return service.findModerationQueue(filter, sort, page, size);
+    }
+
+    @Override
+    public int countModerationQueue(@NonNull ModerationQueueFilterDto filter) {
+        return service.countModerationQueue(filter);
     }
 }

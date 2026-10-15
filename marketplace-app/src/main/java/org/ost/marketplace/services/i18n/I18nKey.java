@@ -557,7 +557,6 @@ public enum I18nKey {
 
     // === Moderation Sort ===
     MODERATION_SORT_CREATED_AT("moderation.sort.createdAt"),
-    MODERATION_SORT_AUTHOR("moderation.sort.author"),
     MODERATION_SORT_TYPE("moderation.sort.type"),
 
     // === Moderation Field Labels ===

@@ -5,8 +5,8 @@ import lombok.NoArgsConstructor;
 import org.ost.marketplace.ui.query.filter.FilterFieldMeta;
 import org.ost.marketplace.ui.query.filter.ValidationPredicates;
 import org.ost.marketplace.ui.query.filter.ValidationService;
-import org.ost.orchestrator.dto.ModerationQueueFilterDto;
-import org.ost.orchestrator.dto.ModerationQueueItemType;
+import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
+import org.ost.platform.feedback.model.ModerationQueueItemType;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
 
 import java.time.Instant;
@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.function.BiPredicate;
 
-import static org.ost.orchestrator.dto.ModerationQueueFilterDto.Fields.*;
+import static org.ost.platform.feedback.dto.ModerationQueueFilterDto.Fields.*;
 import static org.ost.marketplace.ui.views.utils.SupportUtil.nullIfBlank;
 import static org.ost.marketplace.ui.query.utils.TimeZoneUtil.toInstant;
 

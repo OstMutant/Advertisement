@@ -193,30 +193,198 @@ Design first, present for approval before implementing:
 
 ### Phase 4 — moderation queue N+1 and silent cap
 
-Present both options below and the trade-off before implementing — final choice to be confirmed:
+**Superseded (2026-10-15) — scope expanded from a patch to a real fix, by explicit user decision
+after weighing the trade-off.** The originally-planned patch (bulk `findFeedbackByIds` + a visible
+`truncated` flag) would have kept the underlying in-memory architecture and its `MAX_QUEUE_FETCH =
+1000` cap. Investigation found that architecture is the one place in the codebase that does NOT
+follow this repo's standard SQL-level filter/sort/page pattern (`SqlFilterBuilder`/`OrderByBuilder`
++ real `LIMIT`/`OFFSET`, as every other catalog view — e.g. `AdvertisementRepository.findByFilter`
+— already does); moderation queue instead fetches up to 1000 rows per of 4 categories and does
+filter/sort/page in Java. No ADR records this as a deliberate choice — only a code comment
+("queue size is bounded by real reports, not catalog scale"), which the very existence of the cap
+already contradicts. Decision: move moderation queue onto the same SQL-level pattern as everything
+else, eliminating the cap (and therefore the need for any `truncated` flag) and the N+1 in one
+pass, rather than patching around a design that isn't actually used anywhere else in this app.
 
-- **(A)** Return `entityId` on `FeedbackCommentDto` via a `JOIN feedback` in the comment queries —
-  zero extra queries, but changes a `platform-commons` DTO (an SPI contract): every constructor,
-  mapper and test using it must be updated.
-- **(B)** Add a bulk `findFeedbackByIds(Set<Long>)` to `FeedbackPort` using `= ANY(:ids)` (this
-  repo's existing convention for id lists) — one extra query regardless of N, no SPI contract
-  change. *Recommended starting point given the smaller blast radius*, final choice still to be
-  confirmed in the phase's own plan.
-  - If (B): verify empty-`Set`, duplicate-id, and `ANY(:ids)` behavior in the actual repository
-    implementation before relying on it — no new test dependency introduced just for this.
-- **Make truncation visible to the moderator, not just to a developer reading the code:** add an
-  explicit `truncated` signal on the moderation queue page result that reaches `ModerationView`'s
-  status bar — a comment next to `MAX_QUEUE_FETCH` stating the cap is deliberate is not sufficient
-  on its own, because it doesn't tell the user looking at the screen that the count is incomplete.
-  - Off-by-one: fetching exactly `MAX_QUEUE_FETCH` per category can't distinguish "exactly at the
-    cap" from "more exist beyond it" — fetch `MAX_QUEUE_FETCH + 1` per category and use the extra
-    row purely as the truncation signal (never render it).
-  - Note explicitly that this still doesn't make `totalCount` numerically accurate past the cap —
-    only that it stops silently lying by flagging incompleteness. Moving filtering/sorting/paging
-    into the database to fix `totalCount` itself is a larger change — out of scope here, flag as a
-    possible future task if/when the queue is observed to actually exceed the cap in practice.
-- Test: comments across several feedback entries appear in the queue with `entityId` populated,
-  and paging/`totalCount`/`truncated` are correct at and around the cap boundary.
+**Why this doesn't violate starter independence (resolved concern, verified against real code):**
+the one apparent blocker — `authorName` filter/sort needs data from `user_information`, which
+`feedback-spring-boot-starter`'s own `pom.xml` enforcer rule explicitly bans depending on
+(`user-spring-boot-starter` is in its `bannedDependencies`) — already has a live precedent solving
+the exact same shape of problem: `AdvertisementService` (`advertisement-spring-boot-starter`) holds
+a `ComponentFactory<TaxonPort>` field and calls `TaxonPort.resolveCategoryAndCityFilter(...)` to
+resolve a category/city filter into an entity-id `Set<Long>` *before* building its own SQL —
+depending on the **Port interface** (lives in `platform-commons`, always a legal dependency) while
+its Maven enforcer rule bans only the **sibling starter module** (the implementation). The same
+mechanism applies here: `FeedbackService` gets a `ComponentFactory<UserPort>` field, and
+`UserFilterDto` already has a `name` field with existing SQL-level `ILIKE` support in
+`UserPort.getFiltered(...)` — no new method needs to be added to `UserPort` at all.
+
+**Design (filter resolution vs. display enrichment — the same split `AdvertisementDisplayEnrichmentService`
+already uses elsewhere, applied here as an inline step rather than a new class since it's one
+field):**
+- **Filter resolution** (authorName *search text* → `Set<Long>` of matching user ids, used in the
+  `WHERE` clause) happens *inside* `feedback-spring-boot-starter`'s `FeedbackService`, mirroring
+  `AdvertisementService.resolveTaxonFilter` exactly: `Optional<Set<Long>>` where empty-`Optional`
+  means "no filter requested" (unrestricted) and a present-but-possibly-empty `Set` means "filter
+  requested, these are the matches" (empty set → short-circuit to an empty page without hitting
+  feedback's own SQL at all, same as `AdvertisementService.getFiltered` already does for taxon
+  filters).
+- **Display enrichement** (`authorId` → human-readable `authorName`, for rendering) stays in
+  `marketplace-orchestrator`'s `FeedbackAccessService`, exactly where it already lives today via
+  `resolveAuthorNames`/`UserActorNameService` — *not* moved into the starter, per the existing rule
+  that query-time filter resolution belongs in the owning starter but display composition belongs
+  in the orchestrator. The one real improvement: this now resolves names for only the current
+  **page's** `authorId`s (e.g. 20-50), not for up to 4000 pre-fetched rows as today.
+
+**Concrete plan, by module:**
+
+1. **`platform-commons`** — relocate 3 types currently misplaced in `marketplace-orchestrator.dto`
+   (an SPI-shaped concept that belongs with its owning domain, not the BFF layer) into their
+   correct packages, no field/behavior change in this step:
+   - `ModerationQueueFilterDto` → `org.ost.platform.feedback.dto.ModerationQueueFilterDto`
+   - `ModerationQueueItemDto` → `org.ost.platform.feedback.dto.ModerationQueueItemDto` (add
+     `@Builder(toBuilder = true)` — needed so the orchestrator can rebuild each page item with its
+     resolved `authorName` without losing immutability)
+   - `ModerationQueueItemType` → `org.ost.platform.feedback.model.ModerationQueueItemType`
+   - Update every consumer's import (8 files found via grep: `FeedbackAccessServiceTest`,
+     `ModerationQueueFilterMapper`, `ModerationView`, `ModerationQueueFilterMeta`,
+     `ModerationQueryBlock`, `ModerationQueryConfig`, `ModerationQueueSortMeta`,
+     `FeedbackAccessService` — mechanical import-path changes only for all but the last two).
+   - `FeedbackPort`: add `List<ModerationQueueItemDto> findModerationQueue(@NonNull
+     ModerationQueueFilterDto filter, @NonNull Sort sort, int page, int size);` and `int
+     countModerationQueue(@NonNull ModerationQueueFilterDto filter);` — mirrors
+     `AdvertisementPort.getFiltered`/`count`'s exact two-method shape. The 4 existing methods
+     (`findHiddenFeedback`/`findHiddenComments`/`findConfirmedViolationFeedback`/
+     `findConfirmedViolationComments`) stay — they have their own direct callers/tests unrelated to
+     the queue (confirmed: `FeedbackAccessServiceTest.moderationQueue_flagApproveConfirmReject_fullLifecycle`
+     asserts against them directly).
+
+2. **`feedback-spring-boot-starter`**:
+   - `FeedbackRepository`: one `UNION ALL` SQL (feedback-shaped rows + comment-shaped rows,
+     comment's `entity_id` resolved via a real `JOIN feedback` *in this query* — this is the actual
+     N+1 fix, not a bulk-fetch patch) wrapped as a CTE, with `SqlFilterBuilder`-built `WHERE`
+     (status, type, author-id-set, reason `ILIKE`, date range), `OrderByBuilder`-built `ORDER BY`
+     for the `createdAt`/`type` sort options, and real `LIMIT`/`OFFSET` — plus a parallel
+     `COUNT(*)` query over the same CTE without the limit/offset. A small row-mapper record (type
+     discriminator, id, entityId, contentText, rating, moderationReason, authorId, createdAt,
+     moderationStatus) is the query's own return shape; `FeedbackService` maps it into
+     `ModerationQueueItemDto` with `authorName = null` (filled in later, by the orchestrator).
+   - **`authorName` is not a sort option at all — matching the established, repo-wide convention.**
+     Verified against real code: `AdvertisementInfoDto.createdByUserName` and
+     `ProviderProfileDto.actorName` are both cross-domain display fields resolved for rendering,
+     and in both cases the matching `*SortMeta` (`AdvertisementSortMeta`, `ProviderProfileSortMeta`)
+     simply never exposes them as a sort option — only fields that live in the owning table are
+     sortable anywhere in this app. `ModerationQueueSortMeta.AUTHOR_NAME` is the one place this
+     convention was broken; removing it (not working around it with a fetch-all-then-sort fallback)
+     is the actually-symmetric fix. Only `createdAt`/`type` remain as sort options, both fully
+     SQL-level. The `authorName` *filter* (`ModerationQueueFilterMeta.AUTHOR_NAME`) is unaffected —
+     filtering by a resolved id-set has a real precedent (`TaxonPort`) and stays.
+     - `ModerationQueueSortMeta.java`: delete the `AUTHOR_NAME` constant.
+     - `ModerationQueryBlock.java`: change the "Author row" to the same filter-only shape already
+       used by the "Reason row" a few lines below it (`filterRow(label, field, filterMeta)`, no
+       sort meta/sort label argument) — delete the `MODERATION_SORT_AUTHOR`-driven sort column.
+     - `I18nKey.java` + both locale properties files: delete `MODERATION_SORT_AUTHOR`
+       (`moderation.sort.author`) — confirmed via grep its only 2 usages are the two files above,
+       safe to delete outright, not just stop referencing.
+   - `FeedbackService`: `ComponentFactory<UserPort> userPortFactory` field (first cross-domain
+     optional port this starter has ever needed — record this as its own ADR entry, see below);
+     `findModerationQueue(filter, sort, page, size)`/`countModerationQueue(filter)` methods
+     implementing the author-name-*filter* resolution only (no sort-dependent branch needed, per
+     above).
+   - `FeedbackPortImpl`: pure delegation for the 2 new methods, same as every other method in this
+     class.
+   - No `pom.xml` change needed — `UserPort` lives in `platform-commons`, already a dependency of
+     every starter; only the *module* `user-spring-boot-starter` is banned, not its Port interface.
+
+3. **`marketplace-orchestrator`** — `FeedbackAccessService`:
+   - Remove `MAX_QUEUE_FETCH`, `buildFullModerationQueue`, `matchesFilter`, `resolveComparator`,
+     both `toQueueItem` overloads — all of this logic moves into the starter's SQL + Java (step 2).
+   - `findModerationQueue(filter, sort, page, size)` becomes: call
+     `feedbackPortFactory.findIfAvailable().map(p -> p.findModerationQueue(...))`, collect the
+     page's distinct `authorId`s, resolve names via the existing `resolveAuthorNames` (now only
+     ever called with a page-sized set, not up to 4000 ids), rebuild each item via
+     `.toBuilder().authorName(...).build()`, then call `countModerationQueue(filter)` for the real
+     total. `ModerationQueuePage` record is unchanged (`items`, `totalCount`) — no `truncated`
+     field needed since there is no longer a cap to signal.
+
+4. **`marketplace-app`** — mechanical import-path updates only in the 6 files listed in step 1; no
+   behavior change (`ModerationView`'s own rendering/pagination wiring is unaffected since
+   `ModerationQueuePage`'s shape doesn't change).
+
+5. **Tests:**
+   - `FeedbackRepositoryTest`/`FeedbackServiceTest` (level1) — new tests for the unified SQL query:
+     type/status/author-id/reason/date filters each isolated, `createdAt`/`type` sort via SQL, and
+     the real N+1 fix (a comment attached to a *different* feedback entry than another comment in
+     the same page must show the correct, distinct `entityId` for each — this is the functional
+     proof the JOIN works, not a query-count assertion, since no query-counting utility exists in
+     this repo and one should not be introduced just for this per the project's own "no new test
+     dependency" guidance).
+   - `FeedbackAccessServiceTest` (level2) — update existing `moderationQueue_*` tests for the new
+     call shape; confirm `authorName` *filter* still works end-to-end through the real `UserPort`
+     (this test's `@SpringBootTest` context already includes `UserAutoConfiguration`).
+   - No large-row-count truncation test needed anymore (nothing to truncate).
+
+6. **Record as its own ADR** (`/record-decision`, `feedback-spring-boot-starter` and/or
+   `marketplace-orchestrator`): (a) moderation queue moving from in-memory merge/filter/sort/page
+   to SQL-level, matching the repo-wide pattern; (b) `feedback-spring-boot-starter` gaining its
+   first-ever optional cross-domain `ComponentFactory<UserPort>` dependency, and why it doesn't
+   violate starter independence (Port-interface-via-`ComponentFactory` vs. Maven-module-ban are
+   different things — same mechanism `advertisement-spring-boot-starter` already uses for
+   `TaxonPort`).
+
+**Progress (2026-10-15).** Checkpoints A (DTO relocation to `platform-commons`, `AUTHOR_NAME` sort
+removed), B (SQL implementation: `FeedbackPort`/`FeedbackRepository`/`FeedbackService`/
+`FeedbackPortImpl`), and C (`FeedbackAccessService` simplified to a thin SQL-backed delegate) are
+done and verified. All 17 `FeedbackAccessServiceTest` tests pass unchanged against the new SQL
+implementation (confirmed genuine, not a false positive: `moderationQueue_authorAndReasonAndDateFilters`'s
+author-name-filter assertion exercises the real `UserPort`-backed resolution end to end against
+Postgres). **Real regression found and fixed after Checkpoint B**, missed by that checkpoint's own
+verification (which only ran `FeedbackAccessServiceTest`, already had `UserAutoConfiguration` in its
+context): `FeedbackServiceTest` and `FeedbackRepositoryTest` (level1) don't include
+`UserAutoConfiguration`, and `RepositoryTestSupport` has no empty `ComponentFactory<UserPort>`
+fallback (by its own documented convention — a newly-needed optional port gets its fallback added
+locally by the consuming test, not in the shared class) — so `FeedbackService`'s new
+`ComponentFactory<UserPort>` constructor dependency broke both tests' Spring context entirely
+(`UnsatisfiedDependencyException`). Fixed initially by adding a local `@TestConfiguration` with an empty `ComponentFactory<UserPort>`
+bean to both test files — **later superseded** (see below) by a cleaner fix once a second,
+systemic problem surfaced.
+
+**Checkpoint D done**: 7 new tests added directly to `FeedbackRepositoryTest`, exercising
+`findModerationQueuePage`/`countModerationQueue` at the SQL level — proving the actual N+1 fix (two
+comments on two different feedback entries resolve distinct, correct `entityId`s via the real SQL
+`JOIN`, not just "looks equivalent" at a higher layer), default-status filtering, reason `ILIKE`,
+date range, `authorIds` filtering, `type` sort ordering, and count-independent-of-page-limit.
+`FeedbackRepositoryTest` 15 → 22 tests, all green.
+
+**Second regression found and fixed during the full-gate pass**: running the full `--unit
+--integration --sandbox` gate (not just targeted test classes) failed twice, deterministically, at
+the same ~4m14s mark, same test class (`ProviderProfileRepositoryTest`, unrelated to feedback) with
+`FATAL: sorry, too many clients already` (Postgres connection exhaustion) — not random flakiness.
+Root cause: the local-`TestConfiguration`-per-test fix above created 2 *textually identical but
+distinct* nested classes (`FeedbackRepositoryTest.TestConfig`, `FeedbackServiceTest.TestConfig`),
+and Spring Test's context cache keys on the literal `Class` objects in `@SpringBootTest(classes=
+...)` — so 2 separate Spring contexts (and 2 separate HikariCP pools) were created instead of one,
+tipping the full suite's cumulative connection count over Postgres's `max_connections` ceiling.
+Fixed properly per this repo's own documented convention ("extract to a shared file once two or
+more consumers need the same helper"): moved the empty `ComponentFactory<UserPort>` fallback bean
+into `RepositoryTestSupport` itself (mirroring the existing Audit/Attachment/Advertisement/
+ProviderProfile fallbacks there), removed both local `TestConfig` classes entirely. This both fixed
+the regression (both tests now share one cached context again) and is objectively cleaner code.
+
+**ADR recorded**: `marketplace-orchestrator/DECISIONS.md` ADR-011 ("Moderation queue implemented
+with SQL-level filter, sort, and pagination"), `.claude/nav/adr-index.md` regenerated.
+
+**`/review` run on the full diff before commit** — 3 `CONFIRMED` findings, all fixed:
+1. `ModerationQueueFilterDto`'s Javadoc pointed to the now-deleted `FeedbackAccessService.matchesFilter()` — repointed to `FeedbackRepository.buildModerationQueueWhere()`.
+2. `FeedbackRepository`'s SQL sort fields never mapped `authorName` — `OrderByBuilder` silently fell back to `createdAt DESC` instead of erroring, a real regression from the old Java `Comparator`-based sort. Fixed by removing the one remaining test (`sortedByAuthor`) that still exercised this already-removed-everywhere-else option, rather than resurrecting it — consistent with ADR-011's own decision that `authorName` isn't a supported sort.
+3. `FeedbackService.resolveAuthorIdsFilter` capped author-name-filter resolution at a hardcoded `MAX_AUTHOR_NAME_MATCHES=1000` single page — the exact "silent cap" defect class this whole phase was created to eliminate, just at a different layer. Fixed: now pages through *all* matches (`resolveAllMatchingAuthorIds`, `AUTHOR_SEARCH_PAGE_SIZE=500` per page, loops until a short page is returned) — no cap at all.
+
+**Final state — all verified, fully committed-ready:**
+- `FeedbackRepositoryTest` 22/22, `FeedbackServiceTest` 34/34, `FeedbackAccessServiceTest` 17/17 (one
+  stale assertion removed, not a count change), `FeedbackCommentWriteServiceTest` 7/7.
+- Full `--unit --integration --sandbox` gate re-run after all 3 review fixes: **737/737**, 0 failures.
+- Nothing outstanding. A separate follow-up task (`improvement-209`) was offered by the reviewing
+  agent for these same 3 findings but declined — fixed directly in this phase instead of deferred.
 
 ## Related
 
