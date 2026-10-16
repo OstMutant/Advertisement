@@ -9,7 +9,7 @@ Automated E2E tests using `@playwright/test` (headless Chromium). See
 - Docker Desktop (Windows) or Docker Engine (Linux/WSL2)
 - App image already built and `marketplace-app` container created
   (`bash` [`scripts/deploy-and-run.sh`](../scripts/deploy-and-run.sh) once)
-- DB + MinIO containers running (started automatically by `deploy-and-run.sh`)
+- DB + SeaweedFS containers running (started automatically by `deploy-and-run.sh`)
 
 The `marketplace-app` container is started automatically if stopped. The database is reset
 automatically before each run — see "Database reset" below.

@@ -2,6 +2,36 @@
 
 ---
 
+## ADR-016: MinIO → SeaweedFS local dev/CI storage backend swap
+
+**Status:** Accepted
+
+**Context:** MinIO Community Edition's GitHub repo was archived upstream 2026-04-25 after a
+maintenance wind-down — license changed Apache 2.0 → AGPLv3 (2025-05), Admin GUI removed, Docker
+Hub publishing stopped. No further upstream security fixes will land on it. The project needed a
+replacement local S3-compatible storage backend for `scripts/deploy-and-run/`'s dev stack and
+`scripts/ci/dagu/ci.yaml`'s isolated e2e stack.
+
+**Decision:** Replaced MinIO with SeaweedFS (`chrislusf/seaweedfs` image) — Apache 2.0 licensed,
+actively maintained (36+ committers/12mo, 35.3k stars). `weed server -s3` runs
+master+volume+filer+S3-gateway as one process; `s3.json` identities (admin write + anonymous
+bucket-scoped read) generated inline at container startup from `.env`-sourced credentials, passed
+as real container environment variables (not embedded in the generating shell string, to avoid
+outer-shell substitution corrupting the JSON before escaping runs). Readiness is checked via the
+S3 gateway port alone (not the master's `/cluster/status` too) — a single readiness check,
+matching the same "one readiness mechanism, not two" principle `scripts/ci/DECISIONS.md` already
+established for a different service. A shared entrypoint script mounted via host-path bind mount
+was attempted first to avoid duplicating this logic between `run.sh`'s raw `docker run` path and
+`docker-compose.seaweedfs.yml`; reverted because host-path bind mounts don't work reliably in this
+sandbox — the same pre-existing constraint `scripts/ci/DECISIONS.md` documents for its own
+container-source-sync mechanism — so duplication between the two paths is accepted as a trade-off.
+
+**Rejected alternatives:** Garage (AGPLv3-licensed, far smaller community — 83 contributors total
+vs. SeaweedFS's active base) was considered and rejected on license + maintenance-activity
+grounds.
+
+---
+
 ## ADR-015: `--in-container` mode — sync reliability (no `exec`, container-internal directory restoration, OverlayFS `sync` before copy-out)
 
 **Status:** Accepted

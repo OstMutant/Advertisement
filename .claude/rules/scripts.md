@@ -23,7 +23,7 @@ host-wide, not scoped to this app's own containers/volumes, so they will remove 
 container / unused volume on the machine too (see `.claude/nav/adr-index.md` for the incident that
 made this explicit instead of automatic).
 
-Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-only-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache (only meaningful with `--from-scratch`). Use `--prune-all` for a deliberate, whole-machine deep clean (see warning above).
+Use `--reset` to wipe DB/SeaweedFS volumes. Use `--restart-infra` to restart containers only. Use `--reset-only-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache (only meaningful with `--from-scratch`). Use `--prune-all` for a deliberate, whole-machine deep clean (see warning above).
 
 **Streaming output requirement — BuildKit + buildx:**
 Docker Engine must have BuildKit enabled AND the `buildx` CLI plugin must be installed at
@@ -61,7 +61,7 @@ chmod +x ~/.docker/cli-plugins/docker-compose
 Verify: `docker buildx version` / `docker compose version`.
 
 **`--project-directory` is required whenever `-f` points outside the repo root.**
-`scripts/deploy-and-run/docker-compose.db.yml`/`docker-compose.app.yml`/`docker-compose.minio.yml` live in
+`scripts/deploy-and-run/docker-compose.db.yml`/`docker-compose.app.yml`/`docker-compose.seaweedfs.yml` live in
 `scripts/deploy-and-run/`, not the repo root, but read `${POSTGRES_IMAGE}`/`${DB_NAME}`/`${DB_USER}`/
 `${DB_PASSWORD}`/`${DB_PORT}`/`${S3_ACCESS_KEY}`/`${S3_SECRET_KEY}`/`${S3_BUCKET}`/`${S3_REGION}`/
 `${S3_PORT}` from the repo-root `.env` — the single source of truth for these values, also read as
@@ -88,7 +88,7 @@ surface a real error (with its named pointer's detail) or a stall well past norm
 scripts\run-local.bat           REM dev profile — Vaadin dev mode, port 8080
 scripts\run-local.bat --prod    REM production Vaadin build, prod profile, port 8080
 ```
-Windows-only (native Maven + Java — no WSL). Requires DB and MinIO already running. Use when you need to compare local vs Docker behaviour.
+Windows-only (native Maven + Java — no WSL). Requires DB and SeaweedFS already running. Use when you need to compare local vs Docker behaviour.
 
 ---
 

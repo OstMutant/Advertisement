@@ -192,7 +192,7 @@ if "%CLAUDE_ONLY%"=="1" (
     call :CheckRootFile ".env"
     call :CheckRootFile "scripts\deploy-and-run\docker-compose.app.yml"
     call :CheckRootFile "scripts\deploy-and-run\docker-compose.db.yml"
-    call :CheckRootFile "scripts\deploy-and-run\docker-compose.minio.yml"
+    call :CheckRootFile "scripts\deploy-and-run\docker-compose.seaweedfs.yml"
     call :CheckRootFile "lombok.config"
     call :CheckRootFile "scripts\deploy-and-run\reset-clean.sql"
     call :CheckRootFile ".claude\skills\module-doc-standards\SKILL.md"

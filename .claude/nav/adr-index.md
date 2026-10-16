@@ -233,6 +233,7 @@ necessarily that it's unused.
 | ADR-008 (scripts/ci) | scripts/ci | Accepted |  | 0 | `unit`/`integration` stages merged into one `build_and_test` stage |
 | ADR-009 (scripts/ci) | scripts/ci | Accepted |  | 0 | `progress.txt` polling replaced by a persistent Dagu server; three problems only found by running it for real |
 | ADR-010 (scripts/ci) | scripts/ci | Accepted |  | 0 | CI pipeline metrics + ArchUnit export as DAG steps; three more real bugs; a genuine build-speed fix along the way |
+| ADR-016 (scripts) | scripts | Accepted |  | 0 | MinIO → SeaweedFS local dev/CI storage backend swap |
 | ADR-015 (scripts) | scripts | Accepted |  | 0 | `--in-container` mode — sync reliability (no `exec`, container-internal directory restoration, OverlayFS `sync` before copy-out) |
 | ADR-014 (scripts) | scripts | Accepted |  | 0 | Activity Monitor — token-efficient step-checklist narration wrapping backgrounded scripts, chained ahead of the agent's own Monitor tool |
 | ADR-013 (scripts) | scripts | Accepted |  | 0 | Agentic JSON output envelope (AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK) for script results |

@@ -7,7 +7,7 @@ paths: ["playwright/**"]
 After making UI changes, verify them by running the Playwright script inside Docker.
 
 ### Prerequisites
-- DB and MinIO already running (started separately via scripts/deploy-and-run/docker-compose.db.yml / scripts/deploy-and-run/docker-compose.minio.yml)
+- DB and SeaweedFS already running (started separately via scripts/deploy-and-run/docker-compose.db.yml / scripts/deploy-and-run/docker-compose.seaweedfs.yml)
 - App image built with: `docker build -f Dockerfile -t marketplace-app .` (always run with `SPRING_PROFILES_ACTIVE=prod`, which sets `vaadin.productionMode=true`)
 - App must be running:
 ```bash
@@ -46,7 +46,7 @@ needed just to make a later spec's preconditions exist, since categories/cities 
 03, not spec 06).
 
 **Always deploy with a clean database (`bash scripts/deploy-and-run.sh --reset-only-db` — truncate,
-fast — or `--reset` — full DB/MinIO volume wipe, only needed when the schema itself changed)
+fast — or `--reset` — full DB/SeaweedFS volume wipe, only needed when the schema itself changed)
 immediately before running the full `e2e --ux` suite for verification purposes** — never reuse
 whatever state happens to be sitting in the dev DB from an earlier run this session. This is not
 optional/best-effort: rerunning the same full suite twice against a non-reset DB produces test

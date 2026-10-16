@@ -8,7 +8,7 @@ spring:
     username: ${DB_USER:experiments_user}
     password: ${DB_PASSWORD:experiments_user_password}
 
-# S3-compatible storage (MinIO locally)
+# S3-compatible storage (SeaweedFS locally)
 storage:
   s3:
     endpoint: http://localhost:${S3_PORT:9000}

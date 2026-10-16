@@ -6,17 +6,17 @@
 #   from the repo-root Dockerfile directly -- this file exists for local production-build
 #   verification and the Neon/Supabase Storage variant below, not for deploying.
 # Usage: docker compose --project-directory . -f scripts/deploy-and-run/docker-compose.db.yml
-#     -f scripts/deploy-and-run/docker-compose.minio.yml
+#     -f scripts/deploy-and-run/docker-compose.seaweedfs.yml
 #     -f scripts/deploy-and-run/docker-compose.app.yml up --build
 #   (--project-directory required -- see docker-compose.db.yml's own header)
-#   Neon DB + Supabase Storage (no local DB/MinIO needed, uncomment the env vars below first):
+#   Neon DB + Supabase Storage (no local DB/SeaweedFS needed, uncomment the env vars below first):
 #     docker-compose -f scripts/deploy-and-run/docker-compose.app.yml up --build
 # Uses: repo-root Dockerfile (full multi-stage build, not the thin scripts/deploy-and-run/Dockerfile).
 # Env: DB_NAME, DB_USER, DB_PASSWORD, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION, S3_PORT
 #   -- read from the repo-root .env. DB_PORT/S3_ENDPOINT's internal container ports (5432/9000)
 #   are deliberately hardcoded, not parameterized -- see the inline comment below.
 # Input: repo-root .env, repo source (Dockerfile build context).
-# Outputs: app container, publishing 8080 -> 8080, depending on db+minio being healthy (omit this
+# Outputs: app container, publishing 8080 -> 8080, depending on db+seaweedfs being healthy (omit this
 #   file's depends_on when running standalone against Neon/Supabase Storage instead).
 # ────────────────────────────────────────────────────────────────────────────
 version: '3.8'
@@ -43,7 +43,7 @@ services:
       # DB_USER: neondb_owner
       # DB_PASSWORD: your_password
       # DB_SSL_PARAMS: "?sslmode=require&channel_binding=require"
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT: http://seaweedfs:9000
       S3_BUCKET: ${S3_BUCKET}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY}
@@ -58,11 +58,11 @@ services:
       # S3_PUBLIC_URL: https://<project-ref>.supabase.co/storage/v1/object/public/advertisement
     ports:
       - "8080:8080"
-    # NOTE: depends_on references services from scripts/deploy-and-run/docker-compose.db.yml and scripts/deploy-and-run/docker-compose.minio.yml.
+    # NOTE: depends_on references services from scripts/deploy-and-run/docker-compose.db.yml and scripts/deploy-and-run/docker-compose.seaweedfs.yml.
     # Use this file together with those files (see commands above).
     # When deploying with Neon + Supabase Storage, omit this file's depends_on by running the app standalone.
     depends_on:
       db:
         condition: service_healthy
-      minio:
+      seaweedfs:
         condition: service_healthy

@@ -1,0 +1,59 @@
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: SeaweedFS (S3-compatible storage) for local development -- emulates Cloudflare R2/S3.
+#   Master UI: http://localhost:9333. S3 API: http://localhost:${S3_PORT}.
+# Usage: docker compose --project-directory . -f scripts/deploy-and-run/docker-compose.seaweedfs.yml up -d
+#   docker compose --project-directory . -f scripts/deploy-and-run/docker-compose.seaweedfs.yml down
+#   --project-directory is required for the same reason as docker-compose.db.yml's own header --
+#   without it, the Env vars below silently resolve to empty strings.
+# Uses: chrislusf/seaweedfs image (all-in-one master+volume+filer+S3-gateway process).
+# Env: S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET, S3_PORT -- all read from the repo-root .env.
+# Input: repo-root .env.
+# Outputs: advertisement-seaweedfs container (publishing S3_PORT -> 9000, 9333 -> 9333, named
+#   volume seaweedfs_data); a seaweedfs-init container that creates the S3_BUCKET bucket, then exits.
+# ────────────────────────────────────────────────────────────────────────────
+version: '3.8'
+
+x-seaweedfs-image: &seaweedfs_image chrislusf/seaweedfs:latest
+
+services:
+  seaweedfs:
+    container_name: advertisement-seaweedfs
+    image: *seaweedfs_image
+    restart: unless-stopped
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+    entrypoint: >
+      /bin/sh -c "
+      mkdir -p /etc/seaweedfs &&
+      esc() { printf '%s' \"$$1\" | sed 's/\\\\/\\\\\\\\/g; s/\"/\\\\\"/g'; } &&
+      AK=$$(esc \"$$S3_ACCESS_KEY\") && SK=$$(esc \"$$S3_SECRET_KEY\") && BK=$$(esc \"$$S3_BUCKET\") &&
+      printf '{\"identities\":[{\"name\":\"admin\",\"credentials\":[{\"accessKey\":\"%s\",\"secretKey\":\"%s\"}],\"actions\":[\"Admin\",\"Read\",\"Write\",\"List\",\"Tagging\"]},{\"name\":\"anonymous\",\"actions\":[\"Read:%s\"]}]}' \"$$AK\" \"$$SK\" \"$$BK\" > /etc/seaweedfs/s3.json &&
+      weed server -dir=/data -s3 -s3.port=9000 -s3.config=/etc/seaweedfs/s3.json -ip.bind=0.0.0.0
+      "
+    ports:
+      - "${S3_PORT}:9000"
+      - "9333:9333"
+    volumes:
+      - seaweedfs_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s --max-time 3 http://localhost:9000/ >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  seaweedfs-init:
+    image: *seaweedfs_image
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      echo 's3.bucket.create -name ${S3_BUCKET}' | weed shell -master=seaweedfs:9333;
+      echo 'Bucket created successfully';
+      "
+    restart: on-failure
+
+volumes:
+  seaweedfs_data:

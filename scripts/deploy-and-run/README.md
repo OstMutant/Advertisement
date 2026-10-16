@@ -1,9 +1,9 @@
 # deploy-and-run
 
-The local prod-simulation deploy pipeline: starts the application alongside PostgreSQL and MinIO,
+The local prod-simulation deploy pipeline: starts the application alongside PostgreSQL and SeaweedFS,
 so the full stack runs the same way locally as it would in a real deployment (production Vaadin
 bundle, real Postgres, real S3-compatible storage) — without needing a hosted environment. Also
-owns this project's shared local infrastructure (the raw `docker-compose*.yml` files for DB/MinIO/
+owns this project's shared local infrastructure (the raw `docker-compose*.yml` files for DB/SeaweedFS/
 app, usable independently of the deploy pipeline itself) and the database-truncate script
 ([`reset.sh`](reset.sh)).
 
@@ -20,8 +20,8 @@ it's a real, independently runnable entry point on its own too, not just an inte
 flowchart TD
     A[run.sh] --> B{mode?}
     B -->|--reset| B1[remove containers + volumes] --> C
-    B -->|--restart-infra| B2[remove db+minio containers, volumes kept] --> C
-    B -->|default| C[start infra: pull images, start db+minio, wait, configure MinIO bucket]
+    B -->|--restart-infra| B2[remove db+seaweedfs containers, volumes kept] --> C
+    B -->|default| C[start infra: pull images, start db+seaweedfs, wait, configure SeaweedFS bucket]
     C --> D{--reset-only-db?}
     D -->|yes| D1[reset.sh --container DB_CONTAINER] --> E
     D -->|no| E{--from-scratch?}
@@ -51,6 +51,6 @@ flowchart TD
 
 ### Raw docker-compose files (no script entry point)
 
-[`docker-compose.db.yml`](docker-compose.db.yml) / [`docker-compose.minio.yml`](docker-compose.minio.yml) /
+[`docker-compose.db.yml`](docker-compose.db.yml) / [`docker-compose.seaweedfs.yml`](docker-compose.seaweedfs.yml) /
 [`docker-compose.app.yml`](docker-compose.app.yml) aren't invoked by either script above — see each
 file's own header for what it's for and its exact invocation.

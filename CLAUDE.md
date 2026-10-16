@@ -152,12 +152,12 @@ Reference implementations: `UserRepository` in user-spring-boot-starter, `Advert
 ---
 
 ## Spring Profiles
-- `dev` (default) — `localhost:5432` PostgreSQL, `localhost:9000` MinIO, Liquibase seed data.
+- `dev` (default) — `localhost:5432` PostgreSQL, `localhost:9000` SeaweedFS, Liquibase seed data.
 - `prod` — uses env vars: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `S3_PUBLIC_URL`.
 
 Local infrastructure only (IDE dev mode):
 ```bash
-docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.minio.yml up -d
+docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.seaweedfs.yml up -d
 ```
 
 ---
