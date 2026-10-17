@@ -1,8 +1,8 @@
 Scaffold a new tracked task in `backlog/tasks/` from the standard template, then rank it in
 `backlog/BACKLOG.md`'s priority table.
 
-Usage: /feature <short description or title>
-Example: /feature UserPickerField pagination bug with CallbackDataProvider offset math
+Usage: /new-task <short description or title>
+Example: /new-task UserPickerField pagination bug with CallbackDataProvider offset math
 
 Steps:
 0. Check `.claude/nav/adr-index.md` (if present) for an already-decided ADR overlapping this request —
@@ -48,13 +48,16 @@ Steps:
    ## Related
 
    <cross-references to related tasks/ADRs/CLAUDE.md sections already surfaced in conversation>
+
+   <the empty `## Operational notes` block exactly as `.claude/rules.md` defines it, every key at
+     `n/a` and `adrs_referenced: none` — updated during the work, never left for the end>
    ```
    If the conversation so far doesn't have enough concrete detail for these sections (e.g. the
    user just said a short title with no discussion), read the relevant source first (per this
    project's established pattern in every task filed so far this session) rather than writing a
    vague placeholder — verify claims against actual code before committing them to the task file.
 4. Present the drafted file content and wait for confirmation before writing (per the Approval
-   Rule in `.claude/rules.md`) — unless the user's `/feature` invocation already came after an
+   Rule in `.claude/rules.md`) — unless the user's `/new-task` invocation already came after an
    explicit "so, roby"/"yes, do it" for this exact content in the current conversation, in which
    case write directly.
 5. Assign a Priority (mandatory — see `.claude/rules.md` "Task Lifecycle": every new task needs

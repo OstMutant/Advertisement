@@ -1,6 +1,6 @@
 # `.claude/commands/`
 
-Slash-command definitions, each invoked directly by name (`/feature`, `/ci`, ...). Every command
+Slash-command definitions, each invoked directly by name (`/new-task`, `/ci`, ...). Every command
 here is independent — no file-to-file call chain between them, so no Flow diagram; each is its own
 self-contained entry point, described below and linked to its real file.
 
@@ -18,7 +18,7 @@ self-contained entry point, described below and linked to its real file.
   `scripts/ci/run.sh`).
 - [`/deploy-and-run`](deploy-and-run.md) — Rebuild the `marketplace-app` Docker image and start a
   fresh container using the project deploy script.
-- [`/feature`](feature.md) — Scaffold a new tracked task in `backlog/tasks/` from the standard
+- [`/new-task`](new-task.md) — Scaffold a new tracked task in `backlog/tasks/` from the standard
   template, then rank it in `backlog/BACKLOG.md`'s priority table.
 - [`/new-domain`](new-domain.md) — Create a complete new UI domain in `marketplace-app` following
   the established patterns.

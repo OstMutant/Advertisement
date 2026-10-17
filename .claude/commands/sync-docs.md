@@ -372,5 +372,5 @@ above, and Step A5's operational self-tracking aggregate.
 - All diagrams must use Mermaid syntax
 - All conclusions must reference actual class names or file paths
 - ADR format: see `.claude/commands/record-decision.md` step 4
-- Task format: see `.claude/commands/feature.md` step 3
+- Task format: see `.claude/commands/new-task.md` step 3
 - Never duplicate tasks — update existing ones rather than creating new

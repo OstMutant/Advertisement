@@ -541,16 +541,16 @@ adr_intent_for_module() {
 # keeps only each ADR's home-module row, skipping the extra "Also affects" cross-reference rows
 # that table carries (same id string repeated once per affected module) so an ADR is counted once.
 all_adrs_json() {
-  local items_json="" first_i=true id module status referenced title home
+  local items_json="" first_i=true id module status applied title home
   if [ -f "$ADR_INDEX" ]; then
-    while IFS=$'\x1f' read -r id module status referenced title; do
+    while IFS=$'\x1f' read -r id module status applied title; do
       [ -z "$id" ] && continue
       home="$(echo "$id" | sed -n 's/^ADR-[0-9]\+ (\(.*\))$/\1/p')"
       [ -z "$home" ] && home="$module"
       [ "$module" != "$home" ] && continue
       $first_i || items_json="$items_json,"$'\n'
       first_i=false
-      items_json="$items_json    {\"id\": \"$(json_escape "$id")\", \"module\": \"$(json_escape "$home")\", \"status\": \"$(json_escape "$status")\", \"referenced\": ${referenced:-0}, \"title\": \"$(json_escape "$title")\"}"
+      items_json="$items_json    {\"id\": \"$(json_escape "$id")\", \"module\": \"$(json_escape "$home")\", \"status\": \"$(json_escape "$status")\", \"applied\": ${applied:-null}, \"title\": \"$(json_escape "$title")\"}"
     done < <(awk -F' \\| ' '/^\| ADR-/ { sub(/^\| /, "", $1); sub(/ *\|$/, "", $6); print $1 "\x1f" $2 "\x1f" $3 "\x1f" $5 "\x1f" $6 }' "$ADR_INDEX")
   fi
   echo "[$items_json"$'\n'"  ]"
@@ -4342,9 +4342,9 @@ function renderAdrs() {
     groups[groupIndex[a.module]].items.push(a);
   });
   groups.forEach(grp => {
-    // Most-referenced first within each module -- surfaces which ADRs are actually
+    // Most-applied first within each module -- surfaces which ADRs are actually
     // load-bearing instead of the file-appearance order adr-index.md happens to carry.
-    grp.items.sort((a, b) => (b.referenced || 0) - (a.referenced || 0));
+    grp.items.sort((a, b) => (b.applied || 0) - (a.applied || 0));
     // Only a real MODULE node has a Module-detail page to link to -- SCRIPT_GROUP entries
     // (docs/architecture/scripts, scripts/ci, etc.) stay plain text, no dead/wrong-feeling navigation.
     const grpNode = byId[grp.module];
@@ -4352,9 +4352,9 @@ function renderAdrs() {
       ? `<a class="module-link" onclick="navigate({screen:'module', id:'${esc(grp.module)}'})">${esc(grp.module)}</a>`
       : esc(grp.module);
     html += `<section class="block"><h3>${grpHeading} (${grp.items.length}) ${sourceLink(grp.module + "/DECISIONS.md")}</h3>
-      <table class="simple"><thead><tr><th>ADR</th><th>Status</th><th style="width:70px">Referenced</th><th>Title</th></tr></thead><tbody>`;
+      <table class="simple"><thead><tr><th>ADR</th><th>Status</th><th style="width:70px">Applied</th><th>Title</th></tr></thead><tbody>`;
     grp.items.forEach(a => {
-      html += `<tr><td><a onclick="openAdrPopupForAdr('${esc(a.id)}', '${esc(a.module)}', '${esc(a.title)}', '${esc(a.status)}')">${esc(a.id)}</a></td><td>${esc(a.status)}</td><td>${a.referenced || 0}</td><td>${esc(a.title)}</td></tr>`;
+      html += `<tr><td><a onclick="openAdrPopupForAdr('${esc(a.id)}', '${esc(a.module)}', '${esc(a.title)}', '${esc(a.status)}')">${esc(a.id)}</a></td><td>${esc(a.status)}</td><td>${a.applied ?? ""}</td><td>${esc(a.title)}</td></tr>`;
     });
     html += `</tbody></table></section>`;
   });

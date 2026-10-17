@@ -25,6 +25,10 @@ scripts\claude.bat your.email@gmail.com --update   REM rebuild the image from Do
 scripts\claude.bat your.email@gmail.com --recreate REM force a fresh container
 ```
 
+`--update` always reinstalls the newest Claude Code; the Node and Claude Code versions are
+`ARG` defaults in [`Dockerfile.claude`](Dockerfile.claude), so a Node/package mismatch fails the
+build instead of silently installing an older release.
+
 Chat history and project context are shared across accounts (same mounted project directory);
 only the auth config folder is per-account, so switching accounts on rate limits keeps the
 conversation going.
@@ -47,6 +51,9 @@ scripts\opencode.bat your.email@gmail.com            REM start (or reuse) the co
 scripts\opencode.bat your.email@gmail.com --update   REM rebuild the image from Dockerfile.opencode first
 scripts\opencode.bat your.email@gmail.com --recreate REM force a fresh container
 ```
+
+`--update` likewise reinstalls the newest opencode; its Node and opencode versions are `ARG`
+defaults in [`Dockerfile.opencode`](Dockerfile.opencode).
 
 Provider credentials are set up interactively on first use via `opencode auth login` inside the
 container; the per-login config folder keeps credentials isolated across accounts the same way

@@ -2861,3 +2861,16 @@ for lifecycle clarity (`scripts/ci/DECISIONS.md` ADR-010 updated in place); 15 s
 references swept to "SeaweedFS"; the general Bash `PreToolUse` approval hook scoped to real
 project scripts instead of every Bash command. Commit 21e39576. Full detail:
 `completed/tasks/improvement-204-dependency-java-version-upgrade-audit.md`.
+
+✅ Done (2026-10-17): improvement-209 closed — the Claude Code and opencode dev containers
+(`Dockerfile.claude`/`Dockerfile.opencode`, `scripts/claude.bat`/`opencode.bat`) now take their
+versions from Dockerfile `ARG`s (Node 24, `CLAUDE_CODE_VERSION`/`OPENCODE_VERSION` default `latest`,
+a refresh build-arg on `--update`) and install with `--engine-strict`, fixing a silent downgrade to
+Claude Code 2.1.197 that kept Sonnet 5.5 out of `/model`; recorded as `scripts/DECISIONS.md`
+ADR-017, host-verified for both containers. Also: ADR usage is now counted in each ADR's own
+`**Applied:**` line (bumped when a task closes; the `## Operational notes` block exists from task
+creation), recorded by rewriting `.claude/DECISIONS.md` ADR-004; `generate-adr-index.sh` and the
+architecture map collect it (blank, never 0, when absent); the task-filing command `/feature` was
+renamed `/new-task` across the live docs. A `/review` pass found a stale ADR-004 and stale backlog
+status text, both fixed. Full detail:
+`completed/tasks/improvement-209-claude-dev-container-version-variables.md`.

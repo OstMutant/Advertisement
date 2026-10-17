@@ -46,34 +46,38 @@ own, already-settled criterion (fully specified → Haiku, no threshold), and be
 justified picking those specific numbers over any other. If a real threshold turns out to be
 warranted, this decision's own new metrics are what should justify it later — not another guess.
 
-## ADR-004: Per-task ADR usage tracking, aggregated into a reference count on the generated ADR index
+## ADR-004: Per-task ADR usage tracking, counted in each ADR's own `**Applied:**` line
 
 **Status:** Accepted
 
+**Applied:** 2
+
 **Context:** `.claude/nav/adr-index.md` already tracks each ADR's existence, module, status, and
-an opportunistically-stamped `Verified:` date — but nothing tracks whether an ADR is actually
-*used*: consulted or followed during real implementation work. Over time this makes it impossible
-to tell which ADRs are load-bearing (frequently consulted, worth keeping precise and current) from
-ones nobody has looked at since they were written (candidates for archiving, or at least lower
-priority for the `Verified:` stamping effort). Measuring this needed a source of real per-task
-data, the same philosophy already established for `review_signal_ratio`/`flows_matched`/
-`context_loading_matched` — recorded honestly per run, aggregated later, not guessed.
+an opportunistically-stamped `Verified:` date — but nothing tracked whether an ADR is actually
+*used* in real work. Without that it is impossible to tell which ADRs are load-bearing (worth
+keeping precise and current) from ones nobody has applied since they were written. The first
+attempt tallied a free-form `adrs_referenced:` field from every task file at generation time; it
+never produced a non-zero count, because the `## Operational notes` block was written once, at
+task end, from memory, and a blank field read the same as an unused ADR.
 
 **Decision:**
-1. New field in `.claude/rules.md`'s standing `## Operational notes` block: `adrs_referenced:
-   <ADR-NNN (module), ADR-MMM (module), ... or n/a>` — every ADR actually consulted or followed
-   during that task, in the exact `ADR-NNN (module)` key shape `adr-index.md`'s own first column
-   already uses (so the two join without reformatting).
-2. `.claude/nav/scripts/generate-adr-index.sh` gains a pre-pass that scans every
-   `adrs_referenced:` line across `backlog/tasks/*.md` and `backlog/completed/tasks/*.md`, tallies
-   a reference count per `ADR-NNN (module)` key, and threads it into the generated table as a new
-   `Referenced` column (defaulting to 0 for any ADR never cited this way) — mechanical, generated,
-   never hand-edited, same discipline as every other column in this file.
+1. The `## Operational notes` block (`.claude/rules.md`) exists from the moment a task is created
+   and is updated during the work. Its `adrs_referenced: <ADR-NNN (module), ... or none>` line lists
+   every ADR that actually shaped a decision in that task (merely reading one does not count), in
+   the exact key shape `adr-index.md`'s first column uses.
+2. The counter lives in the ADR: an optional `**Applied:** N` line after `**Status:**`.
+   `/record-decision` writes `**Applied:** 1` into a new ADR (its creating task is the first to
+   apply it). Whoever closes a task adds 1 to the `**Applied:**` of every ADR in its
+   `adrs_referenced`, except an ADR that task itself created; where the line is absent it is added
+   as `**Applied:** 1`. One count per task, however often the ADR is cited.
+3. `generate-adr-index.sh` only collects `**Applied:**` into the index's `Applied` column — blank
+   when the line is absent, never 0 — and the architecture-map generator shows the same value, so
+   the map fills in gradually and truthfully. Tasks closed before this decision are not backfilled.
 
-**Rejected alternatives:** A hand-maintained counter line inside each `DECISIONS.md` entry itself
-(e.g. `**Referenced:** N`) — rejected because it would need mechanical editing of up to 16
-different files every time any ADR gets referenced anywhere, fragile and against this file's own
-"generated, not hand-edited" precedent for aggregate ADR facts.
+**Rejected alternatives:** Tallying `adrs_referenced` across task files inside
+`generate-adr-index.sh` — depends on a free-form field being filled in correctly, and a typo
+silently counts as zero. A separate usage log or second index file — a second source of truth next
+to the existing index.
 
 ## ADR-002: Formalize `/deep-review`'s reasoning layer as real, isolated `.claude/agents/*.md` subagents
 

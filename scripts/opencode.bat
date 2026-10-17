@@ -25,6 +25,8 @@ REM   fails.
 REM ----------------------------------------------------------------------------
 setlocal
 cd /d "%~dp0.."
+set "IMAGE=opencode-j25-dev"
+set "CONTAINER=opencode-dev"
 
 :: Get login (email) from first argument
 set LOGIN=%1
@@ -55,9 +57,9 @@ goto parse_args
 :: Rebuild image if --update was requested
 if "%DO_UPDATE%"=="1" (
     echo ===================================================
-    echo   Rebuilding opencode-j25-dev image...
+    echo   Rebuilding %IMAGE% image...
     echo ===================================================
-    docker build -f Dockerfile.opencode -t opencode-j25-dev .
+    docker build --build-arg OPENCODE_REFRESH=%RANDOM%%RANDOM% -f Dockerfile.opencode -t %IMAGE% .
     if errorlevel 1 (
         echo Error: Docker build failed.
         exit /b 1
@@ -70,13 +72,13 @@ if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%"
 
 :: Reuse a running container unless --recreate was passed
 set RUNNING=
-for /f %%i in ('docker ps --filter "name=^opencode-dev$" --filter "status=running" -q') do set RUNNING=%%i
+for /f %%i in ('docker ps --filter "name=^%CONTAINER%$" --filter "status=running" -q') do set RUNNING=%%i
 
 if not "%RUNNING%"=="" if "%RECREATE%"=="0" (
     echo ===================================================
-    echo   Reusing running opencode-dev container for login: %LOGIN%
+    echo   Reusing running %CONTAINER% container for login: %LOGIN%
     echo ===================================================
-    docker exec -it opencode-dev opencode%EXTRA_ARGS%
+    docker exec -it %CONTAINER% opencode%EXTRA_ARGS%
     goto :eof
 )
 
@@ -89,8 +91,8 @@ echo ===================================================
 :: 1. Mount current directory (Shared Project Context)
 :: 2. Mount isolated per-login config folder, split into opencode's own XDG data/config subpaths
 :: 3. Mount Maven cache
-docker rm -f opencode-dev >nul 2>&1
-docker run -it --rm --name opencode-dev ^
+docker rm -f %CONTAINER% >nul 2>&1
+docker run -it --rm --name %CONTAINER% ^
   -v "%CD%:/app" ^
   -v "%CONFIG_DIR%:/root/.opencode-home" ^
   -e XDG_DATA_HOME=/root/.opencode-home/data ^
@@ -98,4 +100,4 @@ docker run -it --rm --name opencode-dev ^
   -v "%USERPROFILE%\.m2:/root/.m2" ^
   -v //var/run/docker.sock:/var/run/docker.sock ^
   --network host ^
-  opencode-j25-dev%EXTRA_ARGS%
+  %IMAGE%%EXTRA_ARGS%

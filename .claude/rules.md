@@ -1,6 +1,6 @@
 ## ⛔ RE-READ ALL RULES BEFORE EVERY ACTION
 Before executing any tool call — re-read this entire file. No exceptions. This explicitly includes
-the start of every `/command` or Skill invocation (`/autopilot`, `/code-review`, `/feature`, etc.)
+the start of every `/command` or Skill invocation (`/autopilot`, `/code-review`, `/new-task`, etc.)
 — re-`Read` this file fresh at that point, not just once at the top of a long session.
 
 Not rules.md alone: re-`Read` the root `/app/CLAUDE.md` plus every module `CLAUDE.md` the task
@@ -440,7 +440,7 @@ subdirectory, which belongs to that one group alone.
 
 ## Task Lifecycle
 
-Before filing a new ADR (`/record-decision`) or a new backlog task (`/feature`), consult
+Before filing a new ADR (`/record-decision`) or a new backlog task (`/new-task`), consult
 `.claude/nav/adr-index.md` (if present) for an already-decided overlapping ADR — mandatory, not
 best-effort. See `.claude/nav/README.md` for what the file is and how it stays current.
 
@@ -452,6 +452,8 @@ When filing a **new** task in `backlog/tasks/`:
 
 When a task in `backlog/tasks/` is resolved (fix is implemented and committed):
 - Move the file to `backlog/completed/tasks/` — **immediately, in the same operation as the fix**
+- Add 1 to `**Applied:**` in every ADR listed in its `adrs_referenced` that the task did not itself
+  create (see "Final reports record real operational data"), then regenerate `.claude/nav/adr-index.md`
 - Do not leave resolved tasks in `backlog/tasks/`
 - Remove its row from `backlog/BACKLOG.md` and add a one-line `✅ Done` entry to
   `backlog/completed/BACKLOG-ARCHIVE.md` under the relevant wave — same operation, see
@@ -477,8 +479,10 @@ Keep the report human: what was done in plain terms, test results (counts, not j
 and review-finding decisions. Skip the enumerated file-changes section entirely.
 
 ### Final reports record real operational data in a fixed, mechanically-parseable block
-Whenever completing a task, append an `## Operational notes` block to that task file — real
-observations from the real task just done, not a synthetic exercise, and not free-form prose (a
+Every task file carries an `## Operational notes` block from the moment it is created (`/new-task`
+writes it with `n/a`/`none` values). Update its lines during the work as each fact becomes known
+— an ADR that shaped a decision, an Agent call, a script run — never reconstructed from memory at
+the end. Entries are real observations from the real task, not a synthetic exercise, and not free-form prose (a
 later aggregate pass greps/parses this across many task files, the same way `## ADR-NNN:` +
 `**Status:**` makes `DECISIONS.md` mechanically indexable — inconsistent formatting defeats that).
 Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply to this task:
@@ -498,7 +502,7 @@ Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply 
 - haiku_decomposition_used: <yes/no/n/a — did this run's implementation phase (autopilot step 2) or /sync-docs diff-mode's parallelization dispatch Haiku per the eligibility criteria in those commands, or n/a if neither applies>
 - haiku_decomposition_dispatch_count: <N Haiku dispatches used for this purpose, or n/a>
 - haiku_decomposition_rework_needed: <N dispatches whose output needed a correction after verification> / <N total such dispatches>, or n/a
-- adrs_referenced: <ADR-NNN (module), ADR-MMM (module), ... every ADR actually consulted or followed during this task, in that exact key shape, or n/a if none>
+- adrs_referenced: <ADR-NNN (module), ADR-MMM (module), ... every ADR that actually shaped a decision or was followed in this task, in that exact key shape, or none — merely reading an ADR does not count>
 
 ### Agent calls
 - <purpose> | subagent_type=<X> | tokens=<N> | tool_uses=<N> | duration_s=<N> | mode=<foreground|background> | batch=<parallel-group-id or solo>
@@ -542,10 +546,14 @@ low/zero rate confirms per-unit dispatch with no threshold is working as intende
 per run, same discipline as `review_signal_ratio` — never skip recording a rework event just
 because it was caught and fixed quickly.
 
-**`adrs_referenced`** exists to answer, over time, which ADRs are actually load-bearing — consulted
-or followed during real work — versus ones nobody has looked at since they were written.
-`.claude/nav/scripts/generate-adr-index.sh` tallies this field across every task file into a
-`Referenced` column on the generated index; a consistently-zero count across many tasks is a
+**`adrs_referenced`** exists to answer, over time, which ADRs are actually load-bearing — applied
+in real work — versus ones nobody has used since they were written. `/record-decision` appends the
+ADR it creates to the current task's line itself and writes `**Applied:** 1` into that new ADR. When
+a task is closed, whoever closes it adds 1 to the `**Applied:** N` line of every ADR in the task's
+`adrs_referenced` (adding `**Applied:** 1` right after `**Status:**` where the line is absent),
+except an ADR this very task created, already counted at creation — one count per task, however
+many times it is cited. `.claude/nav/scripts/generate-adr-index.sh` only
+collects that line into an `Applied` column on the generated index (blank when absent, never 0); a consistently-zero count across many tasks is a
 signal that ADR is a candidate for lower-priority upkeep (not automatic deletion — some decisions
 are rarely touched specifically because they're settled), while a high count marks one worth
 keeping especially precise and current.

@@ -2,6 +2,66 @@
 
 ---
 
+## ADR-017: AI dev containers (Claude Code, opencode) install their CLI with an explicit tag and `--engine-strict`; versions are Dockerfile ARGs, Node 24
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Context:** `Dockerfile.claude` installed Node 20 and ran a bare `npm install -g
+@anthropic-ai/claude-code`. Claude Code 2.1.198 and later declare `engines.node >=22`; under
+Node 20 a bare-name install silently resolves the newest engine-compatible release (2.1.197) even
+though `latest` was 2.1.302 (verified with `npm install --dry-run` under Node 20.20.2 / npm
+10.8.2). An explicit tag (`@latest`, `@x.y.z`) installs the newest release under Node 20 with only
+an `EBADENGINE` warning, and `--engine-strict` turns that warning into a hard failure. The
+container runs with `docker run --rm`, so the in-container auto-updater's newer binary is
+discarded on every exit and each start runs the image's baked-in version; `claude.bat --update`
+also reused Docker's cached npm layer. Net effect: Sonnet 5.5 (needs Claude Code 2.1.284 or later)
+never appeared in `/model`, however often the image was rebuilt.
+
+**Decision:**
+- Versions are Dockerfile `ARG`s with defaults living only in `Dockerfile.claude`
+  (`BASE_IMAGE=eclipse-temurin:25-jdk-jammy`, `NODE_MAJOR=24`, `CLAUDE_CODE_VERSION=latest`,
+  `CLAUDE_CODE_REFRESH=0`), the same pattern `scripts/ci/Dockerfile` uses for its tool version.
+  `scripts/claude.bat` holds only the image/container names and passes a fresh
+  `CLAUDE_CODE_REFRESH` on `--update`; the `ARG` is declared after the apt layer, so only the
+  Claude Code layer rebuilds and the ~1 GB apt layer stays cached.
+- The install is `npm install -g --engine-strict @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}`
+  (explicit tag plus strict engines), so a Node/package mismatch fails the build loudly instead of
+  silently shipping an older release. `claude --version` is printed in the build log.
+- Node 24, not 22: both satisfy `engines.node >=22`, but 22's security support ends 2027-04-30
+  versus 2028-04-30 for 24.
+- `CLAUDE_CODE_VERSION` defaults to `latest` on purpose: a newly launched model can require a
+  Claude Code newer than the `stable` channel serves.
+- `Dockerfile.opencode` and `scripts/opencode.bat` follow the identical shape (`BASE_IMAGE`,
+  `NODE_MAJOR=24`, `OPENCODE_VERSION=latest`, `OPENCODE_REFRESH=0`, `opencode-ai@${OPENCODE_VERSION}`
+  with `--engine-strict`, `opencode --version` in the build log) — one decision for both
+  containers. `opencode-ai` declares no `engines` today, so `--engine-strict` is a no-op there that
+  keeps the two Dockerfiles interchangeable; the old Node 20 had left security support on 2026-04-30.
+
+**Rejected alternatives:**
+- Pinning the base image to a digest: recommended by Docker for supply-chain integrity, but this
+  is a dev tool container on a moving `jammy` tag and the upkeep outweighs the benefit.
+- A `docker-compose.claude.yml` with `build.args`: would move `claude.bat` from `docker
+  build`/`docker run` to compose for no gain.
+- Root `.env` as the version source: it feeds the compose deploy scripts, and parsing it in batch
+  is fragile.
+- The `stable` release channel, `DISABLE_AUTOUPDATER` (the in-container updater is harmless since
+  `--rm` discards it), and version overrides passed through `claude.bat` variables (a second
+  source of truth).
+
+**Consequences:** rebuilding always yields the newest Claude Code; bumping any version is a
+one-line `ARG` default change; a Node major below the package's `engines.node` breaks the build
+visibly; both containers are bumped and rebuilt the same way.
+
+**Sources:**
+- [Docker build best practices](https://docs.docker.com/build/building/best-practices/) — pin versions, version variables for easier bumps, `apt-get update` and `install` in one `RUN`
+- [Claude Code: install with npm](https://code.claude.com/docs/en/setup#install-with-npm) — npm package requires Node 22+, upgrade with `@latest`, specific version via `@x.y.z`, `stable` vs `latest` channels
+- [Node.js release schedule](https://endoflife.date/nodejs) — Node 22 and 24 support windows
+- [How to Build Docker Images with Cache Busting](https://oneuptime.com/blog/post/2026-01-30-docker-cache-busting/view) — third-party article, not official Docker documentation: `ARG` as a cache-bust value, declared as late as possible
+
+---
+
 ## ADR-016: MinIO → SeaweedFS local dev/CI storage backend swap
 
 **Status:** Accepted
