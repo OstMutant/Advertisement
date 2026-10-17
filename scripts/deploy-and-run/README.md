@@ -7,6 +7,10 @@ owns this project's shared local infrastructure (the raw `docker-compose*.yml` f
 app, usable independently of the deploy pipeline itself) and the database-truncate script
 ([`reset.sh`](reset.sh)).
 
+## Administrator account for automation
+
+The repo-root `.env` holds `ADMIN_EMAIL` and `ADMIN_PASSWORD`: the account that automation (the Postman collection, the API flow runner, and in value the Playwright `adminEn` user) registers first after a database reset, which makes it `ADMIN`. They are development values read by tooling only; the application does not read them. Never use them on a real deployment.
+
 ## Flow
 
 Two independent entry points: [`run.sh`](run.sh) (full deploy pipeline) and

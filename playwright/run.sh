@@ -25,6 +25,8 @@
 # Env: APP_URL (default http://localhost:8081), APP_CONTAINER (marketplace-app), PW_CONTAINER
 #   (pw-runner), DB_PORT (5432), DB_USER (experiments_user), DB_NAME (experiments) -- all
 #   overridable, used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack.
+#   ADMIN_EMAIL, ADMIN_PASSWORD (default: the repo-root .env values) -- forwarded into the
+#   pw-runner container for the adminEn test user.
 # Input: playwright/e2e/*.spec.js, playwright/e2e/_flows/*.js, playwright/e2e/_helpers.js,
 #   playwright/playwright.config.js. --lint also reads playwright/eslint.config.js/package.json,
 #   ignores playwright.config.js.
@@ -259,7 +261,9 @@ docker cp "$ROOT/playwright/playwright.config.js" "$PW_CONTAINER":/tmp/
 # ── Build run command ─────────────────────────────────────────────────────────
 # APP_URL must be forwarded explicitly -- playwright.config.js reads it from the pw-runner
 # container's own env, not this script's shell (docker exec starts a fresh environment).
-PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright APP_URL=$APP_URL"
+ADMIN_EMAIL="${ADMIN_EMAIL:-$(grep -E '^ADMIN_EMAIL=' "$ROOT/.env" 2>/dev/null | cut -d= -f2-)}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(grep -E '^ADMIN_PASSWORD=' "$ROOT/.env" 2>/dev/null | cut -d= -f2-)}"
+PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright APP_URL=$APP_URL ADMIN_EMAIL=$ADMIN_EMAIL ADMIN_PASSWORD=$ADMIN_PASSWORD"
 [ -n "$UX" ]   && PW_ENV="$PW_ENV PW_SCREENSHOTS=1"
 [ -n "$FULL" ] && PW_ENV="$PW_ENV PW_FULL=1"
 

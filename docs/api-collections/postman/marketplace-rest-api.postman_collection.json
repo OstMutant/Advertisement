@@ -40,7 +40,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Bruno Tester\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "raw": "{\n  \"name\": \"Admin EN\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -345,11 +345,11 @@
     },
     {
       "key": "email",
-      "value": "bruno.tester@example.com"
+      "value": "admin.en@example.com"
     },
     {
       "key": "password",
-      "value": "password123"
+      "value": "password"
     }
   ]
 }
