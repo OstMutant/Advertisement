@@ -2874,3 +2874,5 @@ architecture map collect it (blank, never 0, when absent); the task-filing comma
 renamed `/new-task` across the live docs. A `/review` pass found a stale ADR-004 and stale backlog
 status text, both fixed. Full detail:
 `completed/tasks/improvement-209-claude-dev-container-version-variables.md`.
+
+✅ Done (2026-10-17): improvement-214 closed — `ADMIN_EMAIL` and `ADMIN_PASSWORD` (the English admin account, `admin.en@example.com`, development values only) added to the repo-root `.env` as the account automation registers first after a database reset; the Postman collection defaults use them, `playwright/run.sh` forwards them into the pw-runner container and the `adminEn` test user reads them with the previous values as fallback. The registration rule is unchanged (the first account registered becomes ADMIN); the API flow runner defaults are specified in improvement-212 and the production first-registrant weakness stays in improvement-052. Full detail: `completed/tasks/improvement-214-admin-credentials-from-environment.md`.
