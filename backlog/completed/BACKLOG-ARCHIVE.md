@@ -2850,3 +2850,14 @@ in-memory merge/filter/sort/page to SQL-level (UNION ALL CTE, real JOIN fixing t
 Javadoc, unsupported author-sort test, a reintroduced 1000-match cap) before commit. Full
 `--unit --integration --sandbox` gate: 738/738. Commit 66695664. Full detail:
 `completed/tasks/improvement-208-feedback-module-followups.md`.
+
+✅ Done (2026-10-17): improvement-204 closed — springdoc-openapi 2.8.5→3.1.1, Vaadin 25.2.8→25.3.2,
+AWS S3 SDK bump; MinIO→SeaweedFS local dev/CI storage-backend swap (MinIO CE archived upstream),
+recorded as `scripts/DECISIONS.md` ADR-016. Follow-up investigation of a real e2e CI crash found
+`configure_seaweedfs()` aborting on "bucket already exists" instead of treating it as success —
+fixed in `run.sh`/`docker-compose.seaweedfs.yml`, verified via a full green `scripts/ci.sh` run
+(e2e 66/66). Also: `keep_e2e_infra`/`reset_e2e_db` renamed `teardown_e2e_after`/`reset_e2e_stack`
+for lifecycle clarity (`scripts/ci/DECISIONS.md` ADR-010 updated in place); 15 stale "MinIO"
+references swept to "SeaweedFS"; the general Bash `PreToolUse` approval hook scoped to real
+project scripts instead of every Bash command. Commit 21e39576. Full detail:
+`completed/tasks/improvement-204-dependency-java-version-upgrade-audit.md`.
