@@ -7,7 +7,7 @@
 #   a freshly-rebuilt marketplace-app container, then playwright.sh once that succeeds). The deploy
 #   call always clears app data first -- by default via `--reset-only-db` (truncate, fast: schema/
 #   Liquibase history untouched, only needs a full reactor build + a live app), or via `--reset`
-#   (full DB/MinIO volume wipe, slower: also re-runs every Liquibase migration from scratch) when
+#   (full DB/SeaweedFS volume wipe, slower: also re-runs every Liquibase migration from scratch) when
 #   `--reset` is passed to this script -- use that only when the schema itself changed since the
 #   last run; `--reset-only-db` already gives Playwright the same guaranteed-clean *data* the
 #   original stale-state problem needed (see playwright/CLAUDE.md's own "Always deploy with

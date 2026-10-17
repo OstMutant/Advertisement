@@ -44,7 +44,7 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # own label (safe default, same "unprofiled still works" principle as the generic model fallback).
 # ────────────────────────────────────────────────────────────────────────────
 declare -A STEP_LABELS=(
-  ["deploy-and-run.sh:infra"]="Infra (DB/MinIO)"
+  ["deploy-and-run.sh:infra"]="Infra (DB/SeaweedFS)"
   ["deploy-and-run.sh:build"]="Build"
   ["deploy-and-run.sh:start-container"]="Start container"
   ["deploy-and-run.sh:start-application"]="Health check"
@@ -99,7 +99,7 @@ declare -A STEP_IS_CONTAINER=(
 
 # One short line per step, same "script:step" key shape as STEP_LABELS.
 declare -A STEP_DESCRIPTIONS=(
-  ["deploy-and-run.sh:infra"]="starts/reuses the Postgres and MinIO containers, waits until both respond"
+  ["deploy-and-run.sh:infra"]="starts/reuses the Postgres and SeaweedFS containers, waits until both respond"
   ["deploy-and-run.sh:build"]="compiles and packages the reactor (reuses build-and-test.sh's shared jar unless --from-scratch)"
   ["deploy-and-run.sh:start-container"]="starts the marketplace-app container against the built jar/image"
   ["deploy-and-run.sh:start-application"]="waits for the app to log \"Started Application\""

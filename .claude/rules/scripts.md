@@ -256,10 +256,10 @@ bash scripts/ci.sh --all --sonar                            # everything, explic
 bash scripts/ci.sh --no-docs                                 # skip the doc-freshness stage
 bash scripts/ci.sh --playwright-args "e2e --ux"                # override the e2e stage's
                                                                  # Playwright args
-bash scripts/ci.sh --no-keep-e2e-infra                            # tear down the isolated e2e
-                                                                   # stack after (on by default,
-                                                                   # left up for debugging)
-bash scripts/ci.sh --reset-e2e-db                                  # full --reset (volume wipe)
+bash scripts/ci.sh --teardown-e2e-after                           # tear down the isolated e2e
+                                                                   # stack after (left up for
+                                                                   # debugging by default)
+bash scripts/ci.sh --reset-e2e-stack                                # full --reset (volume wipe)
                                                                     # before e2e's deploy instead
                                                                     # of the default --reset-only-db
                                                                     # -- only needed when the DB

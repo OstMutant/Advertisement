@@ -54,6 +54,15 @@
             "command": "input=$(cat); sid=$(echo \"$input\" | grep -o '\"session_id\":\"[^\"]*\"' | head -1 | sed 's/\"session_id\":\"//;s/\"$//'); if [ -n \"$sid\" ] && [ -f \"/tmp/claude-approved/$sid\" ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"Approval Rule: already approved -- holds until the next new (non-approval) user message.\"}}'; exit 0; fi; echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"Approval Rule: every file edit / Agent dispatch / Skill invocation needs explicit confirmation.\"}}'"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); cmd=$(echo \"$input\" | sed -E 's/^.*\"command\":\"((\\\\.|[^\"\\\\])*)\".*$/\\1/'); SCRIPTS=$(find /app/scripts -maxdepth 1 -name \"*.sh\" 2>/dev/null; echo /app/playwright/run.sh; echo /app/integration-tests/run.sh); MATCHED=false; for s in $SCRIPTS; do rel=${s#/app/}; echo \"$cmd\" | grep -qF \"$rel\" && MATCHED=true; done; [ \"$MATCHED\" = false ] && exit 0; sid=$(echo \"$input\" | grep -o '\"session_id\":\"[^\"]*\"' | head -1 | sed 's/\"session_id\":\"//;s/\"$//'); if [ -n \"$sid\" ] && [ -f \"/tmp/claude-approved/$sid\" ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"Approval Rule: already approved -- holds until the next new (non-approval) user message.\"}}'; exit 0; fi; echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"Approval Rule: project script invocation needs explicit confirmation (plan + approval).\"}}'"
+          }
+        ]
       }
     ],
     "PostToolUse": [

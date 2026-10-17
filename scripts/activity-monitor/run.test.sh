@@ -228,7 +228,7 @@ mark_step "infra" "ok" "" ""
 STEP_COMPLETED_AT[infra]=$(( WRAPPER_START_TIME + 4 ))
 LAST_ACTIVITY_AT="$(date +%s)"
 tree_out="$(render_tree)"
-assert "completed step shows a real duration, not 0s" '[[ "$tree_out" == *"✅ Infra (DB/MinIO) (4s)"* ]]'
+assert "completed step shows a real duration, not 0s" '[[ "$tree_out" == *"✅ Infra (DB/SeaweedFS) (4s)"* ]]'
 assert "next undeclared step shows as running with a live elapsed counter" '[[ "$tree_out" == *"⏳ Build (running"* ]]'
 assert "a step further out in the sequence stays pending, no timer" '[[ "$tree_out" == *"⬜ Start container"* && "$tree_out" != *"⬜ Start container (running"* ]]'
 rm -rf "$WORK_DIR"

@@ -335,3 +335,50 @@ explicit, settled answer on whether a Java bump makes sense (it doesn't right no
      against `.claude/nav/adr-index.md` first for overlap (none found — the only prior MinIO/S3
      hit was an unrelated module-merge ADR). `.claude/nav/adr-index.md` regenerated (239 entries).
 
+   **CI e2e stack lifecycle clarity (2026-10-16), found while verifying the Phase 1 SeaweedFS swap
+   against a real Dagu CI run:**
+   - A real `bash scripts/ci.sh` run (Dagu run `ci-20261016T181316Z-91406-1051124828`) hit a real
+     e2e-stage crash: `configure_seaweedfs()` in `scripts/deploy-and-run/run.sh` calls
+     `weed shell s3.bucket.create` unconditionally under `set -e` — when the SeaweedFS container
+     had been removed but its data volume (and therefore its bucket) survived from a prior run,
+     the gate (`seaweedfs_was_running`, based only on "does the container exist") wrongly decided
+     to recreate the bucket, got `error: bucket already exists`, and `set -e` aborted the whole
+     script before the app container or Playwright ever started. Root cause not yet fixed in code
+     (deferred — see below); root-caused and documented here.
+   - ✅ Done (2026-10-16) — scoped the general `PreToolUse`/`Bash` Approval-Rule hook in
+     `.claude/settings.json` (previously asked for confirmation on *every* Bash command) so it only
+     fires for invocations of real project scripts, discovered dynamically via
+     `find /app/scripts -maxdepth 1 -name "*.sh"` + `playwright/run.sh` + `integration-tests/run.sh`
+     — every other Bash command (docker exec/logs/inspect/ps, grep, cat, etc.) now falls through
+     silently. Pipe-tested against 4 synthetic cases (project script / non-project docker command /
+     nested entry point / already-approved marker) — all behaved as expected.
+   - ✅ Done (2026-10-16) — renamed `keep_e2e_infra` (default `true`) → `teardown_e2e_after`
+     (default `false`, same real behavior — nothing torn down by default) and `reset_e2e_db`
+     (default `false`) → `reset_e2e_stack` (same behavior — `true` already wiped SeaweedFS
+     *together with* the DB via `deploy-and-run.sh --reset`, not just the DB; the old name
+     undersold its own scope). Motivation: the two params govern two different lifecycle moments
+     (end-of-run teardown vs. start-of-run reset-before-deploy) that the old names didn't make
+     obvious, confirmed against `scripts/ci/DECISIONS.md`'s own existing addendum explaining the
+     prior `keep_infra`→`keep_e2e_infra` rename. Applied via Haiku dispatch across
+     `scripts/ci/dagu/ci.yaml` (4 edits), `scripts/ci/run.sh` (4 edits), `.claude/rules/scripts.md`
+     (1 edit), `scripts/ci/README.md` (1 edit); verified via a final repo-wide grep for every old
+     name — zero matches outside `scripts/ci/DECISIONS.md` (addendum pending) and
+     `docs/architecture/data/architecture-model.json` (generated, regen pending) and
+     `backlog/tasks/improvement-133-...md` (historical mention of an already-run command,
+     deliberately left as-is).
+   - ✅ Done (2026-10-16) — updated the existing `scripts/ci/DECISIONS.md` ADR-010 addendum in
+     place (not a new ADR number, not marked Superseded — ADR-010 still covers 4 other unrelated
+     decisions that remain valid) to state the final names/CLI flags and the one-line reason for
+     each further rename. `.claude/nav/adr-index.md` regenerated (239 entries, unchanged count —
+     no new ADR added).
+   - ✅ Done (2026-10-16) — regenerated `docs/architecture/data/architecture-model.json` /
+     `architecture-map.html` / `arch-embed-index.md` (64 nodes, valid JSON). Verified via grep:
+     zero occurrences of any old name, new names present.
+   - ✅ Done (2026-10-17) — applied the `configure_seaweedfs()` idempotency fix (tolerate "already
+     exists" instead of aborting) in both `scripts/deploy-and-run/run.sh` and
+     `scripts/deploy-and-run/docker-compose.seaweedfs.yml`. Verified in isolation (fixture
+     container: create → succeed, re-create on existing bucket → still succeeds, bad master host →
+     still aborts) and confirmed end to end by a full green `scripts/ci.sh` run (Dagu run
+     `ci-20261017T063935Z-165997-2863426591`): e2e 66/66 passed, no "bucket already exists" crash,
+     plus unit/integration/sonar/archunit_metrics/lint/shellcheck/docs all green.
+

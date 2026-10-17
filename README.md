@@ -27,7 +27,7 @@ features — not a toy example, and not (yet) a finished product:
 bash scripts/deploy-and-run.sh
 ```
 
-Builds and starts the full stack (Postgres, MinIO/S3, the app). The app comes up at
+Builds and starts the full stack (Postgres, SeaweedFS/S3, the app). The app comes up at
 **http://localhost:8081** with an empty catalog — sign up to create an account; **on an empty
 installation, the first registered account is promoted to Admin**, no seed credentials needed. The REST
 API's interactive docs are at `http://localhost:8081/swagger-ui/index.html`. Full setup details

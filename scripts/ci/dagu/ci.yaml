@@ -10,10 +10,11 @@
 # Env: None read directly by this file -- each step's own `run:` block sets whatever env vars the
 #   script it calls needs.
 # Input: params (unit/integration/e2e/sonar/archunit_metrics/lint/shellcheck/docs -- all boolean,
-#   gate the matching step via preconditions; keep_e2e_infra -- boolean, default true, skip e2e's
-#   stack teardown; reset_e2e_db -- boolean, default false, use a full --reset instead of e2e's
-#   default --reset-only-db before deploying (only needed when the DB schema itself changed);
-#   e2e_args -- string, forwarded to playwright/run.sh).
+#   gate the matching step via preconditions; teardown_e2e_after -- boolean, default false, tear
+#   down e2e's stack after the run; reset_e2e_stack -- boolean, default false, use a full --reset
+#   (wipes DB + SeaweedFS together) instead of e2e's default --reset-only-db before deploying
+#   (only needed when the DB schema itself changed); e2e_args -- string, forwarded to
+#   playwright/run.sh).
 # Outputs: PASSED/FAILED per step in Dagu's own web UI and run history. With archunit_metrics
 #   enabled, refreshes scripts/build-and-test/reports/architecture-metrics.json.
 #   scripts/ci/reports/pipeline-metrics.json is refreshed unconditionally by the pipeline_metrics
@@ -31,7 +32,7 @@ params:
   - name: integration
     type: boolean
     default: true
-  - name: reset_e2e_db
+  - name: reset_e2e_stack
     type: boolean
     default: false
   - name: e2e_args
@@ -55,9 +56,9 @@ params:
   - name: docs
     type: boolean
     default: true
-  - name: keep_e2e_infra
+  - name: teardown_e2e_after
     type: boolean
-    default: true
+    default: false
 
 steps:
   - id: build
@@ -96,14 +97,14 @@ steps:
     depends: build
     run: |
       teardown() {
-        [ "${params.keep_e2e_infra}" = "true" ] && return
+        [ "${params.teardown_e2e_after}" = "false" ] && return
         docker rm -f ci-marketplace-app ci-advertisement-db ci-advertisement-seaweedfs 2>/dev/null || true
         docker network rm ci-advertisement 2>/dev/null || true
         docker volume rm ci_advertisement_postgres_data ci_advertisement_seaweedfs_data 2>/dev/null || true
       }
       trap teardown EXIT
       RESET_FLAG="--reset-only-db"
-      [ "${params.reset_e2e_db}" = "true" ] && RESET_FLAG="--reset"
+      [ "${params.reset_e2e_stack}" = "true" ] && RESET_FLAG="--reset"
       NETWORK=ci-advertisement DB_CONTAINER=ci-advertisement-db SEAWEEDFS_CONTAINER=ci-advertisement-seaweedfs \
         APP_CONTAINER=ci-marketplace-app APP_IMAGE=marketplace-app-ci \
         DB_PORT=15432 SEAWEEDFS_PORT=19000 SEAWEEDFS_CONSOLE_PORT=19333 APP_PORT=18081 \

@@ -50,7 +50,13 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      echo 's3.bucket.create -name ${S3_BUCKET}' | weed shell -master=seaweedfs:9333;
+      OUTPUT=$$(echo 's3.bucket.create -name ${S3_BUCKET}' | weed shell -master=seaweedfs:9333 2>&1);
+      RC=$$?;
+      if [ $$RC -ne 0 ] && ! echo \"$$OUTPUT\" | grep -q 'already exists'; then
+      echo \"$$OUTPUT\" >&2;
+      echo 'Bucket configuration failed.' >&2;
+      exit 1;
+      fi;
       echo 'Bucket created successfully';
       "
     restart: on-failure

@@ -65,7 +65,7 @@ current is this procedure, run by whoever (human or Claude) is editing the file.
 
 1. Read `scripts/claude.bat` + `Dockerfile.claude` for the AI dev container's current name, image,
    network mode, and mounts — feeds section 1.
-2. Read `scripts/deploy-and-run/docker-compose.db.yml`, `docker-compose.minio.yml`,
+2. Read `scripts/deploy-and-run/docker-compose.db.yml`, `docker-compose.seaweedfs.yml`,
    `docker-compose.app.yml`, `scripts/sonar/docker-compose.sonar.yml`, and `scripts/ci/run.sh` for
    every service's current container name and port — feeds sections 2-3.
 3. Do not enumerate `.claude/commands/*.md` here — section 1 only references

@@ -690,13 +690,18 @@ not assumed:
    visible, even though this script has no notion of any one step's own normal duration and so
    cannot itself distinguish a genuine hang from a slow-but-fine step.
 
-**Addendum: `keep_infra` renamed `keep_e2e_infra`, default flipped to `true`; new
-`reset_e2e_db` param.** `--keep-infra` didn't say what it kept at a glance (the whole CI runner? the
-persistent dev stack?) — renamed to `keep_e2e_infra`, scoping it to what it actually governs (the
-isolated e2e stack's containers/network/volumes). Default flipped `false` → `true`: leaving the
-stack up after a run (browsable at `localhost:18081`, inspectable via `docker logs`/`exec`) is far
-more useful after a failure than a clean teardown, and the CLI flag became the opt-out
-`--no-keep-e2e-infra`, matching the `--no-docs`/`--no-archunit-metrics` shape.
+**Addendum: `keep_infra` renamed `keep_e2e_infra`, then `teardown_e2e_after`; new
+`reset_e2e_db` param, later renamed `reset_e2e_stack`.** `--keep-infra` didn't say what it kept at
+a glance (the whole CI runner? the persistent dev stack?) — renamed to `keep_e2e_infra`, scoping it
+to what it actually governs (the isolated e2e stack's containers/network/volumes). Default flipped
+`false` → `true`: leaving the stack up after a run (browsable at `localhost:18081`, inspectable via
+`docker logs`/`exec`) is far more useful after a failure than a clean teardown, and the CLI flag
+became the opt-out `--no-keep-e2e-infra`, matching the `--no-docs`/`--no-archunit-metrics` shape.
+Renamed again to `teardown_e2e_after` (default `false`, same real effect, CLI
+`--teardown-e2e-after`) once it became clear `keep_e2e_infra` was easy to conflate with
+`reset_e2e_db` below despite governing a different lifecycle moment (end-of-run teardown vs.
+start-of-run reset-before-deploy) — surfaced while investigating a real e2e CI crash (Dagu run
+`ci-20261016T181316Z-91406-1051124828`).
 
 Flipping the default surfaced a real, pre-existing gap it exposed rather than caused: the `e2e`
 step's own `deploy-and-run.sh` call passed **no reset flag at all**, unlike `run-all-tests.sh`
@@ -709,4 +714,5 @@ own 60-ad seed accounts for). Fixed by adding a `reset_e2e_db` param (default `f
 step now always passes `--reset-only-db` to its `deploy-and-run.sh` call by default (fast, clears
 leftover data, matches `run-all-tests.sh`'s own precedent), or `--reset` (full volume wipe, full
 Liquibase replay) when `reset_e2e_db=true` — needed only when the DB schema itself changed since
-the stack was last brought up. CLI: `--reset-e2e-db`.
+the stack was last brought up. CLI: `--reset-e2e-db`. Renamed `reset_e2e_stack` (same behavior,
+CLI `--reset-e2e-stack`) once the SeaweedFS-too scope above made the `_db` suffix misleading.

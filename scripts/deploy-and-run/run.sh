@@ -179,10 +179,17 @@ wait_for_seaweedfs() {
 configure_seaweedfs() {
   echo "Configuring SeaweedFS bucket..."
   docker rm -f seaweedfs-init 2>/dev/null || true
-  docker run --rm --network "$NETWORK" --entrypoint /bin/sh "$SEAWEEDFS_IMAGE" -c "
-    set -e
+  set +e
+  OUTPUT=$(docker run --rm --network "$NETWORK" --entrypoint /bin/sh "$SEAWEEDFS_IMAGE" -c "
     echo 's3.bucket.create -name $S3_BUCKET' | weed shell -master=$SEAWEEDFS_CONTAINER:9333
-  "
+  " 2>&1)
+  RC=$?
+  set -e
+  if [ $RC -ne 0 ] && ! echo "$OUTPUT" | grep -q "already exists"; then
+    echo "$OUTPUT" >&2
+    echo "Bucket configuration failed." >&2
+    return 1
+  fi
   echo "Bucket OK."
 }
 

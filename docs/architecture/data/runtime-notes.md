@@ -25,7 +25,7 @@ unrelated to `marketplace-app` itself (a pure Java/Spring application with no No
 dependency).
 
 **Sibling containers reachable via the mounted `docker.sock`** (managed from `claude-dev`, never
-nested inside it): `marketplace-app`, `advertisement-db` (Postgres), `advertisement-minio`
+nested inside it): `marketplace-app`, `advertisement-db` (Postgres), `advertisement-seaweedfs`
 (S3-compatible storage), `sonarqube` + `sonar-scanner`, and short-lived tooling containers spun up
 per script run (the Playwright runner, the isolated CI runner).
 

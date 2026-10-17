@@ -27,11 +27,11 @@
 #                                architecture-map.html inside the container -- see ci.yaml)
 #   --playwright-args <arg>  -- override the e2e stage's Playwright args (default
 #                                "e2e --full --ux")
-#   --reset-e2e-db           -- deploy e2e's stack with a full --reset (DB/MinIO volume wipe, full
-#                                Liquibase replay) instead of the default --reset-only-db (fast
-#                                truncate) -- only needed when the DB schema itself changed since
-#                                the isolated e2e stack was last brought up
-#   --no-keep-e2e-infra      -- tear down the isolated e2e stack after the run instead of leaving
+#   --reset-e2e-stack        -- deploy e2e's stack with a full --reset (DB/SeaweedFS volume wipe,
+#                                full Liquibase replay) instead of the default --reset-only-db
+#                                (fast truncate) -- only needed when the DB schema itself changed
+#                                since the isolated e2e stack was last brought up
+#   --teardown-e2e-after     -- tear down the isolated e2e stack after the run instead of leaving
 #                                it up (on by default -- leaving it up is the debugging-friendly
 #                                default, so a failed run's containers/logs/DB state are still
 #                                there to inspect without having to remember the flag ahead of time)
@@ -115,8 +115,8 @@ STAGE_INTEGRATION=""
 STAGE_E2E=""
 STAGE_SONAR=""
 STAGE_DOCS=1
-KEEP_INFRA="true"
-RESET_E2E_DB="false"
+TEARDOWN_AFTER="false"
+RESET_E2E_STACK="false"
 FOREGROUND=""
 REBUILD=""
 REFRESH_TOOLS="false"
@@ -263,8 +263,8 @@ for arg in "$@"; do
     --docs-only)           ANY_STAGE_FLAG=1; ARCHUNIT_METRICS="false"; LINT="false"; SHELLCHECK="false" ;;
     --no-docs)             STAGE_DOCS="" ;;
     --all)                 STAGE_UNIT=1; STAGE_INTEGRATION=1; STAGE_E2E=1; ANY_STAGE_FLAG=1 ;;
-    --no-keep-e2e-infra)   KEEP_INFRA="false" ;;
-    --reset-e2e-db)        RESET_E2E_DB="true" ;;
+    --teardown-e2e-after)  TEARDOWN_AFTER="true" ;;
+    --reset-e2e-stack)     RESET_E2E_STACK="true" ;;
     --foreground)          FOREGROUND=1 ;;
     --rebuild)             REBUILD=1 ;;
     --refresh-tools)       REFRESH_TOOLS="true" ;;
@@ -490,8 +490,8 @@ DAGU_PARAMS=(
   "lint=$LINT"
   "shellcheck=$SHELLCHECK"
   "docs=$(bool "$STAGE_DOCS")"
-  "keep_e2e_infra=$KEEP_INFRA"
-  "reset_e2e_db=$RESET_E2E_DB"
+  "teardown_e2e_after=$TEARDOWN_AFTER"
+  "reset_e2e_stack=$RESET_E2E_STACK"
   "e2e_args=$PLAYWRIGHT_ARGS"
 )
 
