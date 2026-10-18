@@ -11,14 +11,21 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.AuthorizationService;
+import org.ost.orchestrator.services.UserDeleteService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
+import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.platform.user.model.PageSizeLimits;
+import org.ost.platform.user.model.Role;
 import org.ost.restapi.api.concurrency.ETagUtil;
 import org.ost.restapi.api.paging.PagedResponseBuilder;
 import org.ost.restapi.api.paging.SortQueryParser;
@@ -27,11 +34,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,7 +53,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
-/** Self-service registration (public) plus ADMIN/MODERATOR read access to the user list. */
+/** Self-service registration (public), administrator account management, and ADMIN/MODERATOR read access to the user list. */
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -59,6 +68,7 @@ public class UserApiController {
 
     private final UserProfileService userProfileService;
     private final AuthorizationService authorizationService;
+    private final UserDeleteService userDeleteService;
 
     @Operation(summary = "Register a new account", description = "Public, no authentication needed. Rate-limited by client IP (5 failed attempts / 15 min). Follow up with POST /api/api-keys (Basic auth) to obtain a bearer key for the other endpoints.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
@@ -72,7 +82,7 @@ public class UserApiController {
     public UserCreatedResponse register(@RequestBody @Valid SignUpDto dto, HttpServletRequest request) {
         userProfileService.register(dto, request.getRemoteAddr());
         UserDto user = userProfileService.findByEmail(dto.getEmail()).orElseThrow();
-        return new UserCreatedResponse(user.id(), user.name(), user.email());
+        return new UserCreatedResponse(user.id(), user.name(), user.email(), user.role());
     }
 
     @Operation(summary = "List/filter/sort users", description = "Admin/moderator only. size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings).")
@@ -88,12 +98,49 @@ public class UserApiController {
         return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
     }
 
-    @Operation(summary = "Get one user by id", description = "Admin/moderator only.")
+    @Operation(summary = "Get one user by id", description = "Admin/moderator only. The ETag response header carries the version to send back via If-Match on PUT.")
+    @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on PUT"))
     @GetMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
-    public UserDto getById(@AuthenticationPrincipal Long actorId, @PathVariable Long id) {
+    public ResponseEntity<UserDto> getById(@AuthenticationPrincipal Long actorId, @PathVariable Long id) {
         authorizationService.requireIsPrivileged(actorId);
-        return userProfileService.findById(id).orElseThrow(NoSuchElementException::new);
+        UserDto user = userProfileService.findById(id).orElseThrow(NoSuchElementException::new);
+        return ETagUtil.withVersion(ResponseEntity.ok(), user.version()).body(user);
+    }
+
+    @Operation(operationId = "updateUser", summary = "Update a user's name and role", description = "Full replace of name and role. A user may change their own name; only an administrator may change a role, and never their own. If-Match must carry the version from the last GET /api/users/{id} ETag.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+            {
+              "name": "Max Moderator",
+              "role": "MODERATOR"
+            }""")))
+    @PutMapping("/{id}")
+    @SecurityRequirement(name = "bearerKey")
+    public ResponseEntity<UserDto> update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestBody @Valid UserUpdateRequest request,
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        userProfileService.save(new UserProfileDto(id, request.name(), request.role(), ETagUtil.parseIfMatch(ifMatch)), actorId);
+        UserDto updated = userProfileService.findById(id).orElseThrow(NoSuchElementException::new);
+        return ETagUtil.withVersion(ResponseEntity.ok(), updated.version()).body(updated);
+    }
+
+    @Operation(operationId = "deleteUser", summary = "Delete a user", description = "Allowed for the account's owner or an administrator, as in the UI. The user's advertisements, provider profile and API keys are removed first.")
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @SecurityRequirement(name = "bearerKey")
+    public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id) {
+        userDeleteService.delete(id, actorId);
+    }
+
+    @Operation(operationId = "changeMyLocale", summary = "Change the caller's own language", description = "Supported locales: en, uk.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+            {
+              "locale": "uk"
+            }""")))
+    @PutMapping("/me/locale")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @SecurityRequirement(name = "bearerKey")
+    public void updateLocale(@AuthenticationPrincipal Long actorId, @RequestBody @Valid LocaleWriteRequest request) {
+        userProfileService.updateLocale(actorId, request.locale());
     }
 
     @Operation(summary = "Get the caller's own paginated-list page-size preferences", description = "ETag response header carries the version to send back via If-Match on PATCH.")
@@ -129,7 +176,7 @@ public class UserApiController {
     }
 
     /** The newly registered user's identity, returned after a successful {@code POST /api/users}. */
-    public record UserCreatedResponse(Long id, String name, String email) {
+    public record UserCreatedResponse(Long id, String name, String email, Role role) {
     }
 
     /** Caller-writable settings fields -- version is server-managed (If-Match header), never client-supplied here. */
@@ -139,5 +186,13 @@ public class UserApiController {
             @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int timelinePageSize,
             @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int providerProfilesPageSize
     ) {
+    }
+
+    /** Caller-writable user fields -- id and version are server-managed (path variable / If-Match header). */
+    public record UserUpdateRequest(@NotBlank @Size(max = SignUpDto.NAME_MAX_LENGTH) String name, @NotNull Role role) {
+    }
+
+    /** The language to switch the caller's own account to. */
+    public record LocaleWriteRequest(@NotNull @Pattern(regexp = "en|uk") String locale) {
     }
 }

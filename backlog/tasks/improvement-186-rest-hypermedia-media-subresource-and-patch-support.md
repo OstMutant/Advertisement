@@ -218,6 +218,16 @@ rejected with 401 by Spring Security before the filter chain's later stages run.
   pass, since both touch `ApiSecurityConfig`'s filter chain — decide ordering once both are actually
   being implemented, not assumed here.
 
+### 5. HTTP Basic is accepted on every `/api/**` endpoint, so a Basic request to a bearer-only endpoint returns 500 instead of 401
+
+Found 2026-10-18 in Swagger UI and confirmed in the application log of both the main and the CI app: `GET /api/api-keys` called with Basic credentials throws `NullPointerException: actorId is marked non-null but is null` at `ApiKeyController.list`, and the response is `500`. `ApiSecurityConfig` enables `httpBasic(Customizer.withDefaults())` for the whole `/api/**` chain with `anyRequest().authenticated()`, so Basic authenticates the request, but the principal is then an `AuthenticatedPrincipal`, while every bearer-only controller method declares `@AuthenticationPrincipal Long actorId` (annotated `@NonNull` in `ApiKeyController`), which resolves to null. The browser keeps the Basic credentials after its own login prompt (the 401 carries `WWW-Authenticate: Basic`), which is how this was reached from Swagger UI. The same shape exists in the other controllers' methods; only `ApiKeyController.list` was seen failing.
+
+**Approach (proposal, needs sizing):**
+- Accept Basic only on `POST /api/api-keys`; on every other `/api/**` endpoint a Basic request is answered `401`, never 500.
+- Decide whether the `WWW-Authenticate: Basic` header stays on 401 for the other endpoints (it triggers the browser's login prompt in Swagger UI).
+- Tests: a request with Basic credentials to each kind of bearer-only endpoint returns 401 (a security-chain scenario test in `integration-tests` level 3 plus a unit-level check of the matcher); `POST /api/api-keys` with Basic still returns 201.
+- Same file and filter chain as item 4, so implement together.
+
 ## Related
 
 - [improvement-183](../completed/tasks/improvement-183-rest-api-and-taxon-ui-follow-ups.md) item 9 — the original

@@ -8,7 +8,9 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
 ## What it provides
 
 - Full CRUD over advertisements and provider profiles, category/city catalog management, plus user
-  self-registration and admin/moderator-only user listing — the same `marketplace-orchestrator`
+  self-registration (the response says which role the caller got), admin/moderator-only user listing,
+  administrator account management (change a name or role, delete an account) and a caller's own
+  language switch — the same `marketplace-orchestrator`
   services `marketplace-app`'s own Vaadin forms call, so a REST write and a UI write go through
   identical validation/authorization/audit behavior.
 - Bearer API-key authentication (issuance gated by HTTP Basic) for every write; reads are public,

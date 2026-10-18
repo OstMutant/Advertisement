@@ -24,7 +24,8 @@ Java package root: `org.ost.restapi`
   are nested as public static records inside that controller (e.g.
   `ApiKeyController.ApiKeyCreateRequest`/`ApiKeyCreatedResponse`,
   `TaxonApiController.TaxonCreateRequest`/`TaxonUpdateRequest`/`TaxonTranslationRequest`,
-  `UserApiController.UserCreatedResponse`/`UserSettingsWriteRequest`,
+  `UserApiController.UserCreatedResponse`/`UserSettingsWriteRequest`/`UserUpdateRequest`/
+  `LocaleWriteRequest`,
   `AdvertisementApiController.AdvertisementWriteRequest`,
   `ProviderProfileApiController.ProviderProfileWriteRequest` — the two `*WriteRequest` shapes carry
   no `id`/`version` field at all, server-managed via the path variable / `If-Match` header instead)

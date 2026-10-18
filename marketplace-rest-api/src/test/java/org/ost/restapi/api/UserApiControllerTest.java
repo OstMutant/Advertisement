@@ -8,8 +8,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.AuthorizationService;
+import org.ost.orchestrator.services.UserDeleteService;
 import org.ost.orchestrator.services.UserProfileService;
+import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
+import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserSettingsDto;
@@ -20,6 +23,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -32,9 +36,11 @@ import static org.mockito.Mockito.when;
 import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.authenticateAs;
 import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.clearAuthentication;
 import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.mockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -47,12 +53,13 @@ class UserApiControllerTest {
 
     @Mock private UserProfileService userProfileService;
     @Mock private AuthorizationService authorizationService;
+    @Mock private UserDeleteService userDeleteService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = mockMvc(new UserApiController(userProfileService, authorizationService));
+        mockMvc = mockMvc(new UserApiController(userProfileService, authorizationService, userDeleteService));
         authenticateAs(ACTOR_ID);
         lenient().when(userProfileService.resolveUsersPageSize(any())).thenReturn(20);
     }
@@ -67,14 +74,15 @@ class UserApiControllerTest {
     @Test
     void register_validBody_registersThenResolvesIdByEmail() throws Exception {
         when(userProfileService.findByEmail("new@example.com"))
-                .thenReturn(Optional.of(new UserDto(1L, "New User", "new@example.com", null, null, null, 0L)));
+                .thenReturn(Optional.of(new UserDto(1L, "New User", "new@example.com", Role.ADMIN, null, null, 0L)));
         String body = """
                 {"name":"New User","email":"new@example.com","password":"password123"}""";
 
         mockMvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.email").value("new@example.com"));
+                .andExpect(jsonPath("$.email").value("new@example.com"))
+                .andExpect(jsonPath("$.role").value("ADMIN"));
     }
 
     // ── register — negative — bean validation ──────────────────────────────────────────
@@ -181,7 +189,10 @@ class UserApiControllerTest {
         UserDto user = new UserDto(1L, "Alice", "alice@example.com", Role.USER, null, null, 0L);
         when(userProfileService.findById(1L)).thenReturn(Optional.of(user));
 
-        mockMvc.perform(get("/api/users/1")).andExpect(status().isOk()).andExpect(jsonPath("$.email").value("alice@example.com"));
+        mockMvc.perform(get("/api/users/1"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("ETag", "\"0\""))
+                .andExpect(jsonPath("$.email").value("alice@example.com"));
     }
 
     @Test
@@ -196,6 +207,121 @@ class UserApiControllerTest {
         doThrow(new AccessDeniedException("not privileged")).when(authorizationService).requireIsPrivileged(ACTOR_ID);
 
         mockMvc.perform(get("/api/users/1")).andExpect(status().isForbidden());
+    }
+
+    // ── update ───────────────────────────────────────────────────────────
+
+    @Test
+    void update_validBody_savesWithParsedVersionThenReturnsFreshCopyWithETag() throws Exception {
+        UserDto updated = new UserDto(2L, "Max Moderator", "max@example.com", Role.MODERATOR, null, null, 1L);
+        when(userProfileService.findById(2L)).thenReturn(Optional.of(updated));
+        String body = """
+                {"name":"Max Moderator","role":"MODERATOR"}""";
+
+        mockMvc.perform(put("/api/users/2").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(header().string("ETag", "\"1\""))
+                .andExpect(jsonPath("$.role").value("MODERATOR"));
+
+        verify(userProfileService).save(eq(new UserProfileDto(2L, "Max Moderator", Role.MODERATOR, 0L)), eq(ACTOR_ID));
+    }
+
+    @Test
+    void update_serviceDeniesTheChange_returns403() throws Exception {
+        doThrow(new AccessDeniedException("may not change the role")).when(userProfileService).save(any(), eq(ACTOR_ID));
+        String body = """
+                {"name":"Max Moderator","role":"ADMIN"}""";
+
+        mockMvc.perform(put("/api/users/2").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void update_staleVersion_returns412() throws Exception {
+        doThrow(new StaleWriteException("stale")).when(userProfileService).save(any(), eq(ACTOR_ID));
+        String body = """
+                {"name":"Max Moderator","role":"MODERATOR"}""";
+
+        mockMvc.perform(put("/api/users/2").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isPreconditionFailed());
+    }
+
+    @Test
+    void update_unknownUser_returns404() throws Exception {
+        doThrow(new NoSuchElementException()).when(userProfileService).save(any(), eq(ACTOR_ID));
+        String body = """
+                {"name":"Max Moderator","role":"MODERATOR"}""";
+
+        mockMvc.perform(put("/api/users/2").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void update_blankName_returns400() throws Exception {
+        String body = """
+                {"name":"","role":"MODERATOR"}""";
+
+        mockMvc.perform(put("/api/users/2").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.name").exists());
+    }
+
+    @Test
+    void update_missingRole_returns400() throws Exception {
+        String body = """
+                {"name":"Max Moderator"}""";
+
+        mockMvc.perform(put("/api/users/2").header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.role").exists());
+    }
+
+    // ── delete ───────────────────────────────────────────────────────────
+
+    @Test
+    void delete_delegatesWithTheActorId_returns204() throws Exception {
+        mockMvc.perform(delete("/api/users/2")).andExpect(status().isNoContent());
+
+        verify(userDeleteService).delete(2L, ACTOR_ID);
+    }
+
+    @Test
+    void delete_serviceDeniesIt_returns403() throws Exception {
+        doThrow(new AccessDeniedException("may not edit account 2")).when(userDeleteService).delete(2L, ACTOR_ID);
+
+        mockMvc.perform(delete("/api/users/2")).andExpect(status().isForbidden());
+    }
+
+    // ── changeMyLocale ───────────────────────────────────────────────────
+
+    @Test
+    void changeMyLocale_supportedLocale_delegatesAndReturns204() throws Exception {
+        mockMvc.perform(put("/api/users/me/locale").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"locale":"uk"}"""))
+                .andExpect(status().isNoContent());
+
+        verify(userProfileService).updateLocale(ACTOR_ID, "uk");
+    }
+
+    @Test
+    void changeMyLocale_unsupportedLocale_returns400() throws Exception {
+        mockMvc.perform(put("/api/users/me/locale").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"locale":"de"}"""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.locale").exists());
+    }
+
+    @Test
+    void changeMyLocale_missingLocale_returns400() throws Exception {
+        mockMvc.perform(put("/api/users/me/locale").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.locale").exists());
     }
 
     // ── updateSettings — positive ──────────────────────────────────────────────────

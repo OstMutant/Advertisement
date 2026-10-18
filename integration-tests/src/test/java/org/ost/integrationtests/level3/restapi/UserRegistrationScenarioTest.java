@@ -6,11 +6,27 @@ import org.ost.integrationtests.support.Level3ScenarioTest;
 import org.springframework.http.MediaType;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Level 3 scenario: registering the same email twice against a real unique index -- confirms ApiExceptionHandler's DuplicateKeyException mapping end to end, not just against a mocked throw. */
 @Level3ScenarioTest
 class UserRegistrationScenarioTest extends AbstractRestApiScenarioTest {
+
+    @Test
+    void registrationResponse_tellsTheCallerWhichRoleItGot() throws Exception {
+        String first = """
+                {"name":"First User","email":"first-%d@example.com","password":"password123"}""".formatted(System.nanoTime());
+        String second = """
+                {"name":"Second User","email":"second-%d@example.com","password":"password123"}""".formatted(System.nanoTime());
+
+        mockMvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(first))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.role").value("ADMIN"));
+        mockMvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(second))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.role").value("USER"));
+    }
 
     @Test
     void duplicateEmail_secondRegistration_getsRealConflict() throws Exception {
