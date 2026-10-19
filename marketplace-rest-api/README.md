@@ -21,14 +21,18 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
   `PATCH /api/users/me/settings` lets a caller change their own saved pagination-size preferences
   the same way.
 - A live OpenAPI 3 spec and Swagger UI, generated from these same controllers/DTOs, with
-  per-operation descriptions and request examples.
+  per-operation descriptions and request examples. The key entered through Authorize is kept in the
+  browser across page reloads (persistent authorization), so one issued key can be reused.
 
 ## Data flow
 
-Every request enters through `ApiSecurityConfig`'s `/api/**` filter chain: `ApiKeyAuthenticationFilter`
-resolves an `Authorization: Bearer <key>` header into a `PreAuthenticatedAuthenticationToken` —
-skipped when a request already carries HTTP Basic authentication (the key-issuance endpoint) —
-before Spring's own authorization check runs. From there, each of the five per-resource controllers
+Every request enters through one of two `ApiSecurityConfig` filter chains. `POST /api/api-keys` has
+its own chain, the only one that accepts HTTP Basic, where `BasicLoginRateLimitFilter` first blocks
+a client address and email after 5 failed logins in 15 minutes. Every other `/api/**` request goes
+through the second chain: `ApiKeyAuthenticationFilter` resolves an `Authorization: Bearer <key>`
+header into a `PreAuthenticatedAuthenticationToken` before Spring's own authorization check runs,
+a Basic header is ignored, and a request without a valid key is answered 401 with a Bearer
+challenge. From there, each of the five per-resource controllers
 (`AdvertisementApiController`, `ProviderProfileApiController`, `TaxonApiController`,
 `UserApiController`, `ApiKeyController`) calls straight into the same `marketplace-orchestrator`
 service its Vaadin-side counterpart already uses — no intermediate service layer of its own. A write

@@ -1,6 +1,7 @@
 package org.ost.restapi.api.error;
 
 import org.ost.orchestrator.services.AccessDeniedException;
+import org.ost.platform.apikey.model.ApiKeyAlreadyRevokedException;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
 import org.springframework.dao.DuplicateKeyException;
@@ -38,6 +39,12 @@ public class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleDuplicateKey(DuplicateKeyException ex) {
         return new ErrorResponse("A resource with this value already exists.");
+    }
+
+    @ExceptionHandler(ApiKeyAlreadyRevokedException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleApiKeyAlreadyRevoked(ApiKeyAlreadyRevokedException ex) {
+        return new ErrorResponse(ex.getMessage());
     }
 
     @ExceptionHandler(TooManyAttemptsException.class)

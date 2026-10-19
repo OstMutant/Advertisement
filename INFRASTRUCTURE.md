@@ -79,6 +79,8 @@ app, and waits for a real startup signal before returning.
 | App URL | [http://localhost:8081](http://localhost:8081) |
 | REST API docs (Swagger UI) | [http://localhost:8081/swagger-ui/index.html](http://localhost:8081/swagger-ui/index.html) — spec JSON at `/v3/api-docs` |
 
+An API key is issued once via `POST /api/api-keys` and cannot be shown again, because only its hash is stored. Swagger UI remembers the entered key in the browser, and unused keys are removed via `DELETE /api/api-keys/{id}`.
+
 ```bash
 bash scripts/deploy-and-run.sh                  # reuse the shared build, start everything
 bash scripts/deploy-and-run.sh --reset          # wipe DB/SeaweedFS volumes, then rebuild

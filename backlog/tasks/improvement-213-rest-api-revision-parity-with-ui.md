@@ -25,11 +25,12 @@ One reviewed list, per domain, of what the UI can do that REST cannot, each item
 4. **Role-change endpoint (decided 2026-10-17):** the audit starts from the known gap that only the Vaadin form changes a role. The first endpoint to build from it is an administrator-only role change, so that an administrator can make a moderator through the API (no dev-only script is needed; see [improvement-214](../completed/tasks/improvement-214-admin-credentials-from-environment.md) for the administrator). Design points to settle: the last administrator cannot lose the role, every change is written to the audit log, and the same authorisation as the UI form is reused from `marketplace-orchestrator`.
 5. **Implement everything the audit finds missing, in phases (decided 2026-10-17).** Each phase has its own unit and scenario tests, explicit `operationId`s, OpenAPI examples, a full `build-and-test.sh --unit --integration --sandbox` run and its own commit; the decision is recorded with `/record-decision`.
    - **Phase 1, users:** `role` in the `POST /api/users` response; `PUT /api/users/{id}` (name and role, `If-Match`) over `UserProfileService.save`; `DELETE /api/users/{id}` over `UserDeleteService.delete`, behaving as the UI does; `PUT /api/users/me/locale` over `UserProfileService.updateLocale`. Tests: `UserApiControllerTest` (success, 403, stale version, not found); a new Level 3 scenario (an administrator makes a moderator who can then create a taxon; an administrator cannot change their own role; delete; language); the registration tests updated for `role`.
-   - **Phase 2, shared read rules:** move the rules that now live only in the UI into `AuthorizationService` and make the services enforce them (see "Where the read rules live"). This is the groundwork for phases 3 and 4.
-   - **Phase 3, audit and history:** global timeline (administrators and moderators), per-entity activity (administrators and moderators see everything, others their own entries), and reading a snapshot so a client can restore with a normal update.
-   - **Phase 4, contacts:** reveal endpoint that records the view, and the monthly view counts. Decided: contacts stay open to visitors who are not signed in, as in the UI (they are advertising); the reveal limit stays per IP, and per IP plus user when signed in; the viewer in the recorded view is null for a visitor.
-   - **Phase 5, feedback and comments** (the content of [improvement-210](improvement-210-rest-api-feedback-and-comments.md)): list, aggregate, create, comment, delete comment, flag. Moderation (queue, approve, reject, confirm violation) is included now that the scope is everything; it was UI-only in improvement-210, to be confirmed when this phase starts.
-   - **Phase 6, media** (the first item of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md)): upload, list and delete advertisement media.
+   - **Phase 2, Basic-authentication hardening** (items 4 and 5 of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) move here; decided 2026-10-18 because the flows and Swagger UI hit the 500 now). Plan below, under "Phase 2 plan".
+   - **Phase 3, shared read rules:** move the rules that now live only in the UI into `AuthorizationService` and make the services enforce them (see "Where the read rules live"). This is the groundwork for phases 4 and 5.
+   - **Phase 4, audit and history:** global timeline (administrators and moderators), per-entity activity (administrators and moderators see everything, others their own entries), and reading a snapshot so a client can restore with a normal update.
+   - **Phase 5, contacts:** reveal endpoint that records the view, and the monthly view counts. Decided: contacts stay open to visitors who are not signed in, as in the UI (they are advertising); the reveal limit stays per IP, and per IP plus user when signed in; the viewer in the recorded view is null for a visitor.
+   - **Phase 6, feedback and comments** (the content of [improvement-210](improvement-210-rest-api-feedback-and-comments.md)): list, aggregate, create, comment, delete comment, flag. Moderation (queue, approve, reject, confirm violation) is included now that the scope is everything; it was UI-only in improvement-210, to be confirmed when this phase starts.
+   - **Phase 7, media** (the first item of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md)): upload, list and delete advertisement media.
 6. **Where the read rules live (decided 2026-10-17):** following the existing decision to keep authorisation in `marketplace-orchestrator`, each rule is a predicate in `AuthorizationService` written once; `AuditQueryService` and `ContactAccessService` receive the acting user and enforce it (the visibility level is derived from the role, not taken from a caller argument such as `showAll`); the UI's `AccessEvaluator` calls the same predicate to show or hide controls; REST calls the same services with the authenticated principal. Their signatures change, so every UI caller (`AuditActivityPanel`, `TimelineView`, `ContactRevealPanel`, the overlays) is updated and its tests rerun.
 
 ## Branching and commits (decided 2026-10-18)
@@ -72,9 +73,9 @@ Implementability, checked in `marketplace-orchestrator`:
 | Delete user | `UserDeleteService.delete(userId, actingUserId)` (removes profile and API keys first) | `requireCanEditAccount` (self or administrator) | `DELETE /api/users/{id}` | decided: same as the UI, self or administrator; an administrator can delete their own account, last administrator included (noted, not guarded) |
 | Language | `UserProfileService.updateLocale(userId, locale)` | own account | separate endpoint `PUT /api/users/me/locale` (decided: the UI changes the language apart from the settings form) | none |
 | Role in register response | the user is already read after registration (`UserDto.role`) | public endpoint | one field on `UserCreatedResponse` | none |
-| Audit and history | `AuditQueryService.getEntityActivity`, `getSnapshotContent`, `getTimelinePage`, `countTimeline` | none in the services: the global timeline tab is shown only when `AccessEvaluator.canView()` (= `isPrivileged()`, administrators and moderators); entity history is filtered by the arguments the UI passes (`userId`, `showAll` = privileged), not by a check inside `AuditQueryService` | read-only endpoints; the rules move into `AuthorizationService` and the audit service enforces them (phases 2 and 3) | none |
+| Audit and history | `AuditQueryService.getEntityActivity`, `getSnapshotContent`, `getTimelinePage`, `countTimeline` | none in the services: the global timeline tab is shown only when `AccessEvaluator.canView()` (= `isPrivileged()`, administrators and moderators); entity history is filtered by the arguments the UI passes (`userId`, `showAll` = privileged), not by a check inside `AuditQueryService` | read-only endpoints; the rules move into `AuthorizationService` and the audit service enforces them (phases 3 and 4) | none |
 | Restore | UI loads a snapshot into the form and saves it | the entity's own save rules | none: a client reads the snapshot and sends a normal update | confirm no dedicated endpoint is wanted |
-| Contacts | `ContactAccessService.resolveContact`, `recordView`, `countViewsThisMonth` | none in the service: `resolveContact` has no check and `recordView` accepts a null viewer, so the UI reveals contacts to anonymous visitors too | reveal endpoint that records the view (phase 4) | decided: open to visitors who are not signed in, as in the UI; rate limited per IP |
+| Contacts | `ContactAccessService.resolveContact`, `recordView`, `countViewsThisMonth` | none in the service: `resolveContact` has no check and `recordView` accepts a null viewer, so the UI reveals contacts to anonymous visitors too | reveal endpoint that records the view (phase 5) | decided: open to visitors who are not signed in, as in the UI; rate limited per IP |
 
 Conclusion: the user-domain gaps (edit, delete, language, role in the register response) can be built now with small effort because the services and their authorisation exist, and no new last-administrator guard is needed for role changes. Audit, history and contact reveal rest on checks that live in the UI, not in the services, so their REST endpoints must re-implement those rules and are left for a separate decision.
 
@@ -193,19 +194,46 @@ a locale other than `en` or `uk` is `400`.
 new nested records `UserUpdateRequest`, `LocaleWriteRequest` and the changed `UserCreatedResponse`) and
 `marketplace-rest-api/README.md` (the user-endpoints sentence). No ADR in this phase: it adds endpoints
 over already-decided authorisation; the architectural decision (read rules moving into the
-orchestrator) is recorded in phase 2.
+orchestrator) is recorded in phase 3.
 
 *Execution and verification.* Unit A goes to one Haiku dispatch with the exact text above, and I
 verify its diff myself. Then `/review` of the diff and apply its findings, then
 `bash scripts/build-and-test.sh --unit --integration --sandbox` in the background under the activity
 monitor, then `/sync-docs`. The full `scripts/ci.sh` run (end-to-end, Sonar) is skipped for this
-phase because nothing visible in the UI changes. The task stays open (phases 2 to 6 remain); the run
+phase because nothing visible in the UI changes. The task stays open (the later phases remain); the run
 ends staged and ready for "зроби коміт", with no commit made.
 
 **Decisions recorded for this phase:** `PUT` (full replace of two fields) instead of `PATCH`;
 `If-Match` optional as on the other endpoints; delete returns `204` and behaves as the UI;
 supported locales hard-coded as `en|uk` in the request validation because the UI's locale list lives
 in `marketplace-app` and the REST module cannot import it (same reason as `SORTABLE_FIELDS`).
+
+## Phase 2 — Basic-authentication hardening (approved 2026-10-18, implemented and verified 2026-10-18)
+
+**Plain language:** the API wrongly accepts a login and password on every endpoint. When one is sent to an endpoint that expects an API key, the server crashes with a 500 instead of saying "not authorised", and the browser's login prompt keeps the wrong credentials. After this phase a login and password work only for getting an API key, every other endpoint answers 401, and guessing passwords at the key endpoint is limited to 5 failed tries per 15 minutes, like the login screen.
+
+**Technical layer.**
+
+*Facts it rests on.* `ApiSecurityConfig` has one chain for `/api/**` with `httpBasic` on and `anyRequest().authenticated()`; Basic then yields an `AuthenticatedPrincipal` while bearer-only methods take `@AuthenticationPrincipal Long actorId`, which resolves to null (`NullPointerException`, 500, seen at `ApiKeyController.list`). The reverse also fails: a Bearer request to `POST /api/api-keys` leaves `@AuthenticationPrincipal AuthenticatedPrincipal` null. No test sends the wrong kind of credential to an endpoint (unit tests plant the principal by hand, level 3 only uses Basic for key issuance). The Vaadin application has its own chain in `marketplace-app` without an `@Order`; Spring Security 7.1.x is installed.
+
+*Best-practice check (web search, 2026-10-18; secondary sources, none authoritative).* Several chains with narrow matchers, the specific one ordered first, is the documented way to give different endpoints different authentication; the common mistake is a broad `/api/**` chain ordered first that captures everything, which this design avoids. The search did not confirm what a `401` without a challenge header does; from general knowledge, HTTP requires a `401` to carry a `WWW-Authenticate` challenge, and browsers show their login prompt only for a Basic (or Digest) challenge, so the general chain answers `401` with `WWW-Authenticate: Bearer` instead of omitting the header (to be checked against the HTTP semantics RFC and the Spring reference). On failed-login limits, OWASP-derived sources say 3 to 5 failures is typical, that counting by address alone is bypassed by distributed attempts and counting by account alone is bypassed by spraying across accounts, and that a lockout can itself be used to lock a legitimate user out.
+
+*Unit A — security configuration (`marketplace-rest-api/.../config/ApiSecurityConfig.java`).* Two chains instead of one:
+1. `@Order(1)` key-issuance chain, matcher `POST /api/api-keys` only: `httpBasic` on, `BasicLoginRateLimitFilter` added before `BasicAuthenticationFilter`, `anyRequest().authenticated()`, csrf off, stateless, form login and logout off. The bearer filter is not in this chain, so a Bearer request here is `401` with the Basic challenge. The key endpoint is the one place a login is expected, so it keeps `WWW-Authenticate: Basic`.
+2. `@Order(2)` general chain, matcher `/api/**`: `httpBasic` removed, the existing public rules unchanged (`POST /api/users`, the public `GET`s), `ApiKeyAuthenticationFilter` kept, and an entry point that answers `401` with `WWW-Authenticate: Bearer realm="api"` when no bearer header was sent and with `error="invalid_token"` added when a bearer header was present but failed (RFC 6750); there is no Basic challenge, so the browser shows no login prompt. The response that returns the raw key carries `Cache-Control: no-store`. A Basic header on these endpoints is ignored, so the request is anonymous and answered `401`.
+The exact matcher factory and the filter anchor (`BasicAuthenticationFilter` is no longer in the general chain) are checked against Spring Security 7.1 while implementing.
+
+*Unit B — new `BasicLoginRateLimitFilter` (`marketplace-rest-api/.../config/`).* A `OncePerRequestFilter`: reads the `Authorization: Basic` header, decodes the username, a `FailureRateLimiter(5, 15 minutes)` from `platform-commons`; `checkAllowed` before the chain, on `TooManyAttemptsException` writes `429` with `{"message":"Too many failed login attempts, try again later"}` itself (filters sit outside the controller advice); after the chain `recordFailure` when the response status is `401` and `clear` on a 2xx. Requests with no or malformed Basic header pass through untouched. One counter, keyed by `remoteAddr|normalised email` (trimmed, lower-cased, length-capped), the same shape as `AuthService.login`, so the UI login and the key endpoint behave alike; 5 failed tries within 15 minutes, a success clears it. The `429` carries `Retry-After` set to the window length (the limiter cannot report the time left). Decided 2026-10-18: one counter, simplicity over the three-counter variant considered earlier. Known limits, accepted: an attacker who changes address gets a fresh counter for the same account, and one address spraying many accounts gets a counter per account; web sources recommend an account-bound counter and warn that any lockout can be used to delay a victim, which here only delays key issuance, never bearer-key requests. No ready library covers failed-login throttling (Spring Security ships none; Bucket4j, Resilience4j and Guava limit request rates, not failures, and cannot know the outcome before consuming), and the existing `FailureRateLimiter` already is the in-memory failure counter, so no dependency is added.
+
+*Unit C — tests (main thread).* Unit `BasicLoginRateLimitFilterTest`: no header passes through; five wrong tries then the sixth is `429` with `Retry-After`; success clears the counter; another email has its own counter; the email is normalised (case, spaces) before it is counted; a malformed header passes through. Level 3 `ApiAuthenticationChainScenarioTest` on the real chain: Basic to `GET /api/api-keys` is `401` with a `Bearer` challenge and no `Basic` one; Basic to `POST /api/advertisements` is `401`; Basic to the public `GET /api/advertisements` is `200`; Bearer to `POST /api/api-keys` is `401`; a valid Basic to `POST /api/api-keys` is `201`; five wrong passwords then the sixth is `429`; a different email is unaffected. The existing level 3 scenarios keep running through both chains.
+
+*Unit D — documentation and decision.* `.claude/rules/marketplace-rest-api.md` (the config section and the key-issuance constraint, now structural) and the module README data-flow paragraph; items 4 and 5 in improvement-186 replaced by a pointer to this phase; a new decision through `/record-decision` (REST decisions live in `marketplace-app/DECISIONS.md`): Basic only on key issuance in its own chain, with login rate limiting; `adrs_referenced` of this task updated and the ADR index regenerated.
+
+*Execution and verification.* Units A and B need judgment on the Spring Security 7.1 API, so the main thread writes them; the pointer edit in improvement-186 and the two documentation edits go to one Haiku dispatch with exact text once the code is final, and I verify its diff. Then `/review`, the build-and-test run with the unit, integration and sandbox options in the background under the activity monitor, and `/sync-docs`. The end-to-end suite is not run for this phase (nothing visible in the UI changes), but the REST seeding in the Playwright specs and the Swagger check use the changed chains, so it is run once at the end of all phases. The run ends staged on the task branch; the save into history is made only on the explicit "зроби коміт".
+
+**Deferred, noted only (decided 2026-10-18; not part of this phase):** equalising response time for an unknown email versus a wrong password; an audit log of key issuance, revocation, failures and blocks; requiring HTTPS on the key endpoint; trusted-proxy configuration for the client address once a reverse proxy is added (`server.forward-headers-strategy=NATIVE` with Tomcat's internal-proxies list, never empty, and never reading `X-Forwarded-For` by hand); progressive lockout and extra counters; API-key hygiene (expiry, last use, per-user cap).
+
+**Decisions recorded for this phase:** one counter, 5 failed tries per 15 minutes per address and email; `401` with a `Bearer` challenge on the general chain; the key endpoint keeps the `Basic` challenge.
 
 ## Related
 
@@ -215,8 +243,8 @@ in `marketplace-app` and the REST module cannot import it (same reason as `SORTA
 - [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling and MCP readiness
 
 ## Operational notes
-- token_cost_review: 57661
-- token_cost_research: n/a
+- token_cost_review: 114715
+- token_cost_research: 72142
 - token_cost_verification: n/a
 - review_signal_ratio: 0 / 0
 - context_loading_task_type: Feature, single module
@@ -226,19 +254,26 @@ in `marketplace-app` and the REST module cannot import it (same reason as `SORTA
 - flows_chosen: /autopilot, /review, /build-and-test, /sync-docs
 - flows_matched: yes
 - haiku_decomposition_used: yes
-- haiku_decomposition_dispatch_count: 1
-- haiku_decomposition_rework_needed: 0 / 1
-- adrs_referenced: none
+- haiku_decomposition_dispatch_count: 2
+- haiku_decomposition_rework_needed: 0 / 2
+- adrs_referenced: ADR-087 (marketplace-app)
 
 ### Agent calls
 - phase 1 controller edits (exact specification) | subagent_type=general-purpose (model haiku) | tokens=77964 | tool_uses=9 | duration_s=38 | mode=background | batch=solo
-- code review of uncommitted changes (default effort) | subagent_type=deep-review-orchestrator | tokens=57661 | tool_uses=10 | duration_s=385 | mode=background | batch=solo
+- code review of uncommitted changes, phase 1 (default effort) | subagent_type=deep-review-orchestrator | tokens=57661 | tool_uses=10 | duration_s=385 | mode=background | batch=solo
+- independent web review of the phase 2 authentication design | subagent_type=general-purpose | tokens=72142 | tool_uses=9 | duration_s=56 | mode=background | batch=solo
+- phase 2 documentation edits (exact specification) | subagent_type=general-purpose (model haiku) | tokens=70625 | tool_uses=7 | duration_s=35 | mode=background | batch=solo
+- code review of uncommitted changes, phase 2 (default effort) | subagent_type=deep-review-orchestrator | tokens=57054 | tool_uses=8 | duration_s=114 | mode=background | batch=solo
 
 ### Script/command runs
 - bash scripts/activity-monitor.sh -- bash scripts/build-and-test.sh --unit --integration --sandbox | duration_s=430 | mode=background | result=pass (756 tests, 0 failures)
+- bash scripts/activity-monitor.sh -- bash scripts/build-and-test.sh --unit --integration --sandbox (phase 2) | duration_s=270 | mode=background | result=pass (774 tests, 0 failures)
 - bash docs/architecture/scripts/generate-architecture-model.sh | duration_s=n/a | mode=background | result=pass
 
 ### Review angle yield
 - dry-kiss-yagni | survived=0 | total_candidates=0 | tokens=42512
 - solid | survived=0 | total_candidates=0 | tokens=50256
 - precedent | survived=0 | total_candidates=0 | tokens=46175
+- phase 2: dry-kiss-yagni | survived=0 | total_candidates=0 | tokens=45808
+- phase 2: solid | survived=0 | total_candidates=0 | tokens=45941
+- phase 2: precedent | survived=0 | total_candidates=0 | tokens=49562

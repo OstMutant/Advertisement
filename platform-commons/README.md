@@ -21,7 +21,8 @@ any of them. No business logic lives here — only the shapes other modules agre
   `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`,
   `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`),
   `user.model` (`Role`).
-- **`apikey.*`** — `apikey.spi` (`ApiKeyPort`), `apikey.dto` (`ApiKeySummaryDto`).
+- **`apikey.*`** — `apikey.spi` (`ApiKeyPort`), `apikey.dto` (`ApiKeySummaryDto`), `apikey.model`
+  (`ApiKeyAlreadyRevokedException`).
 - **`advertisement.*`** — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto`
   (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`,
   `AdvertisementSnapshotDto`), `advertisement.model` (`AdKind`).

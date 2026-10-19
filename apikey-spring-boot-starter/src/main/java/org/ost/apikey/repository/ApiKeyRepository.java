@@ -56,6 +56,18 @@ public class ApiKeyRepository {
                 .optional();
     }
 
+    public Optional<ApiKey> findByIdAndActorId(@NonNull Long keyId, @NonNull Long actorId) {
+        return jdbcClient.sql("""
+                        SELECT id, actor_id, key_hash, key_prefix, label, created_at, last_used_at, revoked_at
+                        FROM api_key WHERE id = :id AND actor_id = :actorId
+                        """)
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("id", keyId)
+                        .addValue(PARAM_ACTOR_ID, actorId))
+                .query(ROW_MAPPER)
+                .optional();
+    }
+
     public List<ApiKey> findByActorId(@NonNull Long actorId) {
         return jdbcClient.sql("""
                         SELECT id, actor_id, key_hash, key_prefix, label, created_at, last_used_at, revoked_at

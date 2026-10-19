@@ -17,7 +17,8 @@ Java package root: `org.ost.apikey`
 - `ApiKeyHasher` (`org.ost.apikey.security`) — `generate()` (32-byte `SecureRandom`, base64url) and
   `hash()` (SHA-256) for the raw key
 - `ApiKeyService` — issue/resolve/list/revoke/`deleteAllForActor`, single-domain credential logic
-  with no cross-domain composition
+  with no cross-domain composition; `revoke` fails with not-found for an unknown or foreign key and
+  with an already-revoked error (`ApiKeyAlreadyRevokedException`) for a revoked one
 - `ApiKeyPortImpl` — implements `ApiKeyPort`; thin delegation to `ApiKeyService`
 
 **Autoconfiguration entry point:** `ApiKeyAutoConfiguration`
@@ -36,7 +37,8 @@ convention; a user's key rows are removed via `ApiKeyPort.deleteAllForActor`, ca
 ## Key constraints
 
 - `ApiKeyPort`/`ApiKeySummaryDto` live in `platform-commons`'s own `apikey.spi`/`apikey.dto`
-  packages — matching every other domain with its own Maven starter module.
+  packages, and `ApiKeyAlreadyRevokedException` in `apikey.model` — matching every other domain
+  with its own Maven starter module.
 - Not folded into `user-spring-boot-starter` despite the natural credential-domain fit: this
   starter is consumed only by `marketplace-rest-api` (the external REST API's only auth
   mechanism), never by a Vaadin flow — a real starter is still the only shape that adds zero

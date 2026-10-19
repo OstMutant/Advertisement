@@ -46,3 +46,7 @@ logging:
     root: info
   pattern:
     console: "%clr(%d{yy-MM-dd E HH:mm:ss.SSS}){blue} %clr(%-5p) %clr(${PID}){faint} %clr(---){faint} %clr([%-30thread]){cyan} %clr([%.8X{requestId}]){magenta} %clr(%-40.40logger{0}){blue} %clr(:){red} %clr(%m){faint}%n"
+
+springdoc:
+  swagger-ui:
+    persist-authorization: true

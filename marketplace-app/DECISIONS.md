@@ -2,6 +2,24 @@
 
 ---
 
+## ADR-087: External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** marketplace-rest-api
+
+**Context:** The external REST API had one security chain for `/api/**` with HTTP Basic enabled everywhere. Basic authenticates the request with an `AuthenticatedPrincipal`, while every bearer-only controller method takes `@AuthenticationPrincipal Long actorId`, so a Basic request to such an endpoint reached the controller with a null id and ended as a 500 instead of a 401. In the other direction a Bearer request to the key-issuance endpoint left its `AuthenticatedPrincipal` null. Each 401 also carried a Basic challenge, which makes browsers open their login prompt and keep sending the credentials (seen in Swagger UI). No test sent the wrong kind of credential to an endpoint, and guessing passwords at the Basic key-issuance endpoint was not limited, unlike the UI login.
+
+**Decision:** Two chains in `ApiSecurityConfig`. The first, `@Order(1)`, matches only `POST /api/api-keys`, accepts HTTP Basic, and keeps the Basic challenge. The second, `@Order(2)`, matches `/api/**`, has no Basic, keeps the bearer-key filter and the public read rules, and answers an unauthenticated request with 401 and a Bearer challenge (`realm="api"`, plus `error="invalid_token"` when a bearer header was sent but failed, per RFC 6750). A Basic header on those endpoints is ignored, so the request is anonymous and answered 401. In front of Basic on the key-issuance chain, `BasicLoginRateLimitFilter` counts failed logins in the existing in-memory `FailureRateLimiter`: one counter per client address and normalised email, 5 failures in 15 minutes, a success clears it, and a blocked caller gets 429 with `Retry-After` before the credentials are checked again.
+
+**Rejected alternatives:** One chain with Basic kept and a custom entry point: Basic would still authenticate every path, so the principal-type mismatch would remain. A request-rate library (Bucket4j, Resilience4j, Guava): they count requests, not failed logins, and cannot know the outcome before consuming; the existing limiter already is the failure counter. Three counters (address and email, email, address): more moving parts than this size needs; the accepted limits are that a changed address gives a fresh counter and that any lockout can delay a victim's key issuance, never their bearer-key requests. A 401 without any challenge header: HTTP requires a challenge on 401.
+
+**Consequences:** Deferred, not decided here: equal response time for an unknown email and a wrong password, an audit log of key issuance and failures, HTTPS on the key endpoint, trusted-proxy configuration for the client address once a reverse proxy exists, progressive lockout, and API-key hygiene (expiry, last use, per-user cap).
+
+---
+
 ## ADR-086: `AbstractEntityOverlay.applyFreshOrFallback` — defined fallback for a post-save refetch that races a concurrent delete; skip the refetch where a caller doesn't need fresh data
 
 **Status:** Accepted

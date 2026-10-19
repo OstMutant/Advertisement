@@ -9,6 +9,7 @@ import org.ost.integrationtests.UserTestFixtures;
 import org.ost.integrationtests.support.RepositoryTestSupport;
 import org.ost.integrationtests.support.TestDataCleaner;
 import org.ost.platform.apikey.dto.ApiKeySummaryDto;
+import org.ost.platform.apikey.model.ApiKeyAlreadyRevokedException;
 import org.ost.user.config.UserAutoConfiguration;
 import org.ost.user.entity.User;
 import org.ost.user.repository.UserRepository;
@@ -17,10 +18,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(classes = {
         UserAutoConfiguration.class,
@@ -88,9 +91,23 @@ class ApiKeyServiceTest extends AbstractPostgresIntegrationTest {
         Long keyId = apiKeyService.listForActor(userId).getFirst().id();
         User otherUser = UserTestFixtures.createTestUser(userRepository, "Not The Owner", "svcnotowner-" + UUID.randomUUID() + "@example.com");
 
-        apiKeyService.revoke(otherUser.getId(), keyId);
+        assertThatThrownBy(() -> apiKeyService.revoke(otherUser.getId(), keyId)).isInstanceOf(NoSuchElementException.class);
 
         assertThat(apiKeyService.resolveActorId(rawKey)).contains(userId);
+    }
+
+    @Test
+    void revoke_unknownKey_throwsNotFound() {
+        assertThatThrownBy(() -> apiKeyService.revoke(userId, 999_999L)).isInstanceOf(NoSuchElementException.class);
+    }
+
+    @Test
+    void revoke_alreadyRevoked_throwsAlreadyRevoked() {
+        apiKeyService.create(userId, "my key");
+        Long keyId = apiKeyService.listForActor(userId).getFirst().id();
+        apiKeyService.revoke(userId, keyId);
+
+        assertThatThrownBy(() -> apiKeyService.revoke(userId, keyId)).isInstanceOf(ApiKeyAlreadyRevokedException.class);
     }
 
     @Test

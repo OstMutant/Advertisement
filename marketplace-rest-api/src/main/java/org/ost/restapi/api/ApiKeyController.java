@@ -3,6 +3,7 @@ package org.ost.restapi.api;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -49,14 +50,16 @@ public class ApiKeyController {
         return new ApiKeyCreatedResponse(rawKey);
     }
 
-    @Operation(summary = "List the caller's own API keys", description = "Returns summaries only (label, creation date, masked key) -- the raw key is never retrievable after issuance.")
+    @Operation(summary = "List the caller's own API keys", description = "Returns summaries only (label, creation date, masked key) -- the raw key is never retrievable after issuance. Revoked keys are included with a non-null revokedAt.")
     @GetMapping
     @SecurityRequirement(name = "bearerKey")
     public List<ApiKeySummaryDto> list(@AuthenticationPrincipal @NonNull Long actorId) {
         return apiKeyManagementService.listForActor(actorId);
     }
 
-    @Operation(summary = "Revoke one of the caller's own API keys")
+    @Operation(summary = "Revoke one of the caller's own API keys", description = "Responds 204 on success, 404 if the key does not exist or is not the caller's, 409 if it is already revoked. A revoked key stays in the list with a non-null revokedAt.")
+    @ApiResponse(responseCode = "404", description = "API key not found")
+    @ApiResponse(responseCode = "409", description = "API key is already revoked")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")

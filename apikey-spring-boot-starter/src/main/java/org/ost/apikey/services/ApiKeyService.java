@@ -6,10 +6,12 @@ import org.ost.apikey.entity.ApiKey;
 import org.ost.apikey.repository.ApiKeyRepository;
 import org.ost.apikey.security.ApiKeyHasher;
 import org.ost.platform.apikey.dto.ApiKeySummaryDto;
+import org.ost.platform.apikey.model.ApiKeyAlreadyRevokedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 /**
@@ -49,6 +51,10 @@ public class ApiKeyService {
 
     @Transactional
     public void revoke(@NonNull Long actorId, @NonNull Long keyId) {
+        ApiKey key = repository.findByIdAndActorId(keyId, actorId).orElseThrow(() -> new NoSuchElementException("API key not found"));
+        if (key.getRevokedAt() != null) {
+            throw new ApiKeyAlreadyRevokedException("API key is already revoked");
+        }
         repository.revoke(actorId, keyId);
     }
 
