@@ -20,6 +20,7 @@ public class ContactAccessService {
 
     private final ComponentFactory<ContactPort> contactPortFactory;
     private final AdvertisementOwnerProfileLookupService advertisementOwnerProfileLookupService;
+    private final AuthorizationService authorizationService;
 
     public Optional<ContactInfoDto> find(@NonNull EntityType entityType, @NonNull Long entityId) {
         return contactPortFactory.findIfAvailable().flatMap(port -> port.find(entityType, entityId));
@@ -44,7 +45,10 @@ public class ContactAccessService {
         contactPortFactory.ifAvailable(port -> port.recordView(entityType, entityId, channel, viewerId, revealedValue));
     }
 
-    public List<ContactViewCountDto> countViewsThisMonth(@NonNull EntityType entityType, @NonNull Long entityId) {
+    /** Only the owner of the contact's entity, an administrator or a moderator may read the view counts. */
+    public List<ContactViewCountDto> countViewsThisMonth(
+            @NonNull Long actingUserId, @NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long ownerId) {
+        authorizationService.requireCanOperate(actingUserId, ownerId);
         return contactPortFactory.findIfAvailable()
                 .map(port -> port.countViewsThisMonth(entityType, entityId))
                 .orElse(List.of());

@@ -201,7 +201,6 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
         historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, currentProfile.getId()))
                 .userId(access.getCurrentUserId())
-                .isPrivileged(access.isPrivileged())
                 .canOperate(true)
                 .parentSteps(params.getBreadcrumbSteps())
                 .parentFormLabel(getValue(PROVIDER_PROFILE_OVERLAY_SECTION_LABEL))
@@ -240,7 +239,7 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
     }
 
     private void handleRestoreFromActivity(Long snapshotId) {
-        auditQueryService.getSnapshotContent(snapshotId, EntityType.PROVIDER_PROFILE, ProviderProfileSnapshotDto.class)
+        auditQueryService.getSnapshotContent(access.getCurrentUserId(), currentProfile.getId(), snapshotId, EntityType.PROVIDER_PROFILE, ProviderProfileSnapshotDto.class)
                 .map(AuditSnapshotContentDto::snapshotData)
                 .ifPresent(snapshot -> {
                     ProviderProfileEditDto dto = ProviderProfileEditDto.builder()

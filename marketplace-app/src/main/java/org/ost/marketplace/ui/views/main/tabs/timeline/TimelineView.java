@@ -104,8 +104,8 @@ public class TimelineView extends VerticalLayout {
 
         try {
             List<AuditTimelineItemDto<AuditableSnapshot>> items = auditQueryService.getTimelinePage(
-                    filter, queryBlock.getSortProcessor().getOriginalSort().getSort(), page, size);
-            paginationBar.setTotalCount(auditQueryService.countTimeline(filter));
+                    currentUserId, filter, queryBlock.getSortProcessor().getOriginalSort().getSort(), page, size);
+            paginationBar.setTotalCount(auditQueryService.countTimeline(currentUserId, filter));
             renderFeed(items);
         // single-tier by design -- AuditPort's timeline methods carry no @Valid, so ConstraintViolationException can't reach here
         } catch (Exception ex) {

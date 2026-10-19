@@ -138,6 +138,8 @@ event reporting, not cross-domain composition.
 ## ADR-007: Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only
 
 **Status:** Accepted
+**Verified:** 2026-10-19
+**Applied:** 1
 
 **Context:** Mutating service/port methods across 4 domains (`AdvertisementPort`,
 `ProviderProfilePort`, `UserAccountPort`, `TaxonPort`) trusted `actingUserId` with no ownership/role
@@ -165,7 +167,16 @@ longer owns rule composition itself). Also closed a related bug found during imp
 `UserProfileService.save()` is the one write path for both name and role, but only the UI disabled
 the role field for unauthorized editors — server-side, nothing stopped a crafted request from
 self-escalating role. Fixed by requiring the stricter `canEditRole` check whenever `dto.role()`
-differs from the stored value.
+differs from the stored value. The read side follows the same rule: `AuditQueryService` and
+`ContactAccessService` take the acting user id and enforce the read rules through
+`AuthorizationService`, reusing `canOperate`/`isPrivileged` (no new predicates). A privileged user
+(administrator or moderator) sees every history entry and anyone else only the entries they
+authored, with the level derived from the role and never passed in by the caller; the global
+timeline requires a privileged user; a snapshot is readable by a privileged user, or by anyone else
+only when it appears in their own visible activity of that entity (snapshots carry no owner, so
+visibility of the entry stands in for ownership); contact view counts require the entity's owner,
+an administrator or a moderator. Revealing a contact and recording a view stay open to visitors who
+are not signed in. `AccessEvaluator` keeps deciding which controls to show.
 
 **Rejected alternatives:**
 1. Checks inside each of the 4 starters — reversed once grep confirmed the orchestrator is already
@@ -175,6 +186,8 @@ differs from the stored value.
    every `*Controller`) — cheaper, but leaves a residual gap for non-REST callers (a `@Scheduled`
    job, an event listener) an ArchUnit rule can't reach; rejected as the primary mechanism for a
    project heading toward public endpoints.
+3. Keeping the read rules in the UI and re-implementing them in each REST controller — two copies
+   drift, and a controller bug exposes data.
 
 **Consequences:** No `AdvertisementPort`/`ProviderProfilePort`/`UserAccountPort`/`TaxonPort`
 signature changes — `ProviderProfileSaveService.save()` dropped its untrusted
@@ -185,6 +198,10 @@ authorization — same residual gap option 2 already accepted; not closed now. N
 shared, localized notification (`I18nKey.COMMON_NOTIFICATION_ACCESS_DENIED`) instead of the
 exception's raw internal message — the first genuinely domain-agnostic notification string in this
 app's `I18nKey` enum, a deliberate exception to the per-view key-naming convention.
+`AuditQueryService`'s `getEntityActivity`, `getSnapshotContent`, `getTimelinePage` and
+`countTimeline`, and `ContactAccessService.countViewsThisMonth`, gained an acting-user parameter,
+and `getEntityActivity` lost its `showAll` flag; a non-privileged user's history of a settings
+record shows only their own entries.
 
 **Trigger to revisit:** If a non-orchestrator-mediated mutation caller is ever added, the residual
 authorization gap above becomes real and needs its own fix.

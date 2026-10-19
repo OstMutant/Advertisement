@@ -45,8 +45,8 @@ class TimelineViewTest {
 
         view.setVisible(true);
 
-        verify(auditQueryService, never()).getTimelinePage(any(), any(), anyInt(), anyInt());
-        verify(auditQueryService, never()).countTimeline(any());
+        verify(auditQueryService, never()).getTimelinePage(any(), any(), any(), anyInt(), anyInt());
+        verify(auditQueryService, never()).countTimeline(any(), any());
         verify(paginationBar).setTotalCount(0);
     }
 }

@@ -60,7 +60,10 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   plus `resolveContact()`'s fallback (an advertisement's own `contact_info` row if present, else
   its owner's provider-profile row, via `AdvertisementOwnerProfileLookupService`). Not split into
   Read/Save classes like Advertisement/ProviderProfile — `ContactPort.save()`/`recordView()` are
-  single-call delegations with no transactional composition to isolate.
+  single-call delegations with no transactional composition to isolate. `countViewsThisMonth` takes
+  the acting user id and the entity owner's id and requires the acting user to be that owner, an
+  administrator or a moderator (`AuthorizationService.requireCanOperate`); `resolveContact`/
+  `recordView` stay open to visitors who are not signed in.
 - `FeedbackAccessService` — wraps `FeedbackPort` + `AuditPort` (the ≤2-port limit): feedback/reply
   CRUD, moderation transitions (flag/approve/confirm-violation/reject, each paired with an audit
   capture), and `findModerationQueue(filter, sort, page, size)` — merges the hidden +
@@ -105,7 +108,13 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   of re-wrapping its call. `AttachmentSoftDeleteService`'s `softDeleteAll` is used directly by
   `AdvertisementSaveService`'s delete cascade, not through this class.
 - `AuditQueryService` — wraps `ComponentFactory<AuditPort>`'s read-side methods (`getLastSnapshot`/
-  `getEntityActivity`/`getSnapshotContent`/`getTimelinePage`/`countTimeline`).
+  `getEntityActivity`/`getSnapshotContent`/`getTimelinePage`/`countTimeline`). Every read takes the
+  acting user id and enforces the read rules itself via `AuthorizationService`: `getEntityActivity`
+  shows a privileged user (administrator or moderator) every entry and anyone else only the entries
+  they authored (visibility is derived from the role, never passed in); `getTimelinePage`/
+  `countTimeline` require a privileged user; `getSnapshotContent` lets a privileged user read any
+  snapshot and anyone else only a snapshot present in their own visible activity of that entity,
+  otherwise `AccessDeniedException`.
 - `UserProfileService` — mandatory direct `UserPort`/`UserAccountPort`/`UserPreferencesPort` fields
   (matching `UserDeleteService`'s existing `UserAccountPort` precedent) for profile/settings
   read+write (`findById`/`save`/`loadSettings`/`saveSettings`).

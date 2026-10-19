@@ -6,17 +6,21 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.platform.contact.dto.ContactInfoDto;
+import org.ost.platform.contact.dto.ContactViewCountDto;
 import org.ost.platform.contact.model.ContactChannel;
 import org.ost.platform.contact.spi.ContactPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -29,6 +33,7 @@ class ContactServiceTest {
     @Mock private ComponentFactory<ContactPort> contactPortFactory;
     @Mock private ContactPort contactPort;
     @Mock private AdvertisementOwnerProfileLookupService advertisementOwnerProfileLookupService;
+    @Mock private AuthorizationService authorizationService;
 
     private ContactAccessService service;
 
@@ -39,7 +44,7 @@ class ContactServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ContactAccessService(contactPortFactory, advertisementOwnerProfileLookupService);
+        service = new ContactAccessService(contactPortFactory, advertisementOwnerProfileLookupService, authorizationService);
         lenient().when(contactPortFactory.findIfAvailable()).thenReturn(Optional.of(contactPort));
         lenient().doAnswer(inv -> {
             Consumer<ContactPort> consumer = inv.getArgument(0);
@@ -123,5 +128,22 @@ class ContactServiceTest {
     @Test
     void isAvailable_reflectsPortFactory() {
         assertThat(service.isAvailable()).isTrue();
+    }
+
+    @Test
+    void countViewsThisMonth_ownerOrPrivileged_returnsCounts() {
+        List<ContactViewCountDto> counts = List.of(new ContactViewCountDto(ContactChannel.PHONE, 3L));
+        when(contactPort.countViewsThisMonth(EntityType.PROVIDER_PROFILE, 99L)).thenReturn(counts);
+
+        assertThat(service.countViewsThisMonth(5L, EntityType.PROVIDER_PROFILE, 99L, 99L)).isEqualTo(counts);
+    }
+
+    @Test
+    void countViewsThisMonth_notAllowed_throwsAndNeverReadsCounts() {
+        doThrow(new AccessDeniedException("no")).when(authorizationService).requireCanOperate(5L, 99L);
+
+        assertThatThrownBy(() -> service.countViewsThisMonth(5L, EntityType.PROVIDER_PROFILE, 99L, 99L))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(contactPort, never()).countViewsThisMonth(any(), any());
     }
 }

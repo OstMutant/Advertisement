@@ -299,7 +299,6 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))
                 .userId(access.getCurrentUserId())
-                .isPrivileged(access.isPrivileged())
                 .canOperate(access.canOperate(params.getAd().getOwnerUserId()))
                 .parentSteps(params.getBreadcrumbSteps())
                 .parentFormLabel(getValue(ADVERTISEMENT_OVERLAY_TITLE_EDIT))
@@ -339,7 +338,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     }
 
     private void handleRestoreFromActivity(Long snapshotId) {
-        auditQueryService.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT, AdvertisementSnapshotDto.class)
+        auditQueryService.getSnapshotContent(access.getCurrentUserId(), params.getAd().getId(), snapshotId, EntityType.ADVERTISEMENT, AdvertisementSnapshotDto.class)
                 .ifPresent(content -> {
                     AdvertisementSnapshotDto snapshot = content.snapshotData();
                     AdvertisementEditDto dto = mapper.toAdvertisementEdit(params.getAd());

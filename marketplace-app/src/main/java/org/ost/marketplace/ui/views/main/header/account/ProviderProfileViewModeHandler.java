@@ -129,7 +129,7 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
     }
 
     private Div buildContactViewsBlock(Long profileId) {
-        Map<ContactChannel, Long> counts = contactService.countViewsThisMonth(EntityType.PROVIDER_PROFILE, profileId).stream()
+        Map<ContactChannel, Long> counts = contactService.countViewsThisMonth(access.getCurrentUserId(), EntityType.PROVIDER_PROFILE, profileId, params.getTargetUserId()).stream()
                 .collect(Collectors.toMap(ContactViewCountDto::channel, ContactViewCountDto::count));
         ContactInfoDto contact = contactService.find(EntityType.PROVIDER_PROFILE, profileId).orElse(null);
 
@@ -212,7 +212,6 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
         historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.PROVIDER_PROFILE, profile.getId()))
                 .userId(access.getCurrentUserId())
-                .isPrivileged(access.isPrivileged())
                 .canOperate(false)
                 .parentSteps(params.getBreadcrumbSteps())
                 .parentFormLabel(getValue(PROVIDER_PROFILE_OVERLAY_SECTION_LABEL))

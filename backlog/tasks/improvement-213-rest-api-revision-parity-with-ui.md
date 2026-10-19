@@ -235,6 +235,15 @@ The exact matcher factory and the filter anchor (`BasicAuthenticationFilter` is 
 
 **Decisions recorded for this phase:** one counter, 5 failed tries per 15 minutes per address and email; `401` with a `Bearer` challenge on the general chain; the key endpoint keeps the `Basic` challenge.
 
+## Phase 3 — shared read rules (approved 2026-10-19)
+
+No new predicates: `AuthorizationService.canOperate(actingUserId, ownerId)` and `isPrivileged(actingUserId)` already express every UI rule (verified in code). The services take the acting user and enforce them:
+
+- `AuditQueryService`: `getEntityActivity(entityType, entityId, actingUserId)` derives `showAll` from `isPrivileged` (the `showAll` argument is removed); `getTimelinePage` and `countTimeline` take `actingUserId` and require a privileged user (the timeline tab is shown only to administrators and moderators); `getSnapshotContent(actingUserId, entityId, snapshotId, entityType, targetClass)` lets a privileged user read any snapshot and any other user only a snapshot that appears in their own visible `getEntityActivity` list (snapshots carry no owner, and the UI shows a non-privileged user only their own entries), otherwise `AccessDeniedException`.
+- `ContactAccessService.countViewsThisMonth(actingUserId, entityType, entityId, ownerId)` requires `canOperate(actingUserId, ownerId)`; `resolveContact` and `recordView` stay open to visitors.
+- UI callers pass the current user: `AuditActivityPanel`, `TimelineView`, `ProviderProfileViewModeHandler`, and the five restore handlers (account, provider profile, settings, advertisement, taxon). `TimelineView` keeps its own non-privileged branch, now unreachable from the UI because the tab is hidden; noted, not removed.
+- Tests: new `AuditQueryServiceTest`, extended `ContactAccessServiceTest`, UI tests updated, full `build-and-test.sh --unit --integration --sandbox`; then `/review`, `/sync-docs`, a decision record, one commit for the phase on request.
+
 ## Related
 
 - [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — media, PATCH, Basic-auth gap
@@ -256,7 +265,7 @@ The exact matcher factory and the filter anchor (`BasicAuthenticationFilter` is 
 - haiku_decomposition_used: yes
 - haiku_decomposition_dispatch_count: 2
 - haiku_decomposition_rework_needed: 0 / 2
-- adrs_referenced: ADR-087 (marketplace-app)
+- adrs_referenced: ADR-087 (marketplace-app), ADR-007 (marketplace-orchestrator)
 
 ### Agent calls
 - phase 1 controller edits (exact specification) | subagent_type=general-purpose (model haiku) | tokens=77964 | tool_uses=9 | duration_s=38 | mode=background | batch=solo

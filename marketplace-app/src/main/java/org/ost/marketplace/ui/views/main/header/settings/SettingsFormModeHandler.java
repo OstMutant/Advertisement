@@ -145,7 +145,6 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.USER_SETTINGS, params.getUserId()))
                 .userId(params.getUserId())
-                .isPrivileged(true)
                 .canOperate(true)
                 .parentSteps(params.getBreadcrumbSteps())
                 .parentFormLabel(getValue(SETTINGS_SECTION_TITLE))
@@ -178,7 +177,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     }
 
     private void handleRestoreFromActivity(Long snapshotId) {
-        auditQueryService.getSnapshotContent(snapshotId, EntityType.USER_SETTINGS, SettingsSnapshotDto.class)
+        auditQueryService.getSnapshotContent(access.getCurrentUserId(), params.getUserId(), snapshotId, EntityType.USER_SETTINGS, SettingsSnapshotDto.class)
                 .map(c -> UserSettingsDto.builder()
                         .adsPageSize(c.snapshotData().adsPageSize())
                         .usersPageSize(c.snapshotData().usersPageSize())

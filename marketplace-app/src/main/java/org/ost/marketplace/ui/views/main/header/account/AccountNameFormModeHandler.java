@@ -150,7 +150,6 @@ public class AccountNameFormModeHandler extends AbstractFormOverlayModeHandler<U
         historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.USER, params.getTargetUserId()))
                 .userId(access.getCurrentUserId())
-                .isPrivileged(access.isPrivileged())
                 .canOperate(true)
                 .parentSteps(params.getBreadcrumbSteps())
                 .parentFormLabel(currentUser.name())
@@ -181,7 +180,7 @@ public class AccountNameFormModeHandler extends AbstractFormOverlayModeHandler<U
     }
 
     private void handleRestoreFromActivity(Long snapshotId) {
-        auditQueryService.getSnapshotContent(snapshotId, EntityType.USER, UserSnapshotDto.class)
+        auditQueryService.getSnapshotContent(access.getCurrentUserId(), params.getTargetUserId(), snapshotId, EntityType.USER, UserSnapshotDto.class)
                 .map(AuditSnapshotContentDto::snapshotData)
                 .ifPresent(snapshot -> {
                     UserEditDto dto = new UserEditDto(params.getTargetUserId(), snapshot.name(),
