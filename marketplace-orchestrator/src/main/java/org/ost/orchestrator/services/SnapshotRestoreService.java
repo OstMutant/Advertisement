@@ -1,0 +1,104 @@
+package org.ost.orchestrator.services;
+
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
+import org.ost.platform.audit.api.AuditableSnapshot;
+import org.ost.platform.core.model.EntityType;
+import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
+import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
+import org.ost.platform.taxon.dto.TaxonSnapshotDto;
+import org.ost.platform.taxon.dto.TaxonTranslationDto;
+import org.ost.platform.user.dto.SettingsSnapshotDto;
+import org.ost.platform.user.dto.UserProfileDto;
+import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.dto.UserSnapshotDto;
+import org.ost.platform.user.model.Role;
+import org.springframework.stereotype.Service;
+
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Set;
+
+/**
+ * Returns an entity to a recorded snapshot by saving the snapshot's values through the domain's normal save path,
+ * so validation, authorization and audit capture are exactly those of an ordinary update.
+ */
+@Service
+@RequiredArgsConstructor
+public class SnapshotRestoreService {
+
+    private final AuditQueryService auditQueryService;
+    private final AdvertisementSaveService advertisementSaveService;
+    private final ProviderProfileSaveService providerProfileSaveService;
+    private final ProviderProfileReadService providerProfileReadService;
+    private final UserProfileService userProfileService;
+    private final TaxonCatalogService taxonCatalogService;
+
+    /** Restores title, description, kind, categories and city; the gallery is left as it is. */
+    public Long restoreAdvertisement(@NonNull Long actingUserId, @NonNull Long adId, @NonNull Long snapshotId, Long version) {
+        AdvertisementSnapshotDto snapshot = read(actingUserId, EntityType.ADVERTISEMENT, adId, snapshotId, AdvertisementSnapshotDto.class);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, snapshot.title(), snapshot.description(), snapshot.adKind(),
+                idSet(snapshot.categoryIds()), snapshot.cityTaxonId(), version);
+        return advertisementSaveService.save(dto, actingUserId, _ -> null);
+    }
+
+    /** Restores kind, about, categories, city and the three contact channels, saved against the profile's real owner. */
+    public Long restoreProviderProfile(@NonNull Long actingUserId, @NonNull Long profileId, @NonNull Long snapshotId, Long version) {
+        ProviderProfileSnapshotDto snapshot = read(actingUserId, EntityType.PROVIDER_PROFILE, profileId, snapshotId, ProviderProfileSnapshotDto.class);
+        Long ownerId = providerProfileReadService.findById(profileId)
+                .orElseThrow(() -> new NoSuchElementException("Provider profile " + profileId + " not found"))
+                .getActorId();
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(profileId, snapshot.kind(), snapshot.about(),
+                idSet(snapshot.categoryIds()), snapshot.cityTaxonId(), snapshot.phone(), snapshot.telegram(), snapshot.viber(), version);
+        return providerProfileSaveService.save(dto, ownerId, actingUserId);
+    }
+
+    /** Restores name and role only: the save path cannot change an email, so the snapshot's email is ignored. */
+    public void restoreUser(@NonNull Long actingUserId, @NonNull Long userId, @NonNull Long snapshotId, Long version) {
+        UserSnapshotDto snapshot = read(actingUserId, EntityType.USER, userId, snapshotId, UserSnapshotDto.class);
+        userProfileService.save(new UserProfileDto(userId, snapshot.name(), Role.valueOf(snapshot.role()), version), actingUserId);
+    }
+
+    /** Restores the six page-size settings of the user whose settings the snapshot belongs to. */
+    public void restoreSettings(@NonNull Long actingUserId, @NonNull Long userId, @NonNull Long snapshotId, Long version) {
+        SettingsSnapshotDto snapshot = read(actingUserId, EntityType.USER_SETTINGS, userId, snapshotId, SettingsSnapshotDto.class);
+        userProfileService.saveSettings(userId, UserSettingsDto.builder()
+                .adsPageSize(snapshot.adsPageSize())
+                .usersPageSize(snapshot.usersPageSize())
+                .timelinePageSize(snapshot.timelinePageSize())
+                .providerProfilesPageSize(snapshot.providerProfilesPageSize())
+                .feedbackPageSize(snapshot.feedbackPageSize())
+                .moderationPageSize(snapshot.moderationPageSize())
+                .version(version)
+                .build());
+    }
+
+    /** Restores the English and Ukrainian names and descriptions. */
+    public void restoreTaxon(@NonNull Long actingUserId, @NonNull Long taxonId, @NonNull Long snapshotId, Long version) {
+        TaxonSnapshotDto snapshot = read(actingUserId, EntityType.TAXON, taxonId, snapshotId, TaxonSnapshotDto.class);
+        Map<Locale, TaxonTranslationDto> translations = Map.of(
+                Locale.ENGLISH, translation("en", snapshot.nameEn(), snapshot.descriptionEn()),
+                Locale.forLanguageTag("uk"), translation("uk", snapshot.nameUk(), snapshot.descriptionUk()));
+        taxonCatalogService.update(taxonId, translations, actingUserId, version);
+    }
+
+    private <T extends AuditableSnapshot> T read(Long actingUserId, EntityType entityType, Long entityId, Long snapshotId, Class<T> type) {
+        return auditQueryService.getSnapshotContent(actingUserId, entityId, snapshotId, entityType, type)
+                .orElseThrow(() -> new NoSuchElementException("Snapshot " + snapshotId + " not found"))
+                .snapshotData();
+    }
+
+    private static Set<Long> idSet(java.util.Collection<Long> ids) {
+        return ids != null ? new HashSet<>(ids) : new HashSet<>();
+    }
+
+    private static TaxonTranslationDto translation(String locale, String name, String description) {
+        return TaxonTranslationDto.builder().locale(locale)
+                .name(Objects.requireNonNullElse(name, "")).description(Objects.requireNonNullElse(description, "")).build();
+    }
+}

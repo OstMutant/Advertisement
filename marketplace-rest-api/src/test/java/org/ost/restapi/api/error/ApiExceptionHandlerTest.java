@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
+import org.ost.platform.taxon.model.TaxonNotDeletedException;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -56,6 +57,13 @@ class ApiExceptionHandlerTest {
         ErrorResponse response = handler.handleNotFound(new NoSuchElementException());
 
         assertThat(response.message()).isNotBlank();
+    }
+
+    @Test
+    void handleTaxonNotDeleted_returnsMessage() {
+        ErrorResponse response = handler.handleTaxonNotDeleted(new TaxonNotDeletedException("Taxon 7 is not deleted"));
+
+        assertThat(response.message()).isEqualTo("Taxon 7 is not deleted");
     }
 
     @Test

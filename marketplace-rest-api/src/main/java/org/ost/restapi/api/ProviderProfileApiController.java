@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.ProviderProfileDisplayEnrichmentService;
 import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
+import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.contact.dto.ContactInfoDto;
 import org.ost.platform.core.model.EntityType;
@@ -76,6 +77,7 @@ public class ProviderProfileApiController {
     private final ProviderProfileDisplayEnrichmentService enrichmentService;
     private final UserProfileService userProfileService;
     private final ActivityHistorySupport activityHistorySupport;
+    private final SnapshotRestoreService snapshotRestoreService;
 
     @Operation(summary = "Create a provider profile", description = "Self-service only -- the profile is always created for the caller's own account. categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY. kind=SUPPORT requires a privileged (admin/moderator) caller.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
@@ -157,6 +159,17 @@ public class ProviderProfileApiController {
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(id, request.kind(), request.about(), request.categoryIds(), request.cityTaxonId(),
                 request.phone(), request.telegram(), request.viber(), ETagUtil.parseIfMatch(ifMatch));
         Long savedId = saveService.save(dto, actorId, actorId);
+        return enrich(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
+    }
+
+    @Operation(operationId = "restoreProviderProfileFromSnapshot", summary = "Restore a provider profile to a recorded state",
+            description = "Returns the profile to the recorded state through the normal save path (same permissions and validation as an update). If-Match carries the current version. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @PostMapping("/{id}/history/{snapshotId}/restore")
+    @SecurityRequirement(name = "bearerKey")
+    public ProviderProfileDto restoreFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id,
+            @PathVariable @NonNull Long snapshotId,
+            @Parameter(description = "Current version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        Long savedId = snapshotRestoreService.restoreProviderProfile(actorId, id, snapshotId, ETagUtil.requireIfMatch(ifMatch));
         return enrich(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
     }
 

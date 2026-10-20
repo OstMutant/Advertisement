@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.AuthorizationService;
+import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.UserDeleteService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.core.StaleWriteException;
@@ -59,12 +60,14 @@ class UserApiControllerTest {
     @Mock private AuthorizationService authorizationService;
     @Mock private UserDeleteService userDeleteService;
     @Mock private ActivityHistorySupport activityHistorySupport;
+    @Mock private SnapshotRestoreService snapshotRestoreService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = mockMvc(new UserApiController(userProfileService, authorizationService, userDeleteService, activityHistorySupport));
+        mockMvc = mockMvc(new UserApiController(userProfileService, authorizationService, userDeleteService,
+                activityHistorySupport, snapshotRestoreService));
         authenticateAs(ACTOR_ID);
         lenient().when(userProfileService.resolveUsersPageSize(any())).thenReturn(20);
     }
@@ -415,5 +418,54 @@ class UserApiControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.providerProfilesPageSize").exists());
+    }
+
+    // ── restoreFromSnapshot ──────────────────────────────────────────────
+
+    @Test
+    void restoreFromSnapshot_delegatesAndReturnsResource() throws Exception {
+        UserDto restored = new UserDto(7L, "Alice", "alice@example.com", Role.USER, null, null, 4L);
+        when(userProfileService.findById(7L)).thenReturn(Optional.of(restored));
+
+        mockMvc.perform(post("/api/users/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isOk())
+                .andExpect(header().string("ETag", "\"4\""))
+                .andExpect(jsonPath("$.name").value("Alice"));
+
+        verify(snapshotRestoreService).restoreUser(ACTOR_ID, 7L, 5L, 3L);
+    }
+
+    @Test
+    void restoreFromSnapshot_missingIfMatch_isBadRequest() throws Exception {
+        mockMvc.perform(post("/api/users/7/history/5/restore")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void restoreFromSnapshot_unknownSnapshot_returnsNotFound() throws Exception {
+        doThrow(new NoSuchElementException("Snapshot 5 not found")).when(snapshotRestoreService).restoreUser(ACTOR_ID, 7L, 5L, 3L);
+
+        mockMvc.perform(post("/api/users/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void restoreFromSnapshot_staleVersion_returnsPreconditionFailed() throws Exception {
+        doThrow(new StaleWriteException("stale")).when(snapshotRestoreService).restoreUser(ACTOR_ID, 7L, 5L, 3L);
+
+        mockMvc.perform(post("/api/users/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isPreconditionFailed());
+    }
+
+    @Test
+    void restoreMySettingsFromSnapshot_delegatesAndReturnsSettings() throws Exception {
+        UserSettingsDto restored = UserSettingsDto.builder().adsPageSize(30).usersPageSize(20).timelinePageSize(20)
+                .providerProfilesPageSize(20).version(4).build();
+        when(userProfileService.loadSettings(ACTOR_ID)).thenReturn(restored);
+
+        mockMvc.perform(post("/api/users/me/settings/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.adsPageSize").value(30));
+
+        verify(snapshotRestoreService).restoreSettings(ACTOR_ID, ACTOR_ID, 5L, 3L);
     }
 }

@@ -109,6 +109,11 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
 - `TaxonCatalogService` — wraps `ComponentFactory<TaxonPort>`'s catalog-management methods
   (`getAllByType`/`listAllByType`/`getUsageCounts`/`create`/`update`/`findById`/`getTranslations`)
   — distinct from `TaxonLookupService`, which stays narrowly scoped to entity-assignment lookups.
+- `SnapshotRestoreService` — returns an advertisement, provider profile, user, the caller's own
+  settings or a taxon to a recorded snapshot: reads the snapshot through `AuditQueryService` and
+  saves its values through the domain's normal save path, so validation, authorization and audit
+  capture are those of an ordinary update. One method per restorable resource; the user restore
+  changes name and role only.
 - `AttachmentMediaService` — wraps `ComponentFactory<AttachmentPort>` +
   `ComponentFactory<AttachmentAuditPort>` for the full gallery lifecycle (upload/commit/delete/
   restore) plus audit-diff media state; reuses `AttachmentSnapshotReaderService` internally instead

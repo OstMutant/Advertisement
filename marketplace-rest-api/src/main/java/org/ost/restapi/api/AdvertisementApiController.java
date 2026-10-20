@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
 import org.ost.orchestrator.services.AdvertisementReadService;
 import org.ost.orchestrator.services.AdvertisementSaveService;
+import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
@@ -76,6 +77,7 @@ public class AdvertisementApiController {
     private final AdvertisementDisplayEnrichmentService enrichmentService;
     private final UserProfileService userProfileService;
     private final ActivityHistorySupport activityHistorySupport;
+    private final SnapshotRestoreService snapshotRestoreService;
 
     @Operation(summary = "Create an advertisement", description = "categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
@@ -154,6 +156,17 @@ public class AdvertisementApiController {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(id, request.title(), request.description(),
                 request.adKind(), request.categoryIds(), request.cityTaxonId(), ETagUtil.parseIfMatch(ifMatch));
         Long savedId = saveService.save(dto, actorId, ref -> null);
+        return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
+    }
+
+    @Operation(operationId = "restoreAdvertisementFromSnapshot", summary = "Restore an advertisement to a recorded state",
+            description = "Returns the advertisement to the recorded state through the normal save path (same permissions and validation as an update). If-Match carries the current version. The gallery is left unchanged. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @PostMapping("/{id}/history/{snapshotId}/restore")
+    @SecurityRequirement(name = "bearerKey")
+    public AdvertisementInfoDto restoreFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id,
+            @PathVariable @NonNull Long snapshotId,
+            @Parameter(description = "Current version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        Long savedId = snapshotRestoreService.restoreAdvertisement(actorId, id, snapshotId, ETagUtil.requireIfMatch(ifMatch));
         return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
     }
 

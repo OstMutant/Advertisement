@@ -18,6 +18,7 @@ import jakarta.validation.constraints.Size;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.AuthorizationService;
+import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.UserDeleteService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.core.model.EntityType;
@@ -75,6 +76,7 @@ public class UserApiController {
     private final AuthorizationService authorizationService;
     private final UserDeleteService userDeleteService;
     private final ActivityHistorySupport activityHistorySupport;
+    private final SnapshotRestoreService snapshotRestoreService;
 
     @Operation(summary = "Register a new account", description = "Public, no authentication needed. Rate-limited by client IP (5 failed attempts / 15 min). Follow up with POST /api/api-keys (Basic auth) to obtain a bearer key for the other endpoints.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
@@ -146,6 +148,18 @@ public class UserApiController {
         return ETagUtil.withVersion(ResponseEntity.ok(), updated.version()).body(updated);
     }
 
+    @Operation(operationId = "restoreUserFromSnapshot", summary = "Restore a user to a recorded state",
+            description = "Returns the user's name and role to the recorded state through the normal save path (same permissions and validation as an update); nothing else is restored. If-Match carries the current version. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @PostMapping("/{id}/history/{snapshotId}/restore")
+    @SecurityRequirement(name = "bearerKey")
+    public ResponseEntity<UserDto> restoreFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id,
+            @PathVariable @NonNull Long snapshotId,
+            @Parameter(description = "Current version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        snapshotRestoreService.restoreUser(actorId, id, snapshotId, ETagUtil.requireIfMatch(ifMatch));
+        UserDto restored = userProfileService.findById(id).orElseThrow(NoSuchElementException::new);
+        return ETagUtil.withVersion(ResponseEntity.ok(), restored.version()).body(restored);
+    }
+
     @Operation(operationId = "deleteUser", summary = "Delete a user", description = "Allowed for the account's owner or an administrator, as in the UI. The user's advertisements, provider profile and API keys are removed first.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -213,6 +227,16 @@ public class UserApiController {
     public ActivityHistorySupport.SnapshotResponse mySettingsHistorySnapshot(@AuthenticationPrincipal @NonNull Long actorId,
             @PathVariable @NonNull Long snapshotId) {
         return activityHistorySupport.snapshot(actorId, EntityType.USER_SETTINGS, actorId, snapshotId, SettingsSnapshotDto.class);
+    }
+
+    @Operation(operationId = "restoreMySettingsFromSnapshot", summary = "Restore the caller's own settings to a recorded state",
+            description = "Returns the page-size preferences to the recorded state through the normal save path (same validation as PATCH /api/users/me/settings). If-Match carries the current version. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @PostMapping("/me/settings/history/{snapshotId}/restore")
+    @SecurityRequirement(name = "bearerKey")
+    public UserSettingsDto restoreMySettingsFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long snapshotId,
+            @Parameter(description = "Current version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        snapshotRestoreService.restoreSettings(actorId, actorId, snapshotId, ETagUtil.requireIfMatch(ifMatch));
+        return userProfileService.loadSettings(actorId);
     }
 
     /** The newly registered user's identity, returned after a successful {@code POST /api/users}. */

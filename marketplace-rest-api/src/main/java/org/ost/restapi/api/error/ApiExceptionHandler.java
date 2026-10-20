@@ -4,6 +4,7 @@ import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.platform.apikey.model.ApiKeyAlreadyRevokedException;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
+import org.ost.platform.taxon.model.TaxonNotDeletedException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -46,6 +47,12 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ApiKeyAlreadyRevokedException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleApiKeyAlreadyRevoked(ApiKeyAlreadyRevokedException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(TaxonNotDeletedException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleTaxonNotDeleted(TaxonNotDeletedException ex) {
         return new ErrorResponse(ex.getMessage());
     }
 

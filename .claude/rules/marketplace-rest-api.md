@@ -29,7 +29,12 @@ Java package root: `org.ost.restapi`
   `AdvertisementApiController.AdvertisementWriteRequest`,
   `ProviderProfileApiController.ProviderProfileWriteRequest` — the two `*WriteRequest` shapes carry
   no `id`/`version` field at all, server-managed via the path variable / `If-Match` header instead)
-  rather than living as separate top-level files.
+  rather than living as separate top-level files. Snapshot restore endpoints live in the same
+  controllers: `POST …/history/{snapshotId}/restore` on advertisements, provider profiles, taxons and
+  users, `POST /api/users/me/settings/history/{snapshotId}/restore` for the caller's own settings,
+  and `POST /api/taxons/{id}/restore` for a soft-deleted taxon. Every snapshot restore requires
+  `If-Match` (the current version); the restore itself is delegated to `SnapshotRestoreService`
+  in `marketplace-orchestrator`.
 - `org.ost.restapi.api.error` — `ApiExceptionHandler` (`@RestControllerAdvice`) plus its two
   response records, `ErrorResponse`/`ValidationErrorResponse` — kept in their own package rather
   than nested, since the advice maps exceptions from every controller in this module, not owned by

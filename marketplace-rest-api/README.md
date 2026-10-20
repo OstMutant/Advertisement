@@ -25,9 +25,10 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
   (`GET /api/audit/timeline`, filtered and paged), and a `/history` sub-collection on advertisements,
   provider profiles, taxons, users and a caller's own settings, newest first. Administrators and
   moderators see every entry, anyone else only the entries they authored. Each entry can be read as a
-  snapshot (`.../history/{snapshotId}`) carrying the recorded state and its version, so a client
-  restores by sending that state back as a normal update with `If-Match`; a snapshot outside the
-  caller's visible activity is `403`.
+  snapshot (`.../history/{snapshotId}`) carrying the recorded state and its version. `POST
+  .../history/{snapshotId}/restore` (with `If-Match`) returns the resource to that state through the
+  normal save path; a snapshot outside the caller's visible activity is `403`. A soft-deleted taxon
+  is restored with `POST /api/taxons/{id}/restore`, which answers `409` when the taxon is not deleted.
 - Contacts: a public list of which channels (phone, Telegram, Viber) an advertisement or provider
   profile has, and a public reveal of one channel that records the view and, for Telegram and Viber,
   returns a deep link that opens the chat; reveals are rate-limited per client address and viewer.

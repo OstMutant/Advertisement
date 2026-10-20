@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
@@ -53,6 +54,7 @@ public class TaxonApiController {
 
     private final TaxonCatalogService taxonCatalogService;
     private final ActivityHistorySupport activityHistorySupport;
+    private final SnapshotRestoreService snapshotRestoreService;
 
     @Operation(summary = "Create a category or city",
             description = "translations must include every supported locale (en + uk today) with a non-blank name and description each -- an incomplete set is rejected with 400.")
@@ -135,6 +137,29 @@ public class TaxonApiController {
     @SecurityRequirement(name = "bearerKey")
     public void softDelete(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         taxonCatalogService.softDelete(id, actorId, ETagUtil.parseIfMatch(ifMatch));
+    }
+
+    @Operation(operationId = "restoreTaxon", summary = "Restore a soft-deleted category or city",
+            description = "Clears the deletion mark and records the restore in the audit log; admin/moderator only.")
+    @ApiResponse(responseCode = "200", description = "Taxon restored and returned")
+    @ApiResponse(responseCode = "404", description = "Taxon not found")
+    @ApiResponse(responseCode = "409", description = "Taxon is not deleted")
+    @PostMapping("/{id}/restore")
+    @SecurityRequirement(name = "bearerKey")
+    public TaxonDto restore(@AuthenticationPrincipal Long actorId, @PathVariable Long id) {
+        taxonCatalogService.restore(id, actorId);
+        return taxonCatalogService.findById(id, DEFAULT_LOCALE).orElseThrow();
+    }
+
+    @Operation(operationId = "restoreTaxonFromSnapshot", summary = "Restore a category or city to a recorded state",
+            description = "Returns the taxon to the recorded translations through the normal save path (same permissions and validation as an update). If-Match carries the current version. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @PostMapping("/{id}/history/{snapshotId}/restore")
+    @SecurityRequirement(name = "bearerKey")
+    public TaxonDto restoreFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id,
+            @PathVariable @NonNull Long snapshotId,
+            @Parameter(description = "Current version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        snapshotRestoreService.restoreTaxon(actorId, id, snapshotId, ETagUtil.requireIfMatch(ifMatch));
+        return taxonCatalogService.findById(id, DEFAULT_LOCALE).orElseThrow();
     }
 
     private static Map<Locale, TaxonTranslationDto> toTranslations(List<TaxonTranslationRequest> translations) {

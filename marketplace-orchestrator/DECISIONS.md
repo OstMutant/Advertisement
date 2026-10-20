@@ -192,6 +192,12 @@ only when it appears in their own visible activity of that entity (snapshots car
 visibility of the entry stands in for ownership); contact view counts require the entity's owner,
 an administrator or a moderator. Revealing a contact and recording a view stay open to visitors who
 are not signed in. `AccessEvaluator` keeps deciding which controls to show.
+Restoring an entity to a recorded snapshot follows the same rule: `SnapshotRestoreService` reads the
+snapshot through `AuditQueryService` (so the read visibility applies) and saves the snapshot's
+values through the domain's normal save path, so validation, authorization and audit capture are
+those of an ordinary update and no separate restore permission exists. A restore requires the
+caller's current version (`If-Match`), and the audit entry is an ordinary update. The user restore
+changes name and role only; an advertisement's gallery is left unchanged.
 
 **Rejected alternatives:**
 1. Checks inside each of the 4 starters — reversed once grep confirmed the orchestrator is already
@@ -203,6 +209,8 @@ are not signed in. `AccessEvaluator` keeps deciding which controls to show.
    project heading toward public endpoints.
 3. Keeping the read rules in the UI and re-implementing them in each REST controller — two copies
    drift, and a controller bug exposes data.
+4. A dedicated server-side restore permission or audit type — the restore is an update to earlier
+   values, so it needs the same rights as an update and records the same entry.
 
 **Consequences:** No `AdvertisementPort`/`ProviderProfilePort`/`UserAccountPort`/`TaxonPort`
 signature changes — `ProviderProfileSaveService.save()` dropped its untrusted
