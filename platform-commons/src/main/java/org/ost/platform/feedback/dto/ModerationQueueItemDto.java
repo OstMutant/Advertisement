@@ -8,7 +8,7 @@ import org.ost.platform.feedback.model.ModerationQueueItemType;
 
 import java.time.Instant;
 
-/** One row in the merged, oldest-first moderation queue -- a presentation-level discriminated
+/** One row in the merged moderation queue (sorted by createdAt or type, newest first by default) -- a presentation-level discriminated
  *  union over hidden feedback entries and hidden replies, not a new persistence table. */
 @Value
 @Builder(toBuilder = true)

@@ -28,6 +28,7 @@ import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
+import org.ost.platform.feedback.model.FeedbackNotModeratableException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.user.model.Role;
@@ -49,6 +50,7 @@ import org.springframework.test.context.TestPropertySource;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -209,42 +211,48 @@ class FeedbackAccessServiceTest extends AbstractPostgresIntegrationTest {
         feedbackAccessService.flagFeedback(feedback.id(), actorId, "Spam");
         feedbackAccessService.flagComment(comment.id(), actorId, "Rude");
 
-        assertThat(feedbackAccessService.findHiddenFeedback(PageRequest.of(0, 10))).extracting(FeedbackDto::id).contains(feedback.id());
-        assertThat(feedbackAccessService.findHiddenComments(PageRequest.of(0, 10))).extracting(FeedbackCommentDto::id).contains(comment.id());
+        assertThat(feedbackAccessService.findHiddenFeedback(actorId, PageRequest.of(0, 10))).extracting(FeedbackDto::id).contains(feedback.id());
+        assertThat(feedbackAccessService.findHiddenComments(actorId, PageRequest.of(0, 10))).extracting(FeedbackCommentDto::id).contains(comment.id());
 
         FeedbackAccessService.ModerationQueuePage page = feedbackAccessService.findModerationQueue(
+                actorId,
                 ModerationQueueFilterDto.empty(), Sort.by(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt)), 0, 20);
         assertThat(page.totalCount()).isEqualTo(2);
         assertThat(page.items()).extracting(ModerationQueueItemDto::getType)
                 .contains(ModerationQueueItemType.FEEDBACK, ModerationQueueItemType.COMMENT);
 
         FeedbackAccessService.ModerationQueuePage commentOnly = feedbackAccessService.findModerationQueue(
+                actorId,
                 ModerationQueueFilterDto.builder().types(Set.of(ModerationQueueItemType.COMMENT)).build(),
                 Sort.by(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt)), 0, 20);
         assertThat(commentOnly.totalCount()).isEqualTo(1);
 
         FeedbackAccessService.ModerationQueuePage sortedByType = feedbackAccessService.findModerationQueue(
+                actorId,
                 ModerationQueueFilterDto.empty(), Sort.by(Sort.Order.asc(ModerationQueueItemDto.Fields.type)), 0, 20);
         assertThat(sortedByType.items()).hasSize(2);
 
         feedbackAccessService.confirmFeedbackViolation(feedback.id(), actorId);
         FeedbackAccessService.ModerationQueuePage afterConfirm = feedbackAccessService.findModerationQueue(
+                actorId,
                 ModerationQueueFilterDto.empty(), Sort.by(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt)), 0, 20);
         assertThat(afterConfirm.totalCount()).isEqualTo(1);
 
-        assertThat(feedbackAccessService.findConfirmedViolationFeedback(PageRequest.of(0, 10))).extracting(FeedbackDto::id).contains(feedback.id());
+        assertThat(feedbackAccessService.findConfirmedViolationFeedback(actorId, PageRequest.of(0, 10))).extracting(FeedbackDto::id).contains(feedback.id());
 
         FeedbackAccessService.ModerationQueuePage withConfirmed = feedbackAccessService.findModerationQueue(
+                actorId,
                 ModerationQueueFilterDto.builder().statuses(Set.of(FeedbackModerationStatus.CONFIRMED_HIDDEN)).build(),
                 Sort.by(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt)), 0, 20);
         assertThat(withConfirmed.totalCount()).isEqualTo(1);
 
         feedbackAccessService.confirmCommentViolation(comment.id(), actorId);
-        assertThat(feedbackAccessService.findConfirmedViolationComments(PageRequest.of(0, 10))).extracting(FeedbackCommentDto::id).contains(comment.id());
+        assertThat(feedbackAccessService.findConfirmedViolationComments(actorId, PageRequest.of(0, 10))).extracting(FeedbackCommentDto::id).contains(comment.id());
 
         feedbackAccessService.approveFeedback(feedback.id(), actorId);
         feedbackAccessService.approveComment(comment.id(), actorId);
         FeedbackAccessService.ModerationQueuePage afterApprove = feedbackAccessService.findModerationQueue(
+                actorId,
                 ModerationQueueFilterDto.empty(), Sort.by(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt)), 0, 20);
         assertThat(afterApprove.totalCount()).isEqualTo(0);
     }
@@ -254,26 +262,30 @@ class FeedbackAccessServiceTest extends AbstractPostgresIntegrationTest {
         Long authorId = newUser("VerySpecialAuthorName");
         Long ownerId = newUser("Owner3");
         Long profileId = newProviderProfile(ownerId);
-        Long actorId = newUser("Moderator3");
+        Long actorId = newModerator("Moderator3");
         FeedbackDto feedback = feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, profileId, authorId, 1, "Bad", null));
         feedbackAccessService.flagFeedback(feedback.id(), actorId, "VerySpecificReasonText");
 
         FeedbackAccessService.ModerationQueuePage byAuthor = feedbackAccessService.findModerationQueue(
+                actorId,
                 ModerationQueueFilterDto.builder().authorName("VerySpecialAuthorName").build(),
                 Sort.by(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt)), 0, 20);
         assertThat(byAuthor.totalCount()).isEqualTo(1);
 
         FeedbackAccessService.ModerationQueuePage byReason = feedbackAccessService.findModerationQueue(
+                actorId,
                 ModerationQueueFilterDto.builder().reasonText("VerySpecificReason").build(),
                 Sort.by(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt)), 0, 20);
         assertThat(byReason.totalCount()).isEqualTo(1);
 
         FeedbackAccessService.ModerationQueuePage byDateRange = feedbackAccessService.findModerationQueue(
+                actorId,
                 ModerationQueueFilterDto.builder().createdAtStart(Instant.now().minus(1, ChronoUnit.HOURS)).build(),
                 Sort.by(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt)), 0, 20);
         assertThat(byDateRange.totalCount()).isEqualTo(1);
 
         FeedbackAccessService.ModerationQueuePage byDateRangeExcluding = feedbackAccessService.findModerationQueue(
+                actorId,
                 ModerationQueueFilterDto.builder().createdAtEnd(Instant.now().minus(1, ChronoUnit.HOURS)).build(),
                 Sort.by(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt)), 0, 20);
         assertThat(byDateRangeExcluding.totalCount()).isEqualTo(0);
@@ -369,6 +381,64 @@ class FeedbackAccessServiceTest extends AbstractPostgresIntegrationTest {
 
         FeedbackDto reread = feedbackAccessService.findFeedbackById(feedback.id()).orElseThrow();
         assertThat(reread.moderationStatus()).isEqualTo(FeedbackModerationStatus.HIDDEN);
+    }
+
+    @Test
+    void approveFeedback_newEntry_throwsNotModeratable() {
+        Long authorId = newUser("Author9");
+        Long profileId = newProviderProfile(newUser("Owner9"));
+        Long actorId = newModerator("Moderator9");
+        FeedbackDto feedback = feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, profileId, authorId, 1, "Bad", null));
+
+        assertThatThrownBy(() -> feedbackAccessService.approveFeedback(feedback.id(), actorId))
+                .isInstanceOf(FeedbackNotModeratableException.class);
+        assertThat(feedbackAccessService.findFeedbackById(feedback.id()).orElseThrow().moderationStatus()).isEqualTo(FeedbackModerationStatus.NEW);
+    }
+
+    @Test
+    void confirmFeedbackViolation_alreadyConfirmed_throwsNotModeratable() {
+        Long authorId = newUser("Author10");
+        Long profileId = newProviderProfile(newUser("Owner10"));
+        Long actorId = newModerator("Moderator10");
+        FeedbackDto feedback = feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, profileId, authorId, 1, "Bad", null));
+        feedbackAccessService.flagFeedback(feedback.id(), actorId, "Spam");
+        feedbackAccessService.confirmFeedbackViolation(feedback.id(), actorId);
+
+        assertThatThrownBy(() -> feedbackAccessService.confirmFeedbackViolation(feedback.id(), actorId))
+                .isInstanceOf(FeedbackNotModeratableException.class);
+        assertThat(feedbackAccessService.findFeedbackById(feedback.id()).orElseThrow().moderationStatus())
+                .isEqualTo(FeedbackModerationStatus.CONFIRMED_HIDDEN);
+    }
+
+    @Test
+    void approveFeedback_confirmedHidden_isAllowed() {
+        Long authorId = newUser("Author11");
+        Long profileId = newProviderProfile(newUser("Owner11"));
+        Long actorId = newModerator("Moderator11");
+        FeedbackDto feedback = feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, profileId, authorId, 1, "Bad", null));
+        feedbackAccessService.flagFeedback(feedback.id(), actorId, "Spam");
+        feedbackAccessService.confirmFeedbackViolation(feedback.id(), actorId);
+
+        feedbackAccessService.approveFeedback(feedback.id(), actorId);
+
+        assertThat(feedbackAccessService.findFeedbackById(feedback.id()).orElseThrow().moderationStatus()).isEqualTo(FeedbackModerationStatus.NEW);
+    }
+
+    @Test
+    void findModerationQueue_nonPrivileged_isDenied() {
+        Long plainUserId = newUser("PlainQueueReader");
+
+        assertThatThrownBy(() -> feedbackAccessService.findModerationQueue(
+                plainUserId, ModerationQueueFilterDto.empty(), Sort.unsorted(), 0, 20))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void approveFeedback_unknownId_throwsNotFound() {
+        Long actorId = newModerator("Moderator12");
+
+        assertThatThrownBy(() -> feedbackAccessService.approveFeedback(999999L, actorId))
+                .isInstanceOf(NoSuchElementException.class);
     }
 
     @Test

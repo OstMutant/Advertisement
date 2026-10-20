@@ -204,6 +204,11 @@ to flag a review or reply that is not NEW, so a moderator's confirmed verdict st
 entries are returned without text and rating to everyone, as the panel shows them; "not found" is a
 `NoSuchElementException`. The REST surface covers provider profiles only, because only they carry
 feedback in the UI.
+Moderation follows the same rule: reading the moderation queue and the hidden and confirmed-violation
+lists requires a privileged user, approving acts only on a flagged or confirmed-hidden entry and
+confirming a violation only on a flagged one, so the UI's buttons and the REST calls have the same
+limits. Permanent deletion of a flagged entry (reject) exists in the service but is not exposed: the
+UI has no such action.
 
 **Rejected alternatives:**
 1. Checks inside each of the 4 starters — reversed once grep confirmed the orchestrator is already

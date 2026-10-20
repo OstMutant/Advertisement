@@ -7,6 +7,7 @@ import org.ost.platform.core.SelfActionNotAllowedException;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
+import org.ost.platform.feedback.model.FeedbackNotModeratableException;
 import org.ost.platform.taxon.model.TaxonNotDeletedException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpHeaders;
@@ -68,6 +69,12 @@ public class ApiExceptionHandler {
     @ExceptionHandler(FeedbackNotFlaggableException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleFeedbackNotFlaggable(FeedbackNotFlaggableException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(FeedbackNotModeratableException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleFeedbackNotModeratable(FeedbackNotModeratableException ex) {
         return new ErrorResponse(ex.getMessage());
     }
 

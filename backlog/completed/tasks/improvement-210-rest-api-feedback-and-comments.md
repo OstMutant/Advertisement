@@ -5,7 +5,7 @@
 `FeedbackCommentWriteService`), `feedback-spring-boot-starter`, `platform-commons` (`FeedbackPort`,
 `FeedbackDto`, `FeedbackSaveDto`, `FeedbackAggregateDto`)
 **Priority:** medium-high — Top, second after improvement-186's first pass
-**When:** independent; should land before [improvement-196](improvement-196-rest-api-rate-limiting.md) so its rate limiting covers these new write endpoints
+**When:** independent; should land before [improvement-196](../../tasks/improvement-196-rest-api-rate-limiting.md) so its rate limiting covers these new write endpoints
 
 ## Current state
 
@@ -44,10 +44,14 @@ from the orchestrator rather than reimplemented.
 
 ## Related
 
-- [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) (REST hypermedia, media, PATCH, Basic-auth brute-force gap) — shares the module
-- [improvement-196](improvement-196-rest-api-rate-limiting.md) (REST write rate limiting) — should cover these endpoints once they exist
-- [improvement-200](../completed/tasks/improvement-200-f06-reviews-ratings.md) (reviews/ratings, completed) — the domain this exposes
+- [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) (REST hypermedia, media, PATCH, Basic-auth brute-force gap) — shares the module
+- [improvement-196](../../tasks/improvement-196-rest-api-rate-limiting.md) (REST write rate limiting) — should cover these endpoints once they exist
+- [improvement-200](improvement-200-f06-reviews-ratings.md) (reviews/ratings, completed) — the domain this exposes
 - `marketplace-orchestrator/DECISIONS.md` ADR-007 (authorization at the orchestrator boundary)
+
+## Resolution (2026-10-20)
+
+Built as phases 6a and 6b of [improvement-213](../../tasks/improvement-213-rest-api-revision-parity-with-ui.md), with every rule matched to the Vaadin panel instead of the first outline: provider profiles only (the UI has no feedback on advertisements); a public paged list with the owner's reply and hidden entries returned without text and rating; one review per user and profile (`409`), edit by the author within the edit window with `If-Match`; the single reply by the profile's owner; flagging only of an entry that is not hidden, never your own; a daily limit of 10 reviews and 30 replies (`429`, `Retry-After` from the limiter's window); moderation (queue, approve, confirm violation) for administrators and moderators, with no reject because the UI has none. `FeedbackWriteService` and the status checks in the services are shared by the UI and REST. Request and response records live in the REST module; the decision is recorded by extending the service-boundary authorization decision in `marketplace-orchestrator/DECISIONS.md` (ADR-007).
 
 ## Operational notes
 - token_cost_review: n/a
@@ -63,4 +67,4 @@ from the orchestrator rather than reimplemented.
 - haiku_decomposition_used: n/a
 - haiku_decomposition_dispatch_count: n/a
 - haiku_decomposition_rework_needed: n/a
-- adrs_referenced: none
+- adrs_referenced: ADR-007 (marketplace-orchestrator)

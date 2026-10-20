@@ -7,6 +7,7 @@ import org.ost.platform.core.SelfActionNotAllowedException;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
+import org.ost.platform.feedback.model.FeedbackNotModeratableException;
 import org.ost.platform.taxon.model.TaxonNotDeletedException;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
@@ -81,6 +82,13 @@ class ApiExceptionHandlerTest {
         ErrorResponse response = handler.handleFeedbackNotFlaggable(new FeedbackNotFlaggableException("Feedback 7 is already hidden or reviewed"));
 
         assertThat(response.message()).isEqualTo("Feedback 7 is already hidden or reviewed");
+    }
+
+    @Test
+    void handleFeedbackNotModeratable_returnsMessage() {
+        ErrorResponse response = handler.handleFeedbackNotModeratable(new FeedbackNotModeratableException("Feedback 7 is not awaiting a moderation decision"));
+
+        assertThat(response.message()).isEqualTo("Feedback 7 is not awaiting a moderation decision");
     }
 
     @Test

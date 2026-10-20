@@ -107,7 +107,7 @@ One page, served by the running app, that draws a flow as a diagram, lets a deve
 
 - [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling investigation and the Postman collection this builds on
 - [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — file-upload endpoints the runner will need to exercise later
-- [improvement-210](improvement-210-rest-api-feedback-and-comments.md) — feedback/comment endpoints for further flows
+- [improvement-210](../completed/tasks/improvement-210-rest-api-feedback-and-comments.md) — feedback/comment endpoints for further flows
 
 ## Operational notes
 - token_cost_review: n/a

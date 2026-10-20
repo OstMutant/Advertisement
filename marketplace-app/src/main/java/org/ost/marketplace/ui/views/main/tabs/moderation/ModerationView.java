@@ -115,7 +115,7 @@ public class ModerationView extends VerticalLayout {
             ModerationQueueFilterDto filter = queryBlock.getFilterProcessor().getOriginalFilter();
             Sort sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
             FeedbackAccessService.ModerationQueuePage result =
-                    feedbackAccessService.findModerationQueue(filter, sort, paginationBar.getCurrentPage(), paginationBar.getPageSize());
+                    feedbackAccessService.findModerationQueue(access.getCurrentUserId(), filter, sort, paginationBar.getCurrentPage(), paginationBar.getPageSize());
             listContainer.removeAll();
             result.items().forEach(item -> listContainer.add(buildCard(item)));
             emptyStateLabel.setVisible(result.items().isEmpty());

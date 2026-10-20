@@ -86,6 +86,11 @@ public class UserProfileService {
         return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getFeedbackPageSize();
     }
 
+    /** Effective page size for the moderation queue — same resolution as {@link #resolveAdsPageSize}. */
+    public int resolveModerationPageSize(Long actorId) {
+        return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getModerationPageSize();
+    }
+
     public List<UserDto> getFiltered(@NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
         return userPort.getFiltered(filter, page, size, sort);
     }

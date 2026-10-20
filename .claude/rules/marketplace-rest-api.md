@@ -20,7 +20,7 @@ Java package root: `org.ost.restapi`
   endpoints
 - `org.ost.restapi.api` — the authenticated external-API family: `ApiKeyController` (its key list hides revoked keys unless `includeRevoked=true`),
   `UserApiController`, `AdvertisementApiController`, `ProviderProfileApiController`,
-  `TaxonApiController`, `AuditApiController`, `ContactApiController`, `FeedbackApiController`. Each controller's own request/response records that no
+  `TaxonApiController`, `AuditApiController`, `ContactApiController`, `FeedbackApiController`, `ModerationApiController`. Each controller's own request/response records that no
   other class needs are nested as public static records inside that controller (e.g.
   `ApiKeyController.ApiKeyCreateRequest`/`ApiKeyCreatedResponse`,
   `TaxonApiController.TaxonCreateRequest`/`TaxonUpdateRequest`/`TaxonTranslationRequest`,

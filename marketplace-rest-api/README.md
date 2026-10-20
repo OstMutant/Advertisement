@@ -35,6 +35,10 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
   View counts per channel for the current month are readable by the owner, administrators and
   moderators.
 - Provider-profile feedback: a public, paged list (newest first) and rating summary, one review per user and profile, edits by the author within the edit window, one reply per review written by the profile's owner, and flags that hide a review or reply pending moderation. A hidden review or reply is returned without its text (and a hidden review without its rating).
+- Moderation: administrators and moderators can list the queue of flagged reviews and replies
+  (`GET /api/moderation/queue`, with full text, filtered, sorted and paged), approve a flagged or
+  confirmed entry back to visible, or confirm a flagged entry as a violation that stays hidden. No
+  deletion.
 - A live OpenAPI 3 spec and Swagger UI, generated from these same controllers/DTOs, with
   per-operation descriptions and request examples. The key entered through Authorize is kept in the
   browser across page reloads (persistent authorization), so one issued key can be reused.

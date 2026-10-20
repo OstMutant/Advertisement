@@ -73,10 +73,11 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   only; a phone has none).
 - `FeedbackAccessService` — wraps `FeedbackPort` + `AuditPort` (the ≤2-port limit): feedback/reply
   CRUD, moderation transitions (flag/approve/confirm-violation/reject, each paired with an audit
-  capture), and `findModerationQueue(filter, sort, page, size)` — merges the hidden +
-  confirmed-violation feedback/comment sources into one in-memory-filtered, in-memory-sorted,
-  in-memory-paged `ModerationQueuePage` (queue size is bounded by real reports, not catalog scale,
-  so no SQL-level filter/sort/page is needed).
+  capture), and `findModerationQueue(actingUserId, filter, sort, page, size)` — the merged hidden +
+  confirmed-violation feedback/comment queue, filtered, sorted and paged in SQL by the feedback
+  starter (author names resolved here for the current page only) as a `ModerationQueuePage`. The queue read and the hidden/confirmed-violation list reads require a privileged caller.
+  `approveFeedback`/`approveComment` act only on a HIDDEN or CONFIRMED_HIDDEN entry, and
+  `confirm*Violation` only on a HIDDEN one; any other status throws `FeedbackNotModeratableException`.
 - `FeedbackCommentWriteService` — the owner-check collaborator for the single reply: only the
   reviewed `PROVIDER_PROFILE`'s own owner may create it (`FeedbackAccessService` +
   `ProviderProfileReadService` + `AuthorizationService.isOwner`), only the comment's own author may
