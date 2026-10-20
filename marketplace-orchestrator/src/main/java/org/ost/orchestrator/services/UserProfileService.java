@@ -76,6 +76,11 @@ public class UserProfileService {
         return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getProviderProfilesPageSize();
     }
 
+    /** Effective page size for the audit timeline — same resolution as {@link #resolveAdsPageSize}. */
+    public int resolveTimelinePageSize(Long actorId) {
+        return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getTimelinePageSize();
+    }
+
     public List<UserDto> getFiltered(@NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
         return userPort.getFiltered(filter, page, size, sort);
     }

@@ -15,17 +15,22 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.AuthorizationService;
 import org.ost.orchestrator.services.UserDeleteService;
 import org.ost.orchestrator.services.UserProfileService;
+import org.ost.platform.core.model.EntityType;
+import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.PageSizeLimits;
 import org.ost.platform.user.model.Role;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.ost.restapi.api.concurrency.ETagUtil;
 import org.ost.restapi.api.paging.PagedResponseBuilder;
 import org.ost.restapi.api.paging.SortQueryParser;
@@ -69,6 +74,7 @@ public class UserApiController {
     private final UserProfileService userProfileService;
     private final AuthorizationService authorizationService;
     private final UserDeleteService userDeleteService;
+    private final ActivityHistorySupport activityHistorySupport;
 
     @Operation(summary = "Register a new account", description = "Public, no authentication needed. Rate-limited by client IP (5 failed attempts / 15 min). Follow up with POST /api/api-keys (Basic auth) to obtain a bearer key for the other endpoints.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
@@ -106,6 +112,23 @@ public class UserApiController {
         authorizationService.requireIsPrivileged(actorId);
         UserDto user = userProfileService.findById(id).orElseThrow(NoSuchElementException::new);
         return ETagUtil.withVersion(ResponseEntity.ok(), user.version()).body(user);
+    }
+
+    @Operation(operationId = "getUserHistory", summary = "List a user's change history",
+            description = "Newest first. Administrators and moderators see every entry; anyone else sees only the entries they authored.")
+    @GetMapping("/{id}/history")
+    @SecurityRequirement(name = "bearerKey")
+    public List<ActivityHistorySupport.HistoryEntryResponse> history(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id) {
+        return activityHistorySupport.history(actorId, EntityType.USER, id);
+    }
+
+    @Operation(operationId = "getUserHistorySnapshot", summary = "Get one recorded state of a user",
+            description = "Returns the recorded state and its version, for a restoring update (PUT with If-Match). Administrators and moderators can read any snapshot; anyone else only one from their own visible history. 403 when the snapshot is not visible to the caller, 404 when unknown.")
+    @GetMapping("/{id}/history/{snapshotId}")
+    @SecurityRequirement(name = "bearerKey")
+    public ActivityHistorySupport.SnapshotResponse historySnapshot(@AuthenticationPrincipal @NonNull Long actorId,
+            @PathVariable @NonNull Long id, @PathVariable @NonNull Long snapshotId) {
+        return activityHistorySupport.snapshot(actorId, EntityType.USER, id, snapshotId, UserSnapshotDto.class);
     }
 
     @Operation(operationId = "updateUser", summary = "Update a user's name and role", description = "Full replace of name and role. A user may change their own name; only an administrator may change a role, and never their own. If-Match must carry the version from the last GET /api/users/{id} ETag.")
@@ -173,6 +196,23 @@ public class UserApiController {
                 .build();
         userProfileService.saveSettings(actorId, dto);
         return userProfileService.loadSettings(actorId);
+    }
+
+    @Operation(operationId = "getMySettingsHistory", summary = "List the caller's own settings change history",
+            description = "Newest first. Administrators and moderators see every entry; anyone else sees only the entries they authored.")
+    @GetMapping("/me/settings/history")
+    @SecurityRequirement(name = "bearerKey")
+    public List<ActivityHistorySupport.HistoryEntryResponse> mySettingsHistory(@AuthenticationPrincipal @NonNull Long actorId) {
+        return activityHistorySupport.history(actorId, EntityType.USER_SETTINGS, actorId);
+    }
+
+    @Operation(operationId = "getMySettingsHistorySnapshot", summary = "Get one recorded state of the caller's own settings",
+            description = "Returns the recorded state and its version, for a restoring update (PATCH with If-Match). Administrators and moderators can read any snapshot; anyone else only one from their own visible history. 403 when the snapshot is not visible to the caller, 404 when unknown.")
+    @GetMapping("/me/settings/history/{snapshotId}")
+    @SecurityRequirement(name = "bearerKey")
+    public ActivityHistorySupport.SnapshotResponse mySettingsHistorySnapshot(@AuthenticationPrincipal @NonNull Long actorId,
+            @PathVariable @NonNull Long snapshotId) {
+        return activityHistorySupport.snapshot(actorId, EntityType.USER_SETTINGS, actorId, snapshotId, SettingsSnapshotDto.class);
     }
 
     /** The newly registered user's identity, returned after a successful {@code POST /api/users}. */

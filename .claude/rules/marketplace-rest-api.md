@@ -20,8 +20,8 @@ Java package root: `org.ost.restapi`
   endpoints
 - `org.ost.restapi.api` — the authenticated external-API family: `ApiKeyController`,
   `UserApiController`, `AdvertisementApiController`, `ProviderProfileApiController`,
-  `TaxonApiController`. Each controller's own request/response records that no other class needs
-  are nested as public static records inside that controller (e.g.
+  `TaxonApiController`, `AuditApiController`. Each controller's own request/response records that no
+  other class needs are nested as public static records inside that controller (e.g.
   `ApiKeyController.ApiKeyCreateRequest`/`ApiKeyCreatedResponse`,
   `TaxonApiController.TaxonCreateRequest`/`TaxonUpdateRequest`/`TaxonTranslationRequest`,
   `UserApiController.UserCreatedResponse`/`UserSettingsWriteRequest`/`UserUpdateRequest`/
@@ -48,10 +48,16 @@ Java package root: `org.ost.restapi`
   `PagedResponseBuilder` (assembles the final `ResponseEntity` — body plus `X-Total-Count` and
   `Link`). `TaxonApiController.list()` is reference data only — always the full matching set, no
   filter/sort/pagination query params, no dependency on this package.
+- `org.ost.restapi.api.audit` — `ActivityHistorySupport`, a Spring component over `AuditQueryService`
+  that is the shared read side of every resource's history; its nested records `HistoryEntryResponse`
+  and `SnapshotResponse` are the history response shapes. Reused by the `/history` methods of
+  `AdvertisementApiController`, `ProviderProfileApiController`, `TaxonApiController` and
+  `UserApiController` (including `/me/settings/history`), so no resource maps audit data itself.
 - `org.ost.restapi.config` — `ApiSecurityConfig` (two `SecurityFilterChain`s: `@Order(1)` matching
   `POST /api/api-keys` only, the one chain with HTTP Basic, and `@Order(2)` for the rest of
-  `/api/**`, bearer-only; both coexist with `marketplace-app`'s own Vaadin security chain via
-  Spring Security's ordered multi-chain matching), `BasicLoginRateLimitFilter` (blocks a client
+  `/api/**`, bearer-only, which also requires authentication for `*/history` and `*/history/*` under
+  advertisements, provider-profiles and taxons ahead of their public GET rules; both coexist with
+  `marketplace-app`'s own Vaadin security chain via Spring Security's ordered multi-chain matching), `BasicLoginRateLimitFilter` (blocks a client
   address and email with 429 after 5 failed Basic logins in 15 minutes, on the key-issuance chain),
   `BearerChallengeEntryPoint` (answers an unauthenticated `/api/**` request with 401 and a Bearer
   challenge), `ApiKeyAuthenticationFilter` (resolves `Authorization: Bearer <key>` into
@@ -89,3 +95,6 @@ Every authenticated endpoint carries `@SecurityRequirement(name = "bearerKey")` 
   is ignored and the request is answered 401; a Bearer header on the key endpoint is answered 401
   with a Basic challenge. Never re-enable `httpBasic` on the general `/api/**` chain — a Basic
   principal there reaches bearer-only methods as a null id.
+- Any new endpoint under a prefix that the general chain makes public for GET (advertisements,
+  provider-profiles, taxons) must get its own `authenticated()` rule ahead of the public one, because
+  a public match leaves the controller without a user id.

@@ -1,5 +1,7 @@
 package org.ost.integrationtests.support;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import java.util.Locale;
 import java.util.Optional;
 import org.ost.orchestrator.spi.CurrentLocaleHook;
@@ -7,17 +9,35 @@ import org.ost.orchestrator.spi.CurrentUserHook;
 import org.ost.orchestrator.spi.SessionActorHook;
 import org.ost.orchestrator.spi.SettingsChangeHook;
 import org.ost.orchestrator.spi.UiLabelHook;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
+import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
+import org.ost.platform.taxon.dto.TaxonSnapshotDto;
+import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserDto;
+import org.ost.platform.user.dto.UserSnapshotDto;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-/** Shared Level 3 wiring: marketplace-app-only forwarder Hook stubs (REST never calls these paths) plus a request-scoped {@link AuditorAware} reading the resolved bearer-key principal. */
+/** Shared Level 3 wiring: marketplace-app-only forwarder Hook stubs (REST never calls these paths), the audit snapshot subtype registration, plus a request-scoped {@link AuditorAware} reading the resolved bearer-key principal. */
 @TestConfiguration
 public class RestApiTestSupport {
+
+    // marketplace-app's JacksonConfig does this in production; a Level 3 context has no such class.
+    @Autowired
+    @Qualifier("auditObjectMapper")
+    private ObjectMapper auditObjectMapper;
+
+    @PostConstruct
+    void registerAuditSnapshotSubtypes() {
+        auditObjectMapper.registerSubtypes(AdvertisementSnapshotDto.class, ProviderProfileSnapshotDto.class,
+                TaxonSnapshotDto.class, UserSnapshotDto.class, SettingsSnapshotDto.class);
+    }
 
     // @CreatedBy/@LastModifiedBy read this per insert -- mirrors marketplace-app's JdbcAuditingConfig, off the resolved bearer-key principal instead of a Vaadin session.
     @Bean

@@ -20,6 +20,13 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
   `If-Match` request header — `id`/`version` are never caller-writable body fields.
   `PATCH /api/users/me/settings` lets a caller change their own saved pagination-size preferences
   the same way.
+- Read-only audit history: a global timeline for administrators and moderators
+  (`GET /api/audit/timeline`, filtered and paged), and a `/history` sub-collection on advertisements,
+  provider profiles, taxons, users and a caller's own settings, newest first. Administrators and
+  moderators see every entry, anyone else only the entries they authored. Each entry can be read as a
+  snapshot (`.../history/{snapshotId}`) carrying the recorded state and its version, so a client
+  restores by sending that state back as a normal update with `If-Match`; a snapshot outside the
+  caller's visible activity is `403`.
 - A live OpenAPI 3 spec and Swagger UI, generated from these same controllers/DTOs, with
   per-operation descriptions and request examples. The key entered through Authorize is kept in the
   browser across page reloads (persistent authorization), so one issued key can be reused.
@@ -35,8 +42,10 @@ a Basic header is ignored, and a request without a valid key is answered 401 wit
 challenge. From there, each of the five per-resource controllers
 (`AdvertisementApiController`, `ProviderProfileApiController`, `TaxonApiController`,
 `UserApiController`, `ApiKeyController`) calls straight into the same `marketplace-orchestrator`
-service its Vaadin-side counterpart already uses — no intermediate service layer of its own. A write
-endpoint builds its save DTO from a nested request record carrying no `id`/`version` field at all
+service its Vaadin-side counterpart already uses — no intermediate service layer of its own.
+`AuditApiController` serves the global timeline, and the `/history` methods of the four resource
+controllers read through `ActivityHistorySupport` (`api.audit`) instead of mapping audit data
+themselves. A write endpoint builds its save DTO from a nested request record carrying no `id`/`version` field at all
 (`id` from the path variable on update, `version` parsed from the `If-Match` header via
 `concurrency.ETagUtil`); a read endpoint attaches the resource's version as an `ETag` response
 header the same way. Any exception a controller or the orchestrator service throws is caught

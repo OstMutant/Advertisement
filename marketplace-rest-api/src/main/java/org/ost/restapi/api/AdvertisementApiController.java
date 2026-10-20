@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
 import org.ost.orchestrator.services.AdvertisementReadService;
@@ -19,7 +20,10 @@ import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
+import org.ost.platform.core.model.EntityType;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.ost.restapi.api.concurrency.ETagUtil;
 import org.ost.restapi.api.paging.PagedResponseBuilder;
 import org.ost.restapi.api.paging.SortQueryParser;
@@ -71,6 +75,7 @@ public class AdvertisementApiController {
     private final AdvertisementReadService readService;
     private final AdvertisementDisplayEnrichmentService enrichmentService;
     private final UserProfileService userProfileService;
+    private final ActivityHistorySupport activityHistorySupport;
 
     @Operation(summary = "Create an advertisement", description = "categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
@@ -113,6 +118,23 @@ public class AdvertisementApiController {
     public ResponseEntity<AdvertisementInfoDto> getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
         AdvertisementInfoDto ad = enrichmentService.enrichSingle(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
         return ETagUtil.withVersion(ResponseEntity.ok(), ad.getVersion()).body(ad);
+    }
+
+    @Operation(operationId = "getAdvertisementHistory", summary = "List an advertisement's change history",
+            description = "Newest first. Administrators and moderators see every entry; anyone else sees only the entries they authored.")
+    @GetMapping("/{id}/history")
+    @SecurityRequirement(name = "bearerKey")
+    public List<ActivityHistorySupport.HistoryEntryResponse> history(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id) {
+        return activityHistorySupport.history(actorId, EntityType.ADVERTISEMENT, id);
+    }
+
+    @Operation(operationId = "getAdvertisementHistorySnapshot", summary = "Get one recorded state of an advertisement",
+            description = "Returns the recorded state and its version, for a restoring update (PUT with If-Match). Administrators and moderators can read any snapshot; anyone else only one from their own visible history. 403 when the snapshot is not visible to the caller, 404 when unknown.")
+    @GetMapping("/{id}/history/{snapshotId}")
+    @SecurityRequirement(name = "bearerKey")
+    public ActivityHistorySupport.SnapshotResponse historySnapshot(@AuthenticationPrincipal @NonNull Long actorId,
+            @PathVariable @NonNull Long id, @PathVariable @NonNull Long snapshotId) {
+        return activityHistorySupport.snapshot(actorId, EntityType.ADVERTISEMENT, id, snapshotId, AdvertisementSnapshotDto.class);
     }
 
     @Operation(summary = "Update an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")

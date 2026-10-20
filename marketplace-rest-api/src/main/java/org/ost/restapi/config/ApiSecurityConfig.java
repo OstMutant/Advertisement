@@ -46,6 +46,10 @@ public class ApiSecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                         .requestMatchers(HttpMethod.GET,
+                                "/api/advertisements/*/history", "/api/advertisements/*/history/*",
+                                "/api/provider-profiles/*/history", "/api/provider-profiles/*/history/*",
+                                "/api/taxons/*/history", "/api/taxons/*/history/*").authenticated()
+                        .requestMatchers(HttpMethod.GET,
                                 "/api/advertisements", "/api/advertisements/**",
                                 "/api/provider-profiles", "/api/provider-profiles/**",
                                 "/api/taxons", "/api/taxons/**").permitAll()

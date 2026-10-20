@@ -14,8 +14,11 @@ import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.StaleWriteException;
+import org.ost.platform.core.model.EntityType;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -52,12 +55,13 @@ class AdvertisementApiControllerTest {
     @Mock private AdvertisementReadService readService;
     @Mock private AdvertisementDisplayEnrichmentService enrichmentService;
     @Mock private UserProfileService userProfileService;
+    @Mock private ActivityHistorySupport activityHistorySupport;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = mockMvc(new AdvertisementApiController(saveService, readService, enrichmentService, userProfileService));
+        mockMvc = mockMvc(new AdvertisementApiController(saveService, readService, enrichmentService, userProfileService, activityHistorySupport));
         authenticateAs(ACTOR_ID);
         lenient().when(userProfileService.resolveAdsPageSize(any())).thenReturn(20);
         lenient().when(enrichmentService.enrichWithCategoryAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
@@ -217,6 +221,25 @@ class AdvertisementApiControllerTest {
         when(readService.findById(1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/advertisements/1")).andExpect(status().isNotFound());
+    }
+
+    // ── history ──────────────────────────────────────────────────────────
+
+    @Test
+    void history_delegatesToSupport() throws Exception {
+        when(activityHistorySupport.history(ACTOR_ID, EntityType.ADVERTISEMENT, 7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/advertisements/7/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void historySnapshot_unknown_returnsNotFound() throws Exception {
+        when(activityHistorySupport.snapshot(eq(ACTOR_ID), eq(EntityType.ADVERTISEMENT), eq(7L), eq(5L), eq(AdvertisementSnapshotDto.class)))
+                .thenThrow(new java.util.NoSuchElementException("Snapshot 5 not found"));
+
+        mockMvc.perform(get("/api/advertisements/7/history/5")).andExpect(status().isNotFound());
     }
 
     // ── update ──────────────────────────────────────────────────────────

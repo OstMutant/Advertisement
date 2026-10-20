@@ -14,7 +14,10 @@ import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
+import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
 import org.ost.platform.core.StaleWriteException;
+import org.ost.platform.core.model.EntityType;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -49,12 +52,13 @@ class ProviderProfileApiControllerTest {
     @Mock private ProviderProfileReadService readService;
     @Mock private ProviderProfileDisplayEnrichmentService enrichmentService;
     @Mock private UserProfileService userProfileService;
+    @Mock private ActivityHistorySupport activityHistorySupport;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = mockMvc(new ProviderProfileApiController(saveService, readService, enrichmentService, userProfileService));
+        mockMvc = mockMvc(new ProviderProfileApiController(saveService, readService, enrichmentService, userProfileService, activityHistorySupport));
         authenticateAs(ACTOR_ID);
         lenient().when(enrichmentService.enrichWithCategoryAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithActor(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -177,6 +181,25 @@ class ProviderProfileApiControllerTest {
         when(readService.findById(1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/provider-profiles/1")).andExpect(status().isNotFound());
+    }
+
+    // ── history ──────────────────────────────────────────────────────────
+
+    @Test
+    void history_delegatesToSupport() throws Exception {
+        when(activityHistorySupport.history(ACTOR_ID, EntityType.PROVIDER_PROFILE, 7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/provider-profiles/7/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void historySnapshot_unknown_returnsNotFound() throws Exception {
+        when(activityHistorySupport.snapshot(eq(ACTOR_ID), eq(EntityType.PROVIDER_PROFILE), eq(7L), eq(5L), eq(ProviderProfileSnapshotDto.class)))
+                .thenThrow(new java.util.NoSuchElementException("Snapshot 5 not found"));
+
+        mockMvc.perform(get("/api/provider-profiles/7/history/5")).andExpect(status().isNotFound());
     }
 
     // ── update ──────────────────────────────────────────────────────────

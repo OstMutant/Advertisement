@@ -9,9 +9,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.platform.core.StaleWriteException;
+import org.ost.platform.core.model.EntityType;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -43,12 +46,13 @@ class TaxonApiControllerTest {
     private static final Long ACTOR_ID = 10L;
 
     @Mock private TaxonCatalogService taxonCatalogService;
+    @Mock private ActivityHistorySupport activityHistorySupport;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = mockMvc(new TaxonApiController(taxonCatalogService));
+        mockMvc = mockMvc(new TaxonApiController(taxonCatalogService, activityHistorySupport));
         authenticateAs(ACTOR_ID);
     }
 
@@ -144,6 +148,25 @@ class TaxonApiControllerTest {
         mockMvc.perform(get("/api/taxons/1").param("locale", "de"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Kyiv"));
+    }
+
+    // ── history ──────────────────────────────────────────────────────────
+
+    @Test
+    void history_delegatesToSupport() throws Exception {
+        when(activityHistorySupport.history(ACTOR_ID, EntityType.TAXON, 7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/taxons/7/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void historySnapshot_unknown_returnsNotFound() throws Exception {
+        when(activityHistorySupport.snapshot(eq(ACTOR_ID), eq(EntityType.TAXON), eq(7L), eq(5L), eq(TaxonSnapshotDto.class)))
+                .thenThrow(new java.util.NoSuchElementException("Snapshot 5 not found"));
+
+        mockMvc.perform(get("/api/taxons/7/history/5")).andExpect(status().isNotFound());
     }
 
     // ── update ──────────────────────────────────────────────────────────

@@ -12,11 +12,15 @@ import org.ost.orchestrator.services.UserDeleteService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
+import org.ost.platform.core.model.EntityType;
+import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
@@ -54,12 +58,13 @@ class UserApiControllerTest {
     @Mock private UserProfileService userProfileService;
     @Mock private AuthorizationService authorizationService;
     @Mock private UserDeleteService userDeleteService;
+    @Mock private ActivityHistorySupport activityHistorySupport;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = mockMvc(new UserApiController(userProfileService, authorizationService, userDeleteService));
+        mockMvc = mockMvc(new UserApiController(userProfileService, authorizationService, userDeleteService, activityHistorySupport));
         authenticateAs(ACTOR_ID);
         lenient().when(userProfileService.resolveUsersPageSize(any())).thenReturn(20);
     }
@@ -207,6 +212,42 @@ class UserApiControllerTest {
         doThrow(new AccessDeniedException("not privileged")).when(authorizationService).requireIsPrivileged(ACTOR_ID);
 
         mockMvc.perform(get("/api/users/1")).andExpect(status().isForbidden());
+    }
+
+    // ── history ──────────────────────────────────────────────────────────
+
+    @Test
+    void history_delegatesToSupport() throws Exception {
+        when(activityHistorySupport.history(ACTOR_ID, EntityType.USER, 7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/users/7/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void historySnapshot_unknown_returnsNotFound() throws Exception {
+        when(activityHistorySupport.snapshot(eq(ACTOR_ID), eq(EntityType.USER), eq(7L), eq(5L), eq(UserSnapshotDto.class)))
+                .thenThrow(new NoSuchElementException("Snapshot 5 not found"));
+
+        mockMvc.perform(get("/api/users/7/history/5")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void mySettingsHistory_delegatesToSupport() throws Exception {
+        when(activityHistorySupport.history(ACTOR_ID, EntityType.USER_SETTINGS, ACTOR_ID)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/users/me/settings/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void mySettingsHistorySnapshot_unknown_returnsNotFound() throws Exception {
+        when(activityHistorySupport.snapshot(eq(ACTOR_ID), eq(EntityType.USER_SETTINGS), eq(ACTOR_ID), eq(5L), eq(SettingsSnapshotDto.class)))
+                .thenThrow(new NoSuchElementException("Snapshot 5 not found"));
+
+        mockMvc.perform(get("/api/users/me/settings/history/5")).andExpect(status().isNotFound());
     }
 
     // ── update ───────────────────────────────────────────────────────────

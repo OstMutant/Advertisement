@@ -11,16 +11,20 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.ProviderProfileDisplayEnrichmentService;
 import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.contact.dto.ContactInfoDto;
+import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
+import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
 import org.ost.platform.providerprofile.model.ProviderKind;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.ost.restapi.api.concurrency.ETagUtil;
 import org.ost.restapi.api.paging.PagedResponseBuilder;
 import org.ost.restapi.api.paging.SortQueryParser;
@@ -71,6 +75,7 @@ public class ProviderProfileApiController {
     private final ProviderProfileReadService readService;
     private final ProviderProfileDisplayEnrichmentService enrichmentService;
     private final UserProfileService userProfileService;
+    private final ActivityHistorySupport activityHistorySupport;
 
     @Operation(summary = "Create a provider profile", description = "Self-service only -- the profile is always created for the caller's own account. categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY. kind=SUPPORT requires a privileged (admin/moderator) caller.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
@@ -114,6 +119,23 @@ public class ProviderProfileApiController {
     public ResponseEntity<ProviderProfileDto> getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
         ProviderProfileDto profile = enrich(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
         return ETagUtil.withVersion(ResponseEntity.ok(), profile.getVersion()).body(profile);
+    }
+
+    @Operation(operationId = "getProviderProfileHistory", summary = "List a provider profile's change history",
+            description = "Newest first. Administrators and moderators see every entry; anyone else sees only the entries they authored.")
+    @GetMapping("/{id}/history")
+    @SecurityRequirement(name = "bearerKey")
+    public List<ActivityHistorySupport.HistoryEntryResponse> history(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id) {
+        return activityHistorySupport.history(actorId, EntityType.PROVIDER_PROFILE, id);
+    }
+
+    @Operation(operationId = "getProviderProfileHistorySnapshot", summary = "Get one recorded state of a provider profile",
+            description = "Returns the recorded state and its version, for a restoring update (PUT with If-Match). Administrators and moderators can read any snapshot; anyone else only one from their own visible history. 403 when the snapshot is not visible to the caller, 404 when unknown.")
+    @GetMapping("/{id}/history/{snapshotId}")
+    @SecurityRequirement(name = "bearerKey")
+    public ActivityHistorySupport.SnapshotResponse historySnapshot(@AuthenticationPrincipal @NonNull Long actorId,
+            @PathVariable @NonNull Long id, @PathVariable @NonNull Long snapshotId) {
+        return activityHistorySupport.snapshot(actorId, EntityType.PROVIDER_PROFILE, id, snapshotId, ProviderProfileSnapshotDto.class);
     }
 
     @Operation(summary = "Update a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile. Full replace, same as the other fields -- omitting phone/telegram/viber clears them.")

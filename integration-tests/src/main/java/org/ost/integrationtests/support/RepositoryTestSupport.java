@@ -69,7 +69,9 @@ public class RepositoryTestSupport {
         return new MutableAuditorAware();
     }
 
+    // @ConditionalOnMissingBean: a test that also includes the real AuditAutoConfiguration (e.g. a Level 3 REST scenario) already provides this bean.
     @Bean
+    @ConditionalOnMissingBean
     public ComponentFactory<AuditPort> auditPortFactory(ObjectProvider<AuditPort> provider) {
         return new ComponentFactory<>(provider);
     }
