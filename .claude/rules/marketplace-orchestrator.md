@@ -62,8 +62,15 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   Read/Save classes like Advertisement/ProviderProfile — `ContactPort.save()`/`recordView()` are
   single-call delegations with no transactional composition to isolate. `countViewsThisMonth` takes
   the acting user id and the entity owner's id and requires the acting user to be that owner, an
-  administrator or a moderator (`AuthorizationService.requireCanOperate`); `resolveContact`/
-  `recordView` stay open to visitors who are not signed in.
+  administrator or a moderator (`AuthorizationService.requireCanOperate`);
+  `countProfileViewsThisMonth(actingUserId, profileId)` resolves the profile's owner itself
+  (`ProviderProfileReadService`) before that check; `resolveContact`/`recordView` stay open to
+  visitors who are not signed in.
+- `ContactRevealService` — the contact-reveal use case shared by the Vaadin UI and the REST API:
+  rate limit (30 reveals per 15 minutes per client address and viewer, keyed by a plain string so
+  this module stays transport-agnostic), channel lookup including `ContactAccessService`'s
+  advertisement-to-profile fallback, view recording, and deep-link building (Telegram and Viber
+  only; a phone has none).
 - `FeedbackAccessService` — wraps `FeedbackPort` + `AuditPort` (the ≤2-port limit): feedback/reply
   CRUD, moderation transitions (flag/approve/confirm-violation/reject, each paired with an audit
   capture), and `findModerationQueue(filter, sort, page, size)` — merges the hidden +

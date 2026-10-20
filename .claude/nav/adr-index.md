@@ -166,7 +166,7 @@ yet — not zero.
 | ADR-076 (marketplace-app) | marketplace-app | Accepted |  |  | `OverlayNavigationRegistry` fans out browser History to every deep-linkable overlay; `SitemapController` thins to a `marketplace-orchestrator` `SitemapService` |
 | ADR-077 (marketplace-app) | marketplace-app | Accepted |  |  | Provider Profile catalog gains real date-range filters, mirroring Advertisement's exact mechanism |
 | ADR-011 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | Moderation queue implemented with SQL-level filter, sort, and pagination |
-| ADR-010 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename |
+| ADR-010 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Verified:** 2026-10-20 **Applied:** 1 |  |  | `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename |
 | ADR-009 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `StaleWriteException` replaces `OptimisticLockingFailureException` as the project-wide stale-write signal |
 | ADR-008 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `UserCleanupService`/`UserPurgeEligibilityService` — the scheduled retention-purge referential-integrity check moves here from `user-spring-boot-starter` |
 | ADR-007 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Verified:** 2026-10-19 **Applied:** 1 |  |  | Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only |

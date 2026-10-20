@@ -27,6 +27,11 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
   snapshot (`.../history/{snapshotId}`) carrying the recorded state and its version, so a client
   restores by sending that state back as a normal update with `If-Match`; a snapshot outside the
   caller's visible activity is `403`.
+- Contacts: a public list of which channels (phone, Telegram, Viber) an advertisement or provider
+  profile has, and a public reveal of one channel that records the view and, for Telegram and Viber,
+  returns a deep link that opens the chat; reveals are rate-limited per client address and viewer.
+  View counts per channel for the current month are readable by the owner, administrators and
+  moderators.
 - A live OpenAPI 3 spec and Swagger UI, generated from these same controllers/DTOs, with
   per-operation descriptions and request examples. The key entered through Authorize is kept in the
   browser across page reloads (persistent authorization), so one issued key can be reused.

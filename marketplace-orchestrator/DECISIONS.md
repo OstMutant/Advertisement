@@ -29,6 +29,8 @@ this app sorts by a cross-domain display field.
 ## ADR-010: `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename
 
 **Status:** Accepted
+**Verified:** 2026-10-20
+**Applied:** 1
 
 **Context:** The advertisement-to-owner-profile contact fallback (an ad's own `contact_info` row
 if present, else its owner's provider-profile row) needs `ContactPort` plus, to resolve an ad's
@@ -51,6 +53,19 @@ packages), failing the app at startup with `ConflictingBeanDefinitionException`.
    never reuses a starter's bare `<Domain>Service` name (`ProviderProfileSaveService`/
    `ReadService`, never bare `ProviderProfileService`), and avoiding the real
    `ConflictingBeanDefinitionException` the bare name triggered.
+3. The reveal use case lives in a third class, `ContactRevealService`, shared by the Vaadin UI and
+   the REST API: it counts every reveal attempt against a limit of 30 per 15 minutes per client
+   address (and viewer, when signed in), keyed by a plain string so this module stays
+   transport-agnostic; looks the channel up through `ContactAccessService.resolveContact` (so the
+   advertisement-to-profile fallback applies); records the view; and builds the messenger deep link
+   on the server. The UI panel and the REST controller only pass the viewer and the client address
+   in. `ContactAccessService.countProfileViewsThisMonth` resolves a profile's owner itself, so no
+   adapter repeats that lookup. Reveal and recording stay open to visitors who are not signed in,
+   as the UI always allowed; the Viber link format is the UI's, not confirmed by Viber's own
+   documentation.
+
+**Consequences:** `TooManyAttemptsException` carries the limiter's window, so the REST error mapping
+sets `Retry-After` from it instead of a fixed value.
 
 ---
 

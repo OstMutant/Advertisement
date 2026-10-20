@@ -5,10 +5,14 @@ import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
 import org.springframework.core.MethodParameter;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -63,9 +67,25 @@ class ApiExceptionHandlerTest {
 
     @Test
     void handleTooManyAttempts_returnsMessage() {
-        ErrorResponse response = handler.handleTooManyAttempts(new TooManyAttemptsException("Too many failed attempts"));
+        ResponseEntity<ErrorResponse> response = handler.handleTooManyAttempts(new TooManyAttemptsException("Too many failed attempts"));
 
-        assertThat(response.message()).isEqualTo("Too many failed attempts");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(response.getBody().message()).isEqualTo("Too many failed attempts");
+    }
+
+    @Test
+    void handleTooManyAttempts_withWindow_setsRetryAfter() {
+        ResponseEntity<ErrorResponse> response = handler.handleTooManyAttempts(
+                new TooManyAttemptsException("Too many failed attempts", Duration.ofMinutes(15)));
+
+        assertThat(response.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isEqualTo("900");
+    }
+
+    @Test
+    void handleTooManyAttempts_withoutWindow_hasNoRetryAfter() {
+        ResponseEntity<ErrorResponse> response = handler.handleTooManyAttempts(new TooManyAttemptsException("Too many failed attempts"));
+
+        assertThat(response.getHeaders().containsHeader(HttpHeaders.RETRY_AFTER)).isFalse();
     }
 
     // Confirms the fix for the real bug this rescoping closed: a genuinely unrelated

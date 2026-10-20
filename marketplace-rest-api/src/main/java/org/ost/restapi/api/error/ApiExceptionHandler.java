@@ -5,7 +5,9 @@ import org.ost.platform.apikey.model.ApiKeyAlreadyRevokedException;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -48,9 +50,10 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(TooManyAttemptsException.class)
-    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
-    public ErrorResponse handleTooManyAttempts(TooManyAttemptsException ex) {
-        return new ErrorResponse(ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleTooManyAttempts(TooManyAttemptsException ex) {
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS);
+        ex.retryAfter().ifPresent(wait -> response.header(HttpHeaders.RETRY_AFTER, String.valueOf(wait.toSeconds())));
+        return response.body(new ErrorResponse(ex.getMessage()));
     }
 
     // Reaching here is a genuine unexpected-state bug, not a rate-limit signal -- those throw TooManyAttemptsException, handled above.

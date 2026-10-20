@@ -271,6 +271,15 @@ Why: phase 4 follows the existing restore model (read the snapshot, send a norma
 - Also to confirm for this phase or the next: `POST /api/taxons/{id}/restore` (restore a soft-deleted taxon, `TaxonCatalogService.restore`), a parity gap found 2026-10-20 that the findings table lacked.
 - Tests: service tests per resource (mapping, authorization, stale version, deleted entity), controller tests, a Level 3 scenario per resource family (edit, restore by id, state equals the snapshot, new audit entry visible in the history), the UI restore handlers' tests updated; full `build-and-test.sh --unit --integration --sandbox`; `/review`, `/sync-docs`; the extension of the restore decision recorded through `/record-decision`; saved into history in one step on request.
 
+## Phase 5 — contacts (approved and implemented 2026-10-20)
+
+Decisions taken: contacts stay open to visitors who are not signed in (they are advertising); every reveal is counted, as in the UI; the reveal returns the value and a ready deep link built on the server; the reveal is a `POST` because it records a view and counts toward the limit; the limit is 30 reveals per 15 minutes per client address, or per address and user when signed in, answered with `429` and `Retry-After`.
+
+- **Orchestrator:** a new `ContactRevealService` owns the reveal: it takes the client address, the viewer id (null for a visitor), the entity and the channel; enforces the limit (the limiter moves out of `marketplace-app`, now taking the address as a plain string so the orchestrator stays transport-agnostic); resolves the contact through `ContactAccessService.resolveContact` (an advertisement without its own contact falls back to its owner's profile); records the view; and returns the value with its deep link (Telegram `https://t.me/<value>`; Viber `viber://chat?number=<value>` taken from the UI, not confirmed by Viber's own documentation and to be checked on a device; none for a phone). `ContactRevealPanel` is moved onto this service so the rule lives once.
+- **REST, one new `ContactApiController`** with `operationId`s: `GET /api/advertisements/{id}/contact` and `GET /api/provider-profiles/{id}/contact` (public, the channels that are set, without values); `POST /api/advertisements/{id}/contact/reveals` and `POST /api/provider-profiles/{id}/contact/reveals` with `{ "channel": "PHONE" }` (public; `404` when the channel or contact is absent, `429` over the limit); `GET /api/provider-profiles/{id}/contact/views` (this month's counts per channel, the profile's owner, administrators and moderators only, as in the UI).
+- **Security chain:** `POST` on the two `…/contact/reveals` paths gets an explicit `permitAll`, and `GET …/contact/views` an explicit `authenticated()` ahead of the public `GET` rules (otherwise the controller receives no user id, as with history).
+- **Tests:** `ContactRevealServiceTest` (limit, visitor and signed-in keys, absent contact or channel, recorded view with a null viewer, the three deep links); `ContactApiControllerTest`; a Level 3 scenario (a visitor reveals a profile phone and the owner then sees one view; the 31st reveal is `429`; a channel that is not set is `404`; the counts are `403` for another user and `401` for a visitor; an advertisement falls back to its owner's profile contact); the UI reveal tests; the two Playwright specs that exercise the reveal (`04-provider-profile-flow`, `05-marketplace-advertisement-flow`) with `--ux` because UI code is touched; full `build-and-test.sh --unit --integration --sandbox`; `/review`, `/sync-docs`; the contact-service decision extended through `/record-decision`; saved into history in one step on request.
+
 ## Related
 
 - [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — media, PATCH, Basic-auth gap
@@ -292,7 +301,7 @@ Why: phase 4 follows the existing restore model (read the snapshot, send a norma
 - haiku_decomposition_used: yes
 - haiku_decomposition_dispatch_count: 2
 - haiku_decomposition_rework_needed: 0 / 2
-- adrs_referenced: ADR-087 (marketplace-app), ADR-007 (marketplace-orchestrator)
+- adrs_referenced: ADR-087 (marketplace-app), ADR-007 (marketplace-orchestrator), ADR-010 (marketplace-orchestrator)
 
 ### Agent calls
 - phase 1 controller edits (exact specification) | subagent_type=general-purpose (model haiku) | tokens=77964 | tool_uses=9 | duration_s=38 | mode=background | batch=solo

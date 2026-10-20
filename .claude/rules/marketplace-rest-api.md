@@ -20,7 +20,7 @@ Java package root: `org.ost.restapi`
   endpoints
 - `org.ost.restapi.api` — the authenticated external-API family: `ApiKeyController`,
   `UserApiController`, `AdvertisementApiController`, `ProviderProfileApiController`,
-  `TaxonApiController`, `AuditApiController`. Each controller's own request/response records that no
+  `TaxonApiController`, `AuditApiController`, `ContactApiController`. Each controller's own request/response records that no
   other class needs are nested as public static records inside that controller (e.g.
   `ApiKeyController.ApiKeyCreateRequest`/`ApiKeyCreatedResponse`,
   `TaxonApiController.TaxonCreateRequest`/`TaxonUpdateRequest`/`TaxonTranslationRequest`,
@@ -33,7 +33,8 @@ Java package root: `org.ost.restapi`
 - `org.ost.restapi.api.error` — `ApiExceptionHandler` (`@RestControllerAdvice`) plus its two
   response records, `ErrorResponse`/`ValidationErrorResponse` — kept in their own package rather
   than nested, since the advice maps exceptions from every controller in this module, not owned by
-  any single one.
+  any single one. `TooManyAttemptsException` maps to 429, with `Retry-After` taken from the
+  exception's window when it carries one.
 - `org.ost.restapi.api.concurrency` — `ETagUtil`, the sole conversion point between a resource's
   `version` and the HTTP `ETag`/`If-Match` header representation: `withVersion()` sets a response's
   `ETag` (skipped when the version is null), `parseIfMatch()` reads the expected version back off an
@@ -56,7 +57,7 @@ Java package root: `org.ost.restapi`
 - `org.ost.restapi.config` — `ApiSecurityConfig` (two `SecurityFilterChain`s: `@Order(1)` matching
   `POST /api/api-keys` only, the one chain with HTTP Basic, and `@Order(2)` for the rest of
   `/api/**`, bearer-only, which also requires authentication for `*/history` and `*/history/*` under
-  advertisements, provider-profiles and taxons ahead of their public GET rules; both coexist with
+  advertisements, provider-profiles and taxons ahead of their public GET rules, lets `POST …/contact/reveals` through publicly, and requires authentication for `GET …/provider-profiles/*/contact/views`; both coexist with
   `marketplace-app`'s own Vaadin security chain via Spring Security's ordered multi-chain matching), `BasicLoginRateLimitFilter` (blocks a client
   address and email with 429 after 5 failed Basic logins in 15 minutes, on the key-issuance chain),
   `BearerChallengeEntryPoint` (answers an unauthenticated `/api/**` request with 401 and a Bearer

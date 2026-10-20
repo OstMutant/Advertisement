@@ -11,6 +11,7 @@ import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 /** Wraps {@link ContactPort} for marketplace-app, adding the ADVERTISEMENT-to-owner's-PROVIDER_PROFILE contact fallback via {@link AdvertisementOwnerProfileLookupService}. */
@@ -21,6 +22,7 @@ public class ContactAccessService {
     private final ComponentFactory<ContactPort> contactPortFactory;
     private final AdvertisementOwnerProfileLookupService advertisementOwnerProfileLookupService;
     private final AuthorizationService authorizationService;
+    private final ProviderProfileReadService providerProfileReadService;
 
     public Optional<ContactInfoDto> find(@NonNull EntityType entityType, @NonNull Long entityId) {
         return contactPortFactory.findIfAvailable().flatMap(port -> port.find(entityType, entityId));
@@ -52,6 +54,14 @@ public class ContactAccessService {
         return contactPortFactory.findIfAvailable()
                 .map(port -> port.countViewsThisMonth(entityType, entityId))
                 .orElse(List.of());
+    }
+
+    /** This month's reveal counts of a provider profile, looked up by profile id; only its owner, an administrator or a moderator may read them. */
+    public List<ContactViewCountDto> countProfileViewsThisMonth(@NonNull Long actingUserId, @NonNull Long profileId) {
+        Long ownerId = providerProfileReadService.findById(profileId)
+                .orElseThrow(() -> new NoSuchElementException("Provider profile " + profileId + " not found"))
+                .getActorId();
+        return countViewsThisMonth(actingUserId, EntityType.PROVIDER_PROFILE, profileId, ownerId);
     }
 
     public void delete(@NonNull EntityType entityType, @NonNull Long entityId) {
