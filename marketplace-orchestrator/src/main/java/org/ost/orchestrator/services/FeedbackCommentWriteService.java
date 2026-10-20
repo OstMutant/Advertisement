@@ -9,6 +9,8 @@ import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.springframework.stereotype.Service;
 
+import java.util.NoSuchElementException;
+
 /**
  * Enforces that only the reviewed provider profile's own owner may write the single reply to one
  * of its feedback entries. The owner-check lives here, not in feedback-spring-boot-starter (a
@@ -41,12 +43,12 @@ public class FeedbackCommentWriteService {
 
     private void requireOwner(Long feedbackId, Long actingUserId) {
         FeedbackDto feedback = feedbackAccessService.findFeedbackById(feedbackId)
-                .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + NOT_FOUND_SUFFIX));
+                .orElseThrow(() -> new NoSuchElementException("Feedback " + feedbackId + NOT_FOUND_SUFFIX));
         if (feedback.entityType() != EntityType.PROVIDER_PROFILE) {
             throw new AccessDeniedException("Feedback " + feedbackId + " is not attached to a provider profile");
         }
         ProviderProfileDto profile = providerProfileReadService.findById(feedback.entityId())
-                .orElseThrow(() -> new IllegalStateException("ProviderProfile " + feedback.entityId() + NOT_FOUND_SUFFIX));
+                .orElseThrow(() -> new NoSuchElementException("ProviderProfile " + feedback.entityId() + NOT_FOUND_SUFFIX));
         if (!authorizationService.isOwner(actingUserId, profile.getActorId())) {
             throw new AccessDeniedException("User " + actingUserId + " is not the owner of provider profile " + profile.getActorId());
         }
@@ -54,7 +56,7 @@ public class FeedbackCommentWriteService {
 
     private void requireCommentAuthor(Long commentId, Long actingUserId) {
         FeedbackCommentDto comment = feedbackAccessService.findCommentById(commentId)
-                .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + NOT_FOUND_SUFFIX));
+                .orElseThrow(() -> new NoSuchElementException("FeedbackComment " + commentId + NOT_FOUND_SUFFIX));
         if (!comment.authorId().equals(actingUserId)) {
             throw new AccessDeniedException("User " + actingUserId + " is not the author of comment " + commentId);
         }

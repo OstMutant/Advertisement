@@ -25,6 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -174,7 +175,7 @@ public class FeedbackAccessService {
         authorizationService.requireIsPrivileged(actorId);
         tx.executeWithoutResult(status -> {
             FeedbackDto existing = feedbackPortFactory.get().findFeedbackById(feedbackId)
-                    .orElseThrow(() -> new IllegalStateException("Feedback " + feedbackId + " not found"));
+                    .orElseThrow(() -> new NoSuchElementException("Feedback " + feedbackId + " not found"));
             FeedbackSnapshotDto snapshot = new FeedbackSnapshotDto(existing.moderationStatus(), existing.moderationReason());
             feedbackPortFactory.get().rejectFeedback(feedbackId);
             auditPortFactory.ifAvailable(p -> p.captureDeletion(feedbackId, snapshot, actorId));
@@ -185,7 +186,7 @@ public class FeedbackAccessService {
         authorizationService.requireIsPrivileged(actorId);
         tx.executeWithoutResult(status -> {
             FeedbackCommentDto existing = feedbackPortFactory.get().findCommentById(commentId)
-                    .orElseThrow(() -> new IllegalStateException("FeedbackComment " + commentId + " not found"));
+                    .orElseThrow(() -> new NoSuchElementException("FeedbackComment " + commentId + " not found"));
             FeedbackCommentSnapshotDto snapshot = new FeedbackCommentSnapshotDto(existing.moderationStatus(), existing.moderationReason());
             feedbackPortFactory.get().rejectComment(commentId);
             auditPortFactory.ifAvailable(p -> p.captureDeletion(commentId, snapshot, actorId));

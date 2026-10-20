@@ -19,6 +19,7 @@ import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
+import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
@@ -277,6 +278,33 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void flagFeedback_alreadyHidden_throwsAndKeepsFirstReason() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
+        feedbackService.flagFeedback(feedback.id(), 2L, "first");
+
+        assertThatThrownBy(() -> feedbackService.flagFeedback(feedback.id(), 3L, "second"))
+                .isInstanceOf(FeedbackNotFlaggableException.class);
+
+        assertThat(feedbackService.findFeedbackById(feedback.id()))
+                .hasValueSatisfying(reloaded -> assertThat(reloaded.moderationReason()).isEqualTo("first"));
+    }
+
+    @Test
+    void flagFeedback_confirmedViolation_throwsAndStaysConfirmed() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
+        feedbackService.flagFeedback(feedback.id(), 2L, "Spam.");
+        feedbackService.confirmFeedbackViolation(feedback.id());
+
+        assertThatThrownBy(() -> feedbackService.flagFeedback(feedback.id(), 3L, "Again."))
+                .isInstanceOf(FeedbackNotFlaggableException.class);
+
+        assertThat(feedbackService.findFeedbackById(feedback.id()))
+                .hasValueSatisfying(reloaded -> assertThat(reloaded.moderationStatus()).isEqualTo(FeedbackModerationStatus.CONFIRMED_HIDDEN));
+    }
+
+    @Test
     void approveFeedback_reversesHiddenStatus_reappearsInPublicListing() {
         Long entityId = newEntityId();
         FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
@@ -444,6 +472,37 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
 
         assertThatThrownBy(() -> feedbackService.flagComment(comment.id(), commentAuthorId, "My own reply."))
                 .isInstanceOf(SelfActionNotAllowedException.class);
+    }
+
+    @Test
+    void flagComment_alreadyHidden_throwsAndKeepsFirstReason() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
+        FeedbackCommentDto comment = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), newAuthorId(), "A comment.", null));
+        feedbackService.flagComment(comment.id(), 3L, "first");
+
+        assertThatThrownBy(() -> feedbackService.flagComment(comment.id(), 4L, "second"))
+                .isInstanceOf(FeedbackNotFlaggableException.class);
+
+        assertThat(feedbackService.findCommentById(comment.id()))
+                .hasValueSatisfying(reloaded -> assertThat(reloaded.moderationReason()).isEqualTo("first"));
+    }
+
+    @Test
+    void flagComment_confirmedViolation_throwsAndStaysConfirmed() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
+        FeedbackCommentDto comment = feedbackService.saveComment(
+                new FeedbackCommentSaveDto(null, feedback.id(), newAuthorId(), "A comment.", null));
+        feedbackService.flagComment(comment.id(), 3L, "Rude.");
+        feedbackService.confirmCommentViolation(comment.id());
+
+        assertThatThrownBy(() -> feedbackService.flagComment(comment.id(), 4L, "Again."))
+                .isInstanceOf(FeedbackNotFlaggableException.class);
+
+        assertThat(feedbackService.findCommentById(comment.id()))
+                .hasValueSatisfying(reloaded -> assertThat(reloaded.moderationStatus()).isEqualTo(FeedbackModerationStatus.CONFIRMED_HIDDEN));
     }
 
     @Test

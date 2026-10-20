@@ -198,6 +198,12 @@ values through the domain's normal save path, so validation, authorization and a
 those of an ordinary update and no separate restore permission exists. A restore requires the
 caller's current version (`If-Match`), and the audit entry is an ordinary update. The user restore
 changes name and role only; an advertisement's gallery is left unchanged.
+The feedback domain follows the same rule on its write side: `FeedbackWriteService` makes the caller
+the author of a review and allows an edit only of the caller's own review, and the starter refuses
+to flag a review or reply that is not NEW, so a moderator's confirmed verdict stays final; hidden
+entries are returned without text and rating to everyone, as the panel shows them; "not found" is a
+`NoSuchElementException`. The REST surface covers provider profiles only, because only they carry
+feedback in the UI.
 
 **Rejected alternatives:**
 1. Checks inside each of the 4 starters — reversed once grep confirmed the orchestrator is already

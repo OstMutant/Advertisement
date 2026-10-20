@@ -84,6 +84,9 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   depend on `ProviderProfilePort`) or inside `FeedbackAccessService` itself (a third `*Port`
   dependency there would exceed the ≤2-port limit) — same "extract a `services.*` collaborator"
   shape as `AdvertisementOwnerProfileLookupService` above.
+- `FeedbackWriteService` — the REST and Vaadin write path for a provider profile's review: the caller
+  is always the review's author, an edit only touches the caller's own review
+  (`AccessDeniedException` otherwise), and the reviewed profile must exist (`ProviderProfileReadService`).
 - `UserDeleteService` — cascades a user's own dependent data (advertisements, provider profile)
   before deleting the account itself.
 - `UserCleanupService` — the scheduled retention-purge use case: finds soft-deleted accounts past
@@ -228,6 +231,9 @@ inventing a second wiring approach for one module).
   four single-port classes plus a coordinator would be ceremony with no cohesion benefit. This is a
   case-by-case exception evaluated on its own merit, not a loosened threshold — a new class that
   exceeds 2 ports still fails the test unless it earns the same explicit allowlist entry.
+- **Feedback not-found errors are `NoSuchElementException`.** The feedback services in this module
+  and the feedback starter beneath them report an unknown feedback, reply or profile by throwing
+  `NoSuchElementException`, never a feedback-specific type; callers map it to 404.
 - **No persistence access.** Enforced by `ArchitectureRulesTest.orchestrator_has_no_persistence_access`
   — zero imports of `JdbcClient`/`*Repository`/`*CrudRepository` anywhere in this module. Mirrors
   the `*PortImpl`/`*HookImpl` pure-delegation discipline one layer down — this module composes

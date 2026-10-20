@@ -14,6 +14,7 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.EditWindowClosedException;
 import org.ost.platform.core.FailureRateLimiter;
 import org.ost.platform.core.SelfActionNotAllowedException;
+import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
 import org.ost.platform.feedback.dto.FeedbackCommentDto;
@@ -40,6 +41,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -84,7 +86,7 @@ public class FeedbackService {
         Long effectiveEntityId;
         if (dto.id() != null) {
             FeedbackView existing = repository.findViewById(dto.id())
-                    .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + dto.id() + NOT_FOUND_SUFFIX));
+                    .orElseThrow(() -> new NoSuchElementException(FEEDBACK_PREFIX + dto.id() + NOT_FOUND_SUFFIX));
             checkWithinEditWindow(existing.createdAt());
             FeedbackContent content = repository.saveContent(FeedbackContent.builder()
                     .id(existing.contentId())
@@ -153,7 +155,7 @@ public class FeedbackService {
         FeedbackComment saved;
         if (dto.id() != null) {
             FeedbackCommentView existing = repository.findCommentViewById(dto.id())
-                    .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + dto.id() + NOT_FOUND_SUFFIX));
+                    .orElseThrow(() -> new NoSuchElementException(FEEDBACK_COMMENT_PREFIX + dto.id() + NOT_FOUND_SUFFIX));
             checkWithinEditWindow(existing.createdAt());
             repository.saveContent(FeedbackContent.builder()
                     .id(existing.contentId())
@@ -190,7 +192,7 @@ public class FeedbackService {
     @Transactional
     public void deleteComment(@NonNull Long commentId) {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
-                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
+                .orElseThrow(() -> new NoSuchElementException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
         checkWithinEditWindow(existing.createdAt());
         repository.deleteCommentHard(commentId, existing.contentId());
     }
@@ -200,9 +202,12 @@ public class FeedbackService {
     @Transactional
     public void flagFeedback(@NonNull Long feedbackId, @NonNull Long actorId, @NonNull String reason) {
         FeedbackView existing = repository.findViewById(feedbackId)
-                .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
+                .orElseThrow(() -> new NoSuchElementException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
         if (existing.authorId().equals(actorId)) {
             throw new SelfActionNotAllowedException("Cannot flag your own feedback entry");
+        }
+        if (existing.moderationStatus() != FeedbackModerationStatus.NEW) {
+            throw new FeedbackNotFlaggableException("Feedback " + feedbackId + " is already hidden or reviewed");
         }
         repository.flagContent(existing.contentId(), reason);
         repository.upsertAggregate(existing.entityType(), existing.entityId());
@@ -211,9 +216,12 @@ public class FeedbackService {
     @Transactional
     public void flagComment(@NonNull Long commentId, @NonNull Long actorId, @NonNull String reason) {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
-                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
+                .orElseThrow(() -> new NoSuchElementException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
         if (existing.authorId().equals(actorId)) {
             throw new SelfActionNotAllowedException("Cannot flag your own comment");
+        }
+        if (existing.moderationStatus() != FeedbackModerationStatus.NEW) {
+            throw new FeedbackNotFlaggableException("Comment " + commentId + " is already hidden or reviewed");
         }
         repository.flagContent(existing.contentId(), reason);
     }
@@ -221,7 +229,7 @@ public class FeedbackService {
     @Transactional
     public void approveFeedback(@NonNull Long feedbackId) {
         FeedbackView existing = repository.findViewById(feedbackId)
-                .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
+                .orElseThrow(() -> new NoSuchElementException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
         repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.NEW);
         repository.upsertAggregate(existing.entityType(), existing.entityId());
     }
@@ -229,28 +237,28 @@ public class FeedbackService {
     @Transactional
     public void approveComment(@NonNull Long commentId) {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
-                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
+                .orElseThrow(() -> new NoSuchElementException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
         repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.NEW);
     }
 
     @Transactional
     public void confirmFeedbackViolation(@NonNull Long feedbackId) {
         FeedbackView existing = repository.findViewById(feedbackId)
-                .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
+                .orElseThrow(() -> new NoSuchElementException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
         repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.CONFIRMED_HIDDEN);
     }
 
     @Transactional
     public void confirmCommentViolation(@NonNull Long commentId) {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
-                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
+                .orElseThrow(() -> new NoSuchElementException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
         repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.CONFIRMED_HIDDEN);
     }
 
     @Transactional
     public void rejectFeedback(@NonNull Long feedbackId) {
         FeedbackView existing = repository.findViewById(feedbackId)
-                .orElseThrow(() -> new IllegalStateException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
+                .orElseThrow(() -> new NoSuchElementException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
         repository.deleteFeedbackHard(feedbackId, existing.contentId());
         repository.upsertAggregate(existing.entityType(), existing.entityId());
     }
@@ -259,7 +267,7 @@ public class FeedbackService {
     @Transactional
     public void rejectComment(@NonNull Long commentId) {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
-                .orElseThrow(() -> new IllegalStateException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
+                .orElseThrow(() -> new NoSuchElementException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
         repository.deleteCommentHard(commentId, existing.contentId());
     }
 

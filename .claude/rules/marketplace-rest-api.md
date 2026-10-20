@@ -20,7 +20,7 @@ Java package root: `org.ost.restapi`
   endpoints
 - `org.ost.restapi.api` — the authenticated external-API family: `ApiKeyController` (its key list hides revoked keys unless `includeRevoked=true`),
   `UserApiController`, `AdvertisementApiController`, `ProviderProfileApiController`,
-  `TaxonApiController`, `AuditApiController`, `ContactApiController`. Each controller's own request/response records that no
+  `TaxonApiController`, `AuditApiController`, `ContactApiController`, `FeedbackApiController`. Each controller's own request/response records that no
   other class needs are nested as public static records inside that controller (e.g.
   `ApiKeyController.ApiKeyCreateRequest`/`ApiKeyCreatedResponse`,
   `TaxonApiController.TaxonCreateRequest`/`TaxonUpdateRequest`/`TaxonTranslationRequest`,
@@ -101,6 +101,9 @@ Every authenticated endpoint carries `@SecurityRequirement(name = "bearerKey")` 
   is ignored and the request is answered 401; a Bearer header on the key endpoint is answered 401
   with a Basic challenge. Never re-enable `httpBasic` on the general `/api/**` chain — a Basic
   principal there reaches bearer-only methods as a null id.
+- Hidden feedback (a review or a reply whose moderation status is hidden) is returned without its
+  text, and a hidden review also without its rating, for every caller including its author -- the
+  same censored placeholder the Vaadin feedback panel shows.
 - Any new endpoint under a prefix that the general chain makes public for GET (advertisements,
   provider-profiles, taxons) must get its own `authenticated()` rule ahead of the public one, because
   a public match leaves the controller without a user id.

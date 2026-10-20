@@ -2,8 +2,11 @@ package org.ost.restapi.api.error;
 
 import org.junit.jupiter.api.Test;
 import org.ost.orchestrator.services.AccessDeniedException;
+import org.ost.platform.core.EditWindowClosedException;
+import org.ost.platform.core.SelfActionNotAllowedException;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
+import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
 import org.ost.platform.taxon.model.TaxonNotDeletedException;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
@@ -57,6 +60,27 @@ class ApiExceptionHandlerTest {
         ErrorResponse response = handler.handleNotFound(new NoSuchElementException());
 
         assertThat(response.message()).isNotBlank();
+    }
+
+    @Test
+    void handleEditWindowClosed_returnsMessage() {
+        ErrorResponse response = handler.handleEditWindowClosed(new EditWindowClosedException("Edit window has closed"));
+
+        assertThat(response.message()).isEqualTo("Edit window has closed");
+    }
+
+    @Test
+    void handleSelfAction_returnsMessage() {
+        ErrorResponse response = handler.handleSelfAction(new SelfActionNotAllowedException("Cannot flag your own feedback entry"));
+
+        assertThat(response.message()).isEqualTo("Cannot flag your own feedback entry");
+    }
+
+    @Test
+    void handleFeedbackNotFlaggable_returnsMessage() {
+        ErrorResponse response = handler.handleFeedbackNotFlaggable(new FeedbackNotFlaggableException("Feedback 7 is already hidden or reviewed"));
+
+        assertThat(response.message()).isEqualTo("Feedback 7 is already hidden or reviewed");
     }
 
     @Test

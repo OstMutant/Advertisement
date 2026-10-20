@@ -23,6 +23,7 @@ import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
 import org.ost.orchestrator.services.FeedbackAccessService;
+import org.ost.orchestrator.services.FeedbackWriteService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
@@ -72,6 +73,7 @@ public class FeedbackPanel extends Div
     }
 
     private final FeedbackAccessService     feedbackAccessService;
+    private final FeedbackWriteService      feedbackWriteService;
     private final AccessEvaluator           access;
     private final NotificationService       notificationService;
     private final PaginationBar             paginationBar;
@@ -298,8 +300,7 @@ public class FeedbackPanel extends Div
         saveButton.addClickListener(_ -> {
             if (editRatingField.getValue() == null || editTextField.getValue() == null || editTextField.getValue().isBlank()) return;
             FeedbackErrorHandlingUtil.runCatchingFeedbackErrors(notificationService, () -> {
-                feedbackAccessService.save(new FeedbackSaveDto(entry.id(), entityRef.entityType(), entityRef.entityId(),
-                        access.getCurrentUserId(), editRatingField.getValue(), editTextField.getValue(), entry.version()));
+                feedbackWriteService.edit(access.getCurrentUserId(), entry.id(), editRatingField.getValue(), editTextField.getValue(), entry.version());
                 notificationService.success(FEEDBACK_NOTIFICATION_SAVED);
                 refresh(entityRef);
             });
@@ -366,8 +367,7 @@ public class FeedbackPanel extends Div
         submit.addClassName("feedback-form-submit");
         submit.addClickListener(_ -> {
             if (ratingField.getValue() == null || textField.getValue() == null || textField.getValue().isBlank()) return;
-            feedbackAccessService.save(new FeedbackSaveDto(null, entityRef.entityType(), entityRef.entityId(),
-                    access.getCurrentUserId(), ratingField.getValue(), textField.getValue(), null));
+            feedbackWriteService.create(access.getCurrentUserId(), entityRef.entityId(), ratingField.getValue(), textField.getValue());
             notificationService.success(FEEDBACK_NOTIFICATION_SAVED);
             addFormOpen = false;
             refresh(entityRef);

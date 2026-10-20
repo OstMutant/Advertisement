@@ -2,8 +2,11 @@ package org.ost.restapi.api.error;
 
 import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.platform.apikey.model.ApiKeyAlreadyRevokedException;
+import org.ost.platform.core.EditWindowClosedException;
+import org.ost.platform.core.SelfActionNotAllowedException;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
+import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
 import org.ost.platform.taxon.model.TaxonNotDeletedException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpHeaders;
@@ -53,6 +56,24 @@ public class ApiExceptionHandler {
     @ExceptionHandler(TaxonNotDeletedException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleTaxonNotDeleted(TaxonNotDeletedException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(EditWindowClosedException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleEditWindowClosed(EditWindowClosedException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(FeedbackNotFlaggableException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleFeedbackNotFlaggable(FeedbackNotFlaggableException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(SelfActionNotAllowedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleSelfAction(SelfActionNotAllowedException ex) {
         return new ErrorResponse(ex.getMessage());
     }
 

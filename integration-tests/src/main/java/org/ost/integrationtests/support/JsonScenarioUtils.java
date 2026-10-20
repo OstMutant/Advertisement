@@ -19,6 +19,14 @@ public final class JsonScenarioUtils {
         return Long.parseLong(matcher.group(1));
     }
 
+    public static long extractLongField(String json, String field) {
+        Matcher matcher = Pattern.compile("\"" + field + "\":(\\d+)").matcher(json);
+        if (!matcher.find()) {
+            throw new IllegalStateException("No \"" + field + "\" field found in response: " + json);
+        }
+        return Long.parseLong(matcher.group(1));
+    }
+
     public static String extractStringField(String json, String field) {
         Matcher matcher = Pattern.compile("\"" + field + "\":\"([^\"]+)\"").matcher(json);
         if (!matcher.find()) {
