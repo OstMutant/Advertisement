@@ -45,8 +45,8 @@ public class ApiKeyService {
         return found.map(ApiKey::getActorId);
     }
 
-    public List<ApiKeySummaryDto> listForActor(@NonNull Long actorId) {
-        return repository.findByActorId(actorId).stream().map(ApiKey::toSummaryDto).toList();
+    public List<ApiKeySummaryDto> listForActor(@NonNull Long actorId, boolean includeRevoked) {
+        return repository.findByActorId(actorId).stream().filter(key -> includeRevoked || key.getRevokedAt() == null).map(ApiKey::toSummaryDto).toList();
     }
 
     @Transactional

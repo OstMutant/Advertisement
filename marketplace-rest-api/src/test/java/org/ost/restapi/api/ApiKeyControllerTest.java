@@ -79,11 +79,22 @@ class ApiKeyControllerTest {
     void list_delegatesToServiceWithActorId() throws Exception {
         authenticateAs(ACTOR_ID);
         ApiKeySummaryDto summary = new ApiKeySummaryDto(1L, "abc1234567", "label", Instant.now(), null, null);
-        when(apiKeyManagementService.listForActor(ACTOR_ID)).thenReturn(List.of(summary));
+        when(apiKeyManagementService.listForActor(ACTOR_ID, false)).thenReturn(List.of(summary));
 
         mockMvc.perform(get("/api/api-keys"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1));
+    }
+
+    @Test
+    void list_includeRevoked_passesFlagToService() throws Exception {
+        authenticateAs(ACTOR_ID);
+        ApiKeySummaryDto summary = new ApiKeySummaryDto(1L, "abc1234567", "label", Instant.now(), null, Instant.now());
+        when(apiKeyManagementService.listForActor(ACTOR_ID, true)).thenReturn(List.of(summary));
+
+        mockMvc.perform(get("/api/api-keys?includeRevoked=true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].revokedAt").exists());
     }
 
     // ── revoke (bearer) ──────────────────────────────────────────────────

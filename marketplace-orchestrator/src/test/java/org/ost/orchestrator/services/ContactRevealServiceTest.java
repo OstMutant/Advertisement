@@ -80,7 +80,7 @@ class ContactRevealServiceTest {
         Optional<ContactRevealService.RevealedContact> revealed = service.reveal(ENTITY, ID, ContactChannel.VIBER, 5L, "10.0.0.1");
 
         assertThat(revealed).hasValueSatisfying(contact ->
-                assertThat(contact.deepLink()).isEqualTo("viber://chat?number=+380501234567"));
+                assertThat(contact.deepLink()).isEqualTo("viber://chat?number=%2B380501234567"));
     }
 
     @Test

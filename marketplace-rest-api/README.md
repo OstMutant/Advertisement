@@ -14,7 +14,8 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
   services `marketplace-app`'s own Vaadin forms call, so a REST write and a UI write go through
   identical validation/authorization/audit behavior.
 - Bearer API-key authentication (issuance gated by HTTP Basic) for every write; reads are public,
-  mirroring the existing public Vaadin browsing experience.
+  mirroring the existing public Vaadin browsing experience. The caller's own key list hides revoked
+  keys unless `includeRevoked=true` is passed, which returns them with a non-null `revokedAt`.
 - Optimistic concurrency over HTTP's own mechanism: every `GET .../{id}` returns an `ETag` response
   header carrying the resource's version; every write reads the expected version back from an
   `If-Match` request header — `id`/`version` are never caller-writable body fields.

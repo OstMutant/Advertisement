@@ -7,6 +7,8 @@ import org.ost.platform.core.FailureRateLimiter;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Service;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +59,7 @@ public class ContactRevealService {
         return switch (channel) {
             case PHONE -> null;
             case TELEGRAM -> "https://t.me/" + value;
-            case VIBER -> "viber://chat?number=" + value;
+            case VIBER -> "viber://chat?number=" + URLEncoder.encode(value, StandardCharsets.UTF_8);
         };
     }
 }

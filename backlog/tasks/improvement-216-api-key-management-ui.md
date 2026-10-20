@@ -19,6 +19,7 @@ A user sees their own keys (label, prefix, created, last used, revoked) and revo
 
 ## Approach
 
+0. Note: `ApiKeyManagementService.listForActor(userId, includeRevoked)` hides revoked keys unless the flag is true; the page decides whether to show revoked keys (the metadata includes `revokedAt`) and passes the flag accordingly.
 1. **View only plus revoke (chosen scope):** a page listing the signed-in user's keys with a revoke action and a confirmation step; no key value is ever displayed. Uses `ApiKeyManagementService` from `marketplace-orchestrator`, so no new orchestration and no direct port use in `marketplace-app`.
 2. **Issuing a new key in the UI is out of scope.** It needs its own decision: showing a raw key once in a dialog with copy support, and whether the UI should issue keys at all. Raise separately if wanted.
 3. Open design points for the plan: where the page lives in navigation (profile/settings area versus its own menu entry), whether revoked keys stay visible, and whether an administrator may see other users' keys (default: no, own keys only).

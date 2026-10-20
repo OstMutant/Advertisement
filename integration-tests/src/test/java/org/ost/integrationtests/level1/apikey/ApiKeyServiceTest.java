@@ -67,7 +67,7 @@ class ApiKeyServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void resolveActorId_revokedKey_returnsEmpty() {
         String rawKey = apiKeyService.create(userId, "my key");
-        Long keyId = apiKeyService.listForActor(userId).getFirst().id();
+        Long keyId = apiKeyService.listForActor(userId, false).getFirst().id();
 
         apiKeyService.revoke(userId, keyId);
 
@@ -78,7 +78,7 @@ class ApiKeyServiceTest extends AbstractPostgresIntegrationTest {
     void listForActor_neverExposesHashOrRawKey() {
         apiKeyService.create(userId, "my key");
 
-        List<ApiKeySummaryDto> keys = apiKeyService.listForActor(userId);
+        List<ApiKeySummaryDto> keys = apiKeyService.listForActor(userId, false);
 
         assertThat(keys).hasSize(1);
         assertThat(keys.getFirst().keyPrefix()).hasSize(10);
@@ -86,9 +86,21 @@ class ApiKeyServiceTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void listForActor_revokedKey_hiddenByDefault_shownWhenRequested() {
+        apiKeyService.create(userId, "my key");
+        Long keyId = apiKeyService.listForActor(userId, false).getFirst().id();
+        apiKeyService.revoke(userId, keyId);
+
+        assertThat(apiKeyService.listForActor(userId, false)).isEmpty();
+        List<ApiKeySummaryDto> keys = apiKeyService.listForActor(userId, true);
+        assertThat(keys).hasSize(1);
+        assertThat(keys.getFirst().revokedAt()).isNotNull();
+    }
+
+    @Test
     void revoke_wrongOwner_leavesKeyActive() {
         String rawKey = apiKeyService.create(userId, "my key");
-        Long keyId = apiKeyService.listForActor(userId).getFirst().id();
+        Long keyId = apiKeyService.listForActor(userId, false).getFirst().id();
         User otherUser = UserTestFixtures.createTestUser(userRepository, "Not The Owner", "svcnotowner-" + UUID.randomUUID() + "@example.com");
 
         assertThatThrownBy(() -> apiKeyService.revoke(otherUser.getId(), keyId)).isInstanceOf(NoSuchElementException.class);
@@ -104,7 +116,7 @@ class ApiKeyServiceTest extends AbstractPostgresIntegrationTest {
     @Test
     void revoke_alreadyRevoked_throwsAlreadyRevoked() {
         apiKeyService.create(userId, "my key");
-        Long keyId = apiKeyService.listForActor(userId).getFirst().id();
+        Long keyId = apiKeyService.listForActor(userId, false).getFirst().id();
         apiKeyService.revoke(userId, keyId);
 
         assertThatThrownBy(() -> apiKeyService.revoke(userId, keyId)).isInstanceOf(ApiKeyAlreadyRevokedException.class);
@@ -118,7 +130,7 @@ class ApiKeyServiceTest extends AbstractPostgresIntegrationTest {
 
         apiKeyService.deleteAllForActor(userId);
 
-        assertThat(apiKeyService.listForActor(userId)).isEmpty();
-        assertThat(apiKeyService.listForActor(otherUser.getId())).hasSize(1);
+        assertThat(apiKeyService.listForActor(userId, false)).isEmpty();
+        assertThat(apiKeyService.listForActor(otherUser.getId(), false)).hasSize(1);
     }
 }

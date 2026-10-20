@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -133,6 +134,31 @@ class ApiAuthenticationChainScenarioTest extends AbstractRestApiScenarioTest {
         mockMvc.perform(delete("/api/api-keys/" + ownersKeyId).header(HttpHeaders.AUTHORIZATION, "Bearer " + intruder.rawApiKey()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Resource not found."));
+    }
+
+    @Test
+    void revokedKey_isHiddenFromTheList_unlessRequested() throws Exception {
+        RegisteredUser user = registerUserAndIssueApiKey("Hidden Key");
+        long revokedKeyId = firstKeyId(user.rawApiKey());
+        String activeRawKey = JsonPath.read(mockMvc.perform(post("/api/api-keys").header(HttpHeaders.AUTHORIZATION, basic(user.email(), user.password())))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(), "$.rawKey");
+
+        mockMvc.perform(delete("/api/api-keys/" + revokedKeyId).header(HttpHeaders.AUTHORIZATION, "Bearer " + activeRawKey))
+                .andExpect(status().isNoContent());
+
+        String listBody = mockMvc.perform(get("/api/api-keys").header(HttpHeaders.AUTHORIZATION, "Bearer " + activeRawKey))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(((Number) JsonPath.read(listBody, "$[0].id")).longValue()).isNotEqualTo(revokedKeyId);
+
+        String listWithRevokedBody = mockMvc.perform(get("/api/api-keys?includeRevoked=true").header(HttpHeaders.AUTHORIZATION, "Bearer " + activeRawKey))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andReturn().getResponse().getContentAsString();
+        List<Object> revokedRows = JsonPath.read(listWithRevokedBody, "$[?(@.revokedAt != null)]");
+        assertThat(revokedRows).hasSize(1);
     }
 
     private long firstKeyId(String rawKey) throws Exception {

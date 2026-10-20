@@ -28,8 +28,8 @@ public class ApiKeyPortImpl implements ApiKeyPort {
     }
 
     @Override
-    public List<ApiKeySummaryDto> listForActor(@NonNull Long actorId) {
-        return apiKeyService.listForActor(actorId);
+    public List<ApiKeySummaryDto> listForActor(@NonNull Long actorId, boolean includeRevoked) {
+        return apiKeyService.listForActor(actorId, includeRevoked);
     }
 
     @Override

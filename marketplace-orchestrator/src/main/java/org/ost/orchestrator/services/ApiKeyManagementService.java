@@ -25,8 +25,8 @@ public class ApiKeyManagementService {
         return apiKeyPortFactory.findIfAvailable().flatMap(p -> p.resolveActorId(rawKey));
     }
 
-    public List<ApiKeySummaryDto> listForActor(@NonNull Long userId) {
-        return apiKeyPortFactory.get().listForActor(userId);
+    public List<ApiKeySummaryDto> listForActor(@NonNull Long userId, boolean includeRevoked) {
+        return apiKeyPortFactory.get().listForActor(userId, includeRevoked);
     }
 
     public void revoke(@NonNull Long userId, @NonNull Long keyId) {

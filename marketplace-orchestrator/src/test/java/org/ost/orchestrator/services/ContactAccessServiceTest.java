@@ -30,7 +30,7 @@ import static org.mockito.Mockito.when;
 
 /** Unit tests for {@link ContactAccessService}, focused on the ADVERTISEMENT-to-PROVIDER_PROFILE fallback. */
 @ExtendWith(MockitoExtension.class)
-class ContactServiceTest {
+class ContactAccessServiceTest {
 
     @Mock private ComponentFactory<ContactPort> contactPortFactory;
     @Mock private ContactPort contactPort;

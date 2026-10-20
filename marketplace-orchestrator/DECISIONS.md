@@ -61,8 +61,8 @@ packages), failing the app at startup with `ConflictingBeanDefinitionException`.
    on the server. The UI panel and the REST controller only pass the viewer and the client address
    in. `ContactAccessService.countProfileViewsThisMonth` resolves a profile's owner itself, so no
    adapter repeats that lookup. Reveal and recording stay open to visitors who are not signed in,
-   as the UI always allowed; the Viber link format is the UI's, not confirmed by Viber's own
-   documentation.
+   as the UI always allowed; Viber has no documented link that opens a chat by phone number,
+   so the number is URL-encoded in the commonly used `viber://chat?number=%2B...` form, which still needs a check on a device.
 
 **Consequences:** `TooManyAttemptsException` carries the limiter's window, so the REST error mapping
 sets `Retry-After` from it instead of a fixed value.
