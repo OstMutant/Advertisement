@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -256,6 +257,42 @@ class ArchitectureRulesTest {
                     .because("marketplace/orchestrator/marketplace-rest-api may import from starters "
                             + "only via platform-commons contracts (Ports/Hooks/DTOs), never via "
                             + "internal impl classes — see .claude/rules.md \"Module Import Rules\"");
+
+    private static final Set<String> HTTP_MAPPING_ANNOTATIONS = Set.of(
+            "org.springframework.web.bind.annotation.GetMapping",
+            "org.springframework.web.bind.annotation.PostMapping",
+            "org.springframework.web.bind.annotation.PutMapping",
+            "org.springframework.web.bind.annotation.PatchMapping",
+            "org.springframework.web.bind.annotation.DeleteMapping",
+            "org.springframework.web.bind.annotation.RequestMapping");
+
+    // Annotation types are named as strings so this test needs no compile-time swagger dependency.
+    @ArchTest
+    static final ArchRule rest_api_operations_must_declare_an_explicit_operation_id =
+            methods().that().areDeclaredInClassesThat().resideInAPackage("org.ost.restapi..")
+                    .and(new DescribedPredicate<JavaMethod>("are mapped to an HTTP request") {
+                        @Override
+                        public boolean test(JavaMethod method) {
+                            return method.getAnnotations().stream()
+                                    .anyMatch(a -> HTTP_MAPPING_ANNOTATIONS.contains(a.getRawType().getName()));
+                        }
+                    })
+                    .should(new ArchCondition<JavaMethod>("carry @Operation with a non-blank operationId") {
+                        @Override
+                        public void check(JavaMethod method, ConditionEvents events) {
+                            boolean explicit = method.tryGetAnnotationOfType("io.swagger.v3.oas.annotations.Operation")
+                                    .flatMap(a -> a.tryGetExplicitlyDeclaredProperty("operationId"))
+                                    .map(value -> !String.valueOf(value).isBlank())
+                                    .orElse(false);
+                            if (!explicit) {
+                                events.add(SimpleConditionEvent.violated(method, method.getFullName()
+                                        + " has no explicit operationId in @Operation"));
+                            }
+                        }
+                    })
+                    .because("springdoc derives an operationId from the Java method name and renames clashes with "
+                            + "a numeric suffix that shifts as controllers are added, breaking collections, "
+                            + "generated clients and MCP tool names built on it");
 
     @ArchTest
     static final ArchRule starters_must_route_taxon_assignment_writes_through_orchestrator =
