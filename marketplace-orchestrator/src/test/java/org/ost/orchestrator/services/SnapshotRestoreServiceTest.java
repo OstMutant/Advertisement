@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mapstruct.factory.Mappers;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
@@ -72,7 +73,8 @@ class SnapshotRestoreServiceTest {
     @BeforeEach
     void setUp() {
         service = new SnapshotRestoreService(auditQueryService, advertisementSaveService, providerProfileSaveService,
-                providerProfileReadService, userProfileService, taxonCatalogService, attachmentMediaService);
+                providerProfileReadService, userProfileService, taxonCatalogService, attachmentMediaService,
+                Mappers.getMapper(SnapshotMapper.class));
     }
 
     // ── restoreAdvertisement ─────────────────────────────────────────────
@@ -200,7 +202,7 @@ class SnapshotRestoreServiceTest {
 
         service.restoreSettings(ACTOR_ID, RESOURCE_ID, SNAPSHOT_ID, VERSION);
 
-        verify(userProfileService).saveSettings(eq(RESOURCE_ID), settingsCaptor.capture());
+        verify(userProfileService).saveSettings(eq(ACTOR_ID), eq(RESOURCE_ID), settingsCaptor.capture());
         UserSettingsDto dto = settingsCaptor.getValue();
         assertThat(dto.getAdsPageSize()).isEqualTo(30);
         assertThat(dto.getUsersPageSize()).isEqualTo(31);

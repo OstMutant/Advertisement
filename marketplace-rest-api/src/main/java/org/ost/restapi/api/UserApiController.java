@@ -208,7 +208,7 @@ public class UserApiController {
                 .providerProfilesPageSize(request.providerProfilesPageSize())
                 .version(ETagUtil.parseIfMatch(ifMatch))
                 .build();
-        userProfileService.saveSettings(actorId, dto);
+        userProfileService.saveSettings(actorId, actorId, dto);
         return userProfileService.loadSettings(actorId);
     }
 

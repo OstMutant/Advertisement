@@ -183,9 +183,7 @@ public class AccountNameFormModeHandler extends AbstractFormOverlayModeHandler<U
         auditQueryService.getSnapshotContent(access.getCurrentUserId(), params.getTargetUserId(), snapshotId, EntityType.USER, UserSnapshotDto.class)
                 .map(AuditSnapshotContentDto::snapshotData)
                 .ifPresent(snapshot -> {
-                    UserEditDto dto = new UserEditDto(params.getTargetUserId(), snapshot.name(),
-                            Role.valueOf(snapshot.role()), currentUser.version());
-                    loadRestored(dto);
+                    loadRestored(mapper.fromSnapshot(snapshot, params.getTargetUserId(), currentUser.version()));
                 });
     }
 

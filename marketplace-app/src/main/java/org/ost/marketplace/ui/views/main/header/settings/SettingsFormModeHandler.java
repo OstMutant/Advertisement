@@ -16,6 +16,7 @@ import lombok.Value;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.PaginationDefaults;
 import org.ost.orchestrator.services.AuditQueryService;
+import org.ost.orchestrator.services.SnapshotMapper;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserSettingsDto;
@@ -66,6 +67,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private final UiComponentFactory<OverlayFormBinder<SettingsEditDto>, OverlayFormBinder.Parameters<SettingsEditDto>> formBinderFactory;
     private final AuditQueryService                                       auditQueryService;
     private final EntityActivityOverlay                                  entityActivityOverlay;
+    private final SnapshotMapper                                         snapshotMapper;
 
     private Parameters       params;
     private IntegerField     adsPageSizeField;
@@ -155,7 +157,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     }
 
     public boolean save() {
-        return binder.save(dto -> userProfileService.saveSettings(dto.getId(), UserSettingsDto.builder()
+        return binder.save(dto -> userProfileService.saveSettings(access.getCurrentUserId(), dto.getId(), UserSettingsDto.builder()
                 .adsPageSize(dto.getAdsPageSize() != null ? dto.getAdsPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .usersPageSize(dto.getUsersPageSize() != null ? dto.getUsersPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .timelinePageSize(dto.getTimelinePageSize() != null ? dto.getTimelinePageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
@@ -178,18 +180,9 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
     private void handleRestoreFromActivity(Long snapshotId) {
         auditQueryService.getSnapshotContent(access.getCurrentUserId(), params.getUserId(), snapshotId, EntityType.USER_SETTINGS, SettingsSnapshotDto.class)
-                .map(c -> UserSettingsDto.builder()
-                        .adsPageSize(c.snapshotData().adsPageSize())
-                        .usersPageSize(c.snapshotData().usersPageSize())
-                        .timelinePageSize(c.snapshotData().timelinePageSize())
-                        .providerProfilesPageSize(c.snapshotData().providerProfilesPageSize())
-                        .feedbackPageSize(c.snapshotData().feedbackPageSize())
-                        .moderationPageSize(c.snapshotData().moderationPageSize())
-                        // Restore only stages values into the form -- the eventual save()
-                        // still checks against the current DB version, never the snapshot's
-                        // (snapshots don't carry one; they predate optimistic locking here).
-                        .version(userProfileService.loadSettings(params.getUserId()).getVersion())
-                        .build())
+                // Restore only stages values; save() checks the current DB version, which snapshots do not carry.
+                .map(c -> snapshotMapper.toSettings(c.snapshotData(),
+                        userProfileService.loadSettings(params.getUserId()).getVersion()))
                 .ifPresent(this::loadRestored);
     }
 

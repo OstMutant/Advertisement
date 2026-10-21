@@ -324,14 +324,14 @@ Plan:
 - **Test naming.** `ContactAccessServiceTest.java` declares the class `ContactServiceTest`. The class is renamed to match its file (the only such mismatch in the repository, scanned 2026-10-20) and any reference is updated.
 - Tests, `/review`, `/sync-docs` and the save into history follow the same routine as the other phases.
 
-## Phase 9 — MapStruct for snapshot mappings (planned 2026-10-20; not started)
+## Phase 9 — MapStruct for snapshot mappings (approved and implemented 2026-10-21)
 
 Checked 2026-10-20: MapStruct is used only in `marketplace-app` (eight mappers under `ui/mappers`); the annotation processor and `lombok-mapstruct-binding` are already configured for every module in the root `pom.xml`, so `marketplace-orchestrator` and `marketplace-rest-api` only lack the `org.mapstruct:mapstruct` dependency.
 
 - **Orchestrator:** a `SnapshotMapper` (MapStruct, `componentModel = "spring"`, `unmappedTargetPolicy = ERROR` so a field added to a snapshot or a save DTO and forgotten fails the build) replaces the hand-written mappings in `SnapshotRestoreService`: advertisement snapshot to `AdvertisementSaveDto` (category list to set; `id` and `version` passed in), provider profile snapshot to `ProviderProfileSaveDto`, settings snapshot to `UserSettingsDto`; the user and taxon mappings stay explicit if MapStruct adds nothing there (user takes name and role only, taxon builds a locale map). `SnapshotRestoreServiceTest` keeps asserting the mapped values through its captors.
-- **UI:** the five restore handlers stop copying snapshot fields by hand: `toEdit(snapshot)` methods are added to the existing `AdvertisementMapper`, `ProviderProfileMapper` and `UserMapper` (and a settings equivalent) in `marketplace-app`, which the handlers call before staging the form.
+- **UI (as built):** `AdvertisementMapper.restoreFromSnapshot` (overlays the snapshot on the form, in place), `ProviderProfileMapper.fromSnapshot` and `UserMapper.fromSnapshot` (take the current `id` and `version`) in `marketplace-app`, used by the four form handlers; the settings handler calls the orchestrator's `SnapshotMapper.toSettings`; the taxon handler is unchanged. `RestoreMappersTest` covers the three UI mappers.
 - **REST:** `ContactApiController.RevealResponse` duplicates the orchestrator's `RevealedContact` field for field, so it is removed and the controller returns `RevealedContact` directly (no mapper needed); the audit response records (`HistoryEntryResponse`, `TimelineEntryResponse`) get a small MapStruct mapper only if that reads better than the two stream lambdas, otherwise they stay as they are. Request-to-save-data conversions in the controllers (one constructor call each, `id` from the path and `version` from the header) stay explicit.
-- Not decided, to settle at the start: whether the new `mapstruct` dependency in the orchestrator and REST modules needs an entry in `marketplace-orchestrator/DECISIONS.md` (the UI's mappers have none).
+- Decided: the new `mapstruct` dependency in the orchestrator gets no decision record (the UI's mappers have none); `SnapshotMapper` is described in the orchestrator rules. Also built: `UserProfileService.saveSettings` takes the acting user and refuses another user's settings (found in the audit after the provider-profile authorization fix).
 - Tests, `/review`, `/sync-docs` and the save into history follow the same routine as the other phases.
 
 ## Final verification (to run when all phases are done)

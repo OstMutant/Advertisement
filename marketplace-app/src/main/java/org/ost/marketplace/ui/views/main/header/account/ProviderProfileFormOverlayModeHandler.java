@@ -50,7 +50,6 @@ import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -241,20 +240,7 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
     private void handleRestoreFromActivity(Long snapshotId) {
         auditQueryService.getSnapshotContent(access.getCurrentUserId(), currentProfile.getId(), snapshotId, EntityType.PROVIDER_PROFILE, ProviderProfileSnapshotDto.class)
                 .map(AuditSnapshotContentDto::snapshotData)
-                .ifPresent(snapshot -> {
-                    ProviderProfileEditDto dto = ProviderProfileEditDto.builder()
-                            .id(currentProfile.getId())
-                            .kind(snapshot.kind())
-                            .about(snapshot.about())
-                            .categoryIds(snapshot.categoryIds() != null ? new HashSet<>(snapshot.categoryIds()) : new HashSet<>())
-                            .cityTaxonId(snapshot.cityTaxonId())
-                            .phone(snapshot.phone())
-                            .telegram(snapshot.telegram())
-                            .viber(snapshot.viber())
-                            .version(currentProfile.getVersion())
-                            .build();
-                    loadRestored(dto);
-                });
+                .ifPresent(snapshot -> loadRestored(mapper.fromSnapshot(snapshot, currentProfile.getId(), currentProfile.getVersion())));
     }
 
     @Override

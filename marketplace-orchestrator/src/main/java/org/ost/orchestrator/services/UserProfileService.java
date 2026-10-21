@@ -57,7 +57,11 @@ public class UserProfileService {
         return preferencesPort.loadSettings(userId);
     }
 
-    public void saveSettings(@NonNull Long userId, @NonNull UserSettingsDto settings) {
+    /** Page-size settings are personal: only the user themselves may save them. */
+    public void saveSettings(@NonNull Long actingUserId, @NonNull Long userId, @NonNull UserSettingsDto settings) {
+        if (!actingUserId.equals(userId)) {
+            throw new AccessDeniedException("User " + actingUserId + " may not change the settings of user " + userId);
+        }
         preferencesPort.saveSettings(userId, settings);
     }
 

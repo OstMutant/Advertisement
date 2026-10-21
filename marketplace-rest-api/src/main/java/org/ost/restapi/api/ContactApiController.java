@@ -58,7 +58,7 @@ public class ContactApiController {
     @ApiResponse(responseCode = "404", description = "The advertisement has no such channel")
     @ApiResponse(responseCode = "429", description = "Reveal limit reached")
     @PostMapping("/advertisements/{id}/contact/reveals")
-    public RevealResponse revealAdvertisementContact(@AuthenticationPrincipal Long actorId, @PathVariable @NonNull Long id,
+    public ContactRevealService.RevealedContact revealAdvertisementContact(@AuthenticationPrincipal Long actorId, @PathVariable @NonNull Long id,
             @RequestBody @Valid RevealRequest request, HttpServletRequest httpRequest) {
         return reveal(EntityType.ADVERTISEMENT, id, request, actorId, httpRequest);
     }
@@ -72,7 +72,7 @@ public class ContactApiController {
     @ApiResponse(responseCode = "404", description = "The provider profile has no such channel")
     @ApiResponse(responseCode = "429", description = "Reveal limit reached")
     @PostMapping("/provider-profiles/{id}/contact/reveals")
-    public RevealResponse revealProviderProfileContact(@AuthenticationPrincipal Long actorId, @PathVariable @NonNull Long id,
+    public ContactRevealService.RevealedContact revealProviderProfileContact(@AuthenticationPrincipal Long actorId, @PathVariable @NonNull Long id,
             @RequestBody @Valid RevealRequest request, HttpServletRequest httpRequest) {
         return reveal(EntityType.PROVIDER_PROFILE, id, request, actorId, httpRequest);
     }
@@ -86,9 +86,8 @@ public class ContactApiController {
         return contactAccessService.countProfileViewsThisMonth(actorId, id);
     }
 
-    private RevealResponse reveal(EntityType entityType, Long id, RevealRequest request, Long actorId, HttpServletRequest httpRequest) {
+    private ContactRevealService.RevealedContact reveal(EntityType entityType, Long id, RevealRequest request, Long actorId, HttpServletRequest httpRequest) {
         return contactRevealService.reveal(entityType, id, request.channel(), actorId, httpRequest.getRemoteAddr())
-                .map(revealed -> new RevealResponse(revealed.channel(), revealed.value(), revealed.deepLink()))
                 .orElseThrow(() -> new NoSuchElementException("No " + request.channel() + " contact"));
     }
 
@@ -98,9 +97,5 @@ public class ContactApiController {
 
     /** Which channel to reveal. */
     public record RevealRequest(@NotNull ContactChannel channel) {
-    }
-
-    /** The revealed value and, for Telegram and Viber, the link that opens the chat (null for a phone). */
-    public record RevealResponse(ContactChannel channel, String value, String deepLink) {
     }
 }

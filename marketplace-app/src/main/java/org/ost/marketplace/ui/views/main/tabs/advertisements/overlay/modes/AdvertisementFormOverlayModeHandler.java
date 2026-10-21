@@ -342,12 +342,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                 .ifPresent(content -> {
                     AdvertisementSnapshotDto snapshot = content.snapshotData();
                     AdvertisementEditDto dto = mapper.toAdvertisementEdit(params.getAd());
-                    dto.setTitle(snapshot.title());
-                    dto.setDescription(snapshot.description());
-                    dto.setAdKind(snapshot.adKind());
-                    dto.setCategoryIds(snapshot.categoryIds() != null
-                            ? new java.util.HashSet<>(snapshot.categoryIds()) : new java.util.HashSet<>());
-                    dto.setCityTaxonId(snapshot.cityTaxonId());
+                    mapper.restoreFromSnapshot(snapshot, dto);
                     loadRestored(dto);
                     if (activeHandle != null) activeHandle.loadFromSnapshotId(snapshot.attachmentSnapshotId());
                 });

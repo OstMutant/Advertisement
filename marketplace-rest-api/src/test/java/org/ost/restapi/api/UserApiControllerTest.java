@@ -382,7 +382,7 @@ class UserApiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.adsPageSize").value(30));
 
-        verify(userProfileService).saveSettings(eq(ACTOR_ID), any());
+        verify(userProfileService).saveSettings(eq(ACTOR_ID), eq(ACTOR_ID), any());
     }
 
     // ── updateSettings — negative — bean validation ──────────────────────────────────────────

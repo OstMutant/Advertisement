@@ -113,6 +113,7 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
 - `TaxonCatalogService` — wraps `ComponentFactory<TaxonPort>`'s catalog-management methods
   (`getAllByType`/`listAllByType`/`getUsageCounts`/`create`/`update`/`findById`/`getTranslations`)
   — distinct from `TaxonLookupService`, which stays narrowly scoped to entity-assignment lookups.
+- `SnapshotMapper` — MapStruct mapper from a recorded snapshot to its domain's save data (advertisement, provider profile, settings), with `unmappedTargetPolicy = ERROR` so a field added to a snapshot or a save DTO and not mapped fails the build instead of being silently skipped by a restore; `SnapshotRestoreService` and the settings restore handler in `marketplace-app` use it.
 - `SnapshotRestoreService` — returns an advertisement, provider profile, user, the caller's own
   settings or a taxon to a recorded snapshot: reads the snapshot through `AuditQueryService` and
   saves its values through the domain's normal save path, so validation, authorization and audit

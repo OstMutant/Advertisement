@@ -164,6 +164,26 @@ class UserProfileServiceTest {
         verify(accountPort, never()).save(any(), any());
     }
 
+    // --- settings are personal: only the owner may save them ---
+
+    @Test
+    void saveSettings_ofAnotherUser_isDenied() {
+        UserSettingsDto settings = UserSettingsDto.defaultSettings();
+
+        assertThatThrownBy(() -> service.saveSettings(ACTOR_ID, TARGET_ID, settings))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(preferencesPort, never()).saveSettings(any(), any());
+    }
+
+    @Test
+    void saveSettings_ofOwnSettings_isSaved() {
+        UserSettingsDto settings = UserSettingsDto.defaultSettings();
+
+        service.saveSettings(ACTOR_ID, ACTOR_ID, settings);
+
+        verify(preferencesPort).saveSettings(ACTOR_ID, settings);
+    }
+
     // --- page-size resolution for the audit timeline ---
 
     @Test
