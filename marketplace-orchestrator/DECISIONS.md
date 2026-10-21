@@ -30,7 +30,7 @@ this app sorts by a cross-domain display field.
 
 **Status:** Accepted
 **Verified:** 2026-10-20
-**Applied:** 1
+**Applied:** 2
 
 **Context:** The advertisement-to-owner-profile contact fallback (an ad's own `contact_info` row
 if present, else its owner's provider-profile row) needs `ContactPort` plus, to resolve an ad's
@@ -154,7 +154,7 @@ event reporting, not cross-domain composition.
 
 **Status:** Accepted
 **Verified:** 2026-10-19
-**Applied:** 1
+**Applied:** 2
 
 **Context:** Mutating service/port methods across 4 domains (`AdvertisementPort`,
 `ProviderProfilePort`, `UserAccountPort`, `TaxonPort`) trusted `actingUserId` with no ownership/role
@@ -508,6 +508,7 @@ genuinely used for UI binding and remain a direct dependency.
 
 ## ADR-005: `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern
 **Status:** Accepted
+**Applied:** 1
 
 **Context:** ADR-004 kept `ActivityEnrichHookImpl` in `marketplace-app/spi`, reasoning its
 collaborator (`AdvertisementAuditEnrichService`) did real HTML-diff formatting rather than a

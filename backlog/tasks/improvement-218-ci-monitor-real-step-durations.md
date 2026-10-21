@@ -28,7 +28,7 @@ The monitor shows each stage's real duration, so a green run can be read at a gl
 
 ## Related
 
-- [improvement-213](improvement-213-rest-api-revision-parity-with-ui.md) — its final verification reads the real per-stage numbers of the CI run
+- [improvement-213](../completed/tasks/improvement-213-rest-api-revision-parity-with-ui.md) — its final verification reads the real per-stage numbers of the CI run
 - `scripts/activity-monitor/README.md` and `scripts/ci/README.md` — the documentation of the monitor and the pipeline
 
 ## Operational notes

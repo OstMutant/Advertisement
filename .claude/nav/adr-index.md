@@ -166,16 +166,16 @@ yet — not zero.
 | ADR-076 (marketplace-app) | marketplace-app | Accepted |  |  | `OverlayNavigationRegistry` fans out browser History to every deep-linkable overlay; `SitemapController` thins to a `marketplace-orchestrator` `SitemapService` |
 | ADR-077 (marketplace-app) | marketplace-app | Accepted |  |  | Provider Profile catalog gains real date-range filters, mirroring Advertisement's exact mechanism |
 | ADR-011 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | Moderation queue implemented with SQL-level filter, sort, and pagination |
-| ADR-010 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Verified:** 2026-10-20 **Applied:** 1 |  |  | `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename |
+| ADR-010 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Verified:** 2026-10-20 **Applied:** 2 |  |  | `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename |
 | ADR-009 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `StaleWriteException` replaces `OptimisticLockingFailureException` as the project-wide stale-write signal |
 | ADR-008 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `UserCleanupService`/`UserPurgeEligibilityService` — the scheduled retention-purge referential-integrity check moves here from `user-spring-boot-starter` |
-| ADR-007 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Verified:** 2026-10-19 **Applied:** 1 |  |  | Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only |
+| ADR-007 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Verified:** 2026-10-19 **Applied:** 2 |  |  | Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only |
 | ADR-006 (marketplace-orchestrator) | marketplace-orchestrator | Accepted — the exception type it throws is superseded by ADR-009 (`StaleWriteException` instead of `OptimisticLockingFailureException`); the guard placement/rationale itself stands |  |  | Stale-id-during-concurrent-delete guard in `AdvertisementSaveService`/`ProviderProfileSaveService` |
 | ADR-001 (marketplace-orchestrator) | marketplace-orchestrator | Accepted — the "never depends on a starter jar" consequence is superseded by ADR-004; the module-extraction decision itself stands |  |  | Extract a dedicated Application/BFF module instead of moving orchestration into marketplace-app |
 | ADR-002 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `AdvertisementSaveService`'s cascade-cleanup-on-delete folds into the same transaction, not a separate step |
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
 | ADR-004 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `*Hook` implementations that only need domain-port access move here; `pom.xml` gains all 6 starter dependencies directly, superseding ADR-001's "never depends on a starter jar" |
-| ADR-005 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern |
+| ADR-005 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Applied:** 1 |  |  | `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern |
 | ADR-034 (platform-commons) | platform-commons | Accepted |  |  | `feedback-spring-boot-starter` reuses `EntityRef` and stays self-contained — no Hook, no columns on `provider_profile`/`advertisement` |
 | ADR-033 (platform-commons) | platform-commons | Accepted |  |  | `AttachmentAllowedContentTypes` — single shared whitelist for attachment content types |
 | ADR-032 (platform-commons) | platform-commons | Accepted |  |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
@@ -231,7 +231,7 @@ yet — not zero.
 | ADR-002 (scripts/ci) | scripts/ci | Superseded by ADR-009 — the `progress.txt`-polling mechanism no longer exists in code |  |  | Background by default, live progress via `docker cp`-polled `progress.txt` |
 | ADR-003 (scripts/ci) | scripts/ci | Accepted |  |  | Default stage selection is the most extensive run, not the narrowest |
 | ADR-004 (scripts/ci) | scripts/ci | Superseded by ADR-009 — the `--keep-reports`/report-retention mechanism no longer exists in code |  |  | Report retention — keep the last N runs, prune the rest |
-| ADR-005 (scripts/ci) | scripts/ci | Accepted |  |  | Concurrency with normal dev work — genuine isolation, one real resource caveat |
+| ADR-005 (scripts/ci) | scripts/ci | Accepted **Applied:** 1 |  |  | Concurrency with normal dev work — genuine isolation, one real resource caveat |
 | ADR-008 (scripts/ci) | scripts/ci | Accepted |  |  | `unit`/`integration` stages merged into one `build_and_test` stage |
 | ADR-009 (scripts/ci) | scripts/ci | Accepted |  |  | `progress.txt` polling replaced by a persistent Dagu server; three problems only found by running it for real |
 | ADR-010 (scripts/ci) | scripts/ci | Accepted |  |  | CI pipeline metrics + ArchUnit export as DAG steps; three more real bugs; a genuine build-speed fix along the way |

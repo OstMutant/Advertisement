@@ -27,7 +27,7 @@ A user sees their own keys (label, prefix, created, last used, revoked) and revo
 
 ## Related
 
-- [improvement-213](improvement-213-rest-api-revision-parity-with-ui.md) — REST/UI parity work; key management is the same parity gap in the other direction
+- [improvement-213](../completed/tasks/improvement-213-rest-api-revision-parity-with-ui.md) — REST/UI parity work; key management is the same parity gap in the other direction
 - [improvement-212](improvement-212-api-flow-runner-page.md) — flows depend on a reusable key
 - `.claude/nav/adr-index.md` — the ADR on API-key bearer authentication and the one on Basic only on key issuance; neither covers a UI for key management, so nothing settled is reopened
 

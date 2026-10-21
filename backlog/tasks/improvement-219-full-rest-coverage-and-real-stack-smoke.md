@@ -3,7 +3,7 @@
 **Type:** improvement — test coverage of the external API
 **Module:** `integration-tests` (`level3/restapi`), `playwright/e2e`, `marketplace-rest-api`
 **Priority:** high — Top, right after improvement-213; a live walk of the API on 2026-10-21 showed the integration scenarios miss a whole class of failures
-**When:** independent; best done right after the final verification of [improvement-213](improvement-213-rest-api-revision-parity-with-ui.md)
+**When:** independent; best done right after the final verification of [improvement-213](../completed/tasks/improvement-213-rest-api-revision-parity-with-ui.md)
 
 ## Current state
 
@@ -27,11 +27,11 @@ Every operation is known to be covered (a build fails otherwise), the edge cases
 4. **Fix the faults found:** the session-bound hooks (see "Current state") are fixed first, under improvement-213, before this task starts.
 5. **Missing `If-Match` must be a 400, never reach the save:** `PUT /api/users/{id}` declares `If-Match` as optional while its description calls it required; a request without it returns `500` (the null version makes Spring Data attempt an `INSERT`, which the database rejects on the `email` NOT NULL constraint, seen live). The same `parseIfMatch` call sits in the advertisement, provider profile and taxon `PUT`/`DELETE` and the settings `PATCH`. Use `requireIfMatch` wherever the description demands the version, and add a Level 3 case per operation (missing header, stale header). Also decide how a non-privileged user obtains their own version: `GET /api/users/{id}` is administrator and moderator only, yet the description lets a user change their own name.
 6. **Moderation transitions must be atomic:** `FeedbackAccessService` checks the entry's status before its transaction, and the feedback starter's `UPDATE feedback_content SET moderation_status = :status WHERE id = :contentId` has no status guard or row-count check, so two moderators deciding on the same entry both pass the check, the last write wins and the history holds two contradictory entries (an approval racing a rejection also records an audit entry for a change that touched no row). The feedback starter's own `approve*` and `confirm*Violation` methods read the entry and then write unconditionally too, so the guard belongs in `FeedbackRepository`, not only in the orchestrator. Move the allowed source statuses into the `UPDATE` (a single transition method on the port) and turn zero updated rows into `FeedbackNotModeratableException` inside the transaction that records the audit entry; cover it with a test that decides twice on the same stale status.
-7. **Run `/review` and `/sync-docs` over phase 10 of [improvement-213](improvement-213-rest-api-revision-parity-with-ui.md)** (language resolution, the moderation and timeline guards, the Sonar fixes, the application's own jar copy, the Telegram stub in the end-to-end spec) first thing in this task: they were not run before that phase was saved into history.
+7. **Run `/review` and `/sync-docs` over phase 10 of [improvement-213](../completed/tasks/improvement-213-rest-api-revision-parity-with-ui.md)** (language resolution, the moderation and timeline guards, the Sonar fixes, the application's own jar copy, the Telegram stub in the end-to-end spec) first thing in this task: they were not run before that phase was saved into history.
 
 ## Related
 
-- [improvement-213](improvement-213-rest-api-revision-parity-with-ui.md) — the REST work being verified
+- [improvement-213](../completed/tasks/improvement-213-rest-api-revision-parity-with-ui.md) — the REST work being verified
 - [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) and [improvement-212](improvement-212-api-flow-runner-page.md) — Postman collection and flow runner, which share the request set
 - `playwright/e2e/09-rest-api-swagger.spec.js` — the existing REST Playwright file
 

@@ -414,6 +414,7 @@ run completes. `--keep-reports 0` disables pruning entirely.
 
 ## ADR-005: Concurrency with normal dev work — genuine isolation, one real resource caveat
 **Status:** Accepted
+**Applied:** 1
 
 **Context:** With background-by-default (ADR-002) making it cheap to kick off a run and keep
 working, the natural next question is whether it's actually safe to develop and run the app/tests

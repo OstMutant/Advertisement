@@ -29,7 +29,7 @@ A change can start only after the user has been shown the plan in the required t
 ## Related
 
 - `.claude/rules.md` — Approval Rule and its hook-level mechanic
-- [improvement-213](improvement-213-rest-api-revision-parity-with-ui.md) — phase 2 was started on a plain "yes" without the template
+- [improvement-213](../completed/tasks/improvement-213-rest-api-revision-parity-with-ui.md) — phase 2 was started on a plain "yes" without the template
 
 ## Operational notes
 - token_cost_review: n/a

@@ -2,7 +2,7 @@
 
 **Type:** improvement — audit that produces follow-up tasks, plus implementation of the user-domain gaps it finds (scope widened 2026-10-17)
 **Module:** `marketplace-rest-api` (`api/*Controller.java`), `marketplace-app` (Vaadin views and form handlers under `ui/views/`), `marketplace-orchestrator` (the services both adapters call)
-**Priority:** high — Top, first: its result decides the scope of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md), [improvement-210](../completed/tasks/improvement-210-rest-api-feedback-and-comments.md), [improvement-212](improvement-212-api-flow-runner-page.md) and the planned MCP server
+**Priority:** high — Top, first: its result decides the scope of [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md), [improvement-210](improvement-210-rest-api-feedback-and-comments.md), [improvement-212](../../tasks/improvement-212-api-flow-runner-page.md) and the planned MCP server
 **When:** independent; do before the tasks listed above change the API
 
 ## Current state
@@ -22,16 +22,16 @@ One reviewed list, per domain, of what the UI can do that REST cannot, each item
 1. **Inventory (read-only):** for each domain — users, advertisements, provider profiles, taxons, feedback and comments, attachments/media, contacts, audit and history/restore, settings, API keys, moderation — list the actions the Vaadin views and form handlers offer, then the matching REST endpoint or its absence.
 2. **Classify each gap** as one of: belongs in REST; UI-only by design (with the reason); security-sensitive and needs its own design (for example changing a role, removing the last administrator).
 3. **Output:** a table in this file plus one `/new-task` per gap worth building, ranked in `BACKLOG.md`; existing tasks (186, 210) are linked instead of duplicated.
-4. **Role-change endpoint (decided 2026-10-17):** the audit starts from the known gap that only the Vaadin form changes a role. The first endpoint to build from it is an administrator-only role change, so that an administrator can make a moderator through the API (no dev-only script is needed; see [improvement-214](../completed/tasks/improvement-214-admin-credentials-from-environment.md) for the administrator). Design points to settle: the last administrator cannot lose the role, every change is written to the audit log, and the same authorisation as the UI form is reused from `marketplace-orchestrator`.
+4. **Role-change endpoint (decided 2026-10-17):** the audit starts from the known gap that only the Vaadin form changes a role. The first endpoint to build from it is an administrator-only role change, so that an administrator can make a moderator through the API (no dev-only script is needed; see [improvement-214](improvement-214-admin-credentials-from-environment.md) for the administrator). Design points to settle: the last administrator cannot lose the role, every change is written to the audit log, and the same authorisation as the UI form is reused from `marketplace-orchestrator`.
 5. **Implement everything the audit finds missing, in phases (decided 2026-10-17).** Each phase has its own unit and scenario tests, explicit `operationId`s, OpenAPI examples, a full `build-and-test.sh --unit --integration --sandbox` run and its own commit; the decision is recorded with `/record-decision`.
    - **Phase 1, users:** `role` in the `POST /api/users` response; `PUT /api/users/{id}` (name and role, `If-Match`) over `UserProfileService.save`; `DELETE /api/users/{id}` over `UserDeleteService.delete`, behaving as the UI does; `PUT /api/users/me/locale` over `UserProfileService.updateLocale`. Tests: `UserApiControllerTest` (success, 403, stale version, not found); a new Level 3 scenario (an administrator makes a moderator who can then create a taxon; an administrator cannot change their own role; delete; language); the registration tests updated for `role`.
-   - **Phase 2, Basic-authentication hardening** (items 4 and 5 of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) move here; decided 2026-10-18 because the flows and Swagger UI hit the 500 now). Plan below, under "Phase 2 plan".
+   - **Phase 2, Basic-authentication hardening** (items 4 and 5 of [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) move here; decided 2026-10-18 because the flows and Swagger UI hit the 500 now). Plan below, under "Phase 2 plan".
    - **Phase 3, shared read rules:** move the rules that now live only in the UI into `AuthorizationService` and make the services enforce them (see "Where the read rules live"). This is the groundwork for phases 4 and 5.
    - **Phase 4, audit and history:** global timeline (administrators and moderators), per-entity activity (administrators and moderators see everything, others their own entries), and reading a snapshot so a client can restore with a normal update.
    - **Phase 4b, restore from a snapshot on the server (decided 2026-10-20):** a client sends only the snapshot id and the server returns the entity to that state, instead of the client composing a `PUT` from the snapshot (what phase 4 offers). Plan under "Phase 4b" below.
    - **Phase 5, contacts:** reveal endpoint that records the view, and the monthly view counts. Decided: contacts stay open to visitors who are not signed in, as in the UI (they are advertising); the reveal limit stays per IP, and per IP plus user when signed in; the viewer in the recorded view is null for a visitor.
-   - **Phase 6, feedback and comments** (the content of [improvement-210](../completed/tasks/improvement-210-rest-api-feedback-and-comments.md)): list, aggregate, create, comment, delete comment, flag. Moderation (queue, approve, reject, confirm violation) is included now that the scope is everything; it was UI-only in improvement-210, to be confirmed when this phase starts.
-   - **Phase 7, media** (the first item of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md)): upload, list and delete advertisement media.
+   - **Phase 6, feedback and comments** (the content of [improvement-210](improvement-210-rest-api-feedback-and-comments.md)): list, aggregate, create, comment, delete comment, flag. Moderation (queue, approve, reject, confirm violation) is included now that the scope is everything; it was UI-only in improvement-210, to be confirmed when this phase starts.
+   - **Phase 7, media** (the first item of [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md)): upload, list and delete advertisement media.
    - **Phase 8, loose ends (decided 2026-10-20):** revoked API keys hidden from the key list by default, the Viber link made correct, and a test class named after its file; plan under "Phase 8" below. Final verification runs are listed under "Final verification" below.
    - **Phase 9, MapStruct for snapshot mappings (decided 2026-10-20):** the snapshot-to-save-data mapping in `SnapshotRestoreService` and the same mapping repeated in the five UI restore handlers move to MapStruct mappers; plan under "Phase 9" below.
 6. **Where the read rules live (decided 2026-10-17):** following the existing decision to keep authorisation in `marketplace-orchestrator`, each rule is a predicate in `AuthorizationService` written once; `AuditQueryService` and `ContactAccessService` receive the acting user and enforce it (the visibility level is derived from the role, not taken from a caller argument such as `showAll`); the UI's `AccessEvaluator` calls the same predicate to show or hide controls; REST calls the same services with the authenticated principal. Their signatures change, so every UI caller (`AuditActivityPanel`, `TimelineView`, `ContactRevealPanel`, the overlays) is updated and its tests rerun.
@@ -286,7 +286,7 @@ Decisions taken: contacts stay open to visitors who are not signed in (they are 
 
 ## Phase 6 — feedback, replies and moderation (6a and 6b approved and implemented 2026-10-20)
 
-Content of [improvement-210](../completed/tasks/improvement-210-rest-api-feedback-and-comments.md), with moderation included. Read from the code on 2026-10-20: the UI attaches feedback only to provider profiles (`FeedbackPanel` is built in the catalog view of a profile only), so the REST surface covers provider profiles only; the advertisement entity type that `FeedbackDto` allows has no UI and is not built. UI rules reused: any signed-in user may leave one review per profile and edit it within the edit window; only the profile's owner writes the single reply, edits or deletes it; any signed-in user may flag a review or reply that is not their own; hidden entries (pending or confirmed violation) are shown as a placeholder, never with their text; moderation (queue, approve, confirm violation, reject) is for administrators and moderators.
+Content of [improvement-210](improvement-210-rest-api-feedback-and-comments.md), with moderation included. Read from the code on 2026-10-20: the UI attaches feedback only to provider profiles (`FeedbackPanel` is built in the catalog view of a profile only), so the REST surface covers provider profiles only; the advertisement entity type that `FeedbackDto` allows has no UI and is not built. UI rules reused: any signed-in user may leave one review per profile and edit it within the edit window; only the profile's owner writes the single reply, edits or deletes it; any signed-in user may flag a review or reply that is not their own; hidden entries (pending or confirmed violation) are shown as a placeholder, never with their text; moderation (queue, approve, confirm violation, reject) is for administrators and moderators.
 
 Gaps found in the service layer that REST would inherit, fixed in this phase (as for the audit reads): `FeedbackAccessService.save` and `FeedbackService.save` trust the author id in the data and, on an edit, do not check that the entry belongs to the caller; the moderation queue and the hidden-entry reads in `FeedbackAccessService` have no privileged check (the UI only hides the tab); "feedback or comment not found" is an `IllegalStateException`, which the API answers as a server error; `EditWindowClosedException` and `SelfActionNotAllowedException` have no HTTP mapping.
 
@@ -302,7 +302,7 @@ Gaps found in the service layer that REST would inherit, fixed in this phase (as
 
 ## Phase 7 — advertisement media (approved and implemented 2026-10-20)
 
-First item of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md), made to match the Vaadin gallery. Read from the code on 2026-10-20:
+First item of [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md), made to match the Vaadin gallery. Read from the code on 2026-10-20:
 
 - The UI stages files and video links in a temporary session and commits them inside the advertisement's save transaction; the advertisement's audit entry carries `attachmentSnapshotId`, which is how the history shows a media change. `AttachmentPort.upload`, `addVideo` and `delete` work on an existing advertisement directly, but a direct call does not write an advertisement audit entry, so a REST media change would be invisible in the history unless the REST path records it.
 - Limits live only in the UI: at most 10 items per gallery and 50 MB per file (package-private constants in `AttachmentUploadButton`); allowed types are `AttachmentAllowedContentTypes` (JPEG, PNG, WebP, GIF, MP4, WebM), checked again on the server for the declared and the real type; video links are YouTube (`YoutubeUtil`) or Vimeo (`AttachmentVideoUtil`).
@@ -344,7 +344,7 @@ The live walk of the rebuilt application and the first full CI run found five fa
 - **Timeline view (done 2026-10-21).** `TimelineView` still had a branch for a non-moderator that queried with their own id, which the orchestrator has refused since the read rules moved there: 38 errors in the same run. The branch is removed and the view returns an empty list for a caller who cannot view the timeline; `TimelineViewTest` failed before the change.
 - **The end-to-end application runs from a jar a host build can replace (planned).** `scripts/deploy-and-run/run.sh` starts the application with `-v maven-cache:/root/.m2 ... -jar /root/.m2/artifacts/marketplace-app.jar`, and `scripts/build-and-test.sh` on the host writes that same file, so a host build during an end-to-end run replaced the jar under the running application and two tests failed with `ClassNotFoundException` (they passed on the rerun). Change: before starting, `start_app_container` copies the jar from `maven-cache` (mounted read-only into a short-lived container) into a volume that belongs to that application container, named `<container>-jar`, and runs the jar from there; `reset_infra` removes that volume too. The header of `run.sh`, the deploy section of the scripts rules and the isolation decision of the CI runner are corrected to say so. Verification: start the stack, run a host build, and check that the application keeps answering (`/health`, `/v3/api-docs`, `/swagger-ui/index.html`) and that `docker inspect` shows no `maven-cache` mount on the application container.
 - **End-to-end tests wait for the real `t.me` (planned).** Two tests of `04-provider-profile-flow` open the Telegram deep link in a new tab and wait for `waitForLoadState('domcontentloaded')` with the error swallowed; the wait has no bound of its own, so when the external page does not finish loading the test runs into its 60 s limit. One CI run failed test 28 and the next failed test 33 on exactly that step: the trace shows a single `waitForLoadState` of 61 s, the application log had no error, and the screenshot at failure shows the page rendered. Change: a local `stubTelegramLink` in the spec answers `https://t.me/**` with an empty page (the same idea as the existing YouTube stub) and the tab is checked with `waitForURL('**/t.me/electro_master', { waitUntil: 'commit', timeout: 10000 })`, so the tests no longer depend on the internet. Verification: `ci.sh --e2e` with no host build running.
-- **`/review` and `/sync-docs` for this phase are not run yet.** They are done as a separate step together with the next REST task ([improvement-219](improvement-219-full-rest-coverage-and-real-stack-smoke.md)), over the commit of this phase.
+- **`/review` and `/sync-docs` for this phase are not run yet.** They are done as a separate step together with the next REST task ([improvement-219](../../tasks/improvement-219-full-rest-coverage-and-real-stack-smoke.md)), over the commit of this phase.
 
 ## Final verification (to run when all phases are done)
 
@@ -359,14 +359,14 @@ Result of the full CI run of 2026-10-21 (after phase 10, all stages in one run, 
 - End-to-end (`e2e --full --ux`): 66 of 66 passed in 18.4 minutes (stage 1733 s), including `04-provider-profile-flow`, `05-marketplace-advertisement-flow`, `08-accessibility` and `09-rest-api-swagger`.
 - Sonar quality gate OK: new coverage 82.3 %, new duplication 0.30 %, 0 new violations (1062 s). Build, lint, shellcheck and ArchUnit metrics passed; the run ended `succeeded`.
 - Walk of the rebuilt application: 38 requests with `curl` (not Swagger UI) covering register, key issue, history, snapshot, restore with `If-Match`, media upload, profile create and the foreign-profile `403`, contact reveal and views, feedback, reply, flag and the moderation `403`; the language switch was checked on a live history entry. Not walked: the timeline as an administrator (only the `403` for a regular user), and a signed-in administrator's moderation approve.
-- Not done yet: the Viber link on a real device, and the merge into `feature/marketplace-features` (postponed until the remaining REST work is finished).
+- Closed on 2026-10-21 with two items left open by the owner's decision: the Viber link on a real device (to be checked later, no date) and the merge of this branch into `feature/marketplace-features` (postponed until the remaining REST work is finished).
 
 ## Related
 
-- [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — media, PATCH, Basic-auth gap
-- [improvement-210](../completed/tasks/improvement-210-rest-api-feedback-and-comments.md) — feedback and comments
-- [improvement-212](improvement-212-api-flow-runner-page.md) — needs administrator and moderator accounts for role-based flows
-- [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling and MCP readiness
+- [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — media, PATCH, Basic-auth gap
+- [improvement-210](improvement-210-rest-api-feedback-and-comments.md) — feedback and comments
+- [improvement-212](../../tasks/improvement-212-api-flow-runner-page.md) — needs administrator and moderator accounts for role-based flows
+- [improvement-211](../../tasks/improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling and MCP readiness
 
 ## Operational notes
 - token_cost_review: 114715
@@ -382,19 +382,23 @@ Result of the full CI run of 2026-10-21 (after phase 10, all stages in one run, 
 - haiku_decomposition_used: yes
 - haiku_decomposition_dispatch_count: 2
 - haiku_decomposition_rework_needed: 0 / 2
-- adrs_referenced: ADR-087 (marketplace-app), ADR-007 (marketplace-orchestrator), ADR-010 (marketplace-orchestrator)
+- adrs_referenced: ADR-087 (marketplace-app), ADR-007 (marketplace-orchestrator), ADR-010 (marketplace-orchestrator), ADR-005 (marketplace-orchestrator), ADR-005 (scripts/ci)
 
 ### Agent calls
 - phase 1 controller edits (exact specification) | subagent_type=general-purpose (model haiku) | tokens=77964 | tool_uses=9 | duration_s=38 | mode=background | batch=solo
 - code review of uncommitted changes, phase 1 (default effort) | subagent_type=deep-review-orchestrator | tokens=57661 | tool_uses=10 | duration_s=385 | mode=background | batch=solo
 - independent web review of the phase 2 authentication design | subagent_type=general-purpose | tokens=72142 | tool_uses=9 | duration_s=56 | mode=background | batch=solo
 - phase 2 documentation edits (exact specification) | subagent_type=general-purpose (model haiku) | tokens=70625 | tool_uses=7 | duration_s=35 | mode=background | batch=solo
+- phase 10 message-literal constants for the Sonar findings (exact specification) | subagent_type=general-purpose (model haiku) | tokens=93177 | tool_uses=9 | duration_s=192 | mode=background | batch=solo
 - code review of uncommitted changes, phase 2 (default effort) | subagent_type=deep-review-orchestrator | tokens=57054 | tool_uses=8 | duration_s=114 | mode=background | batch=solo
 
 ### Script/command runs
 - bash scripts/activity-monitor.sh -- bash scripts/build-and-test.sh --unit --integration --sandbox | duration_s=430 | mode=background | result=pass (756 tests, 0 failures)
 - bash scripts/activity-monitor.sh -- bash scripts/build-and-test.sh --unit --integration --sandbox (phase 2) | duration_s=270 | mode=background | result=pass (774 tests, 0 failures)
 - bash docs/architecture/scripts/generate-architecture-model.sh | duration_s=n/a | mode=background | result=pass
+- bash scripts/activity-monitor.sh -- bash scripts/build-and-test.sh --unit --integration --sandbox (phase 10, language fix) | duration_s=299 | mode=background | result=fail (1 ArchUnit allow-list still named the removed hook); rerun duration_s=307 | result=pass (1037 tests, 0 failures)
+- bash scripts/activity-monitor.sh -- bash scripts/deploy-and-run.sh (phase 10, application's own jar copy) | duration_s=242 | mode=background | result=pass
+- bash scripts/ci.sh (phase 10): first full run result=partially_succeeded (Sonar 4 violations, 2 Swagger tests failed while a host build replaced the jar); second full run result=partially_succeeded (test 28 timeout on the Telegram tab); end-to-end only runs result=partially_succeeded (test 33, same cause) and then result=succeeded (66 of 66, 16.1 min); final full run duration_s=n/a | mode=background | result=succeeded (all stages)
 
 ### Review angle yield
 - dry-kiss-yagni | survived=0 | total_candidates=0 | tokens=42512
