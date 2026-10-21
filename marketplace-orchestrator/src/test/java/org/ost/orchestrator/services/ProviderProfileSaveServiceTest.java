@@ -238,6 +238,32 @@ class ProviderProfileSaveServiceTest {
     }
 
     @Test
+    void save_editChecksTheRealOwner_notTheNamedTarget() {
+        Long profileId = 42L;
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(profileId, ProviderKind.SHOP, "New about", Set.of(), null, null, null, null, 1L);
+        when(providerProfilePort.findById(profileId)).thenReturn(Optional.of(
+                ProviderProfileDto.builder().id(profileId).actorId(40L).kind(ProviderKind.MASTER).about("Old about").build()));
+        doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanOperate(50L, 40L);
+
+        assertThatThrownBy(() -> service.save(dto, 50L, 50L))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(providerProfilePort, never()).save(any(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    void save_createChecksTheNamedTarget() {
+        ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, ProviderKind.MASTER, "About", null, null, null, null, null, null);
+        when(providerProfilePort.save(dto, 50L, 50L, false)).thenReturn(100L);
+        when(providerProfilePort.findById(100L)).thenReturn(Optional.of(
+                ProviderProfileDto.builder().id(100L).kind(ProviderKind.MASTER).about("About").build()));
+        stubAvailable(auditPortFactory, auditPort);
+
+        service.save(dto, 50L, 50L);
+
+        verify(authorizationService).requireCanOperate(50L, 50L);
+    }
+
+    @Test
     void isAvailable_delegatesToPortFactory() {
         when(providerProfilePortFactory.findIfAvailable()).thenReturn(Optional.of(providerProfilePort));
         assertThat(service.isAvailable()).isTrue();

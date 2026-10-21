@@ -45,12 +45,14 @@ public class ProviderProfileSaveService {
     public Long save(@NonNull ProviderProfileSaveDto dto, @NonNull Long targetUserId, @NonNull Long actorId) {
         Long savedId = tx.execute(status -> {
             boolean isNew = dto.id() == null;
-            ProviderProfileSnapshotDto before = isNew ? null : buildCurrentSnapshot(dto.id());
-            if (!isNew && before == null) {
+            ProviderProfileDto existing = isNew ? null : fetchEnriched(dto.id());
+            if (!isNew && existing == null) {
                 throw new StaleWriteException(
                         "Provider profile " + dto.id() + " was deleted before this edit could be saved");
             }
-            authorizationService.requireCanOperate(actorId, targetUserId);
+            ProviderProfileSnapshotDto before = isNew ? null : toSnapshot(existing);
+            // An edit is authorized against the profile's real owner, never against the owner the caller names.
+            authorizationService.requireCanOperate(actorId, isNew ? targetUserId : existing.getActorId());
             boolean privileged = authorizationService.isPrivileged(actorId);
 
             Long id;
@@ -122,11 +124,6 @@ public class ProviderProfileSaveService {
             }
         });
         sitemapService.invalidate();
-    }
-
-    private ProviderProfileSnapshotDto buildCurrentSnapshot(@NonNull Long entityId) {
-        ProviderProfileDto p = fetchEnriched(entityId);
-        return p == null ? null : toSnapshot(p);
     }
 
     private ProviderProfileDto fetchEnriched(@NonNull Long entityId) {

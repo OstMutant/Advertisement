@@ -49,7 +49,7 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   `TaxonAssignmentWriteService`) + audit capture, one `TransactionTemplate`-bounded unit.
   `save(dto, targetUserId, actorId, actorIsPrivileged)` takes
   two distinct identity parameters — `targetUserId` (whose profile this is, forwarded to
-  `ProviderProfilePort.save()` as the row owner) and `actorId` (who performed the save, audit-only)
+  `ProviderProfilePort.save()` as the row owner; it names the owner only for a create, while an edit is authorized against the existing profile's real owner) and `actorId` (who performed the save, audit-only)
   — since an admin/moderator editing another user's profile makes the two diverge. No attachment
   gallery step (unlike Advertisement) — provider profiles carry no media.
 - `AdvertisementOwnerProfileLookupService` — resolves an advertisement's owner's provider profile
