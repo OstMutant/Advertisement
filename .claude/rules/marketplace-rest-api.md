@@ -109,7 +109,7 @@ Every authenticated endpoint carries `@SecurityRequirement(name = "bearerKey")` 
 - Hidden feedback (a review or a reply whose moderation status is hidden) is returned without its
   text, and a hidden review also without its rating, for every caller including its author -- the
   same censored placeholder the Vaadin feedback panel shows.
-- Every method with an HTTP mapping carries `@Operation(operationId = ...)`: verb + entity in camelCase, unique across the whole API, never changed unless the operation's meaning changes (springdoc's derived names shift as controllers are added, which silently breaks collections, generated clients and MCP tool names). Enforced by `ArchitectureRulesTest.rest_api_operations_must_declare_an_explicit_operation_id`.
+- Every method with an HTTP mapping carries `@Operation(operationId = ...)`: verb + entity in camelCase, unique across the whole API, never changed unless the operation's meaning changes (springdoc's derived names shift as controllers are added, which silently breaks collections, generated clients and MCP tool names). Enforced by `ArchitectureRulesTest.rest_api_operations_must_declare_an_explicit_operation_id` and `rest_api_operation_ids_must_be_unique`.
 - Any new endpoint under a prefix that the general chain makes public for GET (advertisements,
   provider-profiles, taxons) must get its own `authenticated()` rule ahead of the public one, because
   a public match leaves the controller without a user id.

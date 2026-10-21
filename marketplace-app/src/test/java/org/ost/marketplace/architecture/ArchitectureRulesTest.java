@@ -25,7 +25,10 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -266,17 +269,19 @@ class ArchitectureRulesTest {
             "org.springframework.web.bind.annotation.DeleteMapping",
             "org.springframework.web.bind.annotation.RequestMapping");
 
+    private static final DescribedPredicate<JavaMethod> HTTP_MAPPED = new DescribedPredicate<JavaMethod>("are mapped to an HTTP request") {
+        @Override
+        public boolean test(JavaMethod method) {
+            return method.getAnnotations().stream()
+                    .anyMatch(a -> HTTP_MAPPING_ANNOTATIONS.contains(a.getRawType().getName()));
+        }
+    };
+
     // Annotation types are named as strings so this test needs no compile-time swagger dependency.
     @ArchTest
     static final ArchRule rest_api_operations_must_declare_an_explicit_operation_id =
             methods().that().areDeclaredInClassesThat().resideInAPackage("org.ost.restapi..")
-                    .and(new DescribedPredicate<JavaMethod>("are mapped to an HTTP request") {
-                        @Override
-                        public boolean test(JavaMethod method) {
-                            return method.getAnnotations().stream()
-                                    .anyMatch(a -> HTTP_MAPPING_ANNOTATIONS.contains(a.getRawType().getName()));
-                        }
-                    })
+                    .and(HTTP_MAPPED)
                     .should(new ArchCondition<JavaMethod>("carry @Operation with a non-blank operationId") {
                         @Override
                         public void check(JavaMethod method, ConditionEvents events) {
@@ -293,6 +298,36 @@ class ArchitectureRulesTest {
                     .because("springdoc derives an operationId from the Java method name and renames clashes with "
                             + "a numeric suffix that shifts as controllers are added, breaking collections, "
                             + "generated clients and MCP tool names built on it");
+
+    @ArchTest
+    static final ArchRule rest_api_operation_ids_must_be_unique =
+            methods().that().areDeclaredInClassesThat().resideInAPackage("org.ost.restapi..")
+                    .and(HTTP_MAPPED)
+                    .should(new ArchCondition<JavaMethod>("have an operationId that no other REST method uses") {
+                        private final Map<String, JavaMethod> seen = new HashMap<>();
+
+                        @Override
+                        public void init(Collection<JavaMethod> allObjectsToTest) {
+                            seen.clear();
+                        }
+
+                        @Override
+                        public void check(JavaMethod method, ConditionEvents events) {
+                            method.tryGetAnnotationOfType("io.swagger.v3.oas.annotations.Operation")
+                                    .flatMap(a -> a.tryGetExplicitlyDeclaredProperty("operationId"))
+                                    .map(String::valueOf)
+                                    .filter(id -> !id.isBlank())
+                                    .ifPresent(id -> {
+                                        JavaMethod first = seen.putIfAbsent(id, method);
+                                        if (first != null) {
+                                            events.add(SimpleConditionEvent.violated(method, "operationId '" + id
+                                                    + "' is used by both " + first.getFullName() + " and " + method.getFullName()));
+                                        }
+                                    });
+                        }
+                    })
+                    .because("springdoc never reports a duplicate operationId, it silently renames the second one "
+                            + "with a numeric suffix");
 
     @ArchTest
     static final ArchRule starters_must_route_taxon_assignment_writes_through_orchestrator =
