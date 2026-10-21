@@ -13,6 +13,7 @@ import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import org.junit.jupiter.api.Test;
 import org.ost.platform.taxon.spi.TaxonPort;
+import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -121,13 +122,13 @@ class ArchitectureRulesTest {
                             + "platform-commons/CLAUDE.md \"Why ports and hooks must live in "
                             + "platform-commons\"");
 
-    // UiLabelHook/SessionActorHook/CurrentLocaleHook/SettingsChangeHook/CurrentUserHook are the
+    // UiLabelHook/SessionActorHook/UiLocaleHook/SettingsChangeHook/CurrentUserHook are the
     // named exceptions: called only by marketplace-orchestrator (a mandatory, non-optional
     // dependency of marketplace-app, never absent), never by a starter, so the
     // starter-optionality reasoning below doesn't apply to this set — they live in
     // org.ost.orchestrator.spi instead. See marketplace-orchestrator/CLAUDE.md.
     private static final List<String> ORCHESTRATOR_HOOK_ALLOWLIST = List.of(
-            "UiLabelHook", "SessionActorHook", "CurrentLocaleHook", "SettingsChangeHook", "CurrentUserHook");
+            "UiLabelHook", "SessionActorHook", "UiLocaleHook", "SettingsChangeHook", "CurrentUserHook");
 
     @ArchTest
     static final ArchRule hooks_live_only_in_platform_commons =
@@ -142,7 +143,7 @@ class ArchitectureRulesTest {
                     .because("*Hook SPI interfaces live in platform-commons so marketplace always "
                             + "sees the type regardless of which starters are present — see "
                             + "platform-commons/CLAUDE.md \"Why ports and hooks must live in "
-                            + "platform-commons\". UiLabelHook/SessionActorHook/CurrentLocaleHook/"
+                            + "platform-commons\". UiLabelHook/SessionActorHook/UiLocaleHook/"
                             + "SettingsChangeHook/CurrentUserHook are allow-listed above: called only by "
                             + "the mandatory marketplace-orchestrator dependency, never a starter, so they live in "
                             + "org.ost.orchestrator.spi.");
@@ -376,4 +377,18 @@ class ArchitectureRulesTest {
                     .because("when multiple ObjectMapper beans coexist, every injection site must use "
                             + "an explicit @Qualifier — never @Primary to resolve the ambiguity "
                             + "implicitly, see root CLAUDE.md \"No @Primary on ObjectMapper beans\"");
+
+    @ArchTest
+    static final ArchRule shared_hooks_do_not_depend_on_the_ui_locale_provider =
+            noClasses().that().resideInAnyPackage("org.ost.marketplace.spi..", "org.ost.marketplace.services..")
+                    .and().areNotAssignableTo(LocaleProvider.class)
+                    .should().dependOnClassesThat().areAssignableTo(LocaleProvider.class)
+                    .because("shared hooks and services are called from the REST API too, where the UI-scoped provider cannot be resolved; "
+                            + "they use the orchestrator's CurrentLocaleService");
+
+    @ArchTest
+    static final ArchRule services_and_hooks_do_not_depend_on_vaadin =
+            noClasses().that().resideInAnyPackage("org.ost.marketplace.services..", "org.ost.marketplace.spi..")
+                    .should().dependOnClassesThat().resideInAPackage("com.vaadin..")
+                    .because("services and shared hooks are called from the REST API too; Vaadin code lives in ui..");
 }

@@ -110,6 +110,12 @@ public class ModerationView extends VerticalLayout {
     }
 
     private void refresh() {
+        if (!access.canView()) {
+            // fail closed -- this view is built for every session, but only a moderator may load the queue
+            listContainer.removeAll();
+            paginationBar.setTotalCount(0);
+            return;
+        }
         try {
             QueryBlock<ModerationQueueFilterDto> queryBlock = queryStatusBar.getQueryBlock();
             ModerationQueueFilterDto filter = queryBlock.getFilterProcessor().getOriginalFilter();

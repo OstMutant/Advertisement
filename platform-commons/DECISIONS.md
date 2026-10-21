@@ -830,7 +830,7 @@ overwhelming majority of those keys are `marketplace-app`-only Vaadin UI strings
 Hook, and relocating them would contradict `marketplace-app/CLAUDE.md`'s "all UI i18n lives here"
 rule for a handful of keys.
 
-**Decision:** `UiLabelHook`/`SessionActorHook` (and a later addition, `CurrentLocaleHook`) are
+**Decision:** `UiLabelHook`/`SessionActorHook` (and a later addition, `UiLocaleHook`) are
 forwarder SPIs — but they do **not** live in `platform-commons`, unlike every other `*Hook` in this
 project. Since `marketplace-app` already legally depends on `marketplace-orchestrator`, any type
 `marketplace-orchestrator` defines is already visible to `marketplace-app`; the

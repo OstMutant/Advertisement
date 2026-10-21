@@ -40,7 +40,7 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
 - `AdvertisementAuditEnrichService` — resolves raw category/city taxon ids and `AdKind` into
   display labels for audit timeline/activity diffs, and merges in attachment-domain media
   changes. The 2 i18n-touching lookups (locale, `AdKind` label) go through the
-  `CurrentLocaleHook`/`UiLabelHook` forwarder pair (see "Hook implementations" below) instead
+  `CurrentLocaleService`/`UiLabelHook` pair (see "Hook implementations" below) instead
   of a direct `LocaleProvider`/`I18nService` dependency.
 - `ProviderProfileDisplayEnrichmentService` — the ProviderProfile equivalent of the Advertisement
   enrichment service (category/city/actor only — no attachments).
@@ -157,6 +157,7 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   `platform-commons` `*Port`, not a UI-shell resource).
 - `AccessDeniedException` — thrown by `AuthorizationService`'s `require*` methods when the acting
   user is neither the resource's owner nor privileged.
+- `CurrentLocaleService` — the language for the current caller on either channel: the UI session's (via `UiLocaleHook`), else the user's saved language, else the request's `Accept-Language`, else English (`SupportedLocales`).
 - `CurrentUserService` — thin wrapper over the `CurrentUserHook` forwarder SPI (see below),
   exposing `getCurrentUser()`/`getCurrentUserLocale()` to any orchestrator-side or future-adapter
   caller without assuming how identity is resolved.
@@ -185,7 +186,7 @@ starter-optionality boundary. Five so far:
 |---|---|---|---|
 | `UiLabelHook` | `AuditDomainHookImpl` (actor-deleted suffix), `AdvertisementAuditEnrichService` (`AdKind` label, strikethrough markup, no-media text) | `UiLabelHookImpl` | `I18nService` |
 | `SessionActorHook` | `CurrentActorHookImpl` | `SessionActorHookImpl` | `AuthContextService` (actor id only) |
-| `CurrentLocaleHook` | `AdvertisementAuditEnrichService` | `CurrentLocaleHookImpl` | `LocaleProvider` |
+| `UiLocaleHook` | `CurrentLocaleService` | `UiLocaleHookImpl` | `LocaleProvider` (inside a UI thread only) |
 | `SettingsChangeHook` | `UserSettingsChangedHookImpl` | `SettingsPaginationService` | live `PaginationBar` push (100% Vaadin, nothing to split out) |
 | `CurrentUserHook` | `CurrentUserService` | `AuthContextService` | `SecurityContextHolder` (full `UserDto` + locale) |
 
@@ -198,6 +199,7 @@ on `marketplace-orchestrator`. Enforced by
 `ArchitectureRulesTest.marketplace_app_must_not_depend_on_platform_commons_spi_directly` (bans any
 other direct `platform-commons` `*.spi` import from `marketplace-app`; `AuthenticatedPrincipal` is
 the one allow-listed exception — see that test's own comment for why).
+Forwarder implementations are also called from the REST API, so they must not depend on a UI-scoped bean (they get the language from the orchestrator's `CurrentLocaleService`, see `.claude/nav/adr-index.md`'s matching decision).
 
 **Autoconfiguration entry point:** `OrchestratorAutoConfiguration` (`@ComponentScan` over
 `org.ost.orchestrator`, since this module is a mandatory, non-optional dependency of
@@ -265,7 +267,7 @@ inventing a second wiring approach for one module).
   home even though the package is separate from `services/`. `ActivityEnrichHookImpl`'s real
   collaborator, `AdvertisementAuditEnrichService`, does real category/city/`AdKind` diff-label
   resolution, not a single-value lookup — but only the UI-shell-touching calls go through
-  `CurrentLocaleHook`/`UiLabelHook`, so it splits the same way the narrower Hooks do: the pure-data
+  `CurrentLocaleService`/`UiLabelHook`, so it splits the same way the narrower Hooks do: the pure-data
   majority (change-merging, field resolution) stays a `marketplace-orchestrator` service — reversing
   an earlier call that this one couldn't follow the same pattern (see `.claude/nav/adr-index.md` for
   both decisions). `AuditActivityFieldsHook` — the fourth original Hook

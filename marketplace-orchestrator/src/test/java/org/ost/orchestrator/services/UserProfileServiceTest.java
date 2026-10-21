@@ -197,4 +197,20 @@ class UserProfileServiceTest {
 
         assertThat(service.resolveTimelinePageSize(ACTOR_ID)).isEqualTo(35);
     }
+
+    // --- saved UI language ---
+
+    @Test
+    void findLocale_delegatesToThePort() {
+        when(preferencesPort.findLocale(5L)).thenReturn(Optional.of("uk"));
+
+        assertThat(service.findLocale(5L)).contains("uk");
+    }
+
+    @Test
+    void findLocale_noneSaved_isEmpty() {
+        when(preferencesPort.findLocale(5L)).thenReturn(Optional.empty());
+
+        assertThat(service.findLocale(5L)).isEmpty();
+    }
 }

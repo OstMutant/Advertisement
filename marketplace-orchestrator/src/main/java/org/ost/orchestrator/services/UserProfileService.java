@@ -119,6 +119,11 @@ public class UserProfileService {
         preferencesPort.updateLocale(userId, locale);
     }
 
+    /** The user's saved UI language tag, empty when none was ever chosen. */
+    public Optional<String> findLocale(@NonNull Long userId) {
+        return preferencesPort.findLocale(userId);
+    }
+
     public void refreshCurrentUserInContext(@NonNull Long userId) {
         accountPort.refreshCurrentUserInContext(userId);
     }

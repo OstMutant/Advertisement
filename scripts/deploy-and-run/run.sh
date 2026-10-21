@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Full local deploy -- reuses scripts/build-and-test.sh's shared maven-cache jar by
-#   default: no Docker image is built at all, `java -jar` runs directly against the mounted
-#   maven-cache volume inside a plain eclipse-temurin:25-jre container. Starts all services on port
+#   default: no Docker image is built at all, the jar is copied out of the maven-cache volume into
+#   a volume of its own and `java -jar` runs it from there inside a plain eclipse-temurin:25-jre
+#   container, so a later build cannot replace the jar of the running application. Starts all services on port
 #   8081. A Liquibase checksum mismatch (a changeset edited in place instead of a new one added,
 #   e.g. a removed FK constraint, while the local dev DB still has the old version applied) is
 #   detected automatically and self-heals: wipes dev DB/SeaweedFS volumes and retries once, same as
@@ -40,8 +41,8 @@
 #   hardcoded default.
 # Input: repo source, .env (DB_*/S3_* fallback defaults -- NOT POSTGRES_IMAGE: this script's own
 #   Postgres container always hardcodes postgres:15-alpine, unlike docker-compose.db.yml which
-#   does honor POSTGRES_IMAGE), the shared maven-cache Docker volume (mounted directly into the app
-#   container unless --from-scratch).
+#   does honor POSTGRES_IMAGE), the shared maven-cache Docker volume (its jar is copied into the app
+#   container's own <APP_CONTAINER>-jar volume unless --from-scratch).
 # Outputs: running marketplace-app container on APP_PORT -- a real, separately built and tagged
 #   "marketplace-app" image only with --from-scratch; the default path runs `java -jar` inside a
 #   plain eclipse-temurin:25-jre container with no image of its own. Also prints an
@@ -76,6 +77,7 @@ NETWORK="${NETWORK:-advertisement}"
 DB_CONTAINER="${DB_CONTAINER:-advertisement-db}"
 SEAWEEDFS_CONTAINER="${SEAWEEDFS_CONTAINER:-advertisement-seaweedfs}"
 APP_CONTAINER="${APP_CONTAINER:-marketplace-app}"
+APP_JAR_VOLUME="${APP_JAR_VOLUME:-${APP_CONTAINER}-jar}"
 APP_IMAGE="${APP_IMAGE:-marketplace-app}"
 DB_PORT="${DB_PORT:-${ENV_DB_PORT:-5432}}"
 SEAWEEDFS_PORT="${SEAWEEDFS_PORT:-${ENV_S3_PORT:-9000}}"
@@ -197,7 +199,7 @@ configure_seaweedfs() {
 reset_infra() {
   echo "Resetting all containers and volumes..."
   docker rm -f "$DB_CONTAINER" "$SEAWEEDFS_CONTAINER" "$APP_CONTAINER" 2>/dev/null || true
-  docker volume rm "$DB_VOLUME" "$SEAWEEDFS_VOLUME" 2>/dev/null || true
+  docker volume rm "$DB_VOLUME" "$SEAWEEDFS_VOLUME" "$APP_JAR_VOLUME" 2>/dev/null || true
 }
 
 # ── Helper: bring up DB + SeaweedFS and wait until both are ready ───────────
@@ -327,15 +329,18 @@ start_app_container() {
   if $FROM_SCRATCH; then
     docker run "${RUN_FLAGS[@]}" "$APP_IMAGE"
   else
-    # No built image at all -- mount the shared maven-cache volume directly into a plain JRE base
-    # image and run the jar straight out of it. docker run (unlike docker build) can mount a named
-    # volume directly, so this skips the image-build step and the host-side jar-extraction
-    # bridge-container that step used to need entirely.
+    # No built image at all -- the jar is copied out of the shared maven-cache volume into a volume
+    # of this container's own, so a later build that rewrites maven-cache cannot change the jar of
+    # the running application (it loads classes lazily and fails on a replaced file).
+    docker volume rm "$APP_JAR_VOLUME" 2>/dev/null || true
+    docker volume create "$APP_JAR_VOLUME" >/dev/null
+    docker run --rm -v maven-cache:/src:ro -v "$APP_JAR_VOLUME":/dst --entrypoint cp \
+      eclipse-temurin:25-jre /src/artifacts/marketplace-app.jar /dst/marketplace-app.jar
     docker run "${RUN_FLAGS[@]}" \
-      -v maven-cache:/root/.m2 \
+      -v "$APP_JAR_VOLUME":/app \
       --entrypoint java \
       eclipse-temurin:25-jre \
-      -jar /root/.m2/artifacts/marketplace-app.jar
+      -jar /app/marketplace-app.jar
   fi
 }
 

@@ -207,7 +207,7 @@ public class FeedbackService {
             throw new SelfActionNotAllowedException("Cannot flag your own feedback entry");
         }
         if (existing.moderationStatus() != FeedbackModerationStatus.NEW) {
-            throw new FeedbackNotFlaggableException("Feedback " + feedbackId + " is already hidden or reviewed");
+            throw new FeedbackNotFlaggableException(FEEDBACK_PREFIX + feedbackId + " is already hidden or reviewed");
         }
         repository.flagContent(existing.contentId(), reason);
         repository.upsertAggregate(existing.entityType(), existing.entityId());

@@ -20,6 +20,7 @@ import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.contact.dto.ContactInfoDto;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SupportedLocales;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
@@ -64,7 +65,6 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ProviderProfileApiController {
 
-    private static final Locale DEFAULT_LOCALE = Locale.ENGLISH;
 
     // Mirrors ProviderProfileSortMeta's UI-sortable set -- marketplace-rest-api can't import that
     // class (wrong dependency direction, see .claude/rules/marketplace-rest-api.md), so both sides
@@ -97,14 +97,14 @@ public class ProviderProfileApiController {
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(null, request.kind(), request.about(), request.categoryIds(), request.cityTaxonId(),
                 request.phone(), request.telegram(), request.viber(), null);
         Long id = saveService.save(dto, actorId, actorId);
-        return enrich(readService.findById(id).orElseThrow(), DEFAULT_LOCALE);
+        return enrich(readService.findById(id).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
     @Operation(summary = "List/filter/sort provider profiles", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
     @GetMapping
     public ResponseEntity<List<ProviderProfileDto>> list(@AuthenticationPrincipal Long actorId,
             @ModelAttribute @Valid ProviderProfileFilterDto filter, @RequestParam(defaultValue = "0") int page,
-            @RequestParam(required = false) String sort, @RequestParam(defaultValue = "en") String locale,
+            @RequestParam(required = false) String sort, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale,
             UriComponentsBuilder uriBuilder) {
         int size = userProfileService.resolveProviderProfilesPageSize(actorId);
         Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
@@ -118,7 +118,7 @@ public class ProviderProfileApiController {
     @Operation(summary = "Get one provider profile by id")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
-    public ResponseEntity<ProviderProfileDto> getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
+    public ResponseEntity<ProviderProfileDto> getById(@PathVariable Long id, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale) {
         ProviderProfileDto profile = enrich(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
         return ETagUtil.withVersion(ResponseEntity.ok(), profile.getVersion()).body(profile);
     }
@@ -159,7 +159,7 @@ public class ProviderProfileApiController {
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(id, request.kind(), request.about(), request.categoryIds(), request.cityTaxonId(),
                 request.phone(), request.telegram(), request.viber(), ETagUtil.parseIfMatch(ifMatch));
         Long savedId = saveService.save(dto, actorId, actorId);
-        return enrich(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
+        return enrich(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
     @Operation(operationId = "restoreProviderProfileFromSnapshot", summary = "Restore a provider profile to a recorded state",
@@ -170,7 +170,7 @@ public class ProviderProfileApiController {
             @PathVariable @NonNull Long snapshotId,
             @Parameter(description = "Current version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
         Long savedId = snapshotRestoreService.restoreProviderProfile(actorId, id, snapshotId, ETagUtil.requireIfMatch(ifMatch));
-        return enrich(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
+        return enrich(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
     private ProviderProfileDto enrich(ProviderProfileDto profile, Locale locale) {

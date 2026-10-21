@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SupportedLocales;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
@@ -50,7 +51,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TaxonApiController {
 
-    private static final Locale DEFAULT_LOCALE = Locale.ENGLISH;
 
     private final TaxonCatalogService taxonCatalogService;
     private final ActivityHistorySupport activityHistorySupport;
@@ -71,14 +71,14 @@ public class TaxonApiController {
     @SecurityRequirement(name = "bearerKey")
     public TaxonDto create(@AuthenticationPrincipal Long actorId, @RequestBody TaxonCreateRequest request) {
         Long id = taxonCatalogService.create(request.type(), toTranslations(request.translations()), actorId);
-        return taxonCatalogService.findById(id, DEFAULT_LOCALE).orElseThrow();
+        return taxonCatalogService.findById(id, SupportedLocales.DEFAULT).orElseThrow();
     }
 
     @Operation(summary = "List categories/cities", description = "cityTaxonId/categoryIds used elsewhere (e.g. POST /api/advertisements, POST /api/provider-profiles) come from this endpoint's own \"id\" field. type=CATEGORY or type=CITY narrows to one; omitted returns both. Reference data only -- always returns the full matching set, no pagination.")
     @GetMapping
     public ResponseEntity<List<TaxonDto>> list(
             @Parameter(description = "CATEGORY or CITY; omit to list both") @RequestParam(required = false) TaxonType type,
-            @RequestParam(defaultValue = "en") String locale) {
+            @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale) {
         Locale resolvedLocale = Locale.forLanguageTag(locale);
         List<TaxonDto> items;
         if (type != null) {
@@ -93,7 +93,7 @@ public class TaxonApiController {
     @Operation(summary = "Get one category/city by id", description = "Falls back to the English translation if the requested locale has none. ETag response header carries the version to send back via If-Match on update/delete.")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
-    public ResponseEntity<TaxonDto> getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
+    public ResponseEntity<TaxonDto> getById(@PathVariable Long id, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale) {
         TaxonDto taxon = taxonCatalogService.findById(id, Locale.forLanguageTag(locale)).orElseThrow(NoSuchElementException::new);
         return ETagUtil.withVersion(ResponseEntity.ok(), taxon.getVersion()).body(taxon);
     }
@@ -128,7 +128,7 @@ public class TaxonApiController {
     public TaxonDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestBody TaxonUpdateRequest request,
             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         taxonCatalogService.update(id, toTranslations(request.translations()), actorId, ETagUtil.parseIfMatch(ifMatch));
-        return taxonCatalogService.findById(id, DEFAULT_LOCALE).orElseThrow();
+        return taxonCatalogService.findById(id, SupportedLocales.DEFAULT).orElseThrow();
     }
 
     @Operation(summary = "Soft-delete a category or city", description = "If-Match must carry the version from the last GET/create/update response for this id; admin/moderator only.")
@@ -148,7 +148,7 @@ public class TaxonApiController {
     @SecurityRequirement(name = "bearerKey")
     public TaxonDto restore(@AuthenticationPrincipal Long actorId, @PathVariable Long id) {
         taxonCatalogService.restore(id, actorId);
-        return taxonCatalogService.findById(id, DEFAULT_LOCALE).orElseThrow();
+        return taxonCatalogService.findById(id, SupportedLocales.DEFAULT).orElseThrow();
     }
 
     @Operation(operationId = "restoreTaxonFromSnapshot", summary = "Restore a category or city to a recorded state",
@@ -159,7 +159,7 @@ public class TaxonApiController {
             @PathVariable @NonNull Long snapshotId,
             @Parameter(description = "Current version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
         snapshotRestoreService.restoreTaxon(actorId, id, snapshotId, ETagUtil.requireIfMatch(ifMatch));
-        return taxonCatalogService.findById(id, DEFAULT_LOCALE).orElseThrow();
+        return taxonCatalogService.findById(id, SupportedLocales.DEFAULT).orElseThrow();
     }
 
     private static Map<Locale, TaxonTranslationDto> toTranslations(List<TaxonTranslationRequest> translations) {

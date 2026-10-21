@@ -6,7 +6,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ost.orchestrator.spi.CurrentLocaleHook;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.contact.dto.ContactInfoDto;
@@ -45,7 +44,7 @@ class ProviderProfileSaveServiceTest {
     @Mock private TaxonAssignmentWriteService taxonAssignmentWriteService;
     @Mock private ContactAccessService contactAccessService;
     @Mock private ProviderProfileDisplayEnrichmentService displayEnrichmentService;
-    @Mock private CurrentLocaleHook currentLocaleHook;
+    @Mock private CurrentLocaleService currentLocaleService;
     @Mock private SitemapService sitemapService;
     @Mock private AuthorizationService authorizationService;
 
@@ -54,7 +53,7 @@ class ProviderProfileSaveServiceTest {
     @BeforeEach
     void setUp() {
         service = new ProviderProfileSaveService(tx, providerProfilePortFactory, auditPortFactory,
-                taxonAssignmentWriteService, contactAccessService, displayEnrichmentService, currentLocaleHook, sitemapService, authorizationService);
+                taxonAssignmentWriteService, contactAccessService, displayEnrichmentService, currentLocaleService, sitemapService, authorizationService);
         lenient().when(tx.execute(this.<Long>callback())).thenAnswer(inv -> {
             TransactionCallback<Long> callback = inv.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));
@@ -65,7 +64,7 @@ class ProviderProfileSaveServiceTest {
             return null;
         }).when(tx).executeWithoutResult(any());
         lenient().when(providerProfilePortFactory.get()).thenReturn(providerProfilePort);
-        lenient().when(currentLocaleHook.getCurrentLocale()).thenReturn(Locale.ENGLISH);
+        lenient().when(currentLocaleService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
         lenient().when(displayEnrichmentService.enrichWithCategoryAndCity(any(), any()))
                 .thenAnswer(inv -> inv.getArgument(0));
         lenient().when(contactAccessService.find(any(), any())).thenReturn(Optional.empty());

@@ -443,6 +443,13 @@ manually while a `scripts/ci.sh` run is in progress — not just "probably fine"
   names (`ci-advertisement-db`, `ci-advertisement-minio`, `ci-marketplace-app`, `ci-advertisement`
   network) are fixed, not templated with the run's timestamp — a second concurrent `--e2e` run
   would fail trying to create containers/a network that already exist.
+- **The e2e application container runs its own copy of the jar.** It used to run
+  `java -jar /root/.m2/artifacts/marketplace-app.jar` straight from the `maven-cache` volume that
+  `scripts/build-and-test.sh` writes on the host, so a host build during an e2e stage replaced the
+  jar under the running application and the Swagger endpoints answered `500` with
+  `ClassNotFoundException` for lazily loaded framework classes (two tests failed and passed on the
+  rerun). `deploy-and-run.sh` now copies the jar into the container's own `<container>-jar` volume
+  before starting it, so a host build can run at any time.
 
 **Decision:** Document this as-is rather than engineering it away. Templating the e2e stack's
 container/network names with `$REPORT_ID` (mirroring `ci-runner-<timestamp>`) would fix the

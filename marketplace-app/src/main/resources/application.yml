@@ -4,6 +4,9 @@ server:
 
 # Spring Boot core settings
 spring:
+  web:
+    locale: en
+    locale-resolver: accept-header
   servlet:
     multipart:
       max-file-size: 50MB

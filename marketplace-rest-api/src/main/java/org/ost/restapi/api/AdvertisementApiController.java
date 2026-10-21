@@ -24,6 +24,7 @@ import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SupportedLocales;
 import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.ost.restapi.api.concurrency.ETagUtil;
 import org.ost.restapi.api.paging.PagedResponseBuilder;
@@ -64,7 +65,6 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AdvertisementApiController {
 
-    private static final Locale DEFAULT_LOCALE = Locale.ENGLISH;
 
     // Mirrors AdvertisementSortMeta's UI-sortable set -- marketplace-rest-api can't import that
     // class (wrong dependency direction, see .claude/rules/marketplace-rest-api.md), so both sides
@@ -95,14 +95,14 @@ public class AdvertisementApiController {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(null, request.title(), request.description(),
                 request.adKind(), request.categoryIds(), request.cityTaxonId(), null);
         Long id = saveService.save(dto, actorId, ref -> null);
-        return enrichmentService.enrichSingle(readService.findById(id).orElseThrow(), DEFAULT_LOCALE);
+        return enrichmentService.enrichSingle(readService.findById(id).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
     @Operation(summary = "List/filter/sort advertisements", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
     @GetMapping
     public ResponseEntity<List<AdvertisementInfoDto>> list(@AuthenticationPrincipal Long actorId,
             @ModelAttribute @Valid AdvertisementFilterDto filter, @RequestParam(defaultValue = "0") int page,
-            @RequestParam(required = false) String sort, @RequestParam(defaultValue = "en") String locale,
+            @RequestParam(required = false) String sort, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale,
             UriComponentsBuilder uriBuilder) {
         int size = userProfileService.resolveAdsPageSize(actorId);
         Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
@@ -117,7 +117,7 @@ public class AdvertisementApiController {
     @Operation(summary = "Get one advertisement by id")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
-    public ResponseEntity<AdvertisementInfoDto> getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
+    public ResponseEntity<AdvertisementInfoDto> getById(@PathVariable Long id, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale) {
         AdvertisementInfoDto ad = enrichmentService.enrichSingle(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
         return ETagUtil.withVersion(ResponseEntity.ok(), ad.getVersion()).body(ad);
     }
@@ -156,7 +156,7 @@ public class AdvertisementApiController {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(id, request.title(), request.description(),
                 request.adKind(), request.categoryIds(), request.cityTaxonId(), ETagUtil.parseIfMatch(ifMatch));
         Long savedId = saveService.save(dto, actorId, ref -> null);
-        return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
+        return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
     @Operation(operationId = "restoreAdvertisementFromSnapshot", summary = "Restore an advertisement to a recorded state",
@@ -167,7 +167,7 @@ public class AdvertisementApiController {
             @PathVariable @NonNull Long snapshotId,
             @Parameter(description = "Current version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
         Long savedId = snapshotRestoreService.restoreAdvertisement(actorId, id, snapshotId, ETagUtil.requireIfMatch(ifMatch));
-        return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
+        return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
     @Operation(summary = "Delete an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")

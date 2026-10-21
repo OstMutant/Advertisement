@@ -9,9 +9,10 @@ paths: ["scripts/**"]
 bash scripts/deploy-and-run.sh        # Linux / WSL
 scripts\deploy-and-run.bat            # Windows
 ```
-By default, no Docker image is built at all — the app container runs `java -jar` directly against
-the shared `maven-cache` volume (already refreshed by an internal `scripts/build-and-test.sh` call,
-Vaadin's production bundle included; `SPRING_PROFILES_ACTIVE=prod` at runtime sets
+By default, no Docker image is built at all — the jar is copied out of the shared `maven-cache`
+volume (already refreshed by an internal `scripts/build-and-test.sh` call) into a volume of the app
+container's own, `<container>-jar`, and the container runs `java -jar` from there, so a later build
+on the host cannot replace the jar of the running application (Vaadin's production bundle included; `SPRING_PROFILES_ACTIVE=prod` at runtime sets
 `vaadin.productionMode=true`), starts all infra + app on **port 8081** (8080 reserved for local
 IntelliJ dev server). `--from-scratch` builds a real, separately tagged image instead, from the
 full multi-stage root `Dockerfile` — needed when an actual portable/deployable image is genuinely

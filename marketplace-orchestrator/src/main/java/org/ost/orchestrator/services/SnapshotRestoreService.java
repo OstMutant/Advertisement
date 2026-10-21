@@ -6,6 +6,7 @@ import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SupportedLocales;
 import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
 import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
@@ -69,8 +70,8 @@ public class SnapshotRestoreService {
     public void restoreTaxon(@NonNull Long actingUserId, @NonNull Long taxonId, @NonNull Long snapshotId, Long version) {
         TaxonSnapshotDto snapshot = read(actingUserId, EntityType.TAXON, taxonId, snapshotId, TaxonSnapshotDto.class);
         Map<Locale, TaxonTranslationDto> translations = Map.of(
-                Locale.ENGLISH, translation("en", snapshot.nameEn(), snapshot.descriptionEn()),
-                Locale.forLanguageTag("uk"), translation("uk", snapshot.nameUk(), snapshot.descriptionUk()));
+                Locale.forLanguageTag(SupportedLocales.ENGLISH_TAG), translation(SupportedLocales.ENGLISH_TAG, snapshot.nameEn(), snapshot.descriptionEn()),
+                Locale.forLanguageTag(SupportedLocales.UKRAINIAN_TAG), translation(SupportedLocales.UKRAINIAN_TAG, snapshot.nameUk(), snapshot.descriptionUk()));
         taxonCatalogService.update(taxonId, translations, actingUserId, version);
     }
 

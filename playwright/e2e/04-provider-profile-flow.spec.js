@@ -83,6 +83,13 @@ const { selectInMultiSelectComboBox } = require('./_flows/category.flow');
 
 test.describe.configure({ mode: 'serial' });
 
+// Routes the Telegram link host to an empty page, so the new tab opens at once and the test only checks its address.
+async function stubTelegramLink(page) {
+  await page.context().route('https://t.me/**', route =>
+    route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><body></body></html>' })
+  );
+}
+
 async function openProviderProfileTab(page) {
   await page.locator('.account-overlay .account-overlay-tabs vaadin-tab').filter({ hasText: /provider profile|профіль провайдера/i }).click();
 }
@@ -367,11 +374,12 @@ test.describe('Provider Profile flow', () => {
       await expect(panel.locator('.contact-reveal-phone-value')).toHaveText('+380507654321', { timeout: 5000 });
       await screenshot(page, 'advertisement-contact-reveal-phone-revealed');
 
+      await stubTelegramLink(page);
       const [telegramTab] = await Promise.all([
         page.context().waitForEvent('page'),
         panel.locator('.contact-reveal-telegram vaadin-button').click(),
       ]);
-      await telegramTab.waitForLoadState('domcontentloaded').catch(() => {});
+      await telegramTab.waitForURL('**/t.me/electro_master', { waitUntil: 'commit', timeout: 10000 });
       expect(telegramTab.url()).toContain('t.me/electro_master');
       await telegramTab.close();
 
@@ -936,11 +944,12 @@ test.describe('Provider Profile flow', () => {
       await expect(panel.locator('.contact-reveal-phone-value')).toHaveText('+380507654321', { timeout: 5000 });
       await screenshot(page, 'provider-catalog-contact-reveal-phone-revealed');
 
+      await stubTelegramLink(page);
       const [telegramTab] = await Promise.all([
         page.context().waitForEvent('page'),
         panel.locator('.contact-reveal-telegram vaadin-button').click(),
       ]);
-      await telegramTab.waitForLoadState('domcontentloaded').catch(() => {});
+      await telegramTab.waitForURL('**/t.me/electro_master', { waitUntil: 'commit', timeout: 10000 });
       expect(telegramTab.url()).toContain('t.me/electro_master');
       await telegramTab.close();
     });

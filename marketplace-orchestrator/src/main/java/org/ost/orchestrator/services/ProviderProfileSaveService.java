@@ -3,7 +3,6 @@ package org.ost.orchestrator.services;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.orchestrator.spi.CurrentLocaleHook;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.contact.dto.ContactInfoDto;
 import org.ost.platform.core.ComponentFactory;
@@ -38,30 +37,18 @@ public class ProviderProfileSaveService {
     private final TaxonAssignmentWriteService              taxonAssignmentWriteService;
     private final ContactAccessService                     contactAccessService;
     private final ProviderProfileDisplayEnrichmentService  displayEnrichmentService;
-    private final CurrentLocaleHook                        currentLocaleHook;
+    private final CurrentLocaleService                     currentLocaleService;
     private final SitemapService                           sitemapService;
     private final AuthorizationService                     authorizationService;
 
     public Long save(@NonNull ProviderProfileSaveDto dto, @NonNull Long targetUserId, @NonNull Long actorId) {
         Long savedId = tx.execute(status -> {
             boolean isNew = dto.id() == null;
-            ProviderProfileDto existing = isNew ? null : fetchEnriched(dto.id());
-            if (!isNew && existing == null) {
-                throw new StaleWriteException(
-                        "Provider profile " + dto.id() + " was deleted before this edit could be saved");
-            }
-            ProviderProfileSnapshotDto before = isNew ? null : toSnapshot(existing);
+            ProviderProfileDto existing = isNew ? null : loadForEdit(dto.id());
             // An edit is authorized against the profile's real owner, never against the owner the caller names.
             authorizationService.requireCanOperate(actorId, isNew ? targetUserId : existing.getActorId());
-            boolean privileged = authorizationService.isPrivileged(actorId);
 
-            Long id;
-            try {
-                id = providerProfilePortFactory.get().save(dto, targetUserId, actorId, privileged);
-            } catch (IllegalStateException ex) {
-                // Starter's invariant check reads as authorization to any caller -- translate to 403 here.
-                throw new AccessDeniedException(ex.getMessage());
-            }
+            Long id = saveThroughPort(dto, targetUserId, actorId);
 
             Set<Long> catIds = dto.categoryIds() != null ? dto.categoryIds() : Set.of();
             taxonAssignmentWriteService.replace(EntityType.PROVIDER_PROFILE, id,
@@ -69,20 +56,39 @@ public class ProviderProfileSaveService {
 
             ContactInfoDto contact = saveContact(id, dto);
 
-            ProviderProfileDto saved = findById(id).orElseThrow();
-            ProviderProfileSnapshotDto after = new ProviderProfileSnapshotDto(
-                    saved.getKind(), saved.getAbout(), sortedList(saved.getCategoryIds()), saved.getCityTaxonId(),
-                    contact != null ? contact.phone() : null,
-                    contact != null ? contact.telegram() : null,
-                    contact != null ? contact.viber() : null);
-
-            captureAudit(isNew, id, after, actorId);
+            captureAudit(isNew, id, snapshotAfterSave(findById(id).orElseThrow(), contact), actorId);
             log.info("ProviderProfile save transaction complete: id={}, isNew={}, categories={}",
                     id, isNew, catIds.size());
             return id;
         });
         sitemapService.invalidate();
         return savedId;
+    }
+
+    private ProviderProfileDto loadForEdit(Long id) {
+        ProviderProfileDto existing = fetchEnriched(id);
+        if (existing == null) {
+            throw new StaleWriteException("Provider profile " + id + " was deleted before this edit could be saved");
+        }
+        return existing;
+    }
+
+    private Long saveThroughPort(ProviderProfileSaveDto dto, Long targetUserId, Long actorId) {
+        boolean privileged = authorizationService.isPrivileged(actorId);
+        try {
+            return providerProfilePortFactory.get().save(dto, targetUserId, actorId, privileged);
+        } catch (IllegalStateException ex) {
+            // Starter's invariant check reads as authorization to any caller -- translate to 403 here.
+            throw new AccessDeniedException(ex.getMessage());
+        }
+    }
+
+    private static ProviderProfileSnapshotDto snapshotAfterSave(ProviderProfileDto saved, ContactInfoDto contact) {
+        return new ProviderProfileSnapshotDto(
+                saved.getKind(), saved.getAbout(), sortedList(saved.getCategoryIds()), saved.getCityTaxonId(),
+                contact != null ? contact.phone() : null,
+                contact != null ? contact.telegram() : null,
+                contact != null ? contact.viber() : null);
     }
 
     private void captureAudit(boolean isNew, Long savedId, ProviderProfileSnapshotDto after, Long actorId) {
@@ -98,7 +104,7 @@ public class ProviderProfileSaveService {
     }
 
     private ProviderProfileDto enrich(ProviderProfileDto p) {
-        return displayEnrichmentService.enrichWithCategoryAndCity(p, currentLocaleHook.getCurrentLocale());
+        return displayEnrichmentService.enrichWithCategoryAndCity(p, currentLocaleService.getCurrentLocale());
     }
 
     public Optional<ProviderProfileDto> findById(@NonNull Long id) {

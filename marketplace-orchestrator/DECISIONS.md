@@ -540,6 +540,13 @@ taking `CurrentLocaleHook`/`UiLabelHook` instead of `LocaleProvider`/`I18nServic
 matching `UiLabelHookImpl`/`SessionActorHookImpl`'s existing shape; `UiLabelHookImpl` itself gains
 the four delegations.
 
+The forwarder implementations in `marketplace-app` serve both delivery channels. The REST API reaches
+them too (audit history labels, profile display data), so a forwarder never resolves a UI-scoped bean
+directly. The language is resolved by the orchestrator's own `CurrentLocaleService` (the UI session's
+language when the new `UiLocaleHook` forwarder answers inside a UI thread, otherwise the user's saved
+language, the request's `Accept-Language`, then English); `CurrentLocaleHook` was replaced by it, and the
+supported languages and the default come from `SupportedLocales` in `platform-commons`.
+
 **Consequences:** `marketplace-app`'s `services/advertisement/` package is now empty and removed —
 `AdvertisementSaveService` (ADR-001) and `AdvertisementAuditEnrichService` (this ADR) were its only
 two members, and both now live in `marketplace-orchestrator`. `AuditActivityEnrichHook` now has

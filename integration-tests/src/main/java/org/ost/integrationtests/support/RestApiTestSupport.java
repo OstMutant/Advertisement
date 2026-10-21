@@ -2,13 +2,12 @@ package org.ost.integrationtests.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
-import java.util.Locale;
 import java.util.Optional;
-import org.ost.orchestrator.spi.CurrentLocaleHook;
 import org.ost.orchestrator.spi.CurrentUserHook;
 import org.ost.orchestrator.spi.SessionActorHook;
 import org.ost.orchestrator.spi.SettingsChangeHook;
 import org.ost.orchestrator.spi.UiLabelHook;
+import org.ost.orchestrator.spi.UiLocaleHook;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
@@ -57,8 +56,8 @@ public class RestApiTestSupport {
     }
 
     @Bean
-    public CurrentLocaleHook currentLocaleHook() {
-        return () -> Locale.ENGLISH;
+    public UiLocaleHook uiLocaleHook() {
+        return Optional::empty;
     }
 
     @Bean

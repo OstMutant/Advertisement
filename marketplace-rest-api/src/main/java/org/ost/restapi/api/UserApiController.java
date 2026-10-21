@@ -22,6 +22,7 @@ import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.UserDeleteService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SupportedLocales;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
@@ -257,6 +258,6 @@ public class UserApiController {
     }
 
     /** The language to switch the caller's own account to. */
-    public record LocaleWriteRequest(@NotNull @Pattern(regexp = "en|uk") String locale) {
+    public record LocaleWriteRequest(@NotNull @Pattern(regexp = SupportedLocales.TAG_PATTERN) String locale) {
     }
 }
