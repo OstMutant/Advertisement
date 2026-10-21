@@ -44,7 +44,11 @@ Trials, each judged on a real run against the local app, then one recommendation
    available on the free plan, and the chain runs green against the local app. Automated regression
    stays in the Level 3 REST scenario tests (`AbstractRestApiScenarioTest`). Possible follow-up,
    not started: an "API flows" diagram group in the architecture map generated from the collection.
-2. **Spec quality for agents:** explicit `operationId` on all 25 operations, descriptions written
+2. **Spec quality for agents:** the `operationId` part is done 2026-10-21 under improvement-219 (all
+   68 operations of today's API carry an explicit, unique one). **Still open here:** key every request
+   of the Postman collection by its `operationId` (today's request names are `01 Register user` and
+   so on, tied to the path) and add a test that each request names an existing `operationId`, so
+   renaming an operation breaks the build instead of the collection silently. Descriptions written
    for an agent (what it does, when to use it, required fields), the three missing descriptions
    filled. `/health` and `/sitemap.xml` stay in the spec; they are filtered out at the MCP level
    (item 3). Measure by re-reading the generated spec. Naming convention to fix: verb + entity in camelCase (`listAdvertisements`,

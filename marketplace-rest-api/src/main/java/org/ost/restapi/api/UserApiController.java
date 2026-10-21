@@ -79,7 +79,7 @@ public class UserApiController {
     private final ActivityHistorySupport activityHistorySupport;
     private final SnapshotRestoreService snapshotRestoreService;
 
-    @Operation(summary = "Register a new account", description = "Public, no authentication needed. Rate-limited by client IP (5 failed attempts / 15 min). Follow up with POST /api/api-keys (Basic auth) to obtain a bearer key for the other endpoints.")
+    @Operation(operationId = "registerUser", summary = "Register a new account", description = "Public, no authentication needed. Rate-limited by client IP (5 failed attempts / 15 min). Follow up with POST /api/api-keys (Basic auth) to obtain a bearer key for the other endpoints.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "name": "Jane Doe",
@@ -94,7 +94,7 @@ public class UserApiController {
         return new UserCreatedResponse(user.id(), user.name(), user.email(), user.role());
     }
 
-    @Operation(summary = "List/filter/sort users", description = "Admin/moderator only. size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings).")
+    @Operation(operationId = "listUsers", summary = "List/filter/sort users", description = "Admin/moderator only. size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings).")
     @GetMapping
     @SecurityRequirement(name = "bearerKey")
     public ResponseEntity<List<UserDto>> list(@AuthenticationPrincipal Long actorId, @ModelAttribute @Valid UserFilterDto filter,
@@ -107,7 +107,7 @@ public class UserApiController {
         return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
     }
 
-    @Operation(summary = "Get one user by id", description = "Admin/moderator only. The ETag response header carries the version to send back via If-Match on PUT.")
+    @Operation(operationId = "getUser", summary = "Get one user by id", description = "Admin/moderator only. The ETag response header carries the version to send back via If-Match on PUT.")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on PUT"))
     @GetMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
@@ -181,7 +181,7 @@ public class UserApiController {
         userProfileService.updateLocale(actorId, request.locale());
     }
 
-    @Operation(summary = "Get the caller's own paginated-list page-size preferences", description = "ETag response header carries the version to send back via If-Match on PATCH.")
+    @Operation(operationId = "getMySettings", summary = "Get the caller's own paginated-list page-size preferences", description = "ETag response header carries the version to send back via If-Match on PATCH.")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on PATCH"))
     @GetMapping("/me/settings")
     @SecurityRequirement(name = "bearerKey")
@@ -190,7 +190,7 @@ public class UserApiController {
         return ETagUtil.withVersion(ResponseEntity.ok(), settings.getVersion()).body(settings);
     }
 
-    @Operation(summary = "Update the caller's own paginated-list page-size preferences", description = "Same validation limits as the Settings UI form. If-Match must carry the version from the last GET response's ETag.")
+    @Operation(operationId = "updateMySettings", summary = "Update the caller's own paginated-list page-size preferences", description = "Same validation limits as the Settings UI form. If-Match must carry the version from the last GET response's ETag.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "adsPageSize": 20,

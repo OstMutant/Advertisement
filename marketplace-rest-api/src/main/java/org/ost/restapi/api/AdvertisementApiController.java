@@ -79,7 +79,7 @@ public class AdvertisementApiController {
     private final ActivityHistorySupport activityHistorySupport;
     private final SnapshotRestoreService snapshotRestoreService;
 
-    @Operation(summary = "Create an advertisement", description = "categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY.")
+    @Operation(operationId = "createAdvertisement", summary = "Create an advertisement", description = "categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "title": "Plumbing services",
@@ -98,7 +98,7 @@ public class AdvertisementApiController {
         return enrichmentService.enrichSingle(readService.findById(id).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
-    @Operation(summary = "List/filter/sort advertisements", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
+    @Operation(operationId = "listAdvertisements", summary = "List/filter/sort advertisements", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
     @GetMapping
     public ResponseEntity<List<AdvertisementInfoDto>> list(@AuthenticationPrincipal Long actorId,
             @ModelAttribute @Valid AdvertisementFilterDto filter, @RequestParam(defaultValue = "0") int page,
@@ -114,7 +114,7 @@ public class AdvertisementApiController {
         return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
     }
 
-    @Operation(summary = "Get one advertisement by id")
+    @Operation(operationId = "getAdvertisement", summary = "Get one advertisement by id")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
     public ResponseEntity<AdvertisementInfoDto> getById(@PathVariable Long id, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale) {
@@ -139,7 +139,7 @@ public class AdvertisementApiController {
         return activityHistorySupport.snapshot(actorId, EntityType.ADVERTISEMENT, id, snapshotId, AdvertisementSnapshotDto.class);
     }
 
-    @Operation(summary = "Update an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
+    @Operation(operationId = "updateAdvertisement", summary = "Update an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "title": "Plumbing services",
@@ -170,7 +170,7 @@ public class AdvertisementApiController {
         return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
-    @Operation(summary = "Delete an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
+    @Operation(operationId = "deleteAdvertisement", summary = "Delete an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")

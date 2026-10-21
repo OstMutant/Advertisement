@@ -56,7 +56,7 @@ public class TaxonApiController {
     private final ActivityHistorySupport activityHistorySupport;
     private final SnapshotRestoreService snapshotRestoreService;
 
-    @Operation(summary = "Create a category or city",
+    @Operation(operationId = "createTaxon", summary = "Create a category or city",
             description = "translations must include every supported locale (en + uk today) with a non-blank name and description each -- an incomplete set is rejected with 400.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Category with both required locales", value = """
             {
@@ -74,7 +74,7 @@ public class TaxonApiController {
         return taxonCatalogService.findById(id, SupportedLocales.DEFAULT).orElseThrow();
     }
 
-    @Operation(summary = "List categories/cities", description = "cityTaxonId/categoryIds used elsewhere (e.g. POST /api/advertisements, POST /api/provider-profiles) come from this endpoint's own \"id\" field. type=CATEGORY or type=CITY narrows to one; omitted returns both. Reference data only -- always returns the full matching set, no pagination.")
+    @Operation(operationId = "listTaxons", summary = "List categories/cities", description = "cityTaxonId/categoryIds used elsewhere (e.g. POST /api/advertisements, POST /api/provider-profiles) come from this endpoint's own \"id\" field. type=CATEGORY or type=CITY narrows to one; omitted returns both. Reference data only -- always returns the full matching set, no pagination.")
     @GetMapping
     public ResponseEntity<List<TaxonDto>> list(
             @Parameter(description = "CATEGORY or CITY; omit to list both") @RequestParam(required = false) TaxonType type,
@@ -90,7 +90,7 @@ public class TaxonApiController {
         return ResponseEntity.ok().header("X-Total-Count", String.valueOf(items.size())).body(items);
     }
 
-    @Operation(summary = "Get one category/city by id", description = "Falls back to the English translation if the requested locale has none. ETag response header carries the version to send back via If-Match on update/delete.")
+    @Operation(operationId = "getTaxon", summary = "Get one category/city by id", description = "Falls back to the English translation if the requested locale has none. ETag response header carries the version to send back via If-Match on update/delete.")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
     public ResponseEntity<TaxonDto> getById(@PathVariable Long id, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale) {
@@ -115,7 +115,7 @@ public class TaxonApiController {
         return activityHistorySupport.snapshot(actorId, EntityType.TAXON, id, snapshotId, TaxonSnapshotDto.class);
     }
 
-    @Operation(summary = "Update a category or city's translations", description = "Same all-supported-locales-required rule as create; admin/moderator only. If-Match must carry the version from the last GET response.")
+    @Operation(operationId = "updateTaxon", summary = "Update a category or city's translations", description = "Same all-supported-locales-required rule as create; admin/moderator only. If-Match must carry the version from the last GET response.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Both required locales", value = """
             {
               "translations": [
@@ -131,7 +131,7 @@ public class TaxonApiController {
         return taxonCatalogService.findById(id, SupportedLocales.DEFAULT).orElseThrow();
     }
 
-    @Operation(summary = "Soft-delete a category or city", description = "If-Match must carry the version from the last GET/create/update response for this id; admin/moderator only.")
+    @Operation(operationId = "deleteTaxon", summary = "Soft-delete a category or city", description = "If-Match must carry the version from the last GET/create/update response for this id; admin/moderator only.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")

@@ -79,7 +79,7 @@ public class ProviderProfileApiController {
     private final ActivityHistorySupport activityHistorySupport;
     private final SnapshotRestoreService snapshotRestoreService;
 
-    @Operation(summary = "Create a provider profile", description = "Self-service only -- the profile is always created for the caller's own account. categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY. kind=SUPPORT requires a privileged (admin/moderator) caller.")
+    @Operation(operationId = "createProviderProfile", summary = "Create a provider profile", description = "Self-service only -- the profile is always created for the caller's own account. categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY. kind=SUPPORT requires a privileged (admin/moderator) caller.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "kind": "MASTER",
@@ -100,7 +100,7 @@ public class ProviderProfileApiController {
         return enrich(readService.findById(id).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
-    @Operation(summary = "List/filter/sort provider profiles", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
+    @Operation(operationId = "listProviderProfiles", summary = "List/filter/sort provider profiles", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
     @GetMapping
     public ResponseEntity<List<ProviderProfileDto>> list(@AuthenticationPrincipal Long actorId,
             @ModelAttribute @Valid ProviderProfileFilterDto filter, @RequestParam(defaultValue = "0") int page,
@@ -115,7 +115,7 @@ public class ProviderProfileApiController {
         return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
     }
 
-    @Operation(summary = "Get one provider profile by id")
+    @Operation(operationId = "getProviderProfile", summary = "Get one provider profile by id")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
     public ResponseEntity<ProviderProfileDto> getById(@PathVariable Long id, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale) {
@@ -140,7 +140,7 @@ public class ProviderProfileApiController {
         return activityHistorySupport.snapshot(actorId, EntityType.PROVIDER_PROFILE, id, snapshotId, ProviderProfileSnapshotDto.class);
     }
 
-    @Operation(summary = "Update a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile. Full replace, same as the other fields -- omitting phone/telegram/viber clears them.")
+    @Operation(operationId = "updateProviderProfile", summary = "Update a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile. Full replace, same as the other fields -- omitting phone/telegram/viber clears them.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "kind": "MASTER",
@@ -178,7 +178,7 @@ public class ProviderProfileApiController {
         return enrichmentService.enrichWithActor(profile);
     }
 
-    @Operation(summary = "Delete a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile.")
+    @Operation(operationId = "deleteProviderProfile", summary = "Delete a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
