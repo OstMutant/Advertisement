@@ -34,6 +34,7 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
   returns a deep link that opens the chat; reveals are rate-limited per client address and viewer.
   View counts per channel for the current month are readable by the owner, administrators and
   moderators.
+- Advertisement gallery: a public list of an advertisement's photos and video links, and bearer-authenticated upload of photos (JPEG, PNG, WebP, GIF, MP4, WebM; at most 50 MB per file), addition of a YouTube or Vimeo link, and removal of one item. At most 10 items per advertisement. Only the owner, administrators and moderators may change it, and every change is recorded on the advertisement's history.
 - Provider-profile feedback: a public, paged list (newest first) and rating summary, one review per user and profile, edits by the author within the edit window, one reply per review written by the profile's owner, and flags that hide a review or reply pending moderation. A hidden review or reply is returned without its text (and a hidden review without its rating).
 - Moderation: administrators and moderators can list the queue of flagged reviews and replies
   (`GET /api/moderation/queue`, with full text, filtered, sorted and paged), approve a flagged or

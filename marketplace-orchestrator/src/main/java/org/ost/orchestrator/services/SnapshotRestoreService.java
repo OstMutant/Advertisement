@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.audit.api.AuditableSnapshot;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
@@ -38,13 +39,14 @@ public class SnapshotRestoreService {
     private final ProviderProfileReadService providerProfileReadService;
     private final UserProfileService userProfileService;
     private final TaxonCatalogService taxonCatalogService;
+    private final AttachmentMediaService attachmentMediaService;
 
-    /** Restores title, description, kind, categories and city; the gallery is left as it is. */
+    /** Restores title, description, kind, categories and city, and the gallery when the snapshot recorded one. */
     public Long restoreAdvertisement(@NonNull Long actingUserId, @NonNull Long adId, @NonNull Long snapshotId, Long version) {
         AdvertisementSnapshotDto snapshot = read(actingUserId, EntityType.ADVERTISEMENT, adId, snapshotId, AdvertisementSnapshotDto.class);
         AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, snapshot.title(), snapshot.description(), snapshot.adKind(),
                 idSet(snapshot.categoryIds()), snapshot.cityTaxonId(), version);
-        return advertisementSaveService.save(dto, actingUserId, _ -> null);
+        return advertisementSaveService.save(dto, actingUserId, ref -> restoreGallery(ref, snapshot.attachmentSnapshotId()));
     }
 
     /** Restores kind, about, categories, city and the three contact channels, saved against the profile's real owner. */
@@ -85,6 +87,16 @@ public class SnapshotRestoreService {
                 Locale.ENGLISH, translation("en", snapshot.nameEn(), snapshot.descriptionEn()),
                 Locale.forLanguageTag("uk"), translation("uk", snapshot.nameUk(), snapshot.descriptionUk()));
         taxonCatalogService.update(taxonId, translations, actingUserId, version);
+    }
+
+    // A snapshot that recorded no gallery leaves the gallery as it is, as the form's restore does.
+    private Long restoreGallery(EntityRef ref, Long attachmentSnapshotId) {
+        if (attachmentSnapshotId == null) {
+            return null;
+        }
+        attachmentMediaService.restoreToUrls(ref.entityType(), ref.entityId(), attachmentMediaService.getUrlsBySnapshotId(attachmentSnapshotId));
+        attachmentMediaService.captureSnapshot(ref.entityType(), ref.entityId());
+        return attachmentMediaService.getLatestSnapshotId(ref.entityType(), ref.entityId());
     }
 
     private <T extends AuditableSnapshot> T read(Long actingUserId, EntityType entityType, Long entityId, Long snapshotId, Class<T> type) {

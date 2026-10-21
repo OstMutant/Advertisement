@@ -197,7 +197,7 @@ snapshot through `AuditQueryService` (so the read visibility applies) and saves 
 values through the domain's normal save path, so validation, authorization and audit capture are
 those of an ordinary update and no separate restore permission exists. A restore requires the
 caller's current version (`If-Match`), and the audit entry is an ordinary update. The user restore
-changes name and role only; an advertisement's gallery is left unchanged.
+changes name and role only; an advertisement's restore also returns its gallery to the snapshot's items when the snapshot recorded one.
 The feedback domain follows the same rule on its write side: `FeedbackWriteService` makes the caller
 the author of a review and allows an edit only of the caller's own review, and the starter refuses
 to flag a review or reply that is not NEW, so a moderator's confirmed verdict stays final; hidden
@@ -209,6 +209,10 @@ lists requires a privileged user, approving acts only on a flagged or confirmed-
 confirming a violation only on a flagged one, so the UI's buttons and the REST calls have the same
 limits. Permanent deletion of a flagged entry (reject) exists in the service but is not exposed: the
 UI has no such action.
+Gallery changes follow it as well: `AdvertisementMediaService` applies the edit-form rules to REST (the
+caller must be able to edit the advertisement, the attachment must belong to that advertisement, at
+most 10 items and 50 MB per file) and records every change as one entry on the advertisement's history,
+in one database transaction per request, exactly as a form save does.
 
 **Rejected alternatives:**
 1. Checks inside each of the 4 starters — reversed once grep confirmed the orchestrator is already

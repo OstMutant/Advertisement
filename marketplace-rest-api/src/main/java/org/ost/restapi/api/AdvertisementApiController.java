@@ -54,8 +54,8 @@ import java.util.Set;
 
 /**
  * Full CRUD over {@link AdvertisementSaveService}/{@link AdvertisementReadService} — reads are
- * public, writes need bearer authentication. No photo upload via this API (no in-progress gallery
- * to commit, unlike the Vaadin form). Every returned {@link AdvertisementInfoDto} is enriched with
+ * public, writes need bearer authentication. The photo and video gallery is served by
+ * {@link AdvertisementMediaApiController}. Every returned {@link AdvertisementInfoDto} is enriched with
  * category/city names, author info, and media summary via {@link AdvertisementDisplayEnrichmentService},
  * the same pipeline the Vaadin UI uses.
  */

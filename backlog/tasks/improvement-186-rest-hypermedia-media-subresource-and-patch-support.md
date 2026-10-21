@@ -109,6 +109,8 @@ its own real cost today:
 
 ### 1. Advertisement media as its own REST sub-resource (absorbs improvement-183 item 9)
 
+**Done 2026-10-20 (phase 7 of [improvement-213](improvement-213-rest-api-revision-parity-with-ui.md)):** `GET`, `POST` (a batch of files in one `multipart/form-data` request, one history entry per request), `POST …/videos` and the single-id `DELETE` are built with the edit form's rules (10 items, 50 MB, the same types, an attachment must belong to the advertisement), and restoring an advertisement to a snapshot restores its gallery. Not built, because the UI has neither: creating an advertisement together with its files in one call, and bulk delete. The rest of this task (PATCH, hypermedia) is unchanged.
+
 - `POST /api/advertisements/{id}/media` — append one or more files, `multipart/form-data`. Delegates
   to `AttachmentPort.upload()` (via a new, narrow `marketplace-orchestrator` service — existence
   check + `AuthorizationService.requireCanOperate` + delegate — mirroring how every other

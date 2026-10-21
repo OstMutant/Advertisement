@@ -117,12 +117,17 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   settings or a taxon to a recorded snapshot: reads the snapshot through `AuditQueryService` and
   saves its values through the domain's normal save path, so validation, authorization and audit
   capture are those of an ordinary update. One method per restorable resource; the user restore
-  changes name and role only.
+  changes name and role only. An advertisement restore also returns its gallery to the snapshot's
+  recorded gallery, and leaves the gallery unchanged when the snapshot recorded none.
 - `AttachmentMediaService` — wraps `ComponentFactory<AttachmentPort>` +
   `ComponentFactory<AttachmentAuditPort>` for the full gallery lifecycle (upload/commit/delete/
   restore) plus audit-diff media state; reuses `AttachmentSnapshotReaderService` internally instead
   of re-wrapping its call. `AttachmentSoftDeleteService`'s `softDeleteAll` is used directly by
   `AdvertisementSaveService`'s delete cascade, not through this class.
+- `AdvertisementMediaService` — the advertisement photo and video gallery for REST callers: list,
+  upload, video link and delete. Uses the same edit rights and 10-item cap as the edit form's
+  gallery, every change is recorded on the advertisement's history, and a delete is accepted only
+  for an attachment that belongs to that advertisement.
 - `AuditQueryService` — wraps `ComponentFactory<AuditPort>`'s read-side methods (`getLastSnapshot`/
   `getEntityActivity`/`getSnapshotContent`/`getTimelinePage`/`countTimeline`). Every read takes the
   acting user id and enforces the read rules itself via `AuthorizationService`: `getEntityActivity`

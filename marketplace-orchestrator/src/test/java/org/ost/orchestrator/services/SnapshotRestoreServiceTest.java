@@ -13,6 +13,7 @@ import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.core.StaleWriteException;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
@@ -32,6 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -57,6 +59,7 @@ class SnapshotRestoreServiceTest {
     @Mock private ProviderProfileReadService providerProfileReadService;
     @Mock private UserProfileService userProfileService;
     @Mock private TaxonCatalogService taxonCatalogService;
+    @Mock private AttachmentMediaService attachmentMediaService;
 
     @Captor private ArgumentCaptor<AdvertisementSaveDto> advertisementCaptor;
     @Captor private ArgumentCaptor<ProviderProfileSaveDto> providerProfileCaptor;
@@ -69,7 +72,7 @@ class SnapshotRestoreServiceTest {
     @BeforeEach
     void setUp() {
         service = new SnapshotRestoreService(auditQueryService, advertisementSaveService, providerProfileSaveService,
-                providerProfileReadService, userProfileService, taxonCatalogService);
+                providerProfileReadService, userProfileService, taxonCatalogService, attachmentMediaService);
     }
 
     // ── restoreAdvertisement ─────────────────────────────────────────────
@@ -93,6 +96,25 @@ class SnapshotRestoreServiceTest {
         assertThat(dto.categoryIds()).isEqualTo(Set.of(1L, 2L));
         assertThat(dto.cityTaxonId()).isEqualTo(5L);
         assertThat(dto.version()).isEqualTo(VERSION);
+        verifyNoInteractions(attachmentMediaService);
+    }
+
+    @Test
+    void restoreAdvertisement_withGallerySnapshot_restoresTheGallery() {
+        AdvertisementSnapshotDto snapshot = new AdvertisementSnapshotDto("Original", "First description", AdKind.OFFER,
+                List.of(1L), 5L, 9L);
+        stubSnapshot(EntityType.ADVERTISEMENT, RESOURCE_ID, snapshot, AdvertisementSnapshotDto.class);
+        when(attachmentMediaService.getUrlsBySnapshotId(9L)).thenReturn(new String[]{"u1"});
+        when(attachmentMediaService.getLatestSnapshotId(EntityType.ADVERTISEMENT, RESOURCE_ID)).thenReturn(11L);
+        when(advertisementSaveService.save(any(), any(), any())).thenAnswer(invocation -> {
+            invocation.<Function<EntityRef, Long>>getArgument(2).apply(new EntityRef(EntityType.ADVERTISEMENT, RESOURCE_ID));
+            return RESOURCE_ID;
+        });
+
+        service.restoreAdvertisement(ACTOR_ID, RESOURCE_ID, SNAPSHOT_ID, VERSION);
+
+        verify(attachmentMediaService).restoreToUrls(EntityType.ADVERTISEMENT, RESOURCE_ID, new String[]{"u1"});
+        verify(attachmentMediaService).captureSnapshot(EntityType.ADVERTISEMENT, RESOURCE_ID);
     }
 
     @Test

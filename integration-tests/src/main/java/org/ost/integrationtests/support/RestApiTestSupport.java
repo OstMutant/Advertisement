@@ -50,7 +50,10 @@ public class RestApiTestSupport {
 
     @Bean
     public SessionActorHook sessionActorHook() {
-        return Optional::empty;
+        return () -> {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            return auth != null && auth.getPrincipal() instanceof Long id ? Optional.of(id) : Optional.empty();
+        };
     }
 
     @Bean

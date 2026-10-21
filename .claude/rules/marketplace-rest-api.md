@@ -19,7 +19,7 @@ Java package root: `org.ost.restapi`
 - `HealthController`, `SitemapController` (top-level `org.ost.restapi`) — trivial, unauthenticated
   endpoints
 - `org.ost.restapi.api` — the authenticated external-API family: `ApiKeyController` (its key list hides revoked keys unless `includeRevoked=true`),
-  `UserApiController`, `AdvertisementApiController`, `ProviderProfileApiController`,
+  `UserApiController`, `AdvertisementApiController`, `AdvertisementMediaApiController`, `ProviderProfileApiController`,
   `TaxonApiController`, `AuditApiController`, `ContactApiController`, `FeedbackApiController`, `ModerationApiController`. Each controller's own request/response records that no
   other class needs are nested as public static records inside that controller (e.g.
   `ApiKeyController.ApiKeyCreateRequest`/`ApiKeyCreatedResponse`,
@@ -35,6 +35,11 @@ Java package root: `org.ost.restapi`
   and `POST /api/taxons/{id}/restore` for a soft-deleted taxon. Every snapshot restore requires
   `If-Match` (the current version); the restore itself is delegated to `SnapshotRestoreService`
   in `marketplace-orchestrator`.
+- `AdvertisementMediaApiController` (`/api/advertisements/{id}/media`) — `GET` list (public),
+  multipart `POST` upload (`files` field, `201` with the created items), `POST /videos` (YouTube or
+  Vimeo link only, `400` for any other host), and `DELETE /{attachmentId}` (`404` when the item does
+  not belong to the advertisement). Limits: 10 items per advertisement, 50 MB per file, types JPEG,
+  PNG, WebP, GIF, MP4 and WebM. Delegates to `AdvertisementMediaService` in `marketplace-orchestrator`.
 - `org.ost.restapi.api.error` — `ApiExceptionHandler` (`@RestControllerAdvice`) plus its two
   response records, `ErrorResponse`/`ValidationErrorResponse` — kept in their own package rather
   than nested, since the advice maps exceptions from every controller in this module, not owned by

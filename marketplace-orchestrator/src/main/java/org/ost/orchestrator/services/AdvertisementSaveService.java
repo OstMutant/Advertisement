@@ -20,6 +20,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -98,6 +99,14 @@ public class AdvertisementSaveService {
         } else {
             auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, after, actorId));
         }
+    }
+
+    /** Records an update on the advertisement's audit trail after its gallery changed outside a form save, carrying the gallery's current snapshot id. */
+    public void recordMediaChange(@NonNull Long adId, @NonNull Long actorId) {
+        AdvertisementInfoDto ad = advertisementPortFactory.get().findById(adId)
+                .orElseThrow(() -> new NoSuchElementException("Advertisement " + adId + " not found"));
+        AdvertisementSnapshotDto snapshot = buildCurrentSnapshot(ad);
+        auditPortFactory.ifAvailable(p -> p.captureUpdate(adId, snapshot, actorId));
     }
 
     public boolean isAvailable() {

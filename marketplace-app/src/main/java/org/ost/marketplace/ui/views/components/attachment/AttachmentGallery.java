@@ -23,6 +23,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.orchestrator.services.AttachmentMediaService;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
+import org.ost.platform.attachment.model.AttachmentLimits;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
@@ -39,7 +40,7 @@ import java.util.UUID;
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class AttachmentGallery extends Div {
 
-    private static final int MAX_GALLERY_ITEMS = AttachmentUploadButton.MAX_FILES;
+    private static final int MAX_GALLERY_ITEMS = AttachmentLimits.MAX_FILES;
 
     private final transient AttachmentMediaService                    attachmentMediaService;
     private final transient I18nService                               i18n;
@@ -250,8 +251,8 @@ public class AttachmentGallery extends Div {
 
     private UploadHandler buildUploadHandler() {
         return new UploadHandler() {
-            @Override public long getFileSizeMax()  { return AttachmentUploadButton.MAX_FILE_SIZE; }
-            @Override public long getFileCountMax() { return AttachmentUploadButton.MAX_FILES; }
+            @Override public long getFileSizeMax()  { return AttachmentLimits.MAX_FILE_SIZE; }
+            @Override public long getFileCountMax() { return AttachmentLimits.MAX_FILES; }
 
             @Override
             public void handleUploadRequest(UploadEvent event) {
