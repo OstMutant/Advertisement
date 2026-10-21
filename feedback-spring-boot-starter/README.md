@@ -29,6 +29,12 @@ persistence through `FeedbackRepository`:
 - `save` looks up any existing entry for `(authorId, entityType, entityId)` first (create vs.
   edit-within-window), sanitizes the text, then writes `feedback` and recomputes
   `feedback_aggregate` in one `@Transactional` method.
+- A feedback has at most one reply (`saveComment`/`deleteComment`); `MAX_FEEDBACK_PER_DAY` (10)
+  and `MAX_COMMENTS_PER_DAY` (30) cap daily submissions per author.
+- Moderation: `flagFeedback`/`flagComment` hide an entry pending review; `approve*` makes a hidden
+  one visible again, `confirm*Violation` keeps it hidden permanently, `reject*` removes it; the
+  hidden and confirmed-violation lists and the filtered, sorted and paged
+  `findModerationQueue`/`countModerationQueue` feed the moderator queue.
 - `findForEntity`/`count` read paginated entries for one owning entity, ordered by `created_at
   DESC`.
 - `getAggregate` reads the denormalized `feedback_aggregate` row, or a zero-value default when no

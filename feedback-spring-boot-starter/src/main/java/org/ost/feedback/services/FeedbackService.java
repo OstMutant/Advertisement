@@ -46,7 +46,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
-/** CRUD for feedback entries and their single reply, sanitization/edit-window enforcement, and aggregate reads/writes. */
+/** Feedback entries and their single reply: sanitization, edit window, per-day rate limits, aggregate upkeep, and flag/approve/confirm/reject moderation with its queue. */
 @Slf4j
 @Service
 @RequiredArgsConstructor

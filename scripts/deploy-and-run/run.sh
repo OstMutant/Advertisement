@@ -275,8 +275,8 @@ if ! $FROM_SCRATCH; then
   BUILD_CONTAINER_NAME="advertisement-build-only-deploy" bash "$ROOT/scripts/build-and-test.sh" "${BUILD_AND_TEST_FLAGS[@]}"
 fi
 
-# ── Step 2: Build (--from-scratch only -- the default path runs java directly against the
-# mounted maven-cache volume in Step 3 below, no image build at all) ──────────────────────────
+# ── Step 2: Build (--from-scratch only -- the default path copies the shared jar into its own
+# volume and runs java from there in Step 3 below, no image build at all) ─────────────────────
 if $FROM_SCRATCH; then
   echo ""
   echo "=== Step 2: Build image ==="

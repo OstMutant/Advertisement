@@ -6,6 +6,7 @@ import org.ost.orchestrator.services.CurrentLocaleService;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 
+/** Translates a key through {@code MessageSource} in the language {@code CurrentLocaleService} resolves for the caller, UI or REST. */
 @Service
 @RequiredArgsConstructor
 public class I18nServiceImpl implements I18nService {

@@ -23,6 +23,7 @@ import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBindin
 
 import java.util.List;
 
+/** Paged audit timeline feed with a query bar; renders nothing for a caller who cannot view it (fail closed) or when the audit starter is absent. */
 @Slf4j
 @SpringComponent
 @UIScope

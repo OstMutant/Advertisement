@@ -13,8 +13,8 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
   language switch — the same `marketplace-orchestrator`
   services `marketplace-app`'s own Vaadin forms call, so a REST write and a UI write go through
   identical validation/authorization/audit behavior.
-- Bearer API-key authentication (issuance gated by HTTP Basic) for every write; reads are public,
-  mirroring the existing public Vaadin browsing experience. The caller's own key list hides revoked
+- Bearer API-key authentication (issuance gated by HTTP Basic) for every write; reads are public
+  (mirroring the existing public Vaadin browsing experience) except the history, which needs a key. The caller's own key list hides revoked
   keys unless `includeRevoked=true` is passed, which returns them with a non-null `revokedAt`.
 - Optimistic concurrency over HTTP's own mechanism: every `GET .../{id}` returns an `ETag` response
   header carrying the resource's version; every write reads the expected version back from an
@@ -52,9 +52,10 @@ a client address and email after 5 failed logins in 15 minutes. Every other `/ap
 through the second chain: `ApiKeyAuthenticationFilter` resolves an `Authorization: Bearer <key>`
 header into a `PreAuthenticatedAuthenticationToken` before Spring's own authorization check runs,
 a Basic header is ignored, and a request without a valid key is answered 401 with a Bearer
-challenge. From there, each of the five per-resource controllers
-(`AdvertisementApiController`, `ProviderProfileApiController`, `TaxonApiController`,
-`UserApiController`, `ApiKeyController`) calls straight into the same `marketplace-orchestrator`
+challenge. From there, each per-resource controller
+(`AdvertisementApiController`, `AdvertisementMediaApiController`, `ProviderProfileApiController`,
+`TaxonApiController`, `UserApiController`, `ApiKeyController`, `ContactApiController`,
+`FeedbackApiController`, `ModerationApiController`) calls straight into the same `marketplace-orchestrator`
 service its Vaadin-side counterpart already uses — no intermediate service layer of its own.
 `AuditApiController` serves the global timeline, and the `/history` methods of the four resource
 controllers read through `ActivityHistorySupport` (`api.audit`) instead of mapping audit data

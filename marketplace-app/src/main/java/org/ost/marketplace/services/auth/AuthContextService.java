@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
+/** Resolves the acting user from {@code SecurityContextHolder} for both a Vaadin session principal and a REST bearer-token principal. */
 @Slf4j
 @Service
 @RequiredArgsConstructor

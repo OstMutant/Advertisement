@@ -43,7 +43,7 @@ import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 /**
- * Category/city catalog management — reads are public, writes require the caller to be
+ * Category/city catalog management — reads are public except the history, writes require the caller to be
  * privileged (admin/moderator), enforced inside {@link TaxonCatalogService} itself.
  */
 @RestController

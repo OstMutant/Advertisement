@@ -27,7 +27,7 @@ Every operation is known to be covered (a build fails otherwise), the edge cases
 4. **Fix the faults found:** the session-bound hooks (see "Current state") are fixed first, under improvement-213, before this task starts.
 5. **Missing `If-Match` must be a 400, never reach the save:** `PUT /api/users/{id}` declares `If-Match` as optional while its description calls it required; a request without it returns `500` (the null version makes Spring Data attempt an `INSERT`, which the database rejects on the `email` NOT NULL constraint, seen live). The same `parseIfMatch` call sits in the advertisement, provider profile and taxon `PUT`/`DELETE` and the settings `PATCH`. Use `requireIfMatch` wherever the description demands the version, and add a Level 3 case per operation (missing header, stale header). Also decide how a non-privileged user obtains their own version: `GET /api/users/{id}` is administrator and moderator only, yet the description lets a user change their own name.
 6. **Moderation transitions must be atomic:** `FeedbackAccessService` checks the entry's status before its transaction, and the feedback starter's `UPDATE feedback_content SET moderation_status = :status WHERE id = :contentId` has no status guard or row-count check, so two moderators deciding on the same entry both pass the check, the last write wins and the history holds two contradictory entries (an approval racing a rejection also records an audit entry for a change that touched no row). The feedback starter's own `approve*` and `confirm*Violation` methods read the entry and then write unconditionally too, so the guard belongs in `FeedbackRepository`, not only in the orchestrator. Move the allowed source statuses into the `UPDATE` (a single transition method on the port) and turn zero updated rows into `FeedbackNotModeratableException` inside the transaction that records the audit entry; cover it with a test that decides twice on the same stale status.
-7. **Run `/review` and `/sync-docs` over phase 10 of [improvement-213](../completed/tasks/improvement-213-rest-api-revision-parity-with-ui.md)** (language resolution, the moderation and timeline guards, the Sonar fixes, the application's own jar copy, the Telegram stub in the end-to-end spec) first thing in this task: they were not run before that phase was saved into history.
+7. **Done 2026-10-21 (`/review` found nothing; `/sync-docs` fixed 15 files).** **Run `/review` and `/sync-docs` over phase 10 of [improvement-213](../completed/tasks/improvement-213-rest-api-revision-parity-with-ui.md)** (language resolution, the moderation and timeline guards, the Sonar fixes, the application's own jar copy, the Telegram stub in the end-to-end spec) first thing in this task: they were not run before that phase was saved into history.
 
 ## Related
 
@@ -36,17 +36,29 @@ Every operation is known to be covered (a build fails otherwise), the edge cases
 - `playwright/e2e/09-rest-api-swagger.spec.js` — the existing REST Playwright file
 
 ## Operational notes
-- token_cost_review: n/a
-- token_cost_research: n/a
+- token_cost_review: 57448
+- token_cost_research: 140433
 - token_cost_verification: n/a
-- review_signal_ratio: n/a
+- review_signal_ratio: 0 / 0
 - context_loading_task_type: n/a
-- context_loading_consulted: n/a
+- context_loading_consulted: yes
 - context_loading_matched: n/a
-- flows_situation: n/a
-- flows_chosen: n/a
-- flows_matched: n/a
-- haiku_decomposition_used: n/a
+- flows_situation: review and doc-sync of one already-saved commit (item 7)
+- flows_chosen: /review then /sync-docs
+- flows_matched: yes
+- haiku_decomposition_used: no
 - haiku_decomposition_dispatch_count: n/a
 - haiku_decomposition_rework_needed: n/a
 - adrs_referenced: none
+
+### Agent calls
+- code review of commit 85215c28 | subagent_type=deep-review-orchestrator | tokens=57448 | tool_uses=8 | duration_s=92 | mode=background | batch=solo
+- docs drift check of 85215c28^..HEAD (Javadoc, READMEs, run.sh header) | subagent_type=general-purpose (model haiku) | tokens=140433 | tool_uses=31 | duration_s=243 | mode=background | batch=solo
+
+### Script/command runs
+- docs/architecture/scripts/generate-architecture-model.sh | duration_s=n/a | mode=foreground | result=pass
+
+### Review angle yield
+- dry-kiss-yagni | survived=0 | total_candidates=0 | tokens=66464
+- solid | survived=0 | total_candidates=0 | tokens=67776
+- precedent | survived=0 | total_candidates=0 | tokens=n/a

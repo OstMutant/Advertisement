@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 
+/** Resolves category/city ids and {@code AdKind} into display labels and merges attachment media changes into advertisement audit timeline and activity entries. */
 @Service
 @RequiredArgsConstructor
 public class AdvertisementAuditEnrichService {
