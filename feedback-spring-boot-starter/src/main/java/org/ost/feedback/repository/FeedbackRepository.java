@@ -324,18 +324,20 @@ public class FeedbackRepository {
                 .update();
     }
 
-    /** Sets {@code moderation_status} on the shared content row -- same column backs both feedback entries and comments. */
-    public void updateModerationStatus(@NonNull Long contentId, @NonNull FeedbackModerationStatus status) {
-        jdbcClient.sql("UPDATE feedback_content SET moderation_status = :status WHERE id = :contentId")
+    /** Moves the shared content row from one of the {@code from} statuses to {@code to}; the guard is in the WHERE, zero means the entry was not in an allowed source status. */
+    public int transitionModerationStatus(@NonNull Long contentId, @NonNull Set<FeedbackModerationStatus> from, @NonNull FeedbackModerationStatus to) {
+        String[] fromNames = from.stream().map(Enum::name).toArray(String[]::new);
+        return jdbcClient.sql("UPDATE feedback_content SET moderation_status = :to WHERE id = :contentId AND moderation_status = ANY(:from)")
                 .paramSource(new MapSqlParameterSource()
                         .addValue("contentId", contentId)
-                        .addValue("status", status.name()))
+                        .addValue("to", to.name())
+                        .addValue("from", fromNames))
                 .update();
     }
 
-    /** Hides the shared content row and records why -- the report popup's reason text. */
-    public void flagContent(@NonNull Long contentId, @NonNull String reason) {
-        jdbcClient.sql("UPDATE feedback_content SET moderation_status = 'HIDDEN', moderation_reason = :reason WHERE id = :contentId")
+    /** Hides a content row still in NEW and records why -- zero rows means the entry was already moderated. */
+    public int flagContent(@NonNull Long contentId, @NonNull String reason) {
+        return jdbcClient.sql("UPDATE feedback_content SET moderation_status = 'HIDDEN', moderation_reason = :reason WHERE id = :contentId AND moderation_status = 'NEW'")
                 .paramSource(new MapSqlParameterSource()
                         .addValue("contentId", contentId)
                         .addValue("reason", reason))

@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.ApiKeyManagementService;
@@ -45,7 +47,7 @@ public class ApiKeyController {
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "basicAuth")
     public ApiKeyCreatedResponse create(@AuthenticationPrincipal @NonNull AuthenticatedPrincipal principal,
-            @RequestBody(required = false) ApiKeyCreateRequest request) {
+            @Valid @RequestBody(required = false) ApiKeyCreateRequest request) {
         String label = request != null ? request.label() : null;
         String rawKey = apiKeyManagementService.create(principal.toUserDto().id(), label);
         return new ApiKeyCreatedResponse(rawKey);
@@ -70,7 +72,7 @@ public class ApiKeyController {
     }
 
     /** Request body for issuing a new API key. */
-    public record ApiKeyCreateRequest(String label) {
+    public record ApiKeyCreateRequest(@Size(max = 100) String label) {
     }
 
     /** The raw API key, returned only once at issuance time — never retrievable again afterward. */

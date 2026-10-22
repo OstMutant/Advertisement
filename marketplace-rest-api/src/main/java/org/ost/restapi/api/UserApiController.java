@@ -107,12 +107,14 @@ public class UserApiController {
         return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
     }
 
-    @Operation(operationId = "getUser", summary = "Get one user by id", description = "Admin/moderator only. The ETag response header carries the version to send back via If-Match on PUT.")
+    @Operation(operationId = "getUser", summary = "Get one user by id", description = "Administrators and moderators, or the user themselves. The ETag response header carries the version to send back via If-Match on PUT.")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on PUT"))
     @GetMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public ResponseEntity<UserDto> getById(@AuthenticationPrincipal Long actorId, @PathVariable Long id) {
-        authorizationService.requireIsPrivileged(actorId);
+        if (!id.equals(actorId)) {
+            authorizationService.requireIsPrivileged(actorId);
+        }
         UserDto user = userProfileService.findById(id).orElseThrow(NoSuchElementException::new);
         return ETagUtil.withVersion(ResponseEntity.ok(), user.version()).body(user);
     }
@@ -143,8 +145,8 @@ public class UserApiController {
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public ResponseEntity<UserDto> update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestBody @Valid UserUpdateRequest request,
-            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
-        userProfileService.save(new UserProfileDto(id, request.name(), request.role(), ETagUtil.parseIfMatch(ifMatch)), actorId);
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        userProfileService.save(new UserProfileDto(id, request.name(), request.role(), ETagUtil.requireIfMatch(ifMatch)), actorId);
         UserDto updated = userProfileService.findById(id).orElseThrow(NoSuchElementException::new);
         return ETagUtil.withVersion(ResponseEntity.ok(), updated.version()).body(updated);
     }

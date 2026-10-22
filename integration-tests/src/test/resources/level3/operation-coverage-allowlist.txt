@@ -1,0 +1,2 @@
+# One entry per line: METHOD /path # reason. An entry fails the build once its operation is covered or removed.
+# Entries are gaps to close, never permanent exceptions.

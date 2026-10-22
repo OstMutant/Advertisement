@@ -59,6 +59,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * Level 2: {@link FeedbackAccessService}'s own public API -- the merged moderation queue
@@ -393,6 +395,19 @@ class FeedbackAccessServiceTest extends AbstractPostgresIntegrationTest {
         assertThatThrownBy(() -> feedbackAccessService.approveFeedback(feedback.id(), actorId))
                 .isInstanceOf(FeedbackNotModeratableException.class);
         assertThat(feedbackAccessService.findFeedbackById(feedback.id()).orElseThrow().moderationStatus()).isEqualTo(FeedbackModerationStatus.NEW);
+    }
+
+    @Test
+    void approveFeedback_newEntry_recordsNoAuditCapture() {
+        Long authorId = newUser("Author13");
+        Long profileId = newProviderProfile(newUser("Owner13"));
+        Long actorId = newModerator("Moderator13");
+        FeedbackDto feedback = feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, profileId, authorId, 1, "Bad", null));
+
+        assertThatThrownBy(() -> feedbackAccessService.approveFeedback(feedback.id(), actorId))
+                .isInstanceOf(FeedbackNotModeratableException.class);
+
+        verify(auditPort, never()).captureUpdate(any(), any(), any());
     }
 
     @Test

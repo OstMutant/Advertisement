@@ -23,7 +23,7 @@ import org.springframework.data.domain.AuditorAware;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-/** Shared Level 3 wiring: marketplace-app-only forwarder Hook stubs (REST never calls these paths), the audit snapshot subtype registration, plus a request-scoped {@link AuditorAware} reading the resolved bearer-key principal. */
+/** Shared Level 3 wiring: stand-ins for the marketplace-app forwarder hooks (the real ones are covered by marketplace-app unit tests and the end-to-end suite), the audit snapshot subtype registration, plus a request-scoped {@link AuditorAware} reading the resolved bearer-key principal. */
 @TestConfiguration
 public class RestApiTestSupport {
 

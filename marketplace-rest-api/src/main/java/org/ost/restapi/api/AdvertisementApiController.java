@@ -152,9 +152,9 @@ public class AdvertisementApiController {
     @SecurityRequirement(name = "bearerKey")
     public AdvertisementInfoDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
             @RequestBody @Valid AdvertisementWriteRequest request,
-            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(id, request.title(), request.description(),
-                request.adKind(), request.categoryIds(), request.cityTaxonId(), ETagUtil.parseIfMatch(ifMatch));
+                request.adKind(), request.categoryIds(), request.cityTaxonId(), ETagUtil.requireIfMatch(ifMatch));
         Long savedId = saveService.save(dto, actorId, ref -> null);
         return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
     }
@@ -175,8 +175,8 @@ public class AdvertisementApiController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
     public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
-            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
-        saveService.delete(id, actorId, ETagUtil.parseIfMatch(ifMatch));
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        saveService.delete(id, actorId, ETagUtil.requireIfMatch(ifMatch));
     }
 
     /** Caller-writable fields for both create and update -- id/version are server-managed (path variable / If-Match header), never client-supplied here. */

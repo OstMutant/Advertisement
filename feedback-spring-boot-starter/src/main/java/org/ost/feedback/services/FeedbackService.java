@@ -15,6 +15,7 @@ import org.ost.platform.core.EditWindowClosedException;
 import org.ost.platform.core.FailureRateLimiter;
 import org.ost.platform.core.SelfActionNotAllowedException;
 import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
+import org.ost.platform.feedback.model.FeedbackNotModeratableException;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.feedback.dto.FeedbackAggregateDto;
 import org.ost.platform.feedback.dto.FeedbackCommentDto;
@@ -39,6 +40,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -206,10 +208,9 @@ public class FeedbackService {
         if (existing.authorId().equals(actorId)) {
             throw new SelfActionNotAllowedException("Cannot flag your own feedback entry");
         }
-        if (existing.moderationStatus() != FeedbackModerationStatus.NEW) {
+        if (repository.flagContent(existing.contentId(), reason) == 0) {
             throw new FeedbackNotFlaggableException(FEEDBACK_PREFIX + feedbackId + " is already hidden or reviewed");
         }
-        repository.flagContent(existing.contentId(), reason);
         repository.upsertAggregate(existing.entityType(), existing.entityId());
     }
 
@@ -220,17 +221,20 @@ public class FeedbackService {
         if (existing.authorId().equals(actorId)) {
             throw new SelfActionNotAllowedException("Cannot flag your own comment");
         }
-        if (existing.moderationStatus() != FeedbackModerationStatus.NEW) {
+        if (repository.flagContent(existing.contentId(), reason) == 0) {
             throw new FeedbackNotFlaggableException("Comment " + commentId + " is already hidden or reviewed");
         }
-        repository.flagContent(existing.contentId(), reason);
     }
 
     @Transactional
     public void approveFeedback(@NonNull Long feedbackId) {
         FeedbackView existing = repository.findViewById(feedbackId)
                 .orElseThrow(() -> new NoSuchElementException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
-        repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.NEW);
+        if (repository.transitionModerationStatus(existing.contentId(),
+                EnumSet.of(FeedbackModerationStatus.HIDDEN, FeedbackModerationStatus.CONFIRMED_HIDDEN),
+                FeedbackModerationStatus.NEW) == 0) {
+            throw new FeedbackNotModeratableException(FEEDBACK_PREFIX + feedbackId + " is not awaiting a moderation decision");
+        }
         repository.upsertAggregate(existing.entityType(), existing.entityId());
     }
 
@@ -238,21 +242,33 @@ public class FeedbackService {
     public void approveComment(@NonNull Long commentId) {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
                 .orElseThrow(() -> new NoSuchElementException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
-        repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.NEW);
+        if (repository.transitionModerationStatus(existing.contentId(),
+                EnumSet.of(FeedbackModerationStatus.HIDDEN, FeedbackModerationStatus.CONFIRMED_HIDDEN),
+                FeedbackModerationStatus.NEW) == 0) {
+            throw new FeedbackNotModeratableException("Comment " + commentId + " is not awaiting a moderation decision");
+        }
     }
 
     @Transactional
     public void confirmFeedbackViolation(@NonNull Long feedbackId) {
         FeedbackView existing = repository.findViewById(feedbackId)
                 .orElseThrow(() -> new NoSuchElementException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
-        repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.CONFIRMED_HIDDEN);
+        if (repository.transitionModerationStatus(existing.contentId(),
+                EnumSet.of(FeedbackModerationStatus.HIDDEN),
+                FeedbackModerationStatus.CONFIRMED_HIDDEN) == 0) {
+            throw new FeedbackNotModeratableException(FEEDBACK_PREFIX + feedbackId + " is not awaiting a moderation decision");
+        }
     }
 
     @Transactional
     public void confirmCommentViolation(@NonNull Long commentId) {
         FeedbackCommentView existing = repository.findCommentViewById(commentId)
                 .orElseThrow(() -> new NoSuchElementException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX));
-        repository.updateModerationStatus(existing.contentId(), FeedbackModerationStatus.CONFIRMED_HIDDEN);
+        if (repository.transitionModerationStatus(existing.contentId(),
+                EnumSet.of(FeedbackModerationStatus.HIDDEN),
+                FeedbackModerationStatus.CONFIRMED_HIDDEN) == 0) {
+            throw new FeedbackNotModeratableException("Comment " + commentId + " is not awaiting a moderation decision");
+        }
     }
 
     @Transactional

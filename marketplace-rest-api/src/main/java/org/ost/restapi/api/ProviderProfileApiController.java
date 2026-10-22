@@ -155,9 +155,9 @@ public class ProviderProfileApiController {
     @SecurityRequirement(name = "bearerKey")
     public ProviderProfileDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
             @RequestBody @Valid ProviderProfileWriteRequest request,
-            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
         ProviderProfileSaveDto dto = new ProviderProfileSaveDto(id, request.kind(), request.about(), request.categoryIds(), request.cityTaxonId(),
-                request.phone(), request.telegram(), request.viber(), ETagUtil.parseIfMatch(ifMatch));
+                request.phone(), request.telegram(), request.viber(), ETagUtil.requireIfMatch(ifMatch));
         Long savedId = saveService.save(dto, actorId, actorId);
         return enrich(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
     }
@@ -183,8 +183,8 @@ public class ProviderProfileApiController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
     public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
-            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
-        saveService.delete(id, actorId, ETagUtil.parseIfMatch(ifMatch));
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        saveService.delete(id, actorId, ETagUtil.requireIfMatch(ifMatch));
     }
 
     /** Caller-writable fields for both create and update -- id/version are server-managed (path variable / If-Match header), never client-supplied here. */

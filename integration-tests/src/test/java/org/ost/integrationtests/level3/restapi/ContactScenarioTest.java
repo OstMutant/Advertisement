@@ -111,6 +111,51 @@ class ContactScenarioTest extends AbstractRestApiScenarioTest {
                 .andExpect(jsonPath("$.value").value(PHONE));
     }
 
+    @Test
+    void advertisement_contactListsOwnersProfileChannels() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        createProviderProfile(owner);
+        long adId = createAdvertisement(owner);
+
+        mockMvc.perform(get("/api/advertisements/" + adId + "/contact"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.channels[0]").value("PHONE"))
+                .andExpect(jsonPath("$.channels[1]").value("TELEGRAM"));
+    }
+
+    @Test
+    void advertisement_contactWithValidKey_listsSameChannels() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        createProviderProfile(owner);
+        long adId = createAdvertisement(owner);
+
+        mockMvc.perform(get("/api/advertisements/" + adId + "/contact")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.rawApiKey()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.channels[0]").value("PHONE"))
+                .andExpect(jsonPath("$.channels[1]").value("TELEGRAM"));
+    }
+
+    @Test
+    void advertisement_contactWithoutOwnersProfile_hasNoChannels() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        long adId = createAdvertisement(owner);
+
+        mockMvc.perform(get("/api/advertisements/" + adId + "/contact"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.channels").isEmpty());
+    }
+
+    @Test
+    void advertisement_contactForUnknownId_hasNoChannels() throws Exception {
+        mockMvc.perform(get("/api/advertisements/999999/contact"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.channels").isEmpty());
+    }
+
     /** Creates a MASTER provider profile with a phone and a Telegram handle as the given owner and returns its id. */
     private long createProviderProfile(RegisteredUser owner) throws Exception {
         String profileBody = """

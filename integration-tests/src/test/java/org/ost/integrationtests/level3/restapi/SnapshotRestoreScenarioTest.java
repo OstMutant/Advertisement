@@ -140,6 +140,103 @@ class SnapshotRestoreScenarioTest extends AbstractRestApiScenarioTest {
                 .andExpect(jsonPath("$.name").value("Target"));
     }
 
+    @Test
+    void getUserHistorySnapshot_adminReadsOldestSnapshot() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser target = registerUserAndIssueApiKey("Target");
+        String userUrl = "/api/users/" + target.id();
+        renameUser(admin, userUrl, "Renamed");
+
+        long oldest = snapshotIdOf(historyEntries(admin, userUrl + "/history").getLast());
+        mockMvc.perform(get(userUrl + "/history/" + oldest).header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").exists())
+                .andExpect(jsonPath("$.snapshot.name").value("Target"));
+    }
+
+    @Test
+    void getUserHistorySnapshot_moderatorReadsOldestSnapshot() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser target = registerUserAndIssueApiKey("Target");
+        RegisteredUser moderator = registerUserAndIssueApiKey("Moderator");
+        String userUrl = "/api/users/" + target.id();
+        promoteToModerator(admin, moderator, "Moderator");
+        renameUser(admin, userUrl, "Renamed");
+
+        long oldest = snapshotIdOf(historyEntries(admin, userUrl + "/history").getLast());
+        mockMvc.perform(get(userUrl + "/history/" + oldest).header(HttpHeaders.AUTHORIZATION, "Bearer " + moderator.rawApiKey()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getUserHistorySnapshot_targetHimself_isForbidden() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser target = registerUserAndIssueApiKey("Target");
+        String userUrl = "/api/users/" + target.id();
+        renameUser(admin, userUrl, "Renamed");
+
+        long adminRenameSnapshotId = snapshotIdOf(historyEntries(admin, userUrl + "/history").getFirst());
+        mockMvc.perform(get(userUrl + "/history/" + adminRenameSnapshotId).header(HttpHeaders.AUTHORIZATION, "Bearer " + target.rawApiKey()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getUserHistorySnapshot_otherPlainUser_isForbidden() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser target = registerUserAndIssueApiKey("Target");
+        RegisteredUser other = registerUserAndIssueApiKey("Other");
+        String userUrl = "/api/users/" + target.id();
+        renameUser(admin, userUrl, "Renamed");
+
+        long oldest = snapshotIdOf(historyEntries(admin, userUrl + "/history").getLast());
+        mockMvc.perform(get(userUrl + "/history/" + oldest).header(HttpHeaders.AUTHORIZATION, "Bearer " + other.rawApiKey()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getUserHistorySnapshot_anonymous_isUnauthorized() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser target = registerUserAndIssueApiKey("Target");
+        String userUrl = "/api/users/" + target.id();
+        renameUser(admin, userUrl, "Renamed");
+
+        long oldest = snapshotIdOf(historyEntries(admin, userUrl + "/history").getLast());
+        mockMvc.perform(get(userUrl + "/history/" + oldest))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void getUserHistorySnapshot_unknownSnapshot_isNotFound() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser target = registerUserAndIssueApiKey("Target");
+        String userUrl = "/api/users/" + target.id();
+        renameUser(admin, userUrl, "Renamed");
+
+        mockMvc.perform(get(userUrl + "/history/999999").header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey()))
+                .andExpect(status().isNotFound());
+    }
+
+    /** Renames the target user as the administrator, so the target has a previous name to read from history. */
+    private void renameUser(RegisteredUser admin, String userUrl, String name) throws Exception {
+        mockMvc.perform(put(userUrl)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey())
+                        .header(HttpHeaders.IF_MATCH, etagOf(admin, userUrl))
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"name":"%s","role":"USER"}""".formatted(name)))
+                .andExpect(status().isOk());
+    }
+
+    /** Promotes the given user to MODERATOR as the administrator, keeping the name the user registered with. */
+    private void promoteToModerator(RegisteredUser admin, RegisteredUser user, String name) throws Exception {
+        String userUrl = "/api/users/" + user.id();
+        mockMvc.perform(put(userUrl)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey())
+                        .header(HttpHeaders.IF_MATCH, etagOf(admin, userUrl))
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"name":"%s","role":"MODERATOR"}""".formatted(name)))
+                .andExpect(status().isOk());
+    }
+
     /** Creates one advertisement with the given title as the owner and returns its id. */
     private long createAdvertisement(RegisteredUser owner, String title) throws Exception {
         String createBody = """

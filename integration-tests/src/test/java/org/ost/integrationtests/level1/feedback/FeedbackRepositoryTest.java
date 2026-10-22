@@ -257,6 +257,45 @@ class FeedbackRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void transitionModerationStatus_matchingSourceStatus_updatesRowAndReturnsOne() {
+        Feedback feedback = createFeedback(1L, EntityType.PROVIDER_PROFILE, newEntityId(), 1, "Hidden one.");
+        feedbackRepository.flagContent(feedback.getContentId(), "Spam.");
+
+        int updated = feedbackRepository.transitionModerationStatus(feedback.getContentId(),
+                Set.of(FeedbackModerationStatus.HIDDEN), FeedbackModerationStatus.NEW);
+
+        assertThat(updated).isEqualTo(1);
+        assertThat(feedbackRepository.findViewById(feedback.getId())).hasValueSatisfying(
+                view -> assertThat(view.moderationStatus()).isEqualTo(FeedbackModerationStatus.NEW));
+    }
+
+    @Test
+    void transitionModerationStatus_sourceStatusNotInSet_returnsZeroAndLeavesRowUnchanged() {
+        Feedback feedback = createFeedback(1L, EntityType.PROVIDER_PROFILE, newEntityId(), 1, "Still new.");
+
+        int updated = feedbackRepository.transitionModerationStatus(feedback.getContentId(),
+                Set.of(FeedbackModerationStatus.HIDDEN), FeedbackModerationStatus.CONFIRMED_HIDDEN);
+
+        assertThat(updated).isZero();
+        assertThat(feedbackRepository.findViewById(feedback.getId())).hasValueSatisfying(
+                view -> assertThat(view.moderationStatus()).isEqualTo(FeedbackModerationStatus.NEW));
+    }
+
+    @Test
+    void flagContent_alreadyHidden_returnsZeroAndKeepsFirstReason() {
+        Feedback feedback = createFeedback(1L, EntityType.PROVIDER_PROFILE, newEntityId(), 1, "Bad.");
+        feedbackRepository.flagContent(feedback.getContentId(), "first");
+
+        int updated = feedbackRepository.flagContent(feedback.getContentId(), "second");
+
+        assertThat(updated).isZero();
+        assertThat(feedbackRepository.findViewById(feedback.getId())).hasValueSatisfying(view -> {
+            assertThat(view.moderationStatus()).isEqualTo(FeedbackModerationStatus.HIDDEN);
+            assertThat(view.moderationReason()).isEqualTo("first");
+        });
+    }
+
+    @Test
     void findCommentViewById_pastEditWindow_contentStillReadable_callerEnforcesWindow() {
         Long entityId = newEntityId();
         Feedback feedback = createFeedback(1L, EntityType.PROVIDER_PROFILE, entityId, 5, "Root feedback.");
@@ -313,7 +352,7 @@ class FeedbackRepositoryTest extends AbstractPostgresIntegrationTest {
         feedbackRepository.flagContent(hidden.getContentId(), "Spam.");
         Feedback confirmed = createFeedback(2L, EntityType.PROVIDER_PROFILE, newEntityId(), 1, "Confirmed one.");
         feedbackRepository.flagContent(confirmed.getContentId(), "Spam.");
-        feedbackRepository.updateModerationStatus(confirmed.getContentId(), FeedbackModerationStatus.CONFIRMED_HIDDEN);
+        feedbackRepository.transitionModerationStatus(confirmed.getContentId(), Set.of(FeedbackModerationStatus.HIDDEN), FeedbackModerationStatus.CONFIRMED_HIDDEN);
 
         List<FeedbackRepository.ModerationQueueRow> rows = feedbackRepository.findModerationQueuePage(
                 ModerationQueueFilterDto.empty(), Sort.by(Sort.Order.desc(ModerationQueueItemDto.Fields.createdAt)), PageRequest.of(0, 20), null);

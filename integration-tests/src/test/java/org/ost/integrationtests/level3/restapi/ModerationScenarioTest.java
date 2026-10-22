@@ -15,6 +15,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -151,6 +152,135 @@ class ModerationScenarioTest extends AbstractRestApiScenarioTest {
         mockMvc.perform(get(QUEUE_PATH))
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, startsWith("Bearer")));
+    }
+
+    @Test
+    void confirmFeedbackReplyViolation_hidesReply_andCannotBeConfirmedTwice() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        RegisteredUser reviewer = registerUserAndIssueApiKey("Reviewer");
+        RegisteredUser stranger = registerUserAndIssueApiKey("Stranger");
+        PostedReply reply = flaggedReply(owner, reviewer, stranger);
+        long replyId = replyIdOf(reply);
+        String confirmPath = "/api/moderation/replies/" + replyId + "/confirm-violation";
+
+        decide(confirmPath, admin).andExpect(status().isNoContent());
+
+        mockMvc.perform(get(feedbackPath(reply.profileId())))
+                .andExpect(jsonPath("$[0].reply.hidden").value(true));
+        mockMvc.perform(get(QUEUE_PATH).header(HttpHeaders.AUTHORIZATION, bearer(admin)))
+                .andExpect(header().string("X-Total-Count", "0"));
+
+        decide(confirmPath, admin).andExpect(status().isConflict());
+
+        decide("/api/moderation/replies/" + replyId + "/approve", admin).andExpect(status().isNoContent());
+
+        mockMvc.perform(get(feedbackPath(reply.profileId())))
+                .andExpect(jsonPath("$[0].reply.hidden").value(false))
+                .andExpect(jsonPath("$[0].reply.text").value("Thank you"));
+    }
+
+    @Test
+    void moderator_confirmsFeedbackReplyViolation() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser moderator = registerUserAndIssueApiKey("Moderator");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        RegisteredUser reviewer = registerUserAndIssueApiKey("Reviewer");
+        RegisteredUser stranger = registerUserAndIssueApiKey("Stranger");
+        promoteToModerator(admin, moderator, "Moderator");
+        PostedReply reply = flaggedReply(owner, reviewer, stranger);
+
+        decide("/api/moderation/replies/" + replyIdOf(reply) + "/confirm-violation", moderator)
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void plainUser_confirmingFeedbackReplyViolation_isForbidden() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        RegisteredUser reviewer = registerUserAndIssueApiKey("Reviewer");
+        RegisteredUser stranger = registerUserAndIssueApiKey("Stranger");
+        PostedReply reply = flaggedReply(owner, reviewer, stranger);
+
+        decide("/api/moderation/replies/" + replyIdOf(reply) + "/confirm-violation", stranger)
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void anonymous_confirmingFeedbackReplyViolation_isUnauthorized() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        RegisteredUser reviewer = registerUserAndIssueApiKey("Reviewer");
+        RegisteredUser stranger = registerUserAndIssueApiKey("Stranger");
+        PostedReply reply = flaggedReply(owner, reviewer, stranger);
+
+        mockMvc.perform(post("/api/moderation/replies/" + replyIdOf(reply) + "/confirm-violation"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unknownReply_confirmViolation_isNotFound() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+
+        decide("/api/moderation/replies/999999/confirm-violation", admin).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void unflaggedReply_confirmViolation_isConflict() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        RegisteredUser reviewer = registerUserAndIssueApiKey("Reviewer");
+        PostedReply reply = postReply(owner, reviewer);
+
+        decide("/api/moderation/replies/" + replyIdOf(reply) + "/confirm-violation", admin)
+                .andExpect(status().isConflict());
+    }
+
+    /** Posts an owner reply on a review by the given reviewer and returns where it lives. */
+    private PostedReply postReply(RegisteredUser owner, RegisteredUser reviewer) throws Exception {
+        long profileId = createProviderProfile(owner);
+        long feedbackId = JsonScenarioUtils.extractId(createReview(reviewer, profileId, 5, TEXT_GREAT));
+        mockMvc.perform(post("/api/feedback/" + feedbackId + "/reply")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"text":"Thank you"}"""))
+                .andExpect(status().isCreated());
+        return new PostedReply(profileId, feedbackId);
+    }
+
+    /** Posts an owner reply on a review and flags that reply as the given stranger. */
+    private PostedReply flaggedReply(RegisteredUser owner, RegisteredUser reviewer, RegisteredUser stranger) throws Exception {
+        PostedReply reply = postReply(owner, reviewer);
+        flag("/api/feedback/" + reply.feedbackId() + "/reply/flags", stranger);
+        return reply;
+    }
+
+    /** Reads the id of the reply as the public feedback list shows it. */
+    private long replyIdOf(PostedReply reply) throws Exception {
+        return replyId(mockMvc.perform(get(feedbackPath(reply.profileId())))
+                .andReturn().getResponse().getContentAsString());
+    }
+
+    /** Promotes the given user to MODERATOR as the administrator, keeping the name the user registered with. */
+    private void promoteToModerator(RegisteredUser admin, RegisteredUser user, String name) throws Exception {
+        String userUrl = "/api/users/" + user.id();
+        mockMvc.perform(put(userUrl)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(admin))
+                        .header(HttpHeaders.IF_MATCH, etagOf(admin, userUrl))
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"name":"%s","role":"MODERATOR"}""".formatted(name)))
+                .andExpect(status().isOk());
+    }
+
+    /** Reads the resource's current ETag as the viewer, so an update can send it back in If-Match. */
+    private String etagOf(RegisteredUser viewer, String url) throws Exception {
+        return mockMvc.perform(get(url).header(HttpHeaders.AUTHORIZATION, bearer(viewer)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getHeader(HttpHeaders.ETAG);
+    }
+
+    /** Coordinates of a reply posted on a review of a provider profile; the reply id is read back from the public list. */
+    private record PostedReply(long profileId, long feedbackId) {
     }
 
     /** Creates a MASTER provider profile as the given owner and returns its id. */

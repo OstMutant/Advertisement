@@ -3,6 +3,7 @@ package org.ost.restapi.api;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.AuditQueryService;
@@ -44,7 +45,7 @@ public class AuditApiController {
     @GetMapping("/timeline")
     @SecurityRequirement(name = "bearerKey")
     public ResponseEntity<List<TimelineEntryResponse>> timeline(@AuthenticationPrincipal @NonNull Long actorId,
-            @ModelAttribute @Valid AuditTimelineFilterDto filter, @RequestParam(defaultValue = "0") int page,
+            @ModelAttribute @Valid AuditTimelineFilterDto filter, @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(required = false) String sort, UriComponentsBuilder uriBuilder) {
         int size = userProfileService.resolveTimelinePageSize(actorId);
         Sort parsed = SortQueryParser.parse(sort, SORTABLE_FIELDS);

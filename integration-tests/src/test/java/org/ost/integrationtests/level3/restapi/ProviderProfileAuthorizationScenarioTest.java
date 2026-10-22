@@ -115,6 +115,92 @@ class ProviderProfileAuthorizationScenarioTest extends AbstractRestApiScenarioTe
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void owner_readsProfileHistorySnapshot() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String profileUrl = "/api/provider-profiles/" + createProviderProfile(owner);
+
+        mockMvc.perform(get(profileUrl + "/history/" + oldestSnapshotId(owner, profileUrl))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").exists())
+                .andExpect(jsonPath("$.snapshot").exists());
+    }
+
+    @Test
+    void administrator_readsProfileHistorySnapshot() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String profileUrl = "/api/provider-profiles/" + createProviderProfile(owner);
+
+        mockMvc.perform(get(profileUrl + "/history/" + oldestSnapshotId(owner, profileUrl))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(admin)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void moderator_readsProfileHistorySnapshot() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser moderator = registerUserAndIssueApiKey("Moderator");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        promoteToModerator(admin, moderator, "Moderator");
+        String profileUrl = "/api/provider-profiles/" + createProviderProfile(owner);
+
+        mockMvc.perform(get(profileUrl + "/history/" + oldestSnapshotId(owner, profileUrl))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(moderator)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void stranger_readingProfileHistorySnapshot_isForbidden() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        RegisteredUser stranger = registerUserAndIssueApiKey("Stranger");
+        String profileUrl = "/api/provider-profiles/" + createProviderProfile(owner);
+
+        mockMvc.perform(get(profileUrl + "/history/" + oldestSnapshotId(owner, profileUrl))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(stranger)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void anonymous_readingProfileHistorySnapshot_isUnauthorized() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String profileUrl = "/api/provider-profiles/" + createProviderProfile(owner);
+
+        mockMvc.perform(get(profileUrl + "/history/" + oldestSnapshotId(owner, profileUrl)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unknownProfileSnapshot_isNotFound() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String profileUrl = "/api/provider-profiles/" + createProviderProfile(owner);
+
+        mockMvc.perform(get(profileUrl + "/history/999999")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(admin)))
+                .andExpect(status().isNotFound());
+    }
+
+    /** Promotes the given user to MODERATOR as the administrator, keeping the name the user registered with. */
+    private void promoteToModerator(RegisteredUser admin, RegisteredUser user, String name) throws Exception {
+        String userUrl = "/api/users/" + user.id();
+        mockMvc.perform(put(userUrl)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(admin))
+                        .header(HttpHeaders.IF_MATCH, etagOf(admin, userUrl))
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"name":"%s","role":"MODERATOR"}""".formatted(name)))
+                .andExpect(status().isOk());
+    }
+
+    /** Returns the id of the oldest history entry of the profile, as the owner sees it. */
+    private long oldestSnapshotId(RegisteredUser owner, String profileUrl) throws Exception {
+        return snapshotIdOf(historyEntries(owner, profileUrl + "/history").getLast());
+    }
+
     /** Creates a MASTER provider profile as the given owner and returns its id. */
     private long createProviderProfile(RegisteredUser owner) throws Exception {
         String profileResponse = mockMvc.perform(post("/api/provider-profiles")

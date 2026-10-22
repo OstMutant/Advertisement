@@ -16,7 +16,6 @@ import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
 import org.ost.platform.feedback.dto.ModerationQueueItemDto;
 import org.ost.platform.feedback.model.ModerationQueueItemType;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
-import org.ost.platform.feedback.model.FeedbackNotModeratableException;
 import org.ost.platform.feedback.spi.FeedbackPort;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -151,7 +150,6 @@ public class FeedbackAccessService {
 
     public void approveFeedback(@NonNull Long feedbackId, @NonNull Long actorId) {
         authorizationService.requireIsPrivileged(actorId);
-        requireAwaitingDecision(feedbackStatus(feedbackId), FEEDBACK_PREFIX + feedbackId, true);
         tx.executeWithoutResult(status -> {
             feedbackPortFactory.get().approveFeedback(feedbackId);
             auditPortFactory.ifAvailable(p -> p.captureUpdate(feedbackId, new FeedbackSnapshotDto(FeedbackModerationStatus.NEW, null), actorId));
@@ -160,7 +158,6 @@ public class FeedbackAccessService {
 
     public void approveComment(@NonNull Long commentId, @NonNull Long actorId) {
         authorizationService.requireIsPrivileged(actorId);
-        requireAwaitingDecision(commentStatus(commentId), "Comment " + commentId, true);
         tx.executeWithoutResult(status -> {
             feedbackPortFactory.get().approveComment(commentId);
             auditPortFactory.ifAvailable(p -> p.captureUpdate(commentId, new FeedbackCommentSnapshotDto(FeedbackModerationStatus.NEW, null), actorId));
@@ -169,7 +166,6 @@ public class FeedbackAccessService {
 
     public void confirmFeedbackViolation(@NonNull Long feedbackId, @NonNull Long actorId) {
         authorizationService.requireIsPrivileged(actorId);
-        requireAwaitingDecision(feedbackStatus(feedbackId), FEEDBACK_PREFIX + feedbackId, false);
         tx.executeWithoutResult(status -> {
             feedbackPortFactory.get().confirmFeedbackViolation(feedbackId);
             auditPortFactory.ifAvailable(p -> p.captureUpdate(feedbackId, new FeedbackSnapshotDto(FeedbackModerationStatus.CONFIRMED_HIDDEN, null), actorId));
@@ -178,7 +174,6 @@ public class FeedbackAccessService {
 
     public void confirmCommentViolation(@NonNull Long commentId, @NonNull Long actorId) {
         authorizationService.requireIsPrivileged(actorId);
-        requireAwaitingDecision(commentStatus(commentId), "Comment " + commentId, false);
         tx.executeWithoutResult(status -> {
             feedbackPortFactory.get().confirmCommentViolation(commentId);
             auditPortFactory.ifAvailable(p -> p.captureUpdate(commentId, new FeedbackCommentSnapshotDto(FeedbackModerationStatus.CONFIRMED_HIDDEN, null), actorId));
@@ -205,26 +200,5 @@ public class FeedbackAccessService {
             feedbackPortFactory.get().rejectComment(commentId);
             auditPortFactory.ifAvailable(p -> p.captureDeletion(commentId, snapshot, actorId));
         });
-    }
-
-    private FeedbackModerationStatus feedbackStatus(Long feedbackId) {
-        return feedbackPortFactory.get().findFeedbackById(feedbackId)
-                .orElseThrow(() -> new NoSuchElementException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX))
-                .moderationStatus();
-    }
-
-    private FeedbackModerationStatus commentStatus(Long commentId) {
-        return feedbackPortFactory.get().findCommentById(commentId)
-                .orElseThrow(() -> new NoSuchElementException(FEEDBACK_COMMENT_PREFIX + commentId + NOT_FOUND_SUFFIX))
-                .moderationStatus();
-    }
-
-    /** A moderator decides only on an entry that was flagged (HIDDEN); an approval may also lift a confirmed violation. */
-    private static void requireAwaitingDecision(FeedbackModerationStatus status, String what, boolean allowConfirmed) {
-        boolean awaiting = status == FeedbackModerationStatus.HIDDEN
-                || (allowConfirmed && status == FeedbackModerationStatus.CONFIRMED_HIDDEN);
-        if (!awaiting) {
-            throw new FeedbackNotModeratableException(what + " is not awaiting a moderation decision");
-        }
     }
 }

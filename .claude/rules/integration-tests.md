@@ -25,6 +25,7 @@ Java package root: `org.ost.integrationtests`
   requests through the full stack (REST → orchestrator → starters → Postgres) end to end — no
   mocks anywhere in the chain. `RestApiTestAutoConfig` (`support/`) supplies the web/security/JSON
   autoconfiguration layer on top of `RepositoryTestAutoConfig`'s DB list.
+- **Operation coverage (Level 3)** — `OperationCoverageTest` (runs last through `junit-platform.properties`' `ClassOrderer$OrderAnnotation`) fails the build when an HTTP-mapped operation of `org.ost.restapi` was never reached by a `@Level3ScenarioTest`, and logs the statuses seen per operation. `AbstractRestApiScenarioTest` records every request that reached a handler (method, path pattern, status) in `ExercisedOperations` (`support/`). A deliberate gap goes into `level3/operation-coverage-allowlist.txt` as `METHOD /path # reason`; an entry for an operation that is now covered or gone also fails the build. The test is skipped unless every Level 3 class ran, so a single-class `-Dtest` run stays green. The `*MatrixScenarioTest` classes cover, per operation, the roles, validation, `If-Match` (missing 400, stale 412), unknown id, conflict and rate-limit cases; every write with optimistic locking requires `If-Match`, and a missing header is a 400.
 
 Levels 2 and 3 depend on `marketplace-orchestrator`/`marketplace-rest-api` as real compile-scope
 dependencies (`integration-tests/pom.xml`) — this is the one place in the repo those two modules'

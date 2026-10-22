@@ -7,6 +7,10 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.SnapshotRestoreService;
@@ -69,7 +73,7 @@ public class TaxonApiController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
-    public TaxonDto create(@AuthenticationPrincipal Long actorId, @RequestBody TaxonCreateRequest request) {
+    public TaxonDto create(@AuthenticationPrincipal Long actorId, @Valid @RequestBody TaxonCreateRequest request) {
         Long id = taxonCatalogService.create(request.type(), toTranslations(request.translations()), actorId);
         return taxonCatalogService.findById(id, SupportedLocales.DEFAULT).orElseThrow();
     }
@@ -125,9 +129,9 @@ public class TaxonApiController {
             }""")))
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
-    public TaxonDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestBody TaxonUpdateRequest request,
-            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
-        taxonCatalogService.update(id, toTranslations(request.translations()), actorId, ETagUtil.parseIfMatch(ifMatch));
+    public TaxonDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @Valid @RequestBody TaxonUpdateRequest request,
+            @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        taxonCatalogService.update(id, toTranslations(request.translations()), actorId, ETagUtil.requireIfMatch(ifMatch));
         return taxonCatalogService.findById(id, SupportedLocales.DEFAULT).orElseThrow();
     }
 
@@ -135,8 +139,8 @@ public class TaxonApiController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
-    public void softDelete(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
-        taxonCatalogService.softDelete(id, actorId, ETagUtil.parseIfMatch(ifMatch));
+    public void softDelete(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        taxonCatalogService.softDelete(id, actorId, ETagUtil.requireIfMatch(ifMatch));
     }
 
     @Operation(operationId = "restoreTaxon", summary = "Restore a soft-deleted category or city",
@@ -165,21 +169,24 @@ public class TaxonApiController {
     private static Map<Locale, TaxonTranslationDto> toTranslations(List<TaxonTranslationRequest> translations) {
         return translations.stream().collect(Collectors.toMap(
                 t -> Locale.forLanguageTag(t.locale()),
-                t -> TaxonTranslationDto.builder().locale(t.locale()).name(t.name()).description(t.description()).build()));
+                t -> TaxonTranslationDto.builder().locale(t.locale()).name(t.name()).description(t.description()).build(),
+                (first, second) -> {
+                    throw new IllegalArgumentException("Duplicate translation locale: " + first.getLocale());
+                }));
     }
 
     /**
      * Request body for creating a taxon — a thin wrapper since {@code Map<Locale,...>} can't bind
      * from JSON directly.
      */
-    public record TaxonCreateRequest(TaxonType type, List<TaxonTranslationRequest> translations) {
+    public record TaxonCreateRequest(@NotNull TaxonType type, @NotEmpty List<@Valid TaxonTranslationRequest> translations) {
     }
 
     /** Request body for updating a taxon's translations -- version comes from the If-Match header, not this body. */
-    public record TaxonUpdateRequest(List<TaxonTranslationRequest> translations) {
+    public record TaxonUpdateRequest(@NotEmpty List<@Valid TaxonTranslationRequest> translations) {
     }
 
     /** One locale's translation for a taxon create/update request. */
-    public record TaxonTranslationRequest(String locale, String name, String description) {
+    public record TaxonTranslationRequest(@NotBlank String locale, @NotBlank String name, @NotBlank String description) {
     }
 }

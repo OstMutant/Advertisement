@@ -20,6 +20,7 @@ import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
+import org.ost.platform.feedback.model.FeedbackNotModeratableException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
@@ -31,15 +32,19 @@ import org.springframework.test.context.TestPropertySource;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -577,6 +582,82 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
         assertThatThrownBy(() -> feedbackService.saveComment(
                 new FeedbackCommentSaveDto(null, feedback.id(), newAuthorId(), tooLong, null)))
                 .isInstanceOf(ConstraintViolationException.class);
+    }
+
+    @Test
+    void approveAfterConfirm_onStaleDecision_throwsNotModeratable() {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
+        feedbackService.flagFeedback(feedback.id(), newAuthorId(), "Spam.");
+        feedbackService.approveFeedback(feedback.id());
+
+        assertThatThrownBy(() -> feedbackService.confirmFeedbackViolation(feedback.id()))
+                .isInstanceOf(FeedbackNotModeratableException.class);
+    }
+
+    @Test
+    void approveAndConfirmRace_onSameHiddenEntry_exactlyOneSucceeds() throws Exception {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
+        feedbackService.flagFeedback(feedback.id(), newAuthorId(), "Spam.");
+
+        List<Throwable> outcomes = runConcurrently(
+                () -> feedbackService.approveFeedback(feedback.id()),
+                () -> feedbackService.confirmFeedbackViolation(feedback.id()));
+
+        assertThat(outcomes).filteredOn(Objects::isNull).hasSize(1);
+        assertThat(outcomes.stream().filter(Objects::nonNull).findFirst().orElseThrow())
+                .isInstanceOf(FeedbackNotModeratableException.class);
+        FeedbackModerationStatus expected = outcomes.get(0) == null
+                ? FeedbackModerationStatus.NEW
+                : FeedbackModerationStatus.CONFIRMED_HIDDEN;
+        assertThat(feedbackService.findFeedbackById(feedback.id()))
+                .hasValueSatisfying(reloaded -> assertThat(reloaded.moderationStatus()).isEqualTo(expected));
+    }
+
+    @Test
+    void flagRace_onSameNewEntry_exactlyOneSucceeds() throws Exception {
+        Long entityId = newEntityId();
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
+        Long firstReporterId = newAuthorId();
+        Long secondReporterId = newAuthorId();
+
+        List<Throwable> outcomes = runConcurrently(
+                () -> feedbackService.flagFeedback(feedback.id(), firstReporterId, "First report."),
+                () -> feedbackService.flagFeedback(feedback.id(), secondReporterId, "Second report."));
+
+        assertThat(outcomes).filteredOn(Objects::isNull).hasSize(1);
+        assertThat(outcomes.stream().filter(Objects::nonNull).findFirst().orElseThrow())
+                .isInstanceOf(FeedbackNotFlaggableException.class);
+    }
+
+    /** Starts both calls from one shared signal; returns each call's thrown exception in argument order, or null on success. */
+    private static List<Throwable> runConcurrently(Runnable first, Runnable second) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch go = new CountDownLatch(1);
+        List<Future<Void>> futures = Stream.of(first, second)
+                .map(call -> executor.<Void>submit(() -> {
+                    ready.countDown();
+                    go.await();
+                    call.run();
+                    return null;
+                }))
+                .toList();
+        ready.await();
+        go.countDown();
+
+        List<Throwable> outcomes = new ArrayList<>();
+        for (Future<Void> future : futures) {
+            try {
+                future.get(10, TimeUnit.SECONDS);
+                outcomes.add(null);
+            } catch (ExecutionException e) {
+                outcomes.add(e.getCause());
+            }
+        }
+        executor.shutdown();
+        return outcomes;
     }
 
     @Test
