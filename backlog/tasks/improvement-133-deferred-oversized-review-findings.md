@@ -243,7 +243,7 @@ pointers, not broken functionality. `backlog/tasks/`/`backlog/completed/tasks/`/
 (append-only history / point-in-time records, not current-state documentation). Not fixed inline
 during improvement-168 since it wasn't part of that issue's approved plan (root `CLAUDE.md`'s
 own pointers + the generator script only). Mechanical fix once picked up: grep+replace
-`<module>/CLAUDE.md` → `.claude/rules/<module>.md` across the ~8 listed files.
+`<module>/CLAUDE.md` → `.claude/rules/<module>.md` across the ~8 listed files. Two more stale links, found 2026-10-22 and not listed above, sit in `.claude/rules/platform-commons.md` (`marketplace-orchestrator/CLAUDE.md`) and `.claude/rules/user-spring-boot-starter.md` (`marketplace-app/CLAUDE.md`).
 
 ### 14. `ADR-010`/`ADR-011` near-verbatim duplicate across `audit-spring-boot-starter/DECISIONS.md` and `platform-commons/DECISIONS.md` (found during improvement-168 follow-up, 2026-08-25)
 
@@ -518,3 +518,17 @@ handler, not introduced by this session's fix. Not fixed inline: deduping requir
 stateful check inside `BeforeUnloadUtil` itself (shared static utility, no instance state today)
 or at each of the 5+ call sites — a design decision on where the dedup state lives, not a
 mechanical one-file fix.
+
+### 31. Level 3 matrix scenarios copy the same helpers into every class (found during improvement-219, 2026-10-22)
+
+The `*MatrixScenarioTest` classes in `integration-tests/.../level3/restapi` each carry private copies
+of `moderatorOf`, `etagOf`, `bearer`, `historyEntries` and `oldestSnapshotId` (about a dozen copies
+in total). They belong in `AbstractRestApiScenarioTest` or a small `support/` helper once a decision
+is made on how that should look. Entries 6 and 7 are the same kind of duplication at Level 1.
+
+### 32. No REST test for the 48-hour edit-window 409 of feedback edits (found during improvement-219, 2026-10-22)
+
+`updateFeedback`, `updateFeedbackReply` and `deleteFeedbackReply` answer 409 once
+`FeedbackEditPolicy.MAX_EDIT_AGE` (48 hours) has passed. A REST scenario cannot move the clock. Options:
+a `Clock` bean in the feedback starter so a Level 3 test can age a record, or a Level 1 service test
+with a record whose `created_at` is older than the window. It needs a design decision before sizing.
