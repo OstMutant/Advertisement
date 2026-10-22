@@ -66,7 +66,7 @@ Finish: coverage test green, notes in this task, a row in the integration-tests 
 ## Related
 
 - [improvement-213](improvement-213-rest-api-revision-parity-with-ui.md) — the REST work being verified
-- [improvement-211](../../tasks/improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) and [improvement-212](../../tasks/improvement-212-api-flow-runner-page.md) — Postman collection and flow runner, which share the request set
+- [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) and [improvement-212](../../tasks/improvement-212-api-flow-runner-page.md) — Postman collection and flow runner, which share the request set
 - `playwright/e2e/09-rest-api-swagger.spec.js` — the existing REST Playwright file
 
 ## Operational notes

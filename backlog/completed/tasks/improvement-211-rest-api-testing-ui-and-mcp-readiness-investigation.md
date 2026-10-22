@@ -3,7 +3,7 @@
 **Type:** improvement — investigation (hands-on trials, then a recommendation)
 **Module:** `marketplace-rest-api` (`pom.xml`, `config/OpenApiConfig.java`, the five `api/*Controller.java` classes)
 **Priority:** high — Top, first in the list; informs the MCP work planned after the REST API stabilises
-**When:** independent; the trials run on the current API, ahead of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) item 4, [improvement-210](../completed/tasks/improvement-210-rest-api-feedback-and-comments.md) and [improvement-196](improvement-196-rest-api-rate-limiting.md)
+**When:** independent; the trials run on the current API, ahead of [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) item 4, [improvement-210](./improvement-210-rest-api-feedback-and-comments.md) and [improvement-196](../../tasks/improvement-196-rest-api-rate-limiting.md)
 
 ## Current state
 
@@ -87,15 +87,33 @@ Trials, each judged on a real run against the local app, then one recommendation
 5. **Out of scope:** hypermedia/HAL links (deferred, see improvement-186 item 3) and building a
    custom in-app playground.
 
-Deliverable: a short result section in this file stating what was kept, what was dropped and why,
-followed by follow-up tasks for anything worth building.
+**Plan for item 3 (2026-10-22, awaiting approval):**
+- Step 1, research (web search, no code): Spring AI MCP server starters (artifacts, versions, Spring Boot 4.1 compatibility), Spring AI MCP Security (maintainer, WebMVC only, Boot 4.1), MCP Java SDK, MCP Inspector (installed version, `--help` flags), existing OpenAPI-to-MCP generators. Output: facts with sources, written under "Result".
+- Step 2, trial: a throwaway MCP server with two tools (`listAdvertisements`, `getAdvertisement`) calling the running REST API with a bearer token, driven from MCP Inspector over Streamable HTTP; checks paging headers reaching the tool result, bearer passthrough, and tool names from `operationId`. Trial code is not committed.
+- Step 3, record in "Result": sibling module vs generated-from-spec, operation filter list, securing, paging approach, rate-limit note.
+
+**Item 3, step 1 findings (research, 2026-10-22; blogs and official docs, not yet verified by a build):**
+- Spring AI 2.0.x (reference docs show 2.0.1 stable) with `spring-ai-starter-mcp-server-webmvc` is the servlet starter; tutorials report it running on Spring Boot 4.0.x and 4.1. No official compatibility matrix was found.
+- `org.springaicommunity:mcp-server-security` 0.1.14 is a community project, "not officially endorsed" by Spring AI or the MCP project and marked work in progress. 0.1.x requires the Spring AI 2.0.x branch (0.0.6 for 1.1.x). Server: Streamable HTTP and stateless supported, SSE not; OAuth2 only with JWT (no opaque tokens); API key supported in a basic form; OAuth2 and API key require WebMVC. Spring Boot 4 / Spring Security 7 compatibility is not stated.
+- MCP Inspector v2: sources disagree on flags (`--cli`, `--transport http`, `--server-url`, `--catalog`); needs Node 22.19+; check `--help` of the installed version.
+- Generators from an OpenAPI spec exist outside Spring (a Java CLI with operationId/tag/path/method include filters; TypeScript, Python and Go tools); none reads springdoc output specifically.
+
+**Item 3, step 2 outcome (2026-10-22):** a throwaway project (outside the repository) with Spring Boot 4.1.0, Spring AI BOM 2.0.1 and `spring-ai-starter-mcp-server-webmvc`, two `@Tool` methods (`listAdvertisements`, `getAdvertisement`) calling the REST API, resolved, compiled and packaged into a jar. Not run: starting the server and driving it from MCP Inspector were stopped because the repository's hook forbids raw `docker run` and no project script runs a standalone service. Therefore verified: the stack compiles together. Not verified: Streamable HTTP endpoint behaviour, bearer passthrough from the MCP request to the REST call, `X-Total-Count`/`Link` reaching the tool result, tool names from `operationId`, Inspector flags. Item 3's remaining questions moved to [improvement-221](../../tasks/improvement-221-mcp-server-trial-run.md), which also carries the research findings above.
+
+## Result (2026-10-22)
+
+- Kept: Swagger UI for single requests; Postman for whole flows (collection in `docs/api-collections/postman/`, eight chained requests, each named by its `operationId` and checked against the live operations by `PostmanCollectionTest`); explicit `operationId`s for all 68 operations.
+- Dropped: Bruno, Hoppscotch, Yaade, Node-RED/n8n/Kestra, IntelliJ `.http` (reasons in item 1); Scalar parked.
+- Not verified: the manual Postman checks (clean import, Flows on the free plan, a green chain against the local app), postponed by decision.
+- MCP: the stack Spring Boot 4.1.0 + Spring AI 2.0.1 compiles and packages; starting the server and the remaining questions moved to [improvement-221](../../tasks/improvement-221-mcp-server-trial-run.md) together with the research findings.
+- Follow-ups: [improvement-212](../../tasks/improvement-212-api-flow-runner-page.md) (flow runner page, already filed), improvement-221.
 
 ## Related
 
-- [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — REST hypermedia, media, PATCH, Basic-auth brute-force gap
-- [improvement-210](../completed/tasks/improvement-210-rest-api-feedback-and-comments.md) — feedback/comments endpoints the spec and collection will need to cover
-- [improvement-196](improvement-196-rest-api-rate-limiting.md) — rate limiting, more pressing once an AI agent calls the API
-- [improvement-073](../completed/tasks/improvement-073-rest-endpoint-infrastructure-test-seeding.md) — Phase 7 proposed the Postman collection
+- [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — REST hypermedia, media, PATCH, Basic-auth brute-force gap
+- [improvement-210](./improvement-210-rest-api-feedback-and-comments.md) — feedback/comments endpoints the spec and collection will need to cover
+- [improvement-196](../../tasks/improvement-196-rest-api-rate-limiting.md) — rate limiting, more pressing once an AI agent calls the API
+- [improvement-073](./improvement-073-rest-endpoint-infrastructure-test-seeding.md) — Phase 7 proposed the Postman collection
 
 ## Operational notes
 - token_cost_review: n/a

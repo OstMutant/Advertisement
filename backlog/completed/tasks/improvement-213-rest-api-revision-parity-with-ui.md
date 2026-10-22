@@ -366,7 +366,7 @@ Result of the full CI run of 2026-10-21 (after phase 10, all stages in one run, 
 - [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — media, PATCH, Basic-auth gap
 - [improvement-210](improvement-210-rest-api-feedback-and-comments.md) — feedback and comments
 - [improvement-212](../../tasks/improvement-212-api-flow-runner-page.md) — needs administrator and moderator accounts for role-based flows
-- [improvement-211](../../tasks/improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling and MCP readiness
+- [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling and MCP readiness
 
 ## Operational notes
 - token_cost_review: 114715

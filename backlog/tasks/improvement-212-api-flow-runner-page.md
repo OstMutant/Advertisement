@@ -2,7 +2,7 @@
 
 **Type:** improvement — new developer tool (dev-only page)
 **Module:** `docs/api-collections/` (new tool folder), `marketplace-rest-api` (dev-profile static-resource wiring, `config/`), `marketplace-app` (`application-dev.yml`)
-**Priority:** medium-high — Top, second after [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md)
+**Priority:** medium-high — Top, second after [improvement-211](../completed/tasks/improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md)
 **When:** independent; benefits from 211's explicit `operationId`s and from the request set already in `docs/api-collections/postman/`
 
 ## Current state
@@ -105,7 +105,7 @@ One page, served by the running app, that draws a flow as a diagram, lets a deve
 
 - Design reference: [`docs/api-collections/flow-runner/mockup/flow-runner-mockup.html`](../../docs/api-collections/flow-runner/mockup/flow-runner-mockup.html) — interactive mockup of the two levels (flow map, step detail), the "run as" role, required/optional/unavailable marks and the run data document; example data only, no requests are sent.
 
-- [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling investigation and the Postman collection this builds on
+- [improvement-211](../completed/tasks/improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling investigation and the Postman collection this builds on
 - [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — file-upload endpoints the runner will need to exercise later
 - [improvement-210](../completed/tasks/improvement-210-rest-api-feedback-and-comments.md) — feedback/comment endpoints for further flows
 
