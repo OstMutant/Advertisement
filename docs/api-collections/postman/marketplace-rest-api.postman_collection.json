@@ -5,7 +5,7 @@
   },
   "item": [
     {
-      "name": "01 Register user",
+      "name": "registerUser",
       "event": [
         {
           "listen": "test",
@@ -53,7 +53,7 @@
       }
     },
     {
-      "name": "02 Issue API key",
+      "name": "issueApiKey",
       "event": [
         {
           "listen": "test",
@@ -113,7 +113,7 @@
       }
     },
     {
-      "name": "03 Create advertisement",
+      "name": "createAdvertisement",
       "event": [
         {
           "listen": "test",
@@ -166,7 +166,7 @@
       }
     },
     {
-      "name": "04 List advertisements",
+      "name": "listAdvertisements",
       "event": [
         {
           "listen": "test",
@@ -197,7 +197,7 @@
       }
     },
     {
-      "name": "05 Get advertisement",
+      "name": "getAdvertisement",
       "event": [
         {
           "listen": "test",
@@ -229,7 +229,7 @@
       }
     },
     {
-      "name": "06 List taxons",
+      "name": "listTaxons",
       "event": [
         {
           "listen": "test",
@@ -260,7 +260,7 @@
       }
     },
     {
-      "name": "07 Get my settings",
+      "name": "getMySettings",
       "event": [
         {
           "listen": "test",
@@ -300,7 +300,7 @@
       }
     },
     {
-      "name": "08 List my API keys",
+      "name": "listApiKeys",
       "event": [
         {
           "listen": "test",

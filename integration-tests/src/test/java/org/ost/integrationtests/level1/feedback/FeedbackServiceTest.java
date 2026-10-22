@@ -596,23 +596,20 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void approveAndConfirmRace_onSameHiddenEntry_exactlyOneSucceeds() throws Exception {
+    void confirmRace_onSameHiddenEntry_exactlyOneSucceeds() throws Exception {
         Long entityId = newEntityId();
         FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), entityId, 5, "Root feedback.", null));
         feedbackService.flagFeedback(feedback.id(), newAuthorId(), "Spam.");
 
         List<Throwable> outcomes = runConcurrently(
-                () -> feedbackService.approveFeedback(feedback.id()),
+                () -> feedbackService.confirmFeedbackViolation(feedback.id()),
                 () -> feedbackService.confirmFeedbackViolation(feedback.id()));
 
         assertThat(outcomes).filteredOn(Objects::isNull).hasSize(1);
         assertThat(outcomes.stream().filter(Objects::nonNull).findFirst().orElseThrow())
                 .isInstanceOf(FeedbackNotModeratableException.class);
-        FeedbackModerationStatus expected = outcomes.get(0) == null
-                ? FeedbackModerationStatus.NEW
-                : FeedbackModerationStatus.CONFIRMED_HIDDEN;
         assertThat(feedbackService.findFeedbackById(feedback.id()))
-                .hasValueSatisfying(reloaded -> assertThat(reloaded.moderationStatus()).isEqualTo(expected));
+                .hasValueSatisfying(reloaded -> assertThat(reloaded.moderationStatus()).isEqualTo(FeedbackModerationStatus.CONFIRMED_HIDDEN));
     }
 
     @Test

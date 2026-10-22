@@ -114,7 +114,8 @@ public class AdvertisementApiController {
         return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
     }
 
-    @Operation(operationId = "getAdvertisement", summary = "Get one advertisement by id")
+    @Operation(operationId = "getAdvertisement", summary = "Get one advertisement by id",
+            description = "Public. Returns one advertisement with its ETag, the version to send back via If-Match on update or delete. 404 when the id is unknown.")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
     public ResponseEntity<AdvertisementInfoDto> getById(@PathVariable Long id, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale) {

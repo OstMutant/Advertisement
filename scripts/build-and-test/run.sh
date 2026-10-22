@@ -64,8 +64,9 @@
 #   local dev machine's Docker Desktop/WSL2 setup is); pass --sandbox explicitly to force them on
 #   there too, if a given CI runner ever needs it.
 # Input: root build files (pom.xml, mvnw, .mvn, lombok.config, .env), scripts/build-and-test/build.sh
-#   itself (the container's own entry point), and each Maven module's own directory, per pom.xml's
-#   <module> list -- not the whole repo (see the tar step's own comment below);
+#   itself (the container's own entry point), each Maven module's own directory, per pom.xml's
+#   <module> list, and docs/api-collections (a Level 3 test reads the Postman collection) -- not
+#   the whole repo (see the tar step's own comment below);
 #   scripts/build-and-test/build-and-test.properties (unit=/integration= defaults, read on the host
 #   side by this script, not tarred in).
 # Outputs: fresh jars for the whole reactor in the shared maven-cache Docker volume (never the
@@ -207,9 +208,9 @@ SANDBOX_ENV=()
 
 # ── Pipe sources + build (+ optional unit/integration tests) ─────────────────
 # Tars only what this run actually needs inside the container: build.sh itself (the entry point
-# the container executes below, via bash -c), the root build files, and each module's own
-# directory -- never the whole repo (docs/, backlog/, playwright/, .claude/, etc. are never
-# touched by build.sh). .env is included even though `mvn install` itself never reads it --
+# the container executes below, via bash -c), the root build files, each module's own directory,
+# and docs/api-collections (a Level 3 test reads the Postman collection) -- never the whole repo.
+# .env is included even though `mvn install` itself never reads it --
 # integration-tests' own SharedEnvConfig reads it at test-runtime (POSTGRES_IMAGE for
 # Testcontainers), walking up from the JVM's working directory; missing it doesn't fail the build,
 # it fails every single integration test at startup with a hard-to-read NoClassDefFoundError/
@@ -246,7 +247,7 @@ docker run --rm -v test-reports:/reports "$BUILD_IMAGE" bash -c "rm -rf /reports
 docker rm -f "$BUILD_CONTAINER_NAME" 2>/dev/null || true
 set +e
 tar -czf - --exclude='*/target' --exclude='marketplace-app/src/main/frontend/generated' \
-  -C "$ROOT" pom.xml mvnw .mvn lombok.config .env scripts/build-and-test/build.sh $MODULES \
+  -C "$ROOT" pom.xml mvnw .mvn lombok.config .env scripts/build-and-test/build.sh docs/api-collections $MODULES \
   | docker run -i \
       --name "$BUILD_CONTAINER_NAME" \
       -v maven-cache:/root/.m2 \

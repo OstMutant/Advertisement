@@ -82,7 +82,7 @@ public class FeedbackApiController {
     }
 
     @Operation(operationId = "getProviderProfileFeedbackAggregate", summary = "Get a provider profile's rating summary",
-            description = "Public. The average rating and the number of reviews.")
+            description = "Public. The average rating and the number of reviews. Only visible reviews (not hidden by moderation) are counted; a profile without reviews returns 0 and 0.")
     @GetMapping("/provider-profiles/{id}/feedback/aggregate")
     public AggregateResponse providerProfileFeedbackAggregate(@PathVariable @NonNull Long id) {
         FeedbackAggregateDto aggregate = feedbackAccessService.getAggregate(EntityType.PROVIDER_PROFILE, id);

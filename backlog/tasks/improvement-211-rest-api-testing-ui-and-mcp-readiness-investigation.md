@@ -31,6 +31,8 @@ operation names and descriptions are fit to become MCP tools — before MCP work
 
 Trials, each judged on a real run against the local app, then one recommendation:
 
+**Postponed by decision (2026-10-22):** the manual Postman checks of item 1 (clean import, Flows on the free plan, the chain green against the local app) wait until someone is at the Postman app; they do not block closing this task, and item 1's "still to confirm" sentence stays as the record of what was not verified.
+
 1. **Tool for whole flows — Postman (decided 2026-10-17).** A collection of eight chained requests
    (register a test user, issue an API key, create an advertisement, then read advertisements,
    taxons, settings and API keys) is in `docs/api-collections/postman/`; requests are sent from

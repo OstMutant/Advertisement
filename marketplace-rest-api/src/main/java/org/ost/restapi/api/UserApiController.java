@@ -171,7 +171,7 @@ public class UserApiController {
         userDeleteService.delete(id, actorId);
     }
 
-    @Operation(operationId = "changeMyLocale", summary = "Change the caller's own language", description = "Supported locales: en, uk.")
+    @Operation(operationId = "changeMyLocale", summary = "Change the caller's own language", description = "Supported locales: en, uk. Changes the language of the caller's own account, takes {\"locale\":\"en\"|\"uk\"}, answers 204, and returns 400 for any other value.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "locale": "uk"

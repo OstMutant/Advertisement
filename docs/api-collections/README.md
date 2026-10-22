@@ -13,3 +13,5 @@ Run: Send on a single request, or right-click the collection → Run collection 
 Flow canvas: Flows → add HTTP Request blocks → assign the saved requests in order → connect them. A Flow cannot be exported or imported as a file, so it is built inside Postman and not stored here.
 
 The collection describes the API as it is today; after an API change, re-import the OpenAPI document at `/v3/api-docs` rather than editing requests blindly.
+
+Request names in the Postman collection are the `operationId` of the operation they call. `PostmanCollectionTest` in `integration-tests` fails the build when a request names an unknown operation, or when its method or path no longer matches that operation.
