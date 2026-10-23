@@ -1167,6 +1167,640 @@
           }
         }
       ]
+    },
+    {
+      "name": "Profile",
+      "description": "Creates its own category and city, then creates, lists, reads, updates, reverts through the history and deletes a provider profile of the flow user, confirms it is gone and deletes the category and city.",
+      "item": [
+        {
+          "name": "createTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile category created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"profileCategoryId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"profileCategoryVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CATEGORY\",\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow profile category {{runId}}\",\n      \"description\": \"Flow profile category {{runId}}\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow profile category uk {{runId}}\",\n      \"description\": \"Flow profile category uk {{runId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.category\nlabel: Create category\nkind: optional\n\nCreates the flow profile category with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "createTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile city created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"profileCityId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"profileCityVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CITY\",\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow profile city {{runId}}\",\n      \"description\": \"Flow profile city {{runId}}\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow profile city uk {{runId}}\",\n      \"description\": \"Flow profile city uk {{runId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.city\nlabel: Create city\nkind: optional\n\nCreates the flow profile city with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "createProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"profileId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"profileVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"{{profileKind}}\",\n  \"about\": \"Flow profile {{runId}}\",\n  \"phone\": \"{{profilePhone}}\",\n  \"categoryIds\": [\n    {{profileCategoryId}}\n  ],\n  \"cityTaxonId\": {{profileCityId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.create\nlabel: Create profile\nkind: required\n\nCreates a provider profile for the flow user in the flow category and city and stores its id and version."
+          }
+        },
+        {
+          "name": "listProviderProfiles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profiles listed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles"
+              ]
+            },
+            "description": "step: profile.list\nlabel: List profiles\nkind: optional\n\nLists the provider profiles visible without authentication."
+          }
+        },
+        {
+          "name": "getProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile read\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"profileVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{profileId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{profileId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.get\nlabel: Get profile\nkind: optional\n\nReads the flow user's provider profile and stores its current version."
+          }
+        },
+        {
+          "name": "updateProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile updated\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"profileVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{profileVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{profileId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{profileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"{{profileKind}}\",\n  \"about\": \"Flow profile {{runId}} updated\",\n  \"phone\": \"{{profilePhone}}\",\n  \"categoryIds\": [\n    {{profileCategoryId}}\n  ],\n  \"cityTaxonId\": {{profileCityId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.update\nlabel: Update profile\nkind: optional\n\nUpdates the flow user's provider profile about text and stores its new version."
+          }
+        },
+        {
+          "name": "getProviderProfileHistory",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile history listed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"profileSnapshotId\", Math.min.apply(null, pm.response.json().map(function (h) { return h.snapshotId; })));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{profileId}}/history",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{profileId}}",
+                "history"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.history\nlabel: Profile history\nkind: optional\n\nLists the change history of the profile and stores the id of the earliest snapshot."
+          }
+        },
+        {
+          "name": "getProviderProfileHistorySnapshot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"first snapshot read\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{profileId}}/history/{{profileSnapshotId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{profileId}}",
+                "history",
+                "{{profileSnapshotId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.snapshot\nlabel: Read first state\nkind: optional\n\nReads the earliest snapshot of the profile from its history."
+          }
+        },
+        {
+          "name": "restoreProviderProfileFromSnapshot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile restored from snapshot\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"profileVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{profileVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{profileId}}/history/{{profileSnapshotId}}/restore",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{profileId}}",
+                "history",
+                "{{profileSnapshotId}}",
+                "restore"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.revert\nlabel: Restore first state\nkind: optional\n\nRestores the profile to the earliest snapshot and stores its new version."
+          }
+        },
+        {
+          "name": "deleteProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{profileVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{profileId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{profileId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.delete\nlabel: Delete profile\nkind: optional\n\nDeletes the flow user's provider profile."
+          }
+        },
+        {
+          "name": "getProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"deleted profile not found\", function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{profileId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{profileId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.gone\nlabel: Deleted profile is gone\nkind: optional\n\nConfirms that the deleted provider profile can no longer be read."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile category deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{profileCategoryVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{profileCategoryId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{profileCategoryId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.cleancat\nlabel: Delete category\nkind: optional\n\nDeletes the flow profile category created for this folder."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile city deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{profileCityVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{profileCityId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{profileCityId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the flow profile city created for this folder."
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -1209,6 +1843,14 @@
     {
       "key": "secondKeyLabel",
       "value": "flow-runner-second"
+    },
+    {
+      "key": "profileKind",
+      "value": "MASTER"
+    },
+    {
+      "key": "profilePhone",
+      "value": "+380501234567"
     }
   ]
 }
