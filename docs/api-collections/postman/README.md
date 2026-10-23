@@ -27,8 +27,7 @@ free text:
 ```
 step: <id>
 label: <short name shown in the flow runner, at most 24 characters>
-kind: required|optional|pick
-default: off
+kind: required|optional
 when: <variable>=<value>
 
 <free text>
@@ -36,8 +35,7 @@ when: <variable>=<value>
 
 - `step` identifies the step within the flow.
 - `label` is shown in the flow runner; at most 24 characters.
-- `kind` is one of `required`, `optional` or `pick`.
-- `default` is optional; `off` marks a step that is skipped unless it is explicitly included.
+- `kind` is one of `required` or `optional`.
 - `when` is optional; `when: <variable>=<value>` runs the step only when that run variable has that value, otherwise the step is skipped as "condition not met".
 
 A folder's own description is the flow note.

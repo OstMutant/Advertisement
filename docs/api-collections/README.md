@@ -7,7 +7,7 @@ a running app.
 | Path | Contents |
 |---|---|
 | [`postman/`](postman/README.md) | The Postman collection (v2.1) of the REST API, with one folder per flow. |
-| [`flow-runner/`](flow-runner/) | `page/`: the flow runner page, served by the app under `/dev-tools/api-flows/` only when `marketplace.dev-tools.enabled` is `true`. `mockup/`: a static HTML mockup of the page, not served by the app. |
+| [`flow-runner/`](flow-runner/) | `page/`: the flow runner page, served by the app under `/dev-tools/api-flows/` only when `marketplace.dev-tools.enabled` is `true`. |
 | [`scripts/`](scripts/README.md) | Node scripts that check the collection against the OpenAPI document and run its flows, plus their shell and Windows wrappers. |
 | [`api-collection-tests.sh`](api-collection-tests.sh) / [`.bat`](api-collection-tests.bat) | Entry point that runs both collection tests. |
 

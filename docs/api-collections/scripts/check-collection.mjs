@@ -1,7 +1,7 @@
 /* ── Header ───────────────────────────────────────────────────────────────
  * Description: Checks the Postman collection against the running API's OpenAPI document. Every
  *   request must name an existing operationId with a matching method and path and carry a valid
- *   step/label/kind header (and optional `default` and `when` keys, when present, valid); every operation must be in the collection or on the allow-list, and
+ *   step/label/kind header (and an optional `when` key, when present, valid); every operation must be in the collection or on the allow-list, and
  *   the allow-list must hold no covered or unknown operation. Prints every finding, not only the
  *   first one.
  * Usage: node docs/api-collections/scripts/check-collection.mjs [baseUrl] [--config <file>] [--help]
@@ -198,9 +198,6 @@ function check({ operations, requests, allowList, stepMetadata }) {
     }
     if (!stepMetadata.kinds.includes(header.kind)) {
       findings.push(`request '${name}': kind must be one of ${stepMetadata.kinds.join(', ')}`);
-    }
-    if (Object.hasOwn(header, 'default') && header.default !== 'off') {
-      findings.push(`request '${name}': default must be off`);
     }
     if (Object.hasOwn(header, 'when') && !WHEN_PATTERN.test(header.when)) {
       findings.push(`request '${name}': when must be <variable>=<value>`);

@@ -16,7 +16,7 @@ export function codeBadge(code) {
   return badge;
 }
 
-export function hasRan(step) {
+function hasRan(step) {
   return step !== undefined && (step.status === "passed" || step.status === "failed");
 }
 

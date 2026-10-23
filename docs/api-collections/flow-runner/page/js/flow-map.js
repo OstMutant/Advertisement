@@ -64,7 +64,7 @@ export function createFlowMap(container, collection, selection, { onOpen, guard 
 
   function renderCount(card) {
     const selected = selection.flowOn(card.flow)
-      ? card.steps.filter((step) => !step.defaultOff && selection.stepOn(step.stepId)).length
+      ? card.steps.filter((step) => selection.stepOn(step.stepId)).length
       : 0;
     card.count.textContent = `${selected} of ${card.steps.length} steps`;
   }

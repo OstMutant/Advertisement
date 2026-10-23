@@ -2,7 +2,7 @@ const PLACEHOLDER = /\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g;
 const COMPACT_LIMIT = 60;
 const HIDDEN_IN_COMPACT = ["host", "runId"];
 
-export function referencedVariables(items) {
+function referencedVariables(items) {
   const names = new Set();
   const scan = (text) => {
     for (const match of String(text ?? "").matchAll(PLACEHOLDER)) {

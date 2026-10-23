@@ -4,12 +4,11 @@
  *   skips every later step. Creates data in the app (users, API keys), so run it against a dev
  *   database.
  * Usage: node docs/api-collections/scripts/run-flows.mjs [baseUrl] [--config <file>] [--flow <name>]...
- *     [--include <stepId>]... [--variable key=value]... [--json] [--help]
+ *     [--variable key=value]... [--json] [--help]
  *   [baseUrl]          API base URL; takes precedence over API_BASE_URL and the config's baseUrl
  *   --config <file>    config file (default: check-collection.config.json next to this script)
  *   --flow <name>      run only the named flow; repeat to run several; a dependent flow needs the
  *                      flow it depends on too
- *   --include <stepId> run a step that is off by default; repeat for several
  *   --variable k=v     override a collection variable; repeatable
  *   --json             print only a JSON array of step results
  *   --help             print the usage text and exit
@@ -35,7 +34,7 @@ const DEFAULT_CONFIG = resolve(SCRIPT_DIR, 'check-collection.config.json');
 const REQUIRED_FIELDS = ['baseUrl', 'collectionFile'];
 
 const USAGE = `Usage: node docs/api-collections/scripts/run-flows.mjs [baseUrl] [--config <file>] [--flow <name>]...
-                                              [--include <stepId>]... [--variable key=value]... [--json] [--help]
+                                              [--variable key=value]... [--json] [--help]
 
 Runs the Postman collection's flows against the running API.
 
@@ -44,7 +43,6 @@ Options:
   --config <file>    config file (default: check-collection.config.json next to this script)
   --flow <name>      run only this flow; repeat for several (a dependent flow needs its
                      prerequisite flow too, e.g. --flow Authentication --flow <other>)
-  --include <stepId> run a step that is off by default; repeat for several
   --variable k=v     override a collection variable; repeat for several
   --json             print only the step results as JSON
   --help             print this text and exit
@@ -60,7 +58,7 @@ Exit codes:
   2  usage, config or read error, or no steps selected`;
 
 function parseArgs(argv) {
-  const options = { baseUrl: undefined, configFile: DEFAULT_CONFIG, flows: [], include: [], variables: {}, json: false, help: false };
+  const options = { baseUrl: undefined, configFile: DEFAULT_CONFIG, flows: [], variables: {}, json: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--help') {
@@ -73,9 +71,6 @@ function parseArgs(argv) {
     } else if (arg === '--flow') {
       if (argv[i + 1] === undefined) throw new UsageError('--flow needs a flow name');
       options.flows.push(argv[++i]);
-    } else if (arg === '--include') {
-      if (argv[i + 1] === undefined) throw new UsageError('--include needs a step id');
-      options.include.push(argv[++i]);
     } else if (arg === '--variable') {
       if (argv[i + 1] === undefined) throw new UsageError('--variable needs key=value');
       const [key, ...rest] = argv[++i].split('=');
@@ -114,15 +109,6 @@ function loadConfig(file) {
     }
   }
   return { ...config, collectionFile: resolve(dirname(file), config.collectionFile) };
-}
-
-function validateIncludes(collection, ids) {
-  const available = collection.items.map((item) => item.stepId);
-  for (const id of ids) {
-    if (!available.includes(id)) {
-      throw new UsageError(`unknown step '${id}', available: ${available.join(', ')}`);
-    }
-  }
 }
 
 function selectFlows(collection, names) {
@@ -177,13 +163,12 @@ async function main() {
   const config = loadConfig(options.configFile);
   const baseUrl = (options.baseUrl ?? process.env.API_BASE_URL ?? config.baseUrl).replace(/\/+$/, '');
   const fullCollection = parseCollection(readJson(config.collectionFile));
-  validateIncludes(fullCollection, options.include);
   const collection = selectFlows(fullCollection, options.flows);
   if (collection.items.length === 0) {
     console.error('no steps to run');
     return 2;
   }
-  const { steps } = await runFlow(collection, { host: baseUrl, variables: options.variables, include: options.include });
+  const { steps } = await runFlow(collection, { host: baseUrl, variables: options.variables });
 
   if (options.json) {
     console.log(JSON.stringify(jsonRows(steps), null, 2));

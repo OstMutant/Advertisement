@@ -70,7 +70,6 @@ function toItem(item, flow) {
     stepId: meta.step || item.name,
     label: meta.label || item.name,
     kind: meta.kind || "optional",
-    defaultOff: meta.default === "off",
     when: parseWhen(meta.when),
     text,
   };
