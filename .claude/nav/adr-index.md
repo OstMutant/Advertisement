@@ -53,7 +53,8 @@ yet — not zero.
 | ADR-002 (.claude) | .claude | Accepted |  |  | Formalize `/deep-review`'s reasoning layer as real, isolated `.claude/agents/*.md` subagents |
 | ADR-001 (.claude) | .claude | Accepted |  |  | Split module-specific AI guidance into path-scoped `.claude/rules/*.md`; deduplicate memory against canonical rules |
 | ADR-001 (contact-spring-boot-starter) | contact-spring-boot-starter | Accepted |  |  | New contact-spring-boot-starter module owns contact_info/contact_view, generic over owning entity |
-| ADR-001 (docs/api-collections) | docs/api-collections | Accepted **Applied:** 1 |  |  | API collection flows repeat without a reset, build unique values per run and never provoke a limiter |
+| ADR-002 (docs/api-collections) | docs/api-collections | Accepted **Applied:** 1 |  |  | API collection flows repeat on an empty or a used database, create what they need, never provoke a limiter |
+| ADR-001 (docs/api-collections) | docs/api-collections | Superseded by ADR-002 **Applied:** 1 |  |  | API collection flows repeat without a reset, build unique values per run and never provoke a limiter |
 | ADR-034 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  |  | Database ERD's no-FK point relationships derived from a `remarks=` marker convention, not a hand-curated list |
 | ADR-033 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  |  | "AI Tooling" generalized into a `.claude`-rooted tree, same mechanism as "Scripts"; README becomes the sole canonical file list, chip-row is last-resort only |
 | ADR-001 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  |  | Generated ADR index over `DECISIONS.md`, mechanical fields only, no per-entry authoring |

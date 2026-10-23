@@ -70,6 +70,7 @@ function toItem(item, flow) {
     label: meta.label || item.name,
     kind: meta.kind || "optional",
     defaultOff: meta.default === "off",
+    when: parseWhen(meta.when),
     text,
   };
 }
@@ -92,6 +93,14 @@ function parseDescription(description) {
 function descriptionText(description) {
   const content = typeof description === "string" ? description : description?.content ?? "";
   return content.trim();
+}
+
+function parseWhen(when) {
+  if (when === undefined) {
+    return null;
+  }
+  const separator = when.indexOf("=");
+  return { variable: when.slice(0, separator), value: when.slice(separator + 1) };
 }
 
 function parseAuth(auth) {

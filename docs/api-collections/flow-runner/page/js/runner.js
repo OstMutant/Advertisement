@@ -29,6 +29,12 @@ export async function runFlow(collection, { host, variables = {}, include = [], 
       onStepUpdate(index, step);
       continue;
     }
+    if (item.when && runVariables[item.when.variable] !== item.when.value) {
+      step.status = "skipped";
+      step.note = "condition not met";
+      onStepUpdate(index, step);
+      continue;
+    }
     if (failed) {
       step.status = "skipped";
       onStepUpdate(index, step);

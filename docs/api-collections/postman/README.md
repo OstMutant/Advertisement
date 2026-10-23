@@ -29,6 +29,7 @@ step: <id>
 label: <short name shown in the flow runner, at most 24 characters>
 kind: required|optional|pick
 default: off
+when: <variable>=<value>
 
 <free text>
 ```
@@ -37,6 +38,7 @@ default: off
 - `label` is shown in the flow runner; at most 24 characters.
 - `kind` is one of `required`, `optional` or `pick`.
 - `default` is optional; `off` marks a step that is skipped unless it is explicitly included.
+- `when` is optional; `when: <variable>=<value>` runs the step only when that run variable has that value, otherwise the step is skipped as "condition not met".
 
 A folder's own description is the flow note.
 
@@ -70,7 +72,8 @@ run:
 |---|---|---|
 | `userId` | `registerUser` (step `auth.admin`) | id of the administrator's account, stored only when the registration answers 201 |
 | `userEmail` | `registerUser` (step `auth.user`) | e-mail of the ordinary user registered in this run, used as the basic-auth username of step `auth.userkey` |
-| `adminKey` | `issueApiKey` (step `auth.key`) | raw API key of the administrator |
+| `adminExists` | `issueApiKey` (step `auth.key`) | `yes` when the administrator's login answers 201, `no` when it answers 401; drives the `when` condition of steps `auth.admin` and `auth.adminkey` |
+| `adminKey` | `issueApiKey` (steps `auth.key` and `auth.adminkey`) | raw API key of the administrator; `auth.key` stores it only when the login succeeds, `auth.adminkey` after the registration |
 | `userKey` | `issueApiKey` (step `auth.userkey`) | raw API key of the ordinary user |
 | `secondKey` | `issueApiKey` (step `auth.second`) | raw second API key of the administrator |
 | `secondKeyId` | `listApiKeys` (step `auth.keys`) | id of the key labelled `secondKeyLabel`, used by the revoke steps |

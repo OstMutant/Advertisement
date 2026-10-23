@@ -9,6 +9,66 @@
       "description": "Register the administrator and a user, issue API keys for both, list, revoke and re-check a second key.",
       "item": [
         {
+          "name": "issueApiKey",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"admin login answered\", function () { pm.expect([201, 401]).to.include(pm.response.code); });",
+                  "pm.collectionVariables.set(\"adminExists\", pm.response.code === 201 ? \"yes\" : \"no\");",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set(\"adminKey\", pm.response.json().rawKey); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/api-keys",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"{{apiKeyLabel}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{email}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: auth.key\nlabel: Issue API key\nkind: required\n\nLogs in as the default administrator by issuing an API key; a 401 means that account does not exist yet and the next steps register it."
+          }
+        },
+        {
           "name": "registerUser",
           "event": [
             {
@@ -16,8 +76,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"registered, or already exists on a repeat run\", function () {",
-                  "  pm.expect([201, 409]).to.include(pm.response.code);",
+                  "pm.test(\"registered\", function () {",
+                  "  pm.response.to.have.status(201);",
                   "});",
                   "if (pm.response.code === 201) { pm.collectionVariables.set(\"userId\", pm.response.json().id); }"
                 ]
@@ -54,56 +114,7 @@
             "auth": {
               "type": "noauth"
             },
-            "description": "step: auth.admin\nlabel: Register administrator\nkind: required\ndefault: off\n\nRegisters the first account, which becomes the administrator; only for an empty database. 409 on a repeat run is accepted."
-          }
-        },
-        {
-          "name": "registerUser",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"registered\", function () {",
-                  "  pm.response.to.have.status(201);",
-                  "});",
-                  "pm.collectionVariables.set(\"userEmail\", pm.response.json().email);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{host}}/api/users",
-              "host": [
-                "{{host}}"
-              ],
-              "path": [
-                "api",
-                "users"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"{{userName}}\",\n  \"email\": \"{{userEmailPrefix}}.{{runId}}@example.com\",\n  \"password\": \"{{userPassword}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "noauth"
-            },
-            "description": "step: auth.user\nlabel: Register user\nkind: optional\n\nRegisters a new ordinary user under a unique e-mail for this run and captures that e-mail for the following steps."
+            "description": "step: auth.admin\nlabel: Register administrator\nkind: optional\nwhen: adminExists=no\n\nRegisters the default administrator when the login above failed; on an empty database the first registered account becomes the administrator."
           }
         },
         {
@@ -164,7 +175,56 @@
                 }
               ]
             },
-            "description": "step: auth.key\nlabel: Issue API key\nkind: required\n\nIssues an API key for the administrator using basic authentication; the raw key is stored for the bearer requests."
+            "description": "step: auth.adminkey\nlabel: Issue admin key\nkind: optional\nwhen: adminExists=no\n\nIssues the administrator's API key after the registration above."
+          }
+        },
+        {
+          "name": "registerUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"registered\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"userEmail\", pm.response.json().email);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{userName}}\",\n  \"email\": \"{{userEmailPrefix}}.{{runId}}@example.com\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: auth.user\nlabel: Register user\nkind: optional\n\nRegisters a new ordinary user under a unique e-mail for this run and captures that e-mail for the following steps."
           }
         },
         {
@@ -449,6 +509,661 @@
               ]
             },
             "description": "step: auth.again\nlabel: Revoke again\nkind: optional\n\nRevokes the already revoked second key again, which must answer 409."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Taxons",
+      "description": "Creates a category and a city with unique names, reads, updates, reverts through the history, deletes and restores the category, then deletes what it created.",
+      "item": [
+        {
+          "name": "createTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"category created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"categoryId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"categoryVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CATEGORY\",\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow category {{runId}}\",\n      \"description\": \"Flow category {{runId}}\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow category uk {{runId}}\",\n      \"description\": \"Flow category uk {{runId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.category\nlabel: Create category\nkind: required\n\nCreates the flow category with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "createTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"city created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"cityId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"cityVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CITY\",\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow city {{runId}}\",\n      \"description\": \"Flow city {{runId}}\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow city uk {{runId}}\",\n      \"description\": \"Flow city uk {{runId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.city\nlabel: Create city\nkind: optional\n\nCreates the flow city with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "listTaxons",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"taxons listed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.list\nlabel: List taxons\nkind: optional\n\nLists the taxons visible to the administrator."
+          }
+        },
+        {
+          "name": "getTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"category read\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"categoryVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{categoryId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{categoryId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.get\nlabel: Get category\nkind: optional\n\nReads the flow category and refreshes its version for the following writes."
+          }
+        },
+        {
+          "name": "updateTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"category updated\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"categoryVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{categoryVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{categoryId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{categoryId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow category {{runId}} updated\",\n      \"description\": \"Flow category {{runId}} updated\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow category uk {{runId}} updated\",\n      \"description\": \"Flow category uk {{runId}} updated\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.update\nlabel: Update category\nkind: optional\n\nRenames the flow category in both languages and refreshes its version."
+          }
+        },
+        {
+          "name": "getTaxonHistory",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"history listed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"snapshotId\", Math.min.apply(null, pm.response.json().map(function (h) { return h.snapshotId; })));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{categoryId}}/history",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{categoryId}}",
+                "history"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.history\nlabel: Category history\nkind: optional\n\nLists the history snapshots of the flow category and remembers the first snapshot id."
+          }
+        },
+        {
+          "name": "getTaxonHistorySnapshot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"snapshot read\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{categoryId}}/history/{{snapshotId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{categoryId}}",
+                "history",
+                "{{snapshotId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.snapshot\nlabel: Read first state\nkind: optional\n\nReads the first recorded state of the flow category."
+          }
+        },
+        {
+          "name": "restoreTaxonFromSnapshot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"reverted to first state\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"categoryVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{categoryVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{categoryId}}/history/{{snapshotId}}/restore",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{categoryId}}",
+                "history",
+                "{{snapshotId}}",
+                "restore"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.revert\nlabel: Restore first state\nkind: optional\n\nReverts the flow category to its first recorded state and refreshes its version."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"category deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{categoryVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{categoryId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{categoryId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.delete\nlabel: Delete category\nkind: optional\n\nSoft-deletes the flow category."
+          }
+        },
+        {
+          "name": "restoreTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"category restored\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"categoryVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{categoryId}}/restore",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{categoryId}}",
+                "restore"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.restore\nlabel: Restore category\nkind: optional\n\nRestores the soft-deleted flow category and refreshes its version."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"category deleted again\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{categoryVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{categoryId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{categoryId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.cleanup\nlabel: Delete category again\nkind: optional\n\nDeletes the flow category again so the run leaves no active category behind."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"city deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{cityVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{cityId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{cityId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the flow city created by this run."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Infrastructure",
+      "description": "Public liveness and sitemap endpoints, no authentication.",
+      "item": [
+        {
+          "name": "getHealth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"healthy\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/health",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "step: infra.health\nlabel: Health\nkind: required\n\nChecks that the application is alive."
+          }
+        },
+        {
+          "name": "getSitemap",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"sitemap served\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/sitemap.xml",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "sitemap.xml"
+              ]
+            },
+            "description": "step: infra.sitemap\nlabel: Sitemap\nkind: optional\n\nFetches the public sitemap."
           }
         }
       ]
