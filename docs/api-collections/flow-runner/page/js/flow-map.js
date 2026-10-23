@@ -1,6 +1,6 @@
 const REQUIRED_FLOW = "Authentication";
 
-export function createFlowMap(container, collection, selection, { onOpen }) {
+export function createFlowMap(container, collection, selection, { onOpen, guard }) {
   const cards = [];
   const statuses = new Map();
 
@@ -17,7 +17,12 @@ export function createFlowMap(container, collection, selection, { onOpen }) {
     checkbox.checked = selection.flowOn(flow.name);
     checkbox.disabled = required;
     checkbox.setAttribute("aria-label", `Include ${flow.name}`);
-    checkbox.addEventListener("change", () => selection.setFlow(flow.name, checkbox.checked));
+    checkbox.addEventListener("change", () => {
+      const on = checkbox.checked;
+      guard(() => selection.setFlow(flow.name, on), () => {
+        checkbox.checked = !on;
+      });
+    });
 
     const order = document.createElement("span");
     order.className = "order";

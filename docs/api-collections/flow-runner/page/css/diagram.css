@@ -1,71 +1,89 @@
 #diagram {
-  overflow-x: auto;
   padding: 8px 0;
-}
-
-.flow-diagram {
-  display: block;
-  max-width: 100%;
-  height: auto;
   font-family: system-ui, sans-serif;
 }
 
-.flow-diagram .step rect {
-  fill: #f1f3f4;
-  stroke: #9aa0a6;
-  stroke-width: 1.5;
+.flow-row {
+  margin: 10px 0;
 }
 
-.flow-diagram .step text {
-  fill: #202124;
-}
-
-.flow-diagram .step text.index {
-  font-size: 10px;
-  fill: #5f6368;
-}
-
-.flow-diagram .step text.name {
-  font-size: 12px;
-}
-
-.flow-diagram .step.running rect {
-  fill: #e8f0fe;
-  stroke: #1a73e8;
-  stroke-width: 3;
-}
-
-.flow-diagram .step.passed rect {
-  fill: #e6f4ea;
-  stroke: #188038;
-}
-
-.flow-diagram .step.failed rect {
-  fill: #fce8e6;
-  stroke: #d93025;
-  stroke-width: 2.5;
-}
-
-.flow-diagram .step.skipped rect {
-  stroke-dasharray: 5 4;
-}
-
-.flow-diagram .step.skipped {
-  opacity: 0.55;
-}
-
-.flow-diagram .link {
-  stroke: #9aa0a6;
-  stroke-width: 1.5;
-  fill: none;
-}
-
-.flow-diagram .arrow-head {
-  fill: #9aa0a6;
-}
-
-.flow-diagram .flow-name {
+.flow-title {
+  margin: 0 0 6px;
   font-size: 12px;
   font-weight: 600;
-  fill: #5f6368;
+  color: #5f6368;
+}
+
+.flow-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flow-step-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.flow-step-item:not(:last-child)::after {
+  content: "\2192";
+  color: #5f6368;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 6px;
+  align-items: center;
+  width: 190px;
+  min-height: 44px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  color: #202124;
+  background: #f1f3f4;
+  border: 1.5px solid #80868b;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.step .index {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  color: #5f6368;
+}
+
+.step .name {
+  overflow-wrap: anywhere;
+}
+
+.step:focus-visible {
+  outline: 3px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.step.running {
+  background: #e8f0fe;
+  border: 3px solid #1a73e8;
+}
+
+.step.passed {
+  background: #e6f4ea;
+  border-color: #188038;
+}
+
+.step.failed {
+  background: #fce8e6;
+  border: 2.5px solid #d93025;
+}
+
+.step.skipped {
+  border-style: dashed;
+  opacity: 0.55;
 }

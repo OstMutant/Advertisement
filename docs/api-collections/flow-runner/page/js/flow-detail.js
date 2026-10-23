@@ -1,14 +1,13 @@
 import { parseSettings, settingsFor } from "./settings.js";
+import { codeBadge, element, methodLabel, stepBody, stepHead } from "./step-view.js";
 
-const AUTHORIZATION_PREFIX = 12;
 const IGNORED_SETTINGS = ["host", "runId"];
 
-export function createFlowDetail(container, collection, selection, { host, onApplyAndRun }) {
+export function createFlowDetail(container, collection, selection, { host, guard }) {
   const results = new Map();
   let flowName = null;
   let showAll = false;
   let selectedIndex = null;
-  let tab = "request";
 
   const title = element("h2");
   const note = element("p", "note");
@@ -30,7 +29,6 @@ export function createFlowDetail(container, collection, selection, { host, onApp
     flowName = name;
     showAll = false;
     selectedIndex = null;
-    tab = "request";
     container.hidden = false;
     title.textContent = name;
     note.textContent = collection.flows.find((flow) => flow.name === name).note;
@@ -65,7 +63,7 @@ export function createFlowDetail(container, collection, selection, { host, onApp
     const message = element("span", "msg");
     message.setAttribute("role", "status");
 
-    const apply = element("button", "primary", "Apply and run");
+    const apply = element("button", "primary", "Apply");
     apply.id = "apply-button";
     apply.type = "button";
     apply.addEventListener("click", () => {
@@ -81,8 +79,8 @@ export function createFlowDetail(container, collection, selection, { host, onApp
         selection.clearValues(["runId"]);
       }
       selection.setValues(values);
-      message.textContent = "";
-      onApplyAndRun();
+      message.textContent = "Applied. Press Run selected to use the values.";
+      message.className = "msg";
     });
 
     const copy = element("button", "", "Copy");
@@ -130,19 +128,22 @@ export function createFlowDetail(container, collection, selection, { host, onApp
       checkbox.checked = locked || selection.stepOn(item.stepId);
       checkbox.disabled = locked;
       checkbox.setAttribute("aria-label", `Include step ${item.label}`);
-      checkbox.addEventListener("change", () => selection.setStep(item.stepId, checkbox.checked));
+      checkbox.addEventListener("change", () => {
+        const on = checkbox.checked;
+        guard(() => selection.setStep(item.stepId, on), () => {
+          checkbox.checked = !on;
+        });
+      });
 
       const main = element("button", "main");
       main.type = "button";
-      main.append(
-        element("span", `method ${item.method.toLowerCase()}`, item.method),
-        element("span", "label", item.label),
-        element("span", "tag", tagText(item)),
-      );
+      main.append(methodLabel(item.method), element("span", "label", item.label), element("span", "tag", tagText(item)));
       const result = results.get(index);
       if (result !== undefined && result.status !== "pending") {
-        const code = result.response.code === null ? "" : ` ${result.response.code}`;
-        main.append(element("span", `pill ${result.status}`, `${result.status}${code}`));
+        main.append(element("span", `pill ${result.status}`, result.status));
+        if (result.response.code !== null) {
+          main.append(codeBadge(result.response.code));
+        }
       }
       main.addEventListener("click", () => {
         selectedIndex = index;
@@ -162,67 +163,7 @@ export function createFlowDetail(container, collection, selection, { host, onApp
     }
     const item = collection.items[selectedIndex];
     const step = results.get(selectedIndex);
-    panel.append(element("h3", "", item.label), tabs(), tab === "request" ? requestView(item, step) : responseView(step));
-  }
-
-  function tabs() {
-    const bar = element("div", "tabs");
-    bar.setAttribute("role", "tablist");
-    for (const [name, label] of [["request", "Request"], ["response", "Response"]]) {
-      const button = element("button", "", label);
-      button.type = "button";
-      button.dataset.tab = name;
-      button.setAttribute("role", "tab");
-      button.setAttribute("aria-selected", String(tab === name));
-      button.addEventListener("click", () => {
-        tab = name;
-        renderPanel();
-      });
-      bar.append(button);
-    }
-    return bar;
-  }
-
-  function requestView(item, step) {
-    const sent = step !== undefined && (step.status === "passed" || step.status === "failed");
-    const request = sent
-      ? step.request
-      : { method: item.method, url: item.url, headers: item.headers, body: item.body ?? (item.form === null ? null : "(multipart form)") };
-    const view = element("div", "view");
-    const line = element("div", "urlrow");
-    line.append(element("span", `method ${request.method.toLowerCase()}`, request.method), element("span", "", request.url));
-    view.append(line, section("Headers", headerTable(Object.entries(request.headers), true)));
-    view.append(section("Body", request.body === null ? element("p", "dim", "No body") : codeBlock(request.body)));
-    return view;
-  }
-
-  function responseView(step) {
-    const view = element("div", "view");
-    if (step === undefined || step.status === "pending") {
-      view.append(element("p", "dim", "This step has not run yet."));
-    } else if (step.status === "running") {
-      view.append(element("p", "dim", "Waiting for the response..."));
-    } else if (step.status === "skipped") {
-      view.append(element("p", "dim", `Skipped: ${step.note ?? "an earlier step failed"}`));
-    } else {
-      const meta = element("div", "meta");
-      meta.append(
-        element("span", `pill ${step.status}`, step.response.code === null ? "no response" : String(step.response.code)),
-        element("span", "", `${step.durationMs} ms`),
-        element("span", "", `${step.response.body.length} B`),
-      );
-      view.append(meta, section(`Headers (${step.response.headers.length})`, headerTable(step.response.headers, false)));
-      view.append(section("Body", step.response.body === "" ? element("p", "dim", "Empty body") : codeBlock(step.response.body)));
-      if (step.error !== null) {
-        view.append(element("p", "hint", step.error));
-      }
-      for (const test of step.tests) {
-        if (test.passed === false) {
-          view.append(element("p", "hint", `failed test: ${test.name} - ${test.error}`));
-        }
-      }
-    }
-    return view;
+    panel.append(stepHead(item, step, "h3"), stepBody(item, step));
   }
 
   function update(index, step) {
@@ -251,50 +192,4 @@ function tagText(item) {
     return `runs when ${item.when.variable}=${item.when.value}`;
   }
   return item.kind === "required" ? "required" : "optional";
-}
-
-function section(label, content) {
-  const block = element("div");
-  block.append(element("p", "label", label), content);
-  return block;
-}
-
-function headerTable(pairs, maskAuthorization) {
-  const wrapper = element("div", "scroll");
-  const table = element("table", "hdr");
-  const body = element("tbody");
-  for (const [key, value] of pairs) {
-    const row = element("tr");
-    const shown = maskAuthorization && key.toLowerCase() === "authorization" && value.length > AUTHORIZATION_PREFIX
-      ? `${value.slice(0, AUTHORIZATION_PREFIX)}...`
-      : value;
-    row.append(element("td", "", key), element("td", "", shown));
-    body.append(row);
-  }
-  table.append(body);
-  wrapper.append(table);
-  return wrapper;
-}
-
-function codeBlock(text) {
-  return element("pre", "", pretty(text));
-}
-
-function pretty(text) {
-  try {
-    return JSON.stringify(JSON.parse(text), null, 2);
-  } catch {
-    return text;
-  }
-}
-
-function element(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) {
-    node.className = className;
-  }
-  if (text !== undefined) {
-    node.textContent = text;
-  }
-  return node;
 }

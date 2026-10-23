@@ -9,13 +9,14 @@ import {
   validateConfig,
 } from "./templates.js";
 
-export function createTemplatesBar(container, collection, selection, storage) {
+export function createTemplatesBar(container, collection, selection, storage, { guard }) {
   const builtin = builtIns(collection);
   const current = element("span");
   current.id = "template-label";
   const line = element("p", "template-line");
   line.append("Template: ", current);
   const buttons = element("div", "template-buttons");
+  buttons.setAttribute("role", "tablist");
 
   const textarea = element("textarea");
   textarea.id = "template-config";
@@ -49,7 +50,7 @@ export function createTemplatesBar(container, collection, selection, storage) {
     }
     message.textContent = "";
     message.className = "msg";
-    selection.load(fromConfig(result.config, collection));
+    guard(() => selection.load(fromConfig(result.config, collection)), () => {});
   });
 
   const actions = element("div", "template-actions");
@@ -90,11 +91,13 @@ export function createTemplatesBar(container, collection, selection, storage) {
     const all = { ...builtin, ...saved };
     for (const templateName of Object.keys(all)) {
       const group = element("span", "template");
+      group.setAttribute("role", "presentation");
       const button = element("button", "", templateName);
       button.type = "button";
       button.dataset.template = templateName;
-      button.setAttribute("aria-pressed", String(templateName === name));
-      button.addEventListener("click", () => selection.load(fromConfig(all[templateName], collection)));
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-selected", String(templateName === name));
+      button.addEventListener("click", () => guard(() => selection.load(fromConfig(all[templateName], collection)), () => {}));
       group.append(button);
       if (Object.hasOwn(saved, templateName)) {
         const remove = element("button", "delete", "x");

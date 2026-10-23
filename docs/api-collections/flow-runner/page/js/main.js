@@ -1,40 +1,107 @@
 import { loadCollection } from "./collection.js";
 import { runFlow } from "./runner.js";
+import { createConfirmDialog } from "./confirm-dialog.js";
 import { createDiagram } from "./diagram.js";
 import { createFlowMap } from "./flow-map.js";
 import { createFlowDetail } from "./flow-detail.js";
 import { createSelection } from "./selection.js";
+import { createStepCard } from "./step-card.js";
 import { createTemplatesBar } from "./templates-bar.js";
 
 const COLLECTION_URL = "postman/marketplace-rest-api.postman_collection.json";
+const CLEAR_MESSAGE = "All data of the last run will be cleared. Continue?";
 
 async function init() {
   const runButton = document.getElementById("run-button");
-  const results = document.getElementById("results");
-  const diagram = createDiagram(document.getElementById("diagram"));
+  const clearButton = document.getElementById("clear-button");
   const selection = createSelection();
+  const confirmClear = createConfirmDialog(document.getElementById("confirm-dialog"));
   let collection;
   let map;
   let detail;
+  let card;
+  let diagram;
+  let running = false;
+  let hasResults = false;
+
+  function clearViews() {
+    diagram.clear();
+    map.reset();
+    detail.reset();
+    card.reset();
+    errorElement().textContent = "";
+  }
+
+  async function guard(action, onCancel) {
+    if (running) {
+      onCancel();
+      return;
+    }
+    if (!hasResults) {
+      action();
+      return;
+    }
+    if (await confirmClear(CLEAR_MESSAGE)) {
+      clearViews();
+      hasResults = false;
+      clearButton.disabled = true;
+      action();
+    } else {
+      onCancel();
+    }
+  }
+
+  async function start() {
+    if (running) {
+      return;
+    }
+    running = true;
+    hasResults = true;
+    runButton.disabled = true;
+    clearButton.disabled = true;
+    clearViews();
+    const { host = location.origin, ...variables } = selection.overrides;
+    try {
+      await runFlow(collection, {
+        host,
+        variables,
+        flows: collection.flows.map((flow) => flow.name).filter((name) => selection.flowOn(name)),
+        exclude: selection.excludedSteps(),
+        onStepUpdate: (index, step) => {
+          diagram.update(index, step);
+          map.update(index, step);
+          detail.update(index, step);
+          card.update(index, step);
+        },
+      });
+    } catch (error) {
+      errorElement().textContent = error.message;
+    } finally {
+      running = false;
+      runButton.disabled = false;
+      clearButton.disabled = false;
+    }
+  }
+
   try {
     collection = await loadCollection(COLLECTION_URL);
-    const start = () => {
-      if (!runButton.disabled) {
-        run(runButton, results, diagram, map, detail, collection, selection);
-      }
-    };
+    card = createStepCard(document.getElementById("step-card"), collection);
+    diagram = createDiagram(document.getElementById("diagram"), { onOpen: (index) => card.open(index) });
+    diagram.build(collection);
     detail = createFlowDetail(document.getElementById("flow-detail"), collection, selection, {
       host: location.origin,
-      onApplyAndRun: start,
+      guard,
     });
     map = createFlowMap(document.getElementById("flow-map"), collection, selection, {
       onOpen: (name) => {
         detail.open(name);
         map.setOpen(name);
       },
+      guard,
     });
-    createTemplatesBar(document.getElementById("templates"), collection, selection, openStorage());
+    createTemplatesBar(document.getElementById("templates"), collection, selection, openStorage(), { guard });
     runButton.addEventListener("click", start);
+    clearButton.addEventListener("click", () => guard(() => {}, () => {}));
   } catch (error) {
     errorElement().textContent = error.message;
     return;
@@ -50,60 +117,6 @@ function openStorage() {
     return storage;
   } catch {
     return null;
-  }
-}
-
-async function run(runButton, results, diagram, map, detail, collection, selection) {
-  runButton.disabled = true;
-  results.replaceChildren();
-  diagram.reset();
-  map.reset();
-  detail.reset();
-  errorElement().textContent = "";
-  const { host = location.origin, ...variables } = selection.overrides;
-  try {
-    await runFlow(collection, {
-      host,
-      variables,
-      flows: collection.flows.map((flow) => flow.name).filter((name) => selection.flowOn(name)),
-      exclude: selection.excludedSteps(),
-      onStepUpdate: (index, step) => {
-        renderStep(results, index, step);
-        diagram.update(index, step);
-        map.update(index, step);
-        detail.update(index, step);
-      },
-    });
-  } catch (error) {
-    errorElement().textContent = error.message;
-  } finally {
-    runButton.disabled = false;
-  }
-}
-
-function renderStep(results, index, step) {
-  const li = results.children[index] ?? results.appendChild(document.createElement("li"));
-  li.dataset.step = step.name;
-  li.className = step.status;
-
-  let line = `${step.name} - ${step.status}`;
-  if (step.response.code !== null) {
-    line += ` (${step.response.code})`;
-  }
-  if (step.error !== null) {
-    line += ` - ${step.error}`;
-  }
-  if (step.note !== null) {
-    line += ` - ${step.note}`;
-  }
-  li.textContent = line;
-
-  for (const test of step.tests) {
-    if (test.passed === false) {
-      const div = document.createElement("div");
-      div.textContent = `failed test: ${test.name} - ${test.error}`;
-      li.append(div);
-    }
   }
 }
 
