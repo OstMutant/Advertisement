@@ -1801,6 +1801,640 @@
           }
         }
       ]
+    },
+    {
+      "name": "Advertisements",
+      "description": "Creates its own category and city, then creates, lists, reads, updates, reverts through the history and deletes an advertisement of the flow user, confirms it is gone and deletes the category and city.",
+      "item": [
+        {
+          "name": "createTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"ad category created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"adCategoryId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"adCategoryVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CATEGORY\",\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow ad category {{runId}}\",\n      \"description\": \"Flow ad category {{runId}}\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow ad category uk {{runId}}\",\n      \"description\": \"Flow ad category uk {{runId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.category\nlabel: Create category\nkind: optional\n\nCreates the flow advertisement category with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "createTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"ad city created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"adCityId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"adCityVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CITY\",\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow ad city {{runId}}\",\n      \"description\": \"Flow ad city {{runId}}\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow ad city uk {{runId}}\",\n      \"description\": \"Flow ad city uk {{runId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.city\nlabel: Create city\nkind: optional\n\nCreates the flow advertisement city with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "createAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"advertisement created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"advertisementId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"advertisementVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Flow ad {{runId}}\",\n  \"description\": \"Flow ad {{runId}}\",\n  \"adKind\": \"{{adKind}}\",\n  \"categoryIds\": [\n    {{adCategoryId}}\n  ],\n  \"cityTaxonId\": {{adCityId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.create\nlabel: Create advertisement\nkind: required\n\nCreates an advertisement of the flow user in the flow category and city and stores its id and version."
+          }
+        },
+        {
+          "name": "listAdvertisements",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"advertisements listed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/advertisements",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements"
+              ]
+            },
+            "description": "step: ads.list\nlabel: List advertisements\nkind: optional\n\nLists the advertisements visible without authentication."
+          }
+        },
+        {
+          "name": "getAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"advertisement read\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"advertisementVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{advertisementId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{advertisementId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.get\nlabel: Get advertisement\nkind: optional\n\nReads the flow user's advertisement and stores its current version."
+          }
+        },
+        {
+          "name": "updateAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"advertisement updated\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"advertisementVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{advertisementVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{advertisementId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{advertisementId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Flow ad {{runId}} updated\",\n  \"description\": \"Flow ad {{runId}}\",\n  \"adKind\": \"{{adKind}}\",\n  \"categoryIds\": [\n    {{adCategoryId}}\n  ],\n  \"cityTaxonId\": {{adCityId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.update\nlabel: Update advertisement\nkind: optional\n\nUpdates the title of the flow user's advertisement using the stored version and stores the new version."
+          }
+        },
+        {
+          "name": "getAdvertisementHistory",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"advertisement history listed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"adSnapshotId\", Math.min.apply(null, pm.response.json().map(function (h) { return h.snapshotId; })));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{advertisementId}}/history",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{advertisementId}}",
+                "history"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.history\nlabel: Advertisement history\nkind: optional\n\nLists the saved states of the flow user's advertisement and stores the id of the earliest one."
+          }
+        },
+        {
+          "name": "getAdvertisementHistorySnapshot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"first snapshot read\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{advertisementId}}/history/{{adSnapshotId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{advertisementId}}",
+                "history",
+                "{{adSnapshotId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.snapshot\nlabel: Read first state\nkind: optional\n\nReads the earliest saved state of the flow user's advertisement."
+          }
+        },
+        {
+          "name": "restoreAdvertisementFromSnapshot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"advertisement restored from snapshot\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"advertisementVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{advertisementVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{advertisementId}}/history/{{adSnapshotId}}/restore",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{advertisementId}}",
+                "history",
+                "{{adSnapshotId}}",
+                "restore"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.revert\nlabel: Restore first state\nkind: optional\n\nRestores the flow user's advertisement to its earliest saved state and stores the new version."
+          }
+        },
+        {
+          "name": "deleteAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"advertisement deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{advertisementVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{advertisementId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{advertisementId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.delete\nlabel: Delete advertisement\nkind: optional\n\nDeletes the flow user's advertisement using the stored version."
+          }
+        },
+        {
+          "name": "getAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"deleted advertisement not found\", function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{advertisementId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{advertisementId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.gone\nlabel: Deleted ad is gone\nkind: optional\n\nConfirms that the deleted advertisement can no longer be read."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"ad category deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{adCategoryVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{adCategoryId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{adCategoryId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.cleancat\nlabel: Delete category\nkind: optional\n\nDeletes the flow advertisement category created for this folder."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"ad city deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{adCityVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{adCityId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{adCityId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the flow advertisement city created for this folder."
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -1851,6 +2485,10 @@
     {
       "key": "profilePhone",
       "value": "+380501234567"
+    },
+    {
+      "key": "adKind",
+      "value": "OFFER"
     }
   ]
 }
