@@ -67,3 +67,17 @@
   background: #f1f3f4;
   border-style: dashed;
 }
+
+.flow-card .open {
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.flow-card .open[aria-pressed="true"] .name {
+  text-decoration: underline;
+}

@@ -1,6 +1,6 @@
 const REQUIRED_FLOW = "Authentication";
 
-export function createFlowMap(container, collection) {
+export function createFlowMap(container, collection, selection, { onOpen }) {
   const cards = [];
   const statuses = new Map();
 
@@ -14,25 +14,30 @@ export function createFlowMap(container, collection) {
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
-    checkbox.checked = true;
+    checkbox.checked = selection.flowOn(flow.name);
     checkbox.disabled = required;
     checkbox.setAttribute("aria-label", `Include ${flow.name}`);
+    checkbox.addEventListener("change", () => selection.setFlow(flow.name, checkbox.checked));
 
-    const order = document.createElement("div");
+    const order = document.createElement("span");
     order.className = "order";
     order.textContent = `step ${position + 1} of ${collection.flows.length}`;
-    const name = document.createElement("div");
+    const name = document.createElement("span");
     name.className = "name";
     name.textContent = flow.name;
-    const note = document.createElement("div");
+    const note = document.createElement("span");
     note.className = "note";
     note.textContent = flow.note;
-    const text = document.createElement("div");
-    text.append(order, name, note);
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "open";
+    open.setAttribute("aria-pressed", "false");
+    open.append(order, name, note);
+    open.addEventListener("click", () => onOpen(flow.name));
 
     const head = document.createElement("div");
     head.className = "head";
-    head.append(checkbox, text);
+    head.append(checkbox, open);
 
     const mark = document.createElement("span");
     mark.className = "tag";
@@ -49,14 +54,13 @@ export function createFlowMap(container, collection) {
     card.append(head, foot);
     container.append(card);
 
-    const entry = { flow: flow.name, checkbox, count, pill, steps };
-    cards.push(entry);
-    checkbox.addEventListener("change", () => renderCount(entry));
-    renderCount(entry);
+    cards.push({ flow: flow.name, steps, open, count, pill });
   });
 
   function renderCount(card) {
-    const selected = card.checkbox.checked ? card.steps.filter((step) => !step.defaultOff).length : 0;
+    const selected = selection.flowOn(card.flow)
+      ? card.steps.filter((step) => !step.defaultOff && selection.stepOn(step.stepId)).length
+      : 0;
     card.count.textContent = `${selected} of ${card.steps.length} steps`;
   }
 
@@ -75,10 +79,6 @@ export function createFlowMap(container, collection) {
     }
   }
 
-  function selectedFlows() {
-    return cards.filter((card) => card.checkbox.checked).map((card) => card.flow);
-  }
-
   function update(index, step) {
     statuses.set(index, step.status);
     cards.forEach(renderPill);
@@ -89,5 +89,12 @@ export function createFlowMap(container, collection) {
     cards.forEach(renderPill);
   }
 
-  return { selectedFlows, update, reset };
+  function setOpen(flowName) {
+    cards.forEach((card) => card.open.setAttribute("aria-pressed", String(card.flow === flowName)));
+  }
+
+  selection.subscribe(() => cards.forEach(renderCount));
+  cards.forEach(renderCount);
+
+  return { update, reset, setOpen };
 }

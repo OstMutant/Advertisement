@@ -1,7 +1,7 @@
 import { substitute } from "./collection.js";
 import { createPm, runScript } from "./pm-shim.js";
 
-export async function runFlow(collection, { host, variables = {}, include = [], flows = null, onStepUpdate = () => {} }) {
+export async function runFlow(collection, { host, variables = {}, include = [], flows = null, exclude = [], onStepUpdate = () => {} }) {
   const runVariables = { ...collection.variables, runId: newRunId(), ...variables, host };
   const steps = collection.items.map((item, index) => ({
     index,
@@ -26,6 +26,12 @@ export async function runFlow(collection, { host, variables = {}, include = [], 
     if (flows !== null && !flows.includes(item.flow)) {
       step.status = "skipped";
       step.note = "flow not selected";
+      onStepUpdate(index, step);
+      continue;
+    }
+    if (exclude.includes(item.stepId)) {
+      step.status = "skipped";
+      step.note = "step not selected";
       onStepUpdate(index, step);
       continue;
     }
