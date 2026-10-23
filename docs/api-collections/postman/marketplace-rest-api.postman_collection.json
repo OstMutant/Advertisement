@@ -3569,6 +3569,740 @@
           }
         }
       ]
+    },
+    {
+      "name": "Contacts",
+      "description": "Creates its own category, city, provider profile with a phone and a Telegram contact and advertisement, lists the contact channels, reveals contacts, checks that a missing channel is rejected and that reveal counts need a key, then deletes everything it created.",
+      "item": [
+        {
+          "name": "createTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"contact category created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"contactCategoryId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"contactCategoryVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CATEGORY\",\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow contacts category {{runId}}\",\n      \"description\": \"Flow contacts category {{runId}}\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow contacts category uk {{runId}}\",\n      \"description\": \"Flow contacts category uk {{runId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: contacts.category\nlabel: Create category\nkind: optional\n\nCreates the flow contacts category with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "createTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"contact city created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"contactCityId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"contactCityVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CITY\",\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow contacts city {{runId}}\",\n      \"description\": \"Flow contacts city {{runId}}\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow contacts city uk {{runId}}\",\n      \"description\": \"Flow contacts city uk {{runId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: contacts.city\nlabel: Create city\nkind: optional\n\nCreates the flow contacts city with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "createProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"contact profile created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"contactProfileId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"contactProfileVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"{{profileKind}}\",\n  \"about\": \"Flow contacts profile {{runId}}\",\n  \"phone\": \"{{profilePhone}}\",\n  \"telegram\": \"flow_{{runId}}\",\n  \"categoryIds\": [\n    {{contactCategoryId}}\n  ],\n  \"cityTaxonId\": {{contactCityId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: contacts.profile\nlabel: Create profile\nkind: required\n\nCreates a provider profile for the flow user with a phone and a Telegram contact in the flow contacts category and city and stores its id and version."
+          }
+        },
+        {
+          "name": "createAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"contact advertisement created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"contactAdId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"contactAdVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Flow contacts ad {{runId}}\",\n  \"description\": \"Flow contacts ad {{runId}}\",\n  \"adKind\": \"{{adKind}}\",\n  \"categoryIds\": [\n    {{contactCategoryId}}\n  ],\n  \"cityTaxonId\": {{contactCityId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: contacts.ad\nlabel: Create advertisement\nkind: optional\n\nCreates an advertisement of the flow user in the flow contacts category and city and stores its id and version."
+          }
+        },
+        {
+          "name": "getAdvertisementContact",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"advertisement contact fetched\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"phone channel is listed\", function () {",
+                  "  pm.expect(pm.response.json().channels).to.include(\"PHONE\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{contactAdId}}/contact",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{contactAdId}}",
+                "contact"
+              ]
+            },
+            "description": "step: contacts.adchannels\nlabel: Ad contact channels\nkind: optional\n\nLists the contact channels of the flow advertisement without authentication."
+          }
+        },
+        {
+          "name": "getProviderProfileContact",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile contact fetched\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"telegram channel is listed\", function () {",
+                  "  pm.expect(pm.response.json().channels).to.include(\"TELEGRAM\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{contactProfileId}}/contact",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{contactProfileId}}",
+                "contact"
+              ]
+            },
+            "description": "step: contacts.channels\nlabel: Profile channels\nkind: optional\n\nLists the contact channels of the flow provider profile without authentication."
+          }
+        },
+        {
+          "name": "revealProviderProfileContact",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile phone revealed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"phone value returned\", function () {",
+                  "  pm.expect(pm.response.json().value).to.be.a(\"string\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{contactProfileId}}/contact/reveals",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{contactProfileId}}",
+                "contact",
+                "reveals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"PHONE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: contacts.revealphone\nlabel: Reveal profile phone\nkind: optional\n\nReveals the phone of the flow provider profile without authentication and returns its value."
+          }
+        },
+        {
+          "name": "revealAdvertisementContact",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"advertisement phone revealed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"phone value returned\", function () {",
+                  "  pm.expect(pm.response.json().value).to.be.a(\"string\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{contactAdId}}/contact/reveals",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{contactAdId}}",
+                "contact",
+                "reveals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"PHONE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: contacts.adreveal\nlabel: Reveal ad phone\nkind: optional\n\nReveals the phone of the flow advertisement without authentication and returns its value."
+          }
+        },
+        {
+          "name": "revealProviderProfileContact",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"missing channel rejected\", function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{contactProfileId}}/contact/reveals",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{contactProfileId}}",
+                "contact",
+                "reveals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"VIBER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: contacts.revealmissing\nlabel: Reveal missing channel\nkind: optional\n\nRequests a channel the flow provider profile does not have and expects it to be rejected."
+          }
+        },
+        {
+          "name": "getProviderProfileContactViews",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"anonymous view counts rejected\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{contactProfileId}}/contact/views",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{contactProfileId}}",
+                "contact",
+                "views"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: contacts.viewsanon\nlabel: Views need a key\nkind: optional\n\nRequests the reveal counts of the flow provider profile without a key and expects authentication to be required."
+          }
+        },
+        {
+          "name": "getProviderProfileContactViews",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"reveal counts fetched\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{contactProfileId}}/contact/views",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{contactProfileId}}",
+                "contact",
+                "views"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: contacts.views\nlabel: Reveal counts\nkind: optional\n\nReads the reveal counts of the flow provider profile with the flow user's key."
+          }
+        },
+        {
+          "name": "deleteAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"contact advertisement deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{contactAdVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{contactAdId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{contactAdId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: contacts.addelete\nlabel: Delete advertisement\nkind: optional\n\nDeletes the flow contacts advertisement using its stored version."
+          }
+        },
+        {
+          "name": "deleteProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"contact profile deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{contactProfileVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{contactProfileId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{contactProfileId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: contacts.profiledelete\nlabel: Delete profile\nkind: optional\n\nDeletes the flow contacts provider profile using its stored version."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"contact category deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{contactCategoryVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{contactCategoryId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{contactCategoryId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: contacts.cleancat\nlabel: Delete category\nkind: optional\n\nDeletes the flow contacts category created for this folder."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"contact city deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{contactCityVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{contactCityId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{contactCityId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: contacts.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the flow contacts city created for this folder."
+          }
+        }
+      ]
     }
   ],
   "variable": [
