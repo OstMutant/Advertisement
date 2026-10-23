@@ -2435,6 +2435,431 @@
           }
         }
       ]
+    },
+    {
+      "name": "Account",
+      "description": "Reads, updates and reverts the flow user's own page-size settings through their history, then changes the interface language and back and checks that an unsupported language is rejected.",
+      "item": [
+        {
+          "name": "getMySettings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"settings read\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"settingsVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users/me/settings",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me",
+                "settings"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: account.get\nlabel: Get settings\nkind: required\n\nReads the page-size settings of the flow user and stores their version."
+          }
+        },
+        {
+          "name": "updateMySettings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"settings updated\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"settingsVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{settingsVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users/me/settings",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me",
+                "settings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adsPageSize\": {{settingsPageSize}},\n  \"usersPageSize\": 20,\n  \"timelinePageSize\": 20,\n  \"providerProfilesPageSize\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: account.update\nlabel: Update settings\nkind: optional\n\nUpdates the page-size settings of the flow user using the stored version and stores the new version."
+          }
+        },
+        {
+          "name": "getMySettingsHistory",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"settings history listed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"settingsSnapshotId\", Math.min.apply(null, pm.response.json().map(function (h) { return h.snapshotId; })));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users/me/settings/history",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me",
+                "settings",
+                "history"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: account.history\nlabel: Settings history\nkind: optional\n\nLists the settings history of the flow user and stores the id of the earliest snapshot."
+          }
+        },
+        {
+          "name": "getMySettingsHistorySnapshot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"first settings state read\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users/me/settings/history/{{settingsSnapshotId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me",
+                "settings",
+                "history",
+                "{{settingsSnapshotId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: account.snapshot\nlabel: Read first state\nkind: optional\n\nReads the earliest snapshot of the settings history of the flow user."
+          }
+        },
+        {
+          "name": "restoreMySettingsFromSnapshot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"settings restored\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"settingsVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{settingsVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users/me/settings/history/{{settingsSnapshotId}}/restore",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me",
+                "settings",
+                "history",
+                "{{settingsSnapshotId}}",
+                "restore"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: account.revert\nlabel: Restore first state\nkind: optional\n\nRestores the settings of the flow user to the earliest snapshot and stores the new version."
+          }
+        },
+        {
+          "name": "changeMyLocale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"language changed\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users/me/locale",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me",
+                "locale"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"locale\": \"uk\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: account.locale\nlabel: Change language\nkind: optional\n\nChanges the interface language of the flow user to Ukrainian."
+          }
+        },
+        {
+          "name": "changeMyLocale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"language changed back\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users/me/locale",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me",
+                "locale"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"locale\": \"en\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: account.localeback\nlabel: Change language back\nkind: optional\n\nChanges the interface language of the flow user back to English."
+          }
+        },
+        {
+          "name": "changeMyLocale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"unsupported language rejected\", function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users/me/locale",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me",
+                "locale"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"locale\": \"xx\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: account.badlocale\nlabel: Reject bad language\nkind: optional\n\nChecks that an unsupported interface language is rejected with status 400."
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -2489,6 +2914,10 @@
     {
       "key": "adKind",
       "value": "OFFER"
+    },
+    {
+      "key": "settingsPageSize",
+      "value": "30"
     }
   ]
 }
