@@ -6,7 +6,9 @@
  *   asserts the first failure stops the chain. Each flow has a card with a checkbox (Authentication
  *   is required and locked); a test unchecks the Moderation card and asserts its steps are all
  *   skipped. Clicking a card opens the flow with its settings text area and step rows; a test sets
- *   a too-short user password there and runs. The whole file skips itself when the page answers 404
+ *   a too-short user password there and runs.
+ *   A template bar offers Everything, Minimal and templates saved in the browser; a test applies, rejects, saves, reloads and deletes them.
+ *   The whole file skips itself when the page answers 404
  *   (a stack deployed without --dev-tools).
  * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 11-api-flow-runner --ux`
  *   after `bash scripts/deploy-and-run.sh --reset-only-db --dev-tools`, or as part of the full e2e
@@ -65,9 +67,45 @@ test.describe.serial('API flow runner page', () => {
     await screenshot(page, 'flow-runner-passed');
   });
 
-  test('developer unchecks the Moderation flow and runs — every Moderation step coloured skipped, nothing failed, the other flows passed, the opened Moderation flow says flow not selected', async ({ page }) => {
+  test('developer works with templates and unchecks the Moderation flow — the label follows the selection, Minimal and pasted configurations apply, an invalid one is rejected, a saved template survives a reload and is deleted, then every Moderation step is coloured skipped, nothing failed, the other flows passed, the opened Moderation flow says flow not selected', async ({ page }) => {
     await page.goto(PAGE_URL);
-    await page.locator('#flow-map .flow-card[data-flow="Moderation"] input[type="checkbox"]').uncheck();
+    await expect(page.locator('#run-button')).toBeEnabled();
+    await expect(page.locator('#template-label')).toHaveText('Everything');
+    const moderationBox = page.locator('#flow-map .flow-card[data-flow="Moderation"] input[type="checkbox"]');
+    await moderationBox.uncheck();
+    await expect(page.locator('#template-label')).toHaveText('Custom');
+
+    await page.click('#templates button[data-template="Minimal"]');
+    await expect(page.locator('#template-label')).toHaveText('Minimal');
+    await expect(page.locator('#flow-map .flow-card input[type="checkbox"]:checked')).toHaveCount(2);
+
+    await page.fill('#template-config', '{"version": 2}');
+    await page.click('#template-apply');
+    await expect(page.locator('#templates .msg')).toContainText('version');
+    await expect(page.locator('#template-label')).toHaveText('Minimal');
+
+    await page.click('#templates button[data-template="Everything"]');
+    const everything = await page.inputValue('#template-config');
+    await moderationBox.uncheck();
+    await page.fill('#template-config', everything);
+    await page.click('#template-apply');
+    await expect(page.locator('#template-label')).toHaveText('Everything');
+    await expect(moderationBox).toBeChecked();
+
+    await moderationBox.uncheck();
+    await page.fill('#template-name', 'check');
+    await page.click('#template-save');
+    await expect(page.locator('#templates button[data-template="check"]')).toBeVisible();
+    await expect(page.locator('#template-label')).toHaveText('check');
+    await page.reload();
+    await expect(page.locator('#run-button')).toBeEnabled();
+    await page.click('#templates button[data-template="check"]');
+    await expect(moderationBox).not.toBeChecked();
+    await page.click('#templates button[aria-label="Delete check"]');
+    await expect(page.locator('#templates button[data-template="check"]')).toHaveCount(0);
+
+    await page.click('#templates button[data-template="Everything"]');
+    await moderationBox.uncheck();
 
     await page.click('#run-button');
     await expect(page.locator('#run-button')).toBeEnabled({ timeout: 60000 });

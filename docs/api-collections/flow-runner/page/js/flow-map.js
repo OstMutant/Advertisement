@@ -54,7 +54,7 @@ export function createFlowMap(container, collection, selection, { onOpen }) {
     card.append(head, foot);
     container.append(card);
 
-    cards.push({ flow: flow.name, steps, open, count, pill });
+    cards.push({ flow: flow.name, steps, checkbox, open, count, pill });
   });
 
   function renderCount(card) {
@@ -93,7 +93,12 @@ export function createFlowMap(container, collection, selection, { onOpen }) {
     cards.forEach((card) => card.open.setAttribute("aria-pressed", String(card.flow === flowName)));
   }
 
-  selection.subscribe(() => cards.forEach(renderCount));
+  selection.subscribe(() =>
+    cards.forEach((card) => {
+      card.checkbox.checked = selection.flowOn(card.flow);
+      renderCount(card);
+    }),
+  );
   cards.forEach(renderCount);
 
   return { update, reset, setOpen };

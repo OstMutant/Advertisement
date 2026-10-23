@@ -4,6 +4,7 @@ import { createDiagram } from "./diagram.js";
 import { createFlowMap } from "./flow-map.js";
 import { createFlowDetail } from "./flow-detail.js";
 import { createSelection } from "./selection.js";
+import { createTemplatesBar } from "./templates-bar.js";
 
 const COLLECTION_URL = "postman/marketplace-rest-api.postman_collection.json";
 
@@ -32,12 +33,24 @@ async function init() {
         map.setOpen(name);
       },
     });
+    createTemplatesBar(document.getElementById("templates"), collection, selection, openStorage());
     runButton.addEventListener("click", start);
   } catch (error) {
     errorElement().textContent = error.message;
     return;
   }
   runButton.disabled = false;
+}
+
+function openStorage() {
+  try {
+    const storage = window.localStorage;
+    storage.setItem("api-flow-runner.probe", "1");
+    storage.removeItem("api-flow-runner.probe");
+    return storage;
+  } catch {
+    return null;
+  }
 }
 
 async function run(runButton, results, diagram, map, detail, collection, selection) {

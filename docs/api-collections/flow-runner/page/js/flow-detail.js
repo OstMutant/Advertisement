@@ -19,7 +19,12 @@ export function createFlowDetail(container, collection, selection, { host, onApp
   columns.append(stepList, panel);
   container.append(title, note, settingsBox, columns);
   container.hidden = true;
-  selection.subscribe(renderSteps);
+  selection.subscribe(() => {
+    renderSteps();
+    if (flowName !== null && !settingsBox.contains(document.activeElement)) {
+      renderSettings();
+    }
+  });
 
   function open(name) {
     flowName = name;
