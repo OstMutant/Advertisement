@@ -31,3 +31,8 @@ storage:
 # Vaadin framework settings
 vaadin:
   productionMode: false
+
+# Developer-only pages (API flow runner) served by marketplace-rest-api
+marketplace:
+  dev-tools:
+    enabled: true

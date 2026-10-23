@@ -101,6 +101,14 @@ One page, served by the running app, that draws a flow as a diagram, lets a deve
      values the flows send.
 7. **Out of scope:** the architecture map, production exposure, the Postman Flow canvas. Record the dev-only serving decision with `/record-decision` once implemented.
 
+## Phases (2026-10-22, plan; only the mockup exists today)
+
+1. **Serving.** Property `marketplace.dev-tools.enabled` (default off, on in `application-dev.yml`); when on, a resource handler and a security chain serve a static `/dev-tools/api-flows/` folder, otherwise the path is not registered (404); build-time copy of `docs/api-collections/flow-runner/page/` and the Postman collection into `marketplace-rest-api` resources; `deploy-and-run.sh --dev-tools` passes the property as an environment variable; a placeholder `index.html`; Level 3 test for 404 off / 200 on.
+2. **Collection loading and linear run.** The page reads the collection, runs the steps in order with the `pm` shim, carries captured values forward, stops and skips on the first failure.
+3. **Drawing.** Mermaid prototype with live status classes; fall back to Cytoscape.js if re-render flicker is unacceptable.
+4. **Flow map and detail levels, settings text area, selection, marks, templates.**
+5. **Record the dev-only serving decision (`/record-decision`), README, close.**
+
 ## Related
 
 - Design reference: [`docs/api-collections/flow-runner/mockup/flow-runner-mockup.html`](../../docs/api-collections/flow-runner/mockup/flow-runner-mockup.html) — interactive mockup of the two levels (flow map, step detail), the "run as" role, required/optional/unavailable marks and the run data document; example data only, no requests are sent.

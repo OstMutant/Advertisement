@@ -10,7 +10,7 @@
 #   --reset, no re-run needed -- dev-only, a real deployed database needs a proper migration, not a
 #   wipe. See DECISIONS.md for the full reuse-jar rationale.
 # Usage: bash scripts/deploy-and-run.sh [--reset] [--restart-infra] [--file] [--no-cache]
-#   [--reset-only-db] [--with-tests] [--from-scratch] [--prune-all]
+#   [--reset-only-db] [--with-tests] [--from-scratch] [--prune-all] [--dev-tools]
 #   (no flags)       reuse scripts/build-and-test.sh's shared jar -- no Docker image built, no
 #                    tests run, no data wipe -- start all services on port 8081
 #   --reset          wipe DB/SeaweedFS volumes, then rebuild
@@ -24,6 +24,8 @@
 #                    the full multi-stage root Dockerfile in complete isolation (the old, pre-reuse
 #                    behavior) -- needed when an actual portable image is required, not just a
 #                    running local container
+#   --dev-tools      start the app with MARKETPLACE_DEV_TOOLS_ENABLED=true so the developer-only API flow
+#                    runner page is served at /dev-tools/api-flows/ (off by default, never set in compose)
 #   --prune-all      ALSO run `docker container prune -f` and `docker volume prune -f` after the
 #                    build -- HOST-WIDE, not scoped to this app, will remove any other stopped
 #                    container / unused volume on the machine. Opt-in only, never automatic -- see
@@ -102,6 +104,7 @@ RESET_ONLY_DB=false
 PRUNE_ALL=false
 WITH_TESTS=false
 FROM_SCRATCH=false
+DEV_TOOLS=false
 for arg in "$@"; do
   case "$arg" in
     --reset)         MODE="reset" ;;
@@ -112,6 +115,7 @@ for arg in "$@"; do
     --prune-all)     PRUNE_ALL=true ;;
     --with-tests)    WITH_TESTS=true ;;
     --from-scratch)  FROM_SCRATCH=true ;;
+    --dev-tools)     DEV_TOOLS=true ;;
   esac
 done
 
@@ -325,6 +329,9 @@ start_app_container() {
     -e S3_PUBLIC_URL="http://localhost:$SEAWEEDFS_PORT/$S3_BUCKET"
     -e APP_PUBLIC_URL="http://localhost:$APP_PORT"
     -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC")
+  if $DEV_TOOLS; then
+    RUN_FLAGS+=(-e MARKETPLACE_DEV_TOOLS_ENABLED=true)
+  fi
 
   if $FROM_SCRATCH; then
     docker run "${RUN_FLAGS[@]}" "$APP_IMAGE"
