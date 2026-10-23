@@ -1,23 +1,29 @@
 import { loadCollection } from "./collection.js";
 import { runFlow } from "./runner.js";
+import { createDiagram } from "./diagram.js";
 
 const COLLECTION_URL = "postman/marketplace-rest-api.postman_collection.json";
 
 function init() {
   const runButton = document.getElementById("run-button");
   const results = document.getElementById("results");
-  runButton.addEventListener("click", () => run(runButton, results));
+  const diagram = createDiagram(document.getElementById("diagram"));
+  runButton.addEventListener("click", () => run(runButton, results, diagram));
 }
 
-async function run(runButton, results) {
+async function run(runButton, results, diagram) {
   runButton.disabled = true;
   results.replaceChildren();
+  diagram.reset();
   errorElement().textContent = "";
   try {
     const collection = await loadCollection(COLLECTION_URL);
     await runFlow(collection, {
       host: location.origin,
-      onStepUpdate: (index, step) => renderStep(results, index, step),
+      onStepUpdate: (index, step) => {
+        renderStep(results, index, step);
+        diagram.update(index, step);
+      },
     });
   } catch (error) {
     errorElement().textContent = error.message;

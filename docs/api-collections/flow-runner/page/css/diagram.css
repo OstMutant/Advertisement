@@ -1,0 +1,65 @@
+#diagram {
+  overflow-x: auto;
+  padding: 8px 0;
+}
+
+.flow-diagram {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  font-family: system-ui, sans-serif;
+}
+
+.flow-diagram .step rect {
+  fill: #f1f3f4;
+  stroke: #9aa0a6;
+  stroke-width: 1.5;
+}
+
+.flow-diagram .step text {
+  fill: #202124;
+}
+
+.flow-diagram .step text.index {
+  font-size: 10px;
+  fill: #5f6368;
+}
+
+.flow-diagram .step text.name {
+  font-size: 12px;
+}
+
+.flow-diagram .step.running rect {
+  fill: #e8f0fe;
+  stroke: #1a73e8;
+  stroke-width: 3;
+}
+
+.flow-diagram .step.passed rect {
+  fill: #e6f4ea;
+  stroke: #188038;
+}
+
+.flow-diagram .step.failed rect {
+  fill: #fce8e6;
+  stroke: #d93025;
+  stroke-width: 2.5;
+}
+
+.flow-diagram .step.skipped rect {
+  stroke-dasharray: 5 4;
+}
+
+.flow-diagram .step.skipped {
+  opacity: 0.55;
+}
+
+.flow-diagram .link {
+  stroke: #9aa0a6;
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.flow-diagram .arrow-head {
+  fill: #9aa0a6;
+}
