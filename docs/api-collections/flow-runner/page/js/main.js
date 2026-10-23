@@ -44,6 +44,9 @@ function renderStep(results, index, step) {
   if (step.error !== null) {
     line += ` - ${step.error}`;
   }
+  if (step.note !== null) {
+    line += ` - ${step.note}`;
+  }
   li.textContent = line;
 
   for (const test of step.tests) {

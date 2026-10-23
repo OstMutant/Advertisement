@@ -83,6 +83,9 @@
             <resource>
                 <directory>../docs/api-collections/postman</directory>
                 <targetPath>dev-tools/api-flows/postman</targetPath>
+                <excludes>
+                    <exclude>README.md</exclude>
+                </excludes>
             </resource>
         </resources>
     </build>

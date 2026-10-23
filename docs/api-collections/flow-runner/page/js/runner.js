@@ -1,14 +1,19 @@
 import { substitute } from "./collection.js";
 import { createPm, runScript } from "./pm-shim.js";
 
-export async function runFlow(collection, { host, variables = {}, onStepUpdate = () => {} }) {
-  const runVariables = { ...collection.variables, ...variables, host };
+export async function runFlow(collection, { host, variables = {}, include = [], onStepUpdate = () => {} }) {
+  const runVariables = { ...collection.variables, runId: newRunId(), ...variables, host };
   const steps = collection.items.map((item, index) => ({
     index,
-    name: item.name,
+    id: item.stepId,
+    name: item.label,
+    requestName: item.name,
+    kind: item.kind,
+    flow: item.flow,
     status: "pending",
     durationMs: 0,
     error: null,
+    note: null,
     tests: [],
     request: { method: item.method, url: item.url, headers: {}, body: null },
     response: { code: null, headers: [], body: "" },
@@ -18,6 +23,12 @@ export async function runFlow(collection, { host, variables = {}, onStepUpdate =
   let failed = false;
   for (const [index, item] of collection.items.entries()) {
     const step = steps[index];
+    if (item.defaultOff && !include.includes(item.stepId)) {
+      step.status = "skipped";
+      step.note = "off by default";
+      onStepUpdate(index, step);
+      continue;
+    }
     if (failed) {
       step.status = "skipped";
       onStepUpdate(index, step);
@@ -78,6 +89,10 @@ export async function runFlow(collection, { host, variables = {}, onStepUpdate =
       continue;
     }
     step.response = response;
+    if (response.code === 429) {
+      const retryAfter = response.headers.find(([key]) => key.toLowerCase() === "retry-after")?.[1] ?? "unknown";
+      step.error = `rate limited (429), retry after ${retryAfter} s`;
+    }
 
     const { pm, tests } = createPm({ code: response.code, bodyText: response.body }, runVariables);
     try {
@@ -96,6 +111,10 @@ export async function runFlow(collection, { host, variables = {}, onStepUpdate =
   }
 
   return { steps, variables: runVariables };
+}
+
+function newRunId() {
+  return Date.now().toString(36);
 }
 
 function toBase64(text) {

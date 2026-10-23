@@ -1,0 +1,8 @@
+{
+  "baseUrl": "http://localhost:8081",
+  "openApiPath": "/v3/api-docs",
+  "collectionFile": "../postman/marketplace-rest-api.postman_collection.json",
+  "allowListFile": "coverage-allowlist.txt",
+  "hostPlaceholder": "{{host}}",
+  "stepMetadata": { "maxLabelLength": 24, "kinds": ["required", "optional", "pick"] }
+}

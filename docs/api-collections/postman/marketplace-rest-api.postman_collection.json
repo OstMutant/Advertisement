@@ -5,337 +5,453 @@
   },
   "item": [
     {
-      "name": "registerUser",
-      "event": [
+      "name": "Authentication",
+      "description": "Register the administrator and a user, issue API keys for both, list, revoke and re-check a second key.",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"registered, or already exists on a repeat run\", function () {",
-              "  pm.expect([201, 409]).to.include(pm.response.code);",
-              "});",
-              "if (pm.response.code === 201) { pm.collectionVariables.set(\"userId\", pm.response.json().id); }"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": {
-          "raw": "{{host}}/api/users",
-          "host": [
-            "{{host}}"
-          ],
-          "path": [
-            "api",
-            "users"
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Admin EN\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "auth": {
-          "type": "noauth"
-        }
-      }
-    },
-    {
-      "name": "issueApiKey",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"key issued\", function () {",
-              "  pm.expect(pm.response.json().rawKey).to.be.a(\"string\");",
-              "});",
-              "pm.collectionVariables.set(\"apiKey\", pm.response.json().rawKey);"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": {
-          "raw": "{{host}}/api/api-keys",
-          "host": [
-            "{{host}}"
-          ],
-          "path": [
-            "api",
-            "api-keys"
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"label\": \"postman\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "auth": {
-          "type": "basic",
-          "basic": [
+          "name": "registerUser",
+          "event": [
             {
-              "key": "username",
-              "value": "{{email}}",
-              "type": "string"
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"registered, or already exists on a repeat run\", function () {",
+                  "  pm.expect([201, 409]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set(\"userId\", pm.response.json().id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
             },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{adminName}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: auth.admin\nlabel: Register administrator\nkind: required\ndefault: off\n\nRegisters the first account, which becomes the administrator; only for an empty database. 409 on a repeat run is accepted."
+          }
+        },
+        {
+          "name": "registerUser",
+          "event": [
             {
-              "key": "password",
-              "value": "{{password}}",
-              "type": "string"
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"registered\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"userEmail\", pm.response.json().email);"
+                ]
+              }
             }
-          ]
-        }
-      }
-    },
-    {
-      "name": "createAdvertisement",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"created\", function () { pm.response.to.have.status(201); });",
-              "pm.collectionVariables.set(\"advertisementId\", pm.response.json().id);"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": {
-          "raw": "{{host}}/api/advertisements",
-          "host": [
-            "{{host}}"
           ],
-          "path": [
-            "api",
-            "advertisements"
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"title\": \"Plumbing services\",\n  \"description\": \"Fast and reliable plumbing\",\n  \"adKind\": \"OFFER\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{userName}}\",\n  \"email\": \"{{userEmailPrefix}}.{{runId}}@example.com\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: auth.user\nlabel: Register user\nkind: optional\n\nRegisters a new ordinary user under a unique e-mail for this run and captures that e-mail for the following steps."
           }
         },
-        "auth": {
-          "type": "bearer",
-          "bearer": [
+        {
+          "name": "issueApiKey",
+          "event": [
             {
-              "key": "token",
-              "value": "{{apiKey}}",
-              "type": "string"
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"key issued\", function () {",
+                  "  pm.expect(pm.response.json().rawKey).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"adminKey\", pm.response.json().rawKey);"
+                ]
+              }
             }
-          ]
-        }
-      }
-    },
-    {
-      "name": "listAdvertisements",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"ok\", function () { pm.response.to.have.status(200); });"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{host}}/api/advertisements",
-          "host": [
-            "{{host}}"
           ],
-          "path": [
-            "api",
-            "advertisements"
-          ]
-        },
-        "auth": {
-          "type": "noauth"
-        }
-      }
-    },
-    {
-      "name": "getAdvertisement",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"ok\", function () { pm.response.to.have.status(200); });"
-            ]
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/api-keys",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"{{apiKeyLabel}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{email}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: auth.key\nlabel: Issue API key\nkind: required\n\nIssues an API key for the administrator using basic authentication; the raw key is stored for the bearer requests."
           }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{host}}/api/advertisements/{{advertisementId}}",
-          "host": [
-            "{{host}}"
-          ],
-          "path": [
-            "api",
-            "advertisements",
-            "{{advertisementId}}"
-          ]
         },
-        "auth": {
-          "type": "noauth"
-        }
-      }
-    },
-    {
-      "name": "listTaxons",
-      "event": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"ok\", function () { pm.response.to.have.status(200); });"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{host}}/api/taxons",
-          "host": [
-            "{{host}}"
-          ],
-          "path": [
-            "api",
-            "taxons"
-          ]
-        },
-        "auth": {
-          "type": "noauth"
-        }
-      }
-    },
-    {
-      "name": "getMySettings",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"ok\", function () { pm.response.to.have.status(200); });"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{host}}/api/users/me/settings",
-          "host": [
-            "{{host}}"
-          ],
-          "path": [
-            "api",
-            "users",
-            "me",
-            "settings"
-          ]
-        },
-        "auth": {
-          "type": "bearer",
-          "bearer": [
+          "name": "issueApiKey",
+          "event": [
             {
-              "key": "token",
-              "value": "{{apiKey}}",
-              "type": "string"
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"key issued\", function () {",
+                  "  pm.expect(pm.response.json().rawKey).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"userKey\", pm.response.json().rawKey);"
+                ]
+              }
             }
-          ]
-        }
-      }
-    },
-    {
-      "name": "listApiKeys",
-      "event": [
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/api-keys",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"{{apiKeyLabel}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{userEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{userPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: auth.userkey\nlabel: Issue user API key\nkind: optional\n\nIssues an API key for the ordinary user, showing that each account owns its own keys."
+          }
+        },
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"ok\", function () { pm.response.to.have.status(200); });"
-            ]
+          "name": "issueApiKey",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"key issued\", function () {",
+                  "  pm.expect(pm.response.json().rawKey).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"secondKey\", pm.response.json().rawKey);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/api-keys",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"{{secondKeyLabel}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{email}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: auth.second\nlabel: Issue second API key\nkind: optional\n\nIssues a second key for the administrator so that it can be listed, revoked and then rejected."
+          }
+        },
+        {
+          "name": "listApiKeys",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"ok\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"second key is listed\", function () {",
+                  "  pm.expect(pm.response.json().map(function (k) { return k.label; })).to.include(pm.collectionVariables.get(\"secondKeyLabel\"));",
+                  "});",
+                  "pm.collectionVariables.set(\"secondKeyId\", Math.max.apply(null, pm.response.json().filter(function (k) { return k.label === pm.collectionVariables.get(\"secondKeyLabel\"); }).map(function (k) { return k.id; })));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/api-keys",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: auth.keys\nlabel: List API keys\nkind: optional\n\nLists the administrator's keys and stores the id of the second key for the revoke step."
+          }
+        },
+        {
+          "name": "revokeApiKey",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"revoked\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/api-keys/{{secondKeyId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys",
+                "{{secondKeyId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: auth.revoke\nlabel: Revoke second API key\nkind: optional\n\nRevokes the second key using the administrator's key; it must answer 204."
+          }
+        },
+        {
+          "name": "listApiKeys",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"revoked key is rejected\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/api-keys",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{secondKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: auth.revoked\nlabel: Revoked key is rejected\nkind: optional\n\nSends the revoked second key to a protected endpoint, which must now be rejected with 401."
+          }
+        },
+        {
+          "name": "revokeApiKey",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"already revoked\", function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/api-keys/{{secondKeyId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys",
+                "{{secondKeyId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: auth.again\nlabel: Revoke again\nkind: optional\n\nRevokes the already revoked second key again, which must answer 409."
           }
         }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{host}}/api/api-keys",
-          "host": [
-            "{{host}}"
-          ],
-          "path": [
-            "api",
-            "api-keys"
-          ]
-        },
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{apiKey}}",
-              "type": "string"
-            }
-          ]
-        }
-      }
+      ]
     }
   ],
   "variable": [
@@ -350,6 +466,34 @@
     {
       "key": "password",
       "value": "password"
+    },
+    {
+      "key": "adminName",
+      "value": "Admin EN"
+    },
+    {
+      "key": "userName",
+      "value": "Flow User"
+    },
+    {
+      "key": "userEmailPrefix",
+      "value": "flow.user"
+    },
+    {
+      "key": "runId",
+      "value": "1"
+    },
+    {
+      "key": "userPassword",
+      "value": "password123"
+    },
+    {
+      "key": "apiKeyLabel",
+      "value": "flow-runner"
+    },
+    {
+      "key": "secondKeyLabel",
+      "value": "flow-runner-second"
     }
   ]
 }

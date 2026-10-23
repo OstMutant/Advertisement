@@ -3,11 +3,25 @@ export async function loadCollection(url) {
   if (!response.ok) {
     throw new Error(`failed to load collection ${url}: HTTP ${response.status}`);
   }
-  const collection = await response.json();
+  return parseCollection(await response.json());
+}
+
+export function parseCollection(collection) {
+  const flows = [];
+  const items = [];
+  for (const entry of collection.item) {
+    if (Array.isArray(entry.item)) {
+      flows.push({ name: entry.name, note: descriptionText(entry.description) });
+      collectItems([entry], entry.name, items);
+    } else {
+      collectItems([entry], "", items);
+    }
+  }
   return {
     name: collection.info.name,
     variables: Object.fromEntries((collection.variable ?? []).map((entry) => [entry.key, String(entry.value)])),
-    items: collection.item.map(toItem),
+    flows,
+    items,
   };
 }
 
@@ -26,9 +40,21 @@ export function substitute(template, variables) {
 }
 
 const PLACEHOLDER = /\{\{\s*([^}\s]+)\s*\}\}/g;
+const HEADER_LINE = /^(\w+):\s*(.*)$/;
 
-function toItem(item) {
+function collectItems(entries, flow, items) {
+  for (const entry of entries) {
+    if (Array.isArray(entry.item)) {
+      collectItems(entry.item, flow, items);
+    } else {
+      items.push(toItem(entry, flow));
+    }
+  }
+}
+
+function toItem(item, flow) {
   const request = item.request;
+  const { meta, text } = parseDescription(request.description);
   return {
     name: item.name,
     method: request.method,
@@ -39,7 +65,33 @@ function toItem(item) {
     body: request.body?.mode === "raw" ? request.body.raw : null,
     auth: parseAuth(request.auth),
     testScript: parseTestScript(item.event),
+    flow,
+    stepId: meta.step || item.name,
+    label: meta.label || item.name,
+    kind: meta.kind || "optional",
+    defaultOff: meta.default === "off",
+    text,
   };
+}
+
+function parseDescription(description) {
+  const lines = descriptionText(description).split("\n");
+  const blankIndex = lines.findIndex((line) => line.trim() === "");
+  const headerLines = blankIndex === -1 ? lines : lines.slice(0, blankIndex);
+  const bodyLines = blankIndex === -1 ? [] : lines.slice(blankIndex + 1);
+  const meta = {};
+  for (const line of headerLines) {
+    const match = HEADER_LINE.exec(line.trim());
+    if (match !== null) {
+      meta[match[1]] = match[2].trim();
+    }
+  }
+  return { meta, text: bodyLines.join("\n").trim() };
+}
+
+function descriptionText(description) {
+  const content = typeof description === "string" ? description : description?.content ?? "";
+  return content.trim();
 }
 
 function parseAuth(auth) {

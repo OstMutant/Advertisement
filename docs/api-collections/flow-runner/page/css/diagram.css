@@ -63,3 +63,9 @@
 .flow-diagram .arrow-head {
   fill: #9aa0a6;
 }
+
+.flow-diagram .flow-name {
+  font-size: 12px;
+  font-weight: 600;
+  fill: #5f6368;
+}

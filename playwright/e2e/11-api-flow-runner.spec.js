@@ -1,7 +1,8 @@
 /* ── Header ───────────────────────────────────────────────────────────────
  * Description: Browser check of the developer-only API flow runner page -- opens the page, runs the
- *   Postman collection's eight chained requests and asserts the live diagram colours every step,
- *   then runs it again with a wrong password and asserts the first failure stops the chain. The
+ *   Postman collection's flows and asserts the live diagram colours every step (the steps that are
+ *   off by default stay skipped), then runs it again with a wrong password and asserts the first
+ *   failure stops the chain. The
  *   whole file skips itself when the page answers 404 (a stack deployed without --dev-tools).
  * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 11-api-flow-runner --ux`
  *   after `bash scripts/deploy-and-run.sh --reset-only-db --dev-tools`, or as part of the full e2e
@@ -27,7 +28,7 @@ test.describe.serial('API flow runner page', () => {
     test.skip(response.status() === 404, 'dev tools are not enabled on this stack');
   });
 
-  test('developer runs the default flow on the runner page — eight steps coloured passed, eight result rows, screenshots at start, running and end', async ({ page }) => {
+  test('developer runs the default flow on the runner page — every step coloured passed except the administrator registration, which is off by default, one result row per step, screenshots at start, running and end', async ({ page }) => {
     await page.goto(PAGE_URL);
     await screenshot(page, 'flow-runner-start');
 
@@ -35,14 +36,16 @@ test.describe.serial('API flow runner page', () => {
     await expect(page.locator('#diagram g.step.passed').first()).toBeVisible();
     await screenshot(page, 'flow-runner-running');
 
-    await expect(page.locator('#diagram g.step.passed')).toHaveCount(8, { timeout: 30000 });
+    await expect(page.locator('#run-button')).toBeEnabled({ timeout: 60000 });
+    const rows = await page.locator('#results li').count();
+    expect(rows).toBeGreaterThan(0);
     await expect(page.locator('#diagram g.step.failed')).toHaveCount(0);
-    await expect(page.locator('#results li')).toHaveCount(8);
-    await expect(page.locator('#run-button')).toBeEnabled();
+    await expect(page.locator('#diagram g.step.passed')).toHaveCount(rows - 1);
+    await expect(page.locator('#diagram g.step.skipped')).toHaveCount(1);
     await screenshot(page, 'flow-runner-passed');
   });
 
-  test('developer runs the flow with a wrong password — issueApiKey coloured failed, six later steps skipped, run button enabled again', async ({ page }) => {
+  test('developer runs the flow with a wrong password — auth.key coloured failed, the user registration passed, the rest skipped, run button enabled again', async ({ page }) => {
     await page.route(COLLECTION_URL, async route => {
       const collection = await (await route.fetch()).json();
       collection.variable.find(entry => entry.key === 'password').value = 'wrongpassword';
@@ -53,10 +56,12 @@ test.describe.serial('API flow runner page', () => {
     await page.click('#run-button');
 
     await expect(page.locator('#diagram g.step.failed')).toHaveCount(1, { timeout: 30000 });
+    await expect(page.locator('#run-button')).toBeEnabled({ timeout: 60000 });
+    const rows = await page.locator('#results li').count();
+    await expect(page.locator('#diagram g.step.failed')).toHaveCount(1);
+    await expect(page.locator('#diagram g.step.failed')).toHaveAttribute('data-step', 'auth.key');
     await expect(page.locator('#diagram g.step.passed')).toHaveCount(1);
-    await expect(page.locator('#diagram g.step.skipped')).toHaveCount(6);
-    await expect(page.locator('#diagram g.step.failed')).toHaveAttribute('data-step', 'issueApiKey');
-    await expect(page.locator('#run-button')).toBeEnabled();
+    await expect(page.locator('#diagram g.step.skipped')).toHaveCount(rows - 2);
     await screenshot(page, 'flow-runner-failed');
   });
 });

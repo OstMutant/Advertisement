@@ -199,6 +199,7 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/scripts/ci/DECISIONS.md`
 - `/app/scripts/sonar/DECISIONS.md`
 - `/app/docs/architecture/scripts/DECISIONS.md`
+- `/app/docs/api-collections/DECISIONS.md`
 - `/app/integration-tests/DECISIONS.md`
 - `/app/taxon-spring-boot-starter/DECISIONS.md`
 - `/app/contact-spring-boot-starter/DECISIONS.md`

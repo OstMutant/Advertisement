@@ -65,8 +65,8 @@
 #   there too, if a given CI runner ever needs it.
 # Input: root build files (pom.xml, mvnw, .mvn, lombok.config, .env), scripts/build-and-test/build.sh
 #   itself (the container's own entry point), each Maven module's own directory, per pom.xml's
-#   <module> list, and docs/api-collections (a Level 3 test reads the Postman collection) -- not
-#   the whole repo (see the tar step's own comment below);
+#   <module> list, and docs/api-collections (the REST API module packs the flow runner page and
+#   the Postman collection from it) -- not the whole repo (see the tar step's own comment below);
 #   scripts/build-and-test/build-and-test.properties (unit=/integration= defaults, read on the host
 #   side by this script, not tarred in).
 # Outputs: fresh jars for the whole reactor in the shared maven-cache Docker volume (never the
@@ -209,7 +209,8 @@ SANDBOX_ENV=()
 # ── Pipe sources + build (+ optional unit/integration tests) ─────────────────
 # Tars only what this run actually needs inside the container: build.sh itself (the entry point
 # the container executes below, via bash -c), the root build files, each module's own directory,
-# and docs/api-collections (a Level 3 test reads the Postman collection) -- never the whole repo.
+# and docs/api-collections (the REST API module packs the flow runner page and the Postman
+# collection from it) -- never the whole repo.
 # .env is included even though `mvn install` itself never reads it --
 # integration-tests' own SharedEnvConfig reads it at test-runtime (POSTGRES_IMAGE for
 # Testcontainers), walking up from the JVM's working directory; missing it doesn't fail the build,
