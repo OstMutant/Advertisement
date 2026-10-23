@@ -1,14 +1,7 @@
 # One entry per line: operationId # reason. An entry fails the check once its operation is in the Postman collection or no longer exists.
 # Entries are gaps to close, never permanent exceptions.
-approveFeedback # not yet in the collection
-approveFeedbackReply # not yet in the collection
-confirmFeedbackReplyViolation # not yet in the collection
-confirmFeedbackViolation # not yet in the collection
 deleteUser # not yet in the collection
-flagFeedback # not yet in the collection
-flagFeedbackReply # not yet in the collection
 getAuditTimeline # not yet in the collection
-getModerationQueue # not yet in the collection
 getUser # not yet in the collection
 getUserHistory # not yet in the collection
 getUserHistorySnapshot # not yet in the collection
