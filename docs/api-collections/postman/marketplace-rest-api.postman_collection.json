@@ -4303,6 +4303,844 @@
           }
         }
       ]
+    },
+    {
+      "name": "Feedback",
+      "description": "Creates its own category, city and provider profile, then writes, edits and lists a review of that profile, checks that a second review and a reply by a non-owner are rejected, replies to the review, edits, repeats and deletes the reply, and deletes the profile, category and city.",
+      "item": [
+        {
+          "name": "createTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"feedback category created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"feedbackCategoryId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"feedbackCategoryVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CATEGORY\",\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow feedback category {{runId}}\",\n      \"description\": \"Flow feedback category {{runId}}\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow feedback category uk {{runId}}\",\n      \"description\": \"Flow feedback category uk {{runId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.category\nlabel: Create category\nkind: optional\n\nCreates the flow feedback category with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "createTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"feedback city created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"feedbackCityId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"feedbackCityVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CITY\",\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow feedback city {{runId}}\",\n      \"description\": \"Flow feedback city {{runId}}\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow feedback city uk {{runId}}\",\n      \"description\": \"Flow feedback city uk {{runId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.city\nlabel: Create city\nkind: optional\n\nCreates the flow feedback city with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "createProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"feedback profile created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"feedbackProfileId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"feedbackProfileVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"{{profileKind}}\",\n  \"about\": \"Flow feedback profile {{runId}}\",\n  \"phone\": \"{{profilePhone}}\",\n  \"categoryIds\": [\n    {{feedbackCategoryId}}\n  ],\n  \"cityTaxonId\": {{feedbackCityId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.profile\nlabel: Create profile\nkind: required\n\nCreates a provider profile for the flow user in the flow feedback category and city and stores its id and version."
+          }
+        },
+        {
+          "name": "createProviderProfileFeedback",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"review created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"feedbackId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"feedbackVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{feedbackProfileId}}/feedback",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{feedbackProfileId}}",
+                "feedback"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"text\": \"Flow review {{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.create\nlabel: Create review\nkind: optional\n\nWrites a review of the flow provider profile as the flow user and stores its id and version."
+          }
+        },
+        {
+          "name": "createProviderProfileFeedback",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"second review rejected\", function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{feedbackProfileId}}/feedback",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{feedbackProfileId}}",
+                "feedback"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"text\": \"Flow review {{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.again\nlabel: Reject second review\nkind: optional\n\nWrites a second review of the same profile as the flow user and expects it to be rejected."
+          }
+        },
+        {
+          "name": "listProviderProfileFeedback",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"reviews listed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{feedbackProfileId}}/feedback",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{feedbackProfileId}}",
+                "feedback"
+              ]
+            },
+            "description": "step: feedback.list\nlabel: List reviews\nkind: optional\n\nLists the reviews of the flow provider profile without authentication."
+          }
+        },
+        {
+          "name": "getProviderProfileFeedbackAggregate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"rating summary fetched\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{feedbackProfileId}}/feedback/aggregate",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{feedbackProfileId}}",
+                "feedback",
+                "aggregate"
+              ]
+            },
+            "description": "step: feedback.aggregate\nlabel: Rating summary\nkind: optional\n\nReads the average rating and review count of the flow provider profile without authentication."
+          }
+        },
+        {
+          "name": "updateFeedback",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"review updated\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"feedbackVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{feedbackVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/feedback/{{feedbackId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "feedback",
+                "{{feedbackId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"text\": \"Flow review {{runId}} edited\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.update\nlabel: Edit review\nkind: optional\n\nEdits the flow user's review and stores its new version."
+          }
+        },
+        {
+          "name": "createFeedbackReply",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"foreign reply rejected\", function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/feedback/{{feedbackId}}/reply",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "feedback",
+                "{{feedbackId}}",
+                "reply"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Flow foreign reply {{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.foreign\nlabel: Reject foreign reply\nkind: optional\n\nTries to reply to the flow review with the admin key, which does not own the profile, and expects the reply to be rejected."
+          }
+        },
+        {
+          "name": "createFeedbackReply",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"reply created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"replyVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/feedback/{{feedbackId}}/reply",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "feedback",
+                "{{feedbackId}}",
+                "reply"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Flow reply {{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.reply\nlabel: Reply to review\nkind: optional\n\nReplies to the flow review as the flow user and stores the reply version."
+          }
+        },
+        {
+          "name": "createFeedbackReply",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"second reply rejected\", function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/feedback/{{feedbackId}}/reply",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "feedback",
+                "{{feedbackId}}",
+                "reply"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Flow reply {{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.replyagain\nlabel: Reject second reply\nkind: optional\n\nWrites a second reply to the same review as the flow user and expects it to be rejected."
+          }
+        },
+        {
+          "name": "updateFeedbackReply",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"reply updated\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{replyVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/feedback/{{feedbackId}}/reply",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "feedback",
+                "{{feedbackId}}",
+                "reply"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Flow reply {{runId}} edited\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.replyupdate\nlabel: Edit reply\nkind: optional\n\nEdits the flow user's reply to the review."
+          }
+        },
+        {
+          "name": "deleteFeedbackReply",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"reply deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/feedback/{{feedbackId}}/reply",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "feedback",
+                "{{feedbackId}}",
+                "reply"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.replydelete\nlabel: Delete reply\nkind: optional\n\nDeletes the flow user's reply to the review."
+          }
+        },
+        {
+          "name": "deleteProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"feedback profile deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{feedbackProfileVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{feedbackProfileId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{feedbackProfileId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.profiledelete\nlabel: Delete profile\nkind: optional\n\nDeletes the flow user's feedback provider profile using its stored version."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"feedback category deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{feedbackCategoryVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{feedbackCategoryId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{feedbackCategoryId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.cleancat\nlabel: Delete category\nkind: optional\n\nDeletes the flow feedback category created for this folder."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"feedback city deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{feedbackCityVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{feedbackCityId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{feedbackCityId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the flow feedback city created for this folder."
+          }
+        }
+      ]
     }
   ],
   "variable": [
