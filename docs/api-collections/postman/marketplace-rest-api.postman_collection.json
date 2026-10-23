@@ -2860,6 +2860,715 @@
           }
         }
       ]
+    },
+    {
+      "name": "Media",
+      "description": "Creates its own category, city and advertisement, uploads a photo, adds a video link, lists the gallery, checks that another host and a text file are rejected, deletes the items and the advertisement and deletes the category and city.",
+      "item": [
+        {
+          "name": "createTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"media category created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"mediaCategoryId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"mediaCategoryVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CATEGORY\",\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow media category {{runId}}\",\n      \"description\": \"Flow media category {{runId}}\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow media category uk {{runId}}\",\n      \"description\": \"Flow media category uk {{runId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.category\nlabel: Create category\nkind: optional\n\nCreates the media category with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "createTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"media city created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"mediaCityId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"mediaCityVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CITY\",\n  \"translations\": [\n    {\n      \"locale\": \"en\",\n      \"name\": \"Flow media city {{runId}}\",\n      \"description\": \"Flow media city {{runId}}\"\n    },\n    {\n      \"locale\": \"uk\",\n      \"name\": \"Flow media city uk {{runId}}\",\n      \"description\": \"Flow media city uk {{runId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.city\nlabel: Create city\nkind: optional\n\nCreates the media city with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "createAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"media advertisement created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"mediaAdId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"mediaAdVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Flow media ad {{runId}}\",\n  \"description\": \"Flow media ad {{runId}}\",\n  \"adKind\": \"{{adKind}}\",\n  \"categoryIds\": [{{mediaCategoryId}}],\n  \"cityTaxonId\": {{mediaCityId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.ad\nlabel: Create advertisement\nkind: required\n\nCreates an advertisement of the flow user in the media category and city and stores its id and version."
+          }
+        },
+        {
+          "name": "uploadAdvertisementMedia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"photo uploaded\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"mediaPhotoId\", pm.response.json()[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{mediaAdId}}/media",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{mediaAdId}}",
+                "media"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "data:image/png;base64,{{pixelPng}}",
+                  "fileName": "pixel.png"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.upload\nlabel: Upload photo\nkind: optional\n\nUploads a 1x1 PNG photo to the media advertisement and stores the id of the new photo."
+          }
+        },
+        {
+          "name": "addAdvertisementVideo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"video link added\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"mediaVideoId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{mediaAdId}}/media/videos",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{mediaAdId}}",
+                "media",
+                "videos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"{{videoUrl}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.video\nlabel: Add video link\nkind: optional\n\nAdds a YouTube video link to the media advertisement and stores the id of the video."
+          }
+        },
+        {
+          "name": "listAdvertisementMedia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"media listed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{mediaAdId}}/media",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{mediaAdId}}",
+                "media"
+              ]
+            },
+            "description": "step: media.list\nlabel: List media\nkind: optional\n\nLists the photos and videos of the media advertisement without authentication."
+          }
+        },
+        {
+          "name": "addAdvertisementVideo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"foreign video host rejected\", function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{mediaAdId}}/media/videos",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{mediaAdId}}",
+                "media",
+                "videos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com/video\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.badvideo\nlabel: Reject other host\nkind: optional\n\nChecks that a video link from a host other than YouTube is rejected."
+          }
+        },
+        {
+          "name": "uploadAdvertisementMedia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"text file rejected\", function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{mediaAdId}}/media",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{mediaAdId}}",
+                "media"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "data:text/plain;base64,aGVsbG8=",
+                  "fileName": "note.txt"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.badtype\nlabel: Reject text file\nkind: optional\n\nChecks that a plain text file is rejected as a photo."
+          }
+        },
+        {
+          "name": "deleteAdvertisementMedia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"photo deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{mediaAdId}}/media/{{mediaPhotoId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{mediaAdId}}",
+                "media",
+                "{{mediaPhotoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.delphoto\nlabel: Delete photo\nkind: optional\n\nDeletes the uploaded photo from the media advertisement."
+          }
+        },
+        {
+          "name": "deleteAdvertisementMedia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"video deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{mediaAdId}}/media/{{mediaVideoId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{mediaAdId}}",
+                "media",
+                "{{mediaVideoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.delvideo\nlabel: Delete video\nkind: optional\n\nDeletes the video link from the media advertisement."
+          }
+        },
+        {
+          "name": "deleteAdvertisementMedia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"repeated delete answers not found\", function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{mediaAdId}}/media/{{mediaPhotoId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{mediaAdId}}",
+                "media",
+                "{{mediaPhotoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.delagain\nlabel: Delete photo again\nkind: optional\n\nChecks that deleting the already removed photo answers not found."
+          }
+        },
+        {
+          "name": "deleteAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"media advertisement deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{mediaAdVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{mediaAdId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{mediaAdId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.addelete\nlabel: Delete advertisement\nkind: optional\n\nDeletes the media advertisement using the stored version."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"media category deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{mediaCategoryVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{mediaCategoryId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{mediaCategoryId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.cleancat\nlabel: Delete category\nkind: optional\n\nDeletes the media category created for this folder."
+          }
+        },
+        {
+          "name": "deleteTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"media city deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{mediaCityVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/taxons/{{mediaCityId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "taxons",
+                "{{mediaCityId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: media.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the media city created for this folder."
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -2918,6 +3627,14 @@
     {
       "key": "settingsPageSize",
       "value": "30"
+    },
+    {
+      "key": "pixelPng",
+      "value": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+    },
+    {
+      "key": "videoUrl",
+      "value": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     }
   ]
 }

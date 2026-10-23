@@ -56,6 +56,16 @@ export async function runFlow(collection, { host, variables = {}, include = [], 
       Object.entries(item.headers).map(([key, value]) => [key, apply(value)]),
     );
     const body = item.body === null ? null : apply(item.body);
+    const form =
+      item.form === null
+        ? null
+        : item.form.map((entry) => ({
+            key: apply(entry.key),
+            type: entry.type,
+            value: apply(entry.value ?? ""),
+            src: apply(entry.src ?? ""),
+            fileName: apply(entry.fileName ?? ""),
+          }));
     const auth = { ...item.auth };
     if (auth.type === "basic") {
       auth.username = apply(item.auth.username);
@@ -80,11 +90,28 @@ export async function runFlow(collection, { host, variables = {}, include = [], 
       headers.Authorization = `Bearer ${auth.token}`;
     }
 
-    step.request = { method: item.method, url, headers, body };
+    let formParts = null;
+    try {
+      formParts = form === null ? null : form.map(toFormPart);
+    } catch (error) {
+      step.status = "failed";
+      step.error = `invalid form entry: ${error.message}`;
+      failed = true;
+      step.durationMs = Date.now() - start;
+      onStepUpdate(index, step);
+      continue;
+    }
+    step.request = {
+      method: item.method,
+      url,
+      headers,
+      body: formParts === null ? body : describeForm(formParts),
+    };
+    const requestBody = formParts === null ? body : toFormData(formParts);
 
     let response;
     try {
-      const res = await fetch(url, { method: item.method, headers, body: body ?? undefined });
+      const res = await fetch(url, { method: item.method, headers, body: requestBody ?? undefined });
       response = { code: res.status, headers: [...res.headers.entries()], body: await res.text() };
     } catch (error) {
       step.status = "failed";
@@ -121,6 +148,38 @@ export async function runFlow(collection, { host, variables = {}, include = [], 
 
 function newRunId() {
   return Date.now().toString(36);
+}
+
+function toFormPart(entry) {
+  if (entry.type !== "file") {
+    return { key: entry.key, value: entry.value };
+  }
+  const separator = entry.src.indexOf(";base64,");
+  const contentType = entry.src.slice("data:".length, separator);
+  const bytes = Uint8Array.from(atob(entry.src.slice(separator + ";base64,".length)), (char) => char.charCodeAt(0));
+  return { key: entry.key, fileName: entry.fileName || "file", contentType, bytes };
+}
+
+function toFormData(parts) {
+  const formData = new FormData();
+  for (const part of parts) {
+    if (part.bytes === undefined) {
+      formData.append(part.key, part.value);
+    } else {
+      formData.append(part.key, new Blob([part.bytes], { type: part.contentType }), part.fileName);
+    }
+  }
+  return formData;
+}
+
+function describeForm(parts) {
+  return parts
+    .map((part) =>
+      part.bytes === undefined
+        ? `${part.key}=${part.value}`
+        : `multipart: ${part.key} (${part.fileName}, ${part.contentType}, ${part.bytes.length} bytes)`,
+    )
+    .join("\n");
 }
 
 function toBase64(text) {

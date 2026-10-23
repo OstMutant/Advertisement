@@ -63,6 +63,7 @@ function toItem(item, flow) {
       (request.header ?? []).filter((header) => header.disabled !== true).map((header) => [header.key, header.value]),
     ),
     body: request.body?.mode === "raw" ? request.body.raw : null,
+    form: request.body?.mode === "formdata" ? parseFormData(request.body.formdata) : null,
     auth: parseAuth(request.auth),
     testScript: parseTestScript(item.event),
     flow,
@@ -73,6 +74,16 @@ function toItem(item, flow) {
     when: parseWhen(meta.when),
     text,
   };
+}
+
+function parseFormData(formdata) {
+  return (formdata ?? []).map((entry) => ({
+    key: entry.key,
+    type: entry.type ?? "text",
+    value: entry.value,
+    src: entry.src,
+    fileName: entry.fileName,
+  }));
 }
 
 function parseDescription(description) {

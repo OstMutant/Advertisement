@@ -42,6 +42,11 @@ when: <variable>=<value>
 
 A folder's own description is the flow note.
 
+A request body of mode `formdata` is sent as `multipart/form-data`. A `text` entry uses `value`. A
+`file` entry (`type: file`) carries its content in `src` as a data URL, `data:<content type>;base64,<content>`,
+with an optional `fileName` (default `file`), because the flow runner has no file system. Variables are
+substituted in `value`, `src` and `fileName`.
+
 ## Collection variables
 
 Defaults stored in the collection file. Requests read them as `{{name}}`, so no Postman environment
@@ -59,6 +64,8 @@ has to be selected.
 | `userPassword` | `password123` |
 | `apiKeyLabel` | `flow-runner` |
 | `secondKeyLabel` | `flow-runner-second` |
+| `pixelPng` | base64 of a 1x1 PNG, used for gallery uploads |
+| `videoUrl` | a YouTube link, used for gallery video links |
 
 `userEmailPrefix` and `runId` build the ordinary user's e-mail, so that repeated runs create no
 duplicates.
