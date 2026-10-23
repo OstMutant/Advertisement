@@ -4,12 +4,14 @@
 <meta charset="utf-8">
 <title>API flow runner</title>
 <link rel="stylesheet" href="css/diagram.css">
+<link rel="stylesheet" href="css/flow-map.css">
 </head>
 <body>
 <h1>API flow runner</h1>
 <p>Served by the running app when <code>marketplace.dev-tools.enabled</code> is on.</p>
 <p><a href="postman/marketplace-rest-api.postman_collection.json">Postman collection</a></p>
-<button id="run-button" type="button">Run</button>
+<button id="run-button" type="button" disabled>Run selected</button>
+<div id="flow-map"></div>
 <div id="diagram"></div>
 <ul id="results"></ul>
 <script type="module" src="js/main.js"></script>

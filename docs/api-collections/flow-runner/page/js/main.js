@@ -1,28 +1,41 @@
 import { loadCollection } from "./collection.js";
 import { runFlow } from "./runner.js";
 import { createDiagram } from "./diagram.js";
+import { createFlowMap } from "./flow-map.js";
 
 const COLLECTION_URL = "postman/marketplace-rest-api.postman_collection.json";
 
-function init() {
+async function init() {
   const runButton = document.getElementById("run-button");
   const results = document.getElementById("results");
   const diagram = createDiagram(document.getElementById("diagram"));
-  runButton.addEventListener("click", () => run(runButton, results, diagram));
+  let collection;
+  let map;
+  try {
+    collection = await loadCollection(COLLECTION_URL);
+    map = createFlowMap(document.getElementById("flow-map"), collection);
+  } catch (error) {
+    errorElement().textContent = error.message;
+    return;
+  }
+  runButton.addEventListener("click", () => run(runButton, results, diagram, map, collection));
+  runButton.disabled = false;
 }
 
-async function run(runButton, results, diagram) {
+async function run(runButton, results, diagram, map, collection) {
   runButton.disabled = true;
   results.replaceChildren();
   diagram.reset();
+  map.reset();
   errorElement().textContent = "";
   try {
-    const collection = await loadCollection(COLLECTION_URL);
     await runFlow(collection, {
       host: location.origin,
+      flows: map.selectedFlows(),
       onStepUpdate: (index, step) => {
         renderStep(results, index, step);
         diagram.update(index, step);
+        map.update(index, step);
       },
     });
   } catch (error) {
