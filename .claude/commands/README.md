@@ -16,6 +16,9 @@ self-contained entry point, described below and linked to its real file.
   too.
 - [`/ci`](ci.md) — Run the local, isolated, parameterized CI runner (`scripts/ci.sh` ->
   `scripts/ci/run.sh`).
+- [`/deep-plan`](deep-plan.md) — Plan a task in depth with the `deep-planner` agent (Opus): best
+  practices from the web, the project's own practice, a compared choice and two plans, written into a
+  topic folder under `backlog/research/`.
 - [`/deploy-and-run`](deploy-and-run.md) — Rebuild the `marketplace-app` Docker image and start a
   fresh container using the project deploy script.
 - [`/new-task`](new-task.md) — Scaffold a new tracked task in `backlog/tasks/` from the standard
