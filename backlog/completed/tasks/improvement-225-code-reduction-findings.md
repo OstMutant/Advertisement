@@ -2,12 +2,12 @@
 
 **Type:** improvement — running inventory, not a single fix.
 **Module:** cross-cutting — whichever module each finding actually touches.
-**Priority:** 🟡 Top — first in the backlog.
-**When:** ongoing; findings are added by discovery runs of the `/optimize` skill and worked off in approved batches, not on a fixed schedule.
+**Priority:** 🟡 Top — second in the backlog, right after improvement-226.
+**When:** ongoing; findings are added by discovery runs of the `/optimize` command and worked off in approved batches, not on a fixed schedule.
 
 ## Purpose
 
-This file holds every finding of the `/optimize` skill: its status, its estimate and, once a batch is verified, its actual saving. The entry format is defined in the skill's own file and is not repeated here. A finding already tracked elsewhere in the backlog is linked, not copied.
+This file holds every finding of the `/optimize` command: its status, its estimate and, once a batch is verified, its actual saving. The entry format is defined in the command's own file and is not repeated here. A finding already tracked elsewhere in the backlog is linked, not copied.
 
 ## Coverage
 
@@ -17,7 +17,7 @@ This file holds every finding of the `/optimize` skill: its status, its estimate
 ## Findings
 
 ### OPT-1. Stale `OrderByBuilder` Map overload and wrong statements in the query-lib README and rule file
-**Status:** applied
+**Status:** verified
 **Priority:** low
 **Kind:** convention
 **Where:** `query-lib/README.md` (package list, usage example, `OrderByBuilder` section, dependencies) and `.claude/rules/query-lib.md` ("Defining a sort-alias map")
@@ -50,12 +50,12 @@ This file holds every finding of the `/optimize` skill: its status, its estimate
 - token_cost_verification: 143277 (Haiku verifiers of the second run)
 - review_signal_ratio: 1 / 2
 - context_loading_task_type: n/a
-- context_loading_consulted: n/a
+- context_loading_consulted: yes
 - context_loading_matched: n/a
-- flows_situation: n/a
-- flows_chosen: n/a
-- flows_matched: n/a
+- flows_situation: find removable code in a module and file the result
+- flows_chosen: /optimize path query-lib
+- flows_matched: yes
 - haiku_decomposition_used: n/a
 - haiku_decomposition_dispatch_count: n/a
 - haiku_decomposition_rework_needed: n/a
-- adrs_referenced: none
+- adrs_referenced: ADR-003 (query-lib)

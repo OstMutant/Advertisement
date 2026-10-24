@@ -223,7 +223,7 @@ yet — not zero.
 | ADR-002 (playwright) | playwright | Accepted **Verified:** 2026-09-18 |  |  | No waitForTimeout — wait on Vaadin state attributes |
 | ADR-003 (playwright) | playwright | Accepted |  |  | --ux flag controls screenshots |
 | ADR-001 (query-lib) | query-lib | Accepted |  |  | Renamed from query-starter to query-lib — plain Java library, no Spring autoconfiguration |
-| ADR-003 (query-lib) | query-lib | Accepted |  |  | API scope frozen — no DSL extensions |
+| ADR-003 (query-lib) | query-lib | Accepted |  | 1 | API scope frozen — no DSL extensions |
 | ADR-004 (query-lib) | query-lib | Accepted |  |  | Null-safe conditions — null filter value skips condition |
 | ADR-005 (query-lib) | query-lib | Accepted |  |  | `SqlOperator.ANY_OF` / `SqlCondition.anyOf(Set<Long>)` — a second `IN`-shaped operator, for id sets specifically |
 | ADR-006 (query-lib) | query-lib | Accepted |  |  | `anyOf`/`inSet` empty-input null (= "no restriction") must never back an access-narrowing predicate |
