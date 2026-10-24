@@ -38,7 +38,9 @@ diff):
   `git diff <ref>~1..<ref>`.
 - `module <name>` (e.g. "module platform-commons") → a file set: every file under
   `<name>/src/main` (via `Glob`).
-- `path <dir>` → a file set: every file under `<dir>` (via `Glob`), the same shape as `module <name>`.
+- `path <dir>` → a file set: every file under `<dir>` (via `Glob` with `<dir>/**/*`), tests included. Unlike
+  `module <name>` it does not stop at `src/main`. Skip `target/`, `node_modules/` and `.git/`. Keep the
+  full list: it is the scope the result is checked against.
 - `all`/`everything`/"повністю" → loop step 3 once per top-level Maven module (read root `pom.xml`'s
   `<module>` entries for the list), each scoped to that module's own `src/main` file set — the same
   per-module shape as this project's earlier full-sweep precedent, kept because a single dispatch
@@ -60,7 +62,7 @@ state "full sweep of `<module>`" for a file-set scope).
 Dispatch the lenses named by `lenses:` (default: `dry-kiss-yagni-reviewer`, `solid-reviewer`, and
 `precedent-reviewer`) via the `Agent` tool, all in a single response within the wave threshold below
 (they are independent tasks over the same scope — see the "Parallel Spawning" discipline in step 4
-below, same reasoning applies here), each with the diff or file set plus your step-2 summary. (The
+below, same reasoning applies here), each with the diff or the exact file list plus your step-2 summary. (The
 three default lenses are wired in; any other lens in `.claude/agents/` can be selected with `lenses:`,
 for example `code-reduction-reviewer`, and a new lens is a new `.claude/agents/*.md` file.)
 
@@ -78,9 +80,11 @@ Instruction to include verbatim, to every lens:
 
 Each returns its candidates as structured JSON (`{"findings": [...]}`, content separated from
 metadata — see each one's own file). Parse every lens's output directly; do not re-derive from prose.
-A lens may also return a `rejected` array: keep it unchanged for step 10. Merge all `findings` arrays
+A lens may also return a `rejected` array and an `inspected` object (`read`: the files it opened,
+`not_read`: files with a reason): keep both unchanged for step 10. Merge all `findings` arrays
 before step 4 — `found_by` on each candidate already distinguishes which lens
-raised it, so nothing is lost by merging.
+raised it, so nothing is lost by merging. If a lens's `not_read` holds a file whose reason is not generated,
+binary or too large, dispatch that lens once more with only those files and merge its output before step 4.
 
 ## 4. Validate every candidate
 
@@ -233,7 +237,8 @@ this line entirely if step 4 never ran (zero survivors from step 3). Followed by
 prose summary: `findings` = the step-6 survivors with all their original fields; `rejected` = every
 lens's `rejected` array, concatenated, unchanged; `overlaps` = the step-6 findings dropped as already
 tracked, each `{"claim", "tracked_in"}` with the backlog file and entry; `inspected` =
-`{"scope", "files": <count>, "paths": [...top-level directories read...], "excluded": [...]}`. The
+`{"scope", "in_scope": <count of the file set>, "read": [...], "not_read": [{"file", "reason"}], "not_accounted": [...files in the set that appear in neither list...], "excluded": [...]}`,
+built from the file set and the lens's own `inspected` (a lens that returns none: `read` and `not_read` stay empty and every file is `not_accounted`). The
 `### Agent calls` operational data stays in the prose summary.
 
 Never the raw text of any subagent's report, your own intermediate reasoning, or a restatement of

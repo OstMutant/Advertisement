@@ -1,7 +1,7 @@
 ---
-description: Find code this repository no longer needs to maintain, measure the saving and remove it only in approved batches -- discovery (read-only, via deep-review-orchestrator with the code-reduction-reviewer lens), report, apply <ID>, verify. Never touches marketplace-orchestrator, never commits.
+description: Find code and documentation this repository no longer needs to maintain, measure the saving and remove it only in approved batches -- discovery (read-only: a brief built from a fixed template, the deep-review-orchestrator with the code-reduction-reviewer lens, then the deep-planner on Opus), report, apply <ID>, verify. Never touches marketplace-orchestrator, never commits.
 argument-hint: "[module <name> | path <dir> | all | report | apply <ID>[,<ID>] | verify [<ID>]]"
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # /optimize
@@ -43,22 +43,67 @@ format:
 
 `<n>` is the highest existing OPT number plus one. A rejected idea is one line under
 `## Rejected ideas` with its reason. Each discovery run adds one line under `## Coverage`: date, scope,
-files read, excluded paths, findings added.
+files read out of files in scope, files not read (count and the main reasons), excluded paths, findings
+added.
 
 ## Modes
 
 ### `module <name>`, `path <dir>`, `all` -- discover
 
 1. Refuse a scope inside `marketplace-orchestrator`. For `marketplace-app` as a whole, recommend
-   `path` scopes of its packages first and go on only after a direct yes.
-2. Start in the background:
-   `Agent({subagent_type: "deep-review-orchestrator", prompt: "lenses: code-reduction-reviewer\nexclude: marketplace-orchestrator/**\noutput: json\n<scope>"})`.
-3. Parse its JSON block. Findings with `confidence: high` and `recommendation: implement` get status
-   `open`, all others `needs-poc`.
-4. Show the summary: counts per status, overlaps with their backlog entries, rejected ideas and the
-   `inspected` block. Ask once whether to add the entries, the rejected ideas and the coverage line to
-   the inventory, and write only after a direct yes.
-5. Stop. Application code is never edited in this mode.
+   `path` scopes of its packages first and go on only after a direct yes. `module <name>` is searched
+   as `path <name>/`, so the scope holds every file of the module (tests, `pom.xml`, `README.md`,
+   `DECISIONS.md` included), not only `src/main`.
+2. Topic: `optimize-<scope slug>`, lower-case letters, digits and hyphens, at most 40 characters. Run
+   `bash backlog/research/tools/scripts/list-topics.sh`; when the topic exists, run `show-status.sh <topic>`
+   and tell the user what is there instead of starting over.
+3. Run `bash backlog/research/tools/scripts/start-topic.sh <topic>` and write `backlog/research/<topic>/brief.md`
+   from the template below, with `<scope>` filled in.
+4. Show the user the topic and the brief in a few lines, say that the planner is Opus with no token or time
+   limit, and ask whether to start. Do not start without a direct yes.
+5. In the background run
+   `Agent({subagent_type: "deep-review-orchestrator", prompt: "lenses: code-reduction-reviewer\nexclude: marketplace-orchestrator/**\noutput: json\npath <scope>"})`.
+   Parse its JSON block: findings with `confidence: high` and `recommendation: implement` get status
+   `open`, all others `needs-poc`. Write the findings, the rejected ideas and the `inspected` block into the
+   topic's `notes.md` with `add-note.sh`.
+6. Then start the planner in the background: `Agent({description: "Deep plan <topic>", subagent_type:
+   "deep-planner", prompt: "Topic: <topic>", run_in_background: true})`, and watch it as `.claude/commands/deep-plan.md`
+   does (`show-status.sh`, `PLAN READY` or `PLAN BLOCKED`).
+7. On `PLAN READY` show `plan-human.md` and the `inspected` block: files read out of the files in scope, every
+   file not read with its reason, and any file not accounted for (a lens neither read it nor said why: say so
+   plainly). Ask once whether to add the findings, the rejected ideas and the coverage line to the inventory;
+   write only after a direct yes, then remove the topic with `remove-topic.sh <topic> --yes`.
+8. Stop. Application code is never edited in this mode.
+
+Brief template (`<scope>` is the only part that changes between runs):
+
+```
+## Goal
+Find how to reduce what has to be written, understood, tested and maintained in <scope>, without losing
+readability, explicitness, type safety, testability or the architecture. Java code is optimized as code,
+documentation (README, DECISIONS, ADRs) as documentation, pom.xml as build configuration.
+
+## Where to look in the project
+<scope>; docs/best-practices.md; .claude/rules.md and the relevant .claude/rules/<module>.md;
+.claude/nav/adr-index.md and the DECISIONS.md files (duplicate or similar decisions);
+backlog/BACKLOG.md and the findings inventory (work already planned); the review result in notes.md;
+for documentation in <scope>, the checklist and the Documentation Rules of .claude/commands/sync-docs.md (--module mode).
+
+## Completion criterion
+Every file in <scope> is read, or listed as not read with the reason. Findings are concrete (file,
+symbol, excerpt, estimate, risks, tests), ranked by net benefit and risk; rejected ideas are listed with reasons.
+
+## Decisions already taken
+Application code is never edited during discovery; applying is a separate approved phase; nothing is
+committed; marketplace-orchestrator/ is out of scope. Never change module boundaries, dependency direction
+or layers; never remove a port, hook or interface only for line count; never add a dependency or reflection;
+never change behavior, contracts, authorization, validation, transaction boundaries, exception semantics
+or side effects; never convert mutable Vaadin Binder DTOs to records without proof.
+
+## What the planner may decide
+Nothing beyond the goal; conflicts with best practice or with the project's practice are highlighted,
+the decision is left to the user.
+```
 
 ### `report` (also an empty argument)
 
@@ -87,6 +132,15 @@ files read, excluded paths, findings added.
    activity monitor as the Scripts section of `.claude/rules.md` requires.
 3. Write `**Actual:**` on the entry: the `TOTAL` line, the test counts and the date. The numbers are
    physical lines, comments and blank lines included.
+
+## Models
+
+- Haiku: everything mechanical and fully specified -- the per-finding verifiers of the review, counting and
+  listing files, and an `apply` edit whose old and new text are stated exactly.
+- Sonnet: reading a file set and judging it (the `code-reduction-reviewer` lens), and an `apply` edit that
+  needs the exact behavior and constraints but no ready-made code.
+- Opus: only the `deep-planner`, and a step that needs design judgment.
+- No model: counting lines and the rule checks (`check-batch.sh`), the topic bookkeeping scripts.
 
 ## Rules by reference
 
