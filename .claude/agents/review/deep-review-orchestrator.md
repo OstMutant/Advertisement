@@ -19,6 +19,15 @@ say so explicitly in your final summary (step 10) so the dispatcher doesn't miss
 
 ## 1. Resolve scope
 
+The prompt may begin with option lines before the scope, each `key: value`. None is required; without any
+of them everything below behaves exactly as written:
+- `lenses: <agent-name>[,<agent-name>]` -- the lenses step 3 dispatches (default: the three named there).
+- `exclude: <glob>[,<glob>]` -- paths removed from a file set, and modules skipped under `all`.
+- `output: json` -- return the machine-readable result described at the end of step 10 instead of the
+  output of steps 8 and 9.
+
+File sets never include `target/` paths.
+
 You are given a scope argument. Resolve it into either a **diff** (unified diff text) or a
 **file set** (a list of files to read directly — used for module/repo sweeps, where there is no
 diff):
@@ -29,6 +38,7 @@ diff):
   `git diff <ref>~1..<ref>`.
 - `module <name>` (e.g. "module platform-commons") → a file set: every file under
   `<name>/src/main` (via `Glob`).
+- `path <dir>` → a file set: every file under `<dir>` (via `Glob`), the same shape as `module <name>`.
 - `all`/`everything`/"повністю" → loop step 3 once per top-level Maven module (read root `pom.xml`'s
   `<module>` entries for the list), each scoped to that module's own `src/main` file set — the same
   per-module shape as this project's earlier full-sweep precedent, kept because a single dispatch
@@ -38,7 +48,7 @@ diff):
   module's 3-lens dispatch at once would fan out to `module_count`×3 parallel calls in a single
   response — already ~14×3≈42 in this repo's own module count, well past the threshold this same
   file's step 3/4 wave rule exists to prevent. Complete one module's step 3 (and its own step 4
-  verification) before starting the next module's.
+  verification) before starting the next module's. A module matched by `exclude:` is skipped.
 
 ## 2. Summarize
 
@@ -47,12 +57,12 @@ state "full sweep of `<module>`" for a file-set scope).
 
 ## 3. Find candidates
 
-Dispatch `dry-kiss-yagni-reviewer`, `solid-reviewer`, and `precedent-reviewer` via the `Agent`
-tool, all three in a single response (they are independent tasks over the same scope — see the
-"Parallel Spawning" discipline in step 4 below, same reasoning applies here), each with the diff or
-file set plus your step-2 summary. (These three lenses are wired in today — other lenses, e.g.
-security-boundary or data-integrity, are a future addition: write them as new `.claude/agents/*.md`
-files and dispatch them here the same way, once needed.)
+Dispatch the lenses named by `lenses:` (default: `dry-kiss-yagni-reviewer`, `solid-reviewer`, and
+`precedent-reviewer`) via the `Agent` tool, all in a single response within the wave threshold below
+(they are independent tasks over the same scope — see the "Parallel Spawning" discipline in step 4
+below, same reasoning applies here), each with the diff or file set plus your step-2 summary. (The
+three default lenses are wired in; any other lens in `.claude/agents/` can be selected with `lenses:`,
+for example `code-reduction-reviewer`, and a new lens is a new `.claude/agents/*.md` file.)
 
 **Wave threshold (hard rule, not a suggestion):** a coordinator accumulates context from every
 worker it dispatches — a single response fanning out to more than 3 parallel finder lenses is a
@@ -60,15 +70,16 @@ real context-overload risk. If a 4th lens (or more) is ever added, do not dispat
 one response once the count exceeds 3 — split into sequential waves of at most 3 concurrent
 dispatches instead. No change to today's 3-lens structure; this only governs future growth.
 
-Instruction to include verbatim, to all three:
+Instruction to include verbatim, to every lens:
 
 > Flag only significant issues; ignore nitpicks and likely false positives. Do not flag issues you
 > cannot validate without looking at context outside the given scope. If you are not certain an
 > issue is real, do not flag it — false positives erode trust and waste review time.
 
 Each returns its candidates as structured JSON (`{"findings": [...]}`, content separated from
-metadata — see each one's own file). Parse all three directly; do not re-derive from prose. Merge
-all three `findings` arrays before step 4 — `found_by` on each candidate already distinguishes which lens
+metadata — see each one's own file). Parse every lens's output directly; do not re-derive from prose.
+A lens may also return a `rejected` array: keep it unchanged for step 10. Merge all `findings` arrays
+before step 4 — `found_by` on each candidate already distinguishes which lens
 raised it, so nothing is lost by merging.
 
 ## 4. Validate every candidate
@@ -102,7 +113,8 @@ plus this instruction:
 > only, one verdict per claim:
 > `{"verdicts": [{"claim": "...", "verdict": "confirmed", "notes": "..."}, ...]}` —
 > `"rejected"` with `"notes"` stating why not and which location failed, for any claim that doesn't
-> hold up.
+> hold up. When a claim's location has an `end_line`, confirm the whole range and put its real line
+> count in that verdict's `notes` as `lines: <n>`.
 
 Drop every candidate whose verdict is `rejected`, silently, never softened into a caveat.
 
@@ -145,11 +157,17 @@ Split survivors of step 6 into two buckets by their original `confidence` field:
   input/state → wrong-outcome path), so a person can judge it without re-deriving the reasoning
   themselves from just a file/line reference.
 
+With `output: json` nothing is dropped or split here: every step-6 survivor goes into `findings` with
+its `confidence`, and the medium and low ones are still listed in the prose summary as above.
+
 This is deliberate, not a downgrade: an uncalibrated confidence score is not reliable enough to
 auto-file as a confirmed bug on its own — only route the findings you're actually sure about
 through the automatic path.
 
 ## 8. Prepare the structured report
+
+If the prompt gave `output: json`, skip steps 8 and 9 and return the result described at the end of
+step 10.
 
 You cannot call `ReportFindings` yourself (see the note above). Instead, build the exact JSON
 payload it expects and include it verbatim, in a fenced ```json block, in your step-10 output:
@@ -180,8 +198,8 @@ Also compile `.claude/rules.md`'s standard `## Operational notes` block for each
 append once it's actually written — from data you already have, not invented: each of your own
 step 3/4/5 `Agent` dispatches returned real `subagent_tokens`/`tool_uses`/`duration_ms` in its
 completion result. Fill:
-- `token_cost_review`: summed tokens from step 3's three finder dispatches
-  (`dry-kiss-yagni-reviewer` + `solid-reviewer` + `precedent-reviewer`).
+- `token_cost_review`: summed tokens from step 3's finder dispatches (by default
+  `dry-kiss-yagni-reviewer` + `solid-reviewer` + `precedent-reviewer`).
 - `token_cost_verification`: summed tokens from step 4's verifiers + step 5's integration pass (if
   it ran).
 - `review_signal_ratio`: (survivors after step 5) / (total candidates step 3 raised, all three
@@ -191,7 +209,7 @@ completion result. Fill:
 - `### Agent calls`: one line per `Agent` dispatch you made (all three step-3 finders, every
   verifier, integration pass if run) — `purpose | subagent_type=general-purpose | tokens=N |
   tool_uses=N | duration_s=N | mode=background | batch=<parallel-group-id or solo>`.
-- `### Review angle yield`: **three** lines, one per `Agent` dispatch (not per principle — all
+- `### Review angle yield`: one line per step-3 `Agent` dispatch (**three** by default) (not per principle — all
   three of `dry-kiss-yagni-reviewer`'s principles share that one dispatch's token cost, so
   splitting them into 3 lines would triple-count it) — `dry-kiss-yagni | survived=N |
   total_candidates=N | tokens=N`, `solid | survived=N | total_candidates=N | tokens=N`, and
@@ -209,6 +227,14 @@ this line entirely if step 4 never ran (zero survivors from step 3). Followed by
 - for each finding prepared in step 9: its full filename + file content + Operational notes block,
   each in its own fenced block, with "Present this to the user and, once approved, write it to
   `backlog/tasks/` — do not write it without asking first."
+
+**With `output: json`**, return instead of the two blocks above one fenced json block,
+`{"findings": [...], "rejected": [...], "overlaps": [...], "inspected": {...}}`, followed by the short
+prose summary: `findings` = the step-6 survivors with all their original fields; `rejected` = every
+lens's `rejected` array, concatenated, unchanged; `overlaps` = the step-6 findings dropped as already
+tracked, each `{"claim", "tracked_in"}` with the backlog file and entry; `inspected` =
+`{"scope", "files": <count>, "paths": [...top-level directories read...], "excluded": [...]}`. The
+`### Agent calls` operational data stays in the prose summary.
 
 Never the raw text of any subagent's report, your own intermediate reasoning, or a restatement of
 this procedure.

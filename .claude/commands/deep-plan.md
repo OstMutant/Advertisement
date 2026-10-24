@@ -16,7 +16,10 @@ Steps:
 4. Write `backlog/research/<topic>/brief.md` from the template: the goal; the task (the link of the
    task file or "none yet"); the context (the decisions, constraints and rejected options from this
    conversation, written out in full -- the planner sees none of the conversation); where to look in
-   the project; the completion criterion; the available executor models (haiku, sonnet, opus).
+   the project; the completion criterion; the decisions already taken; what the planner may decide
+   (by default nothing beyond the goal: the planner highlights a conflict with best practice or with the
+   project's practice and leaves the decision to the user); the available executor models (haiku, sonnet,
+   opus).
 5. Show the user what will run: the topic, the brief in a few lines and that the planner is Opus with
    no token or time limit, only its own stop rule. Ask whether to start it. Do not start without a
    direct yes.

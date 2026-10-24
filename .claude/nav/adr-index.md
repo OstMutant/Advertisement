@@ -48,6 +48,7 @@ yet — not zero.
 | ADR-022 (audit-spring-boot-starter) | audit-spring-boot-starter | Superseded (2026-07-03, snapshot-cleanup — `isRestorable()` and `CategoryChangeSnapshotDto` were removed; every row is restorable now, so plain `items.size()` is correct again and `restorableCount` no longer exists in code) |  |  | restorableCount replaces items.size() for restore button visibility |
 | ADR-023 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted (done 2026-06-23) |  |  | Top-level Timeline tab replaces inline timeline tabs |
 | ADR-024 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted (done 2026-06-26) |  |  | captureRestore() — dedicated method for restore audit events |
+| ADR-005 (.claude) | .claude | Accepted |  | 1 | `/optimize` reuses `deep-review-orchestrator` with a selectable lens instead of its own review pipeline |
 | ADR-003 (.claude) | .claude | Accepted |  |  | `/autopilot` step 2 and `/sync-docs` diff-mode apply the standing per-unit Haiku-dispatch rule, with rework-rate metrics to validate it |
 | ADR-004 (.claude) | .claude | Accepted |  | 2 | Per-task ADR usage tracking, counted in each ADR's own `**Applied:**` line |
 | ADR-002 (.claude) | .claude | Accepted |  |  | Formalize `/deep-review`'s reasoning layer as real, isolated `.claude/agents/*.md` subagents |

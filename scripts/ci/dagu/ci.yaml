@@ -163,7 +163,7 @@ steps:
   - id: shellcheck
     depends: build
     run: |
-      find scripts playwright docs/architecture/scripts backlog/research/tools/scripts -name '*.sh' -not -path '*/node_modules/*' -print0 \
+      find scripts playwright docs/architecture/scripts backlog/research/tools/scripts .claude/commands -name '*.sh' -not -path '*/node_modules/*' -print0 \
         | xargs -0 shellcheck --severity=error
     continue_on:
       failure: true

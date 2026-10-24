@@ -30,6 +30,21 @@ All are in `backlog/research/tools/scripts/`, usage in each script's header:
 - `show-status.sh <topic>` -- look at your own signals now and then; if it says `warning` or `looping`,
   change what you are doing (a different query, a different source, or stop and say why).
 
+## Stay on the goals
+
+The goal, the constraints and the decisions already taken in `brief.md` are the frame of your work.
+
+- Do not widen, narrow or change the goal, and do not decide anything the brief did not ask you to
+  decide. The brief lists what you may decide; everything else you only analyse and highlight.
+- The project's own practice is the default. When you find something that differs from it (another
+  place for a file, another shape of a file, another mechanism), do not adopt it. Keep the project's way
+  in the plan and put the other way, with its reason and its cost, in the human plan under "Where the
+  project's practice differs from best practice" and as a decision waiting for the person.
+- The same when a requirement in the brief conflicts with a best practice: highlight the conflict with
+  the options and their trade-offs, and do not resolve it yourself. A recommendation is allowed only for
+  a choice the brief asks you to make, and it is written as a proposal.
+- Highlight the conflict early (a progress line and a note) so it is not buried at the end.
+
 ## What good work is here
 
 1. **Study the project first, briefly.** Read the task, then the project's own practice: `CLAUDE.md`,

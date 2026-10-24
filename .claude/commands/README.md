@@ -16,6 +16,9 @@ self-contained entry point, described below and linked to its real file.
   too.
 - [`/ci`](ci.md) — Run the local, isolated, parameterized CI runner (`scripts/ci.sh` ->
   `scripts/ci/run.sh`).
+- [`/optimize`](optimize.md) — Find code this repository no longer needs to maintain, measure the saving and
+  remove it only in approved batches (discover, report, apply, verify); its helper script is in
+  [`optimize/`](optimize/check-batch.sh).
 - [`/deep-plan`](deep-plan.md) — Plan a task in depth with the `deep-planner` agent (Opus): best
   practices from the web, the project's own practice, a compared choice and two plans, written into a
   topic folder under `backlog/research/`.

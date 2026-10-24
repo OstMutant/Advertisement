@@ -98,6 +98,7 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
+| Top | 🟡 | 225 | improvement-225 — Code-reduction findings: the standing inventory of the `/optimize` command, with the status, estimate and actual saving of each removable-code finding, the rejected ideas and what each discovery run inspected; first in the backlog |
 | Top | 🟡 | 224 | improvement-224 — Planning command (an Opus planner started in a separate agent, optionally with nested Haiku readers, returning a plan for the Approval Rule) and an optimization command whose subject is still to be defined with the user; first in the backlog |
 | Top | 🟡 | 216 | improvement-216 — API key management in the Vaadin UI: a page where a user sees their own keys (label, prefix, created, last used, revoked) and revokes them; no key value is ever shown, issuing a new key in the UI is out of scope. `ApiKeyManagementService` in the orchestrator already provides list and revoke, so the work is the view and its tests. Ranked right after 212 |
 | Top | 🟢 | 217 | improvement-217 — Contacts as a headed card in view and edit modes, like feedback: `ContactRevealPanel` is already a card in the view overlays but has no header (the feedback card has one), and in the advertisement and provider-profile edit forms the contacts are not a card at all; give them a headed card in both modes using the existing overlay card classes. Cheap, ranked in Top at the user's request so it is not forgotten |

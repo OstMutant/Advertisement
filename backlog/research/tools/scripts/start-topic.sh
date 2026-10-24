@@ -48,6 +48,14 @@ Purpose: what the planner is asked to find out and plan; written by the main thr
 
 ## Completion criterion
 
+## Decisions already taken
+
+(what is settled and must not be reopened)
+
+## What the planner may decide
+
+(nothing beyond the goal unless listed here; everything else is highlighted, not decided)
+
 ## Available executor models
 
 haiku, sonnet, opus

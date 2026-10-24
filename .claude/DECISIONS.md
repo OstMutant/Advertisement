@@ -1,5 +1,19 @@
 # `.claude/` — Architectural Decisions
 
+## ADR-005: `/optimize` reuses `deep-review-orchestrator` with a selectable lens instead of its own review pipeline
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Context:** Nothing in the project looks for code that need not be maintained, measures what removing it would save, or keeps the results between sessions. `/review` finds design problems and verifies each one, but it never edits code, does not measure and files every finding as its own task. The built-in `simplify` skill and `/code-review --fix` look only at the latest diff and apply fixes at once, with no ranking, no measurement and no approval per batch. Removable code found so far sits in the deferred-findings collection without an estimate of what each entry would save.
+
+**Decision:** One command, `/optimize` (a command file with its helper script in the folder of the same name), with four modes chosen by its first argument: discover (read-only), report, apply and verify. Discovery adds one read-only lens, `code-reduction-reviewer`, that estimates the saving of each finding and lists the ideas it rejected; it runs through `deep-review-orchestrator`, which gets three optional prompt inputs (`lenses:`, `exclude:`, `output: json`) and a `path <dir>` scope, so the orchestrator's Haiku verification, cross-file pass and backlog cross-check are reused unchanged and `/review` behaves as before when no option is given. Findings, rejected ideas and the log of what each run inspected live in one standing backlog inventory. Measuring a batch and checking its hard rules (nothing under `marketplace-orchestrator/`, no new dependency, no reflection) is done by a plain script without a model call; applying a batch uses the Approval Rule, the per-unit Haiku dispatch of `/autopilot` and the smallest tests first, and stops after every batch. The command carries `disable-model-invocation: true` so only the user starts it.
+
+**Rejected alternatives:** A separate review pipeline for `/optimize` (duplicates the verification, the cross-file pass and the backlog check the orchestrator already has). A mode of `/review` (mixes a read-only design review with a measure-and-apply workflow, and `/review` is meant to stay a thin wrapper). Extending the DRY, KISS and YAGNI lens (that lens gives a design verdict, while this work needs estimates and a different output). OpenRewrite as a standing part (Lombok is already used in about 176 files, so the yield is small, and it ties the command to the build; kept as a possible one-off experiment). SonarQube duplication data as a starting point (a Java duplicate is counted only from 10 repeated statements, and it needs one more toolset of the Sonar agent). PMD CPD (the same coarse token-based duplication, plus a new tool).
+
+---
+
 ## ADR-003: `/autopilot` step 2 and `/sync-docs` diff-mode apply the standing per-unit Haiku-dispatch rule, with rework-rate metrics to validate it
 
 **Status:** Accepted
