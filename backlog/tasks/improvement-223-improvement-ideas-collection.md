@@ -47,6 +47,18 @@ Options: stop sending that header for the key-issuing endpoint, or find the admi
 another request. Both change the app or the recorded flow rules (`docs/api-collections`
 DECISIONS.md), so the choice needs a plan of its own.
 
+### 3. One-off OpenRewrite experiment on the Lombok recipes (from the `/optimize` plan, 2026-10-24)
+
+The `/optimize` plan leaves OpenRewrite out of the command because Lombok is already applied in about 176 files and the expected yield is small. One `rewrite:dryRun` with the Lombok recipes would show what it would really change. Cost: a throw-away Maven plugin run, no repository change; the result decides whether OpenRewrite is worth adding later.
+
+### 4. `md-to-decisions-json.js --extract .claude ADR-002` fails (found by the planner, 2026-10-24)
+
+`node .claude/nav/scripts/md-to-decisions-json.js --extract .claude ADR-002` answers ".claude/DECISIONS.md not found" although the file exists. Checked again on 2026-10-24 and reproduced. Likely a path rule for the `.claude` module name; not investigated.
+
+### 5. No ShellCheck-only mode in the local CI and no ShellCheck on the machine (found by the planner, 2026-10-24)
+
+`scripts/ci.sh` has no flag that runs only the ShellCheck stage and ShellCheck is not installed on the working machine, so a new script cannot be checked in isolation. A workaround used once: the npm package `shellcheck` downloads the binary into a scratch folder. Options: a ShellCheck-only flag in `ci.sh`, or a small helper script that fetches the binary.
+
 ## Related
 
 improvement-133 (the same lifecycle for review findings).
