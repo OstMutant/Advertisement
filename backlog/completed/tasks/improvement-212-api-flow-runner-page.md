@@ -2,7 +2,7 @@
 
 **Type:** improvement — new developer tool (dev-only page)
 **Module:** `docs/api-collections/` (new tool folder), `marketplace-rest-api` (dev-profile static-resource wiring, `config/`), `marketplace-app` (`application-dev.yml`)
-**Priority:** medium-high — Top, second after [improvement-211](../completed/tasks/improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md)
+**Priority:** medium-high — Top, second after [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md)
 **When:** independent; benefits from 211's explicit `operationId`s and from the request set already in `docs/api-collections/postman/`
 
 ## Current state
@@ -169,24 +169,42 @@ One page, served by the running app, that draws a flow as a diagram, lets a deve
 
 ## Related
 
-- Design reference: [`docs/api-collections/flow-runner/mockup/flow-runner-mockup.html`](../../docs/api-collections/flow-runner/mockup/flow-runner-mockup.html) — interactive mockup of the two levels (flow map, step detail), the "run as" role, required/optional/unavailable marks and the run data document; example data only, no requests are sent.
+- Design reference: `docs/api-collections/flow-runner/mockup/flow-runner-mockup.html` (the mockup file was deleted when the page was finished) — interactive mockup of the two levels (flow map, step detail), the "run as" role, required/optional/unavailable marks and the run data document; example data only, no requests are sent.
 
-- [improvement-211](../completed/tasks/improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling investigation and the Postman collection this builds on
-- [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — file-upload endpoints the runner will need to exercise later
-- [improvement-210](../completed/tasks/improvement-210-rest-api-feedback-and-comments.md) — feedback/comment endpoints for further flows
+- [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling investigation and the Postman collection this builds on
+- [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — file-upload endpoints the runner will need to exercise later
+- [improvement-210](improvement-210-rest-api-feedback-and-comments.md) — feedback/comment endpoints for further flows
 
 ## Operational notes
-- token_cost_review: n/a
+- token_cost_review: 216939 (SOLID 45042, DRY/KISS/YAGNI 55355, precedent 59861, orchestrator 56681)
 - token_cost_research: n/a
 - token_cost_verification: n/a
-- review_signal_ratio: n/a
+- review_signal_ratio: 0 / 0
 - context_loading_task_type: n/a
 - context_loading_consulted: n/a
 - context_loading_matched: n/a
-- flows_situation: n/a
-- flows_chosen: n/a
+- flows_situation: review of one task's change set, then documentation sync of the same set
+- flows_chosen: /review, /sync-docs fa575253
 - flows_matched: n/a
-- haiku_decomposition_used: n/a
-- haiku_decomposition_dispatch_count: n/a
-- haiku_decomposition_rework_needed: n/a
-- adrs_referenced: ADR-001 (docs/api-collections), ADR-002 (docs/api-collections)
+- haiku_decomposition_used: yes
+- haiku_decomposition_dispatch_count: 30
+- haiku_decomposition_rework_needed: 3 / 30
+- adrs_referenced: ADR-001 (docs/api-collections), ADR-002 (docs/api-collections), ADR-003 (docs/api-collections)
+
+### Agent calls
+- 30 Haiku dispatches (runner modules, collection flows, scripts, page phases, cleanup, ideas bucket, JS headers, docs check) | subagent_type=general-purpose | tokens=2929519 | tool_uses=528 | duration_s=n/a (one record reports an implausible duration) | mode=background | batch=solo each; two in parallel for the documentation sync
+- deep-review-orchestrator and its three finder angles | tokens=216939 | tool_uses=30 | mode=background | batch=solo
+(Dispatches of the earlier phases of this task that were made before the session transcript was compacted are included only as far as the transcript records them; main-thread tokens are not reported by any tool.)
+
+### Script/command runs
+- bash scripts/ci.sh --foreground (default, all stages) | duration_s=1916 | mode=background | result=fail (integration and Sonar stages failed in parallel, e2e 78 of 78 passed, unit passed; see improvement-133 entry 33)
+- bash scripts/build-and-test.sh --no-unit --integration --sandbox --skip-vaadin | duration_s=319 | mode=background | result=pass (851 tests)
+- bash scripts/sonar.sh | duration_s=551 | mode=background | result=pass
+- bash scripts/deploy-and-run.sh --reset-only-db --dev-tools | duration_s=140 | mode=background | result=pass
+- bash scripts/deploy-and-run.sh --dev-tools (three redeploys for the page phases) | duration_s=about 220 each | mode=background | result=pass
+- bash docs/api-collections/api-collection-tests.sh | duration_s=about 60 | mode=foreground | result=pass (68 of 68 operations, 138 steps, 136 passed, 2 skipped)
+
+### Review angle yield
+- DRY/KISS/YAGNI | survived=0 | total_candidates=0 | tokens=55355
+- SOLID | survived=0 | total_candidates=0 | tokens=45042
+- precedent | survived=0 | total_candidates=0 | tokens=59861

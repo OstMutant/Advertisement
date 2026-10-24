@@ -17,7 +17,7 @@ Verified 2026-10-23 against `docs/architecture/architecture-map.html` (3,894 lin
 
 ## Why change
 
-The user wants the architecture map reworked without Mermaid (2026-10-23, raised while choosing a drawing approach for [improvement-212](improvement-212-api-flow-runner-page.md): the Mermaid 12.2.0 minified file alone is 5,494,801 bytes).
+The user wants the architecture map reworked without Mermaid (2026-10-23, raised while choosing a drawing approach for [improvement-212](../completed/tasks/improvement-212-api-flow-runner-page.md): the Mermaid 12.2.0 minified file alone is 5,494,801 bytes).
 
 ## Expected benefit
 
@@ -37,7 +37,7 @@ Further refactoring items are to be added here by the user.
 
 ## Related
 
-- [improvement-212](improvement-212-api-flow-runner-page.md) — where the question came up
+- [improvement-212](../completed/tasks/improvement-212-api-flow-runner-page.md) — where the question came up
 - [improvement-142](improvement-142-architecture-map-bounded-contexts-follow-ups.md) — earlier follow-ups of the Bounded Contexts diagram
 - [improvement-138](improvement-138-architecture-control-plane.md) — the architecture control plane this map belongs to
 - `.claude/nav/adr-index.md` — the entries on the map's rendering moved Bounded Contexts from Mermaid to Cytoscape; this task continues in that direction and re-opens none of them

@@ -2,7 +2,7 @@
 
 **Type:** improvement — audit that produces follow-up tasks, plus implementation of the user-domain gaps it finds (scope widened 2026-10-17)
 **Module:** `marketplace-rest-api` (`api/*Controller.java`), `marketplace-app` (Vaadin views and form handlers under `ui/views/`), `marketplace-orchestrator` (the services both adapters call)
-**Priority:** high — Top, first: its result decides the scope of [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md), [improvement-210](improvement-210-rest-api-feedback-and-comments.md), [improvement-212](../../tasks/improvement-212-api-flow-runner-page.md) and the planned MCP server
+**Priority:** high — Top, first: its result decides the scope of [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md), [improvement-210](improvement-210-rest-api-feedback-and-comments.md), [improvement-212](improvement-212-api-flow-runner-page.md) and the planned MCP server
 **When:** independent; do before the tasks listed above change the API
 
 ## Current state
@@ -344,7 +344,7 @@ The live walk of the rebuilt application and the first full CI run found five fa
 - **Timeline view (done 2026-10-21).** `TimelineView` still had a branch for a non-moderator that queried with their own id, which the orchestrator has refused since the read rules moved there: 38 errors in the same run. The branch is removed and the view returns an empty list for a caller who cannot view the timeline; `TimelineViewTest` failed before the change.
 - **The end-to-end application runs from a jar a host build can replace (planned).** `scripts/deploy-and-run/run.sh` starts the application with `-v maven-cache:/root/.m2 ... -jar /root/.m2/artifacts/marketplace-app.jar`, and `scripts/build-and-test.sh` on the host writes that same file, so a host build during an end-to-end run replaced the jar under the running application and two tests failed with `ClassNotFoundException` (they passed on the rerun). Change: before starting, `start_app_container` copies the jar from `maven-cache` (mounted read-only into a short-lived container) into a volume that belongs to that application container, named `<container>-jar`, and runs the jar from there; `reset_infra` removes that volume too. The header of `run.sh`, the deploy section of the scripts rules and the isolation decision of the CI runner are corrected to say so. Verification: start the stack, run a host build, and check that the application keeps answering (`/health`, `/v3/api-docs`, `/swagger-ui/index.html`) and that `docker inspect` shows no `maven-cache` mount on the application container.
 - **End-to-end tests wait for the real `t.me` (planned).** Two tests of `04-provider-profile-flow` open the Telegram deep link in a new tab and wait for `waitForLoadState('domcontentloaded')` with the error swallowed; the wait has no bound of its own, so when the external page does not finish loading the test runs into its 60 s limit. One CI run failed test 28 and the next failed test 33 on exactly that step: the trace shows a single `waitForLoadState` of 61 s, the application log had no error, and the screenshot at failure shows the page rendered. Change: a local `stubTelegramLink` in the spec answers `https://t.me/**` with an empty page (the same idea as the existing YouTube stub) and the tab is checked with `waitForURL('**/t.me/electro_master', { waitUntil: 'commit', timeout: 10000 })`, so the tests no longer depend on the internet. Verification: `ci.sh --e2e` with no host build running.
-- **`/review` and `/sync-docs` for this phase are not run yet.** They are done as a separate step together with the next REST task ([improvement-219](../../tasks/improvement-219-full-rest-coverage-and-real-stack-smoke.md)), over the commit of this phase.
+- **`/review` and `/sync-docs` for this phase are not run yet.** They are done as a separate step together with the next REST task ([improvement-219](improvement-219-full-rest-coverage-and-real-stack-smoke.md)), over the commit of this phase.
 
 ## Final verification (to run when all phases are done)
 
@@ -365,7 +365,7 @@ Result of the full CI run of 2026-10-21 (after phase 10, all stages in one run, 
 
 - [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — media, PATCH, Basic-auth gap
 - [improvement-210](improvement-210-rest-api-feedback-and-comments.md) — feedback and comments
-- [improvement-212](../../tasks/improvement-212-api-flow-runner-page.md) — needs administrator and moderator accounts for role-based flows
+- [improvement-212](improvement-212-api-flow-runner-page.md) — needs administrator and moderator accounts for role-based flows
 - [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling and MCP readiness
 
 ## Operational notes

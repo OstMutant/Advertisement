@@ -106,7 +106,7 @@ Trials, each judged on a real run against the local app, then one recommendation
 - Dropped: Bruno, Hoppscotch, Yaade, Node-RED/n8n/Kestra, IntelliJ `.http` (reasons in item 1); Scalar parked.
 - Not verified: the manual Postman checks (clean import, Flows on the free plan, a green chain against the local app), postponed by decision.
 - MCP: the stack Spring Boot 4.1.0 + Spring AI 2.0.1 compiles and packages; starting the server and the remaining questions moved to [improvement-221](../../tasks/improvement-221-mcp-server-trial-run.md) together with the research findings.
-- Follow-ups: [improvement-212](../../tasks/improvement-212-api-flow-runner-page.md) (flow runner page, already filed), improvement-221.
+- Follow-ups: [improvement-212](improvement-212-api-flow-runner-page.md) (flow runner page, already filed), improvement-221.
 
 ## Related
 

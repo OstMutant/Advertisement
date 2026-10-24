@@ -532,3 +532,17 @@ is made on how that should look. Entries 6 and 7 are the same kind of duplicatio
 `FeedbackEditPolicy.MAX_EDIT_AGE` (48 hours) has passed. A REST scenario cannot move the clock. Options:
 a `Clock` bean in the feedback starter so a Level 3 test can age a record, or a Level 1 service test
 with a record whose `created_at` is older than the window. It needs a design decision before sizing.
+
+### 33. Full local CI run: the integration and Sonar stages run the integration tests in parallel on one fixed Postgres port and both fail, while each passes alone (found during improvement-212, 2026-10-24)
+
+A default `bash scripts/ci.sh --foreground` run (unit, integration, e2e, Sonar and the rest in parallel) failed
+in the integration stage (319 errors) and the Sonar stage (25 errors, so the docs stage that needs Sonar data
+failed too), while unit (91 tests), e2e (78 of 78 Playwright tests) and the lint and ShellCheck stages
+passed. The same integration suite run alone passed (851 tests, 0 failures) and Sonar run alone passed. In the
+failed stage the log shows `FATAL: terminating connection due to unexpected postmaster exit`, then
+`Connection refused`, then `relation "user_information" does not exist` for every later test, and
+`OperationCoverageTest` red as a consequence. Both stages used the same fixed host port 25432 (the sandbox
+workaround) and the machine had 9.9 GB of memory shared by five heavy stages; why the Postgres container exited
+is not established. Options: serialize the two stages that run integration tests, give each stage its own
+fixed port, or stop the Sonar stage from running its own copy of the integration tests. It needs a design
+decision before sizing.
