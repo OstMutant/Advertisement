@@ -1,11 +1,38 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Shared DOM builders for step display: method and status-code badges, the step heading with
+ *   its status pill, the request and response views, and a generic element() helper used by the
+ *   other UI modules.
+ * Usage: None -- a library module imported by confirm-dialog.js, diagram.js, flow-detail.js and
+ *   step-card.js.
+ * Uses: ./status.js (codeClass, codeLabel); global document.
+ * Env: None.
+ * Input: Collection step items and step results passed to stepHead and stepBody; HTTP method, status
+ *   code and tag arguments passed to the other builders.
+ * Outputs: Exports element, methodLabel, codeBadge, stepHead and stepBody. Each builds and returns new
+ *   DOM nodes; no changes to existing DOM and no storage access.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
 import { codeClass, codeLabel } from "./status.js";
 
 const AUTHORIZATION_PREFIX = 12;
 
+/**
+ * Creates a badge for an HTTP method with a class per method.
+ * Arguments: method -- HTTP method string such as GET.
+ * Outputs: None.
+ * Returns: A span element.
+ */
 export function methodLabel(method) {
   return element("span", `method-label method-${method.toLowerCase()}`, method);
 }
 
+/**
+ * Creates a status-code badge styled by its class, showing "no response" for null.
+ * Arguments: code -- HTTP status code number, or null when there is no response.
+ * Outputs: None.
+ * Returns: A span element with aria-label and title set from codeLabel.
+ */
 export function codeBadge(code) {
   if (code === null) {
     return element("span", "code code-none", "no response");
@@ -20,6 +47,12 @@ function hasRan(step) {
   return step !== undefined && (step.status === "passed" || step.status === "failed");
 }
 
+/**
+ * Creates the step heading with its label and, when the step has a status, a status pill.
+ * Arguments: item -- collection step item, step -- step result or undefined, tag -- heading tag name such as h2.
+ * Outputs: None.
+ * Returns: A div element containing the heading and the optional pill.
+ */
 export function stepHead(item, step, tag) {
   const head = element("div", "step-head");
   head.append(element(tag, "", item.label));
@@ -29,6 +62,12 @@ export function stepHead(item, step, tag) {
   return head;
 }
 
+/**
+ * Creates the request view of a step, plus its response view once it has run, with a note for pending, running or skipped steps.
+ * Arguments: item -- collection step item, step -- step result or undefined.
+ * Outputs: None.
+ * Returns: A div element containing the request and any response sections.
+ */
 export function stepBody(item, step) {
   const view = element("div", "view");
   if (step === undefined || step.status === "pending") {
@@ -45,6 +84,12 @@ export function stepBody(item, step) {
   return view;
 }
 
+/**
+ * Creates a DOM element with an optional class name and text content.
+ * Arguments: tag -- element tag name, className -- class string (skipped when empty), text -- text content (set only when defined).
+ * Outputs: None.
+ * Returns: The new element, not attached to the document.
+ */
 export function element(tag, className, text) {
   const node = document.createElement(tag);
   if (className) {

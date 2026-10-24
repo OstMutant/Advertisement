@@ -1,3 +1,21 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Entry point of the flow runner page. Loads the collection, wires the selection, diagram,
+ *   flow map, flow detail, step card and templates bar together, runs the collection from the
+ *   Run button, and asks for confirmation before clearing the results of a previous run.
+ * Usage: Loaded by index.html as a module script.
+ * Uses: ./collection.js (loadCollection); ./runner.js (runFlow); ./confirm-dialog.js; ./diagram.js;
+ *   ./flow-map.js; ./flow-detail.js; ./selection.js; ./step-card.js; ./templates-bar.js; global
+ *   document, window.localStorage and location.origin.
+ * Env: None.
+ * Input: The collection JSON at COLLECTION_URL; DOM elements by id (run-button, clear-button,
+ *   confirm-dialog, diagram, flow-map, flow-detail, step-card, templates, error);
+ *   window.localStorage, probed for availability.
+ * Outputs: Updates every view on each step update; writes an error message into the element with id
+ *   error (created if missing) on load or run failure. The localStorage probe writes and removes
+ *   one temporary key.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
 import { loadCollection } from "./collection.js";
 import { runFlow } from "./runner.js";
 import { createConfirmDialog } from "./confirm-dialog.js";

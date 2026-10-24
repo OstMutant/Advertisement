@@ -2,6 +2,25 @@
 
 ---
 
+## ADR-003: The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses
+
+**Status:** Accepted
+**Applied:** 1
+
+**Also affects:** marketplace-rest-api
+
+**Context:** The flow runner page runs the Postman collection's flows against a live app and creates users, API keys and data while doing so, so it must not be reachable in a real deployment. The page calls the API from the browser, and the API sends no CORS headers, so the page has to come from the same origin as the API. The application is one deployable jar. The local Docker stack starts that jar with the `prod` profile, so a setting that only the `dev` profile switches on would leave the page unreachable there.
+
+**Decision:**
+1. The page and the Postman collection are served by `DevToolsConfig` in `marketplace-rest-api` under `/dev-tools/api-flows/`, and only when `marketplace.dev-tools.enabled` is `true`. With the property off the path is not registered at all and answers 404; it is not merely closed by authorization.
+2. The property is off by default. The `dev` profile turns it on. For the local Docker stack `deploy-and-run.sh --dev-tools` passes `MARKETPLACE_DEV_TOOLS_ENABLED=true` to the container; the variable is never written into a compose file, an image or the `prod` profile that a real deployment reuses.
+3. The files are not copied by hand: the module's build packs `docs/api-collections/flow-runner/page` and the Postman collection into the classpath, so `docs/api-collections` stays the single source and no generated copy exists.
+4. The page and the headless Node scripts share the same runner modules, so the two cannot drift apart.
+
+**Rejected alternatives:** a separate static server for the page (needs CORS on the API and one more process to start); serving the page through a Vaadin route (puts a Vaadin dependency into the REST adapter and mixes it into the UI security chain); switching it on by profile alone (the local Docker stack runs `prod`); hiding the page behind authorization instead of not registering the path (the path would exist in every deployment).
+
+---
+
 ## ADR-002: API collection flows repeat on an empty or a used database, create what they need, never provoke a limiter
 
 **Status:** Accepted

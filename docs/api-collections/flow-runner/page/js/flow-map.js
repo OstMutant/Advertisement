@@ -1,3 +1,18 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Renders the flow map: one card per flow with an include checkbox, an open button, a count of
+ *   selected steps and a passed / failed / skipped pill tally. Keeps the cards in sync with the
+ *   selection and with step results.
+ * Usage: None -- a library module imported by main.js.
+ * Uses: The selection object passed in (flowOn, stepOn, setFlow, subscribe); global document.
+ * Env: None.
+ * Input: The container element, collection, selection object and {onOpen, guard} passed to
+ *   createFlowMap; step results via update(index, step).
+ * Outputs: Appends flow cards to the container; updates checkbox state, count text, pill and aria-
+ *   pressed; calls onOpen(flowName) when a card is opened and selection changes through guard.
+ *   No storage access.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
 const REQUIRED_FLOW = "Authentication";
 
 export function createFlowMap(container, collection, selection, { onOpen, guard }) {

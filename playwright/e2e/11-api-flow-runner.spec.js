@@ -1,17 +1,14 @@
 /* ── Header ───────────────────────────────────────────────────────────────
- * Description: Browser check of the developer-only API flow runner page -- opens the page, runs the
- *   Postman collection's flows and asserts the live diagram colours every step (the steps that are
- *   off by default or whose condition is not met stay skipped; the administrator registration runs
- *   only when the default login fails), then runs it again with a too-short user password and
- *   asserts the first failure stops the chain. Each flow has a card with a checkbox (Authentication
- *   is required and locked); a test unchecks the Moderation card and asserts its steps are all
- *   skipped. Clicking a card opens the flow with its settings text area and step rows; a test sets
- *   a too-short user password there and runs.
- *   A template bar offers Everything, Minimal and templates saved in the browser; a test applies, rejects, saves, reloads and deletes them.
- *   The whole file skips itself when the page answers 404
- *   (a stack deployed without --dev-tools).
- *   Diagram nodes show the response code badge coloured per class; a click on a node opens a card with the request and the response.
- *   The diagram nodes exist before a run and are grey; Clear and any change of the selection after a run ask for confirmation before clearing the results.
+ * Description: Browser check of the developer-only API flow runner page, in three serial tests. The
+ *   first runs the default flow and asserts every diagram step is coloured passed or skipped with none
+ *   failed; one card per flow, with the Authentication card checked and locked; the response code
+ *   badges coloured per class; a node click opening the request and response card; and Clear and any
+ *   selection change after a run asking for confirmation. The second unchecks the Moderation card,
+ *   works with templates (Minimal, a rejected pasted configuration, a saved template that survives a
+ *   reload and is deleted), then asserts every Moderation step is skipped and none failed. The third
+ *   sets a too-short user password in the Authentication settings and asserts auth.user is the only
+ *   failed step while auth.key passes. The whole file skips itself when the page answers 404 (a stack
+ *   deployed without --dev-tools).
  * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 11-api-flow-runner --ux`
  *   after `bash scripts/deploy-and-run.sh --reset-only-db --dev-tools`, or as part of the full e2e
  *   suite (`bash /app/playwright/run.sh e2e --ux`).
@@ -19,8 +16,9 @@
  * Env: None.
  * Input: ./_helpers (test, expect, screenshot); the page at /dev-tools/api-flows/ and the seeded
  *   admin account the collection's default credentials point at.
- * Outputs: Playwright HTML report entries (one per test). The passing run creates one
- *   advertisement owned by the seeded admin.
+ * Outputs: Playwright HTML report entries (one per test). The passing run creates test data in the
+ *   app (users, API keys, taxons, provider profiles, advertisements, feedback), most of it removed
+ *   again by the collection's delete steps.
  * Returns: exit code from the Playwright test runner -- 0 when every test in this file passes,
  *   non-zero otherwise.
  * ───────────────────────────────────────────────────────────────────────── */
@@ -56,6 +54,8 @@ test.describe.serial('API flow runner page', () => {
     expect(rows).toBeGreaterThan(0);
     expect(rows).toBe(nodes);
     await expect(page.locator('#diagram .step.failed')).toHaveCount(0);
+    const keyCode = await page.locator('#diagram .step[data-step="auth.key"] .code').innerText();
+    await expect(page.locator('#diagram .step[data-step="auth.admin"]')).toHaveClass(keyCode === '201' ? /skipped/ : /passed/);
     expect(cards).toBe(await page.locator('#diagram .flow-title').count());
     await page.click('#flow-map .flow-card[data-flow="Authentication"] button.open');
     const authRows = await page.locator('#flow-detail li[data-step^="auth."]').count();
@@ -147,6 +147,7 @@ test.describe.serial('API flow runner page', () => {
     await expect(page.locator('#diagram .step[data-step^="moderation."].skipped')).toHaveCount(moderation);
     await expect(page.locator('#diagram .step.failed')).toHaveCount(0);
     await expect(page.locator('#flow-map .flow-card[data-flow="Moderation"] .pill.skipped')).toBeVisible();
+    expect(await page.locator('#diagram .step.passed').count()).toBeGreaterThan(0);
     await page.click('#flow-map .flow-card[data-flow="Moderation"] button.open');
     await page.locator('#flow-detail li[data-step^="moderation."] button.main').first().click();
     await expect(page.locator('#flow-detail .step-panel')).toContainText('flow not selected');
@@ -173,6 +174,7 @@ test.describe.serial('API flow runner page', () => {
     await expect(page.locator('#diagram .step.failed')).toHaveCount(1);
     await expect(page.locator('#diagram .step.failed')).toHaveAttribute('data-step', 'auth.user');
     await expect(page.locator('#diagram .step[data-step="auth.key"]')).toHaveClass(/passed/);
+    await expect(page.locator('#diagram .step[data-step="users.flowdelete"]')).toHaveClass(/skipped/);
     await screenshot(page, 'flow-runner-failed');
   });
 });

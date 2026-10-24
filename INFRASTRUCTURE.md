@@ -86,6 +86,7 @@ bash scripts/deploy-and-run.sh                  # reuse the shared build, start 
 bash scripts/deploy-and-run.sh --reset          # wipe DB/SeaweedFS volumes, then rebuild
 bash scripts/deploy-and-run.sh --restart-infra  # restart DB + SeaweedFS only
 bash scripts/deploy-and-run.sh --from-scratch   # build a real, separately tagged image
+bash scripts/deploy-and-run.sh --dev-tools      # also serve the developer-only API flow runner page at /dev-tools/api-flows/
 ```
 
 Windows: `scripts\deploy-and-run.bat` (same flags, WSL under the hood).

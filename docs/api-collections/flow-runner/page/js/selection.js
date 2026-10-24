@@ -1,3 +1,15 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Holds the run selection: which flows and steps are switched off, and the variable overrides.
+ *   Notifies subscribers on every change and supports loading and reading the whole state.
+ * Usage: None -- a library module imported by main.js.
+ * Uses: None.
+ * Env: None.
+ * Input: Flow names, step ids, override values and state objects passed to the returned methods.
+ * Outputs: Exports createSelection. Changes the in-memory state and calls every subscribed listener
+ *   synchronously. No DOM or storage access.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
 export function createSelection() {
   const flowsOff = new Set();
   const stepsOff = new Set();

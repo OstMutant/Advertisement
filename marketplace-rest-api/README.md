@@ -40,6 +40,12 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
   (`GET /api/moderation/queue`, with full text, filtered, sorted and paged), approve a flagged or
   confirmed entry back to visible, or confirm a flagged entry as a violation that stays hidden. No
   deletion.
+- A developer-only flow runner page at `/dev-tools/api-flows/` that runs the Postman collection's
+  flows against the running app in the browser. It is served only when `marketplace.dev-tools.enabled`
+  is `true` (on in the `dev` profile, switched on for the local Docker stack by
+  `deploy-and-run.sh --dev-tools`); with the property off the path is not registered at all and answers
+  404. The page files and the collection live in `docs/api-collections` and are packed into this
+  module's classpath by the build (`pom.xml` resources), so the page is same-origin with the API.
 - A live OpenAPI 3 spec and Swagger UI, generated from these same controllers/DTOs, with
   per-operation descriptions and request examples. The key entered through Authorize is kept in the
   browser across page reloads (persistent authorization), so one issued key can be reused.
@@ -57,7 +63,8 @@ challenge. From there, each per-resource controller
 `TaxonApiController`, `UserApiController`, `ApiKeyController`, `ContactApiController`,
 `FeedbackApiController`, `ModerationApiController`) calls straight into the same `marketplace-orchestrator`
 service its Vaadin-side counterpart already uses — no intermediate service layer of its own.
-`AuditApiController` serves the global timeline, and the `/history` methods of the four resource
+`DevToolsConfig` (`config`) serves the flow runner page's static files from the classpath, only under
+the property above, outside the `/api/**` chains. `AuditApiController` serves the global timeline, and the `/history` methods of the four resource
 controllers read through `ActivityHistorySupport` (`api.audit`) instead of mapping audit data
 themselves. A write endpoint builds its save DTO from a nested request record carrying no `id`/`version` field at all
 (`id` from the path variable on update, `version` parsed from the `If-Match` header via

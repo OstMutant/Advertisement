@@ -1,3 +1,19 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Renders the detail panel of the currently opened flow: title and note, an editable settings
+ *   JSON box with Apply, Copy and Reset, the step list with an include checkbox per step, and a
+ *   panel showing the selected step's request and response.
+ * Usage: None -- a library module imported by main.js.
+ * Uses: ./settings.js (parseSettings, settingsFor); ./step-view.js (codeBadge, element, methodLabel,
+ *   stepBody, stepHead); global navigator.clipboard and document.activeElement.
+ * Env: None.
+ * Input: The container element, collection, selection object and {host, guard} passed to
+ *   createFlowDetail; flow names via open(name); step results via update(index, step).
+ * Outputs: Replaces the children of its settings, step list and panel elements; sets the container
+ *   hidden flag; writes settings and step selection changes into the selection object, through
+ *   guard for step toggles. No storage access.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
 import { parseSettings, settingsFor } from "./settings.js";
 import { codeBadge, element, methodLabel, stepBody, stepHead } from "./step-view.js";
 

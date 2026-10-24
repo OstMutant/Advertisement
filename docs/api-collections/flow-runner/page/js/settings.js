@@ -1,3 +1,16 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Computes the editable settings of a flow (the collection variables its requests reference,
+ *   compact or full, with overrides or defaults applied) and validates the settings JSON text
+ *   the user edits.
+ * Usage: None -- a library module imported by flow-detail.js.
+ * Uses: None.
+ * Env: None.
+ * Input: A collection, a flow name, the overrides, and the host passed to settingsFor; JSON text and
+ *   the allowed keys passed to parseSettings.
+ * Outputs: Exports settingsFor and parseSettings. No DOM, network or storage access.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
 const PLACEHOLDER = /\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g;
 const COMPACT_LIMIT = 60;
 const HIDDEN_IN_COMPACT = ["host", "runId"];

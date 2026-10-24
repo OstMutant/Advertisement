@@ -1,3 +1,24 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Loads a Postman collection JSON and turns it into the model the runner page and the Node
+ *   runner use: the flow list, the flat ordered step items (parsed request, auth, body, form,
+ *   test script and meta comments), and the collection variables. Also substitutes {{name}}
+ *   placeholders in templates.
+ * Usage: None -- a library module imported by main.js, runner.js and scripts/run-flows.mjs.
+ * Uses: Global fetch (loadCollection only).
+ * Env: None.
+ * Input: A collection URL (loadCollection), a parsed Postman collection object (parseCollection), and
+ *   a template string with a variables object (substitute).
+ * Outputs: Exports loadCollection, parseCollection and substitute; loadCollection performs a network
+ *   fetch. No DOM or storage access.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Fetches a Postman collection JSON from a URL and parses it with parseCollection.
+ * Arguments: url -- URL of the collection JSON.
+ * Outputs: Performs a network fetch; throws when the response is not OK.
+ * Returns: Promise resolving to the parsed collection model.
+ */
 export async function loadCollection(url) {
   const response = await fetch(url);
   if (!response.ok) {
@@ -6,6 +27,12 @@ export async function loadCollection(url) {
   return parseCollection(await response.json());
 }
 
+/**
+ * Converts a raw Postman collection object into the flow list, the flat step items and the variables map.
+ * Arguments: collection -- parsed Postman collection JSON object.
+ * Outputs: None.
+ * Returns: Object with name, variables, flows and items.
+ */
 export function parseCollection(collection) {
   const flows = [];
   const items = [];
@@ -25,6 +52,12 @@ export function parseCollection(collection) {
   };
 }
 
+/**
+ * Replaces {{name}} placeholders in a template with values from variables and lists the names it could not resolve.
+ * Arguments: template -- string that may contain placeholders, variables -- object mapping names to values.
+ * Outputs: None.
+ * Returns: Object with text (the substituted string) and missing (unresolved names).
+ */
 export function substitute(template, variables) {
   const missing = [];
   const text = template.replace(PLACEHOLDER, (placeholder, name) => {

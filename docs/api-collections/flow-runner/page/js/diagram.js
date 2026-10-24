@@ -1,3 +1,18 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Builds the step diagram in a container: one row per flow with a numbered button per step,
+ *   and paints each step's pending, passed, failed or skipped state and response code badge as
+ *   results arrive.
+ * Usage: None -- a library module imported by main.js.
+ * Uses: ./step-view.js (codeBadge); ./status.js (codeLabel); global document.
+ * Env: None.
+ * Input: A container element and an onOpen callback passed to createDiagram; the collection passed to
+ *   build(); step updates passed to update(index, step).
+ * Outputs: Appends flow rows and step buttons to the container; sets class names, text, aria-label and
+ *   title on the step buttons; calls onOpen(index) when a step button is clicked. No storage
+ *   access.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
 import { codeBadge } from "./step-view.js";
 import { codeLabel } from "./status.js";
 

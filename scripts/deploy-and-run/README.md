@@ -33,7 +33,7 @@ flowchart TD
     E2 -->|yes| E1a[build-and-test.sh --unit --integration] --> G
     E2 -->|no| E1b[build-and-test.sh --no-unit --no-integration] --> G
     E -->|yes| F2[build repo-root Dockerfile, full multi-stage, real tagged image] --> G
-    G[start app container, wait for Started Application]
+    G[start app container with MARKETPLACE_DEV_TOOLS_ENABLED=true when --dev-tools, wait for Started Application]
     G --> H{Liquibase checksum mismatch?}
     H -->|yes| H1[reset infra, restart app, retry once] --> I[app ready on APP_PORT]
     H -->|no| I

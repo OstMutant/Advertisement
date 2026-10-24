@@ -109,7 +109,7 @@ steps:
         APP_CONTAINER=ci-marketplace-app APP_IMAGE=marketplace-app-ci \
         DB_PORT=15432 SEAWEEDFS_PORT=19000 SEAWEEDFS_CONSOLE_PORT=19333 APP_PORT=18081 \
         DB_VOLUME=ci_advertisement_postgres_data SEAWEEDFS_VOLUME=ci_advertisement_seaweedfs_data \
-        bash scripts/deploy-and-run.sh "$RESET_FLAG"
+        bash scripts/deploy-and-run.sh "$RESET_FLAG" --dev-tools
       APP_URL=http://localhost:18081 APP_CONTAINER=ci-marketplace-app \
         PW_CONTAINER=ci-pw-runner DB_PORT=15432 \
         bash playwright/run.sh ${params.e2e_args}

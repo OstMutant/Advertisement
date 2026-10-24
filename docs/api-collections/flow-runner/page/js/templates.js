@@ -1,3 +1,18 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Template model of the runner page: the built-in Everything and Minimal templates, conversion
+ *   between the selection state and a versioned configuration object, validation of pasted
+ *   configuration JSON, and saving, loading and deleting named templates under one storage key.
+ * Usage: None -- a library module imported by templates-bar.js.
+ * Uses: None.
+ * Env: None.
+ * Input: A collection, selection state or configuration text, and a localStorage-like storage object
+ *   passed to the exported functions.
+ * Outputs: Exports builtIns, toConfig, fromConfig, validateConfig, matchingName, loadSaved,
+ *   saveTemplate and deleteTemplate. saveTemplate and deleteTemplate write the templates to the
+ *   storage object under one key. No DOM access.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
 const VERSION = 1;
 const REQUIRED_FLOW = "Authentication";
 const STORAGE_KEY = "api-flow-runner.templates";

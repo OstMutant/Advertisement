@@ -24,7 +24,7 @@
 #   --unit/--no-unit                 override build-and-test.properties' unit= default for this run
 #   --integration/--no-integration   override build-and-test.properties' integration= default for this run
 #   --unit-test <arg>                narrow RUN_UNIT to one module (query-lib/marketplace-app/
-#                                     marketplace-orchestrator) or one test class by name
+#                                     marketplace-orchestrator/marketplace-rest-api) or one test class by name
 #   --integration-test <arg>         narrow RUN_INTEGRATION to one scenario (smoke) or one test
 #                                     class by name
 #   --no-sandbox                      disable the Docker nested-container Testcontainers

@@ -1,3 +1,19 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Builds the modal confirmation dialog shown before the results of the last run are cleared.
+ *   createConfirmDialog returns a function that shows a message and resolves to true only when
+ *   the user confirms.
+ * Usage: None -- a library module imported by main.js.
+ * Uses: ./step-view.js (element); the passed-in dialog element's showModal, close and
+ *   addEventListener.
+ * Env: None.
+ * Input: A dialog element passed to createConfirmDialog; the message text passed to the returned
+ *   function.
+ * Outputs: Sets the dialog's aria-label, replaces its children with the message and Cancel / Clear
+ *   buttons, and opens it modally. Resolves the returned Promise when the dialog closes. No
+ *   storage access.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
 import { element } from "./step-view.js";
 
 export function createConfirmDialog(dialog) {

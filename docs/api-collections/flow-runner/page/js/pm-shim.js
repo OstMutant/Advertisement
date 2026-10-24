@@ -1,3 +1,18 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Minimal Postman pm object for running collection test scripts in the browser: pm.test,
+ *   pm.expect (to.include, to.be.a), pm.response (code, json, to.have.status) and
+ *   pm.collectionVariables. Any unsupported pm call throws. runScript evaluates a test script
+ *   source against that pm object.
+ * Usage: None -- a library module imported by runner.js.
+ * Uses: None (JavaScript built-ins only: Function, Proxy).
+ * Env: None.
+ * Input: A response object with code and bodyText, and a variables object, passed to createPm; a
+ *   script source and a pm object passed to runScript.
+ * Outputs: Exports createPm and runScript. collectionVariables.set writes into the variables object
+ *   passed to createPm. No DOM, network or storage access.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
 export function createPm(response, variables) {
   const tests = [];
   const pm = {

@@ -1,3 +1,19 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Templates bar of the runner page: lists the built-in and saved configuration templates,
+ *   shows which one matches the current selection, applies a pasted configuration, and saves or
+ *   deletes named templates in browser storage.
+ * Usage: None -- a library module imported by main.js.
+ * Uses: ./templates.js (builtIns, deleteTemplate, fromConfig, loadSaved, matchingName, saveTemplate,
+ *   toConfig, validateConfig); ./step-view.js (element); global navigator.clipboard.
+ * Env: None.
+ * Input: The container element, collection, selection object, storage object (or null) and {guard}
+ *   passed to createTemplatesBar; text the user types or pastes into the bar.
+ * Outputs: Appends its elements to the container and rebuilds the template buttons and configuration
+ *   text on each refresh; writes saved templates to the storage object; applies configurations
+ *   to the selection through guard.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
 import {
   builtIns,
   deleteTemplate,
@@ -8,6 +24,7 @@ import {
   toConfig,
   validateConfig,
 } from "./templates.js";
+import { element } from "./step-view.js";
 
 export function createTemplatesBar(container, collection, selection, storage, { guard }) {
   const builtin = builtIns(collection);
@@ -116,15 +133,4 @@ export function createTemplatesBar(container, collection, selection, storage, { 
 
   selection.subscribe(refresh);
   refresh();
-}
-
-function element(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) {
-    node.className = className;
-  }
-  if (text !== undefined) {
-    node.textContent = text;
-  }
-  return node;
 }

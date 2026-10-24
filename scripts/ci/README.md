@@ -98,7 +98,8 @@ down instead). Since the containers (and their DB/SeaweedFS volumes) can persist
 stage's own deploy always applies `--reset-only-db` first (fast truncate — clears leftover data
 from a prior run without touching the schema/migration history) unless `--reset-e2e-stack` asks for a
 full `--reset` instead (only needed when the DB schema itself changed since the stack was last
-brought up). The
+brought up). The stage deploys with `--dev-tools`, so the API flow runner page spec runs there instead of
+skipping itself. The
 `integration` stage always applies the Testcontainers sandbox workaround internally (not a
 toggleable flag) — `ci-runner`'s own Docker-outside-of-Docker nature hits the same
 dynamically-assigned-port problem regardless of host machine.

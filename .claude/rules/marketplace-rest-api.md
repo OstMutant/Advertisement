@@ -77,6 +77,12 @@ Java package root: `org.ost.restapi`
   (declares the `bearerKey`/`basicAuth` `@SecurityScheme`s springdoc renders in Swagger UI, matching
   the two chains' real authentication)
 
+- `DevToolsConfig` (`org.ost.restapi.config`) — `@ConditionalOnProperty("marketplace.dev-tools.enabled")`
+  `WebMvcConfigurer` that serves the developer-only API flow runner page under `/dev-tools/api-flows/`
+  from the classpath (resource handler plus a view controller forwarding the folder to `index.html`);
+  with the property off the path is not registered (404). The page and the Postman collection are
+  copied into the classpath by this module's `pom.xml` resources from `docs/api-collections`.
+
 **Autoconfiguration entry point:** `RestApiAutoConfiguration` (`@ComponentScan("org.ost.restapi")`)
 
 **OpenAPI/Swagger:** `springdoc-openapi-starter-webmvc-ui` generates the spec live from these

@@ -1,6 +1,28 @@
+/* ── Header ───────────────────────────────────────────────────────────────────
+ * Description: Runs a loaded collection's steps in order against a host: substitutes variables, applies
+ *   auth and form data, performs each request with fetch, runs the test script through the pm
+ *   shim, and reports every step through onStepUpdate. After the first failed step the remaining
+ *   steps are skipped.
+ * Usage: None -- a library module imported by main.js and scripts/run-flows.mjs.
+ * Uses: ./collection.js (substitute); ./pm-shim.js (createPm, runScript); global fetch, FormData,
+ *   Blob, Uint8Array, atob, btoa, TextEncoder and Date.
+ * Env: None.
+ * Input: A collection model from parseCollection, and an options object {host, variables, flows,
+ *   exclude, onStepUpdate} passed to runFlow.
+ * Outputs: Performs HTTP requests to the host; calls onStepUpdate(index, step) for every step. No DOM
+ *   or storage access.
+ * Returns: N/A
+ * ────────────────────────────────────────────────────────────────────────── */
+
 import { substitute } from "./collection.js";
 import { createPm, runScript } from "./pm-shim.js";
 
+/**
+ * Runs the collection's steps in order, reports each step through onStepUpdate and skips the rest after a failure.
+ * Arguments: collection -- model from parseCollection, options -- object with host, variables, flows (null for all), exclude (step ids), onStepUpdate(index, step).
+ * Outputs: HTTP requests to the host; onStepUpdate calls for every step.
+ * Returns: Promise resolving to an object with steps and variables.
+ */
 export async function runFlow(collection, { host, variables = {}, flows = null, exclude = [], onStepUpdate = () => {} }) {
   const runVariables = { ...collection.variables, runId: newRunId(), ...variables, host };
   const steps = collection.items.map((item, index) => ({

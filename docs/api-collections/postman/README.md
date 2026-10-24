@@ -62,6 +62,10 @@ has to be selected.
 | `userPassword` | `password123` |
 | `apiKeyLabel` | `flow-runner` |
 | `secondKeyLabel` | `flow-runner-second` |
+| `profileKind` | `MASTER`, the kind of the provider profile the flows create |
+| `profilePhone` | `+380501234567`, the phone number of that profile |
+| `adKind` | `OFFER`, the kind of the advertisements the flows create |
+| `settingsPageSize` | `30`, the page size the Account flow saves into the caller's settings |
 | `pixelPng` | base64 of a 1x1 PNG, used for gallery uploads |
 | `videoUrl` | a YouTube link, used for gallery video links |
 
@@ -82,3 +86,19 @@ run:
 | `userKey` | `issueApiKey` (step `auth.userkey`) | raw API key of the ordinary user |
 | `secondKey` | `issueApiKey` (step `auth.second`) | raw second API key of the administrator |
 | `secondKeyId` | `listApiKeys` (step `auth.keys`) | id of the key labelled `secondKeyLabel`, used by the revoke steps |
+
+The flows after Authentication each create their own category and city (with the administrator's key)
+and their own data, use the ordinary user's key for user actions and delete what they created at the
+end. They store the ids and versions they need under names that start with the flow:
+
+| Variables | Set by | Hold |
+|---|---|---|
+| `categoryId`, `categoryVersion`, `cityId`, `cityVersion`, `snapshotId` | Taxons flow | the flow's category and city with their versions, and the id of the first history snapshot of the category |
+| `profileCategoryId`, `profileCityId`, `profileId`, `profileVersion`, `profileSnapshotId` (and `...Version` of category and city) | Profile flow | the flow's category and city, the provider profile and its first history snapshot |
+| `adCategoryId`, `adCityId`, `advertisementId`, `advertisementVersion`, `adSnapshotId` (and `...Version` of category and city) | Advertisements flow | the flow's category and city, the advertisement and its first history snapshot |
+| `settingsVersion`, `settingsSnapshotId` | Account flow | the version of the caller's settings and the first snapshot of their history |
+| `mediaCategoryId`, `mediaCityId`, `mediaAdId`, `mediaAdVersion`, `mediaPhotoId`, `mediaVideoId` (and `...Version` of category and city) | Media flow | the flow's category and city, the advertisement and the ids of its uploaded photo and video link |
+| `contactCategoryId`, `contactCityId`, `contactProfileId`, `contactAdId` (and the `...Version` of each) | Contacts flow | the flow's category and city, the provider profile and the advertisement whose contacts are revealed |
+| `feedbackCategoryId`, `feedbackCityId`, `feedbackProfileId`, `feedbackId`, `feedbackVersion`, `replyVersion` (and `...Version` of category, city and profile) | Feedback flow | the flow's category and city, the profile, the review and the reply versions |
+| `moderationCategoryId`, `moderationCityId`, `moderationProfileId`, `moderationFeedbackId`, `moderationReplyId` (and `...Version` of category, city and profile) | Moderation flow | the flow's category and city, the profile, the review and the reply that are flagged and decided |
+| `targetUserId`, `targetUserVersion`, `flowUserId`, `targetSnapshotId` | Users flow | the target user the flow creates, the version of that user, the id of the ordinary user the Authentication flow created and the first snapshot of the target's history |
