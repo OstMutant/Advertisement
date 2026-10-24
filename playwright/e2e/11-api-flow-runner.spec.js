@@ -7,8 +7,8 @@
  *   works with templates (Minimal, a rejected pasted configuration, a saved template that survives a
  *   reload and is deleted), then asserts every Moderation step is skipped and none failed. The third
  *   sets a too-short user password in the Authentication settings and asserts auth.user is the only
- *   failed step while auth.key passes. The whole file skips itself when the page answers 404 (a stack
- *   deployed without --dev-tools).
+ *   failed step while auth.key passes. The whole file skips itself when the page answers 404 or does
+ *   not contain the run button (a stack deployed without --dev-tools).
  * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 11-api-flow-runner --ux`
  *   after `bash scripts/deploy-and-run.sh --reset-only-db --dev-tools`, or as part of the full e2e
  *   suite (`bash /app/playwright/run.sh e2e --ux`).
@@ -30,7 +30,7 @@ test.describe.serial('API flow runner page', () => {
 
   test.beforeEach(async ({ request }) => {
     const response = await request.get(`${PAGE_URL}index.html`);
-    test.skip(response.status() === 404, 'dev tools are not enabled on this stack');
+    test.skip(response.status() === 404 || !(await response.text()).includes('run-button'), 'dev tools are not enabled on this stack');
   });
 
   test('developer runs the default flow on the runner page — every step coloured passed or skipped (the administrator registration only when the default login fails), one result row per step, one card per flow, the Authentication flow opened with its auth.user response, the response code badges coloured per class, a node click opening the request and response card, Clear and any selection change after a run asking for confirmation first, screenshots at start, running and end', async ({ page }) => {

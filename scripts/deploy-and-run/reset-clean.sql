@@ -1,8 +1,9 @@
 -- Full reset without seed data. Used by e2e tests that bootstrap their own users via sign-up.
-TRUNCATE TABLE taxon_assignment, taxon_translation, taxon,
-               attachment_snapshot, attachment, audit_log, advertisement,
-               provider_profile, contact_view, contact_info,
-               feedback_comment, feedback_rating,
-               feedback, feedback_aggregate, feedback_content,
-               user_preferences, user_information
-    RESTART IDENTITY CASCADE;
+DO $$
+DECLARE tables text;
+BEGIN
+    SELECT string_agg(format('%I.%I', schemaname, tablename), ', ') INTO tables
+    FROM pg_tables
+    WHERE schemaname = 'public' AND tablename NOT IN ('databasechangelog', 'databasechangeloglock');
+    EXECUTE 'TRUNCATE TABLE ' || tables || ' RESTART IDENTITY CASCADE';
+END $$;
