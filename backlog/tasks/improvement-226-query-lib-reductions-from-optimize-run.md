@@ -23,7 +23,7 @@ Apply the execution plan below in small batches after the user answers the decis
 
 ## Related
 
-[improvement-225](improvement-225-code-reduction-findings.md) (inventory), [improvement-224](improvement-224-planning-and-optimization-commands.md) (the `/optimize` and `/deep-plan` commands), the module's own `DECISIONS.md` (API scope frozen).
+[improvement-225](improvement-225-code-reduction-findings.md) (inventory), [improvement-224](../completed/tasks/improvement-224-planning-and-optimization-commands.md) (the `/optimize` and `/deep-plan` commands), the module's own `DECISIONS.md` (API scope frozen).
 
 ## Plan for people
 
