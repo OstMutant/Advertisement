@@ -5,4 +5,4 @@ other modules' files and cross-listed here via their own `**Also affects:**` tag
 Do not hand-edit this file — add `**Also affects:** apikey-spring-boot-starter` to the real ADR in its
 home file instead, then regenerate via `bash docs/architecture/scripts/generate-architecture-model.sh`.
 
-No ADRs currently cross-reference this module.
+- [ADR-088 (marketplace-app)](../marketplace-app/DECISIONS.md) — API keys tab in the account overlay — own keys only, revoked keys behind a toggle, revoke behind a confirmation, no audit entry

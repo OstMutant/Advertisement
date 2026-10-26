@@ -56,7 +56,7 @@ yet — not zero.
 | ADR-001 (contact-spring-boot-starter) | contact-spring-boot-starter | Accepted |  |  | New contact-spring-boot-starter module owns contact_info/contact_view, generic over owning entity |
 | ADR-003 (docs/api-collections) | docs/api-collections | Accepted **Applied:** 1 |  |  | The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses |
 | ADR-003 (docs/api-collections) | marketplace-rest-api | Accepted **Applied:** 1 |  |  | The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses |
-| ADR-002 (docs/api-collections) | docs/api-collections | Accepted **Applied:** 1 |  |  | API collection flows repeat on an empty or a used database, create what they need, never provoke a limiter |
+| ADR-002 (docs/api-collections) | docs/api-collections | Accepted |  | 2 | API collection flows repeat on an empty or a used database, create what they need, never provoke a limiter |
 | ADR-001 (docs/api-collections) | docs/api-collections | Superseded by ADR-002 **Applied:** 1 |  |  | API collection flows repeat without a reset, build unique values per run and never provoke a limiter |
 | ADR-034 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  |  | Database ERD's no-FK point relationships derived from a `remarks=` marker convention, not a hand-curated list |
 | ADR-033 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  |  | "AI Tooling" generalized into a `.claude`-rooted tree, same mechanism as "Scripts"; README becomes the sole canonical file list, chip-row is last-resort only |
@@ -91,8 +91,10 @@ yet — not zero.
 | ADR-007 (integration-tests) | integration-tests | Accepted |  |  | `run.sh` auto-detects starter staleness instead of a manual skip-`-am` flag |
 | ADR-008 (integration-tests) | integration-tests | Accepted |  |  | Test package-private/private internal logic through its public entry point, never through a same-package trick or a widened production visibility |
 | ADR-010 (integration-tests) | integration-tests | Accepted |  |  | `@Tag("testcontainers")` on the shared base class + Surefire `excludedGroups`; `SharedEnvConfig` gains a testable overload |
-| ADR-087 (marketplace-app) | marketplace-app | Accepted |  | 1 | External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit |
-| ADR-087 (marketplace-app) | marketplace-rest-api | Accepted |  | 1 | External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit |
+| ADR-088 (marketplace-app) | marketplace-app | Accepted |  | 1 | API keys tab in the account overlay — own keys only, revoked keys behind a toggle, revoke behind a confirmation, no audit entry |
+| ADR-088 (marketplace-app) | apikey-spring-boot-starter | Accepted |  | 1 | API keys tab in the account overlay — own keys only, revoked keys behind a toggle, revoke behind a confirmation, no audit entry |
+| ADR-087 (marketplace-app) | marketplace-app | Accepted |  | 2 | External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit |
+| ADR-087 (marketplace-app) | marketplace-rest-api | Accepted |  | 2 | External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit |
 | ADR-086 (marketplace-app) | marketplace-app | Accepted |  |  | `AbstractEntityOverlay.applyFreshOrFallback` — defined fallback for a post-save refetch that races a concurrent delete; skip the refetch where a caller doesn't need fresh data |
 | ADR-085 (marketplace-app) | marketplace-app | Accepted |  |  | `AbstractTaxonManagementView`/`AbstractTaxonOverlay`/`AbstractTaxonViewOverlayModeHandler`/`AbstractTaxonFormOverlayModeHandler` — shared City/Category admin-screen logic behind still-separate bean classes; `TaxonOverlay`/`TaxonManagementView`/`TaxonViewOverlayModeHandler`/`TaxonFormOverlayModeHandler`/`TaxonEditDto` renamed to `Category*` |
 | ADR-084 (marketplace-app) | marketplace-app | Accepted |  |  | Verifying CSS on Vaadin Shadow DOM components — `getComputedStyle` is unreliable for paint properties, real diagnostic color swaps are required |
@@ -164,7 +166,7 @@ yet — not zero.
 | ADR-071 (marketplace-app) | marketplace-app | Accepted |  |  | `UserDto.locale` removed, `UserProfileUpdate` renamed, `UserPort` split (Batch A2) |
 | ADR-071 (marketplace-app) | user-spring-boot-starter | Accepted |  |  | `UserDto.locale` removed, `UserProfileUpdate` renamed, `UserPort` split (Batch A2) |
 | ADR-073 (marketplace-app) | marketplace-app | Accepted — the "`AdvertisementAuditEnrichService` stays in `marketplace-app`" call below was itself reversed shortly after, see `marketplace-orchestrator/DECISIONS.md` ADR-005: its two real UI-shell touchpoints (current locale, an `AdKind` label) turned out to be single-value lookups rather than the HTML-diff formatting itself, so both moved behind the `CurrentLocaleHook`/ `UiLabelHook` forwarder-SPI pair and `AdvertisementAuditEnrichService` now lives in `marketplace-orchestrator` too, not `marketplace-app`. |  |  | `AdvertisementSaveService`/`UserDeleteService` move to `marketplace-orchestrator`; `AdvertisementAuditEnrichService` stays |
-| ADR-074 (marketplace-app) | marketplace-app | Accepted |  |  | `SettingsOverlay`/`UserOverlay` unified into `AccountOverlay`; Provider Profile gains a View/Edit split |
+| ADR-074 (marketplace-app) | marketplace-app | Accepted |  | 1 | `SettingsOverlay`/`UserOverlay` unified into `AccountOverlay`; Provider Profile gains a View/Edit split |
 | ADR-075 (marketplace-app) | marketplace-app | Accepted |  |  | Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay |
 | ADR-075 (marketplace-app) | provider-profile-spring-boot-starter | Accepted |  |  | Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay |
 | ADR-075 (marketplace-app) | marketplace-orchestrator | Accepted |  |  | Providers public catalog — OG/sitemap/deep-link pattern applied to a second domain, view-only catalog overlay |
@@ -218,10 +220,11 @@ yet — not zero.
 | ADR-030 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
 | ADR-030 (platform-commons) | marketplace-orchestrator | Accepted |  |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
 | ADR-030 (platform-commons) | marketplace-app | Accepted |  |  | `ProviderProfilePort.save()` gains `targetUserId`; category-assignment write and audit capture move to `marketplace-orchestrator` |
-| ADR-004 (playwright) | playwright | Accepted |  |  | ESLint via eslint-plugin-playwright, delegated to pw-runner not ci-runner |
-| ADR-001 (playwright) | playwright | Accepted |  |  | data-testid convention for form field selectors |
-| ADR-002 (playwright) | playwright | Accepted **Verified:** 2026-09-18 |  |  | No waitForTimeout — wait on Vaadin state attributes |
-| ADR-003 (playwright) | playwright | Accepted |  |  | --ux flag controls screenshots |
+| ADR-005 (playwright) | playwright | Accepted |  | 1 | Isolated parallel e2e suite — setup project, own data per test, per-worker accounts with saved sessions |
+| ADR-004 (playwright) | playwright | Accepted |  | 1 | ESLint via eslint-plugin-playwright, delegated to pw-runner not ci-runner |
+| ADR-001 (playwright) | playwright | Accepted |  | 1 | data-testid convention for form field selectors |
+| ADR-002 (playwright) | playwright | Accepted | 2026-10-25 | 1 | No waitForTimeout — wait on Vaadin state attributes |
+| ADR-003 (playwright) | playwright | Accepted |  | 1 | --ux flag controls screenshots |
 | ADR-001 (query-lib) | query-lib | Accepted |  |  | Renamed from query-starter to query-lib — plain Java library, no Spring autoconfiguration |
 | ADR-003 (query-lib) | query-lib | Accepted |  | 1 | API scope frozen — no DSL extensions |
 | ADR-004 (query-lib) | query-lib | Accepted |  |  | Null-safe conditions — null filter value skips condition |

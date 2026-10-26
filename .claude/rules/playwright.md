@@ -26,9 +26,10 @@ All scenarios live in `/app/playwright/`. Run via `run.sh`:
 ```bash
 bash /app/playwright/run.sh                  # all tests
 bash /app/playwright/run.sh --ux             # all tests with screenshots
-bash /app/playwright/run.sh e2e --ux         # e2e suite (01–08), skips spec 06 seed
+bash /app/playwright/run.sh e2e --ux         # e2e suite, skips the --full blocks (spec 06 seeding, boundary tests)
 bash /app/playwright/run.sh e2e --full --ux  # e2e suite including spec 06 (seeds 60 users + 60 ads)
 bash /app/playwright/run.sh 01-marketplace-empty-flow --ux  # single spec file, with screenshots
+bash /app/playwright/run.sh 05-marketplace-advertisement-flow --workers 4 --repeat-each 2 --ux  # one spec, 4 workers, every test twice
 ```
 
 **`--full` flag:** spec `06-seed-filter-sort-pagination` is skipped by default (it takes ~2 min to seed 120 entities — `SEED_COUNT = 60`). Pass `--full` to include it. Spec 07 (delete flow) works correctly in both modes — it creates its own ad to delete.
@@ -36,14 +37,7 @@ bash /app/playwright/run.sh 01-marketplace-empty-flow --ux  # single spec file, 
 **IMPORTANT:** Volume mounts don't work from inside the claude container (Docker socket path issue).
 `run.sh` uses `docker cp` internally — always use `run.sh`, never raw `docker run -v`.
 
-**Don't run a single spec file in isolation unless it's genuinely self-contained.** Per
-`playwright/README.md`, specs are serial and ordered — most later specs depend on state earlier
-specs create (registered `TEST_USERS`, seeded categories/cities). Running e.g. spec 05 alone
-against a database that never had specs 01-03 run against it fails at the very first login, not at
-whatever behavior the spec was meant to verify. Run the full `e2e --ux` suite (or `e2e --full --ux`
-only when the change actually touches spec 06's seeded-pagination scenario — `--full` is not
-needed just to make a later spec's preconditions exist, since categories/cities are seeded in spec
-03, not spec 06).
+**Every spec runs alone, and the whole suite runs in parallel.** Each test creates the data it needs with unique names (`unique(...)`, `createUser(...)`, REST seeding through `_flows/seed.flow.js`) and checks only its own data, so a single spec, a single test (`--grep`) and the parallel full suite all work against any database state. The `setup` project signs up the first administrator when the database is empty and skips itself otherwise. The worker count is `PW_WORKERS` in the repo-root `.env` (a run with `--workers` overrides it); more than 2 workers did not shorten the run on a 4-core machine. `--repeat-each 2` on one spec proves it does not depend on a clean database.
 
 **Always deploy with a clean database (`bash scripts/deploy-and-run.sh --reset-only-db` — truncate,
 fast — or `--reset` — full DB/SeaweedFS volume wipe, only needed when the schema itself changed)
@@ -69,7 +63,7 @@ that orchestrator.
 6. For UX analysis add `--ux` flag → screenshots are embedded in the HTML report (`/app/playwright/pw-report/index.html`) — there is no standalone `/app/playwright/screenshots/` directory; use the `/screenshots` skill to extract and read them by name
 
 ### Vaadin-specific notes
-- Vaadin uses Shadow DOM — always fill via inner input: `vaadin-text-field input`, `vaadin-text-area textarea`, `vaadin-email-field input`, `vaadin-password-field input`
+- Locators: role, label and visible text first (`getByRole`, `getByLabel`, `getByText`), `getByTestId('<kebab-i18n-key>')` for `Ui*` form fields, raw CSS only for elements with no role or name (containers, cards, feed rows). Vaadin uses Shadow DOM, which these locators pierce; fill through the inner `input`/`textarea` (`getByPlaceholder(...)` on a Vaadin field also matches the host, so add `.locator('input')`). The lint run counts what is left raw and fails when `PW_LINT_MAX_WARNINGS` in the repo-root `.env` is exceeded.
 - Overlays/dialogs have class `.advertisement-overlay` — scope selectors inside it to avoid hitting main page buttons
 - Playwright version must match image: `playwright@1.61.1` + `mcr.microsoft.com/playwright:v1.61.1-jammy`
 - `IFrame.setSrc()` / `.setProperty()` are silently ignored post-render — use `Page.executeJs()` + `setAttribute()` instead
@@ -78,7 +72,8 @@ that orchestrator.
 
 ### Helper organization rules
 
-- `e2e/_helpers.js` — only truly shared utilities used across **multiple** files: `TEST_USERS`, media constants, overlay/notification helpers, `screenshot`, `downloadPng`. Do NOT add anything that is only used in one spec or one flow file.
+- `e2e/_fixtures.js` — the Playwright fixtures every spec imports `test`/`expect` from (`unique`, `createUser`, `adminKey`, per-worker accounts, `pageAs`); `e2e/global.setup.js` — the setup project's test.
+- `e2e/_helpers.js` — only truly shared utilities used across **multiple** files: `TEST_USERS` (only `adminEn`), media constants, overlay/notification helpers, `screenshot`, `downloadPng`. Do NOT add anything that is only used in one spec or one flow file.
 - `e2e/_flows/*.flow.js` — flow-specific helpers live in the same file where they are used. Extract to a shared flow file only when two or more flow files need the same helper.
 - Spec-specific helpers (navigation, tab switching, etc.) that are only used in one spec file belong as local functions at the top of that spec file.
 
@@ -108,5 +103,5 @@ Update the test's name (per "Test naming pattern" below) to list the newly added
 
 ### Adding new scenarios
 1. Create `/app/playwright/e2e/my-scenario.spec.js`
-2. `const { test, expect, screenshot } = require('./_helpers');`
+2. `const { test, expect } = require('./_fixtures'); const { screenshot } = require('./_helpers');` — create the data the test needs with the fixtures
 3. Run with `bash /app/playwright/run.sh my-scenario`

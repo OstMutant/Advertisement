@@ -1,24 +1,43 @@
 /* ── Header ──────────────────────────────────────────────────────────────────
  * Description: Flow helpers for the Settings overlay -- changing/reading pagination page sizes
  *   with optional moderation-queue-size parameter, and a thin Settings-specific wrapper around
- *   the shared entity-activity history overlay helpers.
+ *   the shared entity-activity history overlay helpers, and a by-label locator for each page size field.
  * Usage: None -- a library only, required by spec files (see Input).
  * Uses: @playwright/test (expect), ./entity-activity.flow (openEntityActivity, closeEntityActivity,
  *   restoreFromEntityActivity).
  * Env: None.
  * Input: required directly by 06-seed-filter-sort-pagination.spec.js and 04-provider-profile-
  *   flow.spec.js, and indirectly by every spec that goes through ./audit.flow.
- * Outputs: exports changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes.
+ * Outputs: exports changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes,
+ *   pageSizeField.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
 const { expect } = require('@playwright/test');
 const { openEntityActivity, closeEntityActivity, restoreFromEntityActivity } = require('./entity-activity.flow');
 
+const PAGE_SIZE_LABELS = {
+  ads:              /ads per page|оголошень на сторінці/i,
+  providerProfiles: /provider profiles per page|постачальників на сторінку/i,
+  feedback:         /feedback entries per page|відгуків на сторінці/i,
+  users:            /users per page|користувачів на сторінці/i,
+  timeline:         /timeline entries per page|подій на сторінці/i,
+  moderation:       /moderation queue items per page|елементів черги модерації на сторінці/i,
+};
+
 /**
- * Opens the Settings overlay, sets page size fields, and saves. Field order in the DOM is
- * ads(0), providerProfiles(1), feedback(2), users(3), timeline(4), moderation(5) -- the ungated
- * fields (ads, providerProfiles, feedback) come before the privileged-only ones (users, timeline,
- * moderation). All parameters optional (only specified ones are filled).
+ * Locates one page size field of the open Settings overlay by its label. The users, timeline and
+ * moderation fields exist only for privileged actors.
+ * @param {import('@playwright/test').Page} page
+ * @param {'ads'|'providerProfiles'|'feedback'|'users'|'timeline'|'moderation'} key
+ * @returns {import('@playwright/test').Locator} the field's number input.
+ */
+function pageSizeField(page, key) {
+  return page.locator('.settings-overlay-content').getByRole('spinbutton', { name: PAGE_SIZE_LABELS[key] });
+}
+
+/**
+ * Opens the Settings overlay, sets page size fields, and saves. All parameters optional (only
+ * specified ones are filled).
  * @param {import('@playwright/test').Page} page
  * @param {number} [adsSize] advertisements page size.
  * @param {number} [providerProfilesSize] provider profiles page size.
@@ -27,12 +46,12 @@ const { openEntityActivity, closeEntityActivity, restoreFromEntityActivity } = r
  * @returns {Promise<void>}
  */
 async function changePageSizes(page, adsSize, providerProfilesSize, usersSize, moderationSize) {
-  await page.locator('.header-settings-button').click();
+  await page.getByRole('button', { name: /^(settings|налаштування)$/i }).click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
-  const adsInput        = page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input');
-  const providersInput  = page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input');
-  const usersInput      = page.locator('.settings-overlay-content vaadin-integer-field').nth(3).locator('input');
-  const moderationInput = page.locator('.settings-overlay-content vaadin-integer-field').nth(5).locator('input');
+  const adsInput        = pageSizeField(page, 'ads');
+  const providersInput  = pageSizeField(page, 'providerProfiles');
+  const usersInput      = pageSizeField(page, 'users');
+  const moderationInput = pageSizeField(page, 'moderation');
   await adsInput.click({ clickCount: 3 });
   await adsInput.fill(String(adsSize));
   await providersInput.click({ clickCount: 3 });
@@ -43,8 +62,7 @@ async function changePageSizes(page, adsSize, providerProfilesSize, usersSize, m
     await moderationInput.click({ clickCount: 3 });
     await moderationInput.fill(String(moderationSize));
   }
-  await page.locator('.base-overlay.overlay--visible vaadin-button')
-    .filter({ hasText: /зберегти|save/i }).click();
+  await page.locator('.base-overlay.overlay--visible').getByRole('button', { name: /зберегти|save/i }).click();
 }
 
 /**
@@ -78,11 +96,9 @@ async function closeHistory(page, via = 'settings') {
  */
 async function restoreLatestFromActivity(page) {
   await restoreFromEntityActivity(page);
-  await expect(
-    page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i })
-  ).toBeEnabled({ timeout: 5000 });
-  await page.locator('.base-overlay.overlay--visible vaadin-button')
-    .filter({ hasText: /зберегти|save/i }).click();
+  const saveButton = page.locator('.base-overlay.overlay--visible').getByRole('button', { name: /зберегти|save/i });
+  await expect(saveButton).toBeEnabled({ timeout: 5000 });
+  await saveButton.click();
 }
 
 /**
@@ -91,15 +107,15 @@ async function restoreLatestFromActivity(page) {
  * @returns {Promise<{adsPageSize: number, providerProfilesPageSize: number, usersPageSize: number}>}
  */
 async function getPageSizes(page) {
-  await page.locator('.header-settings-button').click();
+  await page.getByRole('button', { name: /^(settings|налаштування)$/i }).click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
-  const adsPageSize              = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input').inputValue(), 10);
-  const providerProfilesPageSize = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(1).locator('input').inputValue(), 10);
-  const usersPageSize            = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(3).locator('input').inputValue(), 10);
-  const moderationPageSize       = parseInt(await page.locator('.settings-overlay-content vaadin-integer-field').nth(5).locator('input').inputValue(), 10);
+  const adsPageSize              = parseInt(await pageSizeField(page, 'ads').inputValue(), 10);
+  const providerProfilesPageSize = parseInt(await pageSizeField(page, 'providerProfiles').inputValue(), 10);
+  const usersPageSize            = parseInt(await pageSizeField(page, 'users').inputValue(), 10);
+  const moderationPageSize       = parseInt(await pageSizeField(page, 'moderation').inputValue(), 10);
   await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
   return { adsPageSize, providerProfilesPageSize, usersPageSize, moderationPageSize };
 }
 
-module.exports = { changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes };
+module.exports = { changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes, pageSizeField };

@@ -17,9 +17,9 @@ const { screenshot } = require('../_helpers');
 //   Headless Chromium sends Accept-Language: en-US → default = English
 
 async function switchLocale(page, expect, localeText, expectedTab) {
-  await page.locator('.locale-combobox input').click();
-  await page.locator('vaadin-combo-box-item').filter({ hasText: localeText }).first().click();
-  await expect(page.locator('vaadin-tab').filter({ hasText: expectedTab }).first()).toBeVisible({ timeout: 8000 });
+  await page.locator('.locale-combobox').getByRole('combobox').click();
+  await page.getByRole('option', { name: localeText }).first().click();
+  await expect(page.getByRole('tab', { name: expectedTab }).first()).toBeVisible({ timeout: 8000 });
 }
 
 /**
@@ -31,8 +31,8 @@ async function switchLocale(page, expect, localeText, expectedTab) {
 async function runOpenDefaultLocaleFlow(page, expect) {
   await page.goto('/');
   await expect(page.locator('.locale-combobox')).toBeVisible({ timeout: 8000 });
-  await expect(page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first()).toBeVisible({ timeout: 8000 });
-  await expect(page.locator('vaadin-button').filter({ hasText: 'Log In' }).first()).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Advertisements' }).first()).toBeVisible({ timeout: 8000 });
+  await expect(page.getByRole('button', { name: 'Log In' }).first()).toBeVisible();
   await screenshot(page, 'lang-01-default-english');
 }
 
@@ -44,7 +44,7 @@ async function runOpenDefaultLocaleFlow(page, expect) {
  */
 async function runSwitchToUkrainianFlow(page, expect) {
   await switchLocale(page, expect, /ukrainian|укр/i, 'Оголошення');
-  await expect(page.locator('vaadin-button').filter({ hasText: 'Увійти' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Увійти' }).first()).toBeVisible();
   await screenshot(page, 'lang-02-ukrainian');
 }
 
@@ -56,7 +56,7 @@ async function runSwitchToUkrainianFlow(page, expect) {
  */
 async function runSwitchToEnglishFlow(page, expect) {
   await switchLocale(page, expect, /english|англійська/i, 'Advertisements');
-  await expect(page.locator('vaadin-button').filter({ hasText: 'Log In' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Log In' }).first()).toBeVisible();
   await screenshot(page, 'lang-03-back-to-english');
 }
 

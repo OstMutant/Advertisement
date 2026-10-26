@@ -2,6 +2,7 @@ package org.ost.apikey.services;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.apikey.entity.ApiKey;
 import org.ost.apikey.repository.ApiKeyRepository;
 import org.ost.apikey.security.ApiKeyHasher;
@@ -18,6 +19,7 @@ import java.util.Optional;
  * Issues, resolves, lists, revokes, and bulk-deletes API keys -- the only business-logic class
  * this starter carries.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ApiKeyService {
@@ -56,6 +58,7 @@ public class ApiKeyService {
             throw new ApiKeyAlreadyRevokedException("API key is already revoked");
         }
         repository.revoke(actorId, keyId);
+        log.info("API key revoked: actorId={}, keyId={}", actorId, keyId);
     }
 
     @Transactional

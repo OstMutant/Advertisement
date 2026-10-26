@@ -39,9 +39,10 @@ convention; a user's key rows are removed via `ApiKeyPort.deleteAllForActor`, ca
 - `ApiKeyPort`/`ApiKeySummaryDto` live in `platform-commons`'s own `apikey.spi`/`apikey.dto`
   packages, and `ApiKeyAlreadyRevokedException` in `apikey.model` — matching every other domain
   with its own Maven starter module.
-- Not folded into `user-spring-boot-starter` despite the natural credential-domain fit: this
-  starter is consumed only by `marketplace-rest-api` (the external REST API's only auth
-  mechanism), never by a Vaadin flow — a real starter is still the only shape that adds zero
+- Not folded into `user-spring-boot-starter` despite the natural credential-domain fit: its keys
+  authenticate only `marketplace-rest-api` (the external REST API's only auth mechanism), never a
+  Vaadin session (`marketplace-app` only lists and revokes the signed-in user's own keys through
+  `marketplace-orchestrator`) — a real starter is still the only shape that adds zero
   exceptions to the persistence-stays-in-starters invariant (`marketplace-orchestrator`'s
   `orchestrator_has_no_persistence_access` ArchUnit rule).
 - `apikeyLiquibase` bean has no `@DependsOn` on `userLiquibase` — `api_key.actor_id` carries

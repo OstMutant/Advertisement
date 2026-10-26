@@ -2,11 +2,35 @@
 
 ---
 
-## ADR-087: External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit
+## ADR-088: API keys tab in the account overlay — own keys only, revoked keys behind a toggle, revoke behind a confirmation, no audit entry
 
 **Status:** Accepted
 
 **Applied:** 1
+
+**Also affects:** apikey-spring-boot-starter
+
+**Context:** API keys could be issued, listed and revoked only through the REST API. A user who issued keys through Swagger or a script could not see which keys exist, which are still used, or remove forgotten ones without calling REST by hand. `AccountOverlay` (ADR-074) already carries per-account sections, and ADR-087 deferred an audit log of key issuance and failures.
+
+**Decision:** `AccountOverlay` gets a fourth section, "API keys" (`ApiKeysViewModeHandler`), built like the Provider Profile section.
+- Own keys only: the tab exists only on the signed-in user's own account (not when an administrator or moderator opens someone else's) and only when the API-key module is present (`ApiKeyManagementService.isAvailable()`). The handler never takes a user id from outside; it always uses `AccessEvaluator.getCurrentUserId()`, and the revoke query is limited to the owner in the database.
+- The list shows label (or "Unnamed key"), the first 10 characters of the key and "...", created, last used, status and a revoke button; newest first, created and last used sortable, no paging, fixed height with scrolling. No key value or hash ever reaches the UI.
+- Revoked keys are hidden until "Show revoked keys" is ticked; a revoked row has no revoke button.
+- Revoking asks first through `ConfirmActionDialog`: the text names the key, says that clients get 401 Unauthorized from their next request and that it cannot be undone. A key already revoked or deleted meanwhile gives a message and a reload.
+- No audit entry (a revoke over REST writes none either). One INFO log line in `ApiKeyService.revoke` (actor id and key id, never the key, its hash or its prefix) covers REST and the app; it is a log line, not the audit log ADR-087 deferred.
+- Issuing a key in the UI stays out of scope.
+
+**Rejected alternatives:** A main tab or a separate header button and overlay: main tabs are catalogs and admin lists, and a separate overlay needs more classes for one list. An administrator read-only list or an administrator revoke: needs a new permission rule and a port change. Always showing revoked keys: revoked rows are never deleted, so the list would only grow. Paging: the service returns the whole list with no count and a user has few keys. A typed confirmation: meant for deleting a whole account, too heavy for one key. A full audit timeline entry: a new entity type, deferred with the rest of the key audit log.
+
+**Consequences:** The REST API is unchanged (no new endpoint, port or schema). The level 3 test that a foreign key cannot be revoked also checks that the owner's key keeps working. The API-key module's rules and README no longer say it is never touched by the UI.
+
+---
+
+## ADR-087: External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit
+
+**Status:** Accepted
+
+**Applied:** 2
 
 **Also affects:** marketplace-rest-api
 
@@ -3223,6 +3247,8 @@ the intent.
 ## ADR-074: `SettingsOverlay`/`UserOverlay` unified into `AccountOverlay`; Provider Profile gains a View/Edit split
 
 **Status:** Accepted
+
+**Applied:** 1
 
 **Context:** ADR-067 anticipated this batch as "the future Account overlay" while designing the
 stacked-history-overlay mechanism it now reuses. Separately, once Name/Settings/Provider Profile

@@ -15,11 +15,11 @@
  * ──────────────────────────────────────────────────────────────────────────── */
 const { screenshot } = require('../_helpers');
 const { runOpenUserEditViaListFlow, runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter } = require('./user-management.flow');
-const { openHistory, closeHistory } = require('./settings.flow');
+const { openHistory, closeHistory, pageSizeField } = require('./settings.flow');
 const { openEntityActivity } = require('./entity-activity.flow');
 
 async function runOpenSettingsFlow(page) {
-  await page.locator('.header-settings-button').click();
+  await page.getByRole('button', { name: /^(settings|налаштування)$/i }).click();
   await page.locator('.account-overlay').waitFor({ timeout: 5000 });
 }
 
@@ -70,18 +70,16 @@ async function runVerifyEntityActivityFlow(page, expect, scope, { screenshotName
 async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, privileged = false }) {
   await runOpenSettingsFlow(page);
 
-  // Field order: ads(0), providerProfiles(1), feedback(2) are ungated (every role);
-  // users(3), timeline(4), moderation(5) are privileged-only (moderator/admin).
-  const fields = page.locator('.settings-overlay-content vaadin-integer-field');
-  await expect(fields).toHaveCount(privileged ? 6 : 3, { timeout: 5000 });
-  const adsValue = await fields.nth(0).locator('input').inputValue();
-  const providersValue = await fields.nth(1).locator('input').inputValue();
-  const feedbackValue = await fields.nth(2).locator('input').inputValue();
+  // ads, providerProfiles, feedback are ungated (every role); users, timeline, moderation are privileged-only.
+  await expect(page.locator('.settings-overlay-content').getByRole('spinbutton')).toHaveCount(privileged ? 6 : 3, { timeout: 5000 });
+  const adsValue = await pageSizeField(page, 'ads').inputValue();
+  const providersValue = await pageSizeField(page, 'providerProfiles').inputValue();
+  const feedbackValue = await pageSizeField(page, 'feedback').inputValue();
   let usersValue, timelineValue, moderationValue;
   if (privileged) {
-    usersValue = await fields.nth(3).locator('input').inputValue();
-    timelineValue = await fields.nth(4).locator('input').inputValue();
-    moderationValue = await fields.nth(5).locator('input').inputValue();
+    usersValue = await pageSizeField(page, 'users').inputValue();
+    timelineValue = await pageSizeField(page, 'timeline').inputValue();
+    moderationValue = await pageSizeField(page, 'moderation').inputValue();
   }
   await screenshot(page, `${screenshotName}-defaults`);
 

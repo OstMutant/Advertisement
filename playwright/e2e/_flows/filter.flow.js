@@ -63,7 +63,7 @@ async function waitForVaadin(page) {
  * @returns {Promise<void>}
  */
 async function applyFilter(page, blockSelector) {
-  await page.locator(`${blockSelector} .query-action-block vaadin-button[title*="Apply"]`).click();
+  await page.locator(`${blockSelector} .query-action-block`).getByRole('button', { name: /apply changes|застосувати зміни/i }).click();
   await waitForVaadin(page);
 }
 
@@ -74,7 +74,7 @@ async function applyFilter(page, blockSelector) {
  * @returns {Promise<void>}
  */
 async function clearFilter(page, blockSelector) {
-  await page.locator(`${blockSelector} .query-action-block vaadin-button[title*="Clear"]`).click();
+  await page.locator(`${blockSelector} .query-action-block`).getByRole('button', { name: /clear changes|очистити зміни/i }).click();
   await waitForVaadin(page);
 }
 
@@ -169,8 +169,8 @@ async function fillNumber(page, blockSelector, labelText, minVal, maxVal) {
  */
 async function fillRole(page, blockSelector, role, testId) {
   const scopedSelector = testId ? `${blockSelector} [data-testid="${testId}"]` : `${blockSelector} vaadin-multi-select-combo-box`;
-  const combo = page.locator(scopedSelector);
-  await combo.locator('input').click();
+  const combo = testId ? page.locator(blockSelector).getByTestId(testId) : page.locator(scopedSelector);
+  await combo.getByRole('combobox').click();
   // :visible (not just .first()) -- a block with 2+ multi-select combos (e.g. Moderation's Type
   // and Status) leaves each one's own overlay element in the DOM in a hidden state once closed, so
   // a bare .first() can keep resolving to an earlier field's stale closed overlay instead of the
@@ -178,7 +178,7 @@ async function fillRole(page, blockSelector, role, testId) {
   await page.locator('vaadin-multi-select-combo-box-overlay:visible').first().waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.type(role);
   // Same race as fillCategory -- wait for a matching item to actually render before selecting it.
-  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: role }).first()
+  await page.getByRole('option', { name: role }).first()
     .waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
@@ -199,13 +199,13 @@ async function fillRole(page, blockSelector, role, testId) {
  */
 async function fillCategory(page, blockSelector, categoryName) {
   const selector = `${blockSelector} [data-testid="advertisement-filter-categories"]`;
-  const combo = page.locator(selector);
-  await combo.locator('input').click();
+  const combo = page.locator(blockSelector).getByTestId('advertisement-filter-categories');
+  await combo.getByRole('combobox').click();
   await page.waitForFunction((sel) => document.querySelector(sel)?.opened === true, selector, { timeout: 5000 });
   await page.keyboard.type(categoryName);
   // Filtering re-renders asynchronously -- wait for a matching item to actually render before
   // selecting it, or ArrowDown/Enter can race an empty/stale overlay.
-  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: categoryName }).first()
+  await page.getByRole('option', { name: categoryName }).first()
     .waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
@@ -225,10 +225,10 @@ async function fillCategory(page, blockSelector, categoryName) {
  */
 async function fillCity(page, blockSelector, cityName) {
   const combo = page.locator(`${blockSelector} vaadin-combo-box`);
-  await combo.locator('input').click();
-  await combo.locator('input').fill(cityName);
+  await combo.getByRole('combobox').click();
+  await combo.getByRole('combobox').fill(cityName);
   // Same race as fillCategory -- wait for a matching item to actually render before selecting it.
-  await page.locator('vaadin-combo-box-item').filter({ hasText: cityName }).first()
+  await page.getByRole('option', { name: cityName }).first()
     .waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
@@ -244,12 +244,12 @@ async function fillCity(page, blockSelector, cityName) {
  */
 async function fillAdKind(page, blockSelector, adKindName) {
   const selector = `${blockSelector} [data-testid="advertisement-filter-ad-kind"]`;
-  const combo = page.locator(selector);
-  await combo.locator('input').click();
+  const combo = page.locator(blockSelector).getByTestId('advertisement-filter-ad-kind');
+  await combo.getByRole('combobox').click();
   await page.waitForFunction((sel) => document.querySelector(sel)?.opened === true, selector, { timeout: 5000 });
   await page.keyboard.type(adKindName);
   // Same race as fillCategory -- wait for a matching item to actually render before selecting it.
-  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: adKindName }).first()
+  await page.getByRole('option', { name: adKindName }).first()
     .waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
@@ -303,7 +303,7 @@ async function getTotalCount(page) {
  * @returns {Promise<void>}
  */
 async function goToNextPage(page) {
-  await page.locator('vaadin-button[title*="Next"]:visible').click();
+  await page.getByRole('button', { name: /next|наступна/i }).click();
   await waitForVaadin(page);
 }
 
@@ -313,7 +313,7 @@ async function goToNextPage(page) {
  * @returns {Promise<void>}
  */
 async function goToPrevPage(page) {
-  await page.locator('vaadin-button[title*="Prev"]:visible').click();
+  await page.getByRole('button', { name: /prev|попередня/i }).click();
   await waitForVaadin(page);
 }
 
@@ -323,7 +323,7 @@ async function goToPrevPage(page) {
  * @returns {Promise<void>}
  */
 async function goToFirstPage(page) {
-  await page.locator('vaadin-button[title*="First"]:visible').click();
+  await page.getByRole('button', { name: /first|перша/i }).click();
   await waitForVaadin(page);
 }
 
@@ -333,7 +333,7 @@ async function goToFirstPage(page) {
  * @returns {Promise<void>}
  */
 async function goToLastPage(page) {
-  await page.locator('vaadin-button[title*="Last"]:visible').click();
+  await page.getByRole('button', { name: /last|остання/i }).click();
   await waitForVaadin(page);
 }
 
@@ -444,34 +444,48 @@ async function verifySortColumnChanges(page, { block, sortCol, itemSelector, ass
 
 /**
  * Verifies created-at and updated-at date range filters for a given query block. Expects at
- * least `minCount` results for today's range and 0 for boundary dates.
+ * least `minCount` results for today's range and 0 for boundary dates. With `scopeFilter`, every
+ * step first fills that text filter and today's range must yield exactly `minCount` results.
  * @param {import('@playwright/test').Page} page
  * @param {string} block blockSelector.
  * @param {string} prefix screenshot name prefix.
- * @param {number} minCount minimum expected result count for today's date range.
+ * @param {number} minCount minimum expected result count for today's date range, exact when scoped.
+ * @param {Object} [options]
+ * @param {{field: string, value: string}} [options.scopeFilter] text filter limiting the results to the caller's own rows.
  * @returns {Promise<void>}
  */
-async function verifyDateRangeFilters(page, block, prefix, minCount) {
+async function verifyDateRangeFilters(page, block, prefix, minCount, { scopeFilter } = {}) {
   const today = new Date().toISOString().slice(0, 10);
+  const scope = async () => {
+    if (scopeFilter) await fillText(page, block, scopeFilter.field, scopeFilter.value);
+  };
+  const expectTodayCount = async () => {
+    if (scopeFilter) await expect.poll(() => getTotalCount(page), { timeout: 8000 }).toBe(minCount);
+    else expect(await getTotalCount(page)).toBeGreaterThanOrEqual(minCount);
+  };
 
+  await scope();
   await setDateRange(page, block, 0, today, today);
   await applyFilter(page, block);
-  expect(await getTotalCount(page)).toBeGreaterThanOrEqual(minCount);
+  await expectTodayCount();
   await screenshot(page, `${prefix}-filter-created-range`);
   await clearFilter(page, block);
 
+  await scope();
   await setDateRange(page, block, 2, today, today);
   await applyFilter(page, block);
-  expect(await getTotalCount(page)).toBeGreaterThanOrEqual(minCount);
+  await expectTodayCount();
   await screenshot(page, `${prefix}-filter-updated-range`);
   await clearFilter(page, block);
 
+  await scope();
   await setDateRange(page, block, 0, '2099-12-31', undefined);
   await applyFilter(page, block);
   expect(await getTotalCount(page)).toBe(0);
   await screenshot(page, `${prefix}-filter-created-future-start`);
   await clearFilter(page, block);
 
+  await scope();
   await setDateRange(page, block, 0, undefined, '2000-01-01');
   await applyFilter(page, block);
   expect(await getTotalCount(page)).toBe(0);

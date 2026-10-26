@@ -86,4 +86,16 @@ class ApiKeyManagementServiceTest {
 
         verify(apiKeyPort).revoke(USER_ID, 5L);
     }
+
+    @Test
+    void isAvailable_portPresent_returnsTrue() {
+        assertThat(service.isAvailable()).isTrue();
+    }
+
+    @Test
+    void isAvailable_starterAbsent_returnsFalse() {
+        when(apiKeyPortFactory.findIfAvailable()).thenReturn(Optional.empty());
+
+        assertThat(service.isAvailable()).isFalse();
+    }
 }

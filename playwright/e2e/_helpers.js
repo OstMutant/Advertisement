@@ -11,14 +11,10 @@
  * Input: None.
  * Outputs: exports test, expect, TEST_USERS, YT_URL, avatar, stubYoutubeEmbed, waitForOverlayClosed,
  *   closeOverlay, closeNotification, screenshot, downloadPng, assertCardHasText, assertOverlayHasText,
- *   assertComputedColor, assertRightAligned, assertAbsent, assertVerticalOrder. TEST_USERS
- *   (password "password" for all six):
- *   - userEn      -- user.en@example.com      -- USER      -- en
- *   - userUk      -- user.uk@example.com      -- USER      -- uk
- *   - moderatorEn -- moderator.en@example.com -- MODERATOR -- en
- *   - moderatorUk -- moderator.uk@example.com -- MODERATOR -- uk
- *   - adminEn     -- admin.en@example.com     -- ADMIN     -- en
- *   - adminUk     -- admin.uk@example.com     -- ADMIN     -- uk
+ *   assertComputedColor, assertRightAligned, assertAbsent, assertVerticalOrder. TEST_USERS holds only
+ *   adminEn -- admin.en@example.com, ADMIN, en, password "password" (ADMIN_EMAIL and ADMIN_PASSWORD
+ *   override the e-mail and password) -- the first account on an empty database, signed up by the
+ *   setup project; every other account is created by the fixtures in ./_fixtures.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
 const fs    = require('fs');
@@ -28,12 +24,7 @@ const { test, expect } = require('@playwright/test');
 // ── Test users ────────────────────────────────────────────────────────────────
 
 const TEST_USERS = {
-  userEn:      { name: 'User EN',      email: 'user.en@example.com',      role: 'USER',      locale: 'en', password: 'password' },
-  userUk:      { name: 'User UK',      email: 'user.uk@example.com',      role: 'USER',      locale: 'uk', password: 'password' },
-  moderatorEn: { name: 'Moderator EN', email: 'moderator.en@example.com', role: 'MODERATOR', locale: 'en', password: 'password' },
-  moderatorUk: { name: 'Moderator UK', email: 'moderator.uk@example.com', role: 'MODERATOR', locale: 'uk', password: 'password' },
-  adminEn:     { name: 'Admin EN',     email: process.env.ADMIN_EMAIL || 'admin.en@example.com', role: 'ADMIN',     locale: 'en', password: process.env.ADMIN_PASSWORD || 'password' },
-  adminUk:     { name: 'Admin UK',     email: 'admin.uk@example.com',     role: 'ADMIN',     locale: 'uk', password: 'password' },
+  adminEn: { name: 'Admin EN', email: process.env.ADMIN_EMAIL || 'admin.en@example.com', role: 'ADMIN', locale: 'en', password: process.env.ADMIN_PASSWORD || 'password' },
 };
 
 // ── Media constants ───────────────────────────────────────────────────────────
@@ -92,7 +83,7 @@ async function closeNotification(page) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const card = page.locator('vaadin-notification-card').first();
     if (!await card.isVisible().catch(() => false)) return;
-    await card.locator('vaadin-button').click().catch(() => {});
+    await card.getByRole('button').click().catch(() => {});
     // Wait until no notification cards remain in DOM (covers the case where a new card
     // replaces the closed one — .first() would otherwise shift to the new card and loop endlessly).
     const cleared = await page.waitForFunction(
@@ -123,15 +114,13 @@ async function screenshot(page, name) {
  * Asserts a card's child element is visible and contains (or equals) the expected text.
  * @param {import('@playwright/test').Page} page
  * @param {import('@playwright/test').Expect} expect
- * @param {import('@playwright/test').Locator} card
- * @param {string} selector CSS selector scoped inside card.
+ * @param {import('@playwright/test').Locator} el the card's child element to check.
  * @param {string} expectedText
  * @param {string} [screenshotName] when set, takes a screenshot after the assertion passes.
  * @param {boolean} [exact=false] use toHaveText (exact) instead of toContainText.
  * @returns {Promise<void>}
  */
-async function assertCardHasText(page, expect, card, selector, expectedText, screenshotName, exact = false) {
-  const el = card.locator(selector);
+async function assertCardHasText(page, expect, el, expectedText, screenshotName, exact = false) {
   await expect(el).toBeVisible({ timeout: 5000 });
   if (exact) await expect(el).toHaveText(expectedText, { timeout: 5000 });
   else await expect(el).toContainText(expectedText, { timeout: 5000 });
@@ -142,15 +131,14 @@ async function assertCardHasText(page, expect, card, selector, expectedText, scr
  * Asserts an overlay's child element is visible and contains (or equals) the expected text.
  * @param {import('@playwright/test').Page} page
  * @param {import('@playwright/test').Expect} expect
- * @param {import('@playwright/test').Locator} overlay
- * @param {string} selector CSS selector scoped inside overlay.
+ * @param {import('@playwright/test').Locator} target the overlay's child element to check.
  * @param {string} expectedText
  * @param {string} [screenshotName] when set, takes a screenshot after the assertion passes.
  * @param {boolean} [exact=false] use toHaveText + a non-filtered locator instead of hasText-filtered.
  * @returns {Promise<void>}
  */
-async function assertOverlayHasText(page, expect, overlay, selector, expectedText, screenshotName, exact = false) {
-  const el = exact ? overlay.locator(selector) : overlay.locator(selector, { hasText: expectedText });
+async function assertOverlayHasText(page, expect, target, expectedText, screenshotName, exact = false) {
+  const el = exact ? target : target.filter({ hasText: expectedText });
   if (exact) await expect(el).toHaveText(expectedText, { timeout: 5000 });
   else await expect(el).toBeVisible({ timeout: 5000 });
   if (screenshotName) await screenshot(page, screenshotName);
@@ -193,40 +181,39 @@ async function assertRightAligned(expect, elementLocator, containerLocator, tole
 // ── Field presence / absence / vertical-order assertions ──────────────────────
 
 /**
- * Asserts `selector` matches no element inside `container` -- for optional fields that must not
- * render at all when they have no value.
+ * Asserts `field` matches no element -- for optional fields that must not render at all when
+ * they have no value.
  * @param {import('@playwright/test').Expect} expect
- * @param {import('@playwright/test').Locator} container
- * @param {string} selector
+ * @param {import('@playwright/test').Locator} field
  * @returns {Promise<void>}
  */
-async function assertAbsent(expect, container, selector) {
-  await expect(container.locator(selector)).toHaveCount(0);
+async function assertAbsent(expect, field) {
+  await expect(field).toHaveCount(0);
 }
 
 /**
- * Asserts the given selectors render top-to-bottom, in the given order, inside `container`.
- * A selector that matches nothing is skipped (pair with assertAbsent to also require its
+ * Asserts the given fields render top-to-bottom, in the given order.
+ * A field that matches nothing is skipped (pair with assertAbsent to also require its
  * absence). Each present element must start at or below the previous present one.
  * @param {import('@playwright/test').Page} page
  * @param {import('@playwright/test').Expect} expect
- * @param {import('@playwright/test').Locator} container
- * @param {string[]} selectors in expected top-to-bottom order.
+ * @param {import('@playwright/test').Locator[]} fields in expected top-to-bottom order.
  * @param {string} [screenshotName] when set, takes a screenshot once every present field checks out.
  * @returns {Promise<void>}
  */
-async function assertVerticalOrder(page, expect, container, selectors, screenshotName) {
+async function assertVerticalOrder(page, expect, fields, screenshotName) {
   let prevTop = -Infinity;
   let prevName = 'top of container';
-  for (const selector of selectors) {
-    const loc = container.locator(selector).first();
+  for (const field of fields) {
+    const loc = field.first();
+    const name = String(field);
     if ((await loc.count()) === 0) continue;
-    await expect(loc, `${selector} is visible`).toBeVisible({ timeout: 5000 });
+    await expect(loc, `${name} is visible`).toBeVisible({ timeout: 5000 });
     const box = await loc.boundingBox();
-    expect(box, `${selector} has a bounding box`).not.toBeNull();
-    expect(box.y, `${selector} renders below ${prevName}`).toBeGreaterThanOrEqual(prevTop - 1);
+    expect(box, `${name} has a bounding box`).not.toBeNull();
+    expect(box.y, `${name} renders below ${prevName}`).toBeGreaterThanOrEqual(prevTop - 1);
     prevTop = box.y;
-    prevName = selector;
+    prevName = name;
   }
   if (screenshotName) await screenshot(page, screenshotName);
 }

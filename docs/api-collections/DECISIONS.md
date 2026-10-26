@@ -24,7 +24,8 @@
 ## ADR-002: API collection flows repeat on an empty or a used database, create what they need, never provoke a limiter
 
 **Status:** Accepted
-**Applied:** 1
+
+**Applied:** 2
 
 **Context:** The flow runner (the developer-only page and the headless scripts) runs the Postman
 collection's flows against a live developer app again and again, and the database is never

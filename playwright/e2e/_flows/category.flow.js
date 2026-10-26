@@ -27,9 +27,9 @@ const { screenshot } = require('../_helpers');
  * @returns {Promise<void>}
  */
 async function openReferenceDataTab(page) {
-  await page.locator('.main-tabs vaadin-tab').filter({ hasText: /Reference Data|Довідникові дані/i }).click();
+  await page.locator('.main-tabs').getByRole('tab', { name: /Reference Data|Довідникові дані/i }).click();
   // Sub-tabs retain their last selection across visibility toggles — reselect Categories explicitly.
-  await page.locator('.reference-data-sub-tabs vaadin-tab').filter({ hasText: /Categories|Категорії/i }).click();
+  await page.locator('.reference-data-sub-tabs').getByRole('tab', { name: /Categories|Категорії/i }).click();
   await page.locator('.category-management-view').waitFor({ timeout: 5000 });
 }
 
@@ -48,24 +48,22 @@ async function openReferenceDataTab(page) {
  */
 async function runCreateCategoryFlow(page, expect, { nameEn, descriptionEn, nameUk, descriptionUk, screenshotPrefix }) {
   await openReferenceDataTab(page);
-  await page.locator('.category-add-button').click();
+  await page.locator('.category-management-view').getByRole('button', { name: /add new|додати/i }).click();
   const overlay = page.locator('.category-overlay');
   await overlay.waitFor({ timeout: 5000 });
 
   const localeContents = overlay.locator('.taxon-locale-content');
-  await localeContents.nth(0).locator('vaadin-text-field input').fill(nameEn);
-  await localeContents.nth(0).locator('vaadin-text-area textarea').fill(descriptionEn);
-  await localeContents.nth(1).locator('vaadin-text-field input').fill(nameUk);
-  await localeContents.nth(1).locator('vaadin-text-area textarea').fill(descriptionUk);
+  await localeContents.nth(0).getByRole('textbox', { name: /name|назва/i }).fill(nameEn);
+  await localeContents.nth(0).getByRole('textbox', { name: /description|опис/i }).fill(descriptionEn);
+  await localeContents.nth(1).getByRole('textbox', { name: /name|назва/i }).fill(nameUk);
+  await localeContents.nth(1).getByRole('textbox', { name: /description|опис/i }).fill(descriptionUk);
 
   if (screenshotPrefix) await screenshot(page, `${screenshotPrefix}-form`);
 
-  await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
+  await overlay.getByRole('button', { name: /зберегти|save/i }).click();
   await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
-  await page.locator('vaadin-notification-card vaadin-button').click();
-  await overlay.locator('vaadin-button')
-    .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
-    .click();
+  await page.locator('vaadin-notification-card').getByRole('button').click();
+  await overlay.getByRole('button', { name: /cancel|скасувати/i }).click();
   await overlay.waitFor({ state: 'hidden', timeout: 8000 });
   await expect(page.locator('.taxon-row-name', { hasText: nameEn })).toBeVisible({ timeout: 5000 });
 
@@ -95,9 +93,9 @@ async function waitForVaadinIdle(page) {
 async function selectInMultiSelectComboBox(page, comboBox, itemLabel) {
   // Click input to open the dropdown — blurs title/description so Vaadin syncs their values
   // to the server before we interact with the combo box.
-  await comboBox.locator('input').click();
+  await comboBox.getByRole('combobox').click();
   await waitForVaadinIdle(page);
-  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('vaadin-multi-select-combo-box-overlay[opened]').first().waitFor({ state: 'visible', timeout: 5000 });
   // The combo-box-overlay is a child overlay appended inside the parent advertisement overlay's
   // shadow root, not in document.body — document.querySelector does not pierce shadow DOM.
   // We traverse all shadow roots to find it, then click the item by its label property.
@@ -190,7 +188,7 @@ async function selectInMultiSelectComboBox(page, comboBox, itemLabel) {
   if (!result.found) throw new Error(`Item "${itemLabel}" not found. DOM: ${result.debug}`);
   await waitForVaadinIdle(page);
   await page.keyboard.press('Escape');
-  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'hidden', timeout: 5000 });
+  await page.locator('vaadin-multi-select-combo-box-overlay[opened]').first().waitFor({ state: 'hidden', timeout: 5000 });
   await waitForVaadinIdle(page);
 }
 
@@ -202,7 +200,7 @@ async function selectInMultiSelectComboBox(page, comboBox, itemLabel) {
  * @returns {Promise<void>}
  */
 async function selectCategoryInAdForm(page, overlay, categoryName) {
-  const comboBox = overlay.locator('[data-testid="advertisement-overlay-field-categories"]');
+  const comboBox = overlay.getByTestId('advertisement-overlay-field-categories');
   await selectInMultiSelectComboBox(page, comboBox, categoryName);
 }
 
@@ -216,11 +214,11 @@ async function selectCategoryInAdForm(page, overlay, categoryName) {
  * @returns {Promise<void>}
  */
 async function assertCardHasCategories(page, expect, card, categoryNames, screenshotName) {
-  const row = card.locator('.advertisement-card-chip-row[aria-label="Categories:"]');
+  const row = card.getByRole('list', { name: 'Categories:' });
   await expect(row).toBeVisible({ timeout: 5000 });
-  await expect(row.locator('.advertisement-category-chip')).toHaveCount(categoryNames.length, { timeout: 5000 });
+  await expect(row.getByRole('listitem')).toHaveCount(categoryNames.length, { timeout: 5000 });
   for (const name of categoryNames) {
-    await expect(row.locator('.advertisement-category-chip', { hasText: name })).toBeVisible({ timeout: 5000 });
+    await expect(row.getByRole('listitem').filter({ hasText: name })).toBeVisible({ timeout: 5000 });
   }
   if (screenshotName) await screenshot(page, screenshotName);
 }
@@ -235,10 +233,10 @@ async function assertCardHasCategories(page, expect, card, categoryNames, screen
  * @returns {Promise<void>}
  */
 async function assertViewOverlayHasCategories(page, expect, overlay, categoryNames, screenshotName) {
-  const chips = overlay.locator('.advertisement-category-chip');
+  const chips = overlay.getByRole('list', { name: /^(categories|категорії)$/i }).getByRole('listitem');
   await expect(chips).toHaveCount(categoryNames.length, { timeout: 5000 });
   for (const name of categoryNames) {
-    await expect(overlay.locator('.advertisement-category-chip', { hasText: name })).toBeVisible({ timeout: 5000 });
+    await expect(chips.filter({ hasText: name })).toBeVisible({ timeout: 5000 });
   }
   if (screenshotName) await screenshot(page, screenshotName);
 }
@@ -254,7 +252,7 @@ async function assertViewOverlayHasCategories(page, expect, overlay, categoryNam
  * @returns {Promise<void>}
  */
 async function assertViewOverlayHasDeletedCategory(page, expect, overlay, categoryName, screenshotName) {
-  const chip = overlay.locator('.advertisement-category-chip', { hasText: categoryName });
+  const chip = overlay.getByRole('list', { name: /^(categories|категорії)$/i }).getByRole('listitem').filter({ hasText: categoryName });
   await expect(chip).toBeVisible({ timeout: 5000 });
   await expect(chip).toHaveClass(/advertisement-category-chip--deleted/);
   if (screenshotName) await screenshot(page, screenshotName);
@@ -271,7 +269,7 @@ async function assertViewOverlayHasDeletedCategory(page, expect, overlay, catego
  * @returns {Promise<void>}
  */
 async function assertActivityDiffHasStruckThroughCategory(page, expect, changes, categoryName, screenshotName) {
-  await expect(changes.locator('s', { hasText: categoryName })).toBeVisible({ timeout: 5000 });
+  await expect(changes.locator('s').filter({ hasText: categoryName })).toBeVisible({ timeout: 5000 });
   if (screenshotName) await screenshot(page, screenshotName);
 }
 

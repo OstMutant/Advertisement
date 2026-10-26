@@ -1,13 +1,14 @@
 /* ── Header ──────────────────────────────────────────────────────────────────
- * Description: Playwright test-runner config -- single worker, no parallelism (Vaadin + a shared
- *   DB would race under concurrent tests), 60s per-test timeout, screenshot-on-failure, HTML
- *   report. Copied alongside the spec files into pw-runner by run.sh, read from there, not from
- *   this repo checkout directly.
+ * Description: Playwright test-runner config -- a "setup" project (signs up the administrator on an
+ *   empty database), then the "e2e" project (every spec isolated and fully parallel, one retry).
+ *   60s per-test timeout, screenshot-on-failure, trace-on-failure, HTML report. Copied alongside the
+ *   spec files into pw-runner by run.sh, read from there, not from this repo checkout directly.
  * Usage: npx playwright test --config playwright.config.js (always via run.sh, never invoked
  *   directly).
  * Uses: @playwright/test.
  * Env: APP_URL (default http://localhost:8081) -- forwarded explicitly by run.sh into the
  *   pw-runner container's own env, not read from this repo checkout's shell.
+ *   PW_WORKERS (default 2) -- worker process count, read from the repo-root .env by run.sh.
  * Input: None.
  * Outputs: HTML report written to /reports/playwright inside the container -- the shared
  *   test-reports named Docker volume mounted into pw-runner, never a WSL/Windows-drive path (see
@@ -19,13 +20,11 @@ const { defineConfig } = require('@playwright/test');
 module.exports = defineConfig({
   // Spec files are copied alongside this config into /tmp inside pw-runner.
   testDir: '.',
-  testMatch: '**/*.spec.js',
 
-  // Vaadin + shared DB — parallel runs cause race conditions.
-  fullyParallel: false,
-  workers: 1,
+  // More than 2 workers did not shorten the run on a 4-core machine; PW_WORKERS in the repo-root .env changes it.
+  workers: Number(process.env.PW_WORKERS) || 2,
 
-  retries: 0,
+  retries: 1,
 
   // Vaadin hydration can be slow — give each action 10 s, each test 60 s.
   use: {
@@ -38,6 +37,16 @@ module.exports = defineConfig({
   },
 
   timeout: 60_000,
+
+  projects: [
+    { name: 'setup', testMatch: /global\.setup\.js/ },
+    {
+      name: 'e2e',
+      testMatch: '**/*.spec.js',
+      dependencies: ['setup'],
+      fullyParallel: true,
+    },
+  ],
 
   reporter: [
     ['list'],

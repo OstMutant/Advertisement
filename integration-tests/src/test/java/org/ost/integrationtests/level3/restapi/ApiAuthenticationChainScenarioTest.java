@@ -126,7 +126,7 @@ class ApiAuthenticationChainScenarioTest extends AbstractRestApiScenarioTest {
     }
 
     @Test
-    void revokingAnotherUsersKey_isNotFound() throws Exception {
+    void revokingAnotherUsersKey_isNotFound_andTheOwnersKeyKeepsWorking() throws Exception {
         RegisteredUser owner = registerUserAndIssueApiKey("Key Holder");
         RegisteredUser intruder = registerUserAndIssueApiKey("Intruder");
         long ownersKeyId = firstKeyId(owner.rawApiKey());
@@ -134,6 +134,9 @@ class ApiAuthenticationChainScenarioTest extends AbstractRestApiScenarioTest {
         mockMvc.perform(delete("/api/api-keys/" + ownersKeyId).header(HttpHeaders.AUTHORIZATION, "Bearer " + intruder.rawApiKey()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Resource not found."));
+        mockMvc.perform(get("/api/api-keys").header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.rawApiKey()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
     }
 
     @Test

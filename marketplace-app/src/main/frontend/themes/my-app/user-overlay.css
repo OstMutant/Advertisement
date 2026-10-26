@@ -100,5 +100,19 @@
     font-weight: 500;
 }
 
+/* ── Account API keys tab ────────────────────────────────────────── */
 
+.api-keys-hint,
+.api-keys-empty-text {
+    color: var(--app-text-muted);
+    font-size: 0.9rem;
+}
+
+.api-keys-grid {
+    height: 22rem;
+}
+
+.api-key-prefix {
+    font-family: monospace;
+}
 }

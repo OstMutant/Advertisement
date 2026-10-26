@@ -10,6 +10,7 @@ import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.main.header.account.AccountNameFormModeHandler;
 import org.ost.marketplace.ui.views.main.header.account.AccountNameViewModeHandler;
 import org.ost.marketplace.ui.views.main.header.account.ProviderProfileFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.main.header.account.ApiKeysViewModeHandler;
 import org.ost.marketplace.ui.views.main.header.account.ProviderProfileViewModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementCardView;
 import org.ost.marketplace.ui.views.main.tabs.providers.ProviderProfileCardView;
@@ -125,6 +126,11 @@ public class ComponentFactoryConfig {
 
     @Bean @ConditionalOnMissingBean
     public UiComponentFactory<ProviderProfileViewModeHandler, ProviderProfileViewModeHandler.Parameters> providerProfileViewModeHandlerFactory(ObjectProvider<ProviderProfileViewModeHandler> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<ApiKeysViewModeHandler, ApiKeysViewModeHandler.Parameters> apiKeysViewModeHandlerFactory(ObjectProvider<ApiKeysViewModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 

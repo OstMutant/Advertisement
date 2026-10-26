@@ -9,6 +9,8 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
+import org.ost.marketplace.services.security.AccessEvaluator;
+import org.ost.orchestrator.services.ApiKeyManagementService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
 import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
@@ -25,15 +27,16 @@ import java.util.function.Consumer;
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 /**
- * Replaces {@code SettingsOverlay} -- unified Name/Settings/Provider Profile account view for
+ * Replaces {@code SettingsOverlay} -- unified Name/Settings/Provider Profile/API keys account view for
  * both self-service and admin/moderator viewing another user's account. Reuses
- * {@code AbstractEntityOverlay}'s existing single-active-handler pattern with a 3-value
+ * {@code AbstractEntityOverlay}'s existing single-active-handler pattern with a 4-value
  * {@code Section} switched via a {@code Tabs} component; Name and Provider
  * Profile each keep their own {@code NameMode}/{@code ProviderProfileMode} {@code VIEW,EDIT}
  * sub-state, mirroring the Advertisement/Taxon/City domains' own View/Edit split -- Edit button
  * visible only for self/admin per {@link org.ost.marketplace.services.security.AccessEvaluator#canEditUserAccount}.
  * Settings has no such split since it's pure preferences with no content to view separately from
- * editing.
+ * editing. API keys is a self-only, view-only section: its tab exists only on the signed-in
+ * user's own account and only when the API-key module is present.
  */
 @SpringComponent
 @UIScope
@@ -41,7 +44,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @SuppressWarnings({"java:S110", "java:S2065"})
 public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayModeHandler<?>> {
 
-    private enum Section {NAME, SETTINGS, PROVIDER_PROFILE}
+    private enum Section {NAME, SETTINGS, PROVIDER_PROFILE, API_KEYS}
     private enum NameMode {VIEW, EDIT}
     private enum ProviderProfileMode {VIEW, EDIT}
 
@@ -71,7 +74,10 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
     private final transient UiComponentFactory<SettingsFormModeHandler, SettingsFormModeHandler.Parameters>                settingsHandlerFactory;
     private final transient UiComponentFactory<ProviderProfileViewModeHandler, ProviderProfileViewModeHandler.Parameters>         providerProfileViewHandlerFactory;
     private final transient UiComponentFactory<ProviderProfileFormOverlayModeHandler, ProviderProfileFormOverlayModeHandler.Parameters>  providerProfileHandlerFactory;
+    private final transient UiComponentFactory<ApiKeysViewModeHandler, ApiKeysViewModeHandler.Parameters>                 apiKeysViewHandlerFactory;
     private final transient ProviderProfileSaveService                                 providerProfileSaveService;
+    private final transient ApiKeyManagementService                                    apiKeyManagementService;
+    private final transient AccessEvaluator                                            access;
 
     private OverlaySession session;
 
@@ -95,6 +101,7 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
             case PROVIDER_PROFILE -> new SaveConfig(
                     PROVIDER_PROFILE_OVERLAY_NOTIFICATION_SUCCESS, PROVIDER_PROFILE_OVERLAY_NOTIFICATION_VALIDATION_FAILED,
                     PROVIDER_PROFILE_OVERLAY_NOTIFICATION_SAVE_ERROR, PROVIDER_PROFILE_OVERLAY_NOTIFICATION_CONFLICT);
+            case API_KEYS -> throw new IllegalStateException("The API keys section has no save");
         };
     }
 
@@ -224,6 +231,11 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
                     yield currentFormHandler;
                 }
             };
+            case API_KEYS -> apiKeysViewHandlerFactory.build(
+                    ApiKeysViewModeHandler.Parameters.builder()
+                            .onClose(this::closeToList)
+                            .tabBar(tabs)
+                            .build());
         };
 
         handler.activate(layout);
@@ -235,6 +247,7 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
             case NAME -> ACCOUNT_OVERLAY_TAB_NAME;
             case SETTINGS -> ACCOUNT_OVERLAY_TAB_SETTINGS;
             case PROVIDER_PROFILE -> ACCOUNT_OVERLAY_TAB_PROVIDER_PROFILE;
+            case API_KEYS -> ACCOUNT_OVERLAY_TAB_API_KEYS;
         };
     }
 
@@ -255,11 +268,11 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
         Tab nameTab = new Tab(i18n().get(ACCOUNT_OVERLAY_TAB_NAME));
         Tab settingsTab = new Tab(i18n().get(ACCOUNT_OVERLAY_TAB_SETTINGS));
         List<Tab> tabList = new ArrayList<>(List.of(nameTab, settingsTab));
-        Tab providerProfileTab = null;
-        if (providerProfileSaveService.isAvailable()) {
-            providerProfileTab = new Tab(i18n().get(ACCOUNT_OVERLAY_TAB_PROVIDER_PROFILE));
-            tabList.add(providerProfileTab);
-        }
+        Tab providerProfileTab = providerProfileSaveService.isAvailable()
+                ? new Tab(i18n().get(ACCOUNT_OVERLAY_TAB_PROVIDER_PROFILE)) : null;
+        Tab apiKeysTab = showApiKeysTab() ? new Tab(i18n().get(ACCOUNT_OVERLAY_TAB_API_KEYS)) : null;
+        if (providerProfileTab != null) tabList.add(providerProfileTab);
+        if (apiKeysTab != null) tabList.add(apiKeysTab);
 
         Tabs tabs = new Tabs(tabList.toArray(new Tab[0]));
         tabs.addClassName("account-overlay-tabs");
@@ -267,18 +280,25 @@ public class AccountOverlay extends AbstractEntityOverlay<AbstractFormOverlayMod
             case NAME -> nameTab;
             case SETTINGS -> settingsTab;
             case PROVIDER_PROFILE -> providerProfileTab;
+            case API_KEYS -> apiKeysTab;
         });
 
         tabs.addSelectedChangeListener(e -> {
             Section newSection;
             if (e.getSelectedTab() == nameTab) newSection = Section.NAME;
             else if (e.getSelectedTab() == settingsTab) newSection = Section.SETTINGS;
-            else newSection = Section.PROVIDER_PROFILE;
+            else if (e.getSelectedTab() == providerProfileTab) newSection = Section.PROVIDER_PROFILE;
+            else if (e.getSelectedTab() == apiKeysTab) newSection = Section.API_KEYS;
+            else return;
             if (newSection == session.section()) return;
             if (currentFormHandler != null) currentFormHandler.discardChanges();
             session = session.withSection(newSection);
             switchTo();
         });
         return tabs;
+    }
+
+    private boolean showApiKeysTab() {
+        return apiKeyManagementService.isAvailable() && session.targetUserId().equals(access.getCurrentUserId());
     }
 }

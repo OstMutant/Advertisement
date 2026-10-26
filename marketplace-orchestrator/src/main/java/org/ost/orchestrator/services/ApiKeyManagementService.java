@@ -32,4 +32,8 @@ public class ApiKeyManagementService {
     public void revoke(@NonNull Long userId, @NonNull Long keyId) {
         apiKeyPortFactory.get().revoke(userId, keyId);
     }
+
+    public boolean isAvailable() {
+        return apiKeyPortFactory.findIfAvailable().isPresent();
+    }
 }

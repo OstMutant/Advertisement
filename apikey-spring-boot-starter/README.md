@@ -17,7 +17,8 @@ was chosen over OAuth2 for this).
   (`ApiKeyAlreadyRevokedException`) for a key that is already revoked.
 - **SPI implementation:** `ApiKeyPort` (called by `marketplace-orchestrator`'s
   `ApiKeyManagementService`/`UserDeleteService`, which `marketplace-rest-api`'s `ApiKeyController`/
-  `ApiKeyAuthenticationFilter` go through — this starter is never imported directly by either).
+  `ApiKeyAuthenticationFilter` and `marketplace-app`'s account API keys tab go through — this starter
+  is never imported directly by any of them).
 
 ## Data flow
 

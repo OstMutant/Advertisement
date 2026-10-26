@@ -18,7 +18,7 @@ automatically before each run — see "Database reset" below.
 
 ```bash
 bash /app/playwright/run.sh                                 # all e2e tests
-bash /app/playwright/run.sh e2e                              # e2e suite (01–08), skips spec 06 seed
+bash /app/playwright/run.sh e2e                              # e2e suite, skips the --full blocks
 bash /app/playwright/run.sh e2e --full                       # e2e suite including spec 06 seed (~2 min extra)
 bash /app/playwright/run.sh --ux                              # all tests with screenshots
 bash /app/playwright/run.sh e2e --full --ux                   # full e2e suite with screenshots

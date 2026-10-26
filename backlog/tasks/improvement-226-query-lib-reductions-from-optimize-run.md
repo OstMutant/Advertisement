@@ -2,7 +2,7 @@
 
 **Type:** improvement — follow-up of the first full `/optimize path query-lib` run (deep plan `optimize-query-lib`, 2026-10-24).
 **Module:** `query-lib/` (`SqlCondition`, `SortField`, `SqlFilterBuilder`, three test files, `README.md`, `pom.xml`), `.claude/rules/query-lib.md`.
-**Priority:** 🟡 Top — done after the optimizer run, small and measured, so it can be completed right away.
+**Priority:** Nice to have — moved down from Top on 2026-10-26; small and measured, pick it up when the six decisions at the end of the plan are answered.
 **When:** independent; follows [improvement-225](improvement-225-code-reduction-findings.md) (the findings inventory, entry OPT-1 holds the README and rule-file part already applied).
 
 ## Current state
