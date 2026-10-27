@@ -1,13 +1,13 @@
 # improvement-226: query-lib reductions from the /optimize run
 
-**Type:** improvement — follow-up of the first full `/optimize path query-lib` run (deep plan `optimize-query-lib`, 2026-10-24).
+**Type:** improvement — follow-up of the first full `/optimize path query-lib` run (deep research `optimize-query-lib`, 2026-10-24).
 **Module:** `query-lib/` (`SqlCondition`, `SortField`, `SqlFilterBuilder`, three test files, `README.md`, `pom.xml`), `.claude/rules/query-lib.md`.
 **Priority:** Nice to have — moved down from Top on 2026-10-26; small and measured, pick it up when the six decisions at the end of the plan are answered.
 **When:** independent; follows [improvement-225](improvement-225-code-reduction-findings.md) (the findings inventory, entry OPT-1 holds the README and rule-file part already applied).
 
 ## Current state
 
-The first `/optimize path query-lib` run found one reduction in the review (stale README and rule-file text) and, in the deep plan that followed, a further set of reductions in the code and tests: F1-F6 and D3 in the execution plan below. Done on 2026-10-24: D1 variant A (stale README lines corrected) and D2 (rule file), recorded as OPT-1 in the inventory (net -14 lines in 2 files). Not done: F1-F6, D3, and the six decisions listed at the end of the plan for people.
+The first `/optimize path query-lib` run found one reduction in the review (stale README and rule-file text) and, in the deep research that followed, a further set of reductions in the code and tests: F1-F6 and D3 in the execution plan below. Done on 2026-10-24: D1 variant A (stale README lines corrected) and D2 (rule file), recorded as OPT-1 in the inventory (net -14 lines in 2 files). Not done: F1-F6, D3, and the six decisions listed at the end of the plan for people.
 
 ## Why change
 
@@ -23,7 +23,7 @@ Apply the execution plan below in small batches after the user answers the decis
 
 ## Related
 
-[improvement-225](improvement-225-code-reduction-findings.md) (inventory), [improvement-224](../completed/tasks/improvement-224-planning-and-optimization-commands.md) (the `/optimize` and `/deep-plan` commands), the module's own `DECISIONS.md` (API scope frozen).
+[improvement-225](improvement-225-code-reduction-findings.md) (inventory), [improvement-224](../completed/tasks/improvement-224-planning-and-optimization-commands.md) (the `/optimize` and `/deep-research` commands), the module's own `DECISIONS.md` (API scope frozen).
 
 ## Plan for people
 

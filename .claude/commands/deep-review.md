@@ -2,12 +2,12 @@ Run a full code review via the `deep-review-orchestrator` agent -- evidence-veri
 KISS/YAGNI findings, every one independently re-verified against the real file before being
 reported. Never writes code itself.
 
-Usage: /review [scope]
+Usage: /deep-review [scope]
 Examples:
-  /review                          # uncommitted working-tree changes (default)
-  /review HEAD~3                   # one specific commit
-  /review module platform-commons  # every file in one module's src/main
-  /review all                      # whole repo, one module at a time in parallel
+  /deep-review                          # uncommitted working-tree changes (default)
+  /deep-review HEAD~3                   # one specific commit
+  /deep-review module platform-commons  # every file in one module's src/main
+  /deep-review all                      # whole repo, one module at a time in parallel
 
 Steps:
 1. Dispatch: `Agent({description: "Code review", subagent_type: "deep-review-orchestrator",

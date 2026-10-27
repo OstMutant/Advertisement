@@ -173,9 +173,9 @@ docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy
 - `/playwright [scenario] [--ux]` — run Playwright tests
 - `/sonar` — run SonarQube analysis
 - `/record-decision <module> — <title>` — record architectural decision
-- `/review [scope]` — run a full code review via the `deep-review-orchestrator` agent (evidence-verified SOLID/DRY/KISS/YAGNI, never writes code itself)
+- `/deep-review [scope]` — run a full code review via the `deep-review-orchestrator` agent (evidence-verified SOLID/DRY/KISS/YAGNI, never writes code itself)
 - `/optimize [<scope> | report | apply <ID> | verify [<ID>]]` — find code that need not be maintained, measure the saving and remove it only in approved batches; discovery is read-only through the `deep-review-orchestrator` agent's `code-reduction-reviewer` lens, findings live in a standing backlog inventory; see `.claude/commands/optimize.md`
-- `/deep-plan <task file or description>` — plan a task in depth with the `deep-planner` agent on Opus (web best practices, the project's own practice, a compared choice, a plan for people and a plan for AI executors, in a topic folder under `backlog/research/`); see `backlog/research/tools/README.md`
+- `/deep-research <task file or description>` — research a task in depth with the `deep-researcher` agent on Opus (web best practices, the project's own practice, a compared choice, a plan for people and a plan for AI executors, in a topic folder under `backlog/research/`); see `backlog/research/tools/README.md`
 - `/check-architecture-map` — **run manually** before saving changes that can touch the architecture map; regenerates once and diffs against the files on disk
 - `/sync-docs [ref]` — sync architecture docs with code (default: origin/main); **run manually** after significant changes (new module, new SPI, schema changes) — not triggered automatically
 - `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `.claude/nav/adr-index.md`
@@ -183,9 +183,9 @@ docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy
 - `/activity-monitor <script and args>` — wrap a backgrounded script and watch its live step checklist instead of raw stdout, so `Monitor` costs tokens proportional to real signal, not log volume; see `scripts/activity-monitor/README.md`
 - `/new-task <title>` — scaffold a new `backlog/tasks/<prefix>-NNN-<slug>.md` from the standard template and rank it in `BACKLOG.md`'s priority table
 - `/autopilot <task>` — plan once, approve once, then implement/test/document a task end-to-end with no further check-ins until it's done; explicit per-run opt-out of the standing Approval Rule's per-step gating, not a permanent one
-- `deep-review-orchestrator` agent — evidence-verified SOLID/DRY code review, findings-only, never writes code; scope to current uncommitted changes, one commit, one module, or the whole repo; every finding independently re-verified before being reported via `ReportFindings` — invoke via `/review [scope]` or directly via the `Agent` tool (`subagent_type: "deep-review-orchestrator"`), see `.claude/agents/review/deep-review-orchestrator.md`
+- `deep-review-orchestrator` agent — evidence-verified SOLID/DRY code review, findings-only, never writes code; scope to current uncommitted changes, one commit, one module, or the whole repo; every finding independently re-verified before being reported via `ReportFindings` — invoke via `/deep-review [scope]` or directly via the `Agent` tool (`subagent_type: "deep-review-orchestrator"`), see `.claude/agents/review/deep-review-orchestrator.md`
 - `sonar-analyst` agent — queries the local SonarQube server's already-uploaded quality-gate/issues/metrics via its own agent-scoped MCP server, reports a structured summary; invoke via the `Agent` tool (`subagent_type: "sonar-analyst"`), see `.claude/agents/sonar/sonar-analyst.md`
-- `deep-planner` agent — researches a task on Opus and writes two plans into `backlog/research/<topic>/`, never edits other files; invoke via `/deep-plan`, see `.claude/agents/planning/deep-planner.md`
+- `deep-researcher` agent — researches a task on Opus and writes two plans into `backlog/research/<topic>/`, never edits other files; invoke via `/deep-research`, see `.claude/agents/research/deep-researcher.md`
 
 ---
 

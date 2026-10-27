@@ -19,7 +19,7 @@ self-contained entry point, described below and linked to its real file.
 - [`/optimize`](optimize.md) — Find code this repository no longer needs to maintain, measure the saving and
   remove it only in approved batches (discover, report, apply, verify); its helper script is in
   [`optimize/`](optimize/check-batch.sh).
-- [`/deep-plan`](deep-plan.md) — Plan a task in depth with the `deep-planner` agent (Opus): best
+- [`/deep-research`](deep-research.md) — Research a task in depth with the `deep-researcher` agent (Opus): best
   practices from the web, the project's own practice, a compared choice and two plans, written into a
   topic folder under `backlog/research/`.
 - [`/deploy-and-run`](deploy-and-run.md) — Rebuild the `marketplace-app` Docker image and start a
@@ -31,7 +31,7 @@ self-contained entry point, described below and linked to its real file.
 - [`/playwright`](playwright.md) — Run Playwright UI tests for the marketplace app.
 - [`/record-decision`](record-decision.md) — Record a new architectural decision in the
   appropriate `DECISIONS.md` file.
-- [`/review`](review.md) — Run a full code review via the `deep-review-orchestrator` agent --
+- [`/deep-review`](deep-review.md) — Run a full code review via the `deep-review-orchestrator` agent --
   evidence-verified SOLID/DRY/KISS/YAGNI findings, never writes code itself.
 - [`/run-all-tests`](run-all-tests.md) — Run all three test suites for daily iteration:
   unit-tests, integration-tests, and Playwright.

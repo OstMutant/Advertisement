@@ -1,5 +1,5 @@
 ---
-description: Find code and documentation this repository no longer needs to maintain, measure the saving and remove it only in approved batches -- discovery (read-only: a brief built from a fixed template, the deep-review-orchestrator with the code-reduction-reviewer lens, then the deep-planner on Opus), report, apply <ID>, verify. Never touches marketplace-orchestrator, never commits.
+description: Find code and documentation this repository no longer needs to maintain, measure the saving and remove it only in approved batches -- discovery (read-only: a brief built from a fixed template, the deep-review-orchestrator with the code-reduction-reviewer lens, then the deep-researcher on Opus), report, apply <ID>, verify. Never touches marketplace-orchestrator, never commits.
 argument-hint: "[module <name> | path <dir> | all | report | apply <ID>[,<ID>] | verify [<ID>]]"
 disable-model-invocation: false
 ---
@@ -59,15 +59,15 @@ added.
    and tell the user what is there instead of starting over.
 3. Run `bash backlog/research/tools/scripts/start-topic.sh <topic>` and write `backlog/research/<topic>/brief.md`
    from the template below, with `<scope>` filled in.
-4. Show the user the topic and the brief in a few lines, say that the planner is Opus with no token or time
+4. Show the user the topic and the brief in a few lines, say that the researcher is Opus with no token or time
    limit, and ask whether to start. Do not start without a direct yes.
 5. In the background run
    `Agent({subagent_type: "deep-review-orchestrator", prompt: "lenses: code-reduction-reviewer\nexclude: marketplace-orchestrator/**\noutput: json\npath <scope>"})`.
    Parse its JSON block: findings with `confidence: high` and `recommendation: implement` get status
    `open`, all others `needs-poc`. Write the findings, the rejected ideas and the `inspected` block into the
    topic's `notes.md` with `add-note.sh`.
-6. Then start the planner in the background: `Agent({description: "Deep plan <topic>", subagent_type:
-   "deep-planner", prompt: "Topic: <topic>", run_in_background: true})`, and watch it as `.claude/commands/deep-plan.md`
+6. Then start the researcher in the background: `Agent({description: "Deep research <topic>", subagent_type:
+   "deep-researcher", prompt: "Topic: <topic>", run_in_background: true})`, and watch it as `.claude/commands/deep-research.md`
    does (`show-status.sh`, `PLAN READY` or `PLAN BLOCKED`).
 7. On `PLAN READY` show `plan-human.md` and the `inspected` block: files read out of the files in scope, every
    file not read with its reason, and any file not accounted for (a lens neither read it nor said why: say so
@@ -100,7 +100,7 @@ or layers; never remove a port, hook or interface only for line count; never add
 never change behavior, contracts, authorization, validation, transaction boundaries, exception semantics
 or side effects; never convert mutable Vaadin Binder DTOs to records without proof.
 
-## What the planner may decide
+## What the researcher may decide
 Nothing beyond the goal; conflicts with best practice or with the project's practice are highlighted,
 the decision is left to the user.
 ```
@@ -139,7 +139,7 @@ the decision is left to the user.
   listing files, and an `apply` edit whose old and new text are stated exactly.
 - Sonnet: reading a file set and judging it (the `code-reduction-reviewer` lens), and an `apply` edit that
   needs the exact behavior and constraints but no ready-made code.
-- Opus: only the `deep-planner`, and a step that needs design judgment.
+- Opus: only the `deep-researcher`, and a step that needs design judgment.
 - No model: counting lines and the rule checks (`check-batch.sh`), the topic bookkeeping scripts.
 
 ## Rules by reference

@@ -212,7 +212,7 @@ pair, the view-mode-handler pair, and the form-mode-handler pair.
   the City/Category create/edit/delete/restore/discard scenarios in spec 03. One step-3 run hit an
   infra-level SIGKILL (exit 137, `pw-runner` container itself exited 0, no OOM) unrelated to the
   code — confirmed via a clean retry.
-- `/review` (`deep-review-orchestrator`) found no SOLID violations across all four steps and
+- `/deep-review` (`deep-review-orchestrator`) found no SOLID violations across all four steps and
   confirmed no missed or incorrect renames; one KISS finding (the intersection-type generic
   `getOverlay()` signature, step 1) reviewed and kept as-is, consistent with ADR-082's own
   cast-avoidance precedent. Step 2's review surfaced one pre-existing, unrelated finding
@@ -475,7 +475,7 @@ implicit" principle.
   `PageLinkHeaderBuilder`/`PagedResponseBuilder` unit tests plus extended controller tests),
   integration 186/186 (3 new `TaxonRepository` pagination/count tests against real Postgres),
   `ArchitectureRulesTest` 20/20 unaffected.
-- A `/review` pass (`deep-review-orchestrator`) found and fixed one real DRY violation during this
+- A `/deep-review` pass (`deep-review-orchestrator`) found and fixed one real DRY violation during this
   same implementation: the three controllers' `list()` methods duplicated the same 7-statement
   response-assembly sequence verbatim — extracted into `PagedResponseBuilder` before this ADR was
   written, so the shape described above already reflects the deduplicated version, not the
@@ -3341,11 +3341,11 @@ batch is that same pattern applied to Provider Profile, not a new design.
   only under `AccessEvaluator.canEditUserAccount()`. The shared confirm-dialog-plus-delete-call
   logic is factored into one `ProviderProfileDeleteUtil.confirmAndDelete()` static helper
   (`ui/views/utils`-style, reused by both call sites) rather than duplicated, found and fixed during
-  this batch's own `/review` pass.
+  this batch's own `/deep-review` pass.
 - `MainView`'s new Providers tab is gated on `providerProfileReadService.isAvailable()`, matching
   the existing Reference Data tab's `taxonCatalogService.isAvailable()` gate for the same kind of
   optional-starter (`provider-profile-spring-boot-starter` is `<scope>runtime</scope>`) —
-  found and fixed during this batch's own `/review` pass; the tab would otherwise render
+  found and fixed during this batch's own `/deep-review` pass; the tab would otherwise render
   permanently empty instead of disappearing if the starter is ever excluded from the classpath.
 
 **Consequences:** Playwright's `04-provider-profile-flow.spec.js` gained public-catalog coverage

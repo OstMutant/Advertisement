@@ -24,6 +24,23 @@ One name for one thing: the command, the agent, the folder and the documents agr
 3. **Wording only:** keep every identifier and change the descriptions; cheapest, solves nothing for the identifiers.
 4. Whatever is chosen: completed tasks, the observations log and archived history keep the old name (history is not rewritten); the architecture model is regenerated; the registered agent type changes only when no run is in flight; check `grep` for the old names across `.claude/`, root `CLAUDE.md`, `backlog/` (open tasks), `docs/` and `scripts/` before and after, and run the `check-flows-completeness` check if present.
 
+## Done and closed (2026-10-27)
+
+Both phases are done and the architecture map is regenerated; one slip in the first dispatch (a typo in the root `CLAUDE.md` agent line) was corrected afterwards.
+
+## Decisions (2026-10-27)
+
+- Full rename chosen (approach 1); reply words `PLAN READY`/`PLAN BLOCKED` stay; the agent folder `.claude/agents/planning/` is renamed to `.claude/agents/research/`. Phase 1 is done (2026-10-27): command `/deep-research`, agent `deep-researcher`, folder renamed, references updated.
+- Phase 2 added at the user's request: the project command `/review` is renamed `/deep-review`, because it collides with Claude Code's own built-in review commands. The agent `deep-review-orchestrator` already carries the word; the folder `.claude/agents/review/` stays (it names a domain, like `sonar/`). Mentions of `/review` in `DECISIONS.md` files are corrected too, for clarity.
+- The architecture map is regenerated once after phase 2.
+
+## Phase 2 — `/review` → `/deep-review`
+
+1. `git mv .claude/commands/review.md .claude/commands/deep-review.md`; usage lines 5-10 use `/deep-review`.
+2. `/review` → `/deep-review` in: `.claude/commands/README.md` (line 34, with link `deep-review.md`), `.claude/commands/autopilot.md` (lines 103, 108, 115, 119, 136, 180; line 124's path `review.md` → `deep-review.md`), `.claude/nav/flows.md` (line 13), root `CLAUDE.md` (line 176), `.claude/DECISIONS.md` (lines 9, 11, 13, 21), `marketplace-app/DECISIONS.md` (lines 215, 478, 3344, 3348), and the mention in `.claude/agents/review/README.md` if present.
+3. Regenerate the ADR index (`bash .claude/nav/scripts/generate-adr-index.sh`) because `DECISIONS.md` files change.
+4. Not touched: `backlog/completed/`, the built-in `/code-review`, the folder `.claude/agents/review/`.
+
 ## Related
 
 - [improvement-224](../completed/tasks/improvement-224-planning-and-optimization-commands.md) — introduced `/deep-plan` and `/optimize`
@@ -38,10 +55,17 @@ One name for one thing: the command, the agent, the folder and the documents agr
 - context_loading_task_type: n/a
 - context_loading_consulted: n/a
 - context_loading_matched: n/a
-- flows_situation: n/a
-- flows_chosen: n/a
+- flows_situation: rename of project commands and agents
+- flows_chosen: direct plan with haiku dispatch
 - flows_matched: n/a
-- haiku_decomposition_used: n/a
-- haiku_decomposition_dispatch_count: n/a
-- haiku_decomposition_rework_needed: n/a
+- haiku_decomposition_used: yes
+- haiku_decomposition_dispatch_count: 2
+- haiku_decomposition_rework_needed: 1 / 2
 - adrs_referenced: none
+
+### Agent calls
+- Rename deep-plan to deep-research | subagent_type=general-purpose (model haiku) | tokens=93928 | tool_uses=7 | duration_s=100 | mode=background | batch=solo
+- Rename /review to /deep-review | subagent_type=general-purpose (model haiku) | tokens=76534 | tool_uses=5 | duration_s=55 | mode=background | batch=solo
+
+### Script/command runs
+- docs/architecture/scripts/generate-architecture-model.sh | duration_s=n/a | mode=foreground | result=pass
