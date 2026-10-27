@@ -40,7 +40,8 @@ if grep -qx "## $SECTION" "$FILE"; then
     { print }
     END { if (inside && !done) emit() }
   ' "$FILE" > "$TMP"
-  mv "$TMP" "$FILE"
+  cat "$TMP" > "$FILE"
+  rm -f "$TMP"
 else
   printf '\n## %s\n\n%s\n' "$SECTION" "$BULLET" >> "$FILE"
 fi
