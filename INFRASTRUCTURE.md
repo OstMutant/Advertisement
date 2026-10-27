@@ -110,11 +110,14 @@ no caching/pruning support).
 
 | Service | Container | Local link | Solves |
 |---|---|---|---|
-| PostgreSQL | `advertisement-db` | `localhost:5432` | application database |
-| SeaweedFS (S3-compatible storage) | `advertisement-seaweedfs` | master UI: `localhost:9333` · API: `localhost:9000` | photo/attachment storage, emulates Supabase Storage |
 | Application | `marketplace-app` | [localhost:8081](http://localhost:8081) | the app itself |
+| Swagger UI | `marketplace-app` | [localhost:8081/swagger-ui/index.html](http://localhost:8081/swagger-ui/index.html) | interactive REST API docs; the OpenAPI spec is at `/v3/api-docs` |
+| API flow runner page | `marketplace-app` | [localhost:8081/dev-tools/api-flows/](http://localhost:8081/dev-tools/api-flows/) | developer-only page that runs API flows; served only after `bash scripts/deploy-and-run.sh --dev-tools` |
 | SonarQube | `sonarqube` | [localhost:9099](http://localhost:9099) | static analysis / quality gate dashboard |
 | Dagu (local CI) | `ci-runner` + `ci-runner-dagu-proxy` | [localhost:8082](http://localhost:8082) | isolated CI pipeline UI (unit/integration/e2e/sonar run history) |
+| SeaweedFS master UI | `advertisement-seaweedfs` | [localhost:9333](http://localhost:9333) | SeaweedFS cluster status and volume overview |
+| PostgreSQL | `advertisement-db` | `localhost:5432` | application database |
+| SeaweedFS (S3-compatible storage) | `advertisement-seaweedfs` | API: `localhost:9000` | photo/attachment storage, emulates Supabase Storage |
 
 ```mermaid
 flowchart LR

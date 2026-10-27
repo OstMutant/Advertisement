@@ -50,9 +50,7 @@ module.exports = defineConfig({
 
   reporter: [
     ['list'],
-    // HTML report written to the shared test-reports volume, flat alongside run.sh's own
-    // run.log (both under /reports/playwright/) so one `docker cp .../reports/playwright/.` pulls
-    // both into playwright/pw-report/ on the host in one shot.
+    // HTML report goes to the test-reports volume; playwright/run.sh copies it into playwright/pw-report/.
     ['html', { outputFolder: '/reports/playwright', open: 'never' }],
   ],
 

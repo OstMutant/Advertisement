@@ -37,6 +37,7 @@ set -euo pipefail
 SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+source "$ROOT/scripts/utils/session-id.sh"
 
 NO_GATE=""
 PULL_LATEST=""
@@ -342,6 +343,7 @@ docker cp "$SCANNER_CONTAINER":/tmp/sonar-report.html "$REPORT_FILE"
 # .claude/nav/adr-index.md); not moved to a native `.bat` step here, same accepted-risk status as
 # those two.
 docker cp "$SCANNER_CONTAINER":/reports/sonar/. "$ROOT/scripts/logs/sonar/" 2>/dev/null || true
+write_session_info "$ROOT/scripts/logs/sonar" sonar
 
 echo ""
 echo "Analysis complete: $SONAR_URL/dashboard?id=advertisement"

@@ -69,6 +69,7 @@
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SECONDS=0
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/session-id.sh"
 # Display-only from here on -- this script itself never writes to a host path anymore (see the
 # no-host-copy note further down); run-all-tests.bat's own native copy step is what actually
 # populates this directory, after this script returns.

@@ -77,13 +77,13 @@
 #   fresh build container has nothing outside its mounted volumes. With unit/integration enabled,
 #   PASSED/FAILED summary on stdout plus Surefire reports copied to
 #   scripts/build-and-test/reports/surefire/<module>/, and the full raw console log for whichever
-#   phase ran copied to scripts/build-and-test/reports/logs/ (unit-tests.log/integration-tests.log)
+#   phase ran copied to scripts/logs/build-and-test/ (unit-tests.log/integration-tests.log)
 #   -- persists the real failure detail past this run's own terminal output. Also always writes
 #   scripts/build-and-test/reports/build-info.txt (BUILD_CONTAINER_NAME, timestamp, which of
 #   RUN_UNIT/RUN_INTEGRATION/ARCHUNIT_METRICS/SKIP_VAADIN were set), so it's clear which invocation
 #   produced a given set of reports. With --archunit-metrics, also
 #   scripts/build-and-test/reports/architecture-metrics.json and
-#   reports/logs/archunit-metrics.log. With --integration, also mirrors integration-tests/reports/
+#   scripts/logs/build-and-test/archunit-metrics.log. With --integration, also mirrors integration-tests/reports/
 #   (run.log + surefire/) via its own separate `docker cp` -- keeps that directory fresh
 #   regardless of whether integration tests ran through this script or integration-tests/run.sh's
 #   own direct invocation. All of the above lands on the host via `docker cp` from a third named
@@ -104,6 +104,7 @@ SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/session-id.sh"
 BUILD_IMAGE="advertisement-build-env"
 BUILD_CONTAINER_NAME="${BUILD_CONTAINER_NAME:-advertisement-build-only}"
 DOCKERFILE="$ROOT/scripts/build-and-test/Dockerfile"
@@ -293,6 +294,7 @@ fi
 # separate top-level paths inside the container specifically so each can go to its own separate
 # host destination here, without any exclusion logic.
 docker cp "$BUILD_CONTAINER_NAME":/reports/logs/"$BUILD_CONTAINER_NAME"/. "$HOST_LOGS_DEST/" 2>/dev/null || true
+write_session_info "$HOST_LOGS_DEST" build-and-test
 docker cp "$BUILD_CONTAINER_NAME":/reports/"$BUILD_CONTAINER_NAME"/. "$HOST_REPORT_DEST/" 2>/dev/null || true
 # Only attempted when integration tests actually ran -- otherwise there's nothing in the
 # container's it-mirror to copy. Same reasoning as above -- no `mkdir -p` before this `docker cp`

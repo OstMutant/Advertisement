@@ -37,8 +37,8 @@ the scripts that build and verify `architecture-map.html`:
   [--with-sonar] [--with-archunit] [--with-adr-details]` — all three off by default (opt-in: live
   SonarQube fetch, `ArchitectureMetricsExport` ArchUnit numbers, full embedded ADR text). No
   Docker, no sandbox-specific handling.
-- `check-architecture-model-freshness.sh` — read-only CI gate, no args; regenerates into a temp
-  copy, diffs against the committed files, restores them either way.
+- `check-architecture-model-freshness.sh` — manual check, no args; regenerates once, diffs against
+  the files already on disk (ignoring this machine's test and run-log data), restores them either way.
 - `md-to-decisions-json.js` (Node) — `--stdout <module>` (used internally by the generator);
   `--extract <module> <ADR-NNN>[,<ADR-NNN>...]` prints one/a few ADRs as raw markdown — use this
   instead of `Read`-ing a whole `DECISIONS.md` once `.claude/nav/adr-index.md` has already narrowed

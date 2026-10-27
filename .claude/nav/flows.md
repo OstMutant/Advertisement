@@ -7,6 +7,7 @@ groups with different freshness guarantees — see "Staying correct" at the bott
 
 | Situation | Mechanism | Why this one, not another |
 |---|---|---|
+| About to save a change that can touch the architecture map (module, SPI, schema, ADR, backlog, command, skill) | `/check-architecture-map` | Regenerates once and diffs the two map files; ignores this machine's test and run-log data. Manual only -- the regular generation run does not call it. |
 | New bug/improvement/feature request, not yet tracked | `/new-task <title>` | Scaffolds `backlog/tasks/<prefix>-NNN-<slug>.md` from the standard template and ranks it in `BACKLOG.md` in the same operation — the only way a new task is filed without leaving it unranked. |
 | A real architectural decision was just made (new pattern, deliberate exception, rejected alternative) | `/record-decision <module> — <title>` | Writes directly into that module's `DECISIONS.md` in the established `## ADR-NNN: Title` / `**Status:**` / Context-Decision-Consequences shape — do not hand-write ADR entries ad hoc. Regenerate [adr-index.md](adr-index.md) (`bash .claude/nav/scripts/generate-adr-index.sh`) in the same change — this is also a standing `.claude/rules.md` rule, not just this command's own step. |
 | Need an evidence-verified SOLID/DRY/KISS/YAGNI review via a slash command, not a raw `Agent` call | `/review [scope]` | Thin wrapper dispatching the `deep-review-orchestrator` agent (see the subagents table below) — same scope syntax, same guarantees, just without having to remember the exact `Agent` tool call shape. |

@@ -58,6 +58,7 @@ yet — not zero.
 | ADR-003 (docs/api-collections) | marketplace-rest-api | Accepted **Applied:** 1 |  |  | The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses |
 | ADR-002 (docs/api-collections) | docs/api-collections | Accepted |  | 2 | API collection flows repeat on an empty or a used database, create what they need, never provoke a limiter |
 | ADR-001 (docs/api-collections) | docs/api-collections | Superseded by ADR-002 **Applied:** 1 |  |  | API collection flows repeat without a reset, build unique values per run and never provoke a limiter |
+| ADR-035 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | 1 | Code Quality screen always shows real test reports and run logs, grouped by folder under a session ID; cards are plain relative links |
 | ADR-034 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  |  | Database ERD's no-FK point relationships derived from a `remarks=` marker convention, not a hand-curated list |
 | ADR-033 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  |  | "AI Tooling" generalized into a `.claude`-rooted tree, same mechanism as "Scripts"; README becomes the sole canonical file list, chip-row is last-resort only |
 | ADR-001 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  |  | Generated ADR index over `DECISIONS.md`, mechanical fields only, no per-entry authoring |

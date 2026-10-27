@@ -38,6 +38,9 @@ params:
   - name: e2e_args
     type: string
     default: "e2e --full --ux"
+  - name: session_id
+    type: string
+    default: ""
   - name: e2e
     type: boolean
     default: true
@@ -62,13 +65,13 @@ params:
 
 steps:
   - id: build
-    run: bash scripts/build-and-test.sh --no-unit --no-integration
+    run: SESSION_ID=${params.session_id} bash scripts/build-and-test.sh --no-unit --no-integration
     continue_on:
       failure: true
 
   - id: unit
     depends: build
-    run: BUILD_CONTAINER_NAME=advertisement-build-only-unit bash scripts/build-and-test.sh --unit --no-integration --skip-vaadin
+    run: SESSION_ID=${params.session_id} BUILD_CONTAINER_NAME=advertisement-build-only-unit bash scripts/build-and-test.sh --unit --no-integration --skip-vaadin
     continue_on:
       failure: true
       skipped: true
@@ -84,7 +87,7 @@ steps:
   - id: integration
     depends: build
     run: |
-      BUILD_CONTAINER_NAME=advertisement-build-only-integration \
+      SESSION_ID=${params.session_id} BUILD_CONTAINER_NAME=advertisement-build-only-integration \
         bash scripts/build-and-test.sh --no-unit --integration --skip-vaadin --sandbox
     continue_on:
       failure: true
@@ -96,6 +99,7 @@ steps:
   - id: e2e
     depends: build
     run: |
+      export SESSION_ID=${params.session_id}
       teardown() {
         [ "${params.teardown_e2e_after}" = "false" ] && return
         docker rm -f ci-marketplace-app ci-advertisement-db ci-advertisement-seaweedfs 2>/dev/null || true
@@ -122,7 +126,7 @@ steps:
 
   - id: sonar
     depends: build
-    run: bash scripts/sonar.sh
+    run: SESSION_ID=${params.session_id} bash scripts/sonar.sh
     continue_on:
       failure: true
       skipped: true
@@ -135,7 +139,7 @@ steps:
   - id: archunit_metrics
     depends: build
     run: |
-      BUILD_CONTAINER_NAME=advertisement-build-only-archunit \
+      SESSION_ID=${params.session_id} BUILD_CONTAINER_NAME=advertisement-build-only-archunit \
         bash scripts/build-and-test.sh --no-unit --no-integration --archunit-metrics --skip-vaadin
     continue_on:
       failure: true

@@ -142,7 +142,7 @@ the port-reachability/Ryuk-connectivity issue, independent of which machine host
 `--no-sandbox` to disable the workaround if your own setup doesn't need it.
 
 Reports: `scripts/build-and-test/reports/surefire/<module>/` (Surefire pass/fail per test class)
-and `scripts/build-and-test/reports/logs/` (the full raw console log for whichever phase ran —
+and `scripts/logs/build-and-test/` (the full raw console log for whichever phase ran —
 `unit-tests.log`/`integration-tests.log`/`archunit-metrics.log` — persists the real failure detail
 past this run's own terminal output/scrollback).
 
@@ -295,9 +295,10 @@ bash scripts/ci.sh --sync-artifacts                                      # pull 
 through a small `alpine/socat` proxy sidecar (`ci-runner-dagu-proxy`) rather than directly, since a
 `--network host` container's bound ports (needed so `ci-runner`'s own DAG steps reach sibling
 `ci-*` containers at plain `localhost:PORT`) aren't reachable from a real browser in this sandbox —
-see `.claude/nav/adr-index.md`. There is no `scripts/ci/reports/` tree, `progress.txt`, or
+see `.claude/nav/adr-index.md`. There is no `progress.txt` or
 `--report-dir`/`--keep-reports` flag anymore — Dagu's UI and run history (backed by the
-`ci-dagu-home` named volume) replace all of that. Once the container is running, a DAG run can also
+`ci-dagu-home` named volume) replace them. `scripts/ci/reports/` holds only
+`pipeline-metrics.json` (synced after a run) and, after `/ci --metrics`, `dagu-metrics.md`. Once the container is running, a DAG run can also
 be triggered directly from that UI ("Start" on the `ci` DAG opens a dialog with a field per
 `scripts/ci/dagu/ci.yaml` param). `bash scripts/ci.sh` replaces `/app` in the
 running container with the current working tree before every run — it wipes `/app` and re-extracts

@@ -59,6 +59,7 @@ set -euo pipefail
 SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+source "$ROOT/scripts/utils/session-id.sh"
 LOG=/tmp/deploy.log
 
 source "$ROOT/scripts/utils/agentic-output.sh"

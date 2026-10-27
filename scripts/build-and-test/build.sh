@@ -43,7 +43,11 @@
 #   target/classes also refreshed under /root/.m2/target-classes/<module>/, for scripts/sonar/run.sh
 #   to mount and read directly instead of compiling locally. RUN_UNIT/
 #   RUN_INTEGRATION=true -- PASSED/FAILED summary on stdout, failing test files listed; Surefire
-#   reports copied to $REPORTS_DIR/surefire/<module>/; the full raw console log for whichever phase
+#   reports copied to $REPORTS_DIR/surefire/<module>/; RUN_UNIT=true also copies each module's JaCoCo
+#   XML to $REPORTS_DIR/jacoco/<module>.xml and its HTML report to
+#   $REPORTS_DIR/jacoco/<module>/index.html, and RUN_INTEGRATION=true writes the aggregate as
+#   $REPORTS_DIR/jacoco/integration-tests-aggregate.xml plus HTML under
+#   $REPORTS_DIR/jacoco/integration-tests-aggregate/; the full raw console log for whichever phase
 #   actually ran (only that phase's own log file exists) also copied to $REPORTS_DIR/logs/
 #   (unit-tests.log/integration-tests.log/archunit-metrics.log) -- never lost to terminal
 #   scrollback, unlike the stdout copy alone. ARCHUNIT_METRICS=true -- architecture-
@@ -204,6 +208,8 @@ run_unit_tests() {
     fi
     if [ -f "$ROOT/$m/target/site/jacoco/jacoco.xml" ]; then
       cp "$ROOT/$m/target/site/jacoco/jacoco.xml" "$REPORTS_DIR/jacoco/$m.xml"
+      mkdir -p "$REPORTS_DIR/jacoco/$m"
+      cp -r "$ROOT/$m"/target/site/jacoco/. "$REPORTS_DIR/jacoco/$m/"
     fi
   done
   return $UNIT_EXIT
@@ -294,6 +300,7 @@ print(' '.join(deps))
   if [ -f "$JACOCO_CLI_JAR" ] && [ -f "$ROOT/integration-tests/target/jacoco.exec" ]; then
     java -jar "$JACOCO_CLI_JAR" report "$ROOT/integration-tests/target/jacoco.exec" \
       "${CLI_REPORT_ARGS[@]}" --xml "$REPORTS_DIR/jacoco/integration-tests-aggregate.xml" \
+      --html "$REPORTS_DIR/jacoco/integration-tests-aggregate" \
       --name "integration-tests aggregate"
   fi
 

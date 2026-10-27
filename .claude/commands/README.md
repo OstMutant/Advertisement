@@ -38,5 +38,6 @@ self-contained entry point, described below and linked to its real file.
 - [`/screenshots`](screenshots.md) — Find and read named screenshots from the last Playwright test
   run.
 - [`/sonar`](sonar.md) — Run SonarQube static analysis for the marketplace app.
+- [`/check-architecture-map`](check-architecture-map.md) — Check that the architecture map files on disk still match what the generator produces
 - [`/sync-docs`](sync-docs.md) — Analyze what changed in the codebase and update only the affected
   architecture documentation.

@@ -62,6 +62,7 @@
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SECONDS=0
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/session-id.sh"
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 UX=""
@@ -336,6 +337,7 @@ EXIT_CODE=$?
 docker cp "$PW_CONTAINER":/reports/playwright/. "$ROOT/playwright/pw-report/" 2>/dev/null && \
   echo "HTML report: $ROOT/playwright/pw-report/index.html"
 docker cp "$PW_CONTAINER":/reports/playwright-log/. "$ROOT/scripts/logs/playwright/" 2>/dev/null
+write_session_info "$ROOT/scripts/logs/playwright" playwright
 
 if [ "$EXIT_CODE" -ne 0 ]; then
   emit_agentic_error_block "business" "false" "playwright-run" "Playwright run failed (exit $EXIT_CODE) -- one or more tests did not pass, not retryable as-is."

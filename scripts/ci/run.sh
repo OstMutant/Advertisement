@@ -104,6 +104,7 @@
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SECONDS=0
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/session-id.sh"
 IMAGE=ci-runner
 CONTAINER=ci-runner
 DAGU_PORT=18080
@@ -228,6 +229,12 @@ sync_artifacts() {
   docker cp "$VOL_READER:/reports/playwright-log/." "$ROOT/scripts/logs/playwright/" 2>/dev/null
   docker cp "$VOL_READER:/reports/sonar/." "$ROOT/scripts/logs/sonar/" 2>/dev/null
   docker rm -f "$VOL_READER" >/dev/null 2>&1
+
+  # session-info.txt lives only in the ci-runner filesystem, not in the test-reports volume.
+  for sub in playwright sonar build-and-test build-and-test/advertisement-build-only-{unit,integration,sonar,archunit,deploy}; do
+    docker cp "$CONTAINER:/app/scripts/logs/$sub/session-info.txt" "$ROOT/scripts/logs/$sub/session-info.txt" 2>/dev/null || true
+  done
+  docker cp "$CONTAINER:/app/scripts/logs/build-and-test/session-info.txt" "$ROOT/scripts/ci/reports/session-info.txt" 2>/dev/null || true
 
   # Sonar's report.html only ever exists in $CONTAINER's own filesystem, not the test-reports volume -- this leg writes to the real host, so it needs docker_cp_diag, not a plain docker cp.
   local sonar_report_failed=0
@@ -481,6 +488,12 @@ if ! sync_source_into "$CONTAINER"; then
 fi
 emit_agentic_success_block "sync-source"
 
+# Assign this run's id ourselves (`dagu start -r <id>`) so the monitor watches exactly this run,
+# never a guess from the API. Timestamp + pid + a random tail -- unique by construction.
+DAGU_RUN_ID="ci-$(date -u +%Y%m%dT%H%M%SZ)-$$-${RANDOM}${RANDOM}"
+# The CI session ID is the Dagu run id, so every log of this run links back to the Dagu history.
+export SESSION_ID="$DAGU_RUN_ID"
+
 DAGU_PARAMS=(
   "unit=$(bool "$STAGE_UNIT")"
   "integration=$(bool "$STAGE_INTEGRATION")"
@@ -493,6 +506,7 @@ DAGU_PARAMS=(
   "teardown_e2e_after=$TEARDOWN_AFTER"
   "reset_e2e_stack=$RESET_E2E_STACK"
   "e2e_args=$PLAYWRIGHT_ARGS"
+  "session_id=$SESSION_ID"
 )
 
 echo ""
@@ -517,9 +531,6 @@ if [ -n "$ACTIVE_RUN" ]; then
   exit 1
 fi
 
-# Assign this run's id ourselves (`dagu start -r <id>`) so the monitor watches exactly this run,
-# never a guess from the API. Timestamp + pid + a random tail -- unique by construction.
-DAGU_RUN_ID="ci-$(date -u +%Y%m%dT%H%M%SZ)-$$-${RANDOM}${RANDOM}"
 echo "Dagu run id: $DAGU_RUN_ID"
 
 if [ -n "$FOREGROUND" ]; then

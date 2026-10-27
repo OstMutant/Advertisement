@@ -42,8 +42,11 @@ once the file's own content is correct.
    mode, mounts, how to bring it up) comes first: the highest-priority reader of this file is
    Claude itself, working inside that container.
 2. **Application startup** — container names/ports/links for every way to start the app.
-3. **Local services table** — one row per other locally-running service (database, storage,
-   static analysis, CI), each with its local link and what it solves.
+3. **Local services table** — one row per other locally-running service or web page (database,
+   storage, static analysis, CI, API docs), each with its local link and what it solves. A row
+   whose link cell holds a markdown link to an `http://` address becomes a card in the architecture
+   map's Tooling & Pipelines Services section; a plain address means the row is not a web page and gets
+   no card.
 4. **Quickstart** — one command per service, to bring everything up from nothing.
 5. **A `mermaid` topology diagram** — Claude container → scripts → services.
 6. **Environment Variables** — its own section, unchanged by the structure above.
