@@ -169,11 +169,15 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
         Div cardHeader = new Div(VaadinIcon.BRIEFCASE.create(), new Span(getValue(PROVIDER_PROFILE_OVERLAY_SECTION_LABEL)));
         cardHeader.addClassName("overlay__form-card-header");
 
-        Div fieldsCard = new Div(cardHeader, kindField, aboutField, categoryComboBox, cityComboBox,
-                phoneField, telegramField, viberField);
+        Div fieldsCard = new Div(cardHeader, kindField, aboutField, categoryComboBox, cityComboBox);
         fieldsCard.addClassName("overlay__form-fields-card");
 
-        layout.setContent(new Div(params.getTabBar(), fieldsCard));
+        Div contactsHeader = new Div(VaadinIcon.PHONE.create(), new Span(getValue(CONTACT_SECTION_LABEL)));
+        contactsHeader.addClassName("overlay__form-card-header");
+        Div contactsCard = new Div(contactsHeader, phoneField, telegramField, viberField);
+        contactsCard.addClassName("overlay__form-fields-card");
+
+        layout.setContent(new Div(params.getTabBar(), fieldsCard, contactsCard));
 
         saveButton = new UiPrimaryButton(getValue(PROVIDER_PROFILE_OVERLAY_BUTTON_SAVE));
         discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));

@@ -36,7 +36,7 @@ public class ContactApiController {
     private final ContactAccessService contactAccessService;
 
     @Operation(operationId = "getAdvertisementContact", summary = "List the contact channels set for an advertisement",
-            description = "Public. Only which channels exist, never their values; an advertisement without its own contact uses its owner's provider-profile contact. Empty when none is set.")
+            description = "Public. Only which channels exist, never their values; an advertisement shows its owner's provider-profile contact. Empty when none is set.")
     @GetMapping("/advertisements/{id}/contact")
     public ChannelsResponse advertisementContact(@PathVariable @NonNull Long id) {
         return new ChannelsResponse(contactRevealService.availableChannels(EntityType.ADVERTISEMENT, id));

@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
-/** Wraps {@link ContactPort} for marketplace-app, adding the ADVERTISEMENT-to-owner's-PROVIDER_PROFILE contact fallback via {@link AdvertisementOwnerProfileLookupService}. */
+/** Wraps {@link ContactPort} for marketplace-app; an advertisement shows its owner's PROVIDER_PROFILE contact, looked up via {@link AdvertisementOwnerProfileLookupService}. */
 @Service
 @RequiredArgsConstructor
 public class ContactAccessService {
@@ -28,14 +28,13 @@ public class ContactAccessService {
         return contactPortFactory.findIfAvailable().flatMap(port -> port.find(entityType, entityId));
     }
 
+    /** A provider profile's own contact, or an advertisement's owner's provider-profile contact; any other entity type is rejected. */
     public Optional<ContactInfoDto> resolveContact(@NonNull EntityType entityType, @NonNull Long entityId) {
-        return contactPortFactory.findIfAvailable().flatMap(port -> {
-            Optional<ContactInfoDto> own = port.find(entityType, entityId);
-            if (own.isPresent() || entityType != EntityType.ADVERTISEMENT) {
-                return own;
-            }
-            return advertisementOwnerProfileLookupService.findOwnerProfileId(entityId)
+        return contactPortFactory.findIfAvailable().flatMap(port -> switch (entityType) {
+            case PROVIDER_PROFILE -> port.find(EntityType.PROVIDER_PROFILE, entityId);
+            case ADVERTISEMENT -> advertisementOwnerProfileLookupService.findOwnerProfileId(entityId)
                     .flatMap(profileId -> port.find(EntityType.PROVIDER_PROFILE, profileId));
+            default -> throw new IllegalArgumentException("No contact for entity type " + entityType);
         });
     }
 

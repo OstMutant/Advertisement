@@ -210,10 +210,16 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         }
         fieldsCard.add(adKindField);
         Div contactPreview = isCreate ? buildContactPreviewBlockForCurrentActor() : buildContactPreviewBlock(params.getAd().getId());
-        if (contactPreview != null) fieldsCard.add(contactPreview);
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div content = new Div(fieldsCard);
+        if (contactPreview != null) {
+            Div contactsHeader = new Div(VaadinIcon.PHONE.create(), new Span(getValue(CONTACT_SECTION_LABEL)));
+            contactsHeader.addClassName("overlay__form-card-header");
+            Div contactsCard = new Div(contactsHeader, contactPreview);
+            contactsCard.addClassName("overlay__form-fields-card");
+            content.add(contactsCard);
+        }
         if (attachmentMediaService.isAvailable()) {
             AttachmentGalleryService ext = galleryServiceFactory.get();
             this.activeHandle = isCreate
@@ -266,13 +272,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     }
 
     private Div buildContactPreviewBlock(ContactInfoDto contact) {
-        if (contact == null) return null;
+        if (contact == null || contact.presentChannels().isEmpty()) return null;
 
         Div block = new Div();
         block.addClassName("advertisement-contact-preview");
-        Span label = new Span(getValue(ADVERTISEMENT_OVERLAY_CONTACT_PREVIEW_LABEL));
-        label.addClassName("advertisement-contact-preview-label");
-        block.add(label);
         String hint = getValue(ADVERTISEMENT_OVERLAY_CONTACT_PREVIEW_HINT);
         for (var entry : contact.presentChannels()) {
             String value = entry.getValue();

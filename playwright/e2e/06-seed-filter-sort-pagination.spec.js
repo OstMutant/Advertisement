@@ -474,7 +474,7 @@ test.describe('Seed data and query validation', () => {
     await tabSizeInput.fill('15');
     await openHistory(page);
     await closeHistory(page);
-    await expect(page.locator('.overlay__form-fields-card')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.overlay__form-fields-card').first()).toBeVisible({ timeout: 5000 });
     await expect(tabSizeInput).toHaveValue('15');
     await page.locator('.base-overlay.overlay--visible').getByRole('button', { name: /зберегти|save/i }).click();
     await page.locator('vaadin-notification-card').first().waitFor({ timeout: 8000 });

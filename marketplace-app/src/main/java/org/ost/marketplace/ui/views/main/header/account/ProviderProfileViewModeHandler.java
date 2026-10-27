@@ -135,6 +135,9 @@ public class ProviderProfileViewModeHandler extends AbstractViewOverlayModeHandl
 
         Div block = new Div();
         block.addClassName("provider-profile-contact-views");
+        Div header = new Div(VaadinIcon.PHONE.create(), new Span(getValue(CONTACT_SECTION_LABEL)));
+        header.addClassName("overlay__view-card-header");
+        block.add(header);
         Span label = new Span(getValue(PROVIDER_PROFILE_VIEW_CONTACT_VIEWS_LABEL));
         label.addClassName("provider-profile-contact-views-label");
         block.add(label);

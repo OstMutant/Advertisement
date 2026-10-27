@@ -149,6 +149,11 @@
     margin-top: 16px;
 }
 
+/* Spacing between stacked edit-form cards */
+.overlay__form-fields-card + .overlay__form-fields-card {
+    margin-top: 16px;
+}
+
 /* White card for edit fields */
 .overlay__form-fields-card {
     background: var(--app-surface-white);

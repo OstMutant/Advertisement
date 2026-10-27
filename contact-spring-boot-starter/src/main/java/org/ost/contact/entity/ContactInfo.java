@@ -12,7 +12,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 
-/** What to show -- at most one row per owning entity (PROVIDER_PROFILE or ADVERTISEMENT), no FK, resolved only via ContactPort. */
+/** What to show -- at most one row per owning entity (a PROVIDER_PROFILE), no FK, resolved only via ContactPort. */
 @Value
 @Builder
 @FieldNameConstants

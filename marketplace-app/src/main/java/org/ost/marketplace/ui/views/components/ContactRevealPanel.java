@@ -77,7 +77,13 @@ public class ContactRevealPanel extends Div
             }
         }
 
-        setVisible(getComponentCount() > 0);
+        boolean hasChannels = getComponentCount() > 0;
+        setVisible(hasChannels);
+        if (hasChannels) {
+            Div header = new Div(VaadinIcon.PHONE.create(), new Span(getValue(CONTACT_SECTION_LABEL)));
+            header.addClassName("overlay__view-card-header");
+            addComponentAsFirst(header);
+        }
         return this;
     }
 

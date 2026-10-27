@@ -29,7 +29,7 @@ public class ContactRevealService {
     public record RevealedContact(ContactChannel channel, String value, String deepLink) {
     }
 
-    /** The channels that are set for the entity (an advertisement without its own contact falls back to its owner's profile), without their values. */
+    /** The channels that are set for the entity (an advertisement shows its owner's provider-profile contact), without their values. */
     public List<ContactChannel> availableChannels(@NonNull EntityType entityType, @NonNull Long entityId) {
         return contactAccessService.resolveContact(entityType, entityId)
                 .map(contact -> contact.presentChannels().stream().map(Map.Entry::getKey).toList())

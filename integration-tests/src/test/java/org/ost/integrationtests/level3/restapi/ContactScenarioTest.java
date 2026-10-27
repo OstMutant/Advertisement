@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Level 3 scenario: public contact channels and rate-limited reveals, owner-only view counts, and advertisement fallback to the owner's profile contact. */
+/** Level 3 scenario: public contact channels and rate-limited reveals, owner-only view counts, and an advertisement showing its owner's profile contact. */
 @Level3ScenarioTest
 class ContactScenarioTest extends AbstractRestApiScenarioTest {
 

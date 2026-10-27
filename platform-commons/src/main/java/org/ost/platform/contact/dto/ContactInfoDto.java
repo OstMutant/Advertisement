@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** The phone/telegram/viber contact data attached to one owning entity (PROVIDER_PROFILE or ADVERTISEMENT). */
+/** The phone/telegram/viber contact data attached to one owning entity (a PROVIDER_PROFILE). */
 @FieldNameConstants
 public record ContactInfoDto(
         Long id,

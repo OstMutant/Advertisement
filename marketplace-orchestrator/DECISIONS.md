@@ -29,11 +29,11 @@ this app sorts by a cross-domain display field.
 ## ADR-010: `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename
 
 **Status:** Accepted
-**Verified:** 2026-10-20
+**Verified:** 2026-10-27
 **Applied:** 2
 
-**Context:** The advertisement-to-owner-profile contact fallback (an ad's own `contact_info` row
-if present, else its owner's provider-profile row) needs `ContactPort` plus, to resolve an ad's
+**Context:** Resolving an advertisement's contact to its owner's provider-profile contact needs
+`ContactPort` plus, to resolve an ad's
 owner, `AdvertisementPort` + `ProviderProfilePort` — three domain ports for one use case, over
 this module's own ≤2-domain-port-per-class rule. The first version of this service was also named
 `ContactService`, which collided with `contact-spring-boot-starter`'s own internal
@@ -45,7 +45,7 @@ packages), failing the app at startup with `ConflictingBeanDefinitionException`.
    `AdvertisementOwnerProfileLookupService` (`AdvertisementPort` + `ProviderProfilePort`, resolves
    an ad's owner's provider profile id) and `ContactAccessService` (`ContactPort` + the lookup
    service as a plain collaborator — find/save/recordView/countViewsThisMonth/delete/isAvailable,
-   plus `resolveContact()`'s fallback). The lookup service, held as a plain collaborator field,
+   plus `resolveContact()`). The lookup service, held as a plain collaborator field,
    doesn't count against the ≤2-port rule — same shape `TaxonAssignmentWriteService` already has
    for other save services.
 2. Named the resulting service `ContactAccessService`, not the bare `ContactService` a first pass
@@ -57,7 +57,7 @@ packages), failing the app at startup with `ConflictingBeanDefinitionException`.
    the REST API: it counts every reveal attempt against a limit of 30 per 15 minutes per client
    address (and viewer, when signed in), keyed by a plain string so this module stays
    transport-agnostic; looks the channel up through `ContactAccessService.resolveContact` (so the
-   advertisement-to-profile fallback applies); records the view; and builds the messenger deep link
+   advertisement resolves to its owner's profile contact); records the view; and builds the messenger deep link
    on the server. The UI panel and the REST controller only pass the viewer and the client address
    in. `ContactAccessService.countProfileViewsThisMonth` resolves a profile's owner itself, so no
    adapter repeats that lookup. Reveal and recording stay open to visitors who are not signed in,

@@ -85,7 +85,6 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_FIELD_AD_KIND("advertisement.overlay.field.adKind"),
     ADVERTISEMENT_OVERLAY_SECTION_BASIC("advertisement.overlay.section.basic"),
     ADVERTISEMENT_OVERLAY_SECTION_VIEW("advertisement.overlay.section.view"),
-    ADVERTISEMENT_OVERLAY_CONTACT_PREVIEW_LABEL("advertisement.overlay.contactPreview.label"),
     ADVERTISEMENT_OVERLAY_CONTACT_PREVIEW_HINT("advertisement.overlay.contactPreview.hint"),
     ADVERTISEMENT_OVERLAY_BUTTON_SAVE("advertisement.overlay.button.save"),
     ADVERTISEMENT_OVERLAY_BUTTON_CANCEL("advertisement.overlay.button.cancel"),
@@ -532,6 +531,7 @@ public enum I18nKey {
     CONTACT_REVEAL_BUTTON_TELEGRAM("contactReveal.button.telegram"),
     CONTACT_REVEAL_BUTTON_VIBER("contactReveal.button.viber"),
     CONTACT_REVEAL_NOTIFICATION_RATE_LIMITED("contactReveal.notification.rateLimited"),
+    CONTACT_SECTION_LABEL("contact.section.label"),
 
     // === Feedback ===
     FEEDBACK_SECTION_LABEL("feedback.section.label"),

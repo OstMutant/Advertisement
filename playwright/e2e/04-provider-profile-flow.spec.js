@@ -11,7 +11,9 @@
  *   - "user creates a minimal provider profile": no category and no city, the Providers tab
  *     refreshing on Settings close when it was already selected, then the profile is deleted.
  *   - "user edits provider profile": pre-filled re-edit, second category, activity diff, phone-only
- *     edit, outer breadcrumb, advertisement create contact preview, advertisement contact reveal.
+ *     edit, outer breadcrumb, advertisement create contact preview, advertisement contact reveal,
+ *     then the same contacts as the owner (view and edit), another user (catalog) and an
+ *     administrator (Users grid, view and edit), each in its own session.
  *   - "moderator views a user's account": read-only Name, Settings and Provider Profile tabs; no API keys tab.
  *   - "administrator creates and edits a user's SUPPORT provider profile via the Users grid, then
  *     that user edits it": SUPPORT stays visible but disabled for the non-privileged owner.
@@ -213,7 +215,7 @@ const deepLink = profileId => `/providers/${profileId}-profile`;
 
 test.describe('Provider Profile flow', () => {
 
-  test('user creates provider profile — empty state before, Create button, kind/about/category/city filled, contact fields validation and save, view mode shows kind badge/about/category chip/city chip/contact views counters after save, field order, Providers tab live refresh', async ({ pageAs, createUser, adminKey, request, unique }) => {
+  test('user creates provider profile — empty state before, Create button, kind/about/category/city filled, headed Contacts card, contact fields validation and save, view mode shows kind badge/about/category chip/city chip/contact views counters after save, field order, Providers tab live refresh', async ({ pageAs, createUser, adminKey, request, unique }) => {
     test.setTimeout(180_000);
     const user = await createUser();
     const category = await createCategory(request, adminKey, unique, 'Electronics');
@@ -237,7 +239,14 @@ test.describe('Provider Profile flow', () => {
     const telegramField = page.getByTestId('provider-profile-telegram-field').locator('input');
     const viberField = page.getByTestId('provider-profile-viber-field').locator('input');
 
-    await test.step('contact fields — invalid phone/telegram/viber format rejected on save, valid E.164 phone/viber and Telegram username accepted', async () => {
+    await test.step('contact fields — own headed Contacts card below the main card, invalid phone/telegram/viber format rejected on save, valid E.164 phone/viber and Telegram username accepted', async () => {
+      const formCards = page.locator('.account-overlay .overlay__form-fields-card');
+      await expect(formCards).toHaveCount(2);
+      const contactsCard = formCards.filter({ has: page.getByTestId('provider-profile-phone-field') });
+      await expect(contactsCard.locator('.overlay__form-card-header')).toHaveText(/contacts/i);
+      await expect(contactsCard.getByTestId('provider-profile-telegram-field')).toBeVisible();
+      await expect(contactsCard.getByTestId('provider-profile-viber-field')).toBeVisible();
+
       await phoneField.fill('not-a-phone');
       await telegramField.fill('a');
       await viberField.fill('123');
@@ -262,9 +271,10 @@ test.describe('Provider Profile flow', () => {
     await expect(page.locator('.account-overlay .provider-profile-city-chip')).toContainText(city.name);
     await screenshot(page, 'provider-profile-view-after-create');
 
-    await test.step('contact views counters — Phone/Telegram/Viber show the saved value and a 0 click count (no reveals happened yet)', async () => {
+    await test.step('contact views counters — Phone/Telegram/Viber show the saved value and a 0 click count (no reveals happened yet) and the caption naming the profile page', async () => {
       const counters = page.locator('.account-overlay .provider-profile-contact-views');
       await expect(counters).toBeVisible({ timeout: 5000 });
+      await expect(counters.locator('.provider-profile-contact-views-label')).toContainText('profile page');
       await expect(counters.locator('.provider-profile-contact-views-phone')).toContainText('+380501234567 (0)');
       await expect(counters.locator('.provider-profile-contact-views-telegram')).toContainText('electro_master (0)');
       await expect(counters.locator('.provider-profile-contact-views-viber')).toContainText('+380509876543 (0)');
@@ -339,7 +349,7 @@ test.describe('Provider Profile flow', () => {
     });
   });
 
-  test('user edits provider profile — previously-saved kind/about/categories/city pre-filled on re-edit, second category added, activity diff, phone-only edit records its own activity entry, history button, outer breadcrumb closes to list, advertisement create contact preview, advertisement contact reveal through the owner profile fallback', async ({ pageAs, createUser, adminKey, request, unique }) => {
+  test('user edits provider profile — previously-saved kind/about/categories/city pre-filled on re-edit, second category added, activity diff, phone-only edit records its own activity entry, history button, outer breadcrumb closes to list, advertisement create contact preview, advertisement contact reveal through the owner profile fallback, contacts seen by the owner, another user and an administrator in view and edit', async ({ pageAs, adminAccount, createUser, adminKey, request, unique }) => {
     test.setTimeout(180_000);
     const electronics = await createCategory(request, adminKey, unique, 'Electronics');
     const vehicles = await createCategory(request, adminKey, unique, 'Vehicles');
@@ -427,6 +437,8 @@ test.describe('Provider Profile flow', () => {
 
       const preview = overlay.locator('.advertisement-contact-preview');
       await expect(preview).toBeVisible({ timeout: 5000 });
+      const contactsCard = overlay.locator('.overlay__form-fields-card').filter({ has: page.locator('.advertisement-contact-preview') });
+      await expect(contactsCard.locator('.overlay__form-card-header')).toHaveText(/contacts/i);
       await expect(preview.locator('.advertisement-contact-preview-phone')).toContainText('+380507654321');
       await expect(preview.locator('.advertisement-contact-preview-telegram')).toContainText('electro_master');
       await expect(preview.locator('.advertisement-contact-preview-viber')).toContainText('+380509876543');
@@ -446,6 +458,7 @@ test.describe('Provider Profile flow', () => {
       const overlay = await openCardOverlay(page, card, 'contact-reveal-fixture');
 
       const panel = overlay.locator('.contact-reveal-panel');
+      await expect(panel.locator('.overlay__view-card-header')).toHaveText(/contacts/i);
       await expect(panel.locator('.contact-reveal-phone')).toBeVisible({ timeout: 5000 });
       await expect(panel.locator('.contact-reveal-telegram')).toBeVisible();
       await expect(panel.locator('.contact-reveal-viber')).toBeVisible();
@@ -463,6 +476,77 @@ test.describe('Provider Profile flow', () => {
       await telegramTab.waitForURL('**/t.me/electro_master', { waitUntil: 'commit', timeout: 10000 });
       expect(telegramTab.url()).toContain('t.me/electro_master');
       await telegramTab.close();
+    });
+
+    const contactsHeader = /contacts|контакти/i;
+
+    await test.step('owner reopens own account — Provider Profile view shows a Contacts header above the saved values with view counters, Edit shows the same values in a headed Contacts card', async () => {
+      await closeOverlay(page);
+      await runOpenSettingsFlow(page);
+      await openProviderProfileTab(page);
+
+      const counters = page.locator('.account-overlay .provider-profile-contact-views');
+      await expect(counters.locator('.overlay__view-card-header')).toHaveText(contactsHeader, { timeout: 5000 });
+      await expect(counters.locator('.provider-profile-contact-views-phone')).toContainText(/\+380507654321 \(\d+\)/);
+      await expect(counters.locator('.provider-profile-contact-views-telegram')).toContainText(/electro_master \(\d+\)/);
+      await expect(counters.locator('.provider-profile-contact-views-viber')).toContainText(/\+380509876543 \(\d+\)/);
+      await screenshot(page, 'provider-profile-contacts-owner-view');
+
+      await page.locator('.account-overlay').getByRole('button', { name: 'Edit', exact: true }).click();
+      const contactsCard = page.locator('.account-overlay .overlay__form-fields-card')
+        .filter({ has: page.getByTestId('provider-profile-phone-field') });
+      await expect(contactsCard.locator('.overlay__form-card-header')).toHaveText(contactsHeader, { timeout: 5000 });
+      await expect(page.getByTestId('provider-profile-phone-field').locator('input')).toHaveValue('+380507654321');
+      await expect(page.getByTestId('provider-profile-telegram-field').locator('input')).toHaveValue('electro_master');
+      await expect(page.getByTestId('provider-profile-viber-field').locator('input')).toHaveValue('+380509876543');
+      await screenshot(page, 'provider-profile-contacts-owner-edit');
+
+      await page.locator('.account-overlay').getByRole('button', { name: 'Cancel', exact: true }).click();
+      await runCloseSettingsFlow(page);
+    });
+
+    await test.step('another signed-in user — catalog card overlay shows a Contacts header with reveal buttons only, no stored values and no Edit button', async () => {
+      const visitor = await createUser();
+      const visitorPage = await pageAs(visitor);
+      await openProvidersTab(visitorPage);
+      await applyCatalogFilter(visitorPage, { categories: [electronics] });
+
+      await catalogCard(visitorPage, owner).click();
+      const overlay = visitorPage.locator('.provider-profile-catalog-overlay');
+      await overlay.waitFor({ timeout: 5000 });
+      const panel = overlay.locator('.contact-reveal-panel');
+      await expect(panel.locator('.overlay__view-card-header')).toHaveText(contactsHeader, { timeout: 5000 });
+      await expect(panel.locator('.contact-reveal-phone vaadin-button')).toBeVisible();
+      await expect(panel.locator('.contact-reveal-telegram')).toBeVisible();
+      await expect(panel.locator('.contact-reveal-viber')).toBeVisible();
+      await expect(overlay).not.toContainText('+380507654321');
+      await assertAbsent(expect, overlay.locator('.overlay__view-edit'));
+      await screenshot(visitorPage, 'provider-profile-contacts-visitor-view');
+
+      await panel.locator('.contact-reveal-phone vaadin-button').click();
+      await expect(panel.locator('.contact-reveal-phone-value')).toHaveText('+380507654321', { timeout: 5000 });
+      await screenshot(visitorPage, 'provider-profile-contacts-visitor-phone-revealed');
+      await closeOverlay(visitorPage);
+    });
+
+    await test.step('administrator opens the owner account from the Users grid — Provider Profile view shows the Contacts header with values and counters, Edit shows the same values', async () => {
+      const adminPage = await pageAs(adminAccount);
+      await runNavigateToUsersTabFlow(adminPage, expect);
+      await runOpenUserViewDialogFlow(adminPage, owner.email);
+      await openProviderProfileTab(adminPage);
+
+      const counters = adminPage.locator('.account-overlay .provider-profile-contact-views');
+      await expect(counters.locator('.overlay__view-card-header')).toHaveText(contactsHeader, { timeout: 5000 });
+      await expect(counters.locator('.provider-profile-contact-views-phone')).toContainText(/\+380507654321 \(\d+\)/);
+      await screenshot(adminPage, 'provider-profile-contacts-admin-view');
+
+      await adminPage.locator('.account-overlay').getByRole('button', { name: 'Edit', exact: true }).click();
+      await expect(adminPage.getByTestId('provider-profile-phone-field').locator('input')).toHaveValue('+380507654321', { timeout: 5000 });
+      await expect(adminPage.getByTestId('provider-profile-telegram-field').locator('input')).toHaveValue('electro_master');
+      await screenshot(adminPage, 'provider-profile-contacts-admin-edit');
+
+      await adminPage.locator('.account-overlay').getByRole('button', { name: 'Cancel', exact: true }).click();
+      await closeUserOverlay(adminPage);
     });
   });
 
@@ -982,6 +1066,7 @@ test.describe('Provider Profile flow', () => {
 
     await test.step('contact reveal panel — phone reveals in place, Telegram opens its deep link, each records a view', async () => {
       const panel = overlay.locator('.contact-reveal-panel');
+      await expect(panel.locator('.overlay__view-card-header')).toHaveText(/contacts/i);
       await expect(panel.locator('.contact-reveal-phone')).toBeVisible({ timeout: 5000 });
       await expect(panel.locator('.contact-reveal-telegram')).toBeVisible();
       await expect(panel.locator('.contact-reveal-viber')).toBeVisible();

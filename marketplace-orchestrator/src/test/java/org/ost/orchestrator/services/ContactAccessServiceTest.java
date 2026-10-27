@@ -28,7 +28,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Unit tests for {@link ContactAccessService}, focused on the ADVERTISEMENT-to-PROVIDER_PROFILE fallback. */
+/** Unit tests for {@link ContactAccessService}, focused on resolving an advertisement to its owner's PROVIDER_PROFILE contact. */
 @ExtendWith(MockitoExtension.class)
 class ContactAccessServiceTest {
 
@@ -40,8 +40,6 @@ class ContactAccessServiceTest {
 
     private ContactAccessService service;
 
-    private static final ContactInfoDto AD_OWN_CONTACT = new ContactInfoDto(
-            1L, EntityType.ADVERTISEMENT, 10L, "+380501111111", null, null, null, 0L);
     private static final ContactInfoDto PROFILE_CONTACT = new ContactInfoDto(
             2L, EntityType.PROVIDER_PROFILE, 99L, "+380502222222", null, null, null, 0L);
 
@@ -57,36 +55,33 @@ class ContactAccessServiceTest {
     }
 
     @Test
-    void resolveContact_advertisementHasOwnContact_returnsItWithoutFallback() {
-        when(contactPort.find(EntityType.ADVERTISEMENT, 10L)).thenReturn(Optional.of(AD_OWN_CONTACT));
-
-        assertThat(service.resolveContact(EntityType.ADVERTISEMENT, 10L)).contains(AD_OWN_CONTACT);
-        verify(advertisementOwnerProfileLookupService, never()).findOwnerProfileId(any());
-    }
-
-    @Test
-    void resolveContact_advertisementNoOwnContact_fallsBackToOwnerProfile() {
-        when(contactPort.find(EntityType.ADVERTISEMENT, 10L)).thenReturn(Optional.empty());
+    void resolveContact_advertisement_returnsOwnerProfileContactWithoutReadingAnAdvertisementRow() {
         when(advertisementOwnerProfileLookupService.findOwnerProfileId(10L)).thenReturn(Optional.of(99L));
         when(contactPort.find(EntityType.PROVIDER_PROFILE, 99L)).thenReturn(Optional.of(PROFILE_CONTACT));
 
         assertThat(service.resolveContact(EntityType.ADVERTISEMENT, 10L)).contains(PROFILE_CONTACT);
+        verify(contactPort, never()).find(EntityType.ADVERTISEMENT, 10L);
     }
 
     @Test
-    void resolveContact_advertisementNoOwnContactAndNoOwnerProfile_returnsEmpty() {
-        when(contactPort.find(EntityType.ADVERTISEMENT, 10L)).thenReturn(Optional.empty());
+    void resolveContact_advertisementOwnerHasNoProfile_returnsEmpty() {
         when(advertisementOwnerProfileLookupService.findOwnerProfileId(10L)).thenReturn(Optional.empty());
 
         assertThat(service.resolveContact(EntityType.ADVERTISEMENT, 10L)).isEmpty();
     }
 
     @Test
-    void resolveContact_providerProfile_neverUsesFallback() {
+    void resolveContact_providerProfile_neverLooksUpAnOwner() {
         when(contactPort.find(EntityType.PROVIDER_PROFILE, 99L)).thenReturn(Optional.of(PROFILE_CONTACT));
 
         assertThat(service.resolveContact(EntityType.PROVIDER_PROFILE, 99L)).contains(PROFILE_CONTACT);
         verify(advertisementOwnerProfileLookupService, never()).findOwnerProfileId(any());
+    }
+
+    @Test
+    void resolveContact_otherEntityType_throws() {
+        assertThatThrownBy(() -> service.resolveContact(EntityType.USER, 1L))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

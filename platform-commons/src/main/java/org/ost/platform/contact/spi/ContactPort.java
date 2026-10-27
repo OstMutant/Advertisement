@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Owns contact_info (phone/telegram/viber attached to a PROVIDER_PROFILE or ADVERTISEMENT) and
+ * Owns contact_info (phone/telegram/viber attached to an owning entity; only PROVIDER_PROFILE owns contacts) and
  * contact_view (append-only reveal/click events), generic over the owning entity. No knowledge of
  * provider-profile or advertisement internals. Implementation lives in contact-spring-boot-starter.
  */

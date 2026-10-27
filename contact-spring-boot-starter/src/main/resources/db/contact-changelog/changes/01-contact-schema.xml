@@ -10,14 +10,14 @@
 
         <!-- ── contact_info ─────────────────────────────────────────────────── -->
         <createTable tableName="contact_info"
-                      remarks="What to show -- at most one row per owning entity (PROVIDER_PROFILE or ADVERTISEMENT), holding phone/telegram/viber. No DB-level FK to provider_profile/advertisement, same entity_type+entity_id convention audit_log already uses -- resolved only via ContactPort, never a SQL join. An ADVERTISEMENT row is an optional per-listing override of the owner's PROVIDER_PROFILE row; fallback resolution lives in marketplace-orchestrator.">
+                      remarks="What to show -- at most one row per owning entity, holding phone/telegram/viber. Only PROVIDER_PROFILE owns contacts; an ADVERTISEMENT shows its owner's PROVIDER_PROFILE row, resolved in marketplace-orchestrator. No DB-level FK, same entity_type+entity_id convention audit_log already uses -- resolved only via ContactPort, never a SQL join.">
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="entity_type" type="VARCHAR(50)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE or ADVERTISEMENT). No FK -- resolved via ContactPort, not a join">
+            <column name="entity_type" type="VARCHAR(50)" remarks="Owning entity type (EntityType; only PROVIDER_PROFILE owns contacts). No FK -- resolved via ContactPort, not a join">
                 <constraints nullable="false"/>
             </column>
-            <column name="entity_id" type="BIGINT" remarks="ID of the owning entity. References provider_profile(id) or advertisement(id) depending on entity_type, no FK">
+            <column name="entity_id" type="BIGINT" remarks="ID of the owning entity, provider_profile(id) for PROVIDER_PROFILE, no FK">
                 <constraints nullable="false"/>
             </column>
             <column name="phone" type="VARCHAR(32)" remarks="Validated phone number (E.164), optional"/>

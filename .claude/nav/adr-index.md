@@ -53,7 +53,8 @@ yet — not zero.
 | ADR-004 (.claude) | .claude | Accepted |  | 2 | Per-task ADR usage tracking, counted in each ADR's own `**Applied:**` line |
 | ADR-002 (.claude) | .claude | Accepted |  |  | Formalize `/deep-review`'s reasoning layer as real, isolated `.claude/agents/*.md` subagents |
 | ADR-001 (.claude) | .claude | Accepted |  |  | Split module-specific AI guidance into path-scoped `.claude/rules/*.md`; deduplicate memory against canonical rules |
-| ADR-001 (contact-spring-boot-starter) | contact-spring-boot-starter | Accepted |  |  | New contact-spring-boot-starter module owns contact_info/contact_view, generic over owning entity |
+| ADR-002 (contact-spring-boot-starter) | contact-spring-boot-starter | Accepted **Applied:** 1 |  |  | Only a provider profile owns contact_info; an advertisement shows its owner's contact |
+| ADR-001 (contact-spring-boot-starter) | contact-spring-boot-starter | Accepted **Verified:** 2026-10-27 |  |  | New contact-spring-boot-starter module owns contact_info/contact_view, generic over owning entity |
 | ADR-003 (docs/api-collections) | docs/api-collections | Accepted **Applied:** 1 |  |  | The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses |
 | ADR-003 (docs/api-collections) | marketplace-rest-api | Accepted **Applied:** 1 |  |  | The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses |
 | ADR-002 (docs/api-collections) | docs/api-collections | Accepted |  | 2 | API collection flows repeat on an empty or a used database, create what they need, never provoke a limiter |
@@ -174,7 +175,7 @@ yet — not zero.
 | ADR-076 (marketplace-app) | marketplace-app | Accepted |  |  | `OverlayNavigationRegistry` fans out browser History to every deep-linkable overlay; `SitemapController` thins to a `marketplace-orchestrator` `SitemapService` |
 | ADR-077 (marketplace-app) | marketplace-app | Accepted |  |  | Provider Profile catalog gains real date-range filters, mirroring Advertisement's exact mechanism |
 | ADR-011 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | Moderation queue implemented with SQL-level filter, sort, and pagination |
-| ADR-010 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Verified:** 2026-10-20 **Applied:** 2 |  |  | `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename |
+| ADR-010 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Verified:** 2026-10-27 **Applied:** 2 |  |  | `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename |
 | ADR-009 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `StaleWriteException` replaces `OptimisticLockingFailureException` as the project-wide stale-write signal |
 | ADR-008 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `UserCleanupService`/`UserPurgeEligibilityService` — the scheduled retention-purge referential-integrity check moves here from `user-spring-boot-starter` |
 | ADR-007 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Verified:** 2026-10-19 **Applied:** 2 |  |  | Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only |
