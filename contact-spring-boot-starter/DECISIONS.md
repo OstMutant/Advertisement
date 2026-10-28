@@ -30,6 +30,7 @@ the profile's contacts.
 
 ## ADR-001: New contact-spring-boot-starter module owns contact_info/contact_view, generic over owning entity
 **Status:** Accepted
+**Applied:** 1
 **Verified:** 2026-10-27
 
 **Context:** Contact data (phone/Telegram/Viber) and contact-reveal click analytics are needed by

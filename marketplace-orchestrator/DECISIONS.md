@@ -30,7 +30,7 @@ this app sorts by a cross-domain display field.
 
 **Status:** Accepted
 **Verified:** 2026-10-27
-**Applied:** 2
+**Applied:** 3
 
 **Context:** Resolving an advertisement's contact to its owner's provider-profile contact needs
 `ContactPort` plus, to resolve an ad's

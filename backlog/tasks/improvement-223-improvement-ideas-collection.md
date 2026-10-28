@@ -59,6 +59,10 @@ The `/optimize` plan leaves OpenRewrite out of the command because Lombok is alr
 
 `scripts/ci.sh` has no flag that runs only the ShellCheck stage and ShellCheck is not installed on the working machine, so a new script cannot be checked in isolation. A workaround used once: the npm package `shellcheck` downloads the binary into a scratch folder. Options: a ShellCheck-only flag in `ci.sh`, or a small helper script that fetches the binary.
 
+### 6. Author link on advertisements opens the author's provider profile (from the contacts work)
+
+On advertisement cards and in the advertisement view and edit form, the author's name becomes an accented link to the author's provider profile (name plain text when the author has no profile). An administrator gets Edit in the profile as usual. The in-depth research found: one batched profile-id-per-author lookup per page (a new method on the provider-profile port, filling a new `AdvertisementInfoDto.ownerProviderProfileId` in the existing author enrichment, also useful to REST clients); `EntityMetaPanel` gets an optional author click action with keyboard support; the moderation view already links an author to a profile (`ModerationView.buildProfileLink`). Open design point, deliberately left for later because the first plan was too complex: how to move to the profile and back. The tab-switch-and-restore-URL route (the moderation wiring) needs the browser address restored when the profile closes over an open advertisement; the simpler idea is to open the profile as a nested overlay on top of whatever is open (like the history overlay), which returns to the exact same screen with an unsaved edit form intact, but needs a flag so the profile overlay does not touch the browser address. Size: roughly half a day to a day of supervised work. The full step-by-step plan (steps 8 to 13, with test steps by role) is kept in `completed/tasks/improvement-217-contacts-headed-card-view-and-edit.md`, section "Execution plan -- phases 2 and 3".
+
 ## Related
 
 improvement-133 (the same lifecycle for review findings).

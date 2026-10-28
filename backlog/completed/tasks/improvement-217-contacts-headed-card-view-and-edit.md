@@ -47,7 +47,7 @@ Reopened 2026-10-27 after an in-depth research (plan below, topic folder removed
 
 - **Phase 1 -- headed Contacts card in view and edit: done 2026-10-27.** Includes the Account overlay Provider Profile view header and the role-based Playwright steps (owner, another user, administrator).
 - **Phase 2 -- contacts only from the provider profile:** steps 2-6 below.
-- **Phase 3 -- author link to the provider profile: deferred, not doing for now.** Steps 8-13 stay below as reference only.
+- **Phase 3 -- author link to the provider profile: deferred, not doing for now.** Moved to entry 6 of improvement-223 (ideas collection) when this task closed; steps 8-13 stay below as the reference plan.
 
 ### Decisions (2026-10-27)
 
