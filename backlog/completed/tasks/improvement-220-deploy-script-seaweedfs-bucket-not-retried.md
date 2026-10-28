@@ -17,7 +17,7 @@ The condition decides on whether the container exists, not on whether the bucket
 
 A stack whose first start was interrupted heals on the next run instead of failing later in the application.
 
-## Approach
+## Approach (done 2026-10-28, option 1)
 
 1. Run `configure_seaweedfs` on every start, with no condition. It is idempotent and costs one short `docker run`; remove the `seaweedfs_was_running` variable.
 2. Alternative: ask SeaweedFS whether the bucket exists (`s3.bucket.list`) and create it only when missing. More code for the same outcome, so not preferred.
@@ -31,13 +31,19 @@ A stack whose first start was interrupted heals on the next run instead of faili
 - token_cost_research: n/a
 - token_cost_verification: n/a
 - review_signal_ratio: n/a
-- context_loading_task_type: n/a
-- context_loading_consulted: n/a
-- context_loading_matched: n/a
-- flows_situation: n/a
-- flows_chosen: n/a
-- flows_matched: n/a
-- haiku_decomposition_used: n/a
-- haiku_decomposition_dispatch_count: n/a
-- haiku_decomposition_rework_needed: n/a
+- context_loading_task_type: Bug fix, single module
+- context_loading_consulted: no
+- context_loading_matched: no
+- flows_situation: verify a deploy-script change against the real dev stack
+- flows_chosen: activity-monitor.sh wrapping deploy-and-run.sh
+- flows_matched: yes
+- haiku_decomposition_used: yes
+- haiku_decomposition_dispatch_count: 1
+- haiku_decomposition_rework_needed: 0 / 1
 - adrs_referenced: none
+
+### Agent calls
+- remove the seaweedfs_was_running condition | subagent_type=general-purpose | tokens=84448 | tool_uses=5 | duration_s=32 | mode=background | batch=solo
+
+### Script/command runs
+- scripts/activity-monitor.sh -- bash scripts/deploy-and-run.sh | duration_s=157 | mode=background | result=pass

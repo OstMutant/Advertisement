@@ -223,9 +223,6 @@ start_infra() {
       -v "$DB_VOLUME":/var/lib/postgresql/data \
       postgres:15-alpine
 
-  local seaweedfs_was_running=false
-  docker container inspect "$SEAWEEDFS_CONTAINER" >/dev/null 2>&1 && seaweedfs_was_running=true
-
   ensure_running "$SEAWEEDFS_CONTAINER" \
     docker run -d --name "$SEAWEEDFS_CONTAINER" --network "$NETWORK" \
       -p "$SEAWEEDFS_PORT":9000 -p "$SEAWEEDFS_CONSOLE_PORT":9333 \
@@ -241,7 +238,7 @@ start_infra() {
 
   wait_for_db
   wait_for_seaweedfs
-  $seaweedfs_was_running || configure_seaweedfs
+  configure_seaweedfs
 }
 
 # ── Step 1: Infra ─────────────────────────────────────────────────────────────
