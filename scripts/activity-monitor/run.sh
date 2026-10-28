@@ -188,6 +188,7 @@ declare -A STEP_STATUS=()       # step id -> pending|running|ok|warn|error
 declare -A STEP_REASON=()       # step id -> short failure/warn reason, empty when ok
 declare -A STEP_POINTER=()      # step id -> where to look for detail, empty when ok
 declare -A STEP_COMPLETED_AT=() # step id -> epoch seconds, set once a step reaches ok/error/warn
+declare -A STEP_DURATION=()     # step id -> real duration in seconds supplied by the producer; unset when only wall-clock is known
 WRAPPER_START_TIME=0            # epoch seconds, set in main() right before spawning the command
 WRAPPER_END_TIME=0              # epoch seconds, set in main() once the wrapped command exits; 0 while still running
 LAST_ACTIVITY_AT=0              # epoch seconds of the last time raw.log actually grew
@@ -267,7 +268,7 @@ record_step_history() {
   local baseline="$WRAPPER_START_TIME"
   for id in $sequence; do
     [[ "${STEP_STATUS[$id]:-}" == "ok" ]] || break
-    echo -e "${id}\t$(( STEP_COMPLETED_AT[$id] - baseline ))" >> "$WORK_DIR/history.tsv"
+    echo -e "${id}\t$(step_duration_seconds "$id" "$baseline")" >> "$WORK_DIR/history.tsv"
     baseline="${STEP_COMPLETED_AT[$id]}"
   done
 }
@@ -297,7 +298,7 @@ format_duration() {
 }
 
 mark_step() {
-  local id="$1" status="$2" reason="${3:-}" pointer="${4:-}"
+  local id="$1" status="$2" reason="${3:-}" pointer="${4:-}" duration="${5:-}"
   local found=0
   for existing in "${STEP_ORDER[@]}"; do
     [[ "$existing" == "$id" ]] && found=1 && break
@@ -306,6 +307,9 @@ mark_step() {
   STEP_STATUS["$id"]="$status"
   STEP_REASON["$id"]="$reason"
   STEP_POINTER["$id"]="$pointer"
+  if [[ -n "$duration" ]]; then
+    STEP_DURATION["$id"]="$duration"
+  fi
   case "$status" in
     ok|error|warn|skipped) STEP_COMPLETED_AT["$id"]="$(date +%s)" ;;
   esac
@@ -322,10 +326,16 @@ step_icon() {
   esac
 }
 
+# A completed step's duration: the producer's real value when given, else completion time minus the baseline.
+step_duration_seconds() {
+  local id="$1" baseline="$2"
+  echo "${STEP_DURATION[$id]:-$(( STEP_COMPLETED_AT[$id] - baseline ))}"
+}
+
 # Renders one step line: icon, label, duration/elapsed/stall marker, reason, description, pointer.
 # $1 = step id, $2 = status to render as (lets the "current" step be shown as "running" even
 # before any marker has actually set it, per the declared SCRIPT_STEP_SEQUENCE), $3 = previous
-# step's completion time (or WRAPPER_START_TIME) -- the elapsed/duration baseline.
+# step's completion time (or WRAPPER_START_TIME) -- the elapsed/duration baseline (fallback when no real duration).
 render_step_line() {
   local id="$1" status="$2" baseline="$3"
   local icon label desc reason pointer
@@ -337,7 +347,7 @@ render_step_line() {
 
   local line="${icon} ${label}"
   if [[ -n "${STEP_COMPLETED_AT[$id]:-}" ]]; then
-    line+=" ($(format_duration $(( STEP_COMPLETED_AT[$id] - baseline ))))"
+    line+=" ($(format_duration "$(step_duration_seconds "$id" "$baseline")"))"
   elif [[ "$status" == "running" ]]; then
     local elapsed=$(( $(date +%s) - baseline ))
     line+=" (running $(format_duration "$elapsed"))"
@@ -372,6 +382,16 @@ render_step_line() {
 next_step_status() {
   [[ -n "${cmd_pid:-}" ]] && ! kill -0 "$cmd_pid" 2>/dev/null && { echo "pending"; return; }
   echo "running"
+}
+
+# A step that already completed keeps its real status even when its unit is still pending (a finished member of a running parallel group); otherwise the given fallback.
+member_render_status() {
+  local id="$1" fallback="$2"
+  if [[ -n "${STEP_COMPLETED_AT[$id]:-}" ]]; then
+    echo "${STEP_STATUS[$id]}"
+  else
+    echo "$fallback"
+  fi
 }
 
 # Builds the ordered list of render units for the current script: a "unit" is either one step id,
@@ -461,12 +481,12 @@ render_tree() {
       local next_status
       next_status="$(next_step_status)"
       for m in ${members[$u]}; do
-        out+="$(render_step_line "$m" "$next_status" "$baseline")"$'\n'
+        out+="$(render_step_line "$m" "$(member_render_status "$m" "$next_status")" "$baseline")"$'\n'
       done
       current_shown=1
     else
       for m in ${members[$u]}; do
-        out+="$(render_step_line "$m" "pending" "$baseline")"$'\n'
+        out+="$(render_step_line "$m" "$(member_render_status "$m" "pending")" "$baseline")"$'\n'
       done
     fi
   done

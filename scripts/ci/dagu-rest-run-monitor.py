@@ -35,7 +35,8 @@
 #   scripts/activity-monitor/run.sh's own generic silence-stall check doesn't fire during a long,
 #   healthy step with no container-state check of its own, e.g. sonar), plus a
 #   "Watching Dagu run <id>" line at the start and a "RUN <status> (Dagu run <id>)" line at the
-#   end for a human reading stdout directly.
+#   end for a human reading stdout directly. Success/error/skip blocks also carry stepDurationSeconds
+#   when Dagu reports both timestamps for the step.
 # Returns: 0 if the run's own final status is succeeded; 1 for any other terminal status
 #   (failed, partially_succeeded, cancelled), if no fresh run appears within
 #   FRESH_RUN_WAIT_SECONDS, or if the Dagu REST API fails MAX_CONSECUTIVE_FETCH_FAILURES polls in
@@ -43,10 +44,12 @@
 # ────────────────────────────────────────────────────────────────────────────
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime
 
 DAGU_UI_PORT = os.environ.get("DAGU_UI_PORT", "8082")
 BASE_URL = f"http://localhost:{DAGU_UI_PORT}/api/v1"
@@ -117,20 +120,33 @@ def await_fresh_run_id():
     return None
 
 
+def step_duration_seconds(node):
+    """Real duration of a Dagu node from its startedAt/finishedAt, or None when either is unset."""
+    try:
+        started, finished = (
+            datetime.fromisoformat(re.sub(r"(\.\d{6})\d+", r"\1", node[key]).replace("Z", "+00:00"))
+            for key in ("startedAt", "finishedAt")
+        )
+    except (KeyError, ValueError, TypeError):
+        return None
+    return max(0, int((finished - started).total_seconds()))
+
+
 # Same JSON shape scripts/utils/agentic-output.sh's own emit_agentic_success_block produces --
 # scripts/activity-monitor/profiles/agentic.sh's parser reads only "currentStep" out of this
-# (durationSeconds is carried for shape-completeness, not read by that parser -- real per-step
-# duration is computed by activity-monitor/run.sh itself from its own wall-clock timestamps).
-def emit_agentic_success_block(step):
+# stepDurationSeconds (optional) is the step's real duration from Dagu; run.sh prefers it over wall-clock.
+def emit_agentic_success_block(step, step_seconds=None):
     elapsed = int(time.monotonic() - START_TIME)
-    print(f'AGENTIC_SUCCESS_BLOCK: {{"status":"success","currentStep":"{step}","durationSeconds":{elapsed}}}')
+    extra = "" if step_seconds is None else f',"stepDurationSeconds":{step_seconds}'
+    print(f'AGENTIC_SUCCESS_BLOCK: {{"status":"success","currentStep":"{step}","durationSeconds":{elapsed}{extra}}}')
 
 
 # Same JSON shape scripts/utils/agentic-output.sh's own emit_agentic_error_block produces.
-def emit_agentic_error_block(step, description):
+def emit_agentic_error_block(step, description, step_seconds=None):
     elapsed = int(time.monotonic() - START_TIME)
+    extra = "" if step_seconds is None else f',"stepDurationSeconds":{step_seconds}'
     print(f'AGENTIC_ERROR_BLOCK: {{"status":"error","errorCategory":"business","isRetryable":false,'
-          f'"currentStep":"{step}","description":"{description}","durationSeconds":{elapsed}}}')
+          f'"currentStep":"{step}","description":"{description}","durationSeconds":{elapsed}{extra}}}')
 
 
 # A third marker, recognised only by scripts/activity-monitor/profiles/agentic.sh's own
@@ -138,9 +154,10 @@ def emit_agentic_error_block(step, description):
 # contract) -- a Dagu step whose own precondition wasn't met (e.g. a --unit-only run leaving
 # integration/e2e/sonar genuinely un-run, not failed) needs its own real status, not a fake
 # "succeeded" that would misrepresent what actually happened.
-def emit_agentic_skip_block(step):
+def emit_agentic_skip_block(step, step_seconds=None):
     elapsed = int(time.monotonic() - START_TIME)
-    print(f'AGENTIC_SKIP_BLOCK: {{"status":"skipped","currentStep":"{step}","durationSeconds":{elapsed}}}')
+    extra = "" if step_seconds is None else f',"stepDurationSeconds":{step_seconds}'
+    print(f'AGENTIC_SKIP_BLOCK: {{"status":"skipped","currentStep":"{step}","durationSeconds":{elapsed}{extra}}}')
 
 
 explicit_run_id = os.environ.get("DAGU_RUN_ID")
@@ -186,11 +203,11 @@ while True:
             last_status[name] = status
             changed = True
             if status == "succeeded":
-                emit_agentic_success_block(name)
+                emit_agentic_success_block(name, step_duration_seconds(node))
             elif status in TERMINAL_STATUSES:
-                emit_agentic_error_block(name, f"Dagu step \\\"{name}\\\" ended with status \\\"{status}\\\".")
+                emit_agentic_error_block(name, f"Dagu step \\\"{name}\\\" ended with status \\\"{status}\\\".", step_duration_seconds(node))
             elif status == "skipped":
-                emit_agentic_skip_block(name)
+                emit_agentic_skip_block(name, step_duration_seconds(node))
         if status not in NON_RUNNING_STEP_STATUSES:
             running_steps.append(f"{name} ({status})")
 

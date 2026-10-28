@@ -23,9 +23,10 @@
 # Env: none of its own -- reads run.sh's CURRENT_SCRIPT_NAME/STEP_LABELS/STEP_IS_CONTAINER/RAW_LOG.
 # Input: a redacted text batch (possibly multiple lines) from run.sh.
 # Outputs: calls run.sh's mark_step() for every recognised AGENTIC_SUCCESS_BLOCK/ERROR_BLOCK/
-#   SKIP_BLOCK line; sets run.sh's CONTEXT_LINE (one persistent tree.txt header line) from an
-#   AGENTIC_CONTEXT: line; for playwright.sh only, also updates run.sh's live PW_*/track_playwright_*
-#   per-test tally from Playwright's own list-reporter lines; silently ignores every other line.
+#   SKIP_BLOCK line (an optional stepDurationSeconds field is passed on to mark_step); sets run.sh's
+#   CONTEXT_LINE (one persistent tree.txt header line) from an AGENTIC_CONTEXT: line; for
+#   playwright.sh only, also updates run.sh's live PW_*/track_playwright_* per-test tally from
+#   Playwright's own list-reporter lines; silently ignores every other line.
 # Returns: 0 always -- this profile never falls back to the model, by design (see Description).
 # ────────────────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,12 @@
 extract_agentic_field() {
   local json="$1" field="$2"
   printf '%s' "$json" | sed -n "s/.*\"${field}\":\"\([^\"]*\)\".*/\1/p"
+}
+
+# Extracts one numeric field's value from this repo's own fixed-shape agentic JSON; empty when absent.
+extract_agentic_number() {
+  local json="$1" field="$2"
+  printf '%s' "$json" | sed -n "s/.*\"${field}\":\([0-9][0-9]*\).*/\1/p"
 }
 
 try_mechanical_format() {
@@ -47,16 +54,18 @@ try_mechanical_format() {
     case "$line" in
       AGENTIC_SUCCESS_BLOCK:*)
         local json="${line#AGENTIC_SUCCESS_BLOCK: }"
-        local step
+        local step seconds
         step="$(extract_agentic_field "$json" "currentStep")"
+        seconds="$(extract_agentic_number "$json" "stepDurationSeconds")"
         [[ -z "$step" ]] && continue
-        mark_step "$step" "ok" "" ""
+        mark_step "$step" "ok" "" "" "$seconds"
         ;;
       AGENTIC_ERROR_BLOCK:*)
         local json="${line#AGENTIC_ERROR_BLOCK: }"
-        local step description pointer container
+        local step description pointer container seconds
         step="$(extract_agentic_field "$json" "currentStep")"
         description="$(extract_agentic_field "$json" "description")"
+        seconds="$(extract_agentic_number "$json" "stepDurationSeconds")"
         [[ -z "$step" ]] && continue
         container="${STEP_IS_CONTAINER["$CURRENT_SCRIPT_NAME:$step"]:-}"
         if [[ -n "$container" ]]; then
@@ -64,14 +73,15 @@ try_mechanical_format() {
         else
           pointer="$RAW_LOG"
         fi
-        mark_step "$step" "error" "$description" "$pointer"
+        mark_step "$step" "error" "$description" "$pointer" "$seconds"
         ;;
       AGENTIC_SKIP_BLOCK:*)
         local json="${line#AGENTIC_SKIP_BLOCK: }"
-        local step
+        local step seconds
         step="$(extract_agentic_field "$json" "currentStep")"
+        seconds="$(extract_agentic_number "$json" "stepDurationSeconds")"
         [[ -z "$step" ]] && continue
-        mark_step "$step" "skipped" "" ""
+        mark_step "$step" "skipped" "" "" "$seconds"
         ;;
       AGENTIC_CONTEXT:*)
         # One persistent header line for tree.txt -- e.g. dagu-rest-run-monitor.py emitting the
