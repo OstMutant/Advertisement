@@ -1,4 +1,4 @@
-# improvement-186: REST API hypermedia (HATEOAS/HAL) action-discovery, advertisement media sub-resource, and project-wide PATCH support
+# improvement-186: REST API project-wide PATCH support (media sub-resource done; hypermedia moved to improvement-230)
 
 **Type:** improvement (design-and-implementation bundle, carved out of `improvement-183` item 9 —
 "media/photo upload for advertisements via REST" — once exploring that one ask grew into three
@@ -8,11 +8,7 @@ discoverability)
 attachment-spring-boot-starter, marketplace-app, provider-profile-spring-boot-starter,
 user-spring-boot-starter, taxon-spring-boot-starter
 **Priority:** high (user-requested top-of-backlog placement, 2026-09-12)
-**When:** independent, no blockers for items 1-2 below. Item 3's pagination-in-body sub-question
-explicitly revisits `marketplace-app/DECISIONS.md` ADR-080's pagination decision — that specific
-piece needs its own explicit go-ahead before any ADR edit, per this repo's standing rule that a
-decision reversal is a deliberate, separately-approved act, not a side effect of implementing the
-rest of this issue.
+**When:** independent, no blockers. The hypermedia part (former item 3) moved to [improvement-230](improvement-230-rest-hypermedia-decision.md) on 2026-10-28; the media part was done in improvement-213 phase 7; the Basic-auth part in improvement-213 phase 2.
 
 ## Current state (verified against real code, 2026-09-12)
 
@@ -156,33 +152,9 @@ its own real cost today:
   what the existing `ETag`/`If-Match` optimistic-locking flow already assumes: full state resent
   each time).
 
-### 3. Hypermedia (HAL-style) action-discovery links — new, additive, does not touch existing responses' current fields
+### 3. Hypermedia — moved to improvement-230
 
-- Single-resource responses (`AdvertisementInfoDto`, `ProviderProfileDto`, etc. — `GET .../{id}`,
-  and the body returned by `create()`/`update()`) gain a HAL-shaped `_links` map
-  (`{"rel": {"href": ..., "method": ...}}`), built conditionally per-actor: `self` always present;
-  `edit`/`delete`/`media` present only when `AuthorizationService.canOperate(actorId,
-  ad.getOwnerUserId())` is true for that caller. Hand-rolled (a plain `Map<String, Link>` field,
-  populated explicitly in each enrichment step) rather than adopting the Spring HATEOAS library —
-  consistent with ADR-080's own stated reasoning for rejecting that dependency elsewhere in this
-  same API, and avoids the documented springdoc/Spring-HATEOAS schema-timing mismatch (build-time
-  vs. request-time serialization) that makes the two awkward to combine.
-- New `GET /api/me` entry point: returns the authenticated actor's own top-level available actions
-  by role (`createAdvertisement`, `createProviderProfile`; `listUsers` only for admin/moderator;
-  etc.) — the "log in, see your own menu" entry point into the hypermedia graph, fully additive, no
-  change to any existing endpoint.
-- Integrate [swagger-hal-navigator](https://github.com/mpietrewicz/swagger-hal-navigator) into the
-  existing springdoc/Swagger UI setup once responses carry real `_links`, so a link in an actual
-  response body becomes clickable in Swagger UI and pre-fills the next operation's parameters —
-  confirmed to require only an already-working Swagger UI + OpenAPI doc (already true here) and
-  HAL-shaped links (the shape item 3 above already commits to).
-- **Deliberately out of scope for this item, pending its own separate approval:** embedding
-  pagination navigation (`_links.next`/`.prev`) inside list-endpoint response bodies. Doing so
-  requires wrapping today's plain-array list response in an envelope object — exactly what
-  `marketplace-app/DECISIONS.md` ADR-080 already explicitly rejected for pagination, for a stated
-  reason (breaks the existing flat-array shape). Revisiting that specific decision, if wanted, needs
-  its own explicit go-ahead and — if approved — an ADR edit via `/record-decision` marking ADR-080's
-  pagination portion superseded, not a silent side effect of doing the rest of this issue's items.
+Moved on 2026-10-28: whether HAL `_links` and a `GET /api/me` entry point are needed is decided from the evidence of the MCP trial, see [improvement-230](improvement-230-rest-hypermedia-decision.md). The design drafted here (per-actor `_links`, `GET /api/me`, `swagger-hal-navigator`, pagination links in list bodies left out because they would reverse the pagination decision) is carried over there.
 
 ### 4. and 5. HTTP Basic hardening — moved to improvement-213 phase 2
 
@@ -201,3 +173,4 @@ The Basic-auth brute-force gap on `POST /api/api-keys` and the 500 returned when
 - `attachment-spring-boot-starter/README.md`/`DECISIONS.md` — `AttachmentPort`'s existing
   generic-by-`EntityType` design (ADR-003 there) is exactly what makes item 1 above possible with no
   starter changes.
+- [improvement-230](improvement-230-rest-hypermedia-decision.md) — the hypermedia decision carved out of this task

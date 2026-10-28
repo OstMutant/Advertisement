@@ -31,7 +31,7 @@ A recorded, run-backed answer to those five points, so the MCP module (or genera
 1. Decide where a standalone server can run under the repository's script rules: a temporary reactor module started by a project script, or a script option added for it. Raw `docker run` is blocked by the hook and is not the way.
 2. Run the trial server with the two tools; drive it from MCP Inspector over Streamable HTTP with a bearer token (check `--help` of the installed version first). Record, with the server response for each: the endpoint works; the token reaches the REST call; `X-Total-Count` and `Link` end up in the tool result; tool names equal the `operationId`s; what a request without a token returns.
 3. Try `mcp-server-security` against Boot 4.1 only if step 2 shows the pass-through needs it; record whether it starts at all.
-4. Record the recommendation: sibling module vs generated, the operation filter (administrative and destructive operations, `/health`, `/sitemap.xml` excluded), securing, paging approach, the note that page size comes from the caller's saved settings, and the rate-limiting dependency.
+4. Record the recommendation: sibling module vs generated, the operation filter (administrative and destructive operations, `/health`, `/sitemap.xml` excluded), securing, paging approach, the note that page size comes from the caller's saved settings, and the rate-limiting dependency. Also record whether the agent lacked a hint about which actions were available on a resource (input for improvement-230).
 5. Clean up: the trial user `mcp.trial.*@example.com` and its API key in the dev database, the local Docker image `mcp-trial-img`, and the scratchpad project.
 
 ## Related
@@ -39,6 +39,7 @@ A recorded, run-backed answer to those five points, so the MCP module (or genera
 - [improvement-211](../completed/tasks/improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — parent investigation, items 1–2 done, this is its item 3
 - [improvement-196](improvement-196-rest-api-rate-limiting.md) — rate limiting, more pressing once an agent calls the API in a loop
 - [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — hypermedia and PATCH, affects what an agent sees
+- [improvement-230](improvement-230-rest-hypermedia-decision.md) — the hypermedia decision that waits for this trial's finding
 
 ## Operational notes
 - token_cost_review: n/a
