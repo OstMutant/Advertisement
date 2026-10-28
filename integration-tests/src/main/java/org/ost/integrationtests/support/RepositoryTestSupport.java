@@ -7,6 +7,7 @@ import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.providerprofile.spi.ProviderProfilePort;
+import org.ost.platform.user.spi.UserPort;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -21,7 +22,8 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
  * {@link MutableAuditorAware} or the empty {@link ComponentFactory} beans per test class.
  *
  * <p>The empty {@code ComponentFactory<AuditPort>}/{@code ComponentFactory<AttachmentPort>}/
- * {@code ComponentFactory<AdvertisementPort>}/{@code ComponentFactory<ProviderProfilePort>} beans
+ * {@code ComponentFactory<AdvertisementPort>}/{@code ComponentFactory<ProviderProfilePort>}/
+ * {@code ComponentFactory<UserPort>} beans
  * represent those starters being absent from the test classpath — the same "optional starter"
  * shape services see in production via {@code ObjectProvider}, not a stub. Domain starters whose
  * services depend on additional optional ports (e.g. {@code TaxonPort}) must add their own empty
@@ -67,7 +69,9 @@ public class RepositoryTestSupport {
         return new MutableAuditorAware();
     }
 
+    // @ConditionalOnMissingBean: a test that also includes the real AuditAutoConfiguration (e.g. a Level 3 REST scenario) already provides this bean.
     @Bean
+    @ConditionalOnMissingBean
     public ComponentFactory<AuditPort> auditPortFactory(ObjectProvider<AuditPort> provider) {
         return new ComponentFactory<>(provider);
     }
@@ -90,6 +94,13 @@ public class RepositoryTestSupport {
     @Bean
     @ConditionalOnMissingBean
     public ComponentFactory<ProviderProfilePort> providerProfilePortFactory(ObjectProvider<ProviderProfilePort> provider) {
+        return new ComponentFactory<>(provider);
+    }
+
+    // @ConditionalOnMissingBean: a test that also includes the real UserAutoConfiguration already provides this bean.
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<UserPort> userPortFactory(ObjectProvider<UserPort> provider) {
         return new ComponentFactory<>(provider);
     }
 

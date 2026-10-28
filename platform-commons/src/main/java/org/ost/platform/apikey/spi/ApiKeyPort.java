@@ -16,7 +16,8 @@ public interface ApiKeyPort {
 
     Optional<Long> resolveActorId(@NonNull String rawKey);
 
-    List<ApiKeySummaryDto> listForActor(@NonNull Long actorId);
+    /** Returns the actor's keys; revoked keys are included only when {@code includeRevoked} is true. */
+    List<ApiKeySummaryDto> listForActor(@NonNull Long actorId, boolean includeRevoked);
 
     void revoke(@NonNull Long actorId, @NonNull Long keyId);
 

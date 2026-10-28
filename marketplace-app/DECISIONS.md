@@ -2,6 +2,48 @@
 
 ---
 
+## ADR-088: API keys tab in the account overlay — own keys only, revoked keys behind a toggle, revoke behind a confirmation, no audit entry
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** apikey-spring-boot-starter
+
+**Context:** API keys could be issued, listed and revoked only through the REST API. A user who issued keys through Swagger or a script could not see which keys exist, which are still used, or remove forgotten ones without calling REST by hand. `AccountOverlay` (ADR-074) already carries per-account sections, and ADR-087 deferred an audit log of key issuance and failures.
+
+**Decision:** `AccountOverlay` gets a fourth section, "API keys" (`ApiKeysViewModeHandler`), built like the Provider Profile section.
+- Own keys only: the tab exists only on the signed-in user's own account (not when an administrator or moderator opens someone else's) and only when the API-key module is present (`ApiKeyManagementService.isAvailable()`). The handler never takes a user id from outside; it always uses `AccessEvaluator.getCurrentUserId()`, and the revoke query is limited to the owner in the database.
+- The list shows label (or "Unnamed key"), the first 10 characters of the key and "...", created, last used, status and a revoke button; newest first, created and last used sortable, no paging, fixed height with scrolling. No key value or hash ever reaches the UI.
+- Revoked keys are hidden until "Show revoked keys" is ticked; a revoked row has no revoke button.
+- Revoking asks first through `ConfirmActionDialog`: the text names the key, says that clients get 401 Unauthorized from their next request and that it cannot be undone. A key already revoked or deleted meanwhile gives a message and a reload.
+- No audit entry (a revoke over REST writes none either). One INFO log line in `ApiKeyService.revoke` (actor id and key id, never the key, its hash or its prefix) covers REST and the app; it is a log line, not the audit log ADR-087 deferred.
+- Issuing a key in the UI stays out of scope.
+
+**Rejected alternatives:** A main tab or a separate header button and overlay: main tabs are catalogs and admin lists, and a separate overlay needs more classes for one list. An administrator read-only list or an administrator revoke: needs a new permission rule and a port change. Always showing revoked keys: revoked rows are never deleted, so the list would only grow. Paging: the service returns the whole list with no count and a user has few keys. A typed confirmation: meant for deleting a whole account, too heavy for one key. A full audit timeline entry: a new entity type, deferred with the rest of the key audit log.
+
+**Consequences:** The REST API is unchanged (no new endpoint, port or schema). The level 3 test that a foreign key cannot be revoked also checks that the owner's key keeps working. The API-key module's rules and README no longer say it is never touched by the UI.
+
+---
+
+## ADR-087: External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit
+
+**Status:** Accepted
+
+**Applied:** 2
+
+**Also affects:** marketplace-rest-api
+
+**Context:** The external REST API had one security chain for `/api/**` with HTTP Basic enabled everywhere. Basic authenticates the request with an `AuthenticatedPrincipal`, while every bearer-only controller method takes `@AuthenticationPrincipal Long actorId`, so a Basic request to such an endpoint reached the controller with a null id and ended as a 500 instead of a 401. In the other direction a Bearer request to the key-issuance endpoint left its `AuthenticatedPrincipal` null. Each 401 also carried a Basic challenge, which makes browsers open their login prompt and keep sending the credentials (seen in Swagger UI). No test sent the wrong kind of credential to an endpoint, and guessing passwords at the Basic key-issuance endpoint was not limited, unlike the UI login.
+
+**Decision:** Two chains in `ApiSecurityConfig`. The first, `@Order(1)`, matches only `POST /api/api-keys`, accepts HTTP Basic, and keeps the Basic challenge. The second, `@Order(2)`, matches `/api/**`, has no Basic, keeps the bearer-key filter and the public read rules, and answers an unauthenticated request with 401 and a Bearer challenge (`realm="api"`, plus `error="invalid_token"` when a bearer header was sent but failed, per RFC 6750). A Basic header on those endpoints is ignored, so the request is anonymous and answered 401. In front of Basic on the key-issuance chain, `BasicLoginRateLimitFilter` counts failed logins in the existing in-memory `FailureRateLimiter`: one counter per client address and normalised email, 5 failures in 15 minutes, a success clears it, and a blocked caller gets 429 with `Retry-After` before the credentials are checked again.
+
+**Rejected alternatives:** One chain with Basic kept and a custom entry point: Basic would still authenticate every path, so the principal-type mismatch would remain. A request-rate library (Bucket4j, Resilience4j, Guava): they count requests, not failed logins, and cannot know the outcome before consuming; the existing limiter already is the failure counter. Three counters (address and email, email, address): more moving parts than this size needs; the accepted limits are that a changed address gives a fresh counter and that any lockout can delay a victim's key issuance, never their bearer-key requests. A 401 without any challenge header: HTTP requires a challenge on 401.
+
+**Consequences:** Deferred, not decided here: equal response time for an unknown email and a wrong password, an audit log of key issuance and failures, HTTPS on the key endpoint, trusted-proxy configuration for the client address once a reverse proxy exists, progressive lockout, and API-key hygiene (expiry, last use, per-user cap).
+
+---
+
 ## ADR-086: `AbstractEntityOverlay.applyFreshOrFallback` — defined fallback for a post-save refetch that races a concurrent delete; skip the refetch where a caller doesn't need fresh data
 
 **Status:** Accepted
@@ -170,7 +212,7 @@ pair, the view-mode-handler pair, and the form-mode-handler pair.
   the City/Category create/edit/delete/restore/discard scenarios in spec 03. One step-3 run hit an
   infra-level SIGKILL (exit 137, `pw-runner` container itself exited 0, no OOM) unrelated to the
   code — confirmed via a clean retry.
-- `/review` (`deep-review-orchestrator`) found no SOLID violations across all four steps and
+- `/deep-review` (`deep-review-orchestrator`) found no SOLID violations across all four steps and
   confirmed no missed or incorrect renames; one KISS finding (the intersection-type generic
   `getOverlay()` signature, step 1) reviewed and kept as-is, consistent with ADR-082's own
   cast-avoidance precedent. Step 2's review surfaced one pre-existing, unrelated finding
@@ -433,7 +475,7 @@ implicit" principle.
   `PageLinkHeaderBuilder`/`PagedResponseBuilder` unit tests plus extended controller tests),
   integration 186/186 (3 new `TaxonRepository` pagination/count tests against real Postgres),
   `ArchitectureRulesTest` 20/20 unaffected.
-- A `/review` pass (`deep-review-orchestrator`) found and fixed one real DRY violation during this
+- A `/deep-review` pass (`deep-review-orchestrator`) found and fixed one real DRY violation during this
   same implementation: the three controllers' `list()` methods duplicated the same 7-statement
   response-assembly sequence verbatim — extracted into `PagedResponseBuilder` before this ADR was
   written, so the shape described above already reflects the deduplicated version, not the
@@ -3206,6 +3248,8 @@ the intent.
 
 **Status:** Accepted
 
+**Applied:** 1
+
 **Context:** ADR-067 anticipated this batch as "the future Account overlay" while designing the
 stacked-history-overlay mechanism it now reuses. Separately, once Name/Settings/Provider Profile
 sections were planned to live side by side in one overlay, an inconsistency became visible: only
@@ -3297,11 +3341,11 @@ batch is that same pattern applied to Provider Profile, not a new design.
   only under `AccessEvaluator.canEditUserAccount()`. The shared confirm-dialog-plus-delete-call
   logic is factored into one `ProviderProfileDeleteUtil.confirmAndDelete()` static helper
   (`ui/views/utils`-style, reused by both call sites) rather than duplicated, found and fixed during
-  this batch's own `/review` pass.
+  this batch's own `/deep-review` pass.
 - `MainView`'s new Providers tab is gated on `providerProfileReadService.isAvailable()`, matching
   the existing Reference Data tab's `taxonCatalogService.isAvailable()` gate for the same kind of
   optional-starter (`provider-profile-spring-boot-starter` is `<scope>runtime</scope>`) —
-  found and fixed during this batch's own `/review` pass; the tab would otherwise render
+  found and fixed during this batch's own `/deep-review` pass; the tab would otherwise render
   permanently empty instead of disappearing if the starter is ever excluded from the classpath.
 
 **Consequences:** Playwright's `04-provider-profile-flow.spec.js` gained public-catalog coverage

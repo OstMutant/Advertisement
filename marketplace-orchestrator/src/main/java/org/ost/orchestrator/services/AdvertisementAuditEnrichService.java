@@ -2,7 +2,6 @@ package org.ost.orchestrator.services;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.orchestrator.spi.CurrentLocaleHook;
 import org.ost.orchestrator.spi.UiLabelHook;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
@@ -24,13 +23,14 @@ import java.util.stream.Collectors;
 
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 
+/** Resolves category/city ids and {@code AdKind} into display labels and merges attachment media changes into advertisement audit timeline and activity entries. */
 @Service
 @RequiredArgsConstructor
 public class AdvertisementAuditEnrichService {
 
     private final AttachmentMediaService attachmentMediaService;
     private final TaxonLookupService      taxonLookupService;
-    private final CurrentLocaleHook currentLocaleHook;
+    private final CurrentLocaleService    currentLocaleService;
     private final UiLabelHook       uiLabelHook;
 
     public List<AuditTimelineItemDto<AdvertisementSnapshotDto>> mergeMediaChanges(
@@ -195,7 +195,7 @@ public class AdvertisementAuditEnrichService {
 
     private Map<Long, String> resolveNames(Set<Long> ids) {
         if (ids.isEmpty()) return Map.of();
-        return taxonLookupService.findByIds(ids, currentLocaleHook.getCurrentLocale())
+        return taxonLookupService.findByIds(ids, currentLocaleService.getCurrentLocale())
                 .entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> nameOrStrikethrough(e.getValue())));
     }

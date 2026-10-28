@@ -109,7 +109,6 @@ public abstract class AbstractTaxonFormOverlayModeHandler<T extends EditDto> ext
         historyBtn.addClickListener(_ -> getEntityActivityOverlay().openFor(EntityActivityOverlay.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.TAXON, params.entity().getId()))
                 .userId(getAccess().getCurrentUserId())
-                .isPrivileged(getAccess().isPrivileged())
                 .canOperate(getAccess().isPrivileged())
                 .parentSteps(params.breadcrumbSteps())
                 .parentFormLabel(getValue(getLabels().titleEdit()))
@@ -145,7 +144,7 @@ public abstract class AbstractTaxonFormOverlayModeHandler<T extends EditDto> ext
     }
 
     private void handleRestoreFromActivity(long snapshotId) {
-        getAuditQueryService().getSnapshotContent(snapshotId, EntityType.TAXON, TaxonSnapshotDto.class)
+        getAuditQueryService().getSnapshotContent(getAccess().getCurrentUserId(), params.entity().getId(), snapshotId, EntityType.TAXON, TaxonSnapshotDto.class)
                 .ifPresent(content -> {
                     TaxonSnapshotDto snapshot = content.snapshotData();
                     T dto = newDto();

@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.ost.orchestrator.spi.CurrentLocaleHook;
 import org.ost.orchestrator.spi.UiLabelHook;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
@@ -39,18 +38,18 @@ class AdvertisementAuditEnrichServiceTest {
 
     @Mock private AttachmentMediaService attachmentMediaService;
     @Mock private TaxonLookupService taxonLookupService;
-    @Mock private CurrentLocaleHook currentLocaleHook;
+    @Mock private CurrentLocaleService currentLocaleService;
     @Mock private UiLabelHook uiLabelHook;
 
     private AdvertisementAuditEnrichService service;
 
     @BeforeEach
     void setUp() {
-        lenient().when(currentLocaleHook.getCurrentLocale()).thenReturn(Locale.ENGLISH);
+        lenient().when(currentLocaleService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
         lenient().when(uiLabelHook.labelFor(AdKind.OFFER)).thenReturn("Offer");
         lenient().when(uiLabelHook.labelFor(AdKind.PRODUCT)).thenReturn("Product");
         lenient().when(uiLabelHook.noMediaPlaceholder()).thenReturn("—");
-        service = new AdvertisementAuditEnrichService(attachmentMediaService, taxonLookupService, currentLocaleHook, uiLabelHook);
+        service = new AdvertisementAuditEnrichService(attachmentMediaService, taxonLookupService, currentLocaleService, uiLabelHook);
     }
 
     private static TaxonDto taxon(Long id, String name) {

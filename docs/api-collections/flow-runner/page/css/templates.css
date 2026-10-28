@@ -1,0 +1,54 @@
+#templates {
+  margin: 12px 0;
+  font-family: system-ui, sans-serif;
+}
+
+#templates .template-line {
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+#templates .template-buttons,
+#templates .template-actions,
+#templates .template-saving {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0;
+}
+
+#templates .template-buttons {
+  gap: 4px;
+  border-bottom: 1px solid #80868b;
+}
+
+#templates .template button[role="tab"] {
+  padding: 6px 14px;
+  font: inherit;
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+}
+
+#templates .template button[role="tab"][aria-selected="true"] {
+  font-weight: 600;
+  border-bottom-color: #1a73e8;
+}
+
+#templates .template .delete {
+  padding: 0 6px;
+}
+
+#templates textarea {
+  width: 100%;
+  min-height: 110px;
+  box-sizing: border-box;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+#templates .msg.bad {
+  color: #d93025;
+}

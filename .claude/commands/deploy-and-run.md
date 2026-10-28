@@ -9,7 +9,7 @@ Steps:
    ```
    bash scripts/activity-monitor.sh -- bash scripts/deploy-and-run.sh
    ```
-   Optional flags: `--reset` to wipe DB/MinIO volumes, `--restart-infra` to restart containers only, `--reset-only-db` to truncate app tables, `--from-scratch` to build fully isolated instead of reusing build-and-test.sh.
+   Optional flags: `--reset` to wipe DB/SeaweedFS volumes, `--restart-infra` to restart containers only, `--reset-only-db` to truncate app tables, `--from-scratch` to build fully isolated instead of reusing build-and-test.sh, `--dev-tools` to serve the developer-only API flow runner page.
 3. After deploy completes — call TaskStop on the monitor task if not already stopped.
 4. Report success and confirm the app is ready (on failure, read
    /tmp/activity-monitor/deploy-and-run.sh/raw.log, or `docker logs marketplace-app` for a

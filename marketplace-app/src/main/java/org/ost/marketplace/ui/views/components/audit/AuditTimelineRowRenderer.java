@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-/** {@link #labelFor} is the single canonical field-name-to-label mapping for the audit timeline. */
+/** Renders audit timeline rows with entity/action/time/field-change labels. */
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
@@ -174,6 +174,8 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
                 case SettingsSnapshotDto.Fields.usersPageSize            -> I18nKey.CHANGES_SETTING_USERS_PAGE_SIZE;
                 case SettingsSnapshotDto.Fields.timelinePageSize         -> I18nKey.CHANGES_SETTING_TIMELINE_PAGE_SIZE;
                 case SettingsSnapshotDto.Fields.providerProfilesPageSize -> I18nKey.CHANGES_SETTING_PROVIDER_PROFILES_PAGE_SIZE;
+                case SettingsSnapshotDto.Fields.feedbackPageSize         -> I18nKey.CHANGES_SETTING_FEEDBACK_PAGE_SIZE;
+                case SettingsSnapshotDto.Fields.moderationPageSize       -> I18nKey.CHANGES_SETTING_MODERATION_PAGE_SIZE;
                 default                                                  -> null;
             };
             case PROVIDER_PROFILE -> switch (rawFieldKey) {
@@ -181,6 +183,9 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
                 case ProviderProfileSnapshotDto.Fields.about       -> I18nKey.CHANGES_FIELD_ABOUT;
                 case ProviderProfileSnapshotDto.Fields.categoryIds -> I18nKey.CHANGES_FIELD_CATEGORY;
                 case ProviderProfileSnapshotDto.Fields.cityTaxonId -> I18nKey.CHANGES_FIELD_CITY;
+                case ProviderProfileSnapshotDto.Fields.phone       -> I18nKey.CHANGES_FIELD_PHONE;
+                case ProviderProfileSnapshotDto.Fields.telegram    -> I18nKey.CHANGES_FIELD_TELEGRAM;
+                case ProviderProfileSnapshotDto.Fields.viber       -> I18nKey.CHANGES_FIELD_VIBER;
                 default                                            -> null;
             };
             default -> null;

@@ -5,7 +5,7 @@
  *   call, a real silent test-failure mode this suite has no other guard against).
  *   playwright/expect-expect is reconfigured (not disabled) via assertFunctionPatterns -- this
  *   suite deliberately delegates real assertions into helper functions prefixed assert-, verify-,
- *   or suffixed -Flow (see playwright/CLAUDE.md's helper-organization rules) -- plus a third
+ *   or suffixed -Flow (see .claude/rules/playwright.md's helper-organization rules) -- plus a third
  *   suffixed -ViaApi (seed-data helpers that throw on a non-ok HTTP response instead of calling
  *   expect() directly) -- which the rule's own default (a direct expect() call inside the test
  *   body only) cannot see into, producing false positives on nearly every test in this suite
@@ -16,6 +16,9 @@
  *   never on live page state read mid-test -- the actual non-determinism this rule exists to
  *   catch. playwright/no-skipped-test is disabled -- every skip in this suite is the documented
  *   `test.skip(!process.env.PW_FULL, reason)` --full feature-gate, not a forgotten/broken test.
+ *   playwright/no-raw-locators is a warning that counts the locators left without a role, name or test id
+ *   (layout containers, card parts, feed rows); the lint run fails when the warning total exceeds
+ *   PW_LINT_MAX_WARNINGS in the repo-root .env, so that count can only go down.
  * Usage: npx eslint . (run from /tmp inside pw-runner, via playwright/run.sh --lint).
  * Uses: eslint, eslint-plugin-playwright.
  * Env: None.
@@ -37,6 +40,7 @@ module.exports = [
       'playwright/expect-expect': ['warn', { assertFunctionPatterns: ['^assert', '^verify', '^run.*Flow$', '.*ViaApi$'] }],
       'playwright/no-conditional-in-test': 'off',
       'playwright/no-skipped-test': 'off',
+      'playwright/no-raw-locators': 'warn',
     },
   },
   {

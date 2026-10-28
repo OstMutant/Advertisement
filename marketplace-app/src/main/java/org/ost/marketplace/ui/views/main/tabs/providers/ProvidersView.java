@@ -9,6 +9,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.validation.ConstraintViolationException;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.services.i18n.I18nService;
@@ -84,14 +85,26 @@ public class ProvidersView extends VerticalLayout {
         refresh();
     }
 
+    // MainView calls this on every tab select -- tabs only toggle visibility, never re-fetch on their own.
+    public void refreshOnTabSelect() {
+        refresh();
+    }
+
     public boolean openPendingDeepLinkIfAny() {
         PendingProviderProfileDeepLink pending = VaadinSession.getCurrent().getAttribute(PendingProviderProfileDeepLink.class);
         if (pending == null) return false;
         VaadinSession.getCurrent().setAttribute(PendingProviderProfileDeepLink.class, null);
-        return providerProfileReadService.findById(pending.providerId())
+        return openProfileOverlay(pending.providerId(), () -> {});
+    }
+
+    /** Opens the given provider profile's view overlay directly (not via a deep-link URL) -- shared by
+     *  {@link #openPendingDeepLinkIfAny} and by other views (e.g. ModerationView) that need to open a
+     *  profile overlay from within an already-running session, with their own {@code onClose} behavior. */
+    public boolean openProfileOverlay(@NonNull Long providerId, @NonNull Runnable onClose) {
+        return providerProfileReadService.findById(providerId)
                 .map(this::enrichSingle)
                 .map(profile -> {
-                    overlay.openForView(profile, this::refresh, () -> {});
+                    overlay.openForView(profile, this::refresh, onClose);
                     return true;
                 })
                 .orElse(false);

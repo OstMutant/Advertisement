@@ -4,8 +4,6 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.taxon.model.TaxonType;
-import org.ost.query.filter.SqlBoundFilter;
-import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
 import org.ost.query.sort.SortField;
@@ -22,9 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
-import static org.ost.query.filter.SqlCondition.like;
-import static org.ost.taxon.repository.TaxonFilter.Fields.*;
 
 /** Bespoke {@code JdbcClient} queries for {@code taxon} (soft-delete-aware filtering/sorting); trivial CRUD delegates to {@link TaxonCrudRepository}. */
 @Repository
@@ -51,10 +46,6 @@ public class TaxonRepository {
                     .build();
     };
 
-    private static final SqlFilterBuilder<TaxonFilter> FILTER = new SqlFilterBuilder<>(List.of(
-            SqlBoundFilter.of(name, "tt.name", (m, f) -> like(m, f.name()))
-    ));
-
     private static final List<SortField> SORT_FIELDS = List.of(
             SortField.of(Taxon.Fields.id,        "t.id"),
             SortField.of(Taxon.Fields.createdAt, "t.created_at", SortField.of(Taxon.Fields.id, "t.id")),
@@ -77,16 +68,14 @@ public class TaxonRepository {
 
     public List<Taxon> findAllByType(@NonNull TaxonType type, @NonNull TaxonFilter filter, @NonNull Pageable pageable) {
         var    params  = new MapSqlParameterSource().addValue("type", type.name());
-        String dynamic = FILTER.build(params, filter, " AND ");
         String deleted = filter.showDeleted() ? "" : " AND t.deleted_at IS NULL";
         String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_FIELDS);
         return jdbcClient.sql("""
                         SELECT t.id, t.type, t.code, t.deleted_at, t.deleted_by, t.created_at, t.updated_at,
                                t.created_by, t.updated_by, t.version
                         FROM taxon t
-                        LEFT JOIN taxon_translation tt ON tt.taxon_id = t.id AND tt.locale = 'en'
                         WHERE t.type = :type
-                        """ + deleted + dynamic + " " + orderBy + PaginationSqlBuilder.pageLimit(params, pageable))
+                        """ + deleted + " " + orderBy + PaginationSqlBuilder.pageLimit(params, pageable))
                          .paramSource(params)
                          .query(ROW_MAPPER)
                          .list();

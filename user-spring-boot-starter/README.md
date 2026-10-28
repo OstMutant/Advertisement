@@ -20,8 +20,7 @@ Spring Security principal construction, exposed to the rest of the reactor as na
 - Per-actor settings (page sizes) and locale, stored separately from the account row, with
   change-event dispatch via `UserSettingsChangedHook`.
 - **SPI implementations:** `UserPort`, `UserAccountPort`, `UserAuthorizationPort`,
-  `UserPreferencesPort` (called by `marketplace-orchestrator`'s `ActorLookupService`,
-  `AuthorizationService`, `EntityExistenceService`, `UserDeleteService`, `UserProfileService`),
+  `UserPreferencesPort` (called by `marketplace-orchestrator`'s `UserProfileService`),
   plus `AuthenticatedPrincipal` (called by `marketplace-app`'s `AuthContextService` and
   `marketplace-rest-api`'s `ApiKeyController`).
 

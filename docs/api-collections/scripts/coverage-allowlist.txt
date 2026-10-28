@@ -1,0 +1,2 @@
+# One entry per line: operationId # reason. An entry fails the check once its operation is in the Postman collection or no longer exists.
+# Entries are gaps to close, never permanent exceptions.

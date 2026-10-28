@@ -57,7 +57,11 @@ public class UserProfileService {
         return preferencesPort.loadSettings(userId);
     }
 
-    public void saveSettings(@NonNull Long userId, @NonNull UserSettingsDto settings) {
+    /** Page-size settings are personal: only the user themselves may save them. */
+    public void saveSettings(@NonNull Long actingUserId, @NonNull Long userId, @NonNull UserSettingsDto settings) {
+        if (!actingUserId.equals(userId)) {
+            throw new AccessDeniedException("User " + actingUserId + " may not change the settings of user " + userId);
+        }
         preferencesPort.saveSettings(userId, settings);
     }
 
@@ -74,6 +78,21 @@ public class UserProfileService {
     /** Effective page size for a provider profiles list — same resolution as {@link #resolveAdsPageSize}. */
     public int resolveProviderProfilesPageSize(Long actorId) {
         return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getProviderProfilesPageSize();
+    }
+
+    /** Effective page size for the audit timeline — same resolution as {@link #resolveAdsPageSize}. */
+    public int resolveTimelinePageSize(Long actorId) {
+        return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getTimelinePageSize();
+    }
+
+    /** Effective page size for a feedback list — same resolution as {@link #resolveAdsPageSize}. */
+    public int resolveFeedbackPageSize(Long actorId) {
+        return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getFeedbackPageSize();
+    }
+
+    /** Effective page size for the moderation queue — same resolution as {@link #resolveAdsPageSize}. */
+    public int resolveModerationPageSize(Long actorId) {
+        return actorId == null ? PageSizeLimits.DEFAULT_PAGE_SIZE : loadSettings(actorId).getModerationPageSize();
     }
 
     public List<UserDto> getFiltered(@NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
@@ -98,6 +117,11 @@ public class UserProfileService {
 
     public void updateLocale(@NonNull Long userId, @NonNull String locale) {
         preferencesPort.updateLocale(userId, locale);
+    }
+
+    /** The user's saved UI language tag, empty when none was ever chosen. */
+    public Optional<String> findLocale(@NonNull Long userId) {
+        return preferencesPort.findLocale(userId);
     }
 
     public void refreshCurrentUserInContext(@NonNull Long userId) {

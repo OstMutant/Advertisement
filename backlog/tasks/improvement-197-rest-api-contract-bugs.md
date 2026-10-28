@@ -25,6 +25,8 @@ concerns — see each phase's failure scenario.
 header navigation (this project's own chosen pagination mechanism, per `improvement-182`) actually
 points callers at the right resource.
 
+**Phase 1 is done.** Option (a) was taken: `If-Match` is required on the advertisement, provider profile, taxon and user `PUT`/`DELETE` (a missing header is a 400, a stale one a 412); the `*MatrixScenarioTest` classes in `integration-tests` cover both cases per operation. Phase 2 (the `Link` header path) is still open.
+
 ## Approach — Phase 1: omitting the optional `If-Match` header always fails, never succeeds
 
 **Evidence.** `AdvertisementApiController`/`ProviderProfileApiController`/`TaxonApiController`

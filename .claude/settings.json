@@ -9,6 +9,14 @@
             "command": "input=$(cat); prompt=$(echo \"$input\" | grep -o '\"prompt\":\"[^\"]*\"' | sed 's/\"prompt\":\"//;s/\"$//'); sid=$(echo \"$input\" | grep -o '\"session_id\":\"[^\"]*\"' | head -1 | sed 's/\"session_id\":\"//;s/\"$//'); echo \"$prompt\" | grep -qiE '^[[:space:]]*(\u0442\u0430\u043a|\u043e\u043a\u0435\u0439|\u0433\u0430\u0440\u0430\u0437\u0434|\u0434\u0430\u0432\u0430\u0439|ok)?[,!]?[[:space:]]*(\u0437\u0440\u043e\u0431\u0438[[:space:]]+\u043a\u043e\u043c[\u0456i]\u0442|\u0437\u0430\u043a\u043e\u043c\u0456\u0442[\u044c\u0438]|\u043a\u043e\u043c[\u0456i]\u0442\u044c)([[:space:]]+[\u0430-\u044f\u0456\u0457\u0454a-z]+){0,3}[.!?]?[[:space:]]*$|^[[:space:]]*(please[[:space:]]+)?commit([[:space:]]+(this|it|now|please))?([[:space:]]+[a-z]+){0,3}[.!?]?[[:space:]]*$' && [ -n \"$sid\" ] && mkdir -p /tmp/claude-commit-approved && touch \"/tmp/claude-commit-approved/$sid\"; exit 0"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); prompt=$(echo \"$input\" | grep -o '\"prompt\":\"[^\"]*\"' | sed 's/\"prompt\":\"//;s/\"$//'); sid=$(echo \"$input\" | grep -o '\"session_id\":\"[^\"]*\"' | head -1 | sed 's/\"session_id\":\"//;s/\"$//'); [ -z \"$sid\" ] && exit 0; mkdir -p /tmp/claude-approved; if echo \"$prompt\" | grep -qiE '^[[:space:]]*(\u0442\u0430\u043a+|\u0430\u0433\u0430|\u043e\u043a\u0435\u0439|ok(ay)?|\u0443\u0433\u0443|\u0433\u0430\u0440\u0430\u0437\u0434|\u0434\u0430\u0432\u0430\u0439|yes|yep|yeah|sure|approved?|\u0440\u043e\u0431[\u0438\u0456]|\u0432\u0438\u043a\u043e\u043d\u0443\u0439|do[[:space:]]+it|go[[:space:]]+ahead|proceed|confirmed?|\u043f\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u0436\u0443\u044e)\\b'; then touch \"/tmp/claude-approved/$sid\"; else rm -f \"/tmp/claude-approved/$sid\"; fi; exit 0"
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -35,6 +43,24 @@
           {
             "type": "command",
             "command": "input=$(cat); file=$(echo \"$input\" | grep -o '\"file_path\":\"[^\"]*\"' | head -1 | sed 's/\"file_path\":\"//;s/\"$//'); echo \"$file\" | grep -q 'DECISIONS\\.md$' || exit 0; sid=$(echo \"$input\" | grep -o '\"session_id\":\"[^\"]*\"' | head -1 | sed 's/\"session_id\":\"//;s/\"$//'); if [ -f \"/tmp/claude-nav-check/$sid/context-loading\" ] && [ -f \"/tmp/claude-nav-check/$sid/flows\" ]; then exit 0; fi; echo 'DECISIONS.md edit BLOCKED -- Read .claude/nav/context-loading.md and .claude/nav/flows.md first (per rules.md), then retry' >&2; exit 2"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit|Agent|Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); sid=$(echo \"$input\" | grep -o '\"session_id\":\"[^\"]*\"' | head -1 | sed 's/\"session_id\":\"//;s/\"$//'); if [ -n \"$sid\" ] && [ -f \"/tmp/claude-approved/$sid\" ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"Approval Rule: already approved -- holds until the next new (non-approval) user message.\"}}'; exit 0; fi; echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"Approval Rule: every file edit / Agent dispatch / Skill invocation needs explicit confirmation.\"}}'"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); cmd=$(echo \"$input\" | sed -E 's/^.*\"command\":\"((\\\\.|[^\"\\\\])*)\".*$/\\1/'); SCRIPTS=$(find /app/scripts -maxdepth 1 -name \"*.sh\" 2>/dev/null; echo /app/playwright/run.sh; echo /app/integration-tests/run.sh); MATCHED=false; for s in $SCRIPTS; do rel=${s#/app/}; echo \"$cmd\" | grep -qF \"$rel\" && MATCHED=true; done; [ \"$MATCHED\" = false ] && exit 0; sid=$(echo \"$input\" | grep -o '\"session_id\":\"[^\"]*\"' | head -1 | sed 's/\"session_id\":\"//;s/\"$//'); if [ -n \"$sid\" ] && [ -f \"/tmp/claude-approved/$sid\" ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"Approval Rule: already approved -- holds until the next new (non-approval) user message.\"}}'; exit 0; fi; echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"Approval Rule: project script invocation needs explicit confirmation (plan + approval).\"}}'"
           }
         ]
       }

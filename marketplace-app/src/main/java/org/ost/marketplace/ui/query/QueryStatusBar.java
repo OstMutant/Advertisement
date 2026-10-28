@@ -21,6 +21,12 @@ public class QueryStatusBar<T> extends VerticalLayout {
             I18nKey sortPrefix,
             I18nKey sortAsc,
             I18nKey sortDesc) {
+
+        public static Labels defaults() {
+            return new Labels(I18nKey.QUERY_STATUS_FILTERS_NONE, I18nKey.QUERY_STATUS_FILTERS_PREFIX,
+                    I18nKey.QUERY_STATUS_SORT_NONE, I18nKey.QUERY_STATUS_SORT_PREFIX,
+                    I18nKey.SORT_DIRECTION_ASC, I18nKey.SORT_DIRECTION_DESC);
+        }
     }
 
     private final Span filterInfo = span("query-status-bar-filter-info");

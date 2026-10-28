@@ -16,9 +16,11 @@ public class FailureRateLimiter {
 
     private final Cache<String, AtomicInteger> attempts;
     private final int maxAttempts;
+    private final Duration window;
 
     public FailureRateLimiter(int maxAttempts, @NonNull Duration window) {
         this.maxAttempts = maxAttempts;
+        this.window = window;
         this.attempts = Caffeine.newBuilder()
                 .expireAfterWrite(window)
                 .maximumSize(10_000)
@@ -28,12 +30,17 @@ public class FailureRateLimiter {
     /** Throws {@link TooManyAttemptsException} with {@code message} if key is already at or over the threshold. */
     public void checkAllowed(@NonNull String key, @NonNull String message) {
         if (attempts.get(key, _ -> new AtomicInteger(0)).get() >= maxAttempts) {
-            throw new TooManyAttemptsException(message);
+            throw new TooManyAttemptsException(message, window);
         }
     }
 
     public void recordFailure(@NonNull String key) {
         attempts.get(key, _ -> new AtomicInteger(0)).incrementAndGet();
+    }
+
+    /** Same counter as {@link #recordFailure}, under a name that fits a non-failure quota use (e.g. a daily submission cap). */
+    public void recordAttempt(@NonNull String key) {
+        recordFailure(key);
     }
 
     /** Resets key's counter — only for a caller with a reset-on-success flow (e.g. login); not every caller needs it. */

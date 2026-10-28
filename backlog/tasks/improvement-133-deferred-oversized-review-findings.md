@@ -243,7 +243,7 @@ pointers, not broken functionality. `backlog/tasks/`/`backlog/completed/tasks/`/
 (append-only history / point-in-time records, not current-state documentation). Not fixed inline
 during improvement-168 since it wasn't part of that issue's approved plan (root `CLAUDE.md`'s
 own pointers + the generator script only). Mechanical fix once picked up: grep+replace
-`<module>/CLAUDE.md` → `.claude/rules/<module>.md` across the ~8 listed files.
+`<module>/CLAUDE.md` → `.claude/rules/<module>.md` across the ~8 listed files. Two more stale links, found 2026-10-22 and not listed above, sit in `.claude/rules/platform-commons.md` (`marketplace-orchestrator/CLAUDE.md`) and `.claude/rules/user-spring-boot-starter.md` (`marketplace-app/CLAUDE.md`).
 
 ### 14. `ADR-010`/`ADR-011` near-verbatim duplicate across `audit-spring-boot-starter/DECISIONS.md` and `platform-commons/DECISIONS.md` (found during improvement-168 follow-up, 2026-08-25)
 
@@ -395,3 +395,154 @@ duplication Phase 9 already extracted (that one spanned two starters; this one i
 that abstracting it (a shared helper, a wrapper type) could plausibly add more indirection than it
 removes; needs a real judgment call on whether extraction is worth it before touching either
 service, not a reflexive DRY pass.
+
+### 24. `integration-tests`: no global HikariCP pool-size cap across `@SpringBootTest` contexts risks Postgres `max_connections` exhaustion (found during improvement-199 Checkpoint 1, 2026-09-24)
+
+Every distinct `@SpringBootTest(classes = {...})` signature in `integration-tests` gets its own
+cached Spring `ApplicationContext` with its own HikariCP pool (default `maximum-pool-size=10`, no
+override anywhere in the repo); Spring's `DefaultContextCache` keeps every distinct context alive
+for the rest of the `mvn test` run (default cache size 32, well above the ~18 distinct signatures
+today), so their connection pools accumulate rather than being released between test classes.
+Confirmed directly: adding `contact-spring-boot-starter`'s two new test classes (one more distinct
+context) was enough to push a full-suite run over Postgres's `max_connections`, failing the
+unrelated, pre-existing `ProviderProfileRepositoryTest` with `FATAL: sorry, too many clients
+already`. Scoped fix applied to the new contact tests only (`spring.datasource.hikari.maximum-pool-size=2`
+via `@TestPropertySource`, since they don't need concurrency) — the systemic gap (no cap for any
+of the other ~18 contexts) remains and can recur the next time a new starter's own repository test
+is added. Needs a design decision before sizing: a lower default pool size across the whole
+`RepositoryTestAutoConfig` allow-list vs. a per-context opt-in like the one used here vs. raising
+the Testcontainers Postgres image's own `max_connections`.
+
+### 25. No existing mechanism for entity-existence-based orphan cleanup, needed by `improvement-200` Phase 5 (found 2026-10-05)
+
+`improvement-200`'s own spec (`private/features/F-06-reviews-ratings.md`) claims orphan cleanup for
+`feedback`/`feedback_comment`/`feedback_aggregate` rows (no real FK to their owning
+advertisement/provider-profile, since `entity_type`+`entity_id` targets whichever table the
+`EntityType` names) is "handled by the existing cleanup-service scheduled-job pattern" — checked
+directly, and no such pattern actually exists. `AuditCleanupService`/`AttachmentCleanupService`
+(the only two existing `*CleanupService` classes) are both pure time/retention-based (delete rows
+older than `CleanupProperties.retentionDays()`), not existence-based — neither checks whether a
+referenced entity still exists. The one class that actually answers "does entity X of type Y still
+exist" is `EntityExistenceService` (`marketplace-orchestrator`), today only used by the audit
+timeline's display logic, never by any cleanup job. Structurally, `feedback-spring-boot-starter`
+(or any starter) cannot call it directly — `EntityExistenceService`'s cross-port routing across
+`AdvertisementPort`/`ProviderProfilePort`/`UserPort`/`TaxonPort` is itself orchestrator-layer logic,
+and starters must not depend on `marketplace-orchestrator` (module import rules). The same
+`entity_type`/`entity_id`-without-FK orphan risk already exists in `contact-spring-boot-starter`
+today with zero cleanup mechanism of any kind — this is not feedback-specific. Needs a design
+decision before sizing: a new orchestrator-level scheduled job (first of its kind — every existing
+cleanup job lives entirely inside its own starter) that calls `EntityExistenceService` per
+`EntityType` and deletes orphaned rows via each affected starter's own Port, vs. some other shape
+not yet considered.
+
+### 26. Unverified "background changes on scroll" report — root cause not confirmed, couldn't reproduce (found during improvement-203 manual testing, 2026-10-09)
+
+User reported that on every tab, scrolling down past where visible content ends shows a background
+color change. Investigated directly via real pixel evidence where possible: confirmed via a real
+screenshot that advertisement/provider-profile cards use a pure white background
+(`--app-surface-white`) against a slightly different page background (`--app-surface-page`), and
+confirmed `.provider-profile-query-block` was missing its card styling entirely (fixed separately,
+unrelated to this report once the user clarified the complaint was specifically about that). Ruled
+out: no JS scroll listener exists anywhere in the frontend source (grepped); no CSS `transition`
+property is tied to scroll position. Tried and reverted: making `--app-surface-page` equal to
+`--app-surface-white` (user rejected — "makes everything plain", wanted original colors kept).
+Applied and kept: `overscroll-behavior-y: none` plus `min-height: 100%` on `html, body` — the
+standard, zero-visual-impact prevention for the native browser/OS "rubber-band" bounce effect at
+the end of scrollable content, which is the most likely remaining explanation given everything else
+was ruled out — but this was never actually confirmed to fix the user's real complaint, since the
+sandboxed headless Linux Chromium environment used for all Playwright verification in this session
+cannot render OS-level overscroll bounce at all (confirmed: it's a trackpad/macOS/Safari-class
+effect, not reproducible via static screenshots regardless of scroll position). A same-session
+lead not pursued further: Playwright's WebKit browser channel renders its own scroll/bounce
+behavior independent of the OS compositor and might reproduce this even headless on Linux — the
+official `mcr.microsoft.com/playwright` image this repo already uses ships WebKit alongside
+Chromium, but `playwright.config.js` has no `projects` entry selecting it, and building a
+real repro (real scroll gesture via `mouse.wheel()`, multi-frame screenshot capture, comparing
+pixel colors frame-by-frame) was not attempted. Needs, before this can be verified either way: a
+WebKit-based diagnostic script (not part of the main spec suite), or direct user confirmation
+(screen recording, or exact OS/browser/input-device details) of whether the applied
+`overscroll-behavior-y` fix actually resolved what they were seeing.
+
+### 27. One Playwright test extended via `test.setTimeout()` instead of being split into smaller tests (found during improvement-203, 2026-10-09)
+
+A new scroll/pagination scenario in `04-provider-profile-flow.spec.js` legitimately needs 7+ full
+login/logout cycles (4 reviewers leaving feedback, the owner replying to all 4, a reporter flagging
+7 items, a moderator reviewing the queue) in one `test(...)` block, pushing it over the default 60s
+per-test budget under normal environment load. Fixed by raising that one test's own budget via
+`test.setTimeout(3 * 60 * 1000)`, matching an existing precedent already used elsewhere in the
+suite (`06-seed-filter-sort-pagination.spec.js`) for similarly long scenarios — not a violation of
+this project's "no `waitForTimeout()`" rule (that rule targets fixed in-test sleeps, a different
+mechanism from a test's own overall time budget). Left unexplored: whether splitting this scenario
+into several smaller, independent tests (e.g. one for the feedback/reply setup, one for the
+flagging, one for the moderation-queue view) would be the more maintainable fix instead of
+accommodating a long test with a longer clock — each smaller test would stay within the default
+budget on its own and isolate failures to a narrower step, at the cost of re-doing the login setup
+per test instead of sharing it across one continuous scenario.
+
+### 28. `feedback-spring-boot-starter`'s `01-feedback-schema` changeset mutated in place across 3 commits instead of adding new changesets (found during improvement-203 CI verification, 2026-10-10)
+
+`feedback-spring-boot-starter/src/main/resources/db/feedback-changelog/changes/01-feedback-schema.xml`
+has a single `changeSet id="01-feedback-schema"` whose body was edited three times across
+history (Phase 1 creating `feedback`/`feedback_aggregate`, Phase 3 adding `feedback_comment`, the
+comment-tree-collapse redesign adding `feedback_content`/`feedback_rating`) instead of each change
+getting its own new changeset file. On any Postgres volume that already ran this changeset before
+a later edit landed, Liquibase silently updates the stored checksum without re-executing the
+changeset body, permanently missing the newer tables with no startup error — surfaced as `relation
+"feedback_content" does not exist` against the CI e2e stack's long-lived volume. Resolved for that
+one case via `scripts/ci.sh --reset-e2e-db` (full volume wipe, picks up the current full schema).
+Not fixed at the source (splitting the missing tables into proper new changeset files) — the app
+has no real deployed/persisted environment yet where this would matter, so retrofitting immutable
+changesets for a hypothetical future prod deploy isn't worth doing now.
+
+### 29. `updateButtons()` body byte-identical across 5 `*FormModeHandler`/`*FormOverlayModeHandler` classes (found during improvement-207 code-review re-verification, 2026-10-13)
+
+`SettingsFormModeHandler`, `AccountNameFormModeHandler`, `ProviderProfileFormOverlayModeHandler`,
+`AdvertisementFormOverlayModeHandler`, and `AbstractTaxonFormOverlayModeHandler` each carry the
+same 3-line `updateButtons(boolean hasChanges)` body (`saveButton.setEnabled`,
+`discardButton.setEnabled`, `BeforeUnloadUtil.sync`) — pre-existing in 4 of the 5 before this
+session, extended to the 5th (`SettingsFormModeHandler`) to match the established pattern rather
+than introduced by it. Their shared base, `AbstractFormOverlayModeHandler`, has no
+`saveButton`/`discardButton` fields today to anchor a hoisted shared method. Not fixed inline:
+hoisting this requires touching the shared base class plus all 5 subclasses, outside the scope of
+the bug fix (a missing `BeforeUnloadUtil.sync` call) that surfaced it. Needs a design decision
+(add `saveButton`/`discardButton` fields to the base class, or a template-method hook) before
+sizing.
+
+### 30. `BeforeUnloadUtil.sync()` called with no dedup on every field-level change across all `*FormModeHandler` classes (found during improvement-207 code-review re-verification, 2026-10-13)
+
+`BeforeUnloadUtil.sync(boolean)` does an unconditional `ui.getPage().executeJs(...)` client
+round-trip every call, with no memoization of the last-synced value — every one of the 5 handler
+classes in entry 29 above calls it this way, so a form with N observed fields can trigger N
+redundant JS round-trips for what is really one boolean flip. Pre-existing across every sibling
+handler, not introduced by this session's fix. Not fixed inline: deduping requires either a
+stateful check inside `BeforeUnloadUtil` itself (shared static utility, no instance state today)
+or at each of the 5+ call sites — a design decision on where the dedup state lives, not a
+mechanical one-file fix.
+
+### 31. Level 3 matrix scenarios copy the same helpers into every class (found during improvement-219, 2026-10-22)
+
+The `*MatrixScenarioTest` classes in `integration-tests/.../level3/restapi` each carry private copies
+of `moderatorOf`, `etagOf`, `bearer`, `historyEntries` and `oldestSnapshotId` (about a dozen copies
+in total). They belong in `AbstractRestApiScenarioTest` or a small `support/` helper once a decision
+is made on how that should look. Entries 6 and 7 are the same kind of duplication at Level 1.
+
+### 32. No REST test for the 48-hour edit-window 409 of feedback edits (found during improvement-219, 2026-10-22)
+
+`updateFeedback`, `updateFeedbackReply` and `deleteFeedbackReply` answer 409 once
+`FeedbackEditPolicy.MAX_EDIT_AGE` (48 hours) has passed. A REST scenario cannot move the clock. Options:
+a `Clock` bean in the feedback starter so a Level 3 test can age a record, or a Level 1 service test
+with a record whose `created_at` is older than the window. It needs a design decision before sizing.
+
+### 33. Full local CI run: the integration and Sonar stages run the integration tests in parallel on one fixed Postgres port and both fail, while each passes alone (found during improvement-212, 2026-10-24)
+
+A default `bash scripts/ci.sh --foreground` run (unit, integration, e2e, Sonar and the rest in parallel) failed
+in the integration stage (319 errors) and the Sonar stage (25 errors, so the docs stage that needs Sonar data
+failed too), while unit (91 tests), e2e (78 of 78 Playwright tests) and the lint and ShellCheck stages
+passed. The same integration suite run alone passed (851 tests, 0 failures) and Sonar run alone passed. In the
+failed stage the log shows `FATAL: terminating connection due to unexpected postmaster exit`, then
+`Connection refused`, then `relation "user_information" does not exist` for every later test, and
+`OperationCoverageTest` red as a consequence. Both stages used the same fixed host port 25432 (the sandbox
+workaround) and the machine had 9.9 GB of memory shared by five heavy stages; why the Postgres container exited
+is not established. Options: serialize the two stages that run integration tests, give each stage its own
+fixed port, or stop the Sonar stage from running its own copy of the integration tests. It needs a design
+decision before sizing.

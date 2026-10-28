@@ -8,14 +8,14 @@ REM   the rest of this file always did. Reuses the existing claude-dev container
 REM   `docker exec` if one is already running; --recreate forces a fresh container instead.
 REM Usage: scripts\claude.bat your.email@gmail.com [--update] [--recreate] [claude args...]
 REM   your.email@gmail.com   required -- derives an isolated per-login auth config folder
-REM   --update                rebuild the claude-j25-dev image from Dockerfile.ai before starting
+REM   --update                rebuild the claude-j25-dev image from Dockerfile.claude before starting
 REM   --recreate              force-remove and recreate claude-dev even if already running --
 REM                           default behavior reuses a running container instead
 REM   [claude args...]        forwarded to the claude entrypoint (a new process either way)
 REM Uses: docker.
 REM Env: USERPROFILE (Windows) -- used to derive the isolated per-login config folder path, not
 REM   set by this script itself.
-REM Input: Dockerfile.ai (only with --update).
+REM Input: Dockerfile.claude (only with --update).
 REM Outputs: running claude-dev container (new or reused); with --update, rebuilds the
 REM   claude-j25-dev image; creates %USERPROFILE%\.claude-config-<login> if missing.
 REM Returns: 0 on success; non-zero if no login argument was given, or --update's Docker build
@@ -23,6 +23,8 @@ REM   fails.
 REM ----------------------------------------------------------------------------
 setlocal
 cd /d "%~dp0.."
+set "IMAGE=claude-j25-dev"
+set "CONTAINER=claude-dev"
 
 :: Get login (email) from first argument
 set LOGIN=%1
@@ -53,9 +55,9 @@ goto parse_args
 :: Rebuild image if --update was requested
 if "%DO_UPDATE%"=="1" (
     echo ===================================================
-    echo   Rebuilding claude-j25-dev image...
+    echo   Rebuilding %IMAGE% image...
     echo ===================================================
-    docker build -f Dockerfile.ai -t claude-j25-dev .
+    docker build --build-arg CLAUDE_CODE_REFRESH=%RANDOM%%RANDOM% -f Dockerfile.claude -t %IMAGE% .
     if errorlevel 1 (
         echo Error: Docker build failed.
         exit /b 1
@@ -68,13 +70,13 @@ if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%"
 
 :: Reuse a running container unless --recreate was passed
 set RUNNING=
-for /f %%i in ('docker ps --filter "name=^claude-dev$" --filter "status=running" -q') do set RUNNING=%%i
+for /f %%i in ('docker ps --filter "name=^%CONTAINER%$" --filter "status=running" -q') do set RUNNING=%%i
 
 if not "%RUNNING%"=="" if "%RECREATE%"=="0" (
     echo ===================================================
-    echo   Reusing running claude-dev container for login: %LOGIN%
+    echo   Reusing running %CONTAINER% container for login: %LOGIN%
     echo ===================================================
-    docker exec -it claude-dev claude%EXTRA_ARGS%
+    docker exec -it %CONTAINER% claude%EXTRA_ARGS%
     goto :eof
 )
 
@@ -87,11 +89,11 @@ echo ===================================================
 :: 1. Mount current directory (Shared Project Context)
 :: 2. Mount isolated auth config folder (Specific to %LOGIN%)
 :: 3. Mount Maven cache
-docker rm -f claude-dev >nul 2>&1
-docker run -it --rm --name claude-dev ^
+docker rm -f %CONTAINER% >nul 2>&1
+docker run -it --rm --name %CONTAINER% ^
   -v "%CD%:/app" ^
   -v "%CONFIG_DIR%:/root/.claude" ^
   -v "%USERPROFILE%\.m2:/root/.m2" ^
   -v //var/run/docker.sock:/var/run/docker.sock ^
   --network host ^
-  claude-j25-dev%EXTRA_ARGS%
+  %IMAGE%%EXTRA_ARGS%

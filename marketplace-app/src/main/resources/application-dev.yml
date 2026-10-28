@@ -1,14 +1,14 @@
 # Database connection for development (Local). ${VAR:default} placeholders resolve against the
 # repo-root .env when a script sources it (e.g. deploy-dev.sh, run-local.bat); the defaults here
 # are the same values .env ships, purely a safety net so an IDE dev run (which doesn't source
-# .env) still works unmodified. See improvement-044.
+# .env) still works unmodified.
 spring:
   datasource:
     url: jdbc:postgresql://localhost:${DB_PORT:5432}/${DB_NAME:experiments}
     username: ${DB_USER:experiments_user}
     password: ${DB_PASSWORD:experiments_user_password}
 
-# S3-compatible storage (MinIO locally)
+# S3-compatible storage (SeaweedFS locally)
 storage:
   s3:
     endpoint: http://localhost:${S3_PORT:9000}
@@ -31,3 +31,8 @@ storage:
 # Vaadin framework settings
 vaadin:
   productionMode: false
+
+# Developer-only pages (API flow runner) served by marketplace-rest-api
+marketplace:
+  dev-tools:
+    enabled: true

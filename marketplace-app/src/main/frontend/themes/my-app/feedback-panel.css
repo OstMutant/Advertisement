@@ -1,0 +1,240 @@
+@layer components {
+
+.feedback-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.feedback-header-label {
+    font-weight: 600;
+    color: var(--app-text-primary);
+}
+
+.feedback-header-stars {
+    color: var(--app-status-warning-accent);
+}
+
+.feedback-header-avg {
+    font-weight: 600;
+    color: var(--app-text-secondary);
+}
+
+.feedback-header-count {
+    font-size: 0.83rem;
+    color: var(--app-text-muted);
+}
+
+.feedback-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.feedback-entry {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--app-border-default);
+    background-color: var(--app-surface-subtle);
+    border-radius: 6px;
+}
+
+.feedback-entry-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.feedback-entry-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.feedback-entry-rating {
+    color: var(--app-status-warning-accent);
+}
+
+.feedback-entry-edit,
+.feedback-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.feedback-entry-edit-fields,
+.feedback-form-fields {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.entity-actions-column {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-left: 1px solid var(--app-border-default);
+    padding-left: 8px;
+    justify-content: center;
+}
+
+.feedback-form-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-left: 1px solid var(--app-border-default);
+    padding-left: 8px;
+    justify-content: center;
+}
+
+.feedback-empty {
+    color: var(--app-text-muted);
+    font-style: italic;
+}
+
+.feedback-form-rating-label {
+    font-size: 0.83rem;
+    color: var(--app-text-secondary);
+}
+
+.star-rating-field {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.star-rating-field-star {
+    cursor: pointer;
+    width: 1.4rem;
+    height: 1.4rem;
+    color: var(--app-status-warning-accent);
+}
+
+.feedback-entry-author {
+    display: block;
+    font-weight: 600;
+    font-size: 0.83rem;
+    color: var(--app-text-secondary);
+}
+
+.feedback-entry-edit-icon {
+    margin-left: 6px;
+}
+
+.feedback-entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.feedback-add-trigger {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.feedback-form-close {
+    margin-left: auto;
+}
+
+.feedback-reply-panel {
+    margin-left: 32px;
+    margin-top: -4px;
+}
+
+.feedback-reply-node {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    background-color: var(--app-surface-subtle);
+    border-radius: 6px;
+}
+
+.feedback-reply-text-container {
+    flex: 1;
+    min-width: 0;
+    margin-top: 4px;
+}
+
+.feedback-reply-censored-text {
+    font-style: italic;
+    color: var(--app-text-muted);
+}
+
+.feedback-reply-trigger {
+    display: flex;
+    gap: 4px;
+    margin-left: 32px;
+}
+
+.feedback-reply-composer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    margin-left: 0;
+    flex: 1;
+}
+
+.feedback-reply-composer-fields {
+    flex: 1;
+    min-width: 0;
+}
+
+.moderation-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 16px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.moderation-card {
+    background: var(--app-surface-white);
+    border: 1px solid var(--app-border-default);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.moderation-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06);
+    border-color: var(--app-border-accent);
+}
+
+.moderation-field-row {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    flex-wrap: wrap;
+}
+
+.moderation-field-label {
+    font-weight: 600;
+    color: var(--app-text-secondary);
+    min-width: 150px;
+}
+
+.moderation-profile-link {
+    color: var(--app-text-primary);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.moderation-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 6px;
+}
+
+}

@@ -16,6 +16,7 @@ import org.ost.marketplace.ui.core.Initialization;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.EntityMetaPanel;
 import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton;
+import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
 import org.ost.marketplace.ui.views.components.buttons.action.ShareActionButton;
 import org.ost.marketplace.ui.views.main.tabs.providers.overlay.ProviderProfileCatalogOverlay;
 import org.ost.marketplace.ui.views.rules.I18nParams;
@@ -77,15 +78,15 @@ public class ProviderProfileCardView extends HorizontalLayout
                 .setFilter("event.key === 'Enter' || event.key === ' '");
         addClassName("provider-profile-card--" + profile.getKind().name().toLowerCase());
 
-        add(createContent(profile, onListChanged));
+        add(createContent(profile, onListChanged, onClosed));
 
         return this;
     }
 
-    private VerticalLayout createContent(ProviderProfileDto profile, Runnable onListChanged) {
+    private VerticalLayout createContent(ProviderProfileDto profile, Runnable onListChanged, Runnable onClosed) {
         Span spacer = new Span();
 
-        HorizontalLayout bottom = new HorizontalLayout(createMetaLine(profile), createActions(profile, onListChanged));
+        HorizontalLayout bottom = new HorizontalLayout(createMetaLine(profile), createActions(profile, onListChanged, onClosed));
         bottom.setWidthFull();
         bottom.setAlignItems(Alignment.END);
         bottom.setJustifyContentMode(JustifyContentMode.BETWEEN);
@@ -146,13 +147,21 @@ public class ProviderProfileCardView extends HorizontalLayout
                 "provider-profile-card-chip-row", "provider-profile-city-chip");
     }
 
-    private HorizontalLayout createActions(ProviderProfileDto profile, Runnable onListChanged) {
+    private HorizontalLayout createActions(ProviderProfileDto profile, Runnable onListChanged, Runnable onClosed) {
+        Button edit   = createEditButton(profile, onListChanged, onClosed);
         Button delete = createDeleteButton(profile, onListChanged);
         Button share  = createShareButton(profile);
 
-        HorizontalLayout actions = new HorizontalLayout(delete, share);
+        HorizontalLayout actions = new HorizontalLayout(edit, delete, share);
         actions.addClassName("provider-profile-card-actions");
         return actions;
+    }
+
+    private Button createEditButton(ProviderProfileDto profile, Runnable onListChanged, Runnable onClosed) {
+        Button edit = new EditActionButton(getValue(PROVIDER_PROFILE_VIEW_BUTTON_EDIT),
+                () -> overlay.openForEdit(profile, onListChanged, onClosed), "provider-profile-edit", true);
+        edit.setVisible(access.canEditUserAccount(profile.getActorId()));
+        return edit;
     }
 
     private Button createShareButton(ProviderProfileDto profile) {

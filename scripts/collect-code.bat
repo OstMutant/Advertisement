@@ -2,7 +2,8 @@
 REM ---------------------------------------------------------------------------
 REM Description: Collects every source file across the whole project (by extension --
 REM   .java/.css/.yml/.properties/.xml/.sql/.imports/.bat/.json/.js/.sh/.md/.html, plus fixed
-REM   root files and .claude/ rules/commands/skills) into a single all-code.txt, with a table of
+REM   root files and every .claude/ operating-context file -- rules.md, DECISIONS.md, and every
+REM   rules/commands/skills/agents/nav *.md) into a single all-code.txt, with a table of
 REM   contents and a per-extension summary -- useful for AI analysis. --claude-only skips the
 REM   whole-project scan and bundles just the Claude-facing operating context instead.
 REM Usage: scripts\collect-code.bat [--claude-only]
@@ -102,20 +103,30 @@ if "%CLAUDE_ONLY%"=="0" (
     REM 3. Add specific root-level files -- only ones with no extension already covered by a
     REM FindFiles pattern above -- README.md/CLAUDE.md/mvn.bat/docker-compose*.yml are already
     REM collected via *.md/*.bat/*.yml, so listing them again here would duplicate their content.
-    for %%F in (Dockerfile Dockerfile.ai lombok.config mvnw mvnw.cmd .env) do (
+    for %%F in (Dockerfile Dockerfile.claude Dockerfile.opencode lombok.config mvnw mvnw.cmd .env) do (
         if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
     )
 )
 
-:: 3b. Add .claude/ rules, commands, and skills (excluded from FindFiles by pattern) -- runs in
-:: both modes, since it's exactly what --claude-only mode needs too.
-for %%F in (.claude\rules.md) do (
+:: 3b. Add .claude/ rules, commands, skills, path-scoped rules, agents, and nav docs (all
+:: excluded from FindFiles by pattern) -- runs in both modes, since it's exactly what
+:: --claude-only mode needs too.
+for %%F in (.claude\rules.md .claude\DECISIONS.md) do (
     if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
 for /f "delims=" %%A in ('dir /S /B ".claude\commands\*.md" 2^>nul') do (
     echo %%A >> "%FILE_LIST%"
 )
 for /f "delims=" %%A in ('dir /S /B ".claude\skills\*.md" 2^>nul') do (
+    echo %%A >> "%FILE_LIST%"
+)
+for /f "delims=" %%A in ('dir /S /B ".claude\rules\*.md" 2^>nul') do (
+    echo %%A >> "%FILE_LIST%"
+)
+for /f "delims=" %%A in ('dir /S /B ".claude\agents\*.md" 2^>nul') do (
+    echo %%A >> "%FILE_LIST%"
+)
+for /f "delims=" %%A in ('dir /S /B ".claude\nav\*.md" 2^>nul') do (
     echo %%A >> "%FILE_LIST%"
 )
 
@@ -176,15 +187,16 @@ if "%CLAUDE_ONLY%"=="1" (
     call :CheckRootFile "README.md"
     call :CheckRootFile "CLAUDE.md"
     call :CheckRootFile "Dockerfile"
-    call :CheckRootFile "Dockerfile.ai"
+    call :CheckRootFile "Dockerfile.claude"
+    call :CheckRootFile "Dockerfile.opencode"
     call :CheckRootFile ".env"
     call :CheckRootFile "scripts\deploy-and-run\docker-compose.app.yml"
     call :CheckRootFile "scripts\deploy-and-run\docker-compose.db.yml"
-    call :CheckRootFile "scripts\deploy-and-run\docker-compose.minio.yml"
+    call :CheckRootFile "scripts\deploy-and-run\docker-compose.seaweedfs.yml"
     call :CheckRootFile "lombok.config"
     call :CheckRootFile "scripts\deploy-and-run\reset-clean.sql"
-    call :CheckRootFile ".claude\skills\doc-standards\SKILL.md"
-    call :CheckRootFile ".claude\skills\deep-review\SKILL.md"
+    call :CheckRootFile ".claude\skills\module-doc-standards\SKILL.md"
+    call :CheckRootFile ".claude\agents\review\deep-review-orchestrator.md"
 )
 
 :: Clean up the temporary file

@@ -26,6 +26,7 @@ handful of known ids out of a file that can run to thousands of lines.
 | Cross-module feature | `adr-index.md` filtered to every touched module + `platform-commons`, `docs/architecture/architecture-map.html` (Diagrams › Bounded Contexts) | — |
 | Architectural change (new SPI, new `*Port`/`*Hook`, schema change touching ownership/FKs) | `platform-commons/DECISIONS.md` in full, `docs/architecture/architecture-map.html` (Module Dependencies, SPI Map, Database ERD), `ArchitectureRulesTest` | — |
 | Architecture audit / repo-wide review | dispatch the `deep-review-orchestrator` agent directly with scope `all` (see [flows.md](flows.md)) — do not hand-load module `CLAUDE.md`/`DECISIONS.md` yourself, it already does this per module | — |
+| Resuming a research or a planning run (a folder under `backlog/research/`) | `backlog/research/<topic>/brief.md`, then `bash backlog/research/tools/scripts/show-status.sh <topic>`; `notes.md` and `sources.md` only for the part being continued | the topic's other files, raw sources |
 
 See [flows.md](flows.md) for *which command/skill* handles a given situation — this table only
 answers *what to read*, not *what to run*.

@@ -1,9 +1,7 @@
 #!/bin/bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Regenerates the architecture documentation model -- runs the whole generation
-#   pipeline (generate-architecture-model.sh, then unless --no-check
-#   check-architecture-model-freshness.sh, a reproducibility check re-running the generator a
-#   second time to diff against the first) inside a fresh, disposable container built from
+#   pipeline (generate-architecture-model.sh) inside a fresh, disposable container built from
 #   scripts/Dockerfile (Node.js + Python 3, both baked into the image at build time -- no runtime
 #   `apt-get`). Every run: removes any leftover container from a prior run, starts a new one,
 #   tar-pipes repo source in, runs the generation, docker-cp's results back out, then removes the
@@ -20,13 +18,9 @@
 #   inside the container. Unless --no-screenshot, finishes by running screenshot-architecture-map.sh
 #   (this file's own sibling), which already uses its own separate, long-lived Playwright
 #   container -- unchanged.
-# Usage: bash docs/architecture/architecture-doc.sh [--no-check] [--no-screenshot] [--rebuild-image]
-#   (no flags)        regenerate the architecture model, verify it's reproducible (regenerate a
-#                      second time, diff against the first), then screenshot every screen of
+# Usage: bash docs/architecture/architecture-doc.sh [--no-screenshot] [--rebuild-image]
+#   (no flags)        regenerate the architecture model, then screenshot every screen of
 #                      architecture-map.html
-#   --no-check        skip the reproducibility re-verification pass (only meaningful right after
-#                      this same script already regenerated the file -- re-checking your own
-#                      fresh output is pointless)
 #   --no-screenshot   skip screenshotting architecture-map.html
 #   --rebuild-image   force-rebuild the arch-doc-tools image even if one already exists and the
 #                      Dockerfile hasn't changed -- picks up new base-image/package versions
@@ -52,17 +46,15 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/../.." && pwd)"
-NO_CHECK=false
 NO_SCREENSHOT=false
 REBUILD_IMAGE=false
 for arg in "$@"; do
   case "$arg" in
-    --no-check) NO_CHECK=true ;;
     --no-screenshot) NO_SCREENSHOT=true ;;
     --rebuild-image) REBUILD_IMAGE=true ;;
   esac
 done
-echo "Options: no-check=$NO_CHECK no-screenshot=$NO_SCREENSHOT rebuild-image=$REBUILD_IMAGE"
+echo "Options: no-screenshot=$NO_SCREENSHOT rebuild-image=$REBUILD_IMAGE"
 
 GEN_CONTAINER="arch-doc-gen"
 GEN_IMAGE="arch-doc-tools"
@@ -96,9 +88,6 @@ else
 fi
 
 GEN_CMD="bash docs/architecture/scripts/generate-architecture-model.sh"
-if [ "$NO_CHECK" = false ]; then
-  GEN_CMD="$GEN_CMD && bash docs/architecture/scripts/check-architecture-model-freshness.sh"
-fi
 
 # ── Kill any leftover container from a prior run, start fresh, work, close ──────────────────────
 echo "Removing any leftover $GEN_CONTAINER container from a previous run..."

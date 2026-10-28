@@ -1,0 +1,89 @@
+#diagram {
+  padding: 8px 0;
+  font-family: system-ui, sans-serif;
+}
+
+.flow-row {
+  margin: 10px 0;
+}
+
+.flow-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5f6368;
+}
+
+.flow-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flow-step-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.flow-step-item:not(:last-child)::after {
+  content: "\2192";
+  color: #5f6368;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 6px;
+  align-items: center;
+  width: 190px;
+  min-height: 44px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  color: #202124;
+  background: #f1f3f4;
+  border: 1.5px solid #80868b;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.step .index {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  color: #5f6368;
+}
+
+.step .name {
+  overflow-wrap: anywhere;
+}
+
+.step:focus-visible {
+  outline: 3px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.step.running {
+  background: #e8f0fe;
+  border: 3px solid #1a73e8;
+}
+
+.step.passed {
+  background: #e6f4ea;
+  border-color: #188038;
+}
+
+.step.failed {
+  background: #fce8e6;
+  border: 2.5px solid #d93025;
+}
+
+.step.skipped {
+  border-style: dashed;
+  opacity: 0.55;
+}

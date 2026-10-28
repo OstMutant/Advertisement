@@ -80,6 +80,24 @@ class ApiKeyRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void findByIdAndActorId_ownedKey_returnsIt() {
+        ApiKey saved = saveKey("hash-" + UUID.randomUUID());
+
+        Optional<ApiKey> found = apiKeyRepository.findByIdAndActorId(saved.getId(), userId);
+
+        assertThat(found).isPresent();
+        assertThat(found.get().getId()).isEqualTo(saved.getId());
+    }
+
+    @Test
+    void findByIdAndActorId_wrongOwner_returnsEmpty() {
+        ApiKey saved = saveKey("hash-" + UUID.randomUUID());
+        User otherUser = UserTestFixtures.createTestUser(userRepository, "Not The Owner", "notowner-" + UUID.randomUUID() + "@example.com");
+
+        assertThat(apiKeyRepository.findByIdAndActorId(saved.getId(), otherUser.getId())).isEmpty();
+    }
+
+    @Test
     void findByActorId_returnsOnlyThatUsersKeys() {
         saveKey("hash-" + UUID.randomUUID());
         saveKey("hash-" + UUID.randomUUID());

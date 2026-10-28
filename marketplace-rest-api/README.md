@@ -8,29 +8,65 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
 ## What it provides
 
 - Full CRUD over advertisements and provider profiles, category/city catalog management, plus user
-  self-registration and admin/moderator-only user listing — the same `marketplace-orchestrator`
+  self-registration (the response says which role the caller got), admin/moderator-only user listing,
+  administrator account management (change a name or role, delete an account) and a caller's own
+  language switch — the same `marketplace-orchestrator`
   services `marketplace-app`'s own Vaadin forms call, so a REST write and a UI write go through
   identical validation/authorization/audit behavior.
-- Bearer API-key authentication (issuance gated by HTTP Basic) for every write; reads are public,
-  mirroring the existing public Vaadin browsing experience.
+- Bearer API-key authentication (issuance gated by HTTP Basic) for every write; reads are public
+  (mirroring the existing public Vaadin browsing experience) except the history, which needs a key. The caller's own key list hides revoked
+  keys unless `includeRevoked=true` is passed, which returns them with a non-null `revokedAt`.
 - Optimistic concurrency over HTTP's own mechanism: every `GET .../{id}` returns an `ETag` response
   header carrying the resource's version; every write reads the expected version back from an
   `If-Match` request header — `id`/`version` are never caller-writable body fields.
   `PATCH /api/users/me/settings` lets a caller change their own saved pagination-size preferences
   the same way.
+- Read-only audit history: a global timeline for administrators and moderators
+  (`GET /api/audit/timeline`, filtered and paged), and a `/history` sub-collection on advertisements,
+  provider profiles, taxons, users and a caller's own settings, newest first. Administrators and
+  moderators see every entry, anyone else only the entries they authored. Each entry can be read as a
+  snapshot (`.../history/{snapshotId}`) carrying the recorded state and its version. `POST
+  .../history/{snapshotId}/restore` (with `If-Match`) returns the resource to that state through the
+  normal save path; a snapshot outside the caller's visible activity is `403`. A soft-deleted taxon
+  is restored with `POST /api/taxons/{id}/restore`, which answers `409` when the taxon is not deleted.
+- Contacts: a public list of which channels (phone, Telegram, Viber) an advertisement or provider
+  profile has, and a public reveal of one channel that records the view and, for Telegram and Viber,
+  returns a deep link that opens the chat; reveals are rate-limited per client address and viewer.
+  View counts per channel for the current month are readable by the owner, administrators and
+  moderators.
+- Advertisement gallery: a public list of an advertisement's photos and video links, and bearer-authenticated upload of photos (JPEG, PNG, WebP, GIF, MP4, WebM; at most 50 MB per file), addition of a YouTube or Vimeo link, and removal of one item. At most 10 items per advertisement. Only the owner, administrators and moderators may change it, and every change is recorded on the advertisement's history.
+- Provider-profile feedback: a public, paged list (newest first) and rating summary, one review per user and profile, edits by the author within the edit window, one reply per review written by the profile's owner, and flags that hide a review or reply pending moderation. A hidden review or reply is returned without its text (and a hidden review without its rating).
+- Moderation: administrators and moderators can list the queue of flagged reviews and replies
+  (`GET /api/moderation/queue`, with full text, filtered, sorted and paged), approve a flagged or
+  confirmed entry back to visible, or confirm a flagged entry as a violation that stays hidden. No
+  deletion.
+- A developer-only flow runner page at `/dev-tools/api-flows/` that runs the Postman collection's
+  flows against the running app in the browser. It is served only when `marketplace.dev-tools.enabled`
+  is `true` (on in the `dev` profile, switched on for the local Docker stack by
+  `deploy-and-run.sh --dev-tools`); with the property off the path is not registered at all and answers
+  404. The page files and the collection live in `docs/api-collections` and are packed into this
+  module's classpath by the build (`pom.xml` resources), so the page is same-origin with the API.
 - A live OpenAPI 3 spec and Swagger UI, generated from these same controllers/DTOs, with
-  per-operation descriptions and request examples.
+  per-operation descriptions and request examples. The key entered through Authorize is kept in the
+  browser across page reloads (persistent authorization), so one issued key can be reused.
 
 ## Data flow
 
-Every request enters through `ApiSecurityConfig`'s `/api/**` filter chain: `ApiKeyAuthenticationFilter`
-resolves an `Authorization: Bearer <key>` header into a `PreAuthenticatedAuthenticationToken` —
-skipped when a request already carries HTTP Basic authentication (the key-issuance endpoint) —
-before Spring's own authorization check runs. From there, each of the five per-resource controllers
-(`AdvertisementApiController`, `ProviderProfileApiController`, `TaxonApiController`,
-`UserApiController`, `ApiKeyController`) calls straight into the same `marketplace-orchestrator`
-service its Vaadin-side counterpart already uses — no intermediate service layer of its own. A write
-endpoint builds its save DTO from a nested request record carrying no `id`/`version` field at all
+Every request enters through one of two `ApiSecurityConfig` filter chains. `POST /api/api-keys` has
+its own chain, the only one that accepts HTTP Basic, where `BasicLoginRateLimitFilter` first blocks
+a client address and email after 5 failed logins in 15 minutes. Every other `/api/**` request goes
+through the second chain: `ApiKeyAuthenticationFilter` resolves an `Authorization: Bearer <key>`
+header into a `PreAuthenticatedAuthenticationToken` before Spring's own authorization check runs,
+a Basic header is ignored, and a request without a valid key is answered 401 with a Bearer
+challenge. From there, each per-resource controller
+(`AdvertisementApiController`, `AdvertisementMediaApiController`, `ProviderProfileApiController`,
+`TaxonApiController`, `UserApiController`, `ApiKeyController`, `ContactApiController`,
+`FeedbackApiController`, `ModerationApiController`) calls straight into the same `marketplace-orchestrator`
+service its Vaadin-side counterpart already uses — no intermediate service layer of its own.
+`DevToolsConfig` (`config`) serves the flow runner page's static files from the classpath, only under
+the property above, outside the `/api/**` chains. `AuditApiController` serves the global timeline, and the `/history` methods of the four resource
+controllers read through `ActivityHistorySupport` (`api.audit`) instead of mapping audit data
+themselves. A write endpoint builds its save DTO from a nested request record carrying no `id`/`version` field at all
 (`id` from the path variable on update, `version` parsed from the `If-Match` header via
 `concurrency.ETagUtil`); a read endpoint attaches the resource's version as an `ETag` response
 header the same way. Any exception a controller or the orchestrator service throws is caught

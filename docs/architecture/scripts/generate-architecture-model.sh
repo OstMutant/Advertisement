@@ -1,30 +1,31 @@
 #!/usr/bin/env bash
+# ── Header ──────────────────────────────────────────────────────────────────
 # Description: Regenerates .claude/nav/adr-index.md first (a generated file this script then reads),
 #   then generates architecture-model.json and architecture-map.html -- the live, browsable
 #   architecture control plane -- from real repo state, no hand-maintained markdown. Regenerating
 #   the ADR index here keeps a single "regenerate the architecture docs" run from leaving it stale.
-# Uses: bash (invokes .claude/nav/scripts/generate-adr-index.sh first, to refresh the ADR index),
-#   node (invokes liquibase-schema-to-json.js always, and
-#   .claude/nav/scripts/md-to-decisions-json.js only when --with-adr-details is passed, as
-#   subprocesses), python3 (only when --with-sonar/--with-archunit are passed).
-# Input: pom.xml, real Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
+#   Generates architecture-model.json from already-structured, non-code sources only (no ArchUnit,
+#   no bytecode analysis) -- module/command/skill/agent graph nodes from pom.xml/config sources,
+#   cross-checked against flows.md, with ADRs folded into each module's intent[] list.
+# Usage: bash docs/architecture/scripts/generate-architecture-model.sh [--with-adr-details] [--with-sonar] [--with-archunit] [--with-ci-metrics]
+#   (no flags)         regenerate architecture-model.json and architecture-map.html from repo state, including JaCoCo coverage and Surefire results from the last local build-and-test.sh run
+#   --with-adr-details embed full ADR text in the architecture-map.html (slower, larger output)
+#   --with-sonar       include SonarQube quality metrics (requires server running)
+#   --with-archunit    include ArchUnit module-coupling analysis (runs ArchitectureMetricsExport)
+# Uses: bash, node (liquibase-schema-to-json.js, .claude/nav/scripts/generate-adr-index.sh, md-to-decisions-json.js),
+#   python3 (JaCoCo/Surefire parsing always; Sonar/ArchUnit only with --with-sonar/--with-archunit).
+# Env: None.
+# Input: scripts/build-and-test/reports/jacoco/*.xml, scripts/build-and-test/reports/surefire/*/,
+#   scripts/logs/** and scripts/ci/reports/ (run logs and CI metrics), pom.xml, Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
 #   .claude/nav/adr-index.md, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents,
-#   backlog/, root CLAUDE.md, .claude/rules/*.md (each file's own 5th line for its one-line module
-#   description, plus any <!-- #arch-embed:KEY --> ... <!-- /#arch-embed --> marked section,
-#   embedded live into the generated HTML).
-# Output: .claude/nav/adr-index.md (regenerated first, in place) + docs/architecture/data/
-#   architecture-model.json + docs/architecture/architecture-map.html + docs/architecture/data/
-#   arch-embed-index.md. The .json and .html are written atomically (built into temp siblings,
-#   moved into place only on full success) so an interrupted run never leaves a partial or empty
-#   committed file.
-#
-# Generates architecture-model.json (Track A of the architecture control plane) from
-# already-structured, non-code sources only -- no ArchUnit, no bytecode analysis. Node types:
-# MODULE (from pom.xml reactor + per-module pom.xml dependencies), COMMAND/SKILL (from
-# .claude/commands, .claude/skills, cross-checked against .claude/nav/flows.md), AGENT (from
-# .claude/agents), and one BACKLOG summary node. Per-ADR/per-issue graph nodes are deliberately not built -- the issue/ADR count
-# would blow past a "tens of nodes, not thousands" budget -- ADRs are folded into each module's
-# own `intent[]` list instead, reusing adr-index.md rather than reparsing every DECISIONS.md.
+#   backlog/, root CLAUDE.md, .claude/rules/*.md (including html/markdown embedded sections marked
+#   with <!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->).
+# Outputs: .claude/nav/adr-index.md (regenerated in place), docs/architecture/data/architecture-model.json,
+#   docs/architecture/architecture-map.html, docs/architecture/data/arch-embed-index.md. JSON/HTML
+#   built to temp siblings and moved into place only on full success (atomic -- interrupted runs
+#   never leave partial/empty files).
+# Returns: 0 on success, non-zero if any generation step fails.
+# ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -179,7 +180,7 @@ declare -A SCRIPT_GROUP_FILE_ORDER=(
   [scripts]="build-and-test.sh deploy-and-run.sh ci.sh run-all-tests.sh playwright.sh sonar.sh reset.sh run-local.bat build-and-test.bat deploy-and-run.bat ci.bat run-all-tests.bat playwright.bat sonar.bat claude.bat clean.bat collect-code.bat"
   [scripts/sonar]="run.sh run.bat docker-compose.sonar.yml sonar-project.properties"
   [scripts/build-and-test]="run.sh build.sh build-and-test.properties Dockerfile"
-  [scripts/deploy-and-run]="run.sh reset.sh Dockerfile docker-compose.db.yml docker-compose.minio.yml docker-compose.app.yml"
+  [scripts/deploy-and-run]="run.sh reset.sh Dockerfile docker-compose.db.yml docker-compose.seaweedfs.yml docker-compose.app.yml"
   [scripts/run-all-tests]="run.sh"
   [scripts/ci]="run.sh Dockerfile docker-entrypoint.sh watch-run.py"
   [scripts/ci/dagu]="ci.yaml pipeline-metrics.py"
@@ -221,6 +222,27 @@ root_md_json_for() {
   run_node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify(d)))' < "$REPO_ROOT/$file"
 }
 
+# The web-page rows (an http:// link in the link cell) of INFRASTRUCTURE.md's "Local Services" table as a JSON array.
+services_json() {
+  [ -f "$REPO_ROOT/INFRASTRUCTURE.md" ] || { echo "services_json: INFRASTRUCTURE.md not found" >&2; return 1; }
+  run_node -e '
+    const lines = require("fs").readFileSync(process.argv[1], "utf8").split(/\r?\n/);
+    const start = lines.findIndex(l => /^##\s+Local Services\s*$/.test(l));
+    if (start < 0) { console.error("services_json: Local Services section not found"); process.exit(1); }
+    const out = [];
+    for (let i = start + 1; i < lines.length && !/^##\s/.test(lines[i]); i++) {
+      if (!lines[i].startsWith("|")) continue;
+      const c = lines[i].split("|").slice(1, -1).map(s => s.trim());
+      if (c.length < 4) continue;
+      const m = c[2].match(/\[([^\]]+)\]\((http:\/\/[^)]+)\)/);
+      if (!m) continue;
+      out.push({ name: c[0], container: c[1].replace(/`/g, ""), label: m[1], url: m[2], solves: c[3] });
+    }
+    if (!out.length) { console.error("services_json: no web-page rows in Local Services"); process.exit(1); }
+    process.stdout.write(JSON.stringify(out));
+  ' "$REPO_ROOT/INFRASTRUCTURE.md"
+}
+
 # ── Module list, in pom.xml reactor order ───────────────────────────────────────────────────
 mapfile -t MODULES < <(sed -n '/<modules>/,/<\/modules>/p' "$REPO_ROOT/pom.xml" \
   | grep -o '<module>[^<]*</module>' | sed 's/<module>\(.*\)<\/module>/\1/')
@@ -232,7 +254,7 @@ DB_ERD_CHANGELOG_FILES=()
 for erd_mod in "${MODULES[@]}"; do
   while IFS= read -r erd_file; do
     [ -z "$erd_file" ] && continue
-    grep -q '<createTable' "$erd_file" && DB_ERD_CHANGELOG_FILES+=("${erd_file#"$REPO_ROOT/"}")
+    grep -q '<createTable\|<setColumnRemarks' "$erd_file" && DB_ERD_CHANGELOG_FILES+=("${erd_file#"$REPO_ROOT/"}")
   done < <(find "$REPO_ROOT/$erd_mod/src/main/resources/db" -mindepth 3 -maxdepth 3 -name "*.xml" 2>/dev/null | sort)
 done
 
@@ -531,7 +553,7 @@ adr_intent_for_module() {
   local module="$1"
   if [ -f "$ADR_INDEX" ]; then
     awk -F' \\| ' -v m="$module" '
-      /^\| ADR-/ && $2 == m { sub(/^\| /, "", $1); sub(/ *\|$/, "", $5); print $1 "\x1f" $5 }
+      /^\| ADR-/ && $2 == m { sub(/^\| /, "", $1); sub(/ *\|$/, "", $6); print $1 "\x1f" $6 }
     ' "$ADR_INDEX"
   fi
 }
@@ -541,17 +563,17 @@ adr_intent_for_module() {
 # keeps only each ADR's home-module row, skipping the extra "Also affects" cross-reference rows
 # that table carries (same id string repeated once per affected module) so an ADR is counted once.
 all_adrs_json() {
-  local items_json="" first_i=true id module status title home
+  local items_json="" first_i=true id module status applied title home
   if [ -f "$ADR_INDEX" ]; then
-    while IFS=$'\x1f' read -r id module status title; do
+    while IFS=$'\x1f' read -r id module status applied title; do
       [ -z "$id" ] && continue
       home="$(echo "$id" | sed -n 's/^ADR-[0-9]\+ (\(.*\))$/\1/p')"
       [ -z "$home" ] && home="$module"
       [ "$module" != "$home" ] && continue
       $first_i || items_json="$items_json,"$'\n'
       first_i=false
-      items_json="$items_json    {\"id\": \"$(json_escape "$id")\", \"module\": \"$(json_escape "$home")\", \"status\": \"$(json_escape "$status")\", \"title\": \"$(json_escape "$title")\"}"
-    done < <(awk -F' \\| ' '/^\| ADR-/ { sub(/^\| /, "", $1); sub(/ *\|$/, "", $5); print $1 "\x1f" $2 "\x1f" $3 "\x1f" $5 }' "$ADR_INDEX")
+      items_json="$items_json    {\"id\": \"$(json_escape "$id")\", \"module\": \"$(json_escape "$home")\", \"status\": \"$(json_escape "$status")\", \"applied\": ${applied:-null}, \"title\": \"$(json_escape "$title")\"}"
+    done < <(awk -F' \\| ' '/^\| ADR-/ { sub(/^\| /, "", $1); sub(/ *\|$/, "", $6); print $1 "\x1f" $2 "\x1f" $3 "\x1f" $5 "\x1f" $6 }' "$ADR_INDEX")
   fi
   echo "[$items_json"$'\n'"  ]"
 }
@@ -835,10 +857,35 @@ issue_list_json() {
 # All four diagrams (Module Dependencies/SPI Map/Database ERD/Bounded Contexts) render live --
 # no markdown source is parsed for the Diagrams list anymore.
 # ── SPI Map subsystem order/labels -- declared before diagram_groups_json below since the SPI Map
-# group now has one diagram per subsystem (7 tabs instead of one 71-node canvas -- user reported
-# the single flat graph was too cluttered to read). Reused again inside spi_map_json() further
-# down instead of a second, separately-maintained local copy.
-declare -a SPI_SUBSYSTEM_ORDER=(audit attachment user apikey advertisement taxon providerprofile core)
+# group now has one diagram per subsystem (one tab per subsystem instead of one cluttered flat
+# canvas). Reused again inside spi_map_json() further down instead of a second, separately-
+# maintained local copy.
+# Discovered live from platform-commons' own spi/ package tree -- a new domain's spi/ package
+# (org/ost/platform/<x>/spi/*.java) gets its own tab automatically, no edit needed here. Previously
+# a fully hardcoded list that silently dropped any subsystem not manually added to it (confirmed:
+# both "contact" and "feedback" were missing before this fix, with real ContactPort/FeedbackPort
+# data already present in spiMap.details/nodes but unreachable from any tab or the markdown export
+# -- see docs/architecture/scripts/DECISIONS.md and this task's own verification notes).
+mapfile -t SPI_SUBSYSTEM_DISCOVERED < <(
+  for spi_f in "$REPO_ROOT"/platform-commons/src/main/java/org/ost/platform/*/spi/*.java; do
+    [ -f "$spi_f" ] || continue
+    sed -n 's/^package *org\.ost\.platform\.\([a-z]*\)\.spi;.*/\1/p' "$spi_f"
+  done | sort -u
+)
+# Preferred display order for subsystems we curate a specific position/label for; anything
+# discovered above but not listed here is appended at the end automatically, so a new subsystem
+# still gets its own tab (with an auto-generated label, see spi_subsystem_label_for below) instead
+# of silently disappearing.
+declare -a SPI_SUBSYSTEM_PREFERRED_ORDER=(audit attachment user apikey advertisement taxon providerprofile core)
+declare -a SPI_SUBSYSTEM_ORDER=()
+for spi_s in "${SPI_SUBSYSTEM_PREFERRED_ORDER[@]}"; do
+  for spi_d in "${SPI_SUBSYSTEM_DISCOVERED[@]}"; do [ "$spi_s" = "$spi_d" ] && SPI_SUBSYSTEM_ORDER+=("$spi_s"); done
+done
+for spi_d in "${SPI_SUBSYSTEM_DISCOVERED[@]}"; do
+  spi_found=false
+  for spi_s in "${SPI_SUBSYSTEM_ORDER[@]}"; do [ "$spi_s" = "$spi_d" ] && spi_found=true; done
+  $spi_found || SPI_SUBSYSTEM_ORDER+=("$spi_d")
+done
 declare -A SPI_SUBSYSTEM_LABEL=(
   [audit]="Audit Subsystem"
   [attachment]="Attachment Subsystem"
@@ -849,13 +896,25 @@ declare -A SPI_SUBSYSTEM_LABEL=(
   [providerprofile]="Provider Profile Subsystem"
   [core]="Core / Platform"
 )
+# Fallback for any subsystem discovered above with no explicit override: Title-Case the key + "
+# Subsystem" (e.g. "feedback" -> "Feedback Subsystem"). Add a real SPI_SUBSYSTEM_LABEL entry
+# whenever this generic fallback reads awkwardly (multi-word/abbreviated names, same as
+# "providerprofile"/"apikey"/"taxon"/"core" already need above).
+spi_subsystem_label_for() {
+  local s="$1"
+  if [ -n "${SPI_SUBSYSTEM_LABEL[$s]:-}" ]; then
+    echo "${SPI_SUBSYSTEM_LABEL[$s]}"
+  else
+    echo "$(tr '[:lower:]' '[:upper:]' <<< "${s:0:1}")${s:1} Subsystem"
+  fi
+}
 
 spi_map_diagrams_json() {
   local out="" first=true s
   for s in "${SPI_SUBSYSTEM_ORDER[@]}"; do
     $first || out="$out,"
     first=false
-    out="$out{\"title\": \"$(json_escape "${SPI_SUBSYSTEM_LABEL[$s]}")\", \"source\": \"\", \"subsystem\": \"$(json_escape "$s")\"}"
+    out="$out{\"title\": \"$(json_escape "$(spi_subsystem_label_for "$s")")\", \"source\": \"\", \"subsystem\": \"$(json_escape "$s")\"}"
   done
   echo "$out"
 }
@@ -1058,7 +1117,7 @@ for caller in edges.get('callers', []):
     $first_s || labels_json="$labels_json, "
     $first_s || notes_json="$notes_json, "
     first_s=false
-    labels_json="$labels_json\"$s\": \"$(json_escape "${SPI_SUBSYSTEM_LABEL[$s]}")\""
+    labels_json="$labels_json\"$s\": \"$(json_escape "$(spi_subsystem_label_for "$s")")\""
     notes_json="$notes_json\"$s\": \"$(json_escape "${SPI_SUBSYSTEM_NOTE[$s]:-}")\""
   done
   echo "{"
@@ -1077,16 +1136,16 @@ for caller in edges.get('callers', []):
 # user_information's self-referential deleted_by) come live from liquibase-schema-to-json.js.
 # Conceptual (no real SQL-level FK) relationships come from two sources:
 #  1. Derived, in db_erd_json() below, from any column whose own remarks= carries the fixed marker
-#     "References <table>(<column>), no FK" (module-doc-standards' Liquibase remarks convention --
-#     every actor-reference/no-FK column in this codebase's changelogs already carries it).
-#  2. What that marker can't express -- a generic entity_type/entity_id column pair, whose real
-#     target table is a runtime data value, not a schema fact -- stays a small hand-preserved list
-#     below.
+#     (module-doc-standards' Liquibase remarks convention -- every no-FK column in this codebase's
+#     changelogs already carries one): a single-target marker "References <table>(<column>), no
+#     FK", or an N-target marker "References <tableA>(<column>) or <tableB>(<column>) [or
+#     <tableC>(<column>) ...] depending on <discriminator>, no FK" for a polymorphic
+#     entity_type/entity_id pair whose real target is a runtime value, not a schema fact -- derives
+#     one edge per listed target, any count.
+#  2. What neither marker can express -- stays a small hand-preserved list below.
 db_erd_conceptual_relationships_json() {
   cat <<'EOF'
 [
-  {"from": "ADVERTISEMENT", "to": "ATTACHMENT", "label": "owns (entity_type/entity_id, generic, no FK)"},
-  {"from": "ADVERTISEMENT", "to": "TAXON_ASSIGNMENT", "label": "categorized_by (entity_type/entity_id, generic, no FK)"},
   {"from": "ATTACHMENT", "to": "ATTACHMENT_SNAPSHOT", "label": "has_snapshots (entity_type/entity_id, no FK)"}
 ]
 EOF
@@ -1103,11 +1162,17 @@ db_erd_json() {
     process.stdin.on("data", c => d += c);
     process.stdin.on("end", () => {
       const curated = JSON.parse(process.argv[1]);
-      const re = /References\s+(\w+)\(([\w,]+)\),\s*no FK/i;
+      const refRe = /References\s+((?:\w+\(\w+\)\s*(?:or\s+)?)+)(?:depending on \w+\s*)?,\s*no FK/i;
       const derived = [];
       JSON.parse(d).forEach(t => t.columns.forEach(c => {
-        const m = re.exec(c.remarks || "");
-        if (m) derived.push({ from: m[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
+        const remarks = c.remarks || "";
+        const m = refRe.exec(remarks);
+        if (!m) return;
+        const targetRe = /(\w+)\(\w+\)/g;
+        let tm;
+        while ((tm = targetRe.exec(m[1])) !== null) {
+          derived.push({ from: tm[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
+        }
       }));
       process.stdout.write(JSON.stringify([...derived, ...curated]));
     });
@@ -1239,6 +1304,153 @@ ci_pipeline_metrics_json() {
   else
     echo "null"
   fi
+}
+
+# Python helper shared by the test-report and run-log snippets: parses a key=value file into a dict.
+PY_READ_INFO='
+def read_info(p):
+    kv = {}
+    try:
+        with open(p, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if "=" in line:
+                    k, v = line.rstrip("\r\n").split("=", 1)
+                    kv[k] = v
+    except OSError:
+        pass
+    return kv
+'
+
+# JaCoCo coverage and Surefire results of the last plain build-and-test.sh run as one JSON object.
+test_reports_json() {
+  python3 -c "$PY_READ_INFO"'
+import json, sys, glob, os, datetime
+import xml.etree.ElementTree as ET
+
+root = sys.argv[1]
+reports = os.path.join(root, "scripts/build-and-test/reports")
+rel = "scripts/build-and-test/reports"
+
+def utc(sec):
+    return datetime.datetime.fromtimestamp(sec, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+build_info = None
+info_file = os.path.join(root, "scripts/logs/build-and-test/build-info.txt")
+if os.path.isfile(info_file):
+    kv = read_info(info_file)
+    build_info = {"timestamp": kv.get("timestamp"), "runUnit": kv.get("RUN_UNIT"),
+                  "runIntegration": kv.get("RUN_INTEGRATION"),
+                  "unitTestArg": kv.get("UNIT_TEST_ARG"),
+                  "integrationTestArg": kv.get("INTEGRATION_TEST_ARG")}
+
+coverage = []
+for path in sorted(glob.glob(os.path.join(reports, "jacoco", "*.xml"))):
+    mid = os.path.splitext(os.path.basename(path))[0]
+    try:
+        rt = ET.parse(path).getroot()
+    except Exception as e:
+        print("skipped unparsable " + path + ": " + str(e), file=sys.stderr)
+        continue
+    cnt = {"LINE": (0, 0), "BRANCH": (0, 0)}
+    for c in rt.findall("counter"):
+        if c.get("type") in cnt:
+            cnt[c.get("type")] = (int(c.get("covered")), int(c.get("missed")))
+    dumps = [int(si.get("dump")) for si in rt.findall("sessioninfo") if si.get("dump")]
+    coverage.append({"id": mid, "lineCovered": cnt["LINE"][0], "lineMissed": cnt["LINE"][1],
+                     "branchCovered": cnt["BRANCH"][0], "branchMissed": cnt["BRANCH"][1],
+                     "runAt": utc(max(dumps) / 1000) if dumps else None,
+                     "html": rel + "/jacoco/" + mid + "/index.html"})
+
+tests = []
+sf_root = os.path.join(reports, "surefire")
+for mid in sorted(d for d in os.listdir(sf_root) if os.path.isdir(os.path.join(sf_root, d))) if os.path.isdir(sf_root) else []:
+    if mid.startswith("advertisement-build-only") or mid == "it-mirror":
+        continue
+    files = sorted(glob.glob(os.path.join(sf_root, mid, "TEST-*.xml")))
+    tot = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+    secs = 0.0
+    newest = None
+    failing = []
+    for path in files:
+        try:
+            ts = ET.parse(path).getroot()
+        except Exception as e:
+            print("skipped unparsable " + path + ": " + str(e), file=sys.stderr)
+            continue
+        for k in tot:
+            tot[k] += int(ts.get(k, 0))
+        secs += float(ts.get("time", 0))
+        mt = os.path.getmtime(path)
+        newest = mt if newest is None else max(newest, mt)
+        if int(ts.get("failures", 0)) + int(ts.get("errors", 0)) > 0:
+            failing.append({"name": ts.get("name"), "txt": rel + "/surefire/" + mid + "/" + ts.get("name") + ".txt"})
+    if newest is None:
+        continue
+    failing.sort(key=lambda x: x["name"])
+    tests.append({"id": mid, **tot, "time": round(secs, 1), "runAt": utc(newest),
+                  "failing": failing})
+
+print(json.dumps({"buildInfo": build_info, "coverage": coverage, "tests": tests}))
+' "$REPO_ROOT"
+}
+
+# Run logs grouped by folder under scripts/logs and scripts/ci/reports; a run's ID is the session ID its script wrote.
+run_logs_json() {
+  python3 -c "$PY_READ_INFO"'
+import json, sys, os, datetime
+
+root = sys.argv[1]
+ROOTS = ["scripts/logs", "scripts/ci/reports"]
+NOTES = {"unit-tests.log": "Unit tests output", "integration-tests.log": "Integration tests output",
+         "archunit-metrics.log": "ArchUnit metrics export output", "build-info.txt": "Run parameters",
+         "run.log": "Run output", "orchestrator.log": "Parallel orchestrator output",
+         "build-and-test-session.log": "Whole build-and-test session",
+         "pipeline-metrics.json": "CI pipeline metrics", "dagu-metrics.md": "CI run report from /ci --metrics"}
+
+def utc(sec):
+    return datetime.datetime.fromtimestamp(sec, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+def mtime(p):
+    try:
+        with open(p, "rb"):
+            pass
+        return os.path.getmtime(p)
+    except OSError as e:
+        print("skipped unreadable " + p + ": " + str(e), file=sys.stderr)
+        return None
+
+groups = []
+for base in ROOTS:
+    base_dir = os.path.join(root, base)
+    if not os.path.isdir(base_dir):
+        continue
+    for dirpath, dirnames, filenames in os.walk(base_dir):
+        dirnames.sort()
+        rel = os.path.relpath(dirpath, root).replace(os.sep, "/")
+        files = []
+        for n in sorted(filenames):
+            if n.startswith("."):
+                continue
+            m = mtime(os.path.join(dirpath, n))
+            if m is not None:
+                files.append({"name": n, "path": rel + "/" + n, "note": NOTES.get(n, ""), "mtime": m})
+        if not files:
+            continue
+        runs = []
+        session = read_info(os.path.join(dirpath, "session-info.txt")).get("SESSION_ID")
+        stamp = read_info(os.path.join(dirpath, "build-info.txt")).get("timestamp")
+        if stamp:
+            runs.append({"id": session or "-", "startedAt": stamp, "files": [{"path": f["path"], "note": f["note"]} for f in files]})
+        else:
+            for f in files:
+                runs.append({"id": session or "-", "startedAt": utc(f["mtime"]), "files": [{"path": f["path"], "note": f["note"]}]})
+        runs.sort(key=lambda r: r["startedAt"], reverse=True)
+        groups.append({"folder": rel, "runs": runs})
+
+groups.sort(key=lambda g: g["folder"])
+groups.sort(key=lambda g: g["runs"][0]["startedAt"], reverse=True)
+print(json.dumps(groups))
+' "$REPO_ROOT"
 }
 
 # ── Live coupling checks: re-runs real grep commands, each producing a PASS/FAIL with the real
@@ -1846,6 +2058,9 @@ archunit_json="null"
 [ -n "$WITH_ARCHUNIT" ] && archunit_json="$(archunit_metrics_json)"
 ci_metrics_json="null"
 [ -n "$WITH_CI_METRICS" ] && ci_metrics_json="$(ci_pipeline_metrics_json)"
+test_reports_json_out="$(test_reports_json)"
+run_logs_json_out="$(run_logs_json)"
+services_list_json="$(services_json)"
 
 {
   echo "{"
@@ -1864,6 +2079,8 @@ ci_metrics_json="null"
   echo "  \"sonarMetrics\": $sonar_json,"
   echo "  \"archUnitMetrics\": $archunit_json,"
   echo "  \"ciPipelineMetrics\": $ci_metrics_json,"
+  echo "  \"testReports\": $test_reports_json_out,"
+  echo "  \"runLogs\": $run_logs_json_out,"
   echo "  \"couplingChecks\": $(coupling_checks_json),"
   echo "  \"largestJavaFiles\": $(largest_java_files_json),"
   echo "  \"constructorInjection\": $(constructor_injection_json),"
@@ -1871,6 +2088,7 @@ ci_metrics_json="null"
   echo "  \"allAdrs\": $(all_adrs_json),"
   echo "  \"rootReadme\": $(root_md_json_for "README.md"),"
   echo "  \"rootInfrastructure\": $(root_md_json_for "INFRASTRUCTURE.md"),"
+  echo "  \"services\": $services_list_json,"
   echo "  \"rootBestPractices\": $(root_md_json_for "docs/best-practices.md"),"
   echo "  \"nodes\": ["
 
@@ -2070,6 +2288,8 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px; cursor: pointer; transition: box-shadow .15s, transform .15s; }
   .card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.08); transform: translateY(-1px); }
   .card.card-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .card.link-card { display: block; color: inherit; text-decoration: none; }
+  .section-title { margin: 20px 0 4px; }
   .card .card-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
   .card .card-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
   .badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; margin-top: 8px; }
@@ -2271,10 +2491,13 @@ function crumbLabelFor(v) {
   if (v.screen === "backlog") return "Backlog";
   if (v.screen === "adrs") return "ADRs";
   if (v.screen === "codequality") {
-    if (v.section === "sonar") return "Code Quality — SonarQube";
+    if (v.section === "sonar") return "Code Quality — Sonar Metrics";
     if (v.section === "archunit") return "Code Quality — ArchUnit";
     if (v.section === "findings") return "Code Quality — Findings";
     if (v.section === "practices") return "Code Quality — Best Practices";
+    if (v.section === "coverage") return "Code Quality — Coverage";
+    if (v.section === "tests") return "Code Quality — Tests";
+    if (v.section === "logs") return "Code Quality — Run logs";
     return "Code Quality";
   }
   if (v.screen === "diagrams") {
@@ -2836,6 +3059,19 @@ const SONAR_GLOSSARY = [
   { field: "Code smells", desc: "Count of maintainability issues SonarQube's rule engine actually flagged in this module (naming, dead code, duplicated logic, overly long methods, etc.) — a concrete, itemized list (visible in the SonarQube dashboard itself), not a derived estimate like the complexity numbers above." },
   { field: "Code smells/1k LOC", desc: "Code smells normalized per 1000 lines of code, so a small module with 2 smells isn't unfairly compared against a large module with 20 — what matters is smell density, not raw count. Colored: green < 5, yellow 5-15, red > 15." },
 ];
+const COVERAGE_GLOSSARY = [
+  { field: "Line coverage", desc: "Share of executable source lines run by the tests. Colored: green above 75%, yellow above 60% up to 75%, red at 60% and below (Google's published guideline: 60% acceptable, 75% commendable)." },
+  { field: "Branch coverage", desc: "Share of decision branches (if/else, switch cases, boolean operators) taken by the tests. Same colors and thresholds as line coverage." },
+  { field: "Run at", desc: "Time the module's tests ran, read from the JaCoCo session in its coverage report. Rows can come from runs of different ages." },
+  { field: "integration-tests-aggregate", desc: "Coverage of the starters as exercised by the integration tests, merged into one report." },
+];
+const TESTS_GLOSSARY = [
+  { field: "Tests", desc: "Number of test cases Surefire ran in the module." },
+  { field: "Failed", desc: "Test cases whose assertion failed." },
+  { field: "Errors", desc: "Test cases that threw an unexpected exception." },
+  { field: "Skipped", desc: "Test cases that were disabled or whose assumptions did not hold." },
+  { field: "Run at", desc: "Modification time of the module's newest Surefire report file." },
+];
 const ARCHUNIT_GLOSSARY = [
   { field: "Efferent coupling (Ce)", desc: "How many classes outside this module the classes inside it depend on — this module's \"outgoing\" dependencies. High Ce means this module is exposed to a lot of external change: if any of those other classes change their API, this module is one of the things that might break." },
   { field: "Afferent coupling (Ca)", desc: "How many classes outside this module depend on classes inside it — this module's \"incoming\" dependencies, i.e. its real-world blast radius. High Ca means many other parts of the codebase would be affected if this module's public API changed, so changes here need extra care." },
@@ -2848,10 +3084,10 @@ function renderCodeQuality() {
   if (!view.section) {
     let html = backButtonHtml();
     html += `<h2 class="screen-title">Code Quality</h2>
-      <div class="screen-desc">Real SonarQube + ArchUnit metrics, plus repo-wide structural findings -- pick where to start.</div>`;
+      <div class="screen-desc">Real SonarQube + ArchUnit metrics, repo-wide structural findings, and the latest test reports (Playwright, coverage, Surefire, run logs) -- pick where to start.</div>`;
     html += `<div class="card-grid">
       <div class="card" onclick="navigate({screen:'codequality',section:'sonar'})">
-        <div class="card-title">SonarQube</div>
+        <div class="card-title">Sonar Metrics</div>
         <div class="card-desc">Complexity, cognitive complexity, code smells -- per module</div>
       </div>
       <div class="card" onclick="navigate({screen:'codequality',section:'archunit'})">
@@ -2866,6 +3102,22 @@ function renderCodeQuality() {
         <div class="card-title">📋 Best Practices</div>
         <div class="card-desc">Project-grounded Java/JUnit/Playwright/Bash/CI checklist, sourced and checked against real code</div>
       </div>
+      <a class="card link-card" href="../../playwright/pw-report/index.html" target="_blank" rel="noopener">
+        <div class="card-title">Playwright report</div>
+        <div class="card-desc">Last e2e run's HTML report. Traces open only via <code>npx playwright show-report</code> (the trace viewer does not work from disk).</div>
+      </a>
+      <div class="card" onclick="navigate({screen:'codequality',section:'coverage'})">
+        <div class="card-title">Coverage (JaCoCo)</div>
+        <div class="card-desc">Line and branch coverage per module, with links to each HTML report</div>
+      </div>
+      <div class="card" onclick="navigate({screen:'codequality',section:'tests'})">
+        <div class="card-title">Tests (Surefire)</div>
+        <div class="card-desc">Tests, failures and skips per module, failing classes linked</div>
+      </div>
+      <div class="card" onclick="navigate({screen:'codequality',section:'logs'})">
+        <div class="card-title">Run logs</div>
+        <div class="card-desc">Console logs of manual runs and of the last CI run, each one a link</div>
+      </div>
     </div>`;
     document.getElementById("content").innerHTML = html;
     return;
@@ -2873,11 +3125,72 @@ function renderCodeQuality() {
 
   let html = backButtonHtml();
 
-  if (view.section === "sonar") {
+  if (view.section === "coverage" || view.section === "tests") {
+    const tr = MODEL.testReports;
+    const isCov = view.section === "coverage";
+    html += isCov
+      ? `<h2 class="screen-title">Code Quality — Coverage</h2>
+      <div class="screen-desc">JaCoCo line and branch coverage per module, read at generation time from <code>scripts/build-and-test/reports/jacoco/</code> of the last plain <code>build-and-test.sh</code> run.</div>`
+      : `<h2 class="screen-title">Code Quality — Tests</h2>
+      <div class="screen-desc">Surefire results per module, read at generation time from <code>scripts/build-and-test/reports/surefire/</code> of the last plain <code>build-and-test.sh</code> run.</div>`;
+    html += `<section class="block"><h3>${isCov ? "Coverage" : "Tests"}</h3>`;
+    if (!tr || !(isCov ? tr.coverage : tr.tests).length) {
+      const folder = isCov ? "scripts/build-and-test/reports/jacoco/" : "scripts/build-and-test/reports/surefire/";
+      html += `<div class="empty-hint">No data -- run <code>bash scripts/build-and-test.sh --unit --integration</code>, then regenerate the map. ${reportLink(folder, isCov ? "Open the coverage folder" : "Open the Surefire folder")}.</div>`;
+    } else {
+      const bi = tr.buildInfo;
+      if (bi) {
+        const onOff = v => (String(v) === "true" ? "on" : "off");
+        const single = [bi.unitTestArg, bi.integrationTestArg].filter(a => a).join(", ");
+        html += `<div class="empty-hint">Last build-and-test run: ${esc(bi.timestamp || "unknown")}; unit ${onOff(bi.runUnit)}, integration ${onOff(bi.runIntegration)}${single ? `; single-test argument: ${esc(single)}` : ""}.</div>`;
+      }
+      const runAt = r => `<span style="white-space:nowrap">${esc(r.runAt || "-")}</span>`;
+      if (isCov) {
+        const pct = (c, m) => (c + m === 0 ? "-" : `<span class="${metricClass(100 - (100 * c / (c + m)), 25, 40)}">${esc((100 * c / (c + m)).toFixed(1))}%</span>`);
+        html += `<table class="simple"><thead><tr><th>Module</th><th>Line coverage</th><th>Branch coverage</th><th>Run at</th><th>Report</th></tr></thead><tbody>`;
+        tr.coverage.forEach(r => {
+          const cell = byId[r.id] ? `<a class="module-link" onclick="navigate({screen:'module', id:'${esc(r.id)}'})">${esc(r.id)}</a>` : esc(r.id);
+          html += `<tr><td>${cell}</td><td>${pct(r.lineCovered, r.lineMissed)}</td><td>${pct(r.branchCovered, r.branchMissed)}</td><td>${runAt(r)}</td><td>${reportLink(r.html, "HTML report")}</td></tr>`;
+        });
+        html += `</tbody></table>
+          <div class="empty-hint">marketplace-app's number includes the Vaadin UI package, which the Sonar scan excludes from coverage because the UI is verified by Playwright.</div>`;
+      } else {
+        const bad = v => (v > 0 ? "metric-critical" : "");
+        html += `<table class="simple"><thead><tr><th>Module</th><th>Tests</th><th>Failed</th><th>Errors</th><th>Skipped</th><th>Time (s)</th><th>Run at</th></tr></thead><tbody>`;
+        tr.tests.forEach(r => {
+          const cell = byId[r.id] ? `<a class="module-link" onclick="navigate({screen:'module', id:'${esc(r.id)}'})">${esc(r.id)}</a>` : esc(r.id);
+          html += `<tr><td>${cell}</td><td>${r.tests}</td><td class="${bad(r.failures)}">${r.failures}</td><td class="${bad(r.errors)}">${r.errors}</td><td>${r.skipped}</td><td>${esc(Number(r.time).toFixed(1))}</td><td>${runAt(r)}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+        const failing = tr.tests.filter(r => r.failing && r.failing.length);
+        if (failing.length) {
+          html += `<h4>Failing test classes</h4>` + failing.map(r =>
+            `<div><strong>${esc(r.id)}</strong><ul>${r.failing.map(f => `<li>${reportLink(f.txt, f.name)}</li>`).join("")}</ul></div>`).join("");
+        }
+      }
+    }
+    html += `</section>`;
+    html += `<section class="block"><h3>Overview</h3>
+      <table class="simple"><thead><tr><th>Field</th><th>What it means</th></tr></thead><tbody>` +
+      (isCov ? COVERAGE_GLOSSARY : TESTS_GLOSSARY).map(g => `<tr><td class="scope-label">${esc(g.field)}</td><td>${esc(g.desc)}</td></tr>`).join("") +
+      `</tbody></table></section>`;
+  } else if (view.section === "logs") {
+    html += `<h2 class="screen-title">Code Quality — Run logs</h2>
+      <div class="screen-desc">Console logs of the scripts, one table per folder, newest first. A run's ID is the session ID shared by every script one top-level script started; a dash means the run predates session IDs. Links are plain and relative to this page; one opens only when that script has run on this machine.</div>`;
+    if (!MODEL.runLogs || MODEL.runLogs.length === 0) {
+      html += `<div class="empty-hint">No logs found -- run a script under scripts/ first, then regenerate the map.</div>`;
+    } else {
+      MODEL.runLogs.forEach(g => {
+        const rows = g.runs.map(r => `<tr><td><code>${esc(r.id)}</code></td><td style="white-space:nowrap">${esc(r.startedAt.replace("T", " ").replace(/Z$/, ""))}</td><td>${r.files.map(f => reportLink(f.path, f.path) + (f.note ? ` <span style="opacity:.7">${esc("-- " + f.note)}</span>` : "")).join("<br>")}</td></tr>`).join("");
+        html += `<section class="block"><h3>${esc(g.folder)}</h3><table class="simple"><thead><tr><th>Run ID</th><th>Started (UTC)</th><th>Files</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+      });
+      html += `<section class="block"><h3>Dagu UI</h3><div class="empty-hint"><a href="http://localhost:8082" target="_blank" rel="noopener">http://localhost:8082</a> -- ${esc("live status and run history of the CI runner; opens only while it is up")}</div></section>`;
+    }
+  } else if (view.section === "sonar") {
     const sonar = MODEL.sonarMetrics;
-    html += `<h2 class="screen-title">Code Quality — SonarQube</h2>
+    html += `<h2 class="screen-title">Code Quality — Sonar Metrics</h2>
       <div class="screen-desc">Real SonarQube metrics per module. Opt-in (<code>--with-sonar</code> on <code>generate-architecture-model.sh</code>), off by default. Raw counts are shown plain; derived ratios are colored (see Overview below for thresholds).</div>`;
-    html += `<section class="block"><h3>SonarQube</h3>`;
+    html += `<section class="block"><h3>Sonar Metrics</h3>`;
     if (!sonar) {
       html += `<div class="empty-hint">No data -- regenerate with <code>--with-sonar</code> (requires a reachable SonarQube server).</div>`;
     } else {
@@ -3009,6 +3322,11 @@ function sourceLink(relPath) {
   return `<a href="../../${esc(relPath)}" target="_blank"><code class="path">${esc(relPath)}</code></a>`;
 }
 
+// Link to a generated report file, relative to this file's location, opened in a new tab.
+function reportLink(relPath, label) {
+  return `<a href="../../${esc(relPath)}" target="_blank">${esc(label)}</a>`;
+}
+
 function renderScriptGroupSection(n, skipHeading) {
   // Only chip files that DON'T already get their own full block in the "Script headers" list
   // below -- a file with a real parsed header would otherwise appear twice on the same card (a
@@ -3091,6 +3409,14 @@ function renderPipelines() {
       </div>`;
     });
     html += `</div>`;
+
+    html += `<h3 class="section-title">Services</h3>
+      <div class="screen-desc">Local web pages from the Local Services table of ${sourceLink("INFRASTRUCTURE.md")}; each opens in a new tab.</div>
+      <div class="card-grid">${MODEL.services.map(s => `<a class="card link-card" href="${esc(s.url)}" target="_blank" rel="noopener">
+        <div class="card-title">${esc(s.name)}</div>
+        <div class="card-desc">${esc(s.solves).replace(/\`([^\`]+)\`/g, "<code>$1</code>")}</div>
+        <div class="card-desc"><code class="path">${esc(s.label)}</code> · ${esc(s.container)}</div>
+      </a>`).join("")}</div>`;
 
     // Root INFRASTRUCTURE.md, rendered inline at the bottom of this same page -- not its own
     // card/drill-down, the same way README.md renders inline at the bottom of the System page.
@@ -4299,6 +4625,9 @@ function renderAdrs() {
     groups[groupIndex[a.module]].items.push(a);
   });
   groups.forEach(grp => {
+    // Most-applied first within each module -- surfaces which ADRs are actually
+    // load-bearing instead of the file-appearance order adr-index.md happens to carry.
+    grp.items.sort((a, b) => (b.applied || 0) - (a.applied || 0));
     // Only a real MODULE node has a Module-detail page to link to -- SCRIPT_GROUP entries
     // (docs/architecture/scripts, scripts/ci, etc.) stay plain text, no dead/wrong-feeling navigation.
     const grpNode = byId[grp.module];
@@ -4306,9 +4635,9 @@ function renderAdrs() {
       ? `<a class="module-link" onclick="navigate({screen:'module', id:'${esc(grp.module)}'})">${esc(grp.module)}</a>`
       : esc(grp.module);
     html += `<section class="block"><h3>${grpHeading} (${grp.items.length}) ${sourceLink(grp.module + "/DECISIONS.md")}</h3>
-      <table class="simple"><thead><tr><th>ADR</th><th>Status</th><th>Title</th></tr></thead><tbody>`;
+      <table class="simple"><thead><tr><th>ADR</th><th>Status</th><th style="width:70px">Applied</th><th>Title</th></tr></thead><tbody>`;
     grp.items.forEach(a => {
-      html += `<tr><td><a onclick="openAdrPopupForAdr('${esc(a.id)}', '${esc(a.module)}', '${esc(a.title)}', '${esc(a.status)}')">${esc(a.id)}</a></td><td>${esc(a.status)}</td><td>${esc(a.title)}</td></tr>`;
+      html += `<tr><td><a onclick="openAdrPopupForAdr('${esc(a.id)}', '${esc(a.module)}', '${esc(a.title)}', '${esc(a.status)}')">${esc(a.id)}</a></td><td>${esc(a.status)}</td><td>${a.applied ?? ""}</td><td>${esc(a.title)}</td></tr>`;
     });
     html += `</tbody></table></section>`;
   });

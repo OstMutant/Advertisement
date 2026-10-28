@@ -33,7 +33,6 @@ public class EntityActivityOverlay extends BaseOverlay {
     public static class Parameters {
         @NonNull EntityRef            entityRef;
         @NonNull Long                 userId;
-        boolean                        isPrivileged;
         boolean                        canOperate;
         @NonNull List<BreadcrumbStep> parentSteps;
         @NonNull String                parentFormLabel;
@@ -85,7 +84,6 @@ public class EntityActivityOverlay extends BaseOverlay {
         Div content = new Div(auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
                 .entityRef(p.getEntityRef())
                 .userId(p.getUserId())
-                .isPrivileged(p.isPrivileged())
                 .canOperate(p.isCanOperate())
                 .onRestoreRequested(snapshotId -> {
                     p.getOnRestoreRequested().accept(snapshotId);

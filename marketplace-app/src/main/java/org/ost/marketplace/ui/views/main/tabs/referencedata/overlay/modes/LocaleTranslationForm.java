@@ -12,6 +12,7 @@ import org.ost.marketplace.ui.dto.EditDto;
 import org.ost.marketplace.ui.views.components.fields.UiTextArea;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
+import org.ost.platform.core.model.SupportedLocales;
 import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 
@@ -102,9 +103,9 @@ class LocaleTranslationForm<T extends EditDto> {
         Field<T> en = fields.get(0);
         Field<T> uk = fields.get(1);
         return Map.of(
-                Locale.ENGLISH, TaxonTranslationDto.builder().locale("en")
+                Locale.forLanguageTag(SupportedLocales.ENGLISH_TAG), TaxonTranslationDto.builder().locale(SupportedLocales.ENGLISH_TAG)
                         .name(en.getName().apply(dto)).description(en.getDescription().apply(dto)).build(),
-                Locale.forLanguageTag("uk"), TaxonTranslationDto.builder().locale("uk")
+                Locale.forLanguageTag(SupportedLocales.UKRAINIAN_TAG), TaxonTranslationDto.builder().locale(SupportedLocales.UKRAINIAN_TAG)
                         .name(uk.getName().apply(dto)).description(uk.getDescription().apply(dto)).build()
         );
     }

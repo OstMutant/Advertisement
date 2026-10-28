@@ -8,6 +8,8 @@ import org.ost.user.services.UserPreferencesService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 /** Delegates every {@link UserPreferencesPort} method to {@code UserPreferencesService}. */
 @Service
 @RequiredArgsConstructor
@@ -31,5 +33,10 @@ public class UserPreferencesPortImpl implements UserPreferencesPort {
     @Transactional
     public void updateLocale(@NonNull Long userId, @NonNull String locale) {
         preferencesService.updateLocale(userId, locale);
+    }
+
+    @Override
+    public Optional<String> findLocale(@NonNull Long userId) {
+        return Optional.ofNullable(preferencesService.findLocale(userId));
     }
 }

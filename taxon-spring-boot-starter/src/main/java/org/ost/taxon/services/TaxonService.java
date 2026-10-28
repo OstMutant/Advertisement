@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonSnapshotDto;
+import org.ost.platform.taxon.model.TaxonNotDeletedException;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.taxon.config.TaxonProperties;
 import org.ost.taxon.entities.Taxon;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 
@@ -72,8 +74,7 @@ public class TaxonService {
                 .updatedBy(actorId)
                 .version(version)
                 .build();
-        // save()'s own return value carries the auditing-refreshed updatedAt/version -- the
-        // pre-save "updated" object does not, so it must not be what this method returns.
+        // Must return save()'s own result, not the pre-save "updated" object -- only save()'s return carries the auditing-refreshed updatedAt/version.
         Taxon saved = taxonRepository.save(updated);
         translationRepository.saveAll(id, toEntities(id, translations));
         TaxonSnapshotDto afterSnapshot = buildSnapshotFromData(translations);
@@ -97,6 +98,11 @@ public class TaxonService {
     @Transactional
     public void restore(@NonNull Long id, Long actorId) {
         log.info("Taxon restore: id={}", id);
+        Taxon taxon = taxonRepository.findByIds(Set.of(id)).stream().findFirst()
+                .orElseThrow(() -> new NoSuchElementException("Taxon " + id + " not found"));
+        if (taxon.getDeletedAt() == null) {
+            throw new TaxonNotDeletedException("Taxon " + id + " is not deleted");
+        }
         taxonRepository.restore(id);
         if (actorId != null) {
             List<TaxonTranslation> translations = translationRepository.findAllByTaxonId(id);

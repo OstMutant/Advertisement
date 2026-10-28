@@ -63,9 +63,19 @@ class ApiKeyManagementServiceTest {
     @Test
     void listForActor_delegatesToPort() {
         ApiKeySummaryDto summary = new ApiKeySummaryDto(1L, "abc1234567", "label", Instant.now(), null, null);
-        when(apiKeyPort.listForActor(USER_ID)).thenReturn(List.of(summary));
+        when(apiKeyPort.listForActor(USER_ID, false)).thenReturn(List.of(summary));
 
-        List<ApiKeySummaryDto> keys = service.listForActor(USER_ID);
+        List<ApiKeySummaryDto> keys = service.listForActor(USER_ID, false);
+
+        assertThat(keys).containsExactly(summary);
+    }
+
+    @Test
+    void listForActor_includeRevoked_passesTrueToPort() {
+        ApiKeySummaryDto summary = new ApiKeySummaryDto(1L, "abc1234567", "label", Instant.now(), null, Instant.now());
+        when(apiKeyPort.listForActor(USER_ID, true)).thenReturn(List.of(summary));
+
+        List<ApiKeySummaryDto> keys = service.listForActor(USER_ID, true);
 
         assertThat(keys).containsExactly(summary);
     }
@@ -75,5 +85,17 @@ class ApiKeyManagementServiceTest {
         service.revoke(USER_ID, 5L);
 
         verify(apiKeyPort).revoke(USER_ID, 5L);
+    }
+
+    @Test
+    void isAvailable_portPresent_returnsTrue() {
+        assertThat(service.isAvailable()).isTrue();
+    }
+
+    @Test
+    void isAvailable_starterAbsent_returnsFalse() {
+        when(apiKeyPortFactory.findIfAvailable()).thenReturn(Optional.empty());
+
+        assertThat(service.isAvailable()).isFalse();
     }
 }

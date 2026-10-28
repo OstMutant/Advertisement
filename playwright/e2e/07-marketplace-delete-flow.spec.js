@@ -1,108 +1,95 @@
 /* ── Header ──────────────────────────────────────────────────────────────────
  * Description: Delete-flow e2e coverage for both entity types the UI exposes a delete action for
- *   -- an advertisement card's delete button (userEn creates then deletes its own ad, cancel
- *   keeps the card, confirm removes it and shrinks the list) and the user grid's delete action
- *   (adminEn deletes moderatorUk, cancel keeps the row, confirm removes it, and the deleted user
- *   stays absent after clearing the grid filter). moderatorUk is used as the delete target
- *   specifically because it owns no advertisements -- userUk/userEn cannot be deleted due to the
- *   FK constraint from advertisement.created_by.
+ *   -- an advertisement card's delete button (a user creates then deletes their own ad, cancel
+ *   keeps the card, confirm removes it and the title-filtered list goes from one ad to none) and
+ *   the user grid's delete action (an administrator deletes a user created for the test, cancel
+ *   keeps the row, confirm removes it, and the deleted user stays absent after clearing the grid
+ *   filter and searching the e-mail again). The deleted user owns no advertisements, because a user
+ *   who owns advertisements cannot be deleted due to the FK constraint from advertisement.created_by.
  *   Per test:
- *   - "userEn deletes advertisement -- cancel keeps card, confirm removes card and shrinks list":
- *     create ad -> cancel delete -> card still visible -> confirm delete -> card gone -> list
- *     shrinks.
- *   - "adminEn deletes user -- cancel keeps row, confirm removes row and shrinks grid": cancel
- *     delete -> row still visible -> confirm delete -> row gone -> filter clear -> absent in full
- *     list.
+ *   - "user deletes advertisement -- cancel keeps card, confirm removes card and the filtered list
+ *     goes to none": create ad -> filter by its title -> cancel delete -> card still visible ->
+ *     confirm delete -> card gone -> filtered list empty.
+ *   - "administrator deletes user -- cancel keeps row, confirm removes row, absent after clearing
+ *     the filter": filter by e-mail -> cancel delete -> row still visible -> confirm delete -> row
+ *     gone -> filter clear -> e-mail search finds no row.
  * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 07-marketplace-
- *   delete-flow --ux`, or as part of the full e2e suite (`bash /app/playwright/run.sh e2e --ux`).
+ *   delete-flow --ux` (runs alone or with any other spec), or as part of the full e2e suite
+ *   (`bash /app/playwright/run.sh e2e --ux`).
  * Uses: @playwright/test.
  * Env: None.
- * Input: ./_helpers (test, expect, screenshot, TEST_USERS), ./_flows/auth.flow,
- *   ./_flows/user-management.flow, ./_flows/delete.flow.
+ * Input: ./_fixtures (test, expect, pageAs, userAccount, adminAccount, createUser, unique),
+ *   ./_helpers (screenshot), ./_flows/user-management.flow, ./_flows/delete.flow,
+ *   ./_flows/advertisement-filter.flow.
  * Outputs: Playwright HTML report entries (one per test/test.step), PNG screenshots attached to
- *   the report when PW_SCREENSHOTS is set. Creates one advertisement and deletes it within the
- *   same test; deletes the moderatorUk user row from the app database.
+ *   the report when PW_SCREENSHOTS is set. Creates one uniquely titled advertisement and deletes
+ *   it, and creates one uniquely named user and deletes it.
  * Returns: exit code from the Playwright test runner -- 0 when every test in this file passes,
  *   non-zero otherwise.
  * ──────────────────────────────────────────────────────────────────────────── */
-const { test, expect, screenshot, TEST_USERS } = require('./_helpers');
-const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
+const { test, expect } = require('./_fixtures');
+const { screenshot } = require('./_helpers');
 const { runNavigateToUsersTabFlow, runFilterUserByEmailFlow, clearUserFilter } = require('./_flows/user-management.flow');
 const { cancelDeleteDialog, confirmDeleteDialog, runCreateSimpleAdvertisementFlow } = require('./_flows/delete.flow');
+const { runOpenFilterPanelFlow, runFillTitleFilterFlow, runApplyFilterFlow } = require('./_flows/advertisement-filter.flow');
 
-test.describe.configure({ mode: 'serial' });
-
-// moderatorUk has no advertisements — userUk and userEn cannot be deleted due to FK constraint (they own ads).
-const USER_TO_DELETE = TEST_USERS.moderatorUk;
-
-const DELETE_AD = {
-  title:       'Ad To Delete E2E',
-  description: 'This advertisement will be deleted during the e2e delete flow test.',
-};
+const DELETE_BUTTON = /^(Delete|Видалити)$/;
 
 test.describe('Delete flow', () => {
-  let page;
 
-  test.beforeAll(async ({ browser }) => {
-    page = await browser.newPage();
-    await page.goto('/');
-  });
+  test('user deletes advertisement — cancel keeps card, confirm removes card and the filtered list goes to none', async ({ pageAs, userAccount, unique }) => {
+    const page = await pageAs(userAccount);
+    const title = unique('Ad To Delete');
 
-  test.afterAll(async () => {
-    await page.close();
-  });
+    await runCreateSimpleAdvertisementFlow(page, {
+      title,
+      description: 'This advertisement will be deleted during the e2e delete flow test.',
+      screenshotPrefix: 'delete-ad-create',
+    });
 
-  test('userEn deletes advertisement — cancel keeps card, confirm removes card and shrinks list', async () => {
-    await runFillLoginFormFlow(page, TEST_USERS.userEn);
-    await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
+    await runOpenFilterPanelFlow(page, expect);
+    await runFillTitleFilterFlow(page, title);
+    await runApplyFilterFlow(page, expect);
 
-    // Create a fresh ad so it appears first (newest) regardless of how many seed ads exist
-    await runCreateSimpleAdvertisementFlow(page, { ...DELETE_AD, screenshotPrefix: 'delete-ad-create' });
-
-    const targetCard = page.locator('.advertisement-card')
-      .filter({ has: page.locator('.advertisement-title', { hasText: DELETE_AD.title }) })
-      .first();
-    await targetCard.waitFor({ timeout: 8000 });
+    const cardsWithTitle = page.locator('.advertisement-card')
+      .filter({ has: page.getByRole('heading', { level: 3, name: title }) });
+    await expect(cardsWithTitle).toHaveCount(1, { timeout: 8000 });
     await screenshot(page, 'delete-ad-01-card-visible');
 
     await test.step('cancel delete — card stays', async () => {
-      await targetCard.locator('.advertisement-delete').click();
+      await cardsWithTitle.first().getByRole('button', { name: DELETE_BUTTON }).click();
       await cancelDeleteDialog(page);
-      await expect(targetCard).toBeVisible();
+      await expect(cardsWithTitle).toHaveCount(1);
       await screenshot(page, 'delete-ad-02-cancel-card-stays');
     });
 
-    await test.step('confirm delete — card is gone', async () => {
-      await targetCard.locator('.advertisement-delete').click();
+    await test.step('confirm delete — card is gone and the filtered list is empty', async () => {
+      await cardsWithTitle.first().getByRole('button', { name: DELETE_BUTTON }).click();
       await confirmDeleteDialog(page);
-      await expect(
-        page.locator('.advertisement-card')
-          .filter({ has: page.locator('.advertisement-title', { hasText: DELETE_AD.title }) })
-      ).toHaveCount(0, { timeout: 8000 });
+      await expect(cardsWithTitle).toHaveCount(0, { timeout: 8000 });
+      await expect(page.locator('.pagination-count')).toContainText('0–0', { timeout: 8000 });
       await screenshot(page, 'delete-ad-03-card-gone');
     });
-
-    await runLogoutFlow(page, expect);
   });
 
-  test('adminEn deletes user — cancel keeps row, confirm removes row and shrinks grid', async () => {
-    await runFillLoginFormFlow(page, TEST_USERS.adminEn);
-    await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+  test('administrator deletes user — cancel keeps row, confirm removes row, absent after clearing the filter', async ({ pageAs, adminAccount, createUser }) => {
+    const target = await createUser();
+    const page = await pageAs(adminAccount);
 
     await runNavigateToUsersTabFlow(page, expect);
-
     await screenshot(page, 'delete-user-01-grid-before');
 
-    await runFilterUserByEmailFlow(page, USER_TO_DELETE.email);
-    await page.locator('.user-grid-name:visible').first().waitFor({ timeout: 5000 });
+    await runFilterUserByEmailFlow(page, target.email);
+    const userNames = page.locator('.user-grid-name:visible');
+    await userNames.first().waitFor({ timeout: 5000 });
     await screenshot(page, 'delete-user-02-filtered');
 
-    const deleteBtn = () => page.locator('.user-grid-actions vaadin-button[title="Delete"], .user-grid-actions vaadin-button[title="Видалити"]').first();
+    const deleteBtn = () => page.locator('.user-grid-actions').getByRole('button', { name: DELETE_BUTTON }).first();
 
     await test.step('cancel delete — row stays', async () => {
       await deleteBtn().click();
       await cancelDeleteDialog(page);
-      await expect(page.locator('.user-grid-name:visible').first()).toBeVisible();
+      await expect(userNames.filter({ hasText: target.name })).toHaveCount(1);
       await screenshot(page, 'delete-user-03-cancel-stays');
     });
 
@@ -111,19 +98,18 @@ test.describe('Delete flow', () => {
       await confirmDeleteDialog(page);
       // Vaadin Grid keeps recycled DOM nodes — use :visible to skip phantom rows
       await expect(
-        page.locator('.user-grid-name:visible').filter({ hasText: USER_TO_DELETE.name })
+        userNames.filter({ hasText: target.name })
       ).toHaveCount(0, { timeout: 8000 });
       await screenshot(page, 'delete-user-04-row-gone');
     });
 
-    await test.step('clear filter — deleted user absent from full list', async () => {
+    await test.step('clear filter and search the e-mail again — deleted user absent', async () => {
       await clearUserFilter(page);
+      await runFilterUserByEmailFlow(page, target.email);
       await expect(
-        page.locator('.user-grid-name:visible').filter({ hasText: USER_TO_DELETE.name })
+        userNames.filter({ hasText: target.name })
       ).toHaveCount(0, { timeout: 5000 });
       await screenshot(page, 'delete-user-05-absent-in-full-list');
     });
-
-    await runLogoutFlow(page, expect);
   });
 });

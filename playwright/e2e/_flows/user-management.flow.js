@@ -50,7 +50,7 @@ async function closeUserOverlay(page) {
  * @returns {Promise<void>}
  */
 async function clearUserFilter(page) {
-  await page.locator('.user-query-block vaadin-button[title*="Clear"], .user-query-block vaadin-button[title*="Очистити"]').click();
+  await page.locator('.user-query-block').getByRole('button', { name: /clear changes|очистити зміни/i }).first().click();
   await page.locator('.user-list-layout .query-status-bar').click();
   await page.locator('.user-query-block').waitFor({ state: 'hidden', timeout: 3000 });
 }
@@ -62,13 +62,13 @@ async function clearUserFilter(page) {
  * @returns {Promise<void>}
  */
 async function runNavigateToUsersTabFlow(page, expect) {
-  await page.locator('vaadin-tab').filter({ hasText: /Users|Користувачі/i }).first().click();
+  await page.getByRole('tab', { name: /Users|Користувачі/i }).first().click();
   await page.locator('.user-list-layout').waitFor({ timeout: 5000 });
   await screenshot(page, 'user-management-users-tab');
 }
 
 /**
- * Opens the Users query panel, fills the Email filter, and applies it.
+ * Opens the Users query panel, fills the Email filter, applies it, and waits until the status bar shows it.
  * @param {import('@playwright/test').Page} page
  * @param {string} email
  * @returns {Promise<void>}
@@ -76,34 +76,52 @@ async function runNavigateToUsersTabFlow(page, expect) {
 async function runFilterUserByEmailFlow(page, email) {
   await page.locator('.user-list-layout .query-status-bar').click();
   await page.locator('.user-query-block').waitFor({ timeout: 5000 });
-  await page.locator('.user-query-block vaadin-text-field[placeholder="Email"] input').fill(email);
-  await page.locator('.user-query-block vaadin-button[title*="Apply"], .user-query-block vaadin-button[title*="Застосувати"]').click();
+  await page.locator('.user-query-block').getByPlaceholder('Email', { exact: true }).locator('input').fill(email);
+  await page.locator('.user-query-block').getByRole('button', { name: /apply changes|застосувати зміни/i }).first().click();
+  await expect(page.locator('.user-list-layout .query-status-bar')).toContainText(email, { timeout: 5000 });
 }
 
 /**
  * Filters the grid by email, then clicks the matching row's name to open the user in VIEW mode.
  * @param {import('@playwright/test').Page} page
  * @param {string} email
+ * @param {string} [name] when set, waits until the filtered grid shows exactly this one user.
  * @returns {Promise<void>}
  */
-async function runOpenUserViewDialogFlow(page, email) {
+async function runOpenUserViewDialogFlow(page, email, name) {
   await runFilterUserByEmailFlow(page, email);
-  await page.locator('.user-grid-name:visible').first().waitFor({ timeout: 5000 });
+  await waitForFilteredUser(page, name);
   await page.locator('.user-grid-name:visible').first().click();
   await page.locator('.account-overlay.overlay--visible').waitFor({ timeout: 5000 });
   await screenshot(page, 'user-management-view-dialog-opened');
 }
 
 /**
+ * Waits for the email-filtered grid to show a user, exactly one row when the name is known.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} [name]
+ * @returns {Promise<void>}
+ */
+async function waitForFilteredUser(page, name) {
+  if (name == null) {
+    await page.locator('.user-grid-name:visible').first().waitFor({ timeout: 5000 });
+    return;
+  }
+  await expect(page.locator('.user-grid-name:visible')).toHaveCount(1, { timeout: 5000 });
+  await expect(page.locator('.user-grid-name:visible').filter({ hasText: name })).toHaveCount(1, { timeout: 5000 });
+}
+
+/**
  * Opens a user in VIEW mode then clicks Edit, landing in EDIT mode with a 2-deep breadcrumb.
  * @param {import('@playwright/test').Page} page
  * @param {string} email
+ * @param {string} [name] when set, waits until the filtered grid shows exactly this one user.
  * @returns {Promise<void>}
  */
-async function runOpenUserEditViaViewFlow(page, email) {
-  await runOpenUserViewDialogFlow(page, email);
-  await page.locator('.account-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).click();
-  await page.locator('.account-overlay vaadin-combo-box').waitFor({ timeout: 5000 });
+async function runOpenUserEditViaViewFlow(page, email, name) {
+  await runOpenUserViewDialogFlow(page, email, name);
+  await page.locator('.account-overlay').getByRole('button', { name: /Edit|Редагувати/ }).click();
+  await page.locator('.account-overlay').getByTestId('user-dialog-field-role-label').waitFor({ timeout: 5000 });
   await expect(page.locator('.account-overlay .overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
   await screenshot(page, 'user-management-promote-dialog-opened');
 }
@@ -113,16 +131,18 @@ async function runOpenUserEditViaViewFlow(page, email) {
  * mode with a 1-deep breadcrumb (no intermediate VIEW step).
  * @param {import('@playwright/test').Page} page
  * @param {string} email
+ * @param {string} [name] when set, waits until the filtered grid shows exactly this one user.
  * @returns {Promise<void>}
  */
-async function runOpenUserEditViaListFlow(page, email) {
+async function runOpenUserEditViaListFlow(page, email, name) {
   await runFilterUserByEmailFlow(page, email);
-  const editButton = page.locator('.user-grid-actions vaadin-button[title="Edit"], .user-grid-actions vaadin-button[title="Редагувати"]').first();
+  await waitForFilteredUser(page, name);
+  const editButton = page.locator('.user-grid-actions').getByRole('button', { name: /^(Edit|Редагувати)$/ }).first();
   await editButton.waitFor({ timeout: 5000 });
   await editButton.click();
   await page.locator('.account-overlay.overlay--visible').waitFor({ timeout: 5000 });
   await expect(page.locator('.account-overlay .overlay__breadcrumb-back')).toHaveCount(1, { timeout: 3000 });
-  await page.locator('.account-overlay vaadin-combo-box').waitFor({ timeout: 5000 });
+  await page.locator('.account-overlay').getByTestId('user-dialog-field-role-label').waitFor({ timeout: 5000 });
   await screenshot(page, 'user-management-promote-dialog-opened');
 }
 
@@ -134,13 +154,13 @@ async function runOpenUserEditViaListFlow(page, email) {
  */
 async function runFillUserRoleFlow(page, { role, name }) {
   if (name != null) {
-    const nameField = page.locator('.account-overlay vaadin-text-field input');
+    const nameField = page.locator('.account-overlay').getByTestId('user-dialog-field-name-label').getByRole('textbox');
     await nameField.fill(name);
   }
   if (role != null) {
-    const roleCombo = page.locator('.account-overlay vaadin-combo-box');
-    await roleCombo.locator('input').click();
-    await roleCombo.locator('input').fill(role);
+    const roleInput = page.locator('.account-overlay').getByTestId('user-dialog-field-role-label').getByRole('combobox');
+    await roleInput.click();
+    await roleInput.fill(role);
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
   }
@@ -156,8 +176,9 @@ async function runFillUserRoleFlow(page, { role, name }) {
  * @returns {Promise<void>}
  */
 async function runSaveUserEditFlow(page, expect, role) {
-  await expect(page.locator('.account-overlay vaadin-button').filter({ hasText: /Save|Зберегти/i })).toBeEnabled({ timeout: 5000 });
-  await page.locator('.account-overlay vaadin-button').filter({ hasText: /Save|Зберегти/i }).click();
+  const saveButton = page.locator('.account-overlay').getByRole('button', { name: /Save|Зберегти/i });
+  await expect(saveButton).toBeEnabled({ timeout: 5000 });
+  await saveButton.click();
   await expect(page.locator('vaadin-notification-container')).toContainText(
     /User updated successfully|Користувача успішно оновлено/i,
     { timeout: 5000 }
@@ -176,7 +197,7 @@ async function closeUserOverlayFromEdit(page) {
   await page.locator('.account-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first().click();
-  await page.locator('.account-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('.account-overlay').getByRole('button', { name: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
   await closeUserOverlay(page);
 }
 
@@ -192,7 +213,7 @@ async function closeUserOverlayFromEdit(page) {
  * @returns {Promise<void>}
  */
 async function runPromoteUserFlow(page, expect, user, { role = null, name = null } = {}) {
-  await runOpenUserEditViaViewFlow(page, user.email);
+  await runOpenUserEditViaViewFlow(page, user.email, user.name);
   await runFillUserRoleFlow(page, { role, name });
   await runSaveUserEditFlow(page, expect, role);
 
@@ -233,7 +254,7 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   await page.locator('.account-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first().click();
-  await page.locator('.account-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('.account-overlay').getByRole('button', { name: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
 
   // Check role in VIEW mode
   await expect(page.locator('.account-overlay .user-role-badge')).toContainText(role);
@@ -262,10 +283,11 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
  * @param {import('@playwright/test').Page} page
  * @param {import('@playwright/test').Expect} expect
  * @param {string} email
+ * @param {string} [name] when set, waits until the filtered grid shows exactly this one user.
  * @returns {Promise<void>}
  */
-async function runVerifyOuterLinkClosesToListFlow(page, expect, email) {
-  await runOpenUserEditViaViewFlow(page, email);
+async function runVerifyOuterLinkClosesToListFlow(page, expect, email, name) {
+  await runOpenUserEditViaViewFlow(page, email, name);
   await openEntityActivity(page, '.user-history-button');
   await closeEntityActivity(page, 'outer');
   await expect(page.locator('.base-overlay.overlay--visible')).toHaveCount(0, { timeout: 5000 });

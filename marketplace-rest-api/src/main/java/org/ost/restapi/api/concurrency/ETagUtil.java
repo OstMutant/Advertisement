@@ -13,6 +13,15 @@ public final class ETagUtil {
         return version == null ? builder : builder.eTag("\"" + version + "\"");
     }
 
+    /** Like {@link #parseIfMatch} for a call that cannot run without the caller's version: a missing or blank header is a bad request. */
+    public static Long requireIfMatch(String ifMatch) {
+        Long version = parseIfMatch(ifMatch);
+        if (version == null) {
+            throw new IllegalArgumentException("The If-Match header with the resource's current version is required");
+        }
+        return version;
+    }
+
     public static Long parseIfMatch(String ifMatch) {
         if (ifMatch == null || ifMatch.isBlank()) {
             return null;

@@ -27,13 +27,13 @@ const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./a
  * @returns {Promise<void>}
  */
 async function runSignUpFlow(page, expect, user, registeredRole = 'USER', afterLoginHook = null, sessionLocale = 'en') {
-  await page.locator('vaadin-button').filter({ hasText: /sign up|зареєструватися/i }).first().click();
-  await page.locator('[data-testid="signup-name-label"]').waitFor({ timeout: 5000 });
+  await page.getByRole('button', { name: /sign up|зареєструватися/i }).first().click();
+  await page.getByTestId('signup-name-label').waitFor({ timeout: 5000 });
   await screenshot(page, 'signup-dialog-open');
 
-  await page.locator('[data-testid="signup-name-label"] input').fill(user.name);
-  await page.locator('[data-testid="signup-email-label"] input').fill(user.email);
-  await page.locator('[data-testid="signup-password-label"] input').fill(user.password);
+  await page.getByTestId('signup-name-label').getByRole('textbox').fill(user.name);
+  await page.getByTestId('signup-email-label').getByRole('textbox').fill(user.email);
+  await page.getByTestId('signup-password-label').locator('input').fill(user.password);
   await screenshot(page, 'signup-form-filled');
 
   await page.getByRole('button', { name: /sign up|зареєструватися/i }).last().click();
@@ -42,7 +42,7 @@ async function runSignUpFlow(page, expect, user, registeredRole = 'USER', afterL
     { timeout: 8000 }
   );
   await page.locator('vaadin-dialog-overlay[theme~="signup-dialog"]').waitFor({ state: 'hidden', timeout: 5000 });
-  await expect(page.locator('.header-auth-row span').first()).toContainText(/Not signed in|Не увійшли/i);
+  await expect(page.getByText(/Not signed in|Не увійшли/i).first()).toBeVisible();
   await screenshot(page, 'signup-success');
   await closeNotification(page);
 

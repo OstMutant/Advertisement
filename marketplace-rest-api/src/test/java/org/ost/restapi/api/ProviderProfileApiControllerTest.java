@@ -10,16 +10,21 @@ import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.ProviderProfileDisplayEnrichmentService;
 import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
+import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
+import org.ost.platform.providerprofile.dto.ProviderProfileSnapshotDto;
 import org.ost.platform.core.StaleWriteException;
+import org.ost.platform.core.model.EntityType;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -49,12 +54,15 @@ class ProviderProfileApiControllerTest {
     @Mock private ProviderProfileReadService readService;
     @Mock private ProviderProfileDisplayEnrichmentService enrichmentService;
     @Mock private UserProfileService userProfileService;
+    @Mock private ActivityHistorySupport activityHistorySupport;
+    @Mock private SnapshotRestoreService snapshotRestoreService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = mockMvc(new ProviderProfileApiController(saveService, readService, enrichmentService, userProfileService));
+        mockMvc = mockMvc(new ProviderProfileApiController(saveService, readService, enrichmentService, userProfileService,
+                activityHistorySupport, snapshotRestoreService));
         authenticateAs(ACTOR_ID);
         lenient().when(enrichmentService.enrichWithCategoryAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithActor(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -179,6 +187,25 @@ class ProviderProfileApiControllerTest {
         mockMvc.perform(get("/api/provider-profiles/1")).andExpect(status().isNotFound());
     }
 
+    // ── history ──────────────────────────────────────────────────────────
+
+    @Test
+    void history_delegatesToSupport() throws Exception {
+        when(activityHistorySupport.history(ACTOR_ID, EntityType.PROVIDER_PROFILE, 7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/provider-profiles/7/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void historySnapshot_unknown_returnsNotFound() throws Exception {
+        when(activityHistorySupport.snapshot(eq(ACTOR_ID), eq(EntityType.PROVIDER_PROFILE), eq(7L), eq(5L), eq(ProviderProfileSnapshotDto.class)))
+                .thenThrow(new java.util.NoSuchElementException("Snapshot 5 not found"));
+
+        mockMvc.perform(get("/api/provider-profiles/7/history/5")).andExpect(status().isNotFound());
+    }
+
     // ── update ──────────────────────────────────────────────────────────
 
     @Test
@@ -217,5 +244,41 @@ class ProviderProfileApiControllerTest {
         doThrow(new AccessDeniedException("not the owner")).when(saveService).delete(1L, ACTOR_ID, 0L);
 
         mockMvc.perform(delete("/api/provider-profiles/1").header("If-Match", "\"0\"")).andExpect(status().isForbidden());
+    }
+
+    // ── restoreFromSnapshot ──────────────────────────────────────────────
+
+    @Test
+    void restoreFromSnapshot_delegatesAndReturnsResource() throws Exception {
+        when(snapshotRestoreService.restoreProviderProfile(ACTOR_ID, 7L, 5L, 3L)).thenReturn(7L);
+        when(readService.findById(7L)).thenReturn(Optional.of(ProviderProfileDto.builder().id(7L).build()));
+
+        mockMvc.perform(post("/api/provider-profiles/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(7));
+
+        verify(snapshotRestoreService).restoreProviderProfile(ACTOR_ID, 7L, 5L, 3L);
+    }
+
+    @Test
+    void restoreFromSnapshot_missingIfMatch_isBadRequest() throws Exception {
+        mockMvc.perform(post("/api/provider-profiles/7/history/5/restore")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void restoreFromSnapshot_unknownSnapshot_returnsNotFound() throws Exception {
+        when(snapshotRestoreService.restoreProviderProfile(ACTOR_ID, 7L, 5L, 3L))
+                .thenThrow(new NoSuchElementException("Snapshot 5 not found"));
+
+        mockMvc.perform(post("/api/provider-profiles/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void restoreFromSnapshot_staleVersion_returnsPreconditionFailed() throws Exception {
+        when(snapshotRestoreService.restoreProviderProfile(ACTOR_ID, 7L, 5L, 3L)).thenThrow(new StaleWriteException("stale"));
+
+        mockMvc.perform(post("/api/provider-profiles/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isPreconditionFailed());
     }
 }

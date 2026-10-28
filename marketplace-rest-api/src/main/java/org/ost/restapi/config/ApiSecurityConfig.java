@@ -11,8 +11,9 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
-/** Stateless security chain for the external REST API ({@code /api/**}). Advertisement/provider-profile/taxon reads are public; everything else needs HTTP Basic or a bearer key via {@link ApiKeyAuthenticationFilter}. */
+/** Stateless security chains for the external REST API: HTTP Basic is accepted only on API-key issuance, every other {@code /api/**} endpoint takes a bearer key via {@link ApiKeyAuthenticationFilter}; advertisement/provider-profile/taxon reads are public. */
 @Configuration
 @RequiredArgsConstructor
 public class ApiSecurityConfig {
@@ -22,18 +23,42 @@ public class ApiSecurityConfig {
     @Bean
     @Order(1)
     @SuppressWarnings({"java:S112", "java:S1130"})
+    public SecurityFilterChain apiKeyIssuanceSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher(PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/api-keys"))
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .httpBasic(Customizer.withDefaults())
+                .addFilterBefore(new BasicLoginRateLimitFilter(), BasicAuthenticationFilter.class)
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .formLogin(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable);
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
+    @SuppressWarnings({"java:S112", "java:S1130"})
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
         http
                 .securityMatcher("/api/**")
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/advertisements/*/contact/reveals", "/api/provider-profiles/*/contact/reveals").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/provider-profiles/*/contact/views").authenticated()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/advertisements/*/history", "/api/advertisements/*/history/*",
+                                "/api/provider-profiles/*/history", "/api/provider-profiles/*/history/*",
+                                "/api/taxons/*/history", "/api/taxons/*/history/*").authenticated()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/advertisements", "/api/advertisements/**",
                                 "/api/provider-profiles", "/api/provider-profiles/**",
                                 "/api/taxons", "/api/taxons/**").permitAll()
                         .anyRequest().authenticated()
                 )
-                .httpBasic(Customizer.withDefaults())
+                .exceptionHandling(handling -> handling.authenticationEntryPoint(new BearerChallengeEntryPoint()))
                 .addFilterAfter(apiKeyAuthenticationFilter, BasicAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

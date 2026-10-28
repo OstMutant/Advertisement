@@ -24,6 +24,8 @@
 @import url("./user-overlay.css");
 @import url("./provider-profile-overlay.css");
 @import url("./provider-profile-query-block.css");
+@import url("./moderation-query-block.css");
+@import url("./moderation-view.css");
 @import url("./providers-view.css");
 @import url("./provider-profile-card.css");
 @import url("./forms.css");
@@ -36,6 +38,7 @@
 @import url("./sort-icon.css");
 @import url("./taxon-view.css");
 @import url("./notification.css");
+@import url("./feedback-panel.css");
 
 /* ==========================================================================
    Design tokens (improvement-037 / improvement-039)
@@ -143,6 +146,8 @@
 html, body {
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
     background-color: var(--app-surface-page);
+    min-height: 100%;
+    overscroll-behavior-y: none;
 }
 
 /* Global utility classes */

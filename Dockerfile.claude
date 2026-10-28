@@ -1,0 +1,43 @@
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: AI developer container -- runs the Claude Code CLI itself, for working on this
+#   Java 25 project. Supports switching between multiple Claude accounts on the same mounted
+#   project directory (chat history/context preserved, only the auth config differs per account)
+#   -- see scripts/claude.bat.
+# Usage: docker build [--build-arg BASE_IMAGE=<image>] [--build-arg NODE_MAJOR=<n>]
+#   [--build-arg CLAUDE_CODE_VERSION=<version|latest>] [--build-arg CLAUDE_CODE_REFRESH=<new value>]
+#   -f Dockerfile.claude -t claude-j25-dev . -- run from the repo root; built automatically by
+#   scripts/claude.bat (which passes a fresh CLAUDE_CODE_REFRESH on --update), rarely invoked
+#   directly.
+# Uses: ${BASE_IMAGE} base image, apt (curl/git/maven/postgresql-client/docker.io),
+#   Node.js ${NODE_MAJOR} + npm (@anthropic-ai/claude-code).
+# Env: ARG BASE_IMAGE (default eclipse-temurin:25-jdk-jammy), ARG NODE_MAJOR (default 24 -- must
+#   satisfy the claude-code package's engines.node), ARG CLAUDE_CODE_VERSION (default latest),
+#   ARG CLAUDE_CODE_REFRESH (default 0 -- change it to force a fresh Claude Code install).
+#   Account-specific auth config is mounted at `docker run` time by scripts/claude.bat, not read
+#   from a build-time ENV.
+# Input: None -- installs tools only, does not COPY repo source.
+# Outputs: an interactive container image with the `claude` CLI as its entrypoint, working
+#   directory /app (repo mounted here at `docker run` time).
+# Returns: N/A -- entrypoint is an interactive CLI, not a build/test command with its own exit code.
+# ────────────────────────────────────────────────────────────────────────────
+
+ARG BASE_IMAGE=eclipse-temurin:25-jdk-jammy
+FROM ${BASE_IMAGE}
+
+# Install Node.js (for Claude CLI), Maven (for testing) and Git
+ARG NODE_MAJOR=24
+RUN apt-get update && apt-get install -y curl git maven postgresql-client docker.io \
+    && curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Changing CLAUDE_CODE_REFRESH forces a fresh Claude Code install on --update.
+ARG CLAUDE_CODE_VERSION=latest
+ARG CLAUDE_CODE_REFRESH=0
+RUN echo "claude-code refresh: ${CLAUDE_CODE_REFRESH}" && npm install -g --engine-strict @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} && claude --version
+
+# Set the working directory where the local code will be mounted
+WORKDIR /app
+
+# Run Claude Code CLI as the main container process
+ENTRYPOINT ["claude"]

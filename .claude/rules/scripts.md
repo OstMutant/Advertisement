@@ -9,9 +9,10 @@ paths: ["scripts/**"]
 bash scripts/deploy-and-run.sh        # Linux / WSL
 scripts\deploy-and-run.bat            # Windows
 ```
-By default, no Docker image is built at all — the app container runs `java -jar` directly against
-the shared `maven-cache` volume (already refreshed by an internal `scripts/build-and-test.sh` call,
-Vaadin's production bundle included; `SPRING_PROFILES_ACTIVE=prod` at runtime sets
+By default, no Docker image is built at all — the jar is copied out of the shared `maven-cache`
+volume (already refreshed by an internal `scripts/build-and-test.sh` call) into a volume of the app
+container's own, `<container>-jar`, and the container runs `java -jar` from there, so a later build
+on the host cannot replace the jar of the running application (Vaadin's production bundle included; `SPRING_PROFILES_ACTIVE=prod` at runtime sets
 `vaadin.productionMode=true`), starts all infra + app on **port 8081** (8080 reserved for local
 IntelliJ dev server). `--from-scratch` builds a real, separately tagged image instead, from the
 full multi-stage root `Dockerfile` — needed when an actual portable/deployable image is genuinely
@@ -23,7 +24,7 @@ host-wide, not scoped to this app's own containers/volumes, so they will remove 
 container / unused volume on the machine too (see `.claude/nav/adr-index.md` for the incident that
 made this explicit instead of automatic).
 
-Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-only-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache (only meaningful with `--from-scratch`). Use `--prune-all` for a deliberate, whole-machine deep clean (see warning above).
+Use `--reset` to wipe DB/SeaweedFS volumes. Use `--restart-infra` to restart containers only. Use `--reset-only-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache (only meaningful with `--from-scratch`). Use `--prune-all` for a deliberate, whole-machine deep clean (see warning above).
 
 **Streaming output requirement — BuildKit + buildx:**
 Docker Engine must have BuildKit enabled AND the `buildx` CLI plugin must be installed at
@@ -61,7 +62,7 @@ chmod +x ~/.docker/cli-plugins/docker-compose
 Verify: `docker buildx version` / `docker compose version`.
 
 **`--project-directory` is required whenever `-f` points outside the repo root.**
-`scripts/deploy-and-run/docker-compose.db.yml`/`docker-compose.app.yml`/`docker-compose.minio.yml` live in
+`scripts/deploy-and-run/docker-compose.db.yml`/`docker-compose.app.yml`/`docker-compose.seaweedfs.yml` live in
 `scripts/deploy-and-run/`, not the repo root, but read `${POSTGRES_IMAGE}`/`${DB_NAME}`/`${DB_USER}`/
 `${DB_PASSWORD}`/`${DB_PORT}`/`${S3_ACCESS_KEY}`/`${S3_SECRET_KEY}`/`${S3_BUCKET}`/`${S3_REGION}`/
 `${S3_PORT}` from the repo-root `.env` — the single source of truth for these values, also read as
@@ -88,7 +89,7 @@ surface a real error (with its named pointer's detail) or a stall well past norm
 scripts\run-local.bat           REM dev profile — Vaadin dev mode, port 8080
 scripts\run-local.bat --prod    REM production Vaadin build, prod profile, port 8080
 ```
-Windows-only (native Maven + Java — no WSL). Requires DB and MinIO already running. Use when you need to compare local vs Docker behaviour.
+Windows-only (native Maven + Java — no WSL). Requires DB and SeaweedFS already running. Use when you need to compare local vs Docker behaviour.
 
 ---
 
@@ -141,7 +142,7 @@ the port-reachability/Ryuk-connectivity issue, independent of which machine host
 `--no-sandbox` to disable the workaround if your own setup doesn't need it.
 
 Reports: `scripts/build-and-test/reports/surefire/<module>/` (Surefire pass/fail per test class)
-and `scripts/build-and-test/reports/logs/` (the full raw console log for whichever phase ran —
+and `scripts/logs/build-and-test/` (the full raw console log for whichever phase ran —
 `unit-tests.log`/`integration-tests.log`/`archunit-metrics.log` — persists the real failure detail
 past this run's own terminal output/scrollback).
 
@@ -256,10 +257,10 @@ bash scripts/ci.sh --all --sonar                            # everything, explic
 bash scripts/ci.sh --no-docs                                 # skip the doc-freshness stage
 bash scripts/ci.sh --playwright-args "e2e --ux"                # override the e2e stage's
                                                                  # Playwright args
-bash scripts/ci.sh --no-keep-e2e-infra                            # tear down the isolated e2e
-                                                                   # stack after (on by default,
-                                                                   # left up for debugging)
-bash scripts/ci.sh --reset-e2e-db                                  # full --reset (volume wipe)
+bash scripts/ci.sh --teardown-e2e-after                           # tear down the isolated e2e
+                                                                   # stack after (left up for
+                                                                   # debugging by default)
+bash scripts/ci.sh --reset-e2e-stack                                # full --reset (volume wipe)
                                                                     # before e2e's deploy instead
                                                                     # of the default --reset-only-db
                                                                     # -- only needed when the DB
@@ -294,9 +295,10 @@ bash scripts/ci.sh --sync-artifacts                                      # pull 
 through a small `alpine/socat` proxy sidecar (`ci-runner-dagu-proxy`) rather than directly, since a
 `--network host` container's bound ports (needed so `ci-runner`'s own DAG steps reach sibling
 `ci-*` containers at plain `localhost:PORT`) aren't reachable from a real browser in this sandbox —
-see `.claude/nav/adr-index.md`. There is no `scripts/ci/reports/` tree, `progress.txt`, or
+see `.claude/nav/adr-index.md`. There is no `progress.txt` or
 `--report-dir`/`--keep-reports` flag anymore — Dagu's UI and run history (backed by the
-`ci-dagu-home` named volume) replace all of that. Once the container is running, a DAG run can also
+`ci-dagu-home` named volume) replace them. `scripts/ci/reports/` holds only
+`pipeline-metrics.json` (synced after a run) and, after `/ci --metrics`, `dagu-metrics.md`. Once the container is running, a DAG run can also
 be triggered directly from that UI ("Start" on the `ci` DAG opens a dialog with a field per
 `scripts/ci/dagu/ci.yaml` param). `bash scripts/ci.sh` replaces `/app` in the
 running container with the current working tree before every run — it wipes `/app` and re-extracts

@@ -8,6 +8,7 @@ import lombok.experimental.FieldNameConstants;
 import org.ost.platform.user.model.PageSizeLimits;
 import tools.jackson.databind.annotation.JsonDeserialize;
 
+/** User pagination preferences — page size overrides for each list view, persisted per user. */
 @Value
 @Builder(toBuilder = true)
 @FieldNameConstants
@@ -30,6 +31,14 @@ public class UserSettingsDto {
     @Builder.Default
     int providerProfilesPageSize = PageSizeLimits.DEFAULT_PAGE_SIZE;
 
+    @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE)
+    @Builder.Default
+    int feedbackPageSize = PageSizeLimits.DEFAULT_PAGE_SIZE;
+
+    @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE)
+    @Builder.Default
+    int moderationPageSize = PageSizeLimits.DEFAULT_PAGE_SIZE;
+
     long version;
 
     @Builder.Default
@@ -41,6 +50,8 @@ public class UserSettingsDto {
                 .usersPageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
                 .timelinePageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
                 .providerProfilesPageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
+                .feedbackPageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
+                .moderationPageSize(PageSizeLimits.DEFAULT_PAGE_SIZE)
                 .version(0)
                 .build();
     }

@@ -7,6 +7,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserProfileDto;
+import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.model.PageSizeLimits;
 import org.ost.platform.user.model.Role;
 import org.ost.platform.user.spi.UserAccountPort;
 import org.ost.platform.user.spi.UserPort;
@@ -14,6 +16,7 @@ import org.ost.platform.user.spi.UserPreferencesPort;
 
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -159,5 +162,55 @@ class UserProfileServiceTest {
         assertThatThrownBy(() -> service.save(dto, ACTOR_ID))
                 .isInstanceOf(AccessDeniedException.class);
         verify(accountPort, never()).save(any(), any());
+    }
+
+    // --- settings are personal: only the owner may save them ---
+
+    @Test
+    void saveSettings_ofAnotherUser_isDenied() {
+        UserSettingsDto settings = UserSettingsDto.defaultSettings();
+
+        assertThatThrownBy(() -> service.saveSettings(ACTOR_ID, TARGET_ID, settings))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(preferencesPort, never()).saveSettings(any(), any());
+    }
+
+    @Test
+    void saveSettings_ofOwnSettings_isSaved() {
+        UserSettingsDto settings = UserSettingsDto.defaultSettings();
+
+        service.saveSettings(ACTOR_ID, ACTOR_ID, settings);
+
+        verify(preferencesPort).saveSettings(ACTOR_ID, settings);
+    }
+
+    // --- page-size resolution for the audit timeline ---
+
+    @Test
+    void resolveTimelinePageSize_anonymous_returnsDefault() {
+        assertThat(service.resolveTimelinePageSize(null)).isEqualTo(PageSizeLimits.DEFAULT_PAGE_SIZE);
+    }
+
+    @Test
+    void resolveTimelinePageSize_usesSavedSetting() {
+        when(preferencesPort.loadSettings(ACTOR_ID)).thenReturn(UserSettingsDto.builder().timelinePageSize(35).build());
+
+        assertThat(service.resolveTimelinePageSize(ACTOR_ID)).isEqualTo(35);
+    }
+
+    // --- saved UI language ---
+
+    @Test
+    void findLocale_delegatesToThePort() {
+        when(preferencesPort.findLocale(5L)).thenReturn(Optional.of("uk"));
+
+        assertThat(service.findLocale(5L)).contains("uk");
+    }
+
+    @Test
+    void findLocale_noneSaved_isEmpty() {
+        when(preferencesPort.findLocale(5L)).thenReturn(Optional.empty());
+
+        assertThat(service.findLocale(5L)).isEmpty();
     }
 }

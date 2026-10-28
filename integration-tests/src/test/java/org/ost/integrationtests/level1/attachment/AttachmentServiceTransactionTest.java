@@ -47,7 +47,7 @@ import static org.mockito.Mockito.lenient;
  * never a committed row with no corresponding file.
  *
  * <p>Uses its own minimal {@code TestConfig} rather than {@code RepositoryTestSupport} — needs a
- * {@link StorageService} stub (no real S3/MinIO dependency) and a {@link CurrentActorHook} that
+ * {@link StorageService} stub (no real S3/SeaweedFS dependency) and a {@link CurrentActorHook} that
  * actually returns an actor id (so {@code captureMediaChanges()}'s {@code ifPresent()} branch runs
  * at all), neither of which {@code RepositoryTestSupport} provides, same shape of reasoning as
  * {@code UserServiceRestoreTest}. {@link AttachmentSnapshotService} is replaced with a

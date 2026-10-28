@@ -31,7 +31,7 @@ async function runOpenFilterPanelFlow(page, expect) {
  * @returns {Promise<void>}
  */
 async function runFillTitleFilterFlow(page, text) {
-  await page.locator('.advertisement-query-block .query-text input').first().fill(text);
+  await page.locator('.advertisement-query-block').getByPlaceholder(/title|заголовок/i).locator('input').fill(text);
   await screenshot(page, 'filter-title-filled');
 }
 
@@ -45,7 +45,7 @@ async function runFillTitleFilterFlow(page, text) {
  * @returns {Promise<void>}
  */
 async function runApplyFilterFlow(page, expect, expectResults = true) {
-  await page.locator('.advertisement-query-block vaadin-button[title*="Застосувати"], .advertisement-query-block vaadin-button[title*="Apply"]').first().click();
+  await page.locator('.advertisement-query-block').getByRole('button', { name: /apply changes|застосувати зміни/i }).first().click();
   if (expectResults) {
     await expect(page.locator('.advertisement-card').first()).toBeVisible({ timeout: 8000 });
   } else {
@@ -61,7 +61,7 @@ async function runApplyFilterFlow(page, expect, expectResults = true) {
  * @returns {Promise<void>}
  */
 async function runClearFilterFlow(page, expect) {
-  await page.locator('.advertisement-query-block vaadin-button[title*="Очистити"], .advertisement-query-block vaadin-button[title*="Clear"]').first().click();
+  await page.locator('.advertisement-query-block').getByRole('button', { name: /clear changes|очистити зміни/i }).first().click();
   await expect(page.locator('.pagination-count')).toBeVisible({ timeout: 8000 });
   await screenshot(page, 'filter-cleared');
 }

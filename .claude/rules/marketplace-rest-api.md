@@ -18,21 +18,33 @@ Java package root: `org.ost.restapi`
 
 - `HealthController`, `SitemapController` (top-level `org.ost.restapi`) — trivial, unauthenticated
   endpoints
-- `org.ost.restapi.api` — the authenticated external-API family: `ApiKeyController`,
-  `UserApiController`, `AdvertisementApiController`, `ProviderProfileApiController`,
-  `TaxonApiController`. Each controller's own request/response records that no other class needs
-  are nested as public static records inside that controller (e.g.
+- `org.ost.restapi.api` — the authenticated external-API family: `ApiKeyController` (its key list hides revoked keys unless `includeRevoked=true`),
+  `UserApiController`, `AdvertisementApiController`, `AdvertisementMediaApiController`, `ProviderProfileApiController`,
+  `TaxonApiController`, `AuditApiController`, `ContactApiController`, `FeedbackApiController`, `ModerationApiController`. Each controller's own request/response records that no
+  other class needs are nested as public static records inside that controller (e.g.
   `ApiKeyController.ApiKeyCreateRequest`/`ApiKeyCreatedResponse`,
   `TaxonApiController.TaxonCreateRequest`/`TaxonUpdateRequest`/`TaxonTranslationRequest`,
-  `UserApiController.UserCreatedResponse`/`UserSettingsWriteRequest`,
+  `UserApiController.UserCreatedResponse`/`UserSettingsWriteRequest`/`UserUpdateRequest`/
+  `LocaleWriteRequest`,
   `AdvertisementApiController.AdvertisementWriteRequest`,
   `ProviderProfileApiController.ProviderProfileWriteRequest` — the two `*WriteRequest` shapes carry
   no `id`/`version` field at all, server-managed via the path variable / `If-Match` header instead)
-  rather than living as separate top-level files.
+  rather than living as separate top-level files. Snapshot restore endpoints live in the same
+  controllers: `POST …/history/{snapshotId}/restore` on advertisements, provider profiles, taxons and
+  users, `POST /api/users/me/settings/history/{snapshotId}/restore` for the caller's own settings,
+  and `POST /api/taxons/{id}/restore` for a soft-deleted taxon. Every snapshot restore requires
+  `If-Match` (the current version); the restore itself is delegated to `SnapshotRestoreService`
+  in `marketplace-orchestrator`.
+- `AdvertisementMediaApiController` (`/api/advertisements/{id}/media`) — `GET` list (public),
+  multipart `POST` upload (`files` field, `201` with the created items), `POST /videos` (YouTube or
+  Vimeo link only, `400` for any other host), and `DELETE /{attachmentId}` (`404` when the item does
+  not belong to the advertisement). Limits: 10 items per advertisement, 50 MB per file, types JPEG,
+  PNG, WebP, GIF, MP4 and WebM. Delegates to `AdvertisementMediaService` in `marketplace-orchestrator`.
 - `org.ost.restapi.api.error` — `ApiExceptionHandler` (`@RestControllerAdvice`) plus its two
   response records, `ErrorResponse`/`ValidationErrorResponse` — kept in their own package rather
   than nested, since the advice maps exceptions from every controller in this module, not owned by
-  any single one.
+  any single one. `TooManyAttemptsException` maps to 429, with `Retry-After` taken from the
+  exception's window when it carries one.
 - `org.ost.restapi.api.concurrency` — `ETagUtil`, the sole conversion point between a resource's
   `version` and the HTTP `ETag`/`If-Match` header representation: `withVersion()` sets a response's
   `ETag` (skipped when the version is null), `parseIfMatch()` reads the expected version back off an
@@ -47,20 +59,36 @@ Java package root: `org.ost.restapi`
   `PagedResponseBuilder` (assembles the final `ResponseEntity` — body plus `X-Total-Count` and
   `Link`). `TaxonApiController.list()` is reference data only — always the full matching set, no
   filter/sort/pagination query params, no dependency on this package.
-- `org.ost.restapi.config` — `ApiSecurityConfig` (the `/api/**` `SecurityFilterChain`, `@Order(1)`,
-  coexisting with `marketplace-app`'s own Vaadin security chain via Spring Security's ordered
-  multi-chain matching), `ApiKeyAuthenticationFilter` (resolves `Authorization: Bearer <key>` into
+- `org.ost.restapi.api.audit` — `ActivityHistorySupport`, a Spring component over `AuditQueryService`
+  that is the shared read side of every resource's history; its nested records `HistoryEntryResponse`
+  and `SnapshotResponse` are the history response shapes. Reused by the `/history` methods of
+  `AdvertisementApiController`, `ProviderProfileApiController`, `TaxonApiController` and
+  `UserApiController` (including `/me/settings/history`), so no resource maps audit data itself.
+- `org.ost.restapi.config` — `ApiSecurityConfig` (two `SecurityFilterChain`s: `@Order(1)` matching
+  `POST /api/api-keys` only, the one chain with HTTP Basic, and `@Order(2)` for the rest of
+  `/api/**`, bearer-only, which also requires authentication for `*/history` and `*/history/*` under
+  advertisements, provider-profiles and taxons ahead of their public GET rules, lets `POST …/contact/reveals` through publicly, and requires authentication for `GET …/provider-profiles/*/contact/views`; both coexist with
+  `marketplace-app`'s own Vaadin security chain via Spring Security's ordered multi-chain matching), `BasicLoginRateLimitFilter` (blocks a client
+  address and email with 429 after 5 failed Basic logins in 15 minutes, on the key-issuance chain),
+  `BearerChallengeEntryPoint` (answers an unauthenticated `/api/**` request with 401 and a Bearer
+  challenge), `ApiKeyAuthenticationFilter` (resolves `Authorization: Bearer <key>` into
   a `PreAuthenticatedAuthenticationToken` carrying a plain `Long` user id — the standard Spring
   Security type for an identity already verified by an external mechanism), `OpenApiConfig`
   (declares the `bearerKey`/`basicAuth` `@SecurityScheme`s springdoc renders in Swagger UI, matching
-  `ApiSecurityConfig`'s real dual-auth shape)
+  the two chains' real authentication)
+
+- `DevToolsConfig` (`org.ost.restapi.config`) — `@ConditionalOnProperty("marketplace.dev-tools.enabled")`
+  `WebMvcConfigurer` that serves the developer-only API flow runner page under `/dev-tools/api-flows/`
+  from the classpath (resource handler plus a view controller forwarding the folder to `index.html`);
+  with the property off the path is not registered (404). The page and the Postman collection are
+  copied into the classpath by this module's `pom.xml` resources from `docs/api-collections`.
 
 **Autoconfiguration entry point:** `RestApiAutoConfiguration` (`@ComponentScan("org.ost.restapi")`)
 
 **OpenAPI/Swagger:** `springdoc-openapi-starter-webmvc-ui` generates the spec live from these
 controllers/DTOs — `GET /v3/api-docs` (spec JSON), `GET /swagger-ui/index.html` (interactive UI).
 Every authenticated endpoint carries `@SecurityRequirement(name = "bearerKey")` or `"basicAuth"`
-(key-issuance only) so Swagger UI's own "Authorize" flow matches the real auth model per-endpoint.
+(key-issuance only) so Swagger UI's own "Authorize" flow matches the real auth model per-endpoint. Swagger UI persists the entered authorization in the browser (`springdoc.swagger-ui.persist-authorization`).
 
 ---
 
@@ -76,10 +104,18 @@ Every authenticated endpoint carries `@SecurityRequirement(name = "bearerKey")` 
   `ArchitectureRulesTest.marketplace_must_not_import_starter_internals`, scoped to also cover
   `org.ost.restapi..`.
 - `ApiKeyAuthenticationFilter` only resolves a bearer key when no authentication already exists on
-  the security context — it never overwrites an authentication another mechanism (HTTP Basic, on
-  the key-issuance endpoint) already established.
-- The key-issuance endpoint (`POST /api/api-keys`) is the one place in this module with dual
-  authentication: it accepts `@AuthenticationPrincipal AuthenticatedPrincipal` (HTTP Basic) while
-  every other authenticated endpoint accepts `@AuthenticationPrincipal Long actorId` (bearer key) —
-  a deliberate, narrow asymmetry reflecting that this is genuinely the only endpoint needing a
-  human login rather than an already-issued key.
+  the security context — it never overwrites an authentication another mechanism already
+  established.
+- HTTP Basic is accepted only by the key-issuance chain: `POST /api/api-keys` takes
+  `@AuthenticationPrincipal AuthenticatedPrincipal` (HTTP Basic) while every other authenticated
+  endpoint takes `@AuthenticationPrincipal Long actorId` (bearer key). A Basic header anywhere else
+  is ignored and the request is answered 401; a Bearer header on the key endpoint is answered 401
+  with a Basic challenge. Never re-enable `httpBasic` on the general `/api/**` chain — a Basic
+  principal there reaches bearer-only methods as a null id.
+- Hidden feedback (a review or a reply whose moderation status is hidden) is returned without its
+  text, and a hidden review also without its rating, for every caller including its author -- the
+  same censored placeholder the Vaadin feedback panel shows.
+- Every method with an HTTP mapping carries `@Operation(operationId = ...)`: verb + entity in camelCase, unique across the whole API, never changed unless the operation's meaning changes (springdoc's derived names shift as controllers are added, which silently breaks collections, generated clients and MCP tool names). Enforced by `ArchitectureRulesTest.rest_api_operations_must_declare_an_explicit_operation_id` and `rest_api_operation_ids_must_be_unique`.
+- Any new endpoint under a prefix that the general chain makes public for GET (advertisements,
+  provider-profiles, taxons) must get its own `authenticated()` rule ahead of the public one, because
+  a public match leaves the controller without a user id.

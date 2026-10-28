@@ -78,7 +78,7 @@
             <column name="entity_type" type="VARCHAR(64)" remarks="Entity type ('ADVERTISEMENT', 'USER', etc.)">
                 <constraints nullable="false"/>
             </column>
-            <column name="entity_id" type="BIGINT" remarks="ID of the entity being classified">
+            <column name="entity_id" type="BIGINT" remarks="ID of the entity being classified. References advertisement(id) or provider_profile(id) depending on entity_type, no FK">
                 <constraints nullable="false"/>
             </column>
             <column name="taxon_id" type="BIGINT" remarks="Assigned taxon entry">

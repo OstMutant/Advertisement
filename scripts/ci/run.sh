@@ -27,11 +27,11 @@
 #                                architecture-map.html inside the container -- see ci.yaml)
 #   --playwright-args <arg>  -- override the e2e stage's Playwright args (default
 #                                "e2e --full --ux")
-#   --reset-e2e-db           -- deploy e2e's stack with a full --reset (DB/MinIO volume wipe, full
-#                                Liquibase replay) instead of the default --reset-only-db (fast
-#                                truncate) -- only needed when the DB schema itself changed since
-#                                the isolated e2e stack was last brought up
-#   --no-keep-e2e-infra      -- tear down the isolated e2e stack after the run instead of leaving
+#   --reset-e2e-stack        -- deploy e2e's stack with a full --reset (DB/SeaweedFS volume wipe,
+#                                full Liquibase replay) instead of the default --reset-only-db
+#                                (fast truncate) -- only needed when the DB schema itself changed
+#                                since the isolated e2e stack was last brought up
+#   --teardown-e2e-after     -- tear down the isolated e2e stack after the run instead of leaving
 #                                it up (on by default -- leaving it up is the debugging-friendly
 #                                default, so a failed run's containers/logs/DB state are still
 #                                there to inspect without having to remember the flag ahead of time)
@@ -104,6 +104,7 @@
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SECONDS=0
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/session-id.sh"
 IMAGE=ci-runner
 CONTAINER=ci-runner
 DAGU_PORT=18080
@@ -115,8 +116,8 @@ STAGE_INTEGRATION=""
 STAGE_E2E=""
 STAGE_SONAR=""
 STAGE_DOCS=1
-KEEP_INFRA="true"
-RESET_E2E_DB="false"
+TEARDOWN_AFTER="false"
+RESET_E2E_STACK="false"
 FOREGROUND=""
 REBUILD=""
 REFRESH_TOOLS="false"
@@ -229,6 +230,12 @@ sync_artifacts() {
   docker cp "$VOL_READER:/reports/sonar/." "$ROOT/scripts/logs/sonar/" 2>/dev/null
   docker rm -f "$VOL_READER" >/dev/null 2>&1
 
+  # session-info.txt lives only in the ci-runner filesystem, not in the test-reports volume.
+  for sub in playwright sonar build-and-test build-and-test/advertisement-build-only-{unit,integration,sonar,archunit,deploy}; do
+    docker cp "$CONTAINER:/app/scripts/logs/$sub/session-info.txt" "$ROOT/scripts/logs/$sub/session-info.txt" 2>/dev/null || true
+  done
+  docker cp "$CONTAINER:/app/scripts/logs/build-and-test/session-info.txt" "$ROOT/scripts/ci/reports/session-info.txt" 2>/dev/null || true
+
   # Sonar's report.html only ever exists in $CONTAINER's own filesystem, not the test-reports volume -- this leg writes to the real host, so it needs docker_cp_diag, not a plain docker cp.
   local sonar_report_failed=0
   docker_cp_diag "$CONTAINER:/app/scripts/sonar/report/report.html" \
@@ -263,8 +270,8 @@ for arg in "$@"; do
     --docs-only)           ANY_STAGE_FLAG=1; ARCHUNIT_METRICS="false"; LINT="false"; SHELLCHECK="false" ;;
     --no-docs)             STAGE_DOCS="" ;;
     --all)                 STAGE_UNIT=1; STAGE_INTEGRATION=1; STAGE_E2E=1; ANY_STAGE_FLAG=1 ;;
-    --no-keep-e2e-infra)   KEEP_INFRA="false" ;;
-    --reset-e2e-db)        RESET_E2E_DB="true" ;;
+    --teardown-e2e-after)  TEARDOWN_AFTER="true" ;;
+    --reset-e2e-stack)     RESET_E2E_STACK="true" ;;
     --foreground)          FOREGROUND=1 ;;
     --rebuild)             REBUILD=1 ;;
     --refresh-tools)       REFRESH_TOOLS="true" ;;
@@ -481,6 +488,12 @@ if ! sync_source_into "$CONTAINER"; then
 fi
 emit_agentic_success_block "sync-source"
 
+# Assign this run's id ourselves (`dagu start -r <id>`) so the monitor watches exactly this run,
+# never a guess from the API. Timestamp + pid + a random tail -- unique by construction.
+DAGU_RUN_ID="ci-$(date -u +%Y%m%dT%H%M%SZ)-$$-${RANDOM}${RANDOM}"
+# The CI session ID is the Dagu run id, so every log of this run links back to the Dagu history.
+export SESSION_ID="$DAGU_RUN_ID"
+
 DAGU_PARAMS=(
   "unit=$(bool "$STAGE_UNIT")"
   "integration=$(bool "$STAGE_INTEGRATION")"
@@ -490,9 +503,10 @@ DAGU_PARAMS=(
   "lint=$LINT"
   "shellcheck=$SHELLCHECK"
   "docs=$(bool "$STAGE_DOCS")"
-  "keep_e2e_infra=$KEEP_INFRA"
-  "reset_e2e_db=$RESET_E2E_DB"
+  "teardown_e2e_after=$TEARDOWN_AFTER"
+  "reset_e2e_stack=$RESET_E2E_STACK"
   "e2e_args=$PLAYWRIGHT_ARGS"
+  "session_id=$SESSION_ID"
 )
 
 echo ""
@@ -517,9 +531,6 @@ if [ -n "$ACTIVE_RUN" ]; then
   exit 1
 fi
 
-# Assign this run's id ourselves (`dagu start -r <id>`) so the monitor watches exactly this run,
-# never a guess from the API. Timestamp + pid + a random tail -- unique by construction.
-DAGU_RUN_ID="ci-$(date -u +%Y%m%dT%H%M%SZ)-$$-${RANDOM}${RANDOM}"
 echo "Dagu run id: $DAGU_RUN_ID"
 
 if [ -n "$FOREGROUND" ]; then

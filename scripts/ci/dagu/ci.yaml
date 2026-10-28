@@ -10,10 +10,11 @@
 # Env: None read directly by this file -- each step's own `run:` block sets whatever env vars the
 #   script it calls needs.
 # Input: params (unit/integration/e2e/sonar/archunit_metrics/lint/shellcheck/docs -- all boolean,
-#   gate the matching step via preconditions; keep_e2e_infra -- boolean, default true, skip e2e's
-#   stack teardown; reset_e2e_db -- boolean, default false, use a full --reset instead of e2e's
-#   default --reset-only-db before deploying (only needed when the DB schema itself changed);
-#   e2e_args -- string, forwarded to playwright/run.sh).
+#   gate the matching step via preconditions; teardown_e2e_after -- boolean, default false, tear
+#   down e2e's stack after the run; reset_e2e_stack -- boolean, default false, use a full --reset
+#   (wipes DB + SeaweedFS together) instead of e2e's default --reset-only-db before deploying
+#   (only needed when the DB schema itself changed); e2e_args -- string, forwarded to
+#   playwright/run.sh).
 # Outputs: PASSED/FAILED per step in Dagu's own web UI and run history. With archunit_metrics
 #   enabled, refreshes scripts/build-and-test/reports/architecture-metrics.json.
 #   scripts/ci/reports/pipeline-metrics.json is refreshed unconditionally by the pipeline_metrics
@@ -31,12 +32,15 @@ params:
   - name: integration
     type: boolean
     default: true
-  - name: reset_e2e_db
+  - name: reset_e2e_stack
     type: boolean
     default: false
   - name: e2e_args
     type: string
     default: "e2e --full --ux"
+  - name: session_id
+    type: string
+    default: ""
   - name: e2e
     type: boolean
     default: true
@@ -55,19 +59,19 @@ params:
   - name: docs
     type: boolean
     default: true
-  - name: keep_e2e_infra
+  - name: teardown_e2e_after
     type: boolean
-    default: true
+    default: false
 
 steps:
   - id: build
-    run: bash scripts/build-and-test.sh --no-unit --no-integration
+    run: SESSION_ID=${params.session_id} bash scripts/build-and-test.sh --no-unit --no-integration
     continue_on:
       failure: true
 
   - id: unit
     depends: build
-    run: BUILD_CONTAINER_NAME=advertisement-build-only-unit bash scripts/build-and-test.sh --unit --no-integration --skip-vaadin
+    run: SESSION_ID=${params.session_id} BUILD_CONTAINER_NAME=advertisement-build-only-unit bash scripts/build-and-test.sh --unit --no-integration --skip-vaadin
     continue_on:
       failure: true
       skipped: true
@@ -83,7 +87,7 @@ steps:
   - id: integration
     depends: build
     run: |
-      BUILD_CONTAINER_NAME=advertisement-build-only-integration \
+      SESSION_ID=${params.session_id} BUILD_CONTAINER_NAME=advertisement-build-only-integration \
         bash scripts/build-and-test.sh --no-unit --integration --skip-vaadin --sandbox
     continue_on:
       failure: true
@@ -95,20 +99,21 @@ steps:
   - id: e2e
     depends: build
     run: |
+      export SESSION_ID=${params.session_id}
       teardown() {
-        [ "${params.keep_e2e_infra}" = "true" ] && return
-        docker rm -f ci-marketplace-app ci-advertisement-db ci-advertisement-minio 2>/dev/null || true
+        [ "${params.teardown_e2e_after}" = "false" ] && return
+        docker rm -f ci-marketplace-app ci-advertisement-db ci-advertisement-seaweedfs 2>/dev/null || true
         docker network rm ci-advertisement 2>/dev/null || true
-        docker volume rm ci_advertisement_postgres_data ci_advertisement_minio_data 2>/dev/null || true
+        docker volume rm ci_advertisement_postgres_data ci_advertisement_seaweedfs_data 2>/dev/null || true
       }
       trap teardown EXIT
       RESET_FLAG="--reset-only-db"
-      [ "${params.reset_e2e_db}" = "true" ] && RESET_FLAG="--reset"
-      NETWORK=ci-advertisement DB_CONTAINER=ci-advertisement-db MINIO_CONTAINER=ci-advertisement-minio \
+      [ "${params.reset_e2e_stack}" = "true" ] && RESET_FLAG="--reset"
+      NETWORK=ci-advertisement DB_CONTAINER=ci-advertisement-db SEAWEEDFS_CONTAINER=ci-advertisement-seaweedfs \
         APP_CONTAINER=ci-marketplace-app APP_IMAGE=marketplace-app-ci \
-        DB_PORT=15432 MINIO_PORT=19000 MINIO_CONSOLE_PORT=19001 APP_PORT=18081 \
-        DB_VOLUME=ci_advertisement_postgres_data MINIO_VOLUME=ci_advertisement_minio_data \
-        bash scripts/deploy-and-run.sh "$RESET_FLAG"
+        DB_PORT=15432 SEAWEEDFS_PORT=19000 SEAWEEDFS_CONSOLE_PORT=19333 APP_PORT=18081 \
+        DB_VOLUME=ci_advertisement_postgres_data SEAWEEDFS_VOLUME=ci_advertisement_seaweedfs_data \
+        bash scripts/deploy-and-run.sh "$RESET_FLAG" --dev-tools
       APP_URL=http://localhost:18081 APP_CONTAINER=ci-marketplace-app \
         PW_CONTAINER=ci-pw-runner DB_PORT=15432 \
         bash playwright/run.sh ${params.e2e_args}
@@ -121,7 +126,7 @@ steps:
 
   - id: sonar
     depends: build
-    run: bash scripts/sonar.sh
+    run: SESSION_ID=${params.session_id} bash scripts/sonar.sh
     continue_on:
       failure: true
       skipped: true
@@ -134,7 +139,7 @@ steps:
   - id: archunit_metrics
     depends: build
     run: |
-      BUILD_CONTAINER_NAME=advertisement-build-only-archunit \
+      SESSION_ID=${params.session_id} BUILD_CONTAINER_NAME=advertisement-build-only-archunit \
         bash scripts/build-and-test.sh --no-unit --no-integration --archunit-metrics --skip-vaadin
     continue_on:
       failure: true
@@ -162,7 +167,7 @@ steps:
   - id: shellcheck
     depends: build
     run: |
-      find scripts playwright docs/architecture/scripts -name '*.sh' -not -path '*/node_modules/*' -print0 \
+      find scripts playwright docs/architecture/scripts backlog/research/tools/scripts .claude/commands -name '*.sh' -not -path '*/node_modules/*' -print0 \
         | xargs -0 shellcheck --severity=error
     continue_on:
       failure: true

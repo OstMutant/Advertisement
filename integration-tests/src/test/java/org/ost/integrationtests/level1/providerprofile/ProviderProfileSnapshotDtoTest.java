@@ -14,13 +14,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Plain-unit-test exemplar (no Spring context, no DB) for {@link ProviderProfileSnapshotDto}'s
- * {@code diff()}/{@code allFields()} logic, plus a Jackson polymorphic round-trip (de)serialization
- * test — none of the 4 pre-existing {@link AuditableSnapshot} subtypes has one of these, so this
- * closes that gap for the new subtype rather than assuming {@code JacksonConfig
- * .registerAuditSnapshotSubtypes()} wiring is correct.
- */
+/** Plain unit test (no Spring context, no DB) — {@link ProviderProfileSnapshotDto#diff} is pure field comparison; also tests Jackson polymorphic (de)serialization. */
 class ProviderProfileSnapshotDtoTest {
 
     @Test
@@ -105,5 +99,39 @@ class ProviderProfileSnapshotDtoTest {
                 ProviderKind.SUPPORT, "About", List.of(), null);
 
         assertThat(dto.displayName()).contains("SUPPORT");
+    }
+
+    @Test
+    void diff_phoneChanged_returnsSingleFieldChange() {
+        ProviderProfileSnapshotDto previous = new ProviderProfileSnapshotDto(
+                ProviderKind.MASTER, "About", List.of(), null, "+380501111111", null, null);
+        ProviderProfileSnapshotDto current = new ProviderProfileSnapshotDto(
+                ProviderKind.MASTER, "About", List.of(), null, "+380502222222", null, null);
+
+        assertThat(current.diff(previous)).containsExactly(
+                new FieldChange(ProviderProfileSnapshotDto.Fields.phone, "+380501111111", "+380502222222"));
+    }
+
+    @Test
+    void diff_telegramAndViberSetFromEmpty_returnsBothFieldChanges() {
+        ProviderProfileSnapshotDto previous = new ProviderProfileSnapshotDto(
+                ProviderKind.MASTER, "About", List.of(), null, null, null, null);
+        ProviderProfileSnapshotDto current = new ProviderProfileSnapshotDto(
+                ProviderKind.MASTER, "About", List.of(), null, null, "electro_master", "+380509999999");
+
+        assertThat(current.diff(previous)).containsExactlyInAnyOrder(
+                new FieldChange(ProviderProfileSnapshotDto.Fields.telegram, null, "electro_master"),
+                new FieldChange(ProviderProfileSnapshotDto.Fields.viber, null, "+380509999999"));
+    }
+
+    @Test
+    void allFields_includesContactFields() {
+        ProviderProfileSnapshotDto dto = new ProviderProfileSnapshotDto(
+                ProviderKind.MASTER, "About", List.of(), null, "+380501111111", "electro_master", "+380509999999");
+
+        assertThat(dto.allFields()).contains(
+                new FieldChange(ProviderProfileSnapshotDto.Fields.phone, null, "+380501111111"),
+                new FieldChange(ProviderProfileSnapshotDto.Fields.telegram, null, "electro_master"),
+                new FieldChange(ProviderProfileSnapshotDto.Fields.viber, null, "+380509999999"));
     }
 }

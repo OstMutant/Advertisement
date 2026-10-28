@@ -33,6 +33,10 @@ public class ProviderProfileReadService {
         return providerProfilePortFactory.findIfAvailable().flatMap(p -> p.findById(id));
     }
 
+    public Optional<ProviderProfileDto> findByActorId(@NonNull Long actorId) {
+        return providerProfilePortFactory.findIfAvailable().flatMap(p -> p.findByActorId(actorId));
+    }
+
     public boolean isAvailable() {
         return providerProfilePortFactory.findIfAvailable().isPresent();
     }

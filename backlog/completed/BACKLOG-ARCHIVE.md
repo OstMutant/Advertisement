@@ -2729,3 +2729,178 @@ documented a real discrepancy in this repo's own Sonar analysis pipeline (a file
 showing 100% line coverage while Sonar's own dashboard/API reported 38.5%) — not chased further
 since it self-resolved once overall new-code coverage cleared the gate. Full detail:
 `completed/tasks/improvement-202-optimisticlockingfailureexception-decoupling.md`.
+
+✅ Done (2026-09-29): improvement-199 closed — F-05 contact reveal + click analytics (private
+product roadmap Phase 2). New `contact-spring-boot-starter` (`contact_info`/`contact_view` tables,
+no FK, generic over `PROVIDER_PROFILE`/`ADVERTISEMENT`), `ContactPort` SPI, orchestrator-level
+fallback resolution (an ad's contact falls back to its owner's provider-profile contact via
+`ContactAccessService`/`AdvertisementOwnerProfileLookupService`), `ContactRevealPanel` UI component
+with per-channel click-to-reveal + rate limiting. 12 checkpoints total, several real bugs found via
+live manual testing and fixed: cascade-deleting `contact_info` (not `contact_view` history) on
+profile delete; snapshotting the revealed value on each `contact_view` row so click history stays
+attributable after a number change; Provider Profile switching straight to View after Save; a
+read-only contact preview in the advertisement form (create and edit); a `ProvidersView` tab
+not refreshing on Settings close when that tab was already selected (Settings is a modal overlay,
+not a tab, so no tab-selection event ever fires); and, after an explicit user ask to match
+`AdvertisementOverlay`'s UX exactly, `ProviderProfileCatalogOverlay` rebuilt to extend
+`AbstractEntityOverlay` with a real internal Edit mode (hover-reveal Edit button, single browser-
+history push per entity regardless of entry path, no unrelated Name/Settings tab chrome) instead of
+delegating edits to `AccountOverlay`. A `deep-review-orchestrator` pass on the full diff found and
+fixed two DRY violations (`ContactInfoDto.presentChannels()` added to kill a triple-duplicated
+per-channel rendering loop) and one stale Javadoc `{@link}`; `marketplace-orchestrator/DECISIONS.md`
+ADR-010 records the `ContactAccessService` split/rename. Also fixed a real
+`scripts/activity-monitor/run.sh` gap along the way (it never printed its own resolved `tree.txt`
+path) and, per a standing rule sweep, removed all 34 `page.waitForTimeout(300)` calls from
+`04-provider-profile-flow.spec.js` (redundant given Playwright's own auto-waiting). Full detail:
+`completed/tasks/improvement-199-f05-contact-reveal-click-analytics.md`.
+
+✅ Done (2026-10-05): improvement-205 closed — a second, equally-isolated Docker dev container
+(`opencode-dev`) mirroring the existing `claude-dev` pattern, for the open-source `opencode` CLI
+against other model providers (Google AI Studio/Gemini, Groq, OpenRouter, etc. via models.dev).
+`Dockerfile.ai` renamed to `Dockerfile.claude` first (clears the way for a correspondingly-named
+`Dockerfile.opencode` sibling), rippling through `scripts/claude.bat`, `INFRASTRUCTURE.md`,
+`.claude/nav/flows.md`, `.claude/skills/app-readme-standards/SKILL.md`, and
+`scripts/collect-code.bat` (the last one also needed `Dockerfile.opencode` itself added once that
+new file existed — found and fixed in the same task). New `scripts/opencode.bat` mirrors
+`claude.bat`'s reuse/`--recreate`/`--update` ergonomics, handling opencode's two-directory XDG
+split (data + config) via one per-login host folder and two env vars instead of two separate
+mounts. `INFRASTRUCTURE.md`'s "AI Development Environment" section split into `### Claude Code`/
+`### opencode` subsections. Provider setup itself done interactively by the user inside the running
+container — Google AI Studio connected successfully (`gemini-3.6-flash`, after `gemini-2.5-flash`/
+`gemini-3.8-flash` turned out deprecated/overloaded for new users); OpenAI skipped (no free API
+tier) in favor of Groq's free `openai/gpt-oss-120b` as a future alternative, not yet connected.
+Full detail: `completed/tasks/improvement-205-opencode-dev-container.md`.
+
+✅ Done (2026-10-05): improvement-200 closed — F-06 reviews & ratings (private product roadmap
+Phase 3). New self-contained `feedback-spring-boot-starter` (`feedback_content`/`feedback`/
+`feedback_rating`/`feedback_comment`/`feedback_comment_reaction`/`feedback_aggregate` tables,
+`FeedbackPort` SPI, no denormalization onto `provider_profile`/`advertisement`, mirrors the
+`contact-spring-boot-starter` precedent): rating + sanitized text on any `EntityRef` (provider
+profile or advertisement), one entry per author per entity with a 48h edit window, an unbounded
+`WITH RECURSIVE` comment tree later capped at 3 levels deep, reactions, moderation (flag/report,
+admin queue, in-place `[censored]` rendering, audit on moderation actions only), and anti-fraud
+hardening (per-author daily rate limits on new entries/comments via the existing
+`FailureRateLimiter`, same-file verifier fusion not needed here since this is product code not
+review tooling). Phased over many rounds of real-usage UX fixes (icon-driven inline editing,
+draft/expand-state persistence across reloads, scroll-position preservation through tree rebuilds,
+depth-cap enforcement both client- and server-side) — see the completed task file for the full
+round-by-round history. Final phase: `ContactRevealPanel`/`FeedbackPanel` (and
+`ProviderProfileViewModeHandler`'s own contact-views block) moved from flat-stacked-in-one-card to
+genuine sibling `.overlay__view-card` cards, reusing existing CSS with no new rules — verified via
+a real deploy + full `e2e --ux` run (52/65 passed, 0 failed, 13 skipped) after an initial cold-start
+false failure was ruled out by a clean re-run on the warmed app. The one remaining open item
+(feedback-list pagination) was moved to `improvement-203` entry 6 rather than block closing this
+task, since it's a small, independent UI addition unrelated to the rest of F-06's own scope. Full
+detail: `completed/tasks/improvement-200-f06-reviews-ratings.md`.
+
+✅ Done (2026-10-13): improvement-206 closed — `/review`'s step-4 per-finding verification
+subagents, and `/sync-docs --full-audit`'s Step A3 research agents, now dispatch on
+`model: "haiku"` instead of the inherited top-level model (a flat 3x price cut on both, per the
+standing well-specified-mechanical-work-defaults-to-Haiku rule). Same-file verifier fusion and
+conditional ±30-line scoped reads also landed in `deep-review-orchestrator.md`'s step 4. Cache-
+sharing across sibling/parent-child subagent dispatches was investigated and confirmed to
+structurally not work in this harness (parallel dispatches can't read a cache only the first
+streamed response makes readable) — not a viable lever, dropped. One real validation run
+(2026-10-09, `/review` on the feedback/comment/moderation redesign) confirmed the pipeline works
+end to end under the change; the plan's own gate wanted 2-3 runs, but the user accepted this single
+data point as sufficient to close the task rather than running a second pass. Full detail:
+`completed/tasks/improvement-206-review-haiku-verification-and-cache-investigation.md`.
+
+✅ Done (2026-10-13): improvement-203 closed — the running out-of-scope-findings bucket's last
+open thread (entry 7, the feedback/comment/moderation redesign spanning Phases 7-12) finished:
+`/review` ran over the whole redesign and every finding was fixed and committed, then `/sync-docs`
+(diff mode against `origin/main`, 176 files) synced documentation with it. Found and fixed real
+drift along the way: two brand-new modules (`contact-spring-boot-starter`,
+`feedback-spring-boot-starter`) had their own `README.md`/`DECISIONS.md` but no
+`.claude/rules/<module>.md` of their own and no pointer line in root `CLAUDE.md` — both created;
+`feedback-spring-boot-starter/README.md`'s stale "Phase 1 backend-only" claim corrected;
+`.claude/rules/marketplace-orchestrator.md`'s stale starter-dependency count (8 → 9) and missing
+`FeedbackAccessService`/`FeedbackCommentWriteService` entries fixed. Seven parallel `model: "haiku"`
+dispatches audited Javadoc/pom.xml/infra headers across 101 Java files plus ~20 infra/Playwright
+files — fixed ~30 missing class-level Javadoc blocks, one ticket-number citation removed from a
+test class, several stale infra/Playwright headers. One real bug introduced by a dispatch (a
+duplicated `fillRole()` function in `playwright/e2e/_flows/filter.flow.js`) was caught during
+verification and fixed before it could land. `build-and-test.sh --unit` — BUILD SUCCESS, 78/78
+tests; ADR index and `architecture-model.json`/`architecture-map.html` regenerated clean. Full
+detail: `completed/tasks/improvement-203-out-of-scope-implementation-findings.md`.
+
+✅ Done (2026-10-14): improvement-207 closed — whole-repo `/review all` follow-ups (26 confirmed
+findings across Phases A-F) fully implemented: Settings unsaved-changes bug, feedback-moderation
+authorization gap, stale Liquibase remarks + N-target no-FK marker generalization, precedent
+cleanup (@NonNull/@Slf4j/ticket-number removal), 12 DRY/dedup fixes (shared SQL SELECT fragments,
+shared enum-diff helper, double-lookup/duplicate-branch removal, builder/copy helpers), YAGNI
+dead-code removal, and the AuditLogRepository RowMapper-to-instance-lambda refactor. A `/code-review`
+pass over the full D2-D12 diff caught 2 real issues (an Optional-as-parameter rule violation, a
+diffField/enumName logic duplication) — both fixed; 5 other candidates REFUTED on verification.
+The full pre-commit `--unit --integration --sandbox` run caught one real regression (a stale test
+mock in `AdvertisementApiControllerTest`, unrelated to production code) — fixed. Final state:
+unit 298/298, integration 346/346, BUILD SUCCESS. Also produced, along the way: `.claude/DECISIONS.md`
+ADR-003/ADR-004 (Haiku-dispatch rule applied to `/autopilot`/`/sync-docs`, per-task ADR-usage
+tracking) and a fix to `generate-architecture-model.sh`'s ADR-index column-shift regression (F5).
+Full detail: `completed/tasks/improvement-207-whole-repo-review-followups-2026-10-06.md`.
+
+✅ Done (2026-10-15): improvement-208 closed — 4 independently-approved phases on
+`FeedbackAccessService`/`FeedbackService`/moderation queue: (1) negative tests for all 6
+moderation role-check guards, (2) moderation write + audit capture made atomic via
+`TransactionTemplate`, (3) 3 user-facing business rules retyped onto
+`SelfActionNotAllowedException`/`EditWindowClosedException`, (4) moderation queue redesigned from
+in-memory merge/filter/sort/page to SQL-level (UNION ALL CTE, real JOIN fixing the N+1,
+`FeedbackPort.findModerationQueue`/`countModerationQueue`) — recorded as
+`marketplace-orchestrator/DECISIONS.md` ADR-011. A `/review` pass caught and fixed 3 issues (stale
+Javadoc, unsupported author-sort test, a reintroduced 1000-match cap) before commit. Full
+`--unit --integration --sandbox` gate: 738/738. Commit 66695664. Full detail:
+`completed/tasks/improvement-208-feedback-module-followups.md`.
+
+✅ Done (2026-10-17): improvement-204 closed — springdoc-openapi 2.8.5→3.1.1, Vaadin 25.2.8→25.3.2,
+AWS S3 SDK bump; MinIO→SeaweedFS local dev/CI storage-backend swap (MinIO CE archived upstream),
+recorded as `scripts/DECISIONS.md` ADR-016. Follow-up investigation of a real e2e CI crash found
+`configure_seaweedfs()` aborting on "bucket already exists" instead of treating it as success —
+fixed in `run.sh`/`docker-compose.seaweedfs.yml`, verified via a full green `scripts/ci.sh` run
+(e2e 66/66). Also: `keep_e2e_infra`/`reset_e2e_db` renamed `teardown_e2e_after`/`reset_e2e_stack`
+for lifecycle clarity (`scripts/ci/DECISIONS.md` ADR-010 updated in place); 15 stale "MinIO"
+references swept to "SeaweedFS"; the general Bash `PreToolUse` approval hook scoped to real
+project scripts instead of every Bash command. Commit 21e39576. Full detail:
+`completed/tasks/improvement-204-dependency-java-version-upgrade-audit.md`.
+
+✅ Done (2026-10-17): improvement-209 closed — the Claude Code and opencode dev containers
+(`Dockerfile.claude`/`Dockerfile.opencode`, `scripts/claude.bat`/`opencode.bat`) now take their
+versions from Dockerfile `ARG`s (Node 24, `CLAUDE_CODE_VERSION`/`OPENCODE_VERSION` default `latest`,
+a refresh build-arg on `--update`) and install with `--engine-strict`, fixing a silent downgrade to
+Claude Code 2.1.197 that kept Sonnet 5.5 out of `/model`; recorded as `scripts/DECISIONS.md`
+ADR-017, host-verified for both containers. Also: ADR usage is now counted in each ADR's own
+`**Applied:**` line (bumped when a task closes; the `## Operational notes` block exists from task
+creation), recorded by rewriting `.claude/DECISIONS.md` ADR-004; `generate-adr-index.sh` and the
+architecture map collect it (blank, never 0, when absent); the task-filing command `/feature` was
+renamed `/new-task` across the live docs. A `/review` pass found a stale ADR-004 and stale backlog
+status text, both fixed. Full detail:
+`completed/tasks/improvement-209-claude-dev-container-version-variables.md`.
+
+✅ Done (2026-10-17): improvement-214 closed — `ADMIN_EMAIL` and `ADMIN_PASSWORD` (the English admin account, `admin.en@example.com`, development values only) added to the repo-root `.env` as the account automation registers first after a database reset; the Postman collection defaults use them, `playwright/run.sh` forwards them into the pw-runner container and the `adminEn` test user reads them with the previous values as fallback. The registration rule is unchanged (the first account registered becomes ADMIN); the API flow runner defaults are specified in improvement-212 and the production first-registrant weakness stays in improvement-052. Full detail: `completed/tasks/improvement-214-admin-credentials-from-environment.md`.
+
+✅ Done (2026-10-20): improvement-210 closed — REST feedback, replies, flags and moderation built as phases 6a and 6b of improvement-213: `FeedbackApiController` (public paged review list with the owner's reply, hidden entries without text or rating, aggregate; create, edit with `If-Match`, reply create/edit/delete, flags) and `ModerationApiController` (queue, approve, confirm violation; reject deliberately not exposed because the UI has none), with `FeedbackWriteService` making the caller the author, a flag allowed only on a non-hidden entry (`409` otherwise), privileged-only queue and hidden reads, and not-found errors mapped to `404`. Full detail: `completed/tasks/improvement-210-rest-api-feedback-and-comments.md`.
+
+✅ Done (2026-10-21): improvement-213 closed — REST API revision for parity with the Vaadin UI, built in phases 1 to 10 on branch `feature/improvement-213-rest-api-parity`: API keys as Bearer credentials with HTTP Basic accepted only on key issuance (`BasicLoginRateLimitFilter`, `BearerChallengeEntryPoint`); read rules and service-boundary authorization in `AuthorizationService`, `AuditQueryService` and `ContactAccessService`; `ApiExceptionHandler` mappings (403, 404, 409, 412, 429); user update, delete and language change; history, snapshot reads and restore through `SnapshotRestoreService` and a MapStruct `SnapshotMapper`; contact reveal and views through `ContactRevealService`; feedback, replies, flags and moderation (`FeedbackApiController`, `ModerationApiController`); advertisement media (`AdvertisementMediaService`); 68 operations in `/v3/api-docs`. Phase 10 fixed the faults of the final verification: one channel-neutral language resolution (`CurrentLocaleService`, `UiLocaleHook`, `SupportedLocales`), the moderation and timeline views for a caller who cannot moderate, four Sonar findings, the application's own jar copy in `deploy-and-run.sh` and the Telegram stub in the end-to-end spec. Last full CI run: 66 of 66 end-to-end tests, 441 integration tests, unit tests of every module, Sonar quality gate OK. Left open by the owner: the Viber link on a real device and the merge into `feature/marketplace-features` after the remaining REST work; follow-ups are `improvement-219` (including the `If-Match` contract and moderation atomicity) and `improvement-220`. Full detail in `completed/tasks/improvement-213-rest-api-revision-parity-with-ui.md`.
+
+✅ Done (2026-10-22): improvement-219 closed — REST coverage made build-failing and checked through the real stack: `OperationCoverageTest` with `ExercisedOperations` fails the build when a REST operation is never reached by a Level 3 scenario (the allow-list is empty), the `*MatrixScenarioTest` classes cover roles, validation, `If-Match`, unknown id, conflict and limits per operation, `If-Match` is required on advertisement, provider profile, taxon and user writes, taxon and API-key requests get bean validation, the audit `page` must be non-negative, a user can read their own record, `FeedbackRepository.transitionModerationStatus` makes moderation transitions atomic, and `playwright/e2e/10-rest-api-flow.spec.js` runs the API through the real stack; known gap: the 48-hour edit-window 409 of feedback edits has no REST test. Full detail: `completed/tasks/improvement-219-full-rest-coverage-and-real-stack-smoke.md`.
+
+✅ Done (2026-10-22): improvement-211 closed — investigation of web tooling for the REST API and MCP readiness: Postman chosen for whole flows, the collection in `docs/api-collections/postman/` now names every request by its `operationId` and `PostmanCollectionTest` fails the build when a request names an unknown operation or its method or path differs; descriptions added for `getAdvertisement`, `getProviderProfile`, `getProviderProfileFeedbackAggregate` and `changeMyLocale`; the unstable approve-versus-confirm race test in `FeedbackServiceTest` replaced by `confirmRace_onSameHiddenEntry_exactlyOneSucceeds`; `scripts/build-and-test/run.sh` now includes `docs/api-collections` in the build container; manual Postman checks postponed; the MCP stack (Spring Boot 4.1.0, Spring AI 2.0.1) compiles and the remaining MCP questions moved to improvement-221.
+
+✅ Done (2026-10-24): improvement-212 closed — developer-only API flow runner page: `DevToolsConfig` serves `docs/api-collections/flow-runner/page` and the Postman collection under `/dev-tools/api-flows/` only when `marketplace.dev-tools.enabled` is on (`deploy-and-run.sh --dev-tools`, on in the `dev` profile, the CI e2e stage deploys with it); the collection has 11 flows and 138 steps covering all 68 REST operations, guarded by `check-collection` (empty allow-list) and `run-flows`, with conditional `when` steps, multipart bodies and a per-run `runId` so flows run on an empty or a used database; the page has template tabs (Everything, Minimal, templates saved in `localStorage`, a pasteable configuration), flow cards, a flow detail with settings JSON and step selection, always-present diagram nodes with coloured response-code badges and a request/response card, a run bar with Clear and a confirmation before any change clears a run; the Node scripts share the runner modules; Playwright `11-api-flow-runner` (3 tests) passed in a 78 of 78 e2e run; decisions recorded in `docs/api-collections/DECISIONS.md`. A status icon in nodes and a status filter, and the browser login dialog on an empty database, are parked in improvement-223.
+
+✅ Done (2026-10-24): improvement-224 closed — two new project commands: `/deep-plan` (the `deep-planner` agent on Opus working in a topic folder under `backlog/research/`, with its helper scripts in `backlog/research/tools/`, producing a plan for people and a plan for AI executors) and `/optimize` (discovery builds a brief from a fixed template, runs `deep-review-orchestrator` with the `code-reduction-reviewer` lens and then the `deep-planner`; `report`, `apply` and `verify` modes, the helper script `check-batch.sh`, the standing inventory in improvement-225). Both ran end to end on real topics (`optimize-command`, `optimize-query-lib`); the first full `/optimize path query-lib` run exposed that the lens skipped files, fixed by requiring the lens to read every file and the orchestrator to re-dispatch unread ones; the follow-up reductions are in improvement-226. Full detail in `completed/tasks/improvement-224-planning-and-optimization-commands.md`.
+
+✅ Done (2026-10-24): improvement-123 closed as superseded — the master-only public profile (F-04) was broadened into the unified provider profile (masters, shops, an official support contact) and shipped in full as improvement-124; the file stayed in `tasks/` only for the discussion history. Full detail in `completed/tasks/improvement-123-f04-master-profile.md` and `completed/tasks/improvement-124-provider-profile.md`.
+
+✅ Done (2026-10-24): improvement-225 closed — the standing inventory of the `/optimize` command ended with its one finding applied and verified: the query-lib README and rule file no longer describe the removed `OrderByBuilder` sort-map overload or call `SqlFilterBinding` a functional interface (net -14 lines in 2 files). The remaining query-lib reductions from the same run live in improvement-226. Full detail in `completed/tasks/improvement-225-code-reduction-findings.md`.
+
+✅ Done (2026-10-25): improvement-198 closed — the Playwright e2e suite is isolated and parallel: a `setup` project signs up the first administrator, every test creates its own uniquely named data over REST or the UI and checks only that data, per-worker accounts reuse saved login sessions (`_fixtures.js`: `unique`, `createUser`, `adminKey`, `pageAs`), the `legacy` serial chain is gone and the full suite runs in 10.4-11.5 min on 2 workers instead of 15.9 min on 1 (64 tests after merging stories into steps); every spec passes alone twice in a row, retries are on with flaky tests reported; the worker count is `PW_WORKERS` and the lint warning ceiling `PW_LINT_MAX_WARNINGS` in the repo-root `.env`; locators are role, label, text or test id first (`.locator(` 1376 to 917, `getBy*` 7 to 405, the 861 left are structural CSS counted by a lint warning ratchet instead of an allowed-list error); `reset-clean.sql` now truncates every table (it missed `api_key`); `run.sh` gained `--workers`/`--repeat-each`, a quoted `--grep` and the env settings; decision recorded as a new playwright ADR. Full detail in `completed/tasks/improvement-198-playwright-test-isolation-and-parallel-workers.md`.
+
+✅ Done (2026-10-26): improvement-216 closed — a signed-in user sees and revokes their own API keys in the app: a fourth tab "API keys" in the account overlay (`ApiKeysViewModeHandler`), shown only on the user's own account and only when the API-key module is present, a table of label, first 10 characters of the key, created, last used and status (newest first, sortable dates, no paging), revoked keys behind a "Show revoked keys" checkbox, and a confirmation dialog before a revoke that names the key and says clients get 401 from their next request; no key value ever reaches the UI, issuing keys in the UI stays out of scope; `ApiKeyManagementService.isAvailable()`, an INFO log line in `ApiKeyService.revoke`, 24 texts in English and Ukrainian, unit tests (handler 7, service 8), the level 3 test now also checks the owner's key keeps working, a Playwright test of the whole flow in the authentication spec plus a check that a moderator sees no such tab on another user's account; the API-key module's rules and README no longer claim the UI never touches it; decision recorded as a new marketplace-app ADR. Full detail in `completed/tasks/improvement-216-api-key-management-ui.md`.
+
+✅ Done (2026-10-26): improvement-228 closed — the architecture map's Tooling & Pipelines screen shows a "Services" section above the infrastructure block: one card per local web page (Application, Swagger UI, API flow runner page, SonarQube, Dagu, SeaweedFS master UI), each opening in a new tab, no live status; the generator reads the web-page rows (an `http://` link in the link cell) of the "Local Services" table of `INFRASTRUCTURE.md` through `services_json` into a `services` list of the model JSON, so the table is the one home of the addresses and its row order is the card order; the table gained rows for Swagger UI, the API flow runner page and the SeaweedFS master UI; the Code Quality card "SonarQube" is now "Sonar Metrics"; ports were not moved into `.env` (the deep plan for that variant is kept under `backlog/research/architecture-map-services-card/`). Full detail in `completed/tasks/improvement-228-architecture-map-services-card.md`.
+
+✅ Done (2026-10-27): improvement-229 closed — the architecture map's Code Quality screen has eight cards and three new screens built from real data on every generation, with no opt-in flag: Coverage (JaCoCo line and branch per module, run time, a link to each module's HTML report; the build now keeps JaCoCo's HTML by copying `target/site/jacoco/` and adding `--html` to the integration aggregate), Tests (Surefire counts per module, failing classes linked) and Run logs (one table per log folder found by walking `scripts/logs` and `scripts/ci/reports`); the Playwright report is a plain link card; all links are plain relative links with no existence check. A new `scripts/utils/session-id.sh` gives one session ID to a chain of scripts: the outermost script creates it (`YYYYMMDDHHMMSS`), every script it calls inherits it, each log folder gets a `session-info.txt`, and for CI the session ID is the Dagu run id passed to every Dagu step, with the CI sync copying the files out of the runner container. The freshness check no longer runs after generation (it compared two runs of one state); it is now the manual command `/check-architecture-map`, which ignores `testReports` and `runLogs`. The wrong log-folder texts in `scripts/build-and-test/run.sh`, `.claude/rules/scripts.md` and one `playwright.config.js` comment were corrected. Verified by a green full CI run (all ten steps) and a passing freshness check; decision recorded as `docs/architecture/scripts` ADR-035. Full detail in `completed/tasks/improvement-229-architecture-map-static-reports.md`.
+
+✅ Done (2026-10-27): improvement-227 closed — the in-depth research mechanism is renamed to match its folder: command `/deep-plan` → `/deep-research`, agent `deep-planner` → `deep-researcher`, agent folder `.claude/agents/planning/` → `.claude/agents/research/`; the project command `/review` → `/deep-review` so it no longer collides with Claude Code's built-in review commands (the agent `deep-review-orchestrator` and the folder `.claude/agents/review/` unchanged); the reply words `PLAN READY`/`PLAN BLOCKED` and the folder `backlog/research/` stay; references fixed in the command and agent README files, `optimize.md`, `autopilot.md`, `nav/flows.md`, root `CLAUDE.md`, two `DECISIONS.md` files and the open task improvement-226; architecture map regenerated.
+
+✅ Done (2026-10-27): improvement-217 closed — contacts are a headed card in every mode and an advertisement shows only its owner's provider-profile contact. Phase 1: `ContactRevealPanel` renders an icon-and-"Contacts" header (shown only when a channel exists) in the advertisement view and the provider catalog view; the Account overlay's Provider Profile view card gets the same header; `ProviderProfileFormOverlayModeHandler` moves phone/Telegram/Viber into their own headed card, `AdvertisementFormOverlayModeHandler` puts the contact preview into its own headed card (new key `contact.section.label`, en and uk). Phase 2: `ContactAccessService.resolveContact` no longer looks for an advertisement's own `contact_info` row (nothing ever wrote one) and rejects entity types other than provider profile and advertisement; the descriptions in `ContactPort`, `ContactInfoDto`, `ContactInfo`, `ContactRevealService`, `AdvertisementOwnerProfileLookupService`, the REST controller, the `01-contact-schema` remarks and `marketplace-orchestrator.md` say so; the owner's monthly contact-view counters are labelled as profile-page views; decision recorded as contact ADR-002, with the stale sentences of contact ADR-001 and orchestrator ADR-010 corrected. Playwright: the provider-profile flow checks the contacts as the owner (view and edit), another user (catalog, reveal buttons only) and an administrator (Users grid, view and edit), each in its own session. Phase 3 (the author on advertisements as a link to the provider profile) is not done and moved to entry 6 of improvement-223. Verified by a green full run (851 unit and integration tests, 62 e2e passed). Full detail in `completed/tasks/improvement-217-contacts-headed-card-view-and-edit.md`.

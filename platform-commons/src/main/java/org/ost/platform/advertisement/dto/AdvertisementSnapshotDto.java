@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.ost.platform.audit.api.AuditableSnapshot.diffField;
+import static org.ost.platform.audit.api.AuditableSnapshot.enumName;
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
@@ -52,7 +53,7 @@ public record AdvertisementSnapshotDto(
         List<ChangeEntry> changes = new ArrayList<>();
         diffField(changes, Fields.title,       field(prev, AdvertisementSnapshotDto::title),       title());
         diffField(changes, Fields.description, field(prev, AdvertisementSnapshotDto::description), description());
-        diffField(changes, Fields.adKind, typeToString(field(prev, AdvertisementSnapshotDto::adKind)), typeToString(adKind()));
+        diffField(changes, Fields.adKind, field(prev, AdvertisementSnapshotDto::adKind), adKind());
         List<Long> prevIds = prev != null ? prev.categoryIds() : List.of();
         if (!Objects.equals(prevIds, categoryIds()))
             changes.add(new FieldChange(Fields.categoryIds, idsToString(prevIds), idsToString(categoryIds())));
@@ -67,7 +68,7 @@ public record AdvertisementSnapshotDto(
         return List.of(
                 new FieldChange(Fields.title,       null, title()),
                 new FieldChange(Fields.description, null, description()),
-                new FieldChange(Fields.adKind,      null, typeToString(adKind())),
+                new FieldChange(Fields.adKind,      null, enumName(adKind())),
                 new FieldChange(Fields.categoryIds, null, idsToString(categoryIds())),
                 new FieldChange(Fields.cityTaxonId, null, idToString(cityTaxonId())));
     }
@@ -79,9 +80,5 @@ public record AdvertisementSnapshotDto(
 
     private static String idToString(Long id) {
         return idsToString(id == null ? null : List.of(id));
-    }
-
-    private static String typeToString(AdKind type) {
-        return type == null ? "" : type.name();
     }
 }

@@ -1,10 +1,18 @@
 package org.ost.restapi.api.error;
 
 import org.ost.orchestrator.services.AccessDeniedException;
+import org.ost.platform.apikey.model.ApiKeyAlreadyRevokedException;
+import org.ost.platform.core.EditWindowClosedException;
+import org.ost.platform.core.SelfActionNotAllowedException;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
+import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
+import org.ost.platform.feedback.model.FeedbackNotModeratableException;
+import org.ost.platform.taxon.model.TaxonNotDeletedException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -40,14 +48,50 @@ public class ApiExceptionHandler {
         return new ErrorResponse("A resource with this value already exists.");
     }
 
-    @ExceptionHandler(TooManyAttemptsException.class)
-    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
-    public ErrorResponse handleTooManyAttempts(TooManyAttemptsException ex) {
+    @ExceptionHandler(ApiKeyAlreadyRevokedException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleApiKeyAlreadyRevoked(ApiKeyAlreadyRevokedException ex) {
         return new ErrorResponse(ex.getMessage());
     }
 
-    // Reaching here means a genuine unexpected-state bug, not a rate-limit signal -- the
-    // rate limiters throw TooManyAttemptsException specifically, handled above.
+    @ExceptionHandler(TaxonNotDeletedException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleTaxonNotDeleted(TaxonNotDeletedException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(EditWindowClosedException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleEditWindowClosed(EditWindowClosedException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(FeedbackNotFlaggableException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleFeedbackNotFlaggable(FeedbackNotFlaggableException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(FeedbackNotModeratableException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleFeedbackNotModeratable(FeedbackNotModeratableException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(SelfActionNotAllowedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleSelfAction(SelfActionNotAllowedException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(TooManyAttemptsException.class)
+    public ResponseEntity<ErrorResponse> handleTooManyAttempts(TooManyAttemptsException ex) {
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS);
+        ex.retryAfter().ifPresent(wait -> response.header(HttpHeaders.RETRY_AFTER, String.valueOf(wait.toSeconds())));
+        return response.body(new ErrorResponse(ex.getMessage()));
+    }
+
+    // Reaching here is a genuine unexpected-state bug, not a rate-limit signal -- those throw TooManyAttemptsException, handled above.
     @ExceptionHandler(IllegalStateException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleIllegalState(IllegalStateException ex) {

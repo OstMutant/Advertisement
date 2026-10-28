@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.services.ApiKeyManagementService;
 import org.ost.platform.apikey.dto.ApiKeySummaryDto;
+import org.ost.platform.apikey.model.ApiKeyAlreadyRevokedException;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.spi.AuthenticatedPrincipal;
 import org.springframework.http.MediaType;
@@ -15,7 +16,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.NoSuchElementException;
 
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.authenticateAs;
@@ -76,11 +79,22 @@ class ApiKeyControllerTest {
     void list_delegatesToServiceWithActorId() throws Exception {
         authenticateAs(ACTOR_ID);
         ApiKeySummaryDto summary = new ApiKeySummaryDto(1L, "abc1234567", "label", Instant.now(), null, null);
-        when(apiKeyManagementService.listForActor(ACTOR_ID)).thenReturn(List.of(summary));
+        when(apiKeyManagementService.listForActor(ACTOR_ID, false)).thenReturn(List.of(summary));
 
         mockMvc.perform(get("/api/api-keys"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1));
+    }
+
+    @Test
+    void list_includeRevoked_passesFlagToService() throws Exception {
+        authenticateAs(ACTOR_ID);
+        ApiKeySummaryDto summary = new ApiKeySummaryDto(1L, "abc1234567", "label", Instant.now(), null, Instant.now());
+        when(apiKeyManagementService.listForActor(ACTOR_ID, true)).thenReturn(List.of(summary));
+
+        mockMvc.perform(get("/api/api-keys?includeRevoked=true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].revokedAt").exists());
     }
 
     // ── revoke (bearer) ──────────────────────────────────────────────────
@@ -92,6 +106,26 @@ class ApiKeyControllerTest {
         mockMvc.perform(delete("/api/api-keys/5")).andExpect(status().isNoContent());
 
         verify(apiKeyManagementService).revoke(ACTOR_ID, 5L);
+    }
+
+    @Test
+    void revoke_unknownKey_returnsNotFound() throws Exception {
+        authenticateAs(ACTOR_ID);
+        doThrow(new NoSuchElementException("API key not found")).when(apiKeyManagementService).revoke(ACTOR_ID, 6L);
+
+        mockMvc.perform(delete("/api/api-keys/6"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Resource not found."));
+    }
+
+    @Test
+    void revoke_alreadyRevoked_returnsConflict() throws Exception {
+        authenticateAs(ACTOR_ID);
+        doThrow(new ApiKeyAlreadyRevokedException("API key is already revoked")).when(apiKeyManagementService).revoke(ACTOR_ID, 7L);
+
+        mockMvc.perform(delete("/api/api-keys/7"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("API key is already revoked"));
     }
 
     private static AuthenticatedPrincipal testPrincipal() {

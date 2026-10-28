@@ -1,0 +1,92 @@
+#flow-detail {
+  margin: 12px 0;
+  padding: 12px;
+  font-family: system-ui, sans-serif;
+  border: 1px solid #9aa0a6;
+  border-radius: 8px;
+}
+
+#flow-detail .note,
+#flow-detail .dim {
+  font-size: 12px;
+  color: #5f6368;
+}
+
+#flow-detail textarea {
+  width: 100%;
+  min-height: 120px;
+  box-sizing: border-box;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+#flow-detail .settings-head,
+#flow-detail .settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0;
+}
+
+#flow-detail .msg.bad,
+#flow-detail .hint {
+  color: #d93025;
+}
+
+#flow-detail .columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+#flow-detail ul.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#flow-detail .row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 0;
+}
+
+#flow-detail .row.sel {
+  background: #e8f0fe;
+}
+
+#flow-detail .row .main {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+#flow-detail .tag,
+#flow-detail .pill {
+  padding: 1px 8px;
+  font-size: 11px;
+  border: 1px solid #9aa0a6;
+  border-radius: 10px;
+}
+
+#flow-detail .pill.passed {
+  background: #e6f4ea;
+  border-color: #188038;
+}
+
+#flow-detail .pill.failed {
+  background: #fce8e6;
+  border-color: #d93025;
+}
+
+#flow-detail .pill.skipped {
+  border-style: dashed;
+}

@@ -10,17 +10,22 @@ import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
 import org.ost.orchestrator.services.AdvertisementReadService;
 import org.ost.orchestrator.services.AdvertisementSaveService;
+import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.StaleWriteException;
+import org.ost.platform.core.model.EntityType;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 
@@ -52,17 +57,21 @@ class AdvertisementApiControllerTest {
     @Mock private AdvertisementReadService readService;
     @Mock private AdvertisementDisplayEnrichmentService enrichmentService;
     @Mock private UserProfileService userProfileService;
+    @Mock private ActivityHistorySupport activityHistorySupport;
+    @Mock private SnapshotRestoreService snapshotRestoreService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = mockMvc(new AdvertisementApiController(saveService, readService, enrichmentService, userProfileService));
+        mockMvc = mockMvc(new AdvertisementApiController(saveService, readService, enrichmentService, userProfileService,
+                activityHistorySupport, snapshotRestoreService));
         authenticateAs(ACTOR_ID);
         lenient().when(userProfileService.resolveAdsPageSize(any())).thenReturn(20);
         lenient().when(enrichmentService.enrichWithCategoryAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithActor(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithMedia(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(enrichmentService.enrichSingle(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithCategoriesAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithActorInfo(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithMediaSummary(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -218,6 +227,25 @@ class AdvertisementApiControllerTest {
         mockMvc.perform(get("/api/advertisements/1")).andExpect(status().isNotFound());
     }
 
+    // ── history ──────────────────────────────────────────────────────────
+
+    @Test
+    void history_delegatesToSupport() throws Exception {
+        when(activityHistorySupport.history(ACTOR_ID, EntityType.ADVERTISEMENT, 7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/advertisements/7/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void historySnapshot_unknown_returnsNotFound() throws Exception {
+        when(activityHistorySupport.snapshot(eq(ACTOR_ID), eq(EntityType.ADVERTISEMENT), eq(7L), eq(5L), eq(AdvertisementSnapshotDto.class)))
+                .thenThrow(new java.util.NoSuchElementException("Snapshot 5 not found"));
+
+        mockMvc.perform(get("/api/advertisements/7/history/5")).andExpect(status().isNotFound());
+    }
+
     // ── update ──────────────────────────────────────────────────────────
 
     @Test
@@ -298,5 +326,41 @@ class AdvertisementApiControllerTest {
         org.mockito.Mockito.doThrow(new java.util.NoSuchElementException()).when(saveService).delete(1L, ACTOR_ID, 0L);
 
         mockMvc.perform(delete("/api/advertisements/1").header("If-Match", "\"0\"")).andExpect(status().isNotFound());
+    }
+
+    // ── restoreFromSnapshot ──────────────────────────────────────────────
+
+    @Test
+    void restoreFromSnapshot_delegatesAndReturnsResource() throws Exception {
+        when(snapshotRestoreService.restoreAdvertisement(ACTOR_ID, 7L, 5L, 3L)).thenReturn(7L);
+        when(readService.findById(7L)).thenReturn(Optional.of(AdvertisementInfoDto.builder().id(7L).title("Original").build()));
+
+        mockMvc.perform(post("/api/advertisements/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Original"));
+
+        verify(snapshotRestoreService).restoreAdvertisement(ACTOR_ID, 7L, 5L, 3L);
+    }
+
+    @Test
+    void restoreFromSnapshot_missingIfMatch_isBadRequest() throws Exception {
+        mockMvc.perform(post("/api/advertisements/7/history/5/restore")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void restoreFromSnapshot_unknownSnapshot_returnsNotFound() throws Exception {
+        when(snapshotRestoreService.restoreAdvertisement(ACTOR_ID, 7L, 5L, 3L))
+                .thenThrow(new NoSuchElementException("Snapshot 5 not found"));
+
+        mockMvc.perform(post("/api/advertisements/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void restoreFromSnapshot_staleVersion_returnsPreconditionFailed() throws Exception {
+        when(snapshotRestoreService.restoreAdvertisement(ACTOR_ID, 7L, 5L, 3L)).thenThrow(new StaleWriteException("stale"));
+
+        mockMvc.perform(post("/api/advertisements/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isPreconditionFailed());
     }
 }

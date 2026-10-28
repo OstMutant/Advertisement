@@ -42,8 +42,11 @@ once the file's own content is correct.
    mode, mounts, how to bring it up) comes first: the highest-priority reader of this file is
    Claude itself, working inside that container.
 2. **Application startup** — container names/ports/links for every way to start the app.
-3. **Local services table** — one row per other locally-running service (database, storage,
-   static analysis, CI), each with its local link and what it solves.
+3. **Local services table** — one row per other locally-running service or web page (database,
+   storage, static analysis, CI, API docs), each with its local link and what it solves. A row
+   whose link cell holds a markdown link to an `http://` address becomes a card in the architecture
+   map's Tooling & Pipelines Services section; a plain address means the row is not a web page and gets
+   no card.
 4. **Quickstart** — one command per service, to bring everything up from nothing.
 5. **A `mermaid` topology diagram** — Claude container → scripts → services.
 6. **Environment Variables** — its own section, unchanged by the structure above.
@@ -63,9 +66,9 @@ rather than trusting what the file currently says, since it has already drifted 
 commands table missing two real commands). No generator script does this automatically; staying
 current is this procedure, run by whoever (human or Claude) is editing the file.
 
-1. Read `scripts/claude.bat` + `Dockerfile.ai` for the AI dev container's current name, image,
+1. Read `scripts/claude.bat` + `Dockerfile.claude` for the AI dev container's current name, image,
    network mode, and mounts — feeds section 1.
-2. Read `scripts/deploy-and-run/docker-compose.db.yml`, `docker-compose.minio.yml`,
+2. Read `scripts/deploy-and-run/docker-compose.db.yml`, `docker-compose.seaweedfs.yml`,
    `docker-compose.app.yml`, `scripts/sonar/docker-compose.sonar.yml`, and `scripts/ci/run.sh` for
    every service's current container name and port — feeds sections 2-3.
 3. Do not enumerate `.claude/commands/*.md` here — section 1 only references

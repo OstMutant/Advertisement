@@ -25,6 +25,8 @@ pure JUnit testing without an application context).
 ## ADR-003: API scope frozen — no DSL extensions
 **Status:** Accepted
 
+**Applied:** 1
+
 **Context:** The query DSL is sufficient for the current filter/sort patterns. Adding JOIN DSL,
 expression ASTs, or generic pagination abstractions would increase complexity without benefit.
 

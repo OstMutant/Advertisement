@@ -90,15 +90,16 @@ the script's own header for the exact output/exit-code contract.
 
 ## Isolation
 
-The e2e stage runs its own `ci-advertisement-db`/`ci-advertisement-minio`/`ci-marketplace-app`
+The e2e stage runs its own `ci-advertisement-db`/`ci-advertisement-seaweedfs`/`ci-marketplace-app`
 containers on different host ports (15432/19000-19001/18081) and a separate Docker network
 (`ci-advertisement`) from the persistent dev stack — safe to run concurrently with normal dev work.
-They're left running after the run by default, for debugging (`--no-keep-e2e-infra` to tear them
-down instead). Since the containers (and their DB/MinIO volumes) can persist across runs, the
+They're left running after the run by default, for debugging (`--teardown-e2e-after` to tear them
+down instead). Since the containers (and their DB/SeaweedFS volumes) can persist across runs, the
 stage's own deploy always applies `--reset-only-db` first (fast truncate — clears leftover data
-from a prior run without touching the schema/migration history) unless `--reset-e2e-db` asks for a
+from a prior run without touching the schema/migration history) unless `--reset-e2e-stack` asks for a
 full `--reset` instead (only needed when the DB schema itself changed since the stack was last
-brought up). The
+brought up). The stage deploys with `--dev-tools`, so the API flow runner page spec runs there instead of
+skipping itself. The
 `integration` stage always applies the Testcontainers sandbox workaround internally (not a
 toggleable flag) — `ci-runner`'s own Docker-outside-of-Docker nature hits the same
 dynamically-assigned-port problem regardless of host machine.
@@ -106,14 +107,20 @@ dynamically-assigned-port problem regardless of host machine.
 ## Can I develop and run the app/tests myself while this runs?
 
 Yes — genuinely, not just "probably fine":
-- Maven dependency caching uses `ci-m2-cache`, a Docker-managed named volume mounted only inside
-  the container — completely separate from your own `~/.m2`. No shared state, no race.
-  `integration-tests` always spins up its own ephemeral Postgres via Testcontainers regardless.
+- The `build`/`unit`/`integration` steps' own Maven builds run through `scripts/build-and-test.sh`,
+  which — via `ci-runner`'s Docker-outside-of-Docker access to the host socket — spins up a
+  separate nested build container mounted at the same `maven-cache` named Docker volume your own
+  direct `deploy-and-run.sh`/`build-and-test.sh` runs use, not the `ci-m2-cache` volume mounted
+  into `ci-runner` itself (these steps never actually touch that one). This is genuinely safe to
+  run concurrently: `scripts/build-and-test/build.sh` takes a lock file inside `/root/.m2` itself
+  to serialize concurrent `mvn` invocations against that shared volume, so two builds queue rather
+  than race or corrupt each other's cache. `integration-tests` always spins up its own ephemeral
+  Postgres via Testcontainers regardless.
 - The e2e stage's `ci-*` stack (see "Isolation" above) never touches the persistent dev stack's
   containers, ports, network, or database.
 
 **The one real, observed limit is CPU/RAM contention, not data isolation.** Running the e2e stage
-alongside a full dev stack (app + db + minio + `pw-runner`) *and* SonarQube simultaneously caused
+alongside a full dev stack (app + db + seaweedfs + `pw-runner`) *and* SonarQube simultaneously caused
 genuine Playwright timeout flakiness on this project's own constrained sandbox — confirmed
 directly, not theoretical. On a normal, less constrained dev machine this is much less likely to
 bite, but it's a real resource limit, not a design flaw to "fix" — see

@@ -11,15 +11,21 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
 import org.ost.orchestrator.services.AdvertisementReadService;
 import org.ost.orchestrator.services.AdvertisementSaveService;
+import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
+import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SupportedLocales;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.ost.restapi.api.concurrency.ETagUtil;
 import org.ost.restapi.api.paging.PagedResponseBuilder;
 import org.ost.restapi.api.paging.SortQueryParser;
@@ -49,8 +55,8 @@ import java.util.Set;
 
 /**
  * Full CRUD over {@link AdvertisementSaveService}/{@link AdvertisementReadService} — reads are
- * public, writes need bearer authentication. No photo upload via this API (no in-progress gallery
- * to commit, unlike the Vaadin form). Every returned {@link AdvertisementInfoDto} is enriched with
+ * public except the history, writes need bearer authentication. The photo and video gallery is served by
+ * {@link AdvertisementMediaApiController}. Every returned {@link AdvertisementInfoDto} is enriched with
  * category/city names, author info, and media summary via {@link AdvertisementDisplayEnrichmentService},
  * the same pipeline the Vaadin UI uses.
  */
@@ -59,7 +65,6 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AdvertisementApiController {
 
-    private static final Locale DEFAULT_LOCALE = Locale.ENGLISH;
 
     // Mirrors AdvertisementSortMeta's UI-sortable set -- marketplace-rest-api can't import that
     // class (wrong dependency direction, see .claude/rules/marketplace-rest-api.md), so both sides
@@ -71,8 +76,10 @@ public class AdvertisementApiController {
     private final AdvertisementReadService readService;
     private final AdvertisementDisplayEnrichmentService enrichmentService;
     private final UserProfileService userProfileService;
+    private final ActivityHistorySupport activityHistorySupport;
+    private final SnapshotRestoreService snapshotRestoreService;
 
-    @Operation(summary = "Create an advertisement", description = "categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY.")
+    @Operation(operationId = "createAdvertisement", summary = "Create an advertisement", description = "categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "title": "Plumbing services",
@@ -88,14 +95,14 @@ public class AdvertisementApiController {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(null, request.title(), request.description(),
                 request.adKind(), request.categoryIds(), request.cityTaxonId(), null);
         Long id = saveService.save(dto, actorId, ref -> null);
-        return enrich(readService.findById(id).orElseThrow(), DEFAULT_LOCALE);
+        return enrichmentService.enrichSingle(readService.findById(id).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
-    @Operation(summary = "List/filter/sort advertisements", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
+    @Operation(operationId = "listAdvertisements", summary = "List/filter/sort advertisements", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
     @GetMapping
     public ResponseEntity<List<AdvertisementInfoDto>> list(@AuthenticationPrincipal Long actorId,
             @ModelAttribute @Valid AdvertisementFilterDto filter, @RequestParam(defaultValue = "0") int page,
-            @RequestParam(required = false) String sort, @RequestParam(defaultValue = "en") String locale,
+            @RequestParam(required = false) String sort, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale,
             UriComponentsBuilder uriBuilder) {
         int size = userProfileService.resolveAdsPageSize(actorId);
         Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
@@ -107,15 +114,33 @@ public class AdvertisementApiController {
         return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
     }
 
-    @Operation(summary = "Get one advertisement by id")
+    @Operation(operationId = "getAdvertisement", summary = "Get one advertisement by id",
+            description = "Public. Returns one advertisement with its ETag, the version to send back via If-Match on update or delete. 404 when the id is unknown.")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
-    public ResponseEntity<AdvertisementInfoDto> getById(@PathVariable Long id, @RequestParam(defaultValue = "en") String locale) {
-        AdvertisementInfoDto ad = enrich(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
+    public ResponseEntity<AdvertisementInfoDto> getById(@PathVariable Long id, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale) {
+        AdvertisementInfoDto ad = enrichmentService.enrichSingle(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
         return ETagUtil.withVersion(ResponseEntity.ok(), ad.getVersion()).body(ad);
     }
 
-    @Operation(summary = "Update an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
+    @Operation(operationId = "getAdvertisementHistory", summary = "List an advertisement's change history",
+            description = "Newest first. Administrators and moderators see every entry; anyone else sees only the entries they authored.")
+    @GetMapping("/{id}/history")
+    @SecurityRequirement(name = "bearerKey")
+    public List<ActivityHistorySupport.HistoryEntryResponse> history(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id) {
+        return activityHistorySupport.history(actorId, EntityType.ADVERTISEMENT, id);
+    }
+
+    @Operation(operationId = "getAdvertisementHistorySnapshot", summary = "Get one recorded state of an advertisement",
+            description = "Returns the recorded state and its version, for a restoring update (PUT with If-Match). Administrators and moderators can read any snapshot; anyone else only one from their own visible history. 403 when the snapshot is not visible to the caller, 404 when unknown.")
+    @GetMapping("/{id}/history/{snapshotId}")
+    @SecurityRequirement(name = "bearerKey")
+    public ActivityHistorySupport.SnapshotResponse historySnapshot(@AuthenticationPrincipal @NonNull Long actorId,
+            @PathVariable @NonNull Long id, @PathVariable @NonNull Long snapshotId) {
+        return activityHistorySupport.snapshot(actorId, EntityType.ADVERTISEMENT, id, snapshotId, AdvertisementSnapshotDto.class);
+    }
+
+    @Operation(operationId = "updateAdvertisement", summary = "Update an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "title": "Plumbing services",
@@ -128,26 +153,31 @@ public class AdvertisementApiController {
     @SecurityRequirement(name = "bearerKey")
     public AdvertisementInfoDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
             @RequestBody @Valid AdvertisementWriteRequest request,
-            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(id, request.title(), request.description(),
-                request.adKind(), request.categoryIds(), request.cityTaxonId(), ETagUtil.parseIfMatch(ifMatch));
+                request.adKind(), request.categoryIds(), request.cityTaxonId(), ETagUtil.requireIfMatch(ifMatch));
         Long savedId = saveService.save(dto, actorId, ref -> null);
-        return enrich(readService.findById(savedId).orElseThrow(), DEFAULT_LOCALE);
+        return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
-    private AdvertisementInfoDto enrich(AdvertisementInfoDto ad, Locale locale) {
-        ad = enrichmentService.enrichWithCategoryAndCity(ad, locale);
-        ad = enrichmentService.enrichWithActor(ad);
-        return enrichmentService.enrichWithMedia(ad);
+    @Operation(operationId = "restoreAdvertisementFromSnapshot", summary = "Restore an advertisement to a recorded state",
+            description = "Returns the advertisement to the recorded state through the normal save path (same permissions and validation as an update). If-Match carries the current version. The gallery is left unchanged. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @PostMapping("/{id}/history/{snapshotId}/restore")
+    @SecurityRequirement(name = "bearerKey")
+    public AdvertisementInfoDto restoreFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id,
+            @PathVariable @NonNull Long snapshotId,
+            @Parameter(description = "Current version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        Long savedId = snapshotRestoreService.restoreAdvertisement(actorId, id, snapshotId, ETagUtil.requireIfMatch(ifMatch));
+        return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
-    @Operation(summary = "Delete an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
+    @Operation(operationId = "deleteAdvertisement", summary = "Delete an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
     public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
-            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
-        saveService.delete(id, actorId, ETagUtil.parseIfMatch(ifMatch));
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        saveService.delete(id, actorId, ETagUtil.requireIfMatch(ifMatch));
     }
 
     /** Caller-writable fields for both create and update -- id/version are server-managed (path variable / If-Match header), never client-supplied here. */

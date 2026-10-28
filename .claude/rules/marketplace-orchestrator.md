@@ -40,7 +40,7 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
 - `AdvertisementAuditEnrichService` — resolves raw category/city taxon ids and `AdKind` into
   display labels for audit timeline/activity diffs, and merges in attachment-domain media
   changes. The 2 i18n-touching lookups (locale, `AdKind` label) go through the
-  `CurrentLocaleHook`/`UiLabelHook` forwarder pair (see "Hook implementations" below) instead
+  `CurrentLocaleService`/`UiLabelHook` pair (see "Hook implementations" below) instead
   of a direct `LocaleProvider`/`I18nService` dependency.
 - `ProviderProfileDisplayEnrichmentService` — the ProviderProfile equivalent of the Advertisement
   enrichment service (category/city/actor only — no attachments).
@@ -49,9 +49,45 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   `TaxonAssignmentWriteService`) + audit capture, one `TransactionTemplate`-bounded unit.
   `save(dto, targetUserId, actorId, actorIsPrivileged)` takes
   two distinct identity parameters — `targetUserId` (whose profile this is, forwarded to
-  `ProviderProfilePort.save()` as the row owner) and `actorId` (who performed the save, audit-only)
+  `ProviderProfilePort.save()` as the row owner; it names the owner only for a create, while an edit is authorized against the existing profile's real owner) and `actorId` (who performed the save, audit-only)
   — since an admin/moderator editing another user's profile makes the two diverge. No attachment
   gallery step (unlike Advertisement) — provider profiles carry no media.
+- `AdvertisementOwnerProfileLookupService` — resolves an advertisement's owner's provider profile
+  id (`AdvertisementPort` + `ProviderProfilePort`), `ContactAccessService`'s own collaborator for the
+  ADVERTISEMENT-to-owner's-PROVIDER_PROFILE contact lookup, same "extract a services.* collaborator"
+  shape the ≤2-port rule below prescribes.
+- `ContactAccessService` — wraps `ContactPort` (find/save/recordView/countViewsThisMonth/isAvailable)
+  plus `resolveContact()` (a provider profile's own `contact_info` row; for an advertisement,
+  its owner's provider-profile row, via `AdvertisementOwnerProfileLookupService`). Not split into
+  Read/Save classes like Advertisement/ProviderProfile — `ContactPort.save()`/`recordView()` are
+  single-call delegations with no transactional composition to isolate. `countViewsThisMonth` takes
+  the acting user id and the entity owner's id and requires the acting user to be that owner, an
+  administrator or a moderator (`AuthorizationService.requireCanOperate`);
+  `countProfileViewsThisMonth(actingUserId, profileId)` resolves the profile's owner itself
+  (`ProviderProfileReadService`) before that check; `resolveContact`/`recordView` stay open to
+  visitors who are not signed in.
+- `ContactRevealService` — the contact-reveal use case shared by the Vaadin UI and the REST API:
+  rate limit (30 reveals per 15 minutes per client address and viewer, keyed by a plain string so
+  this module stays transport-agnostic), channel lookup including `ContactAccessService`'s
+  advertisement-to-profile fallback, view recording, and deep-link building (Telegram and Viber
+  only; a phone has none).
+- `FeedbackAccessService` — wraps `FeedbackPort` + `AuditPort` (the ≤2-port limit): feedback/reply
+  CRUD, moderation transitions (flag/approve/confirm-violation/reject, each paired with an audit
+  capture), and `findModerationQueue(actingUserId, filter, sort, page, size)` — the merged hidden +
+  confirmed-violation feedback/comment queue, filtered, sorted and paged in SQL by the feedback
+  starter (author names resolved here for the current page only) as a `ModerationQueuePage`. The queue read and the hidden/confirmed-violation list reads require a privileged caller.
+  `approveFeedback`/`approveComment` act only on a HIDDEN or CONFIRMED_HIDDEN entry, and
+  `confirm*Violation` only on a HIDDEN one; any other status throws `FeedbackNotModeratableException`.
+- `FeedbackCommentWriteService` — the owner-check collaborator for the single reply: only the
+  reviewed `PROVIDER_PROFILE`'s own owner may create it (`FeedbackAccessService` +
+  `ProviderProfileReadService` + `AuthorizationService.isOwner`), only the comment's own author may
+  edit/delete it. Lives here rather than in `feedback-spring-boot-starter` (a starter must not
+  depend on `ProviderProfilePort`) or inside `FeedbackAccessService` itself (a third `*Port`
+  dependency there would exceed the ≤2-port limit) — same "extract a `services.*` collaborator"
+  shape as `AdvertisementOwnerProfileLookupService` above.
+- `FeedbackWriteService` — the REST and Vaadin write path for a provider profile's review: the caller
+  is always the review's author, an edit only touches the caller's own review
+  (`AccessDeniedException` otherwise), and the reviewed profile must exist (`ProviderProfileReadService`).
 - `UserDeleteService` — cascades a user's own dependent data (advertisements, provider profile)
   before deleting the account itself.
 - `UserCleanupService` — the scheduled retention-purge use case: finds soft-deleted accounts past
@@ -77,13 +113,30 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
 - `TaxonCatalogService` — wraps `ComponentFactory<TaxonPort>`'s catalog-management methods
   (`getAllByType`/`listAllByType`/`getUsageCounts`/`create`/`update`/`findById`/`getTranslations`)
   — distinct from `TaxonLookupService`, which stays narrowly scoped to entity-assignment lookups.
+- `SnapshotMapper` — MapStruct mapper from a recorded snapshot to its domain's save data (advertisement, provider profile, settings), with `unmappedTargetPolicy = ERROR` so a field added to a snapshot or a save DTO and not mapped fails the build instead of being silently skipped by a restore; `SnapshotRestoreService` and the settings restore handler in `marketplace-app` use it.
+- `SnapshotRestoreService` — returns an advertisement, provider profile, user, the caller's own
+  settings or a taxon to a recorded snapshot: reads the snapshot through `AuditQueryService` and
+  saves its values through the domain's normal save path, so validation, authorization and audit
+  capture are those of an ordinary update. One method per restorable resource; the user restore
+  changes name and role only. An advertisement restore also returns its gallery to the snapshot's
+  recorded gallery, and leaves the gallery unchanged when the snapshot recorded none.
 - `AttachmentMediaService` — wraps `ComponentFactory<AttachmentPort>` +
   `ComponentFactory<AttachmentAuditPort>` for the full gallery lifecycle (upload/commit/delete/
   restore) plus audit-diff media state; reuses `AttachmentSnapshotReaderService` internally instead
   of re-wrapping its call. `AttachmentSoftDeleteService`'s `softDeleteAll` is used directly by
   `AdvertisementSaveService`'s delete cascade, not through this class.
+- `AdvertisementMediaService` — the advertisement photo and video gallery for REST callers: list,
+  upload, video link and delete. Uses the same edit rights and 10-item cap as the edit form's
+  gallery, every change is recorded on the advertisement's history, and a delete is accepted only
+  for an attachment that belongs to that advertisement.
 - `AuditQueryService` — wraps `ComponentFactory<AuditPort>`'s read-side methods (`getLastSnapshot`/
-  `getEntityActivity`/`getSnapshotContent`/`getTimelinePage`/`countTimeline`).
+  `getEntityActivity`/`getSnapshotContent`/`getTimelinePage`/`countTimeline`). Every read takes the
+  acting user id and enforces the read rules itself via `AuthorizationService`: `getEntityActivity`
+  shows a privileged user (administrator or moderator) every entry and anyone else only the entries
+  they authored (visibility is derived from the role, never passed in); `getTimelinePage`/
+  `countTimeline` require a privileged user; `getSnapshotContent` lets a privileged user read any
+  snapshot and anyone else only a snapshot present in their own visible activity of that entity,
+  otherwise `AccessDeniedException`.
 - `UserProfileService` — mandatory direct `UserPort`/`UserAccountPort`/`UserPreferencesPort` fields
   (matching `UserDeleteService`'s existing `UserAccountPort` precedent) for profile/settings
   read+write (`findById`/`save`/`loadSettings`/`saveSettings`).
@@ -104,6 +157,7 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   `platform-commons` `*Port`, not a UI-shell resource).
 - `AccessDeniedException` — thrown by `AuthorizationService`'s `require*` methods when the acting
   user is neither the resource's owner nor privileged.
+- `CurrentLocaleService` — the language for the current caller on either channel: the UI session's (via `UiLocaleHook`), else the user's saved language, else the request's `Accept-Language`, else English (`SupportedLocales`).
 - `CurrentUserService` — thin wrapper over the `CurrentUserHook` forwarder SPI (see below),
   exposing `getCurrentUser()`/`getCurrentUserLocale()` to any orchestrator-side or future-adapter
   caller without assuming how identity is resolved.
@@ -132,7 +186,7 @@ starter-optionality boundary. Five so far:
 |---|---|---|---|
 | `UiLabelHook` | `AuditDomainHookImpl` (actor-deleted suffix), `AdvertisementAuditEnrichService` (`AdKind` label, strikethrough markup, no-media text) | `UiLabelHookImpl` | `I18nService` |
 | `SessionActorHook` | `CurrentActorHookImpl` | `SessionActorHookImpl` | `AuthContextService` (actor id only) |
-| `CurrentLocaleHook` | `AdvertisementAuditEnrichService` | `CurrentLocaleHookImpl` | `LocaleProvider` |
+| `UiLocaleHook` | `CurrentLocaleService` | `UiLocaleHookImpl` | `LocaleProvider` (inside a UI thread only) |
 | `SettingsChangeHook` | `UserSettingsChangedHookImpl` | `SettingsPaginationService` | live `PaginationBar` push (100% Vaadin, nothing to split out) |
 | `CurrentUserHook` | `CurrentUserService` | `AuthContextService` | `SecurityContextHolder` (full `UserDto` + locale) |
 
@@ -145,6 +199,7 @@ on `marketplace-orchestrator`. Enforced by
 `ArchitectureRulesTest.marketplace_app_must_not_depend_on_platform_commons_spi_directly` (bans any
 other direct `platform-commons` `*.spi` import from `marketplace-app`; `AuthenticatedPrincipal` is
 the one allow-listed exception — see that test's own comment for why).
+Forwarder implementations are also called from the REST API, so they must not depend on a UI-scoped bean (they get the language from the orchestrator's `CurrentLocaleService`, see `.claude/nav/adr-index.md`'s matching decision).
 
 **Autoconfiguration entry point:** `OrchestratorAutoConfiguration` (`@ComponentScan` over
 `org.ost.orchestrator`, since this module is a mandatory, non-optional dependency of
@@ -156,9 +211,9 @@ inventing a second wiring approach for one module).
 
 ## Key constraints
 
-- **`pom.xml` declares all 6 starter `<dependency>` blocks** (`audit`/`attachment`/`user`/
-  `advertisement` at `compile` scope, `taxon`/`provider-profile` at `runtime` scope, preserving
-  their existing optional-module semantics unchanged) — this is the one module in the app that
+- **`pom.xml` declares all 9 starter `<dependency>` blocks** (`audit`/`attachment`/`user`/
+  `advertisement` at `compile` scope, `taxon`/`provider-profile`/`apikey`/`contact`/`feedback` at
+  `runtime` scope, preserving their existing optional-module semantics unchanged) — this is the one module in the app that
   pulls every starter JAR onto the runtime classpath, since `marketplace-app` no longer declares
   them itself (`marketplace-app/pom.xml` depends only on `platform-commons` +
   `marketplace-orchestrator`, so `Module Dependencies`/`Bounded Contexts` show the same converged
@@ -185,6 +240,9 @@ inventing a second wiring approach for one module).
   four single-port classes plus a coordinator would be ceremony with no cohesion benefit. This is a
   case-by-case exception evaluated on its own merit, not a loosened threshold — a new class that
   exceeds 2 ports still fails the test unless it earns the same explicit allowlist entry.
+- **Feedback not-found errors are `NoSuchElementException`.** The feedback services in this module
+  and the feedback starter beneath them report an unknown feedback, reply or profile by throwing
+  `NoSuchElementException`, never a feedback-specific type; callers map it to 404.
 - **No persistence access.** Enforced by `ArchitectureRulesTest.orchestrator_has_no_persistence_access`
   — zero imports of `JdbcClient`/`*Repository`/`*CrudRepository` anywhere in this module. Mirrors
   the `*PortImpl`/`*HookImpl` pure-delegation discipline one layer down — this module composes
@@ -209,7 +267,7 @@ inventing a second wiring approach for one module).
   home even though the package is separate from `services/`. `ActivityEnrichHookImpl`'s real
   collaborator, `AdvertisementAuditEnrichService`, does real category/city/`AdKind` diff-label
   resolution, not a single-value lookup — but only the UI-shell-touching calls go through
-  `CurrentLocaleHook`/`UiLabelHook`, so it splits the same way the narrower Hooks do: the pure-data
+  `CurrentLocaleService`/`UiLabelHook`, so it splits the same way the narrower Hooks do: the pure-data
   majority (change-merging, field resolution) stays a `marketplace-orchestrator` service — reversing
   an earlier call that this one couldn't follow the same pattern (see `.claude/nav/adr-index.md` for
   both decisions). `AuditActivityFieldsHook` — the fourth original Hook

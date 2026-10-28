@@ -1,0 +1,28 @@
+package org.ost.platform.feedback.dto;
+
+import lombok.Builder;
+import lombok.Value;
+import lombok.experimental.FieldNameConstants;
+import org.ost.platform.feedback.model.FeedbackModerationStatus;
+import org.ost.platform.feedback.model.ModerationQueueItemType;
+
+import java.time.Instant;
+
+/** One row in the merged moderation queue (sorted by createdAt or type, newest first by default) -- a presentation-level discriminated
+ *  union over hidden feedback entries and hidden replies, not a new persistence table. */
+@Value
+@Builder(toBuilder = true)
+@FieldNameConstants
+public class ModerationQueueItemDto {
+
+    ModerationQueueItemType type;
+    Long id;
+    Long entityId;
+    String contentText;
+    Integer rating;
+    String moderationReason;
+    Long authorId;
+    String authorName;
+    Instant createdAt;
+    FeedbackModerationStatus moderationStatus;
+}

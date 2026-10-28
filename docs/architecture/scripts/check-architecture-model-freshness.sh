@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
-# Description: CI gate -- fails if the committed docs/architecture/data/architecture-model.json or
+# Description: Manual check -- fails if the committed docs/architecture/data/architecture-model.json or
 #   docs/architecture/architecture-map.html are stale (out of sync with what
 #   generate-architecture-model.sh would produce from current repo state). Backs both files up,
 #   regenerates in place, diffs, then restores the originals -- restore is guarded so an
@@ -47,7 +47,8 @@ bash "$REPO_ROOT/docs/architecture/scripts/generate-architecture-model.sh" > /de
 # unrelated reason between two freshness checks). Normalize it out of both copies before diffing,
 # same way the ncloc/complexity/etc. values themselves are still compared normally (those only
 # change when code actually changes).
-normalize() { sed -E 's/"analysisDate": ?"[^"]*"/"analysisDate": "NORMALIZED"/' "$1"; }
+# The testReports and runLogs sections hold this machine's own runs, so they are dropped before diffing.
+normalize() { sed -E -e 's/"analysisDate": ?"[^"]*"/"analysisDate": "NORMALIZED"/' -e '/^  "(testReports|runLogs)": /d' "$1"; }
 
 stale=0
 if ! diff -q <(normalize "$BACKUP_JSON") <(normalize "$JSON") > /dev/null 2>&1; then

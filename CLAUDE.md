@@ -29,6 +29,8 @@ advertisement-parent (root pom)
 ├── taxon-spring-boot-starter         — Taxonomy domain: taxon/category/tag management, TaxonPort (auto-configured starter)
 ├── provider-profile-spring-boot-starter — Provider profile domain: MASTER/SHOP/SUPPORT catalog entries, ProviderProfilePort (auto-configured starter)
 ├── apikey-spring-boot-starter         — API-key credential domain: entity, hasher, ApiKeyPortImpl (auto-configured starter)
+├── contact-spring-boot-starter        — Contact domain: phone/deep-link reveal for any EntityRef-owning entity, ContactPortImpl (auto-configured starter)
+├── feedback-spring-boot-starter       — Feedback domain: rating+text feedback and its aggregate for any EntityRef-owning entity, FeedbackPortImpl (auto-configured starter)
 ├── integration-tests                 — Testcontainers repository tests + fixtures for every starter (test-only, never shipped)
 ├── marketplace-orchestrator           — application/BFF layer: cross-domain use-case orchestration between marketplace-app and the domain starters
 ├── marketplace-rest-api               — external REST API adapter: non-Vaadin HTTP delivery channel over marketplace-orchestrator, sibling to marketplace-app
@@ -46,10 +48,12 @@ advertisement-parent (root pom)
 - `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`, `AuditTimelineFilterDto`), `audit.spi` (`AuditPort`, `AuditDomainHook`, `AuditActivityEnrichHook` — note `AuditActivityFieldsHook` does not exist: field-name-to-label mapping lives entirely in `marketplace-app`'s `AuditTimelineRowRenderer`, not a per-domain Hook)
 - `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentAuditPort`) — note `AttachmentMediaChangeHook` does not exist — `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`, `AttachmentAllowedContentTypes`)
 - `user.*` — `user.spi` (`UserPort`/`UserAccountPort`/`UserAuthorizationPort`/`UserPreferencesPort` — one logical split, see `.claude/rules/platform-commons.md`; plus `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
-- `apikey.*` — `apikey.spi` (`ApiKeyPort`), `apikey.dto` (`ApiKeySummaryDto`)
+- `apikey.*` — `apikey.spi` (`ApiKeyPort`), `apikey.dto` (`ApiKeySummaryDto`), `apikey.model` (`ApiKeyAlreadyRevokedException`)
 - `advertisement.*` — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto` (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`, `AdvertisementSnapshotDto`), `advertisement.model` (`AdKind`)
 - `taxon.*` — `taxon.spi` (`TaxonPort`), `taxon.dto` (`TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`), `taxon.model` (`TaxonType`)
 - `providerprofile.*` — `providerprofile.spi` (`ProviderProfilePort`), `providerprofile.dto` (`ProviderProfileDto`, `ProviderProfileSaveDto`, `ProviderProfileFilterDto`, `ProviderProfileSnapshotDto`), `providerprofile.model` (`ProviderKind`)
+- `contact.*` — `contact.spi` (`ContactPort`), `contact.dto` (`ContactInfoDto`, `ContactViewCountDto`), `contact.model` (`ContactChannel`)
+- `feedback.*` — `feedback.spi` (`FeedbackPort`), `feedback.dto` (`FeedbackDto`, `FeedbackSaveDto`, `FeedbackAggregateDto`), `feedback.model` (`FeedbackModerationStatus`)
 
 → Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: `.claude/rules/platform-commons.md`
 
@@ -66,6 +70,10 @@ advertisement-parent (root pom)
 → Provider profile domain (owned classes): `.claude/rules/provider-profile-spring-boot-starter.md`
 
 → API-key credential domain (owned classes): `.claude/rules/apikey-spring-boot-starter.md`
+
+→ Contact domain (phone/deep-link reveal, owned classes): `.claude/rules/contact-spring-boot-starter.md`
+
+→ Feedback domain (rating+text feedback, owned classes): `.claude/rules/feedback-spring-boot-starter.md`
 
 → Application/BFF orchestration layer (cross-domain use cases, owned classes): `.claude/rules/marketplace-orchestrator.md`
 
@@ -144,12 +152,12 @@ Reference implementations: `UserRepository` in user-spring-boot-starter, `Advert
 ---
 
 ## Spring Profiles
-- `dev` (default) — `localhost:5432` PostgreSQL, `localhost:9000` MinIO, Liquibase seed data.
+- `dev` (default) — `localhost:5432` PostgreSQL, `localhost:9000` SeaweedFS, Liquibase seed data.
 - `prod` — uses env vars: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `S3_PUBLIC_URL`.
 
 Local infrastructure only (IDE dev mode):
 ```bash
-docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.minio.yml up -d
+docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.seaweedfs.yml up -d
 ```
 
 ---
@@ -165,15 +173,19 @@ docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy
 - `/playwright [scenario] [--ux]` — run Playwright tests
 - `/sonar` — run SonarQube analysis
 - `/record-decision <module> — <title>` — record architectural decision
-- `/review [scope]` — run a full code review via the `deep-review-orchestrator` agent (evidence-verified SOLID/DRY/KISS/YAGNI, never writes code itself)
+- `/deep-review [scope]` — run a full code review via the `deep-review-orchestrator` agent (evidence-verified SOLID/DRY/KISS/YAGNI, never writes code itself)
+- `/optimize [<scope> | report | apply <ID> | verify [<ID>]]` — find code that need not be maintained, measure the saving and remove it only in approved batches; discovery is read-only through the `deep-review-orchestrator` agent's `code-reduction-reviewer` lens, findings live in a standing backlog inventory; see `.claude/commands/optimize.md`
+- `/deep-research <task file or description>` — research a task in depth with the `deep-researcher` agent on Opus (web best practices, the project's own practice, a compared choice, a plan for people and a plan for AI executors, in a topic folder under `backlog/research/`); see `backlog/research/tools/README.md`
+- `/check-architecture-map` — **run manually** before saving changes that can touch the architecture map; regenerates once and diffs against the files on disk
 - `/sync-docs [ref]` — sync architecture docs with code (default: origin/main); **run manually** after significant changes (new module, new SPI, schema changes) — not triggered automatically
 - `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `.claude/nav/adr-index.md`
 - `/ci [flags]` — run the isolated local CI runner (unit+integration+e2e+sonar by default, backgrounded); see `scripts/ci/README.md`/`DECISIONS.md`
 - `/activity-monitor <script and args>` — wrap a backgrounded script and watch its live step checklist instead of raw stdout, so `Monitor` costs tokens proportional to real signal, not log volume; see `scripts/activity-monitor/README.md`
-- `/feature <title>` — scaffold a new `backlog/tasks/<prefix>-NNN-<slug>.md` from the standard template and rank it in `BACKLOG.md`'s priority table
+- `/new-task <title>` — scaffold a new `backlog/tasks/<prefix>-NNN-<slug>.md` from the standard template and rank it in `BACKLOG.md`'s priority table
 - `/autopilot <task>` — plan once, approve once, then implement/test/document a task end-to-end with no further check-ins until it's done; explicit per-run opt-out of the standing Approval Rule's per-step gating, not a permanent one
-- `deep-review-orchestrator` agent — evidence-verified SOLID/DRY code review, findings-only, never writes code; scope to current uncommitted changes, one commit, one module, or the whole repo; every finding independently re-verified before being reported via `ReportFindings` — invoke via `/review [scope]` or directly via the `Agent` tool (`subagent_type: "deep-review-orchestrator"`), see `.claude/agents/review/deep-review-orchestrator.md`
+- `deep-review-orchestrator` agent — evidence-verified SOLID/DRY code review, findings-only, never writes code; scope to current uncommitted changes, one commit, one module, or the whole repo; every finding independently re-verified before being reported via `ReportFindings` — invoke via `/deep-review [scope]` or directly via the `Agent` tool (`subagent_type: "deep-review-orchestrator"`), see `.claude/agents/review/deep-review-orchestrator.md`
 - `sonar-analyst` agent — queries the local SonarQube server's already-uploaded quality-gate/issues/metrics via its own agent-scoped MCP server, reports a structured summary; invoke via the `Agent` tool (`subagent_type: "sonar-analyst"`), see `.claude/agents/sonar/sonar-analyst.md`
+- `deep-researcher` agent — researches a task on Opus and writes two plans into `backlog/research/<topic>/`, never edits other files; invoke via `/deep-research`, see `.claude/agents/research/deep-researcher.md`
 
 ---
 
@@ -191,18 +203,21 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/scripts/ci/DECISIONS.md`
 - `/app/scripts/sonar/DECISIONS.md`
 - `/app/docs/architecture/scripts/DECISIONS.md`
+- `/app/docs/api-collections/DECISIONS.md`
 - `/app/integration-tests/DECISIONS.md`
 - `/app/taxon-spring-boot-starter/DECISIONS.md`
+- `/app/contact-spring-boot-starter/DECISIONS.md`
 - `/app/marketplace-orchestrator/DECISIONS.md`
 - `/app/.claude/DECISIONS.md`
 
 Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`,
-`provider-profile-spring-boot-starter`, `apikey-spring-boot-starter`, and `marketplace-rest-api`
+`provider-profile-spring-boot-starter`, `apikey-spring-boot-starter`, `marketplace-rest-api`, and
+`feedback-spring-boot-starter`
 have no hand-authored `DECISIONS.md` of their own — their
 key decisions are recorded in `marketplace-app/DECISIONS.md` and `platform-commons/DECISIONS.md`
-instead. Each of these three modules has a generated, pointer-only `DECISIONS.md`
+instead. Each of these six modules has a generated, pointer-only `DECISIONS.md`
 (`bash docs/architecture/scripts/generate-architecture-model.sh`) listing whichever ADRs cross-reference it via
-the home ADR's own `**Also affects:**` tag — never hand-edit these three files directly.
+the home ADR's own `**Also affects:**` tag — never hand-edit these six files directly.
 
 → ADR discovery index (generated, one line per decision across every `DECISIONS.md`):
 `.claude/nav/adr-index.md` — see `.claude/nav/README.md` for the full AI-navigation layer.

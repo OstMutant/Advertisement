@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Full local deploy -- reuses scripts/build-and-test.sh's shared maven-cache jar by
-#   default: no Docker image is built at all, `java -jar` runs directly against the mounted
-#   maven-cache volume inside a plain eclipse-temurin:25-jre container. Starts all services on port
+#   default: no Docker image is built at all, the jar is copied out of the maven-cache volume into
+#   a volume of its own and `java -jar` runs it from there inside a plain eclipse-temurin:25-jre
+#   container, so a later build cannot replace the jar of the running application. Starts all services on port
 #   8081. A Liquibase checksum mismatch (a changeset edited in place instead of a new one added,
 #   e.g. a removed FK constraint, while the local dev DB still has the old version applied) is
-#   detected automatically and self-heals: wipes dev DB/MinIO volumes and retries once, same as
+#   detected automatically and self-heals: wipes dev DB/SeaweedFS volumes and retries once, same as
 #   --reset, no re-run needed -- dev-only, a real deployed database needs a proper migration, not a
 #   wipe. See DECISIONS.md for the full reuse-jar rationale.
 # Usage: bash scripts/deploy-and-run.sh [--reset] [--restart-infra] [--file] [--no-cache]
-#   [--reset-only-db] [--with-tests] [--from-scratch] [--prune-all]
+#   [--reset-only-db] [--with-tests] [--from-scratch] [--prune-all] [--dev-tools]
 #   (no flags)       reuse scripts/build-and-test.sh's shared jar -- no Docker image built, no
 #                    tests run, no data wipe -- start all services on port 8081
-#   --reset          wipe DB/MinIO volumes, then rebuild
+#   --reset          wipe DB/SeaweedFS volumes, then rebuild
 #   --restart-infra  restart infra containers only (no rebuild)
 #   --file           filtered console output + full log to /tmp/deploy.log
 #   --no-cache       force rebuild ignoring Docker layer cache
@@ -23,6 +24,8 @@
 #                    the full multi-stage root Dockerfile in complete isolation (the old, pre-reuse
 #                    behavior) -- needed when an actual portable image is required, not just a
 #                    running local container
+#   --dev-tools      start the app with MARKETPLACE_DEV_TOOLS_ENABLED=true so the developer-only API flow
+#                    runner page is served at /dev-tools/api-flows/ (off by default, never set in compose)
 #   --prune-all      ALSO run `docker container prune -f` and `docker volume prune -f` after the
 #                    build -- HOST-WIDE, not scoped to this app, will remove any other stopped
 #                    container / unused volume on the machine. Opt-in only, never automatic -- see
@@ -31,17 +34,17 @@
 #   scripts/utils/ensure-docker-plugins.sh's ensure_buildx), scripts/build-and-test.sh (unless
 #   --from-scratch), scripts/deploy-and-run/reset.sh (with --reset-only-db),
 #   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
-# Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), MINIO_CONTAINER
-#   (advertisement-minio), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
-#   (5432), MINIO_PORT (9000), MINIO_CONSOLE_PORT (9001), APP_PORT (8081), DB_VOLUME
-#   (advertisement_postgres_data), MINIO_VOLUME (advertisement_minio_data) -- all overridable, used
-#   by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack. DB_NAME/DB_USER/DB_PASSWORD/
+# Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), SEAWEEDFS_CONTAINER
+#   (advertisement-seaweedfs), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
+#   (5432), SEAWEEDFS_PORT (9000), SEAWEEDFS_CONSOLE_PORT (9333), APP_PORT (8081), DB_VOLUME
+#   (advertisement_postgres_data), SEAWEEDFS_VOLUME (advertisement_seaweedfs_data) -- all overridable,
+#   used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack. DB_NAME/DB_USER/DB_PASSWORD/
 #   S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET/S3_REGION fall back to the repo-root .env, then a
 #   hardcoded default.
 # Input: repo source, .env (DB_*/S3_* fallback defaults -- NOT POSTGRES_IMAGE: this script's own
 #   Postgres container always hardcodes postgres:15-alpine, unlike docker-compose.db.yml which
-#   does honor POSTGRES_IMAGE), the shared maven-cache Docker volume (mounted directly into the app
-#   container unless --from-scratch).
+#   does honor POSTGRES_IMAGE), the shared maven-cache Docker volume (its jar is copied into the app
+#   container's own <APP_CONTAINER>-jar volume unless --from-scratch).
 # Outputs: running marketplace-app container on APP_PORT -- a real, separately built and tagged
 #   "marketplace-app" image only with --from-scratch; the default path runs `java -jar` inside a
 #   plain eclipse-temurin:25-jre container with no image of its own. Also prints an
@@ -56,6 +59,7 @@ set -euo pipefail
 SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+source "$ROOT/scripts/utils/session-id.sh"
 LOG=/tmp/deploy.log
 
 source "$ROOT/scripts/utils/agentic-output.sh"
@@ -74,15 +78,17 @@ fi
 
 NETWORK="${NETWORK:-advertisement}"
 DB_CONTAINER="${DB_CONTAINER:-advertisement-db}"
-MINIO_CONTAINER="${MINIO_CONTAINER:-advertisement-minio}"
+SEAWEEDFS_CONTAINER="${SEAWEEDFS_CONTAINER:-advertisement-seaweedfs}"
 APP_CONTAINER="${APP_CONTAINER:-marketplace-app}"
+APP_JAR_VOLUME="${APP_JAR_VOLUME:-${APP_CONTAINER}-jar}"
 APP_IMAGE="${APP_IMAGE:-marketplace-app}"
 DB_PORT="${DB_PORT:-${ENV_DB_PORT:-5432}}"
-MINIO_PORT="${MINIO_PORT:-${ENV_S3_PORT:-9000}}"
-MINIO_CONSOLE_PORT="${MINIO_CONSOLE_PORT:-9001}"
+SEAWEEDFS_PORT="${SEAWEEDFS_PORT:-${ENV_S3_PORT:-9000}}"
+SEAWEEDFS_CONSOLE_PORT="${SEAWEEDFS_CONSOLE_PORT:-9333}"
+SEAWEEDFS_IMAGE="${SEAWEEDFS_IMAGE:-chrislusf/seaweedfs:latest}"
 APP_PORT="${APP_PORT:-8081}"
 DB_VOLUME="${DB_VOLUME:-advertisement_postgres_data}"
-MINIO_VOLUME="${MINIO_VOLUME:-advertisement_minio_data}"
+SEAWEEDFS_VOLUME="${SEAWEEDFS_VOLUME:-advertisement_seaweedfs_data}"
 DB_NAME="${DB_NAME:-${ENV_DB_NAME:-experiments}}"
 DB_USER="${DB_USER:-${ENV_DB_USER:-experiments_user}}"
 DB_PASSWORD="${DB_PASSWORD:-${ENV_DB_PASSWORD:-experiments_user_password}}"
@@ -99,6 +105,7 @@ RESET_ONLY_DB=false
 PRUNE_ALL=false
 WITH_TESTS=false
 FROM_SCRATCH=false
+DEV_TOOLS=false
 for arg in "$@"; do
   case "$arg" in
     --reset)         MODE="reset" ;;
@@ -109,6 +116,7 @@ for arg in "$@"; do
     --prune-all)     PRUNE_ALL=true ;;
     --with-tests)    WITH_TESTS=true ;;
     --from-scratch)  FROM_SCRATCH=true ;;
+    --dev-tools)     DEV_TOOLS=true ;;
   esac
 done
 
@@ -160,41 +168,51 @@ wait_for_db() {
   echo "DB ready."
 }
 
-# ── Helper: wait for MinIO ────────────────────────────────────────────────────
-wait_for_minio() {
-  echo "Waiting for MinIO..."
-  until curl -s --max-time 3 "http://localhost:$MINIO_PORT/minio/health/live" >/dev/null 2>&1; do
+# ── Helper: wait for SeaweedFS ────────────────────────────────────────────────
+wait_for_seaweedfs() {
+  echo "Waiting for SeaweedFS..."
+  local end=$((SECONDS + 60))
+  until curl -s --max-time 3 "http://localhost:$SEAWEEDFS_PORT/" >/dev/null 2>&1; do
+    if [ $SECONDS -ge $end ]; then
+      echo "SeaweedFS did not become ready within 60s." >&2
+      return 1
+    fi
     sleep 1
   done
-  echo "MinIO ready."
+  echo "SeaweedFS ready."
 }
 
-# ── Helper: ensure MinIO bucket exists ───────────────────────────────────────
-configure_minio() {
-  echo "Configuring MinIO bucket..."
-  docker rm -f minio-init 2>/dev/null || true
-  docker run --rm --network "$NETWORK" --entrypoint /bin/sh minio/mc:latest -c "
-    mc alias set local http://$MINIO_CONTAINER:9000 $S3_ACCESS_KEY $S3_SECRET_KEY
-    mc mb --ignore-existing local/$S3_BUCKET
-    mc anonymous set public local/$S3_BUCKET
-    echo 'Bucket OK.'
-  "
+# ── Helper: ensure SeaweedFS bucket exists ───────────────────────────────────
+configure_seaweedfs() {
+  echo "Configuring SeaweedFS bucket..."
+  docker rm -f seaweedfs-init 2>/dev/null || true
+  set +e
+  OUTPUT=$(docker run --rm --network "$NETWORK" --entrypoint /bin/sh "$SEAWEEDFS_IMAGE" -c "
+    echo 's3.bucket.create -name $S3_BUCKET' | weed shell -master=$SEAWEEDFS_CONTAINER:9333
+  " 2>&1)
+  RC=$?
+  set -e
+  if [ $RC -ne 0 ] && ! echo "$OUTPUT" | grep -q "already exists"; then
+    echo "$OUTPUT" >&2
+    echo "Bucket configuration failed." >&2
+    return 1
+  fi
+  echo "Bucket OK."
 }
 
-# ── Helper: wipe DB/MinIO/app containers and volumes ─────────────────────────
+# ── Helper: wipe DB/SeaweedFS/app containers and volumes ─────────────────────
 reset_infra() {
   echo "Resetting all containers and volumes..."
-  docker rm -f "$DB_CONTAINER" "$MINIO_CONTAINER" "$APP_CONTAINER" 2>/dev/null || true
-  docker volume rm "$DB_VOLUME" "$MINIO_VOLUME" 2>/dev/null || true
+  docker rm -f "$DB_CONTAINER" "$SEAWEEDFS_CONTAINER" "$APP_CONTAINER" 2>/dev/null || true
+  docker volume rm "$DB_VOLUME" "$SEAWEEDFS_VOLUME" "$APP_JAR_VOLUME" 2>/dev/null || true
 }
 
-# ── Helper: bring up DB + MinIO and wait until both are ready ────────────────
+# ── Helper: bring up DB + SeaweedFS and wait until both are ready ───────────
 start_infra() {
   docker network create "$NETWORK" 2>/dev/null || true
 
   pull_if_missing "postgres:15-alpine"
-  pull_if_missing "minio/minio:latest"
-  pull_if_missing "minio/mc:latest"
+  pull_if_missing "$SEAWEEDFS_IMAGE"
 
   ensure_running "$DB_CONTAINER" \
     docker run -d --name "$DB_CONTAINER" --network "$NETWORK" \
@@ -205,17 +223,25 @@ start_infra() {
       -v "$DB_VOLUME":/var/lib/postgresql/data \
       postgres:15-alpine
 
-  ensure_running "$MINIO_CONTAINER" \
-    docker run -d --name "$MINIO_CONTAINER" --network "$NETWORK" \
-      -p "$MINIO_PORT":9000 -p "$MINIO_CONSOLE_PORT":9001 \
-      -e MINIO_ROOT_USER="$S3_ACCESS_KEY" \
-      -e MINIO_ROOT_PASSWORD="$S3_SECRET_KEY" \
-      -v "$MINIO_VOLUME":/data \
-      minio/minio:latest server /data --console-address ":9001"
+  local seaweedfs_was_running=false
+  docker container inspect "$SEAWEEDFS_CONTAINER" >/dev/null 2>&1 && seaweedfs_was_running=true
+
+  ensure_running "$SEAWEEDFS_CONTAINER" \
+    docker run -d --name "$SEAWEEDFS_CONTAINER" --network "$NETWORK" \
+      -p "$SEAWEEDFS_PORT":9000 -p "$SEAWEEDFS_CONSOLE_PORT":9333 \
+      -v "$SEAWEEDFS_VOLUME":/data \
+      -e S3_ACCESS_KEY="$S3_ACCESS_KEY" -e S3_SECRET_KEY="$S3_SECRET_KEY" -e S3_BUCKET="$S3_BUCKET" \
+      --entrypoint /bin/sh "$SEAWEEDFS_IMAGE" -c "
+        mkdir -p /etc/seaweedfs &&
+        esc() { printf '%s' \"\$1\" | sed 's/\\\\/\\\\\\\\/g; s/\\\"/\\\\\\\\\\\"/g'; } &&
+        AK=\$(esc \"\$S3_ACCESS_KEY\") && SK=\$(esc \"\$S3_SECRET_KEY\") && BK=\$(esc \"\$S3_BUCKET\") &&
+        printf '{\"identities\":[{\"name\":\"admin\",\"credentials\":[{\"accessKey\":\"%s\",\"secretKey\":\"%s\"}],\"actions\":[\"Admin\",\"Read\",\"Write\",\"List\",\"Tagging\"]},{\"name\":\"anonymous\",\"actions\":[\"Read:%s\"]}]}' \"\$AK\" \"\$SK\" \"\$BK\" > /etc/seaweedfs/s3.json &&
+        weed server -dir=/data -s3 -s3.port=9000 -s3.config=/etc/seaweedfs/s3.json -ip.bind=0.0.0.0
+      "
 
   wait_for_db
-  wait_for_minio
-  configure_minio
+  wait_for_seaweedfs
+  $seaweedfs_was_running || configure_seaweedfs
 }
 
 # ── Step 1: Infra ─────────────────────────────────────────────────────────────
@@ -229,7 +255,7 @@ fi
 
 if [ "$MODE" = "restart-infra" ]; then
   echo "Restarting infra containers (volumes preserved)..."
-  docker rm -f "$DB_CONTAINER" "$MINIO_CONTAINER" 2>/dev/null || true
+  docker rm -f "$DB_CONTAINER" "$SEAWEEDFS_CONTAINER" 2>/dev/null || true
 fi
 
 start_infra
@@ -254,8 +280,8 @@ if ! $FROM_SCRATCH; then
   BUILD_CONTAINER_NAME="advertisement-build-only-deploy" bash "$ROOT/scripts/build-and-test.sh" "${BUILD_AND_TEST_FLAGS[@]}"
 fi
 
-# ── Step 2: Build (--from-scratch only -- the default path runs java directly against the
-# mounted maven-cache volume in Step 3 below, no image build at all) ──────────────────────────
+# ── Step 2: Build (--from-scratch only -- the default path copies the shared jar into its own
+# volume and runs java from there in Step 3 below, no image build at all) ─────────────────────
 if $FROM_SCRATCH; then
   echo ""
   echo "=== Step 2: Build image ==="
@@ -298,25 +324,31 @@ start_app_container() {
     -e SPRING_PROFILES_ACTIVE=prod
     -e DB_HOST="$DB_CONTAINER" -e DB_PORT=5432 -e DB_NAME="$DB_NAME"
     -e DB_USER="$DB_USER" -e DB_PASSWORD="$DB_PASSWORD"
-    -e S3_ENDPOINT="http://$MINIO_CONTAINER:9000" -e S3_BUCKET="$S3_BUCKET"
+    -e S3_ENDPOINT="http://$SEAWEEDFS_CONTAINER:9000" -e S3_BUCKET="$S3_BUCKET"
     -e S3_ACCESS_KEY="$S3_ACCESS_KEY" -e S3_SECRET_KEY="$S3_SECRET_KEY"
     -e S3_REGION="$S3_REGION"
-    -e S3_PUBLIC_URL="http://localhost:$MINIO_PORT/$S3_BUCKET"
+    -e S3_PUBLIC_URL="http://localhost:$SEAWEEDFS_PORT/$S3_BUCKET"
     -e APP_PUBLIC_URL="http://localhost:$APP_PORT"
     -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC")
+  if $DEV_TOOLS; then
+    RUN_FLAGS+=(-e MARKETPLACE_DEV_TOOLS_ENABLED=true)
+  fi
 
   if $FROM_SCRATCH; then
     docker run "${RUN_FLAGS[@]}" "$APP_IMAGE"
   else
-    # No built image at all -- mount the shared maven-cache volume directly into a plain JRE base
-    # image and run the jar straight out of it. docker run (unlike docker build) can mount a named
-    # volume directly, so this skips the image-build step and the host-side jar-extraction
-    # bridge-container that step used to need entirely.
+    # No built image at all -- the jar is copied out of the shared maven-cache volume into a volume
+    # of this container's own, so a later build that rewrites maven-cache cannot change the jar of
+    # the running application (it loads classes lazily and fails on a replaced file).
+    docker volume rm "$APP_JAR_VOLUME" 2>/dev/null || true
+    docker volume create "$APP_JAR_VOLUME" >/dev/null
+    docker run --rm -v maven-cache:/src:ro -v "$APP_JAR_VOLUME":/dst --entrypoint cp \
+      eclipse-temurin:25-jre /src/artifacts/marketplace-app.jar /dst/marketplace-app.jar
     docker run "${RUN_FLAGS[@]}" \
-      -v maven-cache:/root/.m2 \
+      -v "$APP_JAR_VOLUME":/app \
       --entrypoint java \
       eclipse-temurin:25-jre \
-      -jar /root/.m2/artifacts/marketplace-app.jar
+      -jar /app/marketplace-app.jar
   fi
 }
 
@@ -360,7 +392,7 @@ if [ $status -eq 1 ]; then
   echo ""
   echo "Liquibase checksum mismatch detected -- a changeset was edited in place and the local" \
        "dev DB still has the old version applied (e.g. a removed FK constraint). This is" \
-       "dev-only and always safe to auto-recover from: wiping DB/MinIO volumes and retrying once."
+       "dev-only and always safe to auto-recover from: wiping DB/SeaweedFS volumes and retrying once."
   reset_infra
   start_infra
   start_app_container
@@ -369,7 +401,7 @@ if [ $status -eq 1 ]; then
   if [ $status -ne 0 ]; then
     echo "=== FAILED: startup failed again after auto-reset ==="
     docker logs --tail=50 "$APP_CONTAINER"
-    emit_agentic_error_block "validation" "false" "start-application" "Liquibase checksum mismatch persisted after automatic DB/MinIO reset and retry -- requires manual investigation, not a transient failure."
+    emit_agentic_error_block "validation" "false" "start-application" "Liquibase checksum mismatch persisted after automatic DB/SeaweedFS reset and retry -- requires manual investigation, not a transient failure."
     exit 1
   fi
 elif [ $status -ne 0 ]; then

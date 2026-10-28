@@ -55,8 +55,7 @@ Entry points: `architecture-doc.sh` (Linux/WSL) and `architecture-doc.bat` (Wind
 `architecture-doc.sh` via WSL).
 
 ```bash
-bash docs/architecture/architecture-doc.sh                    # regenerate, verify reproducibility, screenshot
-bash docs/architecture/architecture-doc.sh --no-check          # skip the reproducibility re-check
+bash docs/architecture/architecture-doc.sh                    # regenerate, screenshot
 bash docs/architecture/architecture-doc.sh --no-screenshot     # skip screenshotting
 bash docs/architecture/architecture-doc.sh --rebuild-image     # force-rebuild the generation image
 ```
@@ -73,10 +72,7 @@ flowchart TD
     B -->|yes| D[start container, upload repo source]
     C --> D
     D --> E["generate-architecture-model.sh<br/>writes architecture-model.json + architecture-map.html"]
-    E --> F{--no-check?}
-    F -->|no| G["check-architecture-model-freshness.sh<br/>backs up output, re-runs generate-architecture-model.sh<br/>a second time, diffs, restores"]
-    F -->|yes| H[copy results back to host, chmod 644]
-    G --> H
+    E --> H[copy results back to host, chmod 644]
     H --> I{--no-screenshot?}
     I -->|no| J["screenshot-architecture-map.sh<br/>own separate Playwright container"]
     I -->|yes| K[done]

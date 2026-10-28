@@ -2,6 +2,50 @@
 
 ---
 
+## ADR-035: Code Quality screen always shows real test reports and run logs, grouped by folder under a session ID; cards are plain relative links
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Context:** The Code Quality screen had only Sonar and ArchUnit cards, so a person could not see what
+the test runs produced. JaCoCo kept only XML (Sonar's input), so there was nothing readable to open.
+A first design hid the test data behind an opt-in generator flag, following the Sonar and ArchUnit
+precedent; the committed map then showed "No data" although reports existed. Run logs were listed
+with the build container's name as the ID, so several runs shared one ID and scripts that call each
+other could not be tied together. A freshness check ran right after generation and so compared two
+generations of the same state against each other.
+
+**Decision:**
+1. The generator always reads the top-level reports folder of the build-and-test script (per-module
+   JaCoCo XML and Surefire `TEST-*.xml`) into `testReports` (coverage, tests). No flag. If tests never
+   ran the screens show an empty state with the command to run. Per-stage container copies and the
+   integration side copy are not read.
+2. The build keeps JaCoCo's HTML: unit tests copy each module's `target/site/jacoco` into the reports
+   folder, the integration aggregate adds `--html` to the JaCoCo CLI call. The flat `jacoco/*.xml`
+   stay because Sonar reads them.
+3. Cards and table cells are plain relative links; the generator never checks that a target exists.
+4. The Run logs screen shows one table per folder, found by walking `scripts/logs` and
+   `scripts/ci/reports`, so a new log folder appears without a generator change.
+5. A run's ID is a session ID: the outermost script creates one (`YYYYMMDDHHMMSS`, UTC) and every
+   script it calls inherits it through the environment; each log folder gets a `session-info.txt`.
+   For CI the session ID is the Dagu run id, passed to every Dagu step as a parameter, and the CI
+   sync copies the `session-info.txt` files out of the runner container. Logs written before this
+   show `-`.
+6. The freshness check is no longer part of generation (it compared two runs of one state). It stays
+   a manual check, `/check-architecture-map`, and ignores `testReports` and `runLogs`, which hold
+   this machine's own runs.
+
+**Rejected alternatives:**
+- An opt-in `--with-test-reports` flag — the default map showed no data; reports are wanted every time.
+- An existence check with a "report missing" message — plain links are simpler and the check made the
+  screen worse.
+- Reading every per-stage copy — it repeats the same numbers under confusing names.
+- A separate gitignored data file loaded by the map — the committed map would show empty tables.
+- Using the build container's name as the run ID — not unique per run and cannot join nested scripts.
+
+---
+
 ## ADR-034: Database ERD's no-FK point relationships derived from a `remarks=` marker convention, not a hand-curated list
 
 **Status:** Accepted

@@ -1,23 +1,22 @@
 /* ── Header ──────────────────────────────────────────────────────────────────
- * Description: Accessibility smoke check -- as adminEn, walks the Advertisements, Users,
+ * Description: Accessibility smoke check -- as an administrator, walks the Advertisements, Users,
  *   Timeline and Reference Data tabs and asserts no icon-only button (vaadin-button or plain
  *   button with no visible text) is missing an aria-label. Searches recursively through shadow
  *   roots via a page.evaluate() DOM walk, since Vaadin components render their real buttons
  *   inside shadow DOM.
  * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 08-accessibility
- *   --ux`, or as part of the full e2e suite (`bash /app/playwright/run.sh e2e --ux`).
+ *   --ux` (runs alone or with any other spec), or as part of the full e2e suite
+ *   (`bash /app/playwright/run.sh e2e --ux`).
  * Uses: @playwright/test.
  * Env: None.
- * Input: ./_helpers (test, expect, screenshot, TEST_USERS), ./_flows/auth.flow.
+ * Input: ./_fixtures (test, expect, pageAs, adminAccount), ./_helpers (screenshot).
  * Outputs: Playwright HTML report entries (one per test), PNG screenshots attached to the report
- *   when PW_SCREENSHOTS is set. No persistent data is created or modified in the app.
+ *   when PW_SCREENSHOTS is set. Creates only the worker's own administrator account.
  * Returns: exit code from the Playwright test runner -- 0 when every test in this file passes,
  *   non-zero otherwise.
  * ──────────────────────────────────────────────────────────────────────────── */
-const { test, expect, screenshot, TEST_USERS } = require('./_helpers');
-const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
-
-test.describe.configure({ mode: 'serial' });
+const { test, expect } = require('./_fixtures');
+const { screenshot } = require('./_helpers');
 
 async function assertNoUnlabeledIconButtons(page, screenshotName) {
   const offenders = await page.evaluate(() => {
@@ -37,31 +36,17 @@ async function assertNoUnlabeledIconButtons(page, screenshotName) {
 }
 
 test.describe('Accessibility — icon-only controls have accessible names', () => {
-  let page;
-
-  test.beforeAll(async ({ browser }) => {
-    page = await browser.newPage();
-    await page.goto('/');
-  });
-
-  test.afterAll(async () => {
-    await page.close();
-  });
-
-  test('adminEn — no unlabeled icon-only buttons across all main tabs', async () => {
-    await runFillLoginFormFlow(page, TEST_USERS.adminEn);
-    await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+  test('administrator — no unlabeled icon-only buttons across all main tabs', async ({ pageAs, adminAccount }) => {
+    const page = await pageAs(adminAccount);
     await assertNoUnlabeledIconButtons(page, 'a11y-advertisements-tab');
 
-    await page.locator('vaadin-tab').filter({ hasText: /Users|Користувачі/i }).click();
+    await page.getByRole('tab', { name: /Users|Користувачі/i }).click();
     await assertNoUnlabeledIconButtons(page, 'a11y-users-tab');
 
-    await page.locator('vaadin-tab').filter({ hasText: /Timeline|Таймлайн/i }).click();
+    await page.getByRole('tab', { name: /Timeline|Таймлайн/i }).click();
     await assertNoUnlabeledIconButtons(page, 'a11y-timeline-tab');
 
-    await page.locator('vaadin-tab').filter({ hasText: /Reference Data|Довідникові дані/i }).click();
+    await page.getByRole('tab', { name: /Reference Data|Довідникові дані/i }).click();
     await assertNoUnlabeledIconButtons(page, 'a11y-reference-data-tab');
-
-    await runLogoutFlow(page, expect);
   });
 });

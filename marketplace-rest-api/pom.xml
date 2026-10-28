@@ -70,4 +70,24 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- Packs the dev-only flow runner page and its Postman collection so DevToolsConfig can serve them from the classpath -->
+            <resource>
+                <directory>../docs/api-collections/flow-runner/page</directory>
+                <targetPath>dev-tools/api-flows</targetPath>
+            </resource>
+            <resource>
+                <directory>../docs/api-collections/postman</directory>
+                <targetPath>dev-tools/api-flows/postman</targetPath>
+                <excludes>
+                    <exclude>README.md</exclude>
+                </excludes>
+            </resource>
+        </resources>
+    </build>
+
 </project>
