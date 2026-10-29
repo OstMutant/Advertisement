@@ -517,6 +517,101 @@ higher; no step needs opus.
 - **Verification:** the command's own checks pass; the index lists the new ADR.
 - **Sources:** all rows in `sources.md`.
 
+### Step 10 -- Flow Runner: an expected 429 is not a failure (added 2026-10-28)
+
+- **Origin:** an outside review of the code between two snapshots; checked against the code on 2026-10-28: `runner.js` sets `step.error` for every `429` before the step's test script runs, and a step is `passed` only when `step.error === null`, so a step that expects `429` and asserts it still ends `failed`. No step of the collection expects `429` today (the flows avoid the limiters), so nothing breaks now. The same review claimed that `OperationCoverageTest` may be skipped silently because of its `@Order`; that claim was checked and is wrong (JUnit's default order for a class without `@Order` is `Integer.MAX_VALUE / 2`, so the test runs last, and the report of the last full run shows it executed, `Skipped: 0`). No code change for it; step "Verification of the whole" item 7 checks the report.
+- **Depends on:** none (independent of 1-9; run after step 7 so the collection is final)
+- **Files:** `docs/api-collections/flow-runner/page/js/runner.js`; new `docs/api-collections/scripts/runner-429.test.mjs`; read `docs/api-collections/DECISIONS.md` (rule 7 of the flow runner decision), `docs/api-collections/scripts/run-node.sh` and `docs/api-collections/README.md` first, and `.claude/skills/infra-doc-standards/SKILL.md` for the header of the new script
+- **Executor:** sonnet
+- **Input:** `runFlow` (the only export of `runner.js`) and `parseCollection` in `collection.js`; the run-flows script as the example of calling the runner from Node.
+- **Change:**
+  - `runner.js`: remove the block that sets `step.error` for a `429` right after the response is read. After `runScript` and `step.tests = tests`, when `response.code === 429`, `step.error === null` and (`tests.length === 0` or some test failed), set `step.error` to the same message as today (`rate limited (429), retry after <Retry-After or unknown> s`). Result: a step whose tests pass with a `429` response (it expects it) is `passed`; a `429` that no passing test expected is `failed` with the `Retry-After` message. A one-line comment states the rule; the file header, if it describes this, is updated.
+  - New `runner-429.test.mjs`: plain Node (no dependency), replaces `globalThis.fetch` with a stub returning a `Response` with status `429` and header `Retry-After: 30`, builds a minimal parsed collection the way `parseCollection` returns it (read `collection.js` for the shape), calls `runFlow` and asserts: (a) a step whose test asserts status `429` is `passed` and has no `error`; (b) a step whose test asserts status `200` is `failed` and its `error` contains `retry after 30`; (c) a step with no tests is `failed` with the same message. Exit code 0 when all pass, 1 otherwise, one output line per case. Header per `infra-doc-standards`.
+- **Verification:** `bash docs/api-collections/scripts/run-node.sh runner-429.test.mjs` (check how `run-node.sh` takes its script argument first) passes all three cases, and fails on (a) when the old block is put back (run it once against the old code to prove the test can fail); `bash docs/api-collections/api-collection-tests.sh` gives the same result as before the change.
+- **Sources:** none beyond the project (`docs/api-collections/DECISIONS.md`).
+
+### Decisions taken while working (2026-10-28)
+
+1. **No change to the flow runner scripts for the administrator problem.** A first attempt (a probe step `auth.adminprobe`, `--reset-db`, `ADMIN_EMAIL`/`ADMIN_PASSWORD` read in `run-flows.sh`) was rolled back in full: it rested on an unproven cause. The first failing run (`taxons.category` 403 because `admin.en` existed without the administrator role) was never traced to its origin; the database of that moment was wiped by `--reset-only-db` before it could be inspected.
+2. **What was verified instead.** No Playwright spec, collection step or fixture changes the role of `admin.en` (role changes target accounts the test created itself; `makeAccount` creates extra administrators through the seeded administrator's key). `playwright.sh` resets a non-empty database, so its setup registers `admin.en` first. During the full e2e run the database held seven administrators (the seeded one plus fixture-made ones), so "more than one administrator" is the normal state after the suite.
+3. **The product rule.** An administrator cannot delete their own account, the same way they cannot change their own role (`canDeleteAccount`). Chosen over a "last administrator" guard with locking: simpler, one authorization rule, answers 403 with the existing exception, no new exception type. Accepted limit: two administrators acting at the same moment can still remove each other.
+4. **Tests use the rule in any database state** (step 12): the refusal does not depend on an empty database, so the collection, the Level 3 scenarios and the Playwright step all run on a used database too.
+5. **Delegation:** exact, fully specified edits go to Haiku (authorization rule, delete service, REST text, Level 3 tests); UI wiring and the collection/Playwright steps to Sonnet; documentation and the decision record stay in the main thread.
+6. **Handled regardless of cause (decided 2026-10-28):** the full e2e run left `admin.en` as ADMIN with version 0, so the original state was not reproduced by the suite; the situation "no usable administrator in the database" is managed anyway, by step 13, because it can come from any earlier use of the database.
+
+### Where the work stands (2026-10-29)
+
+**Done and verified:**
+- PATCH (steps 1-10): merge patch for advertisements, provider profiles and the settings; unit (all modules), integration (894 tests, run alone), collection and Playwright REST flow green; live `PUT`/`PATCH`/gallery checks passed.
+- Step 11 and 12 (an administrator cannot delete their own account): unit and integration green, collection 144/144, the `07` delete-flow spec passes, full CI e2e 65 passed.
+- Step 13 (collection by role, `taxons.probe`), all four database states checked: empty database 144/144; `admin.en` a plain user -> stops at the probe with the message, and `--role user` 18 passed; the real administrator's credentials -> 142 passed; bad usage -> exit 2.
+- Step 15 (Playwright lint): 822 warnings at the limit of 875, 0 errors; local e2e 54 passed, 11 skipped (the `--full` blocks).
+- CI port: the `integration` stage has its own fixed Postgres port 25433, Sonar stays on 25432 (edits in `scripts/build-and-test/run.sh`, `scripts/ci/dagu/ci.yaml`, `.claude/rules/scripts.md`).
+
+**Open before the task can be closed:**
+1. The full parallel `bash scripts/ci.sh --foreground` run that checks the port change is still running; integration and Sonar must both be green in it.
+2. Documentation of step 11: one sentence in `.claude/rules/marketplace-orchestrator.md`, the decision record via `/record-decision` (an administrator cannot delete their own account), `adr-index.md` regenerated.
+3. `docs/architecture/architecture-map.html` and `data/architecture-model.json` regenerated with the documented generator (the CI-made copy mixes real header changes with this machine's test data and is not staged).
+4. Quality notes: `AccessEvaluator.canNotDelete` and its tests are unused in production code; `audit.flow.js` and `settings.flow.js` read page sizes through a duplicated `sizeOf` instead of `pageSizeField`.
+5. The `Operational notes` block filled with real numbers; closing the task and the commit only on the user's word.
+
+**Decisions applied in this work (details in the steps above):** an administrator cannot delete their own account (a plain authorization rule that mirrors the role rule; two administrators acting at the same moment stay an accepted limit); the collection never wipes or repairs the database and is run by role; Playwright lint is fixed by naming each repeated container selector once, not by raising the limit; the CI `integration` stage gets its own port and Sonar is left alone.
+
+**Split out:** speeding up the local CI (about 66 minutes in a full run) is [improvement-231](improvement-231-local-ci-speed-duplicated-work-and-contention.md).
+
+### Step 11 -- An administrator cannot delete their own account (approved 2026-10-28, in progress)
+
+- **Why:** an administrator may not set their own role (`AuthorizationService.canEditRole` is `isAdmin(actor) && actor != target`), but may delete their own account (`canEditAccount` is `isAdmin(actor) || self`, and `UserDeleteService` uses it). So the only administrator can delete themselves; the database then holds users and no administrator, and nobody can become one again because the first-account rule counts non-deleted users. The delete follows the same rule as the role: never one's own account for an administrator.
+- **Facts the step relies on (verified 2026-10-28):** `UserDeleteService.delete` starts with `authorizationService.requireCanEditAccount(actingUserId, userId)` and only then cascades; both the UI (`UserView.confirmAndDelete`, which also checks `access.canNotDelete(user.id())`, a generic owner check) and REST (`UserApiController.delete`) go through it. `AccessDeniedException` is already answered with 403 by `ApiExceptionHandler`. `AccessEvaluator.canEditRole` delegates to `AuthorizationService.canEditRole`; the user grid builds its delete button in `UserGridConfigurator`.
+- **Known limit, accepted:** two administrators acting at the same moment can still remove each other (delete or demote); a guard against that needs locking and is not part of this step.
+- **Depends on:** none (after step 9, so the PATCH work is closed first).
+- **Files:** `marketplace-orchestrator` (`AuthorizationService`, `UserDeleteService`), `marketplace-app` (`AccessEvaluator`, `UserView`, `UserGridConfigurator`), `marketplace-rest-api` (`UserApiController` OpenAPI text), their unit tests, `integration-tests` Level 3 user scenarios, `.claude/rules/marketplace-orchestrator.md`, `marketplace-app/DECISIONS.md` via `/record-decision`.
+- **Executor:** sonnet.
+- **Change:**
+  1. `AuthorizationService`: `canDeleteAccount(UserDto actor, Long targetUserId)` = `canEditAccount(actor, targetUserId) && !(isAdmin(actor) && actor.id().equals(targetUserId))`, with the id-based overload and `requireCanDeleteAccount` in the same shape as the role rule; the Javadoc states the rule in one sentence, like `canEditRole`.
+  2. `UserDeleteService.delete`: first line becomes `requireCanDeleteAccount(actingUserId, userId)`; the cascade stays after it.
+  3. `AccessEvaluator`: `canDeleteUserAccount(Long targetUserId)` delegating to the new rule; `UserView.confirmAndDelete` uses it instead of `canNotDelete`, and `UserGridConfigurator` hides the delete button for the administrator's own row with the same check.
+  4. `UserApiController`: the `deleteUser` description says an administrator cannot delete their own account (403).
+- **Verification:** unit tests of `AuthorizationService` (admin self -> false, admin other -> true, plain user self -> true, moderator other -> false) and `UserDeleteService` (admin self -> `AccessDeniedException`, no port is called); Level 3 REST on a fresh database: the sole administrator deletes themselves -> 403 and the account, advertisements and keys are intact; a second administrator deletes the first -> 204; a plain user still deletes their own account -> 204. Existing tests that delete an administrator's own account are found with a search for the delete calls and adjusted. `OperationCoverageTest`, `ArchitectureRulesTest`, `check-collection` stay green.
+
+### Step 12 -- Use the rule in the test suites (approved 2026-10-28, in progress)
+
+The refusal is an authorization rule, so it holds in every database state and needs no empty database:
+- **Collection, any database:** two steps after `auth.keys` area for the administrator's key: "administrator cannot delete own account" (`DELETE /api/users/{adminId}` -> 403) and "administrator cannot change own role" (`PUT /api/users/{adminId}` with another role -> 403; today only a mock test covers it). The administrator id comes from the login steps (stored in a variable if not already).
+- **Playwright:** in a user-management test run as an administrator, the own row of the user grid has no delete button while another user's row has; and a REST call from the same administrator's key to delete the own account answers 403. Added as a `test.step` to the existing user-management test, not a new test.
+- **Fixtures:** an extra administrator from `makeAccount` is disposable; a test that deletes or demotes an administrator does it to one it created, never `admin.en`. Written once in `.claude/rules/playwright.md`.
+- **End-of-run check (optional):** `ci.sh` asserts after the full chain that at least one active ADMIN exists (one SQL count), so a test that ever removes the last administrator fails that run instead of the next one.
+- **Verification:** the new collection steps pass on an empty and on a used database; the Playwright step passes; `bash docs/api-collections/api-collection-tests.sh` and `bash scripts/playwright.sh e2e --full --ux` green.
+
+### Step 13 -- The API collection survives any data: it checks the administrator, asks for credentials, and runs by role (approved 2026-10-28, in progress)
+
+- **Decisions (2026-10-28):** the collection never wipes the database and is run by hand as well (Postman, Flow Runner page, scripts), so the handling lives in the collection and uses the API only. No SQL promotion, no database reset, no change to `ci.sh` or Playwright (CI deploys its e2e stack with `--reset-only-db`, Playwright truncates a non-empty database at the start of every run, unit and integration tests use their own temporary database). An administrator cannot be found or created through the API, so when the default account is not an administrator the collection says so and asks for the credentials of a real one. Runs are chosen by role, not by a "minimal" flag; a moderator account can only be made by an administrator, so there is no separate moderator profile while every flow beyond the user ones needs an administrator for its setup.
+- **Facts (verified 2026-10-28):** flows that need no administrator: `Infrastructure` (2 steps), `Account` (8), `Authentication` (10; its three `adminKey` steps use only a valid key of the default account). Every other flow needs the administrator for its category/city setup or its own checks. The runner skips every step after the first failed one. Flows are selected by `--flow` today; the config `check-collection.config.json` is shared by `check-collection` and `run-flows`.
+- **Depends on:** step 11 and 12 green.
+- **Change (executor sonnet):**
+  1. Collection, flow `Taxons`, new first step `taxons.probe` ("Check administrator", required): `GET /api/users` with `{{adminKey}}`; the test fails with the message "Account <email> is not an administrator (HTTP <code>). Enter the e-mail and password of an existing administrator in the variables email and password, or run only the user flows: Authentication, Infrastructure, Account." Flows run alone without `Taxons` are not gated.
+  2. `check-collection.config.json`: a `roles` object, `{"user": ["Authentication", "Infrastructure", "Account"]}`; `admin` is the default (all flows) and needs no entry.
+  3. `run-flows.mjs`: `--role <name>` expands to that role's flows from the config; an unknown role, or `--role` together with `--flow`, is a usage error (exit 2); header and usage text updated. `check-collection.mjs` keeps working with the extra config key.
+  4. `api-collection-tests.sh`: `--role <name>` forwarded to `run-flows` only; header and usage text updated.
+  5. Documentation: the collection README, the Postman README (the new step and the role list), `scripts/README.md`; `docs/api-collections/DECISIONS.md` item 4 rewritten by the main thread, `adr-index.md` regenerated.
+- **Verification:** (a) empty database -> all steps pass; (b) database where `admin.en` is a plain user (another account first, then `admin.en`) -> the full run stops at `taxons.probe` with the message, `--role user` passes 20/20; (c) the same state with `--variable email=... --variable password=...` of the real administrator -> all steps pass; (d) unknown role and `--role` with `--flow` exit 2; (e) `check-collection` stays green.
+
+### Step 14 -- User flows use existing categories and cities when the database has them (added 2026-10-28, plan awaiting approval)
+
+- **Idea (user, 2026-10-28):** user-role flows should not depend on the administrator for their data. If the database already holds categories or cities, the advertisement and profile steps attach the first one found; if it holds none, they go without.
+- **Facts to verify first:** whether `GET /api/taxons?type=CATEGORY|CITY` is readable with a plain user's key; that `categoryIds` and `cityTaxonId` are optional on advertisement and profile creation (the controllers' request records leave them optional); which non-admin steps carry the dependency today: `ads.create`, `ads.update`, `profile.create`, `profile.update`, `media.ad`, `contacts.profile`, `contacts.ad`, `feedback.profile`, `moderation.profile`.
+- **Change (outline):** a lookup step per flow with the user's key stores the first city and category id (or nothing); create/update bodies take them from variables that may be empty; assertions on categories and cities become conditional or move to the admin flows (`Taxons` and the admin setup). With that the role list for `user` grows to the flows whose remaining steps need no administrator.
+- **Depends on:** step 13 done. A separate approval and a detailed plan are needed before any edit.
+
+### Step 15 -- Playwright lint warnings back under the limit (approved 2026-10-28, in progress)
+
+- **Why:** the lint stage of the local CI fails on the warning count, not on errors: 0 errors, `PW_LINT_MAX_WARNINGS=875` in `.env`, 911 warnings on the committed tree and 912 with this task's changes before the fix (one raw locator in the extended delete-flow step). The limit was set on 2026-10-26; tests added since pushed the count over it, so the stage failed before this task too.
+- **Decision (2026-10-28):** this task's own changes add no warning (the extended step reuses the existing delete-button locator); the pre-existing excess is fixed in this task as its own phase by rewriting raw locators to role/label/test-id locators, not by raising the limit.
+- **Depends on:** none (independent of 11-13).
+- **Executor:** sonnet, one agent per group of files so no two agents edit one file.
+- **Change:** the per-file warning list of `bash playwright/run.sh --lint` ranks the files; the raw locators in the highest-count files are rewritten per the locator rules in `.claude/rules/playwright.md` (role, label and visible text first, `getByTestId` for `Ui*` fields, raw CSS only for containers without a role or name) until the count is at or below the limit. Behavior and assertions stay identical.
+- **Verification:** `bash playwright/run.sh --lint` reports at most 875 warnings and exits 0; the changed specs pass in a Playwright run (each changed spec alone with `--ux`, then the full `e2e --full --ux` once at the end).
+
 ### Verification of the whole
 
 1. `bash scripts/build-and-test.sh --unit --integration --sandbox` green (wrapped by `scripts/activity-monitor.sh`), including `ArchitectureRulesTest` (operationIds) and `OperationCoverageTest`.
@@ -525,6 +620,7 @@ higher; no step needs opus.
 4. `bash scripts/playwright.sh 10-rest-api-flow --ux` green.
 5. Manual curl: `PUT /api/advertisements/{id}` without `cityTaxonId` still clears it (PUT unchanged).
 6. `git diff --stat` touches only the files named in the steps.
+7. In the Surefire report of the full integration run, `OperationCoverageTest` shows `Tests run: 1` and `Skipped: 0`.
 
 ### Final verification at the end of all work (requested 2026-10-28)
 
@@ -547,4 +643,4 @@ Run once, after the last change of this task, in this order:
 - haiku_decomposition_used: n/a
 - haiku_decomposition_dispatch_count: n/a
 - haiku_decomposition_rework_needed: n/a
-- adrs_referenced: none
+- adrs_referenced: ADR-089 (marketplace-app)

@@ -9,7 +9,8 @@ are the entry points; the `.mjs` files hold the logic.
 
 The entry points are the `check-collection` and `run-flows` pairs. Each `.bat` forwards to its
 `.sh` file through WSL. Both `.sh` files hand off to [`run-node.sh`](run-node.sh), which starts the
-Node container, and the container runs one `.mjs` file. Each entry point's own usage is in its header.
+Node container, and the container runs one `.mjs` file. Each entry point's own usage is in its header. `run-flows` takes `--role <name>`, which runs the flows
+listed under `roles.<name>` in [`check-collection.config.json`](check-collection.config.json) (`user`: the flows that need no administrator).
 
 ```bash
 bash docs/api-collections/scripts/check-collection.sh
@@ -65,3 +66,5 @@ carry comments, so each field is described here:
 Options, precedence between the base URL sources, and exit codes of each script are in that script's
 header: [`check-collection.sh`](check-collection.sh), [`run-flows.sh`](run-flows.sh),
 [`check-collection.mjs`](check-collection.mjs) and [`run-flows.mjs`](run-flows.mjs).
+
+[`runner-429.test.mjs`](runner-429.test.mjs) is a self-contained test of the flow runner's 429 handling; run it with `bash docs/api-collections/scripts/run-node.sh runner-429.test.mjs`.

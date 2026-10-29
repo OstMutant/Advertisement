@@ -2,6 +2,24 @@
 
 ---
 
+## ADR-089: External REST API partial updates use JSON Merge Patch applied over the PUT write record
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** marketplace-rest-api, marketplace-orchestrator
+
+**Context:** A `PUT` on an advertisement or a provider profile is a full replace, and its optional fields (`categoryIds`, `cityTaxonId`; for a profile also `about`, `phone`, `telegram`, `viber`) are cleared when the caller leaves them out, with no warning. The one existing `PATCH` (own settings) was a full replace under a `PATCH` verb and reset two of six settings on every call. A caller who wants to change one field needs a real partial update, and the way it is built becomes the pattern for every later `PATCH`.
+
+**Decision:** `PATCH` takes a JSON Merge Patch (RFC 7396). A controller reads the resource's current state in the shape the history records (`findCurrentSnapshot` in the orchestrator), maps it to its own `PUT` write record, and `MergePatchSupport` lays the patch over that record: a field left out keeps its value, `null` clears an optional field, a list is replaced whole. A member that is not a field of the record is a 400. The merged record is validated with that record's own constraints (`PatchValidationException`, a 400 with the same `fieldErrors` body as a failed `PUT`) and saved through the same path as `PUT`, so permissions, `If-Match` (412), the history entry and the transaction stay in one place. Both `application/merge-patch+json` and `application/json` are accepted; the Swagger body points at the existing write record; a response mirrors what that resource's `PUT` returns. `PUT` stays a full replace. Only resources with an optional field need a `PATCH`: advertisements, provider profiles and own settings.
+
+**Rejected alternatives:** `JsonNullable` fields (a 0.x dependency and a second request record per resource with field-by-field merging); JSON Patch, RFC 6902 (no library for the Jackson version in use, poor fit for flat resources, harder for agents); documenting "GET, then PUT" only (leaves the silent wipe); a 422 for an invalid result as RFC 5789 suggests (the API answers every validation failure with a 400, so `PATCH` would differ from `PUT` for the same mistake); ignoring unknown members (a typo would look like a change that was made).
+
+**Consequences:** A new resource with an optional field gets its `PATCH` by building its current write record and calling `MergePatchSupport`; a resource whose `PUT` has only required fields gets none. Sending `null` clears a field, so a caller who sends `null` meaning "unknown" loses it; the operation description says so.
+
+---
+
 ## ADR-088: API keys tab in the account overlay — own keys only, revoked keys behind a toggle, revoke behind a confirmation, no audit entry
 
 **Status:** Accepted

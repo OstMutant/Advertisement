@@ -518,6 +518,47 @@
       "description": "Creates a category and a city with unique names, reads, updates, reverts through the history, deletes and restores the category, then deletes what it created.",
       "item": [
         {
+          "name": "listUsers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"default account is an administrator\", function () {",
+                  "  if (pm.response.code !== 200) { throw new Error(\"Account \" + pm.collectionVariables.get(\"email\") + \" is not an administrator (HTTP \" + pm.response.code + \"). Enter the e-mail and password of an existing administrator in the variables email and password, or run only the user flows: Authentication, Infrastructure, Account.\"); }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.probe\nlabel: Check administrator\nkind: required\n\nStops the run with a clear message when the default account cannot list users, i.e. it is not an administrator."
+          }
+        },
+        {
           "name": "createTaxon",
           "event": [
             {
@@ -1479,6 +1520,69 @@
           }
         },
         {
+          "name": "patchProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile patched\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().about).to.include(\"Flow profile \" + pm.collectionVariables.get(\"runId\") + \" patched\");",
+                  "  pm.expect(pm.response.json().kind).to.include(pm.collectionVariables.get(\"profileKind\"));",
+                  "});",
+                  "pm.collectionVariables.set(\"profileVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{profileVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{profileId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{profileId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"about\": \"Flow profile {{runId}} patched\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profile.patch\nlabel: Patch profile\nkind: optional\n\nChanges only the about text with a JSON merge patch using the stored version, checks the kind is kept and stores the new version."
+          }
+        },
+        {
           "name": "getProviderProfileHistory",
           "event": [
             {
@@ -2113,6 +2217,69 @@
           }
         },
         {
+          "name": "patchAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"advertisement patched\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().description).to.include(\"Flow ad \" + pm.collectionVariables.get(\"runId\") + \" patched\");",
+                  "  pm.expect(pm.response.json().title).to.include(\"updated\");",
+                  "});",
+                  "pm.collectionVariables.set(\"advertisementVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/merge-patch+json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{advertisementVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{advertisementId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{advertisementId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Flow ad {{runId}} patched\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.patch\nlabel: Patch advertisement\nkind: optional\n\nChanges only the description with a JSON merge patch using the stored version, checks the title is kept and stores the new version."
+          }
+        },
+        {
           "name": "getAdvertisementHistory",
           "event": [
             {
@@ -2526,7 +2693,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"adsPageSize\": {{settingsPageSize}},\n  \"usersPageSize\": 20,\n  \"timelinePageSize\": 20,\n  \"providerProfilesPageSize\": 20\n}",
+              "raw": "{\n  \"adsPageSize\": {{settingsPageSize}}\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2543,7 +2710,7 @@
                 }
               ]
             },
-            "description": "step: account.update\nlabel: Update settings\nkind: optional\n\nUpdates the page-size settings of the flow user using the stored version and stores the new version."
+            "description": "step: account.update\nlabel: Update settings\nkind: optional\n\nChanges only the ads page size of the flow user with a merge patch using the stored version and stores the new version."
           }
         },
         {
@@ -6289,6 +6456,158 @@
               ]
             },
             "description": "step: users.listdeny\nlabel: Reject list for user\nkind: optional\n\nChecks that a regular user cannot list users."
+          }
+        },
+        {
+          "name": "listUsers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"administrator found\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  if (pm.response.json().length !== 1) { throw new Error(\"expected one user\"); }",
+                  "});",
+                  "pm.collectionVariables.set(\"adminId\", pm.response.json()[0].id);",
+                  "pm.collectionVariables.set(\"adminVersion\", pm.response.json()[0].version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users?email={{email}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "email",
+                  "value": "{{email}}"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: users.admin\nlabel: Find administrator\nkind: required\n\nFinds the default administrator by e-mail and stores its id and version."
+          }
+        },
+        {
+          "name": "deleteUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"administrator cannot delete own account\", function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users/{{adminId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{adminId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: users.admindelete\nlabel: Reject admin self-delete\nkind: required\n\nChecks that an administrator cannot delete their own account."
+          }
+        },
+        {
+          "name": "updateUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"administrator cannot change own role\", function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{adminVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users/{{adminId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{adminId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{adminName}}\",\n  \"role\": \"USER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: users.adminrole\nlabel: Reject admin self-role\nkind: required\n\nChecks that an administrator cannot change their own role."
           }
         },
         {

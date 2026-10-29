@@ -19,8 +19,11 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
 - Optimistic concurrency over HTTP's own mechanism: every `GET .../{id}` returns an `ETag` response
   header carrying the resource's version; every write reads the expected version back from an
   `If-Match` request header — `id`/`version` are never caller-writable body fields.
-  `PATCH /api/users/me/settings` lets a caller change their own saved pagination-size preferences
-  the same way.
+  Advertisements and provider profiles also take `PATCH` with a JSON Merge Patch body (RFC 7396):
+  only the fields sent change, `null` clears an optional field, and the result goes through the
+  same validation, permission check and history entry as `PUT`, which stays a full replace.
+  `PATCH /api/users/me/settings` changes a caller's own saved pagination-size preferences the same
+  way.
 - Read-only audit history: a global timeline for administrators and moderators
   (`GET /api/audit/timeline`, filtered and paged), and a `/history` sub-collection on advertisements,
   provider profiles, taxons, users and a caller's own settings, newest first. Administrators and

@@ -76,6 +76,7 @@ that orchestrator.
 - `e2e/_helpers.js` — only truly shared utilities used across **multiple** files: `TEST_USERS` (only `adminEn`), media constants, overlay/notification helpers, `screenshot`, `downloadPng`. Do NOT add anything that is only used in one spec or one flow file.
 - `e2e/_flows/*.flow.js` — flow-specific helpers live in the same file where they are used. Extract to a shared flow file only when two or more flow files need the same helper.
 - Spec-specific helpers (navigation, tab switching, etc.) that are only used in one spec file belong as local functions at the top of that spec file.
+- A test that deletes or demotes an administrator does so only to an administrator it created itself, never to the seeded `admin.en`.
 
 ### Test naming pattern
 

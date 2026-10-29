@@ -69,6 +69,11 @@ public class AccessEvaluator {
         return currentUser().map(u -> authorizationService.canEditRole(u, targetUserId)).orElse(false);
     }
 
+    /** Delete follows the role rule: an administrator may remove any account except their own. */
+    public boolean canDeleteUserAccount(Long targetUserId) {
+        return currentUser().map(u -> authorizationService.canDeleteAccount(u, targetUserId)).orElse(false);
+    }
+
     private Optional<UserDto> currentUser() {
         return currentUserService.getCurrentUser();
     }

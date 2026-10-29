@@ -40,6 +40,10 @@ when: <variable>=<value>
 
 A folder's own description is the flow note.
 
+## Running without an administrator
+
+The first step of the Taxons flow, `taxons.probe`, lists the users and stops the run with a clear message when the default account is not an administrator. The flows that need no administrator are Authentication, Infrastructure and Account; `--role user` of [`api-collection-tests.sh`](../api-collection-tests.sh) runs only those.
+
 A request body of mode `formdata` is sent as `multipart/form-data`. A `text` entry uses `value`. A
 `file` entry (`type: file`) carries its content in `src` as a data URL, `data:<content type>;base64,<content>`,
 with an optional `fileName` (default `file`), because the flow runner has no file system. Variables are
@@ -83,6 +87,8 @@ run:
 | `userEmail` | `registerUser` (step `auth.user`) | e-mail of the ordinary user registered in this run, used as the basic-auth username of step `auth.userkey` |
 | `adminExists` | `issueApiKey` (step `auth.key`) | `yes` when the administrator's login answers 201, `no` when it answers 401; drives the `when` condition of steps `auth.admin` and `auth.adminkey` |
 | `adminKey` | `issueApiKey` (steps `auth.key` and `auth.adminkey`) | raw API key of the administrator; `auth.key` stores it only when the login succeeds, `auth.adminkey` after the registration |
+| `adminId` | `listUsers` (step `users.admin`) | id of the default administrator |
+| `adminVersion` | `listUsers` (step `users.admin`) | version of the default administrator, sent as If-Match by step `users.adminrole` |
 | `userKey` | `issueApiKey` (step `auth.userkey`) | raw API key of the ordinary user |
 | `secondKey` | `issueApiKey` (step `auth.second`) | raw second API key of the administrator |
 | `secondKeyId` | `listApiKeys` (step `auth.keys`) | id of the key labelled `secondKeyLabel`, used by the revoke steps |

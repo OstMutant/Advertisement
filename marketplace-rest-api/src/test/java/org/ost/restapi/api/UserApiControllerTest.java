@@ -1,9 +1,11 @@
 package org.ost.restapi.api;
 
+import jakarta.validation.Validation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.services.AccessDeniedException;
@@ -22,6 +24,7 @@ import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
 import org.ost.restapi.api.audit.ActivityHistorySupport;
+import org.ost.restapi.api.patch.MergePatchSupport;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
@@ -33,6 +36,7 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
@@ -67,7 +71,8 @@ class UserApiControllerTest {
     @BeforeEach
     void setUp() {
         mockMvc = mockMvc(new UserApiController(userProfileService, authorizationService, userDeleteService,
-                activityHistorySupport, snapshotRestoreService));
+                activityHistorySupport, snapshotRestoreService,
+                new MergePatchSupport(Validation.buildDefaultValidatorFactory().getValidator())));
         authenticateAs(ACTOR_ID);
         lenient().when(userProfileService.resolveUsersPageSize(any())).thenReturn(20);
     }
@@ -370,10 +375,15 @@ class UserApiControllerTest {
 
     // ── updateSettings — positive ──────────────────────────────────────────────────
 
+    private static UserSettingsDto currentSettings() {
+        return UserSettingsDto.builder().adsPageSize(20).usersPageSize(20).timelinePageSize(20).providerProfilesPageSize(20)
+                .feedbackPageSize(40).moderationPageSize(50).version(0).build();
+    }
+
     @Test
     void updateSettings_validBody_savesThenReturnsFreshCopy() throws Exception {
         UserSettingsDto saved = UserSettingsDto.builder().adsPageSize(30).usersPageSize(30).timelinePageSize(20).providerProfilesPageSize(20).version(1).build();
-        when(userProfileService.loadSettings(ACTOR_ID)).thenReturn(saved);
+        when(userProfileService.loadSettings(ACTOR_ID)).thenReturn(currentSettings(), saved);
         String body = """
                 {"adsPageSize":30,"usersPageSize":30,"timelinePageSize":20,"providerProfilesPageSize":20}""";
 
@@ -385,10 +395,50 @@ class UserApiControllerTest {
         verify(userProfileService).saveSettings(eq(ACTOR_ID), eq(ACTOR_ID), any());
     }
 
-    // ── updateSettings — negative — bean validation ──────────────────────────────────────────
+    @Test
+    void updateSettings_singleMember_keepsTheOtherFiveAndUsesTheIfMatchVersion() throws Exception {
+        UserSettingsDto current = currentSettings().toBuilder().version(3).build();
+        when(userProfileService.loadSettings(ACTOR_ID)).thenReturn(current);
+
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"3\"")
+                        .contentType("application/merge-patch+json").content("{\"adsPageSize\":30}"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<UserSettingsDto> captor = ArgumentCaptor.forClass(UserSettingsDto.class);
+        verify(userProfileService).saveSettings(eq(ACTOR_ID), eq(ACTOR_ID), captor.capture());
+        assertThat(captor.getValue()).isEqualTo(current.toBuilder().adsPageSize(30).build());
+    }
+
+    // ── updateSettings — negative ──────────────────────────────────────────────────
+
+    @Test
+    void updateSettings_missingIfMatch_returns400() throws Exception {
+        mockMvc.perform(patch("/api/users/me/settings")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"adsPageSize\":30}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateSettings_nullPageSize_returns400() throws Exception {
+        when(userProfileService.loadSettings(ACTOR_ID)).thenReturn(currentSettings());
+
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .contentType("application/merge-patch+json").content("{\"adsPageSize\":null}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateSettings_unknownMember_returns400() throws Exception {
+        when(userProfileService.loadSettings(ACTOR_ID)).thenReturn(currentSettings());
+
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .contentType("application/merge-patch+json").content("{\"adsPageSise\":30}"))
+                .andExpect(status().isBadRequest());
+    }
 
     @Test
     void updateSettings_pageSizeBelowMinimum_returns400() throws Exception {
+        when(userProfileService.loadSettings(ACTOR_ID)).thenReturn(currentSettings());
         String body = """
                 {"adsPageSize":1,"usersPageSize":20,"timelinePageSize":20,"providerProfilesPageSize":20}""";
 
@@ -400,6 +450,7 @@ class UserApiControllerTest {
 
     @Test
     void updateSettings_pageSizeAboveMaximum_returns400() throws Exception {
+        when(userProfileService.loadSettings(ACTOR_ID)).thenReturn(currentSettings());
         String body = """
                 {"adsPageSize":20,"usersPageSize":500,"timelinePageSize":20,"providerProfilesPageSize":20}""";
 
@@ -411,6 +462,7 @@ class UserApiControllerTest {
 
     @Test
     void updateSettings_providerProfilesPageSizeBelowMinimum_returns400() throws Exception {
+        when(userProfileService.loadSettings(ACTOR_ID)).thenReturn(currentSettings());
         String body = """
                 {"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20,"providerProfilesPageSize":1}""";
 

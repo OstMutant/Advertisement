@@ -139,7 +139,7 @@ INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432` is applied **by default** everywher
 an AI sandbox, whenever `--integration` is used: this script's own build container mounts the
 host's `docker.sock` so Testcontainers can run nested inside it, and that nesting is what triggers
 the port-reachability/Ryuk-connectivity issue, independent of which machine hosts it. Pass
-`--no-sandbox` to disable the workaround if your own setup doesn't need it.
+`--no-sandbox` to disable the workaround if your own setup doesn't need it. A port already set in the caller's environment wins over the 25432 default; the local CI runner's `integration` stage sets 25433 so it does not share a database with the integration run inside the Sonar stage.
 
 Reports: `scripts/build-and-test/reports/surefire/<module>/` (Surefire pass/fail per test class)
 and `scripts/logs/build-and-test/` (the full raw console log for whichever phase ran —

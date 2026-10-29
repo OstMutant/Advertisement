@@ -11,8 +11,9 @@
  *     goes to none": create ad -> filter by its title -> cancel delete -> card still visible ->
  *     confirm delete -> card gone -> filtered list empty.
  *   - "administrator deletes user -- cancel keeps row, confirm removes row, absent after clearing
- *     the filter": filter by e-mail -> cancel delete -> row still visible -> confirm delete -> row
- *     gone -> filter clear -> e-mail search finds no row.
+ *     the filter, own row has no delete button, own account delete answers 403": filter by e-mail -> cancel delete -> row still visible -> confirm delete -> row
+ *     gone -> filter clear -> e-mail search finds no row; the administrator's own row has no delete
+ *     button while another row has one, and the REST delete of the own account answers 403.
  * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 07-marketplace-
  *   delete-flow --ux` (runs alone or with any other spec), or as part of the full e2e suite
  *   (`bash /app/playwright/run.sh e2e --ux`).
@@ -29,6 +30,7 @@
  * ──────────────────────────────────────────────────────────────────────────── */
 const { test, expect } = require('./_fixtures');
 const { screenshot } = require('./_helpers');
+const { issueApiKeyViaApi } = require('./_flows/seed.flow');
 const { runNavigateToUsersTabFlow, runFilterUserByEmailFlow, clearUserFilter } = require('./_flows/user-management.flow');
 const { cancelDeleteDialog, confirmDeleteDialog, runCreateSimpleAdvertisementFlow } = require('./_flows/delete.flow');
 const { runOpenFilterPanelFlow, runFillTitleFilterFlow, runApplyFilterFlow } = require('./_flows/advertisement-filter.flow');
@@ -72,19 +74,29 @@ test.describe('Delete flow', () => {
     });
   });
 
-  test('administrator deletes user — cancel keeps row, confirm removes row, absent after clearing the filter', async ({ pageAs, adminAccount, createUser }) => {
+  test('administrator deletes user — cancel keeps row, confirm removes row, absent after clearing the filter, own row has no delete button, own account delete answers 403', async ({ pageAs, adminAccount, createUser, request }) => {
     const target = await createUser();
     const page = await pageAs(adminAccount);
 
     await runNavigateToUsersTabFlow(page, expect);
     await screenshot(page, 'delete-user-01-grid-before');
 
-    await runFilterUserByEmailFlow(page, target.email);
     const userNames = page.locator('.user-grid-name:visible');
+    const deleteBtn = () => page.locator('.user-grid-actions').getByRole('button', { name: DELETE_BUTTON }).first();
+
+    await test.step('own row has no delete button, API refuses own delete', async () => {
+      await runFilterUserByEmailFlow(page, adminAccount.email);
+      await userNames.filter({ hasText: adminAccount.name }).first().waitFor({ timeout: 5000 });
+      await expect(deleteBtn()).toHaveCount(0);
+      await clearUserFilter(page);
+      const ownKey = await issueApiKeyViaApi(request, adminAccount);
+      const refused = await request.delete(`/api/users/${adminAccount.id}`, { headers: { Authorization: `Bearer ${ownKey}` } });
+      expect(refused.status()).toBe(403);
+    });
+
+    await runFilterUserByEmailFlow(page, target.email);
     await userNames.first().waitFor({ timeout: 5000 });
     await screenshot(page, 'delete-user-02-filtered');
-
-    const deleteBtn = () => page.locator('.user-grid-actions').getByRole('button', { name: DELETE_BUTTON }).first();
 
     await test.step('cancel delete — row stays', async () => {
       await deleteBtn().click();

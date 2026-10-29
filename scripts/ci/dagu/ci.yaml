@@ -84,10 +84,12 @@ steps:
   # ci-runner) hits the same dynamically-assigned-port unreachability this flag works around
   # regardless of host machine, so there is no real "don't need it" case for this step. See
   # DECISIONS.md.
+  # Own fixed Postgres port, so this stage does not share a database with the integration run inside the sonar stage.
   - id: integration
     depends: build
     run: |
       SESSION_ID=${params.session_id} BUILD_CONTAINER_NAME=advertisement-build-only-integration \
+        INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25433 \
         bash scripts/build-and-test.sh --no-unit --integration --skip-vaadin --sandbox
     continue_on:
       failure: true

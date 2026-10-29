@@ -21,6 +21,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -28,7 +29,7 @@ import java.util.function.Function;
  * Application-level use case: save/delete an advertisement in one transaction, including its
  * category/city assignments, attachment gallery commit, audit capture, and owner-or-privileged
  * authorization. 2 direct domain ports (Advertisement + Audit) plus shared collaborators for the
- * Taxon/Attachment steps — see {@code marketplace-orchestrator/CLAUDE.md}'s "≤2 domain *Port
+ * Taxon/Attachment steps — see {@code .claude/rules/marketplace-orchestrator.md}'s "≤2 domain *Port
  * types per class" constraint.
  */
 @Slf4j
@@ -111,6 +112,11 @@ public class AdvertisementSaveService {
 
     public boolean isAvailable() {
         return advertisementPortFactory.findIfAvailable().isPresent();
+    }
+
+    /** Returns the advertisement's current editable state in its history-snapshot shape, empty when the id is unknown. */
+    public Optional<AdvertisementSnapshotDto> findCurrentSnapshot(@NonNull Long id) {
+        return advertisementPortFactory.get().findById(id).map(this::buildCurrentSnapshot);
     }
 
     public void delete(@NonNull Long id, @NonNull Long actorId, Long version) {

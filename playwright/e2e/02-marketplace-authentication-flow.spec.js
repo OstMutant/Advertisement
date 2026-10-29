@@ -141,7 +141,7 @@ test.describe('Authentication flow', () => {
     await screenshot(page, 'auth-failure-submitted');
 
     await expect(page.locator('vaadin-notification-container')).toContainText(INVALID_CREDENTIALS, { timeout: 5000 });
-    await expect(page.getByRole('button', { name: SETTINGS_BUTTON })).not.toBeVisible();
+    await expect(page.getByRole('button', { name: SETTINGS_BUTTON })).toBeHidden();
     await screenshot(page, 'auth-failure-not-logged-in');
     await closeNotification(page);
 

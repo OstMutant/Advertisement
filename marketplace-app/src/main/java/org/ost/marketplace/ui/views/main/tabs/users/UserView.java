@@ -90,6 +90,7 @@ public class UserView extends VerticalLayout {
                         .onView(u -> overlay.openFor(u.id(), this::updateRowInPlace, this::checkForChanges))
                         .onEdit(u -> overlay.openForEdit(u.id(), this::updateRowInPlace, this::checkForChanges))
                         .onDelete(this::confirmAndDelete)
+                        .canDelete(user -> access.canDeleteUserAccount(user.id()))
                         .build()
         );
 
@@ -174,7 +175,7 @@ public class UserView extends VerticalLayout {
                 i18n.get(USER_VIEW_CONFIRM_CANCEL_BUTTON),
                 () -> {
                     try {
-                        if (access.canNotDelete(user.id())) return;
+                        if (!access.canDeleteUserAccount(user.id())) return;
                         userDeleteService.delete(user.id(), access.getCurrentUserId());
                         notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
                         refresh();

@@ -283,4 +283,21 @@ class AccessEvaluatorTest {
 
         assertThat(accessEvaluator.canEditRole(TARGET_OWNER_ID)).isFalse();
     }
+
+    // --- canDeleteUserAccount(Long targetUserId) ---
+
+    @Test
+    void canDeleteUserAccount_delegatesToAuthorizationService() {
+        loggedInAs(ADMIN_USER);
+        when(authorizationService.canDeleteAccount(ADMIN_USER, TARGET_OWNER_ID)).thenReturn(true);
+
+        assertThat(accessEvaluator.canDeleteUserAccount(TARGET_OWNER_ID)).isTrue();
+    }
+
+    @Test
+    void canDeleteUserAccount_loggedOut_returnsFalse() {
+        loggedOut();
+
+        assertThat(accessEvaluator.canDeleteUserAccount(TARGET_OWNER_ID)).isFalse();
+    }
 }

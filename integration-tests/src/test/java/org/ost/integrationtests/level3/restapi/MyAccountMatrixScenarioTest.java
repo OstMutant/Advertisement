@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Level 3 matrix: the caller's own account REST operations -- language switch and page-size settings -- with their validation, precondition and authentication edges. */
@@ -19,6 +20,7 @@ class MyAccountMatrixScenarioTest extends AbstractRestApiScenarioTest {
     private static final String LOCALE_URL = "/api/users/me/locale";
     private static final String SETTINGS_URL = "/api/users/me/settings";
     private static final String STALE_IF_MATCH = "\"0\"";
+    private static final String MERGE_PATCH = "application/merge-patch+json";
     private static final String VALID_SETTINGS = settingsBody("20", "20", "20", "20");
 
     // ── changeMyLocale ───────────────────────────────────────────────────
@@ -161,13 +163,13 @@ class MyAccountMatrixScenarioTest extends AbstractRestApiScenarioTest {
     }
 
     @Test
-    void settings_missingField_isBadRequest() throws Exception {
+    void settings_missingField_keepsItsValue() throws Exception {
         registerUserAndIssueApiKey("Admin");
         RegisteredUser user = registerUserAndIssueApiKey("User");
 
         patchSettings(user, """
                 {"usersPageSize":20,"timelinePageSize":20,"providerProfilesPageSize":20}""")
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -204,6 +206,84 @@ class MyAccountMatrixScenarioTest extends AbstractRestApiScenarioTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void settings_mergePatchOfOneField_keepsTheOtherFive() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser user = registerUserAndIssueApiKey("User");
+        patchSettings(user, """
+                {"adsPageSize":21,"usersPageSize":22,"timelinePageSize":23,"providerProfilesPageSize":24,"feedbackPageSize":25,"moderationPageSize":26}""")
+                .andExpect(status().isOk());
+
+        mergePatchSettings(user, etagOf(user), """
+                {"adsPageSize":30}""")
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get(SETTINGS_URL).header(HttpHeaders.AUTHORIZATION, bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.adsPageSize").value(30))
+                .andExpect(jsonPath("$.usersPageSize").value(22))
+                .andExpect(jsonPath("$.timelinePageSize").value(23))
+                .andExpect(jsonPath("$.providerProfilesPageSize").value(24))
+                .andExpect(jsonPath("$.feedbackPageSize").value(25))
+                .andExpect(jsonPath("$.moderationPageSize").value(26));
+    }
+
+    @Test
+    void settings_mergePatchMissingIfMatch_isBadRequest() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser user = registerUserAndIssueApiKey("User");
+
+        // missing If-Match must be a bad request
+        mockMvc.perform(patch(SETTINGS_URL)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MERGE_PATCH).content("""
+                                {"adsPageSize":30}"""))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void settings_mergePatchStaleIfMatch_isPreconditionFailed() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser user = registerUserAndIssueApiKey("User");
+        mergePatchSettings(user, etagOf(user), """
+                {"adsPageSize":30}""")
+                .andExpect(status().isOk());
+
+        mergePatchSettings(user, STALE_IF_MATCH, """
+                {"adsPageSize":40}""")
+                .andExpect(status().isPreconditionFailed());
+    }
+
+    @Test
+    void settings_mergePatchNullPageSize_isBadRequest() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser user = registerUserAndIssueApiKey("User");
+
+        mergePatchSettings(user, etagOf(user), """
+                {"adsPageSize":null}""")
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void settings_mergePatchUnknownMember_isBadRequest() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser user = registerUserAndIssueApiKey("User");
+
+        mergePatchSettings(user, etagOf(user), """
+                {"adsPageSise":30}""")
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void settings_mergePatchOutOfRange_isBadRequest() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser user = registerUserAndIssueApiKey("User");
+
+        mergePatchSettings(user, etagOf(user), """
+                {"moderationPageSize":101}""")
+                .andExpect(status().isBadRequest());
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     /** Builds the settings body from four raw JSON values, so a case can pass a bad literal such as a string. */
@@ -219,6 +299,14 @@ class MyAccountMatrixScenarioTest extends AbstractRestApiScenarioTest {
                 .header(HttpHeaders.AUTHORIZATION, bearer(user))
                 .header(HttpHeaders.IF_MATCH, etagOf(user))
                 .contentType(MediaType.APPLICATION_JSON).content(body));
+    }
+
+    /** Sends a merge-patch-typed settings PATCH as the user with the given If-Match value. */
+    private ResultActions mergePatchSettings(RegisteredUser user, String ifMatch, String body) throws Exception {
+        return mockMvc.perform(patch(SETTINGS_URL)
+                .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                .header(HttpHeaders.IF_MATCH, ifMatch)
+                .contentType(MERGE_PATCH).content(body));
     }
 
     /** Reads the user's own settings ETag, so a PATCH can send it back in If-Match. */

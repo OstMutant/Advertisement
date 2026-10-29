@@ -7,6 +7,7 @@ import org.ost.integrationtests.support.JsonScenarioUtils;
 import org.ost.integrationtests.support.Level3ScenarioTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.ResultActions;
 
 import java.util.List;
 import java.util.Map;
@@ -14,6 +15,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -31,6 +33,7 @@ class AdvertisementMatrixScenarioTest extends AbstractRestApiScenarioTest {
     private static final String UPDATED_BODY = """
             {"title":"Plumbing","description":"Fast and reliable","adKind":"OFFER"}""";
     private static final String STALE_IF_MATCH = "\"0\"";
+    private static final String MERGE_PATCH = "application/merge-patch+json";
 
     // ── list ─────────────────────────────────────────────────────────────
 
@@ -357,6 +360,232 @@ class AdvertisementMatrixScenarioTest extends AbstractRestApiScenarioTest {
                 .andExpect(status().isBadRequest());
     }
 
+    // ── patch ────────────────────────────────────────────────────────────
+
+    @Test
+    void anonymous_onPatch_isUnauthorized() throws Exception {
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String adUrl = ADS + "/" + createAd(owner, "Patch");
+
+        mockMvc.perform(patch(adUrl)
+                        .header(HttpHeaders.IF_MATCH, etagOf(owner, adUrl))
+                        .contentType(MERGE_PATCH).content("""
+                                {"title":"Patched"}"""))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void owner_patchesTitleOnly_keepsCategoriesAndCity() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        long categoryId = createTaxon(admin, "CATEGORY", "Plumbing");
+        long cityId = createTaxon(admin, "CITY", "Kyiv");
+        String adUrl = createRichAd(owner, "[" + categoryId + "]", cityId);
+
+        patchAs(owner, adUrl, etagOf(owner, adUrl), """
+                {"title":"Patched"}""")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Patched"));
+
+        String json = getBody(adUrl);
+        assertThat(JsonPath.<String>read(json, "$.title")).isEqualTo("Patched");
+        assertThat(JsonPath.<String>read(json, "$.description")).isEqualTo("Fast");
+        assertThat(categoryIdsOf(json)).containsExactly(categoryId);
+        assertThat(((Number) JsonPath.read(json, "$.cityTaxonId")).longValue()).isEqualTo(cityId);
+    }
+
+    @Test
+    void patch_nullCityTaxonId_clearsCityOnly() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        long categoryId = createTaxon(admin, "CATEGORY", "Plumbing");
+        long cityId = createTaxon(admin, "CITY", "Kyiv");
+        String adUrl = createRichAd(owner, "[" + categoryId + "]", cityId);
+
+        patchAs(owner, adUrl, etagOf(owner, adUrl), """
+                {"cityTaxonId":null}""")
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get(adUrl)).andExpect(jsonPath("$.cityTaxonId").doesNotExist());
+        String json = getBody(adUrl);
+        assertThat(categoryIdsOf(json)).containsExactly(categoryId);
+        assertThat(JsonPath.<String>read(json, "$.title")).isEqualTo("Rich");
+    }
+
+    @Test
+    void patch_categoryIds_replacesTheWholeSet() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        long firstCategory = createTaxon(admin, "CATEGORY", "Plumbing");
+        long secondCategory = createTaxon(admin, "CATEGORY", "Electrical");
+        long cityId = createTaxon(admin, "CITY", "Kyiv");
+        String adUrl = createRichAd(owner, "[" + firstCategory + "]", cityId);
+
+        patchAs(owner, adUrl, etagOf(owner, adUrl), """
+                {"categoryIds":[%d]}""".formatted(secondCategory))
+                .andExpect(status().isOk());
+
+        String json = getBody(adUrl);
+        assertThat(categoryIdsOf(json)).containsExactly(secondCategory);
+        assertThat(((Number) JsonPath.read(json, "$.cityTaxonId")).longValue()).isEqualTo(cityId);
+    }
+
+    @Test
+    void patch_plainJsonContentType_isOk() throws Exception {
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String adUrl = ADS + "/" + createAd(owner, "Patch");
+
+        mockMvc.perform(patch(adUrl)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner))
+                        .header(HttpHeaders.IF_MATCH, etagOf(owner, adUrl))
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"title":"Patched"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Patched"));
+    }
+
+    @Test
+    void stranger_onPatch_isForbidden() throws Exception {
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        RegisteredUser stranger = registerUserAndIssueApiKey("Stranger");
+        String adUrl = ADS + "/" + createAd(owner, "Patch");
+
+        patchAs(stranger, adUrl, etagOf(owner, adUrl), """
+                {"title":"Hijacked"}""")
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void admin_patchesAd_isOk() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String adUrl = ADS + "/" + createAd(owner, "Patch");
+
+        patchAs(admin, adUrl, etagOf(owner, adUrl), """
+                {"title":"Patched"}""")
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void moderator_patchesAd_isOk() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser moderator = moderatorOf(admin);
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String adUrl = ADS + "/" + createAd(owner, "Patch");
+
+        patchAs(moderator, adUrl, etagOf(owner, adUrl), """
+                {"title":"Patched"}""")
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void patch_staleIfMatch_isPreconditionFailed() throws Exception {
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String adUrl = updatedAd(owner);
+
+        patchAs(owner, adUrl, STALE_IF_MATCH, """
+                {"title":"Patched"}""")
+                .andExpect(status().isPreconditionFailed());
+    }
+
+    @Test
+    void patch_oldEtagAfterSuccessfulPatch_isPreconditionFailed() throws Exception {
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String adUrl = ADS + "/" + createAd(owner, "Patch");
+        String oldEtag = etagOf(owner, adUrl);
+
+        patchAs(owner, adUrl, oldEtag, """
+                {"title":"First"}""")
+                .andExpect(status().isOk());
+
+        patchAs(owner, adUrl, oldEtag, """
+                {"title":"Second"}""")
+                .andExpect(status().isPreconditionFailed());
+    }
+
+    @Test
+    void patch_missingIfMatch_isBadRequest() throws Exception {
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String adUrl = ADS + "/" + createAd(owner, "Patch");
+
+        // missing If-Match must be a bad request
+        mockMvc.perform(patch(adUrl)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner))
+                        .contentType(MERGE_PATCH).content("""
+                                {"title":"Patched"}"""))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void patch_nullTitle_isBadRequest() throws Exception {
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String adUrl = ADS + "/" + createAd(owner, "Patch");
+
+        patchAs(owner, adUrl, etagOf(owner, adUrl), """
+                {"title":null}""")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.title").exists());
+    }
+
+    @Test
+    void patch_unknownMember_isBadRequest() throws Exception {
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String adUrl = ADS + "/" + createAd(owner, "Patch");
+
+        patchAs(owner, adUrl, etagOf(owner, adUrl), """
+                {"cityTaxonID":5}""")
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void patch_textPlainContentType_isUnsupportedMediaType() throws Exception {
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        String adUrl = ADS + "/" + createAd(owner, "Patch");
+
+        String acceptPatch = mockMvc.perform(patch(adUrl)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner))
+                        .header(HttpHeaders.IF_MATCH, etagOf(owner, adUrl))
+                        .contentType(MediaType.TEXT_PLAIN).content("""
+                                {"title":"Patched"}"""))
+                .andExpect(status().isUnsupportedMediaType())
+                .andReturn().getResponse().getHeader("Accept-Patch");
+        if (acceptPatch != null) {
+            assertThat(acceptPatch).contains(MERGE_PATCH);
+        }
+    }
+
+    @Test
+    void unknownAd_onPatch_isNotFound() throws Exception {
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+
+        patchAs(owner, UNKNOWN_ADS, STALE_IF_MATCH, """
+                {"title":"Patched"}""")
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void patch_addsExactlyOneHistoryEntry_withTheMergedState() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        long categoryId = createTaxon(admin, "CATEGORY", "Plumbing");
+        long cityId = createTaxon(admin, "CITY", "Kyiv");
+        String adUrl = createRichAd(owner, "[" + categoryId + "]", cityId);
+        int entriesBefore = historyEntries(owner, adUrl + "/history").size();
+
+        patchAs(owner, adUrl, etagOf(owner, adUrl), """
+                {"title":"Patched"}""")
+                .andExpect(status().isOk());
+
+        List<Map<String, Object>> entries = historyEntries(owner, adUrl + "/history");
+        assertThat(entries).hasSize(entriesBefore + 1);
+        long newestSnapshotId = ((Number) entries.getFirst().get("snapshotId")).longValue();
+        mockMvc.perform(get(adUrl + "/history/" + newestSnapshotId).header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.snapshot.title").value("Patched"))
+                .andExpect(jsonPath("$.snapshot.description").value("Fast"))
+                .andExpect(jsonPath("$.snapshot.cityTaxonId").value(cityId));
+    }
+
     // ── restore ──────────────────────────────────────────────────────────
 
     @Test
@@ -524,6 +753,49 @@ class AdvertisementMatrixScenarioTest extends AbstractRestApiScenarioTest {
                         .contentType(MediaType.APPLICATION_JSON).content(UPDATED_BODY))
                 .andExpect(status().isOk());
         return adUrl;
+    }
+
+    /** Creates one advertisement with the given category id array literal and city as the owner and returns its URL. */
+    private String createRichAd(RegisteredUser owner, String categoryIdsJson, long cityTaxonId) throws Exception {
+        String createResponse = mockMvc.perform(post(ADS)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"title":"Rich","description":"Fast","adKind":"OFFER","categoryIds":%s,"cityTaxonId":%d}""".formatted(categoryIdsJson, cityTaxonId)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return ADS + "/" + JsonScenarioUtils.extractId(createResponse);
+    }
+
+    /** Creates a taxon of the given type with one name as the administrator and returns its id. */
+    private long createTaxon(RegisteredUser admin, String type, String name) throws Exception {
+        String response = mockMvc.perform(post("/api/taxons")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(admin))
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"type":"%s","translations":[{"locale":"en","name":"%s","description":"%s"},{"locale":"uk","name":"%s","description":"%s"}]}"""
+                                .formatted(type, name, name, name, name)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return JsonScenarioUtils.extractId(response);
+    }
+
+    /** Sends a merge patch to the advertisement as the caller with the given If-Match value. */
+    private ResultActions patchAs(RegisteredUser caller, String adUrl, String ifMatch, String body) throws Exception {
+        return mockMvc.perform(patch(adUrl)
+                .header(HttpHeaders.AUTHORIZATION, bearer(caller))
+                .header(HttpHeaders.IF_MATCH, ifMatch)
+                .contentType(MERGE_PATCH).content(body));
+    }
+
+    /** Reads the resource as an anonymous caller and returns the raw JSON body. */
+    private String getBody(String url) throws Exception {
+        return mockMvc.perform(get(url))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+    }
+
+    private static List<Long> categoryIdsOf(String json) {
+        List<Number> ids = JsonPath.read(json, "$.categoryIds");
+        return ids.stream().map(Number::longValue).toList();
     }
 
     /** Returns the history list as the viewer sees it, newest entry first. */

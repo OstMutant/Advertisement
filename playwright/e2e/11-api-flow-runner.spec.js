@@ -58,15 +58,15 @@ test.describe('API flow runner page', () => {
     await expect(runButton).toBeEnabled({ timeout: 60000 });
     const rows = await diagram.getByRole('button').count();
     expect(rows).toBeGreaterThan(0);
-    expect(rows).toBe(nodes);
+    await expect(diagram.getByRole('button')).toHaveCount(nodes);
     await expect(diagram.locator('.step.failed')).toHaveCount(0);
     const keyCode = await diagram.locator('.step[data-step="auth.key"] .code').innerText();
     await expect(diagram.locator('.step[data-step="auth.admin"]')).toHaveClass(keyCode === '201' ? /skipped/ : /passed/);
-    expect(cards).toBe(await diagram.getByRole('heading', { level: 3 }).count());
+    await expect(diagram.getByRole('heading', { level: 3 })).toHaveCount(cards);
     await page.locator('#flow-map .flow-card[data-flow="Authentication"]').getByRole('button').click();
     const authRows = await page.locator('#flow-detail li[data-step^="auth."]').count();
     expect(authRows).toBeGreaterThan(0);
-    expect(authRows).toBe(await diagram.locator('.step[data-step^="auth."]').count());
+    await expect(diagram.locator('.step[data-step^="auth."]')).toHaveCount(authRows);
     await page.locator('#flow-detail li[data-step="auth.user"]').getByRole('button').click();
     await expect(page.locator('#flow-detail .step-panel .response-head .code')).toHaveText('201');
     await expect(page.locator('#flow-detail .step-panel .response-head .code')).toHaveClass(/code-2xx/);

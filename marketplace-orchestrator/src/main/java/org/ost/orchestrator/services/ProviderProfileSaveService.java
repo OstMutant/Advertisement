@@ -24,7 +24,7 @@ import java.util.Set;
  * category/city assignment, contact-info upsert, audit capture, and owner-or-privileged
  * authorization. 2 direct domain ports (ProviderProfile + Audit) plus the shared
  * {@link TaxonAssignmentWriteService}/{@link ContactAccessService} collaborators -- see
- * marketplace-orchestrator/CLAUDE.md's "≤2 domain *Port types per class" constraint.
+ * .claude/rules/marketplace-orchestrator.md's "≤2 domain *Port types per class" constraint.
  */
 @Slf4j
 @Service
@@ -101,6 +101,11 @@ public class ProviderProfileSaveService {
 
     public boolean isAvailable() {
         return providerProfilePortFactory.findIfAvailable().isPresent();
+    }
+
+    /** Returns the profile's current editable state, contact channels included, in its history-snapshot shape; empty when the id is unknown. */
+    public Optional<ProviderProfileSnapshotDto> findCurrentSnapshot(@NonNull Long id) {
+        return findById(id).map(this::toSnapshot);
     }
 
     private ProviderProfileDto enrich(ProviderProfileDto p) {

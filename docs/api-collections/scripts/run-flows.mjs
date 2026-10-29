@@ -4,11 +4,13 @@
  *   skips every later step. Creates data in the app (users, API keys), so run it against a dev
  *   database.
  * Usage: node docs/api-collections/scripts/run-flows.mjs [baseUrl] [--config <file>] [--flow <name>]...
- *     [--variable key=value]... [--json] [--help]
+ *     [--role <name>] [--variable key=value]... [--json] [--help]
  *   [baseUrl]          API base URL; takes precedence over API_BASE_URL and the config's baseUrl
  *   --config <file>    config file (default: check-collection.config.json next to this script)
  *   --flow <name>      run only the named flow; repeat to run several; a dependent flow needs the
  *                      flow it depends on too
+ *   --role <name>      run only the flows listed under roles.<name> in the config, as if each had
+ *                      been passed with --flow; not combinable with --flow
  *   --variable k=v     override a collection variable; repeatable
  *   --json             print only a JSON array of step results
  *   --help             print the usage text and exit
@@ -34,7 +36,7 @@ const DEFAULT_CONFIG = resolve(SCRIPT_DIR, 'check-collection.config.json');
 const REQUIRED_FIELDS = ['baseUrl', 'collectionFile'];
 
 const USAGE = `Usage: node docs/api-collections/scripts/run-flows.mjs [baseUrl] [--config <file>] [--flow <name>]...
-                                              [--variable key=value]... [--json] [--help]
+                                              [--role <name>] [--variable key=value]... [--json] [--help]
 
 Runs the Postman collection's flows against the running API.
 
@@ -43,12 +45,14 @@ Options:
   --config <file>    config file (default: check-collection.config.json next to this script)
   --flow <name>      run only this flow; repeat for several (a dependent flow needs its
                      prerequisite flow too, e.g. --flow Authentication --flow <other>)
+  --role <name>      run only the flows listed under roles.<name> in the config (e.g. user: the
+                     flows that need no administrator); not combinable with --flow
   --variable k=v     override a collection variable; repeat for several
   --json             print only the step results as JSON
   --help             print this text and exit
 
 Config fields:
-  baseUrl, collectionFile (other fields are read by check-collection.mjs)
+  baseUrl, collectionFile, roles (other fields are read by check-collection.mjs)
 
 Note: runs create users and API keys in the app; use a dev database.
 
@@ -58,7 +62,7 @@ Exit codes:
   2  usage, config or read error, or no steps selected`;
 
 function parseArgs(argv) {
-  const options = { baseUrl: undefined, configFile: DEFAULT_CONFIG, flows: [], variables: {}, json: false, help: false };
+  const options = { baseUrl: undefined, configFile: DEFAULT_CONFIG, flows: [], role: undefined, variables: {}, json: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--help') {
@@ -71,6 +75,10 @@ function parseArgs(argv) {
     } else if (arg === '--flow') {
       if (argv[i + 1] === undefined) throw new UsageError('--flow needs a flow name');
       options.flows.push(argv[++i]);
+    } else if (arg === '--role') {
+      if (argv[i + 1] === undefined) throw new UsageError('--role needs a role name');
+      if (options.role !== undefined) throw new UsageError('--role can be given only once');
+      options.role = argv[++i];
     } else if (arg === '--variable') {
       if (argv[i + 1] === undefined) throw new UsageError('--variable needs key=value');
       const [key, ...rest] = argv[++i].split('=');
@@ -82,6 +90,7 @@ function parseArgs(argv) {
       options.baseUrl = arg;
     }
   }
+  if (options.role !== undefined && options.flows.length > 0) throw new UsageError('use either --role or --flow');
   return options;
 }
 
@@ -109,6 +118,14 @@ function loadConfig(file) {
     }
   }
   return { ...config, collectionFile: resolve(dirname(file), config.collectionFile) };
+}
+
+function roleFlows(config, role) {
+  const roles = config.roles ?? {};
+  if (!Object.hasOwn(roles, role)) {
+    throw new UsageError(`unknown role '${role}', available: ${Object.keys(roles).join(', ') || 'none'}`);
+  }
+  return roles[role];
 }
 
 function selectFlows(collection, names) {
@@ -163,7 +180,10 @@ async function main() {
   const config = loadConfig(options.configFile);
   const baseUrl = (options.baseUrl ?? process.env.API_BASE_URL ?? config.baseUrl).replace(/\/+$/, '');
   const fullCollection = parseCollection(readJson(config.collectionFile));
-  const collection = selectFlows(fullCollection, options.flows);
+  const collection = selectFlows(
+    fullCollection,
+    options.role === undefined ? options.flows : roleFlows(config, options.role),
+  );
   if (collection.items.length === 0) {
     console.error('no steps to run');
     return 2;

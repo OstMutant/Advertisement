@@ -28,7 +28,7 @@ public class UserDeleteService {
 
     // cascades to the user's own ads, provider profile, and API keys first -- avoids an FK block on later retention purge
     public void delete(@NonNull Long userId, @NonNull Long actingUserId) {
-        authorizationService.requireCanEditAccount(actingUserId, userId);
+        authorizationService.requireCanDeleteAccount(actingUserId, userId);
         advertisementPortFactory.ifAvailable(port -> {
             for (AdvertisementInfoDto ad : port.findByCreator(userId)) {
                 advertisementSaveService.delete(ad.getId(), actingUserId, ad.getVersion());

@@ -3,7 +3,7 @@
  *   auth and form data, performs each request with fetch, runs the test script through the pm
  *   shim, and reports every step through onStepUpdate. After the first failed step the remaining
  *   steps are skipped.
- * Usage: None -- a library module imported by main.js and scripts/run-flows.mjs.
+ * Usage: None -- a library module imported by main.js, scripts/run-flows.mjs and scripts/runner-429.test.mjs.
  * Uses: ./collection.js (substitute); ./pm-shim.js (createPm, runScript); global fetch, FormData,
  *   Blob, Uint8Array, atob, btoa, TextEncoder and Date.
  * Env: None.
@@ -150,11 +150,6 @@ export async function runFlow(collection, { host, variables = {}, flows = null, 
       continue;
     }
     step.response = response;
-    if (response.code === 429) {
-      const retryAfter = response.headers.find(([key]) => key.toLowerCase() === "retry-after")?.[1] ?? "unknown";
-      step.error = `rate limited (429), retry after ${retryAfter} s`;
-    }
-
     const { pm, tests } = createPm({ code: response.code, bodyText: response.body }, runVariables);
     try {
       runScript(item.testScript, pm);
@@ -162,6 +157,11 @@ export async function runFlow(collection, { host, variables = {}, flows = null, 
       step.error = error.message;
     }
     step.tests = tests;
+    // A 429 fails the step unless a passing test expected it.
+    if (response.code === 429 && step.error === null && (tests.length === 0 || tests.some((test) => !test.passed))) {
+      const retryAfter = response.headers.find(([key]) => key.toLowerCase() === "retry-after")?.[1] ?? "unknown";
+      step.error = `rate limited (429), retry after ${retryAfter} s`;
+    }
 
     step.status = step.error === null && tests.every((test) => test.passed) ? "passed" : "failed";
     if (step.status === "failed") {

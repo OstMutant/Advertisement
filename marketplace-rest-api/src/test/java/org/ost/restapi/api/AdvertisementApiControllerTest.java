@@ -1,9 +1,11 @@
 package org.ost.restapi.api;
 
+import jakarta.validation.Validation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.services.AccessDeniedException;
@@ -20,6 +22,7 @@ import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.model.EntityType;
 import org.ost.restapi.api.audit.ActivityHistorySupport;
+import org.ost.restapi.api.patch.MergePatchSupport;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -31,7 +34,11 @@ import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.authenticateAs;
@@ -39,6 +46,7 @@ import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.clearAuthent
 import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.mockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -65,7 +73,8 @@ class AdvertisementApiControllerTest {
     @BeforeEach
     void setUp() {
         mockMvc = mockMvc(new AdvertisementApiController(saveService, readService, enrichmentService, userProfileService,
-                activityHistorySupport, snapshotRestoreService));
+                activityHistorySupport, snapshotRestoreService,
+                new MergePatchSupport(Validation.buildDefaultValidatorFactory().getValidator())));
         authenticateAs(ACTOR_ID);
         lenient().when(userProfileService.resolveAdsPageSize(any())).thenReturn(20);
         lenient().when(enrichmentService.enrichWithCategoryAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
@@ -296,6 +305,136 @@ class AdvertisementApiControllerTest {
         mockMvc.perform(put("/api/advertisements/1").header("If-Match", "\"0\"")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
+    }
+
+    // ── patch ───────────────────────────────────────────────────────────
+
+    private static final AdvertisementSnapshotDto CURRENT = new AdvertisementSnapshotDto("Title", "Desc", AdKind.OFFER,
+            List.of(1L, 2L), 5L, null, AdvertisementSnapshotDto.SCHEMA_VERSION);
+
+    private AdvertisementSaveDto patchAndCaptureSave(String body) throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.of(CURRENT));
+        when(saveService.save(any(), eq(ACTOR_ID), any())).thenReturn(1L);
+        when(readService.findById(1L)).thenReturn(Optional.of(AdvertisementInfoDto.builder().id(1L).build()));
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType("application/merge-patch+json").content(body))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<AdvertisementSaveDto> captor = ArgumentCaptor.forClass(AdvertisementSaveDto.class);
+        verify(saveService).save(captor.capture(), eq(ACTOR_ID), any());
+        return captor.getValue();
+    }
+
+    @Test
+    void patch_emptyPatch_keepsEverythingAndSendsIfMatchVersion() throws Exception {
+        AdvertisementSaveDto dto = patchAndCaptureSave("{}");
+
+        assertEquals(new AdvertisementSaveDto(1L, "Title", "Desc", AdKind.OFFER, Set.of(1L, 2L), 5L, 4L), dto);
+    }
+
+    @Test
+    void patch_cityTaxonIdValue_changesOnlyIt() throws Exception {
+        AdvertisementSaveDto dto = patchAndCaptureSave("{\"cityTaxonId\":9}");
+
+        assertEquals(new AdvertisementSaveDto(1L, "Title", "Desc", AdKind.OFFER, Set.of(1L, 2L), 9L, 4L), dto);
+    }
+
+    @Test
+    void patch_cityTaxonIdNull_clearsIt() throws Exception {
+        AdvertisementSaveDto dto = patchAndCaptureSave("{\"cityTaxonId\":null}");
+
+        assertNull(dto.cityTaxonId());
+        assertEquals(Set.of(1L, 2L), Set.copyOf(dto.categoryIds()));
+    }
+
+    @Test
+    void patch_categoryIdsValue_replacesWholeList() throws Exception {
+        AdvertisementSaveDto dto = patchAndCaptureSave("{\"categoryIds\":[7]}");
+
+        assertEquals(Set.of(7L), Set.copyOf(dto.categoryIds()));
+        assertEquals(5L, dto.cityTaxonId());
+    }
+
+    @Test
+    void patch_categoryIdsNull_clearsList() throws Exception {
+        AdvertisementSaveDto dto = patchAndCaptureSave("{\"categoryIds\":null}");
+
+        assertTrue(dto.categoryIds() == null || dto.categoryIds().isEmpty());
+    }
+
+    @Test
+    void patch_plainJsonContentType_isAccepted() throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.of(CURRENT));
+        when(saveService.save(any(), eq(ACTOR_ID), any())).thenReturn(1L);
+        when(readService.findById(1L)).thenReturn(Optional.of(AdvertisementInfoDto.builder().id(1L).build()));
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"New\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void patch_titleNull_returns400WithFieldError() throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.of(CURRENT));
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType("application/merge-patch+json").content("{\"title\":null}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.title").exists());
+        verify(saveService, never()).save(any(), any(), any());
+    }
+
+    @Test
+    void patch_unknownMember_returns400() throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.of(CURRENT));
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType("application/merge-patch+json").content("{\"cityTaxonID\":9}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void patch_missingIfMatch_returns400() throws Exception {
+        mockMvc.perform(patch("/api/advertisements/1")
+                        .contentType("application/merge-patch+json").content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void patch_unknownId_returns404() throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType("application/merge-patch+json").content("{}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void patch_staleVersion_returns412() throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.of(CURRENT));
+        when(saveService.save(any(), eq(ACTOR_ID), any())).thenThrow(new StaleWriteException("stale"));
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType("application/merge-patch+json").content("{}"))
+                .andExpect(status().isPreconditionFailed());
+    }
+
+    @Test
+    void patch_notOwner_returns403() throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.of(CURRENT));
+        when(saveService.save(any(), eq(ACTOR_ID), any())).thenThrow(new AccessDeniedException("not the owner"));
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType("application/merge-patch+json").content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void patch_textPlain_returns415() throws Exception {
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType(MediaType.TEXT_PLAIN).content("{}"))
+                .andExpect(status().isUnsupportedMediaType());
     }
 
     // ── delete ──────────────────────────────────────────────────────────

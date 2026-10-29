@@ -9,6 +9,7 @@ import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
 import org.ost.platform.feedback.model.FeedbackNotModeratableException;
 import org.ost.platform.taxon.model.TaxonNotDeletedException;
+import org.ost.restapi.api.patch.PatchValidationException;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,6 +54,13 @@ class ApiExceptionHandlerTest {
         MethodArgumentNotValidException ex = new MethodArgumentNotValidException(parameter, bindingResult);
 
         ValidationErrorResponse response = handler.handleValidation(ex);
+
+        assertThat(response.fieldErrors()).containsEntry("title", "must not be blank");
+    }
+
+    @Test
+    void handlePatchValidation_returnsFieldErrors() {
+        ValidationErrorResponse response = handler.handlePatchValidation(new PatchValidationException(Map.of("title", "must not be blank")));
 
         assertThat(response.fieldErrors()).containsEntry("title", "must not be blank");
     }

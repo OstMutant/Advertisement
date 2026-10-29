@@ -64,6 +64,12 @@ Java package root: `org.ost.restapi`
   and `SnapshotResponse` are the history response shapes. Reused by the `/history` methods of
   `AdvertisementApiController`, `ProviderProfileApiController`, `TaxonApiController` and
   `UserApiController` (including `/me/settings/history`), so no resource maps audit data itself.
+- `org.ost.restapi.api.patch` — `MergePatchSupport`, a Spring component that applies a JSON Merge
+  Patch (RFC 7396) to a controller's own write request record built from the resource's current
+  state, rejects a member that is not a field of that record, and validates the result with the
+  record's own constraints (`PatchValidationException`, mapped to 400 by `ApiExceptionHandler`).
+  Used by `PATCH /api/advertisements/{id}`, `PATCH /api/provider-profiles/{id}` and
+  `PATCH /api/users/me/settings`; the merged record then goes through the same save path as `PUT`.
 - `org.ost.restapi.config` — `ApiSecurityConfig` (two `SecurityFilterChain`s: `@Order(1)` matching
   `POST /api/api-keys` only, the one chain with HTTP Basic, and `@Order(2)` for the rest of
   `/api/**`, bearer-only, which also requires authentication for `*/history` and `*/history/*` under

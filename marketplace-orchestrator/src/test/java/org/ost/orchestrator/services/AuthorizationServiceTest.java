@@ -119,6 +119,40 @@ class AuthorizationServiceTest {
         assertThat(service.canEditRole(actor, OWNER_ID)).isFalse();
     }
 
+    // --- canDeleteAccount(UserDto, targetUserId) ---
+
+    @Test
+    void canDeleteAccountUserDto_admin_true_deletingOther() {
+        UserDto actor = user(Role.ADMIN);
+        stubRole(actor, true, false);
+
+        assertThat(service.canDeleteAccount(actor, OWNER_ID)).isTrue();
+    }
+
+    @Test
+    void canDeleteAccountUserDto_admin_false_deletingSelf() {
+        UserDto actor = user(Role.ADMIN);
+        stubRole(actor, true, false);
+
+        assertThat(service.canDeleteAccount(actor, ACTING_ID)).isFalse();
+    }
+
+    @Test
+    void canDeleteAccountUserDto_user_true_deletingSelf() {
+        UserDto actor = user(Role.USER);
+        stubRole(actor, false, false);
+
+        assertThat(service.canDeleteAccount(actor, ACTING_ID)).isTrue();
+    }
+
+    @Test
+    void canDeleteAccountUserDto_moderator_false_deletingOther() {
+        UserDto actor = user(Role.MODERATOR);
+        stubRole(actor, false, true);
+
+        assertThat(service.canDeleteAccount(actor, OWNER_ID)).isFalse();
+    }
+
     // --- canEditRole(actingUserId, targetUserId) -- id-based, resolves then delegates ---
 
     @Test

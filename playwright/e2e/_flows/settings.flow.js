@@ -9,7 +9,7 @@
  * Input: required directly by 06-seed-filter-sort-pagination.spec.js and 04-provider-profile-
  *   flow.spec.js, and indirectly by every spec that goes through ./audit.flow.
  * Outputs: exports changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes,
- *   pageSizeField.
+ *   pageSizeField, PAGE_SIZE_LABELS.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
 const { expect } = require('@playwright/test');
@@ -109,13 +109,15 @@ async function restoreLatestFromActivity(page) {
 async function getPageSizes(page) {
   await page.getByRole('button', { name: /^(settings|налаштування)$/i }).click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
-  const adsPageSize              = parseInt(await pageSizeField(page, 'ads').inputValue(), 10);
-  const providerProfilesPageSize = parseInt(await pageSizeField(page, 'providerProfiles').inputValue(), 10);
-  const usersPageSize            = parseInt(await pageSizeField(page, 'users').inputValue(), 10);
-  const moderationPageSize       = parseInt(await pageSizeField(page, 'moderation').inputValue(), 10);
+  const content = page.locator('.settings-overlay-content');
+  const sizeOf = key => content.getByRole('spinbutton', { name: PAGE_SIZE_LABELS[key] }).inputValue();
+  const adsPageSize              = parseInt(await sizeOf('ads'), 10);
+  const providerProfilesPageSize = parseInt(await sizeOf('providerProfiles'), 10);
+  const usersPageSize            = parseInt(await sizeOf('users'), 10);
+  const moderationPageSize       = parseInt(await sizeOf('moderation'), 10);
   await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
   return { adsPageSize, providerProfilesPageSize, usersPageSize, moderationPageSize };
 }
 
-module.exports = { changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes, pageSizeField };
+module.exports = { changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes, pageSizeField, PAGE_SIZE_LABELS };

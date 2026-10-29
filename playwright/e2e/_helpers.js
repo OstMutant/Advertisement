@@ -237,9 +237,15 @@ function downloadPng(url, dest) {
   });
 }
 
+/** The account overlay container; the one place its CSS class is spelled out. */
+function accountOverlay(page) {
+  return page.locator('.account-overlay');
+}
+
 module.exports = {
   test, expect,
   TEST_USERS, YT_URL, avatar, stubYoutubeEmbed,
+  accountOverlay,
   waitForOverlayClosed, closeOverlay,
   closeNotification,
   screenshot, downloadPng,

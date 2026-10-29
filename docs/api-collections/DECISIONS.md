@@ -47,9 +47,13 @@ user starter and are not changed here.
    default administrator and accepts 201 or 401; on 401 the registration step runs (`when:
    adminExists=no` in the request description, a step runs only when the named run variable
    equals the value, otherwise it is skipped as "condition not met"), so on an empty database the
-   administrator is registered before any other account. A used database whose administrator is a
-   different account is a known limit: the default account is then registered as a plain user and
-   steps that need the administrator fail with 403.
+   administrator is registered before any other account. The first step of the Taxons flow
+   (`taxons.probe`) lists users with the administrator's key and stops the run with a message that
+   names the account and asks for the e-mail and password of an existing administrator (the variables
+   `email` and `password`) when that fails. No REST call finds or makes an administrator, so the
+   collection never repairs the database and never wipes it. A run by role (`--role user`, defined in
+   the config) covers only the flows that need no administrator: Authentication, Infrastructure and
+   Account.
 5. A flow never provokes a limiter: it registers no account that already exists and uses fresh
    e-mails; the single failed login of the probe happens only when the account is missing.
 6. What a flow creates it deletes again when the API offers a delete; otherwise the object is

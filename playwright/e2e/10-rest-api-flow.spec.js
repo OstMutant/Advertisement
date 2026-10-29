@@ -133,6 +133,17 @@ test.describe('REST API flow through the real stack', () => {
       });
       expect(update.status()).toBe(200);
 
+      const afterUpdate = await request.get(`/api/provider-profiles/${profileId}`);
+      const patch = await request.patch(`/api/provider-profiles/${profileId}`, {
+        headers: { ...headers, 'If-Match': afterUpdate.headers()['etag'], 'Content-Type': 'application/merge-patch+json' },
+        data: { about: `${profileBody.about}, patched` },
+      });
+      expect(patch.status()).toBe(200);
+      const patched = await patch.json();
+      expect(patched.about).toBe(`${profileBody.about}, patched`);
+      expect(patched.kind).toBe('MASTER');
+      expect(patched.cityName).toBeTruthy();
+
       const historyAfter = await request.get(`/api/provider-profiles/${profileId}/history`, { headers });
       expect(historyAfter.status()).toBe(200);
       const entries = await historyAfter.json();
@@ -309,6 +320,17 @@ test.describe('REST API flow through the real stack', () => {
     });
     expect(update.status()).toBe(200);
 
+    const afterUpdate = await request.get(`/api/advertisements/${advertisementId}`);
+    const patch = await request.patch(`/api/advertisements/${advertisementId}`, {
+      headers: { ...headers, 'If-Match': afterUpdate.headers()['etag'], 'Content-Type': 'application/merge-patch+json' },
+      data: { description: 'REST flow description, patched' },
+    });
+    expect(patch.status()).toBe(200);
+    const patched = await patch.json();
+    expect(patched.description).toBe('REST flow description, patched');
+    expect(patched.title).toBe(`${title} updated`);
+    expect(patched.cityName).toBeTruthy();
+
     const historyAfter = await request.get(`/api/advertisements/${advertisementId}/history`, { headers });
     const entries = await historyAfter.json();
     const oldestSnapshotId = entries[entries.length - 1].snapshotId;
@@ -339,9 +361,10 @@ test.describe('REST API flow through the real stack', () => {
 
     const save = await request.patch('/api/users/me/settings', {
       headers: { Authorization: bearer(ownerKey), 'If-Match': currentSettings.headers()['etag'] },
-      data: { adsPageSize: 25, usersPageSize: 25, timelinePageSize: 25, providerProfilesPageSize: 25 },
+      data: { adsPageSize: 25 },
     });
     expect(save.status()).toBe(200);
+    expect((await save.json()).adsPageSize).toBe(25);
 
     const history = await request.get('/api/users/me/settings/history', { headers: { Authorization: bearer(ownerKey) } });
     expect(history.status()).toBe(200);

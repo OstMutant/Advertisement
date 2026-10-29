@@ -48,7 +48,7 @@
  *   non-zero otherwise.
  * ──────────────────────────────────────────────────────────────────────────── */
 const { test, expect } = require('./_fixtures');
-const { screenshot, closeNotification, closeOverlay, assertAbsent, assertVerticalOrder, waitForOverlayClosed, assertRightAligned } = require('./_helpers');
+const { screenshot, closeNotification, closeOverlay, assertAbsent, assertVerticalOrder, waitForOverlayClosed, assertRightAligned, accountOverlay } = require('./_helpers');
 const { runOpenSettingsFlow, runCloseSettingsFlow } = require('./_flows/audit.flow');
 const { openEntityActivity, closeEntityActivity } = require('./_flows/entity-activity.flow');
 const { runNavigateToUsersTabFlow, runOpenUserEditViaListFlow, runOpenUserViewDialogFlow, closeUserOverlay } = require('./_flows/user-management.flow');
@@ -67,6 +67,11 @@ const bearer = key => ({ Authorization: `Bearer ${key}` });
 const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // Matches a unique name without matching a longer name that merely starts with it ("x-5" vs "x-50").
 const named = name => new RegExp(`(?<![\\w-])${escapeRegExp(name)}(?![\\w-])`);
+
+// Container selectors spelled out once; each takes the page or locator to search in.
+function moderationCard(root) { return root.locator('.moderation-card'); }
+function feedbackPanelIn(root) { return root.locator('.feedback-panel'); }
+function providerProfileCard(root) { return root.locator('.provider-profile-card'); }
 
 // ── REST preconditions ───────────────────────────────────────────────────────
 
@@ -116,7 +121,7 @@ async function stubTelegramLink(page) {
 }
 
 async function openProviderProfileTab(page) {
-  await page.locator('.account-overlay').getByRole('tab', { name: /provider profile|профіль провайдера/i }).click();
+  await accountOverlay(page).getByRole('tab', { name: /provider profile|профіль провайдера/i }).click();
 }
 
 async function fillAbout(page, text, scope = '.account-overlay') {
@@ -133,9 +138,9 @@ async function selectedCategoryNames(page) {
     .evaluate(el => (el.selectedItems || []).map(i => i.label));
 }
 
-const cityCombo = page => page.locator('.account-overlay').getByRole('combobox', { name: /city|місто/i });
+const cityCombo = page => accountOverlay(page).getByRole('combobox', { name: /city|місто/i });
 
-const emptyProfileText = page => page.locator('.account-overlay').getByText(/haven't created a provider profile yet|ще не створили профіль/i);
+const emptyProfileText = page => accountOverlay(page).getByText(/haven't created a provider profile yet|ще не створили профіль/i);
 
 async function selectCity(page, name) {
   const box = cityCombo(page);
@@ -184,7 +189,7 @@ async function applyCatalogFilter(page, { categories, kind, city }) {
   await applyFilter(page, CATALOG_BLOCK);
 }
 
-const catalogCard = (page, owner) => page.locator('.provider-profile-card')
+const catalogCard = (page, owner) => providerProfileCard(page)
   .filter({ has: page.locator('.provider-profile-card-title', { hasText: named(owner.name) }) });
 
 async function reportDialogSubmit(page, reasonText) {
@@ -228,9 +233,9 @@ test.describe('Provider Profile flow', () => {
     await expect(emptyProfileText(page)).toBeVisible({ timeout: 5000 });
     await screenshot(page, 'provider-profile-empty-state');
 
-    await page.locator('.account-overlay').getByRole('button', { name: 'Create Profile' }).click();
+    await accountOverlay(page).getByRole('button', { name: 'Create Profile' }).click();
 
-    await page.locator('.account-overlay').getByRole('radio', { name: 'MASTER' }).first().click();
+    await accountOverlay(page).getByRole('radio', { name: 'MASTER' }).first().click();
     await fillAbout(page, 'Professional electronics repair and installation services.');
     await selectCategory(page, category.name);
     await selectCity(page, city.name);
@@ -250,7 +255,7 @@ test.describe('Provider Profile flow', () => {
       await phoneField.fill('not-a-phone');
       await telegramField.fill('a');
       await viberField.fill('123');
-      await page.locator('.account-overlay').getByRole('button', { name: 'Save', exact: true }).click();
+      await accountOverlay(page).getByRole('button', { name: 'Save', exact: true }).click();
       await expect(page.locator('vaadin-notification-container')).toContainText('Validation failed', { timeout: 5000 });
       await closeNotification(page);
       await screenshot(page, 'provider-profile-contact-validation-error');
@@ -259,9 +264,10 @@ test.describe('Provider Profile flow', () => {
       await telegramField.fill('electro_master');
       await viberField.fill('+380509876543');
     });
+
     await screenshot(page, 'provider-profile-create-filled');
 
-    await page.locator('.account-overlay').getByRole('button', { name: 'Save', exact: true }).click();
+    await accountOverlay(page).getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
     await closeNotification(page);
 
@@ -313,10 +319,10 @@ test.describe('Provider Profile flow', () => {
     await runOpenSettingsFlow(page);
     await openProviderProfileTab(page);
 
-    await page.locator('.account-overlay').getByRole('button', { name: 'Create Profile' }).click();
-    await page.locator('.account-overlay').getByRole('radio', { name: 'MASTER' }).first().click();
+    await accountOverlay(page).getByRole('button', { name: 'Create Profile' }).click();
+    await accountOverlay(page).getByRole('radio', { name: 'MASTER' }).first().click();
     await fillAbout(page, 'Minimal profile: kind and about only, no category, no city.');
-    await page.locator('.account-overlay').getByRole('button', { name: 'Save', exact: true }).click();
+    await accountOverlay(page).getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
     await closeNotification(page);
 
@@ -343,7 +349,7 @@ test.describe('Provider Profile flow', () => {
     });
 
     await test.step('clean up — delete the minimal profile', async () => {
-      await page.locator('.account-overlay').getByRole('button', { name: 'Delete', exact: true }).click();
+      await accountOverlay(page).getByRole('button', { name: 'Delete', exact: true }).click();
       await confirmDeleteDialog(page);
       await expect(emptyProfileText(page)).toBeVisible({ timeout: 5000 });
     });
@@ -379,7 +385,7 @@ test.describe('Provider Profile flow', () => {
     // Re-fetched from the server on this fresh login -- proves the saved data actually persisted.
     await expect(page.locator('.account-overlay .provider-profile-category-chip')).toContainText(electronics.name, { timeout: 5000 });
 
-    await page.locator('.account-overlay').getByRole('button', { name: 'Edit', exact: true }).click();
+    await accountOverlay(page).getByRole('button', { name: 'Edit', exact: true }).click();
 
     // The regression check: the combo box must show the previously-saved category, not empty.
     await expect(async () => {
@@ -390,10 +396,10 @@ test.describe('Provider Profile flow', () => {
     await expect(cityCombo(page)).toHaveValue(city.name, { timeout: 5000 });
     await screenshot(page, 'provider-profile-edit-prefilled');
 
-    await page.locator('.account-overlay').getByRole('radio', { name: 'SHOP' }).first().click();
+    await accountOverlay(page).getByRole('radio', { name: 'SHOP' }).first().click();
     await selectCategory(page, vehicles.name);
 
-    await page.locator('.account-overlay').getByRole('button', { name: 'Save', exact: true }).click();
+    await accountOverlay(page).getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
     await closeNotification(page);
 
@@ -408,11 +414,11 @@ test.describe('Provider Profile flow', () => {
 
     await test.step('phone-only edit — records its own activity entry showing just the Phone field changed', async () => {
       await closeEntityActivity(page, 'parent');
-      await page.locator('.account-overlay').getByRole('button', { name: 'Edit', exact: true }).click();
+      await accountOverlay(page).getByRole('button', { name: 'Edit', exact: true }).click();
       const phoneField = page.getByTestId('provider-profile-phone-field').locator('input');
       await phoneField.fill('+380507654321');
       await phoneField.blur(); // TextField syncs on blur, not per keystroke -- no other field to blur into here
-      await page.locator('.account-overlay').getByRole('button', { name: 'Save', exact: true }).click();
+      await accountOverlay(page).getByRole('button', { name: 'Save', exact: true }).click();
       await expect(page.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
       await closeNotification(page);
 
@@ -492,7 +498,7 @@ test.describe('Provider Profile flow', () => {
       await expect(counters.locator('.provider-profile-contact-views-viber')).toContainText(/\+380509876543 \(\d+\)/);
       await screenshot(page, 'provider-profile-contacts-owner-view');
 
-      await page.locator('.account-overlay').getByRole('button', { name: 'Edit', exact: true }).click();
+      await accountOverlay(page).getByRole('button', { name: 'Edit', exact: true }).click();
       const contactsCard = page.locator('.account-overlay .overlay__form-fields-card')
         .filter({ has: page.getByTestId('provider-profile-phone-field') });
       await expect(contactsCard.locator('.overlay__form-card-header')).toHaveText(contactsHeader, { timeout: 5000 });
@@ -501,7 +507,7 @@ test.describe('Provider Profile flow', () => {
       await expect(page.getByTestId('provider-profile-viber-field').locator('input')).toHaveValue('+380509876543');
       await screenshot(page, 'provider-profile-contacts-owner-edit');
 
-      await page.locator('.account-overlay').getByRole('button', { name: 'Cancel', exact: true }).click();
+      await accountOverlay(page).getByRole('button', { name: 'Cancel', exact: true }).click();
       await runCloseSettingsFlow(page);
     });
 
@@ -540,12 +546,12 @@ test.describe('Provider Profile flow', () => {
       await expect(counters.locator('.provider-profile-contact-views-phone')).toContainText(/\+380507654321 \(\d+\)/);
       await screenshot(adminPage, 'provider-profile-contacts-admin-view');
 
-      await adminPage.locator('.account-overlay').getByRole('button', { name: 'Edit', exact: true }).click();
+      await accountOverlay(adminPage).getByRole('button', { name: 'Edit', exact: true }).click();
       await expect(adminPage.getByTestId('provider-profile-phone-field').locator('input')).toHaveValue('+380507654321', { timeout: 5000 });
       await expect(adminPage.getByTestId('provider-profile-telegram-field').locator('input')).toHaveValue('electro_master');
       await screenshot(adminPage, 'provider-profile-contacts-admin-edit');
 
-      await adminPage.locator('.account-overlay').getByRole('button', { name: 'Cancel', exact: true }).click();
+      await accountOverlay(adminPage).getByRole('button', { name: 'Cancel', exact: true }).click();
       await closeUserOverlay(adminPage);
     });
   });
@@ -566,13 +572,13 @@ test.describe('Provider Profile flow', () => {
     await runOpenUserViewDialogFlow(page, owner.email);
 
     // Name tab (default) — no Edit button.
-    await expect(page.locator('.account-overlay').getByRole('button', { name: 'Edit' })).toHaveCount(0, { timeout: 5000 });
+    await expect(accountOverlay(page).getByRole('button', { name: 'Edit' })).toHaveCount(0, { timeout: 5000 });
     await screenshot(page, 'provider-profile-moderator-name-readonly');
 
     // Settings tab — no Save/Discard, page-size field read-only.
-    await page.locator('.account-overlay').getByRole('tab', { name: 'Settings' }).click();
-    await expect(page.locator('.account-overlay').getByRole('button', { name: 'Save' })).toHaveCount(0, { timeout: 5000 });
-    await expect(page.locator('.account-overlay').getByRole('button', { name: 'Discard changes' })).toHaveCount(0, { timeout: 5000 });
+    await accountOverlay(page).getByRole('tab', { name: 'Settings' }).click();
+    await expect(accountOverlay(page).getByRole('button', { name: 'Save' })).toHaveCount(0, { timeout: 5000 });
+    await expect(accountOverlay(page).getByRole('button', { name: 'Discard changes' })).toHaveCount(0, { timeout: 5000 });
     await expect(page.locator('.account-overlay vaadin-integer-field').first()).toHaveJSProperty('readonly', true, { timeout: 5000 });
     await screenshot(page, 'provider-profile-moderator-settings-readonly');
     await expect(page.getByRole('tab', { name: 'API keys' })).toHaveCount(0);
@@ -582,7 +588,7 @@ test.describe('Provider Profile flow', () => {
     const moderatorChips = page.locator('.account-overlay .provider-profile-category-chip');
     await expect(moderatorChips).toHaveCount(2, { timeout: 5000 });
     await expect(moderatorChips).toContainText([electronics.name, vehicles.name]);
-    await expect(page.locator('.account-overlay').getByRole('button', { name: 'Edit' })).toHaveCount(0, { timeout: 5000 });
+    await expect(accountOverlay(page).getByRole('button', { name: 'Edit' })).toHaveCount(0, { timeout: 5000 });
     await screenshot(page, 'provider-profile-moderator-providerprofile-readonly');
 
     await closeUserOverlay(page);
@@ -601,14 +607,14 @@ test.describe('Provider Profile flow', () => {
 
     await expect(emptyProfileText(adminPage)).toBeVisible({ timeout: 5000 });
 
-    await adminPage.locator('.account-overlay').getByRole('button', { name: 'Create Profile' }).click();
+    await accountOverlay(adminPage).getByRole('button', { name: 'Create Profile' }).click();
     // SUPPORT is only offered to a privileged actor -- exercises that branch, untouched elsewhere in this file.
-    await adminPage.locator('.account-overlay').getByRole('radio', { name: 'SUPPORT' }).first().click();
+    await accountOverlay(adminPage).getByRole('radio', { name: 'SUPPORT' }).first().click();
     await fillAbout(adminPage, 'Admin-managed support profile for the user.');
     await selectCategory(adminPage, vehicles.name);
     await selectCity(adminPage, city.name);
 
-    await adminPage.locator('.account-overlay').getByRole('button', { name: 'Save', exact: true }).click();
+    await accountOverlay(adminPage).getByRole('button', { name: 'Save', exact: true }).click();
     await expect(adminPage.locator('vaadin-notification-container')).toContainText('Provider profile saved', { timeout: 5000 });
     await closeNotification(adminPage);
 
@@ -618,7 +624,7 @@ test.describe('Provider Profile flow', () => {
     await screenshot(adminPage, 'provider-profile-admin-via-grid-view');
 
     // Re-edit through this same grid-entry path -- the pre-fill regression fix applies here too.
-    await adminPage.locator('.account-overlay').getByRole('button', { name: 'Edit', exact: true }).click();
+    await accountOverlay(adminPage).getByRole('button', { name: 'Edit', exact: true }).click();
     await expect(async () => {
       const names = await selectedCategoryNames(adminPage);
       expect(names).toContain(vehicles.name);
@@ -627,7 +633,7 @@ test.describe('Provider Profile flow', () => {
 
     // Cancel from Provider Profile Edit routes back to View first (same overlay stays open,
     // same as afterDiscard()'s design) -- closeUserOverlay only fully exits from View.
-    await adminPage.locator('.account-overlay').getByRole('button', { name: 'Cancel', exact: true }).click();
+    await accountOverlay(adminPage).getByRole('button', { name: 'Cancel', exact: true }).click();
     await closeUserOverlay(adminPage);
 
     await test.step('non-privileged owner edits the SUPPORT profile — SUPPORT stays visible but disabled, MASTER/SHOP remain enabled', async () => {
@@ -637,7 +643,7 @@ test.describe('Provider Profile flow', () => {
 
       // Edit the profile to confirm SUPPORT stays selectable-as-is (disabled, not removed) so the
       // Binder can still represent the actor's real current value.
-      await page.locator('.account-overlay').getByRole('button', { name: 'Edit', exact: true }).click();
+      await accountOverlay(page).getByRole('button', { name: 'Edit', exact: true }).click();
 
       await expect(page.locator('.account-overlay vaadin-radio-button').filter({ hasText: 'MASTER' })).toHaveCount(1, { timeout: 5000 });
       await expect(page.locator('.account-overlay vaadin-radio-button').filter({ hasText: 'SHOP' })).toHaveCount(1, { timeout: 5000 });
@@ -648,7 +654,7 @@ test.describe('Provider Profile flow', () => {
       await expect(supportRadio).toHaveJSProperty('disabled', true);
       await screenshot(page, 'provider-catalog-support-disabled-not-offered');
 
-      await page.locator('.account-overlay').getByRole('button', { name: 'Cancel', exact: true }).click();
+      await accountOverlay(page).getByRole('button', { name: 'Cancel', exact: true }).click();
     });
   });
 
@@ -688,7 +694,7 @@ test.describe('Provider Profile flow', () => {
     await applyCatalogFilter(page, { categories: bothCategories });
 
     const container = page.locator('.provider-profile-container');
-    const cards = container.locator('.provider-profile-card');
+    const cards = providerProfileCard(container);
     await expect(cards).toHaveCount(4, { timeout: 10000 });
     await expect(container.locator('.provider-profile-kind-badge--shop')).toHaveCount(2);
     await expect(container.locator('.provider-profile-kind-badge--support')).toHaveCount(1);
@@ -890,54 +896,51 @@ test.describe('Provider Profile flow', () => {
       const overlay = page.locator('.provider-profile-catalog-overlay');
       await overlay.waitFor({ timeout: 5000 });
 
-      await test.step('feedback panel — logged-in administrator leaves a review on the profile then edits it in place, list entry and header aggregate update immediately', async () => {
-        const feedbackPanel = overlay.locator('.feedback-panel');
-        await expect(feedbackPanel.locator('.feedback-empty')).toBeVisible({ timeout: 5000 });
+      // feedback panel — logged-in administrator leaves a review on the profile then edits it in place, list entry and header aggregate update immediately
+      const feedbackPanel = feedbackPanelIn(overlay);
+      await expect(feedbackPanel.locator('.feedback-empty')).toBeVisible({ timeout: 5000 });
 
-        await feedbackPanel.getByRole('button', { name: 'Add feedback' }).click();
-        await feedbackPanel.locator('.star-rating-field [data-rating="4"]').click();
-        await feedbackPanel.getByTestId('feedback-form-field-text').locator('textarea').fill('Great master, highly recommend!');
-        await expect(feedbackPanel.getByTestId('feedback-form-field-text').locator('textarea')).toHaveAttribute('maxlength', '2000');
-        await feedbackPanel.getByRole('button', { name: 'Leave feedback' }).click();
-        await page.locator('vaadin-notification-card').filter({ hasText: /thanks for your feedback/i }).first().waitFor({ timeout: 5000 });
-        await closeNotification(page);
+      await feedbackPanel.getByRole('button', { name: 'Add feedback' }).click();
+      await feedbackPanel.locator('.star-rating-field [data-rating="4"]').click();
+      await feedbackPanel.getByTestId('feedback-form-field-text').locator('textarea').fill('Great master, highly recommend!');
+      await expect(feedbackPanel.getByTestId('feedback-form-field-text').locator('textarea')).toHaveAttribute('maxlength', '2000');
+      await feedbackPanel.getByRole('button', { name: 'Leave feedback' }).click();
+      await page.locator('vaadin-notification-card').filter({ hasText: /thanks for your feedback/i }).first().waitFor({ timeout: 5000 });
+      await closeNotification(page);
 
-        const entry = feedbackPanel.locator('.feedback-entry').first();
-        await expect(entry.locator('.feedback-entry-rating')).toHaveText('★★★★☆', { timeout: 5000 });
-        await expect(entry.locator('.feedback-entry-text')).toContainText('Great master, highly recommend!');
-        await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1 feedback entries)');
-        await expect(feedbackPanel.locator('.feedback-header-avg')).toContainText('4.0');
-        await screenshot(page, 'provider-catalog-feedback-panel-submitted');
+      const entry = feedbackPanel.locator('.feedback-entry').first();
+      await expect(entry.locator('.feedback-entry-rating')).toHaveText('★★★★☆', { timeout: 5000 });
+      await expect(entry.locator('.feedback-entry-text')).toContainText('Great master, highly recommend!');
+      await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1 feedback entries)');
+      await expect(feedbackPanel.locator('.feedback-header-avg')).toContainText('4.0');
+      await screenshot(page, 'provider-catalog-feedback-panel-submitted');
 
-        const editButton = entry.locator('.feedback-entry-edit-icon');
-        await expect(editButton).toBeVisible({ timeout: 5000 });
-        await editButton.click();
+      const editButton = entry.locator('.feedback-entry-edit-icon');
+      await expect(editButton).toBeVisible({ timeout: 5000 });
+      await editButton.click();
 
-        const inlineTextArea = entry.getByTestId('feedback-entry-edit-field-text').locator('textarea');
-        await expect(inlineTextArea).toHaveValue('Great master, highly recommend!', { timeout: 5000 });
+      const inlineTextArea = entry.getByTestId('feedback-entry-edit-field-text').locator('textarea');
+      await expect(inlineTextArea).toHaveValue('Great master, highly recommend!', { timeout: 5000 });
 
-        await entry.locator('.feedback-entry-edit-rating [data-rating="5"]').click();
-        await inlineTextArea.fill('Updated: even better than I thought!');
-        await entry.locator('.feedback-entry-save-icon').click();
-        await page.locator('vaadin-notification-card').filter({ hasText: /thanks for your feedback/i }).first().waitFor({ timeout: 5000 });
-        await closeNotification(page);
+      await entry.locator('.feedback-entry-edit-rating [data-rating="5"]').click();
+      await inlineTextArea.fill('Updated: even better than I thought!');
+      await entry.locator('.feedback-entry-save-icon').click();
+      await page.locator('vaadin-notification-card').filter({ hasText: /thanks for your feedback/i }).first().waitFor({ timeout: 5000 });
+      await closeNotification(page);
 
-        await expect(entry.locator('.feedback-entry-rating')).toHaveText('★★★★★', { timeout: 5000 });
-        await expect(entry.locator('.feedback-entry-text')).toContainText('Updated: even better than I thought!');
-        await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1 feedback entries)');
-        await expect(feedbackPanel.locator('.feedback-header-avg')).toContainText('5.0');
-        await screenshot(page, 'provider-catalog-feedback-panel-edited');
-      });
+      await expect(entry.locator('.feedback-entry-rating')).toHaveText('★★★★★', { timeout: 5000 });
+      await expect(entry.locator('.feedback-entry-text')).toContainText('Updated: even better than I thought!');
+      await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1 feedback entries)');
+      await expect(feedbackPanel.locator('.feedback-header-avg')).toContainText('5.0');
+      await screenshot(page, 'provider-catalog-feedback-panel-edited');
 
-      await test.step('reply panel — non-owner (administrator) sees no reply trigger on the profile owner\'s feedback entry', async () => {
-        const feedbackPanel = overlay.locator('.feedback-panel');
-        await assertRightAligned(expect, feedbackPanel.locator('.entity-actions-column').first(), feedbackPanel.locator('.feedback-entry-row').first(), 20);
+      // reply panel — non-owner (administrator) sees no reply trigger on the profile owner's feedback entry
+      await assertRightAligned(expect, feedbackPanel.locator('.entity-actions-column').first(), feedbackPanel.locator('.feedback-entry-row').first(), 20);
 
-        const replyPanel = feedbackPanel.locator('.feedback-reply-panel').first();
-        await assertAbsent(expect, replyPanel.locator('.feedback-reply-trigger'));
-        await assertAbsent(expect, replyPanel.locator('.feedback-reply-composer'));
-        await screenshot(page, 'provider-catalog-reply-panel-non-owner-no-trigger');
-      });
+      const replyPanel = feedbackPanel.locator('.feedback-reply-panel').first();
+      await assertAbsent(expect, replyPanel.locator('.feedback-reply-trigger'));
+      await assertAbsent(expect, replyPanel.locator('.feedback-reply-composer'));
+      await screenshot(page, 'provider-catalog-reply-panel-non-owner-no-trigger');
 
       await overlay.locator('.overlay__view-edit').click();
       await assertAbsent(expect, overlay.locator('.account-overlay-tabs'));
@@ -968,7 +971,7 @@ test.describe('Provider Profile flow', () => {
     const ownOverlay = page.locator('.provider-profile-catalog-overlay');
     await ownOverlay.waitFor({ timeout: 10000 });
 
-    const feedbackPanel = ownOverlay.locator('.feedback-panel');
+    const feedbackPanel = feedbackPanelIn(ownOverlay);
     const replyPanel = feedbackPanel.locator('.feedback-reply-panel').first();
 
     await replyPanel.getByRole('button', { name: 'Reply', exact: true }).click();
@@ -1090,7 +1093,7 @@ test.describe('Provider Profile flow', () => {
       await anonymousPage.goto(deepLink(providerId));
       const anonymousOverlay = anonymousPage.locator('.provider-profile-catalog-overlay');
       await anonymousOverlay.waitFor({ timeout: 10000 });
-      const feedbackPanel = anonymousOverlay.locator('.feedback-panel');
+      const feedbackPanel = feedbackPanelIn(anonymousOverlay);
       await expect(feedbackPanel.locator('.feedback-empty')).toBeVisible({ timeout: 5000 });
       await expect(feedbackPanel.locator('.feedback-header-count')).toHaveCount(0);
       await assertAbsent(expect, feedbackPanel.locator('.feedback-form-submit'));
@@ -1152,7 +1155,7 @@ test.describe('Provider Profile flow', () => {
     await openProvidersTab(page);
     await applyCatalogFilter(page, { categories: [category] });
 
-    await expect(page.locator('.provider-profile-card')).toHaveCount(2, { timeout: 10000 });
+    await expect(providerProfileCard(page)).toHaveCount(2, { timeout: 10000 });
     const card = page.locator('.provider-profile-card--shop').filter({ has: page.locator('.provider-profile-card-title', { hasText: named(own.owner.name) }) });
     await card.waitFor({ timeout: 5000 });
     await card.hover();
@@ -1165,7 +1168,7 @@ test.describe('Provider Profile flow', () => {
     // The other shop's card remains -- only the own card is gone, so the scoped catalog drops from
     // 2 to 1 and exactly one SHOP card survives.
     await applyCatalogFilter(page, { categories: [category] });
-    await expect(page.locator('.provider-profile-card')).toHaveCount(1, { timeout: 5000 });
+    await expect(providerProfileCard(page)).toHaveCount(1, { timeout: 5000 });
     await expect(page.locator('.provider-profile-card--shop')).toHaveCount(1, { timeout: 5000 });
     await screenshot(page, 'provider-catalog-deleted');
 
@@ -1191,7 +1194,7 @@ test.describe('Provider Profile flow', () => {
     await page.goto(deepLink(master.profileId));
     const overlay = page.locator('.provider-profile-catalog-overlay');
     await overlay.waitFor({ timeout: 10000 });
-    const feedbackPanel = overlay.locator('.feedback-panel');
+    const feedbackPanel = feedbackPanelIn(overlay);
     const replyPanel = feedbackPanel.locator('.feedback-reply-panel').first();
 
     await replyPanel.locator('.feedback-reply-report-icon').click();
@@ -1214,13 +1217,13 @@ test.describe('Provider Profile flow', () => {
     await page.getByRole('tab', { name: /moderation/i }).click();
     await scopeModerationQueue(page, `${tag}:`);
     const list = page.locator('.moderation-list');
-    const feedbackCard = list.locator('.moderation-card').filter({ hasText: 'Reportable feedback text.' });
-    const replyCard = list.locator('.moderation-card').filter({ hasText: 'Reportable reply text.' });
-    await expect(list.locator('.moderation-card')).toHaveCount(2, { timeout: 5000 });
+    const feedbackCard = moderationCard(list).filter({ hasText: 'Reportable feedback text.' });
+    const replyCard = moderationCard(list).filter({ hasText: 'Reportable reply text.' });
+    await expect(moderationCard(list)).toHaveCount(2, { timeout: 5000 });
     await expect(feedbackCard).toBeVisible({ timeout: 5000 });
     await expect(replyCard).toBeVisible({ timeout: 5000 });
-    await expect(list.locator('.moderation-card').filter({ hasText: 'fake review' })).toBeVisible({ timeout: 5000 });
-    await expect(list.locator('.moderation-card').filter({ hasText: 'rude reply' })).toBeVisible({ timeout: 5000 });
+    await expect(moderationCard(list).filter({ hasText: 'fake review' })).toBeVisible({ timeout: 5000 });
+    await expect(moderationCard(list).filter({ hasText: 'rude reply' })).toBeVisible({ timeout: 5000 });
     await screenshot(page, 'moderation-queue-shows-both-merged');
 
     // Clicking a card's profile link opens the overlay in place (switches to Providers tab); closing it returns to Moderation.
@@ -1298,30 +1301,30 @@ test.describe('Provider Profile flow', () => {
     await page.getByRole('tab', { name: /moderation/i }).click();
     const list = page.locator('.moderation-list');
     await scopeModerationQueue(page, `${tag}:`);
-    await expect(list.locator('.moderation-card')).toHaveCount(7, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(7, { timeout: 8000 });
     for (const text of otherReviewerTexts) {
-      await expect(list.locator('.moderation-card').filter({ hasText: text })).toBeVisible({ timeout: 5000 });
+      await expect(moderationCard(list).filter({ hasText: text })).toBeVisible({ timeout: 5000 });
     }
     for (let i = 1; i <= feedbackTexts.length; i++) {
-      await expect(list.locator('.moderation-card').filter({ hasText: `Scroll test reply ${i}.` })).toBeVisible({ timeout: 5000 });
+      await expect(moderationCard(list).filter({ hasText: `Scroll test reply ${i}.` })).toBeVisible({ timeout: 5000 });
     }
     await expect(page.locator('.moderation-view-layout .pagination-count')).toContainText('7', { timeout: 5000 });
 
     // ── filter controls: type, author, reason text -- each combined with the own-items reason scope ──
     await scopeModerationQueue(page, `${tag}:`, () => fillRole(page, MOD_BLOCK, 'COMMENT', 'moderation-filter-type'));
-    await expect(list.locator('.moderation-card')).toHaveCount(4, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(4, { timeout: 8000 });
     await screenshot(page, 'moderation-filter-type-comment');
 
     await scopeModerationQueue(page, `${tag}:`, () => fillText(page, MOD_BLOCK, 'Author', master.owner.name));
-    await expect(list.locator('.moderation-card')).toHaveCount(4, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(4, { timeout: 8000 });
     await screenshot(page, 'moderation-filter-author');
 
     await scopeModerationQueue(page, `${tag}: flagged reply`);
-    await expect(list.locator('.moderation-card')).toHaveCount(4, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(4, { timeout: 8000 });
     await screenshot(page, 'moderation-filter-reason');
 
     await scopeModerationQueue(page, `${tag}:`);
-    await expect(list.locator('.moderation-card')).toHaveCount(7, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(7, { timeout: 8000 });
 
     // ── pagination: real multi-page navigation using the minimum allowed page size (5 -- below
     // PageSizeLimits.MIN_PAGE_SIZE is rejected, so 5+2 is the smallest real split for 7 items) ──
@@ -1332,57 +1335,57 @@ test.describe('Provider Profile flow', () => {
     await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
     await scopeModerationQueue(page, `${tag}:`);
 
-    await expect(list.locator('.moderation-card')).toHaveCount(5, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(5, { timeout: 8000 });
     await expect(page.locator('.moderation-view-layout .pagination-count')).toContainText('1–5 of 7', { timeout: 5000 });
     await screenshot(page, 'moderation-pagination-page1');
 
     await goToNextPage(page);
-    await expect(list.locator('.moderation-card')).toHaveCount(2, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(2, { timeout: 8000 });
     await expect(page.locator('.moderation-view-layout .pagination-count')).toContainText('6–7 of 7', { timeout: 5000 });
     await screenshot(page, 'moderation-pagination-page2');
 
     await goToPrevPage(page);
-    await expect(list.locator('.moderation-card')).toHaveCount(5, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(5, { timeout: 8000 });
 
     // "First"/"Last" are only enabled from a non-boundary page -- go forward once more before
     // testing each, so neither click ever targets an already-disabled button.
     await goToNextPage(page);
-    await expect(list.locator('.moderation-card')).toHaveCount(2, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(2, { timeout: 8000 });
 
     await goToFirstPage(page);
-    await expect(list.locator('.moderation-card')).toHaveCount(5, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(5, { timeout: 8000 });
 
     await goToLastPage(page);
-    await expect(list.locator('.moderation-card')).toHaveCount(2, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(2, { timeout: 8000 });
     await screenshot(page, 'moderation-pagination-last-page');
 
     await goToFirstPage(page);
-    await expect(list.locator('.moderation-card')).toHaveCount(5, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(5, { timeout: 8000 });
 
     await changePageSizes(page, adsPageSize, providerProfilesPageSize, usersPageSize, moderationDefault);
     await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
     await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
     await scopeModerationQueue(page, `${tag}:`);
     // Restoring the default page size means all 7 items fit on a single page again.
-    await expect(list.locator('.moderation-card')).toHaveCount(7, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(7, { timeout: 8000 });
 
     await list.evaluate(el => el.scrollIntoView({ block: 'end' }));
     await screenshot(page, 'moderation-queue-scrolled-many-items');
 
     // ── status transition: confirming a violation hides its own Confirm-violation button, drops it
     // out of the default (status-unfiltered) view, and the Status filter brings it back ───────────
-    const statusTarget = list.locator('.moderation-card').filter({ hasText: 'Scroll test feedback 1.' });
+    const statusTarget = moderationCard(list).filter({ hasText: 'Scroll test feedback 1.' });
     await expect(statusTarget.getByRole('button', { name: 'Confirm violation', exact: true })).toBeVisible({ timeout: 5000 });
     await statusTarget.getByRole('button', { name: 'Confirm violation', exact: true }).click();
     await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
     await closeNotification(page);
 
-    await expect(list.locator('.moderation-card')).toHaveCount(6, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(6, { timeout: 8000 });
     await screenshot(page, 'moderation-confirmed-item-hidden-by-default');
 
     await scopeModerationQueue(page, `${tag}:`, () => fillRole(page, MOD_BLOCK, 'CONFIRMED_HIDDEN', 'moderation-filter-status'));
-    await expect(list.locator('.moderation-card')).toHaveCount(1, { timeout: 8000 });
-    const confirmedCard = list.locator('.moderation-card').filter({ hasText: 'Scroll test feedback 1.' });
+    await expect(moderationCard(list)).toHaveCount(1, { timeout: 8000 });
+    const confirmedCard = moderationCard(list).filter({ hasText: 'Scroll test feedback 1.' });
     await expect(confirmedCard).toContainText('CONFIRMED_HIDDEN');
     await expect(confirmedCard.getByRole('button', { name: 'Confirm violation', exact: true })).toHaveCount(0);
     await expect(confirmedCard.getByRole('button', { name: 'Approve', exact: true })).toBeVisible();
@@ -1392,7 +1395,7 @@ test.describe('Provider Profile flow', () => {
     await page.locator('vaadin-notification-card').first().waitFor({ timeout: 5000 });
     await closeNotification(page);
     await scopeModerationQueue(page, `${tag}:`);
-    await expect(list.locator('.moderation-card')).toHaveCount(6, { timeout: 8000 });
+    await expect(moderationCard(list)).toHaveCount(6, { timeout: 8000 });
 
     // ── cleanup: approve every own card so the shared queue holds none of this test's items ─────
     let remaining = await list.getByRole('button', { name: 'Approve', exact: true }).count();
@@ -1402,6 +1405,6 @@ test.describe('Provider Profile flow', () => {
       await closeNotification(page);
       remaining = await list.getByRole('button', { name: 'Approve', exact: true }).count();
     }
-    await expect(list.locator('.moderation-card')).toHaveCount(0, { timeout: 5000 });
+    await expect(moderationCard(list)).toHaveCount(0, { timeout: 5000 });
   });
 });

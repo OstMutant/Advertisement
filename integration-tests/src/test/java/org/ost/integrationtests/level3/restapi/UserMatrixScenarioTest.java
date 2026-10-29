@@ -649,6 +649,29 @@ class UserMatrixScenarioTest extends AbstractRestApiScenarioTest {
     }
 
     @Test
+    void admin_deletesSelf_isForbidden() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+
+        mockMvc.perform(delete(USERS + "/" + admin.id())
+                        .header(HttpHeaders.AUTHORIZATION, bearer(admin)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get(USERS + "/" + admin.id())
+                        .header(HttpHeaders.AUTHORIZATION, bearer(admin)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void admin_deletesAnotherAdmin_isNoContent() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        RegisteredUser otherAdmin = adminOf(admin);
+
+        mockMvc.perform(delete(USERS + "/" + otherAdmin.id())
+                        .header(HttpHeaders.AUTHORIZATION, bearer(admin)))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
     void admin_deletesUnknownUser_isNotFound() throws Exception {
         RegisteredUser admin = registerUserAndIssueApiKey("Admin");
 
@@ -670,6 +693,19 @@ class UserMatrixScenarioTest extends AbstractRestApiScenarioTest {
                                 {"name":"Moderator","role":"MODERATOR"}"""))
                 .andExpect(status().isOk());
         return moderator;
+    }
+
+    /** Registers a user and promotes it to ADMIN as the given administrator. */
+    private RegisteredUser adminOf(RegisteredUser admin) throws Exception {
+        RegisteredUser otherAdmin = registerUserAndIssueApiKey("OtherAdmin");
+        String userUrl = USERS + "/" + otherAdmin.id();
+        mockMvc.perform(put(userUrl)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(admin))
+                        .header(HttpHeaders.IF_MATCH, etagOf(admin, userUrl))
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"name":"OtherAdmin","role":"ADMIN"}"""))
+                .andExpect(status().isOk());
+        return otherAdmin;
     }
 
     /** Saves a new name and the USER role for the target as the administrator, so the target gains a history entry. */

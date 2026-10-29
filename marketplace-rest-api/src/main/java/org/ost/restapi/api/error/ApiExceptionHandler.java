@@ -9,6 +9,7 @@ import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
 import org.ost.platform.feedback.model.FeedbackNotModeratableException;
 import org.ost.platform.taxon.model.TaxonNotDeletedException;
+import org.ost.restapi.api.patch.PatchValidationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -103,6 +104,12 @@ public class ApiExceptionHandler {
     public ValidationErrorResponse handleValidation(MethodArgumentNotValidException ex) {
         return new ValidationErrorResponse(ex.getBindingResult().getFieldErrors().stream()
                 .collect(Collectors.toMap(FieldError::getField, fe -> fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "invalid", (a, b) -> a)));
+    }
+
+    @ExceptionHandler(PatchValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ValidationErrorResponse handlePatchValidation(PatchValidationException ex) {
+        return new ValidationErrorResponse(ex.getFieldErrors());
     }
 
     @ExceptionHandler(NoSuchElementException.class)

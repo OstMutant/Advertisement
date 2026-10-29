@@ -59,10 +59,11 @@
 #   TESTCONTAINERS_RYUK_DISABLED /
 #   INTEGRATION_TESTS_POSTGRES_FIXED_PORT are passed through into the container if already set in
 #   the caller's own environment -- same effect as the default/--sandbox workarounds described
-#   under Usage above. GITHUB_ACTIONS -- detected, never set by this script -- flips the
-#   workarounds' own default from on to off (a real CI runner is not usually nested the same way a
-#   local dev machine's Docker Desktop/WSL2 setup is); pass --sandbox explicitly to force them on
-#   there too, if a given CI runner ever needs it.
+#   under Usage above. A port set by the caller also wins over the --sandbox default of 25432, so
+#   two concurrent runs can use different ports. GITHUB_ACTIONS -- detected, never set by this
+#   script -- flips the workarounds' own default from on to off (a real CI runner is not usually
+#   nested the same way a local dev machine's Docker Desktop/WSL2 setup is); pass --sandbox
+#   explicitly to force them on there too, if a given CI runner ever needs it.
 # Input: root build files (pom.xml, mvnw, .mvn, lombok.config, .env), scripts/build-and-test/build.sh
 #   itself (the container's own entry point), each Maven module's own directory, per pom.xml's
 #   <module> list, and docs/api-collections (the REST API module packs the flow runner page and
@@ -156,8 +157,8 @@ trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; emit_agentic_error_blo
 
 if $SANDBOX; then
   TESTCONTAINERS_RYUK_DISABLED=true
-  INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432
-  echo "Applying Docker nested-container workarounds (Ryuk disabled, fixed Postgres port 25432)." \
+  INTEGRATION_TESTS_POSTGRES_FIXED_PORT="${INTEGRATION_TESTS_POSTGRES_FIXED_PORT:-25432}"
+  echo "Applying Docker nested-container workarounds (Ryuk disabled, fixed Postgres port $INTEGRATION_TESTS_POSTGRES_FIXED_PORT)." \
        "Pass --no-sandbox if your Docker setup doesn't need this."
 fi
 

@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -29,14 +30,17 @@ import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.ost.restapi.api.concurrency.ETagUtil;
 import org.ost.restapi.api.paging.PagedResponseBuilder;
 import org.ost.restapi.api.paging.SortQueryParser;
+import org.ost.restapi.api.patch.MergePatchSupport;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -47,6 +51,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
+import tools.jackson.databind.JsonNode;
 
 import java.util.List;
 import java.util.Locale;
@@ -78,6 +83,7 @@ public class AdvertisementApiController {
     private final UserProfileService userProfileService;
     private final ActivityHistorySupport activityHistorySupport;
     private final SnapshotRestoreService snapshotRestoreService;
+    private final MergePatchSupport mergePatchSupport;
 
     @Operation(operationId = "createAdvertisement", summary = "Create an advertisement", description = "categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
@@ -154,10 +160,25 @@ public class AdvertisementApiController {
     public AdvertisementInfoDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
             @RequestBody @Valid AdvertisementWriteRequest request,
             @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(id, request.title(), request.description(),
-                request.adKind(), request.categoryIds(), request.cityTaxonId(), ETagUtil.requireIfMatch(ifMatch));
-        Long savedId = saveService.save(dto, actorId, ref -> null);
-        return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
+        return saveExisting(actorId, id, request, ETagUtil.requireIfMatch(ifMatch));
+    }
+
+    @Operation(operationId = "patchAdvertisement", summary = "Partially update an advertisement",
+            description = "JSON Merge Patch (RFC 7396): send only the fields to change. A field left out keeps its value; null clears categoryIds or cityTaxonId; null on title, description or adKind is 400. categoryIds is replaced as a whole. An unknown field is 400. If-Match must carry the version from the last GET response's ETag (412 when stale); the caller must own the advertisement.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = {
+            @Content(mediaType = "application/merge-patch+json", schema = @Schema(implementation = AdvertisementWriteRequest.class),
+                    examples = @ExampleObject(value = "{\"cityTaxonId\": 5}")),
+            @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = AdvertisementWriteRequest.class),
+                    examples = @ExampleObject(value = "{\"cityTaxonId\": 5}"))})
+    @PatchMapping(value = "/{id}", consumes = {"application/merge-patch+json", MediaType.APPLICATION_JSON_VALUE})
+    @SecurityRequirement(name = "bearerKey")
+    public AdvertisementInfoDto patch(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
+            @RequestBody JsonNode patch,
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        Long version = ETagUtil.requireIfMatch(ifMatch);
+        AdvertisementSnapshotDto current = saveService.findCurrentSnapshot(id).orElseThrow(NoSuchElementException::new);
+        AdvertisementWriteRequest merged = mergePatchSupport.apply(AdvertisementWriteRequest.from(current), patch, AdvertisementWriteRequest.class);
+        return saveExisting(actorId, id, merged, version);
     }
 
     @Operation(operationId = "restoreAdvertisementFromSnapshot", summary = "Restore an advertisement to a recorded state",
@@ -180,6 +201,13 @@ public class AdvertisementApiController {
         saveService.delete(id, actorId, ETagUtil.requireIfMatch(ifMatch));
     }
 
+    private AdvertisementInfoDto saveExisting(Long actorId, Long id, AdvertisementWriteRequest request, Long version) {
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(id, request.title(), request.description(),
+                request.adKind(), request.categoryIds(), request.cityTaxonId(), version);
+        Long savedId = saveService.save(dto, actorId, ref -> null);
+        return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
+    }
+
     /** Caller-writable fields for both create and update -- id/version are server-managed (path variable / If-Match header), never client-supplied here. */
     public record AdvertisementWriteRequest(
             @NotBlank @Size(min = 1, max = AdvertisementSaveDto.TITLE_MAX_LENGTH) String title,
@@ -188,5 +216,10 @@ public class AdvertisementApiController {
             @Size(max = AdvertisementSaveDto.CATEGORY_MAX_COUNT) Set<Long> categoryIds,
             Long cityTaxonId
     ) {
+
+        static AdvertisementWriteRequest from(AdvertisementSnapshotDto snapshot) {
+            return new AdvertisementWriteRequest(snapshot.title(), snapshot.description(), snapshot.adKind(),
+                    Set.copyOf(snapshot.categoryIds()), snapshot.cityTaxonId());
+        }
     }
 }

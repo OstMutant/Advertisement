@@ -4,11 +4,12 @@
 #   collection against the OpenAPI document) and run-flows.sh (the collection's flows against the
 #   running app). A failing test does not stop the other one; a summary names each test's outcome.
 # Usage: bash docs/api-collections/api-collection-tests.sh [--no-check] [--no-flows]
-#     [--base-url <url>] [--flow <name>]... [--help]
+#     [--base-url <url>] [--flow <name>]... [--role <name>] [--help]
 #   --no-check          skip check-collection
 #   --no-flows          skip run-flows
 #   --base-url <url>    base URL passed to both tests (default: each test's own default)
 #   --flow <name>       run only this flow in run-flows; repeat for several
+#   --role <name>       run only the flows of this role in run-flows (user: no administrator needed)
 #   --help              print this text and exit
 # Uses: scripts/check-collection.sh, scripts/run-flows.sh (in this folder's scripts/ subfolder),
 #   docker (via run-node.sh).
@@ -24,11 +25,12 @@ RUN_CHECK=true
 RUN_FLOWS=true
 BASE_URL=""
 FLOWS=()
+ROLE=""
 
 usage() {
   cat <<'EOF'
 Usage: bash docs/api-collections/api-collection-tests.sh [--no-check] [--no-flows]
-                                                         [--base-url <url>] [--flow <name>]... [--help]
+                                                         [--base-url <url>] [--flow <name>]... [--role <name>] [--help]
 
 Runs check-collection and run-flows one after the other.
 
@@ -37,6 +39,7 @@ Options:
   --no-flows          skip run-flows
   --base-url <url>    base URL passed to both tests
   --flow <name>       run only this flow in run-flows; repeat for several
+  --role <name>       run only the flows of this role in run-flows (user: no administrator needed)
   --help              print this text and exit
 
 Exit codes:
@@ -60,6 +63,11 @@ while [ "$#" -gt 0 ]; do
       FLOWS+=("$2")
       shift 2
       ;;
+    --role)
+      if [ "$#" -lt 2 ]; then echo "--role needs a role name" >&2; usage >&2; exit 2; fi
+      ROLE="$2"
+      shift 2
+      ;;
     --help) usage; exit 0 ;;
     *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -79,6 +87,9 @@ fi
 for flow in "${FLOWS[@]}"; do
   FLOW_ARGS+=(--flow "$flow")
 done
+if [ -n "$ROLE" ]; then
+  FLOW_ARGS+=(--role "$ROLE")
+fi
 
 CHECK_RESULT="skipped"
 FLOWS_RESULT="skipped"

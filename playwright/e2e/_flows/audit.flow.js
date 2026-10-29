@@ -13,14 +13,14 @@
  *   runVerifySettingsAfterSignupFlow, runVerifyUserAuditActivityFlow.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
-const { screenshot } = require('../_helpers');
+const { screenshot, accountOverlay } = require('../_helpers');
 const { runOpenUserEditViaListFlow, runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter } = require('./user-management.flow');
-const { openHistory, closeHistory, pageSizeField } = require('./settings.flow');
+const { openHistory, closeHistory, PAGE_SIZE_LABELS } = require('./settings.flow');
 const { openEntityActivity } = require('./entity-activity.flow');
 
 async function runOpenSettingsFlow(page) {
   await page.getByRole('button', { name: /^(settings|налаштування)$/i }).click();
-  await page.locator('.account-overlay').waitFor({ timeout: 5000 });
+  await accountOverlay(page).waitFor({ timeout: 5000 });
 }
 
 async function runCloseSettingsFlow(page) {
@@ -28,7 +28,7 @@ async function runCloseSettingsFlow(page) {
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first()
     .click();
-  await page.locator('.account-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+  await accountOverlay(page).waitFor({ state: 'hidden', timeout: 5000 });
 }
 
 // rows: [{ action, version, actor, changesIncludes, hasUnchangedItem, hasDiff }] — all fields optional
@@ -71,15 +71,17 @@ async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, 
   await runOpenSettingsFlow(page);
 
   // ads, providerProfiles, feedback are ungated (every role); users, timeline, moderation are privileged-only.
-  await expect(page.locator('.settings-overlay-content').getByRole('spinbutton')).toHaveCount(privileged ? 6 : 3, { timeout: 5000 });
-  const adsValue = await pageSizeField(page, 'ads').inputValue();
-  const providersValue = await pageSizeField(page, 'providerProfiles').inputValue();
-  const feedbackValue = await pageSizeField(page, 'feedback').inputValue();
+  const content = page.locator('.settings-overlay-content');
+  const sizeOf = key => content.getByRole('spinbutton', { name: PAGE_SIZE_LABELS[key] }).inputValue();
+  await expect(content.getByRole('spinbutton')).toHaveCount(privileged ? 6 : 3, { timeout: 5000 });
+  const adsValue = await sizeOf('ads');
+  const providersValue = await sizeOf('providerProfiles');
+  const feedbackValue = await sizeOf('feedback');
   let usersValue, timelineValue, moderationValue;
   if (privileged) {
-    usersValue = await pageSizeField(page, 'users').inputValue();
-    timelineValue = await pageSizeField(page, 'timeline').inputValue();
-    moderationValue = await pageSizeField(page, 'moderation').inputValue();
+    usersValue = await sizeOf('users');
+    timelineValue = await sizeOf('timeline');
+    moderationValue = await sizeOf('moderation');
   }
   await screenshot(page, `${screenshotName}-defaults`);
 

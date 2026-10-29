@@ -35,7 +35,7 @@ drift apart.
 
 ## Entry points
 
-- [`api-collection-tests.sh`](api-collection-tests.sh) runs `check-collection` and then `run-flows`, one after the other.
+- [`api-collection-tests.sh`](api-collection-tests.sh) runs `check-collection` and then `run-flows`, one after the other. With `--role user` it runs only the flows that need no administrator.
 - [`scripts/check-collection.sh`](scripts/check-collection.sh) checks the collection against the OpenAPI document of the running app.
 - [`scripts/run-flows.sh`](scripts/run-flows.sh) runs the collection's flows against the running app, step by step.
 

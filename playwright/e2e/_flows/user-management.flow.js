@@ -19,7 +19,7 @@
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
 const { expect } = require('@playwright/test');
-const { screenshot, assertComputedColor, assertRightAligned } = require('../_helpers');
+const { screenshot, assertComputedColor, assertRightAligned, accountOverlay } = require('../_helpers');
 const { closeNotification } = require('../_helpers');
 const { openEntityActivity, closeEntityActivity } = require('./entity-activity.flow');
 
@@ -120,8 +120,8 @@ async function waitForFilteredUser(page, name) {
  */
 async function runOpenUserEditViaViewFlow(page, email, name) {
   await runOpenUserViewDialogFlow(page, email, name);
-  await page.locator('.account-overlay').getByRole('button', { name: /Edit|Редагувати/ }).click();
-  await page.locator('.account-overlay').getByTestId('user-dialog-field-role-label').waitFor({ timeout: 5000 });
+  await accountOverlay(page).getByRole('button', { name: /Edit|Редагувати/ }).click();
+  await accountOverlay(page).getByTestId('user-dialog-field-role-label').waitFor({ timeout: 5000 });
   await expect(page.locator('.account-overlay .overlay__breadcrumb-back')).toHaveCount(2, { timeout: 3000 });
   await screenshot(page, 'user-management-promote-dialog-opened');
 }
@@ -142,7 +142,7 @@ async function runOpenUserEditViaListFlow(page, email, name) {
   await editButton.click();
   await page.locator('.account-overlay.overlay--visible').waitFor({ timeout: 5000 });
   await expect(page.locator('.account-overlay .overlay__breadcrumb-back')).toHaveCount(1, { timeout: 3000 });
-  await page.locator('.account-overlay').getByTestId('user-dialog-field-role-label').waitFor({ timeout: 5000 });
+  await accountOverlay(page).getByTestId('user-dialog-field-role-label').waitFor({ timeout: 5000 });
   await screenshot(page, 'user-management-promote-dialog-opened');
 }
 
@@ -154,11 +154,11 @@ async function runOpenUserEditViaListFlow(page, email, name) {
  */
 async function runFillUserRoleFlow(page, { role, name }) {
   if (name != null) {
-    const nameField = page.locator('.account-overlay').getByTestId('user-dialog-field-name-label').getByRole('textbox');
+    const nameField = accountOverlay(page).getByTestId('user-dialog-field-name-label').getByRole('textbox');
     await nameField.fill(name);
   }
   if (role != null) {
-    const roleInput = page.locator('.account-overlay').getByTestId('user-dialog-field-role-label').getByRole('combobox');
+    const roleInput = accountOverlay(page).getByTestId('user-dialog-field-role-label').getByRole('combobox');
     await roleInput.click();
     await roleInput.fill(role);
     await page.keyboard.press('ArrowDown');
@@ -176,7 +176,7 @@ async function runFillUserRoleFlow(page, { role, name }) {
  * @returns {Promise<void>}
  */
 async function runSaveUserEditFlow(page, expect, role) {
-  const saveButton = page.locator('.account-overlay').getByRole('button', { name: /Save|Зберегти/i });
+  const saveButton = accountOverlay(page).getByRole('button', { name: /Save|Зберегти/i });
   await expect(saveButton).toBeEnabled({ timeout: 5000 });
   await saveButton.click();
   await expect(page.locator('vaadin-notification-container')).toContainText(
@@ -197,7 +197,7 @@ async function closeUserOverlayFromEdit(page) {
   await page.locator('.account-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first().click();
-  await page.locator('.account-overlay').getByRole('button', { name: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
+  await accountOverlay(page).getByRole('button', { name: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
   await closeUserOverlay(page);
 }
 
@@ -254,7 +254,7 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   await page.locator('.account-overlay vaadin-button')
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first().click();
-  await page.locator('.account-overlay').getByRole('button', { name: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
+  await accountOverlay(page).getByRole('button', { name: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
 
   // Check role in VIEW mode
   await expect(page.locator('.account-overlay .user-role-badge')).toContainText(role);

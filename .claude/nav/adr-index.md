@@ -93,6 +93,9 @@ yet — not zero.
 | ADR-007 (integration-tests) | integration-tests | Accepted |  |  | `run.sh` auto-detects starter staleness instead of a manual skip-`-am` flag |
 | ADR-008 (integration-tests) | integration-tests | Accepted |  |  | Test package-private/private internal logic through its public entry point, never through a same-package trick or a widened production visibility |
 | ADR-010 (integration-tests) | integration-tests | Accepted |  |  | `@Tag("testcontainers")` on the shared base class + Surefire `excludedGroups`; `SharedEnvConfig` gains a testable overload |
+| ADR-089 (marketplace-app) | marketplace-app | Accepted |  | 1 | External REST API partial updates use JSON Merge Patch applied over the PUT write record |
+| ADR-089 (marketplace-app) | marketplace-rest-api | Accepted |  | 1 | External REST API partial updates use JSON Merge Patch applied over the PUT write record |
+| ADR-089 (marketplace-app) | marketplace-orchestrator | Accepted |  | 1 | External REST API partial updates use JSON Merge Patch applied over the PUT write record |
 | ADR-088 (marketplace-app) | marketplace-app | Accepted |  | 1 | API keys tab in the account overlay — own keys only, revoked keys behind a toggle, revoke behind a confirmation, no audit entry |
 | ADR-088 (marketplace-app) | apikey-spring-boot-starter | Accepted |  | 1 | API keys tab in the account overlay — own keys only, revoked keys behind a toggle, revoke behind a confirmation, no audit entry |
 | ADR-087 (marketplace-app) | marketplace-app | Accepted |  | 2 | External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit |

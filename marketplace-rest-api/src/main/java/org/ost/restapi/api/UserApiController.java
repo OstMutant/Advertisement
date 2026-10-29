@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,9 +37,11 @@ import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.ost.restapi.api.concurrency.ETagUtil;
 import org.ost.restapi.api.paging.PagedResponseBuilder;
 import org.ost.restapi.api.paging.SortQueryParser;
+import org.ost.restapi.api.patch.MergePatchSupport;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -55,6 +58,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
+import tools.jackson.databind.JsonNode;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -78,6 +82,7 @@ public class UserApiController {
     private final UserDeleteService userDeleteService;
     private final ActivityHistorySupport activityHistorySupport;
     private final SnapshotRestoreService snapshotRestoreService;
+    private final MergePatchSupport mergePatchSupport;
 
     @Operation(operationId = "registerUser", summary = "Register a new account", description = "Public, no authentication needed. Rate-limited by client IP (5 failed attempts / 15 min). Follow up with POST /api/api-keys (Basic auth) to obtain a bearer key for the other endpoints.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
@@ -163,7 +168,7 @@ public class UserApiController {
         return ETagUtil.withVersion(ResponseEntity.ok(), restored.version()).body(restored);
     }
 
-    @Operation(operationId = "deleteUser", summary = "Delete a user", description = "Allowed for the account's owner or an administrator, as in the UI. The user's advertisements, provider profile and API keys are removed first.")
+    @Operation(operationId = "deleteUser", summary = "Delete a user", description = "Allowed for the account's owner or an administrator, as in the UI; an administrator cannot delete their own account (403). The user's advertisements, provider profile and API keys are removed first.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
@@ -192,24 +197,28 @@ public class UserApiController {
         return ETagUtil.withVersion(ResponseEntity.ok(), settings.getVersion()).body(settings);
     }
 
-    @Operation(operationId = "updateMySettings", summary = "Update the caller's own paginated-list page-size preferences", description = "Same validation limits as the Settings UI form. If-Match must carry the version from the last GET response's ETag.")
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-            {
-              "adsPageSize": 20,
-              "usersPageSize": 20,
-              "timelinePageSize": 20,
-              "providerProfilesPageSize": 20
-            }""")))
-    @PatchMapping("/me/settings")
+    @Operation(operationId = "updateMySettings", summary = "Update the caller's own paginated-list page-size preferences",
+            description = "JSON Merge Patch (RFC 7396): send only the page sizes to change; a field left out keeps its value. null on a page size is 400, and so is an unknown field. Same validation limits as the Settings UI form. If-Match must carry the version from the last GET response's ETag.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = {
+            @Content(mediaType = "application/merge-patch+json", schema = @Schema(implementation = UserSettingsWriteRequest.class),
+                    examples = @ExampleObject(value = "{\"adsPageSize\": 30}")),
+            @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = UserSettingsWriteRequest.class),
+                    examples = @ExampleObject(value = "{\"adsPageSize\": 30}"))})
+    @PatchMapping(value = "/me/settings", consumes = {"application/merge-patch+json", MediaType.APPLICATION_JSON_VALUE})
     @SecurityRequirement(name = "bearerKey")
-    public UserSettingsDto updateSettings(@AuthenticationPrincipal Long actorId, @RequestBody @Valid UserSettingsWriteRequest request,
+    public UserSettingsDto updateSettings(@AuthenticationPrincipal Long actorId, @RequestBody JsonNode patch,
             @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
-        UserSettingsDto dto = UserSettingsDto.builder()
-                .adsPageSize(request.adsPageSize())
-                .usersPageSize(request.usersPageSize())
-                .timelinePageSize(request.timelinePageSize())
-                .providerProfilesPageSize(request.providerProfilesPageSize())
-                .version(ETagUtil.parseIfMatch(ifMatch))
+        Long version = ETagUtil.requireIfMatch(ifMatch);
+        UserSettingsDto current = userProfileService.loadSettings(actorId);
+        UserSettingsWriteRequest merged = mergePatchSupport.apply(UserSettingsWriteRequest.from(current), patch, UserSettingsWriteRequest.class);
+        UserSettingsDto dto = current.toBuilder()
+                .adsPageSize(merged.adsPageSize())
+                .usersPageSize(merged.usersPageSize())
+                .timelinePageSize(merged.timelinePageSize())
+                .providerProfilesPageSize(merged.providerProfilesPageSize())
+                .feedbackPageSize(merged.feedbackPageSize())
+                .moderationPageSize(merged.moderationPageSize())
+                .version(version)
                 .build();
         userProfileService.saveSettings(actorId, actorId, dto);
         return userProfileService.loadSettings(actorId);
@@ -251,8 +260,15 @@ public class UserApiController {
             @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int adsPageSize,
             @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int usersPageSize,
             @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int timelinePageSize,
-            @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int providerProfilesPageSize
+            @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int providerProfilesPageSize,
+            @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int feedbackPageSize,
+            @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int moderationPageSize
     ) {
+
+        static UserSettingsWriteRequest from(@NonNull UserSettingsDto settings) {
+            return new UserSettingsWriteRequest(settings.getAdsPageSize(), settings.getUsersPageSize(), settings.getTimelinePageSize(),
+                    settings.getProviderProfilesPageSize(), settings.getFeedbackPageSize(), settings.getModerationPageSize());
+        }
     }
 
     /** Caller-writable user fields -- id and version are server-managed (path variable / If-Match header). */
