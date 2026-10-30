@@ -44,7 +44,7 @@ from the orchestrator rather than reimplemented.
 
 ## Related
 
-- [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) (REST hypermedia, media, PATCH, Basic-auth brute-force gap) — shares the module
+- [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) (REST hypermedia, media, PATCH, Basic-auth brute-force gap) — shares the module
 - [improvement-196](../../tasks/improvement-196-rest-api-rate-limiting.md) (REST write rate limiting) — should cover these endpoints once they exist
 - [improvement-200](improvement-200-f06-reviews-ratings.md) (reviews/ratings, completed) — the domain this exposes
 - `marketplace-orchestrator/DECISIONS.md` ADR-007 (authorization at the orchestrator boundary)

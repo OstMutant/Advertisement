@@ -3,7 +3,7 @@
 **Type:** improvement — investigation (hands-on trials, then a recommendation)
 **Module:** `marketplace-rest-api` (`pom.xml`, `config/OpenApiConfig.java`, the five `api/*Controller.java` classes)
 **Priority:** high — Top, first in the list; informs the MCP work planned after the REST API stabilises
-**When:** independent; the trials run on the current API, ahead of [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) item 4, [improvement-210](./improvement-210-rest-api-feedback-and-comments.md) and [improvement-196](../../tasks/improvement-196-rest-api-rate-limiting.md)
+**When:** independent; the trials run on the current API, ahead of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) item 4, [improvement-210](./improvement-210-rest-api-feedback-and-comments.md) and [improvement-196](../../tasks/improvement-196-rest-api-rate-limiting.md)
 
 ## Current state
 
@@ -110,7 +110,7 @@ Trials, each judged on a real run against the local app, then one recommendation
 
 ## Related
 
-- [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — REST hypermedia, media, PATCH, Basic-auth brute-force gap
+- [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — REST hypermedia, media, PATCH, Basic-auth brute-force gap
 - [improvement-210](./improvement-210-rest-api-feedback-and-comments.md) — feedback/comments endpoints the spec and collection will need to cover
 - [improvement-196](../../tasks/improvement-196-rest-api-rate-limiting.md) — rate limiting, more pressing once an AI agent calls the API
 - [improvement-073](./improvement-073-rest-endpoint-infrastructure-test-seeding.md) — Phase 7 proposed the Postman collection

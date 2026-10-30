@@ -8,7 +8,7 @@ discoverability)
 attachment-spring-boot-starter, marketplace-app, provider-profile-spring-boot-starter,
 user-spring-boot-starter, taxon-spring-boot-starter
 **Priority:** high (user-requested top-of-backlog placement, 2026-09-12)
-**When:** independent, no blockers. The hypermedia part (former item 3) moved to [improvement-230](improvement-230-rest-hypermedia-decision.md) on 2026-10-28; the media part was done in improvement-213 phase 7; the Basic-auth part in improvement-213 phase 2.
+**When:** independent, no blockers. The hypermedia part (former item 3) moved to [improvement-230](../../tasks/improvement-230-rest-hypermedia-decision.md) on 2026-10-28; the media part was done in improvement-213 phase 7; the Basic-auth part in improvement-213 phase 2.
 
 ## Current state (verified against real code, 2026-09-12)
 
@@ -105,7 +105,7 @@ its own real cost today:
 
 ### 1. Advertisement media as its own REST sub-resource (absorbs improvement-183 item 9)
 
-**Done 2026-10-20 (phase 7 of [improvement-213](../completed/tasks/improvement-213-rest-api-revision-parity-with-ui.md)):** `GET`, `POST` (a batch of files in one `multipart/form-data` request, one history entry per request), `POST …/videos` and the single-id `DELETE` are built with the edit form's rules (10 items, 50 MB, the same types, an attachment must belong to the advertisement), and restoring an advertisement to a snapshot restores its gallery. Not built, because the UI has neither: creating an advertisement together with its files in one call, and bulk delete. The rest of this task (PATCH, hypermedia) is unchanged.
+**Done 2026-10-20 (phase 7 of [improvement-213](improvement-213-rest-api-revision-parity-with-ui.md)):** `GET`, `POST` (a batch of files in one `multipart/form-data` request, one history entry per request), `POST …/videos` and the single-id `DELETE` are built with the edit form's rules (10 items, 50 MB, the same types, an attachment must belong to the advertisement), and restoring an advertisement to a snapshot restores its gallery. Not built, because the UI has neither: creating an advertisement together with its files in one call, and bulk delete. The rest of this task (PATCH, hypermedia) is unchanged.
 
 - `POST /api/advertisements/{id}/media` — append one or more files, `multipart/form-data`. Delegates
   to `AttachmentPort.upload()` (via a new, narrow `marketplace-orchestrator` service — existence
@@ -154,15 +154,15 @@ its own real cost today:
 
 ### 3. Hypermedia — moved to improvement-230
 
-Moved on 2026-10-28: whether HAL `_links` and a `GET /api/me` entry point are needed is decided from the evidence of the MCP trial, see [improvement-230](improvement-230-rest-hypermedia-decision.md). The design drafted here (per-actor `_links`, `GET /api/me`, `swagger-hal-navigator`, pagination links in list bodies left out because they would reverse the pagination decision) is carried over there.
+Moved on 2026-10-28: whether HAL `_links` and a `GET /api/me` entry point are needed is decided from the evidence of the MCP trial, see [improvement-230](../../tasks/improvement-230-rest-hypermedia-decision.md). The design drafted here (per-actor `_links`, `GET /api/me`, `swagger-hal-navigator`, pagination links in list bodies left out because they would reverse the pagination decision) is carried over there.
 
 ### 4. and 5. HTTP Basic hardening — moved to improvement-213 phase 2
 
-The Basic-auth brute-force gap on `POST /api/api-keys` and the 500 returned when Basic credentials reach a bearer-only endpoint are implemented in [improvement-213](../completed/tasks/improvement-213-rest-api-revision-parity-with-ui.md), phase 2: a separate security chain for API-key issuance, a failed-login limit, and a Bearer challenge on every other `/api/**` endpoint.
+The Basic-auth brute-force gap on `POST /api/api-keys` and the 500 returned when Basic credentials reach a bearer-only endpoint are implemented in [improvement-213](improvement-213-rest-api-revision-parity-with-ui.md), phase 2: a separate security chain for API-key issuance, a failed-login limit, and a Bearer challenge on every other `/api/**` endpoint.
 
 ## Related
 
-- [improvement-183](../completed/tasks/improvement-183-rest-api-and-taxon-ui-follow-ups.md) item 9 — the original
+- [improvement-183](improvement-183-rest-api-and-taxon-ui-follow-ups.md) item 9 — the original
   "media/photo upload for advertisements via REST" ask this issue absorbs and supersedes; item 9's
   own text should be updated to point here rather than duplicate this plan.
 - `marketplace-app/DECISIONS.md` ADR-080 — the existing pagination/HATEOAS-rejection decision this
@@ -173,7 +173,7 @@ The Basic-auth brute-force gap on `POST /api/api-keys` and the 500 returned when
 - `attachment-spring-boot-starter/README.md`/`DECISIONS.md` — `AttachmentPort`'s existing
   generic-by-`EntityType` design (ADR-003 there) is exactly what makes item 1 above possible with no
   starter changes.
-- [improvement-230](improvement-230-rest-hypermedia-decision.md) — the hypermedia decision carved out of this task
+- [improvement-230](../../tasks/improvement-230-rest-hypermedia-decision.md) — the hypermedia decision carved out of this task
 
 ## Plan (approved 2026-10-28)
 
@@ -559,6 +559,17 @@ higher; no step needs opus.
 
 **Split out:** speeding up the local CI (about 66 minutes in a full run) is [improvement-231](improvement-231-local-ci-speed-duplicated-work-and-contention.md).
 
+### Remaining work before the task can be closed (planned 2026-10-30, nothing executed)
+
+Numbers refer to the "Open before the task can be closed" list above.
+- **1 (the full parallel CI run) is done by data, text only.** After the port change, the full default `bash scripts/ci.sh --foreground` run of 2026-10-30 (Dagu run `ci-20261030T084116Z-588985-648810001`) was green in 22 min 53 s: integration 8 min 26 s and Sonar 2 min 27 s both green, e2e 18 min 7 s. Recorded here as the result of item 1.
+- **R2 (item 2, documentation of step 11).** (a) `.claude/rules/marketplace-orchestrator.md`, the `AuthorizationService` bullet: the rule list `canOperate`/`canEditAccount`/`canEditRole`/`isPrivileged` gets `canDeleteAccount` (an administrator cannot delete their own account) in the same sentence, nothing else changes (haiku). (b) `/record-decision marketplace-app` -- "An administrator cannot delete their own account" (main thread, with the drafted text shown first): no entry on this rule exists in `adr-index.md`; it constrains later decisions about account deletion and was a design choice (a plain authorization rule mirroring the role rule; two administrators acting at the same moment accepted as a limit; rejected: a count-of-administrators guard needing locking). (c) `adr-index.md` regenerated; the new id goes into `adrs_referenced` below.
+- **R3 (item 3, the architecture map).** The CI-made copies in the working tree (`docs/architecture/architecture-map.html`, `data/architecture-model.json`) carry the right changes (the ADR rows and header texts of plans F, H and the `scripts` ADR edit) but also `testReports` emptied and `runLogs` replaced by one entry, because the last CI runs were partial (unit only, then Sonar only) and the local report folders were refreshed from them. **Decision for the person:** (a) leave the map for the final step and regenerate it once at the very end, after the final full run of "Final verification at the end of all work", so that test data are real; or (b) regenerate now with `bash docs/architecture/scripts/generate-architecture-model.sh --with-sonar --no-sonar-rescan --with-archunit` and accept whatever the current report folders hold. Recommended: (a).
+- **R4 (item 4, quality notes), both are removals of unused code.** (a) `marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java`: delete `canNotDelete(Long ownerUserId)` (no production caller since `UserView` and `UserGridConfigurator` use `canDeleteUserAccount`); `AccessEvaluatorTest.java`: delete the four `assertThat(accessEvaluator.canNotDelete(TARGET_OWNER_ID))...` lines and change the section comment `canOperate(Long ownerUserId) / canNotEdit / canNotDelete` to `canOperate(Long ownerUserId) / canNotEdit` (haiku). Check: `bash scripts/build-and-test.sh --unit --no-integration --unit-test AccessEvaluatorTest --skip-vaadin`. (b) `playwright/e2e/_flows/audit.flow.js` line 75 and `settings.flow.js` line 113: the local `const sizeOf = key => content.getByRole('spinbutton', { name: PAGE_SIZE_LABELS[key] }).inputValue();` is replaced by `const sizeOf = key => pageSizeField(page, key).inputValue();` (`pageSizeField` is already exported by `settings.flow.js`, which `audit.flow.js` already requires; the `content` constant stays where other lines use it). Check: `bash playwright/run.sh --lint` (at most 875 warnings, 0 errors); the behaviour is covered by the final full CI run, no separate Playwright run (haiku).
+- **R5 (item 5, Operational notes).** Filled with what can be sourced: this task's own script runs are in the sections above; only the lines for which a real number exists are changed, the others stay `n/a`. Closing the task and the final repository step only on the person's word.
+
+Result of the remaining work (2026-10-30): item 1 -- the full default `bash scripts/ci.sh --foreground` run (Dagu run `ci-20261030T084116Z-588985-648810001`) was green in 22 min 53 s with the integration stage (8 min 26 s) and Sonar (2 min 27 s) both green. Item 2 -- `canDeleteAccount` is named in the `AuthorizationService` bullet of `.claude/rules/marketplace-orchestrator.md`; the decision is ADR-090 in `marketplace-app/DECISIONS.md` (written through `/record-decision`, text shown first), `adr-index.md` regenerated. Item 4 -- `AccessEvaluator.canNotDelete` and its four assertions in `AccessEvaluatorTest` were removed (the test class: 29 tests, 0 failures); the duplicated `sizeOf` in `audit.flow.js` and `settings.flow.js` now calls `pageSizeField` (`node --check` clean, `bash playwright/run.sh --lint` 0 errors and 823 warnings at the limit of 875; the one-warning rise since the 822 recorded earlier was not traced). Item 5 -- the Operational notes below hold the agent call and script runs of this closing work only. Item 3 -- the architecture map -- is left for the end, after the final full run, by the person's decision; the final verification section is still open.
+
 ### Step 11 -- An administrator cannot delete their own account (approved 2026-10-28, in progress)
 
 - **Why:** an administrator may not set their own role (`AuthorizationService.canEditRole` is `isAdmin(actor) && actor != target`), but may delete their own account (`canEditAccount` is `isAdmin(actor) || self`, and `UserDeleteService` uses it). So the only administrator can delete themselves; the database then holds users and no administrator, and nobody can become one again because the first-account rule counts non-deleted users. The delete follows the same rule as the role: never one's own account for an administrator.
@@ -629,6 +640,25 @@ Run once, after the last change of this task, in this order:
 2. **Live gallery check over REST** on the cleaned stack: issue a test API key, upload a small image to an advertisement (`POST /api/advertisements/{id}/media`), confirm the returned URL answers 200, list the gallery, delete the item, then remove the test user and key.
 3. **All other possible checks**: the full chain of "Verification of the whole" above, then `bash scripts/ci.sh` for unit, integration, end-to-end and Sonar, and read the real per-stage numbers.
 
+### Final verification: the concrete plan (planned 2026-10-30, nothing executed)
+
+Order, one thing at a time, the machine otherwise idle (the dev stack is stopped before the full CI run so the documented CPU contention cannot flake the e2e stage):
+- **V1 -- clean dev stack (main thread, `scripts/activity-monitor.sh`, about 10 minutes).** `bash scripts/deploy-and-run.sh --reset-only-db`: rebuilds the image, starts the dev stack on port 8081 and **truncates the dev database** (users, advertisements, the 28 dangling attachment rows). This is the cleaning step the section above asks for. Pass: the app answers HTTP 200 on `http://localhost:8081`, and `GET /v3/api-docs` lists `patchAdvertisement` and `patchProviderProfile` with the request media types `application/merge-patch+json` and `application/json`.
+- **V2 -- live gallery check over REST (main thread, curl against 8081).** Register a user (`POST /api/users`), issue a key (`POST /api/api-keys` with Basic credentials), create an advertisement with the body fields that `/v3/api-docs` marks required, upload a small PNG (`POST /api/advertisements/{id}/media`), fetch the returned URL (must answer 200), list the gallery (`GET .../media`), delete the item (`DELETE .../media/{photoId}`, then the list is empty), then delete the advertisement, the key and the user. Two more checks on the same stack: `PATCH /api/advertisements/{id}` with `{"cityTaxonId": null}` and the current ETag in `If-Match`, media type `application/merge-patch+json`, answers 200 and leaves the categories unchanged; `PUT` of the same advertisement without `cityTaxonId` still clears it. Swagger UI "Try it out" is not exercised (no browser clicking available); the same request is made with curl.
+- **V3 -- the API collection (main thread, about 5 minutes).** `bash docs/api-collections/api-collection-tests.sh --base-url http://localhost:8081`: no findings, all flow steps pass (its `Media` flow uploads, lists and deletes through the real storage).
+- **V4 -- stop the dev stack, then the full chain (main thread, about 25 minutes).** `docker stop` of the dev stack containers (their data stays), then `bash scripts/activity-monitor.sh -- scripts/ci.sh --foreground` (unit, integration, e2e including `10-rest-api-flow`, Sonar, docs). Pass: all stages green; in the Surefire report `OperationCoverageTest` shows `Tests run: 1`, `Skipped: 0`.
+- **V5 -- the architecture map (main thread, with the person's yes).** The docs stage of V4 regenerates `docs/architecture/architecture-map.html` and `data/architecture-model.json` from a full run, so their test data are real; the diff is read, and only then are they staged.
+- **V6 -- report.** `git diff --stat` of the working tree is printed. It is not limited to the files named in this task's steps, because the same working tree holds the work of improvement-231; this is stated, not hidden. The final numbers are written into this section.
+
+### Result of the final verification (2026-10-30)
+
+- **V1** `bash scripts/deploy-and-run.sh --reset-only-db`: green in 2 min 34 s (build 1 min 44 s, health check 23 s); the dev database was truncated. The app answers 200 on port 8081; `GET /v3/api-docs` shows `patchAdvertisement` (`PATCH /api/advertisements/{id}`) and `patchProviderProfile` (`PATCH /api/provider-profiles/{id}`), each with the request media types `application/merge-patch+json` and `application/json`.
+- **V2** (a script of curl calls, 22 checks passed after two errors of the script itself -- a wrong field name for the issued key, and a first registered plain user that could not create taxons because the first account of the database is the administrator): an uploaded PNG (`POST /api/advertisements/{id}/media`) came back with a URL that answers 200 `image/png`; the gallery listed it, and listed nothing after the `DELETE`; `PATCH` with `{"cityTaxonId": null}`, media type `application/merge-patch+json` and the ETag in `If-Match` answered 200 with the city cleared and the categories unchanged; `PUT` without `cityTaxonId` cleared the city; the administrator's delete of themselves answered 403 and the delete of another user 204. The advertisement, the two taxons and all issued keys were removed; the first administrator stays in the dev database because the rule forbids deleting them (the next `--reset-only-db` clears it). Swagger UI "Try it out" was not exercised; the same request was made with curl.
+- **V3** `check-collection`: 70 operations in the API, 70 in the collection, 0 allow-listed. `run-flows` against 8081 with the real administrator's credentials passed as `--variable`: 144 steps, 142 passed, 0 failed, 2 skipped. The wrapper `api-collection-tests.sh` has no `--variable` option, so the two tests were run separately.
+- **V4** the dev stack was stopped, then the full default `bash scripts/ci.sh --foreground` run (Dagu run `ci-20261030T121719Z-697763-107593001`) was green in 23 min 11 s: compile 1 min 46 s, unit 5 min 55 s, integration 7 min 56 s (894 tests, 0 failures, 0 skipped), e2e 17 min 17 s, Sonar 2 min 10 s, ArchUnit 3 min 1 s, docs 1 min 3 s. The CI integration report of `OperationCoverageTest` has `tests=1`, `skipped=0`, `failures=0` and the property `level3.requireCoverage=true`.
+- **V5** done by fixing the cause: the generator now reads the CI stage folders (see the result of plan I in improvement-231), so the map the CI docs stage makes holds the tests and coverage tables (8 ids each, 1554 tests) and the existing sync copies it into the project; the map in the project was regenerated on the host after the last source edit and staged. Earlier finding, kept for the record: the CI-made copy of the architecture map has the right ADR rows and header texts but an empty `testReports` section (`buildInfo` null, no coverage, no tests) and a single `runLogs` entry. The docs stage runs inside `ci-runner`, where the test reports are still in the CI volume (they reach the host only after the run), so a CI-made map can never hold test data; the committed map had them from a run on the host. This replaces the assumption in the plan above that the docs stage of a full run gives real test data.
+- **V6** the working tree holds 29 changed files in the index (1045 insertions, 194 deletions) and 4 not in the index (the CI-made map copies and two backlog files); it is not limited to the files of this task, because the work of improvement-231 is in the same tree.
+
 ## Operational notes
 - token_cost_review: n/a
 - token_cost_research: 210596
@@ -643,4 +673,12 @@ Run once, after the last change of this task, in this order:
 - haiku_decomposition_used: n/a
 - haiku_decomposition_dispatch_count: n/a
 - haiku_decomposition_rework_needed: n/a
-- adrs_referenced: ADR-089 (marketplace-app)
+- adrs_referenced: ADR-089 (marketplace-app), ADR-090 (marketplace-app)
+
+### Agent calls
+- documentation line and removal of unused code (R2a, R4a, R4b) | subagent_type=general-purpose (model haiku) | tokens=94249 | tool_uses=18 | duration_s=56 | mode=background | batch=solo
+
+### Script/command runs
+- bash scripts/ci.sh --foreground (full default run, proof of the port change) | duration_s=1373 | mode=background | result=pass
+- bash playwright/run.sh --lint | duration_s=11 | mode=foreground | result=pass
+- bash scripts/build-and-test.sh --unit --no-integration --unit-test AccessEvaluatorTest --skip-vaadin | duration_s=101 | mode=background | result=pass

@@ -38,7 +38,7 @@ A recorded, run-backed answer to those five points, so the MCP module (or genera
 
 - [improvement-211](../completed/tasks/improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — parent investigation, items 1–2 done, this is its item 3
 - [improvement-196](improvement-196-rest-api-rate-limiting.md) — rate limiting, more pressing once an agent calls the API in a loop
-- [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — hypermedia and PATCH, affects what an agent sees
+- [improvement-186](../completed/tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — hypermedia and PATCH, affects what an agent sees
 - [improvement-230](improvement-230-rest-hypermedia-decision.md) — the hypermedia decision that waits for this trial's finding
 
 ## Operational notes

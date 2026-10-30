@@ -36,10 +36,6 @@ public class AccessEvaluator {
         return !canOperate(ownerUserId);
     }
 
-    public boolean canNotDelete(Long ownerUserId) {
-        return !canOperate(ownerUserId);
-    }
-
     public boolean canOperate(Long ownerUserId) {
         return currentUser().map(u -> authorizationService.canOperate(u, ownerUserId)).orElse(false);
     }

@@ -109,9 +109,8 @@ async function restoreLatestFromActivity(page) {
 async function getPageSizes(page) {
   await page.getByRole('button', { name: /^(settings|налаштування)$/i }).click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
-  const content = page.locator('.settings-overlay-content');
-  const sizeOf = key => content.getByRole('spinbutton', { name: PAGE_SIZE_LABELS[key] }).inputValue();
-  const adsPageSize              = parseInt(await sizeOf('ads'), 10);
+  const sizeOf = key => pageSizeField(page, key).inputValue();
+  const adsPageSize             = parseInt(await sizeOf('ads'), 10);
   const providerProfilesPageSize = parseInt(await sizeOf('providerProfiles'), 10);
   const usersPageSize            = parseInt(await sizeOf('users'), 10);
   const moderationPageSize       = parseInt(await sizeOf('moderation'), 10);

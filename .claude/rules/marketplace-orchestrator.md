@@ -146,7 +146,7 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
 - `UserActorNameService` — actor-name-resolution collaborator `AuditDomainHookImpl` (in `spi/`,
   below) delegates to; stays in `services/` since it doesn't itself implement an SPI interface.
 - `AuthorizationService` — role/ownership rule composition (`canOperate`/`canEditAccount`/
-  `canEditRole`/`isPrivileged`, both `UserDto`-taking and id-taking overloads, plus throwing
+  `canDeleteAccount`/`canEditRole`/`isPrivileged`, both `UserDto`-taking and id-taking overloads, plus throwing
   `require*` variants raising `AccessDeniedException`) over a direct, mandatory
   `UserAuthorizationPort` field (same shape as `UserDeleteService`'s `UserAccountPort`) and the
   `ActorLookupService` collaborator (id-taking overloads resolve the actor, then delegate to the

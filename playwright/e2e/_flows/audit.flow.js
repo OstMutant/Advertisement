@@ -15,7 +15,7 @@
  * ──────────────────────────────────────────────────────────────────────────── */
 const { screenshot, accountOverlay } = require('../_helpers');
 const { runOpenUserEditViaListFlow, runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter } = require('./user-management.flow');
-const { openHistory, closeHistory, PAGE_SIZE_LABELS } = require('./settings.flow');
+const { openHistory, closeHistory, pageSizeField } = require('./settings.flow');
 const { openEntityActivity } = require('./entity-activity.flow');
 
 async function runOpenSettingsFlow(page) {
@@ -72,7 +72,7 @@ async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, 
 
   // ads, providerProfiles, feedback are ungated (every role); users, timeline, moderation are privileged-only.
   const content = page.locator('.settings-overlay-content');
-  const sizeOf = key => content.getByRole('spinbutton', { name: PAGE_SIZE_LABELS[key] }).inputValue();
+  const sizeOf = key => pageSizeField(page, key).inputValue();
   await expect(content.getByRole('spinbutton')).toHaveCount(privileged ? 6 : 3, { timeout: 5000 });
   const adsValue = await sizeOf('ads');
   const providersValue = await sizeOf('providerProfiles');

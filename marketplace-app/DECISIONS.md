@@ -2,6 +2,24 @@
 
 ---
 
+## ADR-090: An administrator cannot delete their own account
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** marketplace-orchestrator, marketplace-rest-api
+
+**Context:** An administrator may not change their own role, but could delete their own account. The only administrator could therefore remove themselves; the database then held users and no administrator, and nobody could become one again because the first-account rule counts non-deleted users.
+
+**Decision:** Deleting an account follows the same rule as changing a role: an administrator never deletes their own account. It is a plain authorization rule, `AuthorizationService.canDeleteAccount` (the account-edit rule, and not an administrator acting on their own id), required first by `UserDeleteService.delete`. The user list hides the delete button on the administrator's own row and the delete confirmation checks the rule again; the REST delete answers 403. Any other administrator can still delete that account.
+
+**Rejected alternatives:** a "last administrator" guard that counts active administrators before a delete (needs locking, and two requests at the same moment can still both pass).
+
+**Consequences:** Two administrators acting at the same moment can still remove each other, by delete or by demotion; that limit is accepted and a guard against it would need locking. A test that deletes or demotes an administrator does so only to one it created itself.
+
+---
+
 ## ADR-089: External REST API partial updates use JSON Merge Patch applied over the PUT write record
 
 **Status:** Accepted

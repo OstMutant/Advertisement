@@ -172,7 +172,7 @@ One page, served by the running app, that draws a flow as a diagram, lets a deve
 - Design reference: `docs/api-collections/flow-runner/mockup/flow-runner-mockup.html` (the mockup file was deleted when the page was finished) — interactive mockup of the two levels (flow map, step detail), the "run as" role, required/optional/unavailable marks and the run data document; example data only, no requests are sent.
 
 - [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling investigation and the Postman collection this builds on
-- [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — file-upload endpoints the runner will need to exercise later
+- [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — file-upload endpoints the runner will need to exercise later
 - [improvement-210](improvement-210-rest-api-feedback-and-comments.md) — feedback/comment endpoints for further flows
 
 ## Operational notes

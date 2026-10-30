@@ -2,7 +2,7 @@
 
 **Type:** improvement — audit that produces follow-up tasks, plus implementation of the user-domain gaps it finds (scope widened 2026-10-17)
 **Module:** `marketplace-rest-api` (`api/*Controller.java`), `marketplace-app` (Vaadin views and form handlers under `ui/views/`), `marketplace-orchestrator` (the services both adapters call)
-**Priority:** high — Top, first: its result decides the scope of [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md), [improvement-210](improvement-210-rest-api-feedback-and-comments.md), [improvement-212](improvement-212-api-flow-runner-page.md) and the planned MCP server
+**Priority:** high — Top, first: its result decides the scope of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md), [improvement-210](improvement-210-rest-api-feedback-and-comments.md), [improvement-212](improvement-212-api-flow-runner-page.md) and the planned MCP server
 **When:** independent; do before the tasks listed above change the API
 
 ## Current state
@@ -25,13 +25,13 @@ One reviewed list, per domain, of what the UI can do that REST cannot, each item
 4. **Role-change endpoint (decided 2026-10-17):** the audit starts from the known gap that only the Vaadin form changes a role. The first endpoint to build from it is an administrator-only role change, so that an administrator can make a moderator through the API (no dev-only script is needed; see [improvement-214](improvement-214-admin-credentials-from-environment.md) for the administrator). Design points to settle: the last administrator cannot lose the role, every change is written to the audit log, and the same authorisation as the UI form is reused from `marketplace-orchestrator`.
 5. **Implement everything the audit finds missing, in phases (decided 2026-10-17).** Each phase has its own unit and scenario tests, explicit `operationId`s, OpenAPI examples, a full `build-and-test.sh --unit --integration --sandbox` run and its own commit; the decision is recorded with `/record-decision`.
    - **Phase 1, users:** `role` in the `POST /api/users` response; `PUT /api/users/{id}` (name and role, `If-Match`) over `UserProfileService.save`; `DELETE /api/users/{id}` over `UserDeleteService.delete`, behaving as the UI does; `PUT /api/users/me/locale` over `UserProfileService.updateLocale`. Tests: `UserApiControllerTest` (success, 403, stale version, not found); a new Level 3 scenario (an administrator makes a moderator who can then create a taxon; an administrator cannot change their own role; delete; language); the registration tests updated for `role`.
-   - **Phase 2, Basic-authentication hardening** (items 4 and 5 of [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) move here; decided 2026-10-18 because the flows and Swagger UI hit the 500 now). Plan below, under "Phase 2 plan".
+   - **Phase 2, Basic-authentication hardening** (items 4 and 5 of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) move here; decided 2026-10-18 because the flows and Swagger UI hit the 500 now). Plan below, under "Phase 2 plan".
    - **Phase 3, shared read rules:** move the rules that now live only in the UI into `AuthorizationService` and make the services enforce them (see "Where the read rules live"). This is the groundwork for phases 4 and 5.
    - **Phase 4, audit and history:** global timeline (administrators and moderators), per-entity activity (administrators and moderators see everything, others their own entries), and reading a snapshot so a client can restore with a normal update.
    - **Phase 4b, restore from a snapshot on the server (decided 2026-10-20):** a client sends only the snapshot id and the server returns the entity to that state, instead of the client composing a `PUT` from the snapshot (what phase 4 offers). Plan under "Phase 4b" below.
    - **Phase 5, contacts:** reveal endpoint that records the view, and the monthly view counts. Decided: contacts stay open to visitors who are not signed in, as in the UI (they are advertising); the reveal limit stays per IP, and per IP plus user when signed in; the viewer in the recorded view is null for a visitor.
    - **Phase 6, feedback and comments** (the content of [improvement-210](improvement-210-rest-api-feedback-and-comments.md)): list, aggregate, create, comment, delete comment, flag. Moderation (queue, approve, reject, confirm violation) is included now that the scope is everything; it was UI-only in improvement-210, to be confirmed when this phase starts.
-   - **Phase 7, media** (the first item of [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md)): upload, list and delete advertisement media.
+   - **Phase 7, media** (the first item of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md)): upload, list and delete advertisement media.
    - **Phase 8, loose ends (decided 2026-10-20):** revoked API keys hidden from the key list by default, the Viber link made correct, and a test class named after its file; plan under "Phase 8" below. Final verification runs are listed under "Final verification" below.
    - **Phase 9, MapStruct for snapshot mappings (decided 2026-10-20):** the snapshot-to-save-data mapping in `SnapshotRestoreService` and the same mapping repeated in the five UI restore handlers move to MapStruct mappers; plan under "Phase 9" below.
 6. **Where the read rules live (decided 2026-10-17):** following the existing decision to keep authorisation in `marketplace-orchestrator`, each rule is a predicate in `AuthorizationService` written once; `AuditQueryService` and `ContactAccessService` receive the acting user and enforce it (the visibility level is derived from the role, not taken from a caller argument such as `showAll`); the UI's `AccessEvaluator` calls the same predicate to show or hide controls; REST calls the same services with the authenticated principal. Their signatures change, so every UI caller (`AuditActivityPanel`, `TimelineView`, `ContactRevealPanel`, the overlays) is updated and its tests rerun.
@@ -302,7 +302,7 @@ Gaps found in the service layer that REST would inherit, fixed in this phase (as
 
 ## Phase 7 — advertisement media (approved and implemented 2026-10-20)
 
-First item of [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md), made to match the Vaadin gallery. Read from the code on 2026-10-20:
+First item of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md), made to match the Vaadin gallery. Read from the code on 2026-10-20:
 
 - The UI stages files and video links in a temporary session and commits them inside the advertisement's save transaction; the advertisement's audit entry carries `attachmentSnapshotId`, which is how the history shows a media change. `AttachmentPort.upload`, `addVideo` and `delete` work on an existing advertisement directly, but a direct call does not write an advertisement audit entry, so a REST media change would be invisible in the history unless the REST path records it.
 - Limits live only in the UI: at most 10 items per gallery and 50 MB per file (package-private constants in `AttachmentUploadButton`); allowed types are `AttachmentAllowedContentTypes` (JPEG, PNG, WebP, GIF, MP4, WebM), checked again on the server for the declared and the real type; video links are YouTube (`YoutubeUtil`) or Vimeo (`AttachmentVideoUtil`).
@@ -363,7 +363,7 @@ Result of the full CI run of 2026-10-21 (after phase 10, all stages in one run, 
 
 ## Related
 
-- [improvement-186](../../tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — media, PATCH, Basic-auth gap
+- [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — media, PATCH, Basic-auth gap
 - [improvement-210](improvement-210-rest-api-feedback-and-comments.md) — feedback and comments
 - [improvement-212](improvement-212-api-flow-runner-page.md) — needs administrator and moderator accounts for role-based flows
 - [improvement-211](improvement-211-rest-api-testing-ui-and-mcp-readiness-investigation.md) — tooling and MCP readiness

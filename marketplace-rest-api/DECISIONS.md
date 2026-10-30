@@ -6,6 +6,7 @@ Do not hand-edit this file — add `**Also affects:** marketplace-rest-api` to t
 home file instead, then regenerate via `bash docs/architecture/scripts/generate-architecture-model.sh`.
 
 - [ADR-003 (docs/api-collections)](../docs/api-collections/DECISIONS.md) — The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses
+- [ADR-090 (marketplace-app)](../marketplace-app/DECISIONS.md) — An administrator cannot delete their own account
 - [ADR-089 (marketplace-app)](../marketplace-app/DECISIONS.md) — External REST API partial updates use JSON Merge Patch applied over the PUT write record
 - [ADR-087 (marketplace-app)](../marketplace-app/DECISIONS.md) — External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit
 - [ADR-081 (marketplace-app)](../marketplace-app/DECISIONS.md) — `GET /api/taxons` filter/sort/pagination reverted — ADR-080's Taxon mandate was applied without checking UI parity, no real caller ever needed it
