@@ -36,3 +36,7 @@ vaadin:
 marketplace:
   dev-tools:
     enabled: true
+  # Seed scripts and API flows send hundreds of writes a minute with one account.
+  rest-api:
+    write-limit:
+      max-requests: 100000

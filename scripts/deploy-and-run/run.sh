@@ -49,11 +49,12 @@
 #   Postgres container always hardcodes postgres:15-alpine, unlike docker-compose.db.yml which
 #   does honor POSTGRES_IMAGE), the Maven cache Docker volume (its jar is copied into the app
 #   container's own <APP_CONTAINER>-jar volume unless --from-scratch).
-# Outputs: running marketplace-app container on APP_PORT -- a real, separately built and tagged
-#   "marketplace-app" image only with --from-scratch; the default path runs `java -jar` inside a
-#   plain eclipse-temurin:25-jre container with no image of its own. Also prints an
-#   AGENTIC_SUCCESS_BLOCK JSON marker at each of 4 step boundaries (infra, build, start-container,
-#   start-application), or an AGENTIC_ERROR_BLOCK JSON marker
+# Outputs: running marketplace-app container on APP_PORT (its REST write limit raised to 100000 per
+#   minute, since e2e seeding and API flows exceed the production default) -- a real, separately
+#   built and tagged "marketplace-app" image only with --from-scratch; the default path runs
+#   `java -jar` inside a plain eclipse-temurin:25-jre container with no image of its own. Also
+#   prints an AGENTIC_SUCCESS_BLOCK JSON marker at each of 4 step boundaries (infra, build,
+#   start-container, start-application), or an AGENTIC_ERROR_BLOCK JSON marker
 #   (errorCategory/isRetryable/currentStep/description/durationSeconds) on any failure path, for
 #   an AI agent reading raw script output to parse machine-readable per-step status instead of
 #   scraping free text.
@@ -339,6 +340,7 @@ start_app_container() {
     -e S3_REGION="$S3_REGION"
     -e S3_PUBLIC_URL="http://localhost:$SEAWEEDFS_PORT/$S3_BUCKET"
     -e APP_PUBLIC_URL="http://localhost:$APP_PORT"
+    -e MARKETPLACE_RESTAPI_WRITELIMIT_MAXREQUESTS=100000
     -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC")
   if $DEV_TOOLS; then
     RUN_FLAGS+=(-e MARKETPLACE_DEV_TOOLS_ENABLED=true)

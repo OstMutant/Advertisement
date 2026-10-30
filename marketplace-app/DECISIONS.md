@@ -2,6 +2,24 @@
 
 ---
 
+## ADR-091: External REST API limits write requests per account in a bearer-chain filter
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** marketplace-rest-api
+
+**Context:** Any account holder can issue themselves an API key (`POST /api/api-keys`, no approval), after which every create/update/delete endpoint accepted unlimited request volume. Each write costs a database write and an audit row, and media uploads cost storage. The host (Render) leaves application-level abuse to the owner and offers no route-level limit; Cloudflare Free/Pro rules count only by client IP, per-key counting is Enterprise-only. The existing limiters (failed logins, failed registrations, contact reveals, feedback writes) are per address or per viewer and do not bound what an authenticated account writes.
+
+**Decision:** `ApiWriteRateLimitFilter` sits in the `@Order(2)` bearer chain right after `ApiKeyAuthenticationFilter`. It counts every `POST`/`PUT`/`PATCH`/`DELETE` of an authenticated account (the `Long` id the key resolved to) in the shared `FailureRateLimiter`, before the handler runs and whatever its outcome, and answers 429 with `Retry-After` once the budget is used. Reads, public requests and key issuance (its own chain) are not counted. The numbers are configuration, `marketplace.rest-api.write-limit.max-requests` (60) and `.window` (1 minute) in `ApiWriteLimitProperties`; the `dev` profile and the local Docker stack raise `max-requests` so e2e seeding and API flows never provoke the limiter. `TooManyRequestsResponse` writes the 429 for this filter and `BasicLoginRateLimitFilter`, because exceptions thrown in a filter never reach `ApiExceptionHandler`. Each counted endpoint documents the 429 with `@ApiResponse`. This is a per-account volume quota, the same kind `ContactRevealService` and `FeedbackService` use; it does not conflict with the rule that the login and registration limiters count only real failures, which is about address-keyed abuse of authentication.
+
+**Rejected alternatives:** A proxy or Cloudflare rule: no route-level limit on Render, IP-only counting on Free/Pro. Bucket4j: a new dependency and a second mechanism beside `FailureRateLimiter`. Resilience4j: not keyed per caller. A `HandlerInterceptor`: Spring warns against interceptors as a security layer, and multipart is parsed before `preHandle`. A stricter budget for media upload: the real cost is stored bytes, a per-account storage cap fits better. Counting key issuance: an earlier decision deferred a per-user key cap, which fits better than a rate. The draft `RateLimit` headers: still a draft, only `Retry-After` is sent.
+
+**Consequences:** The counter is in memory, so with N instances the real limit is N times the setting; one instance is assumed. The window is fixed from the first request and check-then-count is not atomic, so a burst or a window edge can let through up to about twice the budget. Unlimited successful registration lets someone get around a per-account limit with many accounts; a registration volume cap, a per-user key cap and a storage cap remain open. A signed-in contact reveal also counts toward the write budget.
+
+---
+
 ## ADR-090: An administrator cannot delete their own account
 
 **Status:** Accepted
@@ -66,7 +84,7 @@
 
 **Status:** Accepted
 
-**Applied:** 2
+**Applied:** 3
 
 **Also affects:** marketplace-rest-api
 
@@ -1178,6 +1196,8 @@ catch-all, as a discipline/process rule rather than a global switch.
 ## ADR-026: Rate limiting counts only real failures, never successful attempts
 
 **Status:** Accepted
+
+**Applied:** 1
 
 **Context:** Caffeine-based rate limiting was added to `AuthService.login()`
 (`org.ost.marketplace.services.auth` — corrected 2026-07-13; `AuthService` lives in

@@ -108,6 +108,7 @@ public class FeedbackApiController {
     @ApiResponse(responseCode = "403", description = "The caller is not the author")
     @ApiResponse(responseCode = "409", description = "The edit window has closed")
     @ApiResponse(responseCode = "412", description = "The version is stale")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PutMapping("/feedback/{feedbackId}")
     @SecurityRequirement(name = "bearerKey")
     public FeedbackEntryResponse updateFeedback(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long feedbackId,
@@ -135,6 +136,7 @@ public class FeedbackApiController {
     @Operation(operationId = "updateFeedbackReply", summary = "Edit your reply to a review",
             description = "If-Match must carry the reply's current version. Only the reply's author may edit it, within the edit window.")
     @ApiResponse(responseCode = "404", description = "The review has no reply")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PutMapping("/feedback/{feedbackId}/reply")
     @SecurityRequirement(name = "bearerKey")
     public ReplyResponse updateFeedbackReply(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long feedbackId,
@@ -149,6 +151,7 @@ public class FeedbackApiController {
     @Operation(operationId = "deleteFeedbackReply", summary = "Delete your reply to a review",
             description = "Only the reply's author may delete it, within the edit window.")
     @ApiResponse(responseCode = "404", description = "The review has no reply")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @DeleteMapping("/feedback/{feedbackId}/reply")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
@@ -160,6 +163,7 @@ public class FeedbackApiController {
             description = "Hides the review pending moderation. The author cannot report their own review.")
     @ApiResponse(responseCode = "403", description = "The caller is the review's author")
     @ApiResponse(responseCode = "404", description = "The review does not exist")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/feedback/{feedbackId}/flags")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
@@ -172,6 +176,7 @@ public class FeedbackApiController {
             description = "Hides the reply pending moderation. The reply's own author cannot report it.")
     @ApiResponse(responseCode = "403", description = "The caller is the reply's author")
     @ApiResponse(responseCode = "404", description = "The review has no reply")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/feedback/{feedbackId}/reply/flags")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")

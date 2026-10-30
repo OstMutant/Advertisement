@@ -76,6 +76,7 @@ Java package root: `org.ost.restapi`
   advertisements, provider-profiles and taxons ahead of their public GET rules, lets `POST …/contact/reveals` through publicly, and requires authentication for `GET …/provider-profiles/*/contact/views`; both coexist with
   `marketplace-app`'s own Vaadin security chain via Spring Security's ordered multi-chain matching), `BasicLoginRateLimitFilter` (blocks a client
   address and email with 429 after 5 failed Basic logins in 15 minutes, on the key-issuance chain),
+  `ApiWriteRateLimitFilter` (on the bearer chain, answers 429 once one account sends more POST/PUT/PATCH/DELETE requests than `ApiWriteLimitProperties` allows, `marketplace.rest-api.write-limit.*`, 60 per minute by default), `TooManyRequestsResponse` (writes the 429 for both filters, since a filter's exceptions never reach `ApiExceptionHandler`),
   `BearerChallengeEntryPoint` (answers an unauthenticated `/api/**` request with 401 and a Bearer
   challenge), `ApiKeyAuthenticationFilter` (resolves `Authorization: Bearer <key>` into
   a `PreAuthenticatedAuthenticationToken` carrying a plain `Long` user id — the standard Spring

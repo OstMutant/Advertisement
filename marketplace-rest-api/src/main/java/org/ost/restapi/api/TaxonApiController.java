@@ -70,6 +70,7 @@ public class TaxonApiController {
                 {"locale": "uk", "name": "Сантехніка", "description": "Сантехнічні послуги"}
               ]
             }""")))
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
@@ -127,6 +128,7 @@ public class TaxonApiController {
                 {"locale": "uk", "name": "Сантехніка", "description": "Сантехнічні послуги"}
               ]
             }""")))
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public TaxonDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @Valid @RequestBody TaxonUpdateRequest request,
@@ -136,6 +138,7 @@ public class TaxonApiController {
     }
 
     @Operation(operationId = "deleteTaxon", summary = "Soft-delete a category or city", description = "If-Match must carry the version from the last GET/create/update response for this id; admin/moderator only.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
@@ -148,6 +151,7 @@ public class TaxonApiController {
     @ApiResponse(responseCode = "200", description = "Taxon restored and returned")
     @ApiResponse(responseCode = "404", description = "Taxon not found")
     @ApiResponse(responseCode = "409", description = "Taxon is not deleted")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/{id}/restore")
     @SecurityRequirement(name = "bearerKey")
     public TaxonDto restore(@AuthenticationPrincipal Long actorId, @PathVariable Long id) {
@@ -157,6 +161,7 @@ public class TaxonApiController {
 
     @Operation(operationId = "restoreTaxonFromSnapshot", summary = "Restore a category or city to a recorded state",
             description = "Returns the taxon to the recorded translations through the normal save path (same permissions and validation as an update). If-Match carries the current version. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/{id}/history/{snapshotId}/restore")
     @SecurityRequirement(name = "bearerKey")
     public TaxonDto restoreFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id,

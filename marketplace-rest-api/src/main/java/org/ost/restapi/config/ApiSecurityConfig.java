@@ -13,12 +13,13 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
-/** Stateless security chains for the external REST API: HTTP Basic is accepted only on API-key issuance, every other {@code /api/**} endpoint takes a bearer key via {@link ApiKeyAuthenticationFilter}; advertisement/provider-profile/taxon reads are public. */
+/** Stateless security chains for the external REST API: HTTP Basic is accepted only on API-key issuance, every other {@code /api/**} endpoint takes a bearer key via {@link ApiKeyAuthenticationFilter}; advertisement/provider-profile/taxon reads are public; writes with a bearer key are limited per account by {@link ApiWriteRateLimitFilter}. */
 @Configuration
 @RequiredArgsConstructor
 public class ApiSecurityConfig {
 
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+    private final ApiWriteLimitProperties writeLimitProperties;
 
     @Bean
     @Order(1)
@@ -60,6 +61,7 @@ public class ApiSecurityConfig {
                 )
                 .exceptionHandling(handling -> handling.authenticationEntryPoint(new BearerChallengeEntryPoint()))
                 .addFilterAfter(apiKeyAuthenticationFilter, BasicAuthenticationFilter.class)
+                .addFilterAfter(new ApiWriteRateLimitFilter(writeLimitProperties), ApiKeyAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(AbstractHttpConfigurer::disable)

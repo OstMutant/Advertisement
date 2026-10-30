@@ -147,6 +147,7 @@ public class UserApiController {
               "name": "Max Moderator",
               "role": "MODERATOR"
             }""")))
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public ResponseEntity<UserDto> update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestBody @Valid UserUpdateRequest request,
@@ -158,6 +159,7 @@ public class UserApiController {
 
     @Operation(operationId = "restoreUserFromSnapshot", summary = "Restore a user to a recorded state",
             description = "Returns the user's name and role to the recorded state through the normal save path (same permissions and validation as an update); nothing else is restored. If-Match carries the current version. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/{id}/history/{snapshotId}/restore")
     @SecurityRequirement(name = "bearerKey")
     public ResponseEntity<UserDto> restoreFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id,
@@ -169,6 +171,7 @@ public class UserApiController {
     }
 
     @Operation(operationId = "deleteUser", summary = "Delete a user", description = "Allowed for the account's owner or an administrator, as in the UI; an administrator cannot delete their own account (403). The user's advertisements, provider profile and API keys are removed first.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
@@ -181,6 +184,7 @@ public class UserApiController {
             {
               "locale": "uk"
             }""")))
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PutMapping("/me/locale")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
@@ -204,6 +208,7 @@ public class UserApiController {
                     examples = @ExampleObject(value = "{\"adsPageSize\": 30}")),
             @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = UserSettingsWriteRequest.class),
                     examples = @ExampleObject(value = "{\"adsPageSize\": 30}"))})
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PatchMapping(value = "/me/settings", consumes = {"application/merge-patch+json", MediaType.APPLICATION_JSON_VALUE})
     @SecurityRequirement(name = "bearerKey")
     public UserSettingsDto updateSettings(@AuthenticationPrincipal Long actorId, @RequestBody JsonNode patch,
@@ -243,6 +248,7 @@ public class UserApiController {
 
     @Operation(operationId = "restoreMySettingsFromSnapshot", summary = "Restore the caller's own settings to a recorded state",
             description = "Returns the page-size preferences to the recorded state through the normal save path (same validation as PATCH /api/users/me/settings). If-Match carries the current version. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/me/settings/history/{snapshotId}/restore")
     @SecurityRequirement(name = "bearerKey")
     public UserSettingsDto restoreMySettingsFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long snapshotId,

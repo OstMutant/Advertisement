@@ -57,7 +57,7 @@ yet — not zero.
 | ADR-001 (contact-spring-boot-starter) | contact-spring-boot-starter | Accepted **Applied:** 1 **Verified:** 2026-10-27 |  |  | New contact-spring-boot-starter module owns contact_info/contact_view, generic over owning entity |
 | ADR-003 (docs/api-collections) | docs/api-collections | Accepted **Applied:** 1 |  |  | The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses |
 | ADR-003 (docs/api-collections) | marketplace-rest-api | Accepted **Applied:** 1 |  |  | The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses |
-| ADR-002 (docs/api-collections) | docs/api-collections | Accepted |  | 2 | API collection flows repeat on an empty or a used database, create what they need, never provoke a limiter |
+| ADR-002 (docs/api-collections) | docs/api-collections | Accepted |  | 3 | API collection flows repeat on an empty or a used database, create what they need, never provoke a limiter |
 | ADR-001 (docs/api-collections) | docs/api-collections | Superseded by ADR-002 **Applied:** 1 |  |  | API collection flows repeat without a reset, build unique values per run and never provoke a limiter |
 | ADR-035 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | 1 | Code Quality screen always shows real test reports and run logs, grouped by folder under a session ID; cards are plain relative links |
 | ADR-034 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  |  | Database ERD's no-FK point relationships derived from a `remarks=` marker convention, not a hand-curated list |
@@ -93,6 +93,8 @@ yet — not zero.
 | ADR-007 (integration-tests) | integration-tests | Accepted |  |  | `run.sh` auto-detects starter staleness instead of a manual skip-`-am` flag |
 | ADR-008 (integration-tests) | integration-tests | Accepted |  |  | Test package-private/private internal logic through its public entry point, never through a same-package trick or a widened production visibility |
 | ADR-010 (integration-tests) | integration-tests | Accepted |  |  | `@Tag("testcontainers")` on the shared base class + Surefire `excludedGroups`; `SharedEnvConfig` gains a testable overload |
+| ADR-091 (marketplace-app) | marketplace-app | Accepted |  | 1 | External REST API limits write requests per account in a bearer-chain filter |
+| ADR-091 (marketplace-app) | marketplace-rest-api | Accepted |  | 1 | External REST API limits write requests per account in a bearer-chain filter |
 | ADR-090 (marketplace-app) | marketplace-app | Accepted |  | 1 | An administrator cannot delete their own account |
 | ADR-090 (marketplace-app) | marketplace-orchestrator | Accepted |  | 1 | An administrator cannot delete their own account |
 | ADR-090 (marketplace-app) | marketplace-rest-api | Accepted |  | 1 | An administrator cannot delete their own account |
@@ -101,8 +103,8 @@ yet — not zero.
 | ADR-089 (marketplace-app) | marketplace-orchestrator | Accepted |  | 1 | External REST API partial updates use JSON Merge Patch applied over the PUT write record |
 | ADR-088 (marketplace-app) | marketplace-app | Accepted |  | 1 | API keys tab in the account overlay — own keys only, revoked keys behind a toggle, revoke behind a confirmation, no audit entry |
 | ADR-088 (marketplace-app) | apikey-spring-boot-starter | Accepted |  | 1 | API keys tab in the account overlay — own keys only, revoked keys behind a toggle, revoke behind a confirmation, no audit entry |
-| ADR-087 (marketplace-app) | marketplace-app | Accepted |  | 2 | External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit |
-| ADR-087 (marketplace-app) | marketplace-rest-api | Accepted |  | 2 | External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit |
+| ADR-087 (marketplace-app) | marketplace-app | Accepted |  | 3 | External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit |
+| ADR-087 (marketplace-app) | marketplace-rest-api | Accepted |  | 3 | External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit |
 | ADR-086 (marketplace-app) | marketplace-app | Accepted |  |  | `AbstractEntityOverlay.applyFreshOrFallback` — defined fallback for a post-save refetch that races a concurrent delete; skip the refetch where a caller doesn't need fresh data |
 | ADR-085 (marketplace-app) | marketplace-app | Accepted |  |  | `AbstractTaxonManagementView`/`AbstractTaxonOverlay`/`AbstractTaxonViewOverlayModeHandler`/`AbstractTaxonFormOverlayModeHandler` — shared City/Category admin-screen logic behind still-separate bean classes; `TaxonOverlay`/`TaxonManagementView`/`TaxonViewOverlayModeHandler`/`TaxonFormOverlayModeHandler`/`TaxonEditDto` renamed to `Category*` |
 | ADR-084 (marketplace-app) | marketplace-app | Accepted |  |  | Verifying CSS on Vaadin Shadow DOM components — `getComputedStyle` is unreliable for paint properties, real diagnostic color swaps are required |
@@ -141,7 +143,7 @@ yet — not zero.
 | ADR-024 (marketplace-app) | marketplace-app | Accepted (done 2026-07-04) |  |  | Jsoup-based, defense-in-depth description length validation |
 | ADR-024 (marketplace-app) | advertisement-spring-boot-starter | Accepted (done 2026-07-04) |  |  | Jsoup-based, defense-in-depth description length validation |
 | ADR-025 (marketplace-app) | marketplace-app | Accepted |  |  | Deny-by-default at the Spring Security URL layer is incompatible with this app's Vaadin routing model |
-| ADR-026 (marketplace-app) | marketplace-app | Accepted |  |  | Rate limiting counts only real failures, never successful attempts |
+| ADR-026 (marketplace-app) | marketplace-app | Accepted |  | 1 | Rate limiting counts only real failures, never successful attempts |
 | ADR-027 (marketplace-app) | marketplace-app | Accepted |  |  | forward-headers-strategy so registration rate limiting sees the real client IP |
 | ADR-028 (marketplace-app) | marketplace-app | Accepted |  |  | SettingsPaginationService — per-user ownership on bindings, detach-based cleanup |
 | ADR-029 (marketplace-app) | marketplace-app | Accepted |  |  | Optimistic locking via a stored version column — no auto-reload on conflict |

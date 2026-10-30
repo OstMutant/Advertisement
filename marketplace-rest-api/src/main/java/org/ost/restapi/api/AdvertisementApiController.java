@@ -94,6 +94,7 @@ public class AdvertisementApiController {
               "categoryIds": [1],
               "cityTaxonId": 5
             }""")))
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
@@ -155,6 +156,7 @@ public class AdvertisementApiController {
               "categoryIds": [1],
               "cityTaxonId": 5
             }""")))
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public AdvertisementInfoDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
@@ -170,6 +172,7 @@ public class AdvertisementApiController {
                     examples = @ExampleObject(value = "{\"cityTaxonId\": 5}")),
             @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = AdvertisementWriteRequest.class),
                     examples = @ExampleObject(value = "{\"cityTaxonId\": 5}"))})
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PatchMapping(value = "/{id}", consumes = {"application/merge-patch+json", MediaType.APPLICATION_JSON_VALUE})
     @SecurityRequirement(name = "bearerKey")
     public AdvertisementInfoDto patch(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
@@ -183,6 +186,7 @@ public class AdvertisementApiController {
 
     @Operation(operationId = "restoreAdvertisementFromSnapshot", summary = "Restore an advertisement to a recorded state",
             description = "Returns the advertisement to the recorded state through the normal save path (same permissions and validation as an update). If-Match carries the current version. The gallery is left unchanged. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/{id}/history/{snapshotId}/restore")
     @SecurityRequirement(name = "bearerKey")
     public AdvertisementInfoDto restoreFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id,
@@ -193,6 +197,7 @@ public class AdvertisementApiController {
     }
 
     @Operation(operationId = "deleteAdvertisement", summary = "Delete an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")

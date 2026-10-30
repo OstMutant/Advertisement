@@ -1,6 +1,7 @@
 package org.ost.restapi.api;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -45,6 +46,7 @@ public class AdvertisementMediaApiController {
     @Operation(operationId = "uploadAdvertisementMedia", summary = "Upload photos or videos to an advertisement's gallery",
             description = "Multipart field 'files', one or more files. At most 10 items per advertisement, 50 MB per file; types JPEG, PNG, WebP, GIF, MP4, WebM. "
                     + "400 for too many items, a bad type or an oversize file; 403 when the caller may not edit the advertisement; 404 when unknown.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
@@ -69,6 +71,7 @@ public class AdvertisementMediaApiController {
 
     @Operation(operationId = "addAdvertisementVideo", summary = "Add a video link to an advertisement's gallery",
             description = "Accepts a YouTube or Vimeo link; 400 for any other host. Counts against the 10-item limit. 403 when the caller may not edit the advertisement; 404 when unknown.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/videos")
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
@@ -79,6 +82,7 @@ public class AdvertisementMediaApiController {
 
     @Operation(operationId = "deleteAdvertisementMedia", summary = "Remove one item from an advertisement's gallery",
             description = "404 when the item does not belong to this advertisement; 403 when the caller may not edit it.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @DeleteMapping("/{attachmentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")

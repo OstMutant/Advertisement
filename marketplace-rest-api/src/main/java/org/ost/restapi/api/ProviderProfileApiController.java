@@ -96,6 +96,7 @@ public class ProviderProfileApiController {
               "telegram": "plumber_master",
               "viber": "+380501234567"
             }""")))
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "bearerKey")
@@ -158,6 +159,7 @@ public class ProviderProfileApiController {
               "telegram": "plumber_master",
               "viber": "+380501234567"
             }""")))
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
     public ProviderProfileDto update(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
@@ -173,6 +175,7 @@ public class ProviderProfileApiController {
                     examples = @ExampleObject(value = "{\"telegram\": \"plumber_master\"}")),
             @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = ProviderProfileWriteRequest.class),
                     examples = @ExampleObject(value = "{\"telegram\": \"plumber_master\"}"))})
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PatchMapping(value = "/{id}", consumes = {"application/merge-patch+json", MediaType.APPLICATION_JSON_VALUE})
     @SecurityRequirement(name = "bearerKey")
     public ProviderProfileDto patch(@AuthenticationPrincipal Long actorId, @PathVariable Long id,
@@ -186,6 +189,7 @@ public class ProviderProfileApiController {
 
     @Operation(operationId = "restoreProviderProfileFromSnapshot", summary = "Restore a provider profile to a recorded state",
             description = "Returns the profile to the recorded state through the normal save path (same permissions and validation as an update). If-Match carries the current version. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/{id}/history/{snapshotId}/restore")
     @SecurityRequirement(name = "bearerKey")
     public ProviderProfileDto restoreFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id,
@@ -208,6 +212,7 @@ public class ProviderProfileApiController {
     }
 
     @Operation(operationId = "deleteProviderProfile", summary = "Delete a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")

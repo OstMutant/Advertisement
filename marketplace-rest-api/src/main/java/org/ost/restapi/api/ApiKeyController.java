@@ -64,6 +64,7 @@ public class ApiKeyController {
     @Operation(operationId = "revokeApiKey", summary = "Revoke one of the caller's own API keys", description = "Responds 204 on success, 404 if the key does not exist or is not the caller's, 409 if it is already revoked. A revoked key no longer appears in the key list unless includeRevoked=true.")
     @ApiResponse(responseCode = "404", description = "API key not found")
     @ApiResponse(responseCode = "409", description = "API key is already revoked")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")

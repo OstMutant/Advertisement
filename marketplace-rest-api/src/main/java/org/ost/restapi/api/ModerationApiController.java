@@ -1,6 +1,7 @@
 package org.ost.restapi.api;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.NonNull;
@@ -63,6 +64,7 @@ public class ModerationApiController {
 
     @Operation(operationId = "approveFeedback", summary = "Approve a flagged review",
             description = "Administrators and moderators only. Restores a flagged (HIDDEN) or confirmed (CONFIRMED_HIDDEN) review to visible. 403 for other callers, 404 when unknown, 409 when the review is not awaiting that decision.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/feedback/{id}/approve")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
@@ -72,6 +74,7 @@ public class ModerationApiController {
 
     @Operation(operationId = "confirmFeedbackViolation", summary = "Confirm a flagged review as a violation",
             description = "Administrators and moderators only. Keeps a flagged (HIDDEN) review hidden for good. Applies only to a flagged entry. 403 for other callers, 404 when unknown, 409 when the review is not flagged.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/feedback/{id}/confirm-violation")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
@@ -81,6 +84,7 @@ public class ModerationApiController {
 
     @Operation(operationId = "approveFeedbackReply", summary = "Approve a flagged reply",
             description = "Administrators and moderators only. Restores a flagged (HIDDEN) or confirmed (CONFIRMED_HIDDEN) reply to visible. 403 for other callers, 404 when unknown, 409 when the reply is not awaiting that decision.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/replies/{id}/approve")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")
@@ -90,6 +94,7 @@ public class ModerationApiController {
 
     @Operation(operationId = "confirmFeedbackReplyViolation", summary = "Confirm a flagged reply as a violation",
             description = "Administrators and moderators only. Keeps a flagged (HIDDEN) reply hidden for good. Applies only to a flagged entry. 403 for other callers, 404 when unknown, 409 when the reply is not flagged.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
     @PostMapping("/replies/{id}/confirm-violation")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerKey")

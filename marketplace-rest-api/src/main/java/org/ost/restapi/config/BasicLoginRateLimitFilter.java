@@ -8,7 +8,6 @@ import lombok.NonNull;
 import org.ost.platform.core.FailureRateLimiter;
 import org.ost.platform.core.TooManyAttemptsException;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -41,7 +40,7 @@ public class BasicLoginRateLimitFilter extends OncePerRequestFilter {
         try {
             limiter.checkAllowed(key, BLOCKED_MESSAGE);
         } catch (TooManyAttemptsException ex) {
-            reject(response, ex.getMessage());
+            TooManyRequestsResponse.write(response, ex);
             return;
         }
         filterChain.doFilter(request, response);
@@ -69,12 +68,5 @@ public class BasicLoginRateLimitFilter extends OncePerRequestFilter {
         } catch (IllegalArgumentException _) {
             return Optional.empty();
         }
-    }
-
-    private static void reject(HttpServletResponse response, String message) throws IOException {
-        response.setStatus(429);
-        response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(Duration.ofMinutes(WINDOW_MINUTES).toSeconds()));
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.getWriter().write("{\"message\":\"" + message + "\"}");
     }
 }

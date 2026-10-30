@@ -61,7 +61,9 @@ a client address and email after 5 failed logins in 15 minutes. Every other `/ap
 through the second chain: `ApiKeyAuthenticationFilter` resolves an `Authorization: Bearer <key>`
 header into a `PreAuthenticatedAuthenticationToken` before Spring's own authorization check runs,
 a Basic header is ignored, and a request without a valid key is answered 401 with a Bearer
-challenge. From there, each per-resource controller
+challenge. Right after it, `ApiWriteRateLimitFilter` answers 429 with `Retry-After` once one
+account has sent more POST/PUT/PATCH/DELETE requests than `ApiWriteLimitProperties` allows
+(`marketplace.rest-api.write-limit.*`, 60 per minute by default). From there, each per-resource controller
 (`AdvertisementApiController`, `AdvertisementMediaApiController`, `ProviderProfileApiController`,
 `TaxonApiController`, `UserApiController`, `ApiKeyController`, `ContactApiController`,
 `FeedbackApiController`, `ModerationApiController`) calls straight into the same `marketplace-orchestrator`
