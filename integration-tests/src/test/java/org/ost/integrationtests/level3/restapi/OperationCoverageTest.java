@@ -28,21 +28,27 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-/** Level 3 coverage check: every REST operation of marketplace-rest-api must be reached by at least one scenario request or be listed, with a reason, in the allow-list. */
+/** Level 3 coverage check: every REST operation of marketplace-rest-api must be reached by at least one scenario request or be listed, with a reason, in the allow-list. A whole-module run through build.sh (level3.requireCoverage=true) fails when a scenario class did not run; any other run skips. */
 @Slf4j
 @Level3ScenarioTest
 @Order(Integer.MAX_VALUE)
 class OperationCoverageTest extends AbstractRestApiScenarioTest {
 
     private static final String ALLOW_LIST = "level3/operation-coverage-allowlist.txt";
+    private static final String REQUIRE_COVERAGE = "level3.requireCoverage";
 
     @Autowired private ApplicationContext applicationContext;
 
     @Test
     void everyOperationIsExercisedByAScenarioOrAllowListed() throws IOException {
-        assumeTrue(everyScenarioClassRan(), "coverage is only meaningful when every Level 3 scenario class ran");
+        List<String> missing = scenarioClassesNotRun();
+        if (!missing.isEmpty() && Boolean.getBoolean(REQUIRE_COVERAGE)) {
+            fail("Level 3 scenario classes that did not run (a whole-module run through build.sh requires all of them): " + missing);
+        }
+        assumeTrue(missing.isEmpty(), "coverage is only meaningful when every Level 3 scenario class ran: " + missing);
         Map<String, String> operations = declaredOperations();
         Set<String> exercised = ExercisedOperations.requests();
         Map<String, Set<Integer>> statuses = ExercisedOperations.statuses();
@@ -89,8 +95,8 @@ class OperationCoverageTest extends AbstractRestApiScenarioTest {
         return operation == null ? handler.getMethod().getName() : operation.operationId();
     }
 
-    /** True once every Level 3 scenario class found on the classpath has run in this JVM. */
-    private boolean everyScenarioClassRan() {
+    /** Sorted names of the Level 3 scenario classes found on the classpath that did not run in this JVM. */
+    private List<String> scenarioClassesNotRun() {
         ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter(new AnnotationTypeFilter(Level3ScenarioTest.class));
         Set<String> expected = scanner.findCandidateComponents("org.ost.integrationtests").stream()
@@ -100,7 +106,7 @@ class OperationCoverageTest extends AbstractRestApiScenarioTest {
         Set<String> ran = ExercisedOperations.scenarioClasses().stream()
                 .map(Class::getName)
                 .collect(Collectors.toSet());
-        return ran.containsAll(expected);
+        return expected.stream().filter(name -> !ran.contains(name)).sorted().toList();
     }
 
     /** Reads "METHOD /path # reason" lines; blank lines and lines starting with '#' are skipped. */

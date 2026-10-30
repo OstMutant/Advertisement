@@ -14,10 +14,14 @@
 # Usage: bash scripts/build-and-test/run.sh [--reset-cache] [--rebuild-image] [--unit|--no-unit]
 #   [--integration|--no-integration] [--unit-test <module-or-class>]
 #   [--integration-test <scenario-or-class>] [--sandbox] [--archunit-metrics] [--skip-vaadin]
+#   [--no-install]
 #   (no flags)           build the full reactor, then run both unit and integration tests (the
 #                         build-and-test.properties defaults, both true)
-#   --reset-cache        wipe the shared maven-cache and vaadin-cache volumes before building
-#                         (re-downloads every Maven dependency and Vaadin's own Node.js install)
+#   --reset-cache        wipe the Maven cache volume and the Vaadin cache volume (MAVEN_CACHE_VOLUME / VAADIN_CACHE_VOLUME,
+#                         defaults maven-cache / vaadin-cache) before building; stops with an error if a container still mounts one
+#                         (re-downloads every Maven dependency and Vaadin's own Node.js install);
+#                         first removes the Sonar scanner container (SONAR_SCANNER_CONTAINER, default sonar-scanner),
+#                         because that container mounts the Maven volume
 #   --rebuild-image      force-rebuild the build-and-test image even if one already exists -- the
 #                         image also auto-rebuilds without this flag whenever the Dockerfile's own
 #                         mtime is newer than the existing image's creation time
@@ -45,6 +49,9 @@
 #                                     for --unit/--integration/--archunit-metrics runs, never for a
 #                                     plain cache-priming build or anything deploy-and-run.sh/e2e
 #                                     relies on (see build.sh's own header for why)
+#   --no-install                     off by default -- skips the reactor install and tests against the
+#                                     jars an earlier build already put into the Maven cache volume;
+#                                     only for callers that ran a full build in the same pipeline just before
 # Uses: bash, docker, tar, grep, sed, scripts/utils/agentic-output.sh
 #   (emit_agentic_success_block/emit_agentic_error_block).
 # Env: BUILD_CONTAINER_NAME (default advertisement-build-only) -- overridable so two invocations of
@@ -64,13 +71,18 @@
 #   script -- flips the workarounds' own default from on to off (a real CI runner is not usually
 #   nested the same way a local dev machine's Docker Desktop/WSL2 setup is); pass --sandbox
 #   explicitly to force them on there too, if a given CI runner ever needs it.
+#   MAVEN_CACHE_VOLUME (default maven-cache) -- name of the Docker volume mounted at /root/.m2; the CI sets its own so
+#   manual builds cannot change the jars a CI run reuses.
+#   VAADIN_CACHE_VOLUME (default vaadin-cache) -- name of the Docker volume mounted at /root/.vaadin.
+#   TEST_REPORTS_VOLUME (default test-reports) -- name of the Docker volume mounted at /reports.
+#   SONAR_SCANNER_CONTAINER (default sonar-scanner) -- name of the Sonar scanner container that --reset-cache removes.
 # Input: root build files (pom.xml, mvnw, .mvn, lombok.config, .env), scripts/build-and-test/build.sh
 #   itself (the container's own entry point), each Maven module's own directory, per pom.xml's
 #   <module> list, and docs/api-collections (the REST API module packs the flow runner page and
 #   the Postman collection from it) -- not the whole repo (see the tar step's own comment below);
 #   scripts/build-and-test/build-and-test.properties (unit=/integration= defaults, read on the host
 #   side by this script, not tarred in).
-# Outputs: fresh jars for the whole reactor in the shared maven-cache Docker volume (never the
+# Outputs: fresh jars for the whole reactor in the Maven cache Docker volume (never the
 #   host's own ~/.m2 -- see scripts/build-and-test/README.md); marketplace-app.jar refreshed at
 #   /root/.m2/artifacts/marketplace-app.jar inside that same volume. Vaadin's own Node.js install
 #   (unrelated to Maven) persists across runs in a second named volume, vaadin-cache:/root/.vaadin --
@@ -129,6 +141,7 @@ else
 fi
 ARCHUNIT_METRICS=false
 SKIP_VAADIN=false
+NO_INSTALL=false
 UNIT_TEST_ARG=""
 INTEGRATION_TEST_ARG=""
 NEXT=""
@@ -150,6 +163,7 @@ for arg in "$@"; do
     --no-sandbox)       SANDBOX=false ;;
     --archunit-metrics) ARCHUNIT_METRICS=true ;;
     --skip-vaadin)       SKIP_VAADIN=true ;;
+    --no-install)        NO_INSTALL=true ;;
   esac
 done
 
@@ -164,9 +178,16 @@ fi
 
 # ── Clear build caches if requested ──────────────────────────────────────────
 if $RESET_CACHE; then
-  echo "=== Clearing build caches (maven-cache, vaadin-cache) ==="
-  docker volume rm maven-cache 2>/dev/null || true
-  docker volume rm vaadin-cache 2>/dev/null || true
+  echo "=== Clearing build caches (${MAVEN_CACHE_VOLUME:-maven-cache}, ${VAADIN_CACHE_VOLUME:-vaadin-cache}) ==="
+  docker rm -f "${SONAR_SCANNER_CONTAINER:-sonar-scanner}" >/dev/null 2>&1 || true
+  docker volume rm "${MAVEN_CACHE_VOLUME:-maven-cache}" "${VAADIN_CACHE_VOLUME:-vaadin-cache}" 2>/dev/null || true
+  for volume in "${MAVEN_CACHE_VOLUME:-maven-cache}" "${VAADIN_CACHE_VOLUME:-vaadin-cache}"; do
+    if docker volume inspect "$volume" >/dev/null 2>&1; then
+      echo "ERROR: volume $volume is still in use -- remove the containers that mount it and retry" >&2
+      docker ps -a --filter "volume=$volume" --format "  {{.Names}} ({{.Status}})" >&2
+      exit 1
+    fi
+  done
 fi
 
 # ── Ensure build image exists and is current (rebuilds if Dockerfile changed since last build,
@@ -245,7 +266,7 @@ MODULES=$(grep -oE '<module>[^<]+</module>' "$ROOT/pom.xml" | sed -E 's#</?modul
 # invocation under a different BUILD_CONTAINER_NAME (e.g. deploy-and-run.sh's own internal call,
 # which already uses a distinct name to avoid a Docker container-name collision) writes to its own
 # separate namespace in the same volume and must never wipe this one's in-progress data.
-docker run --rm -v test-reports:/reports "$BUILD_IMAGE" bash -c "rm -rf /reports/$BUILD_CONTAINER_NAME" 2>/dev/null || true
+docker run --rm -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" "$BUILD_IMAGE" bash -c "rm -rf /reports/$BUILD_CONTAINER_NAME" 2>/dev/null || true
 
 docker rm -f "$BUILD_CONTAINER_NAME" 2>/dev/null || true
 set +e
@@ -253,15 +274,16 @@ tar -czf - --exclude='*/target' --exclude='marketplace-app/src/main/frontend/gen
   -C "$ROOT" pom.xml mvnw .mvn lombok.config .env scripts/build-and-test/build.sh docs/api-collections $MODULES \
   | docker run -i \
       --name "$BUILD_CONTAINER_NAME" \
-      -v maven-cache:/root/.m2 \
-      -v vaadin-cache:/root/.vaadin \
-      -v test-reports:/reports \
+      -v "${MAVEN_CACHE_VOLUME:-maven-cache}:/root/.m2" \
+      -v "${VAADIN_CACHE_VOLUME:-vaadin-cache}:/root/.vaadin" \
+      -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" \
       "${DOCKER_SOCK_MOUNT[@]}" \
       -e BUILD_CONTAINER_NAME="$BUILD_CONTAINER_NAME" \
       -e RUN_UNIT="$RUN_UNIT" \
       -e RUN_INTEGRATION="$RUN_INTEGRATION" \
       -e ARCHUNIT_METRICS="$ARCHUNIT_METRICS" \
       -e SKIP_VAADIN="$SKIP_VAADIN" \
+      -e NO_INSTALL="$NO_INSTALL" \
       -e UNIT_TEST_ARG="$UNIT_TEST_ARG" \
       -e INTEGRATION_TEST_ARG="$INTEGRATION_TEST_ARG" \
       "${SANDBOX_ENV[@]}" \

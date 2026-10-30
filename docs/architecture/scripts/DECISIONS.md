@@ -29,7 +29,7 @@ generations of the same state against each other.
    `scripts/ci/reports`, so a new log folder appears without a generator change.
 5. A run's ID is a session ID: the outermost script creates one (`YYYYMMDDHHMMSS`, UTC) and every
    script it calls inherits it through the environment; each log folder gets a `session-info.txt`.
-   For CI the session ID is the Dagu run id, passed to every Dagu step as a parameter, and the CI
+   For CI the session ID is the Dagu run id, which every Dagu step reads from the `DAG_RUN_ID` environment variable, and the CI
    sync copies the `session-info.txt` files out of the runner container. Logs written before this
    show `-`.
 6. The freshness check is no longer part of generation (it compared two runs of one state). It stays

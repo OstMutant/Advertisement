@@ -1,20 +1,29 @@
 # ── Header ──────────────────────────────────────────────────────────────────
-# Description: The "ci" DAG -- build (reactor compile+install) -> unit/integration/e2e/sonar/
-#   archunit_metrics/lint/shellcheck in parallel -> pipeline_metrics -> docs. Loaded by Dagu's
+# Description: The "ci" DAG -- build (reactor compile+install, reused by every later stage) -> unit/integration/e2e/
+#   archunit_metrics/lint/shellcheck in parallel, sonar after unit+integration -> pipeline_metrics -> docs. Loaded by Dagu's
 #   server (scripts/ci/docker-entrypoint.sh's `dagu start-all --dags scripts/ci/dagu`) and
 #   triggered either from Dagu's own web UI ("Start" button) or via `dagu start <this-file-path>`
 #   (a bare DAG name resolves against $DAGU_HOME/dags instead -- see DECISIONS.md).
 # Usage: triggered via scripts/ci/run.sh, or the "Start" button on Dagu's web UI -- never edited
 #   to change a single run's behavior, use the params below instead.
 # Uses: bash, mvn (via build-and-test.sh), docker, python3 (pipeline-metrics.py), shellcheck.
-# Env: None read directly by this file -- each step's own `run:` block sets whatever env vars the
-#   script it calls needs.
+# Env: MAVEN_CACHE_VOLUME=ci-maven-cache, VAADIN_CACHE_VOLUME=ci-vaadin-cache, TEST_REPORTS_VOLUME=ci-test-reports,
+#   SONAR_SCANNER_CONTAINER=sonar-scanner-ci and SONAR_BUILD_CONTAINER_NAME=advertisement-build-only-ci-sonar, set for
+#   every step so manual runs cannot change the jars or reports a CI run uses and cannot remove its containers; each
+#   step's own `run:` block sets whatever other env vars the script it calls needs.
 # Input: params (unit/integration/e2e/sonar/archunit_metrics/lint/shellcheck/docs -- all boolean,
 #   gate the matching step via preconditions; teardown_e2e_after -- boolean, default false, tear
 #   down e2e's stack after the run; reset_e2e_stack -- boolean, default false, use a full --reset
 #   (wipes DB + SeaweedFS together) instead of e2e's default --reset-only-db before deploying
-#   (only needed when the DB schema itself changed); e2e_args -- string, forwarded to
+#   (only needed when the DB schema itself changed); reset_ci_cache -- boolean, default false, wipe the CI's own build
+#   caches (ci-maven-cache and ci-vaadin-cache) and remove the Sonar scanner container before the build, so the next run
+#   downloads dependencies and Node.js again; e2e_args -- string, forwarded to
 #   playwright/run.sh).
+#   What the sonar stage does depends on unit and integration: both selected -- it imports their
+#   JaCoCo reports and runs no tests; sonar alone, or sonar with only one of the two -- it runs its
+#   own unit and integration tests first (slower, and a selected unit stage then runs twice); a
+#   selected stage that failed -- the sonar stage stops with an error instead of showing lower coverage.
+#   When it runs its own tests it uses the Postgres port 25434; the integration stage uses 25433 and manual runs 25432.
 # Outputs: PASSED/FAILED per step in Dagu's own web UI and run history. With archunit_metrics
 #   enabled, refreshes scripts/build-and-test/reports/architecture-metrics.json.
 #   scripts/ci/reports/pipeline-metrics.json is refreshed unconditionally by the pipeline_metrics
@@ -25,6 +34,12 @@
 # ────────────────────────────────────────────────────────────────────────────
 name: ci
 working_dir: /app
+env:
+  - MAVEN_CACHE_VOLUME=ci-maven-cache
+  - SONAR_SCANNER_CONTAINER=sonar-scanner-ci
+  - VAADIN_CACHE_VOLUME=ci-vaadin-cache
+  - TEST_REPORTS_VOLUME=ci-test-reports
+  - SONAR_BUILD_CONTAINER_NAME=advertisement-build-only-ci-sonar
 params:
   - name: unit
     type: boolean
@@ -35,12 +50,12 @@ params:
   - name: reset_e2e_stack
     type: boolean
     default: false
+  - name: reset_ci_cache
+    type: boolean
+    default: false
   - name: e2e_args
     type: string
     default: "e2e --full --ux"
-  - name: session_id
-    type: string
-    default: ""
   - name: e2e
     type: boolean
     default: true
@@ -64,14 +79,19 @@ params:
     default: false
 
 steps:
+  # No continue_on: the later stages reuse this build's jars, so a failed build stops the run.
   - id: build
-    run: SESSION_ID=${params.session_id} bash scripts/build-and-test.sh --no-unit --no-integration
-    continue_on:
-      failure: true
+    run: |
+      rm -f /tmp/ci-sonar-ok
+      RESET_FLAG=""
+      if [ "${params.reset_ci_cache}" = "true" ]; then
+        RESET_FLAG="--reset-cache"
+      fi
+      SESSION_ID=$DAG_RUN_ID BUILD_CONTAINER_NAME=advertisement-build-only-ci-build bash scripts/build-and-test.sh $RESET_FLAG --no-unit --no-integration
 
   - id: unit
     depends: build
-    run: SESSION_ID=${params.session_id} BUILD_CONTAINER_NAME=advertisement-build-only-unit bash scripts/build-and-test.sh --unit --no-integration --skip-vaadin
+    run: SESSION_ID=$DAG_RUN_ID BUILD_CONTAINER_NAME=advertisement-build-only-unit bash scripts/build-and-test.sh --unit --no-integration --skip-vaadin --no-install
     continue_on:
       failure: true
       skipped: true
@@ -84,13 +104,13 @@ steps:
   # ci-runner) hits the same dynamically-assigned-port unreachability this flag works around
   # regardless of host machine, so there is no real "don't need it" case for this step. See
   # DECISIONS.md.
-  # Own fixed Postgres port, so this stage does not share a database with the integration run inside the sonar stage.
+  # Own fixed Postgres port, so this stage does not share a database with the integration run Sonar does itself when its report import is off.
   - id: integration
     depends: build
     run: |
-      SESSION_ID=${params.session_id} BUILD_CONTAINER_NAME=advertisement-build-only-integration \
+      SESSION_ID=$DAG_RUN_ID BUILD_CONTAINER_NAME=advertisement-build-only-integration \
         INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25433 \
-        bash scripts/build-and-test.sh --no-unit --integration --skip-vaadin --sandbox
+        bash scripts/build-and-test.sh --no-unit --integration --skip-vaadin --sandbox --no-install
     continue_on:
       failure: true
       skipped: true
@@ -101,7 +121,7 @@ steps:
   - id: e2e
     depends: build
     run: |
-      export SESSION_ID=${params.session_id}
+      export SESSION_ID=$DAG_RUN_ID
       teardown() {
         [ "${params.teardown_e2e_after}" = "false" ] && return
         docker rm -f ci-marketplace-app ci-advertisement-db ci-advertisement-seaweedfs 2>/dev/null || true
@@ -115,7 +135,7 @@ steps:
         APP_CONTAINER=ci-marketplace-app APP_IMAGE=marketplace-app-ci \
         DB_PORT=15432 SEAWEEDFS_PORT=19000 SEAWEEDFS_CONSOLE_PORT=19333 APP_PORT=18081 \
         DB_VOLUME=ci_advertisement_postgres_data SEAWEEDFS_VOLUME=ci_advertisement_seaweedfs_data \
-        bash scripts/deploy-and-run.sh "$RESET_FLAG" --dev-tools
+        bash scripts/deploy-and-run.sh "$RESET_FLAG" --dev-tools --reuse-jar
       APP_URL=http://localhost:18081 APP_CONTAINER=ci-marketplace-app \
         PW_CONTAINER=ci-pw-runner DB_PORT=15432 \
         bash playwright/run.sh ${params.e2e_args}
@@ -126,9 +146,21 @@ steps:
       - condition: "${params.e2e}"
         expected: "true"
 
+  # Imports the unit and integration stages' JaCoCo reports when both ran, instead of running the tests again.
+  # A listed stage without the tests.passed marker or without JaCoCo XML makes this stage fail with an error, never a silent lower coverage.
   - id: sonar
-    depends: build
-    run: SESSION_ID=${params.session_id} bash scripts/sonar.sh
+    depends: [unit, integration]
+    run: |
+      rm -f /tmp/ci-sonar-ok
+      if [ "${params.unit}" = "true" ] && [ "${params.integration}" = "true" ]; then
+        export SONAR_JACOCO_FROM="advertisement-build-only-unit advertisement-build-only-integration"
+      fi
+      # Own Postgres port for the case where this stage runs its own integration tests.
+      export INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25434
+      # The build step already installed the reactor; an own-tests run here must not install it again while the e2e stage reads the jar.
+      export SONAR_BUILD_ARGS=--no-install
+      SESSION_ID=$DAG_RUN_ID bash scripts/sonar.sh
+      touch /tmp/ci-sonar-ok
     continue_on:
       failure: true
       skipped: true
@@ -141,8 +173,8 @@ steps:
   - id: archunit_metrics
     depends: build
     run: |
-      SESSION_ID=${params.session_id} BUILD_CONTAINER_NAME=advertisement-build-only-archunit \
-        bash scripts/build-and-test.sh --no-unit --no-integration --archunit-metrics --skip-vaadin
+      SESSION_ID=$DAG_RUN_ID BUILD_CONTAINER_NAME=advertisement-build-only-archunit \
+        bash scripts/build-and-test.sh --no-unit --no-integration --archunit-metrics --skip-vaadin --no-install
     continue_on:
       failure: true
       skipped: true
@@ -198,7 +230,9 @@ steps:
       bash .claude/nav/scripts/check-flows-completeness.sh
       bash .claude/nav/scripts/check-hardcoded-counts.sh
       SONAR_FLAG=""
+      # The Sonar rescan is skipped only when this run's Sonar stage passed.
       [ "${params.sonar}" = "true" ] && SONAR_FLAG="--with-sonar"
+      [ "${params.sonar}" = "true" ] && [ -f /tmp/ci-sonar-ok ] && SONAR_FLAG="$SONAR_FLAG --no-sonar-rescan"
       ARCHUNIT_FLAG=""
       [ "${params.archunit_metrics}" = "true" ] && ARCHUNIT_FLAG="--with-archunit"
       bash docs/architecture/scripts/generate-architecture-model.sh $SONAR_FLAG $ARCHUNIT_FLAG

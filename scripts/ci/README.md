@@ -104,18 +104,12 @@ skipping itself. The
 toggleable flag) — `ci-runner`'s own Docker-outside-of-Docker nature hits the same
 dynamically-assigned-port problem regardless of host machine.
 
+`--reset-ci-cache` (Dagu parameter `reset_ci_cache`, a checkbox in the "Start" dialog) wipes the CI's own build caches, the volumes `ci-maven-cache` (Maven dependencies and built jars) and `ci-vaadin-cache` (Node.js for the Vaadin build), and removes the `sonar-scanner-ci` container that mounts the first one, before the build. It does not wipe `ci-test-reports` (test results) or `ci-dagu-home` (run history). It is off by default, and the next run then downloads the dependencies and Node.js again.
+
 ## Can I develop and run the app/tests myself while this runs?
 
 Yes — genuinely, not just "probably fine":
-- The `build`/`unit`/`integration` steps' own Maven builds run through `scripts/build-and-test.sh`,
-  which — via `ci-runner`'s Docker-outside-of-Docker access to the host socket — spins up a
-  separate nested build container mounted at the same `maven-cache` named Docker volume your own
-  direct `deploy-and-run.sh`/`build-and-test.sh` runs use, not the `ci-m2-cache` volume mounted
-  into `ci-runner` itself (these steps never actually touch that one). This is genuinely safe to
-  run concurrently: `scripts/build-and-test/build.sh` takes a lock file inside `/root/.m2` itself
-  to serialize concurrent `mvn` invocations against that shared volume, so two builds queue rather
-  than race or corrupt each other's cache. `integration-tests` always spins up its own ephemeral
-  Postgres via Testcontainers regardless.
+- The `build`/`unit`/`integration`/`sonar` steps' own Maven builds run through `scripts/build-and-test.sh`, which — via `ci-runner`'s Docker-outside-of-Docker access to the host socket — spins up a separate nested build container. `scripts/ci/dagu/ci.yaml` gives every step the CI's own volumes (`ci-maven-cache`, `ci-vaadin-cache`, `ci-test-reports`), its own build and scanner container names (`advertisement-build-only-ci-build`, `advertisement-build-only-ci-sonar`, `sonar-scanner-ci`) and, for the Sonar stage's own tests, its own Postgres port (25434; the `integration` stage uses 25433, manual runs 25432). The `ci-m2-cache` volume mounted into `ci-runner` itself is not touched by these steps. A manual build or test run can therefore go beside a CI run: it cannot replace the jars or reports of the CI run and cannot remove its containers. The one thing both share is the SonarQube server and its project `advertisement`: do not run the CI Sonar stage and a manual `sonar.sh` at the same time. The first run after a cache volume is created downloads every dependency. Inside the CI, parallel steps still share the CI's volumes: `scripts/build-and-test/build.sh` takes a lock file inside `/root/.m2` to serialize concurrent `mvn` invocations, so two builds queue rather than race. `integration-tests` always spins up its own ephemeral Postgres via Testcontainers regardless.
 - The e2e stage's `ci-*` stack (see "Isolation" above) never touches the persistent dev stack's
   containers, ports, network, or database.
 

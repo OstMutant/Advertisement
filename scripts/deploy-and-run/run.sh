@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
-# Description: Full local deploy -- reuses scripts/build-and-test.sh's shared maven-cache jar by
-#   default: no Docker image is built at all, the jar is copied out of the maven-cache volume into
+# Description: Full local deploy -- reuses scripts/build-and-test.sh's shared Maven-cache jar by
+#   default: no Docker image is built at all, the jar is copied out of the Maven cache volume into
 #   a volume of its own and `java -jar` runs it from there inside a plain eclipse-temurin:25-jre
 #   container, so a later build cannot replace the jar of the running application. Starts all services on port
 #   8081. A Liquibase checksum mismatch (a changeset edited in place instead of a new one added,
@@ -10,7 +10,7 @@
 #   --reset, no re-run needed -- dev-only, a real deployed database needs a proper migration, not a
 #   wipe. See DECISIONS.md for the full reuse-jar rationale.
 # Usage: bash scripts/deploy-and-run.sh [--reset] [--restart-infra] [--file] [--no-cache]
-#   [--reset-only-db] [--with-tests] [--from-scratch] [--prune-all] [--dev-tools]
+#   [--reset-only-db] [--with-tests] [--from-scratch] [--prune-all] [--dev-tools] [--reuse-jar]
 #   (no flags)       reuse scripts/build-and-test.sh's shared jar -- no Docker image built, no
 #                    tests run, no data wipe -- start all services on port 8081
 #   --reset          wipe DB/SeaweedFS volumes, then rebuild
@@ -26,6 +26,9 @@
 #                    running local container
 #   --dev-tools      start the app with MARKETPLACE_DEV_TOOLS_ENABLED=true so the developer-only API flow
 #                    runner page is served at /dev-tools/api-flows/ (off by default, never set in compose)
+#   --reuse-jar      skip the internal build and start from the marketplace-app.jar a build in the same
+#                    pipeline already put into the Maven cache volume (for the CI's e2e stage);
+#                    incompatible with --from-scratch and --with-tests
 #   --prune-all      ALSO run `docker container prune -f` and `docker volume prune -f` after the
 #                    build -- HOST-WIDE, not scoped to this app, will remove any other stopped
 #                    container / unused volume on the machine. Opt-in only, never automatic -- see
@@ -41,9 +44,10 @@
 #   used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack. DB_NAME/DB_USER/DB_PASSWORD/
 #   S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET/S3_REGION fall back to the repo-root .env, then a
 #   hardcoded default.
+#   MAVEN_CACHE_VOLUME (default maven-cache) -- name of the Docker volume the app jar is copied from.
 # Input: repo source, .env (DB_*/S3_* fallback defaults -- NOT POSTGRES_IMAGE: this script's own
 #   Postgres container always hardcodes postgres:15-alpine, unlike docker-compose.db.yml which
-#   does honor POSTGRES_IMAGE), the shared maven-cache Docker volume (its jar is copied into the app
+#   does honor POSTGRES_IMAGE), the Maven cache Docker volume (its jar is copied into the app
 #   container's own <APP_CONTAINER>-jar volume unless --from-scratch).
 # Outputs: running marketplace-app container on APP_PORT -- a real, separately built and tagged
 #   "marketplace-app" image only with --from-scratch; the default path runs `java -jar` inside a
@@ -106,6 +110,7 @@ PRUNE_ALL=false
 WITH_TESTS=false
 FROM_SCRATCH=false
 DEV_TOOLS=false
+REUSE_JAR=false
 for arg in "$@"; do
   case "$arg" in
     --reset)         MODE="reset" ;;
@@ -117,8 +122,14 @@ for arg in "$@"; do
     --with-tests)    WITH_TESTS=true ;;
     --from-scratch)  FROM_SCRATCH=true ;;
     --dev-tools)     DEV_TOOLS=true ;;
+    --reuse-jar)     REUSE_JAR=true ;;
   esac
 done
+
+if $REUSE_JAR && { $FROM_SCRATCH || $WITH_TESTS; }; then
+  echo "--reuse-jar cannot be combined with --from-scratch or --with-tests (it starts from a jar built earlier)." >&2
+  exit 2
+fi
 
 CURRENT_STEP="deploy"
 
@@ -265,7 +276,7 @@ fi
 
 # ── Step 1.5: reuse build-and-test.sh's shared jar (skipped with --from-scratch) ──────────────
 CURRENT_STEP="build"
-if ! $FROM_SCRATCH; then
+if ! $FROM_SCRATCH && ! $REUSE_JAR; then
   echo ""
   echo "=== Step 1.5: Build via build-and-test.sh (shared maven-cache jar) ==="
   BUILD_AND_TEST_FLAGS=(--no-unit --no-integration)
@@ -275,6 +286,8 @@ if ! $FROM_SCRATCH; then
   # scripts/run-all-tests.sh runs both from one top-level command), and Docker container names
   # must be unique -- see scripts/build-and-test/run.sh's own Env doc for why.
   BUILD_CONTAINER_NAME="advertisement-build-only-deploy" bash "$ROOT/scripts/build-and-test.sh" "${BUILD_AND_TEST_FLAGS[@]}"
+elif $REUSE_JAR; then
+  echo "=== Step 1.5 skipped (--reuse-jar): starting from the marketplace-app.jar already in the shared maven-cache ==="
 fi
 
 # ── Step 2: Build (--from-scratch only -- the default path copies the shared jar into its own
@@ -334,12 +347,12 @@ start_app_container() {
   if $FROM_SCRATCH; then
     docker run "${RUN_FLAGS[@]}" "$APP_IMAGE"
   else
-    # No built image at all -- the jar is copied out of the shared maven-cache volume into a volume
-    # of this container's own, so a later build that rewrites maven-cache cannot change the jar of
+    # No built image at all -- the jar is copied out of the Maven cache volume into a volume
+    # of this container's own, so a later build that rewrites that volume cannot change the jar of
     # the running application (it loads classes lazily and fails on a replaced file).
     docker volume rm "$APP_JAR_VOLUME" 2>/dev/null || true
     docker volume create "$APP_JAR_VOLUME" >/dev/null
-    docker run --rm -v maven-cache:/src:ro -v "$APP_JAR_VOLUME":/dst --entrypoint cp \
+    docker run --rm -v "${MAVEN_CACHE_VOLUME:-maven-cache}":/src:ro -v "$APP_JAR_VOLUME":/dst --entrypoint cp \
       eclipse-temurin:25-jre /src/artifacts/marketplace-app.jar /dst/marketplace-app.jar
     docker run "${RUN_FLAGS[@]}" \
       -v "$APP_JAR_VOLUME":/app \

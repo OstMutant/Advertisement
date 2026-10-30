@@ -7,15 +7,19 @@
 #   Generates architecture-model.json from already-structured, non-code sources only (no ArchUnit,
 #   no bytecode analysis) -- module/command/skill/agent graph nodes from pom.xml/config sources,
 #   cross-checked against flows.md, with ADRs folded into each module's intent[] list.
-# Usage: bash docs/architecture/scripts/generate-architecture-model.sh [--with-adr-details] [--with-sonar] [--with-archunit] [--with-ci-metrics]
+# Usage: bash docs/architecture/scripts/generate-architecture-model.sh [--with-adr-details] [--with-sonar] [--no-sonar-rescan] [--with-archunit] [--with-ci-metrics]
 #   (no flags)         regenerate architecture-model.json and architecture-map.html from repo state, including JaCoCo coverage and Surefire results from the last local build-and-test.sh run
 #   --with-adr-details embed full ADR text in the architecture-map.html (slower, larger output)
 #   --with-sonar       include SonarQube quality metrics (requires server running)
+#   --no-sonar-rescan  use the stored Sonar analysis as is (the CI sonar stage already scanned); only meaningful with --with-sonar
 #   --with-archunit    include ArchUnit module-coupling analysis (runs ArchitectureMetricsExport)
 # Uses: bash, node (liquibase-schema-to-json.js, .claude/nav/scripts/generate-adr-index.sh, md-to-decisions-json.js),
 #   python3 (JaCoCo/Surefire parsing always; Sonar/ArchUnit only with --with-sonar/--with-archunit).
 # Env: None.
-# Input: scripts/build-and-test/reports/jacoco/*.xml, scripts/build-and-test/reports/surefire/*/,
+# Input: scripts/build-and-test/reports/jacoco/*.xml, scripts/build-and-test/reports/surefire/*/
+#   (also the same two folders inside scripts/build-and-test/reports/advertisement-build-only-unit,
+#   scripts/build-and-test/reports/advertisement-build-only-integration and
+#   scripts/build-and-test/reports/advertisement-build-only-ci-sonar, the CI stage folders),
 #   scripts/logs/** and scripts/ci/reports/ (run logs and CI metrics), pom.xml, Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
 #   .claude/nav/adr-index.md, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents,
 #   backlog/, root CLAUDE.md, .claude/rules/*.md (including html/markdown embedded sections marked
@@ -74,12 +78,14 @@ run_node() {
 # recently, depends on a Dagu CI run having run recently, or bakes every module's full ADR text
 # into the output. See docs/architecture/scripts/DECISIONS.md.
 WITH_SONAR=""
+NO_SONAR_RESCAN=""
 WITH_ARCHUNIT=""
 WITH_CI_METRICS=""
 WITH_ADR_DETAILS=""
 for arg in "$@"; do
   case "$arg" in
     --with-sonar) WITH_SONAR=1 ;;
+    --no-sonar-rescan) NO_SONAR_RESCAN=1 ;;
     --with-archunit) WITH_ARCHUNIT=1 ;;
     --with-ci-metrics) WITH_CI_METRICS=1 ;;
     --with-adr-details) WITH_ADR_DETAILS=1 ;;
@@ -1321,7 +1327,7 @@ def read_info(p):
     return kv
 '
 
-# JaCoCo coverage and Surefire results of the last plain build-and-test.sh run as one JSON object.
+# JaCoCo coverage and Surefire results of the last plain build-and-test.sh run and of the CI unit, integration and Sonar stages (newest entry per id) as one JSON object.
 test_reports_json() {
   python3 -c "$PY_READ_INFO"'
 import json, sys, glob, os, datetime
@@ -1334,61 +1340,86 @@ rel = "scripts/build-and-test/reports"
 def utc(sec):
     return datetime.datetime.fromtimestamp(sec, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+def info_of(path):
+    return read_info(path) if os.path.isfile(path) else None
+
+logs_dir = os.path.join(root, "scripts/logs/build-and-test")
+plain_info = info_of(os.path.join(logs_dir, "build-info.txt"))
+stage_infos = [i for i in (info_of(os.path.join(logs_dir, "advertisement-build-only-unit", "build-info.txt")),
+                           info_of(os.path.join(logs_dir, "advertisement-build-only-integration", "build-info.txt")),
+                           info_of(os.path.join(logs_dir, "advertisement-build-only-ci-sonar", "build-info.txt"))) if i]
+stage_time = max((i.get("timestamp") or "" for i in stage_infos), default="")
 build_info = None
-info_file = os.path.join(root, "scripts/logs/build-and-test/build-info.txt")
-if os.path.isfile(info_file):
-    kv = read_info(info_file)
-    build_info = {"timestamp": kv.get("timestamp"), "runUnit": kv.get("RUN_UNIT"),
-                  "runIntegration": kv.get("RUN_INTEGRATION"),
-                  "unitTestArg": kv.get("UNIT_TEST_ARG"),
-                  "integrationTestArg": kv.get("INTEGRATION_TEST_ARG")}
+if plain_info and (plain_info.get("timestamp") or "") >= stage_time:
+    build_info = {"timestamp": plain_info.get("timestamp"), "runUnit": plain_info.get("RUN_UNIT"),
+                  "runIntegration": plain_info.get("RUN_INTEGRATION"),
+                  "unitTestArg": plain_info.get("UNIT_TEST_ARG"),
+                  "integrationTestArg": plain_info.get("INTEGRATION_TEST_ARG")}
+elif stage_infos:
+    build_info = {"timestamp": stage_time,
+                  "runUnit": "true" if any(i.get("RUN_UNIT") == "true" for i in stage_infos) else "false",
+                  "runIntegration": "true" if any(i.get("RUN_INTEGRATION") == "true" for i in stage_infos) else "false",
+                  "unitTestArg": next((i.get("UNIT_TEST_ARG") for i in stage_infos if i.get("RUN_UNIT") == "true"), ""),
+                  "integrationTestArg": next((i.get("INTEGRATION_TEST_ARG") for i in stage_infos if i.get("RUN_INTEGRATION") == "true"), "")}
 
-coverage = []
-for path in sorted(glob.glob(os.path.join(reports, "jacoco", "*.xml"))):
-    mid = os.path.splitext(os.path.basename(path))[0]
-    try:
-        rt = ET.parse(path).getroot()
-    except Exception as e:
-        print("skipped unparsable " + path + ": " + str(e), file=sys.stderr)
-        continue
-    cnt = {"LINE": (0, 0), "BRANCH": (0, 0)}
-    for c in rt.findall("counter"):
-        if c.get("type") in cnt:
-            cnt[c.get("type")] = (int(c.get("covered")), int(c.get("missed")))
-    dumps = [int(si.get("dump")) for si in rt.findall("sessioninfo") if si.get("dump")]
-    coverage.append({"id": mid, "lineCovered": cnt["LINE"][0], "lineMissed": cnt["LINE"][1],
-                     "branchCovered": cnt["BRANCH"][0], "branchMissed": cnt["BRANCH"][1],
-                     "runAt": utc(max(dumps) / 1000) if dumps else None,
-                     "html": rel + "/jacoco/" + mid + "/index.html"})
+roots = [(reports, rel)] + [(os.path.join(reports, d), rel + "/" + d)
+                            for d in ("advertisement-build-only-unit", "advertisement-build-only-integration", "advertisement-build-only-ci-sonar")]
 
-tests = []
-sf_root = os.path.join(reports, "surefire")
-for mid in sorted(d for d in os.listdir(sf_root) if os.path.isdir(os.path.join(sf_root, d))) if os.path.isdir(sf_root) else []:
-    if mid.startswith("advertisement-build-only") or mid == "it-mirror":
-        continue
-    files = sorted(glob.glob(os.path.join(sf_root, mid, "TEST-*.xml")))
-    tot = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
-    secs = 0.0
-    newest = None
-    failing = []
-    for path in files:
+coverage_by_id = {}
+tests_by_id = {}
+for base, base_rel in roots:
+    for path in sorted(glob.glob(os.path.join(base, "jacoco", "*.xml"))):
+        mid = os.path.splitext(os.path.basename(path))[0]
         try:
-            ts = ET.parse(path).getroot()
+            rt = ET.parse(path).getroot()
         except Exception as e:
             print("skipped unparsable " + path + ": " + str(e), file=sys.stderr)
             continue
-        for k in tot:
-            tot[k] += int(ts.get(k, 0))
-        secs += float(ts.get("time", 0))
-        mt = os.path.getmtime(path)
-        newest = mt if newest is None else max(newest, mt)
-        if int(ts.get("failures", 0)) + int(ts.get("errors", 0)) > 0:
-            failing.append({"name": ts.get("name"), "txt": rel + "/surefire/" + mid + "/" + ts.get("name") + ".txt"})
-    if newest is None:
-        continue
-    failing.sort(key=lambda x: x["name"])
-    tests.append({"id": mid, **tot, "time": round(secs, 1), "runAt": utc(newest),
-                  "failing": failing})
+        cnt = {"LINE": (0, 0), "BRANCH": (0, 0)}
+        for c in rt.findall("counter"):
+            if c.get("type") in cnt:
+                cnt[c.get("type")] = (int(c.get("covered")), int(c.get("missed")))
+        dumps = [int(si.get("dump")) for si in rt.findall("sessioninfo") if si.get("dump")]
+        entry = {"id": mid, "lineCovered": cnt["LINE"][0], "lineMissed": cnt["LINE"][1],
+                 "branchCovered": cnt["BRANCH"][0], "branchMissed": cnt["BRANCH"][1],
+                 "runAt": utc(max(dumps) / 1000) if dumps else None,
+                 "html": base_rel + "/jacoco/" + mid + "/index.html"}
+        old = coverage_by_id.get(mid)
+        if old is None or (entry["runAt"] or "") > (old["runAt"] or ""):
+            coverage_by_id[mid] = entry
+
+    sf_root = os.path.join(base, "surefire")
+    for mid in sorted(d for d in os.listdir(sf_root) if os.path.isdir(os.path.join(sf_root, d))) if os.path.isdir(sf_root) else []:
+        if mid.startswith("advertisement-build-only") or mid == "it-mirror":
+            continue
+        files = sorted(glob.glob(os.path.join(sf_root, mid, "TEST-*.xml")))
+        tot = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+        secs = 0.0
+        newest = None
+        failing = []
+        for path in files:
+            try:
+                ts = ET.parse(path).getroot()
+            except Exception as e:
+                print("skipped unparsable " + path + ": " + str(e), file=sys.stderr)
+                continue
+            for k in tot:
+                tot[k] += int(ts.get(k, 0))
+            secs += float(ts.get("time", 0))
+            mt = os.path.getmtime(path)
+            newest = mt if newest is None else max(newest, mt)
+            if int(ts.get("failures", 0)) + int(ts.get("errors", 0)) > 0:
+                failing.append({"name": ts.get("name"), "txt": base_rel + "/surefire/" + mid + "/" + ts.get("name") + ".txt"})
+        if newest is None:
+            continue
+        failing.sort(key=lambda x: x["name"])
+        entry = {"id": mid, **tot, "time": round(secs, 1), "runAt": utc(newest), "failing": failing}
+        old = tests_by_id.get(mid)
+        if old is None or entry["runAt"] > old["runAt"]:
+            tests_by_id[mid] = entry
+
+coverage = [coverage_by_id[k] for k in sorted(coverage_by_id)]
+tests = [tests_by_id[k] for k in sorted(tests_by_id)]
 
 print(json.dumps({"buildInfo": build_info, "coverage": coverage, "tests": tests}))
 ' "$REPO_ROOT"
@@ -1425,7 +1456,8 @@ for base in ROOTS:
     if not os.path.isdir(base_dir):
         continue
     for dirpath, dirnames, filenames in os.walk(base_dir):
-        dirnames.sort()
+        # Screenshots of the page-shot mode are images, not run logs.
+        dirnames[:] = sorted(d for d in dirnames if d != "shots")
         rel = os.path.relpath(dirpath, root).replace(os.sep, "/")
         files = []
         for n in sorted(filenames):
@@ -2050,7 +2082,7 @@ arch_embed_index_md() {
   done < <(find "$REPO_ROOT" \( -name "CLAUDE.md" -o -path "$REPO_ROOT/.claude/rules/*.md" \) -not -path "*/node_modules/*" -not -path "*/target/*" -not -path "*/.git/*" -not -path "*/.claude/worktrees/*" | sort)
 }
 
-[ -n "$WITH_SONAR" ] && ensure_sonar_fresh
+[ -n "$WITH_SONAR" ] && [ -z "$NO_SONAR_RESCAN" ] && ensure_sonar_fresh
 
 sonar_json="null"
 [ -n "$WITH_SONAR" ] && sonar_json="$(sonar_metrics_json)"
@@ -3130,9 +3162,9 @@ function renderCodeQuality() {
     const isCov = view.section === "coverage";
     html += isCov
       ? `<h2 class="screen-title">Code Quality — Coverage</h2>
-      <div class="screen-desc">JaCoCo line and branch coverage per module, read at generation time from <code>scripts/build-and-test/reports/jacoco/</code> of the last plain <code>build-and-test.sh</code> run.</div>`
+      <div class="screen-desc">JaCoCo line and branch coverage per module, read at generation time from <code>scripts/build-and-test/reports/jacoco/</code> of the last plain <code>build-and-test.sh</code> run, or of the CI unit, integration and Sonar stages, whichever is newer.</div>`
       : `<h2 class="screen-title">Code Quality — Tests</h2>
-      <div class="screen-desc">Surefire results per module, read at generation time from <code>scripts/build-and-test/reports/surefire/</code> of the last plain <code>build-and-test.sh</code> run.</div>`;
+      <div class="screen-desc">Surefire results per module, read at generation time from <code>scripts/build-and-test/reports/surefire/</code> of the last plain <code>build-and-test.sh</code> run, or of the CI unit, integration and Sonar stages, whichever is newer.</div>`;
     html += `<section class="block"><h3>${isCov ? "Coverage" : "Tests"}</h3>`;
     if (!tr || !(isCov ? tr.coverage : tr.tests).length) {
       const folder = isCov ? "scripts/build-and-test/reports/jacoco/" : "scripts/build-and-test/reports/surefire/";

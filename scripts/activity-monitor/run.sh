@@ -117,7 +117,7 @@ declare -A STEP_DESCRIPTIONS=(
   ["ci.sh:unit"]="unit tests, in their own build-and-test.sh container"
   ["ci.sh:integration"]="Testcontainers-based integration tests, in their own container"
   ["ci.sh:e2e"]="deploys the isolated e2e stack and runs the Playwright suite against it"
-  ["ci.sh:sonar"]="builds, scans, and checks the quality gate"
+  ["ci.sh:sonar"]="waits for unit and integration, imports their coverage reports, scans and checks the quality gate"
   ["ci.sh:archunit_metrics"]="exports ArchUnit module-coupling metrics"
   ["ci.sh:pipeline_metrics"]="aggregates this run's own per-stage metrics"
   ["ci.sh:docs"]="doc-freshness checks plus architecture-model.json/architecture-map.html regen"
@@ -156,8 +156,9 @@ declare -A SCRIPT_STEP_SEQUENCE=(
 
 # Step ids (space-separated, must be a contiguous run within the matching SCRIPT_STEP_SEQUENCE
 # entry) that genuinely execute in parallel with each other, not one after another -- e.g. ci.sh's
-# unit/integration/e2e/sonar/archunit_metrics Dagu steps all depend only on "build", not on each
-# other (scripts/ci/dagu/ci.yaml). render_tree() treats the whole group as one unit: every member
+# unit/integration/e2e/archunit_metrics Dagu steps all depend only on "build", not on each
+# other, and sonar waits for unit and integration (scripts/ci/dagu/ci.yaml), so it renders as
+# running while it waits. render_tree() treats the whole group as one unit: every member
 # still incomplete renders "running" simultaneously (not just the first, the way a normal sequence
 # step would) while any member is unfinished; the group as a whole only counts as "done" and
 # advances the sequence once every member has completed.

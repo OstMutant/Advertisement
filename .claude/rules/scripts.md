@@ -109,7 +109,7 @@ scripts\sonar.bat                  # Windows -- same
 bash scripts/sonar.sh --no-gate    # informational only, always exits 0
 ```
 
-The script starts SonarQube automatically if not running, builds all modules via `scripts/build-and-test.sh` (no local Java needed), copies source files into the scanner container via `docker cp`, mounts the shared `maven-cache` volume directly into the scanner container for compiled classes, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`. The scanner always waits for server-side report processing (`-Dsonar.qualitygate.wait=true`, unconditional — needed so the HTML-report step below doesn't query the issues API before the server finishes indexing); `--no-gate` only changes whether a failed gate makes the script itself exit non-zero, not whether it waits. See `scripts/sonar/DECISIONS.md` for the quality-gate-blocking history (a `tee`d exit-code bug meant the flag alone wouldn't have blocked anything).
+The script starts SonarQube automatically if not running, builds all modules and runs the unit and integration tests via `scripts/build-and-test.sh` (no local Java needed) unless `SONAR_JACOCO_FROM` names finished test runs whose JaCoCo reports it imports instead (a report folder without XML, or without the `tests.passed` marker a fully passed test run writes, stops it with an error), copies source files into the scanner container via `docker cp`, mounts the Maven cache volume (`maven-cache`, or the one `MAVEN_CACHE_VOLUME` names) directly into the scanner container for compiled classes, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`. The scanner always waits for server-side report processing (`-Dsonar.qualitygate.wait=true`, unconditional — needed so the HTML-report step below doesn't query the issues API before the server finishes indexing); `--no-gate` only changes whether a failed gate makes the script itself exit non-zero, not whether it waits. See `scripts/sonar/DECISIONS.md` for the quality-gate-blocking history (a `tee`d exit-code bug meant the flag alone wouldn't have blocked anything).
 
 **IMPORTANT:** Same Docker socket constraint as Playwright for host-path bind mounts (`-v /host/path:/container/path`) — never use those, the script uses `docker cp` for host-to-container file transfer instead. This does NOT apply to named-volume mounts (`-v maven-cache:/root/.m2`), which the scanner container itself now uses directly — those aren't host paths and don't hit the same bug.
 
@@ -235,15 +235,14 @@ from the current source tree and run with the host's `/var/run/docker.sock` moun
 (Docker-outside-of-Docker) — it creates and tears down its own isolated `ci-*`-named sibling
 containers, never touching the persistent dev stack. `ci-runner` runs Dagu
 (https://github.com/dagucloud/dagu), a single-binary DAG engine with a built-in web UI, orchestrating
-the stage sequence defined in `scripts/ci/dagu/ci.yaml` (`build` → `unit`/`integration`/`e2e`/
-`sonar`/`archunit_metrics`/`lint`/`shellcheck` in parallel → `pipeline_metrics` → `docs`) — each
+the stage sequence defined in `scripts/ci/dagu/ci.yaml` (`build` once, then `unit`/`integration` in parallel with `e2e`/`archunit_metrics`/`lint`/`shellcheck`, `sonar` after `unit`+`integration` → `pipeline_metrics` → `docs`; a failed `build` stops the run) — each
 step calls the same existing scripts (`build-and-test.sh`/`deploy-and-run.sh`+`playwright/run.sh`/
 `sonar.sh`) directly, no stage logic reimplemented (`lint` calls `playwright/run.sh --lint`, which
 manages its own `pw-runner`/Node.js environment — `ci-runner` itself never installs Node;
 `shellcheck` runs directly inside `ci-runner`, since the binary is baked into that image's own
 Dockerfile, `--severity=error` only — a warning/info/style finding never fails this gate). `unit`/
-`integration`/`archunit_metrics` pass `--skip-vaadin` to
-`build-and-test.sh` (skips the Vaadin frontend bundle none of them need — see
+`integration`/`archunit_metrics` pass `--skip-vaadin` and `--no-install` to
+`build-and-test.sh` (skip the Vaadin frontend bundle none of them need and the reactor install, testing against the jars `build` left in the CI's own Maven volume `ci-maven-cache`; `e2e` starts from that jar via `deploy-and-run.sh --reuse-jar` — see
 `.claude/nav/adr-index.md`). See `.claude/nav/adr-index.md` for the DooD (Docker-outside-of-Docker)
 design, the Dagu migration, and the pipeline-metrics/ArchUnit-export follow-up.
 
@@ -265,6 +264,10 @@ bash scripts/ci.sh --reset-e2e-stack                                # full --res
                                                                     # of the default --reset-only-db
                                                                     # -- only needed when the DB
                                                                     # schema itself changed
+bash scripts/ci.sh --reset-ci-cache                                    # wipe the CI's own build caches
+                                                                        # (ci-maven-cache, ci-vaadin-cache)
+                                                                        # before the build -- off by default;
+                                                                        # the next run downloads them again
 bash scripts/ci.sh --foreground                                     # block and stream this run's
                                                                       # output instead of firing it
                                                                       # and returning immediately
@@ -309,8 +312,7 @@ changed since the image was built (`--rebuild` forces a rebuild + container recr
 the image's own baked-in `COPY . .` is never trusted as the source of truth, since Docker's layer
 cache can silently serve a stale copy of it. **Triggering a run from the Dagu web UI directly does NOT sync the working
 tree** — it runs against whatever source `bash scripts/ci.sh` last streamed in; a bind mount
-isn't used instead (see `.claude/nav/adr-index.md`). Maven dependencies are
-cached across runs via the `ci-m2-cache` named volume; buildx/compose/Dagu's own binaries are
+isn't used instead (see `.claude/nav/adr-index.md`). Every CI step gets its own volumes (`ci-maven-cache`, `ci-vaadin-cache`, `ci-test-reports`), build and scanner container names and Postgres port from the top-level `env:` and steps of `scripts/ci/dagu/ci.yaml`, so Maven dependencies, built jars, Node.js and test reports are cached across runs in volumes that manual runs never write to (the volumes start empty, so the first run downloads every dependency) and a manual run can go beside a CI run; buildx/compose/Dagu's own binaries are
 cached via `ci-tools-cache` (downloaded once, reused across image rebuilds — see
 `scripts/ci/docker-entrypoint.sh`). `deploy-and-run.sh` and `playwright/run.sh` accept env-var
 overrides (container/network names, ports, volume names — default to the exact values already in
@@ -332,9 +334,8 @@ reaches `succeeded`/a failure-shaped terminal status, that script prints a real
 `AGENTIC_SUCCESS_BLOCK`/`AGENTIC_ERROR_BLOCK` marker to `run.sh`'s own stdout — the exact contract
 `scripts/activity-monitor.sh`'s existing marker parser already reads for every other wrapped script,
 so it renders the checklist itself, no separate tree-drawing code of its own for `ci.sh`.
-`unit`/`integration`/`e2e`/`sonar`/`archunit_metrics` genuinely run in parallel in Dagu (all depend
-only on `build`) — `scripts/activity-monitor/run.sh`'s `SCRIPT_STEP_PARALLEL_GROUPS` renders all of
-them as `⏳ running` simultaneously while any is still in flight, instead of the normal
+`unit`/`integration`/`e2e`/`archunit_metrics` genuinely run in parallel in Dagu (all depend
+only on `build`; `sonar` follows `unit`+`integration`) — `scripts/activity-monitor/run.sh`'s `SCRIPT_STEP_PARALLEL_GROUPS` renders the parallel ones and `sonar` as `⏳ running` simultaneously while any is still in flight, instead of the normal
 one-step-at-a-time sequence view. Steps backed by one well-known container
 (`unit`/`integration`/`e2e`/`archunit_metrics`) get the same live `docker inspect`-based
 container-state warning `deploy-and-run.sh`/`playwright.sh` already have.

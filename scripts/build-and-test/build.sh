@@ -2,8 +2,9 @@
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Runs INSIDE the build-and-test Docker container (JDK 25). Always builds
 #   the full reactor and refreshes marketplace-app's JAR in the shared volume, regardless of who
-#   called it -- Maven's own incremental compilation makes a no-op rebuild cheap either way. Also
-#   optionally runs unit/integration tests and an ArchUnit metrics export -- see Env below.
+#   called it -- unless NO_INSTALL=true. Each container starts from sources without target/, so
+#   every install compiles from scratch. Also optionally runs unit/integration tests and an
+#   ArchUnit metrics export -- see Env below.
 # Usage: not invoked directly -- tar-piped and run via `docker run` by an external caller.
 # Uses: bash, mvn, flock.
 # Env:
@@ -27,6 +28,9 @@
 #       cache-priming build, or anything deploy-and-run.sh/e2e relies on) -- marketplace-app's own
 #       jar/target-classes refresh into the shared volume is skipped whenever this is true, so a
 #       partial build never overwrites what a real one produced.
+#     NO_INSTALL (true/false, default false) -- skips the whole reactor install, the target-classes
+#       refresh and the marketplace-app.jar copy, and tests against the jars an earlier build already
+#       put into the shared volume; only for callers that ran a full build in the same pipeline just before.
 #     BUILD_CONTAINER_NAME (default advertisement-build-only) -- namespaces this run's own reports
 #       under /reports/$BUILD_CONTAINER_NAME/, so two concurrent invocations (e.g. run-all-tests.sh's
 #       own direct call and deploy-and-run.sh's internal one, which already uses a distinct
@@ -61,6 +65,7 @@
 #   mirrors run.log + surefire/ into $REPORTS_DIR/it-mirror/, copied out by run.sh's own second,
 #   separate docker cp -- keeps integration-tests/reports/ fresh whenever integration tests run
 #   through this script, not only via integration-tests/run.sh's own direct invocation.
+#   $REPORTS_DIR/jacoco/tests.passed is written only when every requested test phase of an unfiltered run passed.
 # Returns: 0 on success, non-zero on build/test failure.
 # ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -73,6 +78,8 @@ ROOT=/app
 # Docker container-name collision -- don't also collide writing into the same shared test-reports
 # volume at once.
 REPORTS_DIR="/reports/${BUILD_CONTAINER_NAME:-advertisement-build-only}"
+# A marker left by an earlier run of the same container name must never count for this run.
+rm -f "$REPORTS_DIR/jacoco/tests.passed"
 # Separate top-level container path (not nested under REPORTS_DIR) for raw process logs
 # (build-info.txt, logs/*.log) -- kept apart from REPORTS_DIR, which is real test *results* only
 # (surefire/, it-mirror/, architecture-metrics.json), so run.sh's own host copy-out can send each
@@ -91,58 +98,62 @@ MVN_LOCK=/root/.m2/.build.lock
 ARTIFACT_DIR=/root/.m2/artifacts
 ARTIFACT="$ARTIFACT_DIR/marketplace-app.jar"
 
-# ── Build: always the full reactor, always refreshes the shared artifact ─────
-# SKIP_VAADIN=true adds -Dvaadin.skip=true, skipping vaadin-maven-plugin's build-frontend goal
-# (npm install + Vite bundle, ~3-4 min) for callers that only need compiled Java classes (unit/
-# integration tests, ArchUnit metrics) -- none of them exercise Vaadin UI rendering, so the
-# frontend bundle is pure unneeded cost for them. Never set for the plain "prime the cache" build
-# (no RUN_UNIT/RUN_INTEGRATION/ARCHUNIT_METRICS) or anything deploy-and-run.sh/e2e relies on --
-# those need a real, runnable jar with the frontend actually bundled.
-echo ""
-echo "=== Building (full reactor) ==="
-cd "$ROOT"
-mkdir -p "$ARTIFACT_DIR"
-MVN_INSTALL_FLAGS="-DskipTests"
-[ "$SKIP_VAADIN" = "true" ] && MVN_INSTALL_FLAGS="$MVN_INSTALL_FLAGS -Dvaadin.skip=true"
-flock "$MVN_LOCK" -c "./mvnw install $MVN_INSTALL_FLAGS"
+# ── Build: full reactor install and shared-artifact refresh; skipped when NO_INSTALL=true ─────
+if [ "${NO_INSTALL:-false}" = "true" ]; then
+  echo "=== Install skipped (--no-install): using the jars already in the shared maven-cache ==="
+else
+  echo ""
+  echo "=== Building (full reactor) ==="
+  cd "$ROOT"
+  mkdir -p "$ARTIFACT_DIR"
+  # SKIP_VAADIN=true adds -Dvaadin.skip=true, skipping vaadin-maven-plugin's build-frontend goal
+  # (npm install + Vite bundle, ~3-4 min) for callers that only need compiled Java classes (unit/
+  # integration tests, ArchUnit metrics) -- none of them exercise Vaadin UI rendering, so the
+  # frontend bundle is pure unneeded cost for them. Never set for the plain "prime the cache" build
+  # (no RUN_UNIT/RUN_INTEGRATION/ARCHUNIT_METRICS) or anything deploy-and-run.sh/e2e relies on --
+  # those need a real, runnable jar with the frontend actually bundled.
+  MVN_INSTALL_FLAGS="-DskipTests"
+  [ "$SKIP_VAADIN" = "true" ] && MVN_INSTALL_FLAGS="$MVN_INSTALL_FLAGS -Dvaadin.skip=true"
+  flock "$MVN_LOCK" -c "./mvnw install $MVN_INSTALL_FLAGS"
 
-# ── Also refresh each module's own target/classes into the shared volume, for
-# scripts/sonar/run.sh to mount and read directly (sonar.java.binaries needs a directory of
-# .class files, not a jar) -- excludes integration-tests, which sonar-project.properties never
-# scans (test-only module). marketplace-app itself is excluded from this refresh (and from the JAR
-# copy below) when SKIP_VAADIN=true -- its target/classes and jar are missing the Vaadin frontend
-# bundle in that case, and both this shared volume path and $ARTIFACT are read by other callers
-# (sonar, deploy-and-run.sh/e2e) that need the real thing, not a partial one. ──────────
-# Module list derived from root pom.xml (excluding integration-tests) instead of hand-maintained --
-# a separately hardcoded copy here silently drifted out of sync before (confirmed directly:
-# apikey-spring-boot-starter/marketplace-rest-api were missing, so scripts/sonar/run.sh's
-# sonar.java.binaries pointed at directories that were never populated).
-TARGET_CLASSES_DIR=/root/.m2/target-classes
-mkdir -p "$TARGET_CLASSES_DIR"
-# Pure grep/sed, not python3 -- this script runs inside the minimal (JDK-only) build container,
-# unlike scripts/sonar/run.sh's own host-side module-list validator, which can use python3.
-TARGET_CLASSES_MODULES=$(sed -n '/<modules>/,/<\/modules>/p' "$ROOT/pom.xml" \
-  | grep -oE '<module>[^<]+</module>' | sed -E 's#</?module>##g' | grep -v '^integration-tests$')
-for module in $TARGET_CLASSES_MODULES; do
-  if [ "$module" = "marketplace-app" ] && [ "$SKIP_VAADIN" = "true" ]; then
-    continue
-  fi
-  if [ -d "$ROOT/$module/target/classes" ]; then
-    rm -rf "${TARGET_CLASSES_DIR:?}/${module:?module must be set}"
-    mkdir -p "$TARGET_CLASSES_DIR/$module"
-    cp -r "$ROOT/$module/target/classes/." "$TARGET_CLASSES_DIR/$module/"
-  fi
-done
+  # ── Also refresh each module's own target/classes into the shared volume, for
+  # scripts/sonar/run.sh to mount and read directly (sonar.java.binaries needs a directory of
+  # .class files, not a jar) -- excludes integration-tests, which sonar-project.properties never
+  # scans (test-only module). marketplace-app itself is excluded from this refresh (and from the JAR
+  # copy below) when SKIP_VAADIN=true -- its target/classes and jar are missing the Vaadin frontend
+  # bundle in that case, and both this shared volume path and $ARTIFACT are read by other callers
+  # (sonar, deploy-and-run.sh/e2e) that need the real thing, not a partial one. ──────────
+  # Module list derived from root pom.xml (excluding integration-tests) instead of hand-maintained --
+  # a separately hardcoded copy here silently drifted out of sync before (confirmed directly:
+  # apikey-spring-boot-starter/marketplace-rest-api were missing, so scripts/sonar/run.sh's
+  # sonar.java.binaries pointed at directories that were never populated).
+  TARGET_CLASSES_DIR=/root/.m2/target-classes
+  mkdir -p "$TARGET_CLASSES_DIR"
+  # Pure grep/sed, not python3 -- this script runs inside the minimal (JDK-only) build container,
+  # unlike scripts/sonar/run.sh's own host-side module-list validator, which can use python3.
+  TARGET_CLASSES_MODULES=$(sed -n '/<modules>/,/<\/modules>/p' "$ROOT/pom.xml" \
+    | grep -oE '<module>[^<]+</module>' | sed -E 's#</?module>##g' | grep -v '^integration-tests$')
+  for module in $TARGET_CLASSES_MODULES; do
+    if [ "$module" = "marketplace-app" ] && [ "$SKIP_VAADIN" = "true" ]; then
+      continue
+    fi
+    if [ -d "$ROOT/$module/target/classes" ]; then
+      rm -rf "${TARGET_CLASSES_DIR:?}/${module:?module must be set}"
+      mkdir -p "$TARGET_CLASSES_DIR/$module"
+      cp -r "$ROOT/$module/target/classes/." "$TARGET_CLASSES_DIR/$module/"
+    fi
+  done
 
-if [ "$SKIP_VAADIN" != "true" ]; then
-  JAR=$(ls "$ROOT/marketplace-app/target/"*.jar 2>/dev/null | grep -v '\.original$' | head -1 || true)
-  if [ -n "$JAR" ]; then
-    cp "$JAR" "$ARTIFACT"
-    echo "marketplace-app.jar refreshed in the shared volume."
+  if [ "$SKIP_VAADIN" != "true" ]; then
+    JAR=$(ls "$ROOT/marketplace-app/target/"*.jar 2>/dev/null | grep -v '\.original$' | head -1 || true)
+    if [ -n "$JAR" ]; then
+      cp "$JAR" "$ARTIFACT"
+      echo "marketplace-app.jar refreshed in the shared volume."
+    fi
   fi
+  echo ""
+  echo "=== Build done ==="
 fi
-echo ""
-echo "=== Build done ==="
 
 # ── build-info.txt: written unconditionally so anyone looking at $LOGS_DIR on the shared
 # volume (or after it lands on the host) can tell which invocation produced it, without having to
@@ -156,6 +167,7 @@ RUN_UNIT=${RUN_UNIT:-false}
 RUN_INTEGRATION=${RUN_INTEGRATION:-false}
 ARCHUNIT_METRICS=${ARCHUNIT_METRICS:-false}
 SKIP_VAADIN=${SKIP_VAADIN:-false}
+NO_INSTALL=${NO_INSTALL:-false}
 UNIT_TEST_ARG=${UNIT_TEST_ARG:-}
 INTEGRATION_TEST_ARG=${INTEGRATION_TEST_ARG:-}
 EOF
@@ -232,9 +244,9 @@ print_unit_summary() {
 # "testcontainers" exclusion -- without it, every real @Tag("testcontainers") repository test is
 # silently skipped, same override integration-tests/run.sh already applies.
 run_integration_tests() {
-  # Ryuk is disabled here, so remove any Testcontainers container leaked by a prior crashed run.
-  if [ -n "${TESTCONTAINERS_RYUK_DISABLED:-}" ]; then
-    docker ps -aq --filter "label=org.testcontainers=true" | xargs -r docker rm -f
+  # Ryuk is disabled here, so remove a Testcontainers container a crashed earlier run left on this run's own fixed port.
+  if [ -n "${TESTCONTAINERS_RYUK_DISABLED:-}" ] && [ -n "${INTEGRATION_TESTS_POSTGRES_FIXED_PORT:-}" ]; then
+    docker ps -aq --filter "label=org.testcontainers=true" --filter "publish=$INTEGRATION_TESTS_POSTGRES_FIXED_PORT" | xargs -r docker rm -f
   fi
 
   INTEGRATION_TEST_FLAG=""
@@ -242,6 +254,9 @@ run_integration_tests() {
     INTEGRATION_TEST_FLAG="-Dtest=PostgresContainerSmokeTest -Dsurefire.failIfNoSpecifiedTests=false"
   elif [ -n "$INTEGRATION_TEST_ARG" ]; then
     INTEGRATION_TEST_FLAG="-Dtest=${INTEGRATION_TEST_ARG} -Dsurefire.failIfNoSpecifiedTests=false"
+  else
+    # A whole-module run must fail, not skip, OperationCoverageTest when a Level 3 scenario class did not run.
+    INTEGRATION_TEST_FLAG="-Dlevel3.requireCoverage=true"
   fi
 
   # JaCoCo's append-mode default would otherwise mix in a stale exec file from reused container state.
@@ -409,5 +424,10 @@ elif [ "$RUN_INTEGRATION" = "true" ]; then
   print_integration_summary
   echo "Surefire reports: scripts/build-and-test/reports/surefire/"
   FINAL_EXIT=$INTEGRATION_EXIT
+fi
+# Marks a run of the whole suite whose every requested test phase passed, so a coverage import can tell it from a failed or filtered run.
+if [ "$FINAL_EXIT" -eq 0 ] && [ -z "$UNIT_TEST_ARG" ] && [ -z "$INTEGRATION_TEST_ARG" ] && { [ "$RUN_UNIT" = "true" ] || [ "$RUN_INTEGRATION" = "true" ]; }; then
+  mkdir -p "$REPORTS_DIR/jacoco"
+  touch "$REPORTS_DIR/jacoco/tests.passed"
 fi
 [ "$FINAL_EXIT" -eq 0 ] || exit $FINAL_EXIT

@@ -33,6 +33,18 @@ After run:
 See [`run.sh`](run.sh)'s own header for what it does automatically (app readiness, DB reset,
 `pw-runner` container reuse).
 
+## Screenshot of any page
+
+```bash
+bash /app/playwright/run.sh --shot http://localhost:8082/ --shot-name dagu-home
+bash /app/playwright/run.sh --shot http://localhost:8082/dags/ci --shot-name dagu-start --shot-click Start
+```
+
+Saves a full-page PNG to `scripts/logs/playwright/shots/<name>.png` for a page outside the test
+suite, for example the Dagu web UI; `--shot-click` presses the first button with that visible name
+first, to capture the dialog it opens. It needs neither the application nor the database. See
+[`run.sh`](run.sh)'s own header and [`shot.js`](shot.js)'s own header for the details.
+
 ## Linting
 
 ```bash

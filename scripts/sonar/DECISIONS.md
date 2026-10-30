@@ -2,8 +2,20 @@
 
 ---
 
-## ADR-010: JaCoCo coverage wired reactor-wide; `sonar.sh` now runs real tests, not `--no-unit --no-integration`
+## ADR-011: The SonarQube server and the project `advertisement` are shared between the CI and manual runs by decision
 **Status:** Accepted
+**Applied:** 1
+
+**Context:** Everything else in the local CI has its own volumes, container names and ports, so a CI run and a manual run can go in parallel. The SonarQube server (`localhost:9099`) and its one project `advertisement` stayed shared.
+
+**Decision:** A CI Sonar stage and a manual `sonar.sh` upload their analysis into the same project, so the later one overwrites the result of the earlier one, and two Sonar runs at the same time are not supported. Separating them is left for later as an idea.
+
+**Rejected alternatives:** a separate project key for the CI (a second project and a second quality gate to keep equal); a second SonarQube server (the same resources again).
+
+---
+
+## ADR-010: JaCoCo coverage wired reactor-wide; `sonar.sh` now runs real tests, not `--no-unit --no-integration`
+**Status:** Accepted -- with `SONAR_JACOCO_FROM` set the tests are skipped and reports imported (see ADR-016 in `scripts/ci`)
 
 **Context:** `new_coverage` always read `0.0%` on every quality-gate run regardless of real test
 quality — no JaCoCo agent was ever attached to any test JVM, so Sonar never received coverage data

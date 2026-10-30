@@ -2,6 +2,36 @@
 
 ---
 
+## ADR-016: The DAG builds the reactor once; Sonar runs after unit and integration and imports their JaCoCo reports
+
+**Status:** Accepted
+**Applied:** 1
+
+**Context:** Every stage installed the whole reactor again, and the Sonar stage ran the unit and integration tests a second time to get coverage (about 19 minutes of CPU on 4 cores), so a full run took about 66 minutes.
+
+**Decision:** The `build` step compiles and installs the reactor once. `unit`, `integration` and `archunit_metrics` run with `--no-install`. `sonar` depends on `unit` and `integration`: when both are selected it imports their JaCoCo reports (`SONAR_JACOCO_FROM`) and runs no tests; otherwise it runs its own unit and integration tests first. A listed stage without any JaCoCo XML stops the Sonar stage with an error instead of showing lower coverage. The `docs` step skips the Sonar rescan only when this run's Sonar stage passed.
+
+**Measured:** a full default run took 23 min 4 s, against about 66 min before.
+
+**Rejected alternatives:** leaving the Sonar stage with its own tests (the duplicated work stays); running the integration and Sonar stages one after the other without importing reports (the tests still run twice).
+
+---
+
+## ADR-015: The CI uses only its own volumes, container names and ports; one `reset_ci_cache` parameter wipes its build cache
+
+**Status:** Accepted
+**Applied:** 1
+
+**Context:** The CI and manual runs shared the volumes `maven-cache`, `vaadin-cache` and `test-reports`, the build container name `advertisement-build-only` and the Postgres port 25432, so a manual build could replace jars a CI run reuses or remove its container. The wish was to run both at the same time and to wipe the whole CI cache with one switch.
+
+**Decision:** `scripts/ci/dagu/ci.yaml` sets for every step `MAVEN_CACHE_VOLUME=ci-maven-cache`, `VAADIN_CACHE_VOLUME=ci-vaadin-cache`, `TEST_REPORTS_VOLUME=ci-test-reports`, `SONAR_SCANNER_CONTAINER=sonar-scanner-ci` and `SONAR_BUILD_CONTAINER_NAME=advertisement-build-only-ci-sonar`; the `build` step runs as `advertisement-build-only-ci-build`. The Postgres fixed ports are 25433 for the `integration` stage and 25434 for the Sonar stage's own tests; 25432 stays for manual runs. One boolean parameter `reset_ci_cache` (`ci.sh --reset-ci-cache`, a checkbox in the Dagu "Start" dialog, off by default) calls `build-and-test.sh --reset-cache`, which removes the Sonar scanner container, wipes the two cache volumes named by the variables and stops with an error when another container still mounts one. It does not wipe `ci-test-reports` (results) or `ci-dagu-home` (run history). The SonarQube server and the project `advertisement` stay shared with manual runs by decision.
+
+**Consequences:** the first run after a wipe downloads every dependency (about 46 s more on the build). Two limits remain: CPU and RAM contention when a full dev stack, SonarQube and the e2e stage run together, and two CI runs at once, which `ci.sh` refuses.
+
+**Rejected alternatives:** a Maven-only wipe flag (the person wanted one switch for the whole CI cache); wiping the manual volumes from the CI; a second SonarQube server (the resources twice, see the decision in `scripts/sonar`).
+
+---
+
 ## ADR-014: `ci.sh` refuses concurrent runs and assigns its own Dagu run id, so `--foreground` always watches the run it started
 
 **Status:** Accepted
@@ -413,7 +443,7 @@ run completes. `--keep-reports 0` disables pruning entirely.
 ---
 
 ## ADR-005: Concurrency with normal dev work — genuine isolation, one real resource caveat
-**Status:** Accepted
+**Status:** Superseded by ADR-015 -- the volumes, container names and ports are now the CI's own; the two remaining limits are restated there
 **Applied:** 1
 
 **Context:** With background-by-default (ADR-002) making it cheap to kick off a run and keep
@@ -467,7 +497,7 @@ rather than left for someone to discover the hard way.
 
 ## ADR-008: `unit`/`integration` stages merged into one `build_and_test` stage
 
-**Status:** Accepted
+**Status:** Superseded by ADR-009 -- the DAG has separate `unit` and `integration` steps; the reactor is installed once in the `build` step (ADR-016)
 
 **Context:** `entrypoint.sh` ran `unit`/`integration` as two separate, sequential stages, each
 calling `scripts/unit-tests.sh`/`scripts/integration-tests.sh` directly. `scripts/build-and-test.sh`
@@ -501,7 +531,7 @@ with `--unit`/`--no-unit` and `--integration`/`--no-integration` set accordingly
 
 ## ADR-009: `progress.txt` polling replaced by a persistent Dagu server; three problems only found by running it for real
 
-**Status:** Accepted
+**Status:** Accepted -- the stage graph statement is revised by ADR-016
 
 **Context:** ADR-002's `docker cp`-polled `progress.txt` gives no live per-stage view, no clickable
 trigger, and no run history beyond one text file per run. Dagu (https://github.com/dagucloud/dagu)
@@ -591,7 +621,7 @@ never re-triggers these downloads regardless of what else invalidated the image'
 ## ADR-010: CI pipeline metrics + ArchUnit export as DAG steps; three more real bugs; a genuine
 build-speed fix along the way
 
-**Status:** Accepted
+**Status:** Accepted -- the statement that every stage writes into one shared `maven-cache` volume is revised by ADR-015
 
 **Context:** Follow-up to ADR-009, same day. Wanted real CI-run data (per-step status/duration)
 and the existing ArchUnit module-coupling export both feeding into

@@ -93,6 +93,9 @@ yet — not zero.
 | ADR-007 (integration-tests) | integration-tests | Accepted |  |  | `run.sh` auto-detects starter staleness instead of a manual skip-`-am` flag |
 | ADR-008 (integration-tests) | integration-tests | Accepted |  |  | Test package-private/private internal logic through its public entry point, never through a same-package trick or a widened production visibility |
 | ADR-010 (integration-tests) | integration-tests | Accepted |  |  | `@Tag("testcontainers")` on the shared base class + Surefire `excludedGroups`; `SharedEnvConfig` gains a testable overload |
+| ADR-090 (marketplace-app) | marketplace-app | Accepted |  | 1 | An administrator cannot delete their own account |
+| ADR-090 (marketplace-app) | marketplace-orchestrator | Accepted |  | 1 | An administrator cannot delete their own account |
+| ADR-090 (marketplace-app) | marketplace-rest-api | Accepted |  | 1 | An administrator cannot delete their own account |
 | ADR-089 (marketplace-app) | marketplace-app | Accepted |  | 1 | External REST API partial updates use JSON Merge Patch applied over the PUT write record |
 | ADR-089 (marketplace-app) | marketplace-rest-api | Accepted |  | 1 | External REST API partial updates use JSON Merge Patch applied over the PUT write record |
 | ADR-089 (marketplace-app) | marketplace-orchestrator | Accepted |  | 1 | External REST API partial updates use JSON Merge Patch applied over the PUT write record |
@@ -236,6 +239,8 @@ yet — not zero.
 | ADR-005 (query-lib) | query-lib | Accepted |  |  | `SqlOperator.ANY_OF` / `SqlCondition.anyOf(Set<Long>)` — a second `IN`-shaped operator, for id sets specifically |
 | ADR-006 (query-lib) | query-lib | Accepted |  |  | `anyOf`/`inSet` empty-input null (= "no restriction") must never back an access-narrowing predicate |
 | ADR-007 (query-lib) | query-lib | Accepted |  |  | `SqlCondition.like()` escapes `%`/`_`/`\` before wrapping |
+| ADR-016 (scripts/ci) | scripts/ci | Accepted **Applied:** 1 |  |  | The DAG builds the reactor once; Sonar runs after unit and integration and imports their JaCoCo reports |
+| ADR-015 (scripts/ci) | scripts/ci | Accepted **Applied:** 1 |  |  | The CI uses only its own volumes, container names and ports; one `reset_ci_cache` parameter wipes its build cache |
 | ADR-014 (scripts/ci) | scripts/ci | Accepted |  |  | `ci.sh` refuses concurrent runs and assigns its own Dagu run id, so `--foreground` always watches the run it started |
 | ADR-013 (scripts/ci) | scripts/ci | Accepted | 2026-09-10 |  | The `docs` stage regenerates the ADR index and hands it back, rather than gating the run on drift |
 | ADR-012 (scripts/ci) | scripts/ci | Accepted | 2026-09-10 |  | ci-runner source is streamed into the running container each run; the image is rebuilt only on a real Dockerfile change |
@@ -244,10 +249,10 @@ yet — not zero.
 | ADR-002 (scripts/ci) | scripts/ci | Superseded by ADR-009 — the `progress.txt`-polling mechanism no longer exists in code |  |  | Background by default, live progress via `docker cp`-polled `progress.txt` |
 | ADR-003 (scripts/ci) | scripts/ci | Accepted |  |  | Default stage selection is the most extensive run, not the narrowest |
 | ADR-004 (scripts/ci) | scripts/ci | Superseded by ADR-009 — the `--keep-reports`/report-retention mechanism no longer exists in code |  |  | Report retention — keep the last N runs, prune the rest |
-| ADR-005 (scripts/ci) | scripts/ci | Accepted **Applied:** 1 |  |  | Concurrency with normal dev work — genuine isolation, one real resource caveat |
-| ADR-008 (scripts/ci) | scripts/ci | Accepted |  |  | `unit`/`integration` stages merged into one `build_and_test` stage |
-| ADR-009 (scripts/ci) | scripts/ci | Accepted |  |  | `progress.txt` polling replaced by a persistent Dagu server; three problems only found by running it for real |
-| ADR-010 (scripts/ci) | scripts/ci | Accepted |  |  | CI pipeline metrics + ArchUnit export as DAG steps; three more real bugs; a genuine build-speed fix along the way |
+| ADR-005 (scripts/ci) | scripts/ci | Superseded by ADR-015 -- the volumes, container names and ports are now the CI's own; the two remaining limits are restated there **Applied:** 1 |  |  | Concurrency with normal dev work — genuine isolation, one real resource caveat |
+| ADR-008 (scripts/ci) | scripts/ci | Superseded by ADR-009 -- the DAG has separate `unit` and `integration` steps; the reactor is installed once in the `build` step (ADR-016) |  |  | `unit`/`integration` stages merged into one `build_and_test` stage |
+| ADR-009 (scripts/ci) | scripts/ci | Accepted -- the stage graph statement is revised by ADR-016 |  |  | `progress.txt` polling replaced by a persistent Dagu server; three problems only found by running it for real |
+| ADR-010 (scripts/ci) | scripts/ci | Accepted -- the statement that every stage writes into one shared `maven-cache` volume is revised by ADR-015 |  |  | CI pipeline metrics + ArchUnit export as DAG steps; three more real bugs; a genuine build-speed fix along the way |
 | ADR-017 (scripts) | scripts | Accepted |  | 1 | AI dev containers (Claude Code, opencode) install their CLI with an explicit tag and `--engine-strict`; versions are Dockerfile ARGs, Node 24 |
 | ADR-016 (scripts) | scripts | Accepted |  |  | MinIO → SeaweedFS local dev/CI storage backend swap |
 | ADR-015 (scripts) | scripts | Accepted |  |  | `--in-container` mode — sync reliability (no `exec`, container-internal directory restoration, OverlayFS `sync` before copy-out) |
@@ -259,7 +264,8 @@ yet — not zero.
 | ADR-004 (scripts) | scripts | Accepted |  |  | run-all-tests.sh — real 3-way parallelism (unit, integration, Playwright) |
 | ADR-009 (scripts) | scripts | Accepted |  |  | DB/S3 credentials consolidated into the repo-root `.env`, loaded as fallback defaults (not unconditional overrides) so CI's per-run port overrides survive |
 | ADR-012 (scripts) | scripts | Accepted |  |  | `deploy-dev.sh` eliminated |
-| ADR-010 (scripts/sonar) | scripts/sonar | Accepted |  |  | JaCoCo coverage wired reactor-wide; `sonar.sh` now runs real tests, not `--no-unit --no-integration` |
+| ADR-011 (scripts/sonar) | scripts/sonar | Accepted **Applied:** 1 |  |  | The SonarQube server and the project `advertisement` are shared between the CI and manual runs by decision |
+| ADR-010 (scripts/sonar) | scripts/sonar | Accepted -- with `SONAR_JACOCO_FROM` set the tests are skipped and reports imported (see ADR-016 in `scripts/ci`) |  |  | JaCoCo coverage wired reactor-wide; `sonar.sh` now runs real tests, not `--no-unit --no-integration` |
 | ADR-001 (scripts/sonar) | scripts/sonar | Accepted — the "no pom.xml changes" constraint is partially revised by ADR-010 (`jacoco-maven-plugin` added to root `pom.xml`); every other decision in this entry (Docker-based scanner, no Sonar-specific plugin/properties in `pom.xml`) still holds. |  |  | SonarQube setup via Docker, no pom.xml changes |
 | ADR-003 (scripts/sonar) | scripts/sonar | Accepted |  |  | `sonar.java.libraries` intentionally left empty |
 | ADR-004 (scripts/sonar) | scripts/sonar | Accepted |  |  | Quality gate blocking by default, opt-out via `--no-gate` |

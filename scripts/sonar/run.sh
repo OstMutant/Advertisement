@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Runs SonarQube static analysis against the whole Maven reactor -- ensures the
-#   SonarQube server and scanner images/containers are current, builds and tests all modules via
-#   scripts/build-and-test.sh --unit --integration (no local Java needed -- compiled classes come
-#   from the shared maven-cache volume, mounted directly into the scanner container; tests run for
-#   real, not skipped, since JaCoCo coverage data only exists as a side effect of the test phase),
-#   uploads the analysis, and generates a local HTML report.
+#   SonarQube server and scanner images/containers are current, then (unless SONAR_JACOCO_FROM is
+#   set) builds and tests all modules via scripts/build-and-test.sh --unit --integration (no local
+#   Java needed -- compiled classes come from the Maven cache volume, mounted directly into
+#   the scanner container; tests run for real, not skipped, since JaCoCo coverage data only exists
+#   as a side effect of the test phase), uploads the analysis, and generates a local HTML report.
 # Usage: bash scripts/sonar/run.sh [--no-gate] [--pull-latest]. --no-gate skips quality-gate
 #   blocking (always exits 0); default blocks on a gate result of ERROR (exits non-zero).
 #   --pull-latest forces a Docker Hub pull check for both the SonarQube server and scanner images
@@ -15,9 +15,19 @@
 #   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose, python3 (HTML report),
 #   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block),
 #   scripts/utils/ensure-sonar-token.sh's ensure_sonar_token.
-# Env: None.
-# Input: sonar-project.properties, each module's src/main/java (copied from the host), the shared
-#   maven-cache Docker volume's target-classes/<module> (mounted into the scanner container), the
+# Env: SONAR_JACOCO_FROM (unset by default) -- space-separated BUILD_CONTAINER_NAMEs whose JaCoCo
+#   XML reports in /reports/<name>/jacoco/ (test-reports volume) are imported instead of running
+#   the build and tests; the compiled classes must already be in the Maven cache volume from an
+#   earlier build, a name without XML files stops the run with an error, and when two names hold a
+#   file of the same name the later name wins. Each listed folder also needs the tests.passed marker.
+#   MAVEN_CACHE_VOLUME (default maven-cache) -- the Docker volume mounted at /root/.m2 of the scanner container.
+#   SONAR_SCANNER_CONTAINER (default sonar-scanner) -- name of the long-lived scanner container; a caller that uses a
+#   different MAVEN_CACHE_VOLUME needs its own name, because the mount is fixed when the container is created.
+#   TEST_REPORTS_VOLUME (default test-reports) -- the Docker volume mounted at /reports of the scanner container and of the build container.
+#   SONAR_BUILD_CONTAINER_NAME (default advertisement-build-only-sonar) -- name of the build container this script starts when it runs its own tests.
+#   SONAR_BUILD_ARGS (default empty) -- extra flags for the build-and-test.sh call that runs this stage's own tests; the CI passes --no-install so the reactor built once by the build step is not installed again.
+# Input: sonar-project.properties, each module's src/main/java (copied from the host), the Maven cache
+#   Docker volume's target-classes/<module> (mounted into the scanner container), the
 #   running SonarQube server's own API.
 # Outputs: analysis uploaded to http://localhost:9099/dashboard?id=advertisement (anonymous
 #   browsing enabled every run -- see DECISIONS.md); local report at
@@ -52,7 +62,7 @@ trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "Last output:"; t
 
 SONAR_URL="http://localhost:9099"
 COMPOSE_FILE="$ROOT/scripts/sonar/docker-compose.sonar.yml"
-SCANNER_CONTAINER="sonar-scanner"
+SCANNER_CONTAINER="${SONAR_SCANNER_CONTAINER:-sonar-scanner}"
 PROPS_FILE="$ROOT/scripts/sonar/sonar-project.properties"
 
 # ── Validate sonar-project.properties module list against pom.xml, auto-fix drift ────────────
@@ -149,7 +159,7 @@ CONTAINER_STATUS=$(docker inspect -f '{{.State.Status}}' "$SCANNER_CONTAINER" 2>
 if [ "$CONTAINER_IMAGE_ID" != "$LATEST_IMAGE_ID" ] || [ "$CONTAINER_STATUS" != "running" ]; then
   [ -n "$CONTAINER_STATUS" ] && docker rm -f "$SCANNER_CONTAINER" >/dev/null
   docker run -d --name "$SCANNER_CONTAINER" --network host \
-    -v maven-cache:/root/.m2 -v test-reports:/reports \
+    -v "${MAVEN_CACHE_VOLUME:-maven-cache}:/root/.m2" -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" \
     sonarsource/sonar-scanner-cli:latest sleep 86400 >/dev/null
 fi
 # --user root: the sonar-scanner-cli image runs as a non-root user (scanner-cli, uid 1000) by
@@ -163,13 +173,18 @@ docker exec --user root "$SCANNER_CONTAINER" mkdir -p /reports/sonar >/dev/null 
 docker image prune -f >/dev/null
 
 # ── Build and test all modules via build-and-test.sh (real test execution, not skipped -- JaCoCo
-# coverage data is a side effect of the test phase) ──────────────────────────────────────────────
-echo "Building and testing modules via build-and-test.sh..."
+# coverage data is a side effect of the test phase), unless SONAR_JACOCO_FROM names finished runs ──
 # Distinct container name -- lets this run concurrently with a parallel Dagu DAG branch.
-SONAR_BUILD_CONTAINER_NAME="advertisement-build-only-sonar"
-BUILD_CONTAINER_NAME="$SONAR_BUILD_CONTAINER_NAME" bash "$ROOT/scripts/build-and-test.sh" --unit --integration
+SONAR_BUILD_CONTAINER_NAME="${SONAR_BUILD_CONTAINER_NAME:-advertisement-build-only-sonar}"
+SONAR_JACOCO_FROM="${SONAR_JACOCO_FROM:-}"
+if [ -n "${SONAR_JACOCO_FROM// /}" ]; then
+  echo "Skipping the test run: importing JaCoCo reports from: $SONAR_JACOCO_FROM"
+else
+  echo "Building and testing modules via build-and-test.sh..."
+  BUILD_CONTAINER_NAME="$SONAR_BUILD_CONTAINER_NAME" bash "$ROOT/scripts/build-and-test.sh" --unit --integration ${SONAR_BUILD_ARGS:-}
+fi
 
-# ── Copy source files from host; compiled classes come from the mounted maven-cache volume ────
+# ── Copy source files from host; compiled classes come from the mounted Maven cache volume ────
 echo "Copying source files..."
 docker exec --user root "$SCANNER_CONTAINER" rm -rf /tmp/sonar-src
 docker exec "$SCANNER_CONTAINER" mkdir -p /tmp/sonar-src
@@ -201,8 +216,23 @@ done
 
 # ── Carry JaCoCo XML reports into /tmp/sonar-src (already on the mounted test-reports volume) ──
 docker exec --user root "$SCANNER_CONTAINER" mkdir -p /tmp/sonar-src/jacoco-reports
-docker exec --user root "$SCANNER_CONTAINER" bash -c \
-  "cp /reports/$SONAR_BUILD_CONTAINER_NAME/jacoco/*.xml /tmp/sonar-src/jacoco-reports/ 2>/dev/null || true"
+if [ -n "${SONAR_JACOCO_FROM// /}" ]; then
+  for jacoco_src in $SONAR_JACOCO_FROM; do
+    if ! docker exec --user root "$SCANNER_CONTAINER" test -f "/reports/$jacoco_src/jacoco/tests.passed"; then
+      echo "ERROR: $jacoco_src did not pass its tests (no tests.passed marker) -- its reports are kept but not imported" >&2
+      exit 1
+    fi
+    docker exec --user root "$SCANNER_CONTAINER" bash -c \
+      "cp /reports/$jacoco_src/jacoco/*.xml /tmp/sonar-src/jacoco-reports/ 2>/dev/null || true"
+    if ! docker exec --user root "$SCANNER_CONTAINER" bash -c "ls /reports/$jacoco_src/jacoco/*.xml >/dev/null 2>&1"; then
+      echo "ERROR: no JaCoCo XML in /reports/$jacoco_src/jacoco -- run that test stage first" >&2
+      exit 1
+    fi
+  done
+else
+  docker exec --user root "$SCANNER_CONTAINER" bash -c \
+    "cp /reports/$SONAR_BUILD_CONTAINER_NAME/jacoco/*.xml /tmp/sonar-src/jacoco-reports/ 2>/dev/null || true"
+fi
 
 docker cp "$PROPS_FILE" "$SCANNER_CONTAINER:/tmp/sonar-src/sonar-project.properties"
 

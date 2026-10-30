@@ -31,6 +31,9 @@
 #                                full Liquibase replay) instead of the default --reset-only-db
 #                                (fast truncate) -- only needed when the DB schema itself changed
 #                                since the isolated e2e stack was last brought up
+#   --reset-ci-cache         -- wipe the CI's own build caches (ci-maven-cache and ci-vaadin-cache) and remove the
+#                                Sonar scanner container before the build, so the run starts with no cached
+#                                dependencies, jars or Node.js (off by default; the next run downloads them again)
 #   --teardown-e2e-after     -- tear down the isolated e2e stack after the run instead of leaving
 #                                it up (on by default -- leaving it up is the debugging-friendly
 #                                default, so a failed run's containers/logs/DB state are still
@@ -80,8 +83,8 @@
 #   docs/architecture/data/architecture-model.json, docs/architecture/architecture-map.html and
 #   .claude/nav/adr-index.md,
 #   plus (whenever the matching stage ran) playwright/pw-report/, scripts/logs/playwright/,
-#   scripts/build-and-test/reports/advertisement-build-only-{unit,integration,sonar}/,
-#   scripts/logs/build-and-test/advertisement-build-only-{unit,integration,sonar}/,
+#   scripts/build-and-test/reports/advertisement-build-only-*/,
+#   scripts/logs/build-and-test/advertisement-build-only-*/,
 #   integration-tests/reports/, scripts/sonar/report/report.html, and scripts/logs/sonar/.
 # Returns: 0 on success; non-zero on an unrecognized flag, image-build failure, Dagu-startup
 #   failure, a ci DAG run already being in progress (refused: concurrent runs collide on the
@@ -105,6 +108,9 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SECONDS=0
 source "$ROOT/scripts/utils/agentic-output.sh"
 source "$ROOT/scripts/utils/session-id.sh"
+# The volume name is read from the DAG file, the single place that sets it.
+CI_TEST_REPORTS_VOLUME="$(sed -n 's/^  - TEST_REPORTS_VOLUME=//p' "$ROOT/scripts/ci/dagu/ci.yaml")"
+[ -n "$CI_TEST_REPORTS_VOLUME" ] || { echo "ERROR: TEST_REPORTS_VOLUME not found in scripts/ci/dagu/ci.yaml" >&2; exit 1; }
 IMAGE=ci-runner
 CONTAINER=ci-runner
 DAGU_PORT=18080
@@ -118,6 +124,7 @@ STAGE_SONAR=""
 STAGE_DOCS=1
 TEARDOWN_AFTER="false"
 RESET_E2E_STACK="false"
+RESET_CI_CACHE="false"
 FOREGROUND=""
 REBUILD=""
 REFRESH_TOOLS="false"
@@ -218,20 +225,24 @@ sync_artifacts() {
   # since a partial run still leaves whatever earlier steps produced worth pulling.
   local VOL_READER="ci-artifact-reader"
   docker rm -f "$VOL_READER" >/dev/null 2>&1
-  docker run -d --name "$VOL_READER" -v test-reports:/reports alpine sleep 60 >/dev/null 2>&1
-  for name in advertisement-build-only-unit advertisement-build-only-integration advertisement-build-only-sonar; do
+  docker run -d --name "$VOL_READER" -v "$CI_TEST_REPORTS_VOLUME:/reports" alpine sleep 60 >/dev/null 2>&1
+  local STAGE_DIRS
+  # Oldest first, so the newest stage folder is copied last and wins for the shared it-mirror target.
+  STAGE_DIRS="$(docker exec "$VOL_READER" sh -c 'ls -tr /reports' 2>/dev/null | grep '^advertisement-build-only-')"
+  for name in $STAGE_DIRS; do
     docker cp "$VOL_READER:/reports/$name/." "$ROOT/scripts/build-and-test/reports/$name/" 2>/dev/null
     docker cp "$VOL_READER:/reports/logs/$name/." "$ROOT/scripts/logs/build-and-test/$name/" 2>/dev/null
   done
-  docker cp "$VOL_READER:/reports/advertisement-build-only-integration/it-mirror/." \
-    "$ROOT/integration-tests/reports/" 2>/dev/null
+  for name in $STAGE_DIRS; do
+    docker cp "$VOL_READER:/reports/$name/it-mirror/." "$ROOT/integration-tests/reports/" 2>/dev/null
+  done
   docker cp "$VOL_READER:/reports/playwright/." "$ROOT/playwright/pw-report/" 2>/dev/null
   docker cp "$VOL_READER:/reports/playwright-log/." "$ROOT/scripts/logs/playwright/" 2>/dev/null
   docker cp "$VOL_READER:/reports/sonar/." "$ROOT/scripts/logs/sonar/" 2>/dev/null
   docker rm -f "$VOL_READER" >/dev/null 2>&1
 
   # session-info.txt lives only in the ci-runner filesystem, not in the test-reports volume.
-  for sub in playwright sonar build-and-test build-and-test/advertisement-build-only-{unit,integration,sonar,archunit,deploy}; do
+  for sub in playwright sonar build-and-test $(for name in $STAGE_DIRS; do echo "build-and-test/$name"; done); do
     docker cp "$CONTAINER:/app/scripts/logs/$sub/session-info.txt" "$ROOT/scripts/logs/$sub/session-info.txt" 2>/dev/null || true
   done
   docker cp "$CONTAINER:/app/scripts/logs/build-and-test/session-info.txt" "$ROOT/scripts/ci/reports/session-info.txt" 2>/dev/null || true
@@ -272,6 +283,7 @@ for arg in "$@"; do
     --all)                 STAGE_UNIT=1; STAGE_INTEGRATION=1; STAGE_E2E=1; ANY_STAGE_FLAG=1 ;;
     --teardown-e2e-after)  TEARDOWN_AFTER="true" ;;
     --reset-e2e-stack)     RESET_E2E_STACK="true" ;;
+    --reset-ci-cache)      RESET_CI_CACHE="true" ;;
     --foreground)          FOREGROUND=1 ;;
     --rebuild)             REBUILD=1 ;;
     --refresh-tools)       REFRESH_TOOLS="true" ;;
@@ -505,8 +517,8 @@ DAGU_PARAMS=(
   "docs=$(bool "$STAGE_DOCS")"
   "teardown_e2e_after=$TEARDOWN_AFTER"
   "reset_e2e_stack=$RESET_E2E_STACK"
+  "reset_ci_cache=$RESET_CI_CACHE"
   "e2e_args=$PLAYWRIGHT_ARGS"
-  "session_id=$SESSION_ID"
 )
 
 echo ""

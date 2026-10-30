@@ -98,7 +98,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
-| Top | 🟡 | 186 | improvement-186 — REST API project-wide `PATCH` support via `JsonNullable`: `PUT` is a full replace, so an omitted optional field (`categoryIds`, `cityTaxonId`) is silently wiped; audit Advertisement, ProviderProfile and Taxon and add `PATCH` mirroring `PATCH /api/users/me/settings`. The advertisement media sub-resource (improvement-213 phase 7) and the Basic-auth hardening (improvement-213 phase 2) are done; hypermedia moved to improvement-230 on 2026-10-28 |
 | Top | 🟡 | 196 | improvement-196 — REST API write-endpoint rate limiting (post-authentication request volume, keyed on the resolved actor); promoted from "Nice to have" 2026-10-17 and ordered after 210 so it covers the feedback/comment write endpoints too |
 | Top | 🟡 | 221 | improvement-221 — MCP server trial run: start a Spring AI MCP server (Spring Boot 4.1 + Spring AI 2.0.1) over the REST API and verify with MCP Inspector what research could not — Streamable HTTP endpoint, bearer passthrough, `X-Total-Count`/`Link` in the tool result, tool names from `operationId`, securing; carved out of improvement-211 item 3, ordered after 196 |
 | Top | 🟡 | 230 | improvement-230 — REST hypermedia decision: do agents and clients need HAL `_links` on single resources and a `GET /api/me` entry point; carved out of improvement-186 item 3 (2026-10-28); decided from the evidence of improvement-221's MCP trial, so it is not started before 221; outcome is either a decision record (no hypermedia, README direction removed) or a scoped implementation |
@@ -110,12 +109,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
-
-### Top priority — improvement-186
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-186](tasks/improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) | New (carved out of `improvement-183` item 9, filed 2026-09-12) | Project-wide `PATCH` support via `JsonNullable` tri-state fields for true partial updates wherever a full `PUT` replace is the only option today (audit Advertisement, ProviderProfile, Taxon; mirrors the existing `PATCH /api/users/me/settings`). The media sub-resource and the Basic-auth hardening are done in improvement-213; hypermedia moved to [improvement-230](tasks/improvement-230-rest-hypermedia-decision.md). See the issue file for the design |
 
 ### Top priority — improvement-138
 
