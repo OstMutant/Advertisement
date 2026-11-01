@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -51,7 +52,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.JsonNode;
 
 import java.util.List;
@@ -112,14 +112,14 @@ public class ProviderProfileApiController {
     public ResponseEntity<List<ProviderProfileDto>> list(@AuthenticationPrincipal Long actorId,
             @ModelAttribute @Valid ProviderProfileFilterDto filter, @RequestParam(defaultValue = "0") int page,
             @RequestParam(required = false) String sort, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale,
-            UriComponentsBuilder uriBuilder) {
+            HttpServletRequest httpRequest) {
         int size = userProfileService.resolveProviderProfilesPageSize(actorId);
         Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
         List<ProviderProfileDto> items = readService.getFiltered(filter, page, size, sortObj);
         items = enrichmentService.enrichWithCategoriesAndCity(items, Locale.forLanguageTag(locale));
         items = enrichmentService.enrichWithActorInfo(items);
         int total = readService.count(filter);
-        return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
+        return PagedResponseBuilder.build(httpRequest, page, size, total, items);
     }
 
     @Operation(operationId = "getProviderProfile", summary = "Get one provider profile by id",

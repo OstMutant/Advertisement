@@ -18,6 +18,17 @@ spring:
     virtual:
       enabled: true
 
+  # MCP server settings
+  ai:
+    mcp:
+      server:
+        name: marketplace
+        version: 0.0.1
+        type: SYNC
+        protocol: STREAMABLE
+        streamable-http:
+          mcp-endpoint: /mcp
+
   # Database migration settings
   liquibase:
     enabled: true

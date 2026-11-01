@@ -42,6 +42,8 @@ public abstract class AbstractPostgresIntegrationTest {
 
     private static PostgreSQLContainer createContainer() {
         PostgreSQLContainer container = new PostgreSQLContainer(SharedEnvConfig.require("POSTGRES_IMAGE"));
+        // Cached Spring contexts each hold a Hikari pool; the 100-connection default runs out. fsync=off is the container's own default, repeated because withCommand replaces it.
+        container.withCommand("postgres", "-c", "fsync=off", "-c", "max_connections=300");
         String fixedPort = System.getenv(FIXED_PORT_ENV);
         if (fixedPort != null && !fixedPort.isBlank()) {
             container.setPortBindings(List.of(fixedPort + ":5432"));

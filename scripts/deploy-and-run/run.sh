@@ -25,7 +25,7 @@
 #                    behavior) -- needed when an actual portable image is required, not just a
 #                    running local container
 #   --dev-tools      start the app with MARKETPLACE_DEV_TOOLS_ENABLED=true so the developer-only API flow
-#                    runner page is served at /dev-tools/api-flows/ (off by default, never set in compose)
+#                    runner pages (REST and MCP) are served at /dev-tools/api-flows/ (off by default, never set in compose)
 #   --reuse-jar      skip the internal build and start from the marketplace-app.jar a build in the same
 #                    pipeline already put into the Maven cache volume (for the CI's e2e stage);
 #                    incompatible with --from-scratch and --with-tests

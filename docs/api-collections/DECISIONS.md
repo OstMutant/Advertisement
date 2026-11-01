@@ -2,12 +2,31 @@
 
 ---
 
-## ADR-003: The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses
+## ADR-004: MCP flows are a separate Postman collection of plain HTTP JSON-RPC requests, run by the shared runner on their own page, with a coverage check against the live tools/list
 
 **Status:** Accepted
 **Applied:** 1
 
-**Also affects:** marketplace-rest-api
+**Also affects:** marketplace-mcp
+
+**Context:** The MCP server has eleven tools but had no catalog in the browser, no flows and no check that a new tool has a flow. The REST collection is the collection of the REST API, its requests are named after REST operation ids and its checker compares them with the OpenAPI document. MCP tool names equal those operation ids, so one shared file would blur both coverage reports, and a failed MCP step would stop the REST flows after it. The MCP endpoint needs a session and answers some requests as JSON and others as an event stream.
+
+**Decision:**
+1. The MCP flows live in their own Postman v2.1 file. Every MCP call is a plain HTTP POST with a JSON-RPC body to the MCP endpoint, named after the tool (`tools/call`) or the JSON-RPC method. Test scripts read an answer with one line that handles both JSON and an event stream. The test-script layer stays a strict subset of Postman; only `pm.response.headers.get` and `pm.response.text` were added.
+2. The MCP flows have their own page with a tool catalog built live from `tools/list` and the flow runner. Both pages start the same runner modules through `startRunnerPage(profile)`; each page's script holds its own settings and no shared module keeps a REST constant.
+3. The coverage check is the existing checker in an MCP mode chosen by `"source": "mcp"` in a second config. Its operations are the tool names from the live `tools/list`; exceptions live in a separate allow-list file.
+4. The flows obtain their key themselves: the Setup flow registers a fresh user, issues a key through REST and opens the session, so no administrator is needed. The last flow closes the session; the page opens a new session when the server answers 404 and closes it when the page is hidden.
+
+**Rejected alternatives:** MCP requests inside the REST collection (mixes two coverage reports, a failed MCP step stops later REST flows, breaks the "collection of the REST API" meaning); a second runner with its own code (about 1,200 duplicated lines and two runners that drift apart); Postman's native MCP request type (cannot be saved in the v2.1 format the runner reads); MCP Inspector as the only catalog (a separate process, against serving developer pages from the API's own address behind the switch); creating a taxon with an administrator key for the success path of `getTaxon` (copies the administrator steps; the unknown-id check plus a success call when a taxon exists is enough).
+
+---
+
+## ADR-003: The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses
+
+**Status:** Accepted
+**Applied:** 2
+
+**Also affects:** marketplace-rest-api, marketplace-mcp
 
 **Context:** The flow runner page runs the Postman collection's flows against a live app and creates users, API keys and data while doing so, so it must not be reachable in a real deployment. The page calls the API from the browser, and the API sends no CORS headers, so the page has to come from the same origin as the API. The application is one deployable jar. The local Docker stack starts that jar with the `prod` profile, so a setting that only the `dev` profile switches on would leave the page unreachable there.
 
@@ -16,6 +35,7 @@
 2. The property is off by default. The `dev` profile turns it on. For the local Docker stack `deploy-and-run.sh --dev-tools` passes `MARKETPLACE_DEV_TOOLS_ENABLED=true` to the container; the variable is never written into a compose file, an image or the `prod` profile that a real deployment reuses.
 3. The files are not copied by hand: the module's build packs `docs/api-collections/flow-runner/page` and the Postman collection into the classpath, so `docs/api-collections` stays the single source and no generated copy exists.
 4. The page and the headless Node scripts share the same runner modules, so the two cannot drift apart.
+5. The MCP page and its Postman collection are served by the same `DevToolsConfig` from the same path, behind the same property and from the same packed folders; there is no new property.
 
 **Rejected alternatives:** a separate static server for the page (needs CORS on the API and one more process to start); serving the page through a Vaadin route (puts a Vaadin dependency into the REST adapter and mixes it into the UI security chain); switching it on by profile alone (the local Docker stack runs `prod`); hiding the page behind authorization instead of not registering the path (the path would exist in every deployment).
 
@@ -25,7 +45,7 @@
 
 **Status:** Accepted
 
-**Applied:** 3
+**Applied:** 4
 
 **Context:** The flow runner (the developer-only page and the headless scripts) runs the Postman
 collection's flows against a live developer app again and again, and the database is never
@@ -60,6 +80,8 @@ user starter and are not changed here.
    named with the `runId`.
 7. A step whose correct result is a non-2xx status is a real check with its expected status; an
    unexpected 429 is reported with its `Retry-After`, not as a failed assertion.
+
+8. These rules apply to the MCP collection too: its flows pass on an empty or a used database, create their own user and key, delete the advertisement and profile they create, never provoke a limiter, and the last flow closes the MCP session.
 
 **Rejected alternatives:** registering the existing accounts on every run and accepting the 409
 (trips the registration limiter); loosening the limiters in the dev profile (hides behaviour the

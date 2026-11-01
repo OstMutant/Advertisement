@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -17,11 +18,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Level3ScenarioTest
 class MyAccountMatrixScenarioTest extends AbstractRestApiScenarioTest {
 
+    private static final String ME_URL = "/api/users/me";
     private static final String LOCALE_URL = "/api/users/me/locale";
     private static final String SETTINGS_URL = "/api/users/me/settings";
     private static final String STALE_IF_MATCH = "\"0\"";
     private static final String MERGE_PATCH = "application/merge-patch+json";
     private static final String VALID_SETTINGS = settingsBody("20", "20", "20", "20");
+
+    // ── getMe ────────────────────────────────────────────────────────────
+
+    @Test
+    void anonymous_onGetMe_isUnauthorized() throws Exception {
+        mockMvc.perform(get(ME_URL)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void user_onGetMe_returnsOwnIdAndEtag() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser user = registerUserAndIssueApiKey("User");
+
+        mockMvc.perform(get(ME_URL).header(HttpHeaders.AUTHORIZATION, bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(user.id()))
+                .andExpect(header().exists(HttpHeaders.ETAG));
+    }
 
     // ── changeMyLocale ───────────────────────────────────────────────────
 

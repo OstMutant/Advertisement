@@ -34,6 +34,7 @@ advertisement-parent (root pom)
 ├── integration-tests                 — Testcontainers repository tests + fixtures for every starter (test-only, never shipped)
 ├── marketplace-orchestrator           — application/BFF layer: cross-domain use-case orchestration between marketplace-app and the domain starters
 ├── marketplace-rest-api               — external REST API adapter: non-Vaadin HTTP delivery channel over marketplace-orchestrator, sibling to marketplace-app
+├── marketplace-mcp                    — MCP server adapter: wraps the REST API for AI agents over HTTP with the caller's own API key, no project dependencies
 └── marketplace-app                   — main Vaadin application (all UI)
 ```
 
@@ -78,6 +79,8 @@ advertisement-parent (root pom)
 → Application/BFF orchestration layer (cross-domain use cases, owned classes): `.claude/rules/marketplace-orchestrator.md`
 
 → External REST API adapter (owned classes): `.claude/rules/marketplace-rest-api.md`
+
+→ MCP server adapter (owned classes): `.claude/rules/marketplace-mcp.md`
 
 ---
 
@@ -211,13 +214,13 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/.claude/DECISIONS.md`
 
 Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`,
-`provider-profile-spring-boot-starter`, `apikey-spring-boot-starter`, `marketplace-rest-api`, and
-`feedback-spring-boot-starter`
+`provider-profile-spring-boot-starter`, `apikey-spring-boot-starter`, `marketplace-rest-api`,
+`marketplace-mcp`, and `feedback-spring-boot-starter`
 have no hand-authored `DECISIONS.md` of their own — their
 key decisions are recorded in `marketplace-app/DECISIONS.md` and `platform-commons/DECISIONS.md`
-instead. Each of these six modules has a generated, pointer-only `DECISIONS.md`
+instead. Each of these seven modules has a generated, pointer-only `DECISIONS.md`
 (`bash docs/architecture/scripts/generate-architecture-model.sh`) listing whichever ADRs cross-reference it via
-the home ADR's own `**Also affects:**` tag — never hand-edit these six files directly.
+the home ADR's own `**Also affects:**` tag — never hand-edit these seven files directly.
 
 → ADR discovery index (generated, one line per decision across every `DECISIONS.md`):
 `.claude/nav/adr-index.md` — see `.claude/nav/README.md` for the full AI-navigation layer.

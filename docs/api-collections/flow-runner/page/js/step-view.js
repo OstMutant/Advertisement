@@ -1,7 +1,7 @@
 /* ── Header ───────────────────────────────────────────────────────────────────
  * Description: Shared DOM builders for step display: method and status-code badges, the step heading with
- *   its status pill, the request and response views, and a generic element() helper used by the
- *   other UI modules.
+ *   its status pill, the request and response views (a JSON body, or the JSON messages of an
+ *   event-stream body, shown indented), and a generic element() helper used by the other UI modules.
  * Usage: None -- a library module imported by confirm-dialog.js, diagram.js, flow-detail.js and
  *   step-card.js.
  * Uses: ./status.js (codeClass, codeLabel); global document.
@@ -163,6 +163,19 @@ function codeBlock(text) {
 function pretty(text) {
   try {
     return JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    return prettyEventStream(text);
+  }
+}
+
+function prettyEventStream(text) {
+  const messages = text
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trim())
+    .filter((message) => message !== "");
+  try {
+    return messages.length === 0 ? text : messages.map((message) => JSON.stringify(JSON.parse(message), null, 2)).join("\n");
   } catch {
     return text;
   }

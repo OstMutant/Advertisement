@@ -1,7 +1,7 @@
 /* ── Header ───────────────────────────────────────────────────────────────────
  * Description: Runs a loaded collection's steps in order against a host: substitutes variables, applies
  *   auth and form data, performs each request with fetch, runs the test script through the pm
- *   shim, and reports every step through onStepUpdate. After the first failed step the remaining
+ *   shim (given the status, body text and response headers), and reports every step through onStepUpdate. After the first failed step the remaining
  *   steps are skipped.
  * Usage: None -- a library module imported by main.js, scripts/run-flows.mjs and scripts/runner-429.test.mjs.
  * Uses: ./collection.js (substitute); ./pm-shim.js (createPm, runScript); global fetch, FormData,
@@ -150,7 +150,7 @@ export async function runFlow(collection, { host, variables = {}, flows = null, 
       continue;
     }
     step.response = response;
-    const { pm, tests } = createPm({ code: response.code, bodyText: response.body }, runVariables);
+    const { pm, tests } = createPm({ code: response.code, bodyText: response.body, headers: response.headers }, runVariables);
     try {
       runScript(item.testScript, pm);
     } catch (error) {

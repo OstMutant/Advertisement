@@ -34,6 +34,7 @@ touched.
 - [`html-sanitizer-lib.md`](html-sanitizer-lib.md) — `html-sanitizer-lib/**`
 - [`integration-tests.md`](integration-tests.md) — `integration-tests/**`
 - [`marketplace-app.md`](marketplace-app.md) — `marketplace-app/**`
+- [`marketplace-mcp.md`](marketplace-mcp.md) — `marketplace-mcp/**`
 - [`marketplace-orchestrator.md`](marketplace-orchestrator.md) — `marketplace-orchestrator/**`
 - [`marketplace-rest-api.md`](marketplace-rest-api.md) — `marketplace-rest-api/**`
 - [`platform-commons.md`](platform-commons.md) — `platform-commons/**`
@@ -55,10 +56,10 @@ that an unrelated directory elsewhere in the repo sharing the same path segment 
 unintended load.
 
 A full mechanical sweep (`bash .claude/nav/scripts/check-rule-path-globs.sh`) confirmed this isn't
-an isolated case — 10 of the 19 rule files here have at least one unintended match today:
+an isolated case — 11 of the 19 rule files here have at least one unintended match today:
 `scripts.md` also matches `.claude/nav/scripts/` (a second, previously-undocumented instance,
 alongside the `docs/architecture/scripts/` one above); `attachment-spring-boot-starter.md`,
-`html-sanitizer-lib.md`, `integration-tests.md`, `marketplace-app.md`,
+`html-sanitizer-lib.md`, `integration-tests.md`, `marketplace-app.md`, `marketplace-mcp.md`,
 `marketplace-orchestrator.md`, `marketplace-rest-api.md`, `platform-commons.md`, `playwright.md`,
 and `query-lib.md` all also match their own module-named subdirectories under
 `scripts/build-and-test/reports/**/surefire/` (per-module Surefire report output) and, for

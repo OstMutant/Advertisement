@@ -4,10 +4,12 @@
 #   collection against the OpenAPI document) and run-flows.sh (the collection's flows against the
 #   running app). A failing test does not stop the other one; a summary names each test's outcome.
 # Usage: bash docs/api-collections/api-collection-tests.sh [--no-check] [--no-flows]
-#     [--base-url <url>] [--flow <name>]... [--role <name>] [--help]
+#     [--base-url <url>] [--config <file>] [--flow <name>]... [--role <name>] [--help]
 #   --no-check          skip check-collection
 #   --no-flows          skip run-flows
 #   --base-url <url>    base URL passed to both tests (default: each test's own default)
+#   --config <file>     config file passed to both tests, relative to this folder (e.g.
+#                       scripts/mcp-collection.config.json for the MCP collection)
 #   --flow <name>       run only this flow in run-flows; repeat for several
 #   --role <name>       run only the flows of this role in run-flows (user: no administrator needed)
 #   --help              print this text and exit
@@ -26,11 +28,13 @@ RUN_FLOWS=true
 BASE_URL=""
 FLOWS=()
 ROLE=""
+CONFIG=""
 
 usage() {
   cat <<'EOF'
 Usage: bash docs/api-collections/api-collection-tests.sh [--no-check] [--no-flows]
-                                                         [--base-url <url>] [--flow <name>]... [--role <name>] [--help]
+                                                         [--base-url <url>] [--config <file>] [--flow <name>]...
+                                                         [--role <name>] [--help]
 
 Runs check-collection and run-flows one after the other.
 
@@ -38,6 +42,8 @@ Options:
   --no-check          skip check-collection
   --no-flows          skip run-flows
   --base-url <url>    base URL passed to both tests
+  --config <file>     config file passed to both tests, relative to this folder
+                      (e.g. scripts/mcp-collection.config.json)
   --flow <name>       run only this flow in run-flows; repeat for several
   --role <name>       run only the flows of this role in run-flows (user: no administrator needed)
   --help              print this text and exit
@@ -56,6 +62,11 @@ while [ "$#" -gt 0 ]; do
     --base-url)
       if [ "$#" -lt 2 ]; then echo "--base-url needs a value" >&2; usage >&2; exit 2; fi
       BASE_URL="$2"
+      shift 2
+      ;;
+    --config)
+      if [ "$#" -lt 2 ]; then echo "--config needs a file name" >&2; usage >&2; exit 2; fi
+      CONFIG="$2"
       shift 2
       ;;
     --flow)
@@ -83,6 +94,10 @@ FLOW_ARGS=()
 if [ -n "$BASE_URL" ]; then
   CHECK_ARGS+=("$BASE_URL")
   FLOW_ARGS+=("$BASE_URL")
+fi
+if [ -n "$CONFIG" ]; then
+  CHECK_ARGS+=(--config "$CONFIG")
+  FLOW_ARGS+=(--config "$CONFIG")
 fi
 for flow in "${FLOWS[@]}"; do
   FLOW_ARGS+=(--flow "$flow")

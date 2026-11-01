@@ -1,0 +1,1574 @@
+{
+  "info": {
+    "name": "Marketplace MCP",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Setup",
+      "description": "Register a user, issue an API key, open an MCP session and list the tools.",
+      "item": [
+        {
+          "name": "registerUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"registered\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"mcpEmail\", pm.response.json().email);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{mcpUserName}}\",\n  \"email\": \"{{mcpEmailPrefix}}.{{runId}}@example.com\",\n  \"password\": \"{{mcpPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: setup.user\nlabel: Register user\nkind: required\n\nRegisters a new ordinary user under a unique e-mail for this run and captures that e-mail."
+          }
+        },
+        {
+          "name": "issueApiKey",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"key issued\", function () {",
+                  "  pm.expect(pm.response.json().rawKey).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"mcpKey\", pm.response.json().rawKey);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/api-keys",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"{{apiKeyLabel}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{mcpEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{mcpPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: setup.key\nlabel: Issue API key\nkind: required\n\nIssues the API key the MCP calls authenticate with."
+          }
+        },
+        {
+          "name": "initialize",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"session opened\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const id = pm.response.headers.get(\"Mcp-Session-Id\");",
+                  "  pm.expect(id).to.be.a(\"string\");",
+                  "  if (!(id.length > 0)) { throw new Error(\"empty session id\"); }",
+                  "  pm.expect(rpc.result.protocolVersion).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"mcpSession\", pm.response.headers.get(\"Mcp-Session-Id\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"initialize\", \"params\": {\"protocolVersion\": \"{{mcpProtocol}}\", \"capabilities\": {}, \"clientInfo\": {\"name\": \"flow-runner\", \"version\": \"1\"}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: setup.init\nlabel: Initialize session\nkind: required\n\nOpens an MCP session and stores its id."
+          }
+        },
+        {
+          "name": "notifications/initialized",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"initialized accepted\", function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"method\": \"notifications/initialized\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: setup.initialized\nlabel: Confirm session\nkind: required\n\nTells the server the client is ready; answers 202 without a body."
+          }
+        },
+        {
+          "name": "tools/list",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"tools listed\", function () {",
+                  "  pm.expect(rpc.result.tools).to.be.a(\"array\");",
+                  "  if (!(rpc.result.tools.length > 0)) { throw new Error(\"no tools listed\"); }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 3, \"method\": \"tools/list\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: setup.tools\nlabel: List tools\nkind: required\n\nLists the tools of the server; the exact list is the coverage check's job."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Account",
+      "description": "Read the connected account and settings through the MCP tools, and the readable error without a key.",
+      "item": [
+        {
+          "name": "getMe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});",
+                  "pm.test(\"account returned\", function () {",
+                  "  pm.expect(rpc.result.structuredContent.item.id).to.be.a(\"number\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 4, \"method\": \"tools/call\", \"params\": {\"name\": \"getMe\", \"arguments\": {}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: account.me\nlabel: Get my account\nkind: required\n\nReads the account the key belongs to."
+          }
+        },
+        {
+          "name": "getMe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"rejected without a key\", function () {",
+                  "  if (!(rpc.result.isError === true)) { throw new Error(\"expected a tool error\"); }",
+                  "  if (!(rpc.result.content[0].text.startsWith(\"HTTP 401\"))) { throw new Error(\"expected HTTP 401\"); }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 5, \"method\": \"tools/call\", \"params\": {\"name\": \"getMe\", \"arguments\": {}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: account.nokey\nlabel: Get account no key\nkind: required\n\nWithout a key the tool answers a readable HTTP 401 error."
+          }
+        },
+        {
+          "name": "getMySettings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});",
+                  "pm.test(\"settings returned\", function () {",
+                  "  pm.expect(rpc.result.structuredContent.settings).to.be.a(\"object\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 6, \"method\": \"tools/call\", \"params\": {\"name\": \"getMySettings\", \"arguments\": {}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: account.settings\nlabel: Get my settings\nkind: required\n\nReads the caller's settings."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Advertisements",
+      "description": "Create an advertisement over REST, read it through the MCP tools and delete it.",
+      "item": [
+        {
+          "name": "createAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"advertisement created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"mcpAdId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"mcpAdVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"MCP flow ad {{runId}}\",\n  \"description\": \"MCP flow ad {{runId}}\",\n  \"adKind\": \"{{adKind}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.create\nlabel: Create advertisement\nkind: required\n\nCreates an advertisement of the flow user and stores its id and version."
+          }
+        },
+        {
+          "name": "listAdvertisements",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});",
+                  "pm.test(\"page returned\", function () {",
+                  "  pm.expect(rpc.result.structuredContent.items).to.be.a(\"array\");",
+                  "  pm.expect(rpc.result.structuredContent.totalCount).to.be.a(\"number\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 7, \"method\": \"tools/call\", \"params\": {\"name\": \"listAdvertisements\", \"arguments\": {}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.list\nlabel: List advertisements\nkind: required\n\nLists the advertisements without a filter."
+          }
+        },
+        {
+          "name": "listAdvertisements",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});",
+                  "pm.test(\"filter finds the advertisement\", function () {",
+                  "  if (!(rpc.result.structuredContent.totalCount === 1)) { throw new Error(\"expected totalCount 1 but got \" + rpc.result.structuredContent.totalCount + \"\"); }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 8, \"method\": \"tools/call\", \"params\": {\"name\": \"listAdvertisements\", \"arguments\": {\"title\": \"MCP flow ad {{runId}}\"}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.filter\nlabel: Filter advertisements\nkind: required\n\nFilters by the title of the advertisement created above."
+          }
+        },
+        {
+          "name": "getAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});",
+                  "pm.test(\"advertisement returned\", function () {",
+                  "  if (!(rpc.result.structuredContent.item.title === \"MCP flow ad \" + pm.collectionVariables.get(\"runId\"))) { throw new Error(\"unexpected title\"); }",
+                  "  pm.expect(rpc.result.structuredContent.etag).to.be.a(\"string\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 9, \"method\": \"tools/call\", \"params\": {\"name\": \"getAdvertisement\", \"arguments\": {\"id\": {{mcpAdId}}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.get\nlabel: Get advertisement\nkind: required\n\nReads the advertisement created above."
+          }
+        },
+        {
+          "name": "listAdvertisementMedia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});",
+                  "pm.test(\"media listed\", function () {",
+                  "  pm.expect(rpc.result.structuredContent.items).to.be.a(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 10, \"method\": \"tools/call\", \"params\": {\"name\": \"listAdvertisementMedia\", \"arguments\": {\"id\": {{mcpAdId}}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.media\nlabel: List media\nkind: required\n\nLists the media of the advertisement; it has none."
+          }
+        },
+        {
+          "name": "deleteAdvertisement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"advertisement deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{mcpAdVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/advertisements/{{mcpAdId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "advertisements",
+                "{{mcpAdId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: ads.delete\nlabel: Delete advertisement\nkind: optional\n\nDeletes the advertisement using the stored version."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Provider profiles",
+      "description": "Create a provider profile over REST, read it through the MCP tools and delete it.",
+      "item": [
+        {
+          "name": "createProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"mcpProfileId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"mcpProfileVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"{{profileKind}}\",\n  \"about\": \"MCP flow profile {{runId}}\",\n  \"phone\": \"{{profilePhone}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profiles.create\nlabel: Create profile\nkind: required\n\nCreates a provider profile of the flow user and stores its id and version."
+          }
+        },
+        {
+          "name": "listProviderProfiles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});",
+                  "pm.test(\"page returned\", function () {",
+                  "  pm.expect(rpc.result.structuredContent.items).to.be.a(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 11, \"method\": \"tools/call\", \"params\": {\"name\": \"listProviderProfiles\", \"arguments\": {}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profiles.list\nlabel: List profiles\nkind: required\n\nLists the provider profiles."
+          }
+        },
+        {
+          "name": "getProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 12, \"method\": \"tools/call\", \"params\": {\"name\": \"getProviderProfile\", \"arguments\": {\"id\": {{mcpProfileId}}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profiles.get\nlabel: Get profile\nkind: required\n\nReads the profile created above."
+          }
+        },
+        {
+          "name": "listProviderProfileFeedback",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});",
+                  "pm.test(\"reviews listed\", function () {",
+                  "  pm.expect(rpc.result.structuredContent.items).to.be.a(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 13, \"method\": \"tools/call\", \"params\": {\"name\": \"listProviderProfileFeedback\", \"arguments\": {\"id\": {{mcpProfileId}}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profiles.feedback\nlabel: List reviews\nkind: required\n\nLists the reviews of the profile; it has none."
+          }
+        },
+        {
+          "name": "getProviderProfileFeedbackAggregate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 14, \"method\": \"tools/call\", \"params\": {\"name\": \"getProviderProfileFeedbackAggregate\", \"arguments\": {\"id\": {{mcpProfileId}}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profiles.aggregate\nlabel: Get review summary\nkind: required\n\nReads the review summary of the profile."
+          }
+        },
+        {
+          "name": "deleteProviderProfile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"profile deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{mcpProfileVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/provider-profiles/{{mcpProfileId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "provider-profiles",
+                "{{mcpProfileId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: profiles.delete\nlabel: Delete profile\nkind: optional\n\nDeletes the profile using the stored version."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Taxons",
+      "description": "List categories and cities and read one; an unknown id is a readable error.",
+      "item": [
+        {
+          "name": "listTaxons",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});",
+                  "pm.test(\"taxons listed\", function () {",
+                  "  pm.expect(rpc.result.structuredContent.items).to.be.a(\"array\");",
+                  "});",
+                  "pm.collectionVariables.set(\"taxonExists\", rpc.result.structuredContent.items.length > 0 ? \"yes\" : \"no\");",
+                  "if (rpc.result.structuredContent.items.length > 0) { pm.collectionVariables.set(\"mcpTaxonId\", rpc.result.structuredContent.items[0].id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 15, \"method\": \"tools/call\", \"params\": {\"name\": \"listTaxons\", \"arguments\": {}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: taxons.list\nlabel: List taxons\nkind: required\n\nLists categories and cities and records whether any exists."
+          }
+        },
+        {
+          "name": "getTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 16, \"method\": \"tools/call\", \"params\": {\"name\": \"getTaxon\", \"arguments\": {\"id\": {{mcpTaxonId}}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: taxons.get\nlabel: Get taxon\nkind: optional\nwhen: taxonExists=yes\n\nReads the first listed taxon."
+          }
+        },
+        {
+          "name": "getTaxon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"unknown id is a readable error\", function () {",
+                  "  if (!(rpc.result.isError === true)) { throw new Error(\"expected a tool error\"); }",
+                  "  if (!(rpc.result.content[0].text.startsWith(\"HTTP 404\"))) { throw new Error(\"expected HTTP 404\"); }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 17, \"method\": \"tools/call\", \"params\": {\"name\": \"getTaxon\", \"arguments\": {\"id\": {{missingId}}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: taxons.missing\nlabel: Get missing taxon\nkind: required\n\nAn unknown id gives a readable HTTP 404 tool error."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Close",
+      "description": "End the MCP session.",
+      "item": [
+        {
+          "name": "endSession",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"session closed\", function () {",
+                  "  if (!([200, 204].includes(pm.response.code))) { throw new Error(\"expected 200 or 204 but got \" + pm.response.code + \"\"); }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: close.end\nlabel: End session\nkind: required\n\nCloses the MCP session."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "host",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "runId",
+      "value": "1"
+    },
+    {
+      "key": "mcpUserName",
+      "value": "MCP Flow User"
+    },
+    {
+      "key": "mcpEmailPrefix",
+      "value": "mcp.flow.user"
+    },
+    {
+      "key": "mcpPassword",
+      "value": "password123"
+    },
+    {
+      "key": "apiKeyLabel",
+      "value": "mcp-flow-runner"
+    },
+    {
+      "key": "mcpProtocol",
+      "value": "2025-11-25"
+    },
+    {
+      "key": "adKind",
+      "value": "OFFER"
+    },
+    {
+      "key": "profileKind",
+      "value": "MASTER"
+    },
+    {
+      "key": "profilePhone",
+      "value": "+380501234567"
+    },
+    {
+      "key": "missingId",
+      "value": "999999999"
+    }
+  ]
+}

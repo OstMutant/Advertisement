@@ -2,10 +2,10 @@
  * Description: Renders the flow map: one card per flow with an include checkbox, an open button, a count of
  *   selected steps and a passed / failed / skipped pill tally. Keeps the cards in sync with the
  *   selection and with step results.
- * Usage: None -- a library module imported by main.js.
+ * Usage: None -- a library module imported by main.js (passed requiredFlow in its options).
  * Uses: The selection object passed in (flowOn, stepOn, setFlow, subscribe); global document.
  * Env: None.
- * Input: The container element, collection, selection object and {onOpen, guard} passed to
+ * Input: The container element, collection, selection object and {onOpen, guard, requiredFlow} passed to
  *   createFlowMap; step results via update(index, step).
  * Outputs: Appends flow cards to the container; updates checkbox state, count text, pill and aria-
  *   pressed; calls onOpen(flowName) when a card is opened and selection changes through guard.
@@ -13,15 +13,13 @@
  * Returns: N/A
  * ────────────────────────────────────────────────────────────────────────── */
 
-const REQUIRED_FLOW = "Authentication";
-
-export function createFlowMap(container, collection, selection, { onOpen, guard }) {
+export function createFlowMap(container, collection, selection, { onOpen, guard, requiredFlow }) {
   const cards = [];
   const statuses = new Map();
 
   collection.flows.forEach((flow, position) => {
     const steps = collection.items.filter((item) => item.flow === flow.name);
-    const required = flow.name === REQUIRED_FLOW;
+    const required = flow.name === requiredFlow;
 
     const card = document.createElement("div");
     card.className = "flow-card";

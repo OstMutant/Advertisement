@@ -2,6 +2,7 @@ package org.ost.restapi.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import lombok.NonNull;
@@ -23,7 +24,6 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
 import java.util.List;
@@ -46,7 +46,7 @@ public class AuditApiController {
     @SecurityRequirement(name = "bearerKey")
     public ResponseEntity<List<TimelineEntryResponse>> timeline(@AuthenticationPrincipal @NonNull Long actorId,
             @ModelAttribute @Valid AuditTimelineFilterDto filter, @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(required = false) String sort, UriComponentsBuilder uriBuilder) {
+            @RequestParam(required = false) String sort, HttpServletRequest httpRequest) {
         int size = userProfileService.resolveTimelinePageSize(actorId);
         Sort parsed = SortQueryParser.parse(sort, SORTABLE_FIELDS);
         Sort sortObj = parsed.isSorted() ? parsed : Sort.by(Sort.Direction.DESC, AuditTimelineItemDto.Fields.createdAt);
@@ -54,7 +54,7 @@ public class AuditApiController {
                 .map(item -> new TimelineEntryResponse(item.snapshotId(), item.entityRef().entityType(),
                         item.entityRef().entityId(), item.actionType(), item.createdAt(), item.changedByActorId(), item.changes()))
                 .toList();
-        return PagedResponseBuilder.build(uriBuilder, page, size, auditQueryService.countTimeline(actorId, filter), items);
+        return PagedResponseBuilder.build(httpRequest, page, size, auditQueryService.countTimeline(actorId, filter), items);
     }
 
     /** One recorded change of any entity in the global timeline. */

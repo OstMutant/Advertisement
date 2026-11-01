@@ -66,6 +66,12 @@ below, same reasoning applies here), each with the diff or the exact file list p
 three default lenses are wired in; any other lens in `.claude/agents/` can be selected with `lenses:`,
 for example `code-reduction-reviewer`, and a new lens is a new `.claude/agents/*.md` file.)
 
+**Chunking (hard rule):** a lens handed a large scope in one call invents a "review budget" and skips files.
+When the scope has more than 12 files, split it into chunks of at most 12 files (keep files of one module or
+directory together), dispatch every chunk to all lenses, and process the chunks one after another, each chunk
+as one wave of at most 3 concurrent lens calls. For a diff, give each chunk the slice of the diff for its files
+plus the chunk's file list. Merge the `findings`, `rejected` and `inspected` of all chunks before step 4.
+
 **Wave threshold (hard rule, not a suggestion):** a coordinator accumulates context from every
 worker it dispatches — a single response fanning out to more than 3 parallel finder lenses is a
 real context-overload risk. If a 4th lens (or more) is ever added, do not dispatch all of them in
@@ -78,13 +84,20 @@ Instruction to include verbatim, to every lens:
 > cannot validate without looking at context outside the given scope. If you are not certain an
 > issue is real, do not flag it — false positives erode trust and waste review time.
 
+Add this second paragraph to the same instruction, verbatim:
+
+> There is no token, time or review budget. Read every file of your chunk in full. Never answer
+> "budget-limited" or "focused on production code" as a reason for leaving a file unread. A long or
+> generated file is read to its last line in several `Read` calls (`offset` and `limit`); "large" or
+> "generated" is not a reason to stop. Only a binary file may stay unread.
+
 Each returns its candidates as structured JSON (`{"findings": [...]}`, content separated from
 metadata — see each one's own file). Parse every lens's output directly; do not re-derive from prose.
 A lens may also return a `rejected` array and an `inspected` object (`read`: the files it opened,
 `not_read`: files with a reason): keep both unchanged for step 10. Merge all `findings` arrays
 before step 4 — `found_by` on each candidate already distinguishes which lens
-raised it, so nothing is lost by merging. If a lens's `not_read` holds a file whose reason is not generated,
-binary or too large, dispatch that lens once more with only those files and merge its output before step 4.
+raised it, so nothing is lost by merging. If a lens's `not_read` holds any file that is not binary, dispatch that lens
+once more with only those files and merge its output before step 4.
 
 ## 4. Validate every candidate
 

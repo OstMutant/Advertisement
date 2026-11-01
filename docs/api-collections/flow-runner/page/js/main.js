@@ -1,13 +1,15 @@
 /* ── Header ───────────────────────────────────────────────────────────────────
- * Description: Entry point of the flow runner page. Loads the collection, wires the selection, diagram,
+ * Description: Shared start-up of a flow runner page, exported as startRunnerPage(profile). Loads the collection, wires the selection, diagram,
  *   flow map, flow detail, step card and templates bar together, runs the collection from the
  *   Run button, and asks for confirmation before clearing the results of a previous run.
- * Usage: Loaded by index.html as a module script.
+ * Usage: None -- a library module; a page script such as rest-page.js imports it and calls
+ *   startRunnerPage(profile) after the DOM is ready.
  * Uses: ./collection.js (loadCollection); ./runner.js (runFlow); ./confirm-dialog.js; ./diagram.js;
  *   ./flow-map.js; ./flow-detail.js; ./selection.js; ./step-card.js; ./templates-bar.js; global
  *   document, window.localStorage and location.origin.
  * Env: None.
- * Input: The collection JSON at COLLECTION_URL; DOM elements by id (run-button, clear-button,
+ * Input: The profile {collectionUrl, requiredFlow, storageKey, minimalFlows, minimalStepsOff, onRunFinished (optional hook, called with the final run variables)};
+ *   the collection JSON at profile.collectionUrl; DOM elements by id (run-button, clear-button,
  *   confirm-dialog, diagram, flow-map, flow-detail, step-card, templates, error);
  *   window.localStorage, probed for availability.
  * Outputs: Updates every view on each step update; writes an error message into the element with id
@@ -26,10 +28,9 @@ import { createSelection } from "./selection.js";
 import { createStepCard } from "./step-card.js";
 import { createTemplatesBar } from "./templates-bar.js";
 
-const COLLECTION_URL = "postman/marketplace-rest-api.postman_collection.json";
 const CLEAR_MESSAGE = "All data of the last run will be cleared. Continue?";
 
-async function init() {
+export async function startRunnerPage({ collectionUrl, requiredFlow, storageKey, minimalFlows, minimalStepsOff, onRunFinished }) {
   const runButton = document.getElementById("run-button");
   const clearButton = document.getElementById("clear-button");
   const selection = createSelection();
@@ -80,7 +81,7 @@ async function init() {
     clearViews();
     const { host = location.origin, ...variables } = selection.overrides;
     try {
-      await runFlow(collection, {
+      const outcome = await runFlow(collection, {
         host,
         variables,
         flows: collection.flows.map((flow) => flow.name).filter((name) => selection.flowOn(name)),
@@ -92,6 +93,9 @@ async function init() {
           card.update(index, step);
         },
       });
+      if (onRunFinished) {
+        await onRunFinished(outcome.variables);
+      }
     } catch (error) {
       errorElement().textContent = error.message;
     } finally {
@@ -102,7 +106,7 @@ async function init() {
   }
 
   try {
-    collection = await loadCollection(COLLECTION_URL);
+    collection = await loadCollection(collectionUrl);
     card = createStepCard(document.getElementById("step-card"), collection);
     diagram = createDiagram(document.getElementById("diagram"), { onOpen: (index) => card.open(index) });
     diagram.build(collection);
@@ -116,8 +120,15 @@ async function init() {
         map.setOpen(name);
       },
       guard,
+      requiredFlow,
     });
-    createTemplatesBar(document.getElementById("templates"), collection, selection, openStorage(), { guard });
+    createTemplatesBar(document.getElementById("templates"), collection, selection, openStorage(storageKey), {
+      guard,
+      requiredFlow,
+      storageKey,
+      minimalFlows,
+      minimalStepsOff,
+    });
     runButton.addEventListener("click", start);
     clearButton.addEventListener("click", () => guard(() => {}, () => {}));
   } catch (error) {
@@ -127,11 +138,12 @@ async function init() {
   runButton.disabled = false;
 }
 
-function openStorage() {
+function openStorage(storageKey) {
   try {
     const storage = window.localStorage;
-    storage.setItem("api-flow-runner.probe", "1");
-    storage.removeItem("api-flow-runner.probe");
+    const probeKey = `${storageKey}.probe`;
+    storage.setItem(probeKey, "1");
+    storage.removeItem(probeKey);
     return storage;
   } catch {
     return null;
@@ -146,10 +158,4 @@ function errorElement() {
     document.body.append(element);
   }
   return element;
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
-  init();
 }

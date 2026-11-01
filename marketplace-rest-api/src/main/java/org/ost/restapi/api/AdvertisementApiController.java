@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -50,7 +51,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.JsonNode;
 
 import java.util.List;
@@ -110,7 +110,7 @@ public class AdvertisementApiController {
     public ResponseEntity<List<AdvertisementInfoDto>> list(@AuthenticationPrincipal Long actorId,
             @ModelAttribute @Valid AdvertisementFilterDto filter, @RequestParam(defaultValue = "0") int page,
             @RequestParam(required = false) String sort, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale,
-            UriComponentsBuilder uriBuilder) {
+            HttpServletRequest httpRequest) {
         int size = userProfileService.resolveAdsPageSize(actorId);
         Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
         List<AdvertisementInfoDto> items = readService.getFiltered(filter, page, size, sortObj);
@@ -118,7 +118,7 @@ public class AdvertisementApiController {
         items = enrichmentService.enrichWithActorInfo(items);
         items = enrichmentService.enrichWithMediaSummary(items);
         int total = readService.count(filter);
-        return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
+        return PagedResponseBuilder.build(httpRequest, page, size, total, items);
     }
 
     @Operation(operationId = "getAdvertisement", summary = "Get one advertisement by id",

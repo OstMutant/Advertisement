@@ -41,6 +41,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.authenticateAs;
 import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.clearAuthentication;
@@ -193,6 +194,21 @@ class UserApiControllerTest {
         doThrow(new AccessDeniedException("not privileged")).when(authorizationService).requireIsPrivileged(ACTOR_ID);
 
         mockMvc.perform(get("/api/users")).andExpect(status().isForbidden());
+    }
+
+    // ── getMe ────────────────────────────────────────────────────────────
+
+    @Test
+    void getMe_returnsTheCallersOwnAccountWithoutPrivilegeCheck() throws Exception {
+        UserDto user = new UserDto(ACTOR_ID, "Alice", "alice@example.com", Role.USER, null, null, 0L);
+        when(userProfileService.findById(ACTOR_ID)).thenReturn(Optional.of(user));
+
+        mockMvc.perform(get("/api/users/me"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("ETag", "\"0\""))
+                .andExpect(jsonPath("$.id").value(ACTOR_ID));
+
+        verifyNoInteractions(authorizationService);
     }
 
     // ── getById ──────────────────────────────────────────────────────────

@@ -2608,6 +2608,49 @@
       "description": "Reads, updates and reverts the flow user's own page-size settings through their history, then changes the interface language and back and checks that an unsupported language is rejected.",
       "item": [
         {
+          "name": "getMe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"own account read\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().id).to.be.a(\"number\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users/me",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: account.me\nlabel: Get my account\nkind: required\n\nReads the account the flow user's key belongs to, including its id."
+          }
+        },
+        {
           "name": "getMySettings",
           "event": [
             {

@@ -208,7 +208,7 @@ class AdvertisementApiControllerTest {
 
         mockMvc.perform(get("/api/advertisements"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Link", org.hamcrest.Matchers.containsString("rel=\"next\"")));
+                .andExpect(header().string("Link", org.hamcrest.Matchers.containsString("/api/advertisements?page=1&size=20>; rel=\"next\"")));
     }
 
     // ── list — negative ──────────────────────────────────────────────────

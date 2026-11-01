@@ -6,8 +6,8 @@
  * Uses: ./templates.js (builtIns, deleteTemplate, fromConfig, loadSaved, matchingName, saveTemplate,
  *   toConfig, validateConfig); ./step-view.js (element); global navigator.clipboard.
  * Env: None.
- * Input: The container element, collection, selection object, storage object (or null) and {guard}
- *   passed to createTemplatesBar; text the user types or pastes into the bar.
+ * Input: The container element, collection, selection object, storage object (or null) and
+ *   {guard, requiredFlow, storageKey, minimalFlows, minimalStepsOff} passed to createTemplatesBar; text the user types or pastes into the bar.
  * Outputs: Appends its elements to the container and rebuilds the template buttons and configuration
  *   text on each refresh; writes saved templates to the storage object; applies configurations
  *   to the selection through guard.
@@ -26,8 +26,9 @@ import {
 } from "./templates.js";
 import { element } from "./step-view.js";
 
-export function createTemplatesBar(container, collection, selection, storage, { guard }) {
-  const builtin = builtIns(collection);
+export function createTemplatesBar(container, collection, selection, storage, { guard, requiredFlow, storageKey, minimalFlows, minimalStepsOff }) {
+  const settings = { requiredFlow, storageKey };
+  const builtin = builtIns(collection, { minimalFlows, minimalStepsOff });
   const current = element("span");
   current.id = "template-label";
   const line = element("p", "template-line");
@@ -59,7 +60,7 @@ export function createTemplatesBar(container, collection, selection, storage, { 
   apply.id = "template-apply";
   apply.type = "button";
   apply.addEventListener("click", () => {
-    const result = validateConfig(textarea.value, collection);
+    const result = validateConfig(textarea.value, collection, requiredFlow);
     if (result.error !== undefined) {
       message.textContent = `${result.error}. Previous configuration is still in use.`;
       message.className = "msg bad";
@@ -82,7 +83,7 @@ export function createTemplatesBar(container, collection, selection, storage, { 
   save.id = "template-save";
   save.type = "button";
   save.addEventListener("click", () => {
-    const result = saveTemplate(storage, collection, nameInput.value, toConfig(selection.state(), collection));
+    const result = saveTemplate(storage, collection, nameInput.value, toConfig(selection.state(), collection), settings);
     if (result.error !== undefined) {
       message.textContent = result.error;
       message.className = "msg bad";
@@ -100,9 +101,9 @@ export function createTemplatesBar(container, collection, selection, storage, { 
   container.append(line, buttons, textarea, actions, saving);
 
   function refresh() {
-    const saved = storage === null ? {} : loadSaved(storage, collection);
+    const saved = storage === null ? {} : loadSaved(storage, collection, settings);
     const config = toConfig(selection.state(), collection);
-    const name = matchingName(config, saved, collection);
+    const name = matchingName(config, saved, collection, builtin);
     current.textContent = name;
     buttons.replaceChildren();
     const all = { ...builtin, ...saved };
@@ -121,7 +122,7 @@ export function createTemplatesBar(container, collection, selection, storage, { 
         remove.type = "button";
         remove.setAttribute("aria-label", `Delete ${templateName}`);
         remove.addEventListener("click", () => {
-          deleteTemplate(storage, collection, templateName);
+          deleteTemplate(storage, collection, templateName, settings);
           refresh();
         });
         group.append(remove);

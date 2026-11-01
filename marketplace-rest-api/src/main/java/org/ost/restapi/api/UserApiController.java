@@ -57,7 +57,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.JsonNode;
 
 import java.util.List;
@@ -103,13 +102,21 @@ public class UserApiController {
     @GetMapping
     @SecurityRequirement(name = "bearerKey")
     public ResponseEntity<List<UserDto>> list(@AuthenticationPrincipal Long actorId, @ModelAttribute @Valid UserFilterDto filter,
-            @RequestParam(defaultValue = "0") int page, @RequestParam(required = false) String sort, UriComponentsBuilder uriBuilder) {
+            @RequestParam(defaultValue = "0") int page, @RequestParam(required = false) String sort, HttpServletRequest httpRequest) {
         authorizationService.requireIsPrivileged(actorId);
         int size = userProfileService.resolveUsersPageSize(actorId);
         Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
         List<UserDto> items = userProfileService.getFiltered(filter, page, size, sortObj);
         int total = userProfileService.count(filter);
-        return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
+        return PagedResponseBuilder.build(httpRequest, page, size, total, items);
+    }
+
+    @Operation(operationId = "getMe", summary = "Get the caller's own account", description = "Returns the account the API key belongs to, including its id. The ETag response header carries the version to send back via If-Match on PUT.")
+    @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on PUT"))
+    @GetMapping("/me")
+    @SecurityRequirement(name = "bearerKey")
+    public ResponseEntity<UserDto> getMe(@AuthenticationPrincipal Long actorId) {
+        return getById(actorId, actorId);
     }
 
     @Operation(operationId = "getUser", summary = "Get one user by id", description = "Administrators and moderators, or the user themselves. The ETag response header carries the version to send back via If-Match on PUT.")

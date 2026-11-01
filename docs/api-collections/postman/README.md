@@ -1,8 +1,7 @@
 # postman/
 
-The Postman collection of the REST API, `marketplace-rest-api.postman_collection.json` (Postman
-collection format v2.1). Its folders are flows: each folder holds the requests of one flow, run in
-the order they are listed. The flow runner page and the collection test scripts both read this file.
+The Postman collections, in Postman collection format v2.1: [`marketplace-rest-api.postman_collection.json`](marketplace-rest-api.postman_collection.json) for the REST API and [`marketplace-mcp.postman_collection.json`](marketplace-mcp.postman_collection.json) for the MCP server. Their folders are flows: each folder holds the requests of one flow, run in
+the order they are listed. The flow runner page and the collection test scripts both read these files.
 
 ## Using it in Postman
 
@@ -108,3 +107,42 @@ end. They store the ids and versions they need under names that start with the f
 | `feedbackCategoryId`, `feedbackCityId`, `feedbackProfileId`, `feedbackId`, `feedbackVersion`, `replyVersion` (and `...Version` of category, city and profile) | Feedback flow | the flow's category and city, the profile, the review and the reply versions |
 | `moderationCategoryId`, `moderationCityId`, `moderationProfileId`, `moderationFeedbackId`, `moderationReplyId` (and `...Version` of category, city and profile) | Moderation flow | the flow's category and city, the profile, the review and the reply that are flagged and decided |
 | `targetUserId`, `targetUserVersion`, `flowUserId`, `targetSnapshotId` | Users flow | the target user the flow creates, the version of that user, the id of the ordinary user the Authentication flow created and the first snapshot of the target's history |
+
+## The MCP collection
+
+[`marketplace-mcp.postman_collection.json`](marketplace-mcp.postman_collection.json) runs the MCP server (`POST {{host}}/mcp`) through plain HTTP requests, so the same runner and the same coverage check cover it. It has six flows: Setup, Account, Advertisements, Provider profiles, Taxons and Close. No administrator is used. Setup registers a user, issues an API key, opens a session and lists the tools; Advertisements and Provider profiles create their data over REST and delete it at the end.
+
+Naming rule: a `tools/call` request is named after the tool, the other MCP requests after their JSON-RPC method (`initialize`, `notifications/initialized`, `tools/list`), the session-closing DELETE `endSession`, and the REST setup requests after their REST `operationId`. Every MCP request carries `Content-Type: application/json` and `Accept: application/json, text/event-stream`; after `initialize` it also carries `Mcp-Session-Id` and `MCP-Protocol-Version`.
+
+The server answers a request either as `application/json` or as `text/event-stream` (`data: {...}` lines), and Postman has no shortcut for event streams. Every test script therefore reads a JSON-RPC answer with the same one line, which works for both and runs unchanged in real Postman:
+
+```
+const body = pm.response.text(); const rpc = JSON.parse(body.includes("data:") ? body.slice(body.lastIndexOf("data:") + 5) : body);
+```
+
+Collection variables:
+
+| Variable | Default |
+|---|---|
+| `host` | `http://localhost:8081` |
+| `runId` | `1` (the flow runner generates a fresh value per run) |
+| `mcpUserName` | `MCP Flow User` |
+| `mcpEmailPrefix` | `mcp.flow.user`, builds the user's e-mail together with `runId` |
+| `mcpPassword` | `password123` |
+| `apiKeyLabel` | `mcp-flow-runner` |
+| `mcpProtocol` | `2025-11-25`, sent as `MCP-Protocol-Version` |
+| `adKind` | `OFFER`, the kind of the advertisement the flow creates |
+| `profileKind` | `MASTER`, the kind of the provider profile the flow creates |
+| `profilePhone` | `+380501234567`, the phone number of that profile |
+| `missingId` | `999999999`, an id no taxon has |
+
+Variables captured at run time:
+
+| Variable | Set by | Holds |
+|---|---|---|
+| `mcpEmail` | `registerUser` (step `setup.user`) | e-mail of the user registered in this run |
+| `mcpKey` | `issueApiKey` (step `setup.key`) | raw API key sent as the bearer token |
+| `mcpSession` | `initialize` (step `setup.init`) | the `Mcp-Session-Id` of the session |
+| `mcpAdId`, `mcpAdVersion` | `createAdvertisement` (step `ads.create`) | id and version of the advertisement |
+| `mcpProfileId`, `mcpProfileVersion` | `createProviderProfile` (step `profiles.create`) | id and version of the provider profile |
+| `taxonExists`, `mcpTaxonId` | `listTaxons` (step `taxons.list`) | `yes` or `no` (drives step `taxons.get`) and the id of the first taxon when there is one |

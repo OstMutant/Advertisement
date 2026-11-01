@@ -2,15 +2,15 @@
 
 **Type:** improvement — decision first, implementation only if the decision is yes
 **Module:** `marketplace-rest-api`, `marketplace-orchestrator`, `platform-commons` (only if implemented)
-**Priority:** medium — Top, right after [improvement-221](improvement-221-mcp-server-trial-run.md); a decision, not yet work
-**When:** blocked on [improvement-221](improvement-221-mcp-server-trial-run.md) — its trial shows how an agent actually uses the API, which is the evidence this decision needs; do not start before it
+**Priority:** medium — Top, right after [improvement-221](../completed/tasks/improvement-221-mcp-server-trial-run.md); a decision, not yet work
+**When:** blocked on [improvement-221](../completed/tasks/improvement-221-mcp-server-trial-run.md) — its trial shows how an agent actually uses the API, which is the evidence this decision needs; do not start before it
 
 ## Current state
 
 Carved out of [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) item 3 on 2026-10-28; that task now covers `PATCH` only. Facts:
 
 - No response carries links or action hints. Every single-resource response is a flat DTO, so a caller must already know from Swagger which operations apply to a given resource for the current actor.
-- There is no `GET /api/me` entry point in `marketplace-rest-api`; the only `me` endpoint is `PATCH /api/users/me/settings`.
+- `GET /api/users/me` (operationId `getMe`, the caller's own account with its id) was added by improvement-221; what is still open is a list of the caller's available actions and links to actions on resources.
 - The `marketplace-app` architecture decision on list pagination chose RFC 8288 `Link` + `X-Total-Count` headers and rejected Spring HATEOAS and an envelope body. It decided pagination only; it did not rule on action discovery for a single resource (see `.claude/nav/adr-index.md`, title "External REST API list endpoints").
 - The design drafted in improvement-186 item 3: hand-built HAL-shaped `_links` on single-resource responses, present per actor (`self` always; `edit`/`delete`/`media` only when `AuthorizationService.canOperate` is true), a new `GET /api/me` listing the actor's top-level actions by role, and the `swagger-hal-navigator` add-on for Swagger UI. Pagination links inside list bodies were explicitly left out because they would reverse the pagination decision.
 - The root `README.md` lists "REST hypermedia (HATEOAS)" under planned directions.
@@ -31,7 +31,7 @@ A recorded yes or no with reasons. If no: a decision record that stops the topic
 
 ## Related
 
-- [improvement-221](improvement-221-mcp-server-trial-run.md) — supplies the evidence
+- [improvement-221](../completed/tasks/improvement-221-mcp-server-trial-run.md) — supplies the evidence
 - [improvement-186](improvement-186-rest-hypermedia-media-subresource-and-patch-support.md) — the original design, now `PATCH` only
 - `.claude/nav/adr-index.md` — the pagination decision and its rejected Spring HATEOAS alternative
 

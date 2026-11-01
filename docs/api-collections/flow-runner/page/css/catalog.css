@@ -1,0 +1,105 @@
+#catalog {
+  margin: 12px 0;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+}
+
+#catalog label {
+  display: block;
+  font-size: 12px;
+  color: #5f6368;
+}
+
+#catalog .tool-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
+}
+
+#catalog .tool-detail {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #9aa0a6;
+  border-radius: 8px;
+}
+
+#catalog .tool-body > * + * {
+  margin-top: 8px;
+}
+
+#catalog .name {
+  font-weight: 600;
+  color: #202124;
+}
+
+#catalog .note {
+  font-size: 11px;
+  color: #5f6368;
+}
+
+#catalog p {
+  margin: 0;
+}
+
+#catalog .tool-description {
+  font-size: 12px;
+}
+
+#catalog .tool-optional {
+  font-size: 11px;
+  color: #5f6368;
+}
+
+#catalog .tool-params {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+#catalog .tool-params th,
+#catalog .tool-params td {
+  padding: 3px 8px;
+  border: 1px solid #9aa0a6;
+  text-align: left;
+}
+
+#catalog textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+#catalog .tool-status {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+#catalog .tool-status[data-error="true"],
+#catalog .tool-error {
+  color: #d93025;
+}
+
+#catalog .tool-result {
+  overflow-x: auto;
+  margin: 4px 0 0;
+  padding: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  background: #fff;
+  border: 1px solid #9aa0a6;
+  border-radius: 4px;
+}
+
+#catalog .tool-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+#catalog .tool-pick {
+  font-size: 11px;
+  cursor: pointer;
+}

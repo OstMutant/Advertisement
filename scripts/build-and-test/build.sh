@@ -19,7 +19,8 @@
 #       RUN_UNIT (both touch marketplace-app's own target/), parallel-safe against
 #       RUN_INTEGRATION only.
 #     UNIT_TEST_ARG (default empty) -- narrows RUN_UNIT to one module (query-lib/marketplace-app/
-#       marketplace-orchestrator/marketplace-rest-api) or one test class by name; empty runs all 4 modules.
+#       marketplace-orchestrator/marketplace-rest-api/marketplace-mcp) or one test class by name; empty runs all
+#       modules that have tests.
 #     INTEGRATION_TEST_ARG (default empty) -- narrows RUN_INTEGRATION to one scenario ("smoke") or
 #       one test class by name; empty runs the whole integration-tests module.
 #     SKIP_VAADIN (true/false, default false) -- adds -Dvaadin.skip=true to the reactor install,
@@ -185,7 +186,7 @@ trap - ERR
 # No flock here (unlike the install step above) -- once ~/.m2 is installed, both this and the
 # integration-test block below only *read* it, never write, so they're safe to run concurrently
 # against each other. They touch different target/ dirs too (query-lib/marketplace-app/
-# marketplace-orchestrator/marketplace-rest-api vs integration-tests), so no output collision either.
+# marketplace-orchestrator/marketplace-rest-api/marketplace-mcp vs integration-tests), so no output collision either.
 run_unit_tests() {
   # Module list derived from root pom.xml (keep only modules with their own src/test/java content)
   # instead of hand-maintained -- a separately hardcoded copy here silently drifted out of sync

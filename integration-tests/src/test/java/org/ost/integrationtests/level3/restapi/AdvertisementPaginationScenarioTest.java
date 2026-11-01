@@ -42,6 +42,19 @@ class AdvertisementPaginationScenarioTest extends AbstractRestApiScenarioTest {
     }
 
     @Test
+    void linkHeader_pointsToTheCollectionAndKeepsTheFilter() throws Exception {
+        RegisteredUser seller = createSeller();
+        for (int i = 0; i < 21; i++) {
+            createAd(seller, "Linked ad " + i, "OFFER", null, null);
+        }
+
+        mockMvc.perform(get("/api/advertisements?title=Linked"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Link", org.hamcrest.Matchers.containsString(
+                        "/api/advertisements?title=Linked&page=1&size=20>; rel=\"next\"")));
+    }
+
+    @Test
     void filterByTitle_returnsOnlySubstringMatches() throws Exception {
         RegisteredUser seller = createSeller();
         createAd(seller, "Plumbing services", "OFFER", null, null);

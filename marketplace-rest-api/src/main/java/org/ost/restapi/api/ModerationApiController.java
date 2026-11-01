@@ -3,6 +3,7 @@ package org.ost.restapi.api;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
 import java.util.List;
@@ -53,13 +53,13 @@ public class ModerationApiController {
     @SecurityRequirement(name = "bearerKey")
     public ResponseEntity<List<ModerationQueueEntryResponse>> getModerationQueue(@AuthenticationPrincipal @NonNull Long actorId,
             @ModelAttribute @Valid ModerationQueueFilterDto filter, @RequestParam(defaultValue = "0") int page,
-            @RequestParam(required = false) String sort, UriComponentsBuilder uriBuilder) {
+            @RequestParam(required = false) String sort, HttpServletRequest httpRequest) {
         int size = userProfileService.resolveModerationPageSize(actorId);
         Sort parsed = SortQueryParser.parse(sort, SORTABLE_FIELDS);
         FeedbackAccessService.ModerationQueuePage result = feedbackAccessService.findModerationQueue(
                 actorId, filter, parsed.isUnsorted() ? DEFAULT_SORT : parsed, page, size);
         List<ModerationQueueEntryResponse> items = result.items().stream().map(ModerationApiController::toEntry).toList();
-        return PagedResponseBuilder.build(uriBuilder, page, size, result.totalCount(), items);
+        return PagedResponseBuilder.build(httpRequest, page, size, result.totalCount(), items);
     }
 
     @Operation(operationId = "approveFeedback", summary = "Approve a flagged review",

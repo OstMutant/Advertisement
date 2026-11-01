@@ -2,11 +2,65 @@
 
 ---
 
+## ADR-092: The MCP server is a separate module with no project dependencies that wraps the REST API over HTTP
+
+**Status:** Accepted
+
+**Verified:** 2026-11-01
+
+**Applied:** 1
+
+**Also affects:** marketplace-mcp
+
+**Context:** AI agents need to work with the marketplace through MCP. A trial run showed that a thin
+wrapper calling the REST API with the caller's key works: the endpoint runs on Spring Boot 4.1 with
+Spring AI's servlet starter, the bearer key reaches the REST call from inside a tool, paging headers
+can be copied into the tool result, and REST operation ids are valid tool names. The open question
+was where the code lives and what it may depend on. The Spring AI auto-configuration builds the
+Streamable HTTP provider without a transport security validator, so the SDK's origin check does not
+run by default.
+
+**Decision:** `marketplace-mcp` is a sibling of `marketplace-rest-api`, plugged into
+`marketplace-app` the same way. It depends on no project module (no `platform-commons`,
+`marketplace-orchestrator`, starter or Vaadin) and reaches the REST API over HTTP at
+`marketplace.mcp.rest-base-url`; `ArchitectureTest` in the module enforces this. `/mcp` has its own
+stateless `@Order(3)` chain (no CSRF, `permitAll`, since the forwarded key is checked by the REST
+API) kept disjoint from the REST `/api/**` chains and the application's catch-all chain. A tool is
+named after the REST `operationId` it wraps and returns paging as `{items, totalCount, page,
+hasMore, nextPage}`; a REST 429 or 401 reaches the agent as a readable tool error. The same chain
+checks the `Origin` header with the MCP SDK's `DefaultServerTransportSecurityValidator`
+(`McpOriginFilter`, added before `CsrfFilter`): a request without `Origin` passes (non-browser
+agents), one whose `Origin` is not in `marketplace.mcp.allowed-origins` gets 403 before any session
+opens. The default list is `http://localhost:*` and `http://127.0.0.1:*`; the allowed origins are
+never derived from the request's `Host`. The first release is read-only (11 tools); writes are a
+later wave.
+
+**Rejected alternatives:**
+- **Tools generated from the OpenAPI specification** — no generator reads springdoc output
+  specifically, and generated tools cannot carry the paging and error shaping an agent needs.
+- **A module on top of `marketplace-orchestrator`** — repeats authorization and rate limiting that
+  the REST API already enforces, and ties the agent channel to internal services instead of the
+  public contract.
+- **Running the module as a separate service** — a second deployable for no gain at this size; the
+  base address is a property, so it can still be split out later.
+- **An own transport provider bean carrying the validator** — replaces the auto-configured provider
+  and its session handling just to switch one check on; a servlet filter in the module's own chain
+  does it without that.
+- **An empty default list** — the module would answer 403 to the bundled MCP page and to local tools
+  until every deployment configures it; a local-only default is safe and works out of the box.
+- **Validating `Host`, or deriving the allowed origin from it** — an attacker controls `Host` in a
+  DNS-rebinding attack, so deriving the allowed origin from it lets the attack through.
+
+**Consequences:** A REST contract change is an MCP change. Tool names are stable by contract.
+Extending the module with write tools or an admin page does not change this shape.
+
+---
+
 ## ADR-091: External REST API limits write requests per account in a bearer-chain filter
 
 **Status:** Accepted
 
-**Applied:** 1
+**Applied:** 2
 
 **Also affects:** marketplace-rest-api
 
@@ -84,7 +138,7 @@
 
 **Status:** Accepted
 
-**Applied:** 3
+**Applied:** 4
 
 **Also affects:** marketplace-rest-api
 
@@ -445,7 +499,9 @@ untouched. Only ADR-080's Taxon-specific mandate (its decision item 4) is revers
 
 **Status:** Accepted (Taxon-specific portion reversed by ADR-081; Advertisement/ProviderProfile portions remain Accepted)
 
-**Also affects:** marketplace-rest-api, taxon-spring-boot-starter
+**Applied:** 1
+
+**Also affects:** marketplace-rest-api, taxon-spring-boot-starter, marketplace-mcp
 
 **Context:** `GET /api/advertisements`/`GET /api/provider-profiles`/`GET /api/taxons` (shipped as part
 of the REST API infrastructure work) hardcoded an empty filter and unsorted results — no filter or
@@ -525,6 +581,9 @@ implicit" principle.
 - A future new REST list endpoint follows this same three-part shape: bind query params onto the
   existing domain `FilterDto`, validate sort against that domain's own response-DTO `Fields.*`,
   delegate response assembly to `PagedResponseBuilder`.
+- A list response carries the same DTO fields the Vaadin UI already shows to every visitor, anonymous
+  ones included, so `AdvertisementInfoDto.createdByUserEmail` (the author tooltip on the card) is
+  public over REST by design; hiding it would need a REST-only projection and is not done.
 - Verified directly: unit 255/255 (`marketplace-rest-api` 49, up from 27 — new `SortQueryParser`/
   `PageLinkHeaderBuilder`/`PagedResponseBuilder` unit tests plus extended controller tests),
   integration 186/186 (3 new `TaxonRepository` pagination/count tests against real Postgres),
@@ -592,6 +651,10 @@ instead of build-time).
 
 **Status:** Accepted
 
+**Applied:** 1
+
+**Also affects:** marketplace-mcp
+
 **Context:** Building an external, Postman/Swagger-testable REST API (`marketplace-rest-api`) needed
 a real authentication mechanism beyond the existing Vaadin session login. The API serves
 programmatic/script access to a user's own account (external integrations, Playwright test
@@ -610,7 +673,17 @@ standard pattern in its own right, not a simplified OAuth2. Key hashing is SHA-2
 low-entropy human password against offline brute-force; it buys nothing for an already-random
 256-bit token and would add real latency to every authenticated request.
 
+The MCP server (`marketplace-mcp`) reuses this credential unchanged: an agent's connection carries
+the person's own key, the module forwards the `Authorization` header to the REST API as received,
+holds no credential of its own and never authenticates on the caller's behalf, so every tool call
+is authorized, rate-limited and audited as that account.
+
 **Rejected alternatives:**
+- **A service key held by the MCP module** — every agent would act as one shared account, losing
+  per-person ownership, limits and audit.
+- **`mcp-server-security` (community project)** — OAuth2 with JWT only, a basic API-key mode, not
+  endorsed by Spring AI, and no stated Spring Boot 4 compatibility; the forwarded key needs none
+  of it.
 - **OAuth2 client-credentials flow** — the natural fit for Postman/Swagger's native no-script
   auto-auth, but solves a different problem: delegated third-party authorization, multiple
   registered clients, short-lived token rotation. None apply here (no third-party apps, one

@@ -52,7 +52,8 @@ Java package root: `org.ost.restapi`
   (`If-Match`) endpoints in `org.ost.restapi.api` — `id`/`version` are never caller-writable body
   fields, only path variable / header.
 - `org.ost.restapi.api.paging` — shared list-endpoint plumbing, reused by
-  `AdvertisementApiController`/`ProviderProfileApiController`'s `list()` methods: `SortQueryParser`
+  the paginated `list()` methods of `AdvertisementApiController`, `ProviderProfileApiController`,
+  `AuditApiController`, `FeedbackApiController`, `ModerationApiController` and `UserApiController`: `SortQueryParser`
   (parses `?sort=field,dir` against a per-controller allow-list built from that domain's own
   response DTO's `Fields.*` constants — an unknown field throws `IllegalArgumentException`, mapped
   to 400 by `ApiExceptionHandler`), `PageLinkHeaderBuilder` (builds the RFC 8288 `Link` header),
@@ -85,9 +86,9 @@ Java package root: `org.ost.restapi`
   the two chains' real authentication)
 
 - `DevToolsConfig` (`org.ost.restapi.config`) — `@ConditionalOnProperty("marketplace.dev-tools.enabled")`
-  `WebMvcConfigurer` that serves the developer-only API flow runner page under `/dev-tools/api-flows/`
+  `WebMvcConfigurer` that serves the developer-only API flow runner pages (REST and MCP) under `/dev-tools/api-flows/`
   from the classpath (resource handler plus a view controller forwarding the folder to `index.html`);
-  with the property off the path is not registered (404). The page and the Postman collection are
+  with the property off the path is not registered (404). The pages and the Postman collections are
   copied into the classpath by this module's `pom.xml` resources from `docs/api-collections`.
 
 **Autoconfiguration entry point:** `RestApiAutoConfiguration` (`@ComponentScan("org.ost.restapi")`)

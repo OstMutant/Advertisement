@@ -3,26 +3,34 @@
  *   request must name an existing operationId with a matching method and path and carry a valid
  *   step/label/kind header (and an optional `when` key, when present, valid); every operation must
  *   be in the collection or on the allow-list, and the allow-list must hold no covered or unknown
- *   operation. Prints every finding, not only the first one.
+ *   operation. Prints every finding, not only the first one. With `"source": "mcp"` in the config,
+ *   the operations are the MCP server's tool names (listed through its own session) and only the
+ *   requests that POST a `tools/call` to `mcpPath` count as tool calls, named after the tool they
+ *   call; every other request is checked for its step header only.
  * Usage: node docs/api-collections/scripts/check-collection.mjs [baseUrl] [--config <file>] [--help]
  *   The config defaults to check-collection.config.json next to this script.
- * Uses: node:fs, node:path, node:url, global fetch (Node >= 18). No dependencies.
+ * Uses: node:fs, node:path, node:url, global fetch (Node >= 18), flow-runner/page/js/mcp-client.js
+ *   (MCP mode only). No dependencies.
  * Env: API_BASE_URL -- base URL used when no positional argument is given.
- * Input: the OpenAPI document at <baseUrl><openApiPath>, the Postman collection file and the
- *   allow-list file named in the config (relative paths resolve against the config's directory).
- * Outputs: one "- <finding>" line per finding on stdout, then a summary line with the operation,
- *   collection and allow-list counts. Errors are printed on stderr.
+ * Input: the OpenAPI document at <baseUrl><openApiPath> (MCP mode: the tool list of the MCP server
+ *   at <baseUrl><mcpPath>), the Postman collection file and the allow-list file named in the config
+ *   (relative paths resolve against the config's directory).
+ * Outputs: one "- <finding>" line per finding on stdout, then a summary line with the operation
+ *   (MCP mode: tool), collection (called) and allow-list counts. Errors are printed on stderr.
  * Returns: exit code -- 0 when there are no findings, 1 when there is at least one finding,
- *   2 when the spec, the config or a listed file cannot be read.
+ *   2 when the spec, the tool list, the config or a listed file cannot be read.
  * ───────────────────────────────────────────────────────────────────────── */
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createMcpClient } from '../flow-runner/page/js/mcp-client.js';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CONFIG = resolve(SCRIPT_DIR, 'check-collection.config.json');
 const METHODS = ['get', 'post', 'put', 'delete', 'patch'];
-const STRING_FIELDS = ['baseUrl', 'openApiPath', 'collectionFile', 'allowListFile', 'hostPlaceholder'];
+const COMMON_FIELDS = ['baseUrl', 'collectionFile', 'allowListFile', 'hostPlaceholder'];
+const TOOL_CALL_PATTERN = /"method"\s*:\s*"tools\/call"/;
+const TOOL_NAME_PATTERN = /"name"\s*:\s*"([^"]*)"/;
 const WHEN_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*=.+$/;
 
 const USAGE = `Usage: node docs/api-collections/scripts/check-collection.mjs [baseUrl] [--config <file>] [--help]
@@ -35,8 +43,8 @@ Options:
   --help           print this text and exit
 
 Config fields:
-  baseUrl, openApiPath, collectionFile, allowListFile, hostPlaceholder,
-  stepMetadata.maxLabelLength, stepMetadata.kinds
+  source (openapi, the default, or mcp), baseUrl, openApiPath (openapi only), mcpPath (mcp only),
+  collectionFile, allowListFile, hostPlaceholder, stepMetadata.maxLabelLength, stepMetadata.kinds
 
 Exit codes:
   0  no findings
@@ -80,7 +88,12 @@ function readJson(file) {
 
 function loadConfig(file) {
   const config = readJson(file);
-  for (const field of STRING_FIELDS) {
+  const source = config.source ?? 'openapi';
+  if (source !== 'openapi' && source !== 'mcp') {
+    throw new Error(`config: source must be openapi or mcp`);
+  }
+  const sourceField = source === 'mcp' ? 'mcpPath' : 'openApiPath';
+  for (const field of [...COMMON_FIELDS, sourceField]) {
     if (typeof config[field] !== 'string' || config[field] === '') {
       throw new Error(`config: ${field} is missing`);
     }
@@ -94,6 +107,7 @@ function loadConfig(file) {
   const dir = dirname(file);
   return {
     ...config,
+    source,
     collectionFile: resolve(dir, config.collectionFile),
     allowListFile: resolve(dir, config.allowListFile),
   };
@@ -123,6 +137,19 @@ async function fetchOperations(specUrl) {
     }
   }
   return operations;
+}
+
+async function fetchTools(endpoint) {
+  const client = createMcpClient({ endpoint });
+  try {
+    await client.open();
+    const tools = await client.listTools();
+    return new Map(tools.map((tool) => [tool.name, []]));
+  } catch (err) {
+    throw new Error(`cannot read ${endpoint}: ${err.cause?.message ?? err.message}`);
+  } finally {
+    await client.close().catch(() => {});
+  }
 }
 
 function requestPath(url, hostPlaceholder) {
@@ -155,6 +182,7 @@ function collectRequests(items, hostPlaceholder) {
           method: item.request.method.toUpperCase(),
           path: normalise(requestPath(item.request.url, hostPlaceholder)),
           header: parseHeader(item.request.description),
+          body: item.request.body?.raw ?? '',
         }]
       : []),
     ...(item.item ? collectRequests(item.item, hostPlaceholder) : []),
@@ -173,20 +201,43 @@ function readAllowList(file) {
     .map((line) => line.split('#')[0].trim().split(/\s+/)[0]);
 }
 
-function check({ operations, requests, allowList, stepMetadata }) {
+function checkRestRequest({ name, method, path }, operations, covered, findings) {
+  const endpoints = operations.get(name);
+  if (!endpoints) {
+    findings.push(`request '${name}' names no operation`);
+    return;
+  }
+  covered.add(name);
+  if (!endpoints.some((e) => e.method === method && e.path === path)) {
+    const described = endpoints.map((e) => `${e.method} ${e.path}`).join(', ');
+    findings.push(`request '${name}' sends ${method} ${path} but its operation is ${described}`);
+  }
+}
+
+function checkToolRequest({ name, method, path, body }, tools, mcpPath, covered, findings) {
+  if (method !== 'POST' || path !== mcpPath || !TOOL_CALL_PATTERN.test(body)) return;
+  if (!tools.has(name)) {
+    findings.push(`request '${name}' names no tool`);
+  } else {
+    covered.add(name);
+  }
+  const called = TOOL_NAME_PATTERN.exec(body)?.[1];
+  if (called !== name) {
+    findings.push(`request '${name}' calls tool '${called}' but is named '${name}'`);
+  }
+}
+
+function check({ operations, requests, allowList, stepMetadata, mcpPath }) {
   const findings = [];
   const covered = new Set();
   const stepUsers = new Map();
-  for (const { name, method, path, header } of requests) {
-    const endpoints = operations.get(name);
-    if (!endpoints) {
-      findings.push(`request '${name}' names no operation`);
+  const kind = mcpPath === undefined ? 'operation' : 'tool';
+  for (const request of requests) {
+    const { name, header } = request;
+    if (mcpPath === undefined) {
+      checkRestRequest(request, operations, covered, findings);
     } else {
-      covered.add(name);
-      if (!endpoints.some((e) => e.method === method && e.path === path)) {
-        const described = endpoints.map((e) => `${e.method} ${e.path}`).join(', ');
-        findings.push(`request '${name}' sends ${method} ${path} but its operation is ${described}`);
-      }
+      checkToolRequest(request, operations, mcpPath, covered, findings);
     }
     if (!header.step) {
       findings.push(`request '${name}': step is missing`);
@@ -209,14 +260,14 @@ function check({ operations, requests, allowList, stepMetadata }) {
   const allowed = new Set(allowList);
   for (const operationId of operations.keys()) {
     if (!covered.has(operationId) && !allowed.has(operationId)) {
-      findings.push(`operation '${operationId}' is not in the collection and not allow-listed`);
+      findings.push(`${kind} '${operationId}' is not in the collection and not allow-listed`);
     }
   }
   for (const operationId of allowed) {
     if (covered.has(operationId)) {
       findings.push(`allow-list entry '${operationId}' is covered by the collection, remove it`);
     } else if (!operations.has(operationId)) {
-      findings.push(`allow-list entry '${operationId}' names no operation`);
+      findings.push(`allow-list entry '${operationId}' names no ${kind}`);
     }
   }
   return { findings, coveredCount: covered.size, allowedCount: allowed.size };
@@ -230,17 +281,23 @@ async function main() {
   }
   const config = loadConfig(options.configFile);
   const baseUrl = (options.baseUrl ?? process.env.API_BASE_URL ?? config.baseUrl).replace(/\/+$/, '');
-  const operations = await fetchOperations(`${baseUrl}${config.openApiPath}`);
+  const isMcp = config.source === 'mcp';
   const requests = readCollection(config.collectionFile, config.hostPlaceholder);
   const allowList = readAllowList(config.allowListFile);
+  const operations = isMcp
+    ? await fetchTools(`${baseUrl}${config.mcpPath}`)
+    : await fetchOperations(`${baseUrl}${config.openApiPath}`);
   const { findings, coveredCount, allowedCount } = check({
     operations,
     requests,
     allowList,
     stepMetadata: config.stepMetadata,
+    mcpPath: isMcp ? config.mcpPath : undefined,
   });
   findings.forEach((finding) => console.log(`- ${finding}`));
-  console.log(`${operations.size} operations in the API, ${coveredCount} in the collection, ${allowedCount} allow-listed`);
+  console.log(isMcp
+    ? `${operations.size} tools on the server, ${coveredCount} called in the collection, ${allowedCount} allow-listed`
+    : `${operations.size} operations in the API, ${coveredCount} in the collection, ${allowedCount} allow-listed`);
   return findings.length > 0 ? 1 : 0;
 }
 

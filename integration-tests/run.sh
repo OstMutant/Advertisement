@@ -164,7 +164,11 @@ cp -r "$ROOT"/integration-tests/target/surefire-reports/* "$REPORT_DIR/surefire/
 JACOCO_VERSION="$(grep -m1 '<jacoco.version>' "$ROOT/pom.xml" | sed -E 's#.*<jacoco.version>([^<]+)</jacoco.version>.*#\1#')"
 JACOCO_CLI_JAR="$HOME/.m2/repository/org/jacoco/org.jacoco.cli/$JACOCO_VERSION/org.jacoco.cli-$JACOCO_VERSION-nodeps.jar"
 [ -f "$JACOCO_CLI_JAR" ] || ./mvnw -q dependency:get -Dartifact=org.jacoco:org.jacoco.cli:"$JACOCO_VERSION":jar:nodeps
-JACOCO_AGGREGATE_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter audit-spring-boot-starter attachment-spring-boot-starter provider-profile-spring-boot-starter apikey-spring-boot-starter marketplace-orchestrator marketplace-rest-api"
+# Every org.ost module integration-tests/pom.xml declares as a dependency, so a new module is covered without editing this list
+JACOCO_AGGREGATE_MODULES=$(awk '/<groupId>org\.ost<\/groupId>/{getline; print}' "$ROOT/integration-tests/pom.xml" \
+  | sed -E 's#.*<artifactId>([^<]+)</artifactId>.*#\1#' \
+  | grep -vE '^(advertisement-parent|integration-tests)$' \
+  | sort -u | paste -sd' ')
 CLI_REPORT_ARGS=()
 for m in $JACOCO_AGGREGATE_MODULES; do
   [ -d "$ROOT/$m/target/classes" ] && CLI_REPORT_ARGS+=(--classfiles "$ROOT/$m/target/classes")

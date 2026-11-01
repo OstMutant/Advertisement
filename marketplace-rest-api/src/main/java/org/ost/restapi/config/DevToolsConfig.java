@@ -6,7 +6,7 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/** Serves the developer-only API flow runner page under {@code /dev-tools/api-flows/}; the path is not registered at all unless {@code marketplace.dev-tools.enabled} is true. */
+/** Serves the developer-only API flow runner pages (REST and MCP) under {@code /dev-tools/api-flows/}; the path is not registered at all unless {@code marketplace.dev-tools.enabled} is true. */
 @Configuration
 @ConditionalOnProperty(name = "marketplace.dev-tools.enabled", havingValue = "true")
 public class DevToolsConfig implements WebMvcConfigurer {

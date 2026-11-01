@@ -86,7 +86,7 @@ bash scripts/deploy-and-run.sh                  # reuse the shared build, start 
 bash scripts/deploy-and-run.sh --reset          # wipe DB/SeaweedFS volumes, then rebuild
 bash scripts/deploy-and-run.sh --restart-infra  # restart DB + SeaweedFS only
 bash scripts/deploy-and-run.sh --from-scratch   # build a real, separately tagged image
-bash scripts/deploy-and-run.sh --dev-tools      # also serve the developer-only API flow runner page at /dev-tools/api-flows/
+bash scripts/deploy-and-run.sh --dev-tools      # also serve the developer-only API flow runner pages at /dev-tools/api-flows/
 ```
 
 Windows: `scripts\deploy-and-run.bat` (same flags, WSL under the hood).
@@ -113,6 +113,7 @@ no caching/pruning support).
 | Application | `marketplace-app` | [localhost:8081](http://localhost:8081) | the app itself |
 | Swagger UI | `marketplace-app` | [localhost:8081/swagger-ui/index.html](http://localhost:8081/swagger-ui/index.html) | interactive REST API docs; the OpenAPI spec is at `/v3/api-docs` |
 | API flow runner page | `marketplace-app` | [localhost:8081/dev-tools/api-flows/](http://localhost:8081/dev-tools/api-flows/) | developer-only page that runs API flows; served only after `bash scripts/deploy-and-run.sh --dev-tools` |
+| MCP flow runner page | `marketplace-app` | [localhost:8081/dev-tools/api-flows/mcp.html](http://localhost:8081/dev-tools/api-flows/mcp.html) | developer-only page that lists the MCP tools and runs MCP flows; served together with the REST page after `bash scripts/deploy-and-run.sh --dev-tools` |
 | SonarQube | `sonarqube` | [localhost:9099](http://localhost:9099) | static analysis / quality gate dashboard |
 | Dagu (local CI) | `ci-runner` + `ci-runner-dagu-proxy` | [localhost:8082](http://localhost:8082) | isolated CI pipeline UI (unit/integration/e2e/sonar run history) |
 | SeaweedFS master UI | `advertisement-seaweedfs` | [localhost:9333](http://localhost:9333) | SeaweedFS cluster status and volume overview |

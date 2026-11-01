@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -41,7 +42,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
 import java.util.List;
@@ -67,7 +67,7 @@ public class FeedbackApiController {
     @ApiResponse(responseCode = "404", description = "The provider profile does not exist")
     @GetMapping("/provider-profiles/{id}/feedback")
     public ResponseEntity<List<FeedbackEntryResponse>> listProviderProfileFeedback(@AuthenticationPrincipal Long actorId,
-            @PathVariable @NonNull Long id, @RequestParam(defaultValue = "0") int page, UriComponentsBuilder uriBuilder) {
+            @PathVariable @NonNull Long id, @RequestParam(defaultValue = "0") int page, HttpServletRequest httpRequest) {
         ProviderProfileDto profile = providerProfileReadService.findById(id).orElseThrow(NoSuchElementException::new);
         int size = userProfileService.resolveFeedbackPageSize(actorId);
         List<FeedbackDto> entries = feedbackAccessService.findForEntity(EntityType.PROVIDER_PROFILE, id, page, size);
@@ -78,7 +78,7 @@ public class FeedbackApiController {
                 .map(entry -> toEntry(entry, actorId, authorNames, replyFor(entry.id(), actorId, ownerId)))
                 .toList();
         int total = feedbackAccessService.getAggregate(EntityType.PROVIDER_PROFILE, id).reviewCount();
-        return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
+        return PagedResponseBuilder.build(httpRequest, page, size, total, items);
     }
 
     @Operation(operationId = "getProviderProfileFeedbackAggregate", summary = "Get a provider profile's rating summary",
