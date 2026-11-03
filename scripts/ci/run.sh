@@ -11,15 +11,16 @@
 #   UI layer only -- every DAG step calls the exact same scripts this project's other tools
 #   already use (build-and-test.sh, deploy-and-run.sh, playwright/run.sh, sonar.sh).
 # Usage: bash scripts/ci/run.sh [flags]
-#   (no flags)               -- most extensive run: unit + integration + e2e + sonar +
+#   (no flags)               -- most extensive run: unit + integration + e2e + api_flows + sonar +
 #                                archunit_metrics + lint + shellcheck + docs
 #   --unit                   -- run the unit stage
 #   --integration            -- run the integration stage (always applies the Testcontainers
 #                                sandbox workaround internally -- see DECISIONS.md)
 #   --e2e                    -- run the e2e stage
+#   --api-flows              -- run the API collection flows (REST and MCP, once per role) on their own stack
 #   --sonar                  -- run the sonar stage
-#   --all                    -- unit + integration + e2e (no sonar)
-#   --docs-only              -- skip unit/integration/e2e/sonar/archunit_metrics/lint/shellcheck
+#   --all                    -- unit + integration + e2e + api_flows (no sonar)
+#   --docs-only              -- skip unit/integration/e2e/api_flows/sonar/archunit_metrics/lint/shellcheck
 #                                entirely (build then straight to pipeline_metrics/docs) -- the
 #                                fastest real path for testing the docs stage/sync_artifacts
 #                                alone, minutes not dozens of minutes
@@ -120,6 +121,7 @@ UI_PROXY_PORT=8082
 STAGE_UNIT=""
 STAGE_INTEGRATION=""
 STAGE_E2E=""
+STAGE_API_FLOWS=""
 STAGE_SONAR=""
 STAGE_DOCS=1
 TEARDOWN_AFTER="false"
@@ -277,10 +279,11 @@ for arg in "$@"; do
     --unit)            STAGE_UNIT=1; ANY_STAGE_FLAG=1 ;;
     --integration)      STAGE_INTEGRATION=1; ANY_STAGE_FLAG=1 ;;
     --e2e)               STAGE_E2E=1; ANY_STAGE_FLAG=1 ;;
+    --api-flows)          STAGE_API_FLOWS=1; ANY_STAGE_FLAG=1 ;;
     --sonar)              STAGE_SONAR=1; ANY_STAGE_FLAG=1 ;;
     --docs-only)           ANY_STAGE_FLAG=1; ARCHUNIT_METRICS="false"; LINT="false"; SHELLCHECK="false" ;;
     --no-docs)             STAGE_DOCS="" ;;
-    --all)                 STAGE_UNIT=1; STAGE_INTEGRATION=1; STAGE_E2E=1; ANY_STAGE_FLAG=1 ;;
+    --all)                 STAGE_UNIT=1; STAGE_INTEGRATION=1; STAGE_E2E=1; STAGE_API_FLOWS=1; ANY_STAGE_FLAG=1 ;;
     --teardown-e2e-after)  TEARDOWN_AFTER="true" ;;
     --reset-e2e-stack)     RESET_E2E_STACK="true" ;;
     --reset-ci-cache)      RESET_CI_CACHE="true" ;;
@@ -323,6 +326,7 @@ if [ -z "$ANY_STAGE_FLAG" ]; then
   STAGE_UNIT=1
   STAGE_INTEGRATION=1
   STAGE_E2E=1
+  STAGE_API_FLOWS=1
   STAGE_SONAR=1
 fi
 
@@ -510,6 +514,7 @@ DAGU_PARAMS=(
   "unit=$(bool "$STAGE_UNIT")"
   "integration=$(bool "$STAGE_INTEGRATION")"
   "e2e=$(bool "$STAGE_E2E")"
+  "api_flows=$(bool "$STAGE_API_FLOWS")"
   "sonar=$(bool "$STAGE_SONAR")"
   "archunit_metrics=$ARCHUNIT_METRICS"
   "lint=$LINT"

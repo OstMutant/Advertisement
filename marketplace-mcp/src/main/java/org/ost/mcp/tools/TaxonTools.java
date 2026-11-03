@@ -20,6 +20,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TaxonTools {
 
+    private static final String TAXON = "/api/taxons/{id}";
+
     private final RestApiClient restApi;
 
     @McpTool(name = "listTaxons",
@@ -43,7 +45,7 @@ public class TaxonTools {
     public CallToolResult getTaxon(
             @McpToolParam(description = "Taxon id, as listed by listTaxons") @NonNull Long id,
             @McpToolParam(required = false, description = "Language tag for the names, for example en or uk") String locale) {
-        String path = RestPath.of("/api/taxons/{id}", id).param("locale", locale).build();
+        String path = RestPath.of(TAXON, id).param("locale", locale).build();
         return ToolResults.single("item", restApi.get(path));
     }
 
@@ -98,7 +100,7 @@ public class TaxonTools {
             @McpToolParam(description = "Taxon id, as listed by listTaxons") @NonNull Long id,
             @McpToolParam(description = "Version from getTaxon, sent as If-Match, quotes included") @NonNull String etag,
             @McpToolParam(description = "One entry per supported language, each with a locale tag, a non-blank name and a non-blank description") @NonNull List<Translation> translations) {
-        return ToolResults.written(restApi.send(HttpMethod.PUT, RestPath.of("/api/taxons/{id}", id).build(),
+        return ToolResults.written(restApi.send(HttpMethod.PUT, RestPath.of(TAXON, id).build(),
                 JsonBody.of("translations", translations), JsonBody.JSON, etag));
     }
 
@@ -112,7 +114,7 @@ public class TaxonTools {
     public CallToolResult deleteTaxon(
             @McpToolParam(description = "Taxon id, as listed by listTaxons") @NonNull Long id,
             @McpToolParam(description = "Version from getTaxon, sent as If-Match, quotes included") @NonNull String etag) {
-        return ToolResults.written(restApi.send(HttpMethod.DELETE, RestPath.of("/api/taxons/{id}", id).build(), null, null, etag));
+        return ToolResults.written(restApi.send(HttpMethod.DELETE, RestPath.of(TAXON, id).build(), null, null, etag));
     }
 
     @McpTool(name = "restoreTaxon",

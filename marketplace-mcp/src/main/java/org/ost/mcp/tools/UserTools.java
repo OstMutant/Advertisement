@@ -20,6 +20,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UserTools {
 
+    private static final String USER = "/api/users/{id}";
+
     private final RestApiClient restApi;
 
     @McpTool(name = "registerUser",
@@ -85,7 +87,7 @@ public class UserTools {
                     destructiveHint = false, idempotentHint = true, openWorldHint = false))
     public CallToolResult getUser(
             @McpToolParam(description = "User id, as listed by listUsers") @NonNull Long id) {
-        return ToolResults.single("item", restApi.get(RestPath.of("/api/users/{id}", id).build()));
+        return ToolResults.single("item", restApi.get(RestPath.of(USER, id).build()));
     }
 
     @McpTool(name = "updateUser",
@@ -103,7 +105,7 @@ public class UserTools {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("name", name);
         body.put("role", role);
-        return ToolResults.written(restApi.send(HttpMethod.PUT, RestPath.of("/api/users/{id}", id).build(),
+        return ToolResults.written(restApi.send(HttpMethod.PUT, RestPath.of(USER, id).build(),
                 JsonBody.of(body), JsonBody.JSON, etag));
     }
 
@@ -115,7 +117,7 @@ public class UserTools {
                     destructiveHint = true, idempotentHint = true, openWorldHint = false))
     public CallToolResult deleteUser(
             @McpToolParam(description = "User id, as listed by listUsers") @NonNull Long id) {
-        return ToolResults.written(restApi.send(HttpMethod.DELETE, RestPath.of("/api/users/{id}", id).build(), null, null, null));
+        return ToolResults.written(restApi.send(HttpMethod.DELETE, RestPath.of(USER, id).build(), null, null, null));
     }
 
     @McpTool(name = "getUserHistory",

@@ -235,7 +235,7 @@ from the current source tree and run with the host's `/var/run/docker.sock` moun
 (Docker-outside-of-Docker) — it creates and tears down its own isolated `ci-*`-named sibling
 containers, never touching the persistent dev stack. `ci-runner` runs Dagu
 (https://github.com/dagucloud/dagu), a single-binary DAG engine with a built-in web UI, orchestrating
-the stage sequence defined in `scripts/ci/dagu/ci.yaml` (`build` once, then `unit`/`integration` in parallel with `e2e`/`archunit_metrics`/`lint`/`shellcheck`, `sonar` after `unit`+`integration` → `pipeline_metrics` → `docs`; a failed `build` stops the run) — each
+the stage sequence defined in `scripts/ci/dagu/ci.yaml` (`build` once, then `unit`/`integration` in parallel with `e2e`/`api_flows`/`archunit_metrics`/`lint`/`shellcheck`, `sonar` after `unit`+`integration` → `pipeline_metrics` → `docs`; a failed `build` stops the run) — each
 step calls the same existing scripts (`build-and-test.sh`/`deploy-and-run.sh`+`playwright/run.sh`/
 `sonar.sh`) directly, no stage logic reimplemented (`lint` calls `playwright/run.sh --lint`, which
 manages its own `pw-runner`/Node.js environment — `ci-runner` itself never installs Node;
@@ -334,10 +334,10 @@ reaches `succeeded`/a failure-shaped terminal status, that script prints a real
 `AGENTIC_SUCCESS_BLOCK`/`AGENTIC_ERROR_BLOCK` marker to `run.sh`'s own stdout — the exact contract
 `scripts/activity-monitor.sh`'s existing marker parser already reads for every other wrapped script,
 so it renders the checklist itself, no separate tree-drawing code of its own for `ci.sh`.
-`unit`/`integration`/`e2e`/`archunit_metrics` genuinely run in parallel in Dagu (all depend
+`unit`/`integration`/`e2e`/`api_flows`/`archunit_metrics` genuinely run in parallel in Dagu (all depend
 only on `build`; `sonar` follows `unit`+`integration`) — `scripts/activity-monitor/run.sh`'s `SCRIPT_STEP_PARALLEL_GROUPS` renders the parallel ones and `sonar` as `⏳ running` simultaneously while any is still in flight, instead of the normal
 one-step-at-a-time sequence view. Steps backed by one well-known container
-(`unit`/`integration`/`e2e`/`archunit_metrics`) get the same live `docker inspect`-based
+(`unit`/`integration`/`e2e`/`api_flows`/`archunit_metrics`) get the same live `docker inspect`-based
 container-state warning `deploy-and-run.sh`/`playwright.sh` already have.
 
 `bash scripts/ci.sh` (default, no `--foreground`) is unaffected — still triggers in the background

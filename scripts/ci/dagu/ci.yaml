@@ -1,10 +1,10 @@
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: The "ci" DAG -- build (reactor compile+install, reused by every later stage) ->
-#   unit/integration/e2e/archunit_metrics/lint/shellcheck in parallel, sonar after unit+integration ->
-#   pipeline_metrics -> docs.
-#   The e2e stage first runs the API collection flows once per role for the REST and the MCP
-#   collection. Loaded by Dagu's server (scripts/ci/docker-entrypoint.sh's `dagu start-all --dags
-#   scripts/ci/dagu`) and triggered either from Dagu's own web UI ("Start" button) or via
+#   unit/integration/e2e/api_flows/archunit_metrics/lint/shellcheck in parallel, sonar after
+#   unit+integration -> pipeline_metrics -> docs.
+#   The api_flows stage runs the API collection flows once per role for the REST and the MCP
+#   collection on its own isolated stack. Loaded by Dagu's server (scripts/ci/docker-entrypoint.sh's
+#   `dagu start-all --dags scripts/ci/dagu`) and triggered either from Dagu's own web UI ("Start" button) or via
 #   `dagu start <this-file-path>` (a bare DAG name resolves against $DAGU_HOME/dags instead -- see
 #   DECISIONS.md).
 # Usage: triggered via scripts/ci/run.sh, or the "Start" button on Dagu's web UI -- never edited
@@ -14,7 +14,7 @@
 #   SONAR_SCANNER_CONTAINER=sonar-scanner-ci and SONAR_BUILD_CONTAINER_NAME=advertisement-build-only-ci-sonar, set for
 #   every step so manual runs cannot change the jars or reports a CI run uses and cannot remove its containers; each
 #   step's own `run:` block sets whatever other env vars the script it calls needs.
-# Input: params (unit/integration/e2e/sonar/archunit_metrics/lint/shellcheck/docs -- all boolean,
+# Input: params (unit/integration/e2e/api_flows/sonar/archunit_metrics/lint/shellcheck/docs -- all boolean,
 #   gate the matching step via preconditions; teardown_e2e_after -- boolean, default false, tear
 #   down e2e's stack after the run; reset_e2e_stack -- boolean, default false, use a full --reset
 #   (wipes DB + SeaweedFS together) instead of e2e's default --reset-only-db before deploying
@@ -30,11 +30,11 @@
 # Outputs: PASSED/FAILED per step in Dagu's own web UI and run history. With archunit_metrics
 #   enabled, refreshes scripts/build-and-test/reports/architecture-metrics.json.
 #   scripts/ci/reports/pipeline-metrics.json is refreshed unconditionally by the pipeline_metrics
-#   step, which has no precondition of its own -- not gated by the docs param, only by its five
-#   upstream dependencies finishing or skipping. Both files are synced onto the host by
+#   step, which has no precondition of its own -- not gated by the docs param, only by its
+#   upstream stages finishing or skipping. Both files are synced onto the host by
 #   scripts/ci/run.sh, not by this DAG itself -- see DECISIONS.md for why. A failing role run of the
-#   e2e stage fails the step after Playwright has run; otherwise the step exits with Playwright's
-#   exit code.
+#   api_flows stage fails that step; the stage always removes its own stack (ci-api-* names, ports 25435,
+#   29001, 29334 and 28081) when it ends.
 # Returns: N/A -- Dagu tracks each step's own exit status individually, not one process return code.
 # ────────────────────────────────────────────────────────────────────────────
 name: ci
@@ -62,6 +62,9 @@ params:
     type: string
     default: "e2e --full --ux"
   - name: e2e
+    type: boolean
+    default: true
+  - name: api_flows
     type: boolean
     default: true
   - name: sonar
@@ -141,20 +144,42 @@ steps:
         DB_PORT=15432 SEAWEEDFS_PORT=19000 SEAWEEDFS_CONSOLE_PORT=19333 APP_PORT=18081 \
         DB_VOLUME=ci_advertisement_postgres_data SEAWEEDFS_VOLUME=ci_advertisement_seaweedfs_data \
         bash scripts/deploy-and-run.sh "$RESET_FLAG" --dev-tools --reuse-jar
-      API_FLOWS_FAILED=0
-      bash docs/api-collections/api-collection-tests.sh --base-url http://localhost:18081 --each-role || API_FLOWS_FAILED=1
-      bash docs/api-collections/api-collection-tests.sh --base-url http://localhost:18081 --config scripts/mcp-collection.config.json --each-role || API_FLOWS_FAILED=1
-      PW_EXIT=0
       APP_URL=http://localhost:18081 APP_CONTAINER=ci-marketplace-app \
         PW_CONTAINER=ci-pw-runner DB_PORT=15432 \
-        bash playwright/run.sh ${params.e2e_args} || PW_EXIT=$?
-      [ "$API_FLOWS_FAILED" = "0" ] || exit 1
-      exit $PW_EXIT
+        bash playwright/run.sh ${params.e2e_args}
     continue_on:
       failure: true
       skipped: true
     preconditions:
       - condition: "${params.e2e}"
+        expected: "true"
+
+  # Own stack, not the e2e one: both stages need an empty database and run at the same time.
+  - id: api_flows
+    depends: build
+    run: |
+      export SESSION_ID=$DAG_RUN_ID
+      teardown() {
+        docker rm -f ci-api-marketplace-app ci-api-advertisement-db ci-api-advertisement-seaweedfs 2>/dev/null || true
+        docker network rm ci-api-advertisement 2>/dev/null || true
+        docker volume rm ci_api_advertisement_postgres_data ci_api_advertisement_seaweedfs_data ci-api-marketplace-app-jar 2>/dev/null || true
+      }
+      trap teardown EXIT
+      teardown
+      NETWORK=ci-api-advertisement DB_CONTAINER=ci-api-advertisement-db SEAWEEDFS_CONTAINER=ci-api-advertisement-seaweedfs \
+        APP_CONTAINER=ci-api-marketplace-app APP_IMAGE=marketplace-app-ci-api \
+        DB_PORT=25435 SEAWEEDFS_PORT=29001 SEAWEEDFS_CONSOLE_PORT=29334 APP_PORT=28081 \
+        DB_VOLUME=ci_api_advertisement_postgres_data SEAWEEDFS_VOLUME=ci_api_advertisement_seaweedfs_data \
+        bash scripts/deploy-and-run.sh --reset-only-db --dev-tools --reuse-jar
+      API_FLOWS_FAILED=0
+      bash docs/api-collections/api-collection-tests.sh --base-url http://localhost:28081 --each-role || API_FLOWS_FAILED=1
+      bash docs/api-collections/api-collection-tests.sh --base-url http://localhost:28081 --config scripts/mcp-collection.config.json --each-role || API_FLOWS_FAILED=1
+      exit $API_FLOWS_FAILED
+    continue_on:
+      failure: true
+      skipped: true
+    preconditions:
+      - condition: "${params.api_flows}"
         expected: "true"
 
   # Imports the unit and integration stages' JaCoCo reports when both ran, instead of running the tests again.
@@ -228,7 +253,7 @@ steps:
   # filesystem too, even with docker.sock mounted -- confirmed directly, not assumed). run.sh
   # copies both out from the real host side after this DAG run finishes instead.
   - id: pipeline_metrics
-    depends: [unit, integration, e2e, sonar, archunit_metrics, lint, shellcheck]
+    depends: [unit, integration, e2e, api_flows, sonar, archunit_metrics, lint, shellcheck]
     run: |
       mkdir -p scripts/ci/reports
       python3 scripts/ci/dagu/pipeline-metrics.py > scripts/ci/reports/pipeline-metrics.json

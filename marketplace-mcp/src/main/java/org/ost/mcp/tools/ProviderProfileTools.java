@@ -21,6 +21,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ProviderProfileTools {
 
+    private static final String PROFILE = "/api/provider-profiles/{id}";
+
     private final RestApiClient restApi;
 
     @McpTool(name = "listProviderProfiles",
@@ -58,7 +60,7 @@ public class ProviderProfileTools {
     public CallToolResult getProviderProfile(
             @McpToolParam(description = "Provider profile id, as listed by listProviderProfiles") @NonNull Long id,
             @McpToolParam(required = false, description = "Language tag for category and city names, for example en or uk") String locale) {
-        String path = RestPath.of("/api/provider-profiles/{id}", id).param("locale", locale).build();
+        String path = RestPath.of(PROFILE, id).param("locale", locale).build();
         return ToolResults.single("item", restApi.get(path));
     }
 
@@ -98,7 +100,7 @@ public class ProviderProfileTools {
             @McpToolParam(required = false, description = "Phone number") String phone,
             @McpToolParam(required = false, description = "Telegram contact") String telegram,
             @McpToolParam(required = false, description = "Viber contact") String viber) {
-        return ToolResults.written(restApi.send(HttpMethod.PUT, RestPath.of("/api/provider-profiles/{id}", id).build(),
+        return ToolResults.written(restApi.send(HttpMethod.PUT, RestPath.of(PROFILE, id).build(),
                 JsonBody.of(profileBody(kind, about, categoryIds, cityTaxonId, phone, telegram, viber)), JsonBody.JSON, etag));
     }
 
@@ -113,7 +115,7 @@ public class ProviderProfileTools {
             @McpToolParam(description = "Provider profile id, as listed by listProviderProfiles") @NonNull Long id,
             @McpToolParam(description = "Version from getProviderProfile, sent as If-Match, quotes included") @NonNull String etag,
             @McpToolParam(description = "JSON merge patch: only the fields to change, a field set to null clears it") @NonNull Map<String, Object> patch) {
-        return ToolResults.written(restApi.send(HttpMethod.PATCH, RestPath.of("/api/provider-profiles/{id}", id).build(),
+        return ToolResults.written(restApi.send(HttpMethod.PATCH, RestPath.of(PROFILE, id).build(),
                 JsonBody.of(patch), JsonBody.MERGE_PATCH, etag));
     }
 
@@ -126,7 +128,7 @@ public class ProviderProfileTools {
     public CallToolResult deleteProviderProfile(
             @McpToolParam(description = "Provider profile id, as listed by listProviderProfiles") @NonNull Long id,
             @McpToolParam(description = "Version from getProviderProfile, sent as If-Match, quotes included") @NonNull String etag) {
-        return ToolResults.written(restApi.send(HttpMethod.DELETE, RestPath.of("/api/provider-profiles/{id}", id).build(), null, null, etag));
+        return ToolResults.written(restApi.send(HttpMethod.DELETE, RestPath.of(PROFILE, id).build(), null, null, etag));
     }
 
     @McpTool(name = "getProviderProfileHistory",

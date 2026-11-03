@@ -21,6 +21,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AdvertisementTools {
 
+    private static final String ADVERTISEMENT = "/api/advertisements/{id}";
+
     private final RestApiClient restApi;
 
     @McpTool(name = "listAdvertisements",
@@ -60,7 +62,7 @@ public class AdvertisementTools {
     public CallToolResult getAdvertisement(
             @McpToolParam(description = "Advertisement id, as listed by listAdvertisements") @NonNull Long id,
             @McpToolParam(required = false, description = "Language tag for category and city names, for example en or uk") String locale) {
-        String path = RestPath.of("/api/advertisements/{id}", id).param("locale", locale).build();
+        String path = RestPath.of(ADVERTISEMENT, id).param("locale", locale).build();
         return ToolResults.single("item", restApi.get(path));
     }
 
@@ -104,7 +106,7 @@ public class AdvertisementTools {
             @McpToolParam(description = "OFFER, REQUEST or PRODUCT") @NonNull String adKind,
             @McpToolParam(required = false, description = "Category ids (from listTaxons with type CATEGORY)") List<Long> categoryIds,
             @McpToolParam(required = false, description = "City taxon id (from listTaxons with type CITY)") Long cityTaxonId) {
-        return ToolResults.written(restApi.send(HttpMethod.PUT, RestPath.of("/api/advertisements/{id}", id).build(),
+        return ToolResults.written(restApi.send(HttpMethod.PUT, RestPath.of(ADVERTISEMENT, id).build(),
                 JsonBody.of(advertisementBody(title, description, adKind, categoryIds, cityTaxonId)), JsonBody.JSON, etag));
     }
 
@@ -119,7 +121,7 @@ public class AdvertisementTools {
             @McpToolParam(description = "Advertisement id, as listed by listAdvertisements") @NonNull Long id,
             @McpToolParam(description = "Version from getAdvertisement, sent as If-Match, quotes included") @NonNull String etag,
             @McpToolParam(description = "JSON merge patch: only the fields to change, for example {\"title\": \"New title\"}; null clears a field") @NonNull Map<String, Object> patch) {
-        return ToolResults.written(restApi.send(HttpMethod.PATCH, RestPath.of("/api/advertisements/{id}", id).build(),
+        return ToolResults.written(restApi.send(HttpMethod.PATCH, RestPath.of(ADVERTISEMENT, id).build(),
                 JsonBody.of(patch), JsonBody.MERGE_PATCH, etag));
     }
 
@@ -132,7 +134,7 @@ public class AdvertisementTools {
     public CallToolResult deleteAdvertisement(
             @McpToolParam(description = "Advertisement id, as listed by listAdvertisements") @NonNull Long id,
             @McpToolParam(description = "Version from getAdvertisement, sent as If-Match, quotes included") @NonNull String etag) {
-        return ToolResults.written(restApi.send(HttpMethod.DELETE, RestPath.of("/api/advertisements/{id}", id).build(), null, null, etag));
+        return ToolResults.written(restApi.send(HttpMethod.DELETE, RestPath.of(ADVERTISEMENT, id).build(), null, null, etag));
     }
 
     @McpTool(name = "getAdvertisementHistory",

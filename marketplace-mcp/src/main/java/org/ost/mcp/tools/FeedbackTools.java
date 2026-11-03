@@ -19,6 +19,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class FeedbackTools {
 
+    private static final String REPLY = "/api/feedback/{feedbackId}/reply";
+
     private final RestApiClient restApi;
 
     @McpTool(name = "listProviderProfileFeedback",
@@ -85,7 +87,7 @@ public class FeedbackTools {
     public CallToolResult createFeedbackReply(
             @McpToolParam(description = "Review id, as listed by listProviderProfileFeedback") @NonNull Long feedbackId,
             @McpToolParam(description = "Reply text, must not be blank") @NonNull String text) {
-        return ToolResults.written(restApi.send(HttpMethod.POST, RestPath.of("/api/feedback/{feedbackId}/reply", feedbackId).build(),
+        return ToolResults.written(restApi.send(HttpMethod.POST, RestPath.of(REPLY, feedbackId).build(),
                 JsonBody.of("text", text), JsonBody.JSON, null));
     }
 
@@ -100,7 +102,7 @@ public class FeedbackTools {
             @McpToolParam(description = "Review id, as listed by listProviderProfileFeedback") @NonNull Long feedbackId,
             @McpToolParam(description = "The version field of the reply inside the review in listProviderProfileFeedback, sent as If-Match") @NonNull String etag,
             @McpToolParam(description = "Reply text, must not be blank") @NonNull String text) {
-        return ToolResults.written(restApi.send(HttpMethod.PUT, RestPath.of("/api/feedback/{feedbackId}/reply", feedbackId).build(),
+        return ToolResults.written(restApi.send(HttpMethod.PUT, RestPath.of(REPLY, feedbackId).build(),
                 JsonBody.of("text", text), JsonBody.JSON, etag));
     }
 
@@ -112,7 +114,7 @@ public class FeedbackTools {
                     destructiveHint = true, idempotentHint = true, openWorldHint = false))
     public CallToolResult deleteFeedbackReply(
             @McpToolParam(description = "Review id, as listed by listProviderProfileFeedback") @NonNull Long feedbackId) {
-        return ToolResults.written(restApi.send(HttpMethod.DELETE, RestPath.of("/api/feedback/{feedbackId}/reply", feedbackId).build(),
+        return ToolResults.written(restApi.send(HttpMethod.DELETE, RestPath.of(REPLY, feedbackId).build(),
                 null, null, null));
     }
 

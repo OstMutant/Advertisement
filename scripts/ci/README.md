@@ -99,7 +99,8 @@ stage's own deploy always applies `--reset-only-db` first (fast truncate — cle
 from a prior run without touching the schema/migration history) unless `--reset-e2e-stack` asks for a
 full `--reset` instead (only needed when the DB schema itself changed since the stack was last
 brought up). The stage deploys with `--dev-tools`, so the API flow runner page spec runs there instead of
-skipping itself. Before Playwright the stage runs the API collection flows for every role; the header of [`dagu/ci.yaml`](dagu/ci.yaml) says how the step ends. The
+skipping itself. The API collection flows for every role (REST and MCP) run in their own `api_flows` stage on a second isolated stack
+(`ci-api-*` containers and network, ports 25435/29001/29334/28081), in parallel with e2e and every other stage; the stage always removes that stack when it ends, and a failure of it fails the run. The
 `integration` stage always applies the Testcontainers sandbox workaround internally (not a
 toggleable flag) — `ci-runner`'s own Docker-outside-of-Docker nature hits the same
 dynamically-assigned-port problem regardless of host machine.
@@ -120,8 +121,8 @@ directly, not theoretical. On a normal, less constrained dev machine this is muc
 bite, but it's a real resource limit, not a design flaw to "fix" — see
 [`DECISIONS.md`](DECISIONS.md) for the full writeup.
 
-**Two `--e2e` runs at once will collide with each other** — the isolated stack's container/network
+**Two `--e2e` runs at once, or two `--api-flows` runs at once, will collide with each other** — the isolated stack's container/network
 names (`ci-advertisement-db`, etc.) are fixed, not unique per run. Sequential CI runs, or one CI
-run alongside normal dev work, are both fine; two concurrent e2e stages are not.
+run alongside normal dev work, are both fine; two concurrent e2e stages (or two api_flows stages) are not.
 
 See [`DECISIONS.md`](DECISIONS.md) for the full design rationale.
